@@ -1,64 +1,41 @@
 //! Startup-defaults tests that run the built `dx` binary, so they live in the
 //! launcher layer next to the binary's other process tests.
 
-use dx_adopt::defaults::{BOOL_SPELLINGS, DX_OUTPUT_ENV, DX_QUIET_ENV, DX_VERBOSE_ENV};
+use dx_adopt::defaults::DX_OUTPUT_ENV;
 
 #[test]
-fn the_dx_process_turns_injected_defaults_on_and_off() {
+fn the_dx_process_reads_verbose_and_rejects_flag_values() {
     let scratch = dx_test_scratch::scratch("dx-defaults-process-");
     let root = scratch.path().to_path_buf();
     std::fs::create_dir(root.join(".dx")).expect("dx");
     std::fs::write(root.join("MODULE.bazel"), SAMPLE_MODULE).expect("module");
     std::fs::write(root.join(".dx/pins"), "0.0.0\n").expect("pin");
-    let run = |words: &[&str], envs: &[(&str, &str)]| {
-        let mut command = assert_cmd::Command::new(dx_binary());
-        command.current_dir(&root);
-        command
-            .env(DX_QUIET_ENV, "true")
-            .env(DX_VERBOSE_ENV, "true");
-        for (name, value) in envs {
-            command.env(name, value);
-        }
-        let output = command.args(words).output().expect("dx runs");
+    let run = |words: &[&str]| {
+        let output = assert_cmd::Command::new(dx_binary())
+            .current_dir(&root)
+            .args(words)
+            .output()
+            .expect("dx runs");
         (
             output.status.code(),
             String::from_utf8_lossy(&output.stdout).into_owned(),
             String::from_utf8_lossy(&output.stderr).into_owned(),
         )
     };
-    let (code, _, err) = run(&["status", "--output=json"], &[]);
-    assert_eq!(code, Some(0), "the environment defaults apply: {err}");
-    assert!(
-        err.contains("dx invocation parsed"),
-        "the environment turns verbose on: {err}"
-    );
-    let (code, out, err) = run(&["completion", "bash"], &[]);
+    let (code, _, err) = run(&["status", "--output=json", "--verbose"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(err.contains("dx invocation parsed"), "{err}");
+    let (code, _, err) = run(&["status", "--output=json"]);
+    assert_eq!(code, Some(0), "{err}");
+    assert!(!err.contains("dx invocation parsed"), "{err}");
+    let (code, out, err) = run(&["completion", "bash"]);
     assert_eq!(code, Some(0), "{err}");
     assert!(out.contains("COMPLETE"), "{out}");
-    for flag in ["--verbose=false", "-v=false"] {
-        let (code, _, err) = run(&["status", flag], &[]);
-        assert_eq!(code, Some(0), "{flag}: {err}");
-        assert!(
-            !err.contains("dx invocation parsed"),
-            "{flag} turns the inherited verbose off: {err}"
-        );
+    for flag in ["--verbose=false", "--quiet=maybe"] {
+        let (code, _, err) = run(&["status", flag]);
+        assert_eq!(code, Some(2), "{flag}: {err}");
+        assert!(err.contains("Usage: dx"), "{flag}: {err}");
     }
-    let (code, _, err) = run(&["status", "--output=json"], &[(DX_QUIET_ENV, "tru")]);
-    assert_eq!(code, Some(2), "a typo is a usage error: {err}");
-    assert!(
-        err.contains("DX_QUIET=\"tru\"") && err.contains(BOOL_SPELLINGS),
-        "the diagnostic names the variable and the spellings: {err}"
-    );
-    assert!(err.contains("Usage: dx"), "the usage line follows: {err}");
-    let (code, out, err) = run(&["status", "--output=json"], &[(DX_QUIET_ENV, "true")]);
-    assert_eq!(code, Some(0), "a documented spelling still parses: {err}");
-    assert!(out.contains("\"command_finished\""), "{out}");
-    let (code, _, err) = run(&["status", "--quiet=maybe"], &[]);
-    assert_eq!(code, Some(2), "a bad flag value stays a usage error");
-    assert!(
-        err.contains("invalid value 'maybe'"),
-        "a bad flag value stays a clap usage error: {err}"
-    );
     scratch.close().expect("cleanup");
 }
 
@@ -288,17 +265,6 @@ fn bazel_run_relative_workspace_uses_the_working_directory() {
         code,
         Some(0),
         "the flag starts from the working directory: {err}"
-    );
-    let env = [
-        bazel_env[0],
-        bazel_env[1],
-        ("DX_WORKSPACE", b_name.as_str()),
-    ];
-    let (code, _, err) = run_dx(runfiles.path(), &["status"], &env);
-    assert_eq!(
-        code,
-        Some(0),
-        "the environment starts from the working directory: {err}"
     );
 }
 

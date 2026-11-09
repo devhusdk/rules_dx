@@ -34,8 +34,8 @@ A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>
 | `--bases` | List every free slot's output base. `prune` only. |
 | `-o`, `--output text\|json` | Output format. |
 | `--workspace <dir>` | Run in another workspace. |
-| `-q`, `--quiet[=bool]` | Hide summaries. |
-| `-v`, `--verbose[=bool]` | Show more logs. |
+| `-q`, `--quiet` | Hide summaries. |
+| `-v`, `--verbose` | Show more logs. |
 | `--color auto\|always\|never` | Color output. |
 | `--build-slots auto\|<n>\|off` | Build slots for this run. |
 | `--bazel-startup-option <token>` | Bazel startup option. Repeatable. |

@@ -239,10 +239,7 @@ fn run() -> i32 {
         }
         Err(error) => {
             let json = json_output_intent(&args, &env_get, is_ci);
-            let code = match error {
-                dx_plan::args::ArgsError::BadDefault { .. } => "invalid_defaults",
-                _ => "invalid_arguments",
-            };
+            let code = "invalid_arguments";
             let command = dx_plan::args::help::help_command_in(&args);
             return usage_error(code, &error.to_string(), json, command);
         }

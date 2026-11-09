@@ -113,18 +113,13 @@ pub(crate) fn render_top_help() -> String {
 }
 
 fn render_env_help() -> String {
-    use dx_adopt::defaults::{ENV_DEFAULTS, FALSEY, TRUTHY};
+    use dx_adopt::defaults::ENV_DEFAULTS;
     let mut out = String::new();
     out.push_str("\nEnvironment:\n");
     for (env, flag, shape) in ENV_DEFAULTS {
         out.push_str(&format!("  {env}=<{shape}>\n"));
         out.push_str(&format!("      Default for {flag}.\n"));
     }
-    out.push_str(&format!(
-        "  <bool> is on for {} and off for {}.\n      Anything else is a usage error. An empty value is unset.\n",
-        TRUTHY.join("|"),
-        FALSEY.join("|")
-    ));
     out.push_str(
         "  <auto|n|off> sizes build slots from memory, takes exactly n (1-1024), or takes none.\n",
     );
@@ -263,10 +258,7 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     (Command::Update, &["update --outdated", "update --apply"]),
     (Command::Sync, &["sync", "sync //proto:api"]),
     (Command::Init, &["init", "init --apply"]),
-    (
-        Command::Upgrade,
-        &["upgrade", "upgrade --apply --to 0.2.0"],
-    ),
+    (Command::Upgrade, &["upgrade", "upgrade --apply --to 0.2.0"]),
     (Command::Status, &["status", "status --output json"]),
     (
         Command::Watch,
@@ -393,9 +385,7 @@ mod tests {
                 "dx",
                 "lint",
                 "build",
-                "--workspace",
                 "--output",
-                "--fail-on",
                 "Exit codes",
                 "NO_COLOR",
                 "BUILD_WORKSPACE_DIRECTORY",
@@ -682,18 +672,12 @@ mod tests {
     }
 
     #[test]
-    fn top_help_documents_verbosity_and_environment() {
+    fn top_help_documents_the_environment() {
         let text = match parse(&strings(&["--help"])) {
             Err(ArgsError::Help { text }) => text,
             other => panic!("want Help, got {other:?}"),
         };
-        for needle in [
-            "--verbose",
-            "-v",
-            "NO_COLOR",
-            "BUILD_WORKSPACE_DIRECTORY",
-            "Environment:",
-        ] {
+        for needle in ["NO_COLOR", "BUILD_WORKSPACE_DIRECTORY", "Environment:"] {
             assert!(
                 text.contains(needle),
                 "top help missing verbosity/env {needle:?}:\n{text}"

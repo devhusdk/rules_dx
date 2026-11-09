@@ -1,9 +1,4 @@
-pub const DX_WORKSPACE_ENV: &str = "DX_WORKSPACE";
 pub const DX_OUTPUT_ENV: &str = "DX_OUTPUT";
-pub const DX_VERBOSE_ENV: &str = "DX_VERBOSE";
-pub const DX_COLOR_ENV: &str = "DX_COLOR";
-pub const DX_QUIET_ENV: &str = "DX_QUIET";
-pub const DX_FAIL_ON_ENV: &str = "DX_FAIL_ON";
 pub const DX_BUILD_SLOTS_ENV: &str = "DX_BUILD_SLOTS";
 
 /// Environment variables that mark a process started by a coding agent.
@@ -23,24 +18,10 @@ pub fn is_agent(get: &dyn Fn(&str) -> Option<String>) -> bool {
 }
 
 /// Environment defaults, the flag each one defaults, and the value shape.
-pub const ENV_DEFAULTS: [(&str, &str, &str); 7] = [
-    (DX_WORKSPACE_ENV, "--workspace", "dir"),
-    (DX_QUIET_ENV, "--quiet", "bool"),
-    (DX_VERBOSE_ENV, "--verbose", "bool"),
-    (DX_COLOR_ENV, "--color", "mode"),
+pub const ENV_DEFAULTS: [(&str, &str, &str); 2] = [
     (DX_OUTPUT_ENV, "--output", "mode"),
-    (DX_FAIL_ON_ENV, "--fail-on", "level"),
     (DX_BUILD_SLOTS_ENV, "--build-slots", "auto|n|off"),
 ];
-
-/// Spellings that turn a boolean environment default on.
-pub const TRUTHY: [&str; 1] = ["true"];
-
-/// Spellings that turn a boolean environment default off.
-pub const FALSEY: [&str; 1] = ["false"];
-
-/// Every documented boolean spelling, on spellings first.
-pub const BOOL_SPELLINGS: &str = "true|false";
 
 /// Every documented `build-slots` spelling.
 pub const BUILD_SLOTS_SPELLINGS: &str = "auto|<n>|off";
@@ -88,47 +69,8 @@ impl std::fmt::Display for BuildSlots {
     }
 }
 
-/// Read one boolean default, or `None` when the text is not a documented spelling.
-pub fn parse_bool(value: &str) -> Option<bool> {
-    let value = value.trim().to_ascii_lowercase();
-    if TRUTHY.contains(&value.as_str()) {
-        Some(true)
-    } else if FALSEY.contains(&value.as_str()) {
-        Some(false)
-    } else {
-        None
-    }
-}
-
 pub fn env_string(get: &dyn Fn(&str) -> Option<String>, name: &str) -> Option<String> {
     get(name).filter(|value| !value.is_empty())
-}
-
-/// Read one boolean environment default, refusing a value that is neither spelling.
-pub fn env_bool(
-    get: &dyn Fn(&str) -> Option<String>,
-    name: &'static str,
-) -> Result<Option<bool>, super::AdoptError> {
-    let Some(value) = env_string(get, name) else {
-        return Ok(None);
-    };
-    parse_bool(&value)
-        .map(Some)
-        .ok_or(super::AdoptError::InvalidEnvBool {
-            name,
-            value,
-            spellings: BOOL_SPELLINGS,
-        })
-}
-
-/// Resolve a string default across flag, environment, then the fallback.
-pub fn resolve_string(flag: Option<String>, env: Option<String>, fallback: &str) -> String {
-    flag.or(env).unwrap_or_else(|| fallback.to_owned())
-}
-
-/// Resolve a boolean default across flag, environment, then off.
-pub fn resolve_bool(flag: Option<bool>, env: Option<bool>) -> bool {
-    flag.or(env).unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -145,116 +87,11 @@ mod tests {
     }
 
     #[test]
-    fn truthy_spellings_enable_only_documented_values() {
-        for truthy in ["true", "TRUE", " True ", " true"] {
-            assert_eq!(parse_bool(truthy), Some(true), "{truthy:?} must enable");
-        }
-        for falsy in [
-            "", "1", "yes", "y", "on", "0", "no", "off", "tru", "2", "maybe",
-        ] {
-            assert_ne!(parse_bool(falsy), Some(true), "{falsy:?} must not enable");
-        }
-    }
-
-    #[test]
-    fn falsy_spellings_disable_and_anything_else_is_unreadable() {
-        for falsy in ["false", "FALSE", " False ", " false"] {
-            assert_eq!(parse_bool(falsy), Some(false), "{falsy:?} must disable");
-        }
-        for on in TRUTHY {
-            assert_eq!(parse_bool(on), Some(true), "{on:?} must enable");
-        }
-        for unreadable in [
-            "1", "yes", "y", "on", "0", "no", "n", "off", "", " ", "tru", "ture", "fals", "2",
-            "-1", "maybe", "enabled",
-        ] {
-            assert_eq!(parse_bool(unreadable), None, "{unreadable:?}");
-        }
-        assert_eq!(BOOL_SPELLINGS, "true|false");
-    }
-
-    #[test]
-    fn env_bool_refuses_a_value_outside_the_documented_spellings() {
-        let get = env_of(&[(DX_QUIET_ENV, "tru")]);
-        let error = env_bool(&get, DX_QUIET_ENV).expect_err("typo is not a boolean");
-        assert_eq!(
-            error,
-            super::super::AdoptError::InvalidEnvBool {
-                name: DX_QUIET_ENV,
-                value: "tru".to_owned(),
-                spellings: BOOL_SPELLINGS,
-            }
-        );
-        assert_eq!(
-            error.to_string(),
-            "invalid invocation default DX_QUIET=\"tru\": want one of true|false"
-        );
-        for (name, value, wanted) in [
-            (DX_QUIET_ENV, "false", false),
-            (DX_VERBOSE_ENV, "FALSE", false),
-            (DX_VERBOSE_ENV, "true", true),
-            (DX_QUIET_ENV, " True ", true),
-        ] {
-            let pairs = [(name, value)];
-            let get = env_of(&pairs);
-            assert_eq!(
-                env_bool(&get, name).expect("documented spelling"),
-                Some(wanted)
-            );
-        }
-        let get = env_of(&[(DX_VERBOSE_ENV, ""), (DX_QUIET_ENV, "true")]);
-        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(None));
-        assert_eq!(env_bool(&get, DX_QUIET_ENV), Ok(Some(true)));
-        assert_eq!(env_bool(&env_of(&[]), DX_VERBOSE_ENV), Ok(None));
-    }
-
-    #[test]
-    fn env_defaults_cover_every_documented_variable() {
-        assert_eq!(
-            ENV_DEFAULTS.map(|(env, _, _)| env),
-            [
-                DX_WORKSPACE_ENV,
-                DX_QUIET_ENV,
-                DX_VERBOSE_ENV,
-                DX_COLOR_ENV,
-                DX_OUTPUT_ENV,
-                DX_FAIL_ON_ENV,
-                DX_BUILD_SLOTS_ENV
-            ]
-        );
-        assert_eq!(TRUTHY, ["true"]);
-        assert_eq!(FALSEY, ["false"]);
-    }
-
-    #[test]
-    fn env_helpers_ignore_missing_and_empty_strings() {
-        let get = env_of(&[(DX_WORKSPACE_ENV, "/repo"), (DX_OUTPUT_ENV, "")]);
-        assert_eq!(env_string(&get, DX_WORKSPACE_ENV), Some("/repo".to_owned()));
+    fn env_string_ignores_missing_and_empty_values() {
+        let get = env_of(&[(DX_BUILD_SLOTS_ENV, "2"), (DX_OUTPUT_ENV, "")]);
+        assert_eq!(env_string(&get, DX_BUILD_SLOTS_ENV), Some("2".to_owned()));
         assert_eq!(env_string(&get, DX_OUTPUT_ENV), None);
-        assert_eq!(env_string(&get, DX_VERBOSE_ENV), None);
-        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(None));
-        let get = env_of(&[(DX_VERBOSE_ENV, "true")]);
-        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(Some(true)));
-        let get = env_of(&[(DX_VERBOSE_ENV, "false")]);
-        assert_eq!(env_bool(&get, DX_VERBOSE_ENV), Ok(Some(false)));
-        assert_eq!(env_bool(&env_of(&[]), DX_QUIET_ENV), Ok(None));
-    }
-
-    #[test]
-    fn precedence_resolves_flag_over_env() {
-        assert_eq!(
-            resolve_string(Some("flag".to_owned()), Some("env".to_owned()), "fallback"),
-            "flag"
-        );
-        assert_eq!(
-            resolve_string(None, Some("env".to_owned()), "fallback"),
-            "env"
-        );
-        assert_eq!(resolve_string(None, None, "fallback"), "fallback");
-        assert!(resolve_bool(Some(true), Some(false)));
-        assert!(resolve_bool(None, Some(true)));
-        assert!(!resolve_bool(Some(false), Some(true)));
-        assert!(!resolve_bool(None, None));
+        assert_eq!(env_string(&get, "DX_MISSING"), None);
     }
 
     #[test]

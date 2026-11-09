@@ -115,8 +115,8 @@ fn after_help_of(index: usize) -> String {
 #[derive(Debug, Default)]
 pub(crate) struct Flags {
     pub(crate) workspace: Option<OsString>,
-    pub(crate) quiet: Option<bool>,
-    pub(crate) verbose: Option<bool>,
+    pub(crate) quiet: bool,
+    pub(crate) verbose: bool,
     pub(crate) color: Option<String>,
     pub(crate) output: Option<String>,
     pub(crate) diff: bool,
@@ -226,36 +226,18 @@ flag_group! {
 }
 
 flag_group! {
-    /// Hide summaries. =false turns off an inherited default.
+    /// Hide summaries.
     QuietFlag, {
-        #[arg(
-            long,
-            short = 'q',
-            action = clap::ArgAction::Set,
-            num_args = 0..=1,
-            require_equals = true,
-            default_missing_value = "true",
-            value_parser = clap::value_parser!(bool),
-            overrides_with = "quiet"
-        )]
-        quiet: Option<bool>,
+        #[arg(long, short = 'q', action = clap::ArgAction::SetTrue, overrides_with = "quiet")]
+        quiet: bool,
     }
 }
 
 flag_group! {
-    /// Show more logs. =false turns off an inherited default.
+    /// Show more logs.
     VerboseFlag, {
-        #[arg(
-            long,
-            short = 'v',
-            action = clap::ArgAction::Set,
-            num_args = 0..=1,
-            require_equals = true,
-            default_missing_value = "true",
-            value_parser = clap::value_parser!(bool),
-            overrides_with = "verbose"
-        )]
-        verbose: Option<bool>,
+        #[arg(long, short = 'v', action = clap::ArgAction::SetTrue, overrides_with = "verbose")]
+        verbose: bool,
     }
 }
 

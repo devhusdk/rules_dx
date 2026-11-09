@@ -41,13 +41,6 @@ fn extra_positional(command: Command, token: &str) -> ArgsError {
     unsupported(command, token)
 }
 
-/// Names an environment default dx will not read.
-fn bad_default(error: dx_adopt::AdoptError) -> ArgsError {
-    ArgsError::BadDefault {
-        detail: error.to_string(),
-    }
-}
-
 pub fn parse<S: AsRef<OsStr>>(args: &[S]) -> Result<Invocation, ArgsError> {
     parse_with(args, &|_| None)
 }
@@ -138,18 +131,6 @@ pub fn is_discovery_exempt(command: Command) -> bool {
     )
 }
 
-/// The workspace a run selects: the flag, then the environment.
-pub fn startup_workspace(
-    flag_workspace: Option<String>,
-    env_workspace: Option<String>,
-    is_ci: bool,
-) -> Option<String> {
-    let env_workspace = env_workspace
-        .filter(|value| !value.is_empty())
-        .filter(|_| !ci_ignores_env(dx_adopt::defaults::DX_WORKSPACE_ENV, is_ci));
-    flag_workspace.or(env_workspace)
-}
-
 /// Parses a watch line as the command it wraps, then marks it as a watch.
 fn wrapped_invocation<S: AsRef<OsStr>>(
     args: &[S],
@@ -204,7 +185,10 @@ pub fn parse_with<S: AsRef<OsStr>>(
 }
 
 fn validate_config(command: Command, targets: &[String]) -> Result<(), ArgsError> {
-    let max = if targets.first().is_some_and(|word| word == "diff" || word == "override") {
+    let max = if targets
+        .first()
+        .is_some_and(|word| word == "diff" || word == "override")
+    {
         2
     } else {
         1
@@ -271,13 +255,7 @@ pub fn ci_ignores_env(name: &str, is_ci: bool) -> bool {
     is_ci
         && matches!(
             name,
-            dx_adopt::defaults::DX_WORKSPACE_ENV
-                | dx_adopt::defaults::DX_OUTPUT_ENV
-                | dx_adopt::defaults::DX_VERBOSE_ENV
-                | dx_adopt::defaults::DX_COLOR_ENV
-                | dx_adopt::defaults::DX_QUIET_ENV
-                | dx_adopt::defaults::DX_FAIL_ON_ENV
-                | dx_adopt::defaults::DX_BUILD_SLOTS_ENV
+            dx_adopt::defaults::DX_OUTPUT_ENV | dx_adopt::defaults::DX_BUILD_SLOTS_ENV
         )
 }
 
@@ -395,20 +373,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         });
     }
     use dx_adopt::defaults as invocation_defaults;
-    let workspace = flag_workspace.or(invocation_defaults::env_string(
-        env_get,
-        invocation_defaults::DX_WORKSPACE_ENV,
-    ));
-    let quiet = invocation_defaults::resolve_bool(
-        quiet,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_QUIET_ENV)
-            .map_err(bad_default)?,
-    );
-    let verbose = invocation_defaults::resolve_bool(
-        verbose,
-        invocation_defaults::env_bool(env_get, invocation_defaults::DX_VERBOSE_ENV)
-            .map_err(bad_default)?,
-    );
+    let workspace = flag_workspace;
     let agent = invocation_defaults::is_agent(env_get);
     let output_from_flag = output.is_some();
     let fail_on_from_flag = fail_on.is_some();
@@ -419,17 +384,9 @@ fn parse_inner<S: AsRef<OsStr>>(
         invocation_defaults::env_string(env_get, invocation_defaults::DX_OUTPUT_ENV),
         agent && !apply_without_output_flag,
     );
-    let fail_on_name = invocation_defaults::resolve_string(
-        fail_on,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_FAIL_ON_ENV),
-        "warning",
-    );
+    let fail_on_name = fail_on.unwrap_or_else(|| "warning".to_owned());
     let build_slots = resolve_build_slots(build_slots, env_get)?;
-    let color_name = invocation_defaults::resolve_string(
-        color_name,
-        invocation_defaults::env_string(env_get, invocation_defaults::DX_COLOR_ENV),
-        "auto",
-    );
+    let color_name = color_name.unwrap_or_else(|| "auto".to_owned());
     let color = dx_output::ColorMode::parse(&color_name).map_err(|_| ArgsError::BadColor {
         value: color_name.clone(),
     })?;
@@ -1085,24 +1042,5 @@ mod startup_tests {
                 "{command:?} needs a workspace"
             );
         }
-    }
-
-    #[test]
-    fn startup_workspace_layers_flag_then_env() {
-        assert_eq!(startup_workspace(None, None, false), None);
-        assert_eq!(
-            startup_workspace(None, Some("/env".to_owned()), false),
-            Some("/env".to_owned())
-        );
-        assert_eq!(
-            startup_workspace(None, Some("/env".to_owned()), true),
-            None,
-            "CI ignores the environment workspace"
-        );
-        assert_eq!(
-            startup_workspace(Some("/flag".to_owned()), Some("/env".to_owned()), false),
-            Some("/flag".to_owned())
-        );
-        assert_eq!(startup_workspace(None, Some(String::new()), false), None);
     }
 }

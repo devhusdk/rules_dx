@@ -25,8 +25,8 @@ dx docs [--serve [--port <n>] [--host <addr>] [--open]] [--here] [scope...] [-- 
 | `--here` | Build the current directory tree. Cannot be combined with explicit scopes. |
 | `-o`, `--output text\|json` | Output format. |
 | `--workspace <dir>` | Run in another workspace. |
-| `-q`, `--quiet[=bool]` | Hide summaries. |
-| `-v`, `--verbose[=bool]` | Show more logs. |
+| `-q`, `--quiet` | Hide summaries. |
+| `-v`, `--verbose` | Show more logs. |
 | `--color auto\|always\|never` | Color output. |
 | `--build-slots auto\|<n>\|off` | Build slots for this run. |
 | `--bazel-startup-option <token>` | Bazel startup option. Repeatable. |

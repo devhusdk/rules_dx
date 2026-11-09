@@ -1,6 +1,6 @@
 use super::super::{Command, OperationMode};
 use super::parse_with;
-use dx_adopt::defaults::{BOOL_SPELLINGS, DX_QUIET_ENV, DX_VERBOSE_ENV, ENV_DEFAULTS, parse_bool};
+use dx_adopt::defaults::ENV_DEFAULTS;
 use dx_output::{ColorMode, OutputMode, Threshold};
 use dx_testing::cli::strings;
 
@@ -10,20 +10,6 @@ fn env_of<'a>(pairs: &'a [(&'a str, &'a str)]) -> impl Fn(&str) -> Option<String
             .iter()
             .find(|(key, _)| *key == name)
             .map(|(_, value)| (*value).to_owned())
-    }
-}
-
-/// An environment getter that owns its pairs, so it outlives a temporary slice.
-fn owned_env(pairs: &[(&str, &str)]) -> impl Fn(&str) -> Option<String> + use<> {
-    let owned: Vec<(String, String)> = pairs
-        .iter()
-        .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
-        .collect();
-    move |name| {
-        owned
-            .iter()
-            .find(|(key, _)| key == name)
-            .map(|(_, value)| value.clone())
     }
 }
 
@@ -40,26 +26,15 @@ fn flag_only_parses_with_builtin_defaults() {
 }
 
 #[test]
-fn env_supplies_workspace_output_and_bools() {
-    let env = env_of(&[
-        ("DX_WORKSPACE", "/repo"),
-        ("DX_OUTPUT", "json"),
-        ("DX_VERBOSE", "true"),
-        ("DX_QUIET", "true"),
-        ("DX_FAIL_ON", "error"),
-    ]);
+fn env_supplies_output() {
+    let env = env_of(&[("DX_OUTPUT", "json")]);
     let got = parse_with(&strings(&["lint"]), &env).expect("env parse");
-    assert_eq!(got.workspace, Some("/repo".to_owned()));
-    assert_eq!(got.output, OutputMode::Json);
-    assert!(got.verbose);
-    assert!(got.quiet);
-    assert_eq!(got.fail_on, Threshold::Error);
     assert_eq!(got.output, OutputMode::Json);
 }
 
 #[test]
 fn unsupported_defaults_fall_back_per_command() {
-    let env = env_of(&[("DX_OUTPUT", "json"), ("DX_FAIL_ON", "error")]);
+    let env = env_of(&[("DX_OUTPUT", "json")]);
     for words in [
         &["build"][..],
         &["clean"][..],
@@ -68,7 +43,6 @@ fn unsupported_defaults_fall_back_per_command() {
     ] {
         let got = parse_with(&strings(words), &env)
             .unwrap_or_else(|error| panic!("{words:?}: {error:?}"));
-        assert_eq!(got.fail_on, Threshold::Warning, "{words:?}");
         if got.command.supports_json() {
             assert_eq!(got.output, OutputMode::Json, "{words:?}");
         } else {
@@ -77,7 +51,6 @@ fn unsupported_defaults_fall_back_per_command() {
     }
     let got = parse_with(&strings(&["lint"]), &env).expect("lint keeps defaults");
     assert_eq!(got.output, OutputMode::Json);
-    assert_eq!(got.fail_on, Threshold::Error);
 }
 
 #[test]
@@ -94,7 +67,7 @@ fn path_only_is_a_worktree_add_flag() {
 }
 
 #[test]
-fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
+fn explicit_unsupported_flags_and_bad_output_default_stay_errors() {
     use super::super::ArgsError;
     assert_eq!(
         parse_with(&strings(&["build", "--fail-on=error"]), &env_of(&[])),
@@ -111,12 +84,6 @@ fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
         })
     );
     assert_eq!(
-        parse_with(&strings(&["build"]), &env_of(&[("DX_FAIL_ON", "never")])),
-        Err(ArgsError::BadFailOn {
-            value: "never".to_owned(),
-        })
-    );
-    assert_eq!(
         parse_with(&strings(&["init"]), &env_of(&[("DX_OUTPUT", "yaml")])),
         Err(ArgsError::BadOutput {
             value: "yaml".to_owned(),
@@ -126,20 +93,11 @@ fn explicit_unsupported_flags_and_bad_defaults_stay_errors() {
 
 #[test]
 fn precedence_is_flag_over_env() {
-    let env = env_of(&[("DX_WORKSPACE", "/env"), ("DX_OUTPUT", "json")]);
-    let got = parse_with(
-        &strings(&["lint", "--workspace", "/flag", "--output=text"]),
-        &env,
-    )
-    .expect("flag wins");
-    assert_eq!(got.workspace, Some("/flag".to_owned()));
+    let env = env_of(&[("DX_OUTPUT", "json")]);
+    let got = parse_with(&strings(&["lint", "--output=text"]), &env).expect("flag wins");
     assert_eq!(got.output, OutputMode::Text { quiet: false });
     let got = parse_with(&strings(&["lint"]), &env).expect("env wins");
-    assert_eq!(got.workspace, Some("/env".to_owned()));
     assert_eq!(got.output, OutputMode::Json);
-    let env_false = env_of(&[("DX_VERBOSE", "false")]);
-    let got = parse_with(&strings(&["lint", "--verbose"]), &env_false).expect("flag bool wins");
-    assert!(got.verbose);
 }
 
 #[test]
@@ -152,136 +110,41 @@ fn invalid_env_values_fail_closed() {
             value: "yaml".to_owned(),
         })
     );
-    let env = env_of(&[("DX_FAIL_ON", "never")]);
-    assert_eq!(
-        parse_with(&strings(&["lint"]), &env),
-        Err(ArgsError::BadFailOn {
-            value: "never".to_owned(),
-        })
-    );
-    let env = env_of(&[("DX_COLOR", "bright")]);
-    assert_eq!(
-        parse_with(&strings(&["lint"]), &env),
-        Err(ArgsError::BadColor {
-            value: "bright".to_owned(),
-        })
-    );
-    let env = env_of(&[("DX_WORKSPACE", ""), ("DX_OUTPUT", "")]);
+    let env = env_of(&[("DX_OUTPUT", "")]);
     let got = parse_with(&strings(&["lint"]), &env).expect("empty env absent");
-    assert_eq!(got.workspace, None);
     assert_eq!(got.output, OutputMode::Text { quiet: false });
 }
 
 #[test]
-fn color_flag_env_precedence() {
-    let env = env_of(&[("DX_COLOR", "always")]);
-    let got = parse_with(&strings(&["lint", "--color=never"]), &env).expect("flag wins");
+fn color_flag_is_validated() {
+    let got = parse_with(&strings(&["lint", "--color=never"]), &env_of(&[])).expect("flag");
     assert_eq!(got.color, ColorMode::Never);
-    let got = parse_with(&strings(&["lint"]), &env).expect("env wins");
-    assert_eq!(got.color, ColorMode::Always);
     assert!(parse_with(&strings(&["lint", "--color=bright"]), &env_of(&[])).is_err());
 }
 
 #[test]
 fn quiet_flows_into_text_mode() {
-    let env = env_of(&[(DX_QUIET_ENV, "true")]);
-    let got = parse_with(&strings(&["lint"]), &env).expect("quiet env");
+    let got = parse_with(&strings(&["lint", "--quiet"]), &env_of(&[])).expect("quiet");
     assert!(got.quiet);
     assert_eq!(got.output, OutputMode::Text { quiet: true });
 }
 
 #[test]
-fn a_flag_turns_an_inherited_boolean_off() {
-    let inherited = env_of(&[(DX_QUIET_ENV, "true"), (DX_VERBOSE_ENV, "true")]);
-    let off = |flag: &str| {
-        parse_with(&strings(&["lint", flag]), &inherited)
-            .unwrap_or_else(|error| panic!("{flag}: {error:?}"))
-    };
-    assert!(
-        !off("--quiet=false").quiet,
-        "flag false beats the environment"
-    );
-    assert!(
-        !off("--verbose=false").verbose,
-        "flag false beats the environment"
-    );
-    assert!(!off("-v=false").verbose, "the short form takes a value too");
-    let on = |flag: &str| {
-        parse_with(&strings(&["lint", flag]), &env_of(&[]))
-            .unwrap_or_else(|error| panic!("{flag}: {error:?}"))
-    };
-    assert!(on("--quiet").quiet, "the bare form stays true");
-    assert!(on("--verbose").verbose, "the bare form stays true");
-    assert!(on("-v").verbose, "the bare short form stays true");
-    let got = parse_with(
-        &strings(&["lint", "--quiet", "--quiet=false"]),
-        &env_of(&[]),
-    )
-    .expect("last one wins");
-    assert!(!got.quiet, "the last occurrence wins");
-    for (env_name, index) in [(DX_QUIET_ENV, 0), (DX_VERBOSE_ENV, 1)] {
-        for value in ["false", "FALSE"] {
-            let env = owned_env(&[(env_name, value)]);
-            let got = parse_with(&strings(&["lint"]), &env)
-                .unwrap_or_else(|error| panic!("{env_name}={value}: {error:?}"));
-            assert!(![got.quiet, got.verbose][index], "{env_name}={value}");
-        }
-        for value in ["true", "TRUE"] {
-            let env = owned_env(&[(env_name, value)]);
-            let got = parse_with(&strings(&["lint"]), &env)
-                .unwrap_or_else(|error| panic!("{env_name}={value}: {error:?}"));
-            assert!(
-                [got.quiet, got.verbose][index],
-                "{env_name}={value} turns the default on"
-            );
-        }
-    }
-    for word in ["true", "false", "TRUE", "FALSE", " true "] {
-        let env = owned_env(&[(DX_QUIET_ENV, word)]);
-        let got = parse_with(&strings(&["lint"]), &env)
-            .unwrap_or_else(|error| panic!("DX_QUIET={word}: {error:?}"));
-        assert_eq!(got.quiet, parse_bool(word) == Some(true), "{word}");
-    }
-}
-
-#[test]
-fn a_boolean_value_outside_the_spellings_is_a_usage_error() {
-    use super::super::ArgsError;
-    for (env_name, value) in [
-        (DX_QUIET_ENV, "tru"),
-        (DX_QUIET_ENV, "ture"),
-        (DX_VERBOSE_ENV, "2"),
-        (DX_VERBOSE_ENV, "maybe"),
-        (DX_VERBOSE_ENV, "1"),
-        (DX_QUIET_ENV, "yes"),
-        (DX_VERBOSE_ENV, "y"),
-        (DX_VERBOSE_ENV, "on"),
-        (DX_QUIET_ENV, "0"),
-        (DX_VERBOSE_ENV, "no"),
-        (DX_VERBOSE_ENV, "n"),
-        (DX_QUIET_ENV, "off"),
+fn quiet_and_verbose_take_no_value() {
+    for (flag, verbose) in [
+        ("--quiet", false),
+        ("-q", false),
+        ("--verbose", true),
+        ("-v", true),
     ] {
-        let env = owned_env(&[(env_name, value)]);
-        let error = parse_with(&strings(&["lint"]), &env).expect_err(value);
-        assert_eq!(
-            error,
-            ArgsError::BadDefault {
-                detail: format!(
-                    "invalid invocation default {env_name}={value:?}: want one of {BOOL_SPELLINGS}"
-                )
-            },
-            "{env_name}={value}"
-        );
-        assert!(
-            error.to_string().contains(&format!("{env_name}={value:?}")),
-            "{error}"
-        );
+        let got = parse_with(&strings(&["lint", flag]), &env_of(&[])).expect(flag);
+        assert_eq!(got.verbose, verbose, "{flag}");
+        assert_eq!(got.quiet, !verbose, "{flag}");
     }
-    for value in ["", "true", "false", "TRUE", " true "] {
-        let env = owned_env(&[(DX_QUIET_ENV, value)]);
+    for flag in ["--quiet=false", "--verbose=false", "-v=false"] {
         assert!(
-            parse_with(&strings(&["lint"]), &env).is_ok(),
-            "DX_QUIET={value:?} must parse"
+            parse_with(&strings(&["lint", flag]), &env_of(&[])).is_err(),
+            "{flag}"
         );
     }
 }
@@ -337,21 +200,14 @@ fn init_apply_ignores_the_agent_json_default() {
 #[test]
 fn ci_ignores_preference_env_but_keeps_flags() {
     use super::parse_with_ci;
-    let env = env_of(&[("DX_OUTPUT", "json"), ("DX_VERBOSE", "true")]);
+    let env = env_of(&[("DX_OUTPUT", "json")]);
     let got = parse_with_ci(&strings(&["lint"]), &env, true).expect("ci parses");
     assert_eq!(got.output, OutputMode::Text { quiet: false });
-    assert!(!got.verbose);
-    let got = parse_with_ci(
-        &strings(&["lint", "--output=json", "--verbose"]),
-        &env,
-        true,
-    )
-    .expect("flags win in ci");
+    let got =
+        parse_with_ci(&strings(&["lint", "--output=json"]), &env, true).expect("flags win in ci");
     assert_eq!(got.output, OutputMode::Json);
-    assert!(got.verbose);
     let got = parse_with(&strings(&["lint"]), &env).expect("non-ci reads env");
     assert_eq!(got.output, OutputMode::Json);
-    assert!(got.verbose);
 }
 
 fn slots(n: usize) -> dx_adopt::defaults::BuildSlots {

@@ -33,7 +33,7 @@ Scopes: exactly one shell. Unknown shells fail with `unknown shell`.
 
 ## Candidates
 
-Candidates are every command, every flag, the per-command slots, the package labels of the workspace, and the targets of one package. The workspace is `--workspace`, then `DX_WORKSPACE` (ignored in CI), then the current workspace.
+Candidates are every command, every flag, the per-command slots, the package labels of the workspace, and the targets of one package. The workspace is `--workspace`, then the current workspace.
 
 Target completion runs one `bazel query` for the typed package. It gives up after about 1.5 seconds or when another Bazel command holds the server, then offers package patterns only. Completion prints no errors while you type.
 

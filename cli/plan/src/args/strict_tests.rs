@@ -278,15 +278,7 @@ fn strict_help_is_generated_from_the_same_grammar() {
         Err(ArgsError::Help { text }) => text,
         other => panic!("want Help, got {other:?}"),
     };
-    for needle in [
-        "dx",
-        "lint",
-        "build",
-        "--workspace",
-        "--output",
-        "--fail-on",
-        "Exit codes",
-    ] {
+    for needle in ["dx", "lint", "build", "--output", "Exit codes"] {
         assert!(text.contains(needle), "top help missing {needle:?}");
     }
     for command in Command::value_variants() {

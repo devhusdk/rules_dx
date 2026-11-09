@@ -60,8 +60,6 @@ pub fn with_scope_completers(
         words: words.into_iter().collect(),
         start: start.to_path_buf(),
         base: base.to_path_buf(),
-        env_workspace: std::env::var(super::DX_WORKSPACE_ENV).ok(),
-        is_ci: dx_process::is_ci(),
     };
     with_request(command, request)
 }
@@ -158,8 +156,6 @@ struct Request {
     words: Vec<OsString>,
     start: PathBuf,
     base: PathBuf,
-    env_workspace: Option<String>,
-    is_ci: bool,
 }
 
 /// The workspace and Bazel startup tokens a request selects.
@@ -177,10 +173,9 @@ impl Request {
         let flag = flag
             .and_then(|value| value.into_string().ok())
             .filter(|value| !value.is_empty());
-        let raw = super::parser::startup_workspace(flag, self.env_workspace.clone(), self.is_ci);
         // A relative workspace is typed relative to the user's directory, not the workspace start.
         let override_dir =
-            raw.map(|raw| dx_process::resolve_override_display(Path::new(&raw), &self.base));
+            flag.map(|raw| dx_process::resolve_override_display(Path::new(&raw), &self.base));
         let workspace = dx_process::discover_real(&self.start, override_dir.as_deref())
             .unwrap_or_else(|_| dx_process::canonicalize_or_keep(&self.start));
         dx_process::configure_real(&workspace);
@@ -586,8 +581,6 @@ mod tests {
             words: passed,
             start: workspace.to_path_buf(),
             base: workspace.to_path_buf(),
-            env_workspace: None,
-            is_ci: false,
         };
         let mut command = with_request(super::super::grammar::Cli::command(), request);
         let index = words.len() - 1;
@@ -1003,13 +996,11 @@ mod tests {
         argv.iter().map(OsString::from).collect()
     }
 
-    fn select(words: &[&str], start: &Path, env_workspace: Option<&str>, is_ci: bool) -> Selection {
+    fn select(words: &[&str], start: &Path) -> Selection {
         Request {
             words: words_of(words),
             start: start.to_path_buf(),
             base: start.to_path_buf(),
-            env_workspace: env_workspace.map(str::to_owned),
-            is_ci,
         }
         .select()
     }
@@ -1033,8 +1024,6 @@ mod tests {
             words: words_of(&["build", "--workspace=../../other", ""]),
             start: start.clone(),
             base: base.clone(),
-            env_workspace: None,
-            is_ci: false,
         };
         assert_eq!(request.select().workspace, real(&other));
     }
@@ -1052,7 +1041,7 @@ mod tests {
             vec!["--", "./bin/dx", "build", joined.as_str(), "//pkg:"],
         ] {
             assert_eq!(
-                select(&words, start.path(), None, false).workspace,
+                select(&words, start.path()).workspace,
                 real(other.path()),
                 "{words:?}"
             );
@@ -1064,61 +1053,11 @@ mod tests {
             vec!["build", "--bogus", "--workspace", other_text.as_str(), ""],
         ] {
             assert_eq!(
-                select(&words, start.path(), None, false).workspace,
+                select(&words, start.path()).workspace,
                 real(start.path()),
                 "{words:?}"
             );
         }
-    }
-
-    #[test]
-    fn the_environment_selects_like_a_run() {
-        let start = workspace_with_packages(&["alpha"]);
-        let env = workspace_with_packages(&["beta"]);
-        let env_text = env.path().to_string_lossy().into_owned();
-        let bare = ["build", ""];
-        assert_eq!(
-            select(&bare, start.path(), Some(&env_text), false).workspace,
-            real(env.path())
-        );
-        assert_eq!(
-            select(&bare, start.path(), Some(&env_text), true).workspace,
-            real(start.path()),
-            "CI ignores DX_WORKSPACE"
-        );
-        assert_eq!(
-            select(&bare, start.path(), Some(""), false).workspace,
-            real(start.path())
-        );
-        let got = complete_in(&["dx", "build", ""], start.path(), None);
-        assert!(
-            got.iter().any(|value| value == "//alpha/..."),
-            "the start workspace lists alpha: {got:?}"
-        );
-        let got = complete_in(&["dx", "build", ""], start.path(), Some(&env_text));
-        assert!(
-            got.iter().any(|value| value == "//beta/..."),
-            "environment workspace lists beta: {got:?}"
-        );
-    }
-
-    fn complete_in(argv: &[&str], start: &Path, env_workspace: Option<&str>) -> Vec<String> {
-        let words: Vec<OsString> = argv.iter().map(OsString::from).collect();
-        let mut passed = vec![OsString::from("--")];
-        passed.extend(words.iter().cloned());
-        let request = Request {
-            words: passed,
-            start: start.to_path_buf(),
-            base: start.to_path_buf(),
-            env_workspace: env_workspace.map(str::to_owned),
-            is_ci: false,
-        };
-        let mut command = with_request(super::super::grammar::Cli::command(), request);
-        clap_complete::engine::complete(&mut command, words.clone(), words.len() - 1, Some(start))
-            .expect("complete")
-            .iter()
-            .map(|candidate| candidate.get_value().to_string_lossy().into_owned())
-            .collect()
     }
 
     #[test]
@@ -1452,8 +1391,6 @@ mod tests {
                 "//pkg:",
             ],
             start.path(),
-            None,
-            false,
         );
         assert_eq!(
             got.startup,
@@ -1471,8 +1408,6 @@ mod tests {
                 "//pkg:",
             ],
             start.path(),
-            None,
-            false,
         );
         assert_eq!(
             separated.startup,
@@ -1492,8 +1427,6 @@ mod tests {
                 "--bazel-startup-option=--output_base=/tmp/last",
             ],
             start.path(),
-            None,
-            false,
         );
         assert!(got.startup.is_empty(), "{:?}", got.startup);
         let got = select(
@@ -1504,8 +1437,6 @@ mod tests {
                 "",
             ],
             start.path(),
-            None,
-            false,
         );
         assert!(got.startup.is_empty(), "{:?}", got.startup);
     }

@@ -443,7 +443,7 @@ fn hooks_ignore_bad_defaults_and_bad_input() {
 
     let dx = env_path("DX_BIN");
     let dx = dx.to_str().expect("utf8");
-    let bad = [("DX_QUIET", "1")];
+    let bad = [("DX_OUTPUT", "yaml")];
     let run = |args: &[&str], stdin: &str| run_env(dx, args, &root, &env, stdin, &bad);
 
     let allowed = run(

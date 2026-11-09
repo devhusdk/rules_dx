@@ -50,9 +50,6 @@ pub enum ArgsError {
         "unknown --bazel-startup-option {value:?}: want --output_base=<path>|--output_user_root=<path>"
     )]
     BadStartupOption { value: String },
-    /// An environment default is not a value dx reads.
-    #[error("{detail}")]
-    BadDefault { detail: String },
     /// The completion shell is not one of the four.
     #[error("unknown shell {shell:?}: want {}", COMPLETION_SHELLS.join("|"))]
     UnknownShell { shell: String },
@@ -133,10 +130,8 @@ pub use invocation::{
 };
 pub use parser::{
     BREAKING_AGAINST_OPTION, ci_ignores_env, early_output_flag, is_discovery_exempt,
-    json_output_intent, parse, parse_with, parse_with_ci, startup_workspace,
+    json_output_intent, parse, parse_with, parse_with_ci,
 };
-
-pub use dx_adopt::defaults::DX_WORKSPACE_ENV;
 
 /// Assert that a parse failure is clap-rendered and names every needle.
 #[cfg(test)]

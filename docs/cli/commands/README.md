@@ -45,8 +45,8 @@ Every command takes these.
 | `-h`, `--help` | Print help. |
 | `-V`, `--version` | Print the dx version. |
 | `--workspace <dir>` | Run in another workspace. |
-| `-q`, `--quiet[=bool]` | Less output. |
-| `-v`, `--verbose[=bool]` | More output. |
+| `-q`, `--quiet` | Less output. |
+| `-v`, `--verbose` | More output. |
 | `--color auto\|always\|never` | Color output. Default `auto`. |
 | `--build-slots auto\|<n>\|off` | Build slots for this run. Default `auto`. |
 | `--bazel-startup-option <token>` | Bazel startup option. Repeatable. Takes `--output_base=<path>` or `--output_user_root=<path>`. |
@@ -140,14 +140,8 @@ A flag on the command line wins over these defaults.
 
 | Variable | What it does |
 | --- | --- |
-| `DX_WORKSPACE=<dir>` | Default for `--workspace`. |
-| `DX_QUIET=<bool>` | Default for `--quiet`. |
-| `DX_VERBOSE=<bool>` | Default for `--verbose`. |
-| `DX_COLOR=<mode>` | Default for `--color`. |
 | `DX_OUTPUT=<mode>` | Default for `--output`. |
-| `DX_FAIL_ON=<level>` | Default for `--fail-on`. |
 | `DX_BUILD_SLOTS=auto\|<n>\|off` | Default for `--build-slots`. |
-| `DX_WATCH_POLL=1` | Default for `dx watch --poll`. |
 | `NO_COLOR=<non-empty>` | Disable color in `auto` mode. |
 | `BUILD_WORKSPACE_DIRECTORY=<dir>` | Workspace start under `bazel run`. |
 | `BUILD_WORKING_DIRECTORY=<dir>` | Current directory under `bazel run`, for `--here` and a relative `worktree release <path>`. |

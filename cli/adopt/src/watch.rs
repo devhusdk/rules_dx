@@ -105,9 +105,6 @@ pub fn mountinfo_needs_polling(mountinfo: &str, root: &Path) -> bool {
 
 /// Whether the session should poll instead of using the platform watcher.
 fn should_poll(root: &Path) -> bool {
-    if std::env::var_os("DX_WATCH_POLL").is_some_and(|value| value == "1") {
-        return true;
-    }
     if !cfg!(target_os = "linux") {
         return false;
     }
@@ -203,7 +200,7 @@ impl WatchSession {
         self.polling
     }
 
-    /// `force_poll` is `dx watch --poll`; otherwise `DX_WATCH_POLL=1` or the filesystem decides.
+    /// `force_poll` is `dx watch --poll`; otherwise the filesystem decides.
     pub fn start(
         watch_root: &Path,
         reports: &[PathBuf],

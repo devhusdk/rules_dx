@@ -272,8 +272,7 @@ fn short_options_match_their_long_forms() {
     }
     let repeated = parse(&strings(&["lint", "-v", "-v"])).expect("-v -v");
     assert!(repeated.verbose);
-    let sub = parse(&strings(&["lint", "-q=false"])).expect("-q=false");
-    assert!(!sub.quiet);
+    assert!(parse(&strings(&["lint", "-q=false"])).is_err());
 }
 
 #[test]

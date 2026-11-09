@@ -352,7 +352,7 @@ Exception notice. Build the app with `extra_features = ["dynamic_libstdcxx"]`
 on `cc_toolchain_binary`, which adds `-Wl,-rpath,$ORIGIN`, and list it in
 `runtime` next to `gcc_linux_glibc`.
 
-Outputs: `<name>_archive` builds `<name>.<format>` and `<name>_checksum`
+Outputs: `<name>` builds `<name>.<format>` and `<name>_checksum`
 builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
 other member with mode 0644, in both formats.
 

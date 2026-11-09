@@ -249,7 +249,7 @@ _jars_for_platform = rule(
     },
 )
 
-def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd64"], tags = [], main = None, main_class = None, runtime = False):
+def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd64"], tags = [], main = None, main_class = None, runtime = False, visibility = None, testonly = None):
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
 
     One platform gives an oci_image and an oci_load target named name + "_load".
@@ -342,6 +342,8 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
             env = env,
             tags = tags,
             tars = layers,
+            testonly = testonly,
+            visibility = visibility if single else None,
         )
         images.append(image)
 
@@ -350,6 +352,8 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
         image = images[0],
         repo_tags = [name + ":latest"],
         tags = tags,
+        testonly = testonly,
+        visibility = visibility,
     )
 
     if single:
@@ -359,4 +363,6 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["linux/amd
         name = name,
         images = images,
         tags = tags,
+        testonly = testonly,
+        visibility = visibility,
     )

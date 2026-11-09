@@ -130,11 +130,11 @@ rust_test(
     srcs = ["zip_verify.rs"],
     crate_name = "consumer_runtime_release_verify",
     data = [
-        ":consumer_runtime_release_archive",
+        ":consumer_runtime_release",
         ":consumer_runtime_release_checksum",
     ],
     env = {
-        "DX_ARCHIVE": "$(rootpath :consumer_runtime_release_archive)",
+        "DX_ARCHIVE": "$(rootpath :consumer_runtime_release)",
         "DX_ARCHIVE_APP": "consumer_app",
         "DX_ARCHIVE_CHECKSUM": "$(rootpath :consumer_runtime_release_checksum)",
         "DX_ARCHIVE_MEMBERS": "IDENTITY.txt,NOTICE,consumer_app,consumer_runtime.txt",

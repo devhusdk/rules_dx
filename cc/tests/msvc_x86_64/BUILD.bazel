@@ -52,8 +52,8 @@ consumer_archive(
 rust_test(
     name = "archive_test",
     srcs = ["archive_test.rs"],
-    data = [":hello_msvc_release_archive"],
-    env = {"ARCHIVE": "$(rootpath :hello_msvc_release_archive)"},
+    data = [":hello_msvc_release"],
+    env = {"ARCHIVE": "$(rootpath :hello_msvc_release)"},
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,
     deps = [

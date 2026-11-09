@@ -89,8 +89,8 @@ consumer_archive(
 rust_test(
     name = "libstdcxx_archive_test",
     srcs = ["libstdcxx_archive_test.rs"],
-    data = [":hello_cxx_release_archive"],
-    env = {"ARCHIVE": "$(rootpath :hello_cxx_release_archive)"},
+    data = [":hello_cxx_release"],
+    env = {"ARCHIVE": "$(rootpath :hello_cxx_release)"},
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -122,8 +122,8 @@ rust_test(
 rust_test(
     name = "archive_test",
     srcs = ["archive_test.rs"],
-    data = [":hello_gcc_release_archive"],
-    env = {"ARCHIVE": "$(rootpath :hello_gcc_release_archive)"},
+    data = [":hello_gcc_release"],
+    env = {"ARCHIVE": "$(rootpath :hello_gcc_release)"},
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

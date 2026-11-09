@@ -454,8 +454,11 @@ _consumer_tarball = rule(
     },
 )
 
-def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, check_imports = True, format = "tar.gz", tags = None, target_compatible_with = None):
-    """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file."""
+def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, check_imports = True, format = "tar.gz", tags = None, target_compatible_with = None, visibility = None, testonly = None):
+    """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file.
+
+    `name` is the archive; `name_checksum` is its sha256 file. `name_stage` and `name_archive` are helpers.
+    """
     (tarball, checksum) = archive_filenames(name, format)
     stage_target = name + "_stage"
     archive_target = name + "_archive"
@@ -477,6 +480,7 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         runtime = runtime,
         tags = tags,
         target_compatible_with = target_compatible_with,
+        testonly = testonly,
     )
 
     _consumer_tarball(
@@ -485,6 +489,17 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         tags = tags,
         tarball_name = tarball,
         target_compatible_with = target_compatible_with,
+        testonly = testonly,
+        visibility = visibility,
+    )
+
+    native.alias(
+        name = name,
+        actual = ":" + archive_target,
+        tags = tags,
+        target_compatible_with = target_compatible_with,
+        testonly = testonly,
+        visibility = visibility,
     )
 
     native.genrule(
@@ -493,6 +508,8 @@ def consumer_archive(name, app, arch, os, min_runtime, linkage = "dynamic", reso
         outs = [checksum],
         tags = tags,
         target_compatible_with = target_compatible_with,
+        testonly = testonly,
         tools = [_HASHER],
+        visibility = visibility,
         cmd = "$(location " + _HASHER + ") $(location :" + archive_target + ") $(OUTS)",
     )

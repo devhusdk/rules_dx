@@ -113,7 +113,7 @@ github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", tags = [], sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = []):
+def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", tags = [], sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], visibility = None, testonly = None):
     """Publishes pinned files as a draft-only GitHub Release.
 
     `sbom` is a dx_sbom target uploaded as one more release asset.
@@ -158,6 +158,7 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         release_tag = release_tag,
         tag_from_head = tag_from_head,
         tags = tags,
+        testonly = testonly,
     )
 
     dx_deployment(
@@ -167,4 +168,6 @@ def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, buil
         deploy = DEPLOY_TOOL,
         build_mode = build_mode,
         tags = tags,
+        testonly = testonly,
+        visibility = visibility,
     )

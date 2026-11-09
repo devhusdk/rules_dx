@@ -150,7 +150,9 @@ def linux_package_deploy(
         notes_file = None,
         build_mode = "release",
         tags = [],
-        sbom = None):
+        sbom = None,
+        visibility = None,
+        testonly = None):
     """Builds Linux packages from one binary and publishes them as a draft GitHub release."""
     where = " (in " + native.package_name() + ":" + name + ")"
     name_error = linux_package_name_error(name)
@@ -176,6 +178,8 @@ def linux_package_deploy(
             package = name,
             version = version,
             tags = tags,
+            testonly = testonly,
+            visibility = visibility,
         )
         artifacts.append(":" + target)
 
@@ -189,4 +193,6 @@ def linux_package_deploy(
         build_mode = build_mode,
         tags = tags,
         sbom = sbom,
+        testonly = testonly,
+        visibility = visibility,
     )

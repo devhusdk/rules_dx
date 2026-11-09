@@ -76,6 +76,7 @@ rust_library(
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
+        "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//deploy/rules:dx_deploy_tools",
         "//libs/binfmt:dx_binfmt",
@@ -131,6 +132,7 @@ rust_test(
         "//cli/audit:dx_audit",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
+        "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//cli/sbom/schema:dx_sbom_schema",
         "//deploy/rules:dx_deploy_tools",
@@ -200,6 +202,7 @@ rust_test(
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
         "//deploy/rules:dx_deploy_tools",
     ],
 )
@@ -339,6 +342,7 @@ rust_binary(
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
     ],
 )
 

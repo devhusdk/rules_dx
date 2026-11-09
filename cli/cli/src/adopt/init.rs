@@ -808,13 +808,11 @@ mod tests {
     fn init_notes_a_gitignore_that_hides_dx_config() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-gitignore-config-");
         let root = scratch.path().to_path_buf();
-        let git = std::process::Command::new("git")
-            .arg("-C")
-            .arg(&root)
-            .args(["init", "-q"])
-            .status()
-            .expect("git");
-        assert!(git.success());
+        dx_process::capture::run_checked(
+            dx_process::capture::git(&root).args(["init", "-q"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("git init");
         std::fs::write(root.join(".gitignore"), ".dx/\n").expect("seed");
         let (code, _out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");

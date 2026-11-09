@@ -387,18 +387,16 @@ mod tests {
     fn override_copies_the_base_behind_a_header() {
         let scratch = workspace(FILES);
         let git = |args: &[&str]| {
-            std::process::Command::new("git")
-                .arg("-C")
-                .arg(scratch.path())
-                .args(args)
-                .output()
-                .expect("git")
+            dx_process::capture::run_checked(
+                dx_process::capture::git(scratch.path()).args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .expect("git")
         };
         git(&["init", "-q"]);
         let (code, out) = run(scratch.path(), &["config", "override", "hlint"]);
         assert_eq!(code, 0, "{out}");
-        let sha = String::from_utf8(git(&["hash-object", ".dx/config/hlint/base.yaml"]).stdout)
-            .expect("utf8");
+        let sha = git(&["hash-object", ".dx/config/hlint/base.yaml"]).stdout_text();
         let text = std::fs::read_to_string(scratch.path().join(".hlint.yaml")).expect("root");
         assert_eq!(
             text,
@@ -414,13 +412,11 @@ mod tests {
     #[test]
     fn diff_of_a_fresh_override_shows_no_header() {
         let scratch = workspace(FILES);
-        let init = std::process::Command::new("git")
-            .arg("-C")
-            .arg(scratch.path())
-            .args(["init", "-q"])
-            .status()
-            .expect("git");
-        assert!(init.success());
+        dx_process::capture::run_checked(
+            dx_process::capture::git(scratch.path()).args(["init", "-q"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("git init");
         assert_eq!(run(scratch.path(), &["config", "override", "hlint"]).0, 0);
         let (code, out) = run(scratch.path(), &["config", "diff", "hlint"]);
         assert_eq!(code, 0, "{out}");

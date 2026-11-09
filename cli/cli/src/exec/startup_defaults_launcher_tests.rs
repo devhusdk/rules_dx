@@ -387,12 +387,11 @@ fn bad_build_slots_exit_two_from_the_binary() {
 #[test]
 fn worktree_release_relative_path_uses_the_working_directory() {
     let ws = sample_workspace("dx-startup-wt-release-ws-");
-    let status = std::process::Command::new("git")
-        .args(["init", "--quiet"])
-        .current_dir(ws.path())
-        .status()
-        .expect("git runs");
-    assert!(status.success(), "git init the workspace");
+    dx_process::capture::run_checked(
+        dx_process::capture::git(ws.path()).args(["init", "--quiet"]),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .expect("git init the workspace");
     let runfiles = dx_test_scratch::scratch("dx-startup-wt-release-runfiles-");
     let outside = dx_test_scratch::scratch("dx-startup-wt-release-outside-");
     let cache = dx_test_scratch::scratch("dx-startup-wt-release-cache-");

@@ -788,12 +788,11 @@ mod tests {
         let unused = dir.join("api-extractor");
         let repo = dir.join("repo");
         std::fs::create_dir_all(&repo).expect("repo");
-        let status = std::process::Command::new("git")
-            .args(["init", "-q"])
-            .current_dir(&repo)
-            .status()
-            .expect("git");
-        assert!(status.success());
+        dx_process::capture::run_checked(
+            dx_process::capture::git(&repo).args(["init", "-q"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("git init");
         let repo_dir = repo.display().to_string();
         let check = NpmApiCheck {
             baseline: Baseline::Git,

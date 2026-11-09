@@ -350,20 +350,21 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
 }
 
 fn run_git(root: &Path, args: &[&str]) {
-    let status = std::process::Command::new("git")
-        .args([
-            "-c",
-            "user.name=dx",
-            "-c",
-            "user.email=dx@example.com",
-            "-c",
-            "commit.gpgsign=false",
-        ])
-        .args(args)
-        .current_dir(root)
-        .status()
-        .expect("git");
-    assert!(status.success(), "git {args:?}");
+    dx_process::capture::run_checked(
+        dx_process::capture::git(root)
+            .args([
+                "-c",
+                "user.name=dx",
+                "-c",
+                "user.email=dx@example.com",
+                "-c",
+                "commit.gpgsign=false",
+            ])
+            .args(args)
+        ,
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
 }
 
 #[test]

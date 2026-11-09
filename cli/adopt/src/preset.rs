@@ -471,10 +471,11 @@ mod tests {
     }
 
     fn git(root: &Path, sandbox: &Path, args: &[&str]) {
-        let mut cmd = std::process::Command::new("git");
-        cmd.arg("-C").arg(root).args(args);
+        let mut cmd = dx_process::capture::git(root);
+        cmd.args(args);
         dx_test_scratch::isolate_git(&mut cmd, sandbox);
-        assert!(cmd.status().expect("git").success(), "{args:?}");
+        dx_process::capture::run_checked(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT)
+            .unwrap_or_else(|error| panic!("{args:?}: {error}"));
     }
 
     #[test]

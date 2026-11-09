@@ -48,7 +48,8 @@ fn write(path: &Path, bytes: &[u8]) {
 
 /// Runs git with a fixed identity and no user or system config.
 fn git(dir: &Path, args: &[&str]) -> String {
-    let output = Command::new("git")
+    let output = dx_process::capture::run_checked(
+        dx_process::capture::git(dir)
         .args([
             "-c",
             "commit.gpgsign=false",
@@ -58,18 +59,11 @@ fn git(dir: &Path, args: &[&str]) -> String {
             "user.email=candidate@example.com",
         ])
         .args(args)
-        .current_dir(dir)
-        .env("GIT_CONFIG_NOSYSTEM", "1")
-        // Keep `git status` from refreshing and rewriting the checkout's index.
-        .env("GIT_OPTIONAL_LOCKS", "0")
-        .output()
-        .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
-    assert!(
-        output.status.success(),
-        "git {args:?} in {dir:?}: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout).trim().to_owned()
+        .env("GIT_CONFIG_NOSYSTEM", "1"),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("git {args:?} in {dir:?}: {error}"));
+    output.stdout_text().trim().to_owned()
 }
 
 /// What the checkout looks like to git, to prove the snapshot leaves it alone.

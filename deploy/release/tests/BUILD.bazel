@@ -32,6 +32,7 @@ rust_test(
     # The consumer fetches the rust and GCC toolchains and bcr modules.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     deps = [
+        "//cli/process:dx_process",
         "//deploy/release:dx_release_tools",
         "//deploy/rules:dx_deploy_tools",
         "//tools/testing:dx_testing",

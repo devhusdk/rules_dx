@@ -780,13 +780,11 @@ mod tests {
         let js = "a();\n// eslint-disable-next-line no-console\nb();\n// eslint-disable-next-line no-undef\n";
         std::fs::write(root.join("web/a.js"), js).expect("a.js");
         let git = |args: &[&str]| {
-            let status = std::process::Command::new("git")
-                .arg("-C")
-                .arg(&root)
-                .args(args)
-                .status()
-                .expect("git");
-            assert!(status.success());
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&root).args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .expect("git");
         };
         git(&["init", "-q"]);
         git(&["add", "web/a.js"]);
@@ -803,16 +801,12 @@ mod tests {
     const TYPOS_BASE: &str = ".dx/config/typos/base.toml";
 
     fn blob(root: &Path, path: &str) -> String {
-        let out = std::process::Command::new("git")
-            .arg("-C")
-            .arg(root)
-            .args(["hash-object", "--", path])
-            .output()
-            .expect("git");
-        String::from_utf8(out.stdout)
-            .expect("utf8")
-            .trim()
-            .to_owned()
+        let out = dx_process::capture::run_checked(
+            dx_process::capture::git(root).args(["hash-object", "--", path]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("git");
+        out.stdout_text().trim().to_owned()
     }
 
     /// A synced workspace whose typos base gained a line after the override was

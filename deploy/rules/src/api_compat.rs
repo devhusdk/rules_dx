@@ -463,13 +463,13 @@ mod tests {
     }
 
     fn git_in(dir: &std::path::Path, args: &[&str]) {
-        let status = std::process::Command::new("git")
-            .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
-            .args(args)
-            .current_dir(dir)
-            .status()
-            .expect("git");
-        assert!(status.success(), "git {args:?}");
+        dx_process::capture::run_checked(
+            dx_process::capture::git(dir)
+                .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
+                .args(args),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
     }
 
     #[test]
@@ -511,11 +511,11 @@ mod tests {
             export_git_dir(&repo, "nope", "v1.0.0", &missing, "Cargo.toml"),
             Ok(false)
         );
-        let status = std::process::Command::new("git")
-            .args(["status", "--porcelain"])
-            .current_dir(&repo)
-            .output()
-            .expect("status");
+        let status = dx_process::capture::run_checked(
+            dx_process::capture::git(&repo).args(["status", "--porcelain"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("status");
         assert!(status.stdout.is_empty(), "{:?}", status.stdout);
         let _ = std::fs::remove_dir_all(&root);
     }

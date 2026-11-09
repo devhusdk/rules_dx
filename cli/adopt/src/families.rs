@@ -325,13 +325,11 @@ mod tests {
     }
 
     fn git(dir: &Path) {
-        let ok = std::process::Command::new("git")
-            .arg("-C")
-            .arg(dir)
-            .args(["init", "-q"])
-            .status()
-            .is_ok_and(|status| status.success());
-        assert!(ok, "git init");
+        dx_process::capture::run_checked(
+            dx_process::capture::git(dir).args(["init", "-q"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("git init");
     }
 
     fn workspace(module: &str, files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {

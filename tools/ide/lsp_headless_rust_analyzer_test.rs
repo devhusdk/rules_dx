@@ -265,3 +265,32 @@ fn rust_project_syntax_diagnostic_publishes_without_check_runner() {
     assert!(matches!(err, Error::Timeout(_)), "unexpected {err}");
     session.shutdown().expect("rust-analyzer exits cleanly");
 }
+
+#[test]
+fn rust_project_malformed_json_is_explicit() {
+    let analyzer = toolchain_pick("DX_LSP_TOOLCHAIN_FILES", "bin/rust-analyzer");
+    let fixture = stage_rust("lsp-rust-malformed", true);
+    write_text(&fixture.root.join("rust-project.json"), "{not json");
+    let vars = scoped_env(&fixture.root);
+    let mut session = Session::spawn(&analyzer, &[], &vars).expect("rust-analyzer starts");
+    let deadline = Instant::now() + Duration::from_secs(240);
+    session
+        .initialize(
+            &file_uri(&fixture.root),
+            "rust-analyzer initialize",
+            deadline,
+        )
+        .expect("rust-analyzer initializes");
+    let quiet = Instant::now() + Duration::from_secs(30);
+    let err = session
+        .wait_diagnostics(&fixture.lib_uri, "malformed project", quiet)
+        .expect_err("a malformed project publishes no diagnostics");
+    let Error::Timeout(detail) = err else {
+        panic!("unexpected {err}");
+    };
+    assert!(
+        detail.contains("Failed to deserialize json file"),
+        "malformed project must be reported on stderr: {detail}"
+    );
+    session.shutdown().expect("server stays usable");
+}

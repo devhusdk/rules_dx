@@ -74,5 +74,3 @@ rules_dx is a non-root module in every consumer, so its root-only
 files from pinning a consumer dep above its floor.
 
 `.dx/local/launcher` is a copy (about 50 MB) of the last built dx, kept for worktree hooks and failed rebuilds. `tools/dx worktree add`, `release` and `hook` run the last built dx without rebuilding, so they never wait on Bazel. Any other `tools/dx` command (or `bazel build //:dx`) picks up dx source changes. You can delete it any time and `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots. Both launchers run dx from this copy, so a running dx never locks bazel-bin; `dx.exe.old.*` files may remain while an old dx is still running.
-
-Checkouts from before `.dx/local` can delete the old `.dx/ide` and `.dx/launcher` (`chmod -R u+w .dx/ide && rm -rf .dx/ide .dx/launcher`).

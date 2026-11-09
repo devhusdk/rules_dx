@@ -80,7 +80,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Name | Lint | Format | Typecheck | API docs | Coverage | Dead code |
 | --- | --- | --- | --- | --- | --- | --- |
 | Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
-| Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | no | n/a | no |
+| Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | no | n/a | none |
 | C and C++ | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | no | no: cuda_test has no dx coverage wiring | none |
@@ -88,7 +88,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `package:test` | `dart unused_element` |
 | Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321), `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | no | `cover` | `elixirc unused variable, unused function` |
 | Erlang | `elvis`, `typos` | `erlfmt` | `dialyzer`, `erlc` (not on `windows_x86_64`: The erlc replay needs a POSIX shell; `windows_arm64`: The erlc replay needs a POSIX shell) | no | `cover` | `erlc warn_unused_vars, warn_unused_function` |
-| Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `flutter_tester` | no |
+| Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | no | `flutter_tester` | `dart unused_element` |
 | Fortran | `fortitude`, `typos` | `ffmt` | `flang` | no | `kcov` (kcov runs on Linux only) | `fortitude C191 unreachable-statement` |
 | F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` | `fsc FS1182 (--warnon:1182)` |
 | Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | `staticcheck U1000` |
@@ -98,12 +98,12 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | `CoverageTools` | none |
 | Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
 | Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` | `selene unused_variable` |
-| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring | no |
+| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring | `eslint no-unused-vars` |
 | OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | no | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
 | Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | no | `DxLcov` | `perlcritic ProhibitUnusedVariables` |
 | PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | `pcov (Linux only)` | `phpcs Generic.CodeAnalysis.UnusedFunctionParameter` |
 | PowerShell | `psscriptanalyzer`, `typos` | `psscriptanalyzer` | n/a | `pwsh` | `pester` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |
-| Protobuf | `buf`, `typos` | `buf` | `buf` | no | n/a | no |
+| Protobuf | `buf`, `typos` | `buf` | `buf` | no | n/a | none |
 | Python | `pydoclint`, `ruff`, `typos` | `ruff` | `ty` | `griffe` | `coverage.py` | `ruff F401, F841` |
 | Ruby | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter), `typos` | `rubocop` (not on `windows_x86_64`: Ruby portable builds ship no Windows interpreter; `windows_arm64`: Ruby portable builds ship no Windows interpreter) | `sorbet` (not on `windows_x86_64`: Sorbet ships no Windows build; `windows_arm64`: Sorbet ships no Windows build) | `yard` | `simplecov` | `rubocop Lint/UselessAssignment` |
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |

@@ -371,6 +371,7 @@ LANGUAGES = [
         "avro",
         deps = "none: schemas only, no packages",
         doc = NO_DOC,
+        dead_code = ["none"],
     ),
     _language(
         "cc",
@@ -457,6 +458,7 @@ LANGUAGES = [
         "flutter",
         deps = "`pub`",
         doc = NO_DOC,
+        dead_code = ["dart unused_element"],
         coverage = ["flutter_tester"],
         unsupported = "//flutter/rules:unsupported",
         not_applicable = {
@@ -553,6 +555,7 @@ LANGUAGES = [
         "mdx",
         deps = "`npm`",
         doc = struct(tool = "mdx", shard = "mdx_doc_shard"),
+        dead_code = ["eslint no-unused-vars"],
         no_coverage = "js_test has no dx coverage wiring",
     ),
     _language(
@@ -605,6 +608,7 @@ LANGUAGES = [
         "protobuf",
         deps = "none: schemas only, no packages",
         doc = NO_DOC,
+        dead_code = ["none"],
     ),
     _language(
         "python",

@@ -374,6 +374,27 @@ jobs:
             else
               echo "$id: failed (exit $rc)" >> "$GITHUB_STEP_SUMMARY"
               failed=1
+              sarif="$reports/$id.sarif"
+              if [ -s "$sarif" ] && command -v jq > /dev/null; then
+                rows='[.runs[]?.results[]? | {
+                  level: (if .level == "error" then "error" elif .level == "note" then "notice" else "warning" end),
+                  rule: (.ruleId // "-"),
+                  text: ((.message.text // "") | gsub("\r?\n"; " ")),
+                  file: (.locations[0].physicalLocation.artifactLocation.uri // ""),
+                  line: (.locations[0].physicalLocation.region.startLine // 1)
+                }]'
+                jq -r "$rows"' | .[:10][] | select(.file != "")
+                  | "::\(.level) file=\(.file),line=\(.line),title=\(.rule)::\(.text | gsub("%"; "%25") | gsub("\n"; "%0A"))"' "$sarif" || true
+                {
+                  echo
+                  echo "$id findings (first 50)"
+                  echo
+                  echo "| Level | Rule | Location | Message |"
+                  echo "|---|---|---|---|"
+                  jq -r "$rows"' | .[:50][]
+                    | "| \(.level) | \(.rule | gsub("\\|"; "/")) | \(.file):\(.line) | \(.text | gsub("\\|"; "/")) |"' "$sarif" || true
+                } >> "$GITHUB_STEP_SUMMARY"
+              fi
             fi
           done <<< "$DX_CHECK_LINES"
           exit "$failed"

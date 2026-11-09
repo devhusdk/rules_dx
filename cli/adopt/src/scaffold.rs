@@ -1982,7 +1982,7 @@ mod tests {
             root["eslint.options"]["overrideConfigFile"],
             "${workspaceFolder}/eslint.config.mjs"
         );
-        let gopls: serde_json::Value = serde_json::from_str(GOPLS_STANDARD).expect("tier json");
+        let gopls: serde_json::Value = serde_json::from_str(super::GOPLS_STANDARD).expect("tier json");
         for (key, tier) in gopls.as_object().into_iter().flatten() {
             assert_eq!(&root[key.as_str()], tier, "{key}");
         }

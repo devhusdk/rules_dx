@@ -4,8 +4,8 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
-load("//javascript/rules:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_wrap_test")
-load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
+load("//javascript/rules:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
+load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":proto.bzl", "ts_proto_srcs")
@@ -341,7 +341,8 @@ def typescript_test(name, srcs, runner = "jest", node_modules = None, entry_poin
     else:
         upstream = _jest_test
         upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
-    node_wrap_test(name, upstream, _typescript_test, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, visibility, kwargs)
+    a = node_test_wrap_args(name, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, kwargs)
+    dx_wrap_test(name, upstream, _typescript_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 
 _playwright_test = node_test_forward_rule("playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
@@ -350,7 +351,8 @@ def playwright_test(name, srcs, config, node_modules, app = None, data = None, p
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:
         fail(rejection)
-    env = dict(kwargs.pop("env", None) or {})
+    kwargs["env"] = dict(kwargs.pop("env", None) or {})
+    env = kwargs["env"]
     env["DX_PLAYWRIGHT_CONFIG"] = "$(rlocationpath %s)" % config
     env["DX_PLAYWRIGHT_MARKER"] = "$(rlocationpath %s)" % Label("@dx_playwright_chromium//:marker")
     upstream_data = [config, Label("@dx_playwright_chromium//:browsers"), Label("@dx_playwright_chromium//:marker"), node_modules] + list(srcs) + list(data or [])
@@ -359,7 +361,7 @@ def playwright_test(name, srcs, config, node_modules, app = None, data = None, p
         upstream_data.append(app)
     upstream_kwargs = {
         "entry_point": Label("//typescript/playwright:runner"),
-        "env": env,
         "no_copy_to_bin": [Label("@dx_playwright_chromium//:browsers"), Label("@dx_playwright_chromium//:marker")],
     }
-    node_wrap_test(name, _js_test, _playwright_test, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, visibility, kwargs)
+    a = node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, kwargs)
+    dx_wrap_test(name, _js_test, _playwright_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)

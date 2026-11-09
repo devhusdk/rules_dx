@@ -5,7 +5,10 @@ load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
 load(":defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
-load(":node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_upstream_kwargs")
+load(":node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")
+
+def _wrap_args(kwargs):
+    return node_test_wrap_args("t", ["a.js"], ["a.js"], None, {}, None, kwargs)
 
 def _jest_kwargs_after_attrs():
     kwargs = {"fixed_args": ["--ci"], "size": "small"}
@@ -64,19 +67,39 @@ def javascript_wrapper_contract_tests(name):
                 None,
             ),
             expect_equal(
-                "upstream kwargs drop testonly",
-                "testonly" in node_test_upstream_kwargs({"testonly": True, "size": "medium"}),
+                "wrap args drop testonly",
+                "testonly" in _wrap_args({"testonly": True, "size": "medium"}).upstream_kwargs,
                 False,
             ),
             expect_equal(
-                "upstream kwargs keep size",
-                node_test_upstream_kwargs({"testonly": True, "size": "medium"})["size"],
+                "wrap args keep size",
+                _wrap_args({"size": "medium"}).upstream_kwargs["size"],
                 "medium",
             ),
             expect_equal(
-                "upstream kwargs drop aspect_hints",
-                "aspect_hints" in node_test_upstream_kwargs({"aspect_hints": ["x"]}),
-                False,
+                "wrap args keep aspect_hints",
+                _wrap_args({"aspect_hints": ["x"]}).upstream_kwargs["aspect_hints"],
+                ["x"],
+            ),
+            expect_equal(
+                "wrap args inherit TESTBRIDGE_TEST_ONLY",
+                _wrap_args({}).kwargs["env_inherit"],
+                ["TESTBRIDGE_TEST_ONLY"],
+            ),
+            expect_equal(
+                "forwarder data is unset without args or env",
+                _wrap_args({}).extra_forward_kwargs,
+                {},
+            ),
+            expect_equal(
+                "forwarder data is set with args",
+                _wrap_args({"args": ["--x"]}).extra_forward_kwargs,
+                {"data": ["a.js"]},
+            ),
+            expect_equal(
+                "forwarder data is set with env",
+                _wrap_args({"env": {"A": "1"}}).extra_forward_kwargs,
+                {"data": ["a.js"]},
             ),
             expect_equal(
                 "the Windows jest default selects the v8 coverage provider",

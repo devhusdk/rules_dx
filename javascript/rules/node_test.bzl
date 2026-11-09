@@ -1,6 +1,6 @@
 """Shared Jest and plain Node test core for the JavaScript and TypeScript wrappers."""
 
-load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_run_environment", "dx_test_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_run_environment")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _JEST_ONLY_KEYS = [
@@ -90,16 +90,8 @@ def node_test_upstream_data(upstream_data, package_json, label_key):
     data.append(package_json)
     return data
 
-def node_test_upstream_kwargs(kwargs):
-    """Returns the kwargs for the upstream test, without those it sets itself."""
-    upstream_kwargs = dx_test_upstream_kwargs(kwargs)
-    upstream_kwargs.pop("aspect_hints", None)
-    upstream_kwargs.pop("testonly", None)
-    return upstream_kwargs
-
-def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, package_json, upstream_attrs, env_inherit, visibility, kwargs):
-    """Declares the manual upstream Node test and its forwarder."""
-    effective_env = node_test_env(env_inherit)
+def node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_attrs, env_inherit, kwargs):
+    """Returns the dx_wrap_test arguments for one Node test."""
     label_error = dx_args_label_error(
         name,
         kwargs.get("args"),
@@ -109,20 +101,11 @@ def node_wrap_test(name, upstream_rule, forward_rule, srcs, upstream_data, packa
     if label_error != None:
         fail(label_error)
     data = node_test_upstream_data(upstream_data, package_json, native.package_relative_label)
-    upstream_kwargs = node_test_upstream_kwargs(kwargs)
-    upstream_rule(
-        name = name + "_upstream",
-        data = data,
-        **(upstream_attrs | upstream_kwargs)
-    )
-    forward_kwargs = dx_test_forward_kwargs(kwargs)
-    forward_kwargs["env_inherit"] = effective_env
-    if "args" in forward_kwargs or "env" in forward_kwargs:
-        forward_kwargs["data"] = data
-    forward_rule(
-        name = name,
-        upstream = name + "_upstream",
-        srcs = srcs,
-        visibility = visibility,
-        **forward_kwargs
+    upstream_kwargs = upstream_attrs | kwargs | {"data": data}
+    upstream_kwargs.pop("testonly", None)
+    forward = {"data": data} if "args" in kwargs or "env" in kwargs else {}
+    return struct(
+        upstream_kwargs = upstream_kwargs,
+        kwargs = kwargs | {"env_inherit": node_test_env(env_inherit)},
+        extra_forward_kwargs = forward,
     )

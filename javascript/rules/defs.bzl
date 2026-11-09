@@ -4,9 +4,9 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_library = "js_library", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo", _js_info = "js_info")
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load(":node_test.bzl", "node_test_forward_rule", "node_jest_upstream_attrs", "node_test_runner_rejection", "node_wrap_test")
+load(":node_test.bzl", "node_test_forward_rule", "node_jest_upstream_attrs", "node_test_runner_rejection", "node_test_wrap_args")
 
 _DX_JS_LIBRARY_PROVIDES = [
     _JsInfo,
@@ -165,4 +165,5 @@ def javascript_test(name, srcs, runner = "jest", node_modules = None, entry_poin
     else:
         upstream = _jest_test
         upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
-    node_wrap_test(name, upstream, _javascript_test, srcs, list(srcs) + (list(data) if data != None else []), package_json, upstream_kwargs, env_inherit, visibility, kwargs)
+    a = node_test_wrap_args(name, srcs, list(srcs) + (list(data) if data != None else []), package_json, upstream_kwargs, env_inherit, kwargs)
+    dx_wrap_test(name, upstream, _javascript_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)

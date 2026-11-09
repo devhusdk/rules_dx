@@ -1,5 +1,5 @@
 {
-  "checksum": "4da2048d6d79be61f3b8d173df485d33fa3b524b5119a1058276b987427ce48b",
+  "checksum": "c56b1320e8b04ac9baddcf415c130f8885426a8615529bb6c71c197abfd62036",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -18936,6 +18936,32 @@
       ],
       "version": "0.0.0"
     },
+    "quality_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "quality_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "quality_tools_jvm 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "quality_tools_jvm",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "quick-error 1.2.3": {
       "common_attrs": {
         "edition": "2015"
@@ -29277,6 +29303,8 @@
     "quality_notebook 0.0.0": "quality/quality_notebook",
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
+    "quality_tests 0.0.0": "quality/quality_tests",
+    "quality_tools_jvm 0.0.0": "quality/tools/quality_tools_jvm",
     "repin_all 0.0.0": "tools/repin_all",
     "ruby_extract 0.0.0": "tools/docs/ruby/ruby_extract",
     "rust_extract 0.0.0": "tools/docs/rust/rust_extract",

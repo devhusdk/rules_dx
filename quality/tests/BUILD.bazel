@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
@@ -15,7 +16,15 @@ _LINUX_X86_64 = [
 
 rust_test(
     name = "qt_adapter_test",
+    testonly = True,
     srcs = ["qt_adapter_test.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "qt_adapter_test",
+    crate_root = "qt_adapter_test.rs",
     data = [
         "//quality/tests/fixtures/qmlformat:Sample.qml",
         "//quality/tests/fixtures/qmllint:Sample.qml",
@@ -41,7 +50,15 @@ rust_test(
 
 rust_test(
     name = "column_units_test",
+    testonly = True,
     srcs = ["column_units_test.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "column_units_test",
+    crate_root = "column_units_test.rs",
     data = [
         "//quality/tools/javascript/bin:eslint",
         "//quality/tools/jvm:pmd",
@@ -63,10 +80,18 @@ rust_test(
     name = "quality_check_smoke_test",
     size = "large",
     timeout = "moderate",
+    testonly = True,
     srcs = [
         "quality_check_smoke_common.rs",
         "quality_check_smoke_test.rs",
     ],
+    aliases = aliases(
+        package_name = "quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "quality_check_smoke_test",
+    crate_root = "quality_check_smoke_test.rs",
     data = [
         "//:MODULE.bazel",
         "//cli/cli:dx",
@@ -90,7 +115,15 @@ rust_test(
 
 rust_test(
     name = "consumer_maven_guard_test",
+    testonly = True,
     srcs = ["consumer_maven_guard_test.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_maven_guard_test",
+    crate_root = "consumer_maven_guard_test.rs",
     data = glob(
         ["*_consumer_test.rs"],
         allow_empty = True,
@@ -119,7 +152,15 @@ real_source_target(
 
 rust_test(
     name = "powershell_gallery_lock_test",
+    testonly = True,
     srcs = ["powershell_gallery_lock_test.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "powershell_gallery_lock_test",
+    crate_root = "powershell_gallery_lock_test.rs",
     data = [
         "//:MODULE.bazel",
         "//third_party/powershell:PSGallery.lock.json",
@@ -136,4 +177,11 @@ rust_test(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

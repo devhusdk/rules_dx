@@ -89,7 +89,6 @@ rust_binary(
     ) + [":quality_runner_lib"],
 )
 
-# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "matrix_harness",
     srcs = ["src/matrix_harness.rs"],
@@ -103,6 +102,7 @@ rust_binary(
         package_name = "quality/quality_runner",
         normal = True,
     ) + [
+        ":quality_runner_lib",
         "//cli/path:dx_path",
         "//quality/result:quality_result",
     ],
@@ -208,7 +208,6 @@ rust_test(
     ],
 )
 
-# keep: tests a binary Gazelle does not generate
 rust_test(
     name = "matrix_harness_test",
     aliases = aliases(
@@ -220,6 +219,7 @@ rust_test(
     deps = all_crate_deps(
         package_name = "quality/quality_runner",
         normal = True,
+        normal_dev = True,
     ) + [
         ":quality_runner_lib",
         "//cli/path:dx_path",

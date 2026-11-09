@@ -1793,6 +1793,8 @@ crate.from_cargo(
         "//quality/notebook:Cargo.toml",
         "//quality/result:Cargo.toml",
         "//quality/runner:Cargo.toml",
+        "//quality/tests:Cargo.toml",
+        "//quality/tools/jvm:Cargo.toml",
         "//tools/docs/ir/ir:Cargo.toml",
         "//tools/docs/rust/extract:Cargo.toml",
         "//tools/docs/typescript/extract:Cargo.toml",

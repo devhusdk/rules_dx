@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "quality_tools_jvm"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "pkl_lsp_smoke_test"
+path = "pkl_lsp_smoke_test.rs"

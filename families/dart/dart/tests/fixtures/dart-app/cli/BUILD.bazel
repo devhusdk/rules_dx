@@ -1,0 +1,56 @@
+load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = ["//dart/tests/fixtures/dart-app:__subpackages__"])
+
+exports_files(
+    glob([
+        "bin/**",
+        "lib/**",
+        "test/**",
+    ]) + ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"],
+)
+
+dart_library(
+    name = "inventory_cli",
+    package_name = "inventory_cli",
+    srcs = ["lib/inventory_cli.dart"],
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
+    visibility = _PUBLIC,
+    deps = [
+        "//dart/tests/fixtures/dart-app/ledger",
+        "//dart/tests/fixtures/dart-app/model",
+        "@dx_dart_deps//:args",
+    ],
+)
+
+dart_binary(
+    name = "inventory",
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
+    data = ["//dart/tests/fixtures/dart-app/ledger:items"],
+    main = "bin/inventory.dart",
+    deps = [
+        ":inventory_cli",
+        "@rules_dart//dart/runfiles",
+    ],
+)
+
+dart_test(
+    name = "exit_codes_test",
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
+    data = [":inventory"],
+    main = "test/exit_codes_test.dart",
+    deps = [
+        "@dx_dart_deps//:test",
+        "@rules_dart//dart/runfiles",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],    visibility = ["//:__pkg__"],
+)

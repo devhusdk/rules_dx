@@ -1,0 +1,14 @@
+{
+  "homepage": "https://github.com/{OWNER}/{REPO}",
+  "maintainers": [
+    {
+      "github": "devhusdk",
+      "name": "devhusdk"
+    }
+  ],
+  "repository": [
+    "github:{OWNER}/{REPO}"
+  ],
+  "versions": [],
+  "yanked_versions": {}
+}

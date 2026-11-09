@@ -1,0 +1,48 @@
+load("@rules_dx//lua/rules:defs.bzl", "lua_binary", "lua_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+[
+    lua_binary(
+        name = name,
+        testonly = True,
+        main = name + ".lua",
+    )
+    for name in [
+        "cpath_denied",
+        "missing_dep",
+        "runtime_error",
+    ]
+]
+
+lua_test(
+    name = "negative_test",
+    main = "negative_test.lua",
+    data = [
+        "syntax_error.lua",
+        ":cpath_denied",
+        ":missing_dep",
+        ":runtime_error",
+        "//lua/tests/runtime:probe",
+        "@lua//:bin/luac",
+    ],
+    env = {
+        "CPATH_DENIED": "$(rlocationpath :cpath_denied)",
+        "LUAC": "$(rlocationpath @lua//:bin/luac)",
+        "MISSING_DEP": "$(rlocationpath :missing_dep)",
+        "PROBE": "$(rlocationpath //lua/tests/runtime:probe)",
+        "RUNTIME_ERROR": "$(rlocationpath :runtime_error)",
+        "SYNTAX_ERROR": "$(rlocationpath syntax_error.lua)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["@rules_dx//tools/ci:__pkg__", "//:__pkg__"],
+)

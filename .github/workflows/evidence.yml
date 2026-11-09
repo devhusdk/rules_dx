@@ -440,7 +440,7 @@ jobs:
         if: ${{ !cancelled() && inputs.android && matrix.platform == 'linux_x86_64' && steps.boot.outcome == 'success' }}
         run: |
           set -o pipefail
-          bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME //flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
+          bazel test --noshow_progress --test_output=all --test_env=PATH --test_env=HOME --test_env=ANDROID_HOME @rules_dx_dart//flutter/tests/fixtures/flutter-app/android:interaction_test 2>&1 | tail -n 80
       - uses: ./.github/actions/save-registry-cache
         if: ${{ steps.setup.outputs.registry-cache-hit != 'true' }}
       - name: Collect test logs

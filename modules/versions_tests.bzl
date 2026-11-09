@@ -110,6 +110,8 @@ def versions_contract_tests(name):
         file_checks = {
             "//:.bazelrc": "common --check_direct_dependencies=error",
             "@rules_dx_cuda//:README.md": cuda_stanza,
+            "@rules_dx_julia//:MODULE.bazel": "julia.toolchain(version = \"" + _JULIA_VERSION + "\")",
+            "@rules_dx_zig//:MODULE.bazel": "zig.toolchain(zig_version = \"" + _ZIG_VERSION + "\")",
             "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//quality/tools/javascript:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
@@ -143,13 +145,11 @@ def versions_contract_tests(name):
                                "name = \"bazel_lib\", version = \"" + _BAZEL_LIB_VERSION + "\"\n" +
                                "name = \"rules_jvm_external\", version = \"" + _RULES_JVM_EXTERNAL_VERSION + "\"\n" +
                                "name = \"rules_zig\", version = \"" + _RULES_ZIG_VERSION + "\"\n" +
-                               "zig.toolchain(zig_version = \"" + _ZIG_VERSION + "\")\n" +
                                "name = \"rules_swift\", version = \"" + _RULES_SWIFT_VERSION + "\"\n" +
                                "swift_version = \"" + _SWIFT_VERSION + "\"\n" +
                                "name = \"rules_dart\", version = \"" + _RULES_DART_VERSION + "\"\n" +
                                "dart.toolchain(dart_version = \"" + _DART_SDK_VERSION + "\")\n" +
                                "name = \"rules_julia\", version = \"" + _RULES_JULIA_VERSION + "\"\n" +
-                               "julia.toolchain(version = \"" + _JULIA_VERSION + "\")\n" +
                                "name = \"rules_perl\", version = \"" + _RULES_PERL_VERSION + "\"\n" +
                                "name = \"lua\", version = \"" + _LUA_VERSION + "\"\n" +
                                "name = \"rules_py\", version = \"" + _RULES_PY_VERSION + "\"\n" +

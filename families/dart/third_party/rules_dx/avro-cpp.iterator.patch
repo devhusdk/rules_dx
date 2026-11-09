@@ -1,0 +1,57 @@
+diff --git a/impl/Stream.cc b/impl/Stream.cc
+--- a/impl/Stream.cc
++++ b/impl/Stream.cc
+@@ -17,6 +17,7 @@
+  */
+ 
+ #include "Stream.hh"
++#include <iterator>
+ #include <vector>
+ 
+ namespace avro {
+diff --git a/include/avro/buffer/detail/BufferDetail.hh b/include/avro/buffer/detail/BufferDetail.hh
+--- a/include/avro/buffer/detail/BufferDetail.hh
++++ b/include/avro/buffer/detail/BufferDetail.hh
+@@ -31,6 +31,7 @@
+ #include <cassert>
+ #include <deque>
+ #include <exception>
++#include <iterator>
+ 
+ /**
+  * \file BufferDetail.hh
+diff --git a/include/avro/Layout.hh b/include/avro/Layout.hh
+--- a/include/avro/Layout.hh
++++ b/include/avro/Layout.hh
+@@ -20,6 +20,8 @@
+ #define avro_Layout_hh__
+ 
+ #include "Config.hh"
++#include <memory>
++#include <vector>
+ #include <boost/noncopyable.hpp>
+ 
+ /// \file Layout.hh
+diff --git a/include/avro/Node.hh b/include/avro/Node.hh
+--- a/include/avro/Node.hh
++++ b/include/avro/Node.hh
+@@ -24,6 +24,7 @@
+ #include <boost/noncopyable.hpp>
+ #include <cassert>
+ #include <memory>
++#include <vector>
+ #include <utility>
+ 
+ #include "CustomAttributes.hh"
+diff --git a/include/avro/Exception.hh b/include/avro/Exception.hh
+--- a/include/avro/Exception.hh
++++ b/include/avro/Exception.hh
+@@ -20,7 +20,7 @@
+ #define avro_Exception_hh__
+ 
+ #include "Config.hh"
+-#include <fmt/core.h>
++#include <fmt/format.h>
+ #include <stdexcept>
+ 
+ namespace avro {

@@ -330,6 +330,30 @@ local_path_override(
     path = "families/ruby",
 )
 
+bazel_dep(name = "rules_dx_zig", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_zig",
+    path = "families/zig",
+)
+
+bazel_dep(name = "rules_dx_dart", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_dart",
+    path = "families/dart",
+)
+
+bazel_dep(name = "rules_dx_julia", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_julia",
+    path = "families/julia",
+)
+
+bazel_dep(name = "rules_dx_lua", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_lua",
+    path = "families/lua",
+)
+
 bazel_dep(name = "rules_dx_powershell", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_powershell",
@@ -776,9 +800,6 @@ single_version_override(
     version = "0.17.0",
 )
 
-zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
-zig.toolchain(zig_version = "0.17.0")
-
 # floor: equals tested
 bazel_dep(name = "rules_swift", version = "4.2.2")
 single_version_override(
@@ -924,14 +945,10 @@ use_repo(flutter, "flutter_dev_root", "flutter_toolchains", "flutter_web_sdk")
 
 flutter_dev = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
 flutter_dev.pub(
-    name = "dx_flutter_deps",
-    lock = "//flutter/tests/runtime:pubspec.lock",
-)
-flutter_dev.pub(
     name = "dx_flutter_app_deps",
     lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
 )
-use_repo(flutter_dev, "dx_flutter_app_deps", "dx_flutter_deps", "flutter_android_engine_arm64", "flutter_android_engine_x64", "flutter_ios_engine")
+use_repo(flutter_dev, "dx_flutter_app_deps", "flutter_android_engine_arm64", "flutter_android_engine_x64", "flutter_ios_engine")
 
 # floor: equals tested
 bazel_dep(name = "tar.bzl", version = "0.10.9")
@@ -953,6 +970,8 @@ use_repo(
 dart_tools = use_extension("//dart:repos.bzl", "dart_tools")
 use_repo(dart_tools, "dx_rules_dart_pub")
 
+# The dart_codegen fixture stays in core: rules_dart cannot place outputs for
+# a source in an external repository, so it only works with core as root.
 pub = use_extension(
     "//dart:extensions.bzl",
     "pub",
@@ -963,13 +982,7 @@ pub.from_lock(
     lock = "//third_party/dart:pubspec.lock",
     on_version_conflict = "upgrade",
 )
-
-# Fetching a padded archive guards the pinned bsdtar in //dart:repos.bzl.
-pub.from_lock(
-    name = "dx_dart_padded_archive",
-    lock = "//dart/tests:padded_archive.pubspec.lock",
-)
-use_repo(pub, "dx_dart_deps", "dx_dart_padded_archive")
+use_repo(pub, "dx_dart_deps")
 
 # pub_deploy's api_compat check runs this pinned dart_apitool.
 pub_tools = use_extension("//dart:extensions.bzl", "pub")
@@ -992,9 +1005,6 @@ single_version_override(
     ],
     version = "0.8.0",
 )
-
-julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
-julia.toolchain(version = "1.12.5")
 
 julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
 julia_pkg.from_manifest(
@@ -1052,17 +1062,6 @@ julia_pkg.pkg_annotation(
     patches = ["//julia/tools/lint/patches:JSON.patch"],
 )
 use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
-
-julia_pkg_dev = use_extension(
-    "@rules_julia//julia/pkg:extensions.bzl",
-    "pkg",
-    dev_dependency = True,
-)
-julia_pkg_dev.from_manifest(
-    name = "julia_app_pkgs",
-    lockfile = "//julia/tests/fixtures/julia-app/third_party:Manifest.bazel.json",
-)
-use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
 
 # floor: equals tested
 bazel_dep(name = "rules_perl", version = "1.5.0")
@@ -1173,8 +1172,6 @@ single_version_override(
     patches = ["//patches/rules_multitool:lock_extension.patch"],
     version = "1.0.0",
 )
-
-register_toolchains("//lua/toolchain:all")
 
 lua_tools = use_extension("//lua/toolchain:repos.bzl", "lua")
 use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_luals")
@@ -2327,22 +2324,6 @@ _http_archive(
     strip_prefix = "bitflags-2.13.2",
     type = "tar.gz",
     urls = ["https://static.crates.io/crates/bitflags/bitflags-2.13.2.crate"],
-)
-
-_http_archive(
-    name = "zig_app_xxhash",
-    build_file = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
-    sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
-    strip_prefix = "xxHash-0.8.3",
-    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
-)
-
-_http_archive(
-    name = "lua_app_inspect",
-    build_file = "//lua/tests/fixtures/lua-app:inspect.BUILD.bazel",
-    sha256 = "43386a613f9916186af4919f36392d8b8dad8c4428a5f8c85ebac80acba71eeb",
-    strip_prefix = "inspect.lua-3.1.3",
-    urls = ["https://github.com/kikito/inspect.lua/archive/refs/tags/v3.1.3.tar.gz"],
 )
 
 _psgallery_module = use_repo_rule("//powershell/rules:gallery.bzl", "psgallery_module")

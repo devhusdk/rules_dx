@@ -257,7 +257,7 @@ consumer_policy_tests(
                 "inventory_cli-real-typecheck-dart.pb",
             ],
             "policy": "//quality:default_workspace_policy",
-            "subject": "//dart/tests/fixtures/dart-app/cli:inventory_cli",
+            "subject": "@rules_dx_dart//dart/tests/fixtures/dart-app/cli:inventory_cli",
         },
         {
             "case": "default_ocaml",
@@ -319,7 +319,7 @@ consumer_policy_tests(
                 "greet-real-lint-zig.pb",
             ],
             "policy": "//quality:default_workspace_policy",
-            "subject": "//zig/tests/fixtures/hello:greet",
+            "subject": "@rules_dx_zig//zig/tests/fixtures/hello:greet",
         },
         {
             "case": "toml_formatted",

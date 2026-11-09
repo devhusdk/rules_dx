@@ -1,0 +1,263 @@
+diff -ruN a/windows/private/extensions/msvc_runtime.BUILD.bazel b/windows/private/extensions/msvc_runtime.BUILD.bazel
+--- a/windows/private/extensions/msvc_runtime.BUILD.bazel
++++ b/windows/private/extensions/msvc_runtime.BUILD.bazel
+@@ -130,6 +130,18 @@
+     }),
+ )
+ 
++[
++    filegroup(
++        name = "msvc_tools_{}_{}".format(host, target),
++        srcs = glob(
++            ["__MSVC_RUNTIME_DIR__/Contents/VC/Tools/MSVC/__MSVC_VERSION__/bin/Host{}/{}/**".format(host, target)],
++            allow_empty = True,
++        ),
++    )
++    for host in ("x64", "arm64")
++    for target in ("x64", "arm64")
++]
++
+ filegroup(
+     name = "all_files",
+     srcs = glob(
+diff -ruN a/windows/private/extensions/msvc_runtime.bzl b/windows/private/extensions/msvc_runtime.bzl
+--- a/windows/private/extensions/msvc_runtime.bzl
++++ b/windows/private/extensions/msvc_runtime.bzl
+@@ -138,6 +138,9 @@
+ def _collect_vctools_packages(installer_manifest, architectures):
+     packages_by_id = {}
+     for pkg in installer_manifest.get("packages", []):
++        # Resource packages repeat per language; without this the last one (zh-TW) wins and the tools print Chinese.
++        if pkg.get("language", "neutral").lower() not in ["neutral", "en-us"]:
++            continue
+         packages_by_id[pkg.get("id", "").lower()] = pkg
+ 
+     pending = []
+@@ -204,6 +207,18 @@
+             continue
+         repository_ctx.delete(entry)
+ 
++def _keep_only_children_ignoring_case(repository_ctx, directory, child_names):
++    # Payloads spell one directory both Hostx64 and HostX64; a case-insensitive extract keeps whichever came first.
++    entries = {_basename(entry): entry for entry in directory.readdir()}
++    keep = {}
++    for name in child_names:
++        for actual in entries:
++            if actual == name or (actual.lower() == name.lower() and name not in entries):
++                keep[actual] = True
++    for actual, entry in entries.items():
++        if not keep.get(actual, False):
++            repository_ctx.delete(entry)
++
+ def _is_dotted_version(name):
+     parts = name.split(".")
+     for part in parts:
+@@ -241,7 +256,7 @@
+ def _redist_architectures(architectures):
+     return [arch for arch in architectures if _ARCH_TO_REDIST_PACKAGE.get(arch)]
+ 
+-def _keep_exposed_runtime_files(repository_ctx, sysroot_dir, msvc_version, architectures, redist_version):
++def _keep_exposed_runtime_files(repository_ctx, sysroot_dir, msvc_version, architectures, redist_version, host_tools):
+     sysroot_path = repository_ctx.path(sysroot_dir)
+     contents_dir = repository_ctx.path("{}/Contents".format(sysroot_dir))
+     vc_dir = repository_ctx.path("{}/Contents/VC".format(sysroot_dir))
+@@ -256,13 +271,18 @@
+     _keep_only_children(
+         repository_ctx,
+         repository_ctx.path("{}/Contents/VC/Tools/MSVC/{}".format(sysroot_dir, msvc_version)),
+-        ["include", "lib"],
++        ["include", "lib", "bin"] if host_tools else ["include", "lib"],
+     )
+     _keep_only_children(
+         repository_ctx,
+         repository_ctx.path("{}/Contents/VC/Tools/MSVC/{}/lib".format(sysroot_dir, msvc_version)),
+         architectures,
+     )
++    if host_tools:
++        bin_dir = "{}/Contents/VC/Tools/MSVC/{}/bin".format(sysroot_dir, msvc_version)
++        _keep_only_children_ignoring_case(repository_ctx, repository_ctx.path(bin_dir), ["Host" + host for host in host_tools])
++        for host in host_tools:
++            _keep_only_children(repository_ctx, repository_ctx.path("{}/Host{}".format(bin_dir, host)), architectures)
+ 
+     if redist_version:
+         redist_architectures = _redist_architectures(architectures)
+@@ -348,7 +368,7 @@
+     redist_architectures = _redist_architectures(architectures)
+     if redist_architectures and not redist_version:
+         fail("failed to find Contents/VC/Redist/MSVC/<version> in extracted MSVC payloads for architectures {}".format(redist_architectures))
+-    _keep_exposed_runtime_files(repository_ctx, sysroot_dir, msvc_version, architectures, redist_version)
++    _keep_exposed_runtime_files(repository_ctx, sysroot_dir, msvc_version, architectures, redist_version, repository_ctx.attr.host_tools)
+ 
+     repository_ctx.file(
+         "versions.bzl",
+@@ -394,6 +414,8 @@
+             ),
+         )
+ 
++_HOST_TOOL_ARCHITECTURES = ["x64", "arm64"]
++
+ _MSVC_RUNTIME_ATTR = {
+     "architectures": attr.string_list(
+         default = _DEFAULT_ARCHITECTURES,
+@@ -414,6 +436,9 @@
+ }
+ 
+ _MSVC_RUNTIME_REPOSITORY_ATTRS = _MSVC_RUNTIME_ATTR | {
++    "host_tools": attr.string_list(
++        doc = "Host architectures whose compiler tools are kept under Contents/VC/Tools/MSVC/<msvc_version>/bin/Host<host>",
++    ),
+     "_build_file": attr.label(
+         allow_single_file = True,
+         default = ":msvc_runtime.BUILD.bazel",
+@@ -447,8 +472,20 @@
+ 
+     fail("Missing msvc_runtime.configure(...): set msvc_runtime.configure(...) in your MODULE.bazel")
+ 
++def _read_host_tools(module_ctx):
++    hosts = []
++    for mod in module_ctx.modules:
++        for tag in mod.tags.host_tools:
++            for host in tag.hosts:
++                if host not in _HOST_TOOL_ARCHITECTURES:
++                    fail("msvc_runtime.host_tools: unsupported host {}, expected one of {}".format(host, _HOST_TOOL_ARCHITECTURES))
++                if host not in hosts:
++                    hosts.append(host)
++    return sorted(hosts)
++
+ def _msvc_runtime_extension_impl(module_ctx):
+     config = _read_configure_tag(module_ctx)
++    host_tools = _read_host_tools(module_ctx)
+ 
+     installer_manifest = _resolve_installer_manifest_from_module_facts(
+         module_ctx,
+@@ -463,6 +500,7 @@
+         name = repository_name,
+         msvc_version = config.msvc_version,
+         architectures = config.architectures,
++        host_tools = host_tools,
+         installer_manifest_url = installer_manifest["url"],
+         installer_manifest_integrity = installer_manifest["integrity"],
+     )
+@@ -496,6 +534,15 @@
+                 doc = "Optional SRI integrity for the downloaded Visual Studio installer manifest.",
+             ),
+         }),
++        "host_tools": tag_class(
++            attrs = {
++                "hosts": attr.string_list(
++                    mandatory = True,
++                    doc = "Host architectures (`x64`, `arm64`) whose compiler tools (cl.exe, link.exe) are kept in the repository. Values from all modules are combined.",
++                ),
++            },
++            doc = "Keeps the MSVC compiler tools for the given hosts, exposed as `msvc_tools_<host>_<target>`.",
++        ),
+     },
+     doc = "MSVC runtime extension.",
+ )
+diff -ruN a/windows/private/extensions/windows_sdk.BUILD.bazel b/windows/private/extensions/windows_sdk.BUILD.bazel
+--- a/windows/private/extensions/windows_sdk.BUILD.bazel
++++ b/windows/private/extensions/windows_sdk.BUILD.bazel
+@@ -189,3 +189,14 @@
+         allow_empty = True,
+     ),
+ )
++
++[
++    filegroup(
++        name = "winsdk_bin_" + host,
++        srcs = glob(
++            ["__WINSDK_DIR__/base/c/bin/__WINSDK_INCLUDE_VERSION__/{}/**".format(host)],
++            allow_empty = True,
++        ),
++    )
++    for host in ("x64", "arm64")
++]
+diff -ruN a/windows/private/extensions/windows_sdk.bzl b/windows/private/extensions/windows_sdk.bzl
+--- a/windows/private/extensions/windows_sdk.bzl
++++ b/windows/private/extensions/windows_sdk.bzl
+@@ -28,10 +28,13 @@
+             continue
+         repository_ctx.delete(entry)
+ 
+-def _keep_exposed_windows_sdk_files(repository_ctx, sysroot_dir, include_version, architectures):
++def _keep_exposed_windows_sdk_files(repository_ctx, sysroot_dir, include_version, architectures, host_tools):
+     _keep_only_children(repository_ctx, repository_ctx.path(sysroot_dir), ["base"] + architectures)
+     _keep_only_children(repository_ctx, repository_ctx.path("{}/base".format(sysroot_dir)), ["c"])
+-    _keep_only_children(repository_ctx, repository_ctx.path("{}/base/c".format(sysroot_dir)), ["Include"])
++    _keep_only_children(repository_ctx, repository_ctx.path("{}/base/c".format(sysroot_dir)), ["Include", "bin"] if host_tools else ["Include"])
++    if host_tools:
++        _keep_only_children(repository_ctx, repository_ctx.path("{}/base/c/bin".format(sysroot_dir)), [include_version])
++        _keep_only_children(repository_ctx, repository_ctx.path("{}/base/c/bin/{}".format(sysroot_dir, include_version)), host_tools)
+     _keep_only_children(repository_ctx, repository_ctx.path("{}/base/c/Include".format(sysroot_dir)), [include_version])
+     _keep_only_children(
+         repository_ctx,
+@@ -226,7 +229,7 @@
+     )
+ 
+     _apply_transformations(repository_ctx)
+-    _keep_exposed_windows_sdk_files(repository_ctx, _SYSROOT_DIR, include_version, requested_architectures)
++    _keep_exposed_windows_sdk_files(repository_ctx, _SYSROOT_DIR, include_version, requested_architectures, repository_ctx.attr.host_tools)
+ 
+     repository_ctx.file(
+         "versions.bzl",
+@@ -263,6 +266,8 @@
+         ),
+     )
+ 
++_HOST_TOOL_ARCHITECTURES = ["x64", "arm64"]
++
+ _WINDOWS_SDK_ATTR = {
+     "architectures": attr.string_list(
+         default = _DEFAULT_ARCHITECTURES,
+@@ -299,6 +304,9 @@
+ }
+ 
+ _WINDOWS_SDK_REPOSITORY_ATTRS = _WINDOWS_SDK_ATTR | {
++    "host_tools": attr.string_list(
++        doc = "Host architectures whose SDK tools (rc.exe, mt.exe) are kept under base/c/bin/<version>/<host>",
++    ),
+     "_build_file": attr.label(
+         allow_single_file = True,
+         default = ":windows_sdk.BUILD.bazel",
+@@ -331,6 +339,17 @@
+ 
+     fail("Missing windows_sdk.configure(...): set windows_sdk.configure(...) in your MODULE.bazel")
+ 
++def _read_host_tools(module_ctx):
++    hosts = []
++    for mod in module_ctx.modules:
++        for tag in mod.tags.host_tools:
++            for host in tag.hosts:
++                if host not in _HOST_TOOL_ARCHITECTURES:
++                    fail("windows_sdk.host_tools: unsupported host {}, expected one of {}".format(host, _HOST_TOOL_ARCHITECTURES))
++                if host not in hosts:
++                    hosts.append(host)
++    return sorted(hosts)
++
+ def _windows_sdk_extension_impl(module_ctx):
+     config = _read_configure_tag(module_ctx)
+ 
+@@ -341,6 +360,7 @@
+         windows_sdk_integrity = config.windows_sdk_integrity,
+         transformations = config.transformations,
+         architectures = config.architectures,
++        host_tools = _read_host_tools(module_ctx),
+     )
+ 
+     if module_ctx.root_module_has_non_dev_dependency:
+@@ -358,6 +378,15 @@
+     implementation = _windows_sdk_extension_impl,
+     tag_classes = {
+         "configure": tag_class(attrs = _WINDOWS_SDK_ATTR),
++        "host_tools": tag_class(
++            attrs = {
++                "hosts": attr.string_list(
++                    mandatory = True,
++                    doc = "Host architectures (`x64`, `arm64`) whose SDK tools (rc.exe, mt.exe) are kept. Values from all modules are combined.",
++                ),
++            },
++            doc = "Keeps the Windows SDK tools for the given hosts, exposed as `winsdk_bin_<host>`.",
++        ),
+     },
+     doc = "Windows SDK extension backed by public NuGet packages.",
+ )

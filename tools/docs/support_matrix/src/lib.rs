@@ -206,15 +206,19 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_apple",
         "@rules_dx_beam",
         "@rules_dx_cuda",
+        "@rules_dx_dart",
         "@rules_dx_dotnet",
         "@rules_dx_generation",
         "@rules_dx_js",
+        "@rules_dx_julia",
         "@rules_dx_jvm",
+        "@rules_dx_lua",
         "@rules_dx_msix",
         "@rules_dx_perl",
         "@rules_dx_php",
         "@rules_dx_powershell",
         "@rules_dx_ruby",
+        "@rules_dx_zig",
     ]
     .into_iter()
     .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));

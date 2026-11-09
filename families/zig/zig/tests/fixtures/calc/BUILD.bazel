@@ -1,0 +1,31 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
+load("@rules_dx//zig/rules:wrapper_tests.bzl", "zig_kcov_env_test")
+
+package(default_visibility = ["//visibility:public"])
+
+zig_library(
+    name = "calc",
+    testonly = True,
+    main = "calc.zig",
+)
+
+zig_test(
+    name = "calc_test",
+    main = "calc_test.zig",
+    deps = [":calc"],
+)
+
+zig_kcov_env_test(
+    name = "calc_test_kcov_test",
+    instrumented = ["zig/tests/fixtures/calc/calc.zig"],
+    target = ":calc_test",
+    upstream = "calc_test_upstream",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

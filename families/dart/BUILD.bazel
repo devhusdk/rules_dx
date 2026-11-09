@@ -1,0 +1,53 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# gazelle:exclude dart
+
+package(default_visibility = ["//visibility:public"])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+sh_test(
+    name = "starlark_docs_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:starlark_docs_family_test)"],
+    data = [
+        "//dart/tests:corpus_starlark",
+        "//dart/tests/cross:corpus_starlark",
+        "//dart/tests/fixtures/adopt-dart:corpus_starlark",
+        "//dart/tests/fixtures/adopt-dart/packages/greet:corpus_starlark",
+        "//dart/tests/fixtures/adopt-dart/packages/tool:corpus_starlark",
+        "//dart/tests/fixtures/dart-app:corpus_starlark",
+        "//dart/tests/fixtures/dart-app/cli:corpus_starlark",
+        "//dart/tests/fixtures/dart-app/failures:corpus_starlark",
+        "//dart/tests/fixtures/dart-app/gen:corpus_starlark",
+        "//dart/tests/fixtures/dart-app/ledger:corpus_starlark",
+        "//dart/tests/fixtures/dart-app/model:corpus_starlark",
+        "//dart/tests/negative:corpus_starlark",
+        "//dart/tests/runtime:corpus_starlark",
+        "//dart/tests/tags:corpus_starlark",
+        "//dart/tests/web:corpus_starlark",
+        "//flutter/tests/contract:corpus_starlark",
+        "//flutter/tests/runtime:corpus_starlark",
+        "@rules_dx//tools/ci:starlark_docs_family_test",
+    ],
+    env = {"STARLARK_DOCS_PACKAGES": "dart/tests,dart/tests/cross,dart/tests/fixtures/adopt-dart,dart/tests/fixtures/adopt-dart/packages/greet,dart/tests/fixtures/adopt-dart/packages/tool,dart/tests/fixtures/dart-app,dart/tests/fixtures/dart-app/cli,dart/tests/fixtures/dart-app/failures,dart/tests/fixtures/dart-app/gen,dart/tests/fixtures/dart-app/ledger,dart/tests/fixtures/dart-app/model,dart/tests/negative,dart/tests/runtime,dart/tests/tags,dart/tests/web,flutter/tests/contract,flutter/tests/runtime"},
+)
+
+# dx:begin exports
+exports_files(
+    [".buildifier.json"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

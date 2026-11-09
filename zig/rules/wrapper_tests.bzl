@@ -30,13 +30,13 @@ _COVERAGE = {
 _linux_test = analysistest.make(
     _kcov_env_impl,
     attrs = _ATTRS,
-    config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//zig/tests/fixtures/calc:linux_x86_64"))},
+    config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//zig/rules:kcov_linux_x86_64"))},
 )
 
 _macos_test = analysistest.make(
     _kcov_env_impl,
     attrs = _ATTRS,
-    config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//zig/tests/fixtures/calc:macos_arm64"))},
+    config_settings = _COVERAGE | {"//command_line_option:platforms": str(Label("//zig/rules:kcov_macos_arm64"))},
 )
 
 _off_test = analysistest.make(

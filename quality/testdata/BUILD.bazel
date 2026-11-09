@@ -1414,7 +1414,7 @@ workspace_policy(
 lua_typecheck_subject(
     name = "lua_typecheck_subject",
     testonly = True,
-    target = "//lua/tests/runtime:lib",
+    target = "@rules_dx_lua//lua/tests/runtime:lib",
 )
 
 luals_flag_tests(
@@ -1603,7 +1603,7 @@ workspace_policy(
 zig_subject(
     name = "zig_subject",
     testonly = True,
-    target = "//zig/tests/fixtures/hello:greet",
+    target = "@rules_dx_zig//zig/tests/fixtures/hello:greet",
 )
 
 zig_fmt_flag_tests(
@@ -1630,7 +1630,7 @@ workspace_policy(
 zig_lint_subject(
     name = "zig_lint_subject",
     testonly = True,
-    target = "//zig/tests/fixtures/hello:greet",
+    target = "@rules_dx_zig//zig/tests/fixtures/hello:greet",
 )
 
 zig_ast_check_flag_tests(
@@ -1657,7 +1657,7 @@ workspace_policy(
 dart_subject(
     name = "dart_subject",
     testonly = True,
-    target = "//dart/tests/runtime:greet",
+    target = "@rules_dx_dart//dart/tests/runtime:greet",
 )
 
 dart_format_flag_tests(
@@ -1696,7 +1696,7 @@ workspace_policy(
 julia_subject(
     name = "julia_subject",
     testonly = True,
-    target = "//julia/tests/fixtures/hello:Greet",
+    target = "@rules_dx_julia//julia/tests/fixtures/hello:Greet",
 )
 
 julia_format_flag_tests(
@@ -1723,7 +1723,7 @@ workspace_policy(
 julia_typecheck_subject(
     name = "julia_typecheck_subject",
     testonly = True,
-    target = "//julia/tests/fixtures/hello:Greet",
+    target = "@rules_dx_julia//julia/tests/fixtures/hello:Greet",
 )
 
 jet_flag_tests(

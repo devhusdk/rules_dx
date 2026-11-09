@@ -1,0 +1,220 @@
+diff --git a/uv/private/extension/defs.bzl b/uv/private/extension/defs.bzl
+--- a/uv/private/extension/defs.bzl
++++ b/uv/private/extension/defs.bzl
+@@ -1055,7 +1055,7 @@
+         ),
+         "env": attr.string_dict(
+             default = {},
+-            doc = "Extra environment variables merged into the build action's `env` dict. Values may reference $(VAR) make-variables sourced from extra `toolchains` listed above. Prefix an execroot-relative path with `$(EXECROOT)/` so it remains valid after the backend changes into the unpacked source tree. Omit CC/CXX/AR/LD/STRIP to use the configured C++ action tools.",
++            doc = "Extra environment variables merged into the build action's `env` dict. Values may reference $(VAR) make-variables sourced from extra `toolchains` listed above. Prefix an execroot-relative path with `$(EXECROOT)/` so it remains valid after the backend changes into the unpacked source tree. Omit CC/CXX/AR/LD/STRIP to use the configured C++ action tools; while CC and CXX are omitted, the toolchain's compile and link flags are passed too.",
+         ),
+         "config_settings": attr.string_list_dict(
+             default = {},
+diff --git a/uv/private/pep517_whl/cc_layer.bzl b/uv/private/pep517_whl/cc_layer.bzl
+--- a/uv/private/pep517_whl/cc_layer.bzl
++++ b/uv/private/pep517_whl/cc_layer.bzl
+@@ -13,6 +13,9 @@
+ 
+ _PATH_FLAG_PREFIXES = ("-I", "-L", "-isysroot", "-iwithsysroot", "-isystem", "-B")
+ 
++# Execroot-relative roots a `-flag=<path>` value may start with.
++_EXECROOT_ROOTS = ("external/", "bazel-out/")
++
+ CC_LAYER_ATTRS = {
+     "_os_linux": attr.label(default = "@platforms//os:linux"),
+     "_os_macos": attr.label(default = "@platforms//os:macos"),
+@@ -41,6 +44,13 @@
+             rest = flag[len(pfx):]
+             if rest and not rest.startswith("/") and "/" in rest:
+                 return pfx + _EXECROOT_MARKER + "/" + rest
++
++    # `-resource-dir=`, `-fsanitize-ignorelist=`, `-Wl,--opt=` and similar
++    # carry an execroot-relative path after the first `=`. `--sysroot=` is
++    # left to build_helper's _absolutize_sysroot_flags.
++    name, sep, value = flag.partition("=")
++    if sep and name != "--sysroot" and value.startswith(_EXECROOT_ROOTS):
++        return name + sep + _EXECROOT_MARKER + "/" + value
+     return flag
+ 
+ def get_target_platform(ctx):
+@@ -73,8 +83,9 @@
+ def extract_cc_layer(ctx, cc_toolchain):
+     """Extract CC toolchain tools, flags, and target platform info.
+ 
+-    Called only in cross-compilation mode. The native path relies on the
+-    existing _cc_toolchain_inputs_and_tools + backend self-discovery.
++    Called for cross builds and for native builds whose toolchain carries a
++    feature configuration: a hermetic toolchain supplies its libc headers,
++    crt objects and runtime only through these flags.
+ 
+     Args:
+         ctx: The rule context. Must include CC_LAYER_ATTRS and
+diff --git a/uv/private/pep517_whl/pep517_native_whl.bzl b/uv/private/pep517_whl/pep517_native_whl.bzl
+--- a/uv/private/pep517_whl/pep517_native_whl.bzl
++++ b/uv/private/pep517_whl/pep517_native_whl.bzl
+@@ -308,10 +308,21 @@
+         env[_INFER_CXX_COMPANION] = "1"
+ 
+     cross_args = []
+-    if cross:
+-        cc_toolchain = cc_toolchain_raw
+-        if hasattr(cc_toolchain, "cc_provider_in_toolchain") and hasattr(cc_toolchain, "cc"):
+-            cc_toolchain = cc_toolchain.cc
++    cc_toolchain = cc_toolchain_raw
++    if hasattr(cc_toolchain, "cc_provider_in_toolchain") and hasattr(cc_toolchain, "cc"):
++        cc_toolchain = cc_toolchain.cc
++
++    # A hermetic C++ toolchain reaches its libc headers, crt objects and
++    # runtime only through its action flags, so native builds need them too.
++    # Native builds keep the backend's self-discovery when `env` replaces the
++    # toolchain's compiler (its flags may not suit another driver) or the
++    # provider has no feature configuration to derive flags from.
++    native_toolchain_flags = (
++        hasattr(cc_toolchain, "ar_executable") and
++        "CC" not in ctx.attr.env and
++        "CXX" not in ctx.attr.env
++    )
++    if cross or native_toolchain_flags:
+         cc_layer = extract_cc_layer(ctx, cc_toolchain)
+ 
+         # Toolchain flags first, then any flags the package set via `env`
+@@ -338,31 +349,34 @@
+         if cc_layer.static_runtime_paths:
+             env["RULES_PY_CXX_STATIC_RUNTIME"] = ":".join(cc_layer.static_runtime_paths)
+ 
+-        cross_args = [
+-            "--cross",
+-            "--target-os",
+-            cc_layer.target_os or "",
+-            "--target-cpu",
+-            cc_layer.target_cpu or "",
+-            "--target-libc",
+-            ctx.attr._platform_libc[BuildSettingInfo].value,
+-        ]
+-
+-        py_toolchain = ctx.toolchains[PY_TOOLCHAIN]
+-        if py_toolchain != None:
+-            runtime = getattr(py_toolchain, "py3_runtime", None)
+-            if runtime:
+-                artifacts = _target_python_artifacts(runtime)
+-                if artifacts.sysconfig:
+-                    extra_inputs.append(depset([artifacts.sysconfig]))
+-                    env["RULES_PY_TARGET_SYSCONFIGDATA"] = artifacts.sysconfig.path
+-                if artifacts.include_dir:
+-                    extra_inputs.append(depset(artifacts.include_files))
+-                    env["RULES_PY_TARGET_INCLUDE"] = artifacts.include_dir
+-
+-        host_platform = _derive_python_host_platform(cc_layer.target_os, cc_layer.target_cpu)
+-        if host_platform:
+-            env["_PYTHON_HOST_PLATFORM"] = host_platform
++        if not cross:
++            cross_args = ["--toolchain-flags"]
++        else:
++            cross_args = [
++                "--cross",
++                "--target-os",
++                cc_layer.target_os or "",
++                "--target-cpu",
++                cc_layer.target_cpu or "",
++                "--target-libc",
++                ctx.attr._platform_libc[BuildSettingInfo].value,
++            ]
++
++            py_toolchain = ctx.toolchains[PY_TOOLCHAIN]
++            if py_toolchain != None:
++                runtime = getattr(py_toolchain, "py3_runtime", None)
++                if runtime:
++                    artifacts = _target_python_artifacts(runtime)
++                    if artifacts.sysconfig:
++                        extra_inputs.append(depset([artifacts.sysconfig]))
++                        env["RULES_PY_TARGET_SYSCONFIGDATA"] = artifacts.sysconfig.path
++                    if artifacts.include_dir:
++                        extra_inputs.append(depset(artifacts.include_files))
++                        env["RULES_PY_TARGET_INCLUDE"] = artifacts.include_dir
++
++            host_platform = _derive_python_host_platform(cc_layer.target_os, cc_layer.target_cpu)
++            if host_platform:
++                env["_PYTHON_HOST_PLATFORM"] = host_platform
+ 
+     tool = ctx.attr.tool[DefaultInfo].files_to_run
+     io_args = ctx.actions.args()
+@@ -418,7 +432,8 @@
+                   "execroot-relative path with " +
+                   "`$(EXECROOT)/` so it remains valid after the backend changes into " +
+                   "the unpacked source tree. Omit CC/CXX/AR/LD/STRIP to use the " +
+-                  "configured C++ action tools.",
++                  "configured C++ action tools; while CC and CXX are omitted, " +
++                  "the toolchain's compile and link flags are passed too.",
+         ),
+         "_platform_libc": attr.label(
+             default = "//uv/private/constraints/platform:platform_libc",
+diff --git a/uv/private/pep517_whl/tools/build_helper.py b/uv/private/pep517_whl/tools/build_helper.py
+--- a/uv/private/pep517_whl/tools/build_helper.py
++++ b/uv/private/pep517_whl/tools/build_helper.py
+@@ -582,6 +582,7 @@
+     cross: bool = False,
+     target_os: str = "",
+     target_cpu: str = "",
++    toolchain_flags: bool = False,
+ ) -> dict[str, str]:
+     env = dict(os.environ)
+     if execroot_marker:
+@@ -634,8 +635,9 @@
+         cxx_path = _local_cxx_companion(env.get("CXX"), cxx_path)
+ 
+     sysroot = _darwin_sysroot()
++    toolchain_flags = toolchain_flags or cross
+ 
+-    if cross:
++    if toolchain_flags:
+         # Toolchain flag strings (from cc_layer.bzl) contain execroot-relative
+         # sysroots; absolutize while still in the execroot, before the backend
+         # chdirs into the unpacked sdist.
+@@ -650,14 +652,15 @@
+         # runtime's: distutils still injects the running interpreter's
+         # include path, but CFLAGS-supplied -I directories are searched
+         # first.
+-        target_include = env.pop("RULES_PY_TARGET_INCLUDE", "")
++        target_include = env.pop("RULES_PY_TARGET_INCLUDE", "") if cross else ""
+         if target_include:
+             include_flag = "-I" + _absolutize_path(target_include)
+             for key in ("CFLAGS", "CXXFLAGS"):
+                 env[key] = (include_flag + " " + env.get(key, "")).strip()
+ 
+         wrapper_flags = _get_wrapper_flags(env.get("CFLAGS", ""))
+-        is_darwin_target = target_os == "darwin"
++        # A native build targets the exec host's own OS.
++        is_darwin_target = target_os == "darwin" if cross else _platform.system() == "Darwin"
+ 
+         # An LLVM-style toolchain (BCR `llvm` module) reaches its crt objects
+         # and runtime libraries only through the link action's flags; detect
+@@ -691,11 +694,12 @@
+     env.setdefault("CC", cc)
+     env.setdefault("CXX", cxx)
+ 
+-    if cross:
++    if toolchain_flags:
+         ldshared_flags = env.get("LDSHAREDFLAGS", "")
+         env["LDSHARED"] = cc + ((" " + ldshared_flags) if ldshared_flags else "")
+         env["LDCXXSHARED"] = cxx + ((" " + ldshared_flags) if ldshared_flags else "")
+ 
++    if cross:
+         deployment_target = None
+         target_sysconfig = env.get("RULES_PY_TARGET_SYSCONFIGDATA")
+         if target_sysconfig and path.exists(target_sysconfig):
+@@ -1135,6 +1139,7 @@
+ PARSER.add_argument("--patch", action="append", default=[], dest="patches", help="Patch file to apply (repeatable)")
+ PARSER.add_argument("--execroot-marker", help="Token in env values to replace with the absolute execroot")
+ PARSER.add_argument("--cross", action="store_true", help="Cross-compilation mode: target platform != exec platform")
++PARSER.add_argument("--toolchain-flags", action="store_true", help="CFLAGS/CXXFLAGS/LDFLAGS/LDSHAREDFLAGS carry the C++ toolchain's action flags")
+ PARSER.add_argument("--target-os", default="", help="Target platform OS the wheel must be tagged for (linux, darwin, windows)")
+ PARSER.add_argument("--target-libc", default="", help="Target platform C library the wheel must link against (glibc, musl, libsystem)")
+ PARSER.add_argument("--target-cpu", default="", help="Target platform CPU the wheel must be tagged for (x86_64, aarch64, ...)")
+@@ -1191,6 +1196,7 @@
+         cross=opts.cross,
+         target_os=opts.target_os,
+         target_cpu=opts.target_cpu,
++        toolchain_flags=opts.toolchain_flags,
+     )
+ 
+     if _legacy_metadata_conflicts_with_pyproject(t):

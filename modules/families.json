@@ -222,14 +222,18 @@
         "gcc_toolchain",
         "libxml2",
         "llvm",
+        "lua",
         "platforms",
         "protobuf",
         "rules_android",
         "rules_apple",
         "rules_batch",
         "rules_cc",
+        "rules_dart",
+        "rules_flutter",
         "rules_go",
         "rules_java",
+        "rules_julia",
         "rules_jvm_external",
         "rules_kotlin",
         "rules_perl",
@@ -237,6 +241,7 @@
         "rules_python",
         "rules_scala",
         "rules_shell",
+        "rules_zig",
         "tar.bzl",
         "windows_support",
         "yaml.bzl",
@@ -257,6 +262,7 @@
         "cloudformation",
         "cmake",
         "config",
+        "dart",
         "deploy",
         "dockerfile",
         "docs",
@@ -268,6 +274,7 @@
         "examples",
         "families",
         "flatbuffers",
+        "flutter",
         "fortran",
         "gazelle",
         "generation",
@@ -275,9 +282,11 @@
         "helm",
         "java",
         "javascript",
+        "julia",
         "kotlin",
         "kubernetes",
         "libs",
+        "lua",
         "make",
         "mdx",
         "modules",
@@ -298,12 +307,15 @@
         "thrift",
         "tools",
         "typescript",
-        "vue"
+        "vue",
+        "zig"
       ],
       "extensions": [
         "//cc/toolchains/msvc:repos.bzl%msvc",
         "//cc/toolchains:repos.bzl%gcc",
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
+        "//dart:extensions.bzl%pub",
+        "//dart:repos.bzl%dart_tools",
         "//deploy/rules/pins:repos.bzl%apicompat",
         "//deploy/rules/pins:repos.bzl%japicmp",
         "//deploy/rules/pins:repos.bzl%semver_checks",
@@ -314,6 +326,7 @@
         "//fortran/toolchain:repos.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
+        "//lua/toolchain:repos.bzl%lua",
         "//php/toolchain:repos.bzl%php",
         "//powershell/toolchain:repos.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
@@ -329,8 +342,11 @@
         "@gazelle//:extensions.bzl%go_deps",
         "@llvm//extensions:osx.bzl%osx",
         "@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl%protoc",
+        "@rules_dart//dart:extensions.bzl%dart",
+        "@rules_flutter//flutter:extensions.bzl%flutter",
         "@rules_go//go:extensions.bzl%go_sdk",
         "@rules_java//java:extensions.bzl%toolchains",
+        "@rules_julia//julia/pkg:extensions.bzl%pkg",
         "@rules_jvm_external//:extensions.bzl%maven",
         "@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions",
         "@rules_perl//perl/cpan:extensions.bzl%cpan",
@@ -486,17 +502,23 @@
         "real_dart_typecheck_probe_aspect"
       ],
       "bazel_deps": [
+        "bazel_lib",
+        "bazel_skylib",
+        "platforms",
         "rules_dart",
-        "rules_flutter"
+        "rules_dx",
+        "rules_flutter",
+        "rules_shell"
       ],
       "dirs": [
+        "bcr_test_module",
         "dart",
-        "flutter"
+        "flutter",
+        "third_party"
       ],
       "extensions": [
-        "//dart:extensions.bzl%pub",
-        "//dart:repos.bzl%dart_tools",
         "@rules_dart//dart:extensions.bzl%dart",
+        "@rules_dx//dart:extensions.bzl%pub",
         "@rules_flutter//flutter:extensions.bzl%flutter"
       ],
       "file_extensions": [
@@ -506,7 +528,9 @@
         "//gazelle/dart"
       ],
       "repo_rules": [],
-      "toolchains": []
+      "toolchains": [],
+      "module": "rules_dx_dart",
+      "path": "families/dart"
     },
     "dotnet": {
       "aspects": [
@@ -720,10 +744,16 @@
         "real_julia_typecheck_probe_aspect"
       ],
       "bazel_deps": [
-        "rules_julia"
+        "bazel_skylib",
+        "platforms",
+        "rules_dx",
+        "rules_julia",
+        "rules_shell"
       ],
       "dirs": [
-        "julia"
+        "bcr_test_module",
+        "julia",
+        "third_party"
       ],
       "extensions": [
         "@rules_julia//julia/pkg:extensions.bzl%pkg",
@@ -736,7 +766,9 @@
         "//gazelle/julia"
       ],
       "repo_rules": [],
-      "toolchains": []
+      "toolchains": [],
+      "module": "rules_dx_julia",
+      "path": "families/julia"
     },
     "jvm": {
       "aspects": [
@@ -795,24 +827,32 @@
         "real_lua_typecheck_probe_aspect"
       ],
       "bazel_deps": [
-        "lua"
+        "bazel_skylib",
+        "lua",
+        "platforms",
+        "rules_dx",
+        "rules_shell"
       ],
       "dirs": [
-        "lua"
+        "bcr_test_module",
+        "lua",
+        "third_party"
       ],
-      "extensions": [
-        "//lua/toolchain:repos.bzl%lua"
-      ],
+      "extensions": [],
       "file_extensions": [
         ".lua"
       ],
       "gazelle": [
         "//gazelle/lua"
       ],
-      "repo_rules": [],
+      "repo_rules": [
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive"
+      ],
       "toolchains": [
-        "//lua/toolchain:all"
-      ]
+        "@rules_dx//lua/toolchain:all"
+      ],
+      "module": "rules_dx_lua",
+      "path": "families/lua"
     },
     "msix": {
       "aspects": [],
@@ -1110,9 +1150,16 @@
         "real_zig_typecheck_probe_aspect"
       ],
       "bazel_deps": [
+        "bazel_skylib",
+        "platforms",
+        "rules_cc",
+        "rules_dx",
+        "rules_shell",
         "rules_zig"
       ],
       "dirs": [
+        "bcr_test_module",
+        "third_party",
         "zig"
       ],
       "extensions": [
@@ -1124,8 +1171,12 @@
       "gazelle": [
         "//gazelle/zig"
       ],
-      "repo_rules": [],
-      "toolchains": []
+      "repo_rules": [
+        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive"
+      ],
+      "toolchains": [],
+      "module": "rules_dx_zig",
+      "path": "families/zig"
     }
   }
 }

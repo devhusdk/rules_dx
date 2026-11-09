@@ -28,7 +28,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude d/tests/fixtures
 # gazelle:exclude quality/tiers
 # gazelle:exclude java/rules/jmh
-# gazelle:exclude flutter/tests/fixtures
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures
 # gazelle:exclude rust/tests/fixtures
@@ -45,7 +44,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/process_probe
 # gazelle:exclude tools/testing/hermetic
-# gazelle:exclude flutter/tests/fixtures/flutter-app/ios
 # gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
@@ -111,18 +109,11 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cc/tests/fixtures/c-app
 # gazelle:exclude cc/tests/fixtures/cpp-app
 # gazelle:exclude haskell/tests/fixtures/haskell-app
-# gazelle:exclude dart/tests/cross
-# gazelle:exclude dart/tests/runtime
-# gazelle:exclude dart/tests/tags
 # gazelle:exclude qt/tests/fixtures/qt-app
 # gazelle:exclude svelte/tests/fixtures/svelte-app
-# gazelle:exclude lua/tests/fixtures/lua-app
 # gazelle:exclude ocaml/tests/fixtures/ocaml-app
 # gazelle:exclude qt/tests/fixtures/qt-rust
 # gazelle:exclude qt/tests/fixtures/qt-tasks
-# gazelle:exclude zig/tests/fixtures/zig-app
-# gazelle:exclude julia/tests/fixtures/julia-app
-# gazelle:exclude dart/tests/fixtures/dart-app
 # gazelle:exclude appimage/tests/fixtures/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
@@ -141,10 +132,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude go/tests/fixtures/staticcheck
 # gazelle:exclude go/tests/fixtures/godeps
 # gazelle:exclude rust/tests/fixtures/hello
-# gazelle:exclude zig/tests/fixtures/hello
 # gazelle:exclude swift/tests/fixtures/hello
-# gazelle:exclude julia/tests/fixtures/hello
-# gazelle:exclude lua/tests
 # gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude d/tests/fixtures/cc_interop
 # gazelle:exclude rust/tests/fixtures/bindgen

@@ -1,0 +1,36 @@
+--- a/toolchain/defs.bzl
++++ b/toolchain/defs.bzl
+@@ -982,6 +982,8 @@
+     strip_files = ":strip_files",
+     coverage_files = ":coverage_files",
+     supports_param_files = {supports_param_files},
++    dynamic_runtime_lib = ":dx_dynamic_runtime_lib",
++    static_runtime_lib = ":dx_static_runtime_lib",
+     toolchain_config = ":cc_toolchain_config",
+     toolchain_identifier = "gcc-toolchain",
+ )
+@@ -1001,6 +1003,24 @@
+ )
+ 
+ filegroup(
++    name = "dx_dynamic_runtime_lib",
++    srcs = glob(
++        include = [
++            "lib64/libstdc++.so.6",
++            "lib64/libgcc_s.so.1",
++            "*/lib64/libstdc++.so.6",
++            "*/lib64/libgcc_s.so.1",
++        ],
++        allow_empty = True,
++    ),
++)
++
++filegroup(
++    name = "dx_static_runtime_lib",
++    srcs = [],
++)
++
++filegroup(
+     name = "all_files",
+     srcs = [
+         ":ar_files",

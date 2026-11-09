@@ -1,0 +1,18 @@
+load("@rules_dx//julia/rules:defs.bzl", "julia_library", "julia_standalone_binary")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//julia/tests/fixtures/hello:__pkg__"],
+)
+
+julia_library(
+    name = "HelloApp",
+    srcs = ["src/HelloApp.jl"],
+    data = ["Project.toml"],
+    deps = ["//julia/tests/fixtures/hello:Greet"],
+)
+
+julia_standalone_binary(
+    name = "hello_standalone",
+    binary = ":HelloApp",
+)

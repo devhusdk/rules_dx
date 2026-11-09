@@ -498,45 +498,159 @@ fn no_other_workflow_job_reports_the_gate_context() {
     }
 }
 
-/// Failures ci.yml may swallow: (job, step, kind, reason).
-const ALLOWED_SWALLOWS: [(&str, &str, &str, &str); 3] = [
+/// Failures the workflows may swallow: (workflow file, job, step, kind, reason).
+const ALLOWED_SWALLOWS: [(&str, &str, &str, &str, &str); 18] = [
     (
+        "ci.yml",
         "preflight",
         "Record the Windows rmeta diagnostics (#4850)",
         "|| true",
         "diagnostics only; the build under diagnosis reports its own failure",
     ),
     (
+        "ci.yml",
         "preflight",
         "Record the runner image",
         "|| true",
         "the image record is informational",
     ),
     (
+        "ci.yml",
         "scheduled-report",
         "Open, update or close the tracking issue",
         "|| true",
         "a failed issue lookup must not fail the report",
     ),
+    (
+        "evidence.yml",
+        "evidence",
+        "Build and qualify the release cell",
+        "|| true",
+        "the cell's own check step reports the failure",
+    ),
+    (
+        "evidence.yml",
+        "evidence",
+        "Install the Android SDK packages",
+        "|| true",
+        "sdkmanager exits non-zero when the pipe closes after the licenses are accepted",
+    ),
+    (
+        "evidence.yml",
+        "evidence",
+        "Run evidence task",
+        "|| true",
+        "the task's own exit status is recorded and reported by a later step",
+    ),
+    (
+        "evidence.yml",
+        "evidence",
+        "Record the Apple executor",
+        "|| true",
+        "the executor record is informational",
+    ),
+    (
+        "evidence.yml",
+        "evidence",
+        "Collect test logs",
+        "|| true",
+        "a missing log must not hide the test failure",
+    ),
+    (
+        "issue-labels.yml",
+        "missing-labels",
+        "Warn about documented labels missing from the repository",
+        "|| true",
+        "an empty match list is the expected case",
+    ),
+    (
+        "issue-labels.yml",
+        "blocked-issues",
+        "Check that blocked issues name a blocker, and unblock closed ones",
+        "|| true",
+        "an issue without a Blocked on line is the expected case",
+    ),
+    (
+        "release-cells.yml",
+        "cell",
+        "Collect the cell files",
+        "|| true",
+        "a cell may produce no files",
+    ),
+    (
+        "release-cells.yml",
+        "verify",
+        "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+        "continue-on-error",
+        "a cell may upload no artifact",
+    ),
+    (
+        "release.yml",
+        "dry-run",
+        "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333",
+        "continue-on-error",
+        "a cell may upload no artifact",
+    ),
+    (
+        "reusable-consumer.yml",
+        "checks",
+        "Run the checks",
+        "|| true",
+        "the exit status is recorded and reported by a later step",
+    ),
+    (
+        "reusable-consumer.yml",
+        "checks",
+        "Check changed-line coverage",
+        "|| true",
+        "the coverage verdict is read from the event stream",
+    ),
+    (
+        "reusable-consumer.yml",
+        "checks",
+        "Render first-party coverage summary (per-cell, no union)",
+        "|| true",
+        "the summary is informational",
+    ),
+    (
+        "reusable-consumer.yml",
+        "checks",
+        "Publish PR summary comment (dedup marker, fork-safe)",
+        "|| true",
+        "a failed comment lookup must not fail the checks",
+    ),
+    (
+        "reusable-consumer.yml",
+        "checks",
+        "Record the runner image",
+        "|| true",
+        "the image record is informational",
+    ),
 ];
 
 #[test]
-fn ci_swallows_no_failure_outside_the_allow_list() {
-    let found = swallows(CI_WORKFLOW);
-    for (job, step, kind) in &found {
+fn every_workflow_swallows_no_failure_outside_the_allow_list() {
+    let mut found = Vec::new();
+    for path in dx_testing::workflow_files() {
+        let file = path.rsplit('/').next().unwrap_or(&path).to_owned();
+        for (job, step, kind) in swallows(&path) {
+            found.push((file.clone(), job, step, kind));
+        }
+    }
+    for (file, job, step, kind) in &found {
         assert!(
             ALLOWED_SWALLOWS
                 .iter()
-                .any(|(j, s, k, _)| j == job && s == step && k == kind),
-            "{CI_WORKFLOW} job {job} step {step:?} swallows a failure with {kind}"
+                .any(|(f, j, s, k, _)| f == file && j == job && s == step && k == kind),
+            "{file} job {job} step {step:?} swallows a failure with {kind}"
         );
     }
-    for (job, step, kind, reason) in ALLOWED_SWALLOWS {
+    for (file, job, step, kind, reason) in ALLOWED_SWALLOWS {
         assert!(
             found
                 .iter()
-                .any(|(j, s, k)| j == job && s == step && k == kind),
-            "stale allow-list entry: {job} {step:?} {kind} ({reason})"
+                .any(|(f, j, s, k)| f == file && j == job && s == step && k == kind),
+            "stale allow-list entry: {file} {job} {step:?} {kind} ({reason})"
         );
     }
 }

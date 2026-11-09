@@ -10,7 +10,11 @@ otp_tool_binary = rule(
     implementation = otp_tool_binary_impl,
     doc = "Runs `bin/<tool>` of the resolved OTP runtime.",
     executable = True,
-    attrs = dict(NATIVE_LAUNCHER_ATTRS, tool = attr.string(mandatory = True, doc = "The OTP `bin/` program to run.")),
+    attrs = dict(
+        NATIVE_LAUNCHER_ATTRS,
+        script = attr.label(allow_single_file = True, doc = "A file passed as the first argument, such as an escript."),
+        tool = attr.string(mandatory = True, doc = "The OTP `bin/` program to run."),
+    ),
     toolchains = ["@rules_erlang//tools:toolchain_type"],
 )
 

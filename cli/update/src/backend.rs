@@ -27,6 +27,7 @@ pub enum StagedTool {
     Paket2Bazel,
     GoModDownload,
     MixDeps,
+    Rebar3,
 }
 
 /// A generator run on copies of `inputs` in a scratch directory, never in the workspace.
@@ -93,8 +94,8 @@ impl StagedRun {
                 argv.push(scratch.join("out").to_string_lossy().into_owned());
                 argv.extend(["mod", "download", "all"].map(str::to_owned));
             }
-            StagedTool::MixDeps => {
-                // mix has no -C; run the target from the staged directory.
+            StagedTool::MixDeps | StagedTool::Rebar3 => {
+                // mix and rebar3 have no -C; run the target from the staged directory.
                 let target = argv
                     .iter()
                     .position(|arg| arg == "--")
@@ -131,6 +132,15 @@ impl StagedRun {
                 ("MIX_BUILD_PATH".to_owned(), under("build")),
             ]);
         }
+        if self.tool == StagedTool::Rebar3 {
+            let under = |name: &str| scratch.join(name).to_string_lossy().into_owned();
+            env.extend([
+                ("REBAR_CACHE_DIR".to_owned(), under("rebar_cache")),
+                ("REBAR_GLOBAL_CONFIG_DIR".to_owned(), under("rebar_config")),
+                ("REBAR_BASE_DIR".to_owned(), under("rebar_build")),
+                ("HEX_HOME".to_owned(), under("hex_home")),
+            ]);
+        }
         env
     }
 
@@ -140,6 +150,7 @@ impl StagedRun {
             StagedTool::Paket2Bazel => "paket2bazel",
             StagedTool::GoModDownload => "go",
             StagedTool::MixDeps => "mix",
+            StagedTool::Rebar3 => "rebar3",
         }
     }
 
@@ -170,7 +181,7 @@ impl StagedRun {
     pub fn inputs_dir(&self, scratch: &Path) -> std::path::PathBuf {
         match self.tool {
             StagedTool::Paket2Bazel => scratch.to_path_buf(),
-            StagedTool::GoModDownload | StagedTool::MixDeps => scratch.join("out"),
+            StagedTool::GoModDownload | StagedTool::MixDeps | StagedTool::Rebar3 => scratch.join("out"),
         }
     }
 }
@@ -780,15 +791,23 @@ pub fn plan_configured(
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
         (Ecosystem::Ansible, request) => ansible_plan(workspace, set, request, offline, frozen, head),
-        (Ecosystem::Hex, _) if is_rebar(set) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "rebar.lock refresh: #9884",
-        }),
         (Ecosystem::Hex, request) => {
             if frozen {
                 return Err(BackendError::FrozenLocked {
                     set: set.name.clone(),
                 });
+            }
+            if is_rebar(set) {
+                return Ok(BackendPlan::Staged(rebar_staged(
+                    set,
+                    head,
+                    offline,
+                    "upgrade",
+                    &match request {
+                        Selection::Full => vec!["--all".to_owned()],
+                        Selection::Packages(packages) => vec![packages.join(",")],
+                    },
+                )?));
             }
             let packages = match request {
                 Selection::Full => vec!["--all".to_owned()],
@@ -1208,9 +1227,13 @@ pub fn check_configured(
             | Ecosystem::Bicep,
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
-        // Nothing refreshes a rebar.lock yet, so its check has nothing to run.
-        (Ecosystem::Hex, Selection::Full) if is_rebar(set) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Hex, Selection::Packages(_)) if is_rebar(set) => Err(pinned_selective(set)),
+        (Ecosystem::Hex, Selection::Full) if is_rebar(set) => {
+            Ok(CheckPlan::Staged(rebar_staged(set, head, offline, "lock", &[])?))
+        }
+        (Ecosystem::Hex, Selection::Packages(_)) if is_rebar(set) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "rebar3 lock checks the whole rebar.lock; select the set without a package",
+        }),
         (Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Staged(hex_staged(
             set,
             head,
@@ -1520,6 +1543,50 @@ fn go_staged(
 
 fn is_rebar(set: &ResolvedSet) -> bool {
     dependency_sets::hex_backend(set) == Some(dependency_sets::HexBackend::Rebar3)
+}
+
+/// Plans a rebar3 command on a staged copy of rebar.config and rebar.lock, with the pinned
+/// OTP and empty rebar3 and hex homes.
+fn rebar_staged(
+    set: &ResolvedSet,
+    head: &dx_process::BazelHead,
+    offline: bool,
+    command: &str,
+    args: &[String],
+) -> Result<StagedRun, BackendError> {
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    let pin_head = dx_process::BazelHead {
+        settings: Vec::new(),
+        ..head.clone()
+    };
+    let lock = set
+        .locks
+        .iter()
+        .find(|lock| lock.rsplit('/').next() == Some(dependency_sets::REBAR_LOCK))
+        .cloned()
+        .ok_or_else(|| BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "a rebar set must list rebar.lock in locks",
+        })?;
+    let mut inputs = set.manifests.clone();
+    inputs.push(lock.clone());
+    let mut argv_head = bazel(
+        &pin_head,
+        "run",
+        &["@rules_dx//erlang/tools:rebar3", "--", command],
+    );
+    argv_head.extend(args.iter().cloned());
+    Ok(StagedRun {
+        tool: StagedTool::Rebar3,
+        argv_head,
+        env: Vec::new(),
+        inputs,
+        outputs: vec![lock],
+    })
 }
 
 /// Plans a mix deps command on a staged copy of mix.exs and mix.lock, with the pinned Elixir

@@ -772,27 +772,6 @@ mod tests {
     }
 
     #[test]
-    fn init_migrates_a_bare_dx_bazelignore_line() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-bazelignore-bare-");
-        let root = scratch.path().to_path_buf();
-        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
-        std::fs::write(root.join(".bazelignore"), "node_modules\n.dx\n").expect("edit");
-        let (code, _out, err) = run(&invocation(&["init"]), &root);
-        assert_eq!(code, 1);
-        assert!(err.contains("stale .bazelignore"), "{err}");
-        assert_eq!(run(&invocation(&["init", "--apply"]), &root).0, 0);
-        let text = std::fs::read_to_string(root.join(".bazelignore")).expect("read");
-        assert_eq!(
-            text,
-            format!(
-                "node_modules\n{}",
-                dx_adopt::scaffold::bazelignore_content()
-            )
-        );
-        assert_eq!(run(&invocation(&["init"]), &root).0, 0);
-    }
-
-    #[test]
     fn init_notes_a_gitignore_that_hides_dx_config() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-gitignore-config-");
         let root = scratch.path().to_path_buf();

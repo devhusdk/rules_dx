@@ -21,7 +21,7 @@ pub enum FileKind {
     DevcontainerPins,
     /// Rewritten whenever it differs from the planned content.
     Generated,
-    /// A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays.
+    /// Left as the user has it.
     Bazelignore,
 }
 
@@ -79,35 +79,6 @@ pub(crate) fn with_header(ownership: Ownership, path: &str, body: &str) -> Strin
 /// The `.bazelignore` lines `dx init` writes, without the header.
 pub fn bazelignore_content() -> String {
     format!("{}\n", BAZELIGNORE_LINES.join("\n"))
-}
-
-fn is_bare_dx_line(line: &str) -> bool {
-    matches!(
-        line.trim(),
-        dx_path::state::DX_DIR | ".dx/" | "./.dx" | "/.dx"
-    )
-}
-
-/// Whether a `.bazelignore` still has a bare `.dx` line that init replaces with the list.
-pub fn bazelignore_has_bare_dx(text: &str) -> bool {
-    text.lines().any(is_bare_dx_line)
-}
-
-fn merge_bazelignore(existing: &str, generated: &str) -> String {
-    let generated = generated
-        .strip_prefix(&with_header(Ownership::Lines, ".bazelignore", ""))
-        .unwrap_or(generated);
-    let mut out = String::new();
-    let mut replaced = false;
-    for line in existing.split_inclusive('\n') {
-        if !is_bare_dx_line(line) {
-            out.push_str(line);
-        } else if !replaced {
-            replaced = true;
-            out.push_str(generated);
-        }
-    }
-    out
 }
 
 /// Content `dx init` writes to a new `.editorconfig`.
@@ -567,7 +538,7 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
     match kind {
         FileKind::WriteOnce => Ok(existing.to_owned()),
         FileKind::Generated => Ok(generated.to_owned()),
-        FileKind::Bazelignore => Ok(merge_bazelignore(existing, generated)),
+        FileKind::Bazelignore => Ok(existing.to_owned()),
         FileKind::VscodeKeys => {
             let value = dx_merge::jsonc::parse(generated)?;
             let mut edits: Vec<(Vec<&str>, serde_json::Value)> = Vec::new();
@@ -1929,18 +1900,6 @@ mod tests {
         assert_eq!(parsed["files.watcherExclude"], excludes);
         assert_eq!(parsed["search.exclude"], excludes);
         assert!(parsed.get("rust-analyzer.check.command").is_none());
-    }
-
-    #[test]
-    fn bazelignore_bare_dx_becomes_the_list_and_stays_put() {
-        let content = super::bazelignore_content();
-        let merged = super::merge_bazelignore(".dx\n", &content);
-        assert_eq!(merged, content);
-        let mixed = super::merge_bazelignore("node_modules\n/.dx\n# x\n.dx/\n", &content);
-        assert_eq!(mixed, format!("node_modules\n{content}# x\n"));
-        assert_eq!(super::merge_bazelignore(&mixed, &content), mixed);
-        assert!(super::bazelignore_has_bare_dx("a\n./.dx\n"));
-        assert!(!super::bazelignore_has_bare_dx(&content));
     }
 
     #[test]

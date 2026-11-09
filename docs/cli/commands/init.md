@@ -143,7 +143,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `MODULE.bazel` | lines | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
 | `.bazelversion` | once | Written in a fresh directory only. |
 | `.gitignore` | lines | Written when missing. An existing file gets each line of the list above that no line covers appended. |
-| `.bazelignore` | lines | Written when missing. A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays. |
+| `.bazelignore` | lines | Written when missing. |
 | `.envrc` | once | Written when missing. Never rewritten. Holds `PATH_add .dx/local/bin` and `watch_file .dx/local/current`; it never runs dx. When the file exists, `dx init --apply` prints those two lines to add to it. |
 | `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added, and the lint and format extensions of tools that are no longer selected are removed; other ids stay in order. |
 | `.dx/BUILD.bazel` | whole | Generated from `dx.toml` (see the [config reference](config.md#dxtoml)): the workspace policy for the families found in the tree, and a `<tool>_config` target for each root tool config. The correctness layer selects it with `--@rules_dx//config:workspace=//.dx:policy`. A flag in your root `.bazelrc` after the imports wins. |

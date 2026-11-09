@@ -538,9 +538,6 @@ pub(super) fn refreshable(root: &Path, file: &InitFile) -> bool {
         && file.kind != Kind::Scaffold(FileKind::WriteOnce)
         && file.path != "MODULE.bazel"
         && file.path != ".dx/pins"
-        && (file.path != ".bazelignore"
-            || std::fs::read_to_string(root.join(".bazelignore"))
-                .is_ok_and(|text| dx_adopt::bazelignore_has_bare_dx(&text)))
 }
 
 /// What a workspace lacks against what init writes.

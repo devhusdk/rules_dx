@@ -1,6 +1,8 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("//quality:fixtures.bzl", "real_source_target")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load(":hub_tests.bzl", "dx_gazelle_hub_tests")
+load(":languages.bzl", "GAZELLE_LANGUAGES")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -13,6 +15,18 @@ exports_files(
 )
 
 dx_gazelle_hub_tests(name = "hub_test")
+
+write_file(
+    name = "all_languages_test_go",
+    out = "all_languages_test.go",
+    content = (
+        ["package dispatch", "", "import ("] +
+        ["\t_ \"github.com/devhusdk/rules_dx/gazelle/%s\"" % lang for lang in GAZELLE_LANGUAGES] +
+        [")", "", "var generatedLanguages = []string{"] +
+        ["\t\"%s\"," % lang for lang in GAZELLE_LANGUAGES] +
+        ["}", ""]
+    ),
+)
 
 go_library(
     name = "dispatch",
@@ -38,45 +52,11 @@ go_test(
         "all_languages_test.go",
         "conformance_test.go",
         "lang_test.go",
+        "languages_test.go",
     ],
     embed = [":dispatch"],
     pure = "on",
     deps = [
-        "//gazelle/astro",
-        "//gazelle/avro",
-        "//gazelle/capnproto",
-        "//gazelle/cc",
-        "//gazelle/csharp",
-        "//gazelle/d",
-        "//gazelle/dart",
-        "//gazelle/elixir",
-        "//gazelle/erlang",
-        "//gazelle/flatbuffers",
-        "//gazelle/fsharp",
-        "//gazelle/go",
-        "//gazelle/haskell",
-        "//gazelle/java",
-        "//gazelle/javascript",
-        "//gazelle/julia",
-        "//gazelle/kotlin",
-        "//gazelle/lua",
-        "//gazelle/mdx",
-        "//gazelle/ocaml",
-        "//gazelle/ownership",
-        "//gazelle/perl",
-        "//gazelle/php",
-        "//gazelle/powershell",
-        "//gazelle/protobuf",
-        "//gazelle/python",
-        "//gazelle/ruby",
-        "//gazelle/rust",
-        "//gazelle/scala",
-        "//gazelle/svelte",
-        "//gazelle/swift",
-        "//gazelle/thrift",
-        "//gazelle/typescript",
-        "//gazelle/vue",
-        "//gazelle/zig",
         "//gazelle/common",
         "@gazelle//config",
         "@gazelle//language",
@@ -84,7 +64,7 @@ go_test(
         "@gazelle//resolve",
         "@gazelle//rule",
         "@gazelle//v2/label",
-    ],
+    ] + ["//gazelle/%s" % lang for lang in GAZELLE_LANGUAGES],
 )
 
 real_source_target(

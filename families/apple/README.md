@@ -552,7 +552,9 @@ apple_macos_app(
 
 `platform` is optional and defaults to the current target platform. It names the platform the
 selection and check rules read the arch from; only `macos_arm64` is accepted. It does not
-change the platform the bundle is built for: build with `--platforms` or `--macos_cpus`. `srcs` holds the native entry point. `library` is any target with
+change the platform the bundle is built for: build with `--platforms` or `--macos_cpus`. An x86_64 macOS target
+platform fails with "arch 'x86_64' is outside macos", where the app used to default to arm64.
+`srcs` holds the native entry point. `library` is any target with
 `CcInfo` that links one static archive, such as `rust_static_library`.
 The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
 `macos_dynamic_framework` targets, checked by bundle name under

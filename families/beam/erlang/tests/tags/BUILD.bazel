@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_test_app")
 load("@rules_dx//libs/starlark:defs.bzl", "starlark_test")
 load("@rules_dx//libs/starlark:tag_probe.bzl", "tag_subject")
 
@@ -14,7 +14,7 @@ erlang_app(
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
-test_erlang_app(
+erlang_test_app(
     app_name = "dx_tags_probe",
     tags = [
         "manual",

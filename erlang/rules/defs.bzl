@@ -480,7 +480,7 @@ def erlang_app(name = "erlang_app", visibility = None, testonly = False, **kwarg
     """Thin wrapper over the rules_erlang erlang_app macro."""
     _app(_erlang_app, name, testonly, visibility, kwargs)
 
-def test_erlang_app(name = "test_erlang_app", visibility = None, **kwargs):
+def erlang_test_app(name = "test_erlang_app", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang test_erlang_app macro."""
     _app(_test_erlang_app, name, True, visibility, kwargs)
 
@@ -489,7 +489,7 @@ def erlang_bytecode(name, srcs, visibility = None, **kwargs):
     kwargs = erlang_kwargs(kwargs)
     dx_wrap(name, _erlang_bytecode, _erlang_bytecode_forward, srcs, visibility = visibility, **kwargs)
 
-def escript_archive(name, visibility = None, **kwargs):
+def erlang_escript_archive(name, visibility = None, **kwargs):
     """Thin wrapper over rules_erlang escript_archive that runs on the pinned runtime."""
     kwargs = erlang_kwargs(kwargs)
     srcs = kwargs.get("srcs", [])
@@ -503,7 +503,7 @@ def escript_archive(name, visibility = None, **kwargs):
         **dx_binary_forward_kwargs(kwargs)
     )
 
-def eunit(name = "eunit", visibility = None, **kwargs):
+def erlang_eunit_test(name = "eunit", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang eunit test."""
     kwargs = erlang_kwargs(kwargs)
     target = kwargs.get("target")
@@ -521,7 +521,7 @@ def ct_run_args(extra_args):
         return extra_args
     return LOCAL_NODE_ARGS + extra_args
 
-def ct_suite(name, suite_name = "", visibility = None, **kwargs):
+def erlang_ct_suite_test(name, suite_name = "", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang ct_suite macro."""
     kwargs = erlang_kwargs(kwargs)
     suite = suite_name if suite_name != "" else name

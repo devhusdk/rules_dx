@@ -23,8 +23,8 @@ const (
 
 	javaGRPCKind = "java_grpc_library"
 	javaGRPCDefs = "@grpc-java//:java_grpc_library.bzl"
-	pyGRPCKind   = "py_grpc_library"
-	pyGRPCDefs   = "@rules_dx//python/rules:grpc.bzl"
+	pyGRPCKind   = "python_grpc_library"
+	pyGRPCDefs   = "@rules_dx//python/rules:defs.bzl"
 	ccGRPCKind   = "cc_grpc_library"
 )
 

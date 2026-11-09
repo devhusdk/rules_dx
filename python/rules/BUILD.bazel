@@ -249,7 +249,6 @@ real_source_target(
         "defs.bzl",
         "runtime_tests.bzl",
         "sdist_cargo_vendor.bzl",
-        "grpc.bzl",
     ],
     tags = ["corpus"],
 )

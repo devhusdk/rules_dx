@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//typescript/rules:defs.bzl", "playwright_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_playwright_test")
 
 package(
     default_testonly = True,
@@ -13,7 +13,7 @@ javascript_binary(
     entry_point = "server.cjs",
 )
 
-playwright_test(
+typescript_playwright_test(
     name = "hello_test",
     srcs = ["hello.spec.ts"],
     app = ":server",

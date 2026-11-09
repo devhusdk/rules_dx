@@ -24,14 +24,14 @@ On Windows, Jest coverage uses the v8 provider.
 
 ## Browser tests
 
-`playwright_test` runs Playwright tests in a pinned headless Chromium. The
+`typescript_playwright_test` runs Playwright tests in a pinned headless Chromium. The
 browser is downloaded by Bazel, so none has to be installed. Add
 `@playwright/test` to the root `package.json`.
 
 ```python
-load("@rules_dx//typescript/rules:defs.bzl", "playwright_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_playwright_test")
 
-playwright_test(
+typescript_playwright_test(
     name = "app_e2e_test",
     srcs = ["app.spec.ts"],
     app = ":server",

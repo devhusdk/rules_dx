@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "erlang_bytecode", "erlc_opts", "eunit", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_ct_suite_test", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
 load("@rules_dx//erlang/rules:wrapper_tests.bzl", "erlang_beam_info_test", "erlang_coverage_env_test")
 load("@rules_dx//erlang/toolchain:pins.bzl", "OTP_VERSION")
 
@@ -16,7 +16,7 @@ erlang_app(
     visibility = ["@rules_dx//quality/testdata:__pkg__"],
 )
 
-test_erlang_app(
+erlang_test_app(
     app_name = "dx_runtime_probe",
     app_version = "1.0.0",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
@@ -44,7 +44,7 @@ erlang_bytecode(
     deps = [":test_erlang_app"],
 )
 
-eunit(
+erlang_eunit_test(
     name = "eunit",
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",
@@ -52,7 +52,7 @@ eunit(
     test_env = {"DX_OTP_VERSION": OTP_VERSION},
 )
 
-ct_suite(
+erlang_ct_suite_test(
     name = "diagnostics_SUITE",
     app_name = "dx_runtime_probe",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,

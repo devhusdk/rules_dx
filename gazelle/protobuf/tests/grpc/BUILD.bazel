@@ -2,8 +2,7 @@ load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
 load("@rules_go//proto:def.bzl", "go_proto_library")
 load("//go/rules:defs.bzl", "go_binary")
-load("//python/rules:defs.bzl", "python_test")
-load("//python/rules:grpc.bzl", "py_grpc_library")
+load("//python/rules:defs.bzl", "python_grpc_library", "python_test")
 load(":package_tests.bzl", "proto_package_tests")
 
 package(
@@ -32,7 +31,7 @@ py_proto_library(
     deps = [":greeter_proto"],
 )
 
-py_grpc_library(
+python_grpc_library(
     name = "greeter_py_grpc",
     dep_group = "grpc-tests",
     proto = ":greeter_proto",
@@ -79,7 +78,7 @@ py_proto_library(
     deps = [":echo_proto"],
 )
 
-py_grpc_library(
+python_grpc_library(
     name = "echo_py_grpc",
     dep_group = "grpc-tests",
     proto = ":echo_proto",
@@ -98,7 +97,7 @@ py_proto_library(
     deps = [":ping_proto"],
 )
 
-py_grpc_library(
+python_grpc_library(
     name = "ping_py_grpc",
     dep_group = "grpc-tests",
     proto = ":ping_proto",

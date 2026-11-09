@@ -600,7 +600,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("dx_hello_output_test", Constraint::AsWritten),
     ("dx_wasi_test_tests", Constraint::AsWritten),
     (
-        "eunit",
+        "erlang_eunit_test",
         Constraint::Appended("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH"),
     ),
     (

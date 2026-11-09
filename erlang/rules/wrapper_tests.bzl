@@ -139,7 +139,7 @@ _nif_refusal_test = analysistest.make(
 )
 
 def erlang_escript_nif_refusal_test(name, target, message, **kwargs):
-    """Asserts an escript_archive that bundles a NIF app fails analysis with `message`."""
+    """Asserts an erlang_escript_archive that bundles a NIF app fails analysis with `message`."""
     _nif_refusal_test(name = name, size = "small", target_under_test = target, message = message, **kwargs)
 
 def _plt_needs_input_impl(ctx):

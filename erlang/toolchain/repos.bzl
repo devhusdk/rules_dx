@@ -137,7 +137,7 @@ erlang_app(
 )
 """
 
-_ERLFMT_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "escript_archive")
+_ERLFMT_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_escript_archive")
 load("@rules_erlang//:erlang_app.bzl", "erlang_app")
 load("@rules_erlang//:erlang_xrl_yrl.bzl", "erlang_xrl_yrl")
 
@@ -157,7 +157,7 @@ erlang_app(
     deps = ["@dx_erlang_getopt//:erlang_app"],
 )
 
-escript_archive(
+erlang_escript_archive(
     name = "erlfmt",
     app = ":erlang_app",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
@@ -194,7 +194,7 @@ erlang_app(
 )
 """
 
-_ELVIS_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "escript_archive")
+_ELVIS_BUILD = """load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_escript_archive")
 load("@rules_erlang//:erlang_app.bzl", "erlang_app")
 
 package(default_visibility = ["//visibility:public"])
@@ -209,7 +209,7 @@ erlang_app(
     ],
 )
 
-escript_archive(
+erlang_escript_archive(
     name = "elvis",
     app = ":erlang_app",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,

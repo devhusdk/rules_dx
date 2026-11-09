@@ -1,4 +1,4 @@
-load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "escript_archive", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_ct_suite_test", "erlang_escript_archive", "erlang_test_app")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -23,14 +23,14 @@ erlang_app(
     deps = DEPS,
 )
 
-test_erlang_app(
+erlang_test_app(
     app_name = "kvctl",
     app_version = "1.0.0",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
     deps = DEPS,
 )
 
-escript_archive(
+erlang_escript_archive(
     name = "kvctl",
     app = ":erlang_app",
     headers = [
@@ -40,7 +40,7 @@ escript_archive(
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
-ct_suite(
+erlang_ct_suite_test(
     name = "kvctl_SUITE",
     app_name = "kvctl",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,

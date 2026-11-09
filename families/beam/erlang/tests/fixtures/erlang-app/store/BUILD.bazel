@@ -1,4 +1,4 @@
-load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ct_suite", "erlang_app", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_ct_suite_test", "erlang_test_app")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -27,7 +27,7 @@ erlang_app(
     deps = DEPS,
 )
 
-test_erlang_app(
+erlang_test_app(
     app_env = "[{max_keys, 3}]",
     app_module = "kv_store_app",
     app_name = "kv_store",
@@ -36,7 +36,7 @@ test_erlang_app(
     deps = DEPS,
 )
 
-ct_suite(
+erlang_ct_suite_test(
     name = "kv_store_SUITE",
     app_name = "kv_store",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,

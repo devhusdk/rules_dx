@@ -262,7 +262,7 @@ def typescript_project(name, srcs = None, declaration_srcs = None, visibility = 
     """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags."""
     _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
-def ts_proto_library(name, proto, deps = None, visibility = None, **kwargs):
+def typescript_proto_library(name, proto, deps = None, visibility = None, **kwargs):
     """Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf; proto must sit in the proto_library's package."""
     ts_proto_srcs(
         name = name + "_srcs",
@@ -375,9 +375,9 @@ def typescript_fuzz_test(name, srcs, node_modules, main = None, data = None, dep
     )
     dx_fuzz_runner(name, ":" + name, visibility = visibility, target = name)
 
-_playwright_test = node_test_forward_rule("playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
+_playwright_test = node_test_forward_rule("typescript_playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
-def playwright_test(name, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+def typescript_playwright_test(name, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT."""
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:

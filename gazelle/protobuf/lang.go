@@ -23,7 +23,7 @@ const (
 	rustSuffix   = "_rs"
 	rustModule   = "rules_rust_prost"
 	rustDefs     = "@rules_rust_prost//:defs.bzl"
-	tsKind       = "ts_proto_library"
+	tsKind       = "typescript_proto_library"
 	tsSuffix     = "_ts"
 	tsModule     = "aspect_rules_ts"
 	tsRuntime    = "//:node_modules/@bufbuild/protobuf"
@@ -235,7 +235,7 @@ func addRustLibraries(args language.GenerateArgs, result language.GenerateResult
 	return addProtoRefs(args, result, rustModule, rustKind, rustSuffix)
 }
 
-// addTypeScriptLibraries adds a ts_proto_library next to each proto_library
+// addTypeScriptLibraries adds a typescript_proto_library next to each proto_library
 // when the root MODULE.bazel depends on aspect_rules_ts.
 func addTypeScriptLibraries(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	return addProtoRefs(args, result, tsModule, tsKind, tsSuffix)
@@ -285,7 +285,7 @@ func addProtoRefs(args language.GenerateArgs, result language.GenerateResult, mo
 	return result
 }
 
-// tsImports indexes a ts_proto_library by the <stem>_pb modules protoc-gen-es
+// tsImports indexes a typescript_proto_library by the <stem>_pb modules protoc-gen-es
 // writes for the sources of its proto_library.
 func tsImports(r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	if f == nil {

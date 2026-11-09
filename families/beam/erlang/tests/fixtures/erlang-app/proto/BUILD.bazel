@@ -1,4 +1,4 @@
-load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_xrl_yrl", "erlc_opts", "eunit", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_eunit_test", "erlang_test_app", "erlang_xrl_yrl", "erlc_opts")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files(
@@ -35,7 +35,7 @@ erlang_app(
     visibility = APPS,
 )
 
-test_erlang_app(
+erlang_test_app(
     app_name = "kv_proto",
     app_version = "1.0.0",
     extra_srcs = GENERATED,
@@ -57,7 +57,7 @@ erlang_bytecode(
     deps = [":test_erlang_app"],
 )
 
-eunit(
+erlang_eunit_test(
     name = "eunit",
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",

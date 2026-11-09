@@ -1,7 +1,7 @@
 # gazelle:dx_rust_corpus false
 
 # gazelle:exclude probe_nif.c
-load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_nif", "escript_archive")
+load("@rules_dx//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_escript_archive", "erlang_nif")
 load("@rules_dx//erlang/rules:wrapper_tests.bzl", "erlang_escript_nif_refusal_test")
 
 exports_files(
@@ -24,7 +24,7 @@ erlang_app(
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
-escript_archive(
+erlang_escript_archive(
     name = "nif_cli",
     app = ":erlang_app",
     tags = ["manual"],

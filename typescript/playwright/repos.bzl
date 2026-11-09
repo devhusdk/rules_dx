@@ -1,4 +1,4 @@
-"""Pinned Chromium headless shell for playwright_test."""
+"""Pinned Chromium headless shell for typescript_playwright_test."""
 
 load("//libs/starlark:repo.bzl", "hub_repo")
 
@@ -25,7 +25,7 @@ ARTIFACTS = {
     ),
 }
 
-_NO_MATCH = ("playwright_test has no pinned Chromium for this platform; " +
+_NO_MATCH = ("typescript_playwright_test has no pinned Chromium for this platform; " +
              "supported: " + ", ".join(sorted(ARTIFACTS.keys())) +
              ". Windows is not supported.")
 

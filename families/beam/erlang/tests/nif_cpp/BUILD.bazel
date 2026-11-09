@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_nif", "erlang_release", "erlc_opts", "eunit", "test_erlang_app")
+load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_eunit_test", "erlang_nif", "erlang_release", "erlang_test_app", "erlc_opts")
 
 exports_files(
     ["BUILD.bazel"],
@@ -34,7 +34,7 @@ erlang_release(
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
-test_erlang_app(
+erlang_test_app(
     app_name = "dx_cpp",
     app_version = "1.0.0",
     nifs = [
@@ -59,7 +59,7 @@ erlang_bytecode(
     deps = [":test_erlang_app"],
 )
 
-eunit(
+erlang_eunit_test(
     name = "eunit",
     compiled_suites = [":test_modules"],
     target = ":test_erlang_app",

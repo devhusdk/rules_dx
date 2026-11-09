@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("@rules_dx//typescript/rules:defs.bzl", "ts_proto_library")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_proto_library")
 load(":proto_args_tests.bzl", "proto_args_tests")
 
 package(
@@ -18,7 +18,7 @@ proto_library(
     strip_import_prefix = "/",
 )
 
-ts_proto_library(
+typescript_proto_library(
     name = "user_proto_ts",
     deps = ["//:node_modules/@bufbuild/protobuf"],
     proto = ":user_proto",
@@ -31,7 +31,7 @@ proto_library(
     strip_import_prefix = "/",
 )
 
-ts_proto_library(
+typescript_proto_library(
     name = "order_proto_ts",
     deps = ["//:node_modules/@bufbuild/protobuf"],
     proto = ":order_proto",
@@ -44,7 +44,7 @@ proto_library(
     strip_import_prefix = "stripped",
 )
 
-ts_proto_library(
+typescript_proto_library(
     name = "item_proto_ts",
     deps = ["//:node_modules/@bufbuild/protobuf"],
     proto = ":item_proto",
@@ -58,7 +58,7 @@ proto_library(
     deps = ["@protobuf//:timestamp_proto"],
 )
 
-ts_proto_library(
+typescript_proto_library(
     name = "event_proto_ts",
     deps = ["//:node_modules/@bufbuild/protobuf"],
     proto = ":event_proto",

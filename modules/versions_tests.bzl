@@ -149,7 +149,6 @@ def versions_contract_tests(name):
                                "name = \"platforms\", version = \"" + _PLATFORMS_VERSION + "\"\n" +
                                "name = \"bazel_skylib\", version = \"" + _BAZEL_SKYLIB_VERSION + "\"\n" +
                                "name = \"rules_proto\", version = \"" + _RULES_PROTO_VERSION + "\"\n" +
-                               "name = \"rules_rust_prost\", version = \"" + _RULES_RUST_PROST_VERSION + "\"\n" +
                                "name = \"rules_java\", version = \"" + _RULES_JAVA_VERSION + "\"\n" +
                                "name = \"rules_kotlin\", version = \"" + _RULES_KOTLIN_VERSION + "\"\n" +
                                "name = \"rules_scala\", version = \"" + _RULES_SCALA_VERSION + "\"\n" +

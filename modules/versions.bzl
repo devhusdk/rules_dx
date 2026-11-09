@@ -97,7 +97,6 @@ CONSUMER_BAZEL_DEPS = {
     "bazel_skylib": struct(floor = BAZEL_SKYLIB_VERSION, tested = BAZEL_SKYLIB_VERSION),
     "rules_proto": struct(floor = RULES_PROTO_VERSION, tested = RULES_PROTO_VERSION),
     "protobuf": struct(floor = TESTED_PROTOBUF, tested = TESTED_PROTOBUF),
-    "rules_rust_prost": struct(floor = RULES_RUST_PROST_VERSION, tested = RULES_RUST_PROST_VERSION),
     "rules_java": struct(floor = RULES_JAVA_VERSION, tested = RULES_JAVA_VERSION),
     "rules_android": struct(floor = RULES_ANDROID_VERSION, tested = RULES_ANDROID_VERSION),
     "rules_kotlin": struct(floor = TESTED_RULES_KOTLIN, tested = TESTED_RULES_KOTLIN),

@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
 /// Modules released together whose floors must move together.
-const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_prost", "rules_rust_wasm_bindgen"]];
+const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_wasm_bindgen"]];
 
 /// Non-dev `bazel_dep`s that carry no floor or single_version_override yet; each is
 /// only a transitive need of a root extension.
@@ -320,7 +320,7 @@ fn disagreeing_fixtures_fail() {
     let demo = fixture_table(&[("demo", "1.2.0", "1.2.0")]);
     let rust = |floor: &str, tested: &str| {
         format!(
-            "# floor: equals tested\nbazel_dep(name = \"rules_rust\", version = \"{floor}\")\nsingle_version_override(module_name = \"rules_rust\", version = \"{tested}\")\n# floor: equals tested\nbazel_dep(name = \"rules_rust_prost\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_prost\", version = \"2\")\n"
+            "# floor: equals tested\nbazel_dep(name = \"rules_rust\", version = \"{floor}\")\nsingle_version_override(module_name = \"rules_rust\", version = \"{tested}\")\n# floor: equals tested\nbazel_dep(name = \"rules_rust_wasm_bindgen\", version = \"2\")\nsingle_version_override(module_name = \"rules_rust_wasm_bindgen\", version = \"2\")\n"
         )
     };
     for (source, table, needle) in [
@@ -362,7 +362,7 @@ fn disagreeing_fixtures_fail() {
         ),
         (
             rust("1", "1"),
-            fixture_table(&[("rules_rust", "1", "1"), ("rules_rust_prost", "2", "2")]),
+            fixture_table(&[("rules_rust", "1", "1"), ("rules_rust_wasm_bindgen", "2", "2")]),
             "must share one floor",
         ),
     ] {

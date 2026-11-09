@@ -8,10 +8,10 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:dx_fixture_testonly true
 # gazelle:dx_native_tools buildifier taplo rustfmt
 # gazelle:resolve rust dx_deploy_tools //deploy/rules:dx_deploy_tools
-# gazelle:resolve rust doc_ir_proto //tools/docs/ir:doc_ir_proto_rs
-# gazelle:resolve rust marker_proto //env:marker_proto_rs
-# gazelle:resolve rust proto //quality:result_proto_rs
-# gazelle:resolve rust result_proto //quality:result_proto_rs
+# gazelle:resolve rust doc_ir_proto //tools/docs/ir/proto:doc_ir_proto_rs
+# gazelle:resolve rust marker_proto //env/proto:marker_proto_rs
+# gazelle:resolve rust proto //quality/result/proto:result_proto_rs
+# gazelle:resolve rust result_proto //quality/result/proto:result_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde

@@ -3,8 +3,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
-# gazelle:resolve rust proto //generation:result_proto_rs
-# gazelle:resolve rust result_proto //generation:result_proto_rs
+# gazelle:resolve rust proto //generation/proto:result_proto_rs
+# gazelle:resolve rust result_proto //generation/proto:result_proto_rs
 
 package(default_visibility = VIS_CLI)
 
@@ -23,7 +23,7 @@ rust_library(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
-        "//generation:result_proto_rs",
+        "//generation/proto:result_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -40,7 +40,7 @@ rust_test(
         package_name = "generation/generation_result",
         normal = True,
         normal_dev = True,
-    ) + ["//generation:result_proto_rs"],
+    ) + ["//generation/proto:result_proto_rs"],
 )
 
 exports_files([

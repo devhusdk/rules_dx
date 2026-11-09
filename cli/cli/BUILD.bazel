@@ -408,7 +408,7 @@ rust_test(
         "//libs/archive:dx_archive",
         "//libs/families:dx_families",
         "//libs/module_bazel:dx_module_bazel",
-        "//quality:result_proto_rs",
+        "//quality/result/proto:result_proto_rs",
         "//quality/result:quality_result",
         "//tools/testing:dx_testing",
         "@crates//:serde",

@@ -1,6 +1,4 @@
 # gazelle:ignore
-load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "environment_config", "environment_metadata", "environment_tool", "environment_tree")
@@ -111,26 +109,6 @@ env_tree_analysis_tests(name = "env_tree_analysis")
 env_default_config_analysis_tests(name = "env_default_config_analysis")
 
 env_default_tree_analysis_tests(name = "env_default_tree_analysis")
-
-proto_library(
-    name = "marker_proto",
-    srcs = ["marker.proto"],
-)
-
-rust_prost_library(
-    name = "marker_proto_rs",
-    proto = ":marker_proto",
-)
-
-proto_library(
-    name = "plan_proto",
-    srcs = ["plan.proto"],
-)
-
-rust_prost_library(
-    name = "plan_proto_rs",
-    proto = ":plan_proto",
-)
 
 env_plan_defs_unit_tests(name = "env_plan_defs_unit")
 

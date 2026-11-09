@@ -4,8 +4,8 @@ load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//rust/rules:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
-# gazelle:resolve rust proto //tools/docs/ir:doc_ir_proto_rs
-# gazelle:resolve rust doc_ir_proto //tools/docs/ir:doc_ir_proto_rs
+# gazelle:resolve rust proto //tools/docs/ir/proto:doc_ir_proto_rs
+# gazelle:resolve rust doc_ir_proto //tools/docs/ir/proto:doc_ir_proto_rs
 
 package(default_visibility = VIS_TOOLS)
 
@@ -23,7 +23,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/path:dx_path",
-        "//tools/docs/ir:doc_ir_proto_rs",
+        "//tools/docs/ir/proto:doc_ir_proto_rs",
     ],
 )
 
@@ -39,7 +39,7 @@ rust_test(
         package_name = "tools/docs/ir/documentation_ir",
         normal = True,
     ) + [
-        "//tools/docs/ir:doc_ir_proto_rs",
+        "//tools/docs/ir/proto:doc_ir_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )

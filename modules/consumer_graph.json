@@ -116,7 +116,6 @@
   "rules_python": "2.4.6",
   "rules_robolectric": "4.14.1.2",
   "rules_rust": "0.75.0",
-  "rules_rust_prost": "0.75.0",
   "rules_rust_wasm_bindgen": "0.75.0",
   "rules_scala": "7.4.1",
   "rules_shell": "0.8.0",

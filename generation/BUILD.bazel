@@ -1,34 +1,9 @@
 # gazelle:ignore
-# Gazelle would replace the prost targets with proto rules for every language.
-load("@rules_proto//proto:defs.bzl", "proto_library")
-load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":codegen.bzl", "codegen_plan_subject", "dx_codegen_shard", "prost_codegen_shard")
 load(":codegen_tests.bzl", "codegen_defs_unit_tests", "codegen_plan_analysis_tests", "codegen_shard_argv_test")
 
 package(default_visibility = ["//visibility:public"])
-
-exports_files(["result.proto"])
-
-proto_library(
-    name = "result_proto",
-    srcs = ["result.proto"],
-)
-
-rust_prost_library(
-    name = "result_proto_rs",
-    proto = ":result_proto",
-)
-
-proto_library(
-    name = "codegen_proto",
-    srcs = ["codegen.proto"],
-)
-
-rust_prost_library(
-    name = "codegen_proto_rs",
-    proto = ":codegen_proto",
-)
 
 codegen_defs_unit_tests(name = "codegen_defs_unit")
 
@@ -54,7 +29,7 @@ prost_codegen_shard(
     testonly = True,
     entries = ["gen/prost_result.rs|gen|result|result_proto.lib.rs"],
     language = "rust",
-    proto_rs = ":result_proto_rs",
+    proto_rs = "//generation/proto:result_proto_rs",
     visibility = ["//visibility:private"],
 )
 

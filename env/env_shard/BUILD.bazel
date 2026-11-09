@@ -3,8 +3,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_ENV_SHARD")
 
-# gazelle:resolve rust proto //env:plan_proto_rs
-# gazelle:resolve rust plan_proto //env:plan_proto_rs
+# gazelle:resolve rust proto //env/proto:plan_proto_rs
+# gazelle:resolve rust plan_proto //env/proto:plan_proto_rs
 
 package(default_visibility = VIS_ENV_SHARD)
 
@@ -22,7 +22,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/path:dx_path",
-        "//env:plan_proto_rs",
+        "//env/proto:plan_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -58,7 +58,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//env:plan_proto_rs",
+        "//env/proto:plan_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -78,7 +78,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":env_shard",
-        "//env:plan_proto_rs",
+        "//env/proto:plan_proto_rs",
         "//libs/shard_writer:dx_shard_writer",
     ],
 )

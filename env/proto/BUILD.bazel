@@ -1,0 +1,28 @@
+# gazelle:ignore
+# Gazelle would replace the prost targets with proto rules for every language.
+load("@rules_proto//proto:defs.bzl", "proto_library")
+load("@rules_rust_prost//:defs.bzl", "rust_prost_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["marker.proto", "plan.proto"])
+
+proto_library(
+    name = "marker_proto",
+    srcs = ["marker.proto"],
+)
+
+rust_prost_library(
+    name = "marker_proto_rs",
+    proto = ":marker_proto",
+)
+
+proto_library(
+    name = "plan_proto",
+    srcs = ["plan.proto"],
+)
+
+rust_prost_library(
+    name = "plan_proto_rs",
+    proto = ":plan_proto",
+)

@@ -23,7 +23,7 @@ rust_library(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
-        "//quality:result_proto_rs",
+        "//quality/result/proto:result_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )

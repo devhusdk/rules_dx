@@ -26,6 +26,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "detekt",
     "dialyzer",
     "djlint",
+    "docstrfmt",
     "elixirc",
     "elvis",
     "erlc",

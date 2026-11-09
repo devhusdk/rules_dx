@@ -842,6 +842,26 @@ TOOLS = [
         ],
     ),
     tool(
+        id = "docstrfmt",
+        adapters = {"format": ["rst"]},
+        config = config(
+            suffixes = [".toml"],
+            files = ["docstrfmt.toml"],
+            ext = "toml",
+            tier_active = True,
+        ),
+        support = [
+            row(
+                capability = "format",
+                classes = ["rst"],
+                family = "rst",
+                fix = "supported",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+                transport = "single",
+            ),
+        ],
+    ),
+    tool(
         id = "elvis",
         adapters = {"lint": ["erlang"]},
         config = config(suffixes = ["elvis.config", ".config"], tier_active = True),

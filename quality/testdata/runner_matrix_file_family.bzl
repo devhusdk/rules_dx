@@ -3915,6 +3915,38 @@ FILE_FAMILY_CASES = [
         "expected_file": ":matrix/matrix_make_format_fail.expected.txt",
     },
     {
+        "name": "matrix_rst_format_pass",
+        "generated": {
+            "matrix/rst_format_clean/index.rst": "#######\n Title\n#######\n\nSome text.\n",
+        },
+        "capability": "format",
+        "stages": ["docstrfmt;rst;matrix/rst_format_clean/index.rst"],
+        "tool_names": ["docstrfmt"],
+        "tool_binaries": ["//quality/tools/python:docstrfmt"],
+        "tool_env": ["docstrfmt=RUNFILES_DIR=$TEST_SRCDIR"],
+        "toolfile_tools": ["docstrfmt"],
+        "toolfile_srcs": ["//quality/tiers/docstrfmt:standard.toml"],
+        "config_tools": ["docstrfmt"],
+        "config_files": ["//quality/tiers/docstrfmt:standard.toml"],
+        "expected_file": ":matrix/matrix_rst_format_pass.expected.txt",
+    },
+    {
+        "name": "matrix_rst_format_fail",
+        "generated": {
+            "matrix/rst_format_dirty/index.rst": "Title\n=====\n\n*  one\n*  two\n",
+        },
+        "capability": "format",
+        "stages": ["docstrfmt;rst;matrix/rst_format_dirty/index.rst"],
+        "tool_names": ["docstrfmt"],
+        "tool_binaries": ["//quality/tools/python:docstrfmt"],
+        "tool_env": ["docstrfmt=RUNFILES_DIR=$TEST_SRCDIR"],
+        "toolfile_tools": ["docstrfmt"],
+        "toolfile_srcs": ["//quality/tiers/docstrfmt:standard.toml"],
+        "config_tools": ["docstrfmt"],
+        "config_files": ["//quality/tiers/docstrfmt:standard.toml"],
+        "expected_file": ":matrix/matrix_rst_format_fail.expected.txt",
+    },
+    {
         "name": "matrix_dockerfile_lint_pass",
         "generated": {
             "matrix/hadolint_clean.Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n",

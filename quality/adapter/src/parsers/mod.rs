@@ -23,6 +23,7 @@ pub mod deadnix;
 pub mod detekt;
 pub mod dialyzer;
 pub mod djlint;
+pub mod docstrfmt;
 pub mod elixirc;
 pub mod elvis;
 pub mod erlc;
@@ -153,6 +154,7 @@ pub use deadnix::parse_deadnix;
 pub use detekt::parse_detekt;
 pub use dialyzer::parse_dialyzer;
 pub use djlint::{djlint_ran, parse_djlint, parse_djlint_format};
+pub use docstrfmt::parse_docstrfmt;
 pub use elixirc::parse_elixirc;
 pub use elvis::parse_elvis;
 pub use erlc::parse_erlc;
@@ -2529,6 +2531,14 @@ mod tests {
         super::gplint::parse_gplint(input, code, files)
     }
 
+    fn fuzz_docstrfmt(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::docstrfmt::parse_docstrfmt(input, input, code, files)
+    }
+
     fn fuzz_mbake(
         input: &[u8],
         code: Option<i32>,
@@ -3024,6 +3034,7 @@ mod tests {
         ("kubeconform", fuzz_kubeconform),
         ("chktex", fuzz_chktex),
         ("latexindent", fuzz_latexindent),
+        ("docstrfmt", fuzz_docstrfmt),
         ("mbake", fuzz_mbake),
         ("ktfmt", fuzz_ktfmt),
         ("luals", fuzz_luals),

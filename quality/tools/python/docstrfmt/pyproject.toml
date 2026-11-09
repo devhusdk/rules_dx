@@ -1,0 +1,11 @@
+# Separate project from ../pyproject.toml: sphinx caps docutils below 0.23 while
+# the shared tools need 0.23 or newer, so the two cannot share one resolution.
+# Update flow: bump the bound here, then regenerate with `uv lock` in this
+# directory.
+[project]
+name = "dx-docstrfmt"
+version = "0.0.0"
+requires-python = ">=3.12"
+dependencies = [
+  "docstrfmt>=2.2.1,<3",
+]

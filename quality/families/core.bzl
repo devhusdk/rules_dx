@@ -22,6 +22,14 @@ TOOLS = {
         "resources": "light",
         "shard": "core",
     },
+    "docstrfmt": {
+        "attr": attr.label(default = "//quality/tools/python:docstrfmt", cfg = "exec", executable = True),
+        "capabilities": ["format"],
+        "kind": "executable",
+        "resources": "light",
+        "runfiles_env": True,
+        "shard": "core",
+    },
     "lychee": {
         "attr": attr.label(default = "@dx_tools//:lychee", allow_single_file = True, cfg = "exec"),
         "capabilities": ["lint"],

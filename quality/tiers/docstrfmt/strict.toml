@@ -1,0 +1,6 @@
+[tool.docstrfmt]
+bullet-list-marker = "-"
+format-python-code-blocks = true
+indent-width = 3
+line-length = 80
+ordered-marker = "1"

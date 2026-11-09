@@ -1557,6 +1557,11 @@ uv.project(
 )
 uv.project(
     hub_name = "dx_pypi",
+    lock = "//quality/tools/python/docstrfmt:uv.lock",
+    pyproject = "//quality/tools/python/docstrfmt:pyproject.toml",
+)
+uv.project(
+    hub_name = "dx_pypi",
     lock = "//gazelle/protobuf/tests/grpc:uv.lock",
     pyproject = "//gazelle/protobuf/tests/grpc:pyproject.toml",
 )

@@ -104,6 +104,22 @@ Source: dx. Native file: `analysis_options.yaml`.
 +    strict-raw-types: true
 ```
 
+## docstrfmt
+
+Source: dx. Native file: `docstrfmt.toml`.
+
+```diff
+--- a/quality/tiers/docstrfmt/strict.toml
++++ b/quality/tiers/docstrfmt/strict.toml
+@@ -2,4 +2,5 @@
+ bullet-list-marker = "-"
+ format-python-code-blocks = true
+ indent-width = 3
+-line-length = 88
++line-length = 80
++ordered-marker = "1"
+```
+
 ## eslint
 
 Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs, eslint.config.ts, .eslintrc*`.

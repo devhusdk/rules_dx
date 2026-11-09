@@ -323,6 +323,10 @@ const GERSEMI_TAIL: &[&str] = &["--"];
 // `make`), and never `update`.
 const MBAKE_CHECK_PREFIX: &[&str] = &["format", "--check"];
 const MBAKE_FIX_PREFIX: &[&str] = &["format"];
+// `--ignore-cache` keeps docstrfmt from reading or writing a cache under the home directory, and
+// `--exclude` replaces its default exclude globs so no path is skipped silently.
+const DOCSTRFMT_CHECK_PREFIX: &[&str] = &["--check", "--ignore-cache", "--exclude", "**/.dx-never"];
+const DOCSTRFMT_FIX_PREFIX: &[&str] = &["--ignore-cache", "--exclude", "**/.dx-never"];
 const REGAL_LINT_PREFIX: &[&str] = &[
     "lint",
     "--format",
@@ -2088,6 +2092,31 @@ pub fn mbake_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
         binary,
         MBAKE_FIX_PREFIX,
         "--config",
+        Some(config),
+        &[],
+        files,
+        "",
+    )
+}
+
+/// Always `--pyproject-config <config>`: docstrfmt otherwise searches upward for a `pyproject.toml`.
+pub fn docstrfmt_check(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        DOCSTRFMT_CHECK_PREFIX,
+        "--pyproject-config",
+        Some(config),
+        &[],
+        files,
+        "",
+    )
+}
+
+pub fn docstrfmt_fix(binary: &Path, files: &[&Path], config: &Path) -> Invocation {
+    optional_flag(
+        binary,
+        DOCSTRFMT_FIX_PREFIX,
+        "--pyproject-config",
         Some(config),
         &[],
         files,

@@ -13,6 +13,7 @@ pub(super) const TIER_BASE_TOOLS: &[&str] = &[
     "checkmake",
     "credo",
     "detekt",
+    "docstrfmt",
     "elvis",
     "ffmt",
     "gersemi",

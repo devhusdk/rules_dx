@@ -118,6 +118,7 @@ NOT_APPLICABLE = {
         "cue": "cue vet is the only CUE analysis and it is already the typecheck capability; the pinned cue binary has no separate linter",
     },
     "format": {
+        "asciidoc": "markup; no maintained AsciiDoc formatter exists, asciidoctor only converts",
         "capnp": "schema IDL; no maintained .capnp formatter exists, capnp only validates",
         "flatbuffers": "schema IDL; no maintained .fbs formatter exists, flatc only validates",
         "thrift": "schema IDL; the thrift compiler has no formatter, it only validates",

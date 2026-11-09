@@ -501,6 +501,20 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
+        id: "docstrfmt",
+        run: |backend, call| {
+            let config = need_config(call)?;
+            let (refs, names) = paths(call);
+            let strs: Vec<&str> = names.iter().map(String::as_str).collect();
+            let invocation = commands::docstrfmt_check(&call.tool.binary, &refs, config);
+            let out = run(backend, call, &invocation)?;
+            parsed(
+                call.tool_id,
+                parsers::parse_docstrfmt(&out.stdout, &out.stderr, out.code, &strs),
+            )
+        },
+    },
+    ToolDef {
         id: "mbake",
         run: |backend, call| {
             let config = need_config(call)?;

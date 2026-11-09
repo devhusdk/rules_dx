@@ -54,6 +54,8 @@ TIER_TOML = [
     "pydoclint/strict.toml",
     "lychee/standard.toml",
     "lychee/strict.toml",
+    "docstrfmt/standard.toml",
+    "docstrfmt/strict.toml",
     "mbake/standard.toml",
     "mbake/strict.toml",
     "julialint/standard.toml",

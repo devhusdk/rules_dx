@@ -591,6 +591,9 @@ impl RealBackend {
         if tool_id == "typstyle" || tool_id == "prettier" {
             env.push((OsString::from("NO_COLOR"), OsString::from("1")));
         }
+        if tool_id == "docstrfmt" {
+            env.push((OsString::from("PYTHONUTF8"), OsString::from("1")));
+        }
         if tool_id == "mbake" {
             // rich and typer emit ANSI codes unless told otherwise, and rich wraps a long line
             // at 80 columns when stdout is not a terminal, which splits a path from its message.

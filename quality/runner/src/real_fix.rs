@@ -262,6 +262,12 @@ const FIX_SPECS: &[FixSpec] = &[
         crash_stderr: None,
     },
     FixSpec {
+        tool: "docstrfmt",
+        config: FixConfig::Optional,
+        keep_exit_one: false,
+        crash_stderr: None,
+    },
+    FixSpec {
         tool: "mbake",
         config: FixConfig::Optional,
         keep_exit_one: false,
@@ -1103,6 +1109,13 @@ impl super::RealBackend {
                         refs,
                         &Self::ffmt_config_dir(tool)?,
                     )),
+                    "docstrfmt" => match config.as_deref() {
+                        Some(config) => Ok(commands::docstrfmt_fix(&tool.binary, refs, config)),
+                        None => Err(execution(
+                            tool_id,
+                            "docstrfmt needs a config path".to_owned(),
+                        )),
+                    },
                     "mbake" => match config.as_deref() {
                         Some(config) => Ok(commands::mbake_fix(&tool.binary, refs, config)),
                         None => Err(execution(tool_id, "mbake needs a config path".to_owned())),

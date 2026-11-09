@@ -96,6 +96,7 @@ fn table() -> Vec<(&'static str, How)> {
             "markdown_check",
             Staged("rules file staged and passed by the runner"),
         ),
+        ("docstrfmt", Arg(|b, f, c| docstrfmt_check(b, &[f], c))),
         ("mbake", Arg(|b, f, c| mbake_check(b, &[f], c))),
         (
             "mix_format",

@@ -204,6 +204,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
         "csharpier",
         "dart",
         "djlint",
+        "docstrfmt",
         "erlfmt",
         "fantomas",
         "ffmt",
@@ -237,6 +238,7 @@ pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
             "scalafmt" => bound_tool(".scalafmt.conf", b""),
             "ffmt" => bound_tool("ffmt.toml", b""),
             "gersemi" => bound_tool(".gersemirc", b""),
+            "docstrfmt" => bound_tool("docstrfmt.toml", b"[tool.docstrfmt]\n"),
             "mbake" => bound_tool(".bake.toml", b""),
             _ => plain_tool(),
         };

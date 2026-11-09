@@ -1,0 +1,9 @@
+producer //quality/testdata:matrix_rst_format_pass
+capability FORMAT
+stages 1
+stage docstrfmt classes=rst sources=matrix/rst_format_clean/index.rst
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

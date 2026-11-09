@@ -314,6 +314,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `buildifier` | Format and lint Starlark | |
 | `cmakelint`, `gersemi` | Lint and format CMake | |
 | `checkmake`, `mbake` | Lint and format Make | |
+| `docstrfmt` | Format reStructuredText | |
 | `hadolint` | Lint Dockerfiles | |
 | `actionlint` | Lint GitHub workflows | |
 | `zizmor` | Lint GitHub workflows | |
@@ -447,6 +448,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `govet` | curated | `*.json` | none | dx |  |
 | `gplint` | catalog | `*.gplintrc`, `*.json` | none | dx |  |
 | `graphql_eslint` | catalog | `*.json` | none | dx |  |
+| `docstrfmt` | catalog | `docstrfmt.toml` | override copy | dx |  |
 | `hadolint` | curated | `*.yaml`, `*.yml` | none | dx |  |
 | `hlint` | catalog | `.hlint.yaml` | override copy | dx |  |
 | `julialint` | curated | `*.toml` | none | dx |  |

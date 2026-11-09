@@ -1290,6 +1290,33 @@ fn file_family_format_checks_and_fixes_use_each_tool_own_flags() {
             "/scratch/Makefile"
         ]
     );
+    let rst = Path::new("/scratch/index.rst");
+    let docstrfmt_config = Path::new("/scratch/docstrfmt.toml");
+    assert_eq!(
+        argv_strings(&docstrfmt_check(Path::new(BIN), &[rst], docstrfmt_config)),
+        vec![
+            BIN,
+            "--check",
+            "--ignore-cache",
+            "--exclude",
+            "**/.dx-never",
+            "--pyproject-config",
+            "/scratch/docstrfmt.toml",
+            "/scratch/index.rst"
+        ]
+    );
+    assert_eq!(
+        argv_strings(&docstrfmt_fix(Path::new(BIN), &[rst], docstrfmt_config)),
+        vec![
+            BIN,
+            "--ignore-cache",
+            "--exclude",
+            "**/.dx-never",
+            "--pyproject-config",
+            "/scratch/docstrfmt.toml",
+            "/scratch/index.rst"
+        ]
+    );
     let lua = Path::new("/scratch/sample.lua");
     let selene_flags = [
         "--display-style=json2",

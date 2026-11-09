@@ -56,6 +56,18 @@ py_binary(
 )
 
 py_binary(
+    name = "docstrfmt",
+    srcs = [
+        "docstrfmt_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-docstrfmt",
+    main = "docstrfmt_main.py",
+    package_collisions = "ignore",
+    deps = ["@pypi//docstrfmt"],
+)
+
+py_binary(
     name = "mbake",
     srcs = [
         "mbake_main.py",

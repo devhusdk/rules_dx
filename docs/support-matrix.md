@@ -120,7 +120,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Qt | `qmllint`, `typos` | `qmlformat` | `qmllint` | n/a | no: no dx coverage wiring in the Qt rules | n/a |
 | Ansible | `ansible_lint` (not on `windows_x86_64`: ansible-core does not run on Windows; `windows_arm64`: ansible-core does not run on Windows), `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
-| AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
+| AsciiDoc | `lychee`, `typos`, `vale` | n/a | n/a | n/a | n/a | n/a |
 | Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
 | Cap'n Proto | `capnp`, `typos` | n/a | `capnp` | n/a | n/a | n/a |
 | CloudFormation | `cfn_lint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
@@ -141,7 +141,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | OCI images | no | no | no | n/a | n/a | n/a |
 | Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |
-| reStructuredText | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
+| reStructuredText | `lychee`, `typos`, `vale` | `docstrfmt` | n/a | n/a | n/a | n/a |
 | Shell | `shellcheck`, `typos` | `shfmt` | n/a | n/a | n/a | `shellcheck SC2034` |
 | SQL | `sqlfluff`, `typos` | `sqlfluff` | n/a | n/a | n/a | n/a |
 | Starlark | `buildifier`, `typos` | `buildifier` | n/a | n/a | n/a | `buildifier unused-variable` |
@@ -156,6 +156,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 
 Not applicable for `format`:
 
+- `asciidoc`: markup; no maintained AsciiDoc formatter exists, asciidoctor only converts
 - `capnp`: schema IDL; no maintained .capnp formatter exists, capnp only validates
 - `flatbuffers`: schema IDL; no maintained .fbs formatter exists, flatc only validates
 - `thrift`: schema IDL; the thrift compiler has no formatter, it only validates

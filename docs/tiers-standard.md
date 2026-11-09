@@ -158,6 +158,18 @@ linter:
     - void_checks
 ```
 
+## docstrfmt
+
+Source: dx. Native file: `docstrfmt.toml`.
+
+```toml
+[tool.docstrfmt]
+bullet-list-marker = "-"
+format-python-code-blocks = true
+indent-width = 3
+line-length = 88
+```
+
 ## eslint
 
 Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs, eslint.config.ts, .eslintrc*`.

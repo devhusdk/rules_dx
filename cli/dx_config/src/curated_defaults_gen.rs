@@ -353,6 +353,7 @@ pub const TOOLS: &[&str] = &[
     "detekt",
     "dialyzer",
     "djlint",
+    "docstrfmt",
     "elixirc",
     "elvis",
     "erlc",

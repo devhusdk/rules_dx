@@ -68,27 +68,6 @@ pub fn jobs(path: &str) -> Vec<(String, Value)> {
         .collect()
 }
 
-/// Returns the joined `run` scripts of every job, with the job id.
-#[track_caller]
-pub fn run_scripts(path: &str) -> Vec<(String, String)> {
-    jobs(path)
-        .into_iter()
-        .map(|(id, job)| {
-            let scripts = job["steps"]
-                .as_array()
-                .map(|steps| {
-                    steps
-                        .iter()
-                        .filter_map(|step| step["run"].as_str())
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                })
-                .unwrap_or_default();
-            (id, scripts)
-        })
-        .collect()
-}
-
 /// Returns the trigger table of a workflow, whichever way the parser keys `on`.
 #[track_caller]
 pub fn triggers(path: &str) -> Value {

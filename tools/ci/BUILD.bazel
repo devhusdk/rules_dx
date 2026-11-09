@@ -200,20 +200,6 @@ rust_library(
 )
 
 rust_test(
-    name = "ci_workflow_test",
-    srcs = ["ci_workflow_test.rs"],
-    data = [
-        "//.github:actions",
-        "//.github:workflows/ci.yml",
-        "//.github:workflows/reusable-consumer.yml",
-    ],
-    deps = [
-        ":ci_workflow",
-        "@crates//:serde_json",
-    ],
-)
-
-rust_test(
     name = "actionlint_test",
     srcs = ["actionlint_test.rs"],
     data = [

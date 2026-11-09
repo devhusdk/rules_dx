@@ -1,0 +1,9 @@
+opam-version: "2.0"
+name: "ocaml_fuzz"
+version: "0.0.0"
+depends: [
+  "afl-persistent" {= "1.4"}
+  "cmdliner" {= "2.1.1"}
+  "crowbar" {= "0.2.2"}
+  "ocaml" {= "5.5.2"}
+]

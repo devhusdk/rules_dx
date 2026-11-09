@@ -204,6 +204,43 @@ package that depends on another non-toolchain package fails until dune package
 dependencies are supported. A package that is not built with dune needs
 `ocaml.annotation(package, build_file, strip_prefix)`.
 
+`@dx_ocaml_toolchains//:unix` and `:str` are the compiler's own `unix` and
+`str` libraries, for `deps` of modules and of packages built by hand.
+
+### Fuzz tests with Crowbar
+
+`ocaml_fuzz_test` builds a module that registers
+[Crowbar](https://github.com/stedolan/crowbar) tests and runs it in quickcheck
+mode as a test. Crowbar's flags, such as `-r 5000` or `-s <seed>`, go in `args`.
+The target is `manual`, takes the `ocaml_test` size and timeout, and does not
+define a `<name>_run` runner: quickcheck mode cannot report crashes to
+`dx fuzz`. Opam sets crowbar, cmdliner and afl-persistent with the BUILD files
+in `//ocaml/packages`; `{hub}` in them becomes the hub name.
+
+```python
+# MODULE.bazel
+ocaml = use_extension("@rules_dx//ocaml/toolchain:repos.bzl", "ocaml")
+ocaml.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
+ocaml.annotation(
+    package = "afl-persistent",
+    build_file = "@rules_dx//ocaml/packages:afl-persistent.BUILD.bazel",
+    strip_prefix = "ocaml-afl-persistent-1.4",
+)
+ocaml.annotation(package = "cmdliner", build_file = "@rules_dx//ocaml/packages:cmdliner.BUILD.bazel")
+ocaml.annotation(package = "crowbar", build_file = "@rules_dx//ocaml/packages:crowbar.BUILD.bazel")
+use_repo(ocaml, "ocaml_fuzz")
+
+# BUILD.bazel
+ocaml_fuzz_test(
+    name = "reverse_fuzz",
+    struct = "reverse_fuzz.ml",
+    deps = ["@ocaml_fuzz//:crowbar"],
+)
+```
+
+`ocaml_bench` is not provided: core_bench needs about 100 opam packages and
+ppx rewriters, which the opam hub cannot build.
+
 ## Platforms
 
 | Cell | Emitter | Status |

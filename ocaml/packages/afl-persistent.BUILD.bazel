@@ -1,0 +1,28 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature")
+
+package(default_visibility = ["//visibility:public"])
+
+# afl-persistent 1.4 (MIT). Its C primitive, caml_reset_afl_instrumentation, is part of the OCaml runtime.
+_OPTS = [
+    "-w",
+    "-a",
+]
+
+ocaml_signature(
+    name = "afl_persistent_sig",
+    src = "aflPersistent.mli",
+    opts = _OPTS,
+)
+
+ocaml_module(
+    name = "afl_persistent",
+    opts = _OPTS,
+    sig = ":afl_persistent_sig",
+    struct = "aflPersistent.ml",
+    deps = ["@dx_ocaml_toolchains//:unix"],
+)
+
+alias(
+    name = "afl-persistent",
+    actual = ":afl_persistent",
+)

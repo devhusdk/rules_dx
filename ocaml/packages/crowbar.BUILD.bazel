@@ -1,0 +1,28 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature")
+
+package(default_visibility = ["//visibility:public"])
+
+# Crowbar 0.2.2 (MIT). The upstream code predates this repo's warning set, so warnings stay off here only.
+_OPTS = [
+    "-w",
+    "-a",
+]
+
+ocaml_signature(
+    name = "crowbar_sig",
+    src = "src/crowbar.mli",
+    opts = _OPTS,
+)
+
+ocaml_module(
+    name = "crowbar",
+    opts = _OPTS,
+    sig = ":crowbar_sig",
+    struct = "src/crowbar.ml",
+    deps = [
+        "@dx_ocaml_toolchains//:str",
+        "@dx_ocaml_toolchains//:unix",
+        "@{hub}//:afl-persistent",
+        "@{hub}//:cmdliner",
+    ],
+)

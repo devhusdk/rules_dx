@@ -1,0 +1,35 @@
+load("//ocaml/rules:defs.bzl", "ocaml_fuzz_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "ocaml_fuzz.opam.locked",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+ocaml_fuzz_test(
+    name = "reverse_fuzz",
+    args = [
+        "-r",
+        "200",
+    ],
+    opts = [
+        "-w",
+        "-40-42",
+    ],
+    struct = "reverse_fuzz.ml",
+    deps = ["@ocaml_fuzz//:crowbar"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

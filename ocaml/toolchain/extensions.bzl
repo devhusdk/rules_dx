@@ -29,7 +29,7 @@ def _declare_packages(mctx, tag, locked, annotations, facts):
         fact = facts[_fact_key(package, version)]
         annotation = annotations.get(package)
         if annotation and annotation.build_file:
-            build_file = mctx.read(annotation.build_file)
+            build_file = mctx.read(annotation.build_file).replace("{hub}", tag.name)
         else:
             needs = fact["needs"]
             missing = [n for n in needs if n not in locked]
@@ -42,7 +42,7 @@ def _declare_packages(mctx, tag, locked, annotations, facts):
             files = {"BUILD.bazel": build_file},
             sha256 = fact["sha256"],
             integrity = fact.get("integrity", ""),
-            strip_prefix = annotation.strip_prefix if annotation else "{}-{}".format(package, version),
+            strip_prefix = annotation.strip_prefix if annotation and annotation.strip_prefix else "{}-{}".format(package, version),
             urls = [fact["src"]],
         )
         packages[package] = version
@@ -103,7 +103,7 @@ ocaml = module_extension(
         "annotation": tag_class(
             doc = "Adjusts how one opam package is built; without a build_file it is built with dune.",
             attrs = {
-                "build_file": attr.label(allow_single_file = True, doc = "BUILD file placed in the package repository, for a package not built with dune."),
+                "build_file": attr.label(allow_single_file = True, doc = "BUILD file placed in the package repository, for a package not built with dune. `{hub}` in it becomes the name of the hub the package is declared for."),
                 "library": attr.string(doc = "The dune library name when it differs from the package name with - and . as _."),
                 "package": attr.string(mandatory = True, doc = "Opam package name."),
                 "strip_prefix": attr.string(doc = "Archive directory prefix to strip."),

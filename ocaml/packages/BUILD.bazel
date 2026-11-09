@@ -1,0 +1,21 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(
+    [
+        "afl-persistent.BUILD.bazel",
+        "cmdliner.BUILD.bazel",
+        "crowbar.BUILD.bazel",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "afl-persistent.BUILD.bazel",
+        "cmdliner.BUILD.bazel",
+        "crowbar.BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)

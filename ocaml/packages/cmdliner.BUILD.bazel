@@ -1,0 +1,64 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature")
+
+package(default_visibility = ["//visibility:public"])
+
+# Cmdliner 2.1.1 (ISC) without its make build. The upstream code predates this repo's warning set, so warnings stay off here only.
+_OPTS = [
+    "-w",
+    "-a",
+]
+
+_MODULES = {
+    "arg": ["base", "def", "manpage", "msg", "term", "trie"],
+    "base": [],
+    "cline": ["base", "def", "msg", "trie"],
+    "cmd": ["base", "def", "manpage", "term", "trie"],
+    "completion": ["base", "def", "term"],
+    "def": ["base", "manpage"],
+    "docgen": ["def", "manpage"],
+    "eval": ["arg", "base", "cline", "cmd", "completion", "def", "docgen", "manpage", "msg", "term", "trie"],
+    "manpage": ["base"],
+    "msg": ["base", "def", "docgen"],
+    "term": ["def", "manpage"],
+    "trie": [],
+}
+
+[
+    [
+        ocaml_signature(
+            name = "cmdliner_{}_sig".format(name),
+            src = "src/cmdliner_{}.mli".format(name),
+            opts = _OPTS,
+            deps = [":cmdliner_" + dep for dep in deps],
+        ),
+        ocaml_module(
+            name = "cmdliner_" + name,
+            opts = _OPTS,
+            sig = ":cmdliner_{}_sig".format(name),
+            struct = "src/cmdliner_{}.ml".format(name),
+            deps = [":cmdliner_" + dep for dep in deps],
+        ),
+    ]
+    for name, deps in _MODULES.items()
+]
+
+ocaml_signature(
+    name = "cmdliner_sig",
+    src = "src/cmdliner.mli",
+    opts = _OPTS,
+)
+
+ocaml_module(
+    name = "cmdliner",
+    opts = _OPTS,
+    sig = ":cmdliner_sig",
+    struct = "src/cmdliner.ml",
+    deps = [
+        ":cmdliner_arg",
+        ":cmdliner_cmd",
+        ":cmdliner_def",
+        ":cmdliner_eval",
+        ":cmdliner_manpage",
+        ":cmdliner_term",
+    ],
+)

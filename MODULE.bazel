@@ -1176,7 +1176,24 @@ ocaml.annotation(
     package = "astring",
     strip_prefix = "astring-0.8.5",
 )
-use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "rules_ocaml")
+ocaml.lock(
+    name = "ocaml_fuzz",
+    lock = "//ocaml/tests/fixtures/fuzz:ocaml_fuzz.opam.locked",
+)
+ocaml.annotation(
+    build_file = "//ocaml/packages:afl-persistent.BUILD.bazel",
+    package = "afl-persistent",
+    strip_prefix = "ocaml-afl-persistent-1.4",
+)
+ocaml.annotation(
+    build_file = "//ocaml/packages:cmdliner.BUILD.bazel",
+    package = "cmdliner",
+)
+ocaml.annotation(
+    build_file = "//ocaml/packages:crowbar.BUILD.bazel",
+    package = "crowbar",
+)
+use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "ocaml_fuzz", "rules_ocaml")
 
 fortran = use_extension("//fortran/toolchain:repos.bzl", "fortran")
 use_repo(fortran, "rules_fortran")

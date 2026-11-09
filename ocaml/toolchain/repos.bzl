@@ -31,6 +31,7 @@ EMITTERS = {
 }
 
 _DIST_BUILD = """load("@rules_dx//ocaml/toolchain:ocaml.bzl", "dx_ocaml_dist")
+load("@rules_ocaml//build:rules.bzl", "ocaml_import")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -41,6 +42,38 @@ dx_ocaml_dist(
     emitters = {emitters},
     licenses = {licenses},
     version_file = "{version_file}",
+)
+
+ocaml_import(
+    name = "unix",
+    afiles = select({{
+        "@rules_dx//ocaml/toolchain:emitter_sys": [
+            "lib/ocaml/libunixnat.a",
+            "lib/ocaml/unix/unix.a",
+        ],
+        "//conditions:default": [],
+    }}),
+    archive = select({{
+        "@rules_dx//ocaml/toolchain:emitter_sys": "lib/ocaml/unix/unix.cmxa",
+        "//conditions:default": "lib/ocaml/unix/unix.cma",
+    }}),
+    sigs = glob(["lib/ocaml/unix/*.cmi", "lib/ocaml/unix/*.cmx"]),
+)
+
+ocaml_import(
+    name = "str",
+    afiles = select({{
+        "@rules_dx//ocaml/toolchain:emitter_sys": [
+            "lib/ocaml/libcamlstrnat.a",
+            "lib/ocaml/str/str.a",
+        ],
+        "//conditions:default": [],
+    }}),
+    archive = select({{
+        "@rules_dx//ocaml/toolchain:emitter_sys": "lib/ocaml/str/str.cmxa",
+        "//conditions:default": "lib/ocaml/str/str.cma",
+    }}),
+    sigs = glob(["lib/ocaml/str/*.cmi", "lib/ocaml/str/*.cmx"]),
 )
 """
 
@@ -96,7 +129,9 @@ CELL_ALIASES = {
     "stdlib": "//:stdlib",
     "stdlib_cmi": "//:lib/ocaml/stdlib.cmi",
     "stdlib_cmis": "//:stdlib_cmis",
+    "str": "//:str",
     "tree": "//:tree",
+    "unix": "//:unix",
 }
 
 def relative_prefix(path):

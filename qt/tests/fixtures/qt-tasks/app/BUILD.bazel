@@ -1,5 +1,5 @@
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "QT_CONSUMER_OS", "QT_CONSUMER_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
+load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "QT_CONSUMER_OS", "QT_CONSUMER_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -8,7 +8,6 @@ qt_cc_binary(
     name = "tasks",
     srcs = ["main.cc"],
     modules = ["qml"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//qt/tests/fixtures/qt-tasks/browser",
         "//qt/tests/fixtures/qt-tasks/catalog",
@@ -25,7 +24,6 @@ qt_cc_test(
         "qml",
         "test",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//qt/tests/fixtures/qt-tasks/browser",
         "//qt/tests/fixtures/qt-tasks/catalog",
@@ -37,7 +35,6 @@ qt_cc_binary(
     name = "board",
     srcs = ["board.cc"],
     modules = ["quick"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//qt/tests/fixtures/qt-tasks/board",
         "//qt/tests/fixtures/qt-tasks/store",
@@ -50,7 +47,6 @@ qt_cc_test(
     data = ["tst_board.qml"],
     moc_hdrs = ["board_quick_test.h"],
     modules = ["quick_test"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//qt/tests/fixtures/qt-tasks/board",
         "//qt/tests/fixtures/qt-tasks/store",
@@ -68,21 +64,6 @@ qt_bundle(
         "QML",
         "QtQml",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
-)
-
-qt_bundle(
-    name = "runtime_unset",
-    binary = ":tasks",
-    licenses = [
-        "licenses/fmt/LICENSE",
-        "licenses/llvm/LICENSE.TXT",
-    ],
-    qml_modules = [
-        "QML",
-        "QtQml",
-    ],
-    target_compatible_with = None,
 )
 
 consumer_archive(
@@ -110,7 +91,6 @@ qt_bundle(
         "QtQml",
         "QtQuick",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 consumer_archive(

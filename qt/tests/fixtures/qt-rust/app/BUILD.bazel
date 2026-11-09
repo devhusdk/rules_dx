@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "QT_CONSUMER_OS", "QT_CONSUMER_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
+load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_ARCH", "QT_CONSUMER_MIN_RUNTIME", "QT_CONSUMER_OS", "QT_CONSUMER_RUNTIME", "qt_bundle", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -22,7 +22,6 @@ qt_cc_binary(
     srcs = ["main.cc"],
     linkopts = _NTDLL,
     modules = ["qml"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//qt/tests/fixtures/qt-rust/ui"] + _QML_META,
 )
 
@@ -35,7 +34,6 @@ qt_cc_test(
         "qml",
         "test",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         "//qt/tests/fixtures/qt-rust/model",
         "//qt/tests/fixtures/qt-rust/ui",
@@ -53,7 +51,6 @@ sh_test(
         ":ledger_test",
         "@llvm//tools:llvm-nm",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_bundle(
@@ -67,7 +64,6 @@ qt_bundle(
         "QML",
         "QtQml",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 consumer_archive(

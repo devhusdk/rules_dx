@@ -1,4 +1,4 @@
-load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_qml_module")
+load("@rules_dx//qt/rules:defs.bzl", "qt_qml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -8,7 +8,6 @@ _VISIBILITY = ["//qt/tests/fixtures/qt-tasks:__subpackages__"]
 qt_qml_module(
     name = "browser",
     qml_srcs = ["Main.qml"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     translations = ["tasks_de.ts"],
     uri = "Tasks.Browser",
     visibility = _VISIBILITY,

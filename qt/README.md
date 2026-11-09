@@ -159,18 +159,16 @@ build --use_target_platform_for_tests
 
 On Linux arm64, use `@rules_dx//qt/platforms:linux_arm64`.
 
-Gate Qt targets to the qualified cells with `QT_COMPATIBLE_WITH` from
-`@rules_dx//qt/rules:defs.bzl`. It selects on the os and cpu of each
-qualified cell, so the targets build on every qualified cell and are skipped
-elsewhere:
+Every `qt_*` macro gates its targets to the qualified cells. The gate selects
+on the os and cpu of each qualified cell, so the targets build on every
+qualified cell and are skipped elsewhere:
 
 ```python
-load("@rules_dx//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_cc_binary")
+load("@rules_dx//qt/rules:defs.bzl", "qt_cc_binary")
 
 qt_cc_binary(
     name = "app",
     srcs = ["main.cc"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 ```
 
@@ -192,7 +190,7 @@ Attributes on top of the `rules_cc` ones:
 - `translations`: Qt Linguist `.ts` files. `lrelease` compiles each to `:/i18n/<name>.qm`. Needs `qttools`.
 - `qt`: the Qt repo, `@dx_qt` by default. Pass `"@my_qt"` after `use_repo(qt_sdk, my_qt = "dx_qt")`.
 - `qt_qml_module` only: `uri` (dotted, each part starts with a letter), `version` (`MAJOR.MINOR`, default `1.0`), `qml_srcs` and `qml_depends`. `qml_depends` lists the modules written as `depends` lines in the `qmldir`, such as `QtQml.Models` for a `QAbstractListModel` type.
-- `qt_cc_binary` and `qt_cc_test` only: `qml_imports`. When true, `bazel run` and `bazel test` set `QML_IMPORT_PATH` to the pinned import tree. Defaults to true when `modules` holds `qml`, `quick` or `quick_test`.
+- `qt_cc_binary` and `qt_cc_test` set `QML_IMPORT_PATH` to the pinned import tree under `bazel run` and `bazel test` when `modules` holds `qml`, `quick` or `quick_test`.
 
 `qt_qml_module` generates the `qmldir`, the `.qmltypes` and the type
 registrations, and embeds the module at `qrc:/qt/qml/<uri path>/`. Load it
@@ -351,8 +349,7 @@ cells without a needs table, such as the Windows cells for now. On macOS, any
 non-empty `display` ships the `cocoa` platform plugin.
 
 - `binary`: the `qt_cc_binary`.
-- `qml_modules`: import modules to ship. Defaults to `["QML", "QtQml"]` when
-  the binary uses `qml`. A module missing from the import tree fails analysis.
+- `qml_modules`: import modules to ship, none by default. A module missing from the import tree fails analysis.
 - `display`: display platforms to ship, `xcb` and `wayland`. Each adds its
   platform plugin and the libraries it needs. `xcb` also ships the
   `glx` and `egl` GL integration plugins that Qt Quick loads for an OpenGL

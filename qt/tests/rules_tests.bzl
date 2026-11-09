@@ -83,7 +83,7 @@ def _unit_checks():
                     "../qt/qml/QtQuick/qmldir",
                 ],
                 ["../qt/licenses/qt/LGPL-3.0-only.txt"],
-                None,
+                ["QML", "QtQml"],
                 CELLS["linux_x86_64"].needs,
             ),
             [
@@ -112,7 +112,7 @@ def _unit_checks():
                     "../qt/plugins/tls/libqcertonlybackend.dylib",
                 ],
                 [],
-                None,
+                [],
                 CELLS["macos_arm64"].needs,
             ),
             [
@@ -125,7 +125,7 @@ def _unit_checks():
         ),
         expect_equal(
             "bundle root package licenses",
-            qt_bundle_members(["app/tool"], ["licenses/fmt/LICENSE", "third_party/licenses/zlib/LICENSE"], None, CELLS["linux_x86_64"].needs),
+            qt_bundle_members(["app/tool"], ["licenses/fmt/LICENSE", "third_party/licenses/zlib/LICENSE"], [], CELLS["linux_x86_64"].needs),
             [("licenses/fmt/LICENSE", "licenses/fmt/LICENSE"), ("licenses/zlib/LICENSE", "third_party/licenses/zlib/LICENSE")],
         ),
         expect_equal(
@@ -140,7 +140,7 @@ def _unit_checks():
                     "../qt/plugins/platforms/libqoffscreen.dylib",
                 ],
                 [],
-                None,
+                [],
                 struct(
                     library = {"QtGui.framework": ["QtCore.framework"]},
                     plugin = {},
@@ -166,7 +166,7 @@ def _unit_checks():
                     "../qt/plugins/platforms/libqcocoa.dylib",
                 ],
                 [],
-                None,
+                [],
                 CELLS["macos_arm64"].needs,
             ),
             [
@@ -185,7 +185,7 @@ def _unit_checks():
                     "../qt/lib/QtCore.framework/Versions/A/QtCore",
                 ],
                 [],
-                None,
+                [],
                 CELLS["macos_arm64"].needs,
             ),
             [
@@ -207,7 +207,7 @@ def _unit_checks():
                     "../qt/plugins/platforms/qoffscreen.dll",
                 ],
                 [],
-                None,
+                [],
                 struct(
                     library = {"Qt6Gui.dll": ["Qt6Core.dll", "KERNEL32.dll"]},
                     plugin = {},
@@ -228,12 +228,12 @@ def _unit_checks():
         expect_equal("qt.conf points at resources", QT_CONF, "[Paths]\nPrefix = resources\n"),
         expect_equal(
             "bundle without linked windows dlls",
-            qt_bundle_members(["app/tool.exe", "../qt/bin/Qt6Core.dll", "../qt/bin/Qt6Gui.dll"], [], None, struct(library = {}, plugin = {}, runtime_plugin = {})),
+            qt_bundle_members(["app/tool.exe", "../qt/bin/Qt6Core.dll", "../qt/bin/Qt6Gui.dll"], [], [], struct(library = {}, plugin = {}, runtime_plugin = {})),
             [],
         ),
         expect_equal(
             "bundle without QML",
-            qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], None, CELLS["linux_x86_64"].needs),
+            qt_bundle_members(["app/tool", "_solib_k8/qt/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6", "../qt/lib/libQt6Gui.so.6"], [], [], CELLS["linux_x86_64"].needs),
             [("lib/libQt6Core.so.6", "../qt/lib/libQt6Core.so.6")],
         ),
         expect_equal(
@@ -252,7 +252,7 @@ def _unit_checks():
                     "../qt/fonts/DejaVuSans.ttf",
                 ],
                 [],
-                None,
+                [],
                 CELLS["linux_x86_64"].needs,
             ),
             [
@@ -295,7 +295,7 @@ def _unit_checks():
                     "../qt/plugins/wayland-shell-integration/libwl-shell-plugin.so",
                 ],
                 [],
-                None,
+                [],
                 CELLS["linux_x86_64"].needs,
             ),
             [
@@ -332,7 +332,7 @@ def _unit_checks():
                     "../qt/plugins/platforms/libqoffscreen.so",
                 ],
                 [],
-                None,
+                [],
                 CELLS["linux_x86_64"].needs,
             ),
             [
@@ -356,7 +356,7 @@ def _unit_checks():
                     "../qt/plugins/tls/libqopensslbackend.so",
                 ],
                 [],
-                None,
+                [],
                 CELLS["linux_x86_64"].needs,
             ),
             [
@@ -667,11 +667,6 @@ def qt_rules_tests(name):
         target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime",
         target_compatible_with = _MACOS_ARM64,
     )
-    _bundle_test(
-        name = name + "_bundle_unset",
-        target_under_test = "//qt/tests/fixtures/qt-tasks/app:runtime_unset",
-        target_compatible_with = _LINUX,
-    )
     _rust_module_test(
         name = name + "_rust_module",
         target_under_test = "//qt/tests/fixtures/qt-rust/model",
@@ -701,5 +696,5 @@ def qt_rules_tests(name):
         )
     native.test_suite(
         name = name,
-        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "bundle_unset", "macos_runpath", "macos_test_runpath", "macos_bundle", "macos_library_link", "linux_library_link"] + sorted(failures.keys())],
+        tests = [":" + name + "_" + suffix for suffix in ["unit", "module", "rust_module", "bridge", "compile", "moc", "uic", "widgets", "lrelease", "runpath", "test_runpath", "frameworks", "linux_frameworks", "bundle", "macos_runpath", "macos_test_runpath", "macos_bundle", "macos_library_link", "linux_library_link"] + sorted(failures.keys())],
     )

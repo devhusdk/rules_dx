@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//cc/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
-load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
+load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
@@ -38,7 +38,6 @@ _WINDOWS_X86_64 = [
 qt_frameworks(
     name = "probe_qt_frameworks",
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["@dx_qt//:qml"],
 )
 
@@ -52,7 +51,6 @@ cc_binary(
     data = ["@dx_qt//:qml_imports"],
     linkstatic = False,
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         ":probe_qt_frameworks",
         "@dx_qt//:qml",
@@ -247,7 +245,6 @@ qt_cc_library(
         "test",
         "widgets",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_cc_test(
@@ -257,7 +254,6 @@ qt_cc_test(
         "test",
         "widgets",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [":gui"],
 )
 
@@ -292,7 +288,6 @@ qt_cc_binary(
         "widgets",
     ],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 platform_transition_binary(
@@ -386,21 +381,18 @@ qt_cc_library(
     }),
     moc_hdrs = ["fixtures/ticker.h"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_cc_library(
     name = "form",
     forms = ["fixtures/dialog.ui"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_qml_module(
     name = "bad_uri",
     qml_srcs = ["fixtures/Thing.qml"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "1Bad",
 )
 
@@ -409,7 +401,6 @@ qt_qml_module(
     qml_depends = ["QtQml.2Models"],
     qml_srcs = ["fixtures/Thing.qml"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Depends",
 )
 
@@ -417,7 +408,6 @@ qt_qml_module(
     name = "foreign",
     moc_hdrs = ["//qt/tests/other:shared.h"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Foreign",
 )
 
@@ -425,7 +415,6 @@ qt_rust_library(
     name = "rust_foreign",
     bridges = ["//qt/tests/other:bridge.rs"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     uri = "Foreign.Rust",
 )
 
@@ -433,27 +422,23 @@ qt_cc_binary(
     name = "plain_app",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_cc_test(
     name = "plain_test",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 qt_cc_library(
     name = "translated",
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     translations = ["fixtures/de.ts"],
 )
 
 qt_cc_library(
     name = "translated_other",
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     translations = ["fixtures/i18n/de.ts"],
 )
 
@@ -461,7 +446,6 @@ qt_cc_binary(
     name = "clashing_translations",
     srcs = ["fixtures/app.cc"],
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = [
         ":translated",
         ":translated_other",
@@ -471,7 +455,6 @@ qt_cc_binary(
 qt_cc_library(
     name = "twin_translations",
     tags = ["manual"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     translations = [
         "fixtures/de.ts",
         "fixtures/i18n/de.ts",
@@ -525,7 +508,6 @@ qt_cc_test(
     name = "plugin_path_test",
     srcs = ["fixtures/plugin_path.cc"],
     plugins = ["imageformats"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
 )
 
 [

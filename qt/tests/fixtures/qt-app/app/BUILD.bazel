@@ -1,4 +1,4 @@
-load("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", "qt_cc_binary", "qt_cc_test")
+load("//qt/rules:defs.bzl", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 # The QML plugin imports QtQmlMeta; linking Quick stages it with the binary.
@@ -13,7 +13,6 @@ qt_cc_binary(
     modules = ["qml"],
     resource_prefix = "/tally",
     resources = ["banner.txt"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//qt/tests/fixtures/qt-app/tally"] + _QML_META,
 )
 
@@ -25,7 +24,6 @@ qt_cc_test(
         "qml",
         "test",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//qt/tests/fixtures/qt-app/tally"] + _QML_META,
 )
 
@@ -38,7 +36,6 @@ qt_cc_test(
         "test",
         "widgets",
     ],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//qt/tests/fixtures/qt-app/tally"],
 )
 
@@ -47,7 +44,6 @@ qt_cc_test(
     srcs = ["tally_quick_test.cc"],
     data = ["tst_tally.qml"],
     modules = ["quick_test"],
-    target_compatible_with = QT_COMPATIBLE_WITH,
     deps = ["//qt/tests/fixtures/qt-app/tally"],
 )
 

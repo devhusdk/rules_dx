@@ -683,7 +683,11 @@ def _qt_deps(qt, deps, modules, forms):
     wanted = modules + ["widgets"] if forms and "widgets" not in modules else modules
     return deps + [qt + "//:" + module for module in wanted]
 
+def _gate(kwargs):
+    kwargs["target_compatible_with"] = kwargs.get("target_compatible_with", []) + QT_COMPATIBLE_WITH
+
 def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs, owned = True, static = False):
+    _gate(kwargs)
     effective_deps = _qt_deps(qt, deps, modules, forms)
     tags = kwargs.pop("tags", None)
     testonly = kwargs.get("testonly", None)
@@ -777,7 +781,8 @@ def _windows_console(test, modules):
         "//conditions:default": [],
     })
 
-def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, plugins, copts, visibility, kwargs):
+def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs):
+    _gate(kwargs)
     for plugin in plugins:
         if plugin not in RUNTIME_PLUGINS:
             fail("qt_cc_" + rule_kind + ": plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
@@ -823,7 +828,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
         fonts = qt + "//:fonts",
         platforms = qt + "//:platforms",
         plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
-        qml_imports = qt + "//:qml_imports" if (qml_imports if qml_imports != None else _uses_qml(modules)) else None,
+        qml_imports = qt + "//:qml_imports" if _uses_qml(modules) else None,
         upstream = ":" + name + "_upstream",
         visibility = visibility,
         **forward
@@ -841,13 +846,12 @@ def qt_cc_binary(
         deps = [],
         modules = ["core"],
         qt = QT_REPOSITORY,
-        qml_imports = None,
         plugins = [],
         copts = [],
         visibility = None,
         **kwargs):
     """Declares a Qt executable over cc_binary."""
-    _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, plugins, copts, visibility, kwargs)
+    _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
 
 def qt_cc_test(
         name,
@@ -861,13 +865,12 @@ def qt_cc_test(
         deps = [],
         modules = ["core", "test"],
         qt = QT_REPOSITORY,
-        qml_imports = None,
         plugins = [],
         copts = [],
         visibility = None,
         **kwargs):
     """Declares a QtTest executable over cc_test."""
-    _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, qml_imports, plugins, copts, visibility, kwargs)
+    _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
 
 _BRIDGE_TOOL = Label("//qt/rust:qt_rust_bridge")
 
@@ -1022,6 +1025,7 @@ def qt_rust_cc_library(
         visibility = None,
         **kwargs):
     """Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate."""
+    _gate(kwargs)
     testonly = kwargs.get("testonly", None)
     shared = {}
     for key in ["testonly", "target_compatible_with"]:
@@ -1141,8 +1145,6 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
     if len(roots) > 1:
         fail("qt_bundle: the binary carries " + str(len(roots)) + " QML import trees")
     root = roots[0] + "/" if len(roots) == 1 else None
-    if modules == None:
-        modules = ["QML", "QtQml"] if root != None else []
     if len(modules) > 0 and root == None:
         fail("qt_bundle: qml_modules " + str(modules) + " need a binary with the QML import tree")
     members = {}
@@ -1218,7 +1220,7 @@ def qt_bundle_members(runfiles, licenses, modules, needs):
 def _qt_bundle_impl(ctx):
     runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list() + ctx.files.display_plugins + ctx.files.runtime_plugins
     files = {f.short_path: f for f in runfiles + ctx.files.license_files}
-    modules = ctx.attr.qml_modules if ctx.attr.qml_modules_set else None
+    modules = ctx.attr.qml_modules
     staged = []
     for member, path in qt_bundle_members([f.short_path for f in runfiles], [f.short_path for f in ctx.files.license_files], modules, ctx.attr.needs[QtNeedsInfo]):
         out = ctx.actions.declare_file(ctx.label.name + "/" + member)
@@ -1260,12 +1262,11 @@ _qt_bundle = rule(
         "license_files": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
         "needs": attr.label(mandatory = True, providers = [QtNeedsInfo], doc = "Dependency tables of the Qt cell the binary runs on."),
         "qml_modules": attr.string_list(doc = "QML import modules to ship."),
-        "qml_modules_set": attr.bool(doc = "Whether qml_modules was given."),
         "runtime_plugins": attr.label_list(allow_files = True, doc = "Qt runtime plugin files to ship."),
     },
 )
 
-def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs):
+def qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs):
     """Stages a qt_cc_binary runtime for consumer_archive resources."""
     for platform in display:
         if platform not in ["wayland", "xcb"]:
@@ -1285,8 +1286,7 @@ def qt_bundle(name, binary, qml_modules = None, licenses = [], display = [], plu
         }),
         license_files = [qt + "//:licenses"] + licenses,
         needs = qt + "//:needs",
-        qml_modules = qml_modules or [],
-        qml_modules_set = qml_modules != None,
+        qml_modules = qml_modules,
         runtime_plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
         **kwargs
     )

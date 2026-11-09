@@ -1,7 +1,7 @@
 """Rust crates with CXX-Qt bridges for Qt Quick applications."""
 
 load("//rust/rules:defs.bzl", "rust_static_library")
-load(":defs.bzl", "QT_REPOSITORY", "qt_rust_cc_library")
+load(":defs.bzl", "QT_COMPATIBLE_WITH", "QT_REPOSITORY", "qt_rust_cc_library")
 
 _CXX_CRATE = Label("//qt/rust:cxx")
 
@@ -31,9 +31,10 @@ def qt_rust_library(
         **kwargs):
     """Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate."""
     crate = {}
-    for key in ["aspect_hints", "tags", "testonly", "target_compatible_with"]:
+    for key in ["aspect_hints", "tags", "testonly"]:
         if kwargs.get(key, None) != None:
             crate[key] = kwargs[key]
+    crate["target_compatible_with"] = kwargs.get("target_compatible_with", []) + QT_COMPATIBLE_WITH
     if crate_root != None:
         crate["crate_root"] = crate_root
     rust_static_library(

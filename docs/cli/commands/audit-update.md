@@ -449,6 +449,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `composer.lock` of `@rules_dx//php/composer:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
 | `dub.lock` of `@rules_dx//d/dub:extensions.bzl` | `name` | `dub.json` or `dub.sdl` beside `lock` | `lock`, `digests` |
 | `fortran.fpm` of `@rules_dx//fortran/toolchain:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
+| `zig_deps.lock` of `@rules_dx//zig/deps:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
 | `cpan.install` of `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
 | Conan `BazelDeps` `conan_deps_module_extension.bzl` | `conan` | `conanfile.txt` or `conanfile.py` beside the .bzl or in its parent | `conan.lock` beside the conanfile |
@@ -556,6 +557,21 @@ fortran.fpm(
 - `fpm.toml` must sit beside `fpm.lock`.
 - An fpm set is pinned: `dx update` does not resolve packages. Edit `fpm.toml` and regenerate `fpm.lock` by hand.
 - `dx security` and `dx license` list the packages of `fpm.lock`. OSV and the GitHub Advisory Database have no fpm ecosystem, so there is no advisory source.
+
+### zig
+
+```starlark
+zig_deps = use_extension("@rules_dx//zig/deps:extensions.bzl", "zig_deps")
+zig_deps.lock(
+    name = "zig_packages",
+    digests = "//:zig.digests.json",
+    lock = "//:build.zig.zon",
+)
+```
+
+- `build.zig.zon` is `lock` and the manifest; `zig.digests.json` must sit beside it.
+- A zig set is pinned: `dx update` does not resolve packages and `dx update --outdated` does not check a registry. Edit `build.zig.zon` and refresh `zig.digests.json` by hand.
+- OSV and the GitHub Advisory Database have no Zig ecosystem, so `dx security` has no advisory source.
 
 ### opam
 

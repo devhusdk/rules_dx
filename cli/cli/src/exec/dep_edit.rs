@@ -202,6 +202,7 @@ pub(crate) fn configured_set(
             | dx_adopt::dependency_sets::Ecosystem::Conan
             | dx_adopt::dependency_sets::Ecosystem::Dub
             | dx_adopt::dependency_sets::Ecosystem::Fpm
+            | dx_adopt::dependency_sets::Ecosystem::Zig
             | dx_adopt::dependency_sets::Ecosystem::LuaRocks
             | dx_adopt::dependency_sets::Ecosystem::Julia
             | dx_adopt::dependency_sets::Ecosystem::Hex

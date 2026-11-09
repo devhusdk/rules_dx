@@ -220,6 +220,7 @@ fn run_configured_target(
         | Ecosystem::Conan
         | Ecosystem::Dub
         | Ecosystem::Fpm
+        | Ecosystem::Zig
         | Ecosystem::LuaRocks
         | Ecosystem::Julia
         | Ecosystem::Hex

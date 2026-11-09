@@ -285,6 +285,15 @@ pub struct FpmLock<'a> {
     pub line: usize,
 }
 
+/// One `zig.lock` tag of the rules_dx zig extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ZigLock<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub digests: &'a str,
+    pub line: usize,
+}
+
 /// One `dub.lock` tag of the rules_dx dub extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DubLock<'a> {
@@ -1079,6 +1088,23 @@ impl ModuleFile {
                 Ok(DubLock {
                     name: required(call, TAG, "name")?,
                     selections: required(call, TAG, "lock")?,
+                    digests: required(call, TAG, "digests")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `zig.lock` tag of the rules_dx zig deps extension in source order.
+    pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
+        const TAG: &str = "zig.lock";
+        let own = self.tags_of("//zig/deps:extensions.bzl".to_owned(), "zig_deps", "lock");
+        self.tags(RUBY_MODULE, "zig/deps:extensions.bzl", "zig_deps", "lock")
+            .chain(own)
+            .map(|call| {
+                Ok(ZigLock {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
                     digests: required(call, TAG, "digests")?,
                     line: call.line,
                 })

@@ -9,7 +9,7 @@ const UNOWNED_NAMES: &[(&str, &str, bool)] = &[
     ("stack.yaml.lock", "hackage", false),
     ("opam.locked", "opam", true),
     ("cpanfile.snapshot", "cpan", true),
-    ("build.zig.zon", "zig", false),
+    ("build.zig.zon", "zig", true),
     ("conan.lock", "conan", true),
     ("vcpkg.json", "vcpkg", false),
     ("poetry.lock", "pypi", false),

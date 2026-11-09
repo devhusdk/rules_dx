@@ -405,6 +405,20 @@ fn ansible_and_bicep_tags_become_sets() {
 }
 
 #[test]
+fn zig_locks_become_zig_sets() {
+    let module = "zig = use_extension(\"@rules_dx//zig/deps:extensions.bzl\", \"zig_deps\")\nzig.lock(name = \"zig_pkgs\", lock = \"//app:build.zig.zon\", digests = \"//app:zig.digests.json\")\n";
+    let read = |_: &str| Err("none".to_owned());
+    let registry = discover(module, &read)
+        .expect("discovers")
+        .expect("registry");
+    let set = registry.find("zig_pkgs").expect("set");
+    assert_eq!(set.ecosystem, Ecosystem::Zig);
+    assert_eq!(set.manifests, ["app/build.zig.zon"]);
+    assert_eq!(set.locks, ["app/zig.digests.json"]);
+    assert_eq!(Ecosystem::parse("zig"), Some(Ecosystem::Zig));
+}
+
+#[test]
 fn dub_layout_accepts_matching_digests() {
     let (scratch, set) = dub_workspace("0.8.0");
     assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
@@ -1098,7 +1112,7 @@ fn npm_sets_load_under_their_own_names() {
     assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
     assert_eq!(
         SUPPORTED_ECOSYSTEMS,
-        "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, luarocks, ansible, bicep"
+        "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, zig, luarocks, ansible, bicep"
     );
 }
 

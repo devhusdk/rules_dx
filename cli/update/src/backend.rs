@@ -571,6 +571,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Dub => {
                 "dx does not resolve DUB packages; edit dub.json, run `dub upgrade`, and refresh dub.digests.json"
             }
+            Ecosystem::Zig => {
+                "dx does not resolve Zig packages; edit build.zig.zon and refresh zig.digests.json"
+            }
             Ecosystem::Composer => {
                 "dx does not resolve Composer packages; edit composer.json and regenerate composer.lock with `composer update`"
             }
@@ -770,6 +773,7 @@ pub fn plan_configured(
             | Ecosystem::Conan
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Full,
@@ -780,6 +784,7 @@ pub fn plan_configured(
             | Ecosystem::Conan
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Packages(_),
@@ -1199,6 +1204,7 @@ pub fn check_configured(
             | Ecosystem::Conan
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Ansible
             | Ecosystem::Bicep,
@@ -1210,6 +1216,7 @@ pub fn check_configured(
             | Ecosystem::Conan
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Ansible
             | Ecosystem::Bicep,

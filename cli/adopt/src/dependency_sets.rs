@@ -34,6 +34,7 @@ pub const ECOSYSTEM_COMPOSER: &str = "composer";
 pub const ECOSYSTEM_DUB: &str = "dub";
 
 pub const ECOSYSTEM_FPM: &str = "fpm";
+pub const ECOSYSTEM_ZIG: &str = "zig";
 
 pub const ECOSYSTEM_LUAROCKS: &str = "luarocks";
 
@@ -47,7 +48,7 @@ pub const ECOSYSTEM_ANSIBLE: &str = "ansible";
 
 pub const ECOSYSTEM_BICEP: &str = "bicep";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, luarocks, ansible, bicep";
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, zig, luarocks, ansible, bicep";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -91,6 +92,10 @@ pub const FPM_MANIFEST: &str = "fpm.toml";
 pub const DUB_SELECTIONS: &str = "dub.selections.json";
 
 pub const DUB_DIGESTS: &str = "dub.digests.json";
+
+pub const ZIG_ZON: &str = "build.zig.zon";
+
+pub const ZIG_DIGESTS: &str = "zig.digests.json";
 
 const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
 
@@ -141,6 +146,7 @@ pub enum Ecosystem {
     Composer,
     Dub,
     Fpm,
+    Zig,
     LuaRocks,
     Opam,
     SwiftPm,
@@ -169,6 +175,7 @@ impl Ecosystem {
             Ecosystem::Composer => ECOSYSTEM_COMPOSER,
             Ecosystem::Dub => ECOSYSTEM_DUB,
             Ecosystem::Fpm => ECOSYSTEM_FPM,
+            Ecosystem::Zig => ECOSYSTEM_ZIG,
             Ecosystem::LuaRocks => ECOSYSTEM_LUAROCKS,
             Ecosystem::Opam => ECOSYSTEM_OPAM,
             Ecosystem::Cabal => ECOSYSTEM_CABAL,
@@ -197,6 +204,7 @@ impl Ecosystem {
             ECOSYSTEM_COMPOSER => Some(Ecosystem::Composer),
             ECOSYSTEM_DUB => Some(Ecosystem::Dub),
             ECOSYSTEM_FPM => Some(Ecosystem::Fpm),
+            ECOSYSTEM_ZIG => Some(Ecosystem::Zig),
             ECOSYSTEM_LUAROCKS => Some(Ecosystem::LuaRocks),
             ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
             ECOSYSTEM_CABAL => Some(Ecosystem::Cabal),
@@ -227,6 +235,7 @@ impl Ecosystem {
             | Ecosystem::Composer
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::Ansible
@@ -256,6 +265,7 @@ impl Ecosystem {
             | Ecosystem::Composer
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::Bicep
@@ -296,6 +306,7 @@ impl Ecosystem {
             | Ecosystem::Composer
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
@@ -322,6 +333,7 @@ impl Ecosystem {
             Ecosystem::Composer => Some("packagist"),
             Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Ansible
             | Ecosystem::Bicep => None,
@@ -352,6 +364,7 @@ impl Ecosystem {
             Ecosystem::Composer => COMPOSER_JSON,
             Ecosystem::Dub => "dub.json",
             Ecosystem::Fpm => FPM_MANIFEST,
+            Ecosystem::Zig => ZIG_ZON,
             Ecosystem::LuaRocks => LUAROCKS_LOCK,
             Ecosystem::Opam => "<name>.opam",
             Ecosystem::Cabal => CABAL_PROJECT,
@@ -378,6 +391,7 @@ impl Ecosystem {
             | Ecosystem::Composer
             | Ecosystem::Dub
             | Ecosystem::Fpm
+            | Ecosystem::Zig
             | Ecosystem::LuaRocks
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
@@ -769,6 +783,16 @@ pub fn discover(
                 Ecosystem::Dub,
                 vec![manifest],
                 vec![selections, path(dub.digests)?],
+            )?);
+        }
+        for zig in module.zig_locks().map_err(hub)? {
+            let lock = path(zig.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
+            sets.push(hub_set(
+                zig.name,
+                Ecosystem::Zig,
+                vec![in_dir(&dir, ZIG_ZON)],
+                vec![path(zig.digests)?],
             )?);
         }
         for luarocks in module.luarocks_locks().map_err(hub)? {
@@ -1197,6 +1221,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Composer
         | Ecosystem::Dub
         | Ecosystem::Fpm
+        | Ecosystem::Zig
         | Ecosystem::LuaRocks
         | Ecosystem::Opam
         | Ecosystem::Cabal
@@ -1596,6 +1621,7 @@ pub fn check_backend_settings(
         Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Dub => check_dub_layout(workspace, set),
         Ecosystem::Fpm => check_pinned_lock(set, FPM_LOCK),
+        Ecosystem::Zig => check_pinned_lock(set, ZIG_DIGESTS),
         Ecosystem::LuaRocks => check_pinned_lock(set, LUAROCKS_LOCK),
         Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Ansible => check_ansible_layout(set),

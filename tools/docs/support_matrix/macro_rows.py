@@ -6,9 +6,10 @@ import re
 import sys
 
 LANGUAGES = os.path.join("tools", "docs", "support_matrix", "languages.bzl")
-KINDS = {"bench": "BENCH", "fuzz_test": "FUZZ"}
+FIELDS = {"bench": "bench", "fuzz_test": "fuzz"}
 MACRO = re.compile(r"^def ([a-z]\w*)_(bench|fuzz_test)\(", re.M)
-ENTRY = re.compile(r'^    "(\w+)": "(\w+)",$', re.M)
+ROW = re.compile(r'^    _language\(\n        "(\w+)",\n(.*?)^    \),$', re.M | re.S)
+FIELD = re.compile(r'^        (bench|fuzz) = "(\w+)",$', re.M)
 
 
 def checkout_root():
@@ -36,11 +37,15 @@ def macros(root):
     return found
 
 
-def entries(text, kind):
-    block = re.search(r"^%s = \{\n(.*?)^\}" % KINDS[kind], text, re.M | re.S)
-    if block is None:
-        sys.exit("%s is not a dict in %s" % (KINDS[kind], LANGUAGES))
-    return dict(ENTRY.findall(block.group(1)))
+def entries(text):
+    found = ROW.findall(text)
+    if not found:
+        sys.exit("no _language rows in %s" % LANGUAGES)
+    rows = {field: {} for field in FIELDS.values()}
+    for lang, body in found:
+        for field, macro in FIELD.findall(body):
+            rows[field][lang] = macro
+    return rows
 
 
 def problems(root):
@@ -49,13 +54,13 @@ def problems(root):
     found = macros(root)
     if not found:
         return ["no bench or fuzz macros found under %s" % root]
-    rows = {kind: entries(text, kind) for kind in KINDS}
+    rows = entries(text)
     out = []
     for (lang, kind), path in sorted(found.items()):
         macro = "%s_%s" % (lang, kind)
-        if rows[kind].get(lang) != macro:
+        if rows[FIELDS[kind]].get(lang) != macro:
             out.append(
-                "%s in %s has no %s entry in %s" % (macro, path, KINDS[kind], LANGUAGES)
+                "%s in %s has no %s row in %s" % (macro, path, FIELDS[kind], LANGUAGES)
             )
     return out
 

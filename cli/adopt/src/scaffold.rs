@@ -353,7 +353,7 @@ pub fn render_gitlab_caller() -> String {
 
 pub fn render_release_caller() -> String {
     let body = format!(
-        "name: release\non:\n  push:\n    tags: ['v*']\njobs:\n  release:\n    uses: {owner}/{repo}/{path}@{pin}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
+        "name: release\non:\n  push:\n    tags: ['v*']\n  workflow_dispatch:\n    inputs:\n      deployables:\n        description: 'JSON array of dx_deployment labels to publish, in order. Empty publishes every dx_deployment tagged release.'\n        required: false\n        default: ''\njobs:\n  release:\n    uses: {owner}/{repo}/{path}@{pin}\n    with:\n      deployables: ${{{{ inputs.deployables }}}}\n    secrets: inherit\n    permissions:\n      contents: write\n      id-token: write\n      attestations: write\n      packages: write\n",
         owner = CONSUMER_WORKFLOW_OWNER,
         repo = CONSUMER_WORKFLOW_REPO,
         path = RELEASE_WORKFLOW_PATH,
@@ -1118,6 +1118,8 @@ mod tests {
         );
         for want in [
             "tags: ['v*']",
+            "workflow_dispatch:",
+            "deployables: ${{ inputs.deployables }}",
             uses.as_str(),
             "secrets: inherit",
             "id-token: write",

@@ -144,7 +144,9 @@ jobs:
             export "${gate}=1"
           done
           published=()
+          read -r -a all_labels <<< "$DX_LABELS"
           summary() {
+            status=$?
             {
               echo "## Release ${GITHUB_REF_NAME}"
               if [ "${#published[@]}" -eq 0 ]; then
@@ -152,6 +154,15 @@ jobs:
               else
                 echo "Published:"
                 printf -- '- %s\n' "${published[@]}"
+              fi
+              remaining=("${all_labels[@]:${#published[@]}}")
+              if [ "$status" -ne 0 ] && [ "${#remaining[@]}" -gt 0 ]; then
+                json=$(printf '"%s",' "${remaining[@]}")
+                echo
+                echo "Failed on ${remaining[0]}. Resume with the remaining labels:"
+                echo '```'
+                echo "gh workflow run release.yml --ref ${GITHUB_REF_NAME} -f deployables='[${json%,}]'"
+                echo '```'
               fi
             } >> "$GITHUB_STEP_SUMMARY"
           }

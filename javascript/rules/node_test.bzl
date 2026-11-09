@@ -1,6 +1,6 @@
 """Shared Jest and plain Node test core for the JavaScript and TypeScript wrappers."""
 
-load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_test_run_environment", "dx_test_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_test_forward_kwargs", "dx_run_environment", "dx_test_upstream_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 _JEST_ONLY_KEYS = [
@@ -61,7 +61,7 @@ def node_test_forward_rule(what, allow_files, quality_specs):
     def _impl(ctx):
         return [
             dx_symlink_default_info(ctx, what),
-            dx_test_run_environment(ctx, ctx.attr.upstream[RunEnvironmentInfo] if RunEnvironmentInfo in ctx.attr.upstream else None),
+            dx_run_environment(ctx, ctx.attr.upstream[RunEnvironmentInfo] if RunEnvironmentInfo in ctx.attr.upstream else None),
             dx_quality_sources(ctx.files.srcs, quality_specs, str(ctx.label)),
         ] + dx_forwarded_quiet(ctx.attr.upstream, [InstrumentedFilesInfo, OutputGroupInfo])
 

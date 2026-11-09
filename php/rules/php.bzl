@@ -234,10 +234,6 @@ def _runfiles(ctx, files, transitive, base = None):
         runfiles = runfiles.merge(target[DefaultInfo].default_runfiles)
     return runfiles
 
-def _environment(ctx):
-    env = {key: ctx.expand_location(value, ctx.attr.data) for key, value in ctx.attr.env.items()}
-    return RunEnvironmentInfo(environment = env, inherited_environment = ctx.attr.env_inherit)
-
 def _instrumented(ctx, source_attributes = None):
     return coverage_common.instrumented_files_info(
         ctx,
@@ -278,7 +274,6 @@ def _php_binary_impl(ctx):
         info,
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = _runfiles(ctx, [tree], [], base)),
         OutputGroupInfo(_validation = depset(_lint(ctx, srcs)), php_autoload = depset([tree])),
-        _environment(ctx),
         _instrumented(ctx, ["main", "srcs"]),
     ]
 
@@ -305,7 +300,6 @@ def _php_test_impl(ctx):
         info,
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = _runfiles(ctx, [tree] + extra, [], base)),
         OutputGroupInfo(_validation = depset(_lint(ctx, srcs)), php_autoload = depset([tree])),
-        _environment(ctx),
         _instrumented(ctx),
     ]
 
@@ -316,8 +310,6 @@ _COMMON_ATTRS = {
 }
 
 _RUN_ATTRS = _COMMON_ATTRS | NATIVE_LAUNCHER_ATTRS | {
-    "env": attr.string_dict(doc = "Environment for `bazel run` and `bazel test`; values expand $(location) of data."),
-    "env_inherit": attr.string_list(doc = "Environment variable names inherited from the caller."),
     "ini": attr.string_dict(doc = "php.ini settings passed as -d flags; PHP otherwise runs with -n and no php.ini."),
     "_composer": attr.label(default = _COMPOSER, allow_single_file = True, cfg = "exec", doc = "The pinned Composer phar."),
 }

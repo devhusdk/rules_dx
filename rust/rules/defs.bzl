@@ -8,7 +8,7 @@ load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bi
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
-load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_symlink_executable", "dx_test_run_environment", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_symlink_executable", "dx_run_environment", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -543,7 +543,7 @@ def _rust_wasm_bindgen_browser_test_impl(ctx):
     upstream = dx_upstream(ctx)
     providers = [
         dx_symlink_default_info(ctx, "rust_wasm_bindgen_test"),
-        dx_test_run_environment(ctx, upstream[RunEnvironmentInfo] if RunEnvironmentInfo in upstream else None),
+        dx_run_environment(ctx, upstream[RunEnvironmentInfo] if RunEnvironmentInfo in upstream else None),
     ]
     crate = ctx.attr.crate
     providers.append(crate[_rust_common.crate_info])
@@ -642,7 +642,7 @@ def _rust_wasi_run_test_impl(ctx):
     }
     return [
         DefaultInfo(executable = link, files = depset([link]), runfiles = runfiles),
-        dx_test_run_environment(ctx, RunEnvironmentInfo(environment = environment)),
+        dx_run_environment(ctx, RunEnvironmentInfo(environment = environment)),
     ] + [upstream[p] for p in (_rust_common.crate_info, _rust_common.test_crate_info, _rust_common.dep_info) if p in upstream]
 
 _rust_wasi_run_test = rule(

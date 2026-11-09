@@ -13,7 +13,7 @@ load(
     "dx_symlink_default_info",
     "dx_run_env_attrs",
     "dx_test_forward_kwargs",
-    "dx_test_run_environment",
+    "dx_run_environment",
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
@@ -524,7 +524,7 @@ def _qt_executable_forward_impl(ctx):
     extra = ctx.files.qml_imports + ctx.files.plugins + (ctx.files.fonts + ctx.files.platforms if gui else [])
     out = [
         dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),
-        dx_test_run_environment(ctx, _run_environment(ctx, gui)),
+        dx_run_environment(ctx, _run_environment(ctx, gui)),
         dx_quality_sources(_quality_files(ctx), QT_SOURCE_SPECS, str(ctx.label)),
     ]
     if InstrumentedFilesInfo in upstream:
@@ -548,7 +548,7 @@ _qt_binary_forward = rule(
     doc = "Forwards a Qt executable and owns only its hand-written sources.",
     executable = True,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = False), **dx_forward_data_attr()),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = False), **(dx_forward_data_attr() | dx_run_env_attrs())),
 )
 
 _qt_forward_test = rule(
@@ -786,6 +786,8 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
     effective_deps = _qt_deps(qt, deps, modules, forms)
     test = rule_kind == "test"
     upstream_kwargs = dx_test_upstream_kwargs(kwargs) if test else dict(kwargs)
+    upstream_kwargs.pop("env", None)
+    upstream_kwargs.pop("env_inherit", None)
     tags = upstream_kwargs.pop("tags", None)
     upstream_kwargs.pop("visibility", None)
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, [], None, [], "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))

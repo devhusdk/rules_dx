@@ -1,7 +1,7 @@
 """Thin dx wrappers over the owned PHP rules."""
 
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_macro_upstream_visibility", "dx_quality_srcs", "dx_strip_none", "dx_wrap", "dx_wrap_binary", "dx_wrap_test", "dx_wrapper_macro_attrs")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_macro_upstream_visibility", "dx_quality_srcs", "dx_run_env_attrs", "dx_strip_none", "dx_wrap", "dx_wrap_binary", "dx_wrap_test", "dx_wrapper_macro_attrs")
 load("//php/toolchain:pins.bzl", "PHP_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":php.bzl", "PHP_SOURCE_EXTS", _php_binary = "php_binary", _php_library = "php_library", _php_test = "php_test")
@@ -72,13 +72,13 @@ php_library = macro(
 php_binary = macro(
     implementation = _php_binary_impl,
     inherit_attrs = _php_binary,
-    attrs = dx_wrapper_macro_attrs(["srcs"], ["main"], allow_files = PHP_SOURCE_EXTS, mandatory = ["main"]),
+    attrs = dx_wrapper_macro_attrs(["srcs"], ["main"], allow_files = PHP_SOURCE_EXTS, mandatory = ["main"]) | dx_run_env_attrs(),
     doc = "Runs main on the pinned PHP with the classes of deps autoloaded.",
 )
 
 php_test = macro(
     implementation = _php_test_impl,
     inherit_attrs = _php_test,
-    attrs = dx_wrapper_macro_attrs(["srcs"], allow_files = PHP_SOURCE_EXTS, mandatory = ["srcs"]),
+    attrs = dx_wrapper_macro_attrs(["srcs"], allow_files = PHP_SOURCE_EXTS, mandatory = ["srcs"]) | dx_run_env_attrs(),
     doc = "Runs PHPUnit test files on the pinned PHP and PHPUnit.",
 )

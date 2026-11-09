@@ -1,5 +1,5 @@
 {
-  "checksum": "8e2e3c39e8bb52a111b9617a813cd1a6d38bfbe78b11613c013180f8f3a88dc3",
+  "checksum": "a55f84c15d5a3c7ccc2b1907d4c4bbc0d6a9b1d391583675ec88ee3c10865d62",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7655,6 +7655,10 @@
             "target": "serde"
           },
           {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
             "id": "thiserror 2.0.20",
             "target": "thiserror"
           },
@@ -7667,10 +7671,6 @@
           {
             "id": "jsonschema 0.60.2",
             "target": "jsonschema"
-          },
-          {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
           }
         ],
         "edition": "2024"

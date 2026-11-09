@@ -2,6 +2,7 @@
 
 load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_library = "zig_library", _zig_test = "zig_test")
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
@@ -105,28 +106,25 @@ _zig_forward_test = dx_executable_forward_rule(
     coverage_providers = _zig_test_coverage,
 )
 
-def zig_quality_srcs(main, srcs):
-    """Returns the hand-written sources a Zig target owns: main first, then srcs."""
-    owned = [main] if main != None else []
-    return owned + [s for s in (srcs or []) if s != main]
-
 def zig_import_name(name, import_name):
     """Returns the module import name, defaulting to the public target name."""
     return import_name if import_name else name
 
-def zig_library(name, main, srcs = None, import_name = None, visibility = None, **kwargs):
+def zig_library(name, main, *, srcs = None, import_name = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_library; @import uses the public name."""
-    dx_wrap(name, _zig_library, _zig_library_forward, srcs, visibility = visibility, quality_srcs = zig_quality_srcs(main, srcs), main = main, import_name = zig_import_name(name, import_name), **kwargs)
+    dx_wrap(name, _zig_library, _zig_library_forward, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, import_name = zig_import_name(name, import_name), **kwargs)
 
-def zig_binary(name, main = None, srcs = None, visibility = None, **kwargs):
+def zig_binary(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary."""
+    main = dx_infer_main("zig_binary", name, main, srcs, dx_main_candidates(name, ".zig"))
     upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)))
-    dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = zig_quality_srcs(main, srcs), main = main, **kwargs)
+    dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
 
-def zig_test(name, main = None, srcs = None, visibility = None, **kwargs):
+def zig_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_test."""
+    main = dx_infer_main("zig_test", name, main, srcs, dx_main_candidates(name, ".zig"))
     upstream = dict(kwargs, main = main, zigopts = kwargs.get("zigopts", []) + select({
         Label("//zig/rules:kcov_build"): ["-fllvm"],
         "//conditions:default": [],
     }))
-    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = zig_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)
+    dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)

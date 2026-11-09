@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo", _PyWheelsInfo = "PyWheelsInfo", _py_binary = "py_binary", _py_library = "py_library", _py_pytest_test = "py_pytest_test", _py_test = "py_test")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
@@ -95,11 +96,13 @@ def python_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over py_library."""
     dx_wrap(name, _py_library, _python_library_forward, srcs, visibility = visibility, **kwargs)
 
-def python_binary(name, srcs = None, visibility = None, **kwargs):
+def python_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Minimal wrapper over py_binary."""
+    if main != None:
+        kwargs["main"] = main
     srcs = srcs if srcs != None else []
     upstream_kwargs = _python_main_kwargs("python_binary", name, srcs, kwargs)
-    dx_wrap_binary(name, _py_binary, _python_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+    dx_wrap_binary(name, _py_binary, _python_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, quality_srcs = dx_entry_quality_srcs(main if main != None else python_main(name, srcs), srcs), **kwargs)
 
 def python_test_rejection(runner, kwargs):
     """Returns the rejection for a bad python_test runner or kwargs, or None."""
@@ -109,14 +112,16 @@ def python_test_rejection(runner, kwargs):
         return "python_test with runner = \"pytest\" runs pytest; set runner = \"plain\" to use main."
     return None
 
-def python_test(name, srcs = None, runner = "pytest", visibility = None, **kwargs):
+def python_test(name, *, srcs = None, main = None, runner = "pytest", visibility = None, **kwargs):
     """Wrapper over py_pytest_test, or py_test when runner is plain."""
+    if main != None:
+        kwargs["main"] = main
     rejection = python_test_rejection(runner, kwargs)
     if rejection != None:
         fail(rejection)
     if runner == "plain":
         upstream_kwargs = _python_main_kwargs("python_test", name, srcs, kwargs)
-        dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **kwargs)
+        dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, quality_srcs = dx_entry_quality_srcs(main if main != None else python_main(name, srcs), srcs), **kwargs)
     else:
         dx_wrap_test(name, _py_pytest_test, _python_forward_test, srcs, visibility = visibility, **kwargs)
 

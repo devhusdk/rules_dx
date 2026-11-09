@@ -2,8 +2,9 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//libs/starlark:cells.bzl", "unsupported_value")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_main_candidates")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "DART_SOURCE_SPECS", "dart_entry_sources", "dart_main_candidates", "dart_root_package_name")
+load(":defs.bzl", "DART_SOURCE_SPECS", "dart_root_package_name")
 load(":platforms.bzl", "DART_PLATFORMS")
 
 package(default_visibility = ["//visibility:public"])
@@ -26,7 +27,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "entrypoint comes first",
-            dart_entry_sources(
+            dx_entry_quality_srcs(
                 "bin/main.dart",
                 ["bin/flags.dart"],
             ),
@@ -37,7 +38,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "binary main candidates",
-            dart_main_candidates("tool", False),
+            dx_main_candidates("tool", ".dart", ["bin"]),
             [
                 "tool.dart",
                 "bin/tool.dart",
@@ -45,7 +46,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "test main candidates",
-            dart_main_candidates("x/greet_test", True),
+            dx_main_candidates("x/greet_test", ".dart", ["test"]),
             [
                 "greet_test.dart",
                 "test/greet_test.dart",
@@ -53,12 +54,12 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "missing srcs keep the entrypoint",
-            dart_entry_sources("bin/main.dart", None),
+            dx_entry_quality_srcs("bin/main.dart", None),
             ["bin/main.dart"],
         ),
         expect_equal(
             "entrypoint listed twice is owned once",
-            dart_entry_sources(
+            dx_entry_quality_srcs(
                 "bin/main.dart",
                 ["bin/main.dart"],
             ),

@@ -10,6 +10,7 @@ load(":arithmetic_tests.bzl", "arithmetic_load_tests", "arithmetic_unit_tests")
 load(":aspect_tests.bzl", "aspect_subject_tests")
 load(":cells_tests.bzl", "cells_tests")
 load(":config_tests.bzl", "config_subject_tests")
+load(":entry_tests.bzl", "entry_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":license_tests.bzl", "license_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
@@ -68,6 +69,8 @@ repo_unit_tests(name = "repo_unit")
 arithmetic_load_tests(name = "arithmetic_load")
 
 cells_tests(name = "cells")
+
+entry_tests(name = "entry")
 
 license_tests(name = "license")
 
@@ -190,6 +193,7 @@ real_source_target(
         "cells_tests.bzl",
         "config_tests.bzl",
         "direct_sources.bzl",
+        "entry_tests.bzl",
         "execution_tests.bzl",
         "license_tests.bzl",
         "packaging_tests.bzl",

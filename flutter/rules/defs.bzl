@@ -7,7 +7,8 @@ load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:defs.bzl", _flutter_application = "flutter_application", _flutter_gen_l10n = "flutter_gen_l10n", _flutter_library = "flutter_library", _flutter_test = "flutter_test")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
-load("//dart/rules:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS", "dart_entry_sources")
+load("//dart/rules:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//libs/starlark:cells.bzl", "unsupported_constraint")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
@@ -123,13 +124,15 @@ def flutter_library(name, srcs = None, visibility = None, **kwargs):
         return
     dx_wrap(name, _flutter_library, _flutter_library_forward, srcs or [], visibility = visibility, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
 
-def flutter_test(name, main, srcs = None, visibility = None, **kwargs):
+def flutter_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_test."""
+    main = dx_infer_main("flutter_test", name, main, srcs, dx_main_candidates(name, ".dart", ["test"]))
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
-    dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
+    dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def flutter_application(name, main, srcs = None, visibility = None, **kwargs):
+def flutter_application(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_application."""
+    main = dx_infer_main("flutter_application", name, main, srcs, dx_main_candidates(name, ".dart") + ["lib/main.dart"])
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap(
         name,
@@ -138,7 +141,7 @@ def flutter_application(name, main, srcs = None, visibility = None, **kwargs):
         srcs,
         visibility = visibility,
         upstream_kwargs = dict(kwargs, main = main),
-        quality_srcs = dart_entry_sources(main, srcs),
+        quality_srcs = dx_entry_quality_srcs(main, srcs),
         extra_forward_kwargs = {
             "deps": kwargs.get("deps", []),
             "language_version": kwargs.get("language_version", ""),
@@ -147,10 +150,11 @@ def flutter_application(name, main, srcs = None, visibility = None, **kwargs):
         **kwargs
     )
 
-def flutter_web_app(name, main, srcs = None, visibility = None, **kwargs):
+def flutter_web_app(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_web_app."""
+    main = dx_infer_main("flutter_web_app", name, main, srcs, dx_main_candidates(name, ".dart") + ["lib/main.dart"])
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
-    dx_wrap_binary(name, _flutter_web_app, _flutter_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dart_entry_sources(main, srcs), **kwargs)
+    dx_wrap_binary(name, _flutter_web_app, _flutter_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def flutter_web_bundle(name, **kwargs):
     """Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds."""

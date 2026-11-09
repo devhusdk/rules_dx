@@ -2,6 +2,7 @@
 
 load("@rules_ruby//ruby:defs.bzl", _rb_binary = "rb_binary", _rb_library = "rb_library", _rb_test = "rb_test")
 load("@rules_ruby//ruby/private:providers.bzl", "BundlerInfo", "RubyFilesInfo")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//ruby/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
@@ -97,10 +98,12 @@ def ruby_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over rb_library; takes .rb srcs."""
     dx_wrap(name, _rb_library, _ruby_library_forward, srcs, visibility = visibility, **kwargs)
 
-def ruby_binary(name, srcs = None, visibility = None, **kwargs):
+def ruby_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Minimal wrapper over rb_binary; srcs is optional."""
-    dx_wrap_binary(name, _rb_binary, _ruby_binary_forward, srcs, visibility = visibility, **kwargs)
+    upstream = dict(kwargs, main = main) if main != None else kwargs
+    dx_wrap_binary(name, _rb_binary, _ruby_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def ruby_test(name, srcs, visibility = None, **kwargs):
+def ruby_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Minimal wrapper over rb_test; set main to a runner such as an RSpec bin."""
-    dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, **kwargs)
+    upstream = dict(kwargs, main = main) if main != None else kwargs
+    dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)

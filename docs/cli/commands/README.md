@@ -320,9 +320,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_kwargs` |
 |  |  | `@rules_dx//d/rules:defs.bzl` | `d_quality_srcs` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_binary` |
-|  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_entry_sources` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_library` |
-|  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_main_candidates` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_root_package_name` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_test` |
 |  |  | `@rules_dx//deploy/rules:defs.bzl` | `dx_deployment` |
@@ -663,7 +661,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_upstream_srcs` |
 |  |  | `@rules_dx//vue/rules:defs.bzl` | `vue_build` |
 |  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_import_name` |
-|  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_quality_srcs` |
 
 Packaging and deploy:
 

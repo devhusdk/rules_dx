@@ -2,7 +2,8 @@
 
 load("@rules_perl//perl:defs.bzl", _PerlInfo = "PerlInfo", _perl_binary = "perl_binary", _perl_library = "perl_library", _perl_test = "perl_test")
 load("//libs/starlark:cells.bzl", "unsupported_constraint")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_quality_srcs", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 PerlInfo = _PerlInfo
@@ -97,14 +98,16 @@ def perl_library(name, srcs = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, PERL_DEFERRED_SKIP_TAGS, PERL_COMPATIBLE_WITH)
     dx_wrap(name, _perl_library, _perl_library_forward, srcs or [], visibility = visibility, **kwargs)
 
-def perl_binary(name, srcs = None, main = None, visibility = None, **kwargs):
+def perl_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over perl_binary."""
+    main = dx_infer_main("perl_binary", name, main, srcs, dx_main_candidates(name, ".pl"))
     kwargs = dx_language_kwargs(kwargs, PERL_DEFERRED_SKIP_TAGS, PERL_COMPATIBLE_WITH)
-    upstream = dict(kwargs, main = main) if main != None else kwargs
-    dx_wrap_binary(name, _perl_binary, _perl_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_quality_srcs(main, srcs), **kwargs)
+    upstream = dict(kwargs, main = main)
+    dx_wrap_binary(name, _perl_binary, _perl_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def perl_test(name, srcs = None, main = None, visibility = None, **kwargs):
+def perl_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over perl_test."""
+    main = dx_infer_main("perl_test", name, main, srcs, dx_main_candidates(name, ".pl"))
     kwargs = dx_language_kwargs(kwargs, PERL_DEFERRED_SKIP_TAGS, PERL_COMPATIBLE_WITH)
-    upstream = dict(kwargs, main = main) if main != None else kwargs
-    dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, quality_srcs = dx_quality_srcs(main, srcs), **kwargs)
+    upstream = dict(kwargs, main = main)
+    dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)

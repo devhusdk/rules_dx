@@ -1,0 +1,51 @@
+{
+  "cells": {
+    "linux_arm64": {
+      "binary": "pwsh",
+      "executable": true,
+      "sha256": "6a556353ccfb0a414b80322334eac29a540a398537d3cf8dcc3ecec9cd8abd66",
+      "urls": [
+        "https://github.com/PowerShell/PowerShell/releases/download/v7.5.13/powershell-7.5.13-linux-arm64.tar.gz"
+      ]
+    },
+    "linux_x86_64": {
+      "binary": "pwsh",
+      "executable": true,
+      "sha256": "e9256bfc6ac98fcbec97270e8a986577a7346a587837cc80d30595eef3c2546b",
+      "urls": [
+        "https://github.com/PowerShell/PowerShell/releases/download/v7.5.13/powershell-7.5.13-linux-x64.tar.gz"
+      ]
+    },
+    "macos_arm64": {
+      "binary": "pwsh",
+      "executable": true,
+      "sha256": "0d2f48707d18a388096bee8820967c2ef78156f4eb74700d8a77c50798b99e94",
+      "urls": [
+        "https://github.com/PowerShell/PowerShell/releases/download/v7.5.13/powershell-7.5.13-osx-arm64.tar.gz"
+      ]
+    },
+    "macos_x86_64": {
+      "binary": "pwsh",
+      "executable": true,
+      "sha256": "57b18193fb4038b115d2b0bfe284c275e471027cde1ad202e777febf2c7da58f",
+      "urls": [
+        "https://github.com/PowerShell/PowerShell/releases/download/v7.5.13/powershell-7.5.13-osx-x64.tar.gz"
+      ]
+    },
+    "windows_arm64": {
+      "binary": "pwsh.exe",
+      "sha256": "fc850ea69b8d476a4c1bab1a2321a0b656260efa425681a62c290d1f7054c9e8",
+      "urls": [
+        "https://github.com/PowerShell/PowerShell/releases/download/v7.5.13/PowerShell-7.5.13-win-arm64.zip"
+      ]
+    },
+    "windows_x86_64": {
+      "binary": "pwsh.exe",
+      "sha256": "120b8f0b04f3b3f6e8c351ddbe568bf596cdca15eeb2ecb7e724060051a36d65",
+      "urls": [
+        "https://github.com/PowerShell/PowerShell/releases/download/v7.5.13/PowerShell-7.5.13-win-x64.zip"
+      ]
+    }
+  },
+  "version": "7.5.13"
+}

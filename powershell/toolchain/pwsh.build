@@ -1,0 +1,16 @@
+load("@rules_powershell//powershell:pwsh_toolchain.bzl", "pwsh_toolchain")
+
+filegroup(
+    name = "powershell_bin",
+    srcs = ["{binary}"],
+    data = glob(
+        include = ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+)
+
+pwsh_toolchain(
+    name = "toolchain",
+    pwsh = ":powershell_bin",
+    visibility = ["//visibility:public"],
+)

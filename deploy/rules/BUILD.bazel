@@ -480,7 +480,7 @@ config_runfiles_tests(
         ],
         "nuget_demo": ["nuget_demo.0.0.0.nupkg"],
         "oci_demo": ["oci_demo.tar"],
-        "octopus_demo": ["release_demo.tar.gz"],
+        "octopus_demo": ["octopus_demo.0.0.0.tar.gz"],
         "promotion_demo": ["release_demo.tar.gz"],
         "pub_demo": [
             "pubspec.yaml",
@@ -1958,12 +1958,19 @@ deploy_analysis_test(
     subject = "oci_demo_layout",
 )
 
+genrule(
+    name = "octopus_demo_package",
+    srcs = [":release_demo_archive"],
+    outs = ["octopus_demo.0.0.0.tar.gz"],
+    cmd = "cp $< $@",
+)
+
 octopus_deploy(
     name = "octopus_demo",
     channel = "Default",
     deploy_to = ["Production"],
-    package = ":release_demo_archive",
     project = "octopus_demo",
+    srcs = ":octopus_demo_package",
     version = "0.0.0",
 )
 

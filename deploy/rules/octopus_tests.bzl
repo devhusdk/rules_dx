@@ -1,7 +1,7 @@
 """Unit and analysis tests for the Octopus Deploy publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":octopus.bzl", "OCTOPUS_DEFAULT_URL", "octopus_channel_error", "octopus_environment_error", "octopus_package_error", "octopus_project_error", "octopus_space_error", "octopus_url_error", "octopus_version_error")
+load(":octopus.bzl", "OCTOPUS_DEFAULT_URL", "octopus_channel_error", "octopus_environment_error", "octopus_package_error", "octopus_package_id_error", "octopus_project_error", "octopus_space_error", "octopus_url_error", "octopus_version_error")
 
 def octopus_unit_tests(name):
     starlark_test(
@@ -106,6 +106,16 @@ def octopus_unit_tests(name):
                 octopus_url_error("http://octopus.example.invalid/"),
                 "octopus_deploy: invalid octopus_url 'http://octopus.example.invalid/': " +
                 "want an https URL so pushes never go over plaintext",
+            ),
+            expect_equal(
+                "octopus_package_id_error accepts the demo id",
+                octopus_package_id_error("octopus_demo"),
+                "",
+            ),
+            expect_equal(
+                "octopus_package_id_error rejects id characters",
+                octopus_package_id_error("a;b"),
+                "octopus_deploy: invalid package 'a;b': want only [A-Za-z0-9._-]",
             ),
             expect_equal(
                 "octopus_package_error accepts an archive tarball filename",

@@ -87,6 +87,7 @@ mod tests {
         let argv = vec!["prog".to_owned(), "out".to_owned(), "extra".to_owned()];
         let spec = OctopusLaunch {
             package_rloc: "demo.tar.gz",
+            package: "demo",
             deploy_name: "demo",
             project: "demo",
             channel: "Default",
@@ -206,6 +207,7 @@ mod tests {
                 );
                 let spec = OctopusLaunch {
                     package_rloc: missing,
+                    package: "demo",
                     deploy_name: "demo",
                     project: "demo",
                     channel: "Default",
@@ -215,6 +217,13 @@ mod tests {
                     url_default: "https://octopus.example.invalid",
                 };
                 assert_eq!(octopus_main(&spec, &argv), 1);
+                let mismatch = OctopusLaunch {
+                    package_rloc: "octopus_demo.1.0.0.tar.gz",
+                    package: "octopus_demo",
+                    version: "2.0.0",
+                    ..spec
+                };
+                assert_eq!(octopus_main(&mismatch, &argv), 1);
                 assert_eq!(
                     promotion_main(missing, "demo", "staging", "production", "1.0.0", &argv),
                     1
@@ -556,6 +565,7 @@ mod tests {
             ("maven_demo-0.0.0.jar", &b"jar"[..]),
             ("maven_demo-0.0.0.pom", maven_pom.as_bytes()),
             ("release_demo.tar.gz", &b"package"[..]),
+            ("octopus_demo.1.0.0.tar.gz", &b"package"[..]),
             (
                 "Cargo.toml",
                 &b"[package]\nname = \"crates_demo\"\nversion = \"1.0.0\"\n"[..],
@@ -672,7 +682,8 @@ mod tests {
                     0
                 );
                 let spec = OctopusLaunch {
-                    package_rloc: "release_demo.tar.gz",
+                    package_rloc: "octopus_demo.1.0.0.tar.gz",
+                    package: "octopus_demo",
                     deploy_name: "octopus_demo",
                     project: "octopus_demo",
                     channel: "Default",
@@ -871,6 +882,7 @@ mod tests {
         };
         let _ = crate::OctopusLaunch {
             package_rloc: "",
+            package: "",
             deploy_name: "",
             project: "",
             channel: "",

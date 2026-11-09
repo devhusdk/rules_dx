@@ -2,7 +2,7 @@
 
 use crate::archive::*;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, print_redacted,
+    DeployRun, resolve_version, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, print_redacted,
     scrubbed_command,
 };
 use crate::stage::*;
@@ -73,6 +73,7 @@ fn octo_line(args: &[OsString]) -> String {
 /// Octopus launcher inputs.
 pub struct OctopusLaunch<'a> {
     pub package_rloc: &'a str,
+    pub package: &'a str,
     pub deploy_name: &'a str,
     pub project: &'a str,
     pub channel: &'a str,
@@ -80,6 +81,13 @@ pub struct OctopusLaunch<'a> {
     pub deploy_to: &'a [String],
     pub space_default: &'a str,
     pub url_default: &'a str,
+}
+
+/// Returns the version in an archive named `<package>.<version>.tar.gz`.
+pub fn octopus_archive_version(package: &str, filename: &str) -> Option<String> {
+    let rest = filename.strip_prefix(package)?.strip_prefix('.')?;
+    let version = rest.strip_suffix(".tar.gz")?;
+    (!version.is_empty()).then(|| version.to_owned())
 }
 
 /// Builds one Octopus package drop.
@@ -224,6 +232,19 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     let Some(package) = run.resolve(spec.package_rloc) else {
         return 1;
     };
+    let filename = package
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let found = octopus_archive_version(spec.package, &filename);
+    let version = match resolve_version("octopus_deploy", &filename, found.as_deref(), spec.version)
+    {
+        Ok(version) => version,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
     let space = std::env::var("OCTOPUS_SPACE").unwrap_or_else(|_| spec.space_default.to_owned());
     let server = std::env::var("OCTOPUS_URL").unwrap_or_else(|_| spec.url_default.to_owned());
     let deploy_to: Vec<String> = spec
@@ -236,13 +257,13 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
         deploy_name: spec.deploy_name,
         project: spec.project,
         channel: spec.channel,
-        version: spec.version,
+        version: &version,
         deploy_to: &deploy_to,
         space: &space,
         server: &server,
     };
     if OCTOPUS_GATE.requested(env_or_empty) {
-        if spec.version == "0.0.0" {
+        if version == "0.0.0" {
             eprintln!("octopus_deploy: live push refuses version 0.0.0; set a real version");
             return 1;
         }
@@ -270,7 +291,7 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
             let build_mode = deploy_build_mode();
             println!(
                 "octopus_deploy: staged {} {} (build_mode: {build_mode})",
-                spec.project, spec.version
+                spec.project, version
             );
             println!("  drop: {}", drop.display());
             println!("  manifest: {}", drop.join("would-run.txt").display());
@@ -287,6 +308,17 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
 mod tests {
     use super::*;
     use crate::test_support::*;
+
+    #[test]
+    fn archive_version_comes_from_the_filename() {
+        assert_eq!(
+            octopus_archive_version("demo", "demo.1.2.3-rc.1.tar.gz").as_deref(),
+            Some("1.2.3-rc.1")
+        );
+        assert_eq!(octopus_archive_version("demo", "demo.tar.gz"), None);
+        assert_eq!(octopus_archive_version("demo", "other.1.0.0.tar.gz"), None);
+        assert_eq!(octopus_archive_version("demo", "demo.1.0.0.zip"), None);
+    }
 
     #[test]
     fn octopus_drop_writes_manifest() {

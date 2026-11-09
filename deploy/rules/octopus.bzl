@@ -1,6 +1,6 @@
 """Octopus Deploy publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -77,6 +77,16 @@ def octopus_url_error(octopus_url):
                 "': want an https URL so pushes never go over plaintext")
     return ""
 
+def octopus_package_id_error(package):
+    """Validates one Octopus package id value."""
+    if type(package) != "string" or package == "":
+        return ("octopus_deploy: invalid package '" + str(package) +
+                "': want a non-empty package id (for example 'octopus_demo')")
+    if not only_chars(package, _VALID_PROJECT_CHARS):
+        return ("octopus_deploy: invalid package '" + package +
+                "': want only [A-Za-z0-9._-]")
+    return ""
+
 def octopus_package_error(filename):
     """Validates one Octopus package filename value."""
     if type(filename) != "string" or filename == "":
@@ -89,10 +99,10 @@ def octopus_package_error(filename):
 
 def _octopus_config_impl(ctx):
     """Writes the deploy config for one Octopus deployment."""
-    package_files = ctx.attr.package[DefaultInfo].files.to_list()
+    package_files = ctx.attr.srcs[DefaultInfo].files.to_list()
     if len(package_files) != 1:
-        fail("octopus_deploy " + str(ctx.label) + ": package " +
-             str(ctx.attr.package.label) + " provides " +
+        fail("octopus_deploy " + str(ctx.label) + ": srcs " +
+             str(ctx.attr.srcs.label) + " provides " +
              str(len(package_files)) + " files, want exactly one .tar.gz " +
              "(archive_deploy output)")
     package_file = package_files[0]
@@ -108,6 +118,7 @@ def _octopus_config_impl(ctx):
             "deploy_name": ctx.attr.drop_name,
             "deploy_to": ctx.attr.deploy_to,
             "octopus_url": ctx.attr.octopus_url,
+            "package": ctx.attr.package,
             "package_rloc": rlocation_path(ctx, package_file),
             "project": ctx.attr.project,
             "space": ctx.attr.space,
@@ -133,9 +144,8 @@ _octopus_config = rule(
             doc = "Default Octopus Server URL the deploy tool uses.",
             mandatory = True,
         ),
-        "package": attr.label(
-            doc = "Archive package to publish as the deployment.",
-            allow_single_file = True,
+        "package": attr.string(
+            doc = "Octopus package id the archive filename starts with.",
             mandatory = True,
         ),
         "project": attr.string(
@@ -146,24 +156,27 @@ _octopus_config = rule(
             doc = "Default Octopus space the deploy tool targets.",
             mandatory = True,
         ),
-        "version": attr.string(
-            doc = "Release version sent with the Octopus deployment.",
+        "srcs": attr.label(
+            doc = "Archive package to publish as the deployment.",
+            allow_single_file = True,
             mandatory = True,
         ),
+        "version": attr.string(doc = "Release version the archive filename must carry, when set."),
     },
 )
 
-def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0", deploy_to = [], space = "", octopus_url = OCTOPUS_DEFAULT_URL, build_mode = "release", sbom = None):
-    """Publishes one archive package as a local-first Octopus deployment."""
+def octopus_deploy(name, srcs, project, package = "", channel = "Default", version = "", deploy_to = [], space = "", octopus_url = OCTOPUS_DEFAULT_URL, build_mode = "release", sbom = None):
+    """Publishes one `<package>.<version>.tar.gz` archive as a local-first Octopus deployment.
+
+    The package id defaults to the target name. An empty version means the launcher reads it from the archive filename.
+    """
     project_error = octopus_project_error(project)
     if project_error != "":
         fail(project_error + " (in " + native.package_name() + ":" + name + ")")
     channel_error = octopus_channel_error(channel)
     if channel_error != "":
         fail(channel_error + " (in " + native.package_name() + ":" + name + ")")
-    version_error = octopus_version_error(version)
-    if version_error != "":
-        fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    package, version = deploy_identity(name, package, version, octopus_package_id_error, octopus_version_error)
     for env in deploy_to:
         env_error = octopus_environment_error(env)
         if env_error != "":
@@ -184,6 +197,7 @@ def octopus_deploy(name, package, project, channel = "Default", version = "0.0.0
         octopus_url = octopus_url,
         package = package,
         project = project,
+        srcs = srcs,
         space = space,
         version = version,
     )

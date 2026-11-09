@@ -836,17 +836,17 @@ octopus_deploy(
     name = "octopus_demo",
     channel = "Default",
     deploy_to = ["Production"],
-    package = ":release_demo_archive",
     project = "octopus_demo",
-    version = "0.0.0",
+    srcs = ":octopus_demo_package",
 )
 ```
 
-- `package`: required. One `.tar.gz`, such as an `archive_deploy`
-  `<name>_archive`.
+- `srcs`: required. One `.tar.gz` named `<package>.<version>.tar.gz`.
+- `package`: the Octopus package id. Defaults to `name`.
 - `project`: required. The Octopus project.
 - `channel`: defaults to `Default`.
-- `version`: defaults to `0.0.0`.
+- `version`: defaults to empty. The launcher reads the version from the
+  archive filename; a non-empty value must match it.
 - `deploy_to`: environments for the release command. Defaults to `[]`.
 - `space`: defaults to empty, the default space. `OCTOPUS_SPACE` overrides it.
 - `octopus_url`: an https URL. Defaults to `https://octopus.example.invalid`.

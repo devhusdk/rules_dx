@@ -279,6 +279,7 @@ fn oci_sbom_line(rloc: &str) -> String {
 #[serde(deny_unknown_fields)]
 pub struct OctopusConfig {
     pub package_rloc: String,
+    pub package: String,
     pub deploy_name: String,
     pub project: String,
     pub channel: String,
@@ -565,6 +566,7 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
         DeployConfig::Octopus(octopus) => crate::octopus_main(
             &crate::OctopusLaunch {
                 package_rloc: &octopus.package_rloc,
+                package: &octopus.package,
                 deploy_name: &octopus.deploy_name,
                 project: &octopus.project,
                 channel: &octopus.channel,
@@ -845,10 +847,11 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"octopus","config":{"package_rloc":"p","deploy_name":"d","project":"x","channel":"c","version":"1","deploy_to":["A,B","C"],"space":"","octopus_url":"https://x"}}"#
+                r#"{"kind":"octopus","config":{"package_rloc":"p","package":"pk","deploy_name":"d","project":"x","channel":"c","version":"1","deploy_to":["A,B","C"],"space":"","octopus_url":"https://x"}}"#
             ),
             Ok(DeployConfig::Octopus(OctopusConfig {
                 package_rloc: "p".to_owned(),
+                package: "pk".to_owned(),
                 deploy_name: "d".to_owned(),
                 project: "x".to_owned(),
                 channel: "c".to_owned(),
@@ -1136,6 +1139,7 @@ mod tests {
             }),
             DeployConfig::Octopus(OctopusConfig {
                 package_rloc: "a".to_owned(),
+                package: "demo".to_owned(),
                 deploy_name: "demo".to_owned(),
                 project: "demo".to_owned(),
                 channel: "Default".to_owned(),

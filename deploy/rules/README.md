@@ -573,12 +573,14 @@ linux_package_deploy(
 )
 ```
 
-- `binary`: executable installed at `install_path`, default `/usr/bin/<name>`.
+- `binary`: executable installed at `install_path`, default `/usr/bin/<package>`.
 - `formats`: any of `deb`, `rpm`, `apk`. Defaults to `["deb", "rpm"]`.
 - `platform`: a Linux x86_64 or arm64 Bazel platform label, recorded as the
   package architecture (`amd64` or `arm64`). Defaults to the current target
   platform; other operating systems fail. The binary is not rebuilt for it.
-- `version`, `maintainer`, `description`: package metadata.
+- `version`: required package version, such as `1.2.3`; it must start with a digit.
+- `package`: package name. Defaults to `name`, which need not be a valid package name when `package` is set.
+- `maintainer`, `description`: package metadata.
 - `extra_files`: more files, mapped to absolute install paths, installed as `0644`.
 - `release_tag`, `tag_from_head`, `notes`, `notes_file`, `build_mode`, `tags`: as for `github_deploy`.
 

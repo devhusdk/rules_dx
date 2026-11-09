@@ -1,9 +1,9 @@
 """Builds deb, rpm and apk packages with nfpm and attaches them to a GitHub release."""
 
 load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
-load(":config.bzl", "deploy_attrs")
+load(":config.bzl", "deploy_attrs", "deploy_identity")
 load(":github.bzl", "github_deploy")
-load(":validate.bzl", "NAME_CHARS", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
 LINUX_PACKAGE_FORMATS = ["deb", "rpm", "apk"]
 
@@ -26,6 +26,14 @@ def linux_package_name_error(package):
     if not only_chars(package, NAME_CHARS):
         return ("linux_package_deploy: invalid package name '" + package +
                 "': want only [A-Za-z0-9._-]")
+    return ""
+
+def linux_package_version_error(version):
+    """Validates one package version value."""
+    if (type(version) != "string" or version == "" or not version[0].isdigit() or
+        not only_chars(version, VERSION_CHARS)):
+        return ("linux_package_deploy: invalid version '" + str(version) +
+                "': want a non-empty version (for example '1.2.3')")
     return ""
 
 def linux_package_formats_error(formats):
@@ -155,7 +163,8 @@ linux_package = rule(
 def linux_package_deploy(
         name,
         binary,
-        version = "0.0.0",
+        version,
+        package = "",
         formats = ["deb", "rpm"],
         platform = None,
         maintainer = "unknown <unknown@example.com>",
@@ -175,14 +184,15 @@ def linux_package_deploy(
     """Builds Linux packages from one binary and publishes them as a draft GitHub release."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     where = " (in " + native.package_name() + ":" + name + ")"
-    name_error = linux_package_name_error(name)
-    if name_error != "":
-        fail(name_error + where)
+    version_error = linux_package_version_error(version)
+    if version_error != "":
+        fail(version_error + where)
+    pkg, version = deploy_identity(name, package, version, linux_package_name_error, linux_package_version_error)
     formats_error = linux_package_formats_error(formats)
     if formats_error != "":
         fail(formats_error + where)
 
-    contents = {binary: install_path or "/usr/bin/" + name}
+    contents = {binary: install_path or "/usr/bin/" + pkg}
     contents.update(extra_files)
 
     artifacts = []
@@ -192,10 +202,10 @@ def linux_package_deploy(
             name = target,
             platform = platform,
             contents = contents,
-            description = description or name,
+            description = description or pkg,
             format = fmt,
             maintainer = maintainer,
-            package = name,
+            package = pkg,
             version = version,
             **attrs
         )

@@ -1,7 +1,7 @@
 """Unit tests for the Linux package deploy helpers."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":linux_package.bzl", "linux_package_arch_error", "linux_package_dst_error", "linux_package_filename", "linux_package_formats_error", "linux_package_name_error")
+load(":linux_package.bzl", "linux_package_arch_error", "linux_package_dst_error", "linux_package_filename", "linux_package_formats_error", "linux_package_name_error", "linux_package_version_error")
 
 def linux_package_unit_tests(name):
     starlark_test(
@@ -68,6 +68,31 @@ def linux_package_unit_tests(name):
                 "linux_package_filename joins name, version, arch and format",
                 linux_package_filename("demo", "1.2.3", "amd64", "deb"),
                 "demo_1.2.3_amd64.deb",
+            ),
+            expect_equal(
+                "linux_package_version_error accepts 1.2.3",
+                linux_package_version_error("1.2.3"),
+                "",
+            ),
+            expect_equal(
+                "linux_package_version_error accepts a prerelease with build metadata",
+                linux_package_version_error("1.2.3-rc.1+b1"),
+                "",
+            ),
+            expect_equal(
+                "linux_package_version_error rejects an empty version",
+                linux_package_version_error(""),
+                "linux_package_deploy: invalid version '': want a non-empty version (for example '1.2.3')",
+            ),
+            expect_equal(
+                "linux_package_version_error rejects a space",
+                linux_package_version_error("a b"),
+                "linux_package_deploy: invalid version 'a b': want a non-empty version (for example '1.2.3')",
+            ),
+            expect_equal(
+                "linux_package_version_error rejects a leading v",
+                linux_package_version_error("v1.2.3"),
+                "linux_package_deploy: invalid version 'v1.2.3': want a non-empty version (for example '1.2.3')",
             ),
         ],
     )

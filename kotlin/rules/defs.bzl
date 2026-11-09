@@ -130,7 +130,7 @@ def kotlin_test(name, srcs = None, visibility = None, **kwargs):
         **dx_without_warnings_attr(kwargs)
     )
 
-def kotlin_bench(name, srcs, deps = [], tags = [], **kwargs):
+def kotlin_bench(name, srcs, deps = None, tags = None, **kwargs):
     """Runs the JMH benchmarks in Kotlin srcs and writes dx-bench.json for dx bench."""
     kt_javac_options(
         name = name + "_javac_opts",
@@ -138,7 +138,7 @@ def kotlin_bench(name, srcs, deps = [], tags = [], **kwargs):
         testonly = True,
         visibility = ["//visibility:private"],
     )
-    jmh_bench(name, kotlin_library, java_jmh_test, srcs, deps, tags, kwargs, {"javac_opts": ":" + name + "_javac_opts"})
+    jmh_bench(name, kotlin_library, java_jmh_test, srcs, deps or [], tags or [], kwargs, {"javac_opts": ":" + name + "_javac_opts"})
 
 def kotlin_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs):
     """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset."""

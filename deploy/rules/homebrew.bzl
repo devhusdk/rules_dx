@@ -57,10 +57,10 @@ def homebrew_tap_deploy(
         homepage = None,
         build_mode = "release",
         sbom = None,
-        tags = [],
+        tags = None,
         visibility = None,
         testonly = False,
-        target_compatible_with = []):
+        target_compatible_with = None):
     """Renders a Homebrew formula from a github_deploy release and pushes it to a tap."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     formula = formula or name

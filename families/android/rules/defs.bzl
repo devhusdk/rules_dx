@@ -77,7 +77,7 @@ def android_native_library(
         edition = RUST_EDITION,
         platforms = None,
         api_level = 31,
-        crate_features = [],
+        crate_features = None,
         rustc_flags = [],
         copts = [],
         linkopts = [],
@@ -88,6 +88,7 @@ def android_native_library(
     `platforms` lists the tuples to build (default all). `name_<tuple>` is the
     library for one tuple and `name` groups them.
     """
+    crate_features = crate_features or []
     platforms = android_tuples() if platforms == None else platforms
     unknown = [tuple for tuple in platforms if tuple not in _ANDROID_PLATFORMS]
     if len(platforms) == 0 or len(unknown) > 0:

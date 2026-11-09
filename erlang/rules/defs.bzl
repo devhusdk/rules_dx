@@ -374,8 +374,9 @@ _erlang_nif = rule(
     provides = [DefaultInfo, ErlangNifInfo, InstrumentedFilesInfo],
 )
 
-def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, **kwargs):
+def erlang_nif(name, srcs, hdrs = [], deps = None, copts = [], visibility = None, **kwargs):
     """Builds a NIF shared library from declared C or C++ sources and places it at priv/<name>.so (.dll on Windows)."""
+    deps = deps or []
     if "/" in name:
         fail("erlang_nif " + name + ": the name is a file name, not a path")
     kwargs = dx_language_kwargs(kwargs, [], ERLANG_NIF_COMPATIBLE_WITH)

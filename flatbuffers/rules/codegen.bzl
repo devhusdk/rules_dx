@@ -295,7 +295,7 @@ _flatbuffers_rust_srcs = rule(
     } | _PRIVATE_ATTRS,
 )
 
-def flatbuffers_rust_library(name, library, crate_name = None, deps = [], root = None, **kwargs):
+def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root = None, **kwargs):
     """Rust crate for one root schema and its include closure.
 
     flatc --rust --gen-all emits the whole closure into one file, so the crate
@@ -311,6 +311,7 @@ def flatbuffers_rust_library(name, library, crate_name = None, deps = [], root =
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """
+    deps = deps or []
     generated = name + "_generated"
     _flatbuffers_rust_srcs(
         name = generated,

@@ -10,12 +10,12 @@ _CXX_QT_CRATE = Label("//qt/rust:cxx_qt")
 def qt_rust_library(
         name,
         bridges,
-        srcs = [],
+        srcs = None,
         crate_root = None,
         crate_name = None,
-        crate_features = [],
+        crate_features = None,
         rustc_flags = [],
-        deps = [],
+        deps = None,
         cc_deps = [],
         cxx = _CXX_CRATE,
         cxx_qt = _CXX_QT_CRATE,
@@ -30,6 +30,9 @@ def qt_rust_library(
         visibility = None,
         **kwargs):
     """Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate."""
+    srcs = srcs or []
+    crate_features = crate_features or []
+    deps = deps or []
     crate = {}
     for key in ["aspect_hints", "tags", "testonly"]:
         if kwargs.get(key, None) != None:

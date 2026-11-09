@@ -89,7 +89,7 @@ _pypi_config = rule(
     },
 )
 
-def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", api_package = "", api_src = "", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def pypi_deploy(name, wheel, sdist = None, registry_url = PYPI_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", api_package = "", api_src = "", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes one wheel plus an optional sdist as a local-first PyPI deployment. api_compat and api_baseline work as described under "Public API compatibility" in the README; the tool is griffe. api_package is the import name, which defaults to the distribution name, and api_src the workspace-relative source directory the git baseline needs."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     name_error = pypi_name_error(name)

@@ -43,7 +43,7 @@ _luarocks_config = rule(
     },
 )
 
-def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "release", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Uploads one rockspec after checking its package and version."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, luarocks_name_error, luarocks_version_error)

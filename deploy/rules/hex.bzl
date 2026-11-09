@@ -46,7 +46,7 @@ _hex_config = rule(
     },
 )
 
-def hex_deploy(name, srcs, package = "", version = "", tool = "mix", build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def hex_deploy(name, srcs, package = "", version = "", tool = "mix", build_mode = "release", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes an Elixir or Erlang package as a local-first Hex deployment."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, hex_name_error, hex_version_error)

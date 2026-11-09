@@ -101,7 +101,7 @@ _pub_config = rule(
     },
 )
 
-def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def pub_deploy(name, srcs, package = "", version = "", registry_url = PUB_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes a Dart or Flutter package as a local-first pub.dev deployment."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, pub_name_error, pub_version_error)

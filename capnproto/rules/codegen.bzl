@@ -384,7 +384,7 @@ _capnp_rust_srcs = rule(
     } | _PRIVATE_ATTRS,
 )
 
-def capnp_rust_library(name, library, crate_name = None, deps = [], **kwargs):
+def capnp_rust_library(name, library, crate_name = None, deps = None, **kwargs):
     """Rust crate for one capnp_library.
 
     The crate's deps must mirror the library's direct deps: one capnp_rust_library
@@ -400,6 +400,7 @@ def capnp_rust_library(name, library, crate_name = None, deps = [], **kwargs):
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """
+    deps = deps or []
     generated = name + "_generated"
     crate = (crate_name or name).replace("-", "_")
     _capnp_rust_srcs(

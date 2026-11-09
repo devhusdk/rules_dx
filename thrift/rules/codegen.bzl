@@ -294,7 +294,7 @@ _thrift_rust_srcs = rule(
     },
 )
 
-def thrift_rust_library(name, library, crate_name = None, deps = [], **kwargs):
+def thrift_rust_library(name, library, crate_name = None, deps = None, **kwargs):
     """One Rust crate with a module per schema of the library and everything it includes.
 
     Args:
@@ -305,6 +305,7 @@ def thrift_rust_library(name, library, crate_name = None, deps = [], **kwargs):
       **kwargs: Passed to the rust_library (visibility, tags, testonly). edition, rustc_flags
         and the like replace the defaults; srcs and deps are added to them.
     """
+    deps = deps or []
     generated = name + "_generated"
     _thrift_rust_srcs(
         name = generated,

@@ -47,7 +47,7 @@ _npm_config = rule(
     },
 )
 
-def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def npm_deploy(name, package = "", dist_tag = "latest", srcs = None, registry_url = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Packs files into a local npm feed with public or restricted access and a provenance policy. api_compat and api_baseline work as described under "Public API compatibility" in the README; the tool is api-extractor on the types entry."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     package, _ = deploy_identity(name, package, "", npm_package_error, npm_package_error)
@@ -64,7 +64,7 @@ def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry_url 
     provenance_error = npm_provenance_error(access, registry_url, provenance)
     if provenance_error != "":
         fail(provenance_error + " (in " + native.package_name() + ":" + name + ")")
-    if len(srcs) == 0:
+    if not srcs:
         fail("npm_deploy " + native.package_name() + ":" + name +
              ": need at least one src")
 

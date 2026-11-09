@@ -65,7 +65,7 @@ _nuget_config = rule(
     },
 )
 
-def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def nuget_deploy(name, nupkg, package = "", version = "", registry_url = NUGET_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry", size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes one nupkg after checking its nuspec id and version. api_compat and api_baseline work as described under "Public API compatibility" in the README; the tool is Microsoft.DotNet.ApiCompat."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, nuget_id_error, nuget_version_error)

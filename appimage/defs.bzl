@@ -108,8 +108,9 @@ _appimage_package = rule(
     cfg = platform_transition,
 )
 
-def appimage_package(name, target_compatible_with = [], **kwargs):
+def appimage_package(name, target_compatible_with = None, **kwargs):
     """Packages one Linux target binary and its files as an AppImage."""
+    target_compatible_with = target_compatible_with or []
     _appimage_package(
         name = name,
         target_compatible_with = ["@platforms//os:linux"] + [c for c in target_compatible_with if c != "@platforms//os:linux"],

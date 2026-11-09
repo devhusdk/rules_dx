@@ -196,16 +196,18 @@ def _windowsonly_chars(target_compatible_with):
         return compatible_with(target_compatible_with)
     return ["@platforms//os:windows"] + target_compatible_with
 
-def msix_package(name, target_compatible_with = [], **kwargs):
+def msix_package(name, target_compatible_with = None, **kwargs):
     """Packages one Windows target binary and its files as an unsigned MSIX."""
+    target_compatible_with = target_compatible_with or []
     _msix_package(
         name = name,
         target_compatible_with = _windowsonly_chars(target_compatible_with),
         **kwargs
     )
 
-def msix_sign(name, package, target_compatible_with = [], **kwargs):
+def msix_sign(name, package, target_compatible_with = None, **kwargs):
     """Declares a run target that signs a copy of one MSIX package."""
+    target_compatible_with = target_compatible_with or []
     package = str(package)
     signtool = str(Label("//:signtool"))
     data = list(kwargs.pop("data", []))

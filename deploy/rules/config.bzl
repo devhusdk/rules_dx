@@ -54,6 +54,7 @@ def deploy_identity(name, package, version, name_error, version_error):
 
 def deployment_budget(name, size_budget, artifacts):
     """Returns the dx_deployment size_budget and artifacts arguments, failing on a bad budget."""
+    size_budget = size_budget or ""
     error = size_budget_error(size_budget)
     if error != "":
         fail(error + " (in " + native.package_name() + ":" + name + ")")
@@ -61,9 +62,10 @@ def deployment_budget(name, size_budget, artifacts):
 
 def deploy_attrs(tags, visibility, testonly, target_compatible_with):
     """Returns the standard attributes every *_deploy macro forwards to each target it generates."""
-    return {
+    attrs = {
         "tags": tags,
         "target_compatible_with": target_compatible_with,
         "testonly": testonly,
         "visibility": visibility,
     }
+    return {key: value for key, value in attrs.items() if value != None}

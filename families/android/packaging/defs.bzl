@@ -165,9 +165,10 @@ def rust_android_apk(
         version_code = 1,
         version_name = "1.0",
         visibility = None,
-        tags = [],
+        tags = None,
         **kwargs):
     """Packages one APK and one unsigned App Bundle from native CcInfo deps with a Rust entry point."""
+    tags = tags or []
     inner = ":" + name + "_bin"
     abis = abis_for_platforms(platforms)
     package = custom_package if custom_package != "" else app_id

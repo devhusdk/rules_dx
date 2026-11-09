@@ -350,8 +350,8 @@ def rust_bench(
         *,
         srcs = None,
         crate = None,
-        crate_features = [],
-        tags = [],
+        crate_features = None,
+        tags = None,
         visibility = None,
         **kwargs):
     """A rust_test run by `dx bench`; it reports its bencher output as dx-bench.json."""
@@ -362,7 +362,7 @@ def rust_bench(
         kwargs,
         tags = tags,
         visibility = visibility,
-        binary_kwargs = {"srcs": srcs, "crate": crate, "crate_features": crate_features + ["dx_bench"]},
+        binary_kwargs = {"srcs": srcs, "crate": crate, "crate_features": (crate_features or []) + ["dx_bench"]},
         build_defaults = {"use_libtest_harness": False},
         runner_kwargs = {"src": Label("//rust/rules/bench_report")},
         pass_binary = True,

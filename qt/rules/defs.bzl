@@ -712,20 +712,22 @@ def _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, tran
 
 def qt_cc_library(
         name,
-        srcs = [],
+        srcs = None,
         hdrs = [],
         moc_hdrs = [],
         forms = [],
         resources = [],
         resource_prefix = "/",
         translations = [],
-        deps = [],
+        deps = None,
         modules = ["core"],
         qt = QT_REPOSITORY,
         copts = [],
         visibility = None,
         **kwargs):
     """Declares a C++ library whose moc, uic and rcc outputs are generated from declared inputs."""
+    srcs = srcs or []
+    deps = deps or []
     _library(name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, [], None, [], "1.0", copts, visibility, kwargs)
 
 def qt_qml_module(
@@ -734,19 +736,21 @@ def qt_qml_module(
         version = "1.0",
         qml_srcs = [],
         qml_depends = [],
-        srcs = [],
+        srcs = None,
         hdrs = [],
         moc_hdrs = [],
         resources = [],
         resource_prefix = "/",
         translations = [],
-        deps = [],
+        deps = None,
         modules = ["qml"],
         qt = QT_REPOSITORY,
         copts = [],
         visibility = None,
         **kwargs):
     """Declares a QML module with its qmldir, qmltypes, resources and C++ types."""
+    srcs = srcs or []
+    deps = deps or []
     _library(name, srcs, hdrs, moc_hdrs, [], resources, resource_prefix, translations, deps, modules, qt, qml_srcs, uri, qml_depends, version, copts, visibility, kwargs)
 
 def _uses_qml(modules):
@@ -822,14 +826,14 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
 
 def qt_cc_binary(
         name,
-        srcs = [],
+        srcs = None,
         hdrs = [],
         moc_hdrs = [],
         forms = [],
         resources = [],
         resource_prefix = "/",
         translations = [],
-        deps = [],
+        deps = None,
         modules = ["core"],
         qt = QT_REPOSITORY,
         plugins = [],
@@ -837,18 +841,20 @@ def qt_cc_binary(
         visibility = None,
         **kwargs):
     """Declares a Qt executable over cc_binary."""
+    srcs = srcs or []
+    deps = deps or []
     _executable("binary", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
 
 def qt_cc_test(
         name,
-        srcs = [],
+        srcs = None,
         hdrs = [],
         moc_hdrs = [],
         forms = [],
         resources = [],
         resource_prefix = "/",
         translations = [],
-        deps = [],
+        deps = None,
         modules = ["core", "test"],
         qt = QT_REPOSITORY,
         plugins = [],
@@ -856,6 +862,8 @@ def qt_cc_test(
         visibility = None,
         **kwargs):
     """Declares a QtTest executable over cc_test."""
+    srcs = srcs or []
+    deps = deps or []
     _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
 
 _BRIDGE_TOOL = Label("//qt/rust:qt_rust_bridge")

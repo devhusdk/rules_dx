@@ -125,10 +125,10 @@ def linux_package_deploy(
         notes_file = None,
         build_mode = "release",
         sbom = None,
-        tags = [],
+        tags = None,
         visibility = None,
         testonly = False,
-        target_compatible_with = []):
+        target_compatible_with = None):
     """Builds Linux packages from one binary and publishes them as a draft GitHub release."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     where = " (in " + native.package_name() + ":" + name + ")"

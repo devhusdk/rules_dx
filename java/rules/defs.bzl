@@ -107,6 +107,6 @@ def java_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visib
     target_class = jazzer_target_class("java_fuzz_test", name, srcs, target_class, native.package_name(), ".java")
     jazzer_fuzz(name, java_library, srcs, deps, target_class, visibility, tags, kwargs)
 
-def java_bench(name, srcs, deps = [], tags = [], **kwargs):
+def java_bench(name, srcs, deps = None, tags = None, **kwargs):
     """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench."""
-    jmh_bench(name, java_library, java_jmh_test, srcs, deps, tags, kwargs)
+    jmh_bench(name, java_library, java_jmh_test, srcs, deps or [], tags or [], kwargs)

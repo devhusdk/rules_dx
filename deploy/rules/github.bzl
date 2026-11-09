@@ -81,7 +81,7 @@ _github_config = rule(
     },
 )
 
-def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def github_deploy(name, artifacts, release_tag = "", tag_from_head = False, build_mode = "release", sbom = None, notes = "commits", notes_file = None, api_compat = "fail", api_baseline = "registry", go_modules = [], size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes pinned files as a draft-only GitHub Release. `sbom` is a dx_sbom target uploaded as one more release asset. `release_tag` defaults to "v0.0.0-dryrun"; `tag_from_head = True` uses the tag that points at HEAD instead. `notes` is "commits" (the grouped commit list since the previous tag) or "none"; `notes_file` is a markdown file used as the release body instead. `api_compat` and `api_baseline` work as described under "Public API compatibility" in the README; the tool is apidiff on each of `go_modules` (workspace-relative directories; empty means the go.mod at the root)."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     if tag_from_head:

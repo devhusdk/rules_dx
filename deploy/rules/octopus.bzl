@@ -72,7 +72,7 @@ _octopus_config = rule(
     },
 )
 
-def octopus_deploy(name, srcs, project, package = "", channel = "Default", version = "", deploy_to = [], space = "", registry_url = OCTOPUS_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def octopus_deploy(name, srcs, project, package = "", channel = "Default", version = "", deploy_to = [], space = "", registry_url = OCTOPUS_DEFAULT_REGISTRY_URL, build_mode = "release", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes one `<package>.<version>.tar.gz` archive as a local-first Octopus deployment. The package id defaults to the target name. An empty version means the launcher reads it from the archive filename."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     project_error = octopus_project_error(project)

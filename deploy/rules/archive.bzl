@@ -91,7 +91,7 @@ def archive_filenames(name, format = "tar.gz"):
     """Returns the deterministic (archive, checksum) output names."""
     return (name + "." + format, name + "." + format + ".sha256")
 
-def archive_deploy(name, app, build_mode = "release", size_budget = "", sbom = None, tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def archive_deploy(name, app, build_mode = "release", size_budget = None, sbom = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Packages one executable as a deployable tarball and sha256 file, optionally failing above size_budget such as '25MB'."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     (tarball, checksum) = archive_filenames(name)

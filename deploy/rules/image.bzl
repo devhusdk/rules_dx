@@ -192,7 +192,7 @@ _jars_for_platform = rule(
     },
 )
 
-def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy/rules/platforms:linux_amd64"], tags = [], main = None, main_class = None, runtime = False, visibility = None, testonly = None):
+def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy/rules/platforms:linux_amd64"], tags = None, main = None, main_class = None, runtime = False, visibility = None, testonly = None):
     """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
 
     One platform gives an oci_image and an oci_load target named name + "_load".
@@ -286,7 +286,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
             base = IMAGE_BASES["cc" if runtime else base],
             entrypoint = entrypoint,
             env = env,
-            tags = tags,
+            tags = tags or [],
             tars = layers,
             testonly = testonly,
             visibility = visibility if single else None,
@@ -297,7 +297,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
         name = name + "_load",
         image = images[0],
         repo_tags = [name + ":latest"],
-        tags = tags,
+        tags = tags or [],
         testonly = testonly,
         visibility = visibility,
     )
@@ -308,7 +308,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
     oci_image_index(
         name = name,
         images = images,
-        tags = tags,
+        tags = tags or [],
         testonly = testonly,
         visibility = visibility,
     )

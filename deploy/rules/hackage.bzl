@@ -43,7 +43,7 @@ _hackage_config = rule(
     },
 )
 
-def hackage_deploy(name, sdist, package = "", version = "", build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def hackage_deploy(name, sdist, package = "", version = "", build_mode = "release", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Uploads one cabal sdist after checking its .cabal name and version."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, hackage_name_error, hackage_version_error)

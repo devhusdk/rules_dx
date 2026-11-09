@@ -88,6 +88,6 @@ def scala_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visi
     target_class = jazzer_target_class("scala_fuzz_test", name, srcs, target_class, native.package_name(), ".scala")
     jazzer_fuzz(name, scala_library, srcs, deps, target_class, visibility, tags, kwargs)
 
-def scala_bench(name, srcs, deps = [], tags = [], **kwargs):
+def scala_bench(name, srcs, deps = None, tags = None, **kwargs):
     """Runs the JMH benchmarks in Scala srcs and writes dx-bench.json for dx bench."""
-    jmh_bench_generated(name, scala_library, java_jmh_test, srcs, deps, tags, kwargs)
+    jmh_bench_generated(name, scala_library, java_jmh_test, srcs, deps or [], tags or [], kwargs)

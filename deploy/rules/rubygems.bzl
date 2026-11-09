@@ -55,7 +55,7 @@ _rubygems_config = rule(
     },
 )
 
-def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_files = None, build_mode = "release", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
+def rubygems_deploy(name, gem, package = "", version = "", ruby = None, ruby_files = None, build_mode = "release", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes staged gem sources as a local-first RubyGems deployment."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, rubygems_name_error, rubygems_version_error)

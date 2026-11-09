@@ -295,9 +295,9 @@ _macos_app_check = rule(
 
 def apple_macos_app(
         name,
-        srcs = [],
+        srcs = None,
         hdrs = [],
-        deps = [],
+        deps = None,
         library = None,
         frameworks = [],
         plugins = [],
@@ -310,10 +310,13 @@ def apple_macos_app(
         xcode_version = "",
         entitlements = None,
         provisioning_profile = None,
-        tags = [],
+        tags = None,
         testonly = False,
         visibility = None):
     """Builds one upstream macOS application over a Rust library, checked and ad hoc signed."""
+    srcs = srcs or []
+    deps = deps or []
+    tags = tags or []
     _macos_selection(
         name = name + "_selection",
         platform = platform,

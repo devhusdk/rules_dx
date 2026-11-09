@@ -385,9 +385,9 @@ def apple_ios_app(
         library = None,
         frameworks = [],
         entry = None,
-        srcs = [],
+        srcs = None,
         hdrs = [],
-        deps = [],
+        deps = None,
         platforms = [],
         bundle_id = "",
         version = "",
@@ -398,10 +398,13 @@ def apple_ios_app(
         families = ["iphone"],
         entitlements = None,
         provisioning_profile = None,
-        tags = [],
+        tags = None,
         testonly = False,
         visibility = None):
     """Builds one upstream iOS application bundle over a Rust library cell, XCFramework imports, or a Swift @main module."""
+    srcs = srcs or []
+    deps = deps or []
+    tags = tags or []
     composed = library != None or len(frameworks) > 0 or entry != None
     environment, arch = split_platform(platforms)
     _app_selection(
@@ -559,15 +562,18 @@ _test_selection = rule(
 def apple_ios_app_test(
         name,
         app,
-        srcs = [],
+        srcs = None,
         deployment = "",
         device_type = "",
         os_version = "",
-        deps = [],
-        tags = [],
+        deps = None,
+        tags = None,
         visibility = None,
         **kwargs):
     """Runs XCTest cases inside one app on a declared simulator device and runtime."""
+    srcs = srcs or []
+    deps = deps or []
+    tags = tags or []
     _test_selection(
         name = name + "_selection",
         deployment = deployment,
@@ -791,7 +797,7 @@ def apple_ios_xcframework(
         name,
         library = None,
         hdrs = [],
-        deps = [],
+        deps = None,
         bundle_id = "",
         bundle_name = "",
         version = "",
@@ -800,10 +806,12 @@ def apple_ios_xcframework(
         platforms = [],
         resources = [],
         infoplists = [],
-        tags = [],
+        tags = None,
         testonly = False,
         visibility = None):
     """Builds and checks one XCFramework over a Rust static library and public headers."""
+    deps = deps or []
+    tags = tags or []
     module = bundle_name or name
     _framework_selection(
         name = name + "_selection" if library != None else name,

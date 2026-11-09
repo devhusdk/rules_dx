@@ -610,7 +610,16 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
                         dx_merge::jsonc::append_missing(&text, &["recommendations"], id.clone())?;
                 }
             }
-            Ok(text)
+            let stale: Vec<serde_json::Value> = TOOL_EDITOR_EXTENSIONS
+                .iter()
+                .map(|(_, id, _)| serde_json::Value::from(*id))
+                .filter(|id| {
+                    !wanted["recommendations"]
+                        .as_array()
+                        .is_some_and(|ids| ids.contains(id))
+                })
+                .collect();
+            dx_merge::jsonc::remove_array_values(&text, &["recommendations"], &stale)
         }
         FileKind::DevcontainerPins => {
             let wanted = dx_merge::jsonc::parse(generated)?;
@@ -1788,6 +1797,28 @@ mod tests {
         );
         let recs = super::render_editor_recommendations(&files, &all);
         assert!(recs.contains("dbaeumer.vscode-eslint"), "{recs}");
+    }
+
+    #[test]
+    fn deselected_tools_leave_the_recommendations_on_merge() {
+        let files = tree(&[".py", ".ts", ".css"]);
+        let all = super::render_editor_recommendations(&files, &EditorTools::default());
+        let only_ruff = EditorTools {
+            selected: Some(["ruff".to_owned()].into()),
+            ..EditorTools::default()
+        };
+        let after = super::render_editor_recommendations(&files, &only_ruff);
+        let user = all.replacen('[', "[\"mine.ext\",", 1);
+        let merged = merge_owned(FileKind::VscodeRecommendations, &user, &after).expect("merge");
+        assert!(merged.contains("mine.ext"), "{merged}");
+        assert!(merged.contains("charliermarsh.ruff"), "{merged}");
+        for gone in ["eslint", "stylelint", "biome"] {
+            assert!(!merged.contains(gone), "{gone} in {merged}");
+        }
+        assert_eq!(
+            merge_owned(FileKind::VscodeRecommendations, &merged, &after).expect("merge"),
+            merged
+        );
     }
 
     #[test]

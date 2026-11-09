@@ -145,7 +145,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.gitignore` | lines | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore` | lines | Written when missing. A bare `.dx` line, which dx wrote, becomes the planned lines; every other line stays. |
 | `.envrc` | once | Written when missing. Never rewritten. Holds `PATH_add .dx/local/bin` and `watch_file .dx/local/current`; it never runs dx. |
-| `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added; existing ids stay in order. |
+| `.vscode/extensions.json` | lines | Written when missing. Recommended extension ids that are missing are added, and the lint and format extensions of tools that are no longer selected are removed; other ids stay in order. |
 | `.dx/BUILD.bazel` | whole | Generated from `dx.toml` (see the [config reference](config.md#dxtoml)): the workspace policy for the families found in the tree, and a `<tool>_config` target for each root tool config. The correctness layer selects it with `--@rules_dx//config:workspace=//.dx:policy`. A flag in your root `.bazelrc` after the imports wins. |
 | `.dx/config/` | whole | Generated from `dx.toml`: a `base.<ext>` for each tool of a family found in the tree, on the tier `dx.toml` picks. A file under `.dx` that dx no longer generates is removed. |
 | `BUILD.bazel` | once | Written when the root has neither `BUILD` nor `BUILD.bazel`. When the root has tool configs such as `ruff.toml`, dx keeps a marked `# dx:begin exports` block in it and leaves the rest alone. |
@@ -163,7 +163,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.claude/settings.json` | keys | Written when missing and `--agents=claude` is given. When it exists, the missing hooks and `permissions.allow` entries are added in place. |
 | `.codex/hooks.json`, `.gemini/settings.json` | keys | Written when missing and the matching `--agents` value is given. When they exist, the guard hook is added if it is missing. |
 
-`.vscode/extensions.json` recommends the Bazel extension, plus the editor extension for each language with files in the tree (Python for `.py`, Go for `.go`, and so on). Edit the file to change the list. `dx init` only adds missing ids.
+`.vscode/extensions.json` recommends the Bazel extension, plus the editor extension for each language with files in the tree (Python for `.py`, Go for `.go`, and so on). Edit the file to change the list. `dx init` adds missing ids and removes the lint and format extensions of deselected tools; other ids stay.
 
 Check reports a missing essential path or a stale path as drift, and exits `1`. It reports any other missing planned path as absent and exits `0`. An old dx key in `.vscode/settings.json`, or an old pin in `.github/workflows/ci.yml`, is stale. Deleting a tool file stops check from reporting it, and `dx init --apply` does not write it again unless you pass `--agents`. `dx init --apply` recreates an absent path. To opt out of a preset layer, comment out its import (see
 [Bazel preset](#bazel-preset)).

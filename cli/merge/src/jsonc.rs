@@ -69,6 +69,28 @@ pub fn append_missing(text: &str, path: &[&str], value: Value) -> Result<String,
     })
 }
 
+/// The text without the entries of the array at `path` that equal any of `values`.
+pub fn remove_array_values(text: &str, path: &[&str], values: &[Value]) -> Result<String, Error> {
+    edit(text, |root| {
+        let Some((last, parents)) = path.split_last() else {
+            return Ok(());
+        };
+        let array = walk_existing(root.clone(), parents)
+            .and_then(|object| object.get(last))
+            .and_then(|prop| prop.value())
+            .and_then(|node| node.as_array());
+        for node in array.into_iter().flat_map(|array| array.elements()) {
+            if node
+                .to_serde_value()
+                .is_some_and(|value| values.contains(&value))
+            {
+                node.remove();
+            }
+        }
+        Ok(())
+    })
+}
+
 /// The text with the first key under `parents` that `matches` renamed to `new_name`, keeping its
 /// value and position.
 pub fn rename_key(
@@ -245,6 +267,22 @@ mod tests {
         assert!(once.contains("// c") && once.contains("\"b\""));
         assert_eq!(append_missing(&once, &["list"], json!("b")).unwrap(), once);
         assert_eq!(append_missing(&once, &["list"], json!("a")).unwrap(), once);
+    }
+
+    #[test]
+    fn remove_array_values_drops_only_the_given_entries() {
+        let text = "{\n  // c\n  \"list\": [\"a\", \"b\", \"c\"]\n}\n";
+        let out = remove_array_values(text, &["list"], &[json!("b"), json!("z")]).unwrap();
+        assert_eq!(parse(&out).unwrap(), json!({"list": ["a", "c"]}));
+        assert!(out.contains("// c"), "{out}");
+        assert_eq!(
+            remove_array_values(&out, &["list"], &[json!("b")]).unwrap(),
+            out
+        );
+        assert_eq!(
+            remove_array_values("{}", &["list"], &[json!("b")]).unwrap(),
+            "{}"
+        );
     }
 
     #[test]

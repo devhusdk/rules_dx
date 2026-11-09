@@ -1,27 +1,25 @@
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-typescript_project(
+typescript_library(
     name = "hello_lib",
-    srcs = [
-        "hello.ts",
-        "main.ts",
-    ],
+    srcs = ["hello.ts"],
     declaration = True,
     tsconfig = "tsconfig.json",
 )
 
-javascript_binary(
+typescript_binary(
     name = "hello",
-    data = [":hello_lib"],
-    main = "main.js",
+    srcs = ["main.ts"],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+    deps = [":hello_lib"],
 )
 
 typescript_test(

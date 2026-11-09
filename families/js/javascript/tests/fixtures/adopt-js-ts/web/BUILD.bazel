@@ -1,8 +1,8 @@
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library", "typescript_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
-typescript_project(
+typescript_library(
     name = "app",
     testonly = True,
     srcs = ["app.ts"],
@@ -38,7 +38,7 @@ typescript_test(
     deps = [":app"],
 )
 
-typescript_project(
+typescript_library(
     name = "test_setup",
     testonly = True,
     srcs = ["test_setup.ts"],
@@ -48,7 +48,7 @@ typescript_project(
     deps = [":util"],
 )
 
-typescript_project(
+typescript_library(
     name = "util",
     testonly = True,
     srcs = ["util.ts"],
@@ -70,7 +70,7 @@ javascript_library(
     srcs = ["jest.config.cjs"],
 )
 
-typescript_project(
+typescript_library(
     name = "types",
     testonly = True,
     declaration = True,

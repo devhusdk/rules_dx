@@ -1,14 +1,14 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_test")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-typescript_project(
+typescript_library(
     name = "good",
     testonly = True,
     srcs = ["good.ts"],
@@ -17,7 +17,7 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "clean",
     testonly = True,
     srcs = ["clean.ts"],
@@ -51,7 +51,7 @@ rust_test(
     deps = ["@rules_dx//tools/testing:dx_testing"],
 )
 
-typescript_project(
+typescript_library(
     name = "bad",
     testonly = True,
     srcs = ["bad.ts"],

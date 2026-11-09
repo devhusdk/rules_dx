@@ -1,6 +1,6 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("//typescript/rules:defs.bzl", "typescript_project")
+load("//typescript/rules:defs.bzl", "typescript_library")
 
 copy_file(
     name = "standard_base",
@@ -14,7 +14,7 @@ ts_config(
     deps = [":standard_base"],
 )
 
-typescript_project(
+typescript_library(
     name = "dep",
     srcs = ["dep.ts"],
     declaration = True,

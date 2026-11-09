@@ -1,4 +1,4 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library", "typescript_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -16,7 +16,7 @@ typescript_test(
     deps = [":demo"],
 )
 
-typescript_project(
+typescript_library(
     name = "demo",
     srcs = ["demo.ts"],
     declaration = True,
@@ -28,7 +28,7 @@ typescript_project(
     ],
 )
 
-typescript_project(
+typescript_library(
     name = "helper",
     srcs = ["helper.tsx"],
     declaration = True,
@@ -46,7 +46,7 @@ typescript_test(
     deps = [":helper"],
 )
 
-typescript_project(
+typescript_library(
     name = "orphan",
     declaration = True,
     declaration_srcs = ["orphan.d.mts"],
@@ -54,7 +54,7 @@ typescript_project(
     visibility = ["//visibility:public"],
 )
 
-typescript_project(
+typescript_library(
     name = "widget",
     declaration = True,
     declaration_srcs = ["widget.d.ts"],

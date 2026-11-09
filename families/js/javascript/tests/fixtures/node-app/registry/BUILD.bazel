@@ -1,6 +1,6 @@
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@npm_node_app//:defs.bzl", "npm_link_all_packages")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library", "typescript_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"])
@@ -28,7 +28,7 @@ genrule(
     cmd = "printf 'export const SCHEMA = %s;\\n' \"$$(cat $<)\" > $@",
 )
 
-typescript_project(
+typescript_library(
     name = "registry",
     srcs = [
         "registry.ts",

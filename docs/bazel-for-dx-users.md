@@ -98,6 +98,6 @@ A dx macro adds targets next to yours. They show up in `bazel query`, error
 messages, and `--test_filter`. Do not reuse these names in the same package.
 
 - Every dx wrapper: `<name>_upstream`. Private.
-- `typescript_project`: `tsconfig_<name>.json` (generated file).
+- `typescript_library`: `tsconfig_<name>.json` (generated file).
 - TypeScript tests: `<name>_ts`. Private.
 - Kotlin with `kotlinc_opts`: `<name>_kotlinc_opts`. Private.

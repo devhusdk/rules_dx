@@ -1,4 +1,4 @@
-"""Type-checks a typescript_project with its own tsc and records the diagnostics."""
+"""Type-checks a typescript_library with its own tsc and records the diagnostics."""
 
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
@@ -201,7 +201,7 @@ def _tsc_impl(target, ctx):
 
 tsc_aspect = aspect(
     implementation = _tsc_impl,
-    doc = "Runs the project's own tsc with --noEmit over a typescript_project and records stdout and the exit code without failing the build.",
+    doc = "Runs the project's own tsc with --noEmit over a typescript_library and records stdout and the exit code without failing the build.",
     attr_aspects = ["upstream"],
     attrs = {
         "_astro_tsc": attr.label(

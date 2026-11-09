@@ -1,9 +1,9 @@
 load("@rules_dx//libs/starlark:defs.bzl", "starlark_test")
 load("@rules_dx//libs/starlark:tag_probe.bzl", "tag_subject")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
-typescript_project(
+typescript_library(
     name = "tagged",
     testonly = True,
     srcs = ["tagged.ts"],
@@ -16,7 +16,7 @@ typescript_project(
     tsconfig = "base_tagged.json",
 )
 
-typescript_project(
+typescript_library(
     name = "plain",
     testonly = True,
     srcs = ["plain.ts"],

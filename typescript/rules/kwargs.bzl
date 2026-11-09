@@ -9,7 +9,7 @@ def typescript_inner_kwargs(tags, kwargs):
     return out
 
 def typescript_forward_kwargs(scoped):
-    """Returns the kwargs the public typescript_project forwarder keeps."""
+    """Returns the kwargs the public typescript_library forwarder keeps."""
     out = {}
     for key in ("aspect_hints", "hdrs", "tags", "testonly", "target_compatible_with"):
         if scoped.get(key, None) != None:

@@ -1,6 +1,6 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
-typescript_project(
+typescript_library(
     name = "widget",
     declaration = True,
     declaration_srcs = ["widget.d.ts"],
@@ -8,7 +8,7 @@ typescript_project(
     visibility = ["//visibility:public"],
 )
 
-typescript_project(
+typescript_library(
     name = "consumer",
     srcs = ["consumer.ts"],
     declaration = True,
@@ -17,7 +17,7 @@ typescript_project(
     visibility = ["//visibility:public"],
 )
 
-typescript_project(
+typescript_library(
     name = "user",
     srcs = ["user.ts"],
     declaration = True,

@@ -85,7 +85,7 @@ SHARD_SPECS = {
     },
     "real_js_typecheck": {
         "capability": "typecheck",
-        "doc": "Additive TypeScript typecheck family aspect (delegated tsc over typescript_project and js_library).",
+        "doc": "Additive TypeScript typecheck family aspect (delegated tsc over typescript_library and js_library).",
         "requires": [tsc_aspect],
         "shard": "js",
         "suffix": "-js",

@@ -1,7 +1,7 @@
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
-typescript_project(
+typescript_library(
     name = "main",
     srcs = ["main.ts"],
     declaration = True,

@@ -1,6 +1,6 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
-typescript_project(
+typescript_library(
     name = "util",
     srcs = ["util.ts"],
     declaration = True,

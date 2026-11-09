@@ -1,5 +1,5 @@
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library", "typescript_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(
@@ -18,7 +18,7 @@ typescript_test(
     tsconfig = "//:tsconfig",
 )
 
-typescript_project(
+typescript_library(
     name = "helper",
     srcs = ["helper.ts"],
     declaration = True,
@@ -37,7 +37,7 @@ typescript_test(
     deps = [":helper"],
 )
 
-typescript_project(
+typescript_library(
     name = "main",
     srcs = ["main.ts"],
     declaration = True,

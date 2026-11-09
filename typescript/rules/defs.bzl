@@ -1,20 +1,20 @@
 """Minimal TypeScript wrappers."""
 
 load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
-load("@aspect_rules_js//js:defs.bzl", _js_test = "js_test")
+load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
 load("//javascript/rules:defs.bzl", "javascript_binary")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
-load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 load(":proto.bzl", "ts_proto_srcs")
 
-_DX_TS_PROJECT_PROVIDES = [
+_DX_TS_LIBRARY_PROVIDES = [
     _JsInfo,
     _TsConfigInfo,
     DefaultInfo,
@@ -28,8 +28,8 @@ _DX_TS_SOURCE_SPECS = [
 ]
 _DX_TS_SOURCE_EXTS = [".ts", ".tsx", ".mts", ".cts"]
 
-_typescript_project_forward = dx_library_forward_rule(
-    provides = _DX_TS_PROJECT_PROVIDES,
+_typescript_library_forward = dx_library_forward_rule(
+    provides = _DX_TS_LIBRARY_PROVIDES,
     required_providers = [(_JsInfo, "JsInfo"), (_TsConfigInfo, "TsConfigInfo")],
     quality_specs = _DX_TS_SOURCE_SPECS,
     what = "typescript_*",
@@ -47,10 +47,10 @@ def _is_declaration(src):
     return False
 
 def typescript_srcs_rejection(srcs):
-    """Returns the rejection for forbidden typescript_project srcs, or None."""
+    """Returns the rejection for forbidden typescript_library srcs, or None."""
     bad = [src for src in srcs or [] if _is_declaration(src)]
     if bad:
-        return ("typescript_project takes real sources only; declaration " +
+        return ("typescript_library takes real sources only; declaration " +
                 "files are inert and must not be listed in srcs: " +
                 ", ".join(sorted(bad)))
     return None
@@ -66,7 +66,7 @@ def typescript_declaration_srcs_rejection(declaration_srcs):
     """Returns the rejection for non-declaration declaration inputs, or None."""
     bad = [str(src) for src in declaration_srcs or [] if not _is_declaration_label(src)]
     if bad:
-        return ("typescript_project declaration_srcs takes declaration files " +
+        return ("typescript_library declaration_srcs takes declaration files " +
                 "only; list real sources in srcs instead: " +
                 ", ".join(sorted(bad)))
     return None
@@ -75,10 +75,10 @@ def typescript_upstream_srcs(srcs, declaration_srcs):
     """Returns the combined upstream sources for real plus declaration inputs."""
     return list(srcs or []) + list(declaration_srcs or [])
 
-def typescript_empty_project_rejection(srcs, declaration_srcs):
+def typescript_empty_library_rejection(srcs, declaration_srcs):
     """Returns the rejection for a project with neither srcs nor declaration_srcs, or None."""
     if not srcs and not declaration_srcs:
-        return "typescript_project needs srcs or declaration_srcs"
+        return "typescript_library needs srcs or declaration_srcs"
     return None
 
 def typescript_transpiler(transpiler):
@@ -180,16 +180,16 @@ def typescript_scoped_tsconfig_rejection(kwargs):
     if tsconfig == None:
         return None
     if type(tsconfig) == "dict":
-        return ("typescript_project scopes its own sources through a generated " +
+        return ("typescript_library scopes its own sources through a generated " +
                 "tsconfig; a dictionary tsconfig is not supported: pass a " +
                 "tsconfig file instead.")
     isolated = kwargs.get("isolated_typecheck", None)
     if isolated != None and type(isolated) != "bool" and type(isolated) != "select":
-        return ("typescript_project isolated_typecheck must be True or False; " +
+        return ("typescript_library isolated_typecheck must be True or False; " +
                 "got a value that is neither.")
     extends = kwargs.get("extends", None)
     if extends != None and extends != tsconfig:
-        return ("typescript_project derives extends from tsconfig; omit extends " +
+        return ("typescript_library derives extends from tsconfig; omit extends " +
                 "or name the same file as tsconfig.")
     return None
 
@@ -228,8 +228,8 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
 
     return dx_scoped_tsconfig_out(name, kwargs)
 
-def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
-    empty_rejection = typescript_empty_project_rejection(srcs, declaration_srcs)
+def _typescript_wrap_library(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
+    empty_rejection = typescript_empty_library_rejection(srcs, declaration_srcs)
     if empty_rejection != None:
         fail(empty_rejection)
     rejection = typescript_srcs_rejection(srcs)
@@ -250,7 +250,7 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
         **upstream_kwargs
     )
     forward_kwargs = typescript_forward_kwargs(scoped)
-    _typescript_project_forward(
+    _typescript_library_forward(
         name = name,
         upstream = name + "_upstream",
         srcs = list(srcs or []),
@@ -258,9 +258,9 @@ def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibil
         **forward_kwargs
     )
 
-def typescript_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
+def typescript_library(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags."""
-    _typescript_wrap_project(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
+    _typescript_wrap_library(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 def typescript_proto_library(name, proto, deps = None, visibility = None, **kwargs):
     """Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf; proto must sit in the proto_library's package."""
@@ -273,12 +273,80 @@ def typescript_proto_library(name, proto, deps = None, visibility = None, **kwar
     )
     if kwargs.get("tsconfig", None) != None and kwargs.get("isolated_typecheck", None) == None:
         kwargs["isolated_typecheck"] = False
-    typescript_project(
+    typescript_library(
         name = name,
         srcs = [":" + name + "_srcs"],
         deps = deps,
         visibility = visibility,
         **kwargs
+    )
+
+_typescript_binary_forward = dx_executable_forward_rule(
+    kind = "executable",
+    provides = DX_EXEC_PROVIDES,
+    required_providers = [],
+    quality_specs = _DX_TS_SOURCE_SPECS,
+    what = "typescript_*",
+    allow_files = _DX_TS_SOURCE_EXTS,
+    upstream_providers = [[DefaultInfo]],
+    runtime = "besteffort",
+)
+
+_TS_ENTRY_EXTS = {".ts": ".js", ".mts": ".mjs", ".cts": ".cjs"}
+
+def typescript_binary_main(srcs, main):
+    """Returns the entry source of a typescript_binary: main, or the only src."""
+    if main != None:
+        return main
+    if len(srcs or []) == 1:
+        return srcs[0]
+    return None
+
+def typescript_binary_rejection(srcs, main):
+    """Returns the rejection for bad typescript_binary srcs or main, or None."""
+    if not srcs:
+        return "typescript_binary needs srcs"
+    entry = typescript_binary_main(srcs, main)
+    if entry == None:
+        return "typescript_binary needs main when srcs has more than one file"
+    if entry not in srcs:
+        return "typescript_binary main must be one of srcs: " + str(entry)
+    if typescript_compiled_entry(entry) == None:
+        return "typescript_binary main must end in .ts, .mts or .cts: " + str(entry)
+    return None
+
+def typescript_compiled_entry(main):
+    """Maps a .ts, .mts or .cts entry to its compiled .js, .mjs or .cjs path, or None."""
+    for ext, out in _TS_ENTRY_EXTS.items():
+        if main.endswith(ext) and not _is_declaration(main):
+            return main[:-len(ext)] + out
+    return None
+
+def typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, visibility = None, **kwargs):
+    """Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src."""
+    srcs = list(srcs or [])
+    rejection = typescript_srcs_rejection(srcs)
+    if rejection != None:
+        fail(rejection)
+    rejection = typescript_binary_rejection(srcs, main)
+    if rejection != None:
+        fail(rejection)
+    entry = typescript_binary_main(srcs, main)
+    _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, None, kwargs, testonly = kwargs.get("testonly", None))
+    upstream_kwargs = dx_binary_upstream_kwargs(kwargs, None)
+    upstream_kwargs.pop("aspect_hints", None)
+    upstream_kwargs["entry_point"] = ":" + typescript_compiled_entry(entry).lstrip(":")
+    upstream_kwargs["data"] = [":" + name + "_ts"] + list(deps or []) + list(data or [])
+    _js_binary(
+        name = name + "_upstream",
+        **upstream_kwargs
+    )
+    _typescript_binary_forward(
+        name = name,
+        upstream = name + "_upstream",
+        srcs = srcs,
+        visibility = visibility,
+        **dx_binary_forward_kwargs(kwargs)
     )
 
 _typescript_test = node_test_forward_rule("typescript_*", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
@@ -287,8 +355,8 @@ def typescript_test_rejection(runner, node_modules, main, kwargs):
     """Returns the rejection for bad typescript_test arguments, or None."""
     return node_test_runner_rejection("typescript_test", runner, node_modules, main, kwargs)
 
-def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs):
-    """Declares the private test-only ts_project for one TypeScript test."""
+def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration, declaration_srcs, kwargs, testonly = True):
+    """Declares the private ts_project for one TypeScript test or binary."""
     ts_kwargs = {}
     if deps != None:
         ts_kwargs["deps"] = list(deps)
@@ -304,7 +372,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
     _ts_project(
         name = name + "_ts",
         srcs = upstream_srcs,
-        testonly = True,
+        testonly = testonly,
         visibility = ["//visibility:private"],
         **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
     )
@@ -353,7 +421,7 @@ def typescript_bench(name, *, srcs, node_modules, main = None, data = None, args
 def typescript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, deps = None, visibility = None, tags = None, **kwargs):
     """A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core."""
     build, run = split_runner_kwargs(kwargs)
-    typescript_project(
+    typescript_library(
         name = name + "_bin",
         srcs = srcs,
         deps = deps,

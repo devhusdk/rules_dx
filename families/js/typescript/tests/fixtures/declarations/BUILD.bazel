@@ -2,17 +2,16 @@
 # gazelle:dx_ignore_import typescript bindings
 # gazelle:dx_ignore_import typescript greeting
 # gazelle:dx_ignore_import typescript widget
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary", "typescript_library")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-typescript_project(
+typescript_library(
     name = "greet",
     testonly = True,
     srcs = ["greet.ts"],
@@ -22,21 +21,14 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-typescript_project(
-    name = "main",
+typescript_binary(
+    name = "main_bin",
     testonly = True,
     srcs = ["main.ts"],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
     deps = [":greet"],
-)
-
-javascript_binary(
-    name = "main_bin",
-    testonly = True,
-    data = [":main"],
-    main = "main.js",
 )
 
 genrule(
@@ -47,7 +39,7 @@ genrule(
     cmd = "printf 'export interface Point {\\n\\tx: number;\\n\\ty: number;\\n}\\n' > $@",
 )
 
-typescript_project(
+typescript_library(
     name = "shapes",
     testonly = True,
     srcs = ["shapes.ts"],
@@ -57,7 +49,7 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "missing_import",
     testonly = True,
     srcs = ["missing_import.ts"],
@@ -67,7 +59,7 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "broken_user",
     testonly = True,
     srcs = ["broken_user.ts"],
@@ -78,7 +70,7 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "widget_user",
     testonly = True,
     srcs = ["widget_user.ts"],
@@ -89,7 +81,7 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "panel",
     testonly = True,
     declaration = True,
@@ -98,7 +90,7 @@ typescript_project(
     tsconfig = "tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "panel_user",
     testonly = True,
     srcs = ["panel_user.ts"],

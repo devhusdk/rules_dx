@@ -3,7 +3,7 @@ load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary", "javascript_te
 load("@rules_dx//libs/starlark:defs.bzl", "starlark_test")
 load("@rules_dx//libs/starlark:tag_probe.bzl", "tag_subject")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_test", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_test", "typescript_library")
 
 package(
     default_testonly = True,
@@ -25,7 +25,7 @@ javascript_test(
     main = "plain_test.js",
 )
 
-typescript_project(
+typescript_library(
     name = "decls",
     testonly = True,
     declaration = True,

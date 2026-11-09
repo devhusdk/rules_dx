@@ -4,7 +4,7 @@ load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_browser_binary_tests", "dx_b
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen", "rust_wasm_bindgen_toolchain")
 load("//javascript/rules:defs.bzl", "javascript_library", "javascript_test", "javascript_wasm_bindgen_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//typescript/rules:defs.bzl", "typescript_project")
+load("//typescript/rules:defs.bzl", "typescript_library")
 load(":js_parity.bzl", "synthetic_bindgen", "wasm_js_parity_subject", "wasm_js_parity_tests")
 load(":raw_transition.bzl", "raw_wasm_proxy")
 
@@ -130,7 +130,7 @@ genrule(
     """,
 )
 
-typescript_project(
+typescript_library(
     name = "wasm_ts_consumer",
     testonly = True,
     srcs = ["wasm_ts_consumer.ts"],

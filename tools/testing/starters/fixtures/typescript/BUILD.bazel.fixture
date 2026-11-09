@@ -1,9 +1,9 @@
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_test", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_test", "typescript_library")
 
 exports_files(["package.json"])
 
-typescript_project(
+typescript_library(
     name = "demo-app",
     srcs = [
         "hello.ts",

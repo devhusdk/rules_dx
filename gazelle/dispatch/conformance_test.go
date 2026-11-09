@@ -252,8 +252,8 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"typescript": {
 		files: map[string]string{"demo.ts": "export const x = 1;\n"},
-		kind:  "typescript_project", target: "demo", defs: "typescript/rules:defs.bzl",
-		symbols:    []string{"typescript_project", "typescript_test"},
+		kind:  "typescript_library", target: "demo", defs: "typescript/rules:defs.bzl",
+		symbols:    []string{"typescript_library", "typescript_test"},
 		extraLoads: map[string][]string{"@rules_dx//javascript/rules:defs.bzl": {"javascript_binary"}},
 		inert:      []string{"notes.txt", "widget.d.ts", "orphan.d.mts"},
 	},

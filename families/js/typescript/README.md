@@ -3,9 +3,9 @@
 Build and test TypeScript with `tsc` type checking.
 
 ```python
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project", "typescript_test")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library", "typescript_test")
 
-typescript_project(
+typescript_library(
     name = "greet",
     srcs = ["greet.ts"],
 )
@@ -15,6 +15,17 @@ typescript_test(
     srcs = ["greet.test.ts"],
     deps = [":greet"],
     node_modules = "//:node_modules",
+)
+```
+
+`typescript_binary` compiles `srcs` and runs the compiled `main`, which defaults to the only
+source. `main` must be a `.ts`, `.mts` or `.cts` file listed in `srcs`.
+
+```python
+typescript_binary(
+    name = "cli",
+    srcs = ["cli.ts"],
+    deps = [":greet"],
 )
 ```
 

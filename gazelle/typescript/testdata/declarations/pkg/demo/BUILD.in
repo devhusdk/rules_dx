@@ -1,16 +1,16 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
-typescript_project(
+typescript_library(
     name = "widget",
     declaration_srcs = ["widget.d.ts"],
 )
 
-typescript_project(
+typescript_library(
     name = "gone",
     declaration_srcs = ["gone.d.ts"],
 )
 
-typescript_project(
+typescript_library(
     name = "consumer",
     srcs = ["consumer.ts"],
     declaration_srcs = ["shared.d.ts"],

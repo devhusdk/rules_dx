@@ -1,13 +1,13 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-typescript_project(
+typescript_library(
     name = "ok",
     testonly = True,
     srcs = ["ok.ts"],
@@ -16,7 +16,7 @@ typescript_project(
     tsconfig = "base.tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "isolated",
     testonly = True,
     srcs = ["isolated.ts"],
@@ -26,7 +26,7 @@ typescript_project(
     tsconfig = "base.tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "coupled",
     testonly = True,
     srcs = ["coupled.ts"],
@@ -36,7 +36,7 @@ typescript_project(
     tsconfig = "base.tsconfig.json",
 )
 
-typescript_project(
+typescript_library(
     name = "loose",
     testonly = True,
     srcs = ["loose.ts"],
@@ -45,7 +45,7 @@ typescript_project(
     tsconfig = ":lax_config",
 )
 
-typescript_project(
+typescript_library(
     name = "chosen",
     testonly = True,
     srcs = ["chosen.ts"],

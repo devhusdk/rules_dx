@@ -1,6 +1,6 @@
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
 load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_project")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
 
 javascript_library(
     name = "util",
@@ -20,7 +20,7 @@ svelte_library(
     ],
 )
 
-typescript_project(
+typescript_library(
     name = "store",
     srcs = ["store.ts"],
     visibility = ["//visibility:public"],

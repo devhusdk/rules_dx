@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_declaration_srcs_rejection", "typescript_empty_project_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_binary_main", "typescript_binary_rejection", "typescript_compiled_entry", "typescript_declaration_srcs_rejection", "typescript_empty_library_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 
 package(default_visibility = ["//visibility:public"])
@@ -24,7 +24,7 @@ dx_wrapper_contract_tests(
         expect_equal(
             "declaration rejection names the files",
             typescript_srcs_rejection(["types.d.ts"]),
-            "typescript_project takes real sources only; declaration " +
+            "typescript_library takes real sources only; declaration " +
             "files are inert and must not be listed in srcs: types.d.ts",
         ),
         expect_equal(
@@ -42,7 +42,7 @@ dx_wrapper_contract_tests(
                 "b.d.mts",
                 "a.d.ts",
             ]),
-            "typescript_project takes real sources only; declaration " +
+            "typescript_library takes real sources only; declaration " +
             "files are inert and must not be listed in srcs: a.d.ts, b.d.mts",
         ),
         expect_equal(
@@ -51,7 +51,7 @@ dx_wrapper_contract_tests(
                 "main.ts",
                 "types.d.ts",
             ]),
-            "typescript_project takes real sources only; declaration " +
+            "typescript_library takes real sources only; declaration " +
             "files are inert and must not be listed in srcs: types.d.ts",
         ),
         expect_equal(
@@ -105,7 +105,7 @@ dx_wrapper_contract_tests(
         expect_equal(
             "real sources are rejected as declaration inputs",
             typescript_declaration_srcs_rejection(["main.ts"]),
-            "typescript_project declaration_srcs takes declaration files " +
+            "typescript_library declaration_srcs takes declaration files " +
             "only; list real sources in srcs instead: main.ts",
         ),
         expect_equal(
@@ -115,7 +115,7 @@ dx_wrapper_contract_tests(
                 "main.ts",
                 "view.tsx",
             ]),
-            "typescript_project declaration_srcs takes declaration files " +
+            "typescript_library declaration_srcs takes declaration files " +
             "only; list real sources in srcs instead: main.ts, view.tsx",
         ),
         expect_equal(
@@ -152,18 +152,78 @@ dx_wrapper_contract_tests(
             ["a.d.ts"],
         ),
         expect_equal(
+            "binary main defaults to the only src",
+            typescript_binary_main(["a.ts"], None),
+            "a.ts",
+        ),
+        expect_equal(
+            "binary main stays explicit",
+            typescript_binary_main(["a.ts", "b.ts"], "b.ts"),
+            "b.ts",
+        ),
+        expect_equal(
+            "binary with several srcs and no main has no entry",
+            typescript_binary_main(["a.ts", "b.ts"], None),
+            None,
+        ),
+        expect_equal(
+            "binary with one ts src is accepted",
+            typescript_binary_rejection(["a.ts"], None),
+            None,
+        ),
+        expect_equal(
+            "binary with no srcs is rejected",
+            typescript_binary_rejection([], None) != None,
+            True,
+        ),
+        expect_equal(
+            "binary main outside srcs is rejected",
+            typescript_binary_rejection(["a.ts"], "b.ts") != None,
+            True,
+        ),
+        expect_equal(
+            "binary tsx main is rejected",
+            typescript_binary_rejection(["a.tsx"], None) != None,
+            True,
+        ),
+        expect_equal(
+            "binary with several srcs and no main is rejected",
+            typescript_binary_rejection(["a.ts", "b.ts"], None) != None,
+            True,
+        ),
+        expect_equal(
+            "compiled entry maps ts to js",
+            typescript_compiled_entry("sub/a.ts"),
+            "sub/a.js",
+        ),
+        expect_equal(
+            "compiled entry maps mts to mjs",
+            typescript_compiled_entry("a.mts"),
+            "a.mjs",
+        ),
+        expect_equal(
+            "compiled entry maps cts to cjs",
+            typescript_compiled_entry("a.cts"),
+            "a.cjs",
+        ),
+        expect_equal(
+            "compiled entry rejects declarations",
+            typescript_compiled_entry("a.d.ts"),
+            None,
+        ),
+        expect_equal(
             "project with no srcs and no declarations is rejected",
-            typescript_empty_project_rejection(None, None) != None,
+            typescript_empty_library_rejection(None, None) != None,
             True,
         ),
         expect_equal(
             "project with empty lists is rejected",
-            typescript_empty_project_rejection([], []) != None,
+            typescript_empty_library_rejection([], []) != None,
             True,
         ),
         expect_equal(
             "declaration-only project is accepted",
-            typescript_empty_project_rejection(
+            typescript_empty_library_rejection(
                 None,
                 ["a.d.ts"],
             ),
@@ -171,7 +231,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "source-only project is accepted",
-            typescript_empty_project_rejection(
+            typescript_empty_library_rejection(
                 ["a.ts"],
                 None,
             ),
@@ -423,7 +483,7 @@ dx_wrapper_contract_tests(
                 "tsconfig": "tsconfig.json",
                 "extends": "other.json",
             }),
-            "typescript_project derives extends from tsconfig; omit extends " +
+            "typescript_library derives extends from tsconfig; omit extends " +
             "or name the same file as tsconfig.",
         ),
         expect_equal(

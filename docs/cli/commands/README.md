@@ -257,7 +257,7 @@ Language rules:
 
 ### Rule names
 
-dx names rules `<language>_<kind>` throughout, so `py_library` is `python_library`, `ts_project` is `typescript_project` and `kt_jvm_library` is `kotlin_library`. This table maps each upstream rule to the
+dx names rules `<language>_<kind>` throughout, so `py_library` is `python_library`, `ts_project` is `typescript_library` and `kt_jvm_library` is `kotlin_library`. This table maps each upstream rule to the
 dx rule that wraps it.
 
 | Upstream load | Upstream rule | dx load | dx rule |
@@ -298,7 +298,7 @@ dx rule that wraps it.
 | `@rules_ruby//ruby:defs.bzl` | `rb_binary`, `rb_library`, `rb_test` | `@rules_dx//ruby/rules:defs.bzl` | `ruby_binary`, `ruby_library`, `ruby_test` |
 | `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
 | `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala/rules:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |
-| `@aspect_rules_ts//ts:defs.bzl` | `ts_project` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_project` |
+| `@aspect_rules_ts//ts:defs.bzl` | `ts_project` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_library` |
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_test` |
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//typescript/rules:defs.bzl` | `typescript_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//vue/rules:defs.bzl` | `vue_library` |
@@ -577,7 +577,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_relpath` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_bench` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_declaration_srcs_rejection` |
-|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_empty_project_rejection` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_empty_library_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_fuzz_test` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_playwright_test` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_proto_library` |

@@ -16,7 +16,7 @@ import (
 
 const (
 	languageName    = "typescript"
-	projectKind     = "typescript_project"
+	libraryKind     = "typescript_library"
 	testKind        = "typescript_test"
 	binaryKind      = "javascript_binary"
 	configKind      = "ts_config"
@@ -28,7 +28,7 @@ const (
 )
 
 var typescriptKinds = map[string]rule.KindInfo{
-	projectKind: projectKindInfo(),
+	libraryKind: libraryKindInfo(),
 	testKind:    testKindInfo(),
 	binaryKind:  binaryKindInfo(),
 	configKind: {
@@ -40,7 +40,7 @@ var typescriptKinds = map[string]rule.KindInfo{
 	},
 }
 
-func projectKindInfo() rule.KindInfo {
+func libraryKindInfo() rule.KindInfo {
 	return rule.KindInfo{
 		MatchAttrs:    []string{"srcs"},
 		NonEmptyAttrs: map[string]bool{"srcs": true, "declaration_srcs": true},
@@ -87,7 +87,7 @@ func NewLanguage() language.Language { return newLang() }
 func newLang() *typescriptLang {
 	return &typescriptLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName: languageName,
-		LibraryKind:  projectKind,
+		LibraryKind:  libraryKind,
 		ExtraKinds:   []string{testKind, binaryKind, configKind, packageKind},
 		Kinds:        typescriptKinds,
 		DefsPackage:  "typescript/rules:defs.bzl",
@@ -121,7 +121,7 @@ func newLang() *typescriptLang {
 // Imports adds the modules of plain declaration_srcs to the project's index.
 func (l *typescriptLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {
 	specs := l.SingleLang.Imports(c, r, f)
-	if r.Kind() != projectKind {
+	if r.Kind() != libraryKind {
 		return specs
 	}
 	seen := make(map[string]bool, len(specs))
@@ -164,7 +164,7 @@ func ownedDeclarations(file *rule.File, other []*rule.Rule) map[string]bool {
 	owned := make(map[string]bool)
 	add := func(r *rule.Rule) {
 		switch r.Kind() {
-		case projectKind, testKind:
+		case libraryKind, testKind:
 		default:
 			return
 		}
@@ -292,7 +292,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 
 	claimants := make([]Claimant, 0, len(plans)*2)
 	for _, p := range plans {
-		kind := projectKind
+		kind := libraryKind
 		if p.test {
 			kind = testKind
 		}
@@ -338,7 +338,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 			continue
 		}
-		r := rule.NewRule(projectKind, p.name)
+		r := rule.NewRule(libraryKind, p.name)
 		if p.decl {
 			r.SetAttr("declaration_srcs", []string{p.src})
 		} else {

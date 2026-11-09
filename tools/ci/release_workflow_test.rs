@@ -26,13 +26,21 @@ fn declared(path: &Path, field: &str) -> Vec<String> {
     let text = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
     let mut names = Vec::new();
     for line in text.lines() {
-        let line = line.trim();
-        let Some(rest) = line.strip_prefix(&format!("{field}: \"")) else {
+        let Some(rest) = line.trim().strip_prefix(&format!("{field}: ")) else {
             continue;
         };
-        let name = rest.split('"').next().unwrap_or_default();
-        if !name.starts_with("TEST_") {
-            names.push(name.to_owned());
+        let Some(list) = rest.trim_end_matches(',').trim().strip_prefix('&') else {
+            let name = rest.trim_matches(|c| c == '"' || c == ',');
+            if !name.starts_with("TEST_") {
+                names.push(name.to_owned());
+            }
+            continue;
+        };
+        for name in list.trim_matches(|c| c == '[' || c == ']').split(',') {
+            let name = name.trim().trim_matches('"');
+            if !name.is_empty() && !name.starts_with("TEST_") {
+                names.push(name.to_owned());
+            }
         }
     }
     names
@@ -65,6 +73,23 @@ fn publish_step_exports_only_the_approval_gates() {
         !words.contains(&"DX_DEPLOY_LIVE"),
         "the release job exports DX_DEPLOY_LIVE; dx deploy --apply sets it"
     );
+}
+
+#[test]
+fn publish_step_maps_every_gate_credential_from_secrets() {
+    let credentials = gate_names("credentials");
+    assert!(credentials.contains(&"NPM_TOKEN".to_owned()), "{credentials:?}");
+    let step = steps(WORKFLOW, "release")
+        .into_iter()
+        .find(|step| step["name"] == "Publish")
+        .expect("release job has a Publish step");
+    for name in credentials {
+        assert_eq!(
+            step["env"][&name],
+            format!("${{{{ secrets.{name} }}}}"),
+            "the Publish step does not map {name} from secrets"
+        );
+    }
 }
 
 #[test]

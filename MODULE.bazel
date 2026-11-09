@@ -1026,7 +1026,11 @@ pub_tools.from_lock(
     lock = "//dart/tools/dart_apitool:pubspec.lock",
     on_version_conflict = "upgrade",
 )
-use_repo(pub_tools, "dart_apitool_deps")
+pub_tools.from_lock(
+    name = "dx_dart_bench_deps",
+    lock = "//dart/rules/bench:pubspec.lock",
+)
+use_repo(pub_tools, "dart_apitool_deps", "dx_dart_bench_deps")
 
 # floor: equals tested; patched, consumers are pinned by the dx include (#5006)
 bazel_dep(name = "rules_julia", version = "0.8.0")

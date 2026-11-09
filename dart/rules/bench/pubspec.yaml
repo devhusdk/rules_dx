@@ -1,0 +1,6 @@
+name: dx_dart_bench
+publish_to: none
+environment:
+  sdk: ^3.10.0
+dependencies:
+  benchmark_harness: 2.4.0

@@ -40,6 +40,7 @@ dart_test(
 | `dart_library` | A package from `.dart` files, importable as `package:<name>` |
 | `dart_binary` | A compiled executable that runs with `bazel run` |
 | `dart_test` | Runs one test file with the package:test runner |
+| `dart_bench` | `dart_test` for `dx bench`. `main` calls `runBenchmarks` from `package:dx_bench` with `BenchmarkBase` objects; seconds per run. Depend on `@dx_dart_bench_deps//:benchmark_harness` for the base class |
 | `dart_codegen` | Runs a generator script over one `.dart` file and makes the output files |
 
 `dart_js_binary` and `dart_wasm_binary` compile a web app to `.js`, or to `.wasm` plus its `.mjs` loader and `.support.js`.

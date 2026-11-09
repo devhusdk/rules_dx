@@ -1,9 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-lib/hello.ex
-lib/hello/cli.ex
-test/hello_test.exs
-test/test_helper.exs
-bazel_dep rules_dx
-bazel_dep rules_dx_beam

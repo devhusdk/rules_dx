@@ -1,9 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-hello.ts
-hello_test.ts
-main.ts
-package.json
-tsconfig.json
-bazel_dep rules_dx

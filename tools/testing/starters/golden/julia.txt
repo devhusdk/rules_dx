@@ -1,8 +1,0 @@
-.bazelrc
-BUILD.bazel
-Project.toml
-README.md
-main.jl
-src/DemoApp.jl
-test/runtests.jl
-bazel_dep rules_dx

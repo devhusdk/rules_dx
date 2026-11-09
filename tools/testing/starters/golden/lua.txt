@@ -1,7 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-hello.lua
-hello_test.lua
-main.lua
-bazel_dep rules_dx

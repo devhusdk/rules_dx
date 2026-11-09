@@ -1,9 +1,0 @@
-BUILD.bazel
-MODULE.bazel
-README.md
-lib/hello.dart
-pubspec.lock
-pubspec.yaml
-test/hello_test.dart
-bazel_dep rules_dx
-bazel_dep rules_flutter

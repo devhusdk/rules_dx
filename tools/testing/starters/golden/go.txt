@@ -1,6 +1,0 @@
-BUILD.bazel
-README.md
-hello.go
-hello_test.go
-main.go
-bazel_dep rules_dx

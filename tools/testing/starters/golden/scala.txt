@@ -1,6 +1,0 @@
-BUILD.bazel
-Hello.scala
-HelloTest.scala
-Main.scala
-README.md
-bazel_dep rules_dx

@@ -646,7 +646,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/testing/hermetic:defs.bzl` | `hermetic_qualification` |
 |  |  | `@rules_dx//tools/testing/hermetic:defs.bzl` | `nested_bazel_test` |
 |  |  | `@rules_dx//tools/testing/starters:defs.bzl` | `starter_consumer_test` |
-|  |  | `@rules_dx//tools/testing/starters:defs.bzl` | `starter_goldens_test` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_scoped_tsconfig_out` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_content` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_is_source` |

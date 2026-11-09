@@ -1,7 +1,0 @@
-.bazelrc
-BUILD.bazel
-Hello.java
-HelloTest.java
-Main.java
-README.md
-bazel_dep rules_dx

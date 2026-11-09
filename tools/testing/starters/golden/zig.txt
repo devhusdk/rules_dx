@@ -1,7 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-hello.zig
-hello_test.zig
-main.zig
-bazel_dep rules_dx

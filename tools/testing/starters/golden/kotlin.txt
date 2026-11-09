@@ -1,6 +1,0 @@
-BUILD.bazel
-Hello.kt
-HelloTest.kt
-Main.kt
-README.md
-bazel_dep rules_dx

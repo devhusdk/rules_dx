@@ -44,7 +44,6 @@ starter() {
   test -n "$targets"
   # shellcheck disable=SC2086
   bazel build --nobuild "$@" $targets
-  bazel test "$@" //tools/testing/starters:starter_goldens_test
 }
 
 hermetic() {

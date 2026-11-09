@@ -1,8 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-hello.c
-hello.h
-hello_test.c
-main.c
-bazel_dep rules_dx

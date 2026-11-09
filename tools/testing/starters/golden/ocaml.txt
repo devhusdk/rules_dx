@@ -1,7 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-hello.ml
-hello_test.ml
-main.ml
-bazel_dep rules_dx

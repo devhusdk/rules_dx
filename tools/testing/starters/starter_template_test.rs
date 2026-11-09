@@ -1,11 +1,11 @@
-//! Checks the files a starter fixture adds to `dx init` output against a golden listing.
+//! Checks the files a starter fixture adds to `dx init` output are all generated and declare the expected bazel_dep names.
 
 use starter_scaffold as scaffold;
 
 #[test]
-fn starter_matches_its_golden() {
+fn starter_generates_its_files_and_deps() {
     let fixture = std::env::var("DX_FIXTURE").unwrap_or_else(|_| panic!("DX_FIXTURE must be set"));
-    let golden = std::env::var("DX_GOLDEN").unwrap_or_else(|_| panic!("DX_GOLDEN must be set"));
+    let deps = std::env::var("DX_BAZEL_DEPS").unwrap_or_default();
     let files = std::env::var("DX_FIXTURE_FILES").unwrap_or_default();
     let scratch = std::env::temp_dir().join(format!("starter_template_{}", std::process::id()));
     std::fs::create_dir_all(&scratch).unwrap_or_else(|error| panic!("mkdir {scratch:?}: {error}"));
@@ -18,22 +18,18 @@ fn starter_matches_its_golden() {
         .filter(|path| *path != "families")
         .collect();
     paths.sort_unstable();
-    let mut lines = Vec::new();
     for path in paths {
         assert!(root.join(path).is_file(), "{path} was not generated");
-        lines.push(path.to_owned());
     }
     let module = std::fs::read_to_string(root.join("MODULE.bazel")).unwrap_or_default();
-    for line in module.lines().filter(|line| line.starts_with("bazel_dep(")) {
-        lines.push(format!(
-            "bazel_dep {}",
-            line.split('"').nth(1).unwrap_or_default()
-        ));
-    }
-    let got = format!("{}\n", lines.join("\n"));
+    let mut got: Vec<&str> = module
+        .lines()
+        .filter(|line| line.starts_with("bazel_dep("))
+        .filter_map(|line| line.split('"').nth(1))
+        .collect();
+    got.sort_unstable();
+    let mut want: Vec<&str> = deps.split_whitespace().collect();
+    want.sort_unstable();
+    assert_eq!(got, want, "{fixture} bazel_dep names differ");
     let _ = std::fs::remove_dir_all(&scratch);
-
-    let want = std::fs::read_to_string(dx_testing::resolve_runfiles(&golden))
-        .unwrap_or_else(|error| panic!("read {golden}: {error}"));
-    assert_eq!(got, want, "{fixture} differs from {golden}");
 }

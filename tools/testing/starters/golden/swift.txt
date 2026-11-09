@@ -1,6 +1,0 @@
-BUILD.bazel
-Greet.swift
-GreetTests.swift
-README.md
-main.swift
-bazel_dep rules_dx

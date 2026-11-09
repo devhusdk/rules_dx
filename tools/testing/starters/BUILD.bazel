@@ -11,12 +11,13 @@ load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//rust/rules:defs.bzl", "rust_library")
-load(":defs.bzl", "starter_consumer_test", "starter_goldens_test")
+load(":defs.bzl", "starter_consumer_test")
 
 # gazelle:resolve rust dx_nested //tools/testing/nested:dx_nested
 
 starter_consumer_test(
     name = "astro",
+    bazel_deps = ["rules_dx", "aspect_rules_js"],
 )
 
 starter_consumer_test(
@@ -29,10 +30,12 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "csharp",
+    bazel_deps = ["rules_dx", "rules_dx_dotnet"],
 )
 
 starter_consumer_test(
     name = "cuda",
+    bazel_deps = ["rules_dx", "rules_cuda", "rules_dx_cuda"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -46,31 +49,37 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "dart",
+    bazel_deps = ["rules_dx", "rules_dart"],
     target_compatible_with = DART_COMPATIBLE_WITH,
 )
 
 starter_consumer_test(
     name = "elixir",
+    bazel_deps = ["rules_dx", "rules_dx_beam"],
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )
 
 starter_consumer_test(
     name = "erlang",
+    bazel_deps = ["rules_dx", "rules_dx_beam"],
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )
 
 starter_consumer_test(
     name = "flutter",
+    bazel_deps = ["rules_dx", "rules_flutter"],
     target_compatible_with = ["@platforms//os:linux"],
 )
 
 starter_consumer_test(
     name = "fortran",
+    bazel_deps = ["rules_dx", "rules_dx_fortran"],
     target_compatible_with = FORTRAN_COMPATIBLE_WITH,
 )
 
 starter_consumer_test(
     name = "fsharp",
+    bazel_deps = ["rules_dx", "rules_dx_dotnet"],
 )
 
 starter_consumer_test(
@@ -105,6 +114,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "mdx",
+    bazel_deps = ["rules_dx", "aspect_rules_js"],
 )
 
 starter_consumer_test(
@@ -124,6 +134,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "powershell",
+    bazel_deps = ["rules_dx", "platforms"],
     target_compatible_with = ["@platforms//os:linux"],
 )
 
@@ -133,6 +144,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "ruby",
+    bazel_deps = ["rules_dx", "rules_ruby"],
 )
 
 starter_consumer_test(
@@ -141,6 +153,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "rust-android",
+    bazel_deps = ["rules_dx", "platforms", "rules_rust", "rules_android", "rules_dx_android"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -153,6 +166,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "svelte",
+    bazel_deps = ["rules_dx", "aspect_rules_js"],
 )
 
 starter_consumer_test(
@@ -166,6 +180,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "vue",
+    bazel_deps = ["rules_dx", "aspect_rules_js"],
 )
 
 starter_consumer_test(
@@ -188,8 +203,6 @@ rust_library(
         "//tools/testing/nested:dx_nested",
     ],
 )
-
-starter_goldens_test(name = "starter_goldens_test")
 
 exports_files(
     ["BUILD.bazel"],

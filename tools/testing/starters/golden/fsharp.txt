@@ -1,7 +1,0 @@
-BUILD.bazel
-HelloTest.fs
-Library.fs
-Program.fs
-README.md
-bazel_dep rules_dx
-bazel_dep rules_dx_dotnet

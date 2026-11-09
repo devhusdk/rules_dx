@@ -1,8 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-hello.js
-hello.test.js
-main.js
-package.json
-bazel_dep rules_dx

@@ -1,9 +1,0 @@
-.bazelrc
-BUILD.bazel
-MODULE.bazel
-README.md
-hello.rb
-hello_test.rb
-main.rb
-bazel_dep rules_dx
-bazel_dep rules_ruby

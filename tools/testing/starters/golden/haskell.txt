@@ -1,7 +1,0 @@
-.bazelrc
-BUILD.bazel
-README.md
-src/Hello.hs
-src/Main.hs
-test/HelloTest.hs
-bazel_dep rules_dx

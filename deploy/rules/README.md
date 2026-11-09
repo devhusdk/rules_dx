@@ -896,7 +896,7 @@ promotion_deploy(
 - `from_environment`: defaults to `staging`.
 - `to_environment`: defaults to `production`. Must differ from
   `from_environment`.
-- `version`: defaults to `0.0.0`.
+- `version`: required. The release version recorded for the promotion.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 Default run stages `<name>-promotion/` with the artifact, a

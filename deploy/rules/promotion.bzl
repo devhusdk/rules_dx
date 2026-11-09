@@ -104,7 +104,7 @@ _promotion_config = rule(
     },
 )
 
-def promotion_deploy(name, artifact, from_environment = "staging", to_environment = "production", version = "0.0.0", build_mode = "release", sbom = None):
+def promotion_deploy(name, artifact, version, from_environment = "staging", to_environment = "production", build_mode = "release", sbom = None):
     """Promotes one pinned artifact across environments with gated health and rollback."""
     from_error = promotion_environment_error(from_environment)
     if from_error != "":

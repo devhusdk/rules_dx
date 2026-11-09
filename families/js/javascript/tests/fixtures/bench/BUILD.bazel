@@ -1,0 +1,22 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_bench")
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_bench(
+    name = "sum_bench",
+    srcs = ["sum_bench.mjs"],
+    node_modules = "//:node_modules",
+    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -6,6 +6,9 @@ load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
 load("//javascript/rules:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
+load("//javascript/rules:defs.bzl", "javascript_binary")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":proto.bzl", "ts_proto_srcs")
@@ -343,6 +346,50 @@ def typescript_test(name, srcs, runner = "jest", node_modules = None, entry_poin
         upstream_kwargs = node_jest_upstream_attrs(node_modules, kwargs)
     a = node_test_wrap_args(name, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, kwargs)
     dx_wrap_test(name, upstream, _typescript_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
+
+def _compiled_path(main):
+    if not main.endswith(".ts"):
+        fail("%s must be a .ts file" % main)
+    package = native.package_name()
+    return (package + "/" if package else "") + main[:-len(".ts")] + ".js"
+
+def typescript_bench(name, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs):
+    """A typescript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench."""
+    typescript_test(
+        name = name,
+        srcs = srcs,
+        runner = "node",
+        entry_point = Label("//javascript/rules:bench_driver"),
+        data = list(data or []) + [node_modules],
+        args = [_compiled_path(main or srcs[0])] + list(args or []),
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        **kwargs
+    )
+
+def typescript_fuzz_test(name, srcs, node_modules, main = None, data = None, deps = None, visibility = None, tags = None, **kwargs):
+    """A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core."""
+    build, run = split_runner_kwargs(kwargs)
+    typescript_project(
+        name = name + "_bin",
+        srcs = srcs,
+        deps = deps,
+        testonly = True,
+        tags = merge_tags(tags, "manual"),
+        visibility = ["//visibility:private"],
+        **build
+    )
+    fixed_args = [_compiled_path(main or srcs[0])] + list(run.pop("fixed_args", []))
+    javascript_binary(
+        name = name,
+        entry_point = Label("//javascript/rules:fuzz_driver"),
+        data = [":" + name + "_bin", node_modules] + list(data or []),
+        fixed_args = fixed_args,
+        testonly = True,
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        visibility = visibility,
+        **run
+    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility, target = name)
 
 _playwright_test = node_test_forward_rule("playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 

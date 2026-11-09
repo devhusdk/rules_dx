@@ -59,6 +59,10 @@ libraries Chromium links against, such as `libnss3` and `libnspr4`.
 Supported hosts are Linux x86_64, Linux arm64 and macOS arm64. Windows is not
 supported.
 
+## Benchmarks and fuzzing
+
+`typescript_bench` runs a tinybench `Bench` for `dx bench`, and `typescript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
+
 ## Third-party packages
 
 Add the package to the root `package.json`, run `pnpm install` to update

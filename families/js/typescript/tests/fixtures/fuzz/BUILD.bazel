@@ -1,0 +1,38 @@
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_fuzz_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["parse_fuzz.ts"],
+    node_modules = "//:node_modules",
+    declaration = True,
+    tsconfig = "tsconfig.json",
+)
+
+sh_test(
+    name = "parse_fuzz_run_test",
+    srcs = ["run_test.sh"],
+    args = [
+        "$(rlocationpath @rules_dx//libs/starlark:fuzz_run.sh)",
+        "$(rootpath :parse_fuzz)",
+    ],
+    data = [
+        ":parse_fuzz",
+        "@rules_dx//libs/starlark:fuzz_run.sh",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    timeout = "short",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

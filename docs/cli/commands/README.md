@@ -500,7 +500,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_entry_kwargs` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_fuzz_test` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_javacopts_with_warnings_as_errors` |
+|  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_bench` |
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_binary_upstream_data` |
+|  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_fuzz_test` |
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_test_rejection` |
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_standalone_binary` |
@@ -650,9 +652,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `dx_tsconfig_relpath` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `playwright_test` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `ts_proto_library` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_bench` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_declaration_srcs_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_empty_project_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_forward_kwargs` |
+|  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_fuzz_test` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_inner_kwargs` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_scoped_tsconfig_rejection` |
 |  |  | `@rules_dx//typescript/rules:defs.bzl` | `typescript_srcs_rejection` |

@@ -20,6 +20,8 @@ Go: `go_fuzz_test(name, fuzz = "FuzzParse", srcs = ..., ...)` from `//go/rules:d
 
 Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//python/rules:defs.bzl` declares a binary that calls `atheris.Setup` and `atheris.Fuzz`, tags it and adds the `<name>_run` runner. Manual and Linux x86_64 only: there is no atheris wheel for Windows.
 
+JavaScript and TypeScript: `javascript_fuzz_test(name, srcs, node_modules)` from `//javascript/rules:defs.bzl` and `typescript_fuzz_test` from `//typescript/rules:defs.bzl` run the `fuzz(data)` function that the first source (or `main`) exports with [Jazzer.js](https://github.com/CodeIntelligenceTesting/jazzer.js), tag it and add the `<name>_run` runner. List `@jazzer.js/core` in `package.json` so `node_modules` links it. pnpm needs `packageExtensions` that add `@babel/core` and `@babel/types` to `@jazzer.js/bug-detectors` and `@babel/types` to `@jazzer.js/instrumentor`, which use them without declaring them. Jazzer.js ships native add-ons for Linux, macOS arm64 and x64, and Windows x64.
+
 Rust: `rust_fuzz_test(name, srcs, crate_root = ...)` from `//rust/rules:defs.bzl` builds a `libfuzzer-sys` binary with sancov and AddressSanitizer using `RUSTC_BOOTSTRAP=1` and the pinned LLVM's libFuzzer, tags it and adds the `<name>_run` runner. The source is `#![no_main]` and calls `fuzz_target!`. `libfuzzer-sys` comes from rules_dx's pinned crate hub by default; pass `libfuzzer_sys = "@<your_hub>//:libfuzzer-sys"` to use your own hub, for example when you use `arbitrary`. Tested on linux x86_64 only.
 
 | Flag | What it does |

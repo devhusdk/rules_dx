@@ -29,6 +29,10 @@ javascript_test(
 `entry_point` to run the file with Node instead.
 On Windows, Jest coverage uses the v8 provider.
 
+## Benchmarks and fuzzing
+
+`javascript_bench` runs a tinybench `Bench` for `dx bench`, and `javascript_fuzz_test` runs a Jazzer.js target for `dx fuzz`. List `tinybench` or `@jazzer.js/core` in `package.json` and pass `node_modules`. See [`dx bench`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/bench.md) and [`dx fuzz`](https://github.com/devhusdk/rules_dx/blob/main/docs/cli/commands/fuzz.md).
+
 ## Third-party packages
 
 Add the package to the root `package.json`, run `pnpm install` to update

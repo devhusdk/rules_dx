@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//python/rules:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -18,6 +18,16 @@ exports_files([
 ])
 
 javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+js_library(
+    name = "bench_driver",
+    srcs = ["bench_driver.mjs"],
+)
+
+js_library(
+    name = "fuzz_driver",
+    srcs = ["fuzz_driver.cjs"],
+)
 
 js_binary(
     name = "vite_tool",

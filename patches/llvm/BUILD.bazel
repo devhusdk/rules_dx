@@ -10,6 +10,7 @@ exports_files([
     "lse_atomic_sources.patch",
     "stage0_runtime_features.patch",
     "aarch64_outline_atomics.patch",
+    "msvc_fuzzer.patch",
 ])
 
 sh_test(
@@ -28,6 +29,14 @@ sh_test(
     args = ["$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"],
     data = ["@llvm//runtimes/msvc:BUILD.bazel"],
     target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "msvc_fuzzer_test",
+    size = "small",
+    srcs = ["msvc_fuzzer_test.sh"],
+    args = ["$(rootpath msvc_fuzzer.patch)"],
+    data = ["msvc_fuzzer.patch"],
 )
 
 platform_transition_filegroup(

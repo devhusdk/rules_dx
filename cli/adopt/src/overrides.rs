@@ -368,6 +368,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "aarch64_outline_atomics.patch",
                 content: include_str!("../../../patches/llvm/aarch64_outline_atomics.patch"),
             },
+            OverridePatch {
+                file: "msvc_fuzzer.patch",
+                content: include_str!("../../../patches/llvm/msvc_fuzzer.patch"),
+            },
         ],
     },
     Override {

@@ -83,6 +83,7 @@ single_version_override(
         "//patches/llvm:lse_atomic_sources.patch",
         "//patches/llvm:stage0_runtime_features.patch",
         "//patches/llvm:aarch64_outline_atomics.patch",
+        "//patches/llvm:msvc_fuzzer.patch",
     ],
     version = "0.8.26",
 )

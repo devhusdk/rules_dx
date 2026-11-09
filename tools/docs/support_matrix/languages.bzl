@@ -497,7 +497,7 @@ LANGUAGES = [
     _language(
         "haskell",
         bench = "haskell_bench",
-        deps = "`hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set",
+        deps = "`hackage` from `cabal.project.freeze`, which `haskell_deps_resolve` can derive from `stack.yaml.lock`",
         doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
         coverage = ["hpc"],

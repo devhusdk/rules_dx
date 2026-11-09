@@ -15,7 +15,7 @@ _GHC_FILES = Label("//haskell/toolchain:ghc_files")
 def _input_args(inputs):
     return ["--input=$(rlocationpath {})".format(src) for src in inputs]
 
-def haskell_deps_resolve(name, srcs, target = "all", **kwargs):
+def haskell_deps_resolve(name, srcs, target = "all", stack_lock = "", **kwargs):
     """Writes cabal.project.freeze and haskell_deps.json next to the cabal project in this package.
 
     Run it with `bazel run`. It needs network access to Hackage.
@@ -24,6 +24,7 @@ def haskell_deps_resolve(name, srcs, target = "all", **kwargs):
         name: Target name.
         srcs: The .cabal files and cabal.project of the project.
         target: The cabal target to plan. Name the package or component when the project builds a remote tarball, which "all" does not cover.
+        stack_lock: Name of a stack.yaml.lock in this package. The resolve pins the versions of its snapshot and extra-deps instead of letting cabal pick them. Include the file in srcs.
         **kwargs: Passed to the py_binary.
     """
     package = native.package_name()
@@ -37,7 +38,7 @@ def haskell_deps_resolve(name, srcs, target = "all", **kwargs):
             "--target=" + target,
             "--cabal=$(rlocationpath {})".format(_CABAL),
             "--ghc=$(rlocationpath {})".format(_GHC),
-        ] + _input_args(srcs),
+        ] + (["--stack-lock=" + stack_lock] if stack_lock else []) + _input_args(srcs),
         data = srcs + [_CABAL, _GHC, _GHC_FILES],
         **dx_language_kwargs(kwargs, [], HASKELL_COMPATIBLE_WITH)
     )

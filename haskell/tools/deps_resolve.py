@@ -10,10 +10,14 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import urllib.request
 
 SIDECAR_VERSION = 1
 NO_HOST_TOOL = "dx-no-host-tool"
 FREEZE_CONSTRAINT = re.compile(r"any\.([A-Za-z0-9_-]+)\s*==\s*([0-9][0-9.]*)")
+STACK_HACKAGE = re.compile(r"^\s*(?:-\s+)?hackage:\s*([A-Za-z0-9][A-Za-z0-9-]*)-([0-9][0-9.]*)(?:@|\s|$)")
+STACK_SNAPSHOT_URL = re.compile(r"^\s+url:\s*(\S+)\s*$")
+STACK_SNAPSHOT_SHA = re.compile(r"^\s+sha256:\s*([0-9a-f]{64})\s*$")
 INDEX_STATE = re.compile(r"^\s*index-state\s*:\s*(\S+)", re.MULTILINE)
 
 
@@ -64,6 +68,76 @@ def index_state(project_path):
 def freeze_pairs(freeze_text):
     """Returns the sorted (name, version) pairs a freeze file pins."""
     return sorted(set(FREEZE_CONSTRAINT.findall(freeze_text)))
+
+
+def stack_lock_pins(lock_text, fetch):
+    """Returns {name: version} pinned by a stack.yaml.lock: its snapshots, then its extra-deps.
+
+    Args:
+        lock_text: The text of stack.yaml.lock.
+        fetch: Called with a snapshot URL, returns the snapshot bytes.
+    """
+    pins = {}
+    section = None
+    url = digest = None
+    for line in lock_text.splitlines():
+        if line and not line[0].isspace() and line[0] != "-":
+            section = line.split(":", 1)[0]
+            url = digest = None
+        if section == "snapshots":
+            match = STACK_SNAPSHOT_URL.match(line)
+            if match:
+                url = match.group(1)
+            match = STACK_SNAPSHOT_SHA.match(line)
+            if match:
+                digest = match.group(1)
+            if url and digest:
+                data = fetch(url)
+                if sha256(data) != digest:
+                    raise SystemExit("deps_resolve: snapshot {} does not match the sha256 in stack.yaml.lock".format(url))
+                for entry in data.decode("utf-8").splitlines():
+                    hit = STACK_HACKAGE.match(entry)
+                    if hit:
+                        pins[hit.group(1)] = hit.group(2)
+                url = digest = None
+    if not pins:
+        raise SystemExit("deps_resolve: stack.yaml.lock names no snapshot with a sha256")
+    section = None
+    completed = False
+    for line in lock_text.splitlines():
+        if line and not line[0].isspace() and line[0] != "-":
+            section = line.split(":", 1)[0]
+        if section != "packages":
+            continue
+        if line.strip() == "completed:" or line.strip() == "- completed:":
+            completed = True
+        elif line.strip() in ("original:", "- original:"):
+            completed = False
+        elif completed:
+            hit = STACK_HACKAGE.match(line)
+            if hit:
+                pins[hit.group(1)] = hit.group(2)
+    return pins
+
+
+def fetch_url(url):
+    """Returns the bytes behind one https URL."""
+    if not url.startswith("https://"):
+        raise SystemExit("deps_resolve: refusing non-https snapshot URL " + url)
+    with urllib.request.urlopen(url, timeout=120) as response:  # noqa: S310
+        return response.read()
+
+
+def stack_freeze_text(pins):
+    """Returns a cabal.project.freeze that pins every package of a stack snapshot."""
+    body = ",\n             ".join("any.{} =={}".format(name, version) for name, version in sorted(pins.items()))
+    return "constraints: {}\n".format(body)
+
+
+def sidecar_freeze_text(packages, state):
+    """Returns a cabal.project.freeze that pins the non-local packages of a sidecar."""
+    pins = {pkg["name"]: pkg["version"] for pkg in packages if pkg["source"] != "local"}
+    return stack_freeze_text(pins) + "index-state: hackage.haskell.org {}\n".format(state)
 
 
 def cabal_revisions(index_path, wanted):
@@ -203,7 +277,14 @@ def write(args):
         env.pop("CABAL_CONFIG", None)
         base = [cabal, "--with-compiler=" + host_compiler_wrapper(ghc, scratch), "--with-hc-pkg=" + sibling_ghc_pkg(ghc)]
         run(base + ["update", "--index-state=" + state], project, env)
-        run(base + ["freeze"], project, env)
+        freeze_path = os.path.join(project, "cabal.project.freeze")
+        if args.stack_lock:
+            with open(os.path.join(package_dir, args.stack_lock), encoding="utf-8") as handle:
+                pins = stack_lock_pins(handle.read(), fetch_url)
+            with open(freeze_path, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(stack_freeze_text(pins))
+        else:
+            run(base + ["freeze"], project, env)
         run(base + ["build", "--dry-run", args.target], project, env)
         with open(os.path.join(project, "dist-newstyle", "cache", "plan.json"), encoding="utf-8") as handle:
             plan = json.load(handle)
@@ -217,7 +298,9 @@ def write(args):
         for package in packages:
             if package["source"] == "hackage" and package["cabal_revision"] is None:
                 raise SystemExit("deps_resolve: no index entry matches the .cabal of {name}-{version}".format(**package))
-        freeze_path = os.path.join(project, "cabal.project.freeze")
+        if args.stack_lock:
+            with open(freeze_path, "w", encoding="utf-8", newline="\n") as handle:
+                handle.write(sidecar_freeze_text(packages, state))
         sidecar = {
             "version": SIDECAR_VERSION,
             "index_state": state,
@@ -239,6 +322,7 @@ def main(argv):
     parser.add_argument("--package", required=True)
     parser.add_argument("--label", default="")
     parser.add_argument("--target", default="all")
+    parser.add_argument("--stack-lock", default="")
     parser.add_argument("--cabal")
     parser.add_argument("--ghc")
     parser.add_argument("--input", action="append", default=[])

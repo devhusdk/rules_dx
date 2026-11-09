@@ -108,6 +108,50 @@ class DepsResolveTest(unittest.TestCase):
             self.assertEqual(deps_resolve.index_state(path), "2026-01-01T00:00:00Z")
 
 
+SNAPSHOT = b"""name: lts-1
+packages:
+- hackage: aeson-2.2.1.0@sha256:aa,100
+  pantry-tree:
+    sha256: bb
+- hackage: text-2.0.2
+"""
+SNAPSHOT_SHA = hashlib.sha256(SNAPSHOT).hexdigest()
+STACK_LOCK = """packages:
+- completed:
+    hackage: text-2.1@sha256:cc,200
+    pantry-tree:
+      sha256: dd
+  original:
+    hackage: text-2.1
+snapshots:
+- completed:
+    sha256: {}
+    size: 10
+    url: https://example.test/lts-1.yaml
+  original: lts-1
+""".format(SNAPSHOT_SHA)
+
+
+class StackLockTest(unittest.TestCase):
+    def test_snapshot_then_extra_deps(self):
+        pins = deps_resolve.stack_lock_pins(STACK_LOCK, lambda url: SNAPSHOT)
+        self.assertEqual(pins, {"aeson": "2.2.1.0", "text": "2.1"})
+
+    def test_snapshot_digest_mismatch_fails(self):
+        with self.assertRaises(SystemExit):
+            deps_resolve.stack_lock_pins(STACK_LOCK, lambda url: SNAPSHOT + b"x")
+
+    def test_freeze_round_trips_through_freeze_pairs(self):
+        text = deps_resolve.stack_freeze_text({"aeson": "2.2.1.0", "text": "2.1"})
+        self.assertEqual(deps_resolve.freeze_pairs(text), [("aeson", "2.2.1.0"), ("text", "2.1")])
+
+    def test_sidecar_freeze_skips_local_packages(self):
+        packages = [{"name": "app", "version": "0.1", "source": "local"}, {"name": "text", "version": "2.1", "source": "hackage"}]
+        text = deps_resolve.sidecar_freeze_text(packages, "2026-01-01T00:00:00Z")
+        self.assertEqual(deps_resolve.freeze_pairs(text), [("text", "2.1")])
+        self.assertIn("index-state: hackage.haskell.org 2026-01-01T00:00:00Z", text)
+
+
 class CheckTest(unittest.TestCase):
     """Tests the staleness check against real files."""
 

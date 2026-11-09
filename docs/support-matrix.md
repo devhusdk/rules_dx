@@ -27,7 +27,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | none: no package manager | n/a | n/a |
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` |
 | Go | none | `go` | `go_bench` | `go_fuzz_test` |
-| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set | `haskell_bench` | n/a |
+| Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`, which `haskell_deps_resolve` can derive from `stack.yaml.lock` | `haskell_bench` | n/a |
 | Java | none | `maven` | `java_bench` | `java_fuzz_test` |
 | JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` |
 | Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | n/a | n/a |

@@ -192,8 +192,12 @@ pub(crate) fn execute_init(
         &mut applied,
         &mut notes,
     );
+    let runner = dx_runner(dx_on_path());
     if result.is_ok() {
-        notes.push("next: run `tools/dx sync` to fill .dx/local, then `direnv allow`".to_owned());
+        notes.push(sync_note(
+            runner,
+            applied.refused.contains(&format!("{}.envrc", target.prefix)),
+        ));
     }
     let code = super::wiring::report(
         invocation,
@@ -206,15 +210,44 @@ pub(crate) fn execute_init(
     );
     if code == 0
         && !summaries_suppressed(invocation)
-        && let Err(exit) = check_stdout_write(write!(out, "{NEXT_STEPS}"))
+        && let Err(exit) = check_stdout_write(write!(out, "{}", next_steps(runner, target.blocker.is_some())))
     {
         return exit;
     }
     code
 }
 
-const NEXT_STEPS: &str =
-    "next: add your code, then run `dx generate --apply` and `dx build //...`\n";
+fn dx_on_path() -> bool {
+    std::env::var_os("PATH").is_some_and(|path| {
+        std::env::split_paths(&path).any(|dir| dir.join("dx").is_file())
+    })
+}
+
+fn dx_runner(on_path: bool) -> &'static str {
+    if on_path { "dx" } else { "tools/dx" }
+}
+
+fn sync_note(runner: &str, envrc_refused: bool) -> String {
+    if envrc_refused {
+        format!(
+            "next: run `{runner} sync` to fill .dx/local; .envrc already exists, so add these lines to it, then `direnv allow`: PATH_add .dx/local/bin and watch_file .dx/local/current"
+        )
+    } else {
+        format!("next: run `{runner} sync` to fill .dx/local, then `direnv allow`")
+    }
+}
+
+fn next_steps(runner: &str, adopting: bool) -> String {
+    if adopting {
+        format!(
+            "next: run `{runner} generate --apply` to wire your existing code, then `{runner} build //...`\n"
+        )
+    } else {
+        format!(
+            "next: add your code, then run `{runner} generate --apply` and `{runner} build //...`\n"
+        )
+    }
+}
 
 /// Lists the files a first `dx init` would create, one per line under their top directory.
 fn render_creation_plan(prefix: &str, paths: &[&String], apply: &str) -> String {
@@ -390,6 +423,7 @@ fn check_init(
 mod tests {
     use crate::adopt::test_support::{Truncated, env, invocation, run};
     use dx_process::pre_exec_code;
+    use super::{dx_on_path, dx_runner, next_steps, sync_note};
 
     #[test]
     fn init_check_names_missing_hooks_and_agents_block() {
@@ -1078,11 +1112,31 @@ mod tests {
         let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
         assert_eq!(code, 0, "{err}");
         assert!(
-            out.ends_with(
-                "next: add your code, then run `dx generate --apply` and `dx build //...`\n"
-            ),
+            out.ends_with(&next_steps(dx_runner(dx_on_path()), false)),
             "{out}"
         );
+    }
+
+    #[test]
+    fn next_steps_use_the_launcher_unless_dx_is_on_path() {
+        assert_eq!(dx_runner(false), "tools/dx");
+        assert_eq!(dx_runner(true), "dx");
+        assert_eq!(
+            next_steps("tools/dx", false),
+            "next: add your code, then run `tools/dx generate --apply` and `tools/dx build //...`\n"
+        );
+        assert_eq!(
+            next_steps("tools/dx", true),
+            "next: run `tools/dx generate --apply` to wire your existing code, then `tools/dx build //...`\n"
+        );
+    }
+
+    #[test]
+    fn sync_note_names_the_envrc_lines_when_the_file_was_refused() {
+        let note = sync_note("tools/dx", true);
+        assert!(note.contains("PATH_add .dx/local/bin"), "{note}");
+        assert!(note.contains("watch_file .dx/local/current"), "{note}");
+        assert!(!sync_note("tools/dx", false).contains("PATH_add"));
     }
 
     #[test]

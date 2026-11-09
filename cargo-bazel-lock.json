@@ -1,5 +1,5 @@
 {
-  "checksum": "ef64fa633cd32f0a9205b382aa284f75371c7f90dfdf6c13dc38805d3cbfaaaf",
+  "checksum": "34c6766662603339aff8dbdf6036796c4e9d0778f5c0194bc1f69dfa31ac1249",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -11157,6 +11157,19 @@
       ],
       "version": "0.5.3"
     },
+    "gopls_gen 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "gopls_gen",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "group 0.13.0": {
       "common_attrs": {
         "crate_features": [
@@ -18615,6 +18628,19 @@
       ],
       "version": "0.0.0"
     },
+    "quality_policy 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "quality_policy",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "quality_result 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -18710,6 +18736,19 @@
         "Apache-2.0"
       ],
       "name": "quality_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "quality_tiers 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "quality_tiers",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -28958,6 +28997,7 @@
     "generation_result 0.0.0": "generation/generation_result",
     "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
+    "gopls_gen 0.0.0": "quality/tiers/gopls_gen",
     "haskell_extract 0.0.0": "tools/docs/haskell/haskell_extract",
     "hermetic 0.0.0": "tools/testing/hermetic",
     "ide_tests 0.0.0": "tools/ide_tests",
@@ -28977,9 +29017,11 @@
     "quality_adapter 0.0.0": "quality/quality_adapter",
     "quality_markdown 0.0.0": "quality/quality_markdown",
     "quality_notebook 0.0.0": "quality/quality_notebook",
+    "quality_policy 0.0.0": "quality_policy",
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
     "quality_tests 0.0.0": "quality/quality_tests",
+    "quality_tiers 0.0.0": "quality/quality_tiers",
     "quality_tools_jvm 0.0.0": "quality/tools/quality_tools_jvm",
     "repin_all 0.0.0": "tools/repin_all",
     "ruby_docs_tests 0.0.0": "tools/docs/ruby_docs_tests",

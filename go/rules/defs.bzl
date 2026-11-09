@@ -1,9 +1,9 @@
 """Minimal Go wrappers."""
 
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_binary = "go_binary", _go_library = "go_library", _go_test = "go_test")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load(":cgo.bzl", "cgo_toolchain_error")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
@@ -109,14 +109,7 @@ def go_fuzz_test(name, fuzz, srcs = None, visibility = None, tags = None, **kwar
         visibility = visibility,
         **with_default_size(run)
     )
-    sh_binary(
-        name = name + "_run",
-        srcs = [Label("//go/rules:fuzz_run.sh")],
-        args = ["$(rootpath :" + name + ")", fuzz],
-        data = [":" + name],
-        testonly = True,
-        visibility = visibility,
-    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility, engine = "go", target = fuzz)
 
 def go_bench(name, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test of the Benchmark functions plus a `<name>` runner that writes dx-bench.json for `dx bench`."""

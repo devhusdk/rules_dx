@@ -1,9 +1,9 @@
 """Minimal Python wrappers."""
 
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo", _PyWheelsInfo = "PyWheelsInfo", _py_binary = "py_binary", _py_library = "py_library", _py_pytest_test = "py_pytest_test", _py_test = "py_test")
 load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -144,14 +144,7 @@ def python_fuzz_test(name, srcs = None, visibility = None, tags = None, **kwargs
         target_compatible_with = compatible,
         **run
     )
-    sh_binary(
-        name = name + "_run",
-        srcs = [Label("//tools/fuzz:fuzz_run.sh")],
-        args = ["$(rootpath :" + name + ")"],
-        data = [":" + name],
-        testonly = True,
-        visibility = visibility,
-    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility)
 
 def python_bench(name, srcs = None, args = None, tags = None, deps = None, **kwargs):
     """python_test run by dx bench: pytest-benchmark numbers land in dx-bench.json."""

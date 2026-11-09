@@ -12,7 +12,6 @@ exports_files([
     "coverage.bzl",
     "coverage_tests.bzl",
     "defs.bzl",
-    "fuzz_run.sh",
 ])
 
 dx_wrapper_contract_tests(

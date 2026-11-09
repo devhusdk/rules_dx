@@ -12,7 +12,7 @@ DxMsvcCrtInfo = provider(
 
 _DYNAMIC = ["/MD", "/MDd"]
 
-MSVC_CRT_FROM_RUST = "//rust/rules:msvc_crt_from_rust"
+MSVC_CRT_FROM_RUST = "//libs/starlark:msvc_crt_from_rust"
 MSVC_STATIC_CRT = ["-dynamic_link_msvcrt", "static_link_msvcrt"]
 _FEATURES = "//command_line_option:features"
 

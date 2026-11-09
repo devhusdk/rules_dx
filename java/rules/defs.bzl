@@ -3,9 +3,9 @@
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library = "java_library", _java_test = "java_test")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//java/rules:jmh.bzl", "jmh_bench")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -168,14 +168,7 @@ def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, ta
         visibility = visibility,
         **run
     )
-    sh_binary(
-        name = name + "_run",
-        srcs = [Label("//java/rules:fuzz_run.sh")],
-        args = ["$(rootpath :" + name + ")", target_class],
-        data = [":" + name],
-        testonly = True,
-        visibility = visibility,
-    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility, engine = "jazzer", target = target_class)
 
 def java_bench(name, srcs, deps = [], jmh = "@maven//:org_openjdk_jmh_jmh_core", jmh_processor = "@maven//:org_openjdk_jmh_jmh_generator_annprocess", tags = [], **kwargs):
     """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench.

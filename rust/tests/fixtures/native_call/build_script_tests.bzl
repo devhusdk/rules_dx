@@ -1,7 +1,7 @@
 """Analysis test for the C/C++ tool identity of cargo build script actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
+load("//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 
 def _relative(value):
     if value.startswith("${pwd}/"):

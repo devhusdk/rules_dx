@@ -5,14 +5,14 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_common = "rust_common", _rust_library = "rust_library", _rust_proc_macro = "rust_proc_macro", _rust_shared_library = "rust_shared_library", _rust_static_library = "rust_static_library", _rust_test = "rust_test")
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
-load(":msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
+load("//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
 load(":pdb.bzl", "REPRODUCIBLE_PDB_LINK_FLAGS")
 
 _DX_FORWARD_PROVIDES = [
@@ -669,35 +669,6 @@ _FUZZ_RUSTC_FLAGS = [
     "-Zexternal-clangrt",
 ]
 
-def _rust_fuzz_transition_impl(_settings, _attr):
-    return {
-        "@llvm//config:asan": True,
-        "@llvm//config:fuzzer": True,
-    }
-
-_rust_fuzz_transition = transition(
-    implementation = _rust_fuzz_transition_impl,
-    inputs = [],
-    outputs = ["@llvm//config:asan", "@llvm//config:fuzzer"],
-)
-
-def _rust_fuzz_binary_impl(ctx):
-    binary = ctx.attr.binary
-    executable = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = executable, target_file = binary[DefaultInfo].files_to_run.executable, is_executable = True)
-    runfiles = ctx.runfiles(files = [executable]).merge(binary[DefaultInfo].default_runfiles)
-    return [DefaultInfo(executable = executable, runfiles = runfiles)]
-
-_rust_fuzz_binary = rule(
-    implementation = _rust_fuzz_binary_impl,
-    attrs = {
-        "binary": attr.label(doc = "Binary the runner executes.", executable = True, cfg = "target", mandatory = True),
-    },
-    cfg = _rust_fuzz_transition,
-    executable = True,
-    doc = "Builds `binary` with the pinned LLVM's libFuzzer runtime.",
-)
-
 def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys = None, **kwargs):
     """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     build, run = split_runner_kwargs(kwargs)
@@ -712,7 +683,7 @@ def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rust
         tags = merge_tags(tags, "manual"),
         **build
     )
-    _rust_fuzz_binary(
+    dx_fuzz_binary(
         name = name,
         binary = ":" + name + "_bin",
         visibility = visibility,
@@ -720,11 +691,4 @@ def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rust
         tags = merge_tags(tags, "dx-fuzz", "manual"),
         **run
     )
-    sh_binary(
-        name = name + "_run",
-        srcs = [Label("//tools/fuzz:fuzz_run.sh")],
-        args = ["$(rootpath :" + name + ")"],
-        data = [":" + name],
-        testonly = True,
-        visibility = visibility,
-    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility)

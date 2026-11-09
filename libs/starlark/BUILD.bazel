@@ -1,4 +1,11 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//quality:fixtures.bzl", "real_source_target")
+
+bool_flag(
+    name = "msvc_crt_from_rust",
+    build_setting_default = False,
+    visibility = ["//visibility:public"],
+)
 
 exports_files([
     "canonical.bzl",
@@ -9,8 +16,11 @@ exports_files([
     "failure_test.bzl",
     "fuzz_bench.bzl",
     "fuzz_bench_tests.bzl",
+    "fuzz.bzl",
+    "fuzz_run.sh",
     "jammy_runtime.bzl",
     "license.bzl",
+    "msvc_crt.bzl",
     "packaging.bzl",
     "plan_shard.bzl",
     "repo.bzl",
@@ -33,7 +43,9 @@ real_source_target(
         "failure_test.bzl",
     "fuzz_bench.bzl",
     "fuzz_bench_tests.bzl",
+        "fuzz.bzl",
         "jammy_runtime.bzl",
+        "msvc_crt.bzl",
         "packaging.bzl",
         "plan_shard.bzl",
         "repo.bzl",

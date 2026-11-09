@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
-load("//rust/rules:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings", "msvc_crt_static_settings")
+load("//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings", "msvc_crt_static_settings")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:sources.bzl", "QualitySourcesInfo")

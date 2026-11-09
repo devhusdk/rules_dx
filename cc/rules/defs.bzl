@@ -4,11 +4,11 @@ load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_libra
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_append_flags", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//rust/rules:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
+load("//libs/starlark:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 
 _DX_CC_LIBRARY_PROVIDES = [
@@ -205,35 +205,6 @@ def cc_test(name, srcs = None, visibility = None, **kwargs):
         })
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
-def _cc_fuzz_transition_impl(_settings, _attr):
-    return {
-        "@llvm//config:asan": True,
-        "@llvm//config:fuzzer": True,
-    }
-
-_cc_fuzz_transition = transition(
-    implementation = _cc_fuzz_transition_impl,
-    inputs = [],
-    outputs = ["@llvm//config:asan", "@llvm//config:fuzzer"],
-)
-
-def _cc_fuzz_binary_impl(ctx):
-    binary = ctx.attr.binary
-    executable = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = executable, target_file = binary[DefaultInfo].files_to_run.executable, is_executable = True)
-    runfiles = ctx.runfiles(files = [executable]).merge(binary[DefaultInfo].default_runfiles)
-    return [DefaultInfo(executable = executable, runfiles = runfiles)]
-
-_cc_fuzz_binary = rule(
-    implementation = _cc_fuzz_binary_impl,
-    attrs = {
-        "binary": attr.label(doc = "Binary the runner executes.", executable = True, cfg = "target", mandatory = True),
-    },
-    cfg = _cc_fuzz_transition,
-    executable = True,
-    doc = "Builds `binary` with the pinned LLVM's AddressSanitizer and libFuzzer runtimes.",
-)
-
 def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     flags = ["-fsanitize=fuzzer,address"]
@@ -248,7 +219,7 @@ def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None
         linkopts = flags + (linkopts or []),
         **build
     )
-    _cc_fuzz_binary(
+    dx_fuzz_binary(
         name = name,
         binary = ":" + name + "_bin",
         visibility = visibility,
@@ -256,11 +227,4 @@ def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None
         tags = merge_tags(tags, "dx-fuzz", "manual"),
         **run
     )
-    sh_binary(
-        name = name + "_run",
-        srcs = [Label("//tools/fuzz:fuzz_run.sh")],
-        args = ["$(rootpath :" + name + ")"],
-        data = [":" + name],
-        testonly = True,
-        visibility = visibility,
-    )
+    dx_fuzz_runner(name, ":" + name, visibility = visibility)

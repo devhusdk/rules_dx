@@ -1,6 +1,6 @@
 """Local-first PyPI publisher for dx deploy."""
 
-load("//rust/rules:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
+load("//libs/starlark:msvc_crt.bzl", "dx_msvc_crt_reset_transition")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
 load(":defs.bzl", "dx_deployment")

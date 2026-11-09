@@ -216,18 +216,18 @@ pub(super) fn write_cargo_license_set(harness: &Harness) {
 
 pub(super) fn write_cargo_lock(harness: &Harness) {
     harness.write_source(
-        "rust/tests/fixtures/hello/cargo-bazel-lock.json",
+        "cargo-bazel-lock.json",
         r#"{"packages": {}}"#,
     );
     harness.write_source(
-        "rust/tests/fixtures/hello/Cargo.lock",
+        "cc/context/Cargo.lock",
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
 }
 
 pub(super) fn write_cargo_license_lock(harness: &Harness) {
     harness.write_source(
-        "rust/tests/fixtures/hello/cargo-bazel-lock.json",
+        "cargo-bazel-lock.json",
         r#"{"packages": {"serde 1.0.100": {"license": "MIT"}}}"#,
     );
 }
@@ -635,11 +635,11 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
     let runner = AuditRunner::clean();
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
         harness.write_source(
-            "rust/tests/fixtures/hello/cargo-bazel-lock.json",
+            "cargo-bazel-lock.json",
             r#"{"packages": {}}"#,
         );
         harness.write_source(
-            "rust/tests/fixtures/hello/Cargo.lock",
+            "cc/context/Cargo.lock",
             "[[package]]\nname = \"git-dep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/example/git-dep#abc123\"\n",
         );
         write_npm_locks(harness);

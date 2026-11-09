@@ -34,3 +34,27 @@ _consumer_native_repo(name = "consumer_native")
 _consumer_abi_repo = use_repo_rule("//rust/tests/fixtures/consumer_abi:repos.bzl", "consumer_abi_repo")
 
 _consumer_abi_repo(name = "consumer_abi")
+
+crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
+crate.from_cargo(
+    name = "dx_rust_fixture_crates",
+    cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
+    lockfile = "//:cargo-bazel-lock.json",
+    manifests = [
+        "//rust/tests/fixtures/hello:Cargo.toml",
+        "//rust/tests/fixtures/native_call:Cargo.toml",
+        "//rust/tests/fixtures/fuzz:Cargo.toml",
+        "//rust/tests/fixtures/bench:Cargo.toml",
+    ],
+    supported_platform_triples = [
+        "aarch64-apple-darwin",
+        "aarch64-pc-windows-msvc",
+        "aarch64-unknown-linux-gnu",
+        "wasm32-unknown-unknown",
+        "wasm32-wasip1",
+        "x86_64-pc-windows-msvc",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-nixos-gnu",
+    ],
+)
+use_repo(crate, crates = "dx_rust_fixture_crates")

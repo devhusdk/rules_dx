@@ -3,11 +3,11 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_cc//cc:defs.bzl", _raw_cc_library = "cc_library")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
-load("//cc/toolchains:select.bzl", "cc_toolchain_test")
-load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_static_library", "rust_test")
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library")
+load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_test")
+load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_static_library", "rust_test")
 load(":build_script_tests.bzl", "build_script_absolute_tool_test", "build_script_compiler_tests", "build_script_host_env_test", "build_script_libstdcxx_test", "build_script_msvc_coverage_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_library_tests", "rust_msvc_crt_tests")
 
 package(
@@ -39,7 +39,7 @@ cc_library(
 sh_binary(
     name = "make_bindings",
     srcs = ["make_bindings.sh"],
-    visibility = ["@rules_dx_rust//rust/tests/fixtures/consumer_native:__pkg__"],
+    visibility = ["//rust/tests/fixtures/consumer_native:__pkg__"],
 )
 
 genrule(
@@ -202,6 +202,10 @@ rust_binary(
     srcs = ["src/main.rs"],
     crate_root = "src/main.rs",
     edition = "2021",
+    visibility = [
+        "//:__subpackages__",
+        "@rules_dx//cc/tests/gcc_cross:__pkg__",
+    ],
     deps = [":native_call"],
 )
 

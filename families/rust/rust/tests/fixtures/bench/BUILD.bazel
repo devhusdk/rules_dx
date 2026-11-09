@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("//rust/rules:defs.bzl", "rust_bench")
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("@rules_dx//rust/rules:defs.bzl", "rust_bench")
 
 package(
     default_testonly = True,
@@ -20,11 +20,11 @@ sh_test(
     srcs = ["run_test.sh"],
     args = [
         "$(rootpath :parse_bench_bin)",
-        "$(rootpath //rust/rules/bench_report)",
+        "$(rootpath @rules_dx//rust/rules/bench_report)",
     ],
     data = [
         ":parse_bench_bin",
-        "//rust/rules/bench_report",
+        "@rules_dx//rust/rules/bench_report",
     ],
     timeout = "short",
 )

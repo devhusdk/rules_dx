@@ -1150,7 +1150,9 @@
         "rust",
         "third_party"
       ],
-      "extensions": [],
+      "extensions": [
+        "@rules_rust//crate_universe:extensions.bzl%crate"
+      ],
       "file_extensions": [
         ".rs"
       ],

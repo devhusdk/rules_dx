@@ -127,7 +127,7 @@ fn advisory(id: &str, name: &str) -> String {
 
 fn workspace() -> TempDir {
     let dir = tempfile::tempdir().expect("temp workspace");
-    let lock = dir.path().join("rust/tests/fixtures/hello/Cargo.lock");
+    let lock = dir.path().join("cc/context/Cargo.lock");
     std::fs::create_dir_all(lock.parent().expect("parent")).expect("creates");
     std::fs::write(&lock, b"version = 4\n").expect("writes");
     dir
@@ -819,7 +819,7 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 fn yanked_options(workspace: &TempDir, index: &TempDir) -> PrepareOptions {
     let lock = workspace
         .path()
-        .join("rust/tests/fixtures/hello/Cargo.lock");
+        .join("cc/context/Cargo.lock");
     std::fs::write(lock, LOCK).expect("writes the lock");
     let bad = index.path().join("3/b/bad");
     std::fs::create_dir_all(bad.parent().expect("parent")).expect("creates");

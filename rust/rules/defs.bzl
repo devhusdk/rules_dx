@@ -40,7 +40,6 @@ MSVC_OPT_LINK_FLAGS = [
     "-Clinker-flavor=lld-link",
     "-Clink-arg=/Brepro",
 ] + REPRODUCIBLE_PDB_LINK_FLAGS
-RUST_FUZZ_LIBFUZZER_SYS = Label("@crates//:libfuzzer-sys")
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
 _CRT_STATIC_FLAG = "-Ctarget-feature=+crt-static"
@@ -675,13 +674,13 @@ _FUZZ_RUSTC_FLAGS = [
     "-Zexternal-clangrt",
 ]
 
-def rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys = None, **kwargs):
+def rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys, **kwargs):
     """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     build, run = split_runner_kwargs(kwargs)
     rust_binary(
         name = name + "_bin",
         srcs = srcs,
-        deps = (deps or []) + [libfuzzer_sys or RUST_FUZZ_LIBFUZZER_SYS],
+        deps = (deps or []) + [libfuzzer_sys],
         rustc_flags = _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
         rustc_env = dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
         visibility = ["//visibility:private"],

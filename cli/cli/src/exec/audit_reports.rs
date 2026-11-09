@@ -82,11 +82,11 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
 
 fn write_demo_license(harness: &Harness, license: &str) {
     harness.write_source(
-        "rust/tests/fixtures/hello/Cargo.lock",
+        "cc/context/Cargo.lock",
         "[[package]]\nname = \"demo\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
     harness.write_source(
-        "rust/tests/fixtures/hello/cargo-bazel-lock.json",
+        "cargo-bazel-lock.json",
         &serde_json::json!({"packages": {"demo 1.0.0": {"license": license}}}).to_string(),
     );
 }
@@ -332,13 +332,13 @@ fn license_exceptions_only_approve_matching_current_findings() {
         &["license", "//rust/tests/fixtures/hello:demo"],
         &AuditRunner::clean(),
         &|h| {
-            h.write_source("rust/tests/fixtures/hello/cargo-bazel-lock.json", "{}");
-            h.write_source("rust/tests/fixtures/hello/Cargo.lock", "{");
+            h.write_source("cargo-bazel-lock.json", "{}");
+            h.write_source("cc/context/Cargo.lock", "{");
         },
     );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
-        err.contains("could not parse rust/tests/fixtures/hello/Cargo.lock"),
+        err.contains("could not parse cc/context/Cargo.lock"),
         "{err}"
     );
 }
@@ -867,7 +867,7 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     assert_eq!(license["rule"], serde_json::json!("license/AGPL-3.0-only"));
     assert_eq!(
         license["path"],
-        serde_json::json!("rust/tests/fixtures/hello/Cargo.lock")
+        serde_json::json!("cc/context/Cargo.lock")
     );
     let message = license["message"].as_str().expect("message");
     assert!(
@@ -918,7 +918,7 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
         .unwrap_or_else(|| panic!("no license line: {err}"));
     assert!(
         line.starts_with(
-            "rust/tests/fixtures/hello/Cargo.lock: error: demo@1.0.0 license AGPL-3.0-only"
+            "cc/context/Cargo.lock: error: demo@1.0.0 license AGPL-3.0-only"
         ),
         "{line}"
     );

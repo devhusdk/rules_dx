@@ -1739,10 +1739,9 @@ crate.annotation(
 )
 crate.from_cargo(
     name = "dx_crates",
-    cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
+    cargo_lockfile = "//cc/context:Cargo.lock",
     lockfile = "//:cargo-bazel-lock.json",
     manifests = [
-        "//rust/tests/fixtures/hello:Cargo.toml",
         "//cc/context:Cargo.toml",
         "//cli/process:Cargo.toml",
         "//cli/apply:Cargo.toml",
@@ -1838,9 +1837,6 @@ crate.from_cargo(
         "//tools/testing/starters:Cargo.toml",
         "//appimage/packer:Cargo.toml",
         "//qt/rust:Cargo.toml",
-        "//rust/tests/fixtures/native_call:Cargo.toml",
-        "//rust/tests/fixtures/fuzz:Cargo.toml",
-        "//rust/tests/fixtures/bench:Cargo.toml",
     ],
     supported_platform_triples = [
         "aarch64-apple-darwin",

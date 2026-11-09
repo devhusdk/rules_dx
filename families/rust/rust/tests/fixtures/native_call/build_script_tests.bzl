@@ -1,7 +1,7 @@
 """Analysis test for the C/C++ tool identity of cargo build script actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
+load("@rules_dx//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 
 def _relative(value):
     if value.startswith("${pwd}/"):
@@ -41,7 +41,7 @@ def _host_env_impl(ctx):
 # Not cross-compiling, so cc-rs adds HOST_*FLAGS on top of CFLAGS/CXXFLAGS.
 build_script_host_env_test = analysistest.make(_host_env_impl)
 
-_COMPILER = str(Label("//cc/toolchains:compiler"))
+_COMPILER = str(Label("@rules_dx//cc/toolchains:compiler"))
 _LINKER_PREFERENCE = str(Label("@rules_rust//rust/settings:toolchain_linker_preference"))
 
 def _run_action(env):
@@ -221,7 +221,7 @@ def build_script_compiler_tests(name, target):
 
 cross_build_script_tool_inputs_test = analysistest.make(
     _tool_inputs_test_impl,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64")), _COMPILER: "llvm"},
+    config_settings = {"//command_line_option:platforms": str(Label("@rules_dx//appimage/platforms:linux_arm64")), _COMPILER: "llvm"},
 )
 
 def _cross_gcc_impl(ctx):
@@ -260,7 +260,7 @@ def _cross_llvm_impl(ctx):
         asserts.false(env, "dx_gcc" in value, "{} is GCC under llvm: {}".format(name, value))
     return analysistest.end(env)
 
-_CROSS = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))}
+_CROSS = {"//command_line_option:platforms": str(Label("@rules_dx//appimage/platforms:linux_arm64"))}
 _cross_gcc_test = analysistest.make(_cross_gcc_impl, config_settings = dict(_CROSS, **{_COMPILER: "gcc"}))
 _cross_llvm_test = analysistest.make(_cross_llvm_impl, config_settings = dict(_CROSS, **{_COMPILER: "llvm"}))
 
@@ -520,7 +520,7 @@ def _absolute_tool_impl(ctx):
 
 _absolute_tool_test = analysistest.make(
     _absolute_tool_impl,
-    config_settings = {"//command_line_option:extra_toolchains": [str(Label("//cc/toolchains/external:fake_windows_cc_toolchain"))]},
+    config_settings = {"//command_line_option:extra_toolchains": [str(Label("@rules_dx//cc/toolchains/external:fake_windows_cc_toolchain"))]},
 )
 
 def build_script_absolute_tool_test(name, target):

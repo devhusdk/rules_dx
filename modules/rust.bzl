@@ -5,7 +5,6 @@ load(":versions.bzl", _RUST_VERSION = "RUST_VERSION")
 RUST_VERSION = _RUST_VERSION
 
 RUST_CRATE_MANIFESTS = [
-    "//rust/tests/fixtures/hello:Cargo.toml",
     "//cc/context:Cargo.toml",
     "//cli/process:Cargo.toml",
     "//cli/apply:Cargo.toml",
@@ -78,8 +77,7 @@ RUST_CRATE_MANIFESTS = [
     "//tools/testing:Cargo.toml",
     "//appimage/packer:Cargo.toml",
     "//qt/rust:Cargo.toml",
-    "//rust/tests/fixtures/native_call:Cargo.toml",
 ]
 
-CRATE_CARGO_LOCK = "//rust/tests/fixtures/hello:Cargo.lock"
+CRATE_CARGO_LOCK = "//cc/context:Cargo.lock"
 CRATE_BAZEL_LOCK = "//:cargo-bazel-lock.json"

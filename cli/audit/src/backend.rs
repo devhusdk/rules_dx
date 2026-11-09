@@ -88,7 +88,7 @@ pub fn plan_secrets(
 
 pub fn vuln_locks(set: &str) -> &'static [&'static str] {
     match set {
-        "cargo" => &["rust/tests/fixtures/hello/Cargo.lock"],
+        "cargo" => &["cc/context/Cargo.lock"],
         "npm" => &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
         "npm-adopt" => &["families/js/javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"],
         "npm-adopt-polyglot" => &["examples/adopt-polyglot/pnpm-lock.yaml"],
@@ -226,7 +226,7 @@ mod tests {
     fn vuln_locks_pin_per_set_coverage() {
         assert_eq!(
             vuln_locks("cargo"),
-            &["rust/tests/fixtures/hello/Cargo.lock"]
+            &["cc/context/Cargo.lock"]
         );
         assert_eq!(
             vuln_locks("npm"),

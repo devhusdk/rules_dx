@@ -23,7 +23,7 @@ cc_toolchain_files(
     srcs = [
         "//cc/tests/fixtures/hello:hello",
         ":hello_c",
-        "//rust/tests/fixtures/native_call:native_call_bin",
+        "@rules_dx_rust//rust/tests/fixtures/native_call:native_call_bin",
     ],
     compiler = "gcc",
     platforms = ["//cc/tests/gcc_cross:linux_arm64"],

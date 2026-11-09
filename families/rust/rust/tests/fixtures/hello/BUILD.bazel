@@ -1,12 +1,12 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_rust//rust:defs.bzl", "rust_lint_config")
-load("//deploy/rules:archive.bzl", "archive_deploy")
-load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_bench", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
-load("//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
-load("//rust/rules:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_lints_forward_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
-load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load("@rules_dx//deploy/rules:archive.bzl", "archive_deploy")
+load("@rules_dx//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_bench", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
+load("@rules_dx//rust/rules:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")
+load("@rules_dx//rust/rules:wrapper_tests.bzl", "dx_default_crate_name_tests", "dx_lints_forward_tests", "dx_native_coverage_tests", "dx_wrapper_conformance_tests", "dx_wrapper_registry_tests")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
@@ -222,7 +222,7 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":hello_lib",
-    data = ["//cc/tests/fixtures/hello"],
+    data = ["@rules_dx//cc/tests/fixtures/hello"],
     tags = ["manual"],
     deps = all_crate_deps(
         normal = True,
@@ -260,12 +260,13 @@ thin_compare_rust_tests(name = "thin_rust_test")
 archive_deploy(
     name = "release",
     app = ":hello",
+    testonly = True,
 )
 
 # keep
 rust_test(
     name = "release_verify",
-    srcs = ["//deploy/rules:verify_test.rs"],
+    srcs = ["@rules_dx//deploy/rules:verify_test.rs"],
     data = [
         ":release_archive",
         ":release_checksum",
@@ -278,7 +279,7 @@ rust_test(
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
 )
 
 real_source_target(

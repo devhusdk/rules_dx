@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_fuzz_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_fuzz_test")
 
 package(
     default_testonly = True,
@@ -11,6 +11,7 @@ rust_fuzz_test(
     name = "parse_fuzz",
     srcs = ["parse_fuzz.rs"],
     crate_root = "parse_fuzz.rs",
+    libfuzzer_sys = "@crates//:libfuzzer-sys",
 )
 
 sh_test(
@@ -19,7 +20,7 @@ sh_test(
     args = ["$(rootpath :parse_fuzz)"],
     data = [
         ":parse_fuzz",
-        "//libs/starlark:fuzz_run.sh",
+        "@rules_dx//libs/starlark:fuzz_run.sh",
     ],
     target_compatible_with = [
         "@platforms//cpu:x86_64",

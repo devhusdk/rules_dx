@@ -7,7 +7,7 @@ load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
-load(":defs.bzl", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS", "RUST_FUZZ_LIBFUZZER_SYS")
+load(":defs.bzl", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
 
 def dx_wrapper_registry_tests(name):
     """Instantiates Rust wrapper registry tests."""
@@ -30,12 +30,10 @@ def dx_wrapper_registry_tests(name):
                 "-Clink-arg=/pdbsourcepath:X:\\dx",
                 "-Clink-arg=/pdbaltpath:%_PDB%",
             ]),
-            expect_equal("fuzz libfuzzer-sys hub", RUST_FUZZ_LIBFUZZER_SYS.repo_name.endswith("dx_crates"), True),
-            expect_equal("fuzz libfuzzer-sys name", RUST_FUZZ_LIBFUZZER_SYS.name, "libfuzzer-sys"),
         ],
     )
 
-EXPECTED_OBSERVATIONS = """subject //rust/tests/fixtures/hello:hello_cdylib_subject
+EXPECTED_OBSERVATIONS = """subject rules_dx_rust+//rust/tests/fixtures/hello:hello_cdylib_subject
 file hello_cdylib_subject.txt
 field cargo_tool=cargo
 field cc_linker_inputs=2
@@ -43,7 +41,7 @@ field clippy_tool=clippy-driver
 field crate_edition=2024
 field crate_is_test=False
 field crate_name=hello_cdylib
-field crate_owner=//rust/tests/fixtures/hello:hello_cdylib_upstream
+field crate_owner=rules_dx_rust+//rust/tests/fixtures/hello:hello_cdylib_upstream
 field crate_root=cdylib.rs
 field crate_srcs=cdylib.rs
 field crate_type=cdylib
@@ -58,25 +56,25 @@ field preserved_type=True
 field rustc_tool=rustc
 field rustfmt_tool=rustfmt
 field tools_pinned=True
-field upstream=//rust/tests/fixtures/hello:hello_cdylib_upstream
+field upstream=rules_dx_rust+//rust/tests/fixtures/hello:hello_cdylib_upstream
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
-field wrapper=//rust/tests/fixtures/hello:hello_cdylib
+field wrapper=rules_dx_rust+//rust/tests/fixtures/hello:hello_cdylib
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 aspect_field aspect_seen=True
 aspect_field field_count=27
 aspect_field has_subject=True
-aspect_field subject_label=//rust/tests/fixtures/hello:hello_cdylib_subject
+aspect_field subject_label=rules_dx_rust+//rust/tests/fixtures/hello:hello_cdylib_subject
 aspect_field transitive_count=0
-subject //rust/tests/fixtures/hello:hello_derive_subject
+subject rules_dx_rust+//rust/tests/fixtures/hello:hello_derive_subject
 file hello_derive_subject.txt
 field cargo_tool=cargo
 field clippy_tool=clippy-driver
 field crate_edition=2024
 field crate_is_test=False
 field crate_name=hello_derive
-field crate_owner=//rust/tests/fixtures/hello:hello_derive_upstream
+field crate_owner=rules_dx_rust+//rust/tests/fixtures/hello:hello_derive_upstream
 field crate_root=derive.rs
 field crate_srcs=derive.rs
 field crate_type=proc-macro
@@ -90,25 +88,25 @@ field preserved_type=True
 field rustc_tool=rustc
 field rustfmt_tool=rustfmt
 field tools_pinned=True
-field upstream=//rust/tests/fixtures/hello:hello_derive_upstream
+field upstream=rules_dx_rust+//rust/tests/fixtures/hello:hello_derive_upstream
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
-field wrapper=//rust/tests/fixtures/hello:hello_derive
+field wrapper=rules_dx_rust+//rust/tests/fixtures/hello:hello_derive
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 aspect_field aspect_seen=True
 aspect_field field_count=25
 aspect_field has_subject=True
-aspect_field subject_label=//rust/tests/fixtures/hello:hello_derive_subject
+aspect_field subject_label=rules_dx_rust+//rust/tests/fixtures/hello:hello_derive_subject
 aspect_field transitive_count=0
-subject //rust/tests/fixtures/hello:hello_lib_subject
+subject rules_dx_rust+//rust/tests/fixtures/hello:hello_lib_subject
 file hello_lib_subject.txt
 field cargo_tool=cargo
 field clippy_tool=clippy-driver
 field crate_edition=2021
 field crate_is_test=False
 field crate_name=hello
-field crate_owner=//rust/tests/fixtures/hello:hello_lib_upstream
+field crate_owner=rules_dx_rust+//rust/tests/fixtures/hello:hello_lib_upstream
 field crate_root=lib.rs
 field crate_srcs=lib.rs
 field crate_type=rlib
@@ -122,18 +120,18 @@ field preserved_type=True
 field rustc_tool=rustc
 field rustfmt_tool=rustfmt
 field tools_pinned=True
-field upstream=//rust/tests/fixtures/hello:hello_lib_upstream
+field upstream=rules_dx_rust+//rust/tests/fixtures/hello:hello_lib_upstream
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
-field wrapper=//rust/tests/fixtures/hello:hello_lib
+field wrapper=rules_dx_rust+//rust/tests/fixtures/hello:hello_lib
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 aspect_field aspect_seen=True
 aspect_field field_count=25
 aspect_field has_subject=True
-aspect_field subject_label=//rust/tests/fixtures/hello:hello_lib_subject
+aspect_field subject_label=rules_dx_rust+//rust/tests/fixtures/hello:hello_lib_subject
 aspect_field transitive_count=0
-subject //rust/tests/fixtures/hello:hello_staticlib_subject
+subject rules_dx_rust+//rust/tests/fixtures/hello:hello_staticlib_subject
 file hello_staticlib_subject.txt
 field cargo_tool=cargo
 field cc_linker_inputs=2
@@ -141,7 +139,7 @@ field clippy_tool=clippy-driver
 field crate_edition=2024
 field crate_is_test=False
 field crate_name=hello_staticlib
-field crate_owner=//rust/tests/fixtures/hello:hello_staticlib_upstream
+field crate_owner=rules_dx_rust+//rust/tests/fixtures/hello:hello_staticlib_upstream
 field crate_root=staticlib.rs
 field crate_srcs=staticlib.rs
 field crate_type=staticlib
@@ -156,25 +154,25 @@ field preserved_type=True
 field rustc_tool=rustc
 field rustfmt_tool=rustfmt
 field tools_pinned=True
-field upstream=//rust/tests/fixtures/hello:hello_staticlib_upstream
+field upstream=rules_dx_rust+//rust/tests/fixtures/hello:hello_staticlib_upstream
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
-field wrapper=//rust/tests/fixtures/hello:hello_staticlib
+field wrapper=rules_dx_rust+//rust/tests/fixtures/hello:hello_staticlib
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 aspect_field aspect_seen=True
 aspect_field field_count=27
 aspect_field has_subject=True
-aspect_field subject_label=//rust/tests/fixtures/hello:hello_staticlib_subject
+aspect_field subject_label=rules_dx_rust+//rust/tests/fixtures/hello:hello_staticlib_subject
 aspect_field transitive_count=0
-subject //rust/tests/fixtures/hello:hello_subject
+subject rules_dx_rust+//rust/tests/fixtures/hello:hello_subject
 file hello_subject.txt
 field cargo_tool=cargo
 field clippy_tool=clippy-driver
 field crate_edition=2021
 field crate_is_test=False
 field crate_name=hello
-field crate_owner=//rust/tests/fixtures/hello:hello_upstream
+field crate_owner=rules_dx_rust+//rust/tests/fixtures/hello:hello_upstream
 field crate_root=main.rs
 field crate_srcs=main.rs
 field crate_type=bin
@@ -188,25 +186,25 @@ field preserved_type=True
 field rustc_tool=rustc
 field rustfmt_tool=rustfmt
 field tools_pinned=True
-field upstream=//rust/tests/fixtures/hello:hello_upstream
+field upstream=rules_dx_rust+//rust/tests/fixtures/hello:hello_upstream
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
-field wrapper=//rust/tests/fixtures/hello:hello
+field wrapper=rules_dx_rust+//rust/tests/fixtures/hello:hello
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 aspect_field aspect_seen=True
 aspect_field field_count=25
 aspect_field has_subject=True
-aspect_field subject_label=//rust/tests/fixtures/hello:hello_subject
+aspect_field subject_label=rules_dx_rust+//rust/tests/fixtures/hello:hello_subject
 aspect_field transitive_count=0
-subject //rust/tests/fixtures/hello:hello_test_subject
+subject rules_dx_rust+//rust/tests/fixtures/hello:hello_test_subject
 file hello_test_subject.txt
 field cargo_tool=cargo
 field clippy_tool=clippy-driver
 field crate_edition=2021
 field crate_is_test=True
 field crate_name=hello
-field crate_owner=//rust/tests/fixtures/hello:hello_test_upstream
+field crate_owner=rules_dx_rust+//rust/tests/fixtures/hello:hello_test_upstream
 field crate_root=lib.rs
 field crate_srcs=lib.rs
 field crate_type=bin
@@ -220,16 +218,16 @@ field preserved_type=True
 field rustc_tool=rustc
 field rustfmt_tool=rustfmt
 field tools_pinned=True
-field upstream=//rust/tests/fixtures/hello:hello_test_upstream
+field upstream=rules_dx_rust+//rust/tests/fixtures/hello:hello_test_upstream
 field upstream_has_instrumented_files=True
 field upstream_has_quality_sources=False
-field wrapper=//rust/tests/fixtures/hello:hello_test
+field wrapper=rules_dx_rust+//rust/tests/fixtures/hello:hello_test
 field wrapper_has_instrumented_files=True
 field wrapper_has_quality_sources=True
 aspect_field aspect_seen=True
 aspect_field field_count=25
 aspect_field has_subject=True
-aspect_field subject_label=//rust/tests/fixtures/hello:hello_test_subject
+aspect_field subject_label=rules_dx_rust+//rust/tests/fixtures/hello:hello_test_subject
 aspect_field transitive_count=0"""
 
 def dx_wrapper_conformance_tests(name, subjects):

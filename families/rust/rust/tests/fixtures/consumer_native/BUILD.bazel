@@ -11,8 +11,8 @@ genrule(
     name = "consumer_bindings",
     srcs = ["@consumer_native//:native.h"],
     outs = ["bindings.rs"],
-    cmd = "$(location @rules_dx//rust/tests/fixtures/native_call:make_bindings) $(location @consumer_native//:native.h) $@ consumer_add consumer_offset",
-    tools = ["@rules_dx//rust/tests/fixtures/native_call:make_bindings"],
+    cmd = "$(location //rust/tests/fixtures/native_call:make_bindings) $(location @consumer_native//:native.h) $@ consumer_add consumer_offset",
+    tools = ["//rust/tests/fixtures/native_call:make_bindings"],
 )
 
 cargo_build_script(

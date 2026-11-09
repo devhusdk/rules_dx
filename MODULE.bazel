@@ -1759,7 +1759,6 @@ crate.annotation(
     repositories = ["dx_crates"],
     version = "0.5.3",
 )
-
 crate.annotation(
     additive_build_file_content = """filegroup(
     name = "cxx_qt_runtime_files",

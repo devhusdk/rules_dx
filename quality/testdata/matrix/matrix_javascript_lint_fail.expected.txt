@@ -5,7 +5,7 @@ stage biome classes=javascript sources=quality/testdata/real_dirty.js
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING biome lint/correctness/noUnusedVariables quality/testdata/real_dirty.js 43 49 fixable=false "This variable unused is unused."
+initial ERROR biome lint/correctness/noUnusedVariables quality/testdata/real_dirty.js 43 49 fixable=false "This variable unused is unused."
 terminal 1
-terminal WARNING biome lint/correctness/noUnusedVariables quality/testdata/real_dirty.js 43 49 fixable=false "This variable unused is unused."
+terminal ERROR biome lint/correctness/noUnusedVariables quality/testdata/real_dirty.js 43 49 fixable=false "This variable unused is unused."
 replacements 0

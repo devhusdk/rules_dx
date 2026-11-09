@@ -1,6 +1,5 @@
 package dx.docs.scaladoc
 
-import dx.docs.jvm.ApiRecordWriter
 import dx.docs.jvm.ApiRecordWriter.{Param, Returns, Symbol}
 import java.nio.file.Paths
 import scala.collection.mutable

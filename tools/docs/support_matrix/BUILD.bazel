@@ -1,4 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//python/rules:defs.bzl", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -101,6 +102,18 @@ rust_binary(
         package_name = "tools/docs/support_matrix",
         normal = True,
     ) + [":support_matrix"],
+)
+
+python_test(
+    name = "macro_rows_test",
+    srcs = ["macro_rows.py"],
+    data = [":languages.bzl"],
+    main = "macro_rows.py",
+    runner = "plain",
+    tags = [
+        "local",
+        "no-sandbox",
+    ],
 )
 
 real_source_target(

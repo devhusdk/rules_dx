@@ -19,13 +19,13 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | C and C++ | none | `conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set | `cc_bench` | `cc_fuzz_test` |
 | C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` |
 | CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a |
-| D | none | `dub` (pinned, no advisories) | n/a | n/a |
-| Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | n/a | n/a |
-| Elixir | none | `hex` | n/a | n/a |
-| Erlang | none | `hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it | n/a | n/a |
+| D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` |
+| Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a |
+| Elixir | none | `hex` | `elixir_bench` | n/a |
+| Erlang | none | `hex` from `mix.lock`; none for `rebar.lock`: `dx update` does not refresh it | `erlang_bench` | n/a |
 | Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a |
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | none: no package manager | n/a | n/a |
-| F# | none | `nuget` | `fsharp_bench` | n/a |
+| F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` |
 | Go | none | `go` | `go_bench` | `go_fuzz_test` |
 | Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`: only cabal has a set | `haskell_bench` | n/a |
 | Java | none | `maven` | `java_bench` | `java_fuzz_test` |
@@ -34,13 +34,13 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` |
 | Lua | none | none: no LuaRocks support, rockspec packages are pinned with `http_archive` | n/a | n/a |
 | MDX | none | `npm` | n/a | n/a |
-| OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` | n/a | n/a |
-| Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build | `cpan` | n/a | n/a |
-| PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build | `packagist` | n/a | n/a |
+| OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` | n/a | `ocaml_fuzz_test` |
+| Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build | `cpan` | `perl_bench` | n/a |
+| PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build | `packagist` | `php_bench` | n/a |
 | PowerShell | none | `powershell` (pinned, no advisories) | n/a | n/a |
 | Protobuf | none | none: schemas only, no packages | n/a | n/a |
 | Python | none | `uv`; none for `poetry.lock` and `Pipfile.lock`: uv is the supported manager | `python_bench` | `python_fuzz_test` |
-| Ruby | none | `ruby` | n/a | n/a |
+| Ruby | none | `ruby` | `ruby_bench` | n/a |
 | Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` |
 | Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` |
 | Svelte | none | `npm` | n/a | n/a |

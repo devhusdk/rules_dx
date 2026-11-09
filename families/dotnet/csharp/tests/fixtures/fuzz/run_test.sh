@@ -1,9 +1,9 @@
 #!/bin/sh
 set -eu
 
-run=./libs/starlark/fuzz_run.sh
 driver="$1"
 harness="$2"
+run="$3"
 
 out="$TEST_TMPDIR/out"
 status=0

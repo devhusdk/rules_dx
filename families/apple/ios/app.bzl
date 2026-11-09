@@ -11,8 +11,7 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//bundle:defs.bzl", "SIGNING_CERTIFICATE", "TOOL_PATH", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
-load("//bundle:validate.bzl", "bundle_id_errors", "bundle_platform_errors", "bundle_version_errors")
-load("//provisioning:validate.bzl", "provisioning_version_below")
+load("//bundle:validate.bzl", "bundle_platform_errors")
 load(
     ":cell.bzl",
     "APPLE_HOSTS",
@@ -23,7 +22,8 @@ load(
     "target_cell",
 )
 load(":defs.bzl", "AppleIosLibInfo", "ios_platforms", "split_platform")
-load(":validate.bzl", "ios_arch_errors", "ios_arches", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_sdk_for", "ios_xcode_errors")
+load(":app_validate.bzl", "ios_app_errors", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
+load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -69,109 +69,11 @@ _FRAMEWORK_INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 """
 
-def app_resource_errors(resources):
-    """Returns one error string per empty app resource name."""
-    errors = []
-    for resource in resources:
-        if resource == "":
-            errors.append("apple_app: resource names must not be empty")
-    return errors
-
-def entitlement_errors(entitlements):
-    """Returns one error string when the entitlements path leaves its contract."""
-    if entitlements == "":
-        return []
-    if entitlements.endswith(".entitlements"):
-        return []
-    return ["apple_app: entitlements '" + entitlements + "' must be an .entitlements file"]
-
-def signing_errors(environment, provisioning_profile):
-    """Returns one error string per rejected app signing selection."""
-    if environment == "device":
-        if provisioning_profile == "":
-            return ["apple_app: device builds need provisioning_profile, a .mobileprovision file"]
-        if not provisioning_profile.endswith(".mobileprovision"):
-            return ["apple_app: provisioning_profile '" + provisioning_profile + "' must be a .mobileprovision file"]
-        return []
-    if provisioning_profile != "":
-        return ["apple_app: simulator builds sign ad hoc; leave provisioning_profile empty"]
-    return []
-
-def entry_errors(srcs, entry):
-    """Returns one error string unless exactly one of srcs or entry names the app entry point."""
-    if len(srcs) == 0 and entry == "":
-        return ["apple_app: srcs needs the native entry point that calls UIApplicationMain, or entry names a Swift @main module"]
-    if len(srcs) > 0 and entry != "":
-        return ["apple_app: set srcs or entry for the app entry point, not both"]
-    return []
-
-def test_source_errors(srcs, deps):
-    """Returns one error string when a test has neither native sources nor test modules."""
-    if len(srcs) == 0 and len(deps) == 0:
-        return ["apple_app_test: srcs or deps needs the XCTest cases"]
-    return []
-
-def default_app(environment):
-    """Returns the default simulator application composition for one environment."""
-    return struct(
-        arch = "arm64",
-        bundle_id = "",
-        deployment = "",
-        entitlements = "",
-        entry = "",
-        environment = environment,
-        frameworks = [],
-        library = "",
-        provisioning_profile = "",
-        resources = [],
-        srcs = [],
-        version = "",
-        xcode_version = "",
-    )
-
-def app_errors(config):
-    """Returns one error string per rejected field of one app composition."""
-    errors = list(ios_environment_errors(config.environment))
-    errors.extend(ios_arch_errors(config.environment, config.arch))
-    if config.deployment == "":
-        errors.append("apple_app: deployment names the minimum iOS version")
-    errors.extend(ios_deployment_errors(config.environment, config.deployment))
-    errors.extend(ios_xcode_errors(config.xcode_version))
-    errors.extend(bundle_id_errors("apple_app", config.bundle_id))
-    errors.extend(bundle_version_errors("apple_app", config.version))
-    errors.extend(app_resource_errors(config.resources))
-    errors.extend(entitlement_errors(config.entitlements))
-    errors.extend(signing_errors(config.environment, config.provisioning_profile))
-    errors.extend(entry_errors(config.srcs, config.entry))
-    if config.library == "" and len(config.frameworks) == 0 and config.entry == "":
-        errors.append("apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks, or a Swift @main module in entry")
-    return errors
-
-def test_errors(device_type, os_version, deployment):
-    """Returns one error string per rejected simulator test selection."""
-    errors = []
-    if device_type == "":
-        errors.append("apple_app_test: device_type names the simulator device, like 'iPhone 16'")
-    if os_version == "":
-        errors.append("apple_app_test: os_version names the installed simulator runtime, like '18.5'")
-    else:
-        for part in os_version.split("."):
-            if part == "" or not part.isdigit():
-                errors.append("apple_app_test: os_version '" + os_version + "' is not a dotted version")
-                break
-    if deployment == "":
-        errors.append("apple_app_test: deployment names the minimum iOS version of the host app")
-    else:
-        errors.extend(ios_deployment_errors("simulator", deployment))
-        if len(errors) == 0 and provisioning_version_below(os_version, deployment):
-            errors.append("apple_app_test: simulator runtime iOS " + os_version + " is below the app deployment " + deployment)
-    return errors
-
 def _app_selection_impl(ctx):
     selected = bundle_platform_errors("apple_ios_app", list(ctx.attr.platforms), ios_platforms())
     if len(selected) > 0:
         fail("; ".join(selected))
-    failures = app_errors(struct(
+    failures = ios_app_errors(struct(
         arch = ctx.attr.arch,
         bundle_id = ctx.attr.bundle_id,
         deployment = ctx.attr.deployment,
@@ -621,8 +523,8 @@ def apple_ios_app(
     )
 
 def _test_selection_impl(ctx):
-    failures = test_errors(ctx.attr.device_type, ctx.attr.os_version, ctx.attr.deployment)
-    failures.extend(test_source_errors(ctx.attr.srcs, ctx.attr.dep_labels))
+    failures = ios_test_errors(ctx.attr.device_type, ctx.attr.os_version, ctx.attr.deployment)
+    failures.extend(ios_test_source_errors(ctx.attr.srcs, ctx.attr.dep_labels))
     if len(failures) > 0:
         fail("; ".join(failures))
     return [CcInfo()]
@@ -713,99 +615,8 @@ def apple_ios_app_test(
         **kwargs
     )
 
-def slice_errors(slices):
-    """Returns one error string per rejected framework slice selection."""
-    if len(slices) == 0:
-        return ["apple_framework: framework needs at least one 'environment/arch' platform"]
-    errors = []
-    seen = {}
-    has_device = False
-    has_simulator = False
-    for slice in slices:
-        if slice in seen:
-            errors.append("apple_framework: duplicate platform '" + slice + "'")
-            continue
-        seen[slice] = True
-        parts = slice.split("/")
-        if len(parts) != 2 or parts[0] == "" or parts[1] == "":
-            errors.append("apple_framework: platform '" + slice + "' is not 'environment/arch'")
-            continue
-        environment = parts[0]
-        arch = parts[1]
-        if environment not in ios_environments():
-            errors.append("apple_framework: unknown environment '" + environment + "' in platform '" + slice + "': want " + ", ".join(ios_environments()))
-            continue
-        if arch not in ios_arches(environment):
-            errors.append("apple_framework: arch '" + arch + "' is outside " + environment + " in platform '" + slice + "': want " + ", ".join(ios_arches(environment)))
-            continue
-        if environment == "device":
-            has_device = True
-        else:
-            has_simulator = True
-    if not has_device:
-        errors.append("apple_framework: framework needs the device/arm64 platform")
-    if not has_simulator:
-        errors.append("apple_framework: framework needs at least one simulator platform")
-    return errors
-
-def framework_resource_errors(resources):
-    """Returns one error string per empty or absolute framework resource path."""
-    errors = []
-    for resource in resources:
-        if resource == "":
-            errors.append("apple_framework: resource names must not be empty")
-        elif resource.startswith("/"):
-            errors.append("apple_framework: resource '" + resource + "' must be a relative workspace path")
-    return errors
-
-def framework_header_errors(hdrs):
-    """Returns one error string when no public header is given."""
-    if len(hdrs) == 0:
-        return ["apple_framework: hdrs needs at least one public header for the framework module map"]
-    return []
-
-def framework_header_name_errors(names, module):
-    """Returns one error string per non-header or umbrella-clashing public header file."""
-    errors = []
-    umbrella = module + ".h"
-    for name in names:
-        if not name.endswith(".h"):
-            errors.append("apple_framework: public header '" + name + "' must be a .h file")
-        elif name.lower() == umbrella.lower():
-            errors.append("apple_framework: public header '" + name + "' clashes with the umbrella header " + umbrella)
-    return errors
-
-def default_framework():
-    """Returns the default embeddable framework composition."""
-    return struct(
-        bundle_id = "",
-        bundle_name = "",
-        deployment = "",
-        hdrs = [],
-        library = "",
-        resources = [],
-        slices = [],
-        version = "",
-        xcode_version = "",
-    )
-
-def framework_errors(config):
-    """Returns one error string per rejected field of one framework composition."""
-    errors = list(bundle_id_errors("apple_framework", config.bundle_id))
-    errors.extend(bundle_version_errors("apple_framework", config.version))
-    errors.extend(slice_errors(config.slices))
-    errors.extend(framework_resource_errors(config.resources))
-    errors.extend(framework_header_errors(config.hdrs))
-    if config.deployment == "":
-        errors.append("apple_framework: deployment names the minimum iOS version")
-    errors.extend(ios_deployment_errors("device", config.deployment))
-    errors.extend(ios_xcode_errors(config.xcode_version))
-    if config.library == "":
-        errors.append("apple_framework: framework composes one Rust static library in library")
-    return errors
-
 def _framework_selection_impl(ctx):
-    failures = framework_errors(struct(
+    failures = ios_xcframework_errors(struct(
         bundle_id = ctx.attr.bundle_id,
         bundle_name = ctx.attr.bundle_name,
         deployment = ctx.attr.deployment,
@@ -884,7 +695,7 @@ def _xcframework_check_impl(ctx):
         "\n".join(flat_resources(ctx.files.resources)),
     ])
     header_names = sorted([header.basename for header in ctx.files.hdrs])
-    header_failures = framework_header_name_errors(header_names, ctx.attr.bundle_name)
+    header_failures = ios_xcframework_header_name_errors(header_names, ctx.attr.bundle_name)
     if len(header_failures) > 0:
         fail("; ".join(header_failures))
     args.add_all(header_names)

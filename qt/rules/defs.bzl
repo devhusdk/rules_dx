@@ -23,15 +23,8 @@ load("//qt/sdk:needs.bzl", "QtNeedsInfo")
 load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES", "QT_VERSION", "RUNTIME_PLUGINS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":providers.bzl", "QtInfo")
 load(":validate.bzl", "qt_uri_error")
-
-QtInfo = provider(
-    doc = "Qt metadata one Qt target exports to its dependents.",
-    fields = {
-        "metatypes": "depset[File]: collected moc JSON of the target and its deps.",
-        "translations": "depset[str]: 'stem=label' of every translation the target and its deps embed.",
-    },
-)
 
 QT_REPOSITORY = "@dx_qt"
 

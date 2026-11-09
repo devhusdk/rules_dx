@@ -1,7 +1,8 @@
 """Analysis tests for avro_library."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load(":defs.bzl", "AvroInfo", "avro_library")
+load(":defs.bzl", "avro_library")
+load(":providers.bzl", "AvroInfo")
 
 def _closure_impl(ctx):
     env = analysistest.begin(ctx)

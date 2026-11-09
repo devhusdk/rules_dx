@@ -16,6 +16,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "app.bzl",
     "app_tests.bzl",
+    "app_validate.bzl",
     "cell.bzl",
     "create_test_simulator.sh",
     "defs.bzl",
@@ -181,6 +182,7 @@ real_source_target(
         "BUILD.bazel",
         "app.bzl",
         "app_tests.bzl",
+        "app_validate.bzl",
         "cell.bzl",
         "defs.bzl",
         "device.bzl",

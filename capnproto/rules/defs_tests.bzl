@@ -1,7 +1,8 @@
 """Analysis tests for capnp_library."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load(":defs.bzl", "CapnpInfo", "capnp_library", "std_import_path")
+load(":defs.bzl", "capnp_library", "std_import_path")
+load(":providers.bzl", "CapnpInfo")
 
 def _closure_impl(ctx):
     env = analysistest.begin(ctx)

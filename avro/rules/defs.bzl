@@ -1,17 +1,7 @@
 """Apache Avro schema ownership for dx quality."""
 
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
-
-AvroInfo = provider(
-    doc = "Avro schemas of one library and its transitive dependencies.",
-    fields = {
-        "label": "Label: the avro_library target.",
-        "direct_deps": "List[Label]: avro_library dependencies.",
-        "direct_srcs": "List[File]: schemas owned by this library.",
-        "transitive_srcs": "depset[File]: schemas of this library and every dependency.",
-        "import_root": "str: directory imports resolve from, the workspace root.",
-    },
-)
+load(":providers.bzl", "AvroInfo")
 
 def _avro_library_impl(ctx):
     direct = ctx.files.srcs

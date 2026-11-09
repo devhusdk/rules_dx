@@ -31,7 +31,7 @@
     },
     "FamilyConfig": {
       "additionalProperties": false,
-      "description": "Replaces the curated tools of one family. A capability left out keeps the curated tools.",
+      "description": "Changes the curated tools of one family. A capability left out keeps the curated tools.\nA list replaces them, unless every entry starts with `+` or `-`: then it adds or removes\nthose tools, as in `lint = [\"+cppcheck\", \"-typos\"]`.",
       "properties": {
         "audit": {
           "default": null,
@@ -150,6 +150,14 @@
     },
     "scope": {
       "$ref": "#/definitions/Scope"
+    },
+    "skip_tools": {
+      "default": [],
+      "description": "Tools dropped from every family, for example `[\"typos\"]`.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
     },
     "tier": {
       "anyOf": [

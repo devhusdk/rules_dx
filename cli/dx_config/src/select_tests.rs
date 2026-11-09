@@ -116,3 +116,42 @@ fn two_owners_of_one_concern_are_rejected() {
     );
     assert!(text.contains("`lint`"), "{text}");
 }
+
+#[test]
+fn skip_tools_drops_a_tool_everywhere() {
+    let config = parse("schema_version = 1\nskip_tools = [\"typos\"]\n").unwrap();
+    let selection = effective(Some(&config)).unwrap();
+    assert!(
+        selection
+            .families
+            .values()
+            .all(|family| !family.lint.iter().any(|tool| tool == "typos"))
+    );
+    assert_eq!(selection.families["rust"].format, ["rustfmt"]);
+}
+
+#[test]
+fn plus_and_minus_edit_the_curated_list() {
+    let curated = effective(None).unwrap().families["cc"].lint.clone();
+    assert!(curated.iter().any(|tool| tool == "typos"));
+    let config = parse(
+        "schema_version = 1\n[families.cc]\nlint = [\"+cppcheck\", \"-clang_tidy\"]\n",
+    )
+    .unwrap();
+    let lint = effective(Some(&config)).unwrap().families["cc"].lint.clone();
+    let mut expected: Vec<String> = curated.into_iter().filter(|tool| tool != "clang_tidy").collect();
+    expected.push("cppcheck".to_owned());
+    assert_eq!(lint, expected);
+}
+
+#[test]
+fn mixed_edits_and_unknown_skips_are_rejected() {
+    assert!(matches!(
+        problem("schema_version = 1\n[families.cc]\nlint = [\"+cppcheck\", \"typos\"]\n"),
+        SelectionProblem::MixedEdit { .. }
+    ));
+    assert!(matches!(
+        problem("schema_version = 1\nskip_tools = [\"nope\"]\n"),
+        SelectionProblem::UnknownTool { .. }
+    ));
+}

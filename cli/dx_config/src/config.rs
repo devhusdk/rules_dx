@@ -31,6 +31,9 @@ pub struct DxConfig {
     /// The tier for every family that does not set its own.
     #[serde(default, rename = "tier")]
     pub profile: Option<Profile>,
+    /// Tools dropped from every family, for example `["typos"]`.
+    #[serde(default)]
+    pub skip_tools: Vec<String>,
     /// Per-family overrides, keyed by family id.
     #[serde(default)]
     pub families: BTreeMap<String, FamilyConfig>,
@@ -67,7 +70,9 @@ pub enum CommitsPolicy {
     Conventional,
 }
 
-/// Replaces the curated tools of one family. A capability left out keeps the curated tools.
+/// Changes the curated tools of one family. A capability left out keeps the curated tools.
+/// A list replaces them, unless every entry starts with `+` or `-`: then it adds or removes
+/// those tools, as in `lint = ["+cppcheck", "-typos"]`.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FamilyConfig {

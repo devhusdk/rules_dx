@@ -67,6 +67,7 @@ exclude = ["//third_party/..."]
 |---|---|---|---|
 | `schema_version` | integer | none | Must be `1`. |
 | `tier` | string | `"standard"` | `standard` or `strict`. The tier for every family that does not set its own, and for `security.toml` and `licenses.toml`. |
+| `skip_tools` | array of strings | `[]` | Tool ids dropped from every family, such as `["typos"]`. An unknown id fails the run. |
 | `families` | table | empty | Per-family settings, keyed by family id. An unknown id fails the run. |
 | `scope` | table | empty | What dx leaves out. |
 | `large_files` | table | empty | See below. |
@@ -86,6 +87,9 @@ curated tools; see [Default tools](quality.md#default-tools).
 | `audit` | array of strings | curated | Tool ids that audit the family. |
 | `disabled` | boolean | `false` | Turns the whole family off. |
 
+A list replaces the curated tools. A list whose entries all start with `+` or `-`
+edits the curated tools instead, so later additions to the curated set still
+reach you: `lint = ["+cppcheck", "-typos"]`. Mixing the two forms fails the run.
 An unknown tool id fails the run.
 
 ### dx.toml `[scope]`

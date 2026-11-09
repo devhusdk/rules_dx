@@ -72,6 +72,11 @@ pub enum SelectionProblem {
         hint: Option<String>,
     },
     #[error(
+        "family `{family}` mixes `+`/`-` entries with plain tool names in `{tool}`; \
+         use either a full list or only `+tool` and `-tool` entries"
+    )]
+    MixedEdit { family: String, tool: String },
+    #[error(
         "family `{family}` gives class `{class}` two owners for `{concern}`: `{first}` and `{second}`; \
          select one of them"
     )]
@@ -133,35 +138,72 @@ fn owned(tools: &[&str]) -> Vec<String> {
     tools.iter().map(|tool| (*tool).to_owned()).collect()
 }
 
+fn check_known(family: &str, tool: &str) -> Result<(), SelectionProblem> {
+    if TOOLS.contains(&tool) {
+        return Ok(());
+    }
+    Err(SelectionProblem::UnknownTool {
+        family: family.to_owned(),
+        tool: tool.to_owned(),
+        hint: closest(tool, TOOLS.iter().copied()),
+    })
+}
+
+fn pick(
+    family: &str,
+    own: &Option<Vec<String>>,
+    base: &[&str],
+    skip: &[String],
+) -> Result<Vec<String>, SelectionProblem> {
+    let Some(tools) = own else {
+        let mut tools = owned(base);
+        tools.retain(|tool| !skip.contains(tool));
+        return Ok(tools);
+    };
+    let edits = tools
+        .iter()
+        .filter(|tool| tool.starts_with(['+', '-']))
+        .count();
+    let mut picked = if edits == 0 {
+        tools.clone()
+    } else if edits == tools.len() {
+        let mut picked = owned(base);
+        for edit in tools {
+            check_known(family, &edit[1..])?;
+            picked.retain(|tool| *tool != edit[1..]);
+            if edit.starts_with('+') {
+                picked.push(edit[1..].to_owned());
+            }
+        }
+        picked
+    } else {
+        return Err(SelectionProblem::MixedEdit {
+            family: family.to_owned(),
+            tool: tools.join(", "),
+        });
+    };
+    for tool in &picked {
+        check_known(family, tool)?;
+    }
+    picked.retain(|tool| !skip.contains(tool));
+    Ok(picked)
+}
+
 fn apply(
     curated: &CuratedFamily,
     root: Profile,
     over: Option<&FamilyConfig>,
+    skip: &[String],
 ) -> Result<FamilySelection, SelectionProblem> {
-    let pick =
-        |own: &Option<Vec<String>>, base: &[&str]| -> Result<Vec<String>, SelectionProblem> {
-            let Some(tools) = own else {
-                return Ok(owned(base));
-            };
-            for tool in tools {
-                if !TOOLS.contains(&tool.as_str()) {
-                    return Err(SelectionProblem::UnknownTool {
-                        family: curated.id.to_owned(),
-                        tool: tool.clone(),
-                        hint: closest(tool, TOOLS.iter().copied()),
-                    });
-                }
-            }
-            Ok(tools.clone())
-        };
     let none = FamilyConfig::default();
     let over = over.unwrap_or(&none);
+    let id = curated.id;
     Ok(FamilySelection {
         profile: over.profile.unwrap_or(root),
-        lint: pick(&over.lint, curated.lint)?,
-        format: pick(&over.format, curated.format)?,
-        typecheck: pick(&over.typecheck, curated.typecheck)?,
-        audit: pick(&over.audit, curated.audit)?,
+        lint: pick(id, &over.lint, curated.lint, skip)?,
+        format: pick(id, &over.format, curated.format, skip)?,
+        typecheck: pick(id, &over.typecheck, curated.typecheck, skip)?,
+        audit: pick(id, &over.audit, curated.audit, skip)?,
     })
 }
 
@@ -169,6 +211,10 @@ fn apply(
 /// curated tools at the standard tier.
 pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProblem> {
     let root = config.and_then(|config| config.profile).unwrap_or_default();
+    let skip = config.map(|config| config.skip_tools.as_slice()).unwrap_or(&[]);
+    for tool in skip {
+        check_known("skip_tools", tool)?;
+    }
     if let Some(config) = config {
         for id in config.families.keys() {
             let known = FAMILIES.iter().map(|family| family.id);
@@ -198,7 +244,7 @@ pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProble
         });
     for curated in FAMILIES.iter().copied().chain(opt_in) {
         let over = config.and_then(|config| config.families.get(curated.id));
-        let selection = apply(&curated, root, over)?;
+        let selection = apply(&curated, root, over, skip)?;
         if over.is_some_and(|over| over.disabled) {
             disabled.insert(curated.id.to_owned());
         } else {

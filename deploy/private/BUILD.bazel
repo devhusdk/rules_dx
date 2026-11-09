@@ -45,6 +45,8 @@ load(":oci.bzl", "oci_deploy")
 load(":oci_tests.bzl", "oci_layout_fixture", "oci_unit_tests")
 load(":octopus.bzl", "octopus_deploy")
 load(":octopus_tests.bzl", "octopus_unit_tests")
+load(":opam.bzl", "opam_deploy")
+load(":opam_tests.bzl", "opam_unit_tests")
 load(":packagist.bzl", "packagist_deploy")
 load(":packagist_tests.bzl", "packagist_unit_tests")
 load(":pub.bzl", "pub_deploy")
@@ -83,6 +85,8 @@ exports_files([
     "go_sdk.bzl",
     "hackage.bzl",
     "hackage_tests.bzl",
+    "opam.bzl",
+    "opam_tests.bzl",
     "helm.bzl",
     "helm_tests.bzl",
     "hex.bzl",
@@ -144,6 +148,7 @@ exports_files([
     "src/nuget.rs",
     "src/oci.rs",
     "src/octopus.rs",
+    "src/opam.rs",
     "src/packagist.rs",
     "src/pub_dev.rs",
     "src/pypi.rs",
@@ -172,6 +177,7 @@ exports_files([
     "validate_nuget.bzl",
     "validate_oci.bzl",
     "validate_octopus.bzl",
+    "validate_opam.bzl",
     "validate_packagist.bzl",
     "validate_pub.bzl",
     "validate_pypi.bzl",
@@ -350,6 +356,7 @@ rust_test(
         "src/oci_scan.rs",
         "src/oci_tests.rs",
         "src/octopus.rs",
+        "src/opam.rs",
         "src/packagist.rs",
         "src/pub_dev.rs",
         "src/pypi.rs",
@@ -964,6 +971,8 @@ test_suite(
         ":npm_alias_analysis",
         ":npm_analysis",
         ":npm_unit",
+        ":opam_analysis",
+        ":opam_unit",
         ":nuget_alias_analysis",
         ":nuget_analysis",
         ":nuget_config_content",
@@ -1989,6 +1998,27 @@ deploy_analysis_test(
 )
 
 genrule(
+    name = "opam_demo_file",
+    outs = ["opam_demo/opam"],
+    cmd = "printf 'opam-version: \"2.0\"\\n' > $@",
+)
+
+opam_deploy(
+    name = "opam-demo",
+    opam_file = ":opam_demo_file",
+    package = "demo",
+    version = "1.0.0",
+)
+
+opam_unit_tests(name = "opam_unit")
+
+deploy_analysis_test(
+    name = "opam_analysis",
+    artifacts = ["//deploy/private:opam_demo_file"],
+    subject = "opam-demo",
+)
+
+genrule(
     name = "packagist_demo_dir",
     outs = ["packagist_demo/composer.json"],
     cmd = "printf '{\"name\": \"acme/demo\"}\\n' > $@",
@@ -2276,6 +2306,7 @@ real_source_target(
         "validate_crates.bzl",
         "validate_github.bzl",
         "validate_hackage.bzl",
+        "validate_opam.bzl",
         "validate_helm.bzl",
         "validate_hex.bzl",
         "validate_homebrew.bzl",

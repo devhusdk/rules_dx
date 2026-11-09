@@ -3,6 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
 load(":apicompat_pins.bzl", "APICOMPAT_SHA256", "APICOMPAT_VERSION")
 load(":japicmp_pins.bzl", "JAPICMP_SHA256", "JAPICMP_VERSION")
+load(":opam_pins.bzl", "OPAM_PLATFORMS", "OPAM_VERSION")
 load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS", "SEMVER_CHECKS_VERSION")
 
 
@@ -56,4 +57,23 @@ def _apicompat_impl(mctx):
 apicompat = module_extension(
     implementation = _apicompat_impl,
     doc = "Creates the pinned Microsoft.DotNet.ApiCompat.Tool package.",
+)
+
+
+def _opam_impl(mctx):
+    """Declares one pinned opam executable per supported platform."""
+    for key, pin in OPAM_PLATFORMS.items():
+        http_file(
+            name = "opam_" + key,
+            downloaded_file_path = pin["exe"],
+            executable = True,
+            sha256 = pin["sha256"],
+            urls = ["https://github.com/ocaml/opam/releases/download/%s/opam-%s-%s" % (OPAM_VERSION, OPAM_VERSION, pin["asset"])],
+        )
+    return mctx.extension_metadata(reproducible = True)
+
+
+opam = module_extension(
+    implementation = _opam_impl,
+    doc = "Creates the pinned opam executable for each supported platform.",
 )

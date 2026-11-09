@@ -1,3 +1,4 @@
+load(":opam_pins.bzl", "OPAM_PLATFORMS")
 load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS")
 load("//deploy/private:go_sdk.bzl", "dx_go_binary_file")
 
@@ -6,6 +7,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "apicompat_pins.bzl",
     "japicmp_pins.bzl",
+    "opam_pins.bzl",
     "repos.bzl",
     "extensions.bzl",
     "semver_checks_pins.bzl",
@@ -41,6 +43,30 @@ alias(
         ":semver_checks_" + key: ":semver_checks_" + key + "_bin"
         for key in SEMVER_CHECKS_PLATFORMS
     } | {"//conditions:default": ":semver_checks_none"}),
+)
+
+[
+    config_setting(
+        name = "opam_" + key,
+        constraint_values = [
+            "@platforms//os:" + pin["os"],
+            "@platforms//cpu:" + pin["cpu"],
+        ],
+    )
+    for key, pin in OPAM_PLATFORMS.items()
+]
+
+filegroup(
+    name = "opam_none",
+    srcs = [],
+)
+
+alias(
+    name = "opam",
+    actual = select({
+        ":opam_" + key: "@opam_" + key + "//file"
+        for key in OPAM_PLATFORMS
+    } | {"//conditions:default": ":opam_none"}),
 )
 
 alias(

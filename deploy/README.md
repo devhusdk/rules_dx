@@ -1172,6 +1172,34 @@ Look up an address (a relative virtual address) with `llvm-symbolizer`:
 llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
 ```
 
+# opam_deploy
+
+Opens a pull request to `ocaml/opam-repository` that adds one package version.
+
+```starlark
+load("@rules_dx//deploy:defs.bzl", "opam_deploy")
+
+opam_deploy(
+    name = "opam_demo",
+    opam_file = "opam",
+    package = "demo",
+    version = "1.2.0",
+)
+```
+
+- `package`: required. Letters, digits, `_`, `+` and `-`.
+- `version`: required. Letters, digits, `.`, `_`, `+`, `~` and `-`.
+- `opam_file`: required. A file named `opam`. A `name:` or `version:` field in
+  it must equal `package` and `version`.
+
+Default run lints the file with the pinned opam (a sha256-pinned release
+download) and prints the target path
+`packages/<package>/<package>.<version>/opam`. It contacts nothing.
+Live run needs `OPAM_API_TOKEN` (a GitHub token that can fork and open pull
+requests) and `OPAM_PUBLISH_APPROVED=1`. It forks `ocaml/opam-repository`,
+commits the file on a branch named `<package>.<version>` and opens the pull
+request against `master`.
+
 # packagist_deploy
 
 Asks Packagist to update a package after its git tag is pushed.
@@ -1211,8 +1239,7 @@ For the registries that read versions from tags (Go, Swift, PHP, dub),
 - PHP: run `composer validate`, push a tag, then run `packagist_deploy`.
 - dub: push a semver tag such as `v1.2.0`. The dub registry reads versions
   from tags.
-- opam: open a pull request to the opam repository that adds
-  `packages/<name>/<name>.<version>/opam`.
+- opam: run `opam_deploy` (above).
 - CPAN: upload the tarball to PAUSE.
 
 # Public API compatibility

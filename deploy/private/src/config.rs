@@ -166,6 +166,17 @@ pub struct HackageConfig {
     pub version: String,
 }
 
+/// Pins one opam-repository pull request: the opam file, its package and version, and the opam executable.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct OpamConfig {
+    pub deploy_name: String,
+    pub opam_file_rloc: String,
+    pub opam_rloc: String,
+    pub package: String,
+    pub version: String,
+}
+
 /// Pins one Packagist update: the composer.json, its expected package and the repository URL.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -341,6 +352,7 @@ pub enum DeployConfig {
     Conan(ConanConfig),
     Hackage(HackageConfig),
     Luarocks(LuarocksConfig),
+    Opam(OpamConfig),
     Packagist(PackagistConfig),
     Crates(CratesConfig),
     Pub(PubConfig),
@@ -512,6 +524,14 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &hackage.deploy_name,
             &hackage.package,
             &hackage.version,
+            argv,
+        ),
+        DeployConfig::Opam(opam) => crate::opam_main(
+            &opam.opam_rloc,
+            &opam.opam_file_rloc,
+            &opam.deploy_name,
+            &opam.package,
+            &opam.version,
             argv,
         ),
         DeployConfig::Packagist(packagist) => crate::packagist_main(
@@ -1118,6 +1138,13 @@ mod tests {
                 deploy_name: "demo".to_owned(),
                 package: String::new(),
                 version: String::new(),
+            }),
+            DeployConfig::Opam(OpamConfig {
+                deploy_name: "demo".to_owned(),
+                opam_file_rloc: "a".to_owned(),
+                opam_rloc: "b".to_owned(),
+                package: "demo".to_owned(),
+                version: "1.0.0".to_owned(),
             }),
             DeployConfig::Packagist(PackagistConfig {
                 composer_rloc: "a".to_owned(),

@@ -18,6 +18,7 @@ mod go_api;
 mod conan;
 mod cpan;
 mod hackage;
+mod opam;
 mod helm;
 mod hex;
 mod homebrew;
@@ -49,6 +50,7 @@ pub use github::*;
 pub use conan::*;
 pub use cpan::*;
 pub use hackage::*;
+pub use opam::*;
 pub use helm::*;
 pub use hex::*;
 pub use homebrew::*;
@@ -232,6 +234,7 @@ mod tests {
             &cpan::CPAN_GATE,
             &hackage::HACKAGE_GATE,
             &luarocks::LUAROCKS_GATE,
+            &opam::OPAM_GATE,
             &packagist::PACKAGIST_GATE,
             &CRATES_GATE,
             &HEX_GATE,

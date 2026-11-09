@@ -2350,6 +2350,9 @@ _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "h
 semver_checks = use_extension("//deploy/private/pins:extensions.bzl", "semver_checks")
 use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_linux_x86_64", "cargo_semver_checks_macos_arm64", "cargo_semver_checks_windows_x86_64")
 
+opam = use_extension("//deploy/private/pins:extensions.bzl", "opam")
+use_repo(opam, "opam_linux_arm64", "opam_linux_x86_64", "opam_macos_arm64", "opam_macos_x86_64", "opam_windows_x86_64")
+
 japicmp = use_extension("//deploy/private/pins:extensions.bzl", "japicmp")
 use_repo(japicmp, "japicmp_jar")
 

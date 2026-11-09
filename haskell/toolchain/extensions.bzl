@@ -15,6 +15,7 @@ def _haskell_impl(mctx):
             Label("//patches/rules_haskell:hermetic_haskell.patch"),
             Label("//patches/rules_haskell:cabal_rules.patch"),
             Label("//patches/rules_haskell:cabal_mingw_transition.patch"),
+            Label("//patches/rules_haskell:cc_wrapper_relpath_mount.patch"),
             Label("//patches/rules_haskell:toolchain_type_alias.patch"),
             Label("//patches/rules_haskell:cc_toolchain_config_info.patch"),
         ],

@@ -547,6 +547,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//terraform/rules:defs.bzl` | `collect_providers` |
 |  |  | `@rules_dx//terraform/rules:defs.bzl` | `terraform_library` |
 |  |  | `@rules_dx//thrift/rules:defs.bzl` | `thrift_library` |
+|  |  | `@rules_dx//tools/docs/cc:defs.bzl` | `cc_doc_shard` |
+|  |  | `@rules_dx//tools/docs/cc:defs.bzl` | `cc_shard_action` |
+|  |  | `@rules_dx//tools/docs/cc:defs.bzl` | `cuda_doc_shard` |
+|  |  | `@rules_dx//tools/docs/cc:defs.bzl` | `docs_cc_shard` |
+|  |  | `@rules_dx//tools/docs/cc:defs.bzl` | `docs_cuda_shard` |
+|  |  | `@rules_dx//tools/docs/cc:defs.bzl` | `doxygen_available` |
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `astro_doc_shard` |
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `component_doc_shard` |
 |  |  | `@rules_dx//tools/docs/components:defs.bzl` | `mdx_doc_shard` |
@@ -653,6 +659,7 @@ SDK and toolchain extensions:
 API docs:
 
 - `@rules_dx//tools/docs/dart:defs.bzl`: Dart API doc shards.
+- `@rules_dx//tools/docs/cc:defs.bzl`: C, C++ and CUDA API doc shards.
 - `@rules_dx//tools/docs/go:defs.bzl`: Go API doc shards.
 - `@rules_dx//tools/docs/ruby:defs.bzl`: Ruby API doc shards.
 - `@rules_dx//tools/docs/julia:defs.bzl`: Julia API doc shards.

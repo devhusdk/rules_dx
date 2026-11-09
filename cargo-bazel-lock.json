@@ -1,5 +1,5 @@
 {
-  "checksum": "e46d56c44c2077e53fb4d071792ad60ef625ac1a40cd223d30f811efe3e0dee9",
+  "checksum": "b28e8f44b5b3d2dfecd7065c133ce532fafafe166b53194c4dd82b96608b3820",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2791,6 +2791,33 @@
         {
           "Library": {
             "crate_name": "cc_context",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "cc_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "quick-xml 0.41.0",
+            "target": "quick_xml"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_docs_cc_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_cc_extract",
             "crate_root": "src/lib.rs"
           }
         }
@@ -28677,6 +28704,7 @@
     "appimage_packer 0.0.0": "appimage/appimage_packer",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "cc_context 0.0.0": "cc/cc_context",
+    "cc_extract 0.0.0": "tools/docs/cc/cc_extract",
     "ci_coverage_cells 0.0.0": "tools/ci/ci_coverage_cells",
     "ci_docs_scope 0.0.0": "tools/ci/ci_docs_scope",
     "ci_evidence_inputs 0.0.0": "tools/ci/ci_evidence_inputs",

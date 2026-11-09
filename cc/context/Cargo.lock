@@ -547,6 +547,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "cc_extract"
+version = "0.0.0"
+dependencies = [
+ "quick-xml",
+]
+
+[[package]]
 name = "cfb-mode"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

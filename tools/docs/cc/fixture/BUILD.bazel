@@ -1,0 +1,28 @@
+load("//cc/rules:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/cc:defs.bzl", "cc_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["include/shapes.h"],
+    visibility = VIS_TOOLS,
+)
+
+cc_library(
+    name = "shapes",
+    hdrs = ["include/shapes.h"],
+    includes = ["include"],
+)
+
+cc_doc_shard(
+    name = "shapes_docs",
+    lib = ":shapes",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

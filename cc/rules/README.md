@@ -129,3 +129,7 @@ cc_bench(
 ```
 
 The test writes `dx-bench.json` with one row per benchmark, using the real time in the unit the benchmark reports. Google Benchmark comes from the `google_benchmark` Bazel module that rules_dx depends on.
+
+## API docs
+
+`dx docs` documents the public `hdrs` of a `cc_library` with the pinned Doxygen, with no setup. Declare `cc_doc_shard(name = "docs", lib = ":lib")` from `@rules_dx//tools/docs/cc:defs.bzl` to set the package name. Doxygen publishes no Linux arm64 or Windows arm64 build, so those hosts get no C or C++ API docs.

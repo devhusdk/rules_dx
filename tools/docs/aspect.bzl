@@ -10,12 +10,14 @@ load("@rules_dart//dart:providers.bzl", _DartInfo = "DartInfo")
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("@rules_fortran//fortran:defs.bzl", _FortranInfo = "FortranInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("//ocaml/rules:providers.bzl", _OCamlCmtInfo = "OCamlCmtInfo")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
+load("//tools/docs/cc:defs.bzl", "cc_shard_action", "doxygen_available")
 load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/d:defs.bzl", "D_TOOLCHAIN", "d_shard_action")
@@ -105,6 +107,17 @@ def _d_docs_shard(target, ctx):
     if not own or ctx.toolchains[D_TOOLCHAIN] == None:
         return None
     return d_shard_action(ctx, target[_DInfo], own, ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._d_extract).shard
+def _cc_docs_shard(target, ctx):
+    if CcInfo not in target or DocsShardInfo in target or ctx.label.name.endswith("_upstream"):
+        return None
+    language = "cuda" if "cuda_library" in ctx.rule.kind else ("cc" if "cc_library" in ctx.rule.kind else None)
+    if not language:
+        return None
+    headers = target[CcInfo].compilation_context.direct_public_headers
+    doxygen = ctx.attr._doxygen[DefaultInfo].files.to_list()
+    if not headers or not doxygen_available(doxygen):
+        return None
+    return cc_shard_action(ctx, language, headers, ctx.label.name, "_dx_docs/" + ctx.label.name, doxygen, ctx.executable._cc_extract).shard
 
 def _dotnet_docs_shard(target, ctx):
     if DocsShardInfo in target or DotnetDocsInfo not in target:
@@ -353,6 +366,9 @@ def _real_docs_aspect_impl(target, ctx):
     d_shard = _d_docs_shard(target, ctx)
     if d_shard:
         parts.append({"dx_results": [d_shard], "dx_docs_shards": [d_shard]})
+    cc_shard = _cc_docs_shard(target, ctx)
+    if cc_shard:
+        parts.append({"dx_results": [cc_shard], "dx_docs_shards": [cc_shard]})
     dotnet_shard = _dotnet_docs_shard(target, ctx)
     if dotnet_shard:
         parts.append({"dx_results": [dotnet_shard], "dx_docs_shards": [dotnet_shard]})
@@ -393,9 +409,14 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Perl, Ruby, Julia, OCaml, Fortran, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Dart, C#, F#, PowerShell, Perl, Ruby, Julia, OCaml, Fortran, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
+        "_cc_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/cc/extract:cc_extract"),
+            executable = True,
+        ),
         "_component_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/components/extract:component_extract"),
@@ -420,6 +441,10 @@ real_docs_aspect = aspect(
             cfg = "exec",
             default = Label("//tools/docs/dart/extract:dart_extract"),
             executable = True,
+        ),
+        "_doxygen": attr.label(
+            cfg = "exec",
+            default = Label("@dx_doxygen//:tool"),
         ),
         "_driver": attr.label(
             cfg = "exec",

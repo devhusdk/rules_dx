@@ -378,7 +378,7 @@ LANGUAGES = [
         bench = "cc_bench",
         fuzz = "cc_fuzz_test",
         deps = "`conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set",
-        doc = NO_DOC,
+        doc = struct(tool = "doxygen", shard = "cc_doc_shard"),
         dead_code = ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
         coverage = ["gcov", "llvm-cov"],
     ),
@@ -410,7 +410,7 @@ LANGUAGES = [
     _language(
         "cuda",
         deps = "none: the CUDA toolkit is a pinned download",
-        doc = NO_DOC,
+        doc = struct(tool = "doxygen", shard = "cuda_doc_shard"),
         dead_code = ["none"],
         no_coverage = "cuda_test has no dx coverage wiring",
         not_applicable = {

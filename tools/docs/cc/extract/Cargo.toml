@@ -1,0 +1,16 @@
+[package]
+license = "Apache-2.0"
+name = "cc_extract"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+quick-xml = "0.41"
+
+[lib]
+name = "dx_docs_cc_extract"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cc_extract"
+path = "src/main.rs"

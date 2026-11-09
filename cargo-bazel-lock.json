@@ -1,5 +1,5 @@
 {
-  "checksum": "ead08811cec6816e7d61c03b9d302b20773bbaa693572ddb8beae159fe2d8c3b",
+  "checksum": "122360d09a9c31d9844e22a70f30c5226b6a43b82b12a84c4c11b80cfd70a669",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7789,6 +7789,27 @@
         {
           "Library": {
             "crate_name": "dx_env_plan",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_error 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "dx_error",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_error",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_error",
             "crate_root": "src/lib.rs"
           }
         }
@@ -28872,6 +28893,7 @@
     "dx_docs_serve 0.0.0": "cli/dx_docs_serve",
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
+    "dx_error 0.0.0": "cli/dx_error",
     "dx_families 0.0.0": "libs/dx_families",
     "dx_fingerprint 0.0.0": "cli/dx_fingerprint",
     "dx_floor 0.0.0": "tools/testing/dx_floor",

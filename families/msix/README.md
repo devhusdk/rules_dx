@@ -4,7 +4,7 @@ Package a Windows target binary as an MSIX. No Windows SDK or Visual Studio
 install is needed.
 
 Cells: `windows_x86_64` and `windows_arm64` targets. Packaging runs on a
-Windows x64 or arm64 host. `dx_msix` and `msix_sign` add
+Windows x64 or arm64 host. `msix_package` and `msix_sign` add
 `@platforms//os:windows` to `target_compatible_with`; `bazel build //...`
 skips them on Linux and macOS. A Windows target with another CPU fails
 analysis with `target cell this platform is unsupported`. A build with no
@@ -39,9 +39,9 @@ Accepting the license here does not grant you one. You still need your own from 
 ## Use
 
 ```python
-load("@rules_dx_msix//:defs.bzl", "dx_msix", "msix_sign")
+load("@rules_dx_msix//:defs.bzl", "msix_package", "msix_sign")
 
-dx_msix(
+msix_package(
     name = "app",
     alias = "app.exe",
     binary = ":app_bin",

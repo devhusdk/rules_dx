@@ -28,7 +28,7 @@ def _add(ctx, args, inputs, seen, kind, dest, arg, file):
     if prior != None and prior.path == file.path:
         return
     if prior != None:
-        fail("dx_appimage " + str(ctx.label) + ": " + kind + " files " + prior.short_path + " and " + file.short_path + " both map to " + dest)
+        fail("appimage_package " + str(ctx.label) + ": " + kind + " files " + prior.short_path + " and " + file.short_path + " both map to " + dest)
     args.add(arg)
     inputs.append(file)
 
@@ -39,18 +39,18 @@ def _appimage_impl(ctx):
         ("x86_64", ctx.attr._x86_64[cv]),
     ])
     if not arch:
-        fail("dx_appimage " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
+        fail("appimage_package " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
     name = ctx.attr.app_name or ctx.label.name
     errors = name_errors(name, ctx.file.desktop.basename, ctx.file.icon.basename)
     if errors:
-        fail("dx_appimage " + str(ctx.label) + ": " + "; ".join(errors))
+        fail("appimage_package " + str(ctx.label) + ": " + "; ".join(errors))
     exe = ctx.attr.binary[DefaultInfo].files_to_run.executable
     if exe == None:
-        fail("dx_appimage " + str(ctx.label) + ": binary " + str(ctx.attr.binary.label) + " has no executable")
+        fail("appimage_package " + str(ctx.label) + ": binary " + str(ctx.attr.binary.label) + " has no executable")
     tool_files = ctx.attr.tools[DefaultInfo].files.to_list()
     appimagetool = [f for f in tool_files if f.basename == "appimagetool"]
     if len(appimagetool) != 1:
-        fail("dx_appimage " + str(ctx.label) + ": tools must provide exactly one appimagetool")
+        fail("appimage_package " + str(ctx.label) + ": tools must provide exactly one appimagetool")
     runtime = ctx.file.runtime or (ctx.file._runtime_aarch64 if arch == "aarch64" else ctx.file._runtime_x86_64)
 
     image = ctx.actions.declare_file(ctx.label.name + ".AppImage")
@@ -98,7 +98,7 @@ def _appimage_impl(ctx):
         AppImageInfo(identity = identity, image = image, name = name, version = ctx.attr.version),
     ]
 
-dx_appimage = rule(
+_appimage_package = rule(
     implementation = _appimage_impl,
     doc = "Packages one target binary and its files as a Linux AppImage.",
     attrs = {
@@ -120,3 +120,11 @@ dx_appimage = rule(
         "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
     },
 )
+
+def appimage_package(name, target_compatible_with = [], **kwargs):
+    """Packages one Linux target binary and its files as an AppImage."""
+    _appimage_package(
+        name = name,
+        target_compatible_with = ["@platforms//os:linux"] + [c for c in target_compatible_with if c != "@platforms//os:linux"],
+        **kwargs
+    )

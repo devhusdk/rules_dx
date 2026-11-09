@@ -1,5 +1,5 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
-load("//:defs.bzl", "dx_msix", "msix_sign")
+load("//:defs.bzl", "msix_package", "msix_sign")
 load("//:repos.bzl", "UNACCEPTED")
 load("//:toolchain.bzl", "msix_toolchain")
 load("@rules_dx//powershell/rules:defs.bzl", "powershell_test")
@@ -82,7 +82,7 @@ toolchain(
     toolchain_type = "//:toolchain_type",
 )
 
-dx_msix(
+msix_package(
     name = "cell",
     binary = ":cell_exe",
     data = ["fixtures/greeting.txt"],
@@ -95,7 +95,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "root_data",
     binary = ":cell_exe",
     data = [
@@ -115,7 +115,7 @@ filegroup(
     srcs = ["fixtures/greeting.txt"],
 )
 
-dx_msix(
+msix_package(
     name = "dup_listed",
     binary = ":cell_exe",
     data = [
@@ -136,7 +136,7 @@ msix_sign(
     tags = ["manual"],
 )
 
-dx_msix(
+msix_package(
     name = "bad_min_version",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -148,7 +148,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "bad_max_version",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -160,7 +160,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "bad_version",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -171,7 +171,7 @@ dx_msix(
     version = "1.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "bad_publisher",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -182,7 +182,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "bad_lib",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -194,7 +194,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "dll_clash",
     binary = ":dll_exe",
     identity_name = "Dx.Cell",
@@ -206,7 +206,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "cell_arm64",
     binary = ":cell_exe",
     data = ["fixtures/greeting.txt"],
@@ -220,7 +220,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "cell_x86_64",
     binary = ":cell_exe",
     data = ["fixtures/greeting.txt"],
@@ -234,7 +234,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "bad_platforms",
     binary = ":cell_exe",
     data = ["fixtures/greeting.txt"],
@@ -248,7 +248,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "dll_libs_clash",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -263,7 +263,7 @@ dx_msix(
     version = "1.0.0.0",
 )
 
-dx_msix(
+msix_package(
     name = "clash",
     binary = ":cell_exe",
     identity_name = "Dx.Cell",
@@ -485,7 +485,7 @@ msix_variant(
     target_compatible_with = _WINDOWS,
 )
 
-dx_msix(
+msix_package(
     name = "app_noresource",
     alias = "dxmsix.exe",
     binary = "//tests/fixtures/msix-app/app:dxmsix",

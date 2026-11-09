@@ -22,9 +22,9 @@ Cells: `linux_x86_64` and `linux_arm64`. Any other target fails analysis with
 declared by rules_dx and fetched on first use.
 
 ```python
-load("@rules_dx//appimage:defs.bzl", "dx_appimage")
+load("@rules_dx//appimage:defs.bzl", "appimage_package")
 
-dx_appimage(
+appimage_package(
     name = "app",
     app_name = "app",
     binary = ":app_bin",

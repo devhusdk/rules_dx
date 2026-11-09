@@ -36,7 +36,7 @@ def version_errors(version):
     return named_version_errors("version", version)
 
 def compatible_with(constraints):
-    """Returns the target constraints of a dx_msix target, always including Windows."""
+    """Returns the target constraints of a msix_package target, always including Windows."""
     return ["@platforms//os:windows"] + [c for c in constraints if c != "@platforms//os:windows"]
 
 PLATFORM_VALUES = {"arm64": "windows_arm64", "x86_64": "windows_x86_64"}
@@ -102,21 +102,21 @@ def _add(ctx, entries, seen, kind, dest, file):
     if prior != None and hasattr(prior, "path") and prior.path == file.path:
         return False
     if prior != None:
-        fail("dx_msix " + str(ctx.label) + ": " + getattr(prior, "short_path", prior) + " and " + file.short_path + " both map to " + dest)
+        fail("msix_package " + str(ctx.label) + ": " + getattr(prior, "short_path", prior) + " and " + file.short_path + " both map to " + dest)
     entries.append({"dest": dest, "kind": kind, "src": file.path})
     return True
 
 def _msix_impl(ctx):
     errors = platform_errors(ctx.attr.platforms)
     if errors:
-        fail("dx_msix " + str(ctx.label) + ": " + errors[0])
+        fail("msix_package " + str(ctx.label) + ": " + errors[0])
     cv = platform_common.ConstraintValueInfo
     arch = platform_arch(ctx.target_platform_has_constraint, ctx.attr._windows[cv], [
         ("arm64", ctx.attr._arm64[cv]),
         ("x64", ctx.attr._x86_64[cv]),
     ])
     if not arch:
-        fail("dx_msix " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
+        fail("msix_package " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
     errors = (
         identity_errors(ctx.attr.identity_name) +
         publisher_errors(ctx.attr.publisher) +
@@ -127,15 +127,15 @@ def _msix_impl(ctx):
         alias_errors(ctx.attr.alias)
     )
     if errors:
-        fail("dx_msix " + str(ctx.label) + ": " + "; ".join(errors))
+        fail("msix_package " + str(ctx.label) + ": " + "; ".join(errors))
     toolchain = ctx.toolchains[TOOLCHAIN_TYPE]
     if toolchain == None:
-        fail("dx_msix " + str(ctx.label) + ": packaging needs a windows_x86_64 or windows_arm64 execution platform, and this build has none")
+        fail("msix_package " + str(ctx.label) + ": packaging needs a windows_x86_64 or windows_arm64 execution platform, and this build has none")
     if toolchain.error:
         fail(toolchain.error)
     exe = ctx.attr.binary[DefaultInfo].files_to_run.executable
     if exe == None or not exe.basename.lower().endswith(".exe"):
-        fail("dx_msix " + str(ctx.label) + ": binary " + str(ctx.attr.binary.label) + " has no .exe executable")
+        fail("msix_package " + str(ctx.label) + ": binary " + str(ctx.attr.binary.label) + " has no .exe executable")
 
     entries = []
     seen = {"appxmanifest.xml": "the generated manifest"}
@@ -152,11 +152,11 @@ def _msix_impl(ctx):
     for target in ctx.attr.libs:
         found = [f for f in target[DefaultInfo].files.to_list() if f.basename.lower().endswith(".dll")]
         if not found:
-            fail("dx_msix " + str(ctx.label) + ": libs entry " + str(target.label) + " has no .dll")
+            fail("msix_package " + str(ctx.label) + ": libs entry " + str(target.label) + " has no .dll")
         for file in found:
             name = file.basename.lower()
             if name in dlls and dlls[name].path != file.path:
-                fail("dx_msix " + str(ctx.label) + ": libs " + str(target.label) + " and " + owner[name] + " both provide " + file.basename)
+                fail("msix_package " + str(ctx.label) + ": libs " + str(target.label) + " and " + owner[name] + " both provide " + file.basename)
             dlls[name] = file
             owner[name] = "libs " + str(target.label)
     for name in sorted(dlls):
@@ -234,7 +234,7 @@ _platforms_transition = transition(
     outputs = ["//command_line_option:platforms"],
 )
 
-_dx_msix = rule(
+_msix_package = rule(
     implementation = _msix_impl,
     doc = "Packages one Windows target binary and its files as an unsigned MSIX.",
     attrs = {
@@ -270,16 +270,16 @@ def _windowsonly_chars(target_compatible_with):
         return compatible_with(target_compatible_with)
     return ["@platforms//os:windows"] + target_compatible_with
 
-def dx_msix(name, target_compatible_with = [], **kwargs):
+def msix_package(name, target_compatible_with = [], **kwargs):
     """Packages one Windows target binary and its files as an unsigned MSIX."""
-    _dx_msix(
+    _msix_package(
         name = name,
         target_compatible_with = _windowsonly_chars(target_compatible_with),
         **kwargs
     )
 
 def msix_sign(name, package, target_compatible_with = [], **kwargs):
-    """Declares a run target that signs a copy of one dx_msix package."""
+    """Declares a run target that signs a copy of one MSIX package."""
     signtool = str(Label("//:signtool"))
     pwsh_binary(
         name = name,

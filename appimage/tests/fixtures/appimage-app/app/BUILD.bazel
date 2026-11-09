@@ -1,5 +1,5 @@
 # gazelle:resolve cc greet.h //appimage/tests/fixtures/appimage-app/greet:greet
-load("@rules_dx//appimage:defs.bzl", "dx_appimage")
+load("@rules_dx//appimage:defs.bzl", "appimage_package")
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -27,7 +27,7 @@ cc_binary(
     deps = ["//appimage/tests/fixtures/appimage-app/greet"],
 )
 
-dx_appimage(
+appimage_package(
     name = "app",
     app_name = "dxappimage",
     binary = ":dxappimage",
@@ -36,7 +36,6 @@ dx_appimage(
     icon = "dxappimage.png",
     libs = ["//appimage/tests/fixtures/appimage-app/greet:greet_shared"],
     notice = ["NOTICE.txt"],
-    target_compatible_with = ["@platforms//os:linux"],
     version = "1.2.3",
 )
 

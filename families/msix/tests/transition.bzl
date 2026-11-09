@@ -1,4 +1,4 @@
-"""Builds dx_msix targets for another Windows cell or with extra copts."""
+"""Builds msix_package targets for another Windows cell or with extra copts."""
 
 def _variant_impl(settings, attr):
     result = {

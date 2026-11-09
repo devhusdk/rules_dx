@@ -52,12 +52,6 @@ dedup_action_test = analysistest.make(
     config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_x86_64"))},
 )
 
-unsupported_cell_test = analysistest.make(
-    _unsupported_impl,
-    expect_failure = True,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:macos_arm64"))},
-)
-
 unsupported_cpu_test = analysistest.make(
     _unsupported_impl,
     expect_failure = True,

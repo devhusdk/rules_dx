@@ -2,11 +2,11 @@
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_shared_library")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//appimage:defs.bzl", "dx_appimage")
+load("//appimage:defs.bzl", "appimage_package")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
-load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cell_test", "unsupported_cpu_test", "x86_64_action_test")
+load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cpu_test", "x86_64_action_test")
 load(":transition.bzl", "arm64_files")
 
 _LINUX = ["@platforms//os:linux"]
@@ -35,7 +35,7 @@ cc_binary(
     deps = [":greet"],
 )
 
-dx_appimage(
+appimage_package(
     name = "dxhello",
     app_name = "dxhello",
     binary = ":dxhello_bin",
@@ -44,11 +44,10 @@ dx_appimage(
     icon = "fixtures/dxhello.png",
     libs = [":greet_shared"],
     notice = ["fixtures/NOTICE.txt"],
-    target_compatible_with = _LINUX,
     version = "1.2.3",
 )
 
-dx_appimage(
+appimage_package(
     name = "dxhello_noresource",
     app_name = "dxhello",
     binary = ":dxhello_bin",
@@ -56,11 +55,10 @@ dx_appimage(
     icon = "fixtures/dxhello.png",
     libs = [":greet_shared"],
     notice = ["fixtures/NOTICE.txt"],
-    target_compatible_with = _LINUX,
     version = "1.2.3",
 )
 
-dx_appimage(
+appimage_package(
     name = "dxhello_nolib",
     app_name = "dxhello",
     binary = ":dxhello_bin",
@@ -68,11 +66,10 @@ dx_appimage(
     desktop = "fixtures/dxhello.desktop",
     icon = "fixtures/dxhello.png",
     notice = ["fixtures/NOTICE.txt"],
-    target_compatible_with = _LINUX,
     version = "1.2.3",
 )
 
-dx_appimage(
+appimage_package(
     name = "bad_names",
     app_name = "other",
     binary = ":dxhello_bin",
@@ -80,7 +77,6 @@ dx_appimage(
     icon = "fixtures/dxhello.png",
     notice = ["fixtures/NOTICE.txt"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
     version = "1.0.0",
 )
 
@@ -89,7 +85,7 @@ sh_binary(
     srcs = ["fixtures/any.sh"],
 )
 
-dx_appimage(
+appimage_package(
     name = "arm64_cell",
     app_name = "dxhello",
     binary = ":any_cell_bin",
@@ -100,7 +96,7 @@ dx_appimage(
     version = "1.0.0",
 )
 
-dx_appimage(
+appimage_package(
     name = "notice_clash",
     app_name = "dxhello",
     binary = ":any_cell_bin",
@@ -111,11 +107,10 @@ dx_appimage(
         "fixtures/third_party/NOTICE.txt",
     ],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
     version = "1.0.0",
 )
 
-dx_appimage(
+appimage_package(
     name = "lib_clash",
     app_name = "dxhello",
     binary = ":any_cell_bin",
@@ -127,7 +122,6 @@ dx_appimage(
     ],
     notice = ["fixtures/NOTICE.txt"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
     version = "1.0.0",
 )
 
@@ -149,7 +143,7 @@ filegroup(
     target_compatible_with = _LINUX,
 )
 
-dx_appimage(
+appimage_package(
     name = "dup_listed",
     app_name = "dxhello",
     binary = ":any_cell_bin",
@@ -168,11 +162,10 @@ dx_appimage(
         ":notice_files",
     ],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
     version = "1.0.0",
 )
 
-dx_appimage(
+appimage_package(
     name = "root_data",
     app_name = "dxhello",
     binary = ":any_cell_bin",
@@ -181,7 +174,6 @@ dx_appimage(
     icon = "fixtures/dxhello.png",
     notice = ["fixtures/NOTICE.txt"],
     tags = ["manual"],
-    target_compatible_with = _LINUX,
     version = "1.0.0",
 )
 
@@ -228,12 +220,6 @@ data_paths_test(
     ],
     target_compatible_with = _LINUX,
     target_under_test = ":root_data",
-)
-
-unsupported_cell_test(
-    name = "macos_cell_fails",
-    target_compatible_with = _LINUX,
-    target_under_test = ":arm64_cell",
 )
 
 unsupported_cpu_test(

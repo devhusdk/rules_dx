@@ -189,6 +189,8 @@ Set the Pages source to GitHub Actions before the first publish.
 
 `release.yml` calls `reusable-release.yml` when a `v*` tag is pushed. Tag the `dx_deployment` targets to publish with `tags = ["release"]`; the tag must be exactly `release`, so `prerelease` and `release-notes` do not match. A dry-run job runs `dx deploy <label>` for each one on every platform in the `platforms` input (default `linux_x86_64`) so the dry run is in the log, then the release job runs `dx deploy --apply <label>` for each, in the order of the list, with only the `*_APPROVED` variables set. A failed deployable stops the rest, and the job summary lists the ones already published.
 
+The `publish` input (default `true`) gates the release job, which also needs a tag ref. With `publish: false` the plan and dry run run on any ref and nothing is published. The `release.yml` that `dx init` writes has a `workflow_dispatch` with `publish` defaulting to `false`, so dispatching it from a branch only plans and dry-runs; pass `true` on a tag to publish. Tag pushes always publish. An existing `release.yml` keeps its file: add the `workflow_dispatch` `publish` input and `publish: ${{ github.event_name != 'workflow_dispatch' || inputs.publish }}` under `with:` by hand.
+
 | Input | Meaning |
 |---|---|
 | `deployables` | JSON array of labels, for example `["//pkg:npm", "//pkg:github"]`. Empty publishes every `dx_deployment` tagged `release`. |

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ci_workflow::{document, job, scripts, steps};
+use ci_workflow::{document, job, scripts, steps, workflow_call};
 use dx_testing::{read_runfiles, resolve_runfiles};
 
 const WORKFLOW: &str = ".github/workflows/reusable-release.yml";
@@ -78,7 +78,10 @@ fn publish_step_exports_only_the_approval_gates() {
 #[test]
 fn publish_step_maps_every_gate_credential_from_secrets() {
     let credentials = gate_names("credentials");
-    assert!(credentials.contains(&"NPM_TOKEN".to_owned()), "{credentials:?}");
+    assert!(
+        credentials.contains(&"NPM_TOKEN".to_owned()),
+        "{credentials:?}"
+    );
     let step = steps(WORKFLOW, "release")
         .into_iter()
         .find(|step| step["name"] == "Publish")
@@ -102,7 +105,7 @@ fn query_matches_the_release_tag_exactly() {
 }
 
 #[test]
-fn release_waits_for_dry_run_and_plan_and_plan_needs_a_tag() {
+fn release_waits_for_dry_run_and_plan_and_plan_runs_on_tags_or_without_publish() {
     let release = job(WORKFLOW, "release");
     let needs: Vec<&str> = release["needs"]
         .as_array()
@@ -121,9 +124,30 @@ fn release_waits_for_dry_run_and_plan_and_plan_needs_a_tag() {
         .unwrap_or_default()
         .to_owned();
     assert!(
+        condition.contains("startsWith(github.ref, 'refs/tags/')")
+            && condition.contains("!inputs.publish"),
+        "{condition}"
+    );
+}
+
+#[test]
+fn release_job_needs_publish_and_a_tag() {
+    let condition = job(WORKFLOW, "release")["if"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    assert!(condition.contains("inputs.publish"), "{condition}");
+    assert!(
         condition.contains("startsWith(github.ref, 'refs/tags/')"),
         "{condition}"
     );
+}
+
+#[test]
+fn publish_input_defaults_true() {
+    let publish = &workflow_call(WORKFLOW)["inputs"]["publish"];
+    assert_eq!(publish["type"], "boolean");
+    assert_eq!(publish["default"], true);
 }
 
 #[test]

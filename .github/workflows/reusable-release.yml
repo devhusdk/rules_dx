@@ -18,6 +18,11 @@ on:
         required: false
         default: "ubuntu-latest"
         type: string
+      publish:
+        description: 'Publish after the dry run. When false the plan and dry run run on any ref and nothing is published. Publishing also needs a tag ref.'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: read
@@ -29,7 +34,7 @@ concurrency:
 jobs:
   plan:
     name: plan
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
+    if: ${{ startsWith(github.ref, 'refs/tags/') || !inputs.publish }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -104,6 +109,7 @@ jobs:
   release:
     name: release
     needs: [plan, dry-run]
+    if: ${{ inputs.publish && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ${{ inputs.runner }}
     timeout-minutes: 120
     permissions:

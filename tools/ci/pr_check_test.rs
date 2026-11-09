@@ -174,5 +174,18 @@ fn job_stays_inside_the_time_budget() {
     let minutes = analysis["timeout-minutes"]
         .as_u64()
         .expect("timeout-minutes");
-    assert!(minutes <= 15, "timeout-minutes is {minutes}");
+    assert!(minutes <= 10, "timeout-minutes is {minutes}");
+}
+
+#[test]
+fn workflow_runs_on_pull_requests() {
+    let body = read_runfiles(WORKFLOW);
+    assert!(
+        body.contains("\n  pull_request:\n"),
+        "{WORKFLOW} needs a pull_request trigger"
+    );
+    assert!(
+        !body.contains("pull_request_target"),
+        "{WORKFLOW} must not use pull_request_target"
+    );
 }

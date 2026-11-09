@@ -1,6 +1,7 @@
 name: pr-check
 
 on:
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -17,7 +18,7 @@ concurrency:
 jobs:
   analysis:
     name: analysis (PR-time checks on linux_x86_64)
-    timeout-minutes: 15
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     permissions:
       contents: read

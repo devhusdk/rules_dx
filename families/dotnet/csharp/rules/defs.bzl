@@ -129,8 +129,5 @@ def csharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     )
 
 def csharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **kwargs):
-    """A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented.
-
-    The first source calls `Fuzzer.LibFuzzer.Run`. Linux only.
-    """
+    """A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux only."""
     sharpfuzz_fuzz(name, csharp_binary, srcs, deps, visibility, tags, kwargs)

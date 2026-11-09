@@ -85,6 +85,10 @@ function Test-NoStoreCert([string]$Thumbprint, [string]$Label) {
 }
 
 function Test-KeyGone([string]$KeyLine, [string]$Label) {
+    if (-not $KeyLine -or $KeyLine.Length -le 4) {
+        $failures.Add("$Label has no key line: '$KeyLine'")
+        return
+    }
     $parts = $KeyLine.Substring(4).Split("|")
     if ($parts.Count -lt 3) {
         $failures.Add("$Label has no key line: $KeyLine")

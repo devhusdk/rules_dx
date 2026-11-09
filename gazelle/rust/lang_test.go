@@ -741,13 +741,13 @@ func TestGenerateCargoOwnershipAndImportFailures(t *testing.T) {
 			want:     "one source may have only one owner",
 		},
 		{
-			manifest: "[package]\nname = \"app\"\n[lib]\npath = \"src/lib.rs\"\n",
-			files:    map[string]string{"src/lib.rs": "use undeclared::Thing;\n"},
+			manifest: "[package]\nname = \"app\"\n[dev-dependencies]\ndevonly = \"1\"\n[lib]\npath = \"src/lib.rs\"\n",
+			files:    map[string]string{"src/lib.rs": "use devonly::Thing;\n"},
 			want:     "unresolved production import",
 		},
 		{
-			manifest: "[package]\nname = \"app\"\n[lib]\npath = \"src/lib.rs\"\n",
-			files:    map[string]string{"src/lib.rs": "#[cfg(test)] use undeclared::Thing;\n"},
+			manifest: "[package]\nname = \"app\"\n[build-dependencies]\nbuildonly = \"1\"\n[lib]\npath = \"src/lib.rs\"\n",
+			files:    map[string]string{"src/lib.rs": "#[cfg(test)] use buildonly::Thing;\n"},
 			want:     "unresolved test import",
 		},
 		{

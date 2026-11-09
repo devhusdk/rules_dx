@@ -101,11 +101,13 @@ type targetImports struct {
 	// pathRefs are crate roots of qualified paths; they resolve like mirrorPaths.
 	pathRefs     []string
 	pathRefsTest []string
-	siblingLib  string
-	scriptDep   string
-	renames     map[string]string
-	gated       map[string]bool
-	gateTarget  map[string]string
+	siblingLib   string
+	scriptDep    string
+	renames      map[string]string
+	gated        map[string]bool
+	gateTarget   map[string]string
+	// deferred are imports Cargo.toml does not declare; Resolve finds them in the rule index.
+	deferred map[string]bool
 	// inheritedDeps are dependency labels of the existing crate rule that a
 	// self-contained unit test no longer inherits through crate=.
 	inheritedDeps []string

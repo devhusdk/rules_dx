@@ -5,7 +5,6 @@ load("//tools/visibility:visibility.bzl", "VIS_ENV_SHARD")
 
 # gazelle:resolve rust proto //env:plan_proto_rs
 # gazelle:resolve rust plan_proto //env:plan_proto_rs
-# gazelle:resolve rust env_shard //env/env_shard:env_shard
 
 package(default_visibility = VIS_ENV_SHARD)
 

@@ -8,6 +8,7 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/resolve"
 	bzl "github.com/bazelbuild/buildtools/build"
 	"github.com/devhusdk/rules_dx/gazelle/common"
 )
@@ -43,6 +44,46 @@ func TestResolveAmbiguous(t *testing.T) {
 	}
 	if len(l.errors) == 1 && !strings.Contains(l.errors[0].Message, `; add "# gazelle:resolve rust same <label>" to app/BUILD.bazel`) {
 		t.Errorf("ambiguous error = %q, want the resolve remedy", l.errors[0].Message)
+	}
+}
+
+func TestResolveDeferred(t *testing.T) {
+	cfg := resolverConfig(t, nil)
+	cfg.Exts[languageName] = &rustConfig{}
+	index := func(l *rustLang) *resolve.RuleIndex {
+		return resolverIndex(l,
+			struct{ pkg, name string }{"libs/one", "one"},
+			struct{ pkg, name string }{"a", "twice"},
+			struct{ pkg, name string }{"b", "twice"},
+		)
+	}
+	resolveDeferred := func(cfg *config.Config, name string) (*rustLang, *rule.Rule) {
+		l := &rustLang{}
+		r := rule.NewRule(binaryKind, "app")
+		imports := targetImports{production: []string{name}, deferred: map[string]bool{name: true}}
+		l.Resolve(cfg, index(l), nil, r, imports, label.New("", "app", "app"))
+		return l, r
+	}
+
+	l, r := resolveDeferred(cfg, "one")
+	if got := strings.Join(r.AttrStrings("deps"), ","); got != "//libs/one" || len(l.errors) != 0 {
+		t.Errorf("indexed deferred import deps = %q errors = %v", got, l.errors)
+	}
+	l, r = resolveDeferred(cfg, "missing")
+	if r.Attr("deps") != nil || len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `unresolved import "missing"; undeclared import: declare it in Cargo.toml, add a local rust_library with crate_name "missing"`) {
+		t.Errorf("unindexed deferred import deps = %v errors = %v", r.Attr("deps"), l.errors)
+	}
+	l, _ = resolveDeferred(cfg, "twice")
+	if len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, "ambiguous") {
+		t.Errorf("ambiguous deferred import errors = %v", l.errors)
+	}
+
+	ignored := resolverConfig(t, nil)
+	ignore := &common.IgnoreEntry{Value: "one"}
+	ignored.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: []*common.IgnoreEntry{ignore}}}
+	l, r = resolveDeferred(ignored, "one")
+	if r.Attr("deps") != nil || len(l.errors) != 0 || !ignore.Used() {
+		t.Errorf("ignored deferred import deps = %v errors = %v used = %v", r.Attr("deps"), l.errors, ignore.Used())
 	}
 }
 
@@ -157,14 +198,20 @@ func TestExampleBuildImportScopes(t *testing.T) {
 	if err := validateExampleImports(c, manifest, targetImports{production: []string{"serde_json", "tempfile"}}); err != nil {
 		t.Errorf("dev import in example rejected: %v", err)
 	}
-	if err := validateExampleImports(c, manifest, targetImports{production: []string{"missing"}}); err == nil {
-		t.Error("undeclared example import accepted")
+	if err := validateExampleImports(c, manifest, targetImports{production: []string{"missing"}}); err != nil {
+		t.Errorf("undeclared example import rejected: %v", err)
+	}
+	if err := validateExampleImports(c, manifest, targetImports{production: []string{"cc"}}); err == nil {
+		t.Error("build-dep example import accepted")
 	}
 	if err := validateExampleImports(c, manifest, targetImports{test: []string{"tempfile"}}); err != nil {
 		t.Errorf("dev test import in example rejected: %v", err)
 	}
-	if err := validateExampleImports(c, manifest, targetImports{test: []string{"missing"}}); err == nil || !strings.Contains(err.Error(), "unresolved test import") {
-		t.Errorf("undeclared example test import err = %v", err)
+	if err := validateExampleImports(c, manifest, targetImports{test: []string{"missing"}}); err != nil {
+		t.Errorf("undeclared example test import rejected: %v", err)
+	}
+	if err := validateExampleImports(c, manifest, targetImports{test: []string{"cc"}}); err == nil || !strings.Contains(err.Error(), "unresolved test import") {
+		t.Errorf("build-dep example test import err = %v", err)
 	}
 	if err := validateBuildImports(c, manifest, targetImports{production: []string{"cc"}}); err != nil {
 		t.Errorf("build-dep import rejected: %v", err)
@@ -184,11 +231,14 @@ func TestExampleBuildImportScopes(t *testing.T) {
 		devDeps:     map[string]cargoDependency{"devlocal": {}},
 		buildDeps:   map[string]cargoDependency{"buildlocal": {}},
 	}
-	if got := localCargoExampleImports(c, scoped, targetImports{production: []string{"local", "devlocal", "buildlocal", "serde_json"}}); strings.Join(got.production, ",") != "local,devlocal" {
-		t.Errorf("example locals = %+v, want [local devlocal]", got.production)
+	if got := localCargoExampleImports(c, scoped, targetImports{production: []string{"local", "devlocal", "buildlocal", "sibling"}}); strings.Join(got.production, ",") != "local,devlocal,sibling" || !got.deferred["sibling"] || len(got.deferred) != 1 {
+		t.Errorf("example locals = %+v, want [local devlocal sibling] with sibling deferred", got)
 	}
-	if got := localCargoBuildImports(c, scoped, targetImports{production: []string{"local", "buildlocal"}}); strings.Join(got.production, ",") != "buildlocal" {
-		t.Errorf("build locals = %+v, want [buildlocal]", got.production)
+	if got := localCargoBuildImports(c, scoped, targetImports{production: []string{"local", "buildlocal", "sibling"}}); strings.Join(got.production, ",") != "buildlocal,sibling" || !got.deferred["sibling"] || len(got.deferred) != 1 {
+		t.Errorf("build locals = %+v, want [buildlocal sibling] with sibling deferred", got)
+	}
+	if err := validateBuildImports(c, scoped, targetImports{production: []string{"sibling"}, test: []string{"sibling"}}); err != nil {
+		t.Errorf("undeclared build import rejected: %v", err)
 	}
 	if got := localCargoBuildImports(c, scoped, targetImports{test: []string{"buildlocal"}}); strings.Join(got.test, ",") != "buildlocal" {
 		t.Errorf("build test locals = %+v, want [buildlocal]", got.test)
@@ -379,8 +429,8 @@ func TestGenerateCargoSliceFailures(t *testing.T) {
 		want     string
 	}{
 		{
-			name:     "example undeclared import",
-			manifest: "[package]\nname = \"app\"\n[[example]]\nname = \"demo\"\npath = \"examples/demo.rs\"\n",
+			name:     "example build-only import",
+			manifest: "[package]\nname = \"app\"\n[build-dependencies]\nmissing_crate = \"1\"\n[[example]]\nname = \"demo\"\npath = \"examples/demo.rs\"\n",
 			files:    map[string]string{"examples/demo.rs": "use missing_crate::Thing;\nfn main() {}\n"},
 			want:     "declare it in [dependencies] or [dev-dependencies]",
 		},

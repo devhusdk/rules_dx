@@ -201,17 +201,29 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 	if err := validateCargoImports(cfg, manifest, libraryKind, imports); err != nil {
 		t.Fatal(err)
 	}
-	if err := validateCargoImports(cfg, manifest, libraryKind, targetImports{production: []string{"unknown"}}); err == nil {
-		t.Error("unknown production import accepted")
+	if err := validateCargoImports(cfg, manifest, libraryKind, targetImports{production: []string{"unknown"}}); err != nil {
+		t.Errorf("undeclared production import rejected: %v", err)
+	}
+	if err := validateCargoImports(cfg, manifest, libraryKind, targetImports{production: []string{"dev"}}); err == nil {
+		t.Error("dev-only production import accepted")
+	}
+	if got := localCargoImports(cfg, manifest, targetImports{production: []string{"unknown", "normal"}}, false); strings.Join(got.production, ",") != "unknown" || !got.deferred["unknown"] || got.deferred["normal"] {
+		t.Errorf("undeclared production locals = %+v, want [unknown] deferred", got)
 	}
 	if err := validateCargoImports(cfg, manifest, testKind, targetImports{production: []string{"dev"}}); err != nil {
 		t.Errorf("test dev import rejected: %v", err)
 	}
-	if err := validateCargoImports(cfg, manifest, testKind, targetImports{test: []string{"unknown"}}); err == nil {
-		t.Error("unknown test import accepted")
+	if err := validateCargoImports(cfg, manifest, testKind, targetImports{test: []string{"unknown"}}); err != nil {
+		t.Errorf("undeclared test import rejected: %v", err)
+	}
+	if got := localCargoImports(cfg, manifest, targetImports{test: []string{"unknown", "app_name"}}, true); strings.Join(got.test, ",") != "unknown" || !got.deferred["unknown"] {
+		t.Errorf("undeclared test locals = %+v, want [unknown] deferred", got)
 	}
 	if err := validateCargoImports(cfg, manifest, libraryKind, targetImports{production: []string{"app_name"}}); err != nil {
 		t.Errorf("self import rejected: %v", err)
+	}
+	if err := validateCargoImports(cfg, manifest, binaryKind, targetImports{test: []string{"app_name"}}); err != nil {
+		t.Errorf("self test import rejected: %v", err)
 	}
 	if err := validateExampleImports(cfg, manifest, targetImports{production: []string{"app_name"}}); err != nil {
 		t.Errorf("example self import rejected: %v", err)
@@ -306,8 +318,11 @@ func TestCargoImportResolveOverrides(t *testing.T) {
 	if err := validateCargoImports(c, manifest, libraryKind, mapped); err != nil {
 		t.Errorf("mapped import rejected: %v", err)
 	}
-	if err := validateCargoImports(c, manifest, libraryKind, targetImports{production: []string{"mapped", "unknown"}}); err == nil || !strings.Contains(err.Error(), `"unknown"`) {
-		t.Errorf("unmapped import not reported: %v", err)
+	if err := validateCargoImports(c, manifest, libraryKind, targetImports{production: []string{"mapped", "unknown"}}); err != nil {
+		t.Errorf("undeclared import rejected: %v", err)
+	}
+	if got := localCargoImports(c, manifest, targetImports{production: []string{"mapped", "unknown"}}, false); got.deferred["mapped"] || !got.deferred["unknown"] {
+		t.Errorf("deferred = %v, want only unknown", got.deferred)
 	}
 	local := localCargoImports(c, manifest, mapped, false)
 	if strings.Join(local.production, ",") != "mapped" {

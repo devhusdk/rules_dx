@@ -5,7 +5,6 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_GENERATION")
 
 # gazelle:resolve rust proto //generation:codegen_proto_rs
 # gazelle:resolve rust codegen_proto //generation:codegen_proto_rs
-# gazelle:resolve rust codegen_shard //generation/codegen_shard:codegen_shard
 
 package(default_visibility = VIS_CLI_GENERATION)
 

@@ -26,6 +26,7 @@ rust_test(
         "no-sandbox",
     ],
     deps = [
+        "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],

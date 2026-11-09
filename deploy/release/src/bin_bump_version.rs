@@ -10,7 +10,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use dx_process::capture::{DEFAULT_TIMEOUT, run_checked};
 
 const USAGE: &str = "usage: bazel run //deploy/release:bump_version -- <version> [--workflow-ref <commit>]\n\nSets the rules_dx version and the starter workflow pin in every file that carries them, including each families/*/MODULE.bazel, and refreshes tools/ci/starter_pin.sha256 from the workflows in the checkout.\n--workflow-ref defaults to origin/main and must have the affected_on_pr input.";
 const CONSUMER_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
@@ -201,20 +201,12 @@ fn bump(root: &Path, version: &str, commit: &str) -> Result<usize, String> {
 }
 
 fn git(root: &Path, args: &[&str]) -> Result<String, String> {
-    let out = Command::new("git")
-        .arg("-C")
-        .arg(root)
-        .args(args)
-        .output()
-        .map_err(|e| format!("git: {e}"))?;
-    if !out.status.success() {
-        return Err(format!(
-            "git {}: {}",
-            args.join(" "),
-            String::from_utf8_lossy(&out.stderr).trim()
-        ));
-    }
-    Ok(String::from_utf8_lossy(&out.stdout).trim().to_owned())
+    let out = run_checked(
+        dx_process::capture::git(root).args(args),
+        DEFAULT_TIMEOUT,
+    )
+    .map_err(|e| format!("git {}: {e}", args.join(" ")))?;
+    Ok(out.stdout_text().trim().to_owned())
 }
 
 fn has_affected_on_pr(workflow: &str) -> bool {

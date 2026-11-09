@@ -3,7 +3,9 @@
 use std::collections::BTreeMap;
 use std::io::{self, BufRead, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Command, Output, Stdio};
+use std::process::Stdio;
+
+use dx_process::capture::{self, Captured, DEFAULT_TIMEOUT, RunError, run_captured};
 
 use crate::{
     BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_version_error,
@@ -85,16 +87,19 @@ pub struct SourceArchive {
 }
 
 /// Returns stdout of a git command, or its failure as an error.
-pub fn git_output_of(args: &[&str], output: io::Result<Output>) -> Result<String, String> {
+pub fn git_output_of(args: &[&str], output: Result<Captured, RunError>) -> Result<String, String> {
     let command = format!("git {}", args.join(" "));
     match output {
-        Ok(out) if out.status.success() => {
+        Ok(out) if out.success() => {
             String::from_utf8(out.stdout).map_err(|_| format!("{command} printed non-UTF-8 output"))
         }
         Ok(out) => {
-            let stderr = String::from_utf8_lossy(&out.stderr).trim().to_owned();
+            let stderr = out.stderr_text();
             let detail = if stderr.is_empty() {
-                out.status.to_string()
+                match out.code {
+                    Some(code) => format!("exit status: {code}"),
+                    None => "terminated by signal".to_owned(),
+                }
             } else {
                 stderr
             };
@@ -106,12 +111,9 @@ pub fn git_output_of(args: &[&str], output: io::Result<Output>) -> Result<String
 
 /// Runs git in a directory and returns its stdout.
 pub fn git_in(dir: Option<&Path>, args: &[&str]) -> Result<String, String> {
-    let mut cmd = Command::new("git");
+    let mut cmd = capture::git(dir.unwrap_or(Path::new(".")));
     cmd.args(args);
-    if let Some(dir) = dir {
-        cmd.current_dir(dir);
-    }
-    git_output_of(args, cmd.output())
+    git_output_of(args, run_captured(&mut cmd, DEFAULT_TIMEOUT))
 }
 
 pub fn ls_remote_output(
@@ -214,9 +216,8 @@ fn git_pipe<T>(
     read: impl FnOnce(io::BufReader<std::process::ChildStdout>) -> Result<T, String>,
 ) -> Result<T, String> {
     let command = format!("git {}", args.join(" "));
-    let mut child = Command::new("git")
+    let mut child = capture::git(repo)
         .args(args)
-        .current_dir(repo)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -1181,36 +1182,32 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
     #[test]
     fn git_failure_is_an_error_not_clean() {
-        use std::os::unix::process::ExitStatusExt;
-        let failed = Output {
-            status: std::process::ExitStatus::from_raw(256),
-            stdout: Vec::new(),
-            stderr: b"fatal: not a git repository\n".to_vec(),
+        let captured = |code: Option<i32>, stdout: Vec<u8>, stderr: &[u8]| Captured {
+            command: "git".to_owned(),
+            code,
+            stdout,
+            stderr: stderr.to_vec(),
         };
+        let failed = captured(Some(1), Vec::new(), b"fatal: not a git repository\n");
         assert_eq!(
             git_output_of(&["status", "--porcelain"], Ok(failed)),
             Err("git status --porcelain failed: fatal: not a git repository".to_owned())
         );
-        let silent = Output {
-            status: std::process::ExitStatus::from_raw(256),
-            stdout: Vec::new(),
-            stderr: Vec::new(),
-        };
+        let silent = captured(Some(1), Vec::new(), b"");
         let err = git_output_of(&["tag"], Ok(silent)).expect_err("silent failure");
         assert!(err.starts_with("git tag failed: "), "{err}");
-        let spawn = io::Error::new(io::ErrorKind::NotFound, "no git");
-        assert_eq!(
-            git_output_of(&["tag"], Err(spawn)),
-            Err("git tag failed: no git".to_owned())
-        );
-        let binary = Output {
-            status: std::process::ExitStatus::from_raw(0),
-            stdout: vec![0xff],
-            stderr: Vec::new(),
+        let spawn = RunError::Spawn {
+            command: "git tag".to_owned(),
+            source: io::Error::new(io::ErrorKind::NotFound, "no git"),
         };
+        assert!(
+            git_output_of(&["tag"], Err(spawn))
+                .expect_err("spawn failure")
+                .starts_with("git tag failed: ")
+        );
+        let binary = captured(Some(0), vec![0xff], b"");
         assert!(git_output_of(&["status"], Ok(binary)).is_err());
     }
 

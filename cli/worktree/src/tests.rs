@@ -337,20 +337,15 @@ pub(super) fn isolate(cmd: &mut std::process::Command) {
 }
 
 fn git(dir: &Path, args: &[&str]) -> String {
-    let mut command = std::process::Command::new("git");
+    let mut command = dx_process::capture::git(dir);
     command
-        .current_dir(dir)
         .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
         .args(["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"])
         .args(args);
     isolate(&mut command);
-    let output = command.output().expect("git runs");
-    assert!(
-        output.status.success(),
-        "git {args:?}: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout).trim().to_owned()
+    let output = dx_process::capture::run_checked(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
+        .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
+    output.stdout_text().trim().to_owned()
 }
 
 struct Fixture {
@@ -5853,12 +5848,12 @@ fn a_hostile_global_git_config_does_not_break_add_or_release() {
     )
     .expect("config");
     // Only this process-wide-free check: the isolated command ignores the hostile file.
-    let mut command = std::process::Command::new("git");
+    let mut command = dx_process::capture::git(&fixture.main);
     command.args(["config", "--get", "commit.gpgsign"]);
-    command.current_dir(&fixture.main);
     command.env("GIT_CONFIG_GLOBAL", &config);
     isolate(&mut command);
-    let output = command.output().expect("git");
+    let output = dx_process::capture::run_captured(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
+        .expect("git");
     assert!(output.stdout.is_empty(), "isolation overrides the config");
     let pool = fixture.pool();
     let host = FakeHost::new();

@@ -710,12 +710,11 @@ mod tests {
                 ],
                 vec!["tag", "v1.2.0"],
             ] {
-                let status = std::process::Command::new("git")
-                    .args(&args)
-                    .current_dir(&repo)
-                    .status()
-                    .expect("git");
-                assert!(status.success(), "git {args:?}");
+                dx_process::capture::run_checked(
+                    dx_process::capture::git(&repo).args(&args),
+                    dx_process::capture::DEFAULT_TIMEOUT,
+                )
+                .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
             }
         });
         let args_log = scratch.path().join("args");

@@ -1,5 +1,7 @@
 """Pinned upstream YARD acquisition for Ruby API reference shards."""
 
+load("//libs/starlark:repo.bzl", "gem_extract")
+
 YARD_VERSION = "0.9.45"
 
 YARD_SHA256 = "52e211493f7cb8a3ebf7e104a25a1e73937a3103092545d34cb88fafebb3dc51"
@@ -22,20 +24,14 @@ exports_files([
 """
 
 def _yard_repo_impl(ctx):
-    ctx.download_and_extract(
+    gem_extract(
+        ctx,
         url = ctx.attr.url,
-        output = "gem",
         sha256 = ctx.attr.sha256,
-        type = "tar",
         canonical_id = "dx-yard-gem:" + ctx.attr.url,
+        output = ".",
+        required = ["lib/yard.rb"],
     )
-    data = "gem/data.tar.gz"
-    if not ctx.path(data).exists:
-        fail("yard: '" + ctx.attr.url + "' holds no data.tar.gz")
-    ctx.extract(archive = data, output = ".")
-    if not ctx.path("lib/yard.rb").exists:
-        fail("yard: '" + ctx.attr.url + "' holds no lib/yard.rb")
-    ctx.delete("gem")
     ctx.file("BUILD.bazel", _LIB_BUILD)
     return ctx.repo_metadata(reproducible = True)
 

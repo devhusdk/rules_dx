@@ -49,6 +49,27 @@ def _pinned_archive_impl(rctx):
         rctx.file(path, crlf_text(rctx.read(path)), executable = False)
     return rctx.repo_metadata(reproducible = True)
 
+def _under(output, path):
+    return path if output == "." else output + "/" + path
+
+def gem_extract(rctx, url, sha256, canonical_id, output, required):
+    """Unpacks the data.tar.gz of a pinned .gem into output and checks the required paths."""
+    rctx.download_and_extract(
+        url = url,
+        output = "_gem",
+        sha256 = sha256,
+        type = "tar",
+        canonical_id = canonical_id,
+    )
+    data = "_gem/data.tar.gz"
+    if not rctx.path(data).exists:
+        fail("{}: '{}' holds no data.tar.gz".format(rctx.name, url))
+    rctx.extract(archive = data, output = output)
+    rctx.delete("_gem")
+    for path in required:
+        if not rctx.path(_under(output, path)).exists:
+            fail("{}: '{}' holds no {}".format(rctx.name, url, path))
+
 pinned_archive = repository_rule(
     implementation = _pinned_archive_impl,
     doc = "Fetches one pinned archive, prunes it, writes rendered files and applies patches.",

@@ -1,6 +1,6 @@
 """Hermetic Sorbet acquisition: the pinned sorbet-static gem of the host, unpacked."""
 
-load("//libs/starlark:repo.bzl", "pinned_archive")
+load("//libs/starlark:repo.bzl", "gem_extract", "pinned_archive")
 load(":pins.bzl", "RULES_RUBY_SHA256", "RULES_RUBY_URL", "RULES_RUBY_VERSION", "SORBET_BINARY", "SORBET_CELLS", "sorbet_url")
 
 _BUILD = """package(default_visibility = ["//visibility:public"])
@@ -40,19 +40,14 @@ def _sorbet_impl(rctx):
     if pin == None:
         fail("no pinned sorbet-static gem for " + cell)
     url = sorbet_url(pin.gem)
-    rctx.download_and_extract(
+    gem_extract(
+        rctx,
         url = url,
-        output = "_gem",
         sha256 = pin.sha256,
-        type = "tar",
         canonical_id = "dx-sorbet-gem:" + url,
+        output = ".",
+        required = [SORBET_BINARY],
     )
-    if not rctx.path("_gem/data.tar.gz").exists:
-        fail("sorbet: '" + url + "' holds no data.tar.gz")
-    rctx.extract(archive = "_gem/data.tar.gz")
-    rctx.delete("_gem")
-    if not rctx.path(SORBET_BINARY).exists:
-        fail("sorbet: '" + url + "' holds no " + SORBET_BINARY)
     rctx.file("BUILD.bazel", sorbet_build(SORBET_BINARY))
 
 _sorbet = repository_rule(

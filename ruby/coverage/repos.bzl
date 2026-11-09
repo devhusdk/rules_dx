@@ -1,5 +1,6 @@
 """Pinned SimpleCov gems that Ruby tests load under `bazel coverage` (#3954)."""
 
+load("//libs/starlark:repo.bzl", "gem_extract")
 load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_BENCH_REPOSITORY", "RUBY_COVERAGE_GEMS", "RUBY_COVERAGE_REPOSITORY", "gem_dir", "gem_url")
 
 def _build_file(gems):
@@ -34,22 +35,14 @@ def _build_file(gems):
 def _download_gems(ctx, gems):
     for gem in gems:
         url = gem_url(gem)
-        tmp = "_gem_" + gem.name
-        ctx.download_and_extract(
+        gem_extract(
+            ctx,
             url = url,
-            output = tmp,
             sha256 = gem.sha256,
-            type = "tar",
             canonical_id = "dx-ruby-coverage-gem:" + url,
+            output = gem_dir(gem),
+            required = ["lib/" + gem.entry],
         )
-        data = tmp + "/data.tar.gz"
-        if not ctx.path(data).exists:
-            fail("ruby gems: '" + url + "' holds no data.tar.gz")
-        ctx.extract(archive = data, output = gem_dir(gem))
-        entry = gem_dir(gem) + "/lib/" + gem.entry
-        if not ctx.path(entry).exists:
-            fail("ruby gems: '" + url + "' holds no lib/" + gem.entry)
-        ctx.delete(tmp)
     ctx.file("BUILD.bazel", _build_file(gems))
     return ctx.repo_metadata(reproducible = True)
 

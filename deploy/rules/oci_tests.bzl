@@ -1,7 +1,7 @@
 """Unit and analysis tests for the OCI publisher."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")
+load(":oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")
 
 def oci_unit_tests(name):
     starlark_test(
@@ -240,6 +240,21 @@ def oci_unit_tests(name):
                 oci_platform_error("windows/amd64"),
                 "oci_deploy: invalid platform 'windows/amd64': want one of " +
                 "linux/amd64, linux/arm64",
+            ),
+            expect_equal(
+                "oci_platform maps linux x86_64 to linux/amd64",
+                oci_platform(struct(os = "linux", cpu = "x86_64")),
+                "linux/amd64",
+            ),
+            expect_equal(
+                "oci_platform maps linux aarch64 to linux/arm64",
+                oci_platform(struct(os = "linux", cpu = "aarch64")),
+                "linux/arm64",
+            ),
+            expect_equal(
+                "oci_platform is empty for windows",
+                oci_platform(struct(os = "windows", cpu = "x86_64")),
+                "",
             ),
             expect_equal(
                 "oci_image_error rejects a non-tar filename",

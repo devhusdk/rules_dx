@@ -1,13 +1,33 @@
 """Unit tests for the Linux package deploy helpers."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":linux_package.bzl", "linux_package_dst_error", "linux_package_filename", "linux_package_formats_error", "linux_package_name_error")
+load(":linux_package.bzl", "linux_package_arch_error", "linux_package_dst_error", "linux_package_filename", "linux_package_formats_error", "linux_package_name_error")
 
 def linux_package_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "linux_package_arch_error accepts linux x86_64",
+                linux_package_arch_error("linux", "x86_64"),
+                "",
+            ),
+            expect_equal(
+                "linux_package_arch_error accepts linux aarch64",
+                linux_package_arch_error("linux", "aarch64"),
+                "",
+            ),
+            expect_equal(
+                "linux_package_arch_error rejects macos",
+                linux_package_arch_error("macos", "aarch64"),
+                "linux_package_deploy: unsupported os 'macos': want linux",
+            ),
+            expect_equal(
+                "linux_package_arch_error rejects a linux riscv64",
+                linux_package_arch_error("linux", "riscv64"),
+                "linux_package_deploy: unsupported cpu 'riscv64': want one of aarch64, x86_64",
+            ),
             expect_equal(
                 "linux_package_name_error accepts a plain name",
                 linux_package_name_error("demo-app"),

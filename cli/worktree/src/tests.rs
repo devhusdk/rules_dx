@@ -874,6 +874,44 @@ fn release_succeeds_when_the_slot_directory_is_already_gone() {
 }
 
 #[test]
+fn release_of_a_free_slot_with_its_directory_gone_lets_add_reuse_the_slot() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    ops::release(&pool, &host, &me, &added.path, false).expect("free the slot");
+    std::fs::remove_dir_all(&added.path).expect("remove slot");
+    let released = ops::release(&pool, &host, &me, &added.path, false).expect("release");
+    assert!(released.already_free);
+    let again = ops::add(&pool, &host, &me, &create("feature/b")).expect("add again");
+    assert_eq!(again.slot, added.slot);
+    assert!(again.path.exists());
+}
+
+#[test]
+fn release_of_a_record_less_slot_keeps_the_holder_check() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let other = who("s2", 20);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    pool.remove(added.slot);
+    std::fs::write(added.path.join("b.txt"), "new\n").expect("write");
+    git(&added.path, &["add", "."]);
+    git(&added.path, &["commit", "--quiet", "-m", "local"]);
+    // The holder is unknown and the work is unpushed, so nobody releases it without --force.
+    let err = ops::release(&pool, &host, &other, &added.path, false).expect_err("refused");
+    assert_eq!(err.code, "slot_leased");
+    assert_eq!(
+        git(&added.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
+    ops::release(&pool, &host, &other, &added.path, true).expect("forced");
+}
+
+#[test]
 fn release_refuses_uncommitted_changes_unless_forced() {
     let fixture = Fixture::new();
     let pool = fixture.pool();

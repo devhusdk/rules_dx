@@ -970,8 +970,9 @@ pub(crate) fn release_lease(
     release_locked(pool, host, who, lease.slot, Some(lease), false)
 }
 
-/// A lease record for a slot checkout whose record file is missing, held by the releaser so the usual checks run.
-fn orphan_record(pool: &Pool, slot: u32, who: &Who) -> Option<Record> {
+/// A lease record for a slot checkout whose record file is missing. The holder is unknown, so the
+/// releaser gets no ownership: it must pass the reclaimable checks (clean, pushed) or `--force`.
+fn orphan_record(pool: &Pool, slot: u32) -> Option<Record> {
     let path = pool.slot_path(slot);
     let checkout = pool
         .checkouts()
@@ -983,9 +984,9 @@ fn orphan_record(pool: &Pool, slot: u32, who: &Who) -> Option<Record> {
         held: true,
         branch: checkout.branch,
         last_branch: None,
-        session: who.session.clone(),
-        agent: who.agent.clone(),
-        pid: Some(who.pid),
+        session: None,
+        agent: None,
+        pid: None,
         pid_start: None,
         boot_id: None,
         gone: false,
@@ -1001,6 +1002,15 @@ fn orphan_record(pool: &Pool, slot: u32, who: &Who) -> Option<Record> {
 /// The outcome for a slot whose directory is already gone: only git's registration is left to drop.
 fn gone_slot(pool: &Pool, slot: u32, path: PathBuf, branch: Option<String>) -> Released {
     pool.remove(slot);
+    // A free slot is locked in git and prune skips locked worktrees, so unlock it first.
+    let _ = git::run(
+        &pool.main,
+        &[
+            OsStr::new("worktree"),
+            OsStr::new("unlock"),
+            path.as_os_str(),
+        ],
+    );
     let _ = git::run(&pool.main, &["worktree", "prune"]);
     Released {
         slot: Some(slot),
@@ -1021,7 +1031,7 @@ fn release_locked(
     force: bool,
 ) -> Result<Released, WorktreeError> {
     let slot_path = pool.slot_path(slot);
-    let Some(record) = pool.record(slot).or_else(|| orphan_record(pool, slot, who)) else {
+    let Some(record) = pool.record(slot).or_else(|| orphan_record(pool, slot)) else {
         if !slot_path.exists() {
             return Ok(gone_slot(pool, slot, slot_path, None));
         }

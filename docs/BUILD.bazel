@@ -34,7 +34,6 @@ real_source_target(
         "//tools/docs/ir/proto:doc_ir.proto",
         "//tools/docs/ir/ir:src/lib.rs",
         "//examples:README.md",
-        "//libs/starlark:behavioral_matrix.md",
         "//quality/result/proto:result.proto",
     ],
     markdown_srcs = [

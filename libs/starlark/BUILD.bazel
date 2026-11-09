@@ -1,7 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
-    "behavioral_matrix.md",
     "canonical.bzl",
     "cells.bzl",
     "conformance.bzl",
@@ -19,12 +18,6 @@ exports_files([
     "tag_probe.bzl",
     "wrapper.bzl",
 ])
-
-real_source_target(
-    name = "corpus_markdown",
-    markdown_srcs = ["behavioral_matrix.md"],
-    tags = ["corpus"],
-)
 
 real_source_target(
     name = "corpus_starlark",

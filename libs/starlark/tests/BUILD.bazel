@@ -12,7 +12,6 @@ load(":cells_tests.bzl", "cells_tests")
 load(":config_tests.bzl", "config_subject_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":license_tests.bzl", "license_tests")
-load(":matrix_tests.bzl", "matrix_validation_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":repo_tests.bzl", "repo_unit_tests")
 load(":seven_zip_tests.bzl", "seven_zip_tests")
@@ -92,8 +91,6 @@ fixture_execution_tests(name = "fixture_execution")
 
 packaging_unit_tests(name = "packaging_unit")
 
-matrix_validation_tests(name = "matrix_validation")
-
 warnings_tests(name = "warnings")
 
 wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
@@ -161,7 +158,6 @@ test_suite(
         ":exec_group_forwarder_analysis",
         ":fixture_execution",
         ":license",
-        ":matrix_validation",
         ":observations_only_analysis",
         ":packaging_unit",
         ":repo_unit",
@@ -196,7 +192,6 @@ real_source_target(
         "direct_sources.bzl",
         "execution_tests.bzl",
         "license_tests.bzl",
-        "matrix_tests.bzl",
         "packaging_tests.bzl",
         "repo_tests.bzl",
         "seven_zip_tests.bzl",

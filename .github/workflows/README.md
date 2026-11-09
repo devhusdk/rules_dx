@@ -3,7 +3,6 @@
 - `reusable-consumer.yml`: nine checks plus the `dx-ci (aggregate)` gate.
 - `reusable-release.yml`: on a tag push, dry-runs on each `platforms` entry, then applies `dx deploy` for each `dx_deployment` tagged `release` (or the `deployables` input), with `contents`, `id-token`, `attestations` and `packages` write. A failure stops the rest and the job summary lists what was published. `dx init` writes a `release.yml` caller.
 - `reusable-docs.yml`: `docs-check` plus `docs-publish` (GitHub Pages).
-- `gate.yml`: the `gate` check (`dx check --affected`) on `merge_group` and by dispatch, required on main by `.github/rulesets/main.json`. Each workflow raises the Bazel heap and runs `setup-bazel` itself, then calls `.github/actions/gate`, which `ci.yml` also calls.
 - `pr-check.yml`: dispatch-only analysis job on `ubuntu-latest` for `tools/ci/pr_check.sh`, one step per set (`workflow`, `preflight`, `starter`, `hermetic`, `docs`, `families`, `cli`) so the run shows each set's duration. Run one locally with `tools/ci/pr_check.sh <set>`. The owner decides whether it moves to `pull_request` or `merge_group` (#7172).
 - `ci.yml`: this repository's own `ci` gate. A failed Windows preflight build uploads `rmeta-diagnostics-<platform>` (#4850).
 - `issue-labels.yml`: daily warning for open issues older than one day, except pinned ones, that have no P0 to P3 label. Writes a job summary. Runs on `ubuntu-slim`.
@@ -22,7 +21,7 @@
 
 ## Main health
 
-`ci.yml` runs only on `workflow_dispatch`, a daily schedule (`17 3 * * *`, UTC) against the default branch head, and `merge_group`. There are no push or pull-request triggers; `gate.yml` runs `gate` on `merge_group` and by dispatch. Runs share one concurrency group per ref (`ci-ci-<ref>`, no cancel): a new run on main replaces only the queued one. The repository cache prune runs after scheduled or dispatched main runs. A red scheduled run opens or updates one issue titled `ci: scheduled run is failing` (the `scheduled-report` job). The next green scheduled run closes it. GitHub may delay or drop scheduled runs under load.
+`ci.yml` runs only on `workflow_dispatch`, a daily schedule (`17 3 * * *`, UTC) against the default branch head, and `merge_group`. There are no push or pull-request triggers. Its `gate` job runs `dx check --affected` and is required on main by `.github/rulesets/main.json`. Runs share one concurrency group per ref (`ci-ci-<ref>`, no cancel): a new run on main replaces only the queued one. The repository cache prune runs after scheduled or dispatched main runs. A red scheduled run opens or updates one issue titled `ci: scheduled run is failing` (the `scheduled-report` job). The next green scheduled run closes it. GitHub may delay or drop scheduled runs under load.
 
 The platform table is `PLATFORMS` in `tools/ci/input_validation.rs`; `input_validation_test` pins every other copy to it.
 

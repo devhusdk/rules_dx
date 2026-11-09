@@ -227,7 +227,6 @@ rust_test(
     data = [
         "//.github:actions",
         "//.github:workflows/ci.yml",
-        "//.github:workflows/gate.yml",
         "//.github:workflows/reusable-consumer.yml",
     ],
     deps = [

@@ -9,8 +9,6 @@ use ci_workflow::{
 
 const CI: &str = ".github/workflows/ci.yml";
 
-const GATE_WORKFLOW: &str = ".github/workflows/gate.yml";
-
 const CONSUMER: &str = ".github/workflows/reusable-consumer.yml";
 
 #[test]
@@ -169,24 +167,22 @@ fn the_gate_job_has_a_bounded_timeout() {
 }
 
 #[test]
-fn the_gate_jobs_raise_the_bazel_heap_before_setup_bazel_calls_bazel() {
-    for workflow in [CI, GATE_WORKFLOW] {
-        let gate = steps(workflow, "gate");
-        let heap = gate.iter().position(|step| {
-            step["run"].as_str().is_some_and(|run| {
-                run.contains("MaxRAMPercentage=50") && run.contains(">> user.bazelrc")
-            })
-        });
-        let setup = gate
-            .iter()
-            .position(|step| step["uses"].as_str() == Some("./.github/actions/setup-bazel"));
-        let heap = heap.unwrap_or_else(|| panic!("{workflow} job gate must raise the Bazel heap"));
-        let setup = setup.unwrap_or_else(|| panic!("{workflow} job gate must run setup-bazel"));
-        assert!(
-            heap < setup,
-            "{workflow} job gate must raise the heap before setup-bazel calls bazel"
-        );
-    }
+fn the_gate_job_raises_the_bazel_heap_before_setup_bazel_calls_bazel() {
+    let gate = steps(CI, "gate");
+    let heap = gate.iter().position(|step| {
+        step["run"].as_str().is_some_and(|run| {
+            run.contains("MaxRAMPercentage=50") && run.contains(">> user.bazelrc")
+        })
+    });
+    let setup = gate
+        .iter()
+        .position(|step| step["uses"].as_str() == Some("./.github/actions/setup-bazel"));
+    let heap = heap.unwrap_or_else(|| panic!("{CI} job gate must raise the Bazel heap"));
+    let setup = setup.unwrap_or_else(|| panic!("{CI} job gate must run setup-bazel"));
+    assert!(
+        heap < setup,
+        "{CI} job gate must raise the heap before setup-bazel calls bazel"
+    );
 }
 
 #[test]

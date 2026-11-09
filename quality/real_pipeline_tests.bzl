@@ -1193,7 +1193,7 @@ def _marked_tool_test(platform):
 
 _zanuda_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
 _psscriptanalyzer_marked_test = _marked_tool_test("//qt/platforms:windows_x86_64")
-_swift_format_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
+_swift_format_marked_test = _marked_tool_test("//qt/platforms:windows_x86_64")
 
 _zanuda_policy_test = analysistest.make(
     _unsupported_platform_impl,

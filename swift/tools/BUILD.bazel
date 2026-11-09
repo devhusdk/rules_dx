@@ -18,12 +18,19 @@ dx_unavailable_tool(
     tool = "swift_format",
 )
 
-# The Swift archives are Linux builds; elsewhere the alias is a marked stub and
-# the aspect skips the stage with a note.
+# The Swift archives are Linux builds. On macOS swift-format is the one the
+# Xcode Swift toolchain ships, found through xcrun, as the host swift is.
+sh_binary(
+    name = "swift_format_macos",
+    srcs = ["swift_format_macos.sh"],
+)
+
+# Elsewhere the alias is a marked stub and the aspect skips the stage with a note.
 alias(
     name = "swift_format",
     actual = select({
         "@platforms//os:linux": ":swift_format_linux",
+        "@platforms//os:macos": ":swift_format_macos",
         "//conditions:default": ":swift_format_unsupported",
     }),
 )

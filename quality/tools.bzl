@@ -2380,10 +2380,9 @@ TOOLS = [
                 context = "target_coupled",
                 family = "swift",
                 fix = "supported",
-                platforms = ["linux_arm64", "linux_x86_64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 transport = "single",
                 unsupported = {
-                    "macos_arm64": "swift-format is pinned only for Linux",
                     "windows_arm64": "swift-format is pinned only for Linux",
                     "windows_x86_64": "swift-format is pinned only for Linux",
                 },
@@ -2401,9 +2400,8 @@ TOOLS = [
                 context = "target_coupled",
                 family = "swift",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 unsupported = {
-                    "macos_arm64": "SwiftLint is pinned only for Linux",
                     "windows_arm64": "SwiftLint is pinned only for Linux",
                     "windows_x86_64": "SwiftLint is pinned only for Linux",
                 },

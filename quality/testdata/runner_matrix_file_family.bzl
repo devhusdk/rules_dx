@@ -2440,6 +2440,7 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//swift/tools:swift_format"],
         "expected_file": ":matrix/matrix_swift_format_pass.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_swift_format_fail",
@@ -2452,6 +2453,7 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//swift/tools:swift_format"],
         "expected_file": ":matrix/matrix_swift_format_fail.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_swift_lint_pass",
@@ -2464,6 +2466,7 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//swift/tools:swift_format"],
         "expected_file": ":matrix/matrix_swift_lint_pass.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_swift_lint_fail",
@@ -2476,6 +2479,7 @@ FILE_FAMILY_CASES = [
         "tool_binaries": ["//swift/tools:swift_format"],
         "expected_file": ":matrix/matrix_swift_lint_fail.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_swift_lint_profile_standard",
@@ -2492,6 +2496,7 @@ FILE_FAMILY_CASES = [
         "config_files": ["//quality/tiers/swift_lint:standard.json"],
         "expected_file": ":matrix/matrix_swift_lint_profile_standard.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_swift_lint_profile_strict",
@@ -2508,6 +2513,7 @@ FILE_FAMILY_CASES = [
         "config_files": ["//quality/tiers/swift_lint:strict.json"],
         "expected_file": ":matrix/matrix_swift_lint_profile_strict.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_swift_format_profile_standard",
@@ -2524,6 +2530,7 @@ FILE_FAMILY_CASES = [
         "config_files": ["//quality/tiers/swift_format:standard.json"],
         "expected_file": ":matrix/matrix_swift_format_profile_standard.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_swift_format_profile_strict",
@@ -2540,6 +2547,7 @@ FILE_FAMILY_CASES = [
         "config_files": ["//quality/tiers/swift_format:strict.json"],
         "expected_file": ":matrix/matrix_swift_format_profile_strict.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_perl_format_pass",

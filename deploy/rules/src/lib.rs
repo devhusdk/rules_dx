@@ -16,6 +16,7 @@ mod crates;
 mod github;
 mod go_api;
 mod hackage;
+mod packagist;
 mod helm;
 mod hex;
 mod homebrew;
@@ -44,6 +45,7 @@ pub use config::*;
 pub use crates::*;
 pub use github::*;
 pub use hackage::*;
+pub use packagist::*;
 pub use helm::*;
 pub use hex::*;
 pub use homebrew::*;
@@ -224,6 +226,7 @@ mod tests {
             &NUGET_GATE,
             &hackage::HACKAGE_GATE,
             &luarocks::LUAROCKS_GATE,
+            &packagist::PACKAGIST_GATE,
             &CRATES_GATE,
             &HEX_GATE,
             &RUBYGEMS_GATE,

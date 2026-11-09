@@ -41,6 +41,8 @@ load(":oci.bzl", "oci_deploy")
 load(":oci_tests.bzl", "oci_layout_fixture", "oci_unit_tests")
 load(":octopus.bzl", "octopus_deploy")
 load(":octopus_tests.bzl", "octopus_unit_tests")
+load(":packagist.bzl", "packagist_deploy")
+load(":packagist_tests.bzl", "packagist_unit_tests")
 load(":pub.bzl", "pub_deploy")
 load(":pub_tests.bzl", "pub_config_content_tests", "pub_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
@@ -74,6 +76,8 @@ exports_files([
     "go_sdk.bzl",
     "hackage.bzl",
     "hackage_tests.bzl",
+    "packagist.bzl",
+    "packagist_tests.bzl",
     "helm.bzl",
     "helm_tests.bzl",
     "hex.bzl",
@@ -119,6 +123,7 @@ exports_files([
     "src/github.rs",
     "src/go_api.rs",
     "src/hackage.rs",
+    "src/packagist.rs",
     "src/helm.rs",
     "src/hex.rs",
     "src/homebrew.rs",
@@ -180,6 +185,7 @@ rust_library(
         "src/github.rs",
         "src/go_api.rs",
         "src/hackage.rs",
+        "src/packagist.rs",
         "src/helm.rs",
         "src/hex.rs",
         "src/homebrew.rs",
@@ -873,6 +879,8 @@ test_suite(
         ":npm_alias_analysis",
         ":npm_analysis",
         ":npm_unit",
+        ":packagist_analysis",
+        ":packagist_unit",
         ":nuget_alias_analysis",
         ":nuget_analysis",
         ":nuget_config_content",
@@ -1852,6 +1860,27 @@ deploy_analysis_test(
 )
 
 genrule(
+    name = "packagist_demo_dir",
+    outs = ["packagist_demo/composer.json"],
+    cmd = "printf '{\"name\": \"acme/demo\"}\\n' > $@",
+)
+
+packagist_deploy(
+    name = "packagist-demo",
+    composer_json = ":packagist_demo_dir",
+    package = "acme/demo",
+    repository_url = "https://github.com/acme/demo",
+)
+
+packagist_unit_tests(name = "packagist_unit")
+
+deploy_analysis_test(
+    name = "packagist_analysis",
+    artifacts = ["//deploy/rules:packagist_demo_dir"],
+    subject = "packagist-demo",
+)
+
+genrule(
     name = "luarocks_demo_rockspec",
     outs = ["luarocks_demo-0.0.0-1.rockspec"],
     cmd = "printf 'package = \"luarocks_demo\"\\nversion = \"0.0.0-1\"\\n' > $@",
@@ -2113,6 +2142,7 @@ real_source_target(
         "validate_crates.bzl",
         "validate_github.bzl",
         "validate_hackage.bzl",
+        "validate_packagist.bzl",
         "validate_helm.bzl",
         "validate_hex.bzl",
         "validate_homebrew.bzl",

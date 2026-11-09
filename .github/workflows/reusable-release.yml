@@ -143,6 +143,8 @@ jobs:
           OCI_API_TOKEN: ${{ secrets.OCI_API_TOKEN }}
           OCI_API_USER: ${{ secrets.OCI_API_USER }}
           OCTOPUS_API_TOKEN: ${{ secrets.OCTOPUS_API_TOKEN }}
+          PACKAGIST_API_TOKEN: ${{ secrets.PACKAGIST_API_TOKEN }}
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
           PUB_API_TOKEN: ${{ secrets.PUB_API_TOKEN }}
           PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
           RUBYGEMS_API_TOKEN: ${{ secrets.RUBYGEMS_API_TOKEN }}
@@ -162,6 +164,7 @@ jobs:
             NUGET_PUBLISH_APPROVED \
             OCI_PUBLISH_APPROVED \
             OCTOPUS_PUBLISH_APPROVED \
+            PACKAGIST_PUBLISH_APPROVED \
             PUB_PUBLISH_APPROVED \
             PYPI_PUBLISH_APPROVED \
             RUBYGEMS_PUBLISH_APPROVED; do

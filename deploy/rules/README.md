@@ -1107,17 +1107,45 @@ Look up an address (a relative virtual address) with `llvm-symbolizer`:
 llvm-symbolizer --obj=app.exe --pdb=app.pdb --relative-address 0x1000
 ```
 
+# packagist_deploy
+
+Asks Packagist to update a package after its git tag is pushed.
+
+```starlark
+load("@rules_dx//deploy/rules:defs.bzl", "packagist_deploy")
+
+packagist_deploy(
+    name = "packagist_demo",
+    composer_json = "composer.json",
+    package = "acme/demo",
+    repository_url = "https://github.com/acme/demo",
+)
+```
+
+- `package`: required. `vendor/name`, lowercase. Must equal `name` in
+  `composer_json`.
+- `composer_json`: required. A file named `composer.json`.
+- `repository_url`: required. The `https://` URL registered on Packagist.
+
+Default run checks the name and prints the request. It contacts nothing.
+Live run needs `PACKAGIST_USERNAME`, `PACKAGIST_API_TOKEN` and
+`PACKAGIST_PUBLISH_APPROVED=1`, and posts to
+`https://packagist.org/api/update-package`.
+
 # Registries released by tag
 
 These registries have no deploy rule. The release is a git tag, a pull
-request, or an upload, so the last step is manual:
+request, or an upload, so the last step is manual. For the registries that
+read versions from tags (Go, Swift, PHP, dub), `github_deploy` with
+`release_tag` set to the tag is the release step.
 
 - Go: push the tag `vX.Y.Z`. The module proxy fetches it from the repository.
   For a GitHub release, set `release_tag` on `github_deploy` to that tag.
 - Julia: push the tag, then comment `@JuliaRegistrator register` on the commit.
 - Swift: push a semver tag such as `1.2.0`. SwiftPM reads versions from tags.
-- PHP: run `composer validate`, then push a tag. Packagist reads tags from the
-  repository.
+- PHP: run `composer validate`, push a tag, then run `packagist_deploy` (below).
+- dub: push a semver tag such as `v1.2.0`. The dub registry reads versions
+  from tags.
 - opam: open a pull request to the opam repository that adds
   `packages/<name>/<name>.<version>/opam`.
 - CPAN: upload the tarball to PAUSE.

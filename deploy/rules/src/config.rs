@@ -140,6 +140,16 @@ pub struct HackageConfig {
     pub version: String,
 }
 
+/// Pins one Packagist update: the composer.json, its expected package and the repository URL.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackagistConfig {
+    pub composer_rloc: String,
+    pub deploy_name: String,
+    pub package: String,
+    pub repository_url: String,
+}
+
 /// Pins one LuaRocks upload: the rockspec and its expected package and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -303,6 +313,7 @@ pub enum DeployConfig {
     Nuget(NugetConfig),
     Hackage(HackageConfig),
     Luarocks(LuarocksConfig),
+    Packagist(PackagistConfig),
     Crates(CratesConfig),
     Pub(PubConfig),
     Hex(HexConfig),
@@ -453,6 +464,13 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &hackage.deploy_name,
             &hackage.package,
             &hackage.version,
+            argv,
+        ),
+        DeployConfig::Packagist(packagist) => crate::packagist_main(
+            &packagist.composer_rloc,
+            &packagist.deploy_name,
+            &packagist.package,
+            &packagist.repository_url,
             argv,
         ),
         DeployConfig::Luarocks(luarocks) => crate::luarocks_main(
@@ -1036,6 +1054,12 @@ mod tests {
                 deploy_name: "demo".to_owned(),
                 package: String::new(),
                 version: String::new(),
+            }),
+            DeployConfig::Packagist(PackagistConfig {
+                composer_rloc: "a".to_owned(),
+                deploy_name: "demo".to_owned(),
+                package: "acme/demo".to_owned(),
+                repository_url: "https://github.com/acme/demo".to_owned(),
             }),
             DeployConfig::Luarocks(LuarocksConfig {
                 rockspec_rloc: "a".to_owned(),

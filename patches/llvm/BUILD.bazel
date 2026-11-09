@@ -1,6 +1,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":fuzzer_build.bzl", "fuzzer_build")
 
 exports_files([
     "libunwind_copy.patch",
@@ -10,6 +11,7 @@ exports_files([
     "lse_atomic_sources.patch",
     "stage0_runtime_features.patch",
     "aarch64_outline_atomics.patch",
+    "msvc_fuzzer.patch",
 ])
 
 sh_test(
@@ -28,6 +30,14 @@ sh_test(
     args = ["$(rootpath @llvm//runtimes/msvc:BUILD.bazel)"],
     data = ["@llvm//runtimes/msvc:BUILD.bazel"],
     target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "msvc_fuzzer_test",
+    size = "small",
+    srcs = ["msvc_fuzzer_test.sh"],
+    args = ["$(rootpath msvc_fuzzer.patch)"],
+    data = ["msvc_fuzzer.patch"],
 )
 
 platform_transition_filegroup(
@@ -55,4 +65,13 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+fuzzer_build(
+    name = "msvc_fuzzer_runtimes",
+    deps = [
+        "@llvm//runtimes:resource_directory_default",
+        "@llvm//runtimes/compiler-rt:clang_rt.fuzzer.static",
+    ],
+    tags = ["manual"],
 )

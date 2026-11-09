@@ -14,6 +14,7 @@ exports_files([
     "llvm.clang_cl_crt_default_lib.patch",
     "llvm.libunwind_copy.patch",
     "llvm.lse_atomic_sources.patch",
+    "llvm.msvc_fuzzer.patch",
     "llvm.msvc_source_directories.patch",
     "llvm.stage0_runtime_features.patch",
     "llvm.unwatched_overlay_inputs.patch",

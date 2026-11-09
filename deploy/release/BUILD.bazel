@@ -112,6 +112,7 @@ rust_test(
         "src/modules.rs",
         "src/provenance.rs",
         "src/publish.rs",
+        "src/release_lib_tests.rs",
         "src/runtimes.rs",
         "src/spdx.rs",
         "src/tool.rs",

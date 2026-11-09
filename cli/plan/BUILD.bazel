@@ -163,6 +163,7 @@ rust_test(
         "src/resolve/test_map.rs",
         "src/resolve/types.rs",
         "src/slots.rs",
+        "src/slots_tests.rs",
         "src/slots/pressure.rs",
     ],
     aliases = aliases(

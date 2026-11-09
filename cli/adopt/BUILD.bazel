@@ -131,6 +131,7 @@ rust_test(
         "src/build_output.rs",
         "src/defaults.rs",
         "src/dependency_sets.rs",
+        "src/dependency_sets_tests.rs",
         "src/error.rs",
         "src/families.rs",
         "src/git_changes.rs",

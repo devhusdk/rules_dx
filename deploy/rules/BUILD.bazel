@@ -192,6 +192,7 @@ rust_library(
         "src/nuget.rs",
         "src/oci.rs",
         "src/oci_scan.rs",
+        "src/oci_tests.rs",
         "src/octopus.rs",
         "src/pub_dev.rs",
         "src/pypi.rs",

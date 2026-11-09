@@ -87,6 +87,7 @@ rust_test(
         "src/accept.rs",
         "src/advisory.rs",
         "src/backend.rs",
+        "src/backend_tests.rs",
         "src/conventional.rs",
         "src/discover/bcr.rs",
         "src/discover/cabal.rs",

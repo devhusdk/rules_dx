@@ -77,7 +77,7 @@ rust_test(
     # The consumer fetches toolchains and registry modules.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     deps = [
-        "//tools/testing:dx_nested",
+        "//tools/testing/nested:dx_nested",
         "//tools/testing:dx_testing",
     ],
 )

@@ -25,8 +25,8 @@ rust_test(
     deps = [
         "//deploy/release:dx_release_tools",
         "//deploy/rules:dx_deploy_tools",
-        "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
     ],
 )
 
@@ -50,9 +50,9 @@ rust_test(
     # The consumer fetches the rust and GCC toolchains and bcr modules.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     deps = [
-        "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
         "//tools/testing/floor:dx_floor",
+        "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",
     ],
 )

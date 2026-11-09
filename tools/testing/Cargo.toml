@@ -8,6 +8,38 @@ edition = "2024"
 name = "dx_testing"
 path = "src/lib.rs"
 
+[[bin]]
+name = "nested_bazel_probe"
+path = "nested_bazel_probe.rs"
+
+[[bin]]
+name = "nested_bazel_shim"
+path = "nested_bazel_shim.rs"
+
+[[bin]]
+name = "starlark_harness"
+path = "starlark_harness.rs"
+
+[[test]]
+name = "consumer_maven_lock_test"
+path = "consumer_maven_lock_test.rs"
+
+[[test]]
+name = "module_srcs_test"
+path = "module_srcs_test.rs"
+
+[[test]]
+name = "nested_bazel_harness_test"
+path = "nested_bazel_harness_test.rs"
+
+[[test]]
+name = "preflight_smoke_test"
+path = "preflight_smoke_test.rs"
+
+[[test]]
+name = "starlark_harness_exit_test"
+path = "starlark_harness_exit_test.rs"
+
 [dependencies]
 serde_json = "1"
 sha2 = "0.10"

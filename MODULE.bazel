@@ -1856,6 +1856,8 @@ crate.from_cargo(
         "//libs/families:Cargo.toml",
         "//libs/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",
+        "//tools/testing/nested:Cargo.toml",
+        "//tools/testing/lsp:Cargo.toml",
         "//tools/testing/floor:Cargo.toml",
         "//tools/testing/load:Cargo.toml",
         "//tools/testing/starters:Cargo.toml",

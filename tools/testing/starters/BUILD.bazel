@@ -13,7 +13,7 @@ load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//rust/rules:defs.bzl", "rust_library")
 load(":defs.bzl", "starter_consumer_test", "starter_goldens_test")
 
-# gazelle:resolve rust dx_nested //tools/testing:dx_nested
+# gazelle:resolve rust dx_nested //tools/testing/nested:dx_nested
 
 starter_consumer_test(
     name = "astro",
@@ -184,8 +184,8 @@ rust_library(
     crate_root = "scaffold.rs",
     visibility = ["//visibility:public"],
     deps = [
-        "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
     ],
 )
 

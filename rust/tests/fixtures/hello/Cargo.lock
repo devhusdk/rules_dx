@@ -1775,6 +1775,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "dx_lsp"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "dx_merge"
 version = "0.0.0"
 dependencies = [
@@ -1790,6 +1797,14 @@ version = "0.0.0"
 dependencies = [
  "starlark_syntax",
  "thiserror 2.0.20",
+]
+
+[[package]]
+name = "dx_nested"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

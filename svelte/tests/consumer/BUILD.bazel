@@ -25,7 +25,7 @@ rust_test(
         "@platforms//cpu:x86_64",
     ],
     deps = [
-        "//tools/testing:dx_nested",
+        "//tools/testing/nested:dx_nested",
         "//tools/testing:dx_testing",
     ],
 )

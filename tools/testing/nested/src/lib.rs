@@ -28,7 +28,7 @@ use dx_testing::Run;
 pub const MAX_IDLE_SECS: u32 = 5;
 pub const DEFAULT_HEAP: &str = "1536m";
 pub const DEFAULT_SLOTS: usize = nested_bazel::DEFAULT_SLOTS as usize;
-pub use nested_bazel::SLOTS_ENV;
+pub use dx_path::nested_bazel::SLOTS_ENV;
 pub const PINNED_ENV: &str = "DX_NESTED_BAZEL_PINNED";
 pub const SHIM_ENV: &str = "DX_NESTED_BAZEL_SHIM";
 pub const CPUS: u32 = 2;
@@ -927,7 +927,8 @@ fn owned_in(processes: &Processes, pid: u32, user_root: &Path) -> bool {
         .is_some_and(|line| names_dir(&line, "", &user_root.to_string_lossy()))
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg_attr(not(unix), allow(dead_code))]
 fn owned_by(pid: u32, user_root: &Path) -> bool {
     owned_in(&Processes::snapshot(), pid, user_root)
 }
@@ -3245,7 +3246,7 @@ mod portable_tests {
 
     /// The `DX_NESTED_BAZEL*` names read by `from_parts`, including the ones held in path-crate constants.
     fn env_names_from_parts() -> Vec<String> {
-        let code = include_str!("nested.rs")
+        let code = include_str!("lib.rs")
             .split("#[cfg(test)]")
             .next()
             .unwrap_or_default();

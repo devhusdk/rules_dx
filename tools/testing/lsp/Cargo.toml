@@ -1,0 +1,12 @@
+[package]
+license = "Apache-2.0"
+name = "dx_lsp"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_lsp"
+path = "src/lib.rs"
+
+[dependencies]
+serde_json = "1"

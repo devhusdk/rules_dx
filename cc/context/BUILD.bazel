@@ -178,8 +178,8 @@ rust_test(
     ],
     deps = [
         ":cc_context",
-        "//tools/testing:dx_lsp",
         "//tools/testing:dx_testing",
+        "//tools/testing/lsp:dx_lsp",
         "@crates//:serde_json",
     ],
 )
@@ -207,8 +207,8 @@ rust_test(
         "@platforms//os:linux",
     ],
     deps = [
-        "//tools/testing:dx_lsp",
         "//tools/testing:dx_testing",
+        "//tools/testing/lsp:dx_lsp",
         "@crates//:serde_json",
     ],
 )

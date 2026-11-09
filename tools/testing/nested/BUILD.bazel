@@ -1,0 +1,75 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_CLI_TEST)
+
+rust_library(
+    name = "dx_nested",
+    testonly = True,
+    srcs = [
+        "src/compose.rs",
+        "src/footprint.rs",
+        "src/lib.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/testing/dx_nested",
+        normal = True,
+    ),
+    crate_name = "dx_nested",
+    crate_root = "src/lib.rs",
+    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli/tests/cli_argv_e2e:__pkg__"],
+    deps = all_crate_deps(
+        package_name = "tools/testing/dx_nested",
+        normal = True,
+    ) + [
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/bazelrc:dx_preset",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "dx_nested_test",
+    aliases = aliases(
+        package_name = "tools/testing/dx_nested",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_nested",
+    data = [
+        "//:.bazelrc",
+        "//tools/testing:nested_bazel_shim",
+    ],
+    env = {
+        "DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath //tools/testing:nested_bazel_shim)",
+        "DX_TEST_ROOT_BAZELRC": "$(rlocationpath //:.bazelrc)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/testing/dx_nested",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/bazelrc:dx_preset",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

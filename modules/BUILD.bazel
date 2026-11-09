@@ -143,8 +143,8 @@ rust_test(
         "DX_PYTHON_BUDGET": "$(rootpath :python_budget.json)",
     },
     deps = [
-        "//tools/testing:dx_nested",
         "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",
     ],
 )

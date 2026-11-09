@@ -7,6 +7,8 @@ load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_B
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
+# gazelle:resolve rust dx_nested //tools/testing/nested:dx_nested
+
 exports_files(
     [
         "child_runfiles.bzl",
@@ -76,67 +78,6 @@ rust_test(
     ),
 )
 
-# keep: not in Cargo.toml; Gazelle would delete it
-rust_library(
-    name = "dx_nested",
-    testonly = True,
-    srcs = [
-        "src/compose.rs",
-        "src/footprint.rs",
-        "src/nested.rs",
-    ],
-    crate_name = "dx_nested",
-    crate_root = "src/nested.rs",
-    visibility = VIS_TOOLS_PUBLIC + ["//cli/cli/tests/cli_argv_e2e:__pkg__"],
-    deps = [
-        ":dx_testing",
-        "//cli/path:dx_path",
-        "//cli/process:dx_process",
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/bazelrc:dx_preset",
-    ] + all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-    ),
-)
-
-rust_test(
-    name = "dx_nested_test",
-    crate = ":dx_nested",
-    data = [
-        ":nested_bazel_shim",
-        "//:.bazelrc",
-    ],
-    env = {
-        "DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath :nested_bazel_shim)",
-        "DX_TEST_ROOT_BAZELRC": "$(rlocationpath //:.bazelrc)",
-    },
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-)
-
-# keep: not in Cargo.toml; Gazelle would delete it
-rust_library(
-    name = "dx_lsp",
-    testonly = True,
-    srcs = ["src/lsp.rs"],
-    crate_name = "dx_lsp",
-    crate_root = "src/lsp.rs",
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-    ),
-)
-
-# keep: tests a library Gazelle does not generate
-rust_test(
-    name = "dx_lsp_test",
-    crate = ":dx_lsp",
-)
-
 child_runfiles(
     name = "process_probe_child",
     testonly = True,
@@ -187,46 +128,88 @@ filegroup(
     target_compatible_with = ["@platforms//:incompatible"],
 )
 
-# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "nested_bazel_probe",
     testonly = True,
     srcs = ["nested_bazel_probe.rs"],
-    deps = [":dx_nested"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ),
+    crate_name = "nested_bazel_probe",
+    crate_root = "nested_bazel_probe.rs",
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ) + [
+        ":dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
 )
 
-# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "nested_bazel_shim",
     testonly = True,
     srcs = ["nested_bazel_shim.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ),
+    crate_name = "nested_bazel_shim",
+    crate_root = "nested_bazel_shim.rs",
     visibility = VIS_TOOLS_PUBLIC,
-    deps = [":dx_nested"],
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ) + [
+        ":dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
 )
 
 rust_test(
     name = "module_srcs_test",
     srcs = ["module_srcs_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "module_srcs_test",
+    crate_root = "module_srcs_test.rs",
     data = [
         "//deploy:module_srcs",
         "//erlang:module_srcs",
         "//qt:module_srcs",
     ],
-    deps = [":dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_testing"],
 )
 
 rust_test(
     name = "consumer_maven_lock_test",
     srcs = ["consumer_maven_lock_test.rs"],
-    data = CONSUMER_MAVEN_DATA,
-    env = CONSUMER_MAVEN_ENV,
-    deps = [
-        ":dx_nested",
-        ":dx_testing",
-    ] + all_crate_deps(
+    aliases = aliases(
         package_name = "tools/dx_testing",
         normal = True,
+        normal_dev = True,
     ),
+    crate_name = "consumer_maven_lock_test",
+    crate_root = "consumer_maven_lock_test.rs",
+    data = CONSUMER_MAVEN_DATA,
+    env = CONSUMER_MAVEN_ENV,
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_testing",
+        "//tools/testing/nested:dx_nested",
+        "@crates//:serde_json",
+    ],
 )
 
 # size: large, nested Bazel consumer build, see #5689
@@ -235,6 +218,13 @@ rust_test(
     size = "large",
     timeout = "moderate",
     srcs = ["nested_bazel_harness_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "nested_bazel_harness_test",
+    crate_root = "nested_bazel_harness_test.rs",
     data = [
         ":nested_bazel_probe",
         "//:.bazelversion",
@@ -256,16 +246,20 @@ rust_test(
         "//conditions:default": NESTED_BAZEL_ENV_INHERIT,
     }),
     tags = NESTED_BAZEL_TAGS,
-    deps = [
-        ":dx_nested",
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing/nested:dx_nested",
     ],
 )
 
-# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "starlark_harness",
+    testonly = True,
     srcs = ["starlark_harness.rs"],
     aliases = aliases(
         package_name = "tools/dx_testing",
@@ -277,10 +271,12 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
-    ) + ["//cli/path:dx_path"],
+    ) + [
+        ":dx_testing",
+        "//cli/path:dx_path",
+    ],
 )
 
-# keep: tests a binary Gazelle does not generate
 rust_test(
     name = "starlark_harness_test",
     aliases = aliases(
@@ -292,6 +288,7 @@ rust_test(
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
+        normal_dev = True,
     ) + ["//cli/path:dx_path"],
 )
 
@@ -303,18 +300,28 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
+    crate_name = "starlark_harness_exit_test",
+    crate_root = "starlark_harness_exit_test.rs",
     data = [":starlark_harness"],
     env = {"STARLARK_HARNESS_BIN": "$(rootpath :starlark_harness)"},
     tags = ["no-remote-exec"],
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
-    ) + ["//tools/testing:dx_testing"],
+        normal_dev = True,
+    ) + [":dx_testing"],
 )
 
 rust_test(
     name = "preflight_smoke_test",
     srcs = ["preflight_smoke_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "preflight_smoke_test",
+    crate_root = "preflight_smoke_test.rs",
     data = [
         "//cc/tests/fixtures/hello",
         "//cli/cli:dx",
@@ -327,9 +334,13 @@ rust_test(
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",
     ],
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
     ],
 )
 

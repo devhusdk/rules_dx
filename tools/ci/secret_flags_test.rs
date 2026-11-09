@@ -224,10 +224,11 @@ fn every_upload_follows_a_matching_scan() {
     let mut uploads = 0;
     for path in dx_testing::workflow_files() {
         let document = parse(&path);
-        if document["env"]["BUILDBUDDY_API_KEY"].is_null() {
-            continue;
-        }
+        let workflow_key = !document["env"]["BUILDBUDDY_API_KEY"].is_null();
         for (id, steps) in jobs(&document) {
+            if !workflow_key && document["jobs"][&id]["env"]["BUILDBUDDY_API_KEY"].is_null() {
+                continue;
+            }
             for (index, step) in steps.iter().enumerate() {
                 if !is_upload(step) {
                     continue;
@@ -392,7 +393,10 @@ fn helper_action_writes_a_working_helper() {
     let step = named_step(SETUP_ACTION, HELPER_STEP);
     let script = step["run"].as_str().expect("helper run");
     let key = ("BUILDBUDDY_API_KEY", "k3y");
-    let cache = ("DX_REMOTE_CACHE_ARG", "--remote_cache=grpcs://remote.example.com");
+    let cache = (
+        "DX_REMOTE_CACHE_ARG",
+        "--remote_cache=grpcs://remote.example.com",
+    );
     let header = ("REMOTE_CACHE_HEADER", "x-t=s3cr3t");
     let own_host = (
         "DX_REMOTE_CACHE_ARG",
@@ -410,7 +414,9 @@ fn helper_action_writes_a_working_helper() {
             "key with a custom cache",
             &[key, cache],
             0,
-            Some("--remote_cache=grpcs://remote.example.com --credential_helper=remote.buildbuddy.io="),
+            Some(
+                "--remote_cache=grpcs://remote.example.com --credential_helper=remote.buildbuddy.io=",
+            ),
             Some(r#"{"headers":{"x-buildbuddy-api-key":["k3y"]}}"#),
         ),
         (
@@ -427,9 +433,21 @@ fn helper_action_writes_a_working_helper() {
             Some("--credential_helper=cache.example.com="),
             Some(r#"{"headers":{"x-t":["s3cr3t"]}}"#),
         ),
-        ("no equals", &[("REMOTE_CACHE_HEADER", "novalue")], 1, None, None),
+        (
+            "no equals",
+            &[("REMOTE_CACHE_HEADER", "novalue")],
+            1,
+            None,
+            None,
+        ),
         ("quote", &[("REMOTE_CACHE_HEADER", "x=a\"b")], 1, None, None),
-        ("percent", &[("REMOTE_CACHE_HEADER", "x=a%b")], 1, None, None),
+        (
+            "percent",
+            &[("REMOTE_CACHE_HEADER", "x=a%b")],
+            1,
+            None,
+            None,
+        ),
         ("nothing set", &[], 0, None, None),
     ];
     for (name, env, status, args, printed) in cases {

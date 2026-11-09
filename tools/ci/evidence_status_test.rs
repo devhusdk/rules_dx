@@ -59,7 +59,10 @@ fn statuses_use_the_commit_context_and_run_url() {
     let workflow = workflow();
     for job in ["pending", "finish"] {
         let text = run_text(&workflow, job);
-        assert!(text.contains("context=evidence/$platform/$task/$scope"), "{job}");
+        assert!(
+            text.contains("context=evidence/$platform/$task/$scope"),
+            "{job}"
+        );
         assert!(text.contains("statuses/$GITHUB_SHA"), "{job}");
         assert!(text.contains("actions/runs/$GITHUB_RUN_ID"), "{job}");
         assert!(!text.contains("${{"), "{job} puts an expression in run");
@@ -76,4 +79,29 @@ fn the_matrix_job_name_matches_what_finish_reads() {
         "evidence (${{ matrix.platform }})"
     );
     assert!(run_text(&workflow, "finish").contains(r#""evidence ($platform)""#));
+}
+
+#[test]
+fn only_the_evidence_job_receives_secrets() {
+    let workflow = workflow();
+    assert!(
+        workflow
+            .get("env")
+            .is_none_or(|env| !env.to_string().contains("secrets."))
+    );
+    for job in ["pending", "finish"] {
+        let job_env = workflow["jobs"][job].get("env");
+        assert!(
+            job_env.is_none_or(|env| !env.to_string().contains("secrets.")),
+            "{job} has secrets in env"
+        );
+        for step in workflow["jobs"][job]["steps"].as_array().expect("steps") {
+            assert!(
+                step.get("env")
+                    .is_none_or(|env| !env.to_string().contains("secrets.")),
+                "{job} step has secrets in env"
+            );
+        }
+    }
+    assert!(workflow["jobs"]["evidence"]["env"]["BUILDBUDDY_API_KEY"].is_string());
 }

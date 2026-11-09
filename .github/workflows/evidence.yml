@@ -63,7 +63,6 @@ env:
   MSYS2_ARG_CONV_EXCL: "//"
   DX_ANDROID_API: "34"
   DX_ANDROID_ABI: "x86_64"
-  BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
 
 jobs:
   pending:
@@ -106,6 +105,8 @@ jobs:
       matrix:
         platform: ${{ fromJSON(inputs.platforms) }}
     runs-on: ${{ fromJSON('{"linux_x86_64":"ubuntu-latest","linux_arm64":"ubuntu-24.04-arm","macos_arm64":"macos-15","windows_x86_64":"windows-latest","windows_arm64":"windows-11-arm"}')[matrix.platform] || 'ubuntu-latest' }}
+    env:
+      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
     permissions:
       contents: read
     steps:

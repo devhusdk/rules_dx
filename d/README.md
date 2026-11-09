@@ -133,3 +133,10 @@ The hello D tests (`greet_test`, `hello_output_test`) pass on Windows x86_64 (ev
 42057198949) and Windows arm64 (evidence run 42083243205). The hello and d-app tests
 (`app_output_test`, `base_test`, `cli_test`) pass on both Windows hosts in evidence run
 42302173656.
+
+## Formatting
+
+`dx format` has no D formatter. The only candidate is `dfmt` (dlang-community), and its last
+release, v0.15.2, was published on 2024-08-21, more than 12 months ago. Pinning it would mean
+building an unreleased commit with the pinned LDC and dub on every D platform, so the Format cell
+for D stays `no` until upstream cuts a release.

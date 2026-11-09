@@ -9,9 +9,6 @@ use crate::git_changes::{
 /// Largest file a change may add without being listed in `[large_files] allow` of dx.toml.
 pub const MAX_FILE_BYTES: u64 = 1_048_576;
 
-/// Obsolete root file; the allow list lives in dx.toml now.
-pub const OBSOLETE_ALLOW_FILE: &str = ".dx-large-files";
-
 /// Lock files are generated and often large, so the size limit skips them.
 const LOCK_FILES: [&str; 17] = [
     "MODULE.bazel.lock",
@@ -322,13 +319,6 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
     }
     paths.sort();
     paths.dedup_by(|next, current| next.0 == current.0);
-    if root.join(OBSOLETE_ALLOW_FILE).is_file() {
-        report.findings.push(BuildOutputFinding {
-            path: OBSOLETE_ALLOW_FILE.to_owned(),
-            reason: "obsolete; move its entries to [large_files] allow in dx.toml and delete it"
-                .to_owned(),
-        });
-    }
     let found = classify_kinds(root, &paths);
     let oversized: Vec<String> = found
         .iter()
@@ -613,14 +603,6 @@ mod tests {
         assert_eq!(found(&root), ["big.bin"]);
         write(&root, "dx.toml", &toml("\"vendor\""));
         assert_eq!(found(&root), ["big.bin", "target/a", "vendor/big2.bin"]);
-    }
-
-    #[test]
-    fn obsolete_allow_file_is_reported() {
-        let root = repo_on_main();
-        git(&root, &["switch", "-q", "-c", "feature"]);
-        write(&root, OBSOLETE_ALLOW_FILE, b"vendor/\n");
-        assert_eq!(found(&root), [OBSOLETE_ALLOW_FILE]);
     }
 
     #[cfg(unix)]

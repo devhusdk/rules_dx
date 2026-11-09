@@ -277,6 +277,23 @@ pub struct DubLock<'a> {
     pub line: usize,
 }
 
+/// One `ansible.collections` tag of the rules_dx ansible extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AnsibleCollections<'a> {
+    pub name: &'a str,
+    pub lock: &'a str,
+    pub line: usize,
+}
+
+/// One `bicep.registry_module` tag of the rules_dx bicep extension.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BicepRegistryModule<'a> {
+    pub name: &'a str,
+    pub reference: &'a str,
+    pub digest: &'a str,
+    pub line: usize,
+}
+
 /// One `ocaml.packages` tag.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OpamPackages<'a> {
@@ -976,6 +993,39 @@ impl ModuleFile {
                     name: required(call, TAG, "name")?,
                     selections: required(call, TAG, "selections")?,
                     digests: required(call, TAG, "digests")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `ansible.collections` tag of the rules_dx ansible extension in source order.
+    pub fn ansible_collections(&self) -> Result<Vec<AnsibleCollections<'_>>, ModuleError> {
+        const TAG: &str = "ansible.collections";
+        let own = self.tags_of("//ansible:extensions.bzl".to_owned(), "ansible", "collections");
+        self.tags(RUBY_MODULE, "ansible:extensions.bzl", "ansible", "collections")
+            .chain(own)
+            .map(|call| {
+                Ok(AnsibleCollections {
+                    name: required(call, TAG, "name")?,
+                    lock: required(call, TAG, "lock")?,
+                    line: call.line,
+                })
+            })
+            .collect()
+    }
+
+    /// Every `bicep.registry_module` tag of the rules_dx bicep extension in source order.
+    pub fn bicep_registry_modules(&self) -> Result<Vec<BicepRegistryModule<'_>>, ModuleError> {
+        const TAG: &str = "bicep.registry_module";
+        let own = self.tags_of("//bicep:extensions.bzl".to_owned(), "bicep", "registry_module");
+        self.tags(RUBY_MODULE, "bicep:extensions.bzl", "bicep", "registry_module")
+            .chain(own)
+            .map(|call| {
+                Ok(BicepRegistryModule {
+                    name: required(call, TAG, "name")?,
+                    reference: required(call, TAG, "ref")?,
+                    digest: required(call, TAG, "digest")?,
                     line: call.line,
                 })
             })

@@ -1271,6 +1271,34 @@ fn haskell_packages_follow_the_haskell_extension() {
 }
 
 #[test]
+fn ansible_and_bicep_tags_follow_their_extensions() {
+    let file = parse(
+        "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.collections(name = \"cols\", lock = \"//app:lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.registry_module(name = \"storage\", ref = \"br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0\", digest = \"sha256:abc\")\n",
+    );
+    let collections: Vec<_> = file
+        .ansible_collections()
+        .expect("collections")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
+    assert_eq!(collections, [("cols", "//app:lock.json")]);
+    let modules: Vec<_> = file
+        .bicep_registry_modules()
+        .expect("modules")
+        .iter()
+        .map(|entry| (entry.name, entry.reference, entry.digest))
+        .collect();
+    assert_eq!(
+        modules,
+        [(
+            "storage",
+            "br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0",
+            "sha256:abc"
+        )]
+    );
+}
+
+#[test]
 fn paket_extensions_are_main_repository_paket_loaders() {
     let file = parse(
         "paket = use_extension(\"//third_party/dotnet:extension.bzl\", \"paket\")\nmain = use_extension(\"//deps:paket.main_extension.bzl\", \"main_extension\")\nother = use_extension(\"//tools:extension.bzl\", \"other\")\nremote = use_extension(\"@x//:extension.bzl\", \"paket\")\n",

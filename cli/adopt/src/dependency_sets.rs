@@ -39,7 +39,11 @@ pub const ECOSYSTEM_SWIFTPM: &str = "swiftpm";
 
 pub const ECOSYSTEM_CABAL: &str = "cabal";
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub";
+pub const ECOSYSTEM_ANSIBLE: &str = "ansible";
+
+pub const ECOSYSTEM_BICEP: &str = "bicep";
+
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, ansible, bicep";
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
 
@@ -123,6 +127,8 @@ pub enum Ecosystem {
     Opam,
     SwiftPm,
     Cabal,
+    Ansible,
+    Bicep,
 }
 
 impl Ecosystem {
@@ -146,6 +152,8 @@ impl Ecosystem {
             Ecosystem::Dub => ECOSYSTEM_DUB,
             Ecosystem::Opam => ECOSYSTEM_OPAM,
             Ecosystem::Cabal => ECOSYSTEM_CABAL,
+            Ecosystem::Ansible => ECOSYSTEM_ANSIBLE,
+            Ecosystem::Bicep => ECOSYSTEM_BICEP,
             Ecosystem::SwiftPm => ECOSYSTEM_SWIFTPM,
         }
     }
@@ -170,6 +178,8 @@ impl Ecosystem {
             ECOSYSTEM_DUB => Some(Ecosystem::Dub),
             ECOSYSTEM_OPAM => Some(Ecosystem::Opam),
             ECOSYSTEM_CABAL => Some(Ecosystem::Cabal),
+            ECOSYSTEM_ANSIBLE => Some(Ecosystem::Ansible),
+            ECOSYSTEM_BICEP => Some(Ecosystem::Bicep),
             ECOSYSTEM_SWIFTPM => Some(Ecosystem::SwiftPm),
             _ => None,
         }
@@ -195,6 +205,8 @@ impl Ecosystem {
             | Ecosystem::Composer
             | Ecosystem::Dub
             | Ecosystem::Opam
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep
             | Ecosystem::Cabal => "pinned",
         }
     }
@@ -207,6 +219,7 @@ impl Ecosystem {
             | Ecosystem::Maven
             | Ecosystem::Nuget
             | Ecosystem::Go
+            | Ecosystem::Ansible
             | Ecosystem::SwiftPm => "update",
             Ecosystem::Bazel
             | Ecosystem::Ruby
@@ -219,6 +232,7 @@ impl Ecosystem {
             | Ecosystem::Composer
             | Ecosystem::Dub
             | Ecosystem::Opam
+            | Ecosystem::Bicep
             | Ecosystem::Cabal => "pinned",
         }
     }
@@ -257,6 +271,8 @@ impl Ecosystem {
             | Ecosystem::Dub
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep
             | Ecosystem::Cabal => "audit",
         }
     }
@@ -276,7 +292,7 @@ impl Ecosystem {
             Ecosystem::Julia => Some("julia"),
             Ecosystem::Hex => Some("hex"),
             Ecosystem::Composer => Some("packagist"),
-            Ecosystem::Dub => None,
+            Ecosystem::Dub | Ecosystem::Ansible | Ecosystem::Bicep => None,
             Ecosystem::Opam => Some("opam"),
             Ecosystem::Cabal => Some("hackage"),
             Ecosystem::SwiftPm => Some("swifturl"),
@@ -293,7 +309,7 @@ impl Ecosystem {
             Ecosystem::Ruby => "Gemfile",
             Ecosystem::PowerShell => "PSGallery.requirements.psd1",
             Ecosystem::Cargo => "Cargo.toml",
-            Ecosystem::Maven => MODULE_BAZEL,
+            Ecosystem::Maven | Ecosystem::Ansible | Ecosystem::Bicep => MODULE_BAZEL,
             Ecosystem::Nuget => "paket.dependencies",
             Ecosystem::Go => GO_MOD,
             Ecosystem::Cpan => CPANFILE,
@@ -329,6 +345,8 @@ impl Ecosystem {
             | Ecosystem::Dub
             | Ecosystem::Opam
             | Ecosystem::SwiftPm
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep
             | Ecosystem::Cabal => false,
         }
     }
@@ -718,6 +736,22 @@ pub fn discover(
                 vec![in_dir(&dir, CABAL_FREEZE), deps],
             )?);
         }
+        for ansible in module.ansible_collections().map_err(hub)? {
+            sets.push(hub_set(
+                ansible.name,
+                Ecosystem::Ansible,
+                vec![MODULE_BAZEL.to_owned()],
+                vec![path(ansible.lock)?],
+            )?);
+        }
+        for bicep in module.bicep_registry_modules().map_err(hub)? {
+            sets.push(hub_set(
+                bicep.name,
+                Ecosystem::Bicep,
+                vec![MODULE_BAZEL.to_owned()],
+                Vec::new(),
+            )?);
+        }
         for label in module.conan_extensions() {
             let bzl = dx_module_bazel::label_path(label)
                 .map_err(|detail| DependencySetsError::Module { detail })?;
@@ -974,7 +1008,10 @@ fn check_conflicts(sets: &[DependencySet]) -> Result<(), DependencySetsError> {
     }
     let mut writers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for set in sets {
-        let manifests: &[String] = if set.ecosystem == Ecosystem::Maven {
+        let manifests: &[String] = if matches!(
+            set.ecosystem,
+            Ecosystem::Maven | Ecosystem::Ansible | Ecosystem::Bicep
+        ) {
             &[]
         } else {
             &set.manifests
@@ -1094,6 +1131,8 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
         | Ecosystem::Dub
         | Ecosystem::Opam
         | Ecosystem::Cabal
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep
         | Ecosystem::SwiftPm
         | Ecosystem::Nuget => {
             let charset = match ecosystem {
@@ -1484,6 +1523,8 @@ pub fn check_backend_settings(
         Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Dub => check_dub_layout(workspace, set),
         Ecosystem::Opam => check_opam_layout(set),
+        Ecosystem::Ansible => check_ansible_layout(set),
+        Ecosystem::Bicep => Ok(()),
         Ecosystem::Cabal => check_cabal_layout(workspace, set),
         Ecosystem::SwiftPm => check_pinned_lock(set, PACKAGE_RESOLVED),
         Ecosystem::Cargo => {
@@ -1571,7 +1612,12 @@ pub fn cpan_compiler_label(workspace: &Path, set: &ResolvedSet) -> Option<String
 
 /// The `//pkg:name` of the first `rule` call in the BUILD file of the set's directory.
 pub fn julia_target_label(workspace: &Path, set: &ResolvedSet, rule: &str) -> Option<String> {
-    let package = if set.dir == "." { "" } else { set.dir.as_str() };
+    target_label_in(workspace, &set.dir, rule)
+}
+
+/// The `//pkg:name` of the first `rule` call in the BUILD file of `dir`.
+pub fn target_label_in(workspace: &Path, dir: &str, rule: &str) -> Option<String> {
+    let package = if dir == "." { "" } else { dir };
     let text = ["BUILD.bazel", "BUILD"]
         .iter()
         .find_map(|name| std::fs::read_to_string(workspace.join(package).join(name)).ok())?;
@@ -2142,6 +2188,18 @@ fn check_pinned_lock(set: &ResolvedSet, file: &str) -> Result<(), DependencySets
     })
 }
 
+/// An ansible set has exactly the one collections lock its tag names.
+fn check_ansible_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
+    if set.locks.len() == 1 && set.locks[0].ends_with(".json") {
+        return Ok(());
+    }
+    Err(DependencySetsError::MissingPinnedLock {
+        name: set.name.clone(),
+        path: "lock.json".to_owned(),
+        ecosystem: set.ecosystem.name(),
+    })
+}
+
 /// An opam set keeps `<name>.opam.locked` beside its `<name>.opam`.
 fn check_opam_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
     for manifest in &set.manifests {
@@ -2706,6 +2764,22 @@ mod tests {
         assert_eq!(set.ecosystem, Ecosystem::Dub);
         assert_eq!(set.manifests, ["d/dub.sdl"]);
         assert_eq!(set.locks, ["d/dub.selections.json", "d/dub.digests.json"]);
+    }
+
+    #[test]
+    fn ansible_and_bicep_tags_become_sets() {
+        let module = "ansible = use_extension(\"//ansible:extensions.bzl\", \"ansible\")\nansible.collections(name = \"cols\", lock = \"//play:lock.json\")\nbicep = use_extension(\"//bicep:extensions.bzl\", \"bicep\")\nbicep.registry_module(name = \"storage\", ref = \"br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0\", digest = \"sha256:abc\")\nbicep.registry_module(name = \"network\", ref = \"br:mcr.microsoft.com/bicep/avm/res/network/virtual-network:0.1.0\", digest = \"sha256:def\")\n";
+        let registry = found(module, &[]);
+        let cols = registry.find("cols").expect("set");
+        assert_eq!(cols.ecosystem, Ecosystem::Ansible);
+        assert_eq!(cols.manifests, ["MODULE.bazel"]);
+        assert_eq!(cols.locks, ["play/lock.json"]);
+        assert!(check_ansible_layout(&ResolvedSet::of(cols)).is_ok());
+        let storage = registry.find("storage").expect("set");
+        assert_eq!(storage.ecosystem, Ecosystem::Bicep);
+        assert!(storage.locks.is_empty());
+        assert_eq!(Ecosystem::parse("bicep"), Some(Ecosystem::Bicep));
+        assert_eq!(Ecosystem::Ansible.supported_update(), "update");
     }
 
     #[test]
@@ -3384,7 +3458,7 @@ mod tests {
         assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
         assert_eq!(
             SUPPORTED_ECOSYSTEMS,
-            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub"
+            "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, ansible, bicep"
         );
     }
 

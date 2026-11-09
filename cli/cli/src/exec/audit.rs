@@ -539,7 +539,9 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::PowerShell => {
                 dx_audit::locks::parse_psgallery_lock(text)
             }
-            dx_adopt::dependency_sets::Ecosystem::Bazel => Ok(Vec::new()),
+            dx_adopt::dependency_sets::Ecosystem::Bazel
+            | dx_adopt::dependency_sets::Ecosystem::Ansible
+            | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
             // The versions live in go.mod; go.sum only holds hashes (see the builtin set).
             dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
             dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {

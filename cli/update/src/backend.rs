@@ -574,6 +574,9 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             Ecosystem::Opam => {
                 "dx does not resolve opam packages; edit the .opam file and regenerate the .opam.locked file with `opam lock`"
             }
+            Ecosystem::Bicep => {
+                "dx does not pick Bicep module versions; edit the ref in MODULE.bazel and set digest from `bazel run //bicep/tools:pin -- <ref>`"
+            }
             Ecosystem::SwiftPm => {
                 "dx does not resolve Swift packages; edit Package.swift and regenerate Package.resolved with `swift package resolve`"
             }
@@ -582,6 +585,70 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
             }
         },
     }
+}
+
+/// Runs the ansible_lock target once per collection, so each one moves to its latest Galaxy version.
+///
+/// A package that is not in the lock yet is added with its dependencies.
+fn ansible_plan(
+    workspace: &Path,
+    set: &ResolvedSet,
+    request: &Selection,
+    offline: bool,
+    frozen: bool,
+    head: &dx_process::BazelHead,
+) -> Result<BackendPlan, BackendError> {
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    let unsupported = |reason: &'static str| BackendError::Unsupported {
+        set: set.name.clone(),
+        reason,
+    };
+    let lock = set
+        .locks
+        .first()
+        .ok_or_else(|| unsupported("the ansible.collections tag names no lock"))?;
+    let dir = lock.rsplit_once('/').map_or(".", |(dir, _)| dir);
+    let Some(target) = dependency_sets::target_label_in(workspace, dir, "ansible_lock") else {
+        return Err(unsupported(
+            "add an ansible_lock next to the collections lock; it writes lock.json from Galaxy",
+        ));
+    };
+    let names = match request {
+        Selection::Packages(packages) => packages.clone(),
+        Selection::Full => {
+            let text = std::fs::read_to_string(workspace.join(lock))
+                .map_err(|_| unsupported("the collections lock cannot be read"))?;
+            let json: serde_json::Value = serde_json::from_str(&text)
+                .map_err(|_| unsupported("the collections lock is not valid JSON"))?;
+            json.get("collections")
+                .and_then(serde_json::Value::as_array)
+                .map(Vec::as_slice)
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|entry| entry.get("name")?.as_str().map(str::to_owned))
+                .collect()
+        }
+    };
+    let runs: Vec<Run> = names
+        .iter()
+        .map(|name| Run {
+            argv: bazel(head, "run", &[target.as_str(), "--", name.as_str()]),
+            env: Vec::new(),
+        })
+        .collect();
+    if runs.is_empty() {
+        return Ok(BackendPlan::Noop);
+    }
+    Ok(BackendPlan::Sequence(runs))
 }
 
 /// A process to run in a directory other than the workspace root.
@@ -692,13 +759,22 @@ pub fn plan_configured(
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (
-            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Conan
+            | Ecosystem::Dub
+            | Ecosystem::Bicep,
             Selection::Full,
         ) => Ok(BackendPlan::Noop),
         (
-            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Conan
+            | Ecosystem::Dub
+            | Ecosystem::Bicep,
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
+        (Ecosystem::Ansible, request) => ansible_plan(workspace, set, request, offline, frozen, head),
         (Ecosystem::Hex, request) => {
             if frozen {
                 return Err(BackendError::FrozenLocked {
@@ -1104,11 +1180,21 @@ pub fn check_configured(
             reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
         }),
         (
-            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Conan
+            | Ecosystem::Dub
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep,
             Selection::Full,
         ) => Ok(CheckPlan::Pinned),
         (
-            Ecosystem::Ruby | Ecosystem::PowerShell | Ecosystem::Conan | Ecosystem::Dub,
+            Ecosystem::Ruby
+            | Ecosystem::PowerShell
+            | Ecosystem::Conan
+            | Ecosystem::Dub
+            | Ecosystem::Ansible
+            | Ecosystem::Bicep,
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
         (Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Staged(hex_staged(
@@ -2389,6 +2475,69 @@ mod tests {
             check(dir.path(), &Selection::Full, true),
             Err(BackendError::OfflineRequired { .. })
         ));
+    }
+
+    fn ansible_set() -> ResolvedSet {
+        ResolvedSet {
+            name: "cols".to_owned(),
+            ecosystem: Ecosystem::Ansible,
+            dir: ".".to_owned(),
+            manifests: vec!["MODULE.bazel".to_owned()],
+            locks: vec!["play/lock.json".to_owned()],
+            repository: None,
+        }
+    }
+
+    #[test]
+    fn ansible_update_runs_the_lock_target_per_collection() {
+        let dir = dx_test_scratch::scratch("ansible_backend");
+        dx_test_scratch::write(dir.path(), "play/BUILD.bazel", "ansible_lock(name = \"lock\")\n");
+        dx_test_scratch::write(
+            dir.path(),
+            "play/lock.json",
+            "{\"collections\": [{\"name\": \"a.one\"}, {\"name\": \"b.two\"}]}",
+        );
+        let plan = |request: &Selection, offline: bool| {
+            plan_configured(
+                dir.path(),
+                &ansible_set(),
+                request,
+                offline,
+                false,
+                &no_head(),
+                &UvClosure::default(),
+            )
+        };
+        let BackendPlan::Sequence(runs) = plan(&Selection::Full, false).expect("plan") else {
+            panic!("expected a sequence");
+        };
+        let tails: Vec<_> = runs
+            .iter()
+            .map(|run| run.argv[run.argv.len() - 3..].join(" "))
+            .collect();
+        assert_eq!(tails, ["//play:lock -- a.one", "//play:lock -- b.two"]);
+        let BackendPlan::Sequence(one) =
+            plan(&Selection::Packages(vec!["c.three".to_owned()]), false).expect("plan")
+        else {
+            panic!("expected a sequence");
+        };
+        assert_eq!(one.len(), 1);
+        assert!(matches!(
+            plan(&Selection::Full, true),
+            Err(BackendError::OfflineRequired { .. })
+        ));
+        let bare = dx_test_scratch::scratch("ansible_backend_bare");
+        let error = plan_configured(
+            bare.path(),
+            &ansible_set(),
+            &Selection::Full,
+            false,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+        .expect_err("refused");
+        assert!(error.to_string().contains("add an ansible_lock"));
     }
 
     fn cabal_set() -> ResolvedSet {

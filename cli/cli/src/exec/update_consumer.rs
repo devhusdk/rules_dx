@@ -224,6 +224,8 @@ fn run_configured_target(
         | Ecosystem::Composer
         | Ecosystem::Opam
         | Ecosystem::SwiftPm
+        | Ecosystem::Ansible
+        | Ecosystem::Bicep
         | Ecosystem::Cabal => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();

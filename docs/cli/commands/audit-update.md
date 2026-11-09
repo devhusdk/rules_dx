@@ -664,6 +664,27 @@ haskell.packages(name = "hackage", deps = "//third_party:haskell_deps.json")
 - `dx update --outdated` compares the freeze pins with `hackage.haskell.org/package/<name>/preferred`.
 - `dx security` matches the `any.<name> ==<version>` pins of `cabal.project.freeze` against `.dx/local/advisory/hackage.json`. Flags and `installed` boot packages are skipped.
 
+### ansible
+
+```starlark
+ansible = use_extension("@rules_dx//ansible:extensions.bzl", "ansible")
+ansible.collections(name = "collections", lock = "//third_party:lock.json")
+```
+
+- The manifest is `MODULE.bazel` and the one lock is the JSON file the `lock` label names. A check reports `pinned`.
+- `--apply` runs the `ansible_lock` target in the package of the lock once per collection in it, or once per `dx update <set>:<namespace.collection>`. Each run moves that collection to the latest Galaxy version and adds new dependencies; dependencies already locked stay. Without the target the set is unsupported. `--offline` fails with `offline_required`; `--apply --frozen` fails with `frozen_locked`.
+- A package may be a collection that is not in the lock yet. Dx does not solve version constraints.
+
+### bicep
+
+```starlark
+bicep = use_extension("@rules_dx//bicep:extensions.bzl", "bicep")
+bicep.registry_module(name = "storage", ref = "br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0", digest = "sha256:...")
+```
+
+- The manifest is `MODULE.bazel`; the digest in the tag is the pin, so the set has no lock. A check and an update report `pinned`.
+- To move a module, edit `ref` and set `digest` from `bazel run @rules_dx//bicep/tools:pin -- <ref>`. Dx never picks a registry tag.
+
 ### uv
 
 - Dx runs the pinned uv `0.13.7` and the pinned interpreter. `DX_UV_BIN` and `DX_UV_PYTHON` hold absolute paths to override; otherwise dx resolves `@dx_tools//:uv` and `@rules_dx//cli/update:python_interpreter` through Bazel. A relative path is rejected, `PATH` is never searched, and a uv that does not report `0.13.7` is rejected. With no usable tool the set fails with `backend_unavailable` and the run exits `1`.

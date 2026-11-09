@@ -354,6 +354,8 @@ pub(super) fn run_license(
             | dx_adopt::dependency_sets::Ecosystem::Composer
             | dx_adopt::dependency_sets::Ecosystem::Opam
             | dx_adopt::dependency_sets::Ecosystem::SwiftPm
+            | dx_adopt::dependency_sets::Ecosystem::Ansible
+            | dx_adopt::dependency_sets::Ecosystem::Bicep
             | dx_adopt::dependency_sets::Ecosystem::Cabal => {}
         }
     }

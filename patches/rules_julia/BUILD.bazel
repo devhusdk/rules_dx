@@ -4,6 +4,7 @@ exports_files([
     "package_annotation_version.patch",
     "package_name.patch",
     "portable_cpu_target.patch",
+    "template_action_input.patch",
 ])
 
 real_source_target(

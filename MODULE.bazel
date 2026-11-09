@@ -1047,6 +1047,7 @@ single_version_override(
         "//patches/rules_julia:package_annotation_version.patch",
         "//patches/rules_julia:package_name.patch",
         "//patches/rules_julia:portable_cpu_target.patch",
+        "//patches/rules_julia:template_action_input.patch",
     ],
     version = "0.8.0",
 )

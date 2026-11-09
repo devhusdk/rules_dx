@@ -155,6 +155,10 @@ pub const OVERRIDES: &[Override] = &[
                 file: "portable_cpu_target.patch",
                 content: include_str!("../../../patches/rules_julia/portable_cpu_target.patch"),
             },
+            OverridePatch {
+                file: "template_action_input.patch",
+                content: include_str!("../../../patches/rules_julia/template_action_input.patch"),
+            },
         ],
     },
     Override {

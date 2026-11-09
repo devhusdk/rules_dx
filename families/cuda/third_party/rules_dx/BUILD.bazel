@@ -29,6 +29,7 @@ exports_files([
     "rules_julia.package_annotation_version.patch",
     "rules_julia.package_name.patch",
     "rules_julia.portable_cpu_target.patch",
+    "rules_julia.template_action_input.patch",
     "rules_kotlin.windows_coverage_test_suite.patch",
     "rules_py.external_repo_pytest_paths.patch",
     "rules_py.host_interpreter_windows_arm64.patch",

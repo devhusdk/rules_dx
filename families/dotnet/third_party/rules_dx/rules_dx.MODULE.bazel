@@ -46,6 +46,7 @@ single_version_override(
         "//third_party/rules_dx:rules_julia.package_annotation_version.patch",
         "//third_party/rules_dx:rules_julia.package_name.patch",
         "//third_party/rules_dx:rules_julia.portable_cpu_target.patch",
+        "//third_party/rules_dx:rules_julia.template_action_input.patch",
     ],
     version = "0.8.0",
 )

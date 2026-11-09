@@ -1,6 +1,6 @@
 load("@rules_dx//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH", "julia_binary", "julia_library", "julia_test")
 load("@rules_dx//julia/rules:precompile_tests.bzl", "julia_forwarded_info_test", "julia_precompile_test")
-load("@rules_dx//julia/rules:wrapper_tests.bzl", "julia_coverage_test")
+load("@rules_dx//julia/rules:wrapper_tests.bzl", "julia_coverage_test", "julia_wrapper_action_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
@@ -44,6 +44,11 @@ julia_coverage_test(
     name = "greet_test_coverage_test",
     source = "julia/tests/fixtures/hello/src/Greet.jl",
     target = ":greet_test",
+)
+
+julia_wrapper_action_test(
+    name = "hello_wrapper_action_test",
+    target = ":hello_upstream",
 )
 
 dx_hello_output_test(

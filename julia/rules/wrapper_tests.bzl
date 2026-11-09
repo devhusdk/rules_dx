@@ -41,3 +41,17 @@ def julia_coverage_test(name, target, source):
     """Asserts a Julia test gets the coverage config listing source under coverage, and only then."""
     _coverage_on_test(name = name, size = "small", target_under_test = target, source = source)
     _coverage_off_test(name = name + "_off", size = "small", target_under_test = target)
+
+def _wrapper_action_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = analysistest.target_actions(env)
+    mnemonics = [a.mnemonic for a in actions]
+    asserts.true(env, "JuliaWrapper" in mnemonics, "no JuliaWrapper action, got: " + ", ".join(mnemonics))
+    asserts.false(env, "TemplateExpand" in mnemonics, "wrapper template expanded at analysis time: " + ", ".join(mnemonics))
+    return analysistest.end(env)
+
+_wrapper_action_test = analysistest.make(_wrapper_action_impl)
+
+def julia_wrapper_action_test(name, target):
+    """Asserts the wrapper script is rendered by an action, not read at analysis time (#9952)."""
+    _wrapper_action_test(name = name, size = "small", target_under_test = target)

@@ -11,6 +11,7 @@
 //! Editor support files under `.dx/local/ide/`, refreshed from `dx sync` and `dx upgrade`.
 
 mod cc;
+mod dotnet;
 mod go;
 mod jdk;
 mod link;
@@ -26,9 +27,10 @@ pub use link::link;
 pub const IDE_DIR: &str = ".dx/local/ide";
 pub const STATE_FILE: &str = ".dx/local/ide/state.json";
 /// Paths under `IDE_DIR` that the plug-ins write and editor settings point at.
-pub const OUTPUTS: [&str; 8] = [
+pub const OUTPUTS: [&str; 9] = [
     "cc",
     "cc/clangd",
+    "dotnet/root",
     "jdk/home",
     "python/python",
     "python/site-packages",
@@ -93,6 +95,7 @@ const PLUGINS: &[&Plugin] = &[
     &typescript::PLUGIN,
     &cc::PLUGIN,
     &jdk::PLUGIN,
+    &dotnet::PLUGIN,
     &go::PLUGIN,
     &rust_analyzer::PLUGIN,
 ];
@@ -590,6 +593,29 @@ mod tests {
         std::fs::write(root.join("App.scala"), "").expect("scala");
         assert_eq!(refresh(root, &runner).expect("scala").failed, []);
         assert!(root.join(".dx/local/ide/jdk/home").exists());
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn dotnet_links_the_sdk_root_for_csharp_and_reruns_as_a_no_op() {
+        let scratch = dx_test_scratch::scratch("dx-ide-dotnet-");
+        let root = scratch.path();
+        let mut runner = fake(root);
+        let sdk = root.join("store").join("dotnet");
+        std::fs::create_dir_all(&sdk).expect("sdk");
+        std::fs::write(sdk.join("dotnet"), "").expect("dotnet");
+        runner.lib = sdk.join("dotnet");
+        refresh(root, &runner).expect("no dotnet");
+        assert!(!root.join(".dx/local/ide/dotnet").exists());
+        std::fs::write(root.join("Program.cs"), "").expect("cs");
+        let first = refresh(root, &runner).expect("first");
+        assert_eq!(first.failed, []);
+        assert_eq!(
+            std::fs::read_link(root.join(".dx/local/ide/dotnet/root")).expect("link"),
+            sdk
+        );
+        assert!(!refresh(root, &runner).expect("second").ran);
         scratch.close().expect("cleanup");
     }
 

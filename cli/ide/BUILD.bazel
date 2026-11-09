@@ -9,6 +9,7 @@ rust_library(
     name = "dx_ide",
     srcs = [
         "src/cc.rs",
+        "src/dotnet.rs",
         "src/go.rs",
         "src/jdk.rs",
         "src/lib.rs",

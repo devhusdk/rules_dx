@@ -544,6 +544,10 @@ fn editor_settings_value(extensions: &BTreeSet<String>, tools: &EditorTools) -> 
         &[".scala", ".sc"],
         serde_json::json!({"metals.javaHome": format!("{ide}/jdk/home")}),
     );
+    add(
+        &[".cs", ".fs", ".fsi", ".fsx"],
+        serde_json::json!({"dotnet.dotnetPath": format!("{ide}/dotnet/root")}),
+    );
     settings
 }
 
@@ -1909,6 +1913,7 @@ mod tests {
             "kotlin.java.home",
             "kotlin.languageServer.enabled",
             "metals.javaHome",
+            "dotnet.dotnetPath",
         ] {
             assert!(settings.contains(key), "lost {key}");
         }
@@ -1987,6 +1992,7 @@ mod tests {
             "java.jdt.ls.java.home",
             "kotlin.java.home",
             "metals.javaHome",
+            "dotnet.dotnetPath",
         ] {
             let path = value[key].as_str().expect(key);
             let rel = path.strip_prefix(&base).expect(path);

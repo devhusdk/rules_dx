@@ -30,11 +30,7 @@ func unionApparentLoads(moduleToApparentName func(string) string) []rule.LoadInf
 func unionApparentLoadsFrom(langs []language.Language, moduleToApparentName func(string) string) []rule.LoadInfo {
 	var loads []rule.LoadInfo
 	for _, lang := range langs {
-		if aware, ok := lang.(language.ModuleAwareLanguage); ok {
-			loads = append(loads, aware.ApparentLoads(moduleToApparentName)...)
-			continue
-		}
-		loads = append(loads, lang.Loads()...)
+		loads = append(loads, lang.(language.ModuleAwareLanguage).ApparentLoads(moduleToApparentName)...)
 	}
 	return loads
 }

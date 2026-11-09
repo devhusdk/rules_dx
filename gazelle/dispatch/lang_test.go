@@ -438,22 +438,8 @@ func TestCollectUsedIgnoresTieBreaksOnLanguageAndValue(t *testing.T) {
 	}
 }
 
-type plainLoadsLang struct {
+type stubLang struct {
 	language.BaseLang
-}
-
-func (plainLoadsLang) Loads() []rule.LoadInfo {
-	return []rule.LoadInfo{{Name: "//stub:defs.bzl"}}
-}
-
-func TestUnionApparentLoadsFallsBackToPlainLoads(t *testing.T) {
-	loads := unionApparentLoadsFrom([]language.Language{&plainLoadsLang{}}, func(string) string { return "" })
-	if len(loads) != 1 || loads[0].Name != "//stub:defs.bzl" {
-		t.Fatalf("loads = %v, want the plain stub load", loads)
-	}
-	if _, ok := interface{}(&plainLoadsLang{}).(language.ModuleAwareLanguage); ok {
-		t.Fatal("plainLoadsLang must stay outside ModuleAwareLanguage so the fallback is real")
-	}
 }
 
 func sortedKeys(m map[string]string) []string {
@@ -608,7 +594,7 @@ func TestIgnoreLanguageNamesCoverComposed(t *testing.T) {
 			t.Errorf("composed language %q missing from %v", lang.Name(), names)
 		}
 	}
-	langs := append(composedLanguages(), &plainLoadsLang{}, composedLanguages()[0])
+	langs := append(composedLanguages(), &stubLang{}, composedLanguages()[0])
 	got := ignoreLanguageNames(langs)
 	if strings.Join(got, ",") != strings.Join(names, ",") {
 		t.Errorf("names with stub = %v, want %v", got, names)

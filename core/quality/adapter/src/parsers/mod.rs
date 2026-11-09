@@ -107,6 +107,7 @@ pub mod stylelint;
 pub mod stylua;
 pub mod swift_format;
 pub mod swift_lint;
+pub mod swiftc;
 pub mod taplo;
 pub mod terraform;
 pub mod terraform_validate;
@@ -236,6 +237,7 @@ pub use stylelint::parse_stylelint;
 pub use stylua::parse_stylua;
 pub use swift_format::parse_swift_format;
 pub use swift_lint::parse_swift_lint;
+pub use swiftc::parse_swiftc;
 pub use taplo::{parse_taplo_format_check, parse_taplo_lint};
 pub use terraform::parse_terraform;
 pub use terraform_validate::{parse_terraform_init, parse_terraform_validate};
@@ -2387,6 +2389,14 @@ mod tests {
         )
     }
 
+    fn fuzz_swiftc(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::swiftc::parse_swiftc(input, code, files)
+    }
+
     fn fuzz_swift_lint(
         input: &[u8],
         code: Option<i32>,
@@ -3118,6 +3128,7 @@ mod tests {
         ("stylua", fuzz_stylua),
         ("swift_format", fuzz_swift_format),
         ("swift_lint", fuzz_swift_lint),
+        ("swiftc", fuzz_swiftc),
         ("taplo_lint", fuzz_taplo_lint),
         ("taplo_format_check", fuzz_taplo_format_check),
         ("terraform", fuzz_terraform),

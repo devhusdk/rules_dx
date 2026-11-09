@@ -113,6 +113,7 @@ EXPECTED_IDS = [
     "stylua",
     "swift_format",
     "swift_lint",
+    "swiftc",
     "taplo",
     "terraform",
     "tflint",

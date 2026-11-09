@@ -1,4 +1,4 @@
-"""Replays the compile actions of a Fortran, D, Haskell, OCaml or Zig target in a check-only form.
+"""Replays the compile actions of a Fortran, D, Haskell, OCaml, Swift or Zig target in a check-only form.
 
 The aspect reads the real upstream compile action (flags, include paths, module
 directories, compiler), rewrites its command line so nothing is produced, and runs it in
@@ -17,7 +17,7 @@ CompileCheckInfo = provider(
         "scratch": "list of File: the directory each replayed Haskell action wrote its .hie files to; empty for other tools.",
         "sources": "list of string: the first source path (execroot relative) per replayed action.",
         "statuses": "list of File: compiler exit code, one per replayed action.",
-        "tool": "string: the quality tool id the logs belong to (flang, ghc, ldc, ocaml or zig).",
+        "tool": "string: the quality tool id the logs belong to (flang, ghc, ldc, ocaml, swiftc or zig).",
     },
 )
 
@@ -115,6 +115,53 @@ def zig_check_argv(argv, scratch):
     if not has_no_emit:
         out.append("-fno-emit-bin")
     return struct(argv = out, error = "", source = source)
+
+# Flags that name an output or only matter to one: each is dropped, with its value when it takes one.
+_SWIFTC_DROP = ["-emit-object", "-enable-batch-mode", "-whole-module-optimization", "-wmo", "-index-ignore-system-modules", "-color-diagnostics", "-emit-module", "-emit-library", "-static"]
+
+_SWIFTC_DROP_WITH_VALUE = ["-output-file-map", "-emit-module-path", "-emit-const-values-path", "-index-store-path", "-emit-module-interface-path", "-emit-objc-header-path", "-emit-private-module-interface-path", "-emit-module-source-info-path", "-num-threads", "-o"]
+
+_SWIFTC_FRONTEND_DROP = ["-const-gather-protocols-file", "-color-diagnostics"]
+
+_SWIFTC_WRAPPED_DROP = ["macro-expansion-dir=", "emit-swift-const-values", "enable-incremental-file-hashing"]
+
+def swiftc_check_argv(argv, scratch):
+    """Rewrites a rules_swift worker command line (worker, swiftc, flags) into a swiftc -typecheck replay."""
+    _ = scratch
+    if len(argv) < 2:
+        return _fail("the compile action has no swiftc command")
+    if not _basename(argv[1]).startswith("swiftc"):
+        return _fail("expected the swift worker to wrap swiftc, found " + argv[1])
+    out = argv[:2]
+    source = ""
+    i = 2
+    for _step in range(len(argv)):
+        if i >= len(argv):
+            break
+        arg = argv[i]
+        i += 1
+        if arg.startswith("@"):
+            return _fail("params files are not supported (found " + arg + ")")
+        if arg in _SWIFTC_DROP:
+            continue
+        if arg in _SWIFTC_DROP_WITH_VALUE:
+            i += 1
+            continue
+        if arg == "-Xfrontend" and i < len(argv) and argv[i] in _SWIFTC_FRONTEND_DROP:
+            # -const-gather-protocols-file also takes a value, behind its own -Xfrontend.
+            i += 1
+            if argv[i - 1] == "-const-gather-protocols-file":
+                i += 2
+            continue
+        if arg.startswith("-Xwrapped-swift=") and [p for p in _SWIFTC_WRAPPED_DROP if arg[len("-Xwrapped-swift="):].lstrip("-").startswith(p)]:
+            continue
+        if not arg.startswith("-") and arg.endswith(".swift"):
+            if source == "":
+                source = arg
+        out.append(arg)
+    if source == "":
+        return _fail("the compile command line names no Swift source")
+    return struct(argv = out + ["-typecheck"], error = "", source = source)
 
 _GHC_FLAGS = ["-fno-code", "-fdiagnostics-as-json", "-fwrite-ide-info"]
 
@@ -241,6 +288,7 @@ _SPECS = {
     "FortranCompile": struct(tool = "flang", rewrite = flang_check_argv, scratch = True),
     "HaskellBuildBinary": struct(tool = "ghc", rewrite = ghc_check_argv, scratch = True),
     "HaskellBuildLibrary": struct(tool = "ghc", rewrite = ghc_check_argv, scratch = True),
+    "SwiftCompile": struct(tool = "swiftc", rewrite = swiftc_check_argv, scratch = False),
     "ZigBuildExe": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
     "ZigBuildLib": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
     "ZigBuildSharedLib": struct(tool = "zig", rewrite = zig_check_argv, scratch = False),
@@ -338,7 +386,7 @@ def _compile_check_impl(target, ctx):
 
 compile_check_aspect = aspect(
     implementation = _compile_check_impl,
-    doc = "Replays the Fortran, D, Haskell, OCaml and Zig compile actions of a target without producing outputs.",
+    doc = "Replays the Fortran, D, Haskell, OCaml, Swift and Zig compile actions of a target without producing outputs.",
     attr_aspects = ["upstream", "deps"],
     attrs = {
         "_compile_check_exec": attr.label(

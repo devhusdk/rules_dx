@@ -118,3 +118,12 @@ The sections below describe the Linux toolchain.
 - C++ resolution stays with `@llvm`.
 
 The build host needs glibc 2.35 or newer.
+
+## Typecheck
+
+`dx typecheck` with `typecheck = ["swiftc"]` on the `swift` family replays the
+`SwiftCompile` action of each `swift_library`, `swift_binary` and `swift_test`
+with `-typecheck`, keeping its module, search path and `-D` flags and dropping
+every output flag. Diagnostics are reported at their source position; a
+`swiftc` failure without a parsed error fails closed. It runs the compiler the
+rule already uses and downloads nothing. Params files are rejected.

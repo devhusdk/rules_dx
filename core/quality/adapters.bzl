@@ -77,7 +77,6 @@ NOT_APPLICABLE = {
 # family belongs in NOT_APPLICABLE["typecheck"] with a reason.
 TYPECHECK_CANDIDATES = {
     "oci": "check-jsonschema against the OCI image-spec manifest and config schemas",
-    "swift": "swiftc -typecheck",
 }
 
 def not_applicable_error(not_applicable, adapters, class_to_family):

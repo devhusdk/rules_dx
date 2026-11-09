@@ -4,6 +4,10 @@ load("//core/quality:tool_defs.bzl", "config", "row", "tool")
 
 TOOLS = [
     tool(
+        id = "swiftc",
+        adapters = {"typecheck": ["swift"]},
+    ),
+    tool(
         id = "swift_format",
         adapters = {"format": ["swift"]},
         config = config(suffixes = [".swift-format", ".json"], tier_active = True),

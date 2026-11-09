@@ -303,7 +303,7 @@ def real_pipeline_unit_tests(name):
                 [["scala"], [], []],
             ),
             expect_equal(
-                "real_supported_classes returns flang, ldc, ocaml and zig typecheck support only",
+                "real_supported_classes returns flang, ldc, ocaml, swiftc and zig typecheck support only",
                 [
                     real_supported_classes("flang", "typecheck"),
                     real_supported_classes("flang", "lint"),
@@ -311,10 +311,12 @@ def real_pipeline_unit_tests(name):
                     real_supported_classes("ldc", "format"),
                     real_supported_classes("ocaml", "typecheck"),
                     real_supported_classes("ocaml", "format"),
+                    real_supported_classes("swiftc", "typecheck"),
+                    real_supported_classes("swiftc", "lint"),
                     real_supported_classes("zig", "typecheck"),
                     real_supported_classes("zig", "lint"),
                 ],
-                [["fortran"], [], ["d"], [], ["ocaml"], [], ["zig"], []],
+                [["fortran"], [], ["d"], [], ["ocaml"], [], ["swift"], [], ["zig"], []],
             ),
             expect_equal(
                 "real_supported_classes returns tsc typecheck support only",

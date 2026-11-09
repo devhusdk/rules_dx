@@ -167,7 +167,7 @@ def support_matrix_facts_tests(name):
             expect_equal(
                 "typecheck no rows are an explicit snapshot",
                 _typecheck_gaps(facts),
-                ["oci", "swift"],
+                ["oci"],
             ),
             expect_equal(
                 "every typecheck no row names a candidate tool",

@@ -1009,6 +1009,7 @@ mod tests {
                 && arg.contains(
                     "@rules_dx//core/quality:families/fortran.bzl%real_fortran_typecheck_aspect"
                 )
+                && arg.contains("@rules_dx//core/quality:families/swift.bzl%real_swift_typecheck_aspect")
                 && arg.contains("@rules_dx//core/quality:families/zig.bzl%real_zig_typecheck_aspect")
                 && arg
                     .contains("@rules_dx//core/quality:families/ocaml.bzl%real_ocaml_typecheck_aspect")

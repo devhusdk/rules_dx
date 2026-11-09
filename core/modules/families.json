@@ -227,6 +227,8 @@
         "real_swift_format_probe_aspect",
         "real_swift_lint_aspect",
         "real_swift_lint_probe_aspect",
+        "real_swift_typecheck_aspect",
+        "real_swift_typecheck_probe_aspect",
         "real_terraform_format_aspect",
         "real_terraform_lint_aspect",
         "real_terraform_typecheck_aspect",

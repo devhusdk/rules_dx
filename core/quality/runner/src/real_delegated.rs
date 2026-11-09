@@ -1860,7 +1860,7 @@ fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool
 
 const COMPILE_CHECK_SOURCE: &str = "abcdefghij\nabcdefghij\nabcdefghij\nabcdefghij\n";
 
-const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 5] = [
+const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 6] = [
     (
         "flang",
         "src/a.f90",
@@ -1884,6 +1884,12 @@ const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 5] = [
         "src/a.ml",
         "File \"src/a.ml\", line 4, characters 8-9:\nError: Unbound value y\n",
         "File \"src/gen.ml\", line 4, characters 8-9:\nError: Unbound value y\n",
+    ),
+    (
+        "swiftc",
+        "src/a.swift",
+        "src/a.swift:4:9: error: cannot find 'y' in scope\n",
+        "src/gen.swift:4:9: error: cannot find 'y' in scope\n",
     ),
     (
         "zig",

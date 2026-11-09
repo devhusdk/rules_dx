@@ -2,12 +2,14 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "real_supported_classes")
-load(":compile_check.bzl", "COMPILE_CHECK_TOOLS", "flang_check_argv", "ghc_check_argv", "ldc_check_argv", "ocaml_aliases", "ocaml_check_argv", "zig_check_argv", "zig_replayable")
+load(":compile_check.bzl", "COMPILE_CHECK_TOOLS", "flang_check_argv", "ghc_check_argv", "ldc_check_argv", "ocaml_aliases", "ocaml_check_argv", "swiftc_check_argv", "zig_check_argv", "zig_replayable")
 
 _FLANG = "external/flang/bin/flang"
 _LDC = "external/ldc/bin/ldmd2"
 _GHC = "bazel-out/bin/haskell/ghc_wrapper"
 _ZIG = "external/zig/zig"
+_SWIFT_WORKER = "bazel-out/exec/bin/external/rules_swift+/tools/worker/worker"
+_SWIFTC = "external/toolchain/usr/bin/swiftc"
 _OCAMLC = "external/ocaml/bin/ocamlc.opt"
 _OCAMLOPT = "external/ocaml/bin/ocamlopt.opt"
 _STAGED = "bazel-out/k8/bin/p/__obazl/M"
@@ -24,9 +26,34 @@ def compile_check_unit_tests(name):
                 [(tool, True) for tool in COMPILE_CHECK_TOOLS],
             ),
             expect_equal(
-                "the replayed compile tools include flang, ghc, ldc, ocaml and zig",
+                "the replayed compile tools include flang, ghc, ldc, ocaml, swiftc and zig",
                 COMPILE_CHECK_TOOLS,
-                ["flang", "ghc", "ldc", "ocaml", "zig"],
+                ["flang", "ghc", "ldc", "ocaml", "swiftc", "zig"],
+            ),
+            expect_equal(
+                "swiftc drops the output flags with their values, keeps module flags and appends -typecheck",
+                swiftc_check_argv([_SWIFT_WORKER, _SWIFTC, "-target", "x86_64-unknown-linux-gnu", "-Xwrapped-swift=-bazel-target-label=@@//p:l", "-emit-object", "-output-file-map", "o.json", "-Xfrontend", "-no-clang-module-breadcrumbs", "-emit-module-path", "M.swiftmodule", "-Xfrontend", "-const-gather-protocols-file", "-Xfrontend", "p.json", "-Xwrapped-swift=-macro-expansion-dir=out", "-I", "dep", "-Xfrontend", "-color-diagnostics", "-enable-batch-mode", "-module-name", "M", "-index-store-path", "idx", "-index-ignore-system-modules", "p/a.swift"], "").argv,
+                [_SWIFT_WORKER, _SWIFTC, "-target", "x86_64-unknown-linux-gnu", "-Xwrapped-swift=-bazel-target-label=@@//p:l", "-Xfrontend", "-no-clang-module-breadcrumbs", "-I", "dep", "-module-name", "M", "p/a.swift", "-typecheck"],
+            ),
+            expect_equal(
+                "swiftc reports the first source",
+                swiftc_check_argv([_SWIFT_WORKER, _SWIFTC, "p/a.swift", "p/b.swift"], "").source,
+                "p/a.swift",
+            ),
+            expect_equal(
+                "swiftc without a Swift source is rejected",
+                swiftc_check_argv([_SWIFT_WORKER, _SWIFTC, "-emit-object"], "").error != "",
+                True,
+            ),
+            expect_equal(
+                "swiftc params files are rejected",
+                swiftc_check_argv([_SWIFT_WORKER, _SWIFTC, "@a.params", "a.swift"], "").error != "",
+                True,
+            ),
+            expect_equal(
+                "swiftc requires the worker to wrap swiftc",
+                swiftc_check_argv([_SWIFT_WORKER, "clang", "a.swift"], "").error != "",
+                True,
             ),
             expect_equal(
                 "flang -c becomes -fsyntax-only, -o is dropped and modules go to scratch",

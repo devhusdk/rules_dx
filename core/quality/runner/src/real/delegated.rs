@@ -80,6 +80,12 @@ pub(super) const TOOLS: &[ToolDef] = &[
         },
     },
     ToolDef {
+        id: "swiftc",
+        run: |backend, call| {
+            backend.check_compile_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
+        },
+    },
+    ToolDef {
         id: "zig",
         run: |backend, call| {
             backend.check_compile_log_delegated(call.tool_id, call.tool, &call.staged.pairs)
@@ -918,6 +924,7 @@ impl RealBackend {
             "ghc" => parsers::parse_ghc,
             "ldc" => parsers::parse_ldc,
             "ocaml" => parsers::parse_ocaml_compile,
+            "swiftc" => parsers::parse_swiftc,
             "zig" => parsers::parse_zig_compile,
             other => {
                 return Err(execution(

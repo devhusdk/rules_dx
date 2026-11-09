@@ -1,0 +1,22 @@
+load("//swift/rules:defs.bzl", "swift_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+# `dx typecheck` reports no finding for :clean and one error at broken.swift:2:22 for :broken.
+# :broken cannot compile, so it stays out of wildcard builds.
+swift_library(
+    name = "clean",
+    srcs = ["clean.swift"],
+    module_name = "Clean",
+    tags = ["manual"],
+)
+
+swift_library(
+    name = "broken",
+    srcs = ["broken.swift"],
+    module_name = "Broken",
+    tags = ["manual"],
+)

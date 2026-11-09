@@ -2656,6 +2656,9 @@ LANGS = json.decode("""{
         ],
         "lint": [
           "real_swift_lint_aspect"
+        ],
+        "typecheck": [
+          "real_swift_typecheck_aspect"
         ]
       },
       "bzl": "core/quality:families/swift.bzl",
@@ -2668,6 +2671,9 @@ LANGS = json.decode("""{
         ],
         "lint": [
           "real_swift_lint_probe_aspect"
+        ],
+        "typecheck": [
+          "real_swift_typecheck_probe_aspect"
         ]
       }
     },

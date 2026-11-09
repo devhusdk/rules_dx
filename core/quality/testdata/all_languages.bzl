@@ -26,7 +26,7 @@ load("//core/quality:families/powershell.bzl", _real_powershell_format_aspect = 
 load("//core/quality:families/python.bzl", _real_python_format_aspect = "real_python_format_aspect", _real_python_format_probe_aspect = "real_python_format_probe_aspect", _real_python_lint_aspect = "real_python_lint_aspect", _real_python_lint_probe_aspect = "real_python_lint_probe_aspect", _real_python_typecheck_aspect = "real_python_typecheck_aspect", _real_python_typecheck_probe_aspect = "real_python_typecheck_probe_aspect")
 load("//core/quality:families/ruby.bzl", _real_ruby_format_aspect = "real_ruby_format_aspect", _real_ruby_format_probe_aspect = "real_ruby_format_probe_aspect", _real_ruby_lint_aspect = "real_ruby_lint_aspect", _real_ruby_lint_probe_aspect = "real_ruby_lint_probe_aspect", _real_ruby_typecheck_aspect = "real_ruby_typecheck_aspect", _real_ruby_typecheck_probe_aspect = "real_ruby_typecheck_probe_aspect")
 load("//core/quality:families/sql.bzl", _real_sql_format_aspect = "real_sql_format_aspect", _real_sql_lint_aspect = "real_sql_lint_aspect")
-load("//core/quality:families/swift.bzl", _real_swift_format_aspect = "real_swift_format_aspect", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_aspect = "real_swift_lint_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect")
+load("//core/quality:families/swift.bzl", _real_swift_format_aspect = "real_swift_format_aspect", _real_swift_format_probe_aspect = "real_swift_format_probe_aspect", _real_swift_lint_aspect = "real_swift_lint_aspect", _real_swift_lint_probe_aspect = "real_swift_lint_probe_aspect", _real_swift_typecheck_aspect = "real_swift_typecheck_aspect", _real_swift_typecheck_probe_aspect = "real_swift_typecheck_probe_aspect")
 load("//core/quality:families/zig.bzl", _real_zig_format_aspect = "real_zig_format_aspect", _real_zig_format_probe_aspect = "real_zig_format_probe_aspect", _real_zig_lint_aspect = "real_zig_lint_aspect", _real_zig_lint_probe_aspect = "real_zig_lint_probe_aspect", _real_zig_typecheck_aspect = "real_zig_typecheck_aspect", _real_zig_typecheck_probe_aspect = "real_zig_typecheck_probe_aspect")
 load("//dockerfile/private/quality:dockerfile.bzl", _real_dockerfile_lint_aspect = "real_dockerfile_lint_aspect")
 load("//javascript/private/quality:js.bzl", _real_js_format_aspect = "real_js_format_aspect", _real_js_format_probe_aspect = "real_js_format_probe_aspect", _real_js_lint_aspect = "real_js_lint_aspect", _real_js_lint_probe_aspect = "real_js_lint_probe_aspect", _real_js_typecheck_aspect = "real_js_typecheck_aspect", _real_js_typecheck_probe_aspect = "real_js_typecheck_probe_aspect")
@@ -381,6 +381,10 @@ real_swift_format_probe_aspect = _real_swift_format_probe_aspect
 real_swift_lint_aspect = _real_swift_lint_aspect
 
 real_swift_lint_probe_aspect = _real_swift_lint_probe_aspect
+
+real_swift_typecheck_aspect = _real_swift_typecheck_aspect
+
+real_swift_typecheck_probe_aspect = _real_swift_typecheck_probe_aspect
 
 real_zig_format_aspect = _real_zig_format_aspect
 

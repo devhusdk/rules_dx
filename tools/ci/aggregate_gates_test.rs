@@ -667,26 +667,21 @@ fn the_swallow_scanner_finds_entries() {
 
 #[test]
 fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
+    const EVIDENCE_ACTION: &str = ".github/actions/compiler-evidence/action.yml";
     for job in ["hermetic", "starter-consumer"] {
         let all = steps(CI_WORKFLOW, job);
-        let position = |name: &str| {
-            all.iter()
-                .position(|step| step["name"] == json!(name))
-                .unwrap_or_else(|| panic!("{job} has no step {name:?}"))
-        };
-        let probe = position("Run the compiler probe tests");
-        let evidence = position("Record compiler evidence");
+        let probe = all
+            .iter()
+            .position(|step| step["name"] == json!("Run the compiler probe tests"))
+            .unwrap_or_else(|| panic!("{job} has no compiler probe step"));
+        let evidence = all
+            .iter()
+            .position(|step| step["uses"] == json!("./.github/actions/compiler-evidence"))
+            .unwrap_or_else(|| panic!("{job} has no compiler-evidence step"));
         assert!(probe < evidence, "{job} probe step must precede evidence");
         let probe_run = all[probe]["run"].as_str().unwrap_or_default();
         assert!(!probe_run.contains("|| true"), "{job} probe step swallows");
         assert!(probe_run.contains("bazel test"), "{job} probe runs no test");
-        let evidence_run = all[evidence]["run"].as_str().unwrap_or_default();
-        assert!(
-            !evidence_run
-                .lines()
-                .any(|line| line.trim_start().starts_with("bazel test")),
-            "{job} evidence step runs tests"
-        );
         assert!(
             all[evidence]["if"]
                 .as_str()
@@ -695,6 +690,17 @@ fn compiler_probes_run_before_the_evidence_step_and_fail_normally() {
             "{job} evidence step must run always"
         );
     }
+    let action = document(EVIDENCE_ACTION);
+    let record = &action["runs"]["steps"][0];
+    assert_eq!(record["name"], json!("Record compiler evidence"));
+    assert_eq!(record["if"], json!("always()"));
+    let evidence_run = record["run"].as_str().unwrap_or_default();
+    assert!(
+        !evidence_run
+            .lines()
+            .any(|line| line.trim_start().starts_with("bazel test")),
+        "evidence step runs tests"
+    );
 }
 
 #[test]

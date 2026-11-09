@@ -88,10 +88,18 @@ jobs:
           cache-save: false
       - name: Normalise
         run: bazel mod deps --noshow_progress --lockfile_mode=update
+      - name: Normalise the family locks
+        run: |
+          for dir in families/*/; do
+            [ -f "$dir/MODULE.bazel.lock" ] || continue
+            (cd "$dir" && bazel mod deps --noshow_progress --lockfile_mode=update)
+          done
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: MODULE.bazel.lock
-          path: MODULE.bazel.lock
+          path: |
+            MODULE.bazel.lock
+            families/*/MODULE.bazel.lock
           if-no-files-found: error
       - name: Push to the pull request
         if: inputs.pr != ''
@@ -100,8 +108,8 @@ jobs:
           PR: ${{ inputs.pr }}
         run: |
           set -euo pipefail
-          if git diff --quiet -- MODULE.bazel.lock; then
-            echo "MODULE.bazel.lock is unchanged"
+          if git diff --quiet -- MODULE.bazel.lock 'families/*/MODULE.bazel.lock'; then
+            echo "The locks are unchanged"
             exit 0
           fi
           head="$(gh pr view "$PR" --json headRefName --jq .headRefName)"
@@ -112,5 +120,5 @@ jobs:
           gh auth setup-git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "lock: refresh the per-platform extension entries" -- MODULE.bazel.lock
+          git commit -m "lock: refresh the per-platform extension entries" -- MODULE.bazel.lock 'families/*/MODULE.bazel.lock'
           git push origin "HEAD:refs/heads/$head"

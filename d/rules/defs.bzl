@@ -139,7 +139,7 @@ def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = No
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. srcs define LLVMFuzzerTestOneInput, for example with ldc.libfuzzer."""
     flags = ["-fsanitize=fuzzer,address"]
     build, run = split_runner_kwargs(kwargs)
-    run = d_kwargs(run)
+    run["target_compatible_with"] = (run.get("target_compatible_with") or []) + D_COMPATIBLE_WITH
     d_binary(
         name = name + "_bin",
         srcs = srcs,
@@ -164,7 +164,8 @@ def d_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A d_binary run by `dx bench`; it writes dx-bench.json to TEST_UNDECLARED_OUTPUTS_DIR."""
     binary = name + "_bin"
     build, run = split_test_kwargs(kwargs)
-    run = d_kwargs(with_default_size(run))
+    run = with_default_size(run)
+    run["target_compatible_with"] = (run.get("target_compatible_with") or []) + D_COMPATIBLE_WITH
     d_binary(
         name = binary,
         srcs = srcs,

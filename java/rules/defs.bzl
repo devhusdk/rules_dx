@@ -3,7 +3,7 @@
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary", _java_library = "java_library", _java_test = "java_test")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
-load("//java/rules:jazzer.bzl", "jazzer_fuzz")
+load("//java/rules:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/rules:jmh.bzl", "jmh_bench")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -102,11 +102,9 @@ def java_jmh_test(name, runtime_deps, **kwargs):
         **kwargs
     )
 
-def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, tags = None, deps = None, **kwargs):
-    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
-    target_class = target_class or java_entry_class(name, srcs, native.package_name())
-    if target_class == None:
-        fail("java_fuzz_test %s needs target_class" % name)
+def java_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs):
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset."""
+    target_class = jazzer_target_class("java_fuzz_test", name, srcs, target_class, native.package_name(), ".java")
     jazzer_fuzz(name, java_library, srcs, deps, target_class, visibility, tags, kwargs)
 
 def java_bench(name, srcs, deps = [], tags = [], **kwargs):

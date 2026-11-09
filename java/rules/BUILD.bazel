@@ -1,6 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
+load(":jazzer.bzl", "jazzer_target_class")
 load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors")
 
 package(default_visibility = ["//visibility:public"])
@@ -80,6 +81,31 @@ dx_wrapper_contract_tests(
                 deps = [":hello_lib"],
             ))["deps"],
             [":hello_lib"],
+        ),
+        expect_equal(
+            "fuzz target class explicit wins",
+            jazzer_target_class("k", "x", ["X.kt"], "a.B", "p", ".kt"),
+            "a.B",
+        ),
+        expect_equal(
+            "java fuzz class from name-matching src",
+            jazzer_target_class("k", "Fuzz", ["src/main/java/com/x/Fuzz.java", "O.java"], None, "p", ".java"),
+            "com.x.Fuzz",
+        ),
+        expect_equal(
+            "kotlin fuzz class from single src",
+            jazzer_target_class("k", "parse_fuzz", ["ParseFuzz.kt"], None, "families/jvm/kotlin/tests/fuzz", ".kt"),
+            "tests.fuzz.ParseFuzz",
+        ),
+        expect_equal(
+            "scala fuzz class from single src",
+            jazzer_target_class("k", "parse_fuzz", ["src/main/scala/a/ParseFuzz.scala"], None, "p", ".scala"),
+            "a.ParseFuzz",
+        ),
+        expect_equal(
+            "fuzz class from name and package",
+            jazzer_target_class("k", "ParseFuzz", [], None, "scala/x", ".scala"),
+            "x.ParseFuzz",
         ),
         expect_equal(
             "maven test path infers class",

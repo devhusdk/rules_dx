@@ -10,7 +10,6 @@ package(
 kotlin_fuzz_test(
     name = "parse_fuzz",
     srcs = ["ParseFuzz.kt"],
-    target_class = "tests.fixtures.fuzz.ParseFuzz",
 )
 
 sh_test(

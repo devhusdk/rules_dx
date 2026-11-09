@@ -5,7 +5,7 @@ load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_lib
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//java/rules:coverage.bzl", "dx_jvm_test_coverage")
 load("//java/rules:defs.bzl", "java_jmh_test")
-load("//java/rules:jazzer.bzl", "jazzer_fuzz")
+load("//java/rules:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
 load("//java/rules:jmh.bzl", "jmh_bench_generated")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -83,8 +83,9 @@ def scala_test(name, srcs = None, visibility = None, **kwargs):
         **dx_without_warnings_attr(kwargs)
     )
 
-def scala_fuzz_test(name, srcs, target_class, deps = None, visibility = None, tags = None, **kwargs):
-    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
+def scala_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibility = None, tags = None, **kwargs):
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset."""
+    target_class = jazzer_target_class("scala_fuzz_test", name, srcs, target_class, native.package_name(), ".scala")
     jazzer_fuzz(name, scala_library, srcs, deps, target_class, visibility, tags, kwargs)
 
 def scala_bench(name, srcs, deps = [], tags = [], **kwargs):

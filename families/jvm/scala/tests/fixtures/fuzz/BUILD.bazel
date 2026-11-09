@@ -10,7 +10,6 @@ package(
 scala_fuzz_test(
     name = "parse_fuzz",
     srcs = ["ParseFuzz.scala"],
-    target_class = "tests.fixtures.fuzz.ParseFuzz",
 )
 
 sh_test(

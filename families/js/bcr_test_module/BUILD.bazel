@@ -1,1 +1,3 @@
+load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
+
 filegroup(name = "loads")

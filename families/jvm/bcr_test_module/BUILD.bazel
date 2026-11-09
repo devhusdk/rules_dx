@@ -1,1 +1,3 @@
+load("@rules_dx//java/rules:defs.bzl", "java_library")
+
 filegroup(name = "loads")

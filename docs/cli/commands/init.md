@@ -199,6 +199,11 @@ and writes nothing. Sections:
 - `bazelrc conflicts`: a line in the root `.bazelrc`, or a file it imports through
   `%workspace%/`, that exactly repeats a flag line the dx preset layers own. Advisory; dx
   does not import the layers while the root file repeats them, so drop the line.
+- `workspace_ignored`: a `WORKSPACE` or `WORKSPACE.bazel` in the root. Bazel 9 does not read
+  it, so its repos must move to `MODULE.bazel`; dx does not translate the file. Advisory, and
+  reported even when there is no `MODULE.bazel` yet: check prints
+  `advisory: WORKSPACE is not read by Bazel 9; move its repos to MODULE.bazel (WORKSPACE:1)`
+  to stderr, and `--apply` adds it to its notes.
 
 The "after" versions include transitive ones. `modules/consumer_graph.json` lists every module
 a fresh dx consumer resolves to. Bazel picks the highest version any module
@@ -218,7 +223,7 @@ findings add an `init plan: N hard conflicts (...)` clause to `init drift` and e
 advisory findings, and an unavailable lock, never change the exit code.
 
 With `--output=json`, the plan is one `init_plan` event per finding instead of text, with
-`kind` (`version_raise`, `override_conflict`, `toolchain_conflict`, `bazelrc_conflict`),
+`kind` (`version_raise`, `override_conflict`, `toolchain_conflict`, `bazelrc_conflict`, `workspace_ignored`),
 `subject`, `before`, `after`, `path`, `line` (left out when unknown), `hint`, and `severity`
 (`hard` or `advisory`). Plan notes, such as the lock being unavailable, are `notice` events
 with code `init_plan_partial`. `--apply` refuses `--output=json`. The agent default of `json` does not apply to `--apply`, which prints text.

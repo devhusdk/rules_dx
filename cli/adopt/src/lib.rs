@@ -59,7 +59,7 @@ pub use overrides::{
     is_rules_dx_root, module_deps, preflight_overrides, refresh_overrides, render_overrides,
 };
 pub use ownership::Ownership;
-pub use preflight::{Finding, Preflight, preflight, render_plan_text};
+pub use preflight::{Finding, Preflight, preflight, render_plan_text, workspace_finding};
 pub use preset::{
     PresetDrift, PresetState, inspect_preset, preflight_preset, preset_drift, preset_files,
     preset_paths, write_preset,

@@ -151,6 +151,9 @@ pub(crate) fn execute_init(
         return operational(invocation, out, err, CODE_INIT_FAILED, &message);
     }
     let mut notes = Vec::new();
+    notes.extend(
+        dx_adopt::workspace_finding(root).map(|f| format!("{} ({}:{})", f.hint, f.file, f.line)),
+    );
     if let Some(plan) = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
         .ok()
         .map(|setup| dx_adopt::preflight(root, &setup))
@@ -304,6 +307,25 @@ fn check_init(
         && let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default"))
     {
         return exit;
+    }
+    if let Some(f) = dx_adopt::workspace_finding(workspace) {
+        if json {
+            let event = init_plan_event(&PlanFindingEvent {
+                kind: f.kind.id().to_owned(),
+                subject: f.subject,
+                before: f.before,
+                after: f.after,
+                file: f.file,
+                line: f.line,
+                hint: f.hint,
+                severity: "advisory".to_owned(),
+            });
+            if let Err(exit) = emit_built(out, event) {
+                return exit;
+            }
+        } else if !summaries_suppressed(invocation) {
+            let _ = writeln!(err, "advisory: {} ({}:{})", f.hint, f.file, f.line);
+        }
     }
     if let (Some(plan), true) = (&plan, json) {
         for f in &plan.findings {
@@ -886,6 +908,27 @@ mod tests {
         assert!(
             all.iter()
                 .any(|e| e["event"] == "notice" && e["code"] == "init_plan_partial"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn init_check_reports_workspace_as_advisory_and_keeps_the_exit_code() {
+        let root = adopted_root("dx-adopt-init-workspace-", "");
+        let (before, _, _) = run(&invocation(&["init"]), &root);
+        std::fs::write(root.join("WORKSPACE"), "").expect("workspace");
+        let (code, out, err) = run(&invocation(&["init"]), &root);
+        assert_eq!(code, before, "{out}{err}");
+        assert!(
+            err.contains("advisory: WORKSPACE is not read by Bazel 9; move its repos to MODULE.bazel"),
+            "{err}"
+        );
+        let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
+        assert_eq!(code, before, "{out}{err}");
+        assert!(
+            events(&out)
+                .iter()
+                .any(|e| e["kind"] == "workspace_ignored" && e["severity"] == "advisory"),
             "{out}"
         );
     }

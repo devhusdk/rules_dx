@@ -87,6 +87,7 @@ pub enum Kind {
     OverrideConflict,
     ToolchainConflict,
     BazelrcConflict,
+    WorkspaceIgnored,
 }
 
 impl Kind {
@@ -97,6 +98,7 @@ impl Kind {
             Kind::OverrideConflict => "override_conflict",
             Kind::ToolchainConflict => "toolchain_conflict",
             Kind::BazelrcConflict => "bazelrc_conflict",
+            Kind::WorkspaceIgnored => "workspace_ignored",
         }
     }
 }
@@ -200,6 +202,24 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
         .extend(toolchain_conflicts(&sources, snippet_module.as_ref()));
     result.findings.extend(bazelrc_conflicts(root));
     result
+}
+
+/// An advisory finding when `root` still has a `WORKSPACE` or `WORKSPACE.bazel`, which Bazel 9
+/// does not read. Independent of `MODULE.bazel`, since adopting usually creates that file.
+pub fn workspace_finding(root: &Path) -> Option<Finding> {
+    let file = ["WORKSPACE", "WORKSPACE.bazel"]
+        .into_iter()
+        .find(|name| root.join(name).is_file())?;
+    Some(Finding {
+        kind: Kind::WorkspaceIgnored,
+        subject: file.to_owned(),
+        before: "read by Bazel 7".to_owned(),
+        after: "ignored by Bazel 9".to_owned(),
+        file: file.to_owned(),
+        line: 1,
+        hint: "WORKSPACE is not read by Bazel 9; move its repos to MODULE.bazel".to_owned(),
+        hard: false,
+    })
 }
 
 /// Flag lines in the root `.bazelrc` (and files it imports from `%workspace%`) that repeat a
@@ -839,6 +859,17 @@ mod tests {
             &format!("include(\"{OVERRIDES_INCLUDE}\")\n"),
         )]);
         assert!(preflight(dir.path(), &snippet()).findings.is_empty());
+    }
+
+    #[test]
+    fn workspace_file_is_an_advisory_finding() {
+        for name in ["WORKSPACE", "WORKSPACE.bazel"] {
+            let dir = scratch(&[(name, "")]);
+            let finding = workspace_finding(dir.path()).expect("finding");
+            assert_eq!(finding.kind.id(), "workspace_ignored");
+            assert_eq!((finding.file.as_str(), finding.hard), (name, false));
+        }
+        assert!(workspace_finding(scratch(&[("MODULE.bazel", "")]).path()).is_none());
     }
 
     #[test]

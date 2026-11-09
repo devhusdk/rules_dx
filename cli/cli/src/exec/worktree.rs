@@ -311,6 +311,14 @@ fn slot_number(path: &str, target: &Path) -> Option<u32> {
     path.parse().ok()
 }
 
+/// The slot path a digit-only release argument names, else `target` unchanged.
+fn slot_target(path: Option<&str>, target: PathBuf, slot_path: impl Fn(u32) -> PathBuf) -> PathBuf {
+    match path.and_then(|path| slot_number(path, &target)) {
+        Some(slot) => slot_path(slot),
+        None => target,
+    }
+}
+
 fn release(
     invocation: &Invocation,
     workspace: &Path,
@@ -323,9 +331,7 @@ fn release(
     let mut target = release_target(path, workspace, &cwd);
     let gone = !workspace.exists();
     let pool = release_pool(workspace, &target)?;
-    if let Some(slot) = path.and_then(|path| slot_number(path, &target)) {
-        target = pool.slot_path(slot);
-    }
+    target = slot_target(path, target, |slot| pool.slot_path(slot));
     if !gone {
         ops::claim(&pool, host, who, workspace)?;
     }
@@ -1248,6 +1254,17 @@ mod tests {
         assert_eq!(slot_number("28", Path::new("/nonexistent/dx/28")), Some(28));
         assert_eq!(slot_number("x28", Path::new("/nonexistent/dx/x28")), None);
         assert_eq!(slot_number("", Path::new("/nonexistent")), None);
+    }
+
+    #[test]
+    fn release_28_drives_to_the_slot_path() {
+        let slot_path = |slot: u32| PathBuf::from(format!("/cache/slots/{slot}"));
+        let target = slot_target(Some("28"), PathBuf::from("/nonexistent/cwd/28"), slot_path);
+        assert_eq!(target, PathBuf::from("/cache/slots/28"));
+        let kept = slot_target(Some("x28"), PathBuf::from("/nonexistent/cwd/x28"), slot_path);
+        assert_eq!(kept, PathBuf::from("/nonexistent/cwd/x28"));
+        let none = slot_target(None, PathBuf::from("/ws"), slot_path);
+        assert_eq!(none, PathBuf::from("/ws"));
     }
 
     #[test]

@@ -576,7 +576,8 @@ pub fn rc_output_roots(files: Vec<PathBuf>, workspace: &Path) -> Vec<PathBuf> {
     roots
 }
 
-/// Whether a process works in `dir` or below it, read from `/proc/<pid>/cwd`.
+/// Whether a process works in `dir` or below it, read from `/proc/<pid>/cwd`. Git processes are
+/// skipped: dx runs them in the slot for its own probes. Processes this user cannot read are not seen.
 #[cfg(target_os = "linux")]
 fn process_in(dir: &Path) -> bool {
     let dir = resolved(dir);
@@ -584,12 +585,13 @@ fn process_in(dir: &Path) -> bool {
         return false;
     };
     entries.flatten().any(|entry| {
+        let path = entry.path();
         entry
             .file_name()
             .to_str()
             .is_some_and(|name| name.bytes().all(|byte| byte.is_ascii_digit()))
-            && std::fs::read_link(entry.path().join("cwd"))
-                .is_ok_and(|cwd| resolved(&cwd).starts_with(&dir))
+            && std::fs::read_link(path.join("cwd")).is_ok_and(|cwd| cwd.starts_with(&dir))
+            && std::fs::read_to_string(path.join("comm")).is_ok_and(|comm| comm.trim() != "git")
     })
 }
 
@@ -914,6 +916,24 @@ mod tests {
         child.wait().expect("wait");
         assert!(found);
         assert!(!process_in(dir.path()));
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn a_git_process_working_in_a_directory_is_ignored() {
+        let dir = tempfile::tempdir().expect("dir");
+        let bin = tempfile::tempdir().expect("bin");
+        let git = bin.path().join("git");
+        std::os::unix::fs::symlink("/bin/sleep", &git).expect("link");
+        let mut child = std::process::Command::new(&git)
+            .arg("30")
+            .current_dir(dir.path())
+            .spawn()
+            .expect("spawn");
+        let found = process_in(dir.path());
+        child.kill().expect("kill");
+        child.wait().expect("wait");
+        assert!(!found);
     }
 
     #[test]

@@ -1386,6 +1386,25 @@ fn a_slot_with_a_process_working_in_it_is_not_reclaimed() {
     assert_eq!(slot_one(&listing).state, State::Reclaimable);
 }
 
+#[test]
+fn a_process_in_a_slot_with_a_gone_holder_blocks_a_release_by_another_session() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
+    host.advance(ops::STOP_GRACE_SECS);
+    git(
+        &first.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    );
+    host.occupy(&first.path);
+    let other = who("s2", 20);
+    let refused = ops::release(&pool, &host, &other, &first.path, false).expect_err("pinned");
+    assert_eq!(refused.code, "slot_leased");
+    host.vacate();
+    ops::release(&pool, &host, &other, &first.path, false).expect("released");
+}
+
 fn run_dx_in(pool: &Pool, slot: u32) -> dx_atomic_fs::lease::SharedLease {
     dx_atomic_fs::lease::acquire_shared_at(
         &pool.busy_path(slot),

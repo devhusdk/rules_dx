@@ -14,7 +14,7 @@ tools/dx worktree prune --apply
 
 ```text
 dx worktree add <branch> [--create <ref>] [--force] [--path-only]
-dx worktree release [<path>] [--force]
+dx worktree release [<path>|<slot-number>] [--force]
 dx worktree list [--disk]
 dx worktree path <branch>
 dx worktree prune [--apply] [--bases]
@@ -52,13 +52,23 @@ then starts `<branch>` from `origin/HEAD`, `origin/main` or `origin/master`.
 It refuses a branch checked out by another holder or outside the pool. It
 returns your own slot for `<branch>` as is. It takes over a held slot only
 when its holder is gone, the tree is clean, nothing is unpushed and no `dx`
-command runs in it. If `git fetch origin` fails, it uses local refs and warns.
+command runs in it and no process other than `git` has it as its working
+directory. If `git fetch origin` fails, it uses local refs and warns.
 
-`release [<path>]` frees the slot at `<path>`, or the slot you are in. It stops
-the slot's Bazel server and detaches the checkout. The branch stays. It refuses
-a dirty tree or unpushed commits without `--force`. It exits `1` with
+`release [<path>|<slot-number>]` frees the slot at `<path>`, the slot numbered
+`<slot-number>` when the argument is only digits and no such path exists, or the
+slot you are in. It stops the slot's Bazel server and detaches the checkout.
+The branch stays. It refuses a dirty tree or unpushed commits without `--force`.
+Another holder's slot is freed only when it is reclaimable or with `--force`. It exits `1` with
 `slot_busy` while a `dx` command runs in the slot. On an external worktree of
 this repository it removes the checkout and keeps the branch.
+
+The working-directory check reads `/proc` on Linux only. It does not see other
+users' processes, processes hidden by `hidepid` or processes in other PID
+namespaces, and each check of a held slot scans every process. Any process whose
+working directory is in the slot, such as an idle shell or a Bazel server,
+keeps the slot held and blocks a release by another holder until it exits or
+`--force` is passed.
 
 `list` prints one line per slot, then a totals line:
 

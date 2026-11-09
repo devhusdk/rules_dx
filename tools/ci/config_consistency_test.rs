@@ -553,12 +553,7 @@ fn no_workflow_comment_names_an_issue_or_another_page() {
 
 #[test]
 fn root_and_container_config_comments_are_one_bare_line() {
-    for rel in [
-        ".bazelrc",
-        ".bazelignore",
-        ".gitignore",
-        ".devcontainer/Dockerfile.prebuilt",
-    ] {
+    for rel in [".bazelrc", ".bazelignore", ".gitignore"] {
         let text = read_runfiles(rel);
         assert_comments_bare(rel, &text);
         let stacked = stacked_comments(rel, &text);

@@ -318,11 +318,6 @@ fn operations() -> Vec<OpRecord> {
             "docs publishing runs in its own workflow; dry run does not dispatch it",
         ),
         record(
-            "image",
-            ".github/workflows/ghcr.yml",
-            "GHCR prebuilt images build and sign in their own workflow; dry run does not dispatch it",
-        ),
-        record(
             "publish",
             "GitHub Release",
             "release creation needs owner approval; dry run stages a draft only (//cli/cli:github_draft)",
@@ -487,15 +482,7 @@ mod tests {
             .collect();
         assert_eq!(
             names,
-            [
-                "bcr",
-                "docs",
-                "image",
-                "publish",
-                "release-upload",
-                "signing"
-            ]
-            .map(serde_json::Value::from)
+            ["bcr", "docs", "publish", "release-upload", "signing"].map(serde_json::Value::from)
         );
         assert!(
             operations

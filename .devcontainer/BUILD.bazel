@@ -3,8 +3,6 @@ load("//rust/rules:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["Dockerfile.prebuilt"])
-
 # keep
 rust_test(
     name = "devcontainer_parity_test",
@@ -20,12 +18,6 @@ rust_test(
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
-)
-
-real_source_target(
-    name = "corpus_dockerfile",
-    dockerfile_srcs = ["Dockerfile.prebuilt"],
-    tags = ["corpus"],
 )
 
 real_source_target(

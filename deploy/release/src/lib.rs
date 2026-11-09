@@ -970,10 +970,7 @@ pub fn render_release_dry_run(tag: &str, approve: &str) -> String {
         "    6. BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo (would-submit BCR PR, submits nothing)\n",
     );
     out.push_str(
-        "    7. ghcr.yml dispatch + approve:true (separate workflow, push+cosign sign <digest>)\n",
-    );
-    out.push_str(
-        "    8. bazel run //deploy/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",
+        "    7. bazel run //deploy/install:dx_verify --binary <dx> --bundle <bundle> --identity <id> --issuer <issuer> --notice <NOTICE> --notice-manifest <manifest> --notice-bundle <NOTICE.bundle> (fail-before-install)\n",
     );
     out.push_str(&format!(
         "  tag creation: git tag {tag} must already exist in the remote (pushed beforehand with owner approval); this program never creates or pushes tags\n"

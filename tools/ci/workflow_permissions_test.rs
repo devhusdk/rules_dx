@@ -155,16 +155,6 @@ fn every_write_scope_has_a_step_that_uses_it() {
 }
 
 #[test]
-fn ghcr_push_runs_only_from_main() {
-    let workflow = document(".github/workflows/ghcr.yml");
-    let condition = workflow["jobs"]["push"]["if"].as_str().unwrap_or_default();
-    assert!(
-        condition.contains("github.ref == 'refs/heads/main'"),
-        "ghcr push must run only from refs/heads/main, got: {condition}"
-    );
-}
-
-#[test]
 fn an_unused_checks_scope_fails() {
     let fixture = parse(
         "fixture",

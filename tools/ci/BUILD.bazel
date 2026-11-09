@@ -519,7 +519,6 @@ rust_test(
         "//:MODULE.bazel",
         "//:MODULE.bazel.lock",
         "//:biome.json",
-        "//.devcontainer:Dockerfile.prebuilt",
         "//.github:workflows",
         "//:licenses.toml",
         "//:pnpm-workspace.yaml",
@@ -713,7 +712,6 @@ rust_test(
     srcs = ["signing_pins_test.rs"],
     data = [
         "//:MODULE.bazel",
-        "//.github:workflows/ghcr.yml",
         "//deploy/release:cosign_pins.bzl",
         "//deploy/release:signing.bzl",
         "//deploy/release:src/lib.rs",

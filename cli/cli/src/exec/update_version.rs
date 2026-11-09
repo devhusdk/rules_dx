@@ -1849,10 +1849,6 @@ dependencies = ["anyio>=4"]
             ".github/workflows/reusable.yaml",
             "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
         );
-        harness.write_source(
-            ".github/workflows/ghcr.yml",
-            "jobs:\n  b:\n    steps:\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
-        );
         harness.write_source("commit.json", &commit_json);
         harness.edit_commit_json =
             Some(harness.workspace.join("commit.json").display().to_string());
@@ -1883,10 +1879,6 @@ dependencies = ["anyio>=4"]
             widened_yaml.contains(&format!("actions/checkout@{sha}")),
             "{widened_yaml}"
         );
-        let untouched =
-            std::fs::read_to_string(harness.workspace.join(".github/workflows/ghcr.yml"))
-                .expect("workflow");
-        assert!(untouched.contains("actions/cache@bbbb"), "{untouched}");
         let events = json_events(&out);
         assert!(
             events.iter().any(|event| event["code"] == "update_widened"),
@@ -1971,7 +1963,7 @@ dependencies = ["anyio>=4"]
     fn live_github_actions_widens_every_workflow_that_pins_the_action() {
         let harness = Harness::new("update-live-gha-every");
         let sha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-        for name in ["ci.yml", "ghcr.yml", "reusable.yaml"] {
+        for name in ["ci.yml", "reusable.yaml"] {
             harness.write_source(
                 &format!(".github/workflows/{name}"),
                 "jobs:\n  b:\n    steps:\n      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7\n      - uses: actions/cache@bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb # v6\n",
@@ -1989,11 +1981,11 @@ dependencies = ["anyio>=4"]
         assert!(
             out.contains(
                 "widened github-actions:actions/checkout to aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa in \
-                 .github/workflows/ci.yml, .github/workflows/ghcr.yml, .github/workflows/reusable.yaml"
+                 .github/workflows/ci.yml, .github/workflows/reusable.yaml"
             ),
             "{out}"
         );
-        for name in ["ci.yml", "ghcr.yml", "reusable.yaml"] {
+        for name in ["ci.yml", "reusable.yaml"] {
             let widened = std::fs::read_to_string(
                 harness.workspace.join(format!(".github/workflows/{name}")),
             )

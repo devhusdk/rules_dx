@@ -80,6 +80,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "astro/tests/app,astro/tests/app_config,astro/tests/typecheck,javascript/tests/typecheck,mdx/tests/app,mdx/tests/typecheck,svelte/tests/app,svelte/tests/app_errors,svelte/tests/app_errors/throwing,svelte/tests/typecheck,typescript/tests/tags,typescript/tests/typecheck_profiles,vue/tests/app,vue/tests/typecheck"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

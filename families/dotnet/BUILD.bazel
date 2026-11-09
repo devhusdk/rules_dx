@@ -32,6 +32,20 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "csharp/rules,fsharp/rules"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ) + [
+        "//csharp/ide:module_srcs",
+        "//csharp/rules:module_srcs",
+        "//fsharp/ide:module_srcs",
+        "//fsharp/rules:module_srcs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

@@ -48,6 +48,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "python/tests,python/tests/analysis,python/tests/consumer,python/tests/fixtures/adopt-python,python/tests/fixtures/adopt-python/app,python/tests/fixtures/adopt-python/solo,python/tests/fixtures/adopt-python/tests,python/tests/fixtures/entries,python/tests/fixtures/hello,python/tests/fixtures/native_ext,python/tests/fixtures/no_srcs,python/tests/fixtures/python_audit,python/tests/fixtures/python-service,python/tests/fixtures/python-service/ledger/cli,python/tests/fixtures/python-service/ledger/core,python/tests/fixtures/python-service/ledger/service,python/tests/fixtures/rust_sdist,python/tests/sdist_native,python/tests/sdist_native/msvc,python/tests/sdist_native/nodeps"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [

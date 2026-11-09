@@ -31,6 +31,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "php/tests/fixtures/composer,php/tests/fixtures/hello,php/tests/negative"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

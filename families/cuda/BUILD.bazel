@@ -34,6 +34,20 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "rules,toolchain,tests"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ) + [
+        "//components:module_srcs",
+        "//rules:module_srcs",
+        "//testing:module_srcs",
+        "//toolchain:module_srcs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

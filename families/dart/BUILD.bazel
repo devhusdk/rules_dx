@@ -45,6 +45,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "dart/tests,dart/tests/cross,dart/tests/fixtures/adopt-dart,dart/tests/fixtures/adopt-dart/packages/greet,dart/tests/fixtures/adopt-dart/packages/tool,dart/tests/fixtures/dart-app,dart/tests/fixtures/dart-app/cli,dart/tests/fixtures/dart-app/failures,dart/tests/fixtures/dart-app/gen,dart/tests/fixtures/dart-app/ledger,dart/tests/fixtures/dart-app/model,dart/tests/negative,dart/tests/runtime,dart/tests/tags,dart/tests/web,flutter/tests/contract,flutter/tests/runtime"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

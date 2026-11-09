@@ -14,3 +14,12 @@ ide_acquisition_test(
     tags = ["no-remote-exec"],
     version_args = ["--info"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)

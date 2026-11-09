@@ -36,6 +36,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "perl/tests/coverage,perl/tests/fixtures/perl-app,perl/tests/fixtures/perl-app/cli,perl/tests/fixtures/perl-app/inventory,perl/tests/fixtures/perl-app/report,perl/tests/fixtures/perl-app/third_party,perl/tests/negative,perl/tests/runtime"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

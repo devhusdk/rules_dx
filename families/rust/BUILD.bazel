@@ -37,6 +37,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "rust/tests/fixtures/bindgen,rust/tests/fixtures/cargo_metadata,rust/tests/fixtures/consumer_abi,rust/tests/fixtures/consumer_hub,rust/tests/fixtures/consumer_native,rust/tests/fixtures/consumer_std,rust/tests/fixtures/consumer_wasi,rust/tests/fixtures/consumer_wasm,rust/tests/tonic"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [

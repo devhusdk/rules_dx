@@ -1,3 +1,12 @@
 # gazelle:dx_rust_corpus false
 
 exports_files(["dx_jvm_maven_install.json"])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)

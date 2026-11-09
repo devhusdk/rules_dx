@@ -33,6 +33,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "fortran/tests/fixtures/calc,fortran/tests/negative,fortran/tests/runtime,fortran/tests/runtime/kinds_a,fortran/tests/runtime/kinds_b"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

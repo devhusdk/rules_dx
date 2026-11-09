@@ -36,6 +36,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "lua/tests/analysis,lua/tests/fixtures/lua-app,lua/tests/fixtures/lua-app/catalog,lua/tests/fixtures/lua-app/cli,lua/tests/fixtures/lua-app/diagnostics,lua/tests/fixtures/lua-app/report,lua/tests/negative,lua/tests/runtime"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

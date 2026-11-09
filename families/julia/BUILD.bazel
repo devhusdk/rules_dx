@@ -35,6 +35,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "julia/tests/fixtures/hello,julia/tests/fixtures/julia-app,julia/tests/fixtures/julia-app/archive,julia/tests/fixtures/julia-app/cli,julia/tests/fixtures/julia-app/data,julia/tests/fixtures/julia-app/diagnostics,julia/tests/fixtures/julia-app/stats"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

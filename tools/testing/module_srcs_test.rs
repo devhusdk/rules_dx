@@ -185,3 +185,96 @@ fn area_module_srcs_carry_the_load_closure_of_their_entry_points() {
         report.join("\n")
     );
 }
+
+const FAMILY_ENV: &str = "MODULE_SRCS_";
+
+/// The runfiles paths each family `module_srcs` ships, keyed by module name such as `rules_dx_msix`.
+fn family_sources() -> BTreeMap<String, BTreeSet<String>> {
+    std::env::vars()
+        .filter_map(|(name, value)| {
+            let module = name.strip_prefix(FAMILY_ENV)?.to_owned();
+            Some((module, value.split_whitespace().map(str::to_owned).collect()))
+        })
+        .collect()
+}
+
+/// Resolves one `load` label inside a family to a runfiles path; `None` leaves every family.
+fn resolve_family(
+    label: &str,
+    module: &str,
+    package: &str,
+    prefixes: &BTreeMap<String, String>,
+) -> Option<String> {
+    let (target, rest) = if let Some(rest) = label.strip_prefix("//") {
+        (module, rest.to_owned())
+    } else if let Some(rest) = label.strip_prefix('@') {
+        let (repo, rest) = rest.split_once("//")?;
+        let repo = prefixes.get_key_value(repo)?.0;
+        (repo.as_str(), rest.to_owned())
+    } else {
+        let name = label.strip_prefix(':').unwrap_or(label);
+        let rest = if package.is_empty() {
+            format!(":{name}")
+        } else {
+            format!("{package}:{name}")
+        };
+        (module, rest)
+    };
+    let (package, name) = rest.split_once(':')?;
+    let prefix = prefixes.get(target)?;
+    Some(if package.is_empty() {
+        format!("{prefix}/{name}")
+    } else {
+        format!("{prefix}/{package}/{name}")
+    })
+}
+
+#[test]
+fn every_family_has_a_module_srcs() {
+    let sources = family_sources();
+    assert!(!sources.is_empty(), "no {FAMILY_ENV}* env from BUILD.bazel");
+    for (module, files) in &sources {
+        assert!(!files.is_empty(), "{module} module_srcs is empty");
+    }
+}
+
+#[test]
+fn family_module_srcs_carry_the_load_closure_of_their_bzl_files() {
+    let sources = family_sources();
+    let prefixes: BTreeMap<String, String> = sources
+        .iter()
+        .map(|(module, files)| {
+            let first = files.iter().next().expect("non-empty module_srcs");
+            let prefix = first.split('/').next().expect("repo segment");
+            (module.clone(), prefix.to_owned())
+        })
+        .collect();
+    let mut missing = BTreeMap::new();
+    for (module, files) in &sources {
+        let prefix = &prefixes[module];
+        for file in files.iter().filter(|file| file.ends_with(".bzl")) {
+            let path = dx_testing::rlocation(file).unwrap_or_else(|error| panic!("{file}: {error}"));
+            let text =
+                std::fs::read_to_string(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
+            let relative = &file[prefix.len() + 1..];
+            let package = relative.rsplit_once('/').map_or("", |(package, _)| package);
+            for label in loads(&text) {
+                let Some(needed) = resolve_family(&label, module, package, &prefixes) else {
+                    continue;
+                };
+                if !sources.values().any(|other| other.contains(&needed)) {
+                    missing.entry(needed).or_insert_with(|| file.clone());
+                }
+            }
+        }
+    }
+    let report: Vec<String> = missing
+        .iter()
+        .map(|(file, loader)| format!("{file} (needed by {loader})"))
+        .collect();
+    assert!(
+        report.is_empty(),
+        "family .bzl files load files their module_srcs does not carry:\n{}",
+        report.join("\n")
+    );
+}

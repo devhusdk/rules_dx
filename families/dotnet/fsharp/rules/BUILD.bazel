@@ -104,3 +104,12 @@ real_source_target(
 )
 
 dx_wrapper_signature_test(name = "wrapper_signature_test")
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)

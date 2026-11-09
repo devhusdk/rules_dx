@@ -44,6 +44,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "api_spec/tests,api_spec/tests/shared,avro/tests,capnproto/tests,capnproto/tests/api,capnproto/tests/base,capnproto/tests/dup,flatbuffers/tests,flatbuffers/tests/api,flatbuffers/tests/base,flatbuffers/tests/conform/bad,flatbuffers/tests/conform/v1,flatbuffers/tests/conform/v2,flatbuffers/tests/lost,flatbuffers/tests/multi,thrift/tests,thrift/tests/api,thrift/tests/base"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

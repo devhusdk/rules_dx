@@ -26,3 +26,12 @@ cuda_component_library(
     tags = ["manual"],
     target_compatible_with = CUDA_TARGET,
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)

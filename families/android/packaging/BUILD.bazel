@@ -366,3 +366,12 @@ failure_test(
     expected_failure_substring = "apply to App Bundles only",
     target = ":apk_platforms_check_selection",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)

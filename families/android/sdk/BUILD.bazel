@@ -37,3 +37,12 @@ build_test(
         "@dx_androidsdk//:files",
     ],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)

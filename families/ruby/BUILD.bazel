@@ -33,6 +33,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "ruby/tests/fixtures/adopt-ruby,ruby/tests/fixtures/adopt-ruby/greet,ruby/tests/fixtures/adopt-ruby/solo,ruby/tests/fixtures/hello,ruby/tests/fixtures/rspec"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

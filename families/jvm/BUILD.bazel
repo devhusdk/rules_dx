@@ -20,6 +20,17 @@ real_source_target(
     tags = ["corpus"],
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ) + [
+        "//third_party/jvm:module_srcs",
+    ],
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [

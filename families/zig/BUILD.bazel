@@ -35,6 +35,15 @@ sh_test(
     env = {"STARLARK_DOCS_PACKAGES": "zig/tests/fixtures/calc,zig/tests/fixtures/hello,zig/tests/fixtures/zig-app,zig/tests/fixtures/zig-app/catalog,zig/tests/fixtures/zig-app/cli,zig/tests/fixtures/zig-app/diagnostics,zig/tests/fixtures/zig-app/digest"},
 )
 
+filegroup(
+    name = "module_srcs",
+    srcs = glob(
+        ["**"],
+        exclude = ["**/tests/**"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
 # dx:begin exports
 exports_files(
     [".buildifier.json"],

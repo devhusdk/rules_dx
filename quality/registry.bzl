@@ -5,6 +5,7 @@ load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
 load(":parity_tests.bzl", "PARITY_DEFERRED", "parity_schema_error")
 load(":sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "sources_schema_error")
 load(":support.bzl", "support_schema_error")
+load(":taxonomy.bzl", "taxonomy_schema_error")
 load(":wrapper_owners.bzl", "WRAPPER_OWNERS", "wrapper_schema_error")
 
 def registry_classes():
@@ -44,6 +45,9 @@ def is_curated_family(family):
 
 def registry_schema_error():
     """Validates the aggregated registry schemas."""
+    err = taxonomy_schema_error()
+    if err != "":
+        return err
     err = sources_schema_error()
     if err != "":
         return err

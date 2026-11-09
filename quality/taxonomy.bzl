@@ -1,0 +1,325 @@
+"""Quality taxonomy: every family with its wrapper owner and file classes."""
+
+TAXONOMY = {
+    "ansible": struct(
+        owner = "//ansible/rules:defs.bzl",
+        classes = ["ansible"],
+    ),
+    "api_spec": struct(
+        owner = "//api_spec/rules:defs.bzl",
+        classes = ["api_spec", "api_spec_ref"],
+    ),
+    "asciidoc": struct(
+        owner = "//asciidoc/rules:defs.bzl",
+        classes = ["asciidoc"],
+    ),
+    "astro": struct(
+        owner = "//astro/rules:defs.bzl",
+        classes = ["astro"],
+    ),
+    "avro": struct(
+        owner = "//avro/rules:defs.bzl",
+        classes = ["avro"],
+    ),
+    "bicep": struct(
+        owner = "//bicep/rules:defs.bzl",
+        classes = ["bicep"],
+    ),
+    "capnp": struct(
+        owner = "//capnproto/rules:defs.bzl",
+        classes = ["capnp"],
+    ),
+    "cc": struct(
+        owner = "//cc/rules:defs.bzl",
+        classes = ["c", "cpp"],
+    ),
+    "cloudformation": struct(
+        owner = "//cloudformation/rules:defs.bzl",
+        classes = ["cloudformation"],
+    ),
+    "cmake": struct(
+        owner = "//cmake/rules:defs.bzl",
+        classes = ["cmake"],
+    ),
+    "core": struct(
+        owner = "other",
+        classes = ["github_workflow"],
+    ),
+    "csharp": struct(
+        owner = "@rules_dx_dotnet//csharp/rules:defs.bzl",
+        classes = ["csharp"],
+    ),
+    "css": struct(
+        owner = "//javascript/rules:defs.bzl",
+        classes = ["css", "less", "scss"],
+    ),
+    "cuda": struct(
+        owner = "@rules_dx_cuda//rules:defs.bzl",
+        classes = ["cuda"],
+    ),
+    "cue": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["cue"],
+    ),
+    "d": struct(
+        owner = "//d/rules:defs.bzl",
+        classes = ["d"],
+    ),
+    "dart": struct(
+        owner = "//dart/rules:defs.bzl",
+        classes = ["dart"],
+    ),
+    "dockerfile": struct(
+        owner = "//dockerfile/rules:defs.bzl",
+        classes = ["dockerfile"],
+    ),
+    "elixir": struct(
+        owner = "//elixir/rules:defs.bzl",
+        classes = ["elixir"],
+    ),
+    "erlang": struct(
+        owner = "//erlang/rules:defs.bzl",
+        classes = ["erlang"],
+    ),
+    "flatbuffers": struct(
+        owner = "//flatbuffers/rules:defs.bzl",
+        classes = ["flatbuffers"],
+    ),
+    "fortran": struct(
+        owner = "//fortran/rules:defs.bzl",
+        classes = ["fortran"],
+    ),
+    "fsharp": struct(
+        owner = "@rules_dx_dotnet//fsharp/rules:defs.bzl",
+        classes = ["fsharp"],
+    ),
+    "gherkin": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["gherkin"],
+    ),
+    "go": struct(
+        owner = "//go/rules:defs.bzl",
+        classes = ["go"],
+    ),
+    "go_module": struct(
+        owner = "other",
+        classes = ["go_module"],
+    ),
+    "graphql": struct(
+        owner = "//javascript/rules:defs.bzl",
+        classes = ["graphql"],
+    ),
+    "haskell": struct(
+        owner = "//haskell/rules:defs.bzl",
+        classes = ["haskell"],
+    ),
+    "helm": struct(
+        owner = "//helm/rules:defs.bzl",
+        classes = ["helm"],
+    ),
+    "html": struct(
+        owner = "//javascript/rules:defs.bzl",
+        classes = ["html"],
+    ),
+    "html_template": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["html_template"],
+    ),
+    "java": struct(
+        owner = "//java/rules:defs.bzl",
+        classes = ["java"],
+    ),
+    "javascript": struct(
+        owner = "//javascript/rules:defs.bzl",
+        classes = ["javascript", "jsx"],
+    ),
+    "json": struct(
+        owner = "other",
+        classes = ["json", "json5", "jsonc"],
+    ),
+    "jsonnet": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["jsonnet"],
+    ),
+    "julia": struct(
+        owner = "//julia/rules:defs.bzl",
+        classes = ["julia"],
+    ),
+    "jupyter": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["jupyter"],
+    ),
+    "kotlin": struct(
+        owner = "//kotlin/rules:defs.bzl",
+        classes = ["kotlin"],
+    ),
+    "kubernetes": struct(
+        owner = "//kubernetes/rules:defs.bzl",
+        classes = ["kubernetes"],
+    ),
+    "latex": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["latex"],
+    ),
+    "lua": struct(
+        owner = "//lua/rules:defs.bzl",
+        classes = ["lua"],
+    ),
+    "make": struct(
+        owner = "//make/rules:defs.bzl",
+        classes = ["make"],
+    ),
+    "markdown": struct(
+        owner = "other",
+        classes = ["markdown"],
+    ),
+    "mdx": struct(
+        owner = "//mdx/rules:defs.bzl",
+        classes = ["mdx"],
+    ),
+    "nix": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["nix"],
+    ),
+    "objc": struct(
+        owner = "//cc/rules:defs.bzl",
+        classes = ["objc", "objcpp"],
+    ),
+    "ocaml": struct(
+        owner = "//ocaml/rules:defs.bzl",
+        classes = ["ocaml"],
+    ),
+    "perl": struct(
+        owner = "//perl/rules:defs.bzl",
+        classes = ["perl"],
+    ),
+    "php": struct(
+        owner = "//php/rules:defs.bzl",
+        classes = ["php"],
+    ),
+    "pkl": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["pkl"],
+    ),
+    "powershell": struct(
+        owner = "//powershell/rules:defs.bzl",
+        classes = ["powershell"],
+    ),
+    "protobuf": struct(
+        owner = "other",
+        classes = ["protobuf"],
+    ),
+    "python": struct(
+        owner = "//python/rules:defs.bzl",
+        classes = ["python", "python_stub"],
+    ),
+    "qml": struct(
+        owner = "//qt/rules:defs.bzl",
+        classes = ["qml"],
+    ),
+    "rego": struct(
+        owner = "//rego/rules:defs.bzl",
+        classes = ["rego"],
+    ),
+    "rst": struct(
+        owner = "//rst/rules:defs.bzl",
+        classes = ["rst"],
+    ),
+    "ruby": struct(
+        owner = "//ruby/rules:defs.bzl",
+        classes = ["ruby"],
+    ),
+    "rust": struct(
+        owner = "//rust/rules:defs.bzl",
+        classes = ["rust"],
+    ),
+    "scala": struct(
+        owner = "//scala/rules:defs.bzl",
+        classes = ["scala"],
+    ),
+    "shell": struct(
+        owner = "other",
+        classes = ["shell"],
+    ),
+    "sql": struct(
+        owner = "//sql/rules:defs.bzl",
+        classes = ["sql"],
+    ),
+    "starlark": struct(
+        owner = "other",
+        classes = ["starlark"],
+    ),
+    "svelte": struct(
+        owner = "//svelte/rules:defs.bzl",
+        classes = ["svelte"],
+    ),
+    "swift": struct(
+        owner = "//swift/rules:defs.bzl",
+        classes = ["swift"],
+    ),
+    "terraform": struct(
+        owner = "//terraform/rules:defs.bzl",
+        classes = ["terraform"],
+    ),
+    "text": struct(
+        owner = "other",
+        classes = ["text"],
+    ),
+    "thrift": struct(
+        owner = "//thrift/rules:defs.bzl",
+        classes = ["thrift"],
+    ),
+    "toml": struct(
+        owner = "other",
+        classes = ["toml"],
+    ),
+    "typescript": struct(
+        owner = "//typescript/rules:defs.bzl",
+        classes = ["tsx", "typescript"],
+    ),
+    "typst": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["typst"],
+    ),
+    "vue": struct(
+        owner = "//vue/rules:defs.bzl",
+        classes = ["vue"],
+    ),
+    "xml": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["xml"],
+    ),
+    "yaml": struct(
+        owner = "//quality/rules:defs.bzl",
+        classes = ["yaml"],
+    ),
+    "zig": struct(
+        owner = "//zig/rules:defs.bzl",
+        classes = ["zig"],
+    ),
+}
+
+def taxonomy_schema_error(taxonomy = TAXONOMY):
+    """Returns an error string for a malformed taxonomy, else the empty string."""
+    seen = {}
+    for family in sorted(taxonomy.keys()):
+        entry = taxonomy[family]
+        if not entry.owner:
+            return "taxonomy: family '" + family + "' has an empty owner"
+        if not entry.classes:
+            return "taxonomy: family '" + family + "' has no classes"
+        for class_id in entry.classes:
+            if class_id in seen:
+                return "taxonomy: class '" + class_id + "' listed under both '" + seen[class_id] + "' and '" + family + "'"
+            seen[class_id] = family
+    return ""
+
+TAXONOMY_CLASSES = sorted([class_id for entry in TAXONOMY.values() for class_id in entry.classes])
+
+CLASS_TO_FAMILY = {
+    class_id: family
+    for family, entry in TAXONOMY.items()
+    for class_id in entry.classes
+}
+
+FAMILY_OWNERS = {family: entry.owner for family, entry in TAXONOMY.items()}

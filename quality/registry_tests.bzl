@@ -2,6 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "not_applicable_error")
+load(":taxonomy.bzl", "CLASS_TO_FAMILY", "FAMILY_OWNERS", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")
 load(":registry.bzl", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")
 
 _A = {"ty": {"typecheck": ["python"]}}
@@ -12,6 +13,26 @@ def registry_unit_tests(name):
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "taxonomy rejects a class under two families",
+                taxonomy_schema_error({"a": struct(owner = "o", classes = ["x"]), "b": struct(owner = "o", classes = ["x"])}),
+                "taxonomy: class 'x' listed under both 'a' and 'b'",
+            ),
+            expect_equal(
+                "taxonomy rejects a family without classes",
+                taxonomy_schema_error({"a": struct(owner = "o", classes = [])}),
+                "taxonomy: family 'a' has no classes",
+            ),
+            expect_equal(
+                "taxonomy rejects an empty owner",
+                taxonomy_schema_error({"a": struct(owner = "", classes = ["x"])}),
+                "taxonomy: family 'a' has an empty owner",
+            ),
+            expect_equal(
+                "taxonomy tables share key sets",
+                [sorted(CLASS_TO_FAMILY.keys()), sorted(FAMILY_OWNERS.keys())],
+                [TAXONOMY_CLASSES, sorted(TAXONOMY.keys())],
+            ),
             expect_equal(
                 "aggregated registry schemas validate",
                 registry_schema_error(),

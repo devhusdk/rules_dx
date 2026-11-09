@@ -1,3 +1,4 @@
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 # gazelle:ignore
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//python/rules:defs.bzl", "python_fuzz_test")
@@ -28,4 +29,13 @@ sh_test(
         "@platforms//os:linux",
     ],
     timeout = "short",
+)
+
+dx_runner_attr_test(
+    name = "parse_fuzz_attrs",
+    expected = {
+        "tags": ["dx-fuzz", "manual"],
+        "target_compatible_with": ["@@platforms//os:linux", "@@platforms//cpu:x86_64"],
+    },
+    runner = "parse_fuzz",
 )

@@ -6,6 +6,7 @@ load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_append_flags", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//rust/rules:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
@@ -236,22 +237,24 @@ _cc_fuzz_binary = rule(
 def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     flags = ["-fsanitize=fuzzer,address"]
+    build, run = split_runner_kwargs(kwargs)
     cc_binary(
-        name = name + "_binary",
+        name = name + "_bin",
         srcs = srcs,
         visibility = ["//visibility:private"],
         testonly = True,
-        tags = ["manual"],
+        tags = merge_tags(tags, "manual"),
         copts = flags + (copts or []),
         linkopts = flags + (linkopts or []),
-        **kwargs
+        **build
     )
     _cc_fuzz_binary(
         name = name,
-        binary = ":" + name + "_binary",
+        binary = ":" + name + "_bin",
         visibility = visibility,
         testonly = True,
-        tags = (tags or []) + ["dx-fuzz", "manual"],
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        **run
     )
     sh_binary(
         name = name + "_run",

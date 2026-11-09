@@ -24,7 +24,7 @@ const (
 	libraryKind   = "rust_library"
 	binaryKind    = "rust_binary"
 	testKind      = "rust_test"
-	benchmarkKind = "rust_benchmark"
+	benchmarkKind = "rust_bench"
 	procMacroKind = "rust_proc_macro"
 	sharedKind    = "rust_shared_library"
 	staticKind    = "rust_static_library"

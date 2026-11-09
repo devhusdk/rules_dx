@@ -28,7 +28,7 @@ script instead. Gazelle sets `runner = "plain"` for a test file that imports
 `unittest`, not `pytest`, and defines no bare `test` functions. Every other
 test gets `@pypi//pytest`, so pytest must be in the project dependencies.
 
-`python_benchmark` is a `python_test` for `dx bench`. List `pytest-benchmark`
+`python_bench` is a `python_test` for `dx bench`. List `pytest-benchmark`
 in the project dependencies and `@pypi//pytest_benchmark` in `deps`. Each
 benchmark becomes one row, in seconds.
 

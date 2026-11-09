@@ -93,7 +93,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.go": "package demo\n"},
 		inert: []string{"notes.txt"},
 		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
-		symbols: []string{"go_library", "go_test", "go_benchmark"},
+		symbols: []string{"go_library", "go_test", "go_bench"},
 	},
 	"haskell": {
 		files: map[string]string{"Demo.hs": "module Demo where\n\nimport Data.List (sort)\n"},
@@ -213,7 +213,7 @@ var conformanceRows = map[string]conformanceRow{
 		rel:   "crates/demo",
 		files: map[string]string{"src/lib.rs": "pub fn demo() {}\n"},
 		kind:  "rust_library", target: "demo", defs: "rust/rules:defs.bzl",
-		symbols: []string{"rust_binary", "rust_library", "rust_test", "rust_benchmark", "rust_proc_macro", "rust_shared_library", "rust_static_library"},
+		symbols: []string{"rust_binary", "rust_library", "rust_test", "rust_bench", "rust_proc_macro", "rust_shared_library", "rust_static_library"},
 		extraLoads: map[string][]string{
 			"@rules_rust//cargo:defs.bzl":          {"cargo_build_script"},
 			"@crates//:crates.bzl":                 {"aliases", "all_crate_deps"},

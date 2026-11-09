@@ -1,5 +1,6 @@
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//java/rules:defs.bzl", "java_fuzz_test")
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(
     default_testonly = True,
@@ -25,4 +26,17 @@ sh_test(
     ],
     target_compatible_with = ["@platforms//os:linux"],
     timeout = "short",
+)
+
+java_fuzz_test(
+    name = "args_fuzz",
+    srcs = ["ParseFuzz.java"],
+    args = ["-max_total_time=1"],
+    target_class = "tests.fixtures.fuzz.ParseFuzz",
+)
+
+dx_runner_attr_test(
+    name = "args_fuzz_attrs",
+    expected = {"args": ["-max_total_time=1"]},
+    runner = "args_fuzz",
 )

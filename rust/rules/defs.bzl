@@ -6,6 +6,7 @@ load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_common = 
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
@@ -341,33 +342,37 @@ def rust_test(
         forward_kwargs["coverage_lib"] = coverage_lib
     dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, **kwargs)
 
-def rust_benchmark(
+def rust_bench(
         name,
         srcs = None,
         crate = None,
         crate_features = [],
         tags = [],
-        data = [],
         visibility = None,
         **kwargs):
     """A rust_test run by `dx bench`; it reports its bencher output as dx-bench.json."""
     binary = name + "_bin"
+    build, run = split_test_kwargs(kwargs)
+    run = with_default_size(run)
     rust_test(
         name = binary,
         srcs = srcs,
         crate = crate,
         crate_features = crate_features + ["dx_bench"],
-        tags = ["manual"],
+        tags = merge_tags(tags, "manual"),
+        testonly = True,
         visibility = ["//visibility:private"],
-        **(dict(use_libtest_harness = False) | kwargs)
+        **(dict(use_libtest_harness = False) | build)
     )
     native_test(
         name = name,
         src = Label("//rust/rules/bench_report"),
-        args = ["$(rootpath :%s)" % binary, "--bench", "--output-format", "bencher"],
-        data = data + [":" + binary],
-        tags = tags + ["dx-bench", "manual"],
+        args = ["$(rootpath :%s)" % binary, "--bench", "--output-format", "bencher"] + run.pop("args", []),
+        data = run.pop("data", []) + [":" + binary],
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        testonly = True,
         visibility = visibility,
+        **run
     )
 
 def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs):
@@ -695,23 +700,25 @@ _rust_fuzz_binary = rule(
 
 def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys = None, **kwargs):
     """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
+    build, run = split_runner_kwargs(kwargs)
     rust_binary(
-        name = name + "_binary",
+        name = name + "_bin",
         srcs = srcs,
         deps = (deps or []) + [libfuzzer_sys or RUST_FUZZ_LIBFUZZER_SYS],
         rustc_flags = _FUZZ_RUSTC_FLAGS + (rustc_flags or []),
         rustc_env = dict(rustc_env or {}, RUSTC_BOOTSTRAP = "1"),
         visibility = ["//visibility:private"],
         testonly = True,
-        tags = ["manual"],
-        **kwargs
+        tags = merge_tags(tags, "manual"),
+        **build
     )
     _rust_fuzz_binary(
         name = name,
-        binary = ":" + name + "_binary",
+        binary = ":" + name + "_bin",
         visibility = visibility,
         testonly = True,
-        tags = (tags or []) + ["dx-fuzz", "manual"],
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        **run
     )
     sh_binary(
         name = name + "_run",

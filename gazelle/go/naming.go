@@ -17,7 +17,7 @@ const BinaryKind = "go_binary"
 
 const TestKind = "go_test"
 
-const BenchmarkKind = "go_benchmark"
+const BenchmarkKind = "go_bench"
 
 func IsTestSource(name string) bool {
 	return strings.HasSuffix(path.Base(name), "_test.go")

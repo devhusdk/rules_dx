@@ -1,14 +1,14 @@
+load(":defs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors")
 
 package(default_visibility = ["//visibility:public"])
 
 _ON = {"warnings_as_errors": True}
 
 exports_files([
-    "bench.bzl",
+    "jmh.bzl",
     "coverage.bzl",
     "coverage_tests.bzl",
     "defs.bzl",
@@ -332,7 +332,7 @@ real_source_target(
         "coverage.bzl",
         "coverage_tests.bzl",
         "defs.bzl",
-        "bench.bzl",
+        "jmh.bzl",
     ],
     tags = ["corpus"],
 )

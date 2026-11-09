@@ -1,12 +1,13 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//rust/rules:defs.bzl", "rust_benchmark")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//rust/rules:defs.bzl", "rust_bench")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-rust_benchmark(
+rust_bench(
     name = "parse_bench",
     srcs = ["parse_bench.rs"],
     crate_root = "parse_bench.rs",
@@ -26,4 +27,23 @@ sh_test(
         "//rust/rules/bench_report",
     ],
     timeout = "short",
+)
+
+rust_bench(
+    name = "sized_bench",
+    srcs = ["parse_bench.rs"],
+    size = "large",
+    timeout = "long",
+    crate_root = "parse_bench.rs",
+    edition = "2021",
+    deps = ["@crates//:criterion"],
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "size": "large",
+        "timeout": "long",
+    },
+    runner = "sized_bench",
 )

@@ -1,9 +1,10 @@
-load("@rules_dx//java/rules:bench.bzl", "java_benchmark")
+load("@rules_dx//java/rules:defs.bzl", "java_bench")
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-java_benchmark(
+java_bench(
     name = "sum_bench",
     srcs = ["Sum.java"],
 )
@@ -15,4 +16,20 @@ real_source_target(
         "BUILD.bazel",
     ],
     tags = ["corpus"],
+)
+
+java_bench(
+    name = "sized_bench",
+    srcs = ["Sum.java"],
+    size = "large",
+    timeout = "long",
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "size": "large",
+        "timeout": "long",
+    },
+    runner = "sized_bench",
 )

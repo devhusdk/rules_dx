@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//go/rules:defs.bzl", "go_benchmark", "go_library")
+load("//go/rules:defs.bzl", "go_bench", "go_library")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(
     default_testonly = True,
@@ -12,7 +13,7 @@ go_library(
     importpath = "rules_dx/go/tests/fixtures/bench",
 )
 
-go_benchmark(
+go_bench(
     name = "parse_bench",
     srcs = ["parse_test.go"],
     embed = [":parse"],
@@ -27,4 +28,25 @@ sh_test(
         "//go/rules:bench_run.sh",
     ],
     timeout = "short",
+)
+
+go_bench(
+    name = "sized_bench",
+    srcs = ["parse_test.go"],
+    size = "large",
+    timeout = "long",
+    args = ["-test.short"],
+    embed = [":parse"],
+    tags = ["dx-bench", "extra"],
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "args": ["$(rootpath :sized_bench_bin)", "-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1", "-test.short"],
+        "size": "large",
+        "tags": ["dx-bench", "extra", "manual"],
+        "timeout": "long",
+    },
+    runner = "sized_bench",
 )

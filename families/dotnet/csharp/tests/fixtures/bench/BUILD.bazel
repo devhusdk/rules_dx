@@ -1,12 +1,12 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//csharp/rules:defs.bzl", "csharp_benchmark")
+load("//csharp/rules:defs.bzl", "csharp_bench")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-csharp_benchmark(
+csharp_bench(
     name = "sum_bench",
     srcs = ["Sum.cs"],
 )

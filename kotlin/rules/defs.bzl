@@ -1,9 +1,11 @@
 """Minimal Kotlin wrappers."""
 
 load("@rules_java//java:defs.bzl", "JavaInfo")
+load("@rules_kotlin//kotlin:core.bzl", "kt_javac_options")
 load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_library = "kt_jvm_library", _kt_jvm_test = "kt_jvm_test")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
+load("//java/rules:jmh.bzl", "jmh_bench")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -171,3 +173,23 @@ def kotlin_test(name, srcs = None, visibility = None, **kwargs):
         extra_forward_kwargs = {"main_class": upstream_kwargs.get("main_class") or DX_JVM_TEST_RUNNER},
         **dx_without_warnings_attr(kwargs)
     )
+
+def kotlin_bench(name, srcs, deps = [], jmh = "@maven//:org_openjdk_jmh_jmh_core", jmh_processor = "@maven//:org_openjdk_jmh_jmh_generator_annprocess", tags = [], **kwargs):
+    """Runs the JMH benchmarks in Kotlin srcs and writes dx-bench.json for dx bench.
+
+    Args:
+      name: the test target.
+      srcs: Kotlin sources with @Benchmark methods.
+      deps: libraries the benchmarks use.
+      jmh: the jmh-core target.
+      jmh_processor: the jmh-generator-annprocess target.
+      tags: extra tags. dx-bench and manual are added.
+      **kwargs: passed to the test.
+    """
+    kt_javac_options(
+        name = name + "_javac_opts",
+        warn = "off",
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
+    jmh_bench(name, kotlin_library, srcs, deps, jmh, jmh_processor, tags, kwargs, {"javac_opts": ":" + name + "_javac_opts"})

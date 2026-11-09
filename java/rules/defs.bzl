@@ -5,6 +5,8 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
+load("//java/rules:jmh.bzl", "jmh_bench")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
@@ -147,22 +149,24 @@ def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, ta
     target_class = target_class or java_entry_class(name, srcs, native.package_name())
     if target_class == None:
         fail("java_fuzz_test %s needs target_class" % name)
+    build, run = split_runner_kwargs(kwargs)
     java_library(
-        name = name + "_lib",
+        name = name + "_bin",
         srcs = srcs,
         deps = deps,
         testonly = True,
-        tags = ["manual"],
+        tags = merge_tags(tags, "manual"),
         visibility = ["//visibility:private"],
-        **kwargs
+        **build
     )
     _java_binary(
         name = name,
         main_class = "com.code_intelligence.jazzer.Jazzer",
-        runtime_deps = [":" + name + "_lib", Label("@dx_jazzer//jar"), Label("@dx_jazzer_api//jar")],
+        runtime_deps = [":" + name + "_bin", Label("@dx_jazzer//jar"), Label("@dx_jazzer_api//jar")],
         testonly = True,
-        tags = (tags or []) + ["dx-fuzz", "manual"],
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
         visibility = visibility,
+        **run
     )
     sh_binary(
         name = name + "_run",
@@ -172,3 +176,17 @@ def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, ta
         testonly = True,
         visibility = visibility,
     )
+
+def java_bench(name, srcs, deps = [], jmh = "@maven//:org_openjdk_jmh_jmh_core", jmh_processor = "@maven//:org_openjdk_jmh_jmh_generator_annprocess", tags = [], **kwargs):
+    """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench.
+
+    Args:
+      name: the test target.
+      srcs: Java sources with @Benchmark methods.
+      deps: libraries the benchmarks use.
+      jmh: the jmh-core target.
+      jmh_processor: the jmh-generator-annprocess target.
+      tags: extra tags. dx-bench and manual are added.
+      **kwargs: passed to the test.
+    """
+    jmh_bench(name, java_library, srcs, deps, jmh, jmh_processor, tags, kwargs)

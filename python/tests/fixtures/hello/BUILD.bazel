@@ -1,5 +1,5 @@
 load("//libs/starlark/tests:thin_compare.bzl", "thin_compare_py_tests", "thin_compare_subject")
-load("//python/rules:defs.bzl", "python_benchmark", "python_binary", "python_library", "python_test")
+load("//python/rules:defs.bzl", "python_bench", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -42,7 +42,7 @@ python_test(
     ],
 )
 
-python_benchmark(
+python_bench(
     name = "parse_bench",
     srcs = ["parse_bench.py"],
     dep_group = "hello",

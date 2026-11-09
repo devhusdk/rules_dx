@@ -14,9 +14,11 @@ dx fuzz [--here] [--time <duration>] [--jobs <n>] [scope ...]
 
 A fuzz target is a rule tagged `dx-fuzz` with a runner named `<name>_run` next to it. Targets without the tag are skipped. Targets run one after another.
 
+Every `<lang>_fuzz_test` macro has the same shape. `<name>` is the manual `dx-fuzz` target dx runs, the program is a private `<name>_bin`, and `<name>_run` is the runner. `args` and `target_compatible_with` go to `<name>`; `go_fuzz_test` also takes `size`, `timeout`, `env`, `data`, `flaky` and `shard_count` there. The other attributes go to `<name>_bin`. `tags` are merged with `dx-fuzz` and `manual`. There is no `kotlin_fuzz_test`.
+
 Go: `go_fuzz_test(name, fuzz = "FuzzParse", srcs = ..., ...)` from `//go/rules:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
 
-Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//python/rules:defs.bzl` declares a binary that calls `atheris.Setup` and `atheris.Fuzz`, tags it and adds the `<name>_run` runner. Linux x86_64 only: there is no atheris wheel for Windows.
+Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//python/rules:defs.bzl` declares a binary that calls `atheris.Setup` and `atheris.Fuzz`, tags it and adds the `<name>_run` runner. Manual and Linux x86_64 only: there is no atheris wheel for Windows.
 
 Rust: `rust_fuzz_test(name, srcs, crate_root = ...)` from `//rust/rules:defs.bzl` builds a `libfuzzer-sys` binary with sancov and AddressSanitizer using `RUSTC_BOOTSTRAP=1` and the pinned LLVM's libFuzzer, tags it and adds the `<name>_run` runner. The source is `#![no_main]` and calls `fuzz_target!`. `libfuzzer-sys` comes from rules_dx's pinned crate hub by default; pass `libfuzzer_sys = "@<your_hub>//:libfuzzer-sys"` to use your own hub, for example when you use `arbitrary`. Tested on linux x86_64 only.
 

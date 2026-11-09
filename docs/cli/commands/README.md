@@ -469,7 +469,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
 |  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
-|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_benchmark` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_bench` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_forward_kwargs` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_with_defaults` |
@@ -489,12 +489,13 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `library_name` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `link_kwargs` |
 |  |  | `@rules_dx//fortran/rules:defs.bzl` | `with_defaults` |
-|  |  | `@rules_dx//go/rules:defs.bzl` | `go_benchmark` |
+|  |  | `@rules_dx//go/rules:defs.bzl` | `go_bench` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `upstream_kwargs` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
 |  |  | `@rules_dx//helm/rules:defs.bzl` | `helm_chart` |
+|  |  | `@rules_dx//java/rules:defs.bzl` | `java_bench` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_entry_class` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_entry_error` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_entry_kwargs` |
@@ -505,6 +506,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_quality_srcs` |
 |  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_standalone_binary` |
+|  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_bench` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_kotlinc_opts_with_warnings_as_errors` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_test_class` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_test_entry_kwargs` |
@@ -570,7 +572,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_library` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_quality_srcs` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_test` |
-|  |  | `@rules_dx//python/rules:defs.bzl` | `python_benchmark` |
+|  |  | `@rules_dx//python/rules:defs.bzl` | `python_bench` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_fuzz_test` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_main` |
 |  |  | `@rules_dx//python/rules:defs.bzl` | `python_main_rejection` |
@@ -602,7 +604,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//rego/rules:defs.bzl` | `rego_test` |
 |  |  | `@rules_dx//rst/rules:defs.bzl` | `rst_library` |
 |  |  | `@rules_dx//ruby/rules:defs.bzl` | `ruby_coverage_lib_dirs` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_benchmark` |
+|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_bench` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_binary` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_fuzz_test` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_library` |

@@ -38,7 +38,7 @@ rust_test(
 
 ## Benchmarks
 
-`rust_benchmark(name, srcs, deps, ...)` is a `rust_test` built with the
+`rust_bench(name, srcs, deps, ...)` is a `rust_test` built with the
 `dx_bench` feature and tagged `dx-bench` and `manual`. It runs the binary with
 `--bench --output-format bencher`, sets `CRITERION_HOME` under the undeclared
 outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to

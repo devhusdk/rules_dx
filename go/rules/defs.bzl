@@ -1,8 +1,10 @@
 """Minimal Go wrappers."""
 
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_binary = "go_binary", _go_library = "go_library", _go_test = "go_test")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load(":cgo.bzl", "cgo_toolchain_error")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
@@ -89,7 +91,24 @@ def go_test(name, srcs = None, visibility = None, **kwargs):
 
 def go_fuzz_test(name, fuzz, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test plus a `<name>_run` runner that fuzzes the function `fuzz` for `dx fuzz`."""
-    go_test(name = name, srcs = srcs, visibility = visibility, tags = (tags or []) + ["dx-fuzz"], **kwargs)
+    binary = name + "_bin"
+    build, run = split_test_kwargs(kwargs)
+    go_test(
+        name = binary,
+        srcs = srcs,
+        visibility = ["//visibility:private"],
+        tags = merge_tags(tags, "manual"),
+        testonly = True,
+        **build
+    )
+    native_test(
+        name = name,
+        src = ":" + binary,
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        testonly = True,
+        visibility = visibility,
+        **with_default_size(run)
+    )
     sh_binary(
         name = name + "_run",
         srcs = [Label("//go/rules:fuzz_run.sh")],
@@ -99,21 +118,26 @@ def go_fuzz_test(name, fuzz, srcs = None, visibility = None, tags = None, **kwar
         visibility = visibility,
     )
 
-def go_benchmark(name, srcs = None, visibility = None, tags = None, **kwargs):
+def go_bench(name, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test of the Benchmark functions plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
+    binary = name + "_bin"
+    build, run = split_test_kwargs(kwargs)
+    run = with_default_size(run)
     go_test(
-        name = name + "_bin",
+        name = binary,
         srcs = srcs,
-        visibility = visibility,
-        tags = (tags or []) + ["manual"],
-        **kwargs
+        visibility = ["//visibility:private"],
+        tags = merge_tags(tags, "manual"),
+        testonly = True,
+        **build
     )
     sh_test(
         name = name,
         srcs = [Label("//go/rules:bench_run.sh")],
-        args = ["$(rootpath :" + name + "_bin)", "-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1"],
-        data = [":" + name + "_bin"],
-        tags = (tags or []) + ["dx-bench", "manual"],
+        args = ["$(rootpath :" + binary + ")", "-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1"] + run.pop("args", []),
+        data = run.pop("data", []) + [":" + binary],
+        tags = merge_tags(tags, "dx-bench", "manual"),
         testonly = True,
         visibility = visibility,
+        **run
     )

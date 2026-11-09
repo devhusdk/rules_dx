@@ -1,4 +1,4 @@
-"""Benchmark fixture for python_benchmark."""
+"""Benchmark fixture for python_bench."""
 
 
 def test_parse(benchmark):

@@ -1044,7 +1044,7 @@ func TestGenerateBenchmarkNextToTest(t *testing.T) {
 	}
 	bench := result.Gen[2]
 	if bench.Kind() != BenchmarkKind || bench.Name() != "demo_bench" {
-		t.Fatalf("benchmark = %s(%s), want go_benchmark(demo_bench)", bench.Kind(), bench.Name())
+		t.Fatalf("benchmark = %s(%s), want go_bench(demo_bench)", bench.Kind(), bench.Name())
 	}
 	if got := strings.Join(bench.AttrStrings("srcs"), ","); got != "demo_test.go" {
 		t.Errorf("benchmark srcs = %q, want demo_test.go", got)

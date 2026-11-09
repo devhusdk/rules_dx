@@ -352,7 +352,7 @@ foreach ($marker in @($false, $true)) {
     $script:lastKey = ""
     try {
         Test-ArgvSign $label "argv-$($marker).log" @{} 0 1 @("-Pfx", $good, "-Out", (Join-Path $work "argv-$($marker).msix")) | Out-Null
-        $left = Get-StoreCertificate $certificate.Thumbprint
+        $left = @(Get-StoreCertificate $certificate.Thumbprint)
         if ($marker) {
             Assert-Equal 0 $left.Count "$label left the certificate in CurrentUser\My"
             Test-KeyGone $script:lastKey $label
@@ -386,7 +386,7 @@ $store.Close()
 $script:lastKey = ""
 try {
     Test-ArgvSign "keyless certificate" "argv-keyless.log" @{} 0 1 @("-Pfx", $good, "-Out", (Join-Path $work "argv-keyless.msix")) | Out-Null
-    $left = Get-StoreCertificate $certificate.Thumbprint
+    $left = @(Get-StoreCertificate $certificate.Thumbprint)
     Assert-Equal 1 $left.Count "keyless certificate was not restored to CurrentUser\My"
     Assert-That ($left.Count -eq 1 -and -not $left[0].HasPrivateKey) "keyless certificate got a private key"
     Assert-That ($left.Count -eq 1 -and $left[0].FriendlyName -ceq "user public only") "keyless certificate lost its FriendlyName"

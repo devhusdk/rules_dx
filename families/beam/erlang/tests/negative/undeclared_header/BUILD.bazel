@@ -14,7 +14,7 @@ nif_header_test(
     name = "nif_header_hidden_test",
     file = "hidden.h",
     present = False,
-    target = ":probe_nif_c_upstream",
+    target = ":_probe_nif_c_upstream",
 )
 
 # keep

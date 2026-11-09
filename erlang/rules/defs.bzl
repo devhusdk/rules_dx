@@ -388,24 +388,30 @@ _erlang_nif = rule(
     provides = [DefaultInfo, ErlangNifInfo, InstrumentedFilesInfo],
 )
 
-def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, tags = None, target_compatible_with = None):
+def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, **kwargs):
     """Builds a NIF shared library from declared C or C++ sources and places it at priv/<name>.so (.dll on Windows)."""
     if "/" in name:
         fail("erlang_nif " + name + ": the name is a file name, not a path")
-    compatible = target_compatible_with if target_compatible_with != None else ERLANG_NIF_COMPATIBLE_WITH
+    kwargs = dx_language_kwargs(kwargs, [], ERLANG_NIF_COMPATIBLE_WITH)
+    compatible = kwargs["target_compatible_with"]
+    tags = kwargs.get("tags", None)
+    testonly = kwargs.get("testonly", False)
+    c_name = "_" + name + "_c"
+    so_name = "_lib" + name + ".so"
+    x64_name = "_lib" + name + "_x64"
     _cc_library(
-        name = name + "_c",
+        name = c_name,
         srcs = srcs,
         hdrs = hdrs,
         deps = deps + [Label("@dx_erlang_toolchains//:erl_nif")],
         copts = copts,
         alwayslink = True,
-        tags = tags,
-        target_compatible_with = compatible,
+        visibility = ["//visibility:private"],
+        **kwargs
     )
     _cc_binary(
-        name = "lib" + name + ".so",
-        deps = [":" + name + "_c"],
+        name = so_name,
+        deps = [":" + c_name],
         linkshared = True,
         linkopts = select(nif_linkopt_cases(str(Label("//erlang/rules:nif_exports.lds")))),
         additional_linker_inputs = select({
@@ -413,21 +419,26 @@ def erlang_nif(name, srcs, hdrs = [], deps = [], copts = [], visibility = None, 
             "//conditions:default": [Label("//erlang/rules:nif_exports.lds")],
         }),
         tags = tags,
+        testonly = testonly,
         target_compatible_with = compatible,
+        visibility = ["//visibility:private"],
     )
     _nif_x64_lib(
-        name = "lib" + name + "_x64",
-        lib = ":lib" + name + ".so",
+        name = x64_name,
+        lib = ":" + so_name,
         tags = (tags or []) + ["manual"],
+        testonly = testonly,
         target_compatible_with = compatible,
+        visibility = ["//visibility:private"],
     )
     _erlang_nif(
         name = name,
         lib = select({
-            Label("//erlang/toolchain:cell_windows_arm64"): ":lib" + name + "_x64",
-            "//conditions:default": ":lib" + name + ".so",
+            Label("//erlang/toolchain:cell_windows_arm64"): ":" + x64_name,
+            "//conditions:default": ":" + so_name,
         }),
         tags = tags,
+        testonly = testonly,
         target_compatible_with = compatible,
         visibility = visibility,
     )

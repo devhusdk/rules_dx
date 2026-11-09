@@ -48,7 +48,7 @@ escript_archive(
 | `ct_suite` | Common Test suite from `test/<name>.erl` with `test/<name>_data/` |
 | `escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
 | `erlang_release` | Release tree with `lib/<app>/ebin` and `lib/<app>/priv`, NIF libraries included |
-| `erlang_nif` | NIF shared library from declared C or C++ `srcs` and `hdrs`, placed at `priv/<name>.so` (`.dll` on Windows) |
+| `erlang_nif` | NIF shared library from declared C or C++ `srcs` and `hdrs`, other `cc_library` attributes pass through, placed at `priv/<name>.so` (`.dll` on Windows) |
 
 ```python
 erlang_nif(
@@ -64,7 +64,7 @@ erlang_app(
 )
 ```
 
-Declare the NIF in the package of the app that loads it and pass it through
+Only `<name>` is public; the helper targets are private. A `target_compatible_with` you pass is added to the NIF platform restriction. Declare the NIF in the package of the app that loads it and pass it through
 `nifs` on `erlang_app` and `test_erlang_app`. The C includes `erl_nif.h` from
 the pinned OTP. `erlang:load_nif/2` takes `priv/<name>` without the extension.
 An `escript_archive` whose app, or any app it bundles, ships a NIF fails at

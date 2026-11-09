@@ -2,7 +2,7 @@
 
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("@rules_dx//erlang/rules:defs.bzl", "erlang_nif")
-load("//erlang/tests/negative:negative_tests.bzl", "nif_header_test")
+load("//erlang/tests/negative:negative_tests.bzl", "nif_define_test", "nif_header_test")
 
 erlang_nif(
     name = "probe_nif",
@@ -14,7 +14,20 @@ nif_header_test(
     name = "nif_header_visible_test",
     file = "hidden.h",
     present = True,
-    target = ":probe_nif_c_upstream",
+    target = ":_probe_nif_c_upstream",
+)
+
+erlang_nif(
+    name = "defined_nif",
+    srcs = ["probe_nif.c"],
+    hdrs = ["hidden.h"],
+    defines = ["DX_NIF_PROBE"],
+)
+
+nif_define_test(
+    name = "nif_define_passthrough_test",
+    define = "DX_NIF_PROBE",
+    target = ":_defined_nif_c_upstream",
 )
 
 # keep

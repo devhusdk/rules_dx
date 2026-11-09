@@ -30,6 +30,14 @@ def _header_impl(ctx):
     asserts.equals(env, ctx.attr.present, len(found) > 0, "headers: " + str(headers))
     return analysistest.end(env)
 
+def _define_impl(ctx):
+    env = analysistest.begin(ctx)
+    defines = analysistest.target_under_test(env)[CcInfo].compilation_context.defines.to_list()
+    asserts.true(env, ctx.attr.define in defines, "defines: " + str(defines))
+    return analysistest.end(env)
+
+_define_test = analysistest.make(_define_impl, attrs = {"define": attr.string()})
+
 _warnings_as_errors_test = analysistest.make(_warnings_as_errors_impl)
 _has_attrs = {
     "file": attr.string(),
@@ -46,3 +54,6 @@ def erlc_input_test(name, target, file, present):
 
 def nif_header_test(name, target, file, present):
     _header_test(name = name, size = "small", target_under_test = target, file = file, present = present, target_compatible_with = _LINUX)
+
+def nif_define_test(name, target, define):
+    _define_test(name = name, size = "small", target_under_test = target, define = define, target_compatible_with = _LINUX)

@@ -176,8 +176,14 @@
     {
       "cabal_revision": 6,
       "cabal_sha256": "35129d0ab1741f000f1a7d2fc839544919ee6fbb8f2d6e7f0a629c41f91035f3",
+      "component_dependencies": {
+        "lib": [
+          "lib:attoparsec-internal"
+        ]
+      },
       "components": [
-        "lib"
+        "lib",
+        "lib:attoparsec-internal"
       ],
       "dependencies": [
         "array",

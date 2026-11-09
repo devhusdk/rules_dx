@@ -82,6 +82,31 @@ class DepsResolveTest(unittest.TestCase):
         self.assertEqual(by_name["gp"]["dependencies"], ["base"])
         self.assertNotIn("tools", by_name["foo"])
 
+    def test_sublibraries_become_components(self):
+        plan = {"install-plan": [
+            {"type": "pre-existing", "id": "base-4.20", "pkg-name": "base", "pkg-version": "4.20", "depends": []},
+            {
+                "type": "configured", "id": "ap-0.14-internal", "pkg-name": "ap", "pkg-version": "0.14",
+                "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "ee", "pkg-cabal-sha256": CABAL_SHA,
+                "component-name": "lib:ap-internal", "depends": ["base-4.20"],
+            },
+            {
+                "type": "configured", "id": "ap-0.14-lib", "pkg-name": "ap", "pkg-version": "0.14",
+                "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "ee", "pkg-cabal-sha256": CABAL_SHA,
+                "component-name": "lib", "depends": ["base-4.20", "ap-0.14-internal"],
+            },
+            {
+                "type": "configured", "id": "ap-0.14-bench", "pkg-name": "ap", "pkg-version": "0.14",
+                "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "ee", "pkg-cabal-sha256": CABAL_SHA,
+                "component-name": "lib:bench", "depends": ["base-4.20"],
+            },
+        ]}
+        by_name = {package["name"]: package for package in deps_resolve.sidecar_from_plan(plan, {})}
+        self.assertEqual(by_name["ap"]["components"], ["lib", "lib:ap-internal"])
+        self.assertEqual(by_name["ap"]["dependencies"], ["base"])
+        self.assertEqual(by_name["ap"]["component_dependencies"], {"lib": ["lib:ap-internal"]})
+        self.assertNotIn("component_dependencies", by_name["base"])
+
     def test_remote_tarball_is_a_url_package(self):
         url = "https://example.invalid/bar-2.0.tar.gz"
         plan = {"install-plan": [

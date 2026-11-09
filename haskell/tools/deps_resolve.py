@@ -84,8 +84,8 @@ def cabal_revisions(index_path, wanted):
 
 
 def component_kind(component):
-    """Returns the component name when it is a library or executable, else None."""
-    if component == "lib" or component.startswith("exe:"):
+    """Returns the component name when it is a library, sublibrary or executable, else None."""
+    if component == "lib" or component.startswith(("lib:", "exe:")):
         return component
     return None
 
@@ -100,11 +100,26 @@ def package_source(entry):
     return "local" if entry["type"] == "configured" else "ghc"
 
 
+def needed_sublibraries(entries, names, component_names):
+    """Returns the ids of the sublibraries a library or executable of the same package depends on."""
+    by_id = {entry["id"]: entry for entry in entries}
+    needed = set()
+    pending = [entry for entry in entries if component_names[entry["id"]] == "lib" or component_names[entry["id"]].startswith("exe:")]
+    while pending:
+        entry = pending.pop()
+        for dep in entry.get("depends", []):
+            if names.get(dep) == entry["pkg-name"] and component_names[dep].startswith("lib:") and dep not in needed:
+                needed.add(dep)
+                pending.append(by_id[dep])
+    return needed
+
 def sidecar_from_plan(plan, revisions):
     """Builds the package list of the sidecar from a cabal plan.json document."""
     entries = plan["install-plan"]
     names = {entry["id"]: entry["pkg-name"] for entry in entries}
     exes = {entry["id"]: entry["component-name"][len("exe:"):] for entry in entries if entry.get("component-name", "").startswith("exe:")}
+    component_names = {entry["id"]: entry.get("component-name", "lib") for entry in entries}
+    needed = needed_sublibraries(entries, names, component_names)
     packages = {}
     for entry in entries:
         key = (entry["pkg-name"], entry["pkg-version"])
@@ -115,6 +130,7 @@ def sidecar_from_plan(plan, revisions):
             "components": set(),
             "dependencies": set(),
             "tools": set(),
+            "component_dependencies": {},
         })
         if package["source"] == "url":
             package["url"] = entry["pkg-src"]["uri"]
@@ -124,12 +140,14 @@ def sidecar_from_plan(plan, revisions):
             package["cabal_sha256"] = entry["pkg-cabal-sha256"]
             package["cabal_revision"] = revisions.get((key[0], key[1], entry["pkg-cabal-sha256"]))
         component = component_kind(entry.get("component-name", "lib"))
-        if component is None:
+        if component is None or (component.startswith("lib:") and entry["id"] not in needed):
             continue
         package["components"].add(component)
         for dep in entry.get("depends", []):
             if names.get(dep) not in (None, key[0]):
                 package["dependencies"].add(names[dep])
+            elif names.get(dep) == key[0] and component_names[dep].startswith("lib:"):
+                package["component_dependencies"].setdefault(component, set()).add(component_names[dep])
         for dep in entry.get("exe-depends", []):
             if dep in exes and names[dep] != key[0]:
                 package["tools"].add((names[dep], exes[dep]))
@@ -141,6 +159,9 @@ def sidecar_from_plan(plan, revisions):
         tools = [{"package": tool[0], "exe": tool[1]} for tool in sorted(package.pop("tools"))]
         if tools:
             package["tools"] = tools
+        component_dependencies = package.pop("component_dependencies")
+        if component_dependencies:
+            package["component_dependencies"] = {name: sorted(deps) for name, deps in sorted(component_dependencies.items())}
         out.append(package)
     return out
 

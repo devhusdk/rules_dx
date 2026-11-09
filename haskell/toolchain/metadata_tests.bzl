@@ -1,7 +1,7 @@
 """Haskell toolchain pin and settings tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":packages.bzl", "package_build")
+load(":packages.bzl", "hub_build", "package_build")
 load(":pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
@@ -137,7 +137,19 @@ def _tool_checks():
     parser = dict(_HACKAGE, name = "ghc-lib-parser", tools = [{"package": "alex", "exe": "alex"}])
     plain = dict(_HACKAGE, name = "plain")
     sidecar = {"packages": [alex, parser, plain]}
+    attoparsec = dict(
+        _HACKAGE,
+        name = "ap",
+        components = ["lib", "lib:ap-internal"],
+        component_dependencies = {"lib": ["lib:ap-internal"]},
+    )
+    sublib_sidecar = {"packages": [attoparsec]}
+    sublib_build = package_build("hub", sublib_sidecar, attoparsec)
     return [
+        expect_contains("a sublibrary is its own target", sublib_build, 'name = "ap-lib-ap-internal"'),
+        expect_contains("a sublibrary names its component", sublib_build, 'sublibrary_name = "ap-internal"'),
+        expect_contains("the main library depends on its sublibrary", sublib_build, 'deps = [":ap-lib-ap-internal"]'),
+        expect_contains("the hub aliases a sublibrary", hub_build("hub", sublib_sidecar), 'alias(name = "ap-lib-ap-internal", actual = "@hub_ap//:ap-lib-ap-internal")'),
         expect_contains("build tools render as tools", package_build("hub", sidecar, parser), 'tools = ["@hub_alex//:alex-exe-alex"]'),
         expect_false("a missing tools list renders nothing", "tools" in package_build("hub", sidecar, plain)),
     ]

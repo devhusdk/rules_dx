@@ -9,7 +9,7 @@ load(":go_analysis.bzl", "go_lang_version")
 load(":policy.bzl", "family_section_error")
 load(":real_aspects.bzl", "real_ocaml_lint_aspect")
 load(":unavailable_tool.bzl", "DxUnavailableToolInfo")
-load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_haskell_lint_aspect", "real_rust_typecheck_aspect", "real_skip_notes", "real_unavailable_tools", "real_typecheck_aspect", "rustc_diagnostics_group")
+load(":real_aspects.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_rust_typecheck_aspect", "real_skip_notes", "real_unavailable_tools", "real_typecheck_aspect", "rustc_diagnostics_group")
 
 def _f(path, is_source = True, extension = "rs", repo_name = ""):
     return struct(path = path, is_source = is_source, extension = extension, owner = struct(repo_name = repo_name))
@@ -1170,15 +1170,6 @@ def _unsupported_platform_impl(ctx):
         asserts.equals(env, 1, len(groups.dx_skips.to_list()))
     return analysistest.end(env)
 
-_unsupported_platform_test = analysistest.make(
-    _unsupported_platform_impl,
-    config_settings = {
-        "//command_line_option:extra_execution_platforms": str(Label("//qt/platforms:macos_arm64")),
-        str(Label("//config:workspace")): str(Label("//quality/testdata/haskell_owned:hlint_policy")),
-    },
-    extra_target_under_test_aspects = [real_haskell_lint_aspect],
-)
-
 def _marked_tool_impl(ctx):
     """Checks the tool alias resolves to the unavailable stub on the forced platform."""
     env = analysistest.begin(ctx)
@@ -1205,11 +1196,6 @@ _zanuda_policy_test = analysistest.make(
 
 def unsupported_platform_analysis_tests(name):
     """Instantiates the forced unsupported platform analysis test as one suite."""
-    _unsupported_platform_test(
-        name = name + "_hlint_macos",
-        size = "small",
-        target_under_test = "//quality/testdata/haskell_owned:clean",
-    )
     _zanuda_marked_test(
         name = name + "_zanuda_tool",
         size = "small",
@@ -1225,4 +1211,4 @@ def unsupported_platform_analysis_tests(name):
         size = "small",
         target_under_test = "//quality/testdata/ocaml_owned:clean",
     )
-    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_macos"])
+    native.test_suite(name = name, tests = [name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_macos"])

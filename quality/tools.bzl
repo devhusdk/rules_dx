@@ -1283,10 +1283,7 @@ TOOLS = [
                 classes = ["haskell"],
                 family = "haskell",
                 fix = "check_only",
-                unsupported = {
-                    "linux_arm64": "hlint publishes no linux_arm64 build",
-                    "macos_arm64": "hlint v3.10 ships only x86_64-osx and no macOS fallback exists",
-                },
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
         ],
     ),

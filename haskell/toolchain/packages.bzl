@@ -43,6 +43,21 @@ def executables(package):
     """Returns the executable names of a package."""
     return [component[len("exe:"):] for component in package["components"] if component.startswith("exe:")]
 
+def sublibraries(package):
+    """Returns the sublibrary names of a package."""
+    return [component[len("lib:"):] for component in package["components"] if component.startswith("lib:")]
+
+def sublibrary_target(name, sublibrary):
+    """Returns the target name of one sublibrary of a package."""
+    return "{}-lib-{}".format(name, sublibrary)
+
+def component_deps(package, component):
+    """Returns the in-package sublibrary targets a component depends on."""
+    return sorted([
+        ":" + sublibrary_target(package["name"], dep[len("lib:"):])
+        for dep in package.get("component_dependencies", {}).get(component, [])
+    ])
+
 def dependency_label(hub, sidecar, name):
     """Returns the label a package dependency points at, or None for local packages."""
     for package in sidecar["packages"]:
@@ -83,11 +98,15 @@ def package_build(hub, sidecar, package):
         'package(default_visibility = ["//visibility:public"])',
         "",
     ]
+    for sublibrary in sublibraries(package):
+        attrs = ['package_name = "{}"'.format(name), 'version = "{}"'.format(package["version"]), 'sublibrary_name = "{}"'.format(sublibrary), "haddock = False"] + tools_attr
+        lines.append(_target("haskell_cabal_library", sublibrary_target(name, sublibrary), attrs, sorted(deps + component_deps(package, "lib:" + sublibrary))))
     if has_lib:
         attrs = ['package_name = "{}"'.format(name), 'version = "{}"'.format(package["version"]), "haddock = False"] + tools_attr
-        lines.append(_target("haskell_cabal_library", name, attrs, deps))
+        lines.append(_target("haskell_cabal_library", name, attrs, sorted(deps + component_deps(package, "lib"))))
     for exe in executables(package):
         exe_deps = deps + [":" + name] if has_lib else deps
+        exe_deps = sorted(exe_deps + component_deps(package, "exe:" + exe))
         lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)] + tools_attr, exe_deps))
     return "\n".join(lines)
 
@@ -98,6 +117,9 @@ def hub_build(hub, sidecar):
         repo = repo_name(hub, name)
         if "lib" in package["components"]:
             lines.append('alias(name = "{name}", actual = "@{repo}//:{name}")\n'.format(name = name, repo = repo))
+        for sublibrary in sublibraries(package):
+            target = sublibrary_target(name, sublibrary)
+            lines.append('alias(name = "{target}", actual = "@{repo}//:{target}")\n'.format(target = target, repo = repo))
         for exe in executables(package):
             target = "{}-exe-{}".format(name, exe)
             lines.append('alias(name = "{target}", actual = "@{repo}//:{target}")\n'.format(target = target, repo = repo))

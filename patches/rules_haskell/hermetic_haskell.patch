@@ -110,6 +110,15 @@ index 9469d11..2b82a5d 100644
          hdrs = hdrs.to_list(),
          cpp_flags = cpp_flags,
          include_args = include_args,
+@@ -223,6 +224,8 @@ def ghc_cc_program_args(hs, cc, ld):
+         # https://gitlab.haskell.org/ghc/ghc/issues/17185#note_261599.
+         "-pgmP",
+         cc + " -E -undef -traditional",
++        "-pgmCmmP",
++        cc + " -E",
+         "-optc-fno-stack-protector",
+     ]
+     if hs.toolchain.numeric_version >= [9, 4, 1]:
 diff --git a/haskell/defs.bzl b/haskell/defs.bzl
 index 6487b36..fc237ba 100644
 --- a/haskell/defs.bzl
@@ -542,11 +551,13 @@ index be9fceb..f446691 100644
  
      """
      if is_darwin():
-@@ -579,7 +611,18 @@ def link(output, libraries, rpaths, args):
+@@ -579,7 +611,20 @@ def link(output, libraries, rpaths, args):
      # Note: `RULES_HASKELL_SILENCE_LINKER` is only set if called from doctest,
      #       which is used to silence the linker output to not interfere with the output
      #       from GHCi
 -    run_cc(args, capture_output="RULES_HASKELL_SILENCE_LINKER" in os.environ, exit_on_error=True)
++    if is_linux() and not any(os.path.exists(os.path.join(d, "ld")) for d in os.environ.get("PATH", "").split(os.pathsep)):
++        args.append("-fuse-ld=lld")
 +    returncode, stdoutbuf, stderrbuf = run_cc(
 +        args,
 +        capture_output="RULES_HASKELL_SILENCE_LINKER" in os.environ,
@@ -562,7 +573,7 @@ index be9fceb..f446691 100644
  
      if is_darwin():
          darwin_rewrite_load_commands(darwin_rewrites, output)
-@@ -1033,7 +1076,10 @@ def find_cc():
+@@ -1033,7 +1078,10 @@ def find_cc():
                  r = bazel_runfiles.CreateManifestBased(manifest_path)
              elif exe_path is not None and os.path.isfile(exe_path):
                  r = bazel_runfiles.CreateDirectoryBased(exe_path + ".runfiles")

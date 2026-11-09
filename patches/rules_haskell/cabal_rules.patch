@@ -84,31 +84,37 @@ index 03ccd67..991b465 100644
          ctx.workspace_name,
          dep_info,
          cc_info,
-@@ -608,12 +606,13 @@ def _haskell_cabal_library_impl(ctx):
+@@ -608,12 +606,18 @@ def _haskell_cabal_library_impl(ctx):
      if "PATH" in c.env:
          paths.append(c.env["PATH"])
      paths.extend([t.executable.dirname for t in attr_tools])
 -    c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
++    py3_files = depset()
 +    if paths:
++        py3 = ctx.toolchains["@rules_python//python:toolchain_type"]
++        if py3 and py3.py3_runtime and py3.py3_runtime.interpreter and not hs.toolchain.is_windows:
++            paths.insert(0, py3.py3_runtime.interpreter.dirname)
++            py3_files = py3.py3_runtime.files
 +        c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
  
      ctx.actions.run(
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
 -        inputs = depset([json_args], transitive = [c.inputs]),
-+        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, py3_files]),
          tools = attr_tools +
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
-@@ -804,7 +803,6 @@ haskell_cabal_library = rule(
+@@ -804,7 +808,7 @@ haskell_cabal_library = rule(
      },
      toolchains = use_cc_toolchain() + [
          "@rules_haskell//haskell:toolchain",
 -        "@rules_sh//sh/posix:toolchain_type",
++        config_common.toolchain_type("@rules_python//python:toolchain_type", mandatory = False),
      ],
      fragments = ["cpp"],
      doc = """\
-@@ -869,7 +867,6 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -869,7 +873,6 @@ def _haskell_cabal_binary_impl(ctx):
              if CcInfo in dep and not HaskellInfo in dep
          ],
      )
@@ -116,7 +122,7 @@ index 03ccd67..991b465 100644
  
      exe_name = ctx.attr.exe_name if ctx.attr.exe_name else hs.label.name
      user_cabalopts = _expand_make_variables("cabalopts", ctx, ctx.attr.cabalopts)
-@@ -903,7 +900,6 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -903,7 +906,6 @@ def _haskell_cabal_binary_impl(ctx):
      c = _prepare_cabal_inputs(
          hs,
          cc,
@@ -124,20 +130,34 @@ index 03ccd67..991b465 100644
          ctx.workspace_name,
          dep_info,
          cc_info,
-@@ -933,7 +929,7 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -931,9 +933,20 @@ def _haskell_cabal_binary_impl(ctx):
+     json_args = ctx.actions.declare_file("{}_cabal_wrapper_args.json".format(ctx.label.name))
+     ctx.actions.write(json_args, json.encode(c.args))
++    paths = []
++    if "PATH" in c.env:
++        paths.append(c.env["PATH"])
++    paths.extend([t.executable.dirname for t in attr_tools])
++    py3_files = depset()
++    if paths:
++        py3 = ctx.toolchains["@rules_python//python:toolchain_type"]
++        if py3 and py3.py3_runtime and py3.py3_runtime.interpreter and not hs.toolchain.is_windows:
++            paths.insert(0, py3.py3_runtime.interpreter.dirname)
++            py3_files = py3.py3_runtime.files
++        c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
      ctx.actions.run(
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
 -        inputs = depset([json_args], transitive = [c.inputs]),
-+        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, py3_files]),
          outputs = [
              package_database,
              binary,
-@@ -1047,7 +1043,6 @@ haskell_cabal_binary = rule(
+@@ -1047,7 +1060,7 @@ haskell_cabal_binary = rule(
      },
      toolchains = use_cc_toolchain() + [
          "@rules_haskell//haskell:toolchain",
 -        "@rules_sh//sh/posix:toolchain_type",
++        config_common.toolchain_type("@rules_python//python:toolchain_type", mandatory = False),
      ],
      fragments = ["cpp"],
      doc = """\

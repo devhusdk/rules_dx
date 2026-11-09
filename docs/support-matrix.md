@@ -44,6 +44,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` |
 | Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` |
 | Svelte | none | `npm` | n/a | n/a |
+| Swift | `windows_x86_64`, `windows_arm64`: rules_dx registers no Swift toolchain for Windows | `swiftpm` | `swift_bench` | `swift_fuzz_test` |
 | TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` |
 | Vue | none | `npm` | n/a | n/a |
 | Zig | none | none for `build.zig.zon`: the zig family does not fetch `.dependencies` | `zig_bench` | n/a |
@@ -108,6 +109,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Rust | `clippy`, `typos` | `rustfmt` | `rustc` | `rustdoc` | `llvm-cov` | `rustc dead_code` |
 | Scala | `scalafix`, `typos` | `scalafmt` | `scalac` | `scaladoc` | `jacoco` | `scalac -Wunused` |
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
+| Swift | `swift_lint` (not on `macos_arm64`: SwiftLint is pinned only for Linux; `windows_x86_64`: SwiftLint is pinned only for Linux; `windows_arm64`: SwiftLint is pinned only for Linux), `typos` | `swift_format` (not on `macos_arm64`: swift-format is pinned only for Linux; `windows_x86_64`: swift-format is pinned only for Linux; `windows_arm64`: swift-format is pinned only for Linux) | no | no | no: no dx coverage wiring in the Swift rules | no |
 | TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
 | Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) | `zig ast-check unused local, unused parameter` |

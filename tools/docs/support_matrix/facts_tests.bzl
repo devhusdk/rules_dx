@@ -78,7 +78,7 @@ def _not_applicable_problems(facts):
     ]
 
 # Rows with a stated reason that do not yet declare an unsupported constraint_value; shrink as #6175 lands them.
-_PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl"]
+_PENDING_UNSUPPORTED = ["appimage", "apple", "cc_gcc", "cc_msvc", "cuda", "fortran", "ocaml", "perl", "swift"]
 
 def support_matrix_facts_tests(name):
     """Declares the support matrix facts schema test."""

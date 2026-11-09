@@ -69,6 +69,7 @@ BENCH = {
     "python": "python_bench",
     "rust": "rust_bench",
     "scala": "scala_bench",
+    "swift": "swift_bench",
     "typescript": "typescript_bench",
     "zig": "zig_bench",
 }
@@ -83,6 +84,7 @@ FUZZ = {
     "python": "python_fuzz_test",
     "rust": "rust_fuzz_test",
     "scala": "scala_fuzz_test",
+    "swift": "swift_fuzz_test",
     "typescript": "typescript_fuzz_test",
 }
 
@@ -118,6 +120,7 @@ DEPENDENCIES = {
     "rust": "`cargo`",
     "scala": "`maven`",
     "svelte": "`npm`",
+    "swift": "`swiftpm`",
     "typescript": "`npm`",
     "vue": "`npm`",
     "zig": "none for `build.zig.zon`: the zig family does not fetch `.dependencies`",
@@ -155,6 +158,7 @@ DOC_TOOLS = {
     "rust": {"tool": "rustdoc", "shard": "docs_site"},
     "scala": {"tool": "scaladoc", "shard": "scala_doc_shard"},
     "svelte": {"tool": "svelte2tsx", "shard": "svelte_doc_shard"},
+    "swift": None,
     "typescript": {"tool": "typedoc", "shard": "typescript_doc_shard"},
     "vue": {"tool": "vue-component-meta", "shard": "vue_doc_shard"},
     "zig": None,
@@ -256,6 +260,7 @@ NO_COVERAGE = {
     "mdx": "js_test has no dx coverage wiring",
     "qt": "no dx coverage wiring in the Qt rules",
     "svelte": "js_test has no dx coverage wiring",
+    "swift": "no dx coverage wiring in the Swift rules",
     "vue": "js_test has no dx coverage wiring",
     "wasi": "the WASI guest test has no coverage collector",
 }
@@ -397,6 +402,7 @@ ROWS = [
     },
     {"ci_tests": _hello("scala", "@rules_dx_jvm"), "consumer_tests": ["//tools/testing/hermetic:scala_scalafix"], "name": "scala", "section": "languages", "title": "Scala"},
     {"ci_tests": _hello("svelte", "@rules_dx_js"), "consumer_tests": _starter_consumers("svelte"), "name": "svelte", "section": "languages", "title": "Svelte"},
+    {"ci_tests": ["//swift/tests/fixtures/hello:hello_output_test"], "name": "swift", "section": "languages", "title": "Swift"},
     {"ci_tests": _hello("typescript", "@rules_dx_js"), "consumer_tests": _starter_consumers("typescript"), "name": "typescript", "section": "languages", "title": "TypeScript"},
     {"ci_tests": _hello("vue", "@rules_dx_js"), "consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "title": "Vue"},
     {"ci_tests": ["@rules_dx_zig//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": "Zig"},
@@ -503,7 +509,6 @@ ROWS = [
 
 NOT_LANGUAGES = [
     "containers",
-    "swift",
     "bcr_test_module",
     "ci",
     "cli",
@@ -597,6 +602,10 @@ PLATFORM_NOT_APPLICABLE = {
     },
     "php": {
         "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build",
+    },
+    "swift": {
+        "windows_arm64": "rules_dx registers no Swift toolchain for Windows",
+        "windows_x86_64": "rules_dx registers no Swift toolchain for Windows",
     },
 }
 

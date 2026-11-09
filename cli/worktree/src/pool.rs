@@ -349,9 +349,7 @@ fn toplevel(dir: &Path) -> Option<PathBuf> {
 fn pool_marker(dir: &Path) -> Option<PathBuf> {
     let (slot, _) = lease_for_workspace(&host::resolved(dir))?;
     let marker = state::dx_dir(slot.parent()?).join("repo");
-    let text = std::fs::read_to_string(marker).ok()?;
-    let main = text.trim();
-    (!main.is_empty()).then(|| PathBuf::from(main))
+    marker_path(&std::fs::read(marker).ok()?)
 }
 
 impl Pool {
@@ -368,26 +366,17 @@ impl Pool {
         })
     }
 
-    /// The existing pool whose slot directory is `path`, found from its marker instead of git.
-    ///
-    /// This serves a slot whose directory is already gone, where git cannot start in it.
+    /// The existing pool holding slot directory `path`, found from its marker without git.
     pub fn open_slot(path: &Path) -> Option<Pool> {
         let path = super::host::resolved(path);
-        for base in path.ancestors().skip(1) {
-            let Ok(bytes) = std::fs::read(state::dx_dir(base).join("repo")) else {
-                continue;
-            };
-            let bytes = bytes.strip_suffix(b"\n").unwrap_or(&bytes);
-            let main = marker_main(bytes.strip_suffix(b"\r").unwrap_or(bytes));
-            if main.is_dir() {
-                return Some(Pool {
-                    main,
-                    base: base.to_path_buf(),
-                    lock_wait: POOL_LOCK_WAIT,
-                });
-            }
-        }
-        None
+        path.ancestors().skip(1).find_map(|base| {
+            let main = marker_path(&std::fs::read(state::dx_dir(base).join("repo")).ok()?)?;
+            main.is_dir().then(|| Pool {
+                main,
+                base: base.to_path_buf(),
+                lock_wait: POOL_LOCK_WAIT,
+            })
+        })
     }
 
     /// The existing pool for the repository that holds `dir`, without creating one.
@@ -660,9 +649,18 @@ fn claim_marker(marker: &Path, bytes: &[u8]) -> std::io::Result<bool> {
     }
 }
 
-fn marker_matches(bytes: &[u8], main: &Path) -> bool {
+fn marker_line(bytes: &[u8]) -> &[u8] {
     let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
-    bytes.strip_suffix(b"\r").unwrap_or(bytes) == marker_bytes(main).as_slice()
+    bytes.strip_suffix(b"\r").unwrap_or(bytes)
+}
+
+fn marker_matches(bytes: &[u8], main: &Path) -> bool {
+    marker_line(bytes) == marker_bytes(main).as_slice()
+}
+
+fn marker_path(bytes: &[u8]) -> Option<PathBuf> {
+    let main = marker_main(marker_line(bytes));
+    main.is_absolute().then_some(main)
 }
 
 #[cfg(test)]

@@ -897,14 +897,13 @@ fn release_of_a_live_holders_slot_whose_directory_is_gone_drops_the_lease() {
     host.live(10);
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     std::fs::remove_dir_all(&added.path).expect("remove slot");
-    let released =
-        ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect("release");
+    let released = ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect("release");
     assert!(released.already_free);
     assert!(pool.record(added.slot).is_none());
 }
 
 #[test]
-fn open_slot_finds_the_pool_of_a_deleted_slot_directory_without_git() {
+fn open_slot_finds_the_pool_of_a_deleted_slot_directory() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
@@ -914,6 +913,51 @@ fn open_slot_finds_the_pool_of_a_deleted_slot_directory_without_git() {
     let found = Pool::open_slot(&added.path).expect("pool found");
     ops::release(&found, &host, &who("s2", 20), &added.path, true).expect("force release");
     assert!(pool.record(added.slot).is_none());
+}
+
+fn marker_pool(marker: Option<&str>, main_exists: bool) -> (tempfile::TempDir, PathBuf) {
+    let scratch = tempfile::tempdir().expect("tempdir");
+    let root = std::fs::canonicalize(scratch.path()).expect("canonical");
+    let main = root.join("repo");
+    if main_exists {
+        std::fs::create_dir_all(&main).expect("main");
+    }
+    std::fs::create_dir_all(root.join("pool/.dx")).expect("dx");
+    if let Some(text) = marker {
+        let text = text.replace("{main}", &main.to_string_lossy());
+        std::fs::write(root.join("pool/.dx/repo"), text).expect("marker");
+    }
+    (scratch, root.join("pool/4"))
+}
+
+#[test]
+fn open_slot_needs_no_git_only_the_marker_and_the_main_checkout() {
+    let (_scratch, gone) = marker_pool(Some("{main}\n"), true);
+    assert!(Pool::open_slot(&gone).is_some());
+}
+
+#[test]
+fn open_slot_accepts_a_crlf_marker() {
+    let (_scratch, gone) = marker_pool(Some("{main}\r\n"), true);
+    assert!(Pool::open_slot(&gone).is_some());
+}
+
+#[test]
+fn open_slot_refuses_a_missing_marker() {
+    let (_scratch, gone) = marker_pool(None, true);
+    assert!(Pool::open_slot(&gone).is_none());
+}
+
+#[test]
+fn open_slot_refuses_a_marker_whose_main_checkout_is_gone() {
+    let (_scratch, gone) = marker_pool(Some("{main}\n"), false);
+    assert!(Pool::open_slot(&gone).is_none());
+}
+
+#[test]
+fn open_slot_refuses_a_relative_marker() {
+    let (_scratch, gone) = marker_pool(Some(".\n"), true);
+    assert!(Pool::open_slot(&gone).is_none());
 }
 
 #[test]
@@ -943,10 +987,7 @@ fn release_of_a_record_less_slot_keeps_the_holder_check() {
     // The holder is unknown and the work is unpushed, so nobody releases it without --force.
     let err = ops::release(&pool, &host, &other, &added.path, false).expect_err("refused");
     assert_eq!(err.code, "slot_leased");
-    assert_eq!(
-        git(&added.path, &["branch", "--show-current"]),
-        "feature/a"
-    );
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
     ops::release(&pool, &host, &other, &added.path, true).expect("forced");
 }
 

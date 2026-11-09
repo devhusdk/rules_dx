@@ -294,6 +294,15 @@ fn release_target(path: Option<&str>, workspace: &Path, run_dir: &Path) -> PathB
     }
 }
 
+fn release_pool(workspace: &Path, target: &Path) -> Result<Pool, WorktreeError> {
+    if !workspace.exists()
+        && let Some(pool) = Pool::open_slot(target)
+    {
+        return Ok(pool);
+    }
+    open_pool(workspace)
+}
+
 fn release(
     invocation: &Invocation,
     workspace: &Path,
@@ -304,12 +313,11 @@ fn release(
 ) -> Result<i32, Failed> {
     let cwd = dx_process::current_directory().unwrap_or_else(|_| workspace.to_path_buf());
     let target = release_target(path, workspace, &cwd);
-    // A slot whose directory is gone cannot start git, so find its pool from the marker.
-    let pool = match (workspace.exists(), Pool::open_slot(&target)) {
-        (false, Some(pool)) => pool,
-        _ => open_pool(workspace)?,
-    };
-    ops::claim(&pool, host, who, workspace)?;
+    let gone = !workspace.exists();
+    let pool = release_pool(workspace, &target)?;
+    if !gone {
+        ops::claim(&pool, host, who, workspace)?;
+    }
     let released = ops::release(&pool, host, who, &target, invocation.force)?;
     release_output(out, invocation, &released)?;
     Ok(0)
@@ -1267,6 +1275,25 @@ mod tests {
         let mut out = Vec::new();
         release_output(&mut out, &invocation, &released).expect("output");
         String::from_utf8(out).expect("utf8")
+    }
+
+    #[test]
+    fn release_pool_of_a_gone_workspace_comes_from_the_marker() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let root = std::fs::canonicalize(dir.path()).expect("canonical");
+        let main = root.join("repo");
+        std::fs::create_dir_all(&main).expect("main");
+        std::fs::create_dir_all(root.join("pool/.dx")).expect("dx");
+        std::fs::write(
+            root.join("pool/.dx/repo"),
+            main.to_string_lossy().as_bytes(),
+        )
+        .expect("marker");
+        let gone = root.join("pool/3");
+        let pool = release_pool(&gone, &gone).expect("pool from marker");
+        assert_eq!(pool.slot_of(&gone), Some(3));
+        std::fs::remove_file(root.join("pool/.dx/repo")).expect("remove marker");
+        assert!(release_pool(&gone, &gone).is_err());
     }
 
     #[test]

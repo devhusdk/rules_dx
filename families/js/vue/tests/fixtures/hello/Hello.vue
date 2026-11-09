@@ -2,17 +2,10 @@
   <div class="hello">{{ message }}</div>
 </template>
 
-<script>
+<script setup>
 import { helper } from "./helper.js";
 
-export default {
-  name: "Hello",
-  computed: {
-    message() {
-      return helper("world");
-    },
-  },
-};
+const message = helper("world");
 </script>
 
 <style scoped>

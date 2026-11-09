@@ -1,11 +1,24 @@
 # gazelle:ignore
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "jest.config.cjs",
+    "jest_transform.mjs",
 ])
+
+copy_to_bin(
+    name = "jest_config",
+    srcs = ["jest.config.cjs"],
+)
+
+copy_to_bin(
+    name = "jest_transform",
+    srcs = ["jest_transform.mjs"],
+)
 
 real_source_target(
     name = "corpus_starlark",

@@ -666,7 +666,10 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("starter_consumer_test", Constraint::AsWritten),
     ("swift_test", Constraint::AsWritten),
     ("svelte_test", Constraint::AsWritten),
+    ("astro_test", Constraint::AsWritten),
+    ("mdx_test", Constraint::AsWritten),
     ("typescript_test", Constraint::AsWritten),
+    ("vue_test", Constraint::AsWritten),
     ("zig_test", Constraint::AsWritten),
     ("nested_bazel_test", Constraint::AsWritten),
 ];

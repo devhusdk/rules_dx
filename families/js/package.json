@@ -9,6 +9,7 @@
   "devDependencies": {
     "@astrojs/check": "0.9.12",
     "@astrojs/compiler": "4.0.0",
+    "@astrojs/compiler-rs": "0.5.2",
     "@astrojs/preact": "6.1.1",
     "@bufbuild/protobuf": "2.17.0",
     "@jazzer.js/core": "4.0.0",
@@ -28,6 +29,7 @@
     "pinia": "4.1.0",
     "preact": "10.29.8",
     "preact-render-to-string": "6.8.2",
+    "source-map": "0.7.6",
     "svelte": "5.57.3",
     "svelte-check": "4.7.8",
     "tinybench": "6.2.3",

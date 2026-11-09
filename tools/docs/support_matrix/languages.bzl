@@ -191,7 +191,7 @@ ROWS = [
     {"ci_tests": ["@rules_dx_julia//julia/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("julia"), "name": "julia", "section": "languages", "title": "Julia"},
     {"ci_tests": _hello("kotlin", "@rules_dx_jvm"), "name": "kotlin", "section": "languages", "title": "Kotlin"},
     {"ci_tests": ["@rules_dx_lua//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": "Lua"},
-    {"ci_tests": ["@rules_dx_js//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": "MDX"},
+    {"ci_tests": _hello("mdx", "@rules_dx_js") + ["@rules_dx_js//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": "MDX"},
     {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "title": "OCaml"},
     {"ci_tests": ["@rules_dx_perl//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": "Perl"},
     {"ci_tests": ["@rules_dx_php//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": "PHP"},
@@ -365,7 +365,7 @@ LANGUAGES = [
         deps = "`npm`",
         doc = struct(tool = "astro-compiler", shard = "astro_doc_shard"),
         dead_code = ["eslint @typescript-eslint/no-unused-vars"],
-        no_coverage = "js_test has no dx coverage wiring",
+        coverage = ["jest"],
     ),
     _language(
         "avro",
@@ -556,7 +556,7 @@ LANGUAGES = [
         deps = "`npm`",
         doc = struct(tool = "mdx", shard = "mdx_doc_shard"),
         dead_code = ["eslint no-unused-vars"],
-        no_coverage = "js_test has no dx coverage wiring",
+        coverage = ["jest"],
     ),
     _language(
         "nix",
@@ -690,7 +690,7 @@ LANGUAGES = [
         deps = "`npm`",
         doc = struct(tool = "vue-component-meta", shard = "vue_doc_shard"),
         dead_code = ["eslint @typescript-eslint/no-unused-vars"],
-        no_coverage = "js_test has no dx coverage wiring",
+        coverage = ["jest"],
     ),
     _language(
         "wasi",

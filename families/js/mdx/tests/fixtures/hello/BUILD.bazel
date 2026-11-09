@@ -1,7 +1,8 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//javascript/rules:defs.bzl", "javascript_library")
-load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+load("@rules_dx//mdx/rules:defs.bzl", "mdx_library", "mdx_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
 
 package(
     default_testonly = True,
@@ -18,10 +19,34 @@ javascript_library(
     srcs = ["helper.js"],
 )
 
+mdx_test(
+    name = "hello_test",
+    srcs = ["Hello.test.js"],
+    data = [
+        ":Hello.mdx",
+        ":helper_lib",
+        "//:node_modules/preact",
+        "//:node_modules/preact-render-to-string",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+)
+
+rust_test(
+    name = "coverage_test",
+    srcs = ["coverage_test.rs"],
+    data = [":hello_test"],
+    env = {"HELLO_TEST": "$(rootpath :hello_test)"},
+    tags = ["no-remote-exec"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
 build_test(
     name = "hello_aggregate_test",
     targets = [
         ":hello_lib",
+        ":hello_test",
+        ":coverage_test",
     ],
 )
 
@@ -30,4 +55,9 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
 )

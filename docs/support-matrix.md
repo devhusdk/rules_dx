@@ -79,7 +79,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 
 | Name | Lint | Format | Typecheck | API docs | Coverage | Dead code |
 | --- | --- | --- | --- | --- | --- | --- |
-| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
+| Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
 | Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | no | n/a | none |
 | C and C++ | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` | no | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
@@ -98,7 +98,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | `CoverageTools` | none |
 | Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
 | Lua | `selene`, `typos` | `stylua` | `luals` | no | `luacov` | `selene unused_variable` |
-| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | no: js_test has no dx coverage wiring | `eslint no-unused-vars` |
+| MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | `jest` | `eslint no-unused-vars` |
 | OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | `odoc` | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
 | Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | no | `DxLcov` | `perlcritic ProhibitUnusedVariables` |
 | PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | no | `pcov (Linux only)` | `phpcs Generic.CodeAnalysis.UnusedFunctionParameter` |
@@ -111,7 +111,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Svelte | `eslint`, `typos` | `prettier` | `tsc` | `svelte2tsx` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
 | Swift | `swift_lint` (not on `windows_x86_64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64; `windows_arm64`: swift_lint runs the swift-format pinned only for Linux and macOS arm64), `typos` | `swift_format` (not on `windows_x86_64`: swift-format is pinned only for Linux and macOS arm64; `windows_arm64`: swift-format is pinned only for Linux and macOS arm64) | no | no | `llvm-cov` | no |
 | TypeScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
-| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | no: js_test has no dx coverage wiring | `eslint @typescript-eslint/no-unused-vars` |
+| Vue | `eslint`, `typos` | `prettier` | `tsc` | `vue-component-meta` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
 | Zig | `typos`, `zig_ast_check` | `zig_fmt` | `zig` | no | `kcov` (kcov runs on Linux only) | `zig ast-check unused local, unused parameter` |
 | Apple | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` (not on `linux_x86_64`: objc_library builds only with an Apple toolchain; `linux_arm64`: objc_library builds only with an Apple toolchain; `windows_x86_64`: objc_library builds only with an Apple toolchain; `windows_arm64`: objc_library builds only with an Apple toolchain) | n/a | `llvm-cov` | n/a |
 | CMake | `cmakelint`, `typos` | `gersemi` | n/a | n/a | n/a | n/a |

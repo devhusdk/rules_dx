@@ -28,6 +28,19 @@ cc_library(
     testonly = True,
 )
 
+# The profile runtime of the Swift archive, which reads the raw profile layout swiftc emits.
+# A swift_test links it under bazel coverage in place of the pinned cc toolchain's.
+cc_library(
+    name = "profile_runtime",
+    testonly = True,
+    srcs = select({
+        "//swift/platforms:is_linux_aarch64": ["@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.profile-aarch64.a"],
+        "//swift/platforms:is_linux_x86_64": ["@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.profile-x86_64.a"],
+        "//conditions:default": [],
+    }),
+    alwayslink = True,
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

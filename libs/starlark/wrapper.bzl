@@ -239,8 +239,11 @@ def dx_gcov_tool(cc_toolchain):
             return f
     fail("the gcc toolchain does not ship gcov at " + gcov_path)
 
-def dx_native_test_coverage(ctx, upstream, gcov = False):
-    """Returns coverage providers that collect native LLVM or gcov coverage."""
+def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_profdata = None):
+    """Returns coverage providers that collect native LLVM or gcov coverage.
+
+    llvm_cov and llvm_profdata override the cc toolchain tools with the pair that matches the compiler that wrote the profiles.
+    """
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
     gcov_tool = None
@@ -250,8 +253,8 @@ def dx_native_test_coverage(ctx, upstream, gcov = False):
         llvm_profdata = None
         metadata = [collector, gcov_tool]
     else:
-        llvm_cov = dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
-        llvm_profdata = dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
+        llvm_cov = llvm_cov or dx_toolchain_tool(cc_toolchain, "llvm-cov") or ctx.executable._llvm_cov
+        llvm_profdata = llvm_profdata or dx_toolchain_tool(cc_toolchain, "llvm-profdata") or ctx.executable._llvm_profdata
         metadata = [collector, llvm_cov, llvm_profdata]
     transitive = []
     if DxDataCoverageInfo in upstream:

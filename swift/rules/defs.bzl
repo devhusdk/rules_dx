@@ -9,7 +9,7 @@ load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_runner_kwargs")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
 
@@ -61,6 +61,12 @@ _swift_binary_forward = dx_executable_forward_rule(
     quality_tools = SWIFT_QUALITY_TOOLS,
 )
 
+def _swift_test_coverage(ctx, upstream):
+    return dx_native_test_coverage(ctx, upstream, llvm_cov = ctx.executable._swift_llvm_cov, llvm_profdata = ctx.executable._swift_llvm_profdata)
+
+def _swift_tool_attr(label):
+    return attr.label(default = Label(label), executable = True, allow_files = True, cfg = config.exec(exec_group = "test"))
+
 _swift_forward_test = dx_executable_forward_rule(
     kind = "test",
     provides = _EXEC_PROVIDES,
@@ -69,10 +75,15 @@ _swift_forward_test = dx_executable_forward_rule(
     what = "swift_*",
     allow_files = True,
     upstream_providers = None,
-    extra_attrs = _PLATFORM_ATTR,
+    extra_attrs = _PLATFORM_ATTR | dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
+        "_swift_llvm_cov": _swift_tool_attr("//swift/tools:llvm_cov"),
+        "_swift_llvm_profdata": _swift_tool_attr("//swift/tools:llvm_profdata"),
+    },
     runtime = "besteffort",
     upstream_cfg = swift_linux_transition,
     quality_tools = SWIFT_QUALITY_TOOLS,
+    coverage_providers = _swift_test_coverage,
+    toolchains = dx_native_coverage_toolchains(),
 )
 
 def swift_library(name, srcs = None, visibility = None, platforms = None, **kwargs):
@@ -83,9 +94,24 @@ def swift_binary(name, srcs = None, visibility = None, platforms = None, **kwarg
     """Wraps swift_binary and builds it for Linux, or with Xcode on macOS."""
     dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
+def _swift_coverage_kwargs(kwargs):
+    """Links Swift's own profile runtime into a swift_test under bazel coverage.
+
+    swiftc writes the profile data layout of its LLVM, so the runtime that reads it must come from the same archive, not from the pinned cc toolchain.
+    """
+    out = dx_append_flags(kwargs, "features", _STATIC + _INDEX)
+    out = dx_append_flags(out, "features", select({
+        Label("//swift/rules:coverage_linux"): ["-llvm_coverage_map_format"],
+        "//conditions:default": [],
+    }))
+    return dx_append_flags(out, "deps", select({
+        Label("//swift/rules:coverage_linux"): [Label("//swift/toolchain:profile_runtime")],
+        "//conditions:default": [],
+    }))
+
 def swift_test(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_test and builds it for Linux, or with Xcode on macOS."""
-    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
+    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = _swift_coverage_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
 def swift_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. Linux only."""

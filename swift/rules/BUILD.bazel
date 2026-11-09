@@ -4,6 +4,12 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(["defs.bzl"])
 
+config_setting(
+    name = "coverage_linux",
+    constraint_values = ["@platforms//os:linux"],
+    values = {"collect_code_coverage": "true"},
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

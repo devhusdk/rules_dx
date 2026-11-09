@@ -1,7 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//swift/rules:defs.bzl", "swift_binary", "swift_library", "swift_test")
-load("//swift/rules:tests.bzl", "swift_binary_provider_test", "swift_library_provider_test")
+load("//swift/rules:tests.bzl", "swift_binary_provider_test", "swift_library_provider_test", "swift_test_coverage_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
@@ -42,6 +42,12 @@ swift_test(
     srcs = ["greet_testing.swift"],
     target_compatible_with = _NATIVE,
     deps = [":greet"],
+)
+
+swift_test_coverage_test(
+    name = "xctest_coverage_test",
+    target_compatible_with = _NATIVE,
+    target_under_test = ":xctest",
 )
 
 swift_library_provider_test(

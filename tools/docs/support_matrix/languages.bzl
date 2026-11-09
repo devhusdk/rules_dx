@@ -666,7 +666,7 @@ LANGUAGES = [
         fuzz = "swift_fuzz_test",
         deps = "`swiftpm`",
         doc = NO_DOC,
-        no_coverage = "no dx coverage wiring in the Swift rules",
+        coverage = ["llvm-cov"],
         not_applicable = {
             "windows_arm64": "rules_dx registers no Swift toolchain for Windows",
             "windows_x86_64": "rules_dx registers no Swift toolchain for Windows"

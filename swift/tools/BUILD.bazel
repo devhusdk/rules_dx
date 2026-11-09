@@ -45,6 +45,20 @@ alias(
     }),
 )
 
+# The llvm-cov and llvm-profdata that ship with the Swift toolchain read the profiles and coverage maps swiftc writes.
+# Elsewhere the pinned LLVM pair is used.
+[
+    alias(
+        name = "llvm_" + tool,
+        actual = select({
+            "//swift/platforms:is_linux_aarch64": "@dx_swift_linux_aarch64//:usr/bin/llvm-" + tool.replace("_", ""),
+            "//swift/platforms:is_linux_x86_64": "@dx_swift_linux_x86_64//:usr/bin/llvm-" + tool.replace("_", ""),
+            "//conditions:default": "@llvm//tools:llvm-" + tool.replace("_", ""),
+        }),
+    )
+    for tool in ["cov", "profdata"]
+]
+
 sh_binary(
     name = "swift",
     srcs = ["@dx_swift_host//:swift"],

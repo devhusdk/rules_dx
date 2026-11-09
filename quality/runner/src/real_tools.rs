@@ -5393,6 +5393,57 @@ fn fake_helmfmt(
     })
 }
 
+fn bound_helmfmt() -> RealTool {
+    RealTool {
+        config_rel: Some("cfg/chart.helmfmt".to_owned()),
+        tool_files: vec![(
+            "cfg/chart.helmfmt".to_owned(),
+            b"{\"indent_size\": 4}".to_vec(),
+        )],
+        ..plain_tool()
+    }
+}
+
+fn fake_helmfmt_with_config(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_eq!(
+        std::fs::read(cwd.join(".helmfmt"))?,
+        b"{\"indent_size\": 4}",
+        "the bound config is ./.helmfmt of the working directory"
+    );
+    fake_helmfmt(argv, cwd, env)
+}
+
+#[test]
+fn helmfmt_runs_with_the_bound_config_as_its_working_directory_dotfile() {
+    let backend = backend_for("helmfmt", bound_helmfmt(), fake_helmfmt_with_config);
+    let findings = backend
+        .diagnose(
+            "helmfmt",
+            "format",
+            &chart_with("c/templates/d.yaml", HELMFMT_DIRTY),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+}
+
+#[test]
+fn helmfmt_unbound_stages_no_dotfile_and_a_source_one_cannot_override_the_bound() {
+    let none = RealBackend::mirror_tool_files("helmfmt", &plain_tool(), &[], Path::new("/s"));
+    assert!(none.iter().all(|m| m.mirror_rel != Path::new(".helmfmt")));
+    let bound = RealBackend::mirror_tool_files("helmfmt", &bound_helmfmt(), &[], Path::new("/s"));
+    assert_eq!(
+        bound
+            .iter()
+            .filter(|m| m.mirror_rel == Path::new(".helmfmt"))
+            .count(),
+        1
+    );
+}
+
 fn chart_with(template: &str, text: &str) -> BTreeMap<String, String> {
     BTreeMap::from([
         ("c/Chart.yaml".to_owned(), "name:   c\n".to_owned()),

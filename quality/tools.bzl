@@ -1246,6 +1246,7 @@ TOOLS = [
     tool(
         id = "helmfmt",
         adapters = {"format": ["helm"]},
+        config = config(suffixes = [".helmfmt", ".json"], files = [".helmfmt"], tier_active = True, tier_base = False),
         support = [
             row(
                 capability = "format",

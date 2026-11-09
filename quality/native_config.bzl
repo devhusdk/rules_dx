@@ -86,6 +86,8 @@ sqlfluff_config = _make_native_config_rule("sqlfluff")
 
 csharpier_config = _make_native_config_rule("csharpier")
 
+helmfmt_config = _make_native_config_rule("helmfmt")
+
 def _dart_config_impl(ctx):
     result = _native_config_impl(ctx)
     infos = [dep[DartInfo] for dep in ctx.attr.deps]

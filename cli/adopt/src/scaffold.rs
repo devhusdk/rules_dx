@@ -649,12 +649,11 @@ fn merge_owned(kind: FileKind, existing: &str, generated: &str) -> Result<String
             .collect()),
         FileKind::CiPin(workflow) => {
             let action = format!("{CONSUMER_WORKFLOW_OWNER}/{CONSUMER_WORKFLOW_REPO}/{workflow}");
-            let pinned =
-                dx_merge::yaml_scalar::set_uses_ref(existing, &action, CONSUMER_WORKFLOW_PIN);
-            Ok(pinned
-                .split_inclusive('\n')
-                .filter(|line| !line.trim_start().starts_with("rules_dx_version:"))
-                .collect())
+            Ok(dx_merge::yaml_scalar::set_uses_ref(
+                existing,
+                &action,
+                CONSUMER_WORKFLOW_PIN,
+            ))
         }
     }
 }
@@ -2223,22 +2222,6 @@ bazel_dep(name = \"rules_dx\", version = \"1\")\n";
         let mut applied = super::Applied::default();
         super::refresh_scaffold(root, &files, &mut applied).expect("refresh");
         assert!(applied.wrote.is_empty(), "{:?}", applied.wrote);
-        scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn pin_update_drops_the_retired_version_input() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-owned-legacy-");
-        let root = scratch.path();
-        std::fs::create_dir_all(root.join(".github/workflows")).expect("dir");
-        let legacy = old_ci().replace(
-            "    secrets:",
-            "    with:\n      rules_dx_version: \"0.0.1\"\n    secrets:",
-        );
-        std::fs::write(root.join(".github/workflows/ci.yml"), legacy).expect("write");
-        refreshed(root);
-        let new = std::fs::read_to_string(root.join(".github/workflows/ci.yml")).expect("read");
-        assert!(!new.contains("rules_dx_version"), "{new}");
         scratch.close().expect("cleanup");
     }
 

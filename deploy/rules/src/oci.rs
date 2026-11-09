@@ -1054,7 +1054,7 @@ fn oci_live_push_to(
 pub(crate) const OCI_GATE: OwnerGate = OwnerGate {
     tool: "oci_deploy",
     action: "push",
-    credentials: &["OCI_REGISTRY_USER", "OCI_REGISTRY_TOKEN"],
+    credentials: &["OCI_API_USER", "OCI_API_TOKEN"],
     approved: "OCI_PUBLISH_APPROVED",
 };
 
@@ -1126,8 +1126,8 @@ pub fn oci_main<C: Into<OciChecks>>(
                 tag,
                 platform,
                 creds: registry::Credentials {
-                    user: secrets.get("OCI_REGISTRY_USER"),
-                    secret: secrets.get("OCI_REGISTRY_TOKEN"),
+                    user: secrets.get("OCI_API_USER"),
+                    secret: secrets.get("OCI_API_TOKEN"),
                 },
             },
         );

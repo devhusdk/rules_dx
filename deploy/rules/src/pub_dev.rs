@@ -23,7 +23,7 @@ pub fn pub_package_paths(
 pub(crate) const PUB_GATE: OwnerGate = OwnerGate {
     tool: "pub_deploy",
     action: "publish",
-    credentials: &["PUB_TOKEN"],
+    credentials: &["PUB_API_TOKEN"],
     approved: "PUB_PUBLISH_APPROVED",
 };
 
@@ -626,7 +626,7 @@ fn pub_run_checked(
         staging,
         &cache,
         hosted_url,
-        secrets.get("PUB_TOKEN"),
+        secrets.get("PUB_API_TOKEN"),
     );
     let _ = std::fs::remove_dir_all(&cache);
     published.map(|()| version)
@@ -697,13 +697,13 @@ mod tests {
         let mut vars: Vec<(&str, Option<&str>)> = vec![
             ("RUNFILES_DIR", None),
             ("RUNFILES_MANIFEST_FILE", None),
-            ("PUB_TOKEN", None),
+            ("PUB_API_TOKEN", None),
             ("PUB_PUBLISH_APPROVED", None),
             ("DX_DEPLOY_LIVE", None),
             ("PATH", Some("")),
         ];
         if live {
-            vars[2] = ("PUB_TOKEN", Some("secret-token"));
+            vars[2] = ("PUB_API_TOKEN", Some("secret-token"));
             vars[3] = ("PUB_PUBLISH_APPROVED", Some("1"));
             vars[4] = ("DX_DEPLOY_LIVE", Some("1"));
         }
@@ -784,7 +784,7 @@ mod tests {
         with_env(
             &[
                 ("RUNFILES_DIR", None),
-                ("PUB_TOKEN", None),
+                ("PUB_API_TOKEN", None),
                 ("PUB_PUBLISH_APPROVED", None),
                 ("DX_DEPLOY_LIVE", Some("1")),
             ],
@@ -852,7 +852,7 @@ mod tests {
         let agent = crate::http::publish_agent_with_proxy(None);
         let run_with =
             |name: &str, version: &str, staging: &Path, flutter_sdk: Option<(&Path, &Path)>| {
-                with_env(&[("PUB_TOKEN", Some("sekret"))], || {
+                with_env(&[("PUB_API_TOKEN", Some("sekret"))], || {
                     pub_api_check(
                         &agent,
                         (&fake, Path::new("dart_apitool.dill")),

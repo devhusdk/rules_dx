@@ -357,7 +357,7 @@ mod tests {
         with_env(
             &[
                 ("DX_DEPLOY_LIVE", Some("1")),
-                ("GH_RELEASE_APPROVED", Some("1")),
+                ("GITHUB_PUBLISH_APPROVED", Some("1")),
             ],
             || {
                 assert_eq!(
@@ -437,7 +437,7 @@ mod tests {
                 ("DX_DEPLOY_LIVE", Some("1")),
                 ("CRATES_ALLOW_DIRTY", Some("1")),
                 ("CRATES_PUBLISH_APPROVED", None),
-                ("CARGO_REGISTRY_TOKEN", None),
+                ("CRATES_API_TOKEN", None),
             ],
             || {
                 assert_eq!(
@@ -461,7 +461,7 @@ mod tests {
                 ("RUNFILES_MANIFEST_FILE", None),
                 ("DX_DEPLOY_LIVE", Some("1")),
                 ("NPM_PUBLISH_APPROVED", Some("1")),
-                ("NPM_TOKEN", None),
+                ("NPM_API_TOKEN", None),
                 ("NPM_PUBLISH_DRY_RUN", None),
             ],
             || {
@@ -766,7 +766,7 @@ mod tests {
                     ),
                     ("GH_REPO", None),
                     ("DX_DEPLOY_LIVE", Some("1")),
-                    ("GH_RELEASE_APPROVED", Some("1")),
+                    ("GITHUB_PUBLISH_APPROVED", Some("1")),
                     ("GH_TOKEN", Some("gh-sekret")),
                     ("DX_LEAK_PROBE", Some("1")),
                 ],

@@ -30,8 +30,8 @@ pub struct HelmLaunch<'a> {
 pub(crate) const HELM_GATE: OwnerGate = OwnerGate {
     tool: "helm_chart_deploy",
     action: "push",
-    credentials: &["OCI_REGISTRY_USER", "OCI_REGISTRY_TOKEN"],
-    approved: "OCI_PUBLISH_APPROVED",
+    credentials: &["OCI_API_USER", "OCI_API_TOKEN"],
+    approved: "HELM_PUBLISH_APPROVED",
 };
 
 fn chart_yaml_value(text: &str, key: &str) -> Option<String> {
@@ -230,8 +230,8 @@ fn helm_main_with(
         }
         match HELM_GATE.authorize(var) {
             Ok(secrets) => Some((
-                secrets.get("OCI_REGISTRY_USER").to_owned(),
-                secrets.get("OCI_REGISTRY_TOKEN").to_owned(),
+                secrets.get("OCI_API_USER").to_owned(),
+                secrets.get("OCI_API_TOKEN").to_owned(),
             )),
             Err(error) => {
                 eprintln!("{error}");
@@ -411,9 +411,9 @@ mod tests {
         assert_eq!(calls(&fx), "");
         let live = [
             ("DX_DEPLOY_LIVE", "1"),
-            ("OCI_PUBLISH_APPROVED", "1"),
-            ("OCI_REGISTRY_USER", "bot"),
-            ("OCI_REGISTRY_TOKEN", "s3cret"),
+            ("HELM_PUBLISH_APPROVED", "1"),
+            ("OCI_API_USER", "bot"),
+            ("OCI_API_TOKEN", "s3cret"),
         ];
         assert_eq!(run(&fx, &helm, "1.2.3", &live), 0);
         let log = calls(&fx);
@@ -432,9 +432,9 @@ mod tests {
         let helm = fake_helm(fx.dir.path(), 0);
         let live = [
             ("DX_DEPLOY_LIVE", "1"),
-            ("OCI_PUBLISH_APPROVED", "1"),
-            ("OCI_REGISTRY_USER", "bot"),
-            ("OCI_REGISTRY_TOKEN", "t"),
+            ("HELM_PUBLISH_APPROVED", "1"),
+            ("OCI_API_USER", "bot"),
+            ("OCI_API_TOKEN", "t"),
         ];
         assert_eq!(run(&fx, &helm, "0.0.0", &live), 1);
         assert_eq!(calls(&fx), "");

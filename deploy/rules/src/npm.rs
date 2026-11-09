@@ -407,7 +407,7 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
 pub(crate) const NPM_GATE: OwnerGate = OwnerGate {
     tool: "npm_deploy",
     action: "publish",
-    credentials: &["NPM_TOKEN"],
+    credentials: &["NPM_API_TOKEN"],
     approved: "NPM_PUBLISH_APPROVED",
 };
 
@@ -753,7 +753,7 @@ pub fn npm_deploy_main_checked(
         return npm_run_publish(
             &npm,
             host,
-            secrets.get("NPM_TOKEN"),
+            secrets.get("NPM_API_TOKEN"),
             &npm_publish_args(&staged_tgz, &tag, &access, &registry, &provenance),
         );
     }
@@ -1723,7 +1723,7 @@ mod tests {
         let code = with_env(
             &[
                 ("DX_LEAK_PROBE", Some("1")),
-                ("NPM_TOKEN", Some("sekret")),
+                ("NPM_API_TOKEN", Some("sekret")),
                 ("GITHUB_TOKEN", Some("gh-sekret")),
                 ("CI_JOB_TOKEN", Some("job-sekret")),
                 ("CI_PROJECT_URL", Some("https://gitlab.example/p")),
@@ -1802,7 +1802,7 @@ mod tests {
                     ("PATH", Some(path.as_str())),
                     ("DX_DEPLOY_LIVE", Some("1")),
                     ("NPM_PUBLISH_DRY_RUN", None),
-                    ("NPM_TOKEN", Some("sekret")),
+                    ("NPM_API_TOKEN", Some("sekret")),
                     ("NPM_PUBLISH_APPROVED", approved),
                 ],
                 || {
@@ -1840,7 +1840,7 @@ mod tests {
                 ("RUNFILES_MANIFEST_FILE", None),
                 ("BUILD_WORKSPACE_DIRECTORY", None),
                 ("DX_DEPLOY_LIVE", Some("1")),
-                ("NPM_TOKEN", Some("tok")),
+                ("NPM_API_TOKEN", Some("tok")),
                 ("NPM_PUBLISH_APPROVED", Some("1")),
                 ("ACTIONS_ID_TOKEN_REQUEST_URL", None),
                 ("SIGSTORE_ID_TOKEN", None),

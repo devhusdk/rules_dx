@@ -26,7 +26,7 @@ The tag must name the commit you want to release. The `source` job fails if it d
 ## 3. Create the draft
 
 ```sh
-GH_RELEASE_APPROVED=1 tools/dx deploy --apply //cli/cli:github_draft -- vX.Y.Z
+GITHUB_PUBLISH_APPROVED=1 tools/dx deploy --apply //cli/cli:github_draft -- vX.Y.Z
 ```
 
 This creates a draft with release notes only. It carries no binaries. It needs `gh` on `PATH` and logged in, and the tag on GitHub. Without `--apply` and the approval variable it stages a dry run and publishes nothing.

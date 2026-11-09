@@ -79,7 +79,7 @@ fn publish_step_exports_only_the_approval_gates() {
 fn publish_step_maps_every_gate_credential_from_secrets() {
     let credentials = gate_names("credentials");
     assert!(
-        credentials.contains(&"NPM_TOKEN".to_owned()),
+        credentials.contains(&"NPM_API_TOKEN".to_owned()),
         "{credentials:?}"
     );
     let step = steps(WORKFLOW, "release")

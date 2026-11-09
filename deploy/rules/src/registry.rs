@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 /// Fixed message for a registry or token realm that refuses the credentials.
 pub(crate) const OCI_BAD_CREDENTIALS: &str =
-    "registry refused the credentials; check OCI_REGISTRY_USER and OCI_REGISTRY_TOKEN";
+    "registry refused the credentials; check OCI_API_USER and OCI_API_TOKEN";
 
 const MANIFEST_TYPES: [&str; 2] = [
     "application/vnd.oci.image.manifest.v1+json",

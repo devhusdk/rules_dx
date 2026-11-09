@@ -96,7 +96,7 @@ pub fn crates_build_vendor(
 pub(crate) const CRATES_GATE: OwnerGate = OwnerGate {
     tool: "crates_deploy",
     action: "publish",
-    credentials: &["CARGO_REGISTRY_TOKEN"],
+    credentials: &["CRATES_API_TOKEN"],
     approved: "CRATES_PUBLISH_APPROVED",
 };
 
@@ -496,7 +496,7 @@ pub fn crates_main_checked(
         let published = cargo_publish(
             Path::new("cargo"),
             &manifest,
-            secrets.get("CARGO_REGISTRY_TOKEN"),
+            secrets.get("CRATES_API_TOKEN"),
         );
         let _ = std::fs::remove_dir_all(&staging);
         match published {

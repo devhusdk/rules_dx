@@ -419,7 +419,7 @@ fn pages_check_run(
     let _ = writeln!(out, "  files: {} ({bytes} bytes)", files.len());
     let _ = writeln!(
         out,
-        "  publish: CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"
+        "  publish: CLOUDFLARE_PUBLISH_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"
     );
     0
 }
@@ -429,7 +429,7 @@ const CLOUDFLARE_GATE: OwnerGate = OwnerGate {
     tool: "cloudflare_pages_deploy",
     action: "upload",
     credentials: &["CLOUDFLARE_API_TOKEN"],
-    approved: "CLOUDFLARE_PAGES_APPROVED",
+    approved: "CLOUDFLARE_PUBLISH_APPROVED",
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -1183,7 +1183,7 @@ exit 7
         assert!(out.contains("  intent: preview\n"), "{out}");
         assert!(out.contains("  files: 3 ("), "{out}");
         assert!(
-            out.contains("  publish: CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"),
+            out.contains("  publish: CLOUDFLARE_PUBLISH_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply"),
             "{out}"
         );
         assert!(!out.contains("deployment:"), "{out}");
@@ -1195,7 +1195,7 @@ exit 7
     fn main_approval_alone_only_checks() {
         let (code, out, err, uploaded) = run_gated(
             &[
-                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+                ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
             ],
             &SITE,
@@ -1212,7 +1212,7 @@ exit 7
             &SITE,
         );
         assert_eq!(code, 1);
-        assert!(err.contains("CLOUDFLARE_PAGES_APPROVED=1"), "{err}");
+        assert!(err.contains("CLOUDFLARE_PUBLISH_APPROVED=1"), "{err}");
         assert!(out.is_empty(), "{out}");
         assert!(!uploaded, "wrangler must not run");
     }
@@ -1220,7 +1220,7 @@ exit 7
     #[test]
     fn main_live_without_token_refuses() {
         let (code, out, err, uploaded) = run_gated(
-            &[("DX_DEPLOY_LIVE", "1"), ("CLOUDFLARE_PAGES_APPROVED", "1")],
+            &[("DX_DEPLOY_LIVE", "1"), ("CLOUDFLARE_PUBLISH_APPROVED", "1")],
             &SITE,
         );
         assert_eq!(code, 1);
@@ -1237,7 +1237,7 @@ exit 7
         let (code, out, err, uploaded) = run_gated(
             &[
                 ("DX_DEPLOY_LIVE", "true"),
-                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+                ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
             ],
             &SITE,
@@ -1315,7 +1315,7 @@ exit 7
             &["prog"],
             &[
                 ("DX_DEPLOY_LIVE", "1"),
-                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+                ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
                 ("CLOUDFLARE_ACCOUNT_ID", ACCOUNT),
                 ("PATH", "/usr/bin:/bin"),
@@ -1345,7 +1345,7 @@ exit 7
             &["prog"],
             &[
                 ("DX_DEPLOY_LIVE", "1"),
-                ("CLOUDFLARE_PAGES_APPROVED", "1"),
+                ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
                 ("CLOUDFLARE_API_TOKEN", TOKEN),
                 ("PATH", "/usr/bin:/bin"),
             ],

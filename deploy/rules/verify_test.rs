@@ -171,7 +171,7 @@ fn cloudflare_case() {
     let token = "dx-test-token-123";
     let env = [
         ("DX_DEPLOY_LIVE", "1"),
-        ("CLOUDFLARE_PAGES_APPROVED", "1"),
+        ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
         ("CLOUDFLARE_API_TOKEN", token),
         ("AMBIENT_SECRET", "ambient"),
         ("DX_BUILD_MODE", "release"),
@@ -201,7 +201,7 @@ fn cloudflare_case() {
         &[],
         &[
             ("DX_DEPLOY_LIVE", "1"),
-            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", token),
         ],
     )
@@ -218,7 +218,7 @@ fn cloudflare_case() {
         &[],
         &[
             ("DX_DEPLOY_LIVE", "1"),
-            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", "bogus-token"),
         ],
     )
@@ -238,7 +238,7 @@ fn cloudflare_case() {
         &[],
         &[
             ("DX_DEPLOY_LIVE", "1"),
-            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", ""),
         ],
     )
@@ -256,7 +256,7 @@ fn cloudflare_case() {
         &[],
         &[
             ("DX_DEPLOY_LIVE", "1"),
-            ("CLOUDFLARE_PAGES_APPROVED", "1"),
+            ("CLOUDFLARE_PUBLISH_APPROVED", "1"),
             ("CLOUDFLARE_API_TOKEN", "bad-token"),
         ],
     )
@@ -299,7 +299,7 @@ fn cloudflare_case() {
     .expect("unapproved run must execute");
     assert!(!unapproved.status.success(), "{}", unapproved.combined());
     assert!(
-        unapproved.stderr.contains("CLOUDFLARE_PAGES_APPROVED=1"),
+        unapproved.stderr.contains("CLOUDFLARE_PUBLISH_APPROVED=1"),
         "{}",
         unapproved.stderr
     );

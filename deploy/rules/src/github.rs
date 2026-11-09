@@ -182,7 +182,7 @@ pub(crate) const GITHUB_GATE: OwnerGate = OwnerGate {
     tool: "github_deploy",
     action: "publish",
     credentials: &[],
-    approved: "GH_RELEASE_APPROVED",
+    approved: "GITHUB_PUBLISH_APPROVED",
 };
 
 /// Extra env names `gh` keeps: its auth, host, config and session bus.
@@ -630,7 +630,7 @@ mod tests {
                 ("BUILD_WORKSPACE_DIRECTORY", None),
                 ("PATH", Some(bin.to_string_lossy().as_ref())),
                 ("DX_DEPLOY_LIVE", Some("1")),
-                ("GH_RELEASE_APPROVED", Some("1")),
+                ("GITHUB_PUBLISH_APPROVED", Some("1")),
             ],
             || github_main(&rlocs, "demo", "v1.2.3", &argv),
         );
@@ -793,7 +793,7 @@ esac
                 ("PATH", Some(bin.to_string_lossy().as_ref())),
                 ("BUILD_WORKSPACE_DIRECTORY", None),
                 ("DX_DEPLOY_LIVE", None),
-                ("GH_RELEASE_APPROVED", None),
+                ("GITHUB_PUBLISH_APPROVED", None),
             ],
             || github_main_with_notes(&[], "demo", "current", &Notes::Commits, &argv),
         );

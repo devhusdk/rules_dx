@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 pub(crate) const HEX_GATE: OwnerGate = OwnerGate {
     tool: "hex_deploy",
     action: "publish",
-    credentials: &["HEX_API_KEY"],
+    credentials: &["HEX_API_TOKEN"],
     approved: "HEX_PUBLISH_APPROVED",
 };
 
@@ -271,7 +271,7 @@ fn hex_publish(files: &[PathBuf], package_name: &str, version: &str, tool: &str)
             &program,
             &hex_publish_args(tool),
             &staging,
-            secrets.get("HEX_API_KEY"),
+            secrets.get("HEX_API_TOKEN"),
         )
         .map(|()| version)
     });

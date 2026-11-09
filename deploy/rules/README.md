@@ -140,14 +140,14 @@ is checked before the call.
 Setup:
 
 - `npm` on `PATH`.
-- An `NPM_TOKEN` from the registry.
+- An `NPM_API_TOKEN` from the registry.
 - `provenance = "required"` needs a CI OIDC identity
   (`ACTIONS_ID_TOKEN_REQUEST_URL` or `SIGSTORE_ID_TOKEN`).
 
 Run:
 
 ```sh
-NPM_PUBLISH_APPROVED=1 NPM_TOKEN=... \
+NPM_PUBLISH_APPROVED=1 NPM_API_TOKEN=... \
 dx deploy --apply //pkg:npm_demo
 ```
 
@@ -199,18 +199,18 @@ cloudflare_pages_deploy: checked my-site (branch feature/x, preview, build_mode:
   branch: feature/x
   intent: preview
   files: 12 (48213 bytes)
-  publish: CLOUDFLARE_PAGES_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply
+  publish: CLOUDFLARE_PUBLISH_APPROVED=1 with CLOUDFLARE_API_TOKEN, then dx deploy --apply
 ```
 
 Publish:
 
 ```sh
-CLOUDFLARE_PAGES_APPROVED=1 \
+CLOUDFLARE_PUBLISH_APPROVED=1 \
 CLOUDFLARE_API_TOKEN=... \
 dx deploy --apply //pkg:site_deploy
 ```
 
-`dx deploy --apply` without `CLOUDFLARE_PAGES_APPROVED=1` is refused.
+`dx deploy --apply` without `CLOUDFLARE_PUBLISH_APPROVED=1` is refused.
 The token needs the Cloudflare Pages edit permission. It is read only on a
 live run. It is never written into the build. Wrangler runs without prompts,
 telemetry or project discovery.
@@ -384,7 +384,7 @@ Default run stages `<name>-vendor/vendor/<name>/` and
 Publish with `cargo` on `PATH`:
 
 ```sh
-CRATES_PUBLISH_APPROVED=1 CARGO_REGISTRY_TOKEN=... \
+CRATES_PUBLISH_APPROVED=1 CRATES_API_TOKEN=... \
 dx deploy --apply //pkg:crates_demo
 ```
 
@@ -424,13 +424,13 @@ No credentials needed, nothing is uploaded.
 Publish with `mix` or `rebar3` on `PATH`:
 
 ```sh
-HEX_PUBLISH_APPROVED=1 HEX_API_KEY=... \
+HEX_PUBLISH_APPROVED=1 HEX_API_TOKEN=... \
 dx deploy --apply //pkg:hex_demo
 ```
 
 A live run refuses version `0.0.0`. It runs `mix hex.publish --yes`
 (`rebar3 hex publish --yes`) in a staged copy with an empty `HOME` and only
-`HEX_API_KEY` as the credential. `ERL_LIBS`, `ERL_ROOTDIR`, `HEX_HOME` and
+`HEX_API_TOKEN` as the credential. `ERL_LIBS`, `ERL_ROOTDIR`, `HEX_HOME` and
 `MIX_HOME` pass through, so point them at the pinned OTP.
 
 # rubygems_deploy
@@ -507,7 +507,7 @@ so a budget can be set from it. Without `gh` or network, it prints why that rele
 Create the draft with `gh` on `PATH` and logged in:
 
 ```sh
-GH_RELEASE_APPROVED=1 dx deploy --apply //pkg:github_demo
+GITHUB_PUBLISH_APPROVED=1 dx deploy --apply //pkg:github_demo
 ```
 
 This runs `gh release create <tag> <assets> --draft --verify-tag`, so the
@@ -575,7 +575,7 @@ linux_package_deploy(
 
 `bazel build //pkg:demo_deb` writes `demo_<version>_<arch>.deb`; each format
 has its own `<name>_<format>` target. `dx deploy //pkg:demo` stages the
-packages like `github_deploy`, and the live run (`GH_RELEASE_APPROVED=1 dx deploy
+packages like `github_deploy`, and the live run (`GITHUB_PUBLISH_APPROVED=1 dx deploy
 --apply`) attaches them to the draft release. `nfpm` runs on
 Linux x86_64, Linux arm64 and macOS arm64 hosts.
 
@@ -611,7 +611,7 @@ the tool on `PATH` the run prints a skip line. No credentials needed.
 Publish with `dart` (or `flutter`) on `PATH`:
 
 ```sh
-PUB_PUBLISH_APPROVED=1 PUB_TOKEN=... \
+PUB_PUBLISH_APPROVED=1 PUB_API_TOKEN=... \
 dx deploy --apply //pkg:pub_demo
 ```
 
@@ -643,12 +643,12 @@ Default run stages `<name>-feed/` with the nupkg. No credentials needed.
 Push with `dotnet` on `PATH`:
 
 ```sh
-NUGET_PUBLISH_APPROVED=1 NUGET_API_KEY=... \
+NUGET_PUBLISH_APPROVED=1 NUGET_API_TOKEN=... \
 dx deploy --apply //pkg:nuget_demo
 ```
 
 This runs `dotnet nuget push --skip-duplicate`. The key goes to `dotnet`
-through the `NUGET_API_KEY` env var, never the command line, so NuGet 7.6+
+through the `NUGET_API_TOKEN` env var, never the command line, so NuGet 7.6+
 (.NET SDK 10.0.300+) is required; older versions are refused. A live run refuses nuspec
 version `0.0.0`.
 
@@ -715,7 +715,7 @@ with the rockspec; it does not run `luarocks`. No credentials needed.
 Upload with `luarocks` on `PATH`:
 
 ```sh
-LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_KEY=... \
+LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_TOKEN=... \
 dx deploy --apply //pkg:luarocks_demo
 ```
 
@@ -802,7 +802,7 @@ Push:
 
 ```sh
 OCI_PUBLISH_APPROVED=1 \
-OCI_REGISTRY_USER=... OCI_REGISTRY_TOKEN=... \
+OCI_API_USER=... OCI_API_TOKEN=... \
 dx deploy --apply //pkg:oci_demo
 ```
 
@@ -812,7 +812,7 @@ HTTPS with the OCI Distribution API. No docker needed. It prints
 the staged manifest. Layers go up as staged, so uncompressed layers stay
 uncompressed.
 
-- Auth: `OCI_REGISTRY_USER` and `OCI_REGISTRY_TOKEN`, sent as a Basic login or
+- Auth: `OCI_API_USER` and `OCI_API_TOKEN`, sent as a Basic login or
   exchanged for a bearer token, as the registry asks.
 - `registry` may carry a path prefix, such as `ghcr.io/example`. The host is
   case-insensitive; the path after it must be lowercase with no empty segments.
@@ -857,7 +857,7 @@ needed.
 Push with `octo` on `PATH`:
 
 ```sh
-OCTOPUS_PUBLISH_APPROVED=1 OCTOPUS_API_KEY=... \
+OCTOPUS_PUBLISH_APPROVED=1 OCTOPUS_API_TOKEN=... \
 OCTOPUS_URL=https://octopus.example.com \
 dx deploy --apply //pkg:octopus_demo
 ```
@@ -1040,8 +1040,8 @@ helm_chart_deploy(
 - `helm`: defaults to the pinned helm from `//config:tool_helm`.
 
 A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.
-A live run (`dx deploy --apply`) uses the OCI credentials:
-`OCI_PUBLISH_APPROVED=1`, `OCI_REGISTRY_USER` and `OCI_REGISTRY_TOKEN`. It logs
+A live run (`dx deploy --apply`) needs `HELM_PUBLISH_APPROVED=1`, `HELM_API_USER`
+and `HELM_API_TOKEN`. It logs
 in with `helm registry login` into a throwaway registry config, runs
 `helm push <chart>.tgz oci://<registry>/<repository>`, and removes the config.
 Placeholder versions (`0.0.0`) are refused. `helm` runs with a cleared

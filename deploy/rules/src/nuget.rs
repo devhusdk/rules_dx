@@ -241,7 +241,7 @@ pub fn nuget_build_feed(
 pub(crate) const NUGET_GATE: OwnerGate = OwnerGate {
     tool: "nuget_deploy",
     action: "push",
-    credentials: &["NUGET_API_KEY"],
+    credentials: &["NUGET_API_TOKEN"],
     approved: "NUGET_PUBLISH_APPROVED",
 };
 
@@ -590,7 +590,7 @@ pub fn nuget_main_checked(
             &dotnet,
             &nupkg,
             package_source,
-            secrets.get("NUGET_API_KEY"),
+            secrets.get("NUGET_API_TOKEN"),
             package_id,
             package_version,
         );
@@ -623,12 +623,12 @@ mod tests {
         let mut vars: Vec<(&str, Option<&str>)> = vec![
             ("RUNFILES_DIR", None),
             ("RUNFILES_MANIFEST_FILE", None),
-            ("NUGET_API_KEY", None),
+            ("NUGET_API_TOKEN", None),
             ("NUGET_PUBLISH_APPROVED", None),
             ("DX_DEPLOY_LIVE", None),
         ];
         if live {
-            vars[2] = ("NUGET_API_KEY", Some("secret-token"));
+            vars[2] = ("NUGET_API_TOKEN", Some("secret-token"));
             vars[3] = ("NUGET_PUBLISH_APPROVED", Some("1"));
             vars[4] = ("DX_DEPLOY_LIVE", Some("1"));
         }

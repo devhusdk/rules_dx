@@ -139,7 +139,7 @@ pub fn octopus_build_drop(
 pub(crate) const OCTOPUS_GATE: OwnerGate = OwnerGate {
     tool: "octopus_deploy",
     action: "push",
-    credentials: &["OCTOPUS_API_KEY"],
+    credentials: &["OCTOPUS_API_TOKEN"],
     approved: "OCTOPUS_PUBLISH_APPROVED",
 };
 
@@ -263,7 +263,7 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
             eprintln!("octopus_deploy: 'octo' CLI not found on PATH");
             return 1;
         };
-        return octopus_live_publish(&octo, &package, &drop_spec, secrets.get("OCTOPUS_API_KEY"));
+        return octopus_live_publish(&octo, &package, &drop_spec, secrets.get("OCTOPUS_API_TOKEN"));
     }
     match octopus_build_drop(&package, outdir, &drop_spec) {
         Ok(drop) => {
@@ -488,7 +488,7 @@ mod tests {
         with_env(
             &[
                 ("DX_LEAK_PROBE", Some("1")),
-                ("OCTOPUS_API_KEY", Some("leaky")),
+                ("OCTOPUS_API_TOKEN", Some("leaky")),
             ],
             || {
                 assert_eq!(
@@ -507,7 +507,7 @@ mod tests {
         let env = std::fs::read_to_string(scratch.path().join("env.txt")).expect("env");
         assert!(!args.contains("sekret") && !args.contains("--apiKey"));
         assert!(env.contains("OCTOPUS_CLI_API_KEY=sekret"));
-        assert!(!env.contains("OCTOPUS_API_KEY") && !env.contains("DX_LEAK_PROBE"));
+        assert!(!env.contains("OCTOPUS_API_TOKEN") && !env.contains("DX_LEAK_PROBE"));
         std::fs::remove_file(scratch.path().join("args.txt")).expect("rm");
         assert_eq!(
             octopus_live_publish(&octo, package, &octo_spec(&envs, ""), "sekret"),

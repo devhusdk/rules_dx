@@ -196,7 +196,7 @@ The `publish` input (default `true`) gates the release job, which also needs a t
 | `deployables` | JSON array of labels, for example `["//pkg:npm", "//pkg:github"]`. Empty publishes every `dx_deployment` tagged `release`. |
 | `runner` | Runner label. Default `ubuntu-latest`. |
 
-The caller grants `contents`, `id-token`, `attestations` and `packages` write and passes `secrets: inherit`, so registry tokens such as `NPM_TOKEN` are repository secrets. A `github_deploy` creates a draft release.
+The caller grants `contents`, `id-token`, `attestations` and `packages` write and passes `secrets: inherit`, so registry tokens such as `NPM_API_TOKEN` are repository secrets. A `github_deploy` creates a draft release.
 
 ## Repository settings
 

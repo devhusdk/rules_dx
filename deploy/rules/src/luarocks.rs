@@ -12,7 +12,7 @@ use std::path::Path;
 pub(crate) const LUAROCKS_GATE: OwnerGate = OwnerGate {
     tool: "luarocks_deploy",
     action: "upload",
-    credentials: &["LUAROCKS_API_KEY"],
+    credentials: &["LUAROCKS_API_TOKEN"],
     approved: "LUAROCKS_PUBLISH_APPROVED",
 };
 
@@ -174,7 +174,7 @@ pub fn luarocks_main(
         return luarocks_live_upload(
             &luarocks,
             &rockspec,
-            secrets.get("LUAROCKS_API_KEY"),
+            secrets.get("LUAROCKS_API_TOKEN"),
             package,
             version,
         );
@@ -280,7 +280,7 @@ mod tests {
                     ("RUNFILES_MANIFEST_FILE", None),
                     ("DX_DEPLOY_LIVE", live),
                     ("LUAROCKS_PUBLISH_APPROVED", None),
-                    ("LUAROCKS_API_KEY", None),
+                    ("LUAROCKS_API_TOKEN", None),
                 ],
                 || luarocks_main("demo-1.2.0-1.rockspec", "demo", "demo", "1.2.0", &argv),
             )

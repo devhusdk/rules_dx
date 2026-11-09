@@ -2,6 +2,7 @@
 
 load("@rules_py//py:defs.bzl", "py_binary", "py_test")
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
+load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
 
 _SCRIPT = Label("//haskell/tools:deps_resolve.py")
 
@@ -36,8 +37,7 @@ def haskell_deps_resolve(name, srcs, **kwargs):
             "--ghc=$(rlocationpath {})".format(_GHC),
         ] + _input_args(srcs),
         data = srcs + [_CABAL, _GHC, _GHC_FILES],
-        target_compatible_with = kwargs.pop("target_compatible_with", HASKELL_COMPATIBLE_WITH),
-        **kwargs
+        **dx_language_kwargs(kwargs, [], HASKELL_COMPATIBLE_WITH)
     )
 
 def haskell_deps_resolve_test(name, srcs, freeze = "cabal.project.freeze", sidecar = "haskell_deps.json", **kwargs):

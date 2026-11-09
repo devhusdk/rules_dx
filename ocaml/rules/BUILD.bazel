@@ -93,6 +93,16 @@ dx_wrapper_contract_tests(
             ["x"],
         ),
         expect_equal(
+            "the guard stays with a user list",
+            type(with_defaults({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "the guard stays with an empty list",
+            type(with_defaults({"target_compatible_with": []})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
             "upstream actions stay local",
             upstream_tags(None)[-1],
             "no-remote-exec",

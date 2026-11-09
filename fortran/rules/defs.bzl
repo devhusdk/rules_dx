@@ -5,7 +5,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_fortran//fortran:defs.bzl", "FortranInfo", _fortran_library = "fortran_library")
 load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 
@@ -90,16 +90,12 @@ _fortran_forward_test = dx_executable_forward_rule(
 )
 
 def with_defaults(kwargs):
-    """Returns kwargs with the qualified Fortran cell and the quality skip tags as defaults."""
-    out = dict(kwargs)
-    if out.get("target_compatible_with") == None:
-        out["target_compatible_with"] = FORTRAN_COMPATIBLE_WITH
+    """Returns kwargs with the qualified Fortran cell appended to target_compatible_with and the quality skip tags."""
+    out = dx_language_kwargs(kwargs, SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
     out["copts"] = (out.get("copts") or []) + select({
         Label("//fortran/rules:kcov_build"): ["-g"],
         "//conditions:default": [],
     })
-    tags = list(out.get("tags") or [])
-    out["tags"] = tags + [tag for tag in SKIP_TAGS if tag not in tags]
     return out
 
 def library_kwargs(kwargs):

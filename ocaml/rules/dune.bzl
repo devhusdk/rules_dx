@@ -14,6 +14,7 @@ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolcha
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_ocaml//build:providers.bzl", "OCamlArchiveProvider", "OCamlCcInfo", "OCamlDepsProvider", "OCamlImportProvider")
+load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
 load("//ocaml/toolchain:ocaml.bzl", "native_cc_env")
 load(":defs.bzl", "OCAML_COMPATIBLE_WITH")
 
@@ -335,6 +336,5 @@ _dx_dune_library = rule(
 )
 
 def dx_dune_library(name, **kwargs):
-    """Builds a dune library package; compatible with the OCaml cells by default."""
-    kwargs.setdefault("target_compatible_with", OCAML_COMPATIBLE_WITH)
-    _dx_dune_library(name = name, **kwargs)
+    """Builds a dune library package; the OCaml cells are always appended to target_compatible_with."""
+    _dx_dune_library(name = name, **dx_language_kwargs(kwargs, [], OCAML_COMPATIBLE_WITH))

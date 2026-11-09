@@ -124,6 +124,11 @@ dx_wrapper_contract_tests(
             "select",
         ),
         expect_equal(
+            "haskell guard stays with an empty list",
+            type(haskell_kwargs({"target_compatible_with": []})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
             "haskell keeps user tags",
             haskell_kwargs({"tags": ["t"]})["tags"],
             ["t"],

@@ -24,7 +24,7 @@ load(
 )
 load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "OCamlCmtInfo", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
@@ -303,11 +303,8 @@ def upstream_tags(tags):
     return out + [tag for tag in LOCAL_TAGS if tag not in out]
 
 def with_defaults(kwargs):
-    """Returns kwargs with the qualified OCaml cell as the default."""
-    out = dict(kwargs)
-    if out.get("target_compatible_with") == None:
-        out["target_compatible_with"] = OCAML_COMPATIBLE_WITH
-    return out
+    """Returns kwargs with the qualified OCaml cell appended to target_compatible_with."""
+    return dx_language_kwargs(kwargs, [], OCAML_COMPATIBLE_WITH)
 
 def link_kwargs(kwargs):
     """Returns binary kwargs that link plain bytecode for the runfiles ocamlrun when the emitter is vm; native links take no extra opts."""

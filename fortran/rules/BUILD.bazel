@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal", "expect_true")
+load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "FORTRAN_COMPATIBLE_WITH", "FORTRAN_EXTENSIONS", "library_kwargs", "library_name", "link_kwargs", "with_defaults")
 
@@ -64,14 +64,20 @@ dx_wrapper_contract_tests(
             with_defaults({"tags": ["x"]})["tags"],
             ["x"],
         ),
-        expect_true(
+        expect_equal(
             "the Fortran cell is the default",
-            with_defaults({})["target_compatible_with"] == FORTRAN_COMPATIBLE_WITH,
+            type(with_defaults({})["target_compatible_with"]),
+            type(FORTRAN_COMPATIBLE_WITH),
         ),
         expect_equal(
-            "an explicit compatibility is kept",
-            with_defaults({"target_compatible_with": []})["target_compatible_with"],
-            [],
+            "the guard stays with a user list",
+            type(with_defaults({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "the guard stays with an empty list",
+            type(with_defaults({"target_compatible_with": []})["target_compatible_with"]),
+            "select",
         ),
         expect_equal(
             "compile attributes reach the library",

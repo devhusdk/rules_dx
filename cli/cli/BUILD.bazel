@@ -223,6 +223,18 @@ genrule(
     visibility = ["//visibility:public"],
 )
 
+# keep: tests the :dx_man binary; Gazelle would add the dx_cli crate deps
+rust_test(
+    name = "dx_man_test",
+    crate = ":dx_man",
+    deps = [
+        ":dx_cli",
+        "//cli/error:dx_error",
+        "//cli/output:dx_output",
+        "//cli/plan:dx_plan",
+    ],
+)
+
 rust_test(
     name = "dx_cli_test",
     srcs = [

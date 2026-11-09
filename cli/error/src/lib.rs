@@ -94,12 +94,6 @@ impl From<DxError> for ExitCode {
     }
 }
 
-impl From<std::io::Error> for DxError {
-    fn from(error: std::io::Error) -> Self {
-        Self::infra(error.to_string())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -130,13 +124,6 @@ mod tests {
         assert_eq!(exit_code(300), ExitCode::from(1));
         assert_eq!(exit_code(-1), ExitCode::from(1));
         assert_eq!(ExitCode::from(ErrorKind::Usage), ExitCode::from(2));
-    }
-
-    #[test]
-    fn io_errors_are_infra() {
-        let error = DxError::from(std::io::Error::other("disk"));
-        assert_eq!(error.kind(), ErrorKind::Infra);
-        assert_eq!(error.message(), "disk");
     }
 
     #[test]

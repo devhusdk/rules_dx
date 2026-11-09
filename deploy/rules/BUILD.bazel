@@ -304,7 +304,7 @@ rust_test(
         "DX_TEST_RUSTC": "$(rlocationpath @rules_rust//rust/toolchain:current_rustc_files)",
         "DX_TEST_RUSTDOC": "$(rlocationpath @rules_rust//rust/toolchain:current_rustdoc_files)",
         "JAPICMP_JAR": "$(rlocationpath //deploy/rules/pins:japicmp)",
-        "MAVEN_API_JAVA": "$(JAVA_ROOTPATH)",
+        "MAVEN_API_JAVA": "$(rlocationpaths @rules_java//toolchains:current_java_runtime)",
         "MAVEN_API_NEW_JAR": "$(rlocationpath :maven_api_new_lib)",
         "MAVEN_API_OLD_JAR": "$(rlocationpath :maven_api_old_lib)",
         "MAVEN_DEMO_JAR": "$(rlocationpath :maven_demo_lib)",
@@ -313,7 +313,6 @@ rust_test(
         "MAVEN_GNUPG_PUBKEY": "$(rlocationpath testdata/maven/gnupg/pubkey.asc)",
         "MAVEN_GNUPG_SIGNATURE": "$(rlocationpath testdata/maven/gnupg/payload.txt.asc)",
     },
-    toolchains = ["@rules_java//toolchains:current_java_runtime"],
     deps = all_crate_deps(
         package_name = "deploy/dx_deploy_tools",
         normal = True,
@@ -1981,6 +1980,7 @@ oci_deploy(
     name = "oci_demo",
     image_tar = ":oci_demo_tar",
     platform = "//deploy/rules/platforms:linux_amd64",
+    scan = "off",
 )
 
 image_unit_tests(name = "image_unit")
@@ -2005,6 +2005,7 @@ oci_deploy(
     name = "oci_demo_layout",
     image_tar = ":oci_demo_layout_dir",
     platform = "//deploy/rules/platforms:linux_amd64",
+    scan = "off",
 )
 
 deploy_analysis_test(

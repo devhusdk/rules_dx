@@ -40,14 +40,14 @@ rust_test(
     data = [
         "//tools/docs/typescript/fixture/hostile:hostile_control_base",
         "//tools/docs/typescript/fixture/hostile:hostile_control_package",
-        "//tools/docs/typescript/fixture/hostile:hostile_control_tsconfig",
+        "//tools/docs/typescript/fixture/hostile:hostile_control_tsconfig.typedoc.json",
         "//tools/docs/typescript/fixture/hostile:hostile_docs",
         "//tools/docs/typescript/fixture/hostile:hostile_docs.typedoc.json",
     ],
     env = {
         "DX_HOSTILE_CONTROL_BASE": "$(rootpath //tools/docs/typescript/fixture/hostile:hostile_control_base)",
         "DX_HOSTILE_CONTROL_PACKAGE": "$(rootpath //tools/docs/typescript/fixture/hostile:hostile_control_package)",
-        "DX_HOSTILE_CONTROL_TSCONFIG": "$(rootpath //tools/docs/typescript/fixture/hostile:hostile_control_tsconfig)",
+        "DX_HOSTILE_CONTROL_TSCONFIG": "$(rootpath //tools/docs/typescript/fixture/hostile:hostile_control_tsconfig.typedoc.json)",
         "DX_HOSTILE_SHARD": "$(rootpath //tools/docs/typescript/fixture/hostile:hostile_docs)",
         "DX_HOSTILE_TYPEDOC": "$(rootpath //tools/docs/typescript/fixture/hostile:hostile_docs.typedoc.json)",
     },

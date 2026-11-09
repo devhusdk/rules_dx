@@ -245,7 +245,7 @@ fn cloudflare_case() {
     .expect("missing token run must execute");
     assert!(!missing.status.success());
     assert!(
-        missing.stderr.contains("CLOUDFLARE_API_TOKEN is not set"),
+        missing.stderr.contains("live upload needs CLOUDFLARE_API_TOKEN"),
         "{}",
         missing.stderr
     );

@@ -31,6 +31,7 @@ typescript_doc_shard(
         srcs = _SRCS + [
             "tsconfig.json",
         ],
+        out_dirs = ["hostile_control_html"] if marker == "tsconfig" else [],
         outs = ["hostile_control_" + marker + ".typedoc.json"],
         args = [
             "--tsconfig",
@@ -41,7 +42,7 @@ typescript_doc_shard(
             "src/index.ts",
             "--json",
             "hostile_control_" + marker + ".typedoc.json",
-        ],
+        ] + (["--out", "hostile_control_html"] if marker == "tsconfig" else []),
         chdir = package_name(),
         mnemonic = "DxTypedocControl",
         tool = "//quality/tools/javascript/bin:typedoc_stock",

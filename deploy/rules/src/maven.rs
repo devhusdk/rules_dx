@@ -1661,7 +1661,11 @@ pub(crate) mod tests {
             let rloc = std::env::var(name).expect(name);
             resolve_runfile(&rloc).expect(name)
         };
-        let java = resolve_runfile(java.trim_start_matches("../")).expect("java");
+        let java = java
+            .split_whitespace()
+            .find(|path| path.ends_with("/bin/java"))
+            .expect("the runtime lists bin/java");
+        let java = resolve_runfile(java).expect("java");
         let japicmp = resolve("JAPICMP_JAR");
         let old_jar = std::fs::read(resolve("MAVEN_API_OLD_JAR")).expect("old jar");
         let new_jar = resolve("MAVEN_API_NEW_JAR");

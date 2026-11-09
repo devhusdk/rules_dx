@@ -219,7 +219,7 @@ in `//ocaml/packages`; `{hub}` in them becomes the hub name.
 
 ```python
 # MODULE.bazel
-ocaml = use_extension("@rules_dx//ocaml/toolchain:repos.bzl", "ocaml")
+ocaml = use_extension("@rules_dx//ocaml/toolchain:extensions.bzl", "ocaml")
 ocaml.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
 ocaml.annotation(
     package = "afl-persistent",

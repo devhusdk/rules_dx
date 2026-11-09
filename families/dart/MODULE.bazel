@@ -44,7 +44,7 @@ pub.from_lock(
     on_version_conflict = "upgrade",
 )
 
-# Fetching a padded archive guards the pinned bsdtar in @rules_dx//dart:repos.bzl.
+# Fetching a padded archive guards the pinned bsdtar in @rules_dx//dart:pub.bzl.
 pub.from_lock(
     name = "dx_dart_padded_archive",
     lock = "//dart/tests:padded_archive.pubspec.lock",

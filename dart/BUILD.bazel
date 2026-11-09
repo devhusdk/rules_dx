@@ -17,7 +17,6 @@ real_source_target(
         "extensions.bzl",
         "pins.bzl",
         "pub.bzl",
-        "repos.bzl",
     ],
     tags = ["corpus"],
 )

@@ -199,7 +199,9 @@ pub(crate) fn execute_init(
     if result.is_ok() {
         notes.push(sync_note(
             runner,
-            applied.refused.contains(&format!("{}.envrc", target.prefix)),
+            applied
+                .refused
+                .contains(&format!("{}.envrc", target.prefix)),
         ));
     }
     if result.is_ok() {
@@ -216,7 +218,11 @@ pub(crate) fn execute_init(
     );
     if code == 0
         && !summaries_suppressed(invocation)
-        && let Err(exit) = check_stdout_write(write!(out, "{}", next_steps(runner, target.blocker.is_some())))
+        && let Err(exit) = check_stdout_write(write!(
+            out,
+            "{}",
+            next_steps(runner, target.blocker.is_some())
+        ))
     {
         return exit;
     }
@@ -224,9 +230,8 @@ pub(crate) fn execute_init(
 }
 
 fn dx_on_path() -> bool {
-    std::env::var_os("PATH").is_some_and(|path| {
-        std::env::split_paths(&path).any(|dir| dir.join("dx").is_file())
-    })
+    std::env::var_os("PATH")
+        .is_some_and(|path| std::env::split_paths(&path).any(|dir| dir.join("dx").is_file()))
 }
 
 fn dx_runner(on_path: bool) -> &'static str {
@@ -244,8 +249,14 @@ fn sync_note(runner: &str, envrc_refused: bool) -> String {
 }
 
 fn github_notes(planned: &[super::init_files::InitFile]) -> Vec<String> {
-    if planned.iter().any(|file| file.path == ".github/workflows/ci.yml") {
-        dx_adopt::GITHUB_SETTINGS_NOTES.iter().map(|line| (*line).to_owned()).collect()
+    if planned
+        .iter()
+        .any(|file| file.path == ".github/workflows/ci.yml")
+    {
+        dx_adopt::GITHUB_SETTINGS_NOTES
+            .iter()
+            .map(|line| (*line).to_owned())
+            .collect()
     } else {
         Vec::new()
     }
@@ -454,9 +465,9 @@ fn check_init(
 
 #[cfg(test)]
 mod tests {
+    use super::{dx_on_path, dx_runner, next_steps, sync_note};
     use crate::adopt::test_support::{Truncated, env, invocation, run};
     use dx_process::pre_exec_code;
-    use super::{dx_on_path, dx_runner, next_steps, sync_note};
 
     #[test]
     fn init_check_names_missing_hooks_and_agents_block() {
@@ -924,7 +935,9 @@ mod tests {
         let (code, out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, before, "{out}{err}");
         assert!(
-            err.contains("advisory: WORKSPACE is not read by Bazel 9; move its repos to MODULE.bazel"),
+            err.contains(
+                "advisory: WORKSPACE is not read by Bazel 9; move its repos to MODULE.bazel"
+            ),
             "{err}"
         );
         let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);

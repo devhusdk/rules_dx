@@ -73,9 +73,14 @@ impl Bazel for CommandBazel {
             label.to_owned(),
         ];
         argv.extend(args.iter().cloned());
-        let output = dx_process::capture::run_captured(
+        let output = dx_process::capture::run_captured_with(
             Command::new(&self.bin).args(&argv).current_dir(&self.dir),
+            None,
             BAZEL_TIMEOUT,
+            dx_process::capture::RunOptions {
+                foreground: true,
+                ..Default::default()
+            },
         )
         .map_err(|error| ResolveError::CqueryFailed {
             label: label.to_owned(),
@@ -105,11 +110,16 @@ impl CommandBazel {
             key: key.to_owned(),
             detail,
         };
-        let output = dx_process::capture::run_captured(
+        let output = dx_process::capture::run_captured_with(
             Command::new(&self.bin)
                 .args(["info", key])
                 .current_dir(&self.dir),
+            None,
             BAZEL_TIMEOUT,
+            dx_process::capture::RunOptions {
+                foreground: true,
+                ..Default::default()
+            },
         )
         .map_err(|error| failed(run_detail(&self.bin, &error)))?;
         if !output.success() {

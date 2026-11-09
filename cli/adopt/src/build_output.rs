@@ -201,25 +201,32 @@ struct Git<'a> {
 }
 
 impl Git<'_> {
-    fn run(&self, args: &[&str]) -> Option<dx_process::capture::Captured> {
+    /// `Ok(None)` when git cannot start; any other failure to finish is an error.
+    fn run(&self, args: &[&str]) -> Result<Option<dx_process::capture::Captured>, String> {
         let mut cmd = dx_process::capture::git(self.root);
         cmd.args(args);
         (self.configure)(&mut cmd);
-        dx_process::capture::run_captured(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT).ok()
+        match dx_process::capture::run_captured(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT) {
+            Ok(output) => Ok(Some(output)),
+            Err(dx_process::capture::RunError::Spawn { .. }) => Ok(None),
+            Err(error) => Err(error.to_string()),
+        }
     }
 
-    fn ok_text(&self, args: &[&str]) -> Option<String> {
-        let output = self.run(args)?;
+    fn ok_text(&self, args: &[&str]) -> Result<Option<String>, String> {
+        let Some(output) = self.run(args)? else {
+            return Ok(None);
+        };
         if !output.success() {
-            return None;
+            return Ok(None);
         }
         let text = output.stdout_text().trim().to_owned();
-        (!text.is_empty()).then_some(text)
+        Ok((!text.is_empty()).then_some(text))
     }
 
     fn stdout(&self, args: &[&str]) -> Result<Vec<u8>, String> {
         let output = self
-            .run(args)
+            .run(args)?
             .ok_or_else(|| "git did not start".to_owned())?;
         if output.success() {
             return Ok(output.stdout);
@@ -230,22 +237,27 @@ impl Git<'_> {
     }
 }
 
-fn default_base(git: &Git<'_>) -> Option<String> {
+fn default_base(git: &Git<'_>) -> Result<Option<String>, String> {
     let mut candidates = Vec::new();
     if let Some(head) = git.ok_text(&[
         "symbolic-ref",
         "--quiet",
         "--short",
         "refs/remotes/origin/HEAD",
-    ]) {
+    ])? {
         candidates.push(head);
     }
     candidates.extend(DEFAULT_BRANCH_CANDIDATES.iter().map(|c| (*c).to_owned()));
-    candidates.into_iter().find(|candidate| {
+    for candidate in candidates {
         let spec = format!("{candidate}^{{commit}}");
-        git.ok_text(&["rev-parse", "--verify", "--quiet", &spec])
+        if git
+            .ok_text(&["rev-parse", "--verify", "--quiet", &spec])?
             .is_some()
-    })
+        {
+            return Ok(Some(candidate));
+        }
+    }
+    Ok(None)
 }
 
 fn lfs_paths(git: &Git<'_>, paths: &[String]) -> Result<BTreeSet<String>, String> {
@@ -269,7 +281,7 @@ pub fn scan(root: &Path) -> Result<ScanReport, String> {
 fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport, String> {
     let git = &Git { root, configure };
     let mut report = ScanReport::default();
-    let Some(inside) = git.run(&["rev-parse", "--is-inside-work-tree"]) else {
+    let Some(inside) = git.run(&["rev-parse", "--is-inside-work-tree"])? else {
         return Ok(report);
     };
     if !inside.success() {
@@ -282,11 +294,15 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
         paths.push((path.to_owned(), true));
     }
     let has_head = git
-        .ok_text(&["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])
+        .ok_text(&["rev-parse", "--verify", "--quiet", "HEAD^{commit}"])?
         .is_some();
     if has_head {
         let mut reference = "HEAD".to_owned();
-        match default_base(git).and_then(|base| git.ok_text(&["merge-base", &base, "HEAD"])) {
+        let base = match default_base(git)? {
+            Some(base) => git.ok_text(&["merge-base", &base, "HEAD"])?,
+            None => None,
+        };
+        match base {
             Some(base) => reference = base,
             None => {
                 report.committed_skipped = Some(
@@ -491,14 +507,14 @@ mod tests {
     fn git(root: &Path, args: &[&str]) {
         let mut cmd = dx_process::capture::git(root);
         cmd.args([
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@t",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args);
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "-c",
+            "commit.gpgsign=false",
+        ])
+        .args(args);
         dx_test_scratch::isolate_git(&mut cmd, sandbox_of(root));
         dx_process::capture::run_checked(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT)
             .unwrap_or_else(|error| panic!("{args:?}: {error}"));

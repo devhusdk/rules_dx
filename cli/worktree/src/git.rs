@@ -15,16 +15,24 @@ const WRITE_TIMEOUT: Duration = Duration::from_secs(1800);
 /// Bound for the per-slot status reads. A timeout keeps the slot.
 const READ_TIMEOUT: Duration = Duration::from_secs(120);
 
+fn base(cwd: &Path) -> Command {
+    let mut command = dx_process::capture::git_isolated(cwd);
+    command
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_OPTIONAL_LOCKS", "0");
+    command
+}
+
 fn command(cwd: &Path) -> Command {
     // Tests must not see the developer's global hooks, `insteadOf` or signing config.
     #[cfg(test)]
     {
-        let mut command = dx_process::capture::git(cwd);
+        let mut command = base(cwd);
         super::tests::isolate(&mut command);
         command
     }
     #[cfg(not(test))]
-    dx_process::capture::git(cwd)
+    base(cwd)
 }
 
 /// Runs git and returns stdout, or the failure with its stderr.

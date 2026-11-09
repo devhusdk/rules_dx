@@ -131,7 +131,10 @@ impl FakeHost {
 
     /// Makes `process_in` report a process working in `dir`.
     fn occupy(&self, dir: &Path) {
-        self.occupied.lock().expect("occupied").push(dir.to_path_buf());
+        self.occupied
+            .lock()
+            .expect("occupied")
+            .push(dir.to_path_buf());
     }
 
     fn vacate(&self) {
@@ -343,8 +346,9 @@ fn git(dir: &Path, args: &[&str]) -> String {
         .args(["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"])
         .args(args);
     isolate(&mut command);
-    let output = dx_process::capture::run_checked(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
-        .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
+    let output =
+        dx_process::capture::run_checked(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
+            .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
     output.stdout_text().trim().to_owned()
 }
 
@@ -3163,8 +3167,12 @@ mod hooks {
             "tool_input": {"command": command},
         });
         let slots = |dir: &Path| {
-            dir.starts_with("/primary")
-                .then(|| vec![(PathBuf::from("/pool/1"), lease_record(holds.then_some("a1")))])
+            dir.starts_with("/primary").then(|| {
+                vec![(
+                    PathBuf::from("/pool/1"),
+                    lease_record(holds.then_some("a1")),
+                )]
+            })
         };
         hook::primary_checkout(&input, &who("s1", 1), &slots)
     }
@@ -5929,8 +5937,9 @@ fn a_hostile_global_git_config_does_not_break_add_or_release() {
     command.args(["config", "--get", "commit.gpgsign"]);
     command.env("GIT_CONFIG_GLOBAL", &config);
     isolate(&mut command);
-    let output = dx_process::capture::run_captured(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
-        .expect("git");
+    let output =
+        dx_process::capture::run_captured(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
+            .expect("git");
     assert!(output.stdout.is_empty(), "isolation overrides the config");
     let pool = fixture.pool();
     let host = FakeHost::new();

@@ -49,16 +49,16 @@ fn write(path: &Path, bytes: &[u8]) {
 fn git(dir: &Path, args: &[&str]) -> String {
     let output = dx_process::capture::run_checked(
         dx_process::capture::git(dir)
-        .args([
-            "-c",
-            "commit.gpgsign=false",
-            "-c",
-            "user.name=candidate",
-            "-c",
-            "user.email=candidate@example.com",
-        ])
-        .args(args)
-        .env("GIT_CONFIG_NOSYSTEM", "1"),
+            .args([
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "user.name=candidate",
+                "-c",
+                "user.email=candidate@example.com",
+            ])
+            .args(args)
+            .env("GIT_CONFIG_NOSYSTEM", "1"),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
     .unwrap_or_else(|error| panic!("git {args:?} in {dir:?}: {error}"));

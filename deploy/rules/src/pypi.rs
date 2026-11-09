@@ -576,14 +576,7 @@ pub fn pypi_main(
         src: "",
         griffe_rloc: "",
     };
-    pypi_main_checked(
-        wheel_rloc,
-        sdist_rloc,
-        dist_name,
-        registry_url,
-        &off,
-        argv,
-    )
+    pypi_main_checked(wheel_rloc, sdist_rloc, dist_name, registry_url, &off, argv)
 }
 
 /// Runs the PyPI deploy tool.

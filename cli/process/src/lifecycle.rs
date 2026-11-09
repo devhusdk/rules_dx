@@ -37,6 +37,9 @@ pub enum Descendants {
     /// Descendants that leave the console or session, like a Bazel server, may outlive the run.
     /// On Windows, a forced stop without a console also ends them (see `attached_targets`).
     Detachable,
+    /// The child stays in dx's process group, so terminal signals reach it and it may read the terminal.
+    /// A stop signals the child alone.
+    Foreground,
 }
 
 /// The job members a Detachable stop kills: those on dx's console, except dx itself.

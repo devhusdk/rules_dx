@@ -360,8 +360,7 @@ fn run_git(root: &Path, args: &[&str]) {
                 "-c",
                 "commit.gpgsign=false",
             ])
-            .args(args)
-        ,
+            .args(args),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
     .unwrap_or_else(|error| panic!("git {args:?}: {error}"));

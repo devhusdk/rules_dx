@@ -228,7 +228,7 @@ fn git_files(root: &Path) -> Option<Vec<String>> {
     if !root.join(".git").exists() {
         return None;
     }
-    let mut git = dx_process::capture::git(root);
+    let mut git = dx_process::capture::git_isolated(root);
     if let Some(parent) = root
         .canonicalize()
         .ok()

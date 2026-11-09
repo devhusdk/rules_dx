@@ -45,23 +45,23 @@ fn git(dir: &Path, args: &[&str]) -> String {
     let home = git_home();
     let out = dx_process::capture::run_checked(
         dx_process::capture::git(dir)
-        .env("HOME", home)
-        .env("GIT_CONFIG_NOSYSTEM", "1")
-        .env("GIT_CONFIG_GLOBAL", home.join(".gitconfig"))
-        .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
-        .args([
-            "-c",
-            "user.name=Candidate Test",
-            "-c",
-            "user.email=candidate@example.invalid",
-            "-c",
-            "commit.gpgsign=false",
-            "-c",
-            "tag.gpgsign=false",
-            "-c",
-            "init.defaultBranch=main",
-        ])
-        .args(args),
+            .env("HOME", home)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", home.join(".gitconfig"))
+            .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
+            .args([
+                "-c",
+                "user.name=Candidate Test",
+                "-c",
+                "user.email=candidate@example.invalid",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "tag.gpgsign=false",
+                "-c",
+                "init.defaultBranch=main",
+            ])
+            .args(args),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
     .unwrap_or_else(|error| panic!("git {args:?}: {error}"));

@@ -14,8 +14,6 @@ use crate::lifecycle::{
 /// Bound applied by callers that have no better figure for a short query.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(120);
 
-const MAX_CAPTURE: usize = 64 << 20;
-
 const GIT_ENV: [&str; 5] = [
     "GIT_DIR",
     "GIT_WORK_TREE",
@@ -24,17 +22,29 @@ const GIT_ENV: [&str; 5] = [
     "GIT_OBJECT_DIRECTORY",
 ];
 
-/// A git command in `cwd` without inherited repository selection or prompts.
+/// A git command in `cwd`, inheriting the environment.
 pub fn git(cwd: &Path) -> Command {
     let mut command = Command::new("git");
     command.current_dir(cwd);
+    command
+}
+
+/// A git command in `cwd` without the inherited repository selection.
+pub fn git_isolated(cwd: &Path) -> Command {
+    let mut command = git(cwd);
     for name in GIT_ENV {
         command.env_remove(name);
     }
     command
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("GIT_OPTIONAL_LOCKS", "0");
-    command
+}
+
+/// How a captured run behaves beyond its timeout.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct RunOptions {
+    /// Keep the child in dx's process group so terminal signals and prompts reach it.
+    pub foreground: bool,
+    /// Fail with `RunError::OutputTooLarge` once a stream exceeds this many bytes.
+    pub max_bytes: Option<usize>,
 }
 
 /// What a finished child wrote.
@@ -169,16 +179,30 @@ pub fn run_captured_with_input(
     input: Option<&[u8]>,
     timeout: Duration,
 ) -> Result<Captured, RunError> {
+    run_captured_with(command, input, timeout, RunOptions::default())
+}
+
+/// Like `run_captured_with_input`, with `options`.
+pub fn run_captured_with(
+    command: &mut Command,
+    input: Option<&[u8]>,
+    timeout: Duration,
+    options: RunOptions,
+) -> Result<Captured, RunError> {
     let label = describe(command);
     let capture = CapturePolicy {
-        max_bytes: MAX_CAPTURE,
+        max_bytes: options.max_bytes.unwrap_or(usize::MAX),
     };
     let outcome = run_command_with_input(
         command,
         input,
         &capture,
         timeout,
-        Descendants::Owned,
+        if options.foreground {
+            Descendants::Foreground
+        } else {
+            Descendants::Owned
+        },
         CleanupBudget::STANDARD,
         &|| None,
     )
@@ -214,6 +238,15 @@ pub fn run_captured_with_input(
 /// Like `run_captured`, and a non-zero exit is `RunError::Failed`.
 pub fn run_checked(command: &mut Command, timeout: Duration) -> Result<Captured, RunError> {
     run_captured(command, timeout)?.into_success()
+}
+
+/// Like `run_checked`, with `options`.
+pub fn run_checked_with(
+    command: &mut Command,
+    timeout: Duration,
+    options: RunOptions,
+) -> Result<Captured, RunError> {
+    run_captured_with(command, None, timeout, options)?.into_success()
 }
 
 #[cfg(test)]

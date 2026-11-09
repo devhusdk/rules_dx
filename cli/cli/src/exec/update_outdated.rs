@@ -202,11 +202,15 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, String> {
     }
     let mut argv = dx_process::BazelHead::default().argv("run");
     argv.extend(["@rules_dx//ocaml/tools:opam", "--", "snapshot-dir"].map(str::to_owned));
-    let output = dx_process::capture::run_checked(
+    let output = dx_process::capture::run_checked_with(
         std::process::Command::new(&argv[0])
             .args(&argv[1..])
             .current_dir(workspace),
         BAZEL_TIMEOUT,
+        dx_process::capture::RunOptions {
+            foreground: true,
+            ..Default::default()
+        },
     )
     .map_err(|error| match error {
         dx_process::capture::RunError::Spawn { source, .. } => {

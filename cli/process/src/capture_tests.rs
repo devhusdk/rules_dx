@@ -77,19 +77,8 @@ fn a_missing_program_is_a_spawn_error() {
 }
 
 #[test]
-fn output_past_the_bound_is_rejected() {
-    let error = run_captured(
-        &mut probe(&["--stdout-bytes=70000000"]),
-        Duration::from_secs(60),
-    )
-    .expect_err("too large");
-    assert!(matches!(error, RunError::OutputTooLarge { .. }), "{error}");
-    assert!(error.to_string().contains("wrote more than"), "{error}");
-}
-
-#[test]
-fn git_drops_repository_selection_and_disables_prompts() {
-    let command = git(Path::new("/"));
+fn git_isolated_drops_repository_selection_and_sets_nothing_else() {
+    let command = git_isolated(Path::new("/"));
     let env: std::collections::BTreeMap<_, _> = command
         .get_envs()
         .map(|(key, value)| (key.to_string_lossy().into_owned(), value.is_some()))
@@ -97,8 +86,14 @@ fn git_drops_repository_selection_and_disables_prompts() {
     for name in GIT_ENV {
         assert_eq!(env.get(name), Some(&false), "{name}");
     }
-    assert_eq!(env.get("GIT_TERMINAL_PROMPT"), Some(&true));
-    assert_eq!(env.get("GIT_OPTIONAL_LOCKS"), Some(&true));
+    assert_eq!(env.len(), GIT_ENV.len());
+    assert_eq!(command.get_current_dir(), Some(Path::new("/")));
+}
+
+#[test]
+fn plain_git_leaves_the_environment_alone() {
+    let command = git(Path::new("/"));
+    assert_eq!(command.get_envs().count(), 0);
     assert_eq!(command.get_current_dir(), Some(Path::new("/")));
 }
 
@@ -130,4 +125,43 @@ fn input_reaches_stdin_of_the_child() {
         captured.stdout_text().trim(),
         "ce013625030ba8dba906f756967f9e9ca394464a"
     );
+}
+
+#[test]
+fn a_foreground_child_still_times_out_and_is_stopped() {
+    let started = Instant::now();
+    let error = run_captured_with(
+        &mut probe(&["--sleep-ms=60000"]),
+        None,
+        Duration::from_millis(300),
+        RunOptions {
+            foreground: true,
+            ..RunOptions::default()
+        },
+    )
+    .expect_err("a sleeping child must time out");
+    assert!(matches!(error, RunError::TimedOut { .. }), "{error}");
+    assert!(started.elapsed() < Duration::from_secs(30));
+}
+
+#[test]
+fn output_is_unbounded_unless_a_cap_is_set() {
+    let captured = run_captured(
+        &mut probe(&["--stdout-bytes=70000"]),
+        Duration::from_secs(60),
+    )
+    .expect("runs");
+    assert_eq!(captured.stdout.len(), 70000);
+    let error = run_captured_with(
+        &mut probe(&["--stdout-bytes=70000"]),
+        None,
+        Duration::from_secs(60),
+        RunOptions {
+            max_bytes: Some(1024),
+            ..RunOptions::default()
+        },
+    )
+    .expect_err("the cap rejects the output");
+    assert!(matches!(error, RunError::OutputTooLarge { .. }), "{error}");
+    assert!(error.to_string().contains("wrote more than"), "{error}");
 }

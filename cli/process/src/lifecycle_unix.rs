@@ -71,7 +71,9 @@ fn stop_with_parent(_command: &mut Command) {}
 
 pub fn spawn_owned(command: &mut Command, descendants: Descendants) -> io::Result<OwnedChild> {
     use std::os::unix::process::CommandExt;
-    command.process_group(0);
+    if descendants != Descendants::Foreground {
+        command.process_group(0);
+    }
     stop_with_parent(command);
     Ok(OwnedChild {
         child: command.spawn()?,
@@ -87,9 +89,14 @@ pub fn end_owned_descendants(owned: &mut OwnedChild) {
 }
 
 fn signal_group(owned: &mut OwnedChild, signo: i32) {
-    let pgid = -(owned.child.id() as i32);
+    let id = owned.child.id() as i32;
+    let target = if owned.descendants == Descendants::Foreground {
+        id
+    } else {
+        -id
+    };
     unsafe {
-        kill(pgid, signo);
+        kill(target, signo);
     }
 }
 

@@ -64,8 +64,8 @@ msix_sign(
 Attributes:
 
 - `platform`: a Windows platform label such as `@rules_dx_msix//platforms:windows_arm64`. Builds
-  the package and its `binary`, `libs` and `data` for it. Unset uses the current target platform. `target_compatible_with` only marks
-  compatibility. Do not set it with `select()`.
+  the package and its `binary`, `libs` and `data` for it. Unset uses the current target
+  platform. `target_compatible_with` only marks compatibility. Do not set it with `select()`.
 - `binary`: the `.exe`. Its target-configuration bytes are packaged at the package root.
   Every `.dll` in its runfiles, such as its `dynamic_deps`, is packaged next to it.
 - `identity_name`: package identity name, 3 to 50 letters, digits, dots or dashes.

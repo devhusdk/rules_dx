@@ -90,7 +90,45 @@ lua_binary(
 
 ## Packages
 
-There is no LuaRocks support. Pin a pure-Lua package with `http_archive` and
+The `luarocks` module extension turns a `luarocks.lock` into one repository per
+rock and a hub. Only pure-Lua rocks with the `builtin` build type are
+supported.
+
+```python
+luarocks = use_extension("@rules_dx//lua/luarocks:extensions.bzl", "luarocks")
+luarocks.lock(
+    name = "rocks",
+    digests = "//third_party/lua:luarocks.digests.json",
+    lock = "//third_party/lua:luarocks.lock",
+)
+use_repo(luarocks, "rocks")
+```
+
+Depend on `@rocks//inspect`. `luarocks.lock` is the file `luarocks --pin` writes.
+`luarocks.digests.json` sits next to it and lists every locked rock:
+
+```json
+{
+  "packages": {
+    "inspect": {
+      "deps": [],
+      "modules": {"inspect": "inspect.lua"},
+      "source": {
+        "sha256": "<sha256>",
+        "strip_prefix": "inspect.lua-3.1.3",
+        "urls": ["https://github.com/kikito/inspect.lua/archive/v3.1.3.tar.gz"]
+      },
+      "version": "3.1.3-0"
+    }
+  }
+}
+```
+
+`modules` maps each module name to its file in the source. An empty `sha256`
+fails the fetch and prints the digest to commit. A module named `x.init` is
+rejected; list it as `x`.
+
+Alternatively, pin a pure-Lua package with `http_archive` and
 a `build_file` that declares a `lua_library`:
 
 ```python

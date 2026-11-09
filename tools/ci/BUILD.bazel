@@ -763,6 +763,7 @@ rust_test(
         "//libs/starlark:corpus_starlark",
         "//libs/testing:corpus_starlark",
         "//libs/web_server:corpus_starlark",
+        "//lua/luarocks:corpus_starlark",
         "//lua/private:corpus_starlark",
         "//lua/private/toolchain:corpus_starlark",
         "//make/rules:corpus_starlark",

@@ -1343,6 +1343,14 @@ _lua_http_archive(
     urls = ["https://github.com/kikito/inspect.lua/archive/refs/tags/v3.1.3.tar.gz"],
 )
 
+luarocks = use_extension("//lua/luarocks:extensions.bzl", "luarocks", dev_dependency = True)
+luarocks.lock(
+    name = "lua_rocks",
+    digests = "//lua/tests/luarocks:luarocks.digests.json",
+    lock = "//lua/tests/luarocks:luarocks.lock",
+)
+use_repo(luarocks, "lua_rocks")
+
 php = use_extension("//php:extensions.bzl", "php")
 use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
 

@@ -59,10 +59,12 @@ fn statuses_use_the_commit_context_and_run_url() {
     let workflow = workflow();
     for job in ["pending", "finish"] {
         let text = run_text(&workflow, job);
-        assert!(text.contains("context=evidence/$platform/$task"), "{job}");
+        assert!(text.contains("context=evidence/$platform/$task/$scope"), "{job}");
         assert!(text.contains("statuses/$GITHUB_SHA"), "{job}");
         assert!(text.contains("actions/runs/$GITHUB_RUN_ID"), "{job}");
         assert!(!text.contains("${{"), "{job} puts an expression in run");
+        assert!(text.contains("set -o pipefail"), "{job}");
+        assert!(!text.contains("|| true"), "{job} swallows a failed post");
     }
 }
 

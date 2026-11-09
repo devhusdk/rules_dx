@@ -81,16 +81,18 @@ jobs:
           DX_TASK: ${{ inputs.task }}
           DX_PLATFORMS: ${{ inputs.platforms }}
         run: |
+          set -o pipefail
           task="$(printf '%s' "$DX_TASK" | tr -c 'a-z0-9_' '_' | cut -c1-40)"
+          scope="$(printf '%s' "$DX_SCOPE" | tr -c 'A-Za-z0-9_.-' '_' | cut -c1-60)"
           description="$(printf '%s %s' "$task" "$DX_SCOPE" | tr '\n' ' ' | cut -c1-140)"
           url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           printf '%s' "$DX_PLATFORMS" | jq -r '.[]? | strings' 2>/dev/null | while read -r platform; do
             [[ "$platform" =~ ^[a-z0-9_]{1,40}$ ]] || continue
             gh api "repos/$GH_REPO/statuses/$GITHUB_SHA" \
               -f state=pending \
-              -f "context=evidence/$platform/$task" \
+              -f "context=evidence/$platform/$task/$scope" \
               -f "target_url=$url" \
-              -f "description=$description" || true
+              -f "description=$description"
           done
 
   evidence:
@@ -565,10 +567,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          DX_SCOPE: ${{ inputs.scope }}
           DX_TASK: ${{ inputs.task }}
           DX_PLATFORMS: ${{ inputs.platforms }}
         run: |
+          set -o pipefail
           task="$(printf '%s' "$DX_TASK" | tr -c 'a-z0-9_' '_' | cut -c1-40)"
+          scope="$(printf '%s' "$DX_SCOPE" | tr -c 'A-Za-z0-9_.-' '_' | cut -c1-60)"
           url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           jobs="$(gh api "repos/$GH_REPO/actions/runs/$GITHUB_RUN_ID/jobs" --paginate --jq '.jobs[] | {name, conclusion}' | jq -s '.')"
           printf '%s' "$DX_PLATFORMS" | jq -r '.[]? | strings' 2>/dev/null | while read -r platform; do
@@ -581,7 +586,7 @@ jobs:
             esac
             gh api "repos/$GH_REPO/statuses/$GITHUB_SHA" \
               -f "state=$state" \
-              -f "context=evidence/$platform/$task" \
+              -f "context=evidence/$platform/$task/$scope" \
               -f "target_url=$url" \
-              -f "description=$description" || true
+              -f "description=$description"
           done

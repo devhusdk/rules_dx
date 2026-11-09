@@ -33,7 +33,7 @@ tools/dx test --affected -- --config=bb
 
 ## Evidence status
 
-Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform and task on one commit replaces the status.
+Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>/<scope>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform, task and scope on one commit replaces the status.
 
 ## Issues and labels
 

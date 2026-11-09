@@ -3,6 +3,7 @@ use super::*;
 const DUMP: &str = r#"{"schema":1,"files":[
  {"path":"src/geometry.zig","doc":"Geometry helpers.","imports":["shapes.zig"],"fields":[],"decls":[
   {"name":"shapes","public":true,"kind":"import","doc":"","line":2,"signature":"pub const shapes = @import(\"shapes.zig\")","import":"shapes.zig"},
+  {"name":"units","public":true,"kind":"import","doc":"Unit helpers.","line":3,"signature":"pub const units = @import(\"units\")","import":"units"},
   {"name":"std","public":false,"kind":"import","doc":"","line":1,"signature":"const std = @import(\"std\")","import":"std"},
   {"name":"Circle","public":true,"kind":"struct","doc":"A circle.","line":4,"signature":"pub const Circle = struct",
    "fields":[{"name":"radius","type":"f64","doc":"Radius.","line":5}],
@@ -48,6 +49,7 @@ fn private_declarations_and_unreachable_files_are_dropped() {
             "zig:geometry:geometry.add",
             "zig:geometry:geometry.shapes",
             "zig:geometry:geometry.shapes.unit",
+            "zig:geometry:geometry.units",
         ]
     );
 }
@@ -137,4 +139,19 @@ fn resolve_folds_relative_segments() {
     assert_eq!(resolve("src/a.zig", "b.zig"), "src/b.zig");
     assert_eq!(resolve("src/a/x.zig", "../b.zig"), "src/b.zig");
     assert_eq!(resolve("a.zig", "./b.zig"), "b.zig");
+}
+
+#[test]
+fn reexported_dependency_is_a_module_linking_to_its_shard() {
+    let shard = shard("");
+    let module = shard
+        .symbols
+        .iter()
+        .find(|s| s.id == "zig:geometry:geometry.units")
+        .expect("module");
+    assert_eq!(module.kind, SymbolKind::Module as i32);
+    assert_eq!(
+        module.doc_markdown,
+        "Unit helpers.\n\nRe-exports [`units`](dx:zig:units:units)."
+    );
 }

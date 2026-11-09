@@ -237,12 +237,52 @@ fn module(
             if let Some(target) = target {
                 let child = qualified(id, text_of(decl, "name"));
                 module(context, target, &child, visited, out)?;
+            } else if let Some(dep) = dependency(text_of(decl, "import")) {
+                dependency_module(context, decl, source, id, dep, out);
             }
             continue;
         }
         declaration(context, decl, source, id, false, out);
     }
     Ok(())
+}
+
+/// The module name of an `@import` that names another `zig_library` rather than a file or builtin.
+fn dependency(import: &str) -> Option<&str> {
+    let builtin = matches!(import, "std" | "builtin" | "root");
+    (!import.is_empty() && !builtin && !import.ends_with(".zig")).then_some(import)
+}
+
+/// Emits a re-exported dependency as a module whose doc links to the dependency's own shard.
+fn dependency_module(
+    context: &Context<'_>,
+    decl: &Value,
+    source: &Source,
+    parent_id: &str,
+    dep: &str,
+    out: &mut Vec<Symbol>,
+) {
+    let name = text_of(decl, "name");
+    let target = documentation_ir::escape_id_segment(dep);
+    let link = format!(
+        "Re-exports [`{dep}`](dx:{LANGUAGE}:{dep}:{target}).",
+        dep = dep.replace(['`', '[', ']'], "")
+    );
+    let doc = text_of(decl, "doc").trim();
+    let doc = if doc.is_empty() {
+        link
+    } else {
+        format!("{doc}\n\n{link}")
+    };
+    out.push(symbol(
+        context,
+        source,
+        &qualified(parent_id, name),
+        SymbolKind::Module,
+        text_of(decl, "signature"),
+        &doc,
+        line_of(decl),
+    ));
 }
 
 fn source_of<'a>(context: &'a Context<'_>, path: &str) -> Result<&'a Source, String> {

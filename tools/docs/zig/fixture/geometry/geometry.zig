@@ -5,6 +5,9 @@ const std = @import("std");
 /// Unit shapes, re-exported from their own file.
 pub const shapes = @import("shapes.zig");
 
+/// Unit conversions, re-exported from another library.
+pub const units = @import("units");
+
 /// A circle.
 pub const Circle = struct {
     /// The radius.

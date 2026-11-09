@@ -9,6 +9,17 @@ zig_library(
     name = "geometry",
     srcs = ["geometry/shapes.zig"],
     main = "geometry/geometry.zig",
+    deps = [":units"],
+)
+
+zig_library(
+    name = "units",
+    main = "units/units.zig",
+)
+
+zig_doc_shard(
+    name = "units_docs",
+    lib = ":units",
 )
 
 zig_doc_shard(

@@ -2,12 +2,14 @@ load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "d_kwargs", "d_quality_srcs")
+load(":defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "d_quality_srcs")
+load(":kwargs.bzl", "d_kwargs")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "kwargs.bzl",
 ])
 
 config_setting(
@@ -79,6 +81,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "kwargs.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

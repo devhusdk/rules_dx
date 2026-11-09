@@ -5,7 +5,8 @@ load("//erlang/toolchain:cells.bzl", "cell_cases")
 load("//libs/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal")
-load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_forward_kwargs", "app_sources", "ct_run_args", "ct_suite_source", "erlang_kwargs", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")
+load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")
+load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs")
 load(":providers.bzl", "BeamInfo")
 
 def _glob(patterns, exclude = [], **_kwargs):
@@ -27,9 +28,9 @@ def erlang_wrapper_contract_tests(name):
             expect_equal("lcov finds example apps", lcov_apps_dirs(["erlang/tests/fixtures/erlang-app/store/src/kv_store.erl", "erlang/tests/fixtures/erlang-app/proto/src/p.erl"]), "erlang/tests/fixtures/erlang-app"),
             expect_equal("lcov joins sorted roots", lcov_apps_dirs(["erlang/tests/fixtures/erlang-app/store/src/kv_store.erl", "erlang/tests/runtime/src/dx_runtime_probe.erl"]), "erlang/tests:erlang/tests/fixtures/erlang-app"),
             expect_equal("lcov skips non app sources", lcov_apps_dirs(["a/src/x.erl", "a/b/src/x.hrl", "lib/a.erl", "x/y/lib/z.erl"]), ""),
-            expect_equal("apps forward target_compatible_with", app_forward_kwargs(False, [], None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"target_compatible_with": ["@platforms//:incompatible"]}),
-            expect_equal("test apps forward target_compatible_with", app_forward_kwargs(True, [], None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"testonly": True, "target_compatible_with": ["@platforms//:incompatible"]}),
-            expect_equal("apps omit unset target_compatible_with", app_forward_kwargs(False, [], None, {}), {}),
+            expect_equal("apps forward target_compatible_with", erlang_app_forward_kwargs(False, [], None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"target_compatible_with": ["@platforms//:incompatible"]}),
+            expect_equal("test apps forward target_compatible_with", erlang_app_forward_kwargs(True, [], None, {"target_compatible_with": ["@platforms//:incompatible"]}), {"testonly": True, "target_compatible_with": ["@platforms//:incompatible"]}),
+            expect_equal("apps omit unset target_compatible_with", erlang_app_forward_kwargs(False, [], None, {}), {}),
             expect_equal(
                 "suites compile from test",
                 ct_suite_source("kv_store_SUITE"),

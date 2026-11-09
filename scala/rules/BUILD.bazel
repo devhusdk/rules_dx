@@ -1,7 +1,7 @@
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "scala_scalacopts_with_warnings_as_errors")
+load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -9,6 +9,7 @@ _ON = {"warnings_as_errors": True}
 
 exports_files([
     "defs.bzl",
+    "validate.bzl",
 ])
 
 dx_wrapper_contract_tests(
@@ -63,6 +64,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "validate.bzl",
     ],
     tags = ["corpus"],
 )

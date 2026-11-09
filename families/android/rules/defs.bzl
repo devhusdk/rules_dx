@@ -7,32 +7,17 @@ load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("@rules_dx//rust/rules:defs.bzl", "rust_static_library")
 load("@rules_dx//rust/rules:edition.bzl", "RUST_EDITION")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")
-load("//platforms:defs.bzl", "effective_api_level", "platform_label", "tuple_errors", "tuples")
+load("//platforms:defs.bzl", "effective_api_level", "platform_label")
+load("//platforms:validate.bzl", "android_tuple_errors", "android_tuples")
+load(":kwargs.bzl", "android_split_native_kwargs")
 
-_ANDROID_PLATFORMS = {name: platform_label(name) for name in tuples()}
+_ANDROID_PLATFORMS = {name: platform_label(name) for name in android_tuples()}
 
 _API_LEVEL_SETTING = str(Label("//platforms:api_level"))
 
-_SHARED_KWARGS = [
-    "compatible_with",
-    "deprecation",
-    "exec_compatible_with",
-    "features",
-    "restricted_to",
-    "tags",
-    "target_compatible_with",
-    "testonly",
-]
-
-def split_native_kwargs(kwargs):
-    """Splits kwargs into attributes for every generated target and the rest."""
-    shared = {key: kwargs[key] for key in _SHARED_KWARGS if key in kwargs}
-    rest = {key: value for key, value in kwargs.items() if key not in shared}
-    return shared, rest
-
 def _android_transition_impl(_settings, attr):
     if attr.tuple not in _ANDROID_PLATFORMS:
-        fail("android_native_library: unknown tuple '" + attr.tuple + "': want " + ", ".join(tuples()))
+        fail("android_native_library: unknown tuple '" + attr.tuple + "': want " + ", ".join(android_tuples()))
     return {
         "//command_line_option:platforms": [_ANDROID_PLATFORMS[attr.tuple]],
         _API_LEVEL_SETTING: effective_api_level(attr.api_level),
@@ -45,7 +30,7 @@ android_transition = transition(
 )
 
 def _android_library_proxy_impl(ctx):
-    failures = tuple_errors(ctx.attr.tuple, ctx.attr.api_level)
+    failures = android_tuple_errors(ctx.attr.tuple, ctx.attr.api_level)
     if len(failures) > 0:
         fail("; ".join(failures))
     link = ctx.attr.link[0] if type(ctx.attr.link) == "list" else ctx.attr.link
@@ -103,12 +88,12 @@ def android_native_library(
     `platforms` lists the tuples to build (default all). `name_<tuple>` is the
     library for one tuple and `name` groups them.
     """
-    platforms = tuples() if platforms == None else platforms
+    platforms = android_tuples() if platforms == None else platforms
     unknown = [tuple for tuple in platforms if tuple not in _ANDROID_PLATFORMS]
     if len(platforms) == 0 or len(unknown) > 0:
-        fail("android_native_library: platforms must be a non-empty subset of " + ", ".join(tuples()) +
+        fail("android_native_library: platforms must be a non-empty subset of " + ", ".join(android_tuples()) +
              (", got unknown " + ", ".join(unknown) if len(unknown) > 0 else ""))
-    shared, rust_kwargs = split_native_kwargs(kwargs)
+    shared, rust_kwargs = android_split_native_kwargs(kwargs)
     proxy_shared = dict(shared)
     proxy_shared["tags"] = sorted({tag: True for tag in shared.get("tags", []) + ["manual"]}.keys())
     if len(rust_srcs) == 1:

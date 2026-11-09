@@ -3,7 +3,8 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
-load(":defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_kwargs", "app_mod_entry", "app_sources", "elixir_kwargs", "escript_headers", "helper_first", "nif_priv")
+load(":defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "escript_headers", "helper_first", "nif_priv")
+load(":kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
 load(":hex.bzl", "hex_metadata_entry", "hex_tarball_url")
 load(":mix_lock.bzl", "mix_lock_packages")
 
@@ -29,15 +30,15 @@ def elixir_wrapper_contract_tests(name):
             expect_equal("apps own lib sources", ELIXIR_SOURCE_GLOBS, ["lib/**/*.ex"]),
             expect_equal("default apps own the glob", app_sources({}, _glob), ["lib/**/*.ex!"]),
             expect_equal("explicit srcs are the owned files", app_sources({"srcs": ["lib/a.ex"]}, _glob), ["lib/a.ex"]),
-            expect_equal("warnings follow the repo flag by default", type(app_kwargs({}, [])["elixirc_opts"]), "select"),
-            expect_equal("warnings can be forced on", app_kwargs({"warnings_as_errors": True}, [])["elixirc_opts"], ["--warnings-as-errors"]),
-            expect_equal("warnings can be forced off", app_kwargs({"warnings_as_errors": False}, [])["elixirc_opts"], []),
-            expect_equal("user options keep the flag", app_kwargs({"elixirc_opts": ["--no-docs"], "warnings_as_errors": True}, [])["elixirc_opts"], ["--no-docs", "--warnings-as-errors"]),
-            expect_equal("owned sources reach the compiler", app_kwargs({"app_name": "a", "warnings_as_errors": False}, ["lib/a.ex"]), {"app_name": "a", "elixirc_opts": [], "srcs": ["lib/a.ex"]}),
-            expect_equal("app modules are Elixir modules", app_mod_entry("Stock.Application"), "{mod, {'Elixir.Stock.Application', []}}"),
-            expect_equal("app_module becomes the mod entry", app_kwargs({"app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}}"),
-            expect_equal("app_module keeps other extra keys", app_kwargs({"app_extra_keys": "{x, 1}", "app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}},\n{x, 1}"),
-            expect_equal("app_module is not passed upstream", "app_module" in app_kwargs({"app_module": "A"}, []), False),
+            expect_equal("warnings follow the repo flag by default", type(elixir_app_kwargs({}, [])["elixirc_opts"]), "select"),
+            expect_equal("warnings can be forced on", elixir_app_kwargs({"warnings_as_errors": True}, [])["elixirc_opts"], ["--warnings-as-errors"]),
+            expect_equal("warnings can be forced off", elixir_app_kwargs({"warnings_as_errors": False}, [])["elixirc_opts"], []),
+            expect_equal("user options keep the flag", elixir_app_kwargs({"elixirc_opts": ["--no-docs"], "warnings_as_errors": True}, [])["elixirc_opts"], ["--no-docs", "--warnings-as-errors"]),
+            expect_equal("owned sources reach the compiler", elixir_app_kwargs({"app_name": "a", "warnings_as_errors": False}, ["lib/a.ex"]), {"app_name": "a", "elixirc_opts": [], "srcs": ["lib/a.ex"]}),
+            expect_equal("app modules are Elixir modules", elixir_app_mod_entry("Stock.Application"), "{mod, {'Elixir.Stock.Application', []}}"),
+            expect_equal("app_module becomes the mod entry", elixir_app_kwargs({"app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}}"),
+            expect_equal("app_module keeps other extra keys", elixir_app_kwargs({"app_extra_keys": "{x, 1}", "app_module": "A"}, [])["app_extra_keys"], "{mod, {'Elixir.A', []}},\n{x, 1}"),
+            expect_equal("app_module is not passed upstream", "app_module" in elixir_app_kwargs({"app_module": "A"}, []), False),
             expect_equal("escripts start the Elixir module in a UTF-8 VM", escript_headers("Stockctl"), ["shebang", '{emu_args, "+fnu -kernel standard_io_encoding unicode -escript main Elixir.Stockctl"}']),
             expect_equal("test helpers are required first", helper_first(["test/a_test.exs", "test/test_helper.exs", "test/z_test.exs"]), ["test/test_helper.exs", "test/a_test.exs", "test/z_test.exs"]),
             expect_equal("a helper label is required first", helper_first(["//t:a_test.exs", "//t:test_helper.exs"]), ["//t:test_helper.exs", "//t:a_test.exs"]),

@@ -6,6 +6,7 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "defs.bzl",
     "defs_tests.bzl",
+    "kwargs.bzl",
 ])
 
 android_native_library_tests(name = "native_library_tests")
@@ -16,6 +17,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "defs_tests.bzl",
+        "kwargs.bzl",
     ],
     tags = ["corpus"],
 )

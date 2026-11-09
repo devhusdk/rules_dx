@@ -2,12 +2,14 @@ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "FORTRAN_COMPATIBLE_WITH", "FORTRAN_EXTENSIONS", "library_kwargs", "library_name", "link_kwargs", "with_defaults")
+load(":defs.bzl", "FORTRAN_COMPATIBLE_WITH", "FORTRAN_EXTENSIONS", "library_name")
+load(":kwargs.bzl", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "kwargs.bzl",
 ])
 
 UPSTREAM_EXTENSIONS = [
@@ -61,27 +63,27 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "lint and format both run on Fortran",
-            with_defaults({"tags": ["x"]})["tags"],
+            fortran_with_defaults({"tags": ["x"]})["tags"],
             ["x"],
         ),
         expect_equal(
             "the Fortran cell is the default",
-            type(with_defaults({})["target_compatible_with"]),
+            type(fortran_with_defaults({})["target_compatible_with"]),
             type(FORTRAN_COMPATIBLE_WITH),
         ),
         expect_equal(
             "the guard stays with a user list",
-            type(with_defaults({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            type(fortran_with_defaults({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
             "select",
         ),
         expect_equal(
             "the guard stays with an empty list",
-            type(with_defaults({"target_compatible_with": []})["target_compatible_with"]),
+            type(fortran_with_defaults({"target_compatible_with": []})["target_compatible_with"]),
             "select",
         ),
         expect_equal(
             "compile attributes reach the library",
-            sorted(library_kwargs(_ALL).keys()),
+            sorted(fortran_library_kwargs(_ALL).keys()),
             [
                 "copts",
                 "defines",
@@ -94,7 +96,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "link and run attributes reach the C++ rule",
-            sorted(link_kwargs(_ALL).keys()),
+            sorted(fortran_link_kwargs(_ALL).keys()),
             [
                 "args",
                 "data",
@@ -109,12 +111,12 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "configurable copts stay a select",
-            type(library_kwargs({"copts": select({"//conditions:default": ["-O2"]})})["copts"]),
+            type(fortran_library_kwargs({"copts": select({"//conditions:default": ["-O2"]})})["copts"]),
             "select",
         ),
         expect_equal(
             "configurable linkopts stay a select",
-            type(link_kwargs({"linkopts": select({"//conditions:default": ["-lm"]})})["linkopts"]),
+            type(fortran_link_kwargs({"linkopts": select({"//conditions:default": ["-lm"]})})["linkopts"]),
             "select",
         ),
         expect_equal(
@@ -131,6 +133,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "kwargs.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

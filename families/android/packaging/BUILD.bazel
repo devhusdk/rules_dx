@@ -18,6 +18,7 @@ exports_files([
     "rotation_tests.bzl",
     "sign_aab.sh",
     "sign_apk.sh",
+    "validate.bzl",
 ])
 
 android_packaging_tests(name = "metadata")
@@ -348,6 +349,7 @@ real_source_target(
         "metadata_tests.bzl",
         "repos.bzl",
         "rotation_tests.bzl",
+        "validate.bzl",
     ],
     tags = ["corpus"],
 )

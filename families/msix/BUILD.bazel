@@ -15,6 +15,7 @@ exports_files([
     "repos.bzl",
     "sign.ps1",
     "toolchain.bzl",
+    "validate.bzl",
 ])
 
 toolchain_type(name = "toolchain_type")
@@ -35,6 +36,7 @@ real_source_target(
         "pins.bzl",
         "repos.bzl",
         "toolchain.bzl",
+        "validate.bzl",
     ],
     tags = ["corpus"],
 )

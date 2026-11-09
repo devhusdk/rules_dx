@@ -1,32 +1,9 @@
 """Rust iOS library pin and selection coverage."""
 
 load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load("//bundle:defs.bzl", "platform_errors")
-load(
-    ":defs.bzl",
-    "CELL_SETTINGS",
-    "DEVICE_ENV",
-    "SIMULATOR_ENV",
-    "arch_errors",
-    "arches",
-    "cell_settings",
-    "config_errors",
-    "default_config",
-    "deployment_env",
-    "deployment_errors",
-    "environment_errors",
-    "environments",
-    "framework_errors",
-    "framework_linkopts",
-    "ios_platforms",
-    "platform_for",
-    "sdk_errors",
-    "sdk_for",
-    "split_platform",
-    "triple_errors",
-    "triple_for",
-    "xcode_errors",
-)
+load("//bundle:validate.bzl", "bundle_platform_errors")
+load(":defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "cell_settings", "deployment_env", "framework_linkopts", "ios_platforms", "platform_for", "split_platform")
+load(":validate.bzl", "ios_arch_errors", "ios_arches", "ios_config_errors", "ios_default_config", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_framework_errors", "ios_sdk_errors", "ios_sdk_for", "ios_triple_errors", "ios_triple_for", "ios_xcode_errors")
 
 _IOS_DEVICE = Label("@apple_support//platforms:ios_arm64")
 
@@ -59,7 +36,7 @@ def _plain(settings):
     return plain
 
 def _selection(**kwargs):
-    base = default_config(kwargs.get("environment", "simulator"))
+    base = ios_default_config(kwargs.get("environment", "simulator"))
     fields = [
         "arch",
         "crate_features",
@@ -82,119 +59,119 @@ def _selection(**kwargs):
 
 def _ios_checks():
     checks = []
-    checks.append(expect_equal("environments", environments(), ["device", "simulator"]))
-    checks.append(expect_equal("device arches", arches("device"), ["arm64"]))
-    checks.append(expect_equal("simulator arches", arches("simulator"), ["arm64", "x86_64"]))
-    checks.append(expect_equal("unknown environment arches are empty", arches("watch"), []))
-    checks.append(expect_equal("device sdk", sdk_for("device"), "iphoneos"))
-    checks.append(expect_equal("simulator sdk", sdk_for("simulator"), "iphonesimulator"))
-    checks.append(expect_equal("unknown environment sdk is empty", sdk_for("watch"), ""))
-    checks.append(expect_equal("device triple", triple_for("device", "arm64"), "aarch64-apple-ios"))
-    checks.append(expect_equal("simulator arm64 triple", triple_for("simulator", "arm64"), "aarch64-apple-ios-sim"))
-    checks.append(expect_equal("simulator x86_64 triple", triple_for("simulator", "x86_64"), "x86_64-apple-ios"))
-    checks.append(expect_equal("device x86_64 triple is empty", triple_for("device", "x86_64"), ""))
-    checks.append(expect_equal("unknown environment triple is empty", triple_for("watch", "arm64"), ""))
+    checks.append(expect_equal("environments", ios_environments(), ["device", "simulator"]))
+    checks.append(expect_equal("device arches", ios_arches("device"), ["arm64"]))
+    checks.append(expect_equal("simulator arches", ios_arches("simulator"), ["arm64", "x86_64"]))
+    checks.append(expect_equal("unknown environment arches are empty", ios_arches("watch"), []))
+    checks.append(expect_equal("device sdk", ios_sdk_for("device"), "iphoneos"))
+    checks.append(expect_equal("simulator sdk", ios_sdk_for("simulator"), "iphonesimulator"))
+    checks.append(expect_equal("unknown environment sdk is empty", ios_sdk_for("watch"), ""))
+    checks.append(expect_equal("device triple", ios_triple_for("device", "arm64"), "aarch64-apple-ios"))
+    checks.append(expect_equal("simulator arm64 triple", ios_triple_for("simulator", "arm64"), "aarch64-apple-ios-sim"))
+    checks.append(expect_equal("simulator x86_64 triple", ios_triple_for("simulator", "x86_64"), "x86_64-apple-ios"))
+    checks.append(expect_equal("device x86_64 triple is empty", ios_triple_for("device", "x86_64"), ""))
+    checks.append(expect_equal("unknown environment triple is empty", ios_triple_for("watch", "arm64"), ""))
     checks.append(expect_equal("device platform splits", split_platform(["device/arm64"]), ("device", "arm64")))
     checks.append(expect_equal("simulator x86_64 platform splits", split_platform(["simulator/x86_64"]), ("simulator", "x86_64")))
     checks.append(expect_equal("empty platforms split to nothing", split_platform([]), ("", "")))
     checks.append(expect_equal("two platforms split to nothing", split_platform(["device/arm64", "simulator/arm64"]), ("", "")))
     checks.append(expect_equal("unknown platform splits to nothing", split_platform(["watch/arm64"]), ("", "")))
-    checks.append(expect_equal("one platform is clean", platform_errors("apple_ios_lib", ["device/arm64"], ios_platforms()), []))
+    checks.append(expect_equal("one platform is clean", bundle_platform_errors("apple_ios_lib", ["device/arm64"], ios_platforms()), []))
     checks.append(expect_equal(
         "empty platforms fail",
-        platform_errors("apple_ios_lib", [], ios_platforms()),
+        bundle_platform_errors("apple_ios_lib", [], ios_platforms()),
         ["apple_ios_lib: platforms takes one of device/arm64, simulator/arm64, simulator/x86_64"],
     ))
-    checks.append(expect_equal("two platforms fail", len(platform_errors("apple_ios_lib", ["device/arm64", "simulator/arm64"], ios_platforms())), 1))
-    checks.append(expect_equal("unknown platform fails", len(platform_errors("apple_ios_lib", ["watch/arm64"], ios_platforms())), 1))
+    checks.append(expect_equal("two platforms fail", len(bundle_platform_errors("apple_ios_lib", ["device/arm64", "simulator/arm64"], ios_platforms())), 1))
+    checks.append(expect_equal("unknown platform fails", len(bundle_platform_errors("apple_ios_lib", ["watch/arm64"], ios_platforms())), 1))
     checks.append(expect_equal(
         "missing environment fails",
-        environment_errors(""),
+        ios_environment_errors(""),
         ["apple_ios: select one environment: want device, simulator"],
     ))
-    checks.append(expect_equal("device environment is clean", environment_errors("device"), []))
-    checks.append(expect_equal("simulator environment is clean", environment_errors("simulator"), []))
+    checks.append(expect_equal("device environment is clean", ios_environment_errors("device"), []))
+    checks.append(expect_equal("simulator environment is clean", ios_environment_errors("simulator"), []))
     checks.append(expect_equal(
         "unknown environment fails",
-        environment_errors("watch"),
+        ios_environment_errors("watch"),
         ["apple_ios: unknown environment 'watch': want device, simulator"],
     ))
     checks.append(expect_equal(
         "missing arch fails",
-        arch_errors("simulator", ""),
+        ios_arch_errors("simulator", ""),
         ["apple_ios: select one arch for 'simulator': want arm64, x86_64"],
     ))
-    checks.append(expect_equal("device arm64 is clean", arch_errors("device", "arm64"), []))
-    checks.append(expect_equal("simulator x86_64 is clean", arch_errors("simulator", "x86_64"), []))
+    checks.append(expect_equal("device arm64 is clean", ios_arch_errors("device", "arm64"), []))
+    checks.append(expect_equal("simulator x86_64 is clean", ios_arch_errors("simulator", "x86_64"), []))
     checks.append(expect_equal(
         "device x86_64 names the simulator",
-        arch_errors("device", "x86_64"),
+        ios_arch_errors("device", "x86_64"),
         ["apple_ios: device builds need arch 'arm64'; 'x86_64' runs on the simulator"],
     ))
     checks.append(expect_equal(
         "simulator armv7 fails",
-        arch_errors("simulator", "armv7"),
+        ios_arch_errors("simulator", "armv7"),
         ["apple_ios: arch 'armv7' is outside simulator: want arm64, x86_64"],
     ))
-    checks.append(expect_equal("unknown environment arch is clean", arch_errors("watch", "arm64"), []))
-    checks.append(expect_equal("empty triple is clean", triple_errors("simulator", "arm64", ""), []))
+    checks.append(expect_equal("unknown environment arch is clean", ios_arch_errors("watch", "arm64"), []))
+    checks.append(expect_equal("empty triple is clean", ios_triple_errors("simulator", "arm64", ""), []))
     checks.append(expect_equal(
         "matching triple is clean",
-        triple_errors("simulator", "arm64", "aarch64-apple-ios-sim"),
+        ios_triple_errors("simulator", "arm64", "aarch64-apple-ios-sim"),
         [],
     ))
     checks.append(expect_equal(
         "device triple on the simulator fails",
-        triple_errors("simulator", "arm64", "aarch64-apple-ios"),
+        ios_triple_errors("simulator", "arm64", "aarch64-apple-ios"),
         ["apple_ios: triple 'aarch64-apple-ios' disagrees with simulator/arm64: want 'aarch64-apple-ios-sim'"],
     ))
     checks.append(expect_equal(
         "simulator triple on the device fails",
-        triple_errors("device", "arm64", "aarch64-apple-ios-sim"),
+        ios_triple_errors("device", "arm64", "aarch64-apple-ios-sim"),
         ["apple_ios: triple 'aarch64-apple-ios-sim' disagrees with device/arm64: want 'aarch64-apple-ios'"],
     ))
-    checks.append(expect_equal("empty sdk is clean", sdk_errors("device", ""), []))
-    checks.append(expect_equal("matching sdk is clean", sdk_errors("device", "iphoneos"), []))
+    checks.append(expect_equal("empty sdk is clean", ios_sdk_errors("device", ""), []))
+    checks.append(expect_equal("matching sdk is clean", ios_sdk_errors("device", "iphoneos"), []))
     checks.append(expect_equal(
         "simulator sdk on the device fails",
-        sdk_errors("device", "iphonesimulator"),
+        ios_sdk_errors("device", "iphonesimulator"),
         ["apple_ios: sdk 'iphonesimulator' disagrees with 'device': want 'iphoneos'"],
     ))
-    checks.append(expect_equal("empty deployment is clean", deployment_errors("device", ""), []))
-    checks.append(expect_equal("floor deployment is clean", deployment_errors("device", "17.0"), []))
-    checks.append(expect_equal("ceiling deployment is clean", deployment_errors("device", "18.0"), []))
+    checks.append(expect_equal("empty deployment is clean", ios_deployment_errors("device", ""), []))
+    checks.append(expect_equal("floor deployment is clean", ios_deployment_errors("device", "17.0"), []))
+    checks.append(expect_equal("ceiling deployment is clean", ios_deployment_errors("device", "18.0"), []))
     checks.append(expect_equal(
         "downgraded deployment fails",
-        deployment_errors("device", "16.0"),
+        ios_deployment_errors("device", "16.0"),
         ["apple_ios: deployment_target '16.0' is below 17.0"],
     ))
     checks.append(expect_equal(
         "freeform deployment fails",
-        deployment_errors("device", "eighteen"),
+        ios_deployment_errors("device", "eighteen"),
         ["apple_ios: deployment_target 'eighteen' is not a dotted version"],
     ))
     checks.append(expect_equal(
         "too-new deployment fails",
-        deployment_errors("device", "19.0"),
+        ios_deployment_errors("device", "19.0"),
         ["apple_ios: deployment_target '19.0' is above the Xcode 16 'iphoneos' ceiling 18.0"],
     ))
-    checks.append(expect_equal("empty xcode is clean", xcode_errors(""), []))
-    checks.append(expect_equal("lineage xcode is clean", xcode_errors("16.2"), []))
+    checks.append(expect_equal("empty xcode is clean", ios_xcode_errors(""), []))
+    checks.append(expect_equal("lineage xcode is clean", ios_xcode_errors("16.2"), []))
     checks.append(expect_equal(
         "old xcode fails",
-        xcode_errors("15.4"),
+        ios_xcode_errors("15.4"),
         ["apple_ios: xcode '15.4' is outside 16"],
     ))
     checks.append(expect_equal(
         "freeform xcode fails",
-        xcode_errors("sixteen"),
+        ios_xcode_errors("sixteen"),
         ["apple_ios: xcode_version 'sixteen' is not a dotted version"],
     ))
-    checks.append(expect_equal("no frameworks are clean", framework_errors([]), []))
-    checks.append(expect_equal("named frameworks are clean", framework_errors(["Foundation", "UIKit"]), []))
+    checks.append(expect_equal("no frameworks are clean", ios_framework_errors([]), []))
+    checks.append(expect_equal("named frameworks are clean", ios_framework_errors(["Foundation", "UIKit"]), []))
     checks.append(expect_equal(
         "empty framework fails",
-        framework_errors(["Foundation", ""]),
+        ios_framework_errors(["Foundation", ""]),
         ["apple_ios: framework names must not be empty"],
     ))
     checks.append(expect_equal("device platform", str(platform_for("device", "arm64")), str(_IOS_DEVICE)))
@@ -250,15 +227,15 @@ def _ios_checks():
         deployment_env("simulator", ""),
         {"IPHONEOS_DEPLOYMENT_TARGET": "17.0"},
     ))
-    checks.append(expect_equal("clean simulator selection", config_errors(_selection()), []))
+    checks.append(expect_equal("clean simulator selection", ios_config_errors(_selection()), []))
     checks.append(expect_equal(
         "clean device selection",
-        config_errors(_selection(environment = "device")),
+        ios_config_errors(_selection(environment = "device")),
         [],
     ))
     checks.append(expect_equal(
         "explicit cell is clean",
-        config_errors(_selection(
+        ios_config_errors(_selection(
             environment = "simulator",
             arch = "x86_64",
             triple = "x86_64-apple-ios",
@@ -272,26 +249,26 @@ def _ios_checks():
     ))
     checks.append(expect_contains(
         "missing environment fails the selection",
-        config_errors(_selection(environment = "", arch = "")),
+        ios_config_errors(_selection(environment = "", arch = "")),
         "apple_ios: select one environment: want device, simulator",
     ))
     checks.append(expect_contains(
         "device x86_64 fails the selection",
-        config_errors(_selection(environment = "device", arch = "x86_64")),
+        ios_config_errors(_selection(environment = "device", arch = "x86_64")),
         "apple_ios: device builds need arch 'arm64'; 'x86_64' runs on the simulator",
     ))
     checks.append(expect_contains(
         "device triple on the simulator fails the selection",
-        config_errors(_selection(triple = "aarch64-apple-ios")),
+        ios_config_errors(_selection(triple = "aarch64-apple-ios")),
         "apple_ios: triple 'aarch64-apple-ios' disagrees with simulator/arm64: want 'aarch64-apple-ios-sim'",
     ))
     checks.append(expect_contains(
         "too-new deployment fails the selection",
-        config_errors(_selection(deployment = "19.0")),
+        ios_config_errors(_selection(deployment = "19.0")),
         "apple_ios: deployment_target '19.0' is above the Xcode 16 'iphonesimulator' ceiling 18.0",
     ))
     checks.append(expect_true("device and simulator stay distinct", DEVICE_ENV != SIMULATOR_ENV))
-    checks.append(expect_false("device and simulator share no triple", triple_for("device", "arm64") == triple_for("simulator", "arm64")))
+    checks.append(expect_false("device and simulator share no triple", ios_triple_for("device", "arm64") == ios_triple_for("simulator", "arm64")))
     return checks
 
 def apple_ios_tests(name):

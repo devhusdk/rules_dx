@@ -2,6 +2,7 @@
 
 load("//appimage:pins.bzl", "MKSQUASHFS_VERSION", "RUNTIME_VERSION", "TOOL_VERSION")
 load("//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
+load(":validate.bzl", "appimage_name_errors")
 
 AppImageInfo = provider(
     doc = "Identity of one packaged AppImage.",
@@ -12,15 +13,6 @@ AppImageInfo = provider(
         "version": "String: application version.",
     },
 )
-
-def name_errors(name, desktop, icon):
-    """Returns the metadata names that do not match the application name."""
-    errors = []
-    if desktop != name + ".desktop":
-        errors.append("desktop file '" + desktop + "' must be named " + name + ".desktop")
-    if icon not in [name + ".png", name + ".svg"]:
-        errors.append("icon '" + icon + "' must be named " + name + ".png or " + name + ".svg")
-    return errors
 
 def _add(ctx, args, inputs, seen, kind, dest, arg, file):
     """Adds one packaged file once, failing when a different file maps to its destination."""
@@ -41,7 +33,7 @@ def _appimage_impl(ctx):
     if not arch:
         fail("appimage_package " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
     name = ctx.attr.app_name or ctx.label.name
-    errors = name_errors(name, ctx.file.desktop.basename, ctx.file.icon.basename)
+    errors = appimage_name_errors(name, ctx.file.desktop.basename, ctx.file.icon.basename)
     if errors:
         fail("appimage_package " + str(ctx.label) + ": " + "; ".join(errors))
     exe = ctx.attr.binary[DefaultInfo].files_to_run.executable

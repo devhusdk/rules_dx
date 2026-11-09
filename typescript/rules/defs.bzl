@@ -11,6 +11,7 @@ load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 load(":proto.bzl", "ts_proto_srcs")
 
 _DX_TS_PROJECT_PROVIDES = [
@@ -85,16 +86,6 @@ def typescript_transpiler(transpiler):
     if transpiler == None:
         return "tsc"
     return transpiler
-
-def typescript_inner_kwargs(tags, kwargs):
-    """Returns the tags and target_compatible_with kwargs for inner targets."""
-    out = {}
-    inner_tags = tags if tags != None else kwargs.get("tags", None)
-    if inner_tags != None:
-        out["tags"] = list(inner_tags)
-    if kwargs.get("target_compatible_with", None) != None:
-        out["target_compatible_with"] = kwargs["target_compatible_with"]
-    return out
 
 _DX_TSCONFIG_EXTS = (".ts", ".tsx", ".mts", ".cts")
 
@@ -236,14 +227,6 @@ def _dx_scoped_tsconfig(name, srcs, kwargs):
     )
 
     return dx_scoped_tsconfig_out(name, kwargs)
-
-def typescript_forward_kwargs(scoped):
-    """Returns the kwargs the public typescript_project forwarder keeps."""
-    out = {}
-    for key in ("aspect_hints", "hdrs", "tags", "testonly", "target_compatible_with"):
-        if scoped.get(key, None) != None:
-            out[key] = scoped[key]
-    return out
 
 def _typescript_wrap_project(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
     empty_rejection = typescript_empty_project_rejection(srcs, declaration_srcs)

@@ -7,19 +7,11 @@ load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
 load("//java/rules:defs.bzl", "java_jmh_test")
 load("//java/rules:jmh.bzl", "jmh_bench")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":kwargs.bzl", "kotlin_has_own_opts", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_entry_kwargs")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
-
-_KOTLIN_TEST_ROOTS = [
-    "src/test/java/",
-    "src/test/kotlin/",
-    "javatests/",
-    "kotlin/",
-    "java/",
-    "test/",
-]
 
 def _kotlin_coverage_runfiles(ctx):
     """Returns the Jacoco runner runfiles the upstream launcher needs under coverage."""
@@ -99,53 +91,15 @@ kotlin_warnings_as_errors_opts = rule(
     provides = [KotlincOptions],
 )
 
-def _kotlin_has_own_opts(kwargs):
-    return kwargs.get("kotlinc_opts") != None or kwargs.get("warnings_as_errors") != None
-
-def kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs):
-    """Returns kwargs with kotlinc_opts routed through the shared default or a per-target options rule."""
-    out = dx_without_warnings_attr(kwargs)
-    if _kotlin_has_own_opts(kwargs):
-        out["kotlinc_opts"] = ":" + name + "_kotlinc_opts"
-    else:
-        out["kotlinc_opts"] = str(Label("//kotlin/rules:warnings_as_errors"))
-    return out
-
 def _kotlin_declare_warnings_as_errors_opts(name, kwargs):
     """Declares the per-target options rule when kotlinc_opts or warnings_as_errors is set."""
-    if not _kotlin_has_own_opts(kwargs):
+    if not kotlin_has_own_opts(kwargs):
         return
     extra = {key: kwargs[key] for key in ("tags", "testonly", "target_compatible_with") if kwargs.get(key) != None}
     if kwargs.get("kotlinc_opts") != None:
         extra["opts"] = kwargs["kotlinc_opts"]
     _, warning_flags = dx_warnings_as_errors(kwargs, True, False)
     kotlin_warnings_as_errors_opts(name = name + "_kotlinc_opts", warnings_as_errors = warning_flags, visibility = ["//visibility:private"], **extra)
-
-def kotlin_test_class(name, srcs, package):
-    """Returns the test class kt_jvm_test infers for the wrapper name, or None."""
-    if type(srcs) != "list":
-        return None
-    for src in srcs:
-        path = dx_src_path(package, src)
-        if path == None:
-            continue
-        relative = path.replace(package + "/", "") if package else path
-        if relative.split(".")[0] != name and path.split("/")[-1].split(".")[0] != name:
-            continue
-        for root in _KOTLIN_TEST_ROOTS:
-            parts = path.split(root, 1)
-            if len(parts) == 2:
-                return parts[1].split(".")[0].replace("/", ".")
-    return None
-
-def kotlin_test_entry_kwargs(name, srcs, package, kwargs):
-    """Returns kwargs with test_class set to the inferred class when unset."""
-    if kwargs.get("test_class") not in (None, ""):
-        return kwargs
-    test_class = kotlin_test_class(name, srcs, package)
-    if test_class == None:
-        return kwargs
-    return dict(kwargs, test_class = test_class)
 
 def kotlin_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over kt_jvm_library."""

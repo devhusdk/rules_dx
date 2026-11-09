@@ -2,13 +2,15 @@ load("//haskell/toolchain:pins.bzl", "qualified_cells")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "haskell_kwargs", "upstream_kwargs", "with_gmp")
+load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "with_gmp")
+load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs")
 load(":profile_tests.bzl", "profile_ghcopts_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
+    "kwargs.bzl",
 ])
 
 dx_wrapper_contract_tests(
@@ -37,12 +39,12 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "warnings follow the repo flag by default",
-            type(upstream_kwargs({})["ghcopts"]),
+            type(haskell_upstream_kwargs({})["ghcopts"]),
             "select",
         ),
         expect_equal(
             "-Werror can be forced on",
-            upstream_kwargs({
+            haskell_upstream_kwargs({
                 "ghcopts": ["-Wall"],
                 "warnings_as_errors": True,
             })["ghcopts"],
@@ -53,7 +55,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "-Werror can be forced off",
-            upstream_kwargs({
+            haskell_upstream_kwargs({
                 "ghcopts": ["-Wall"],
                 "warnings_as_errors": False,
             })["ghcopts"],
@@ -61,7 +63,7 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "user ghcopts keep -Werror",
-            upstream_kwargs({
+            haskell_upstream_kwargs({
                 "ghcopts": ["-O2"],
                 "warnings_as_errors": True,
             })["ghcopts"],
@@ -72,12 +74,12 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "the attribute is not passed upstream",
-            "warnings_as_errors" in upstream_kwargs({"warnings_as_errors": False}),
+            "warnings_as_errors" in haskell_upstream_kwargs({"warnings_as_errors": False}),
             False,
         ),
         expect_equal(
             "other kwargs pass through",
-            upstream_kwargs({"deps": [":a"]})["deps"],
+            haskell_upstream_kwargs({"deps": [":a"]})["deps"],
             [":a"],
         ),
         expect_equal(
@@ -144,6 +146,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "kwargs.bzl",
         "profile_tests.bzl",
         "deps_resolve.bzl",
     ],

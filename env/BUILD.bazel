@@ -306,6 +306,7 @@ real_source_target(
         "defs_tests.bzl",
         "plan.bzl",
         "plan_tests.bzl",
+        "validate.bzl",
     ],
     tags = ["corpus"],
 )

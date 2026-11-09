@@ -4,8 +4,9 @@ load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_library = "scala_library", _scala_test = "scala_test")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//java/rules:coverage.bzl", "dx_jvm_test_coverage")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
 
 _SCALA_TEST_RUNNER = "io.bazel.rulesscala.scala_test.Runner"
 
@@ -57,11 +58,6 @@ _scala_forward_test = dx_executable_forward_rule(
     quiet_providers = [SemanticdbInfo],
     coverage_providers = dx_jvm_test_coverage,
 )
-
-def scala_scalacopts_with_warnings_as_errors(kwargs):
-    """Returns kwargs with -Xfatal-warnings on scalacopts unless turned off."""
-    out, warning_flags = dx_warnings_as_errors(kwargs, ["-Xfatal-warnings"])
-    return dx_append_flags(out, "scalacopts", warning_flags)
 
 def scala_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_library."""

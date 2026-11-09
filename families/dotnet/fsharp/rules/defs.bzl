@@ -3,10 +3,11 @@
 load("@rules_dotnet//dotnet:defs.bzl", _fsharp_binary = "fsharp_binary", _fsharp_library = "fsharp_library", _fsharp_test = "fsharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
 load("@rules_dx//libs/starlark:fuzz_bench.bzl", "merge_tags")
-load("@rules_dx//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_setdefaults", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("@rules_dx//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
 load("//csharp/rules:benchmarkdotnet.bzl", "BENCHMARKDOTNET")
+load(":kwargs.bzl", "fsharp_tfm_with_defaults")
 
 # Set False to tag fsharp tests dx-no-coverage-collector instead of running coverlet.
 FSHARP_COVERAGE_COLLECTOR = True
@@ -68,11 +69,6 @@ _fsharp_forward_test = dx_executable_forward_rule(
     upstream_aspects = [dx_dotnet_coverage_aspect],
     coverage_providers = dx_dotnet_test_coverage,
 )
-
-def fsharp_tfm_with_defaults(kwargs):
-    """Returns kwargs defaulting target_frameworks and the upstream treat_warnings_as_errors, which follows //config:warnings_as_errors when unset."""
-    rest, warning_flags = dx_warnings_as_errors(kwargs, True, False)
-    return dx_setdefaults(rest, {"target_frameworks": ["net10.0"], "treat_warnings_as_errors": warning_flags})
 
 def _fsharp_context(kwargs):
     return {

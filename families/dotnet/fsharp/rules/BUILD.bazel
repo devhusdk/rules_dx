@@ -3,13 +3,14 @@ load("@rules_dx//dotnet:symbols.bzl", "fsharp_compile_defines")
 load("@rules_dx//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "fsharp_tfm_with_defaults")
+load(":kwargs.bzl", "fsharp_tfm_with_defaults")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "BenchMain.fs",
     "defs.bzl",
+    "kwargs.bzl",
 ])
 
 dx_wrapper_contract_tests(
@@ -97,6 +98,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "kwargs.bzl",
     ],
     tags = ["corpus"],
 )

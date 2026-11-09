@@ -5,7 +5,8 @@ load("@apple_support//xcode:providers.bzl", "XcodeVersionInfo")
 load("@rules_cc//cc:action_names.bzl", "C_COMPILE_ACTION_NAME")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
-load(":defs.bzl", "AppleToolingInfo", "MANAGED_ROUTE", "deployment_floor", "version_below", "version_matches")
+load(":defs.bzl", "AppleToolingInfo", "MANAGED_ROUTE", "deployment_floor", "version_matches")
+load(":validate.bzl", "provisioning_version_below")
 
 PLATFORMS = {
     "iphoneos": str(Label("@apple_support//platforms:ios_arm64")),
@@ -67,16 +68,16 @@ def _apple_toolchain_probe_impl(ctx):
     sdk_version = str(xcode_config.sdk_version_for_platform(platform))
     minimum = str(xcode_config.minimum_os_for_platform_type(platform_type))
     floor = deployment_floor(sdk)
-    if version_below(sdk_version, floor):
+    if provisioning_version_below(sdk_version, floor):
         fail("apple: Xcode {} ships the {} {} SDK, below {}".format(xcode, sdk, sdk_version, floor))
-    if tooling.deployment and (version_below(tooling.deployment, minimum) or version_below(minimum, tooling.deployment)):
+    if tooling.deployment and (provisioning_version_below(tooling.deployment, minimum) or provisioning_version_below(minimum, tooling.deployment)):
         fail("apple: provisioning sets deployment {} but this build uses {}; pass {}={}".format(
             tooling.deployment,
             minimum,
             MINIMUM_OS_FLAGS[sdk],
             tooling.deployment,
         ))
-    if version_below(sdk_version, minimum):
+    if provisioning_version_below(sdk_version, minimum):
         fail("apple: deployment {} is above the {} {} SDK in Xcode {}".format(minimum, sdk, sdk_version, xcode))
     cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
     if cc_toolchain == None:

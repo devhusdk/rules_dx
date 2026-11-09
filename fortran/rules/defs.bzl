@@ -3,21 +3,14 @@
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_fortran//fortran:defs.bzl", "FortranInfo", _fortran_library = "fortran_library")
-load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
+load(":kwargs.bzl", _FORTRAN_COMPATIBLE_WITH = "FORTRAN_COMPATIBLE_WITH", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults")
 
-FORTRAN_COMPATIBLE_WITH = cells_compatible_with(FORTRAN_CELLS, "//fortran/toolchain", sorted(FORTRAN_CELLS.keys()))
-
-SKIP_TAGS = []
+FORTRAN_COMPATIBLE_WITH = _FORTRAN_COMPATIBLE_WITH
 
 FORTRAN_EXTENSIONS = ["f", "f90", "f95", "f03", "f08", "F", "F90", "F95", "F03", "F08"]
-
-LIBRARY_ATTRS = ["copts", "defines", "deps", "hdrs", "includes", "srcs"]
-
-SHARED_ATTRS = ["tags", "target_compatible_with", "testonly"]
 
 _FORTRAN = [("fortran", FORTRAN_EXTENSIONS)]
 
@@ -89,32 +82,15 @@ _fortran_forward_test = dx_executable_forward_rule(
     coverage_providers = _fortran_test_coverage,
 )
 
-def with_defaults(kwargs):
-    """Returns kwargs with the qualified Fortran cell appended to target_compatible_with and the quality skip tags."""
-    out = dx_language_kwargs(kwargs, SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
-    out["copts"] = (out.get("copts") or []) + select({
-        Label("//fortran/rules:kcov_build"): ["-g"],
-        "//conditions:default": [],
-    })
-    return out
-
-def library_kwargs(kwargs):
-    """Returns the attributes of an executable that the Fortran library compiles with."""
-    return {key: value for key, value in kwargs.items() if key in LIBRARY_ATTRS or key in SHARED_ATTRS}
-
-def link_kwargs(kwargs):
-    """Returns the attributes of an executable that the C++ link rule takes."""
-    return {key: value for key, value in kwargs.items() if key not in LIBRARY_ATTRS}
-
 def library_name(name):
     """Returns the name of the private Fortran library behind one executable."""
     return name + "_fortran"
 
 def _linked(cc_rule):
     def _macro(name, visibility = None, **kwargs):
-        lib = library_kwargs(kwargs)
+        lib = fortran_library_kwargs(kwargs)
         _fortran_library(name = library_name(name), visibility = ["//visibility:private"], **lib)
-        cc_rule(name = name, visibility = visibility, deps = [":" + library_name(name)], **link_kwargs(kwargs))
+        cc_rule(name = name, visibility = visibility, deps = [":" + library_name(name)], **fortran_link_kwargs(kwargs))
 
     return _macro
 
@@ -124,12 +100,12 @@ _fortran_cc_test = _linked(_cc_test)
 
 def fortran_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_fortran fortran_library rule."""
-    dx_wrap(name, _fortran_library, _library_forward, srcs or [], visibility = visibility, **with_defaults(kwargs))
+    dx_wrap(name, _fortran_library, _library_forward, srcs or [], visibility = visibility, **fortran_with_defaults(kwargs))
 
 def fortran_binary(name, srcs = None, visibility = None, **kwargs):
     """Compiles Fortran sources with rules_fortran and links them with cc_binary."""
-    dx_wrap_binary(name, _fortran_cc_binary, _binary_forward, srcs or [], visibility = visibility, **with_defaults(kwargs))
+    dx_wrap_binary(name, _fortran_cc_binary, _binary_forward, srcs or [], visibility = visibility, **fortran_with_defaults(kwargs))
 
 def fortran_test(name, srcs = None, visibility = None, **kwargs):
     """Compiles Fortran sources with rules_fortran and links them with cc_test."""
-    dx_wrap_test(name, _fortran_cc_test, _fortran_forward_test, srcs or [], visibility = visibility, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, **with_defaults(kwargs))
+    dx_wrap_test(name, _fortran_cc_test, _fortran_forward_test, srcs or [], visibility = visibility, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, **fortran_with_defaults(kwargs))

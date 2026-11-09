@@ -23,16 +23,15 @@ load(
     _ocamllex = "ocamllex",
 )
 load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
-load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
+load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+load(":kwargs.bzl", _OCAML_COMPATIBLE_WITH = "OCAML_COMPATIBLE_WITH", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults")
 load(":providers.bzl", "OCamlCmtInfo", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
+
+OCAML_COMPATIBLE_WITH = _OCAML_COMPATIBLE_WITH
 
 # Re-exported unchanged: BUILD files need it to generate lexers.
 ocamllex = _ocamllex
-
-OCAML_COMPATIBLE_WITH = cells_compatible_with(OCAML_CELLS, "//ocaml/toolchain", sorted(OCAML_CELLS.keys()))
 
 OCAML_TOOLCHAIN_FLAG = "@rules_ocaml//toolchain"
 
@@ -40,21 +39,11 @@ OCAML_EMITTER_FLAG = str(Label("//ocaml/toolchain:emitter"))
 
 _FEATURES = "//command_line_option:features"
 
-COVERAGE_ACTIVE = str(Label("//tools/coverage/ocaml:coverage_active"))
-
-BISECT_DRIVER = str(Label("//tools/coverage/ocaml:bisect_driver"))
-
-BISECT_RUNTIME = str(Label("//tools/coverage/ocaml:bisect_runtime"))
-
 NATIVE_TOOLCHAIN = "ocamlopt.opt"
 
 UPSTREAM_DEFAULT_TOOLCHAIN = "ocamlopt.opt"
 
 OCAML_DEFAULT_TOOLCHAIN = "ocamlc.opt"
-
-OCAML_LINK_OPTS = ["-without-runtime"]
-
-LOCAL_TAGS = ["no-remote-exec"]
 
 _OCAML = [("ocaml", ["ml", "mli"])]
 
@@ -283,75 +272,25 @@ def owned_sources(*files):
     """Returns the hand-written .ml and .mli files among the given labels."""
     return [f for f in files if type(f) == "string" and (f.endswith(".ml") or f.endswith(".mli"))]
 
-def upstream_tags(tags):
-    """Returns private upstream tags that keep OCaml actions on this host."""
-    out = dx_upstream_tags(tags)
-    return out + [tag for tag in LOCAL_TAGS if tag not in out]
-
-def with_defaults(kwargs):
-    """Returns kwargs with the qualified OCaml cell appended to target_compatible_with."""
-    return dx_language_kwargs(kwargs, [], OCAML_COMPATIBLE_WITH)
-
-def link_kwargs(kwargs):
-    """Returns binary kwargs that link plain bytecode for the runfiles ocamlrun when the emitter is vm; native links take no extra opts."""
-    vm_opts = select({
-        Label("//ocaml/toolchain:emitter_vm"): OCAML_LINK_OPTS,
-        "//conditions:default": [],
-    })
-    out = dict(kwargs)
-    opts = out.get("opts")
-    out["opts"] = vm_opts if opts == None else opts + vm_opts
-    if out.get("vm_linkage") == None:
-        out["vm_linkage"] = "dynamic"
-    return out
-
-TEST_ONLY_ATTRS = ["flaky", "local", "shard_count", "size", "testonly", "timeout"]
-
-def test_upstream_kwargs(kwargs):
-    """Returns the test kwargs the upstream executable accepts."""
-    return {key: value for key, value in kwargs.items() if key not in TEST_ONLY_ATTRS}
-
-def default_module_name(name, sig):
-    """Returns the module_name default: the target name unless sig names a signature target."""
-    if sig == None or (type(sig) == "string" and sig.endswith(".mli")):
-        return name
-    return None
-
 def _library_shape(name, upstream_rule, forward_rule, srcs, visibility, kwargs, forward_extra = {}):
-    kwargs = with_defaults(kwargs)
+    kwargs = ocaml_with_defaults(kwargs)
     upstream = dict(kwargs)
-    upstream["tags"] = upstream_tags(kwargs.get("tags"))
+    upstream["tags"] = ocaml_upstream_tags(kwargs.get("tags"))
     upstream_rule(name = name + "_upstream", visibility = ["//visibility:private"], **upstream)
     forward_rule(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **dict(dx_wrap_forward_kwargs(kwargs), **forward_extra))
-
-def coverage_kwargs(kwargs, struct, package, coverage_ppx = False):
-    """Returns kwargs that run the bisect_ppx instrumenter over struct when `bazel coverage` runs on Linux x86_64."""
-    if type(struct) != "string" or not struct.endswith(".ml"):
-        return kwargs
-    own_ppx = kwargs.get("ppx") != None
-    if own_ppx and not coverage_ppx:
-        return kwargs
-    out = dict(kwargs)
-    if not own_ppx:
-        out["ppx"] = select({COVERAGE_ACTIVE: BISECT_DRIVER, "//conditions:default": None})
-    loc_args = select({COVERAGE_ACTIVE: ["-loc-filename", package + "/" + struct], "//conditions:default": []})
-    out["ppx_args"] = (out.get("ppx_args") or []) + loc_args
-    out["deps"] = (out.get("deps") or []) + select({COVERAGE_ACTIVE: [BISECT_RUNTIME], "//conditions:default": []})
-    out["opts"] = (out.get("opts") or []) + select({COVERAGE_ACTIVE: ["-w", "-33"], "//conditions:default": []})
-    return out
 
 def ocaml_module(name, struct, sig = None, visibility = None, instrument_coverage = True, coverage_ppx = False, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_module rule; modules are instrumented for bisect_ppx coverage unless instrument_coverage is False, and coverage_ppx marks a module whose own ppx already links bisect_ppx."""
     if sig != None:
         kwargs["sig"] = sig
     if kwargs.get("module_name") == None:
-        module_name = default_module_name(name, sig)
+        module_name = ocaml_default_module_name(name, sig)
         if module_name != None:
             kwargs["module_name"] = module_name
     kwargs, warning_flags = dx_warnings_as_errors(kwargs, WARNINGS_AS_ERRORS_OPTS)
     kwargs["opts"] = profile_warning_opts(bin_annot_opts(kwargs.get("opts"))) + warning_flags
     if instrument_coverage:
-        kwargs = coverage_kwargs(kwargs, struct, native.package_name(), coverage_ppx)
+        kwargs = ocaml_coverage_kwargs(kwargs, struct, native.package_name(), coverage_ppx)
     _library_shape(name, _ocaml_module, _module_forward, owned_sources(struct, sig), visibility, dict(kwargs, struct = struct), {"instrument_coverage": instrument_coverage})
 
 def ocaml_signature(name, src, visibility = None, **kwargs):
@@ -366,16 +305,16 @@ def ocaml_library(name, visibility = None, **kwargs):
 
 def ocaml_binary(name, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_binary rule run on the pinned ocamlrun."""
-    kwargs = with_defaults(kwargs)
-    upstream = dx_binary_upstream_kwargs(link_kwargs(kwargs), None)
-    upstream["tags"] = upstream_tags(kwargs.get("tags"))
+    kwargs = ocaml_with_defaults(kwargs)
+    upstream = dx_binary_upstream_kwargs(ocaml_link_kwargs(kwargs), None)
+    upstream["tags"] = ocaml_upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", **upstream)
     _ocaml_forward_binary(name = name, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_binary_forward_kwargs(kwargs))
 
 def ocaml_test(name, visibility = None, **kwargs):
     """Builds one rules_ocaml bytecode executable and runs it as a test on the pinned ocamlrun."""
-    kwargs = with_defaults(kwargs)
-    upstream = test_upstream_kwargs(dx_test_upstream_kwargs(link_kwargs(kwargs)))
-    upstream["tags"] = upstream_tags(kwargs.get("tags"))
+    kwargs = ocaml_with_defaults(kwargs)
+    upstream = ocaml_test_upstream_kwargs(dx_test_upstream_kwargs(ocaml_link_kwargs(kwargs)))
+    upstream["tags"] = ocaml_upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
     _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))

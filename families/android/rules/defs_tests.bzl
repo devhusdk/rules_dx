@@ -3,16 +3,16 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//toolchain:cc_toolchain_config.bzl", "NdkToolchainLevelInfo")
-load(":defs.bzl", "split_native_kwargs")
+load(":kwargs.bzl", "android_split_native_kwargs")
 
 def _split_checks():
-    shared, rest = split_native_kwargs({
+    shared, rest = android_split_native_kwargs({
         "deps": ["a"],
         "tags": ["t"],
         "target_compatible_with": ["c"],
         "testonly": True,
     })
-    none_shared, none_rest = split_native_kwargs({"deps": ["a"], "data": ["d"]})
+    none_shared, none_rest = android_split_native_kwargs({"deps": ["a"], "data": ["d"]})
     return [
         expect_equal("shared keys", shared, {"tags": ["t"], "target_compatible_with": ["c"], "testonly": True}),
         expect_equal("rust only keys", rest, {"deps": ["a"]}),

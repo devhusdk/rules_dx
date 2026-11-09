@@ -4,30 +4,20 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_haskell//haskell:defs.bzl", _haskell_binary = "haskell_binary", _haskell_library = "haskell_library", _haskell_test = "haskell_test")
 load("@rules_haskell//haskell:providers.bzl", _HaskellCoverageInfo = "HaskellCoverageInfo", _HaskellInfo = "HaskellInfo", _HaskellLibraryInfo = "HaskellLibraryInfo")
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
-load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_binary", "dx_wrap_test")
+load("//libs/starlark:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/haskell:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
+load(":kwargs.bzl", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS", "haskell_kwargs", "haskell_upstream_kwargs")
+
+DEFAULT_GHCOPTS = _DEFAULT_GHCOPTS
+HASKELL_CELLS = _HASKELL_CELLS
+HASKELL_COMPATIBLE_WITH = _HASKELL_COMPATIBLE_WITH
+STANDARD_GHCOPTS = _STANDARD_GHCOPTS
+STRICT_GHCOPTS = _STRICT_GHCOPTS
 
 HaskellInfo = _HaskellInfo
 
 HaskellLibraryInfo = _HaskellLibraryInfo
-
-HASKELL_CELLS = qualified_cells()
-
-HASKELL_COMPATIBLE_WITH = cells_compatible_with(CELLS, "//haskell/toolchain", HASKELL_CELLS, unsupported = True)
-
-STANDARD_GHCOPTS = ["-Wall"]
-
-STRICT_GHCOPTS = ["-Wall", "-Wcompat", "-Wredundant-constraints", "-Wpartial-fields", "-Widentities"]
-
-DEFAULT_GHCOPTS = select({
-    Label("//config:config_profile_strict"): STRICT_GHCOPTS,
-    "//conditions:default": STANDARD_GHCOPTS,
-})
-
-_WARNINGS_AS_ERRORS_GHCOPTS = ["-Werror"]
 
 GMP = Label("@dx_haskell_toolchains//:gmp")
 
@@ -75,13 +65,6 @@ _haskell_forward_test = dx_executable_forward_rule(
     upstream_cfg = ghc_mingw_transition,
 )
 
-def upstream_kwargs(kwargs):
-    """Returns the rules_haskell kwargs with ghcopts plus the warnings-as-errors flag."""
-    upstream, warning_flags = dx_warnings_as_errors(kwargs, _WARNINGS_AS_ERRORS_GHCOPTS)
-    ghcopts = upstream.get("ghcopts")
-    upstream["ghcopts"] = (DEFAULT_GHCOPTS if ghcopts == None else ghcopts) + warning_flags
-    return upstream
-
 def with_gmp(deps, gmp = GMP):
     """Returns executable deps with the GMP runtime that ghc-bignum links added once."""
     if type(deps) == "select":
@@ -98,14 +81,10 @@ def _forward_kwargs(kwargs, testonly):
             out[key] = kwargs[key]
     return out
 
-def haskell_kwargs(kwargs):
-    """Returns kwargs with the Haskell platform guard appended."""
-    return dx_language_kwargs(kwargs, [], HASKELL_COMPATIBLE_WITH)
-
 def haskell_library(name, srcs = [], visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_haskell haskell_library macro."""
     kwargs = haskell_kwargs(kwargs)
-    upstream = upstream_kwargs(kwargs)
+    upstream = haskell_upstream_kwargs(kwargs)
     upstream["tags"] = dx_upstream_tags(upstream.get("tags"))
     _haskell_library(name = name + "_upstream", srcs = srcs, testonly = testonly, visibility = ["//visibility:private"], **upstream)
     _haskell_library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
@@ -113,13 +92,13 @@ def haskell_library(name, srcs = [], visibility = None, testonly = False, **kwar
 def haskell_binary(name, srcs = [], visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_binary macro."""
     kwargs = haskell_kwargs(kwargs)
-    upstream = upstream_kwargs(kwargs)
+    upstream = haskell_upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_binary(name, _haskell_binary, _haskell_forward_binary, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
 
 def haskell_test(name, srcs = [], visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_test macro."""
     kwargs = haskell_kwargs(kwargs)
-    upstream = upstream_kwargs(kwargs)
+    upstream = haskell_upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)

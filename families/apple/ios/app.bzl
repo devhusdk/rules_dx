@@ -10,22 +10,9 @@ load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
-load(
-    "//bundle:defs.bzl",
-    "SIGNING_CERTIFICATE",
-    "TOOL_PATH",
-    "archives",
-    "bundle_id_errors",
-    "bundle_version_errors",
-    "check_cell",
-    "display",
-    "flat_resources",
-    "framework_binaries",
-    "label_text",
-    "platform_errors",
-    "resolved_xcode",
-)
-load("//provisioning:defs.bzl", "version_below")
+load("//bundle:defs.bzl", "SIGNING_CERTIFICATE", "TOOL_PATH", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
+load("//bundle:validate.bzl", "bundle_id_errors", "bundle_platform_errors", "bundle_version_errors")
+load("//provisioning:validate.bzl", "provisioning_version_below")
 load(
     ":cell.bzl",
     "APPLE_HOSTS",
@@ -35,19 +22,8 @@ load(
     "ios_platform",
     "target_cell",
 )
-load(
-    ":defs.bzl",
-    "AppleIosLibInfo",
-    "arch_errors",
-    "arches",
-    "deployment_errors",
-    "environment_errors",
-    "environments",
-    "ios_platforms",
-    "sdk_for",
-    "split_platform",
-    "xcode_errors",
-)
+load(":defs.bzl", "AppleIosLibInfo", "ios_platforms", "split_platform")
+load(":validate.bzl", "ios_arch_errors", "ios_arches", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_sdk_for", "ios_xcode_errors")
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -155,12 +131,12 @@ def default_app(environment):
 
 def app_errors(config):
     """Returns one error string per rejected field of one app composition."""
-    errors = list(environment_errors(config.environment))
-    errors.extend(arch_errors(config.environment, config.arch))
+    errors = list(ios_environment_errors(config.environment))
+    errors.extend(ios_arch_errors(config.environment, config.arch))
     if config.deployment == "":
         errors.append("apple_app: deployment names the minimum iOS version")
-    errors.extend(deployment_errors(config.environment, config.deployment))
-    errors.extend(xcode_errors(config.xcode_version))
+    errors.extend(ios_deployment_errors(config.environment, config.deployment))
+    errors.extend(ios_xcode_errors(config.xcode_version))
     errors.extend(bundle_id_errors("apple_app", config.bundle_id))
     errors.extend(bundle_version_errors("apple_app", config.version))
     errors.extend(app_resource_errors(config.resources))
@@ -186,13 +162,13 @@ def test_errors(device_type, os_version, deployment):
     if deployment == "":
         errors.append("apple_app_test: deployment names the minimum iOS version of the host app")
     else:
-        errors.extend(deployment_errors("simulator", deployment))
-        if len(errors) == 0 and version_below(os_version, deployment):
+        errors.extend(ios_deployment_errors("simulator", deployment))
+        if len(errors) == 0 and provisioning_version_below(os_version, deployment):
             errors.append("apple_app_test: simulator runtime iOS " + os_version + " is below the app deployment " + deployment)
     return errors
 
 def _app_selection_impl(ctx):
-    selected = platform_errors("apple_ios_app", list(ctx.attr.platforms), ios_platforms())
+    selected = bundle_platform_errors("apple_ios_app", list(ctx.attr.platforms), ios_platforms())
     if len(selected) > 0:
         fail("; ".join(selected))
     failures = app_errors(struct(
@@ -272,7 +248,7 @@ _app_selection = rule(
 )
 
 def _library_cell_impl(ctx):
-    errors = environment_errors(ctx.attr.environment) + arch_errors(ctx.attr.environment, ctx.attr.arch)
+    errors = ios_environment_errors(ctx.attr.environment) + ios_arch_errors(ctx.attr.environment, ctx.attr.arch)
     if len(errors) > 0:
         fail("; ".join(errors))
     want = ctx.attr.environment + "/" + ctx.attr.arch
@@ -311,7 +287,7 @@ def _library_cell_impl(ctx):
         ctx,
         "apple_ios_app",
         want,
-        sdk_for(ctx.attr.environment),
+        ios_sdk_for(ctx.attr.environment),
         MACH_O_PLATFORMS[ctx.attr.environment],
         ios_platform(ctx.attr.environment),
         apple_common.platform_type.ios,
@@ -402,7 +378,7 @@ def _framework_cell_impl(ctx):
         ctx,
         "apple_ios_xcframework",
         got,
-        sdk_for(environment),
+        ios_sdk_for(environment),
         MACH_O_PLATFORMS[environment],
         ios_platform(environment),
         apple_common.platform_type.ios,
@@ -756,11 +732,11 @@ def slice_errors(slices):
             continue
         environment = parts[0]
         arch = parts[1]
-        if environment not in environments():
-            errors.append("apple_framework: unknown environment '" + environment + "' in platform '" + slice + "': want " + ", ".join(environments()))
+        if environment not in ios_environments():
+            errors.append("apple_framework: unknown environment '" + environment + "' in platform '" + slice + "': want " + ", ".join(ios_environments()))
             continue
-        if arch not in arches(environment):
-            errors.append("apple_framework: arch '" + arch + "' is outside " + environment + " in platform '" + slice + "': want " + ", ".join(arches(environment)))
+        if arch not in ios_arches(environment):
+            errors.append("apple_framework: arch '" + arch + "' is outside " + environment + " in platform '" + slice + "': want " + ", ".join(ios_arches(environment)))
             continue
         if environment == "device":
             has_device = True
@@ -822,8 +798,8 @@ def framework_errors(config):
     errors.extend(framework_header_errors(config.hdrs))
     if config.deployment == "":
         errors.append("apple_framework: deployment names the minimum iOS version")
-    errors.extend(deployment_errors("device", config.deployment))
-    errors.extend(xcode_errors(config.xcode_version))
+    errors.extend(ios_deployment_errors("device", config.deployment))
+    errors.extend(ios_xcode_errors(config.xcode_version))
     if config.library == "":
         errors.append("apple_framework: framework composes one Rust static library in library")
     return errors

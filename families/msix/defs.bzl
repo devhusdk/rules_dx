@@ -1,8 +1,9 @@
 """Windows MSIX packaging for target binaries."""
 
 load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary")
-load("@rules_dx//libs/starlark:packaging.bzl", "claim_dest", "data_path", "only_chars", "platform_arch")
+load("@rules_dx//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")
+load(":validate.bzl", "PLATFORM_VALUES", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_platform_errors", "msix_publisher_errors", "msix_version_errors")
 
 MsixInfo = provider(
     doc = "Identity of one MSIX package.",
@@ -18,56 +19,9 @@ MsixInfo = provider(
 
 TOOLCHAIN_TYPE = str(Label("//:toolchain_type"))
 
-_LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-_DIGITS = "0123456789"
-
-def named_version_errors(attr, version):
-    """Returns why the value of a version attribute is not four numbers up to 65535."""
-    parts = version.split(".")
-    if len(parts) != 4:
-        return [attr + " '" + version + "' must have four parts, as in 1.2.3.0"]
-    for part in parts:
-        if part == "" or not only_chars(part, _DIGITS) or len(part) > 5 or int(part) > 65535:
-            return [attr + " '" + version + "' parts must be numbers from 0 to 65535"]
-    return []
-
-def version_errors(version):
-    """Returns why a package version is not four numbers up to 65535."""
-    return named_version_errors("version", version)
-
 def compatible_with(constraints):
     """Returns the target constraints of a msix_package target, always including Windows."""
     return ["@platforms//os:windows"] + [c for c in constraints if c != "@platforms//os:windows"]
-
-PLATFORM_VALUES = {"arm64": "windows_arm64", "x86_64": "windows_x86_64"}
-
-def platform_errors(platforms):
-    """Returns why a platforms value is not empty or one known architecture."""
-    if len(platforms) == 0 or (len(platforms) == 1 and platforms[0] in PLATFORM_VALUES):
-        return []
-    return ["platforms takes one of " + ", ".join(sorted(PLATFORM_VALUES))]
-
-def identity_errors(name):
-    """Returns why a package identity name is invalid."""
-    if len(name) < 3 or len(name) > 50 or not only_chars(name, _LETTERS + _DIGITS + ".-"):
-        return ["identity_name '" + name + "' must be 3 to 50 letters, digits, dots or dashes"]
-    return []
-
-def application_errors(application_id):
-    """Returns why an application id is invalid."""
-    parts = application_id.split(".")
-    for part in parts:
-        if part == "" or part[0] not in _LETTERS.elems() or not only_chars(part, _LETTERS + _DIGITS):
-            return ["application_id '" + application_id + "' must be dot-separated words that start with a letter"]
-    if len(application_id) > 64:
-        return ["application_id '" + application_id + "' must be at most 64 characters"]
-    return []
-
-def publisher_errors(publisher):
-    """Returns why a publisher is not a distinguished name."""
-    if not publisher.startswith("CN=") or len(publisher) > 8192:
-        return ["publisher '" + publisher + "' must be a distinguished name that starts with CN="]
-    return []
 
 def publisher_cn(publisher):
     """Returns the unescaped CN value of a publisher distinguished name."""
@@ -88,14 +42,6 @@ def publisher_cn(publisher):
             value += char
     return value.strip()
 
-def alias_errors(alias):
-    """Returns why an execution alias is invalid."""
-    if alias == "":
-        return []
-    if not alias.endswith(".exe") or len(alias) < 5 or not only_chars(alias, _LETTERS + _DIGITS + ".-_"):
-        return ["alias '" + alias + "' must be a file name that ends with .exe"]
-    return []
-
 def _add(ctx, entries, seen, kind, dest, file):
     """Adds a packaged file once. Returns False for a repeat of the same file."""
     prior = claim_dest(seen, dest, file, fold_case = True)
@@ -107,7 +53,7 @@ def _add(ctx, entries, seen, kind, dest, file):
     return True
 
 def _msix_impl(ctx):
-    errors = platform_errors(ctx.attr.platforms)
+    errors = msix_platform_errors(ctx.attr.platforms)
     if errors:
         fail("msix_package " + str(ctx.label) + ": " + errors[0])
     cv = platform_common.ConstraintValueInfo
@@ -118,13 +64,13 @@ def _msix_impl(ctx):
     if not arch:
         fail("msix_package " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
     errors = (
-        identity_errors(ctx.attr.identity_name) +
-        publisher_errors(ctx.attr.publisher) +
-        version_errors(ctx.attr.version) +
-        named_version_errors("min_version", ctx.attr.min_version) +
-        named_version_errors("max_version_tested", ctx.attr.max_version_tested) +
-        application_errors(ctx.attr.application_id) +
-        alias_errors(ctx.attr.alias)
+        msix_identity_errors(ctx.attr.identity_name) +
+        msix_publisher_errors(ctx.attr.publisher) +
+        msix_version_errors(ctx.attr.version) +
+        msix_named_version_errors("min_version", ctx.attr.min_version) +
+        msix_named_version_errors("max_version_tested", ctx.attr.max_version_tested) +
+        msix_application_errors(ctx.attr.application_id) +
+        msix_alias_errors(ctx.attr.alias)
     )
     if errors:
         fail("msix_package " + str(ctx.label) + ": " + "; ".join(errors))
@@ -224,7 +170,7 @@ def _msix_impl(ctx):
     ]
 
 def _platforms_transition_impl(settings, attr):
-    if platform_errors(attr.platforms) or not attr.platforms:
+    if msix_platform_errors(attr.platforms) or not attr.platforms:
         return {"//command_line_option:platforms": settings["//command_line_option:platforms"]}
     return {"//command_line_option:platforms": [str(Label("//platforms:" + PLATFORM_VALUES[attr.platforms[0]]))]}
 

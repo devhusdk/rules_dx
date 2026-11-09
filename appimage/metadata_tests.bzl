@@ -1,7 +1,7 @@
 """AppImage pin, host and name-rule coverage."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":defs.bzl", "name_errors")
+load(":validate.bzl", "appimage_name_errors")
 load(
     ":pins.bzl",
     "RUNTIMES",
@@ -37,10 +37,10 @@ def _checks():
         expect_contains("other hosts expose every hub target", unsupported_build(), '["tools", "runtime_x86_64", "runtime_aarch64"]'),
         expect_contains("hub exposes the x86_64 runtime", hub_build(), 'name = "runtime_x86_64"'),
         expect_contains("hub exposes the aarch64 runtime", hub_build(), 'name = "runtime_aarch64"'),
-        expect_equal("matching names", name_errors("app", "app.desktop", "app.png"), []),
-        expect_equal("svg icon", name_errors("app", "app.desktop", "app.svg"), []),
-        expect_true("wrong desktop name", len(name_errors("app", "other.desktop", "app.png")) == 1),
-        expect_true("wrong icon name", len(name_errors("app", "app.desktop", "other.png")) == 1),
+        expect_equal("matching names", appimage_name_errors("app", "app.desktop", "app.png"), []),
+        expect_equal("svg icon", appimage_name_errors("app", "app.desktop", "app.svg"), []),
+        expect_true("wrong desktop name", len(appimage_name_errors("app", "other.desktop", "app.png")) == 1),
+        expect_true("wrong icon name", len(appimage_name_errors("app", "app.desktop", "other.png")) == 1),
     ]
 
 def appimage_metadata_tests(name):

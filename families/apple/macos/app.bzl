@@ -9,27 +9,10 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("@rules_dx//libs/starlark:rlocation.bzl", "rlocation_path")
-load(
-    "//bundle:defs.bzl",
-    "TOOL_PATH",
-    "adhoc_signing_transition",
-    "archives",
-    "bundle_id_errors",
-    "bundle_version_errors",
-    "check_cell",
-    "display",
-    "flat_resources",
-    "label_text",
-    "platform_errors",
-    "resolved_xcode",
-)
-load(
-    "//provisioning:defs.bzl",
-    "XCODE_LINEAGE",
-    "ceiling_for",
-    "deployment_floor",
-    "version_below",
-)
+load("//bundle:defs.bzl", "TOOL_PATH", "adhoc_signing_transition", "archives", "check_cell", "display", "flat_resources", "label_text", "resolved_xcode")
+load("//bundle:validate.bzl", "bundle_id_errors", "bundle_platform_errors", "bundle_version_errors")
+load("//provisioning:defs.bzl", "XCODE_LINEAGE", "ceiling_for", "deployment_floor")
+load("//provisioning:validate.bzl", "provisioning_version_below")
 
 _CELL = "macos/arm64"
 
@@ -100,10 +83,10 @@ def _deployment_errors(deployment):
         return ["apple_macos_app: deployment '" + deployment + "' is not a dotted version"]
     errors = []
     floor = deployment_floor("macosx")
-    if version_below(deployment, floor):
+    if provisioning_version_below(deployment, floor):
         errors.append("apple_macos_app: deployment '" + deployment + "' is below " + floor)
     ceiling = ceiling_for("macosx")
-    if version_below(ceiling, deployment):
+    if provisioning_version_below(ceiling, deployment):
         errors.append("apple_macos_app: deployment '" + deployment + "' is above the Xcode 16 'macosx' ceiling " + ceiling)
     return errors
 
@@ -128,7 +111,7 @@ def macos_app_errors(config):
     return errors
 
 def _macos_selection_impl(ctx):
-    selected = platform_errors("apple_macos_app", list(ctx.attr.platforms), _ARCHES)
+    selected = bundle_platform_errors("apple_macos_app", list(ctx.attr.platforms), _ARCHES)
     if len(selected) > 0:
         fail("; ".join(selected))
     failures = macos_app_errors(struct(

@@ -5,6 +5,7 @@ load("@rules_kotlin//kotlin:core.bzl", "kt_javac_options")
 load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_library = "kt_jvm_library", _kt_jvm_test = "kt_jvm_test")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
 load("//java/rules:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
+load("//java/rules:defs.bzl", "java_jmh_test")
 load("//java/rules:jmh.bzl", "jmh_bench")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -190,4 +191,4 @@ def kotlin_bench(name, srcs, deps = [], tags = [], **kwargs):
         testonly = True,
         visibility = ["//visibility:private"],
     )
-    jmh_bench(name, kotlin_library, srcs, deps, tags, kwargs, {"javac_opts": ":" + name + "_javac_opts"})
+    jmh_bench(name, kotlin_library, java_jmh_test, srcs, deps, tags, kwargs, {"javac_opts": ":" + name + "_javac_opts"})

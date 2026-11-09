@@ -33,3 +33,19 @@ dx_runner_attr_test(
     },
     runner = "sized_bench",
 )
+
+java_bench(
+    name = "env_bench",
+    srcs = ["Sum.java"],
+    env = {"BENCH_MODE": "fast"},
+)
+
+dx_runner_attr_test(
+    name = "env_bench_attrs",
+    expected = {
+        "env": {"BENCH_MODE": "fast"},
+        "tags": ["dx-bench", "manual"],
+        "upstream": ":env_bench_upstream",
+    },
+    runner = "env_bench",
+)

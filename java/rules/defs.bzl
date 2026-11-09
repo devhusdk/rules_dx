@@ -10,6 +10,8 @@ load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_src_path", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
+_JMH_MAIN = "dx.bench.JmhRunner"
+
 _DX_JAVA_LIBRARY_PROVIDES = [
     JavaInfo,
     DefaultInfo,
@@ -144,6 +146,19 @@ def java_test(name, srcs = None, visibility = None, **kwargs):
         **dx_without_warnings_attr(kwargs)
     )
 
+def java_jmh_test(name, runtime_deps, **kwargs):
+    """The test target that runs the JMH runner, wrapped like java_test."""
+    dx_wrap_test(
+        name,
+        _java_test,
+        _java_forward_test,
+        [],
+        upstream_kwargs = dict(kwargs, main_class = _JMH_MAIN, use_testrunner = False, runtime_deps = runtime_deps),
+        extra_forward_kwargs = {"main_class": _JMH_MAIN},
+        quality_srcs = [],
+        **kwargs
+    )
+
 def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, tags = None, deps = None, **kwargs):
     """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
     target_class = target_class or java_entry_class(name, srcs, native.package_name())
@@ -180,4 +195,4 @@ def java_bench(name, srcs, deps = [], tags = [], **kwargs):
       tags: extra tags. dx-bench and manual are added.
       **kwargs: passed to the test.
     """
-    jmh_bench(name, java_library, srcs, deps, tags, kwargs)
+    jmh_bench(name, java_library, java_jmh_test, srcs, deps, tags, kwargs)

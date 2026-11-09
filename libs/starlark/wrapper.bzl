@@ -161,7 +161,7 @@ def dx_symlink_default_info(ctx, what, extra_runfiles = None, executable = None)
     if exe == None:
         fail(what + ": upstream target has no executable: " + str(dx_upstream(ctx).label))
     link = dx_symlink_executable(ctx, executable if executable != None else exe)
-    runfiles = ctx.runfiles(files = [link]).merge(upstream.default_runfiles)
+    runfiles = ctx.runfiles(files = [link] + getattr(ctx.files, "data", [])).merge(upstream.default_runfiles)
     for dep in getattr(ctx.attr, "data", []):
         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)
     if extra_runfiles != None:

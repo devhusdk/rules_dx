@@ -94,6 +94,19 @@ def swift_binary(name, srcs = None, visibility = None, platforms = None, **kwarg
     """Wraps swift_binary and builds it for Linux, or with Xcode on macOS."""
     dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
+def _swift_runtime_kwargs(kwargs, platforms):
+    """Returns the forwarder kwargs that ship the sysroot's shared libraries with a swift_test and point the loader at them, so no host library is needed."""
+    env = dict(kwargs.get("env", {}))
+    env.setdefault("LD_LIBRARY_PATH", "")
+    out = {"platforms": platforms if platforms != None else swift_linux_platforms()}
+    out["data"] = dx_append_flags(kwargs, "data", [Label("//swift/toolchain:runtime_libs")])["data"]
+    out["env"] = select({
+        Label("//swift/platforms:is_linux_aarch64"): dict(env, LD_LIBRARY_PATH = "../bazel_linux_packages++apt+dx_swift_sysroot_linux_aarch64/host_libs"),
+        Label("//swift/platforms:is_linux_x86_64"): dict(env, LD_LIBRARY_PATH = "../bazel_linux_packages++apt+dx_swift_sysroot_linux_x86_64/host_libs"),
+        "//conditions:default": env,
+    })
+    return out
+
 def _swift_coverage_kwargs(kwargs):
     """Links Swift's own profile runtime into a swift_test under bazel coverage.
 
@@ -111,7 +124,7 @@ def _swift_coverage_kwargs(kwargs):
 
 def swift_test(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_test and builds it for Linux, or with Xcode on macOS."""
-    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = _swift_coverage_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
+    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = _swift_coverage_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = _swift_runtime_kwargs(kwargs, platforms), **kwargs)
 
 def swift_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. Linux only."""

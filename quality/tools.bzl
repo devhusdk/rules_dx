@@ -2744,10 +2744,11 @@ TOOLS = [
                 context = "target_coupled",
                 family = "haskell",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_x86_64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 transport = "single",
                 unsupported = {
-                    "windows_arm64": "GHC ships no Windows arm64 bindist",
+                    "windows_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
+                    "windows_x86_64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
                 },
             ),
         ],

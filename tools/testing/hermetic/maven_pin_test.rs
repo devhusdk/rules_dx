@@ -34,9 +34,10 @@ fn committed_maven_lock_matches_a_fresh_pin() {
     hermetic::materialize(&manifest, case.root(), &source, "cc").expect("materializes");
     let log_path = case.root().with_extension("pin.log");
     let log = File::create(&log_path).expect("pin log");
-    let mut command = case.command(&case.wrapper(), &[("REPIN", "1"), ("RJE_VERBOSE", "1")]);
+    let mut command = case.bazel_command(&["run", "--show_progress_rate_limit=5", "@maven//:pin"]);
     command
-        .args(["run", "--show_progress_rate_limit=5", "@maven//:pin"])
+        .env("REPIN", "1")
+        .env("RJE_VERBOSE", "1")
         .stdout(Stdio::from(log.try_clone().expect("clone log")))
         .stderr(Stdio::from(log));
     let mut child = command.spawn().expect("spawn pin");

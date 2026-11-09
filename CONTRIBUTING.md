@@ -13,6 +13,7 @@ tools/dx worktree release
 Full run: `tools/dx test //...`
 
 Read [AGENTS.md](AGENTS.md) before changing code.
+Read `docs/design/layout.md` before you add or move a language.
 
 - Treat warnings as errors.
 - Run the formatter, linter, and focused tests for your change.

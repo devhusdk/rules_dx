@@ -1192,7 +1192,6 @@ def _marked_tool_test(platform):
     )
 
 _zanuda_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
-_psscriptanalyzer_marked_test = _marked_tool_test("//qt/platforms:windows_x86_64")
 _swift_format_marked_test = _marked_tool_test("//qt/platforms:windows_x86_64")
 
 _zanuda_policy_test = analysistest.make(
@@ -1216,11 +1215,6 @@ def unsupported_platform_analysis_tests(name):
         size = "small",
         target_under_test = "//quality/tools/ocaml:zanuda_tool",
     )
-    _psscriptanalyzer_marked_test(
-        name = name + "_psscriptanalyzer_tool",
-        size = "small",
-        target_under_test = "//quality/tools/powershell:psscriptanalyzer_tool",
-    )
     _swift_format_marked_test(
         name = name + "_swift_format_tool",
         size = "small",
@@ -1231,4 +1225,4 @@ def unsupported_platform_analysis_tests(name):
         size = "small",
         target_under_test = "//quality/testdata/ocaml_owned:clean",
     )
-    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_psscriptanalyzer_tool", name + "_swift_format_tool", name + "_zanuda_macos"])
+    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_macos"])

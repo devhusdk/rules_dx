@@ -1,6 +1,5 @@
 load("@rules_powershell//powershell:defs.bzl", "pwsh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -12,20 +11,7 @@ pwsh_binary(
 
 alias(
     name = "psscriptanalyzer_tool",
-    actual = select({
-        ":windows": ":psscriptanalyzer_unsupported",
-        "//conditions:default": ":psscriptanalyzer",
-    }),
-)
-
-config_setting(
-    name = "windows",
-    constraint_values = ["@platforms//os:windows"],
-)
-
-dx_unavailable_tool(
-    name = "psscriptanalyzer_unsupported",
-    tool = "psscriptanalyzer",
+    actual = ":psscriptanalyzer",
 )
 
 exports_files(["Invoke-Analyzer.ps1"])

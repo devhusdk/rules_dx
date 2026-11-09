@@ -1604,13 +1604,11 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dx-adopt-branch-{}", std::process::id()));
         std::fs::create_dir_all(&dir).expect("temp dir");
         let git = |args: &[&str]| {
-            std::process::Command::new("git")
-                .arg("-C")
-                .arg(&dir)
-                .args(args)
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&dir).args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .is_ok()
         };
         if git(&["init", "-q"]) && git(&["config", "init.defaultBranch", "trunk"]) {
             assert_eq!(super::detect_default_branch(&dir), "trunk");
@@ -1629,13 +1627,11 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("temp dir");
         let git = |args: &[&str]| {
-            std::process::Command::new("git")
-                .arg("-C")
-                .arg(&dir)
-                .args(args)
-                .output()
-                .map(|o| o.status.success())
-                .unwrap_or(false)
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&dir).args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .is_ok()
         };
         if git(&["init", "-q"])
             && git(&["config", "init.defaultBranch", "trunk"])

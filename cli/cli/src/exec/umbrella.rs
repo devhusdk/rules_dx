@@ -1756,13 +1756,11 @@ mod tests {
     fn check_rejects_build_output_and_names_the_file() {
         let harness = umbrella_clean("umbrella-check-build-output");
         let git = |args: &[&str]| {
-            let status = std::process::Command::new("git")
-                .arg("-C")
-                .arg(&harness.workspace)
-                .args(args)
-                .status()
-                .expect("git");
-            assert!(status.success());
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&harness.workspace).args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .unwrap_or_else(|error| panic!("{error}"));
         };
         git(&["init", "-q"]);
         harness.write_source("cli/target/debug/dx", "binary");
@@ -1775,13 +1773,11 @@ mod tests {
 
     fn dirty_build_output(name: &str) -> Harness {
         let harness = umbrella_clean(name);
-        let status = std::process::Command::new("git")
-            .arg("-C")
-            .arg(&harness.workspace)
-            .args(["init", "-q"])
-            .status()
-            .expect("git");
-        assert!(status.success());
+        dx_process::capture::run_checked(
+            dx_process::capture::git(&harness.workspace).args(["init", "-q"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .unwrap_or_else(|error| panic!("{error}"));
         harness.write_source("cli/target/debug/dx", "binary");
         harness
     }
@@ -1874,14 +1870,13 @@ mod tests {
     fn check_ignores_source_named_target_committed_on_main() {
         let harness = umbrella_clean("umbrella-check-source-target");
         let git = |args: &[&str]| {
-            let status = std::process::Command::new("git")
-                .arg("-C")
-                .arg(&harness.workspace)
-                .args(["-c", "user.name=t", "-c", "user.email=t@t"])
-                .args(args)
-                .status()
-                .expect("git");
-            assert!(status.success());
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&harness.workspace)
+                    .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+                    .args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .unwrap_or_else(|error| panic!("{error}"));
         };
         git(&["init", "-q", "-b", "main"]);
         harness.write_source("src/x/target/Foo.java", "class Foo {}");
@@ -1896,13 +1891,11 @@ mod tests {
     fn check_reports_a_git_failure_from_the_build_output_check() {
         let harness = umbrella_clean("umbrella-check-git-failed");
         let git = |args: &[&str]| {
-            let status = std::process::Command::new("git")
-                .arg("-C")
-                .arg(&harness.workspace)
-                .args(args)
-                .status()
-                .expect("git");
-            assert!(status.success());
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&harness.workspace).args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .unwrap_or_else(|error| panic!("{error}"));
         };
         git(&["init", "-q"]);
         std::fs::write(harness.workspace.join(".git/index"), b"garbage").expect("index");
@@ -3936,15 +3929,14 @@ mod tests {
     fn commits_harness(name: &str, config: &str, subject: &str) -> (Harness, Invocation) {
         let harness = umbrella_clean(name);
         let git = |args: &[&str]| {
-            let output = std::process::Command::new("git")
-                .arg("-C")
-                .arg(&harness.workspace)
-                .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
-                .args(["-c", "commit.gpgsign=false"])
-                .args(args)
-                .output()
-                .expect("git runs");
-            assert!(output.status.success(), "{args:?}");
+            let output = dx_process::capture::run_checked(
+                dx_process::capture::git(&harness.workspace)
+                    .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
+                    .args(["-c", "commit.gpgsign=false"])
+                    .args(args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .unwrap_or_else(|error| panic!("{args:?}: {error}"));
             String::from_utf8_lossy(&output.stdout).trim().to_owned()
         };
         git(&["init", "-q"]);

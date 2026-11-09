@@ -1267,12 +1267,13 @@ struct RealGit;
 impl dx_plan::resolve::QueryRunner for RealGit {
     fn run_query(&self, argv: &[String], cwd: &Path) -> io::Result<dx_plan::resolve::QueryResult> {
         assert_eq!(argv[0], "git", "unexpected query {argv:?}");
-        let output = std::process::Command::new("git")
-            .args(&argv[1..])
-            .current_dir(cwd)
-            .output()?;
+        let output = dx_process::capture::run_captured(
+            dx_process::capture::git(cwd).args(&argv[1..]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .map_err(io::Error::other)?;
         Ok(dx_plan::resolve::QueryResult {
-            code: output.status.code(),
+            code: output.code,
             stdout: output.stdout,
             stderr: output.stderr,
         })
@@ -1280,14 +1281,14 @@ impl dx_plan::resolve::QueryRunner for RealGit {
 }
 
 fn git(root: &Path, args: &[&str]) {
-    let status = std::process::Command::new("git")
-        .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
-        .args(["-c", "commit.gpgsign=false"])
-        .args(args)
-        .current_dir(root)
-        .status()
-        .expect("run git");
-    assert!(status.success(), "git {args:?} failed");
+    dx_process::capture::run_checked(
+        dx_process::capture::git(root)
+            .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
+            .args(["-c", "commit.gpgsign=false"])
+            .args(args),
+        dx_process::capture::DEFAULT_TIMEOUT,
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
 }
 
 fn real_secret_paths(harness: &Harness) -> (Vec<String>, Option<String>) {

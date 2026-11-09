@@ -1,0 +1,7 @@
+load("@rules_dx//asciidoc/rules:defs.bzl", "asciidoc_library")
+
+asciidoc_library(
+    name = "asciidoc",
+    srcs = ["guide.adoc"],
+    visibility = ["//visibility:public"],
+)

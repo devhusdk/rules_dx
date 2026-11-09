@@ -1,0 +1,10 @@
+load("@rules_dx//dockerfile/rules:defs.bzl", "dockerfile_library")
+
+dockerfile_library(
+    name = "dockerfile",
+    srcs = [
+        "Dockerfile",
+        "dev.Containerfile",
+    ],
+    visibility = ["//visibility:public"],
+)

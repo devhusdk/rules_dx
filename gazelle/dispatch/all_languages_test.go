@@ -21,6 +21,7 @@ import (
 	_ "github.com/devhusdk/rules_dx/gazelle/lua"
 	_ "github.com/devhusdk/rules_dx/gazelle/mdx"
 	_ "github.com/devhusdk/rules_dx/gazelle/ocaml"
+	_ "github.com/devhusdk/rules_dx/gazelle/ownership"
 	_ "github.com/devhusdk/rules_dx/gazelle/perl"
 	_ "github.com/devhusdk/rules_dx/gazelle/php"
 	_ "github.com/devhusdk/rules_dx/gazelle/powershell"

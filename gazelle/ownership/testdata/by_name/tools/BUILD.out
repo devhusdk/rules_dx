@@ -1,0 +1,10 @@
+load("@rules_dx//cmake/rules:defs.bzl", "cmake_library")
+
+cmake_library(
+    name = "cmake",
+    srcs = [
+        "CMakeLists.txt",
+        "helpers.cmake",
+    ],
+    visibility = ["//visibility:public"],
+)

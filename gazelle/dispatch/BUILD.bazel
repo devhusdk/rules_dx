@@ -62,6 +62,7 @@ go_test(
         "//gazelle/lua",
         "//gazelle/mdx",
         "//gazelle/ocaml",
+        "//gazelle/ownership",
         "//gazelle/perl",
         "//gazelle/php",
         "//gazelle/powershell",

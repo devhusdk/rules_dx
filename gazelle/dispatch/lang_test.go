@@ -466,6 +466,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"kotlin":      jvm,
 		"lua":         oneSource,
 		"mdx":         oneSourceRelative,
+		"ownership":   "ownership rules have no dependencies",
 		"perl":        oneSource,
 		"php":         "add a local php_library that declares the class, or a # gazelle:resolve / resolve_regexp mapping",
 		"protobuf":    "add a proto_library that owns that file or an exact # gazelle:resolve protobuf mapping",

@@ -1,0 +1,10 @@
+load("@rules_dx//bicep/rules:defs.bzl", "bicep_module")
+
+bicep_module(
+    name = "bicep",
+    srcs = [
+        "main.bicep",
+        "prod.bicepparam",
+    ],
+    visibility = ["//visibility:public"],
+)

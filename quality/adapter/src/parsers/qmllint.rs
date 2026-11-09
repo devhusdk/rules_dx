@@ -198,7 +198,9 @@ pub fn parse_qmllint(
     let report = read_report(stdout)?;
     let findings = convert(&report, files, true, view)?;
     let want = implied_code(&report);
-    if code != Some(want) {
+    // Windows reports the exit status 255 as -1.
+    let reported = if code == Some(-1) { Some(FAILED) } else { code };
+    if reported != Some(want) {
         return Err(ParseError::shape(
             TOOL,
             format!(
@@ -248,6 +250,13 @@ mod tests {
 
     fn warning() -> String {
         CRITICAL.replace("\"critical\"", "\"warning\"")
+    }
+
+    #[test]
+    fn qmllint_takes_the_windows_exit_status_for_255() {
+        let findings = lint(warning().as_bytes(), Some(-1), &["warn.qml"]).expect("parsed");
+        assert_eq!(findings.len(), 1);
+        assert!(lint(CLEAN.as_bytes(), Some(-1), &["clean.qml"]).is_err());
     }
 
     #[test]

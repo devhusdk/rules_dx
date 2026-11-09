@@ -90,9 +90,14 @@ fn qmlformat(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>
         let out = run(backend, call, &invocation)?;
         let input = std::fs::read(absolute)
             .map_err(|err| execution(call.tool_id, format!("read {workspace}: {err}")))?;
+        let stdout = if input.contains(&b'\r') {
+            out.stdout.clone()
+        } else {
+            lf_only(&out.stdout)
+        };
         let found = parsed(
             call.tool_id,
-            parsers::parse_qmlformat(&out.stdout, out.code, &input, workspace),
+            parsers::parse_qmlformat(&stdout, out.code, &input, workspace),
         )?;
         for mut item in found {
             item.file = absolute.to_string_lossy().into_owned();
@@ -100,6 +105,18 @@ fn qmlformat(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>
         }
     }
     Ok(findings)
+}
+
+/// Windows qmlformat writes CRLF to a pipe; the sources are LF.
+fn lf_only(bytes: &[u8]) -> Vec<u8> {
+    let mut kept = Vec::with_capacity(bytes.len());
+    for (index, byte) in bytes.iter().enumerate() {
+        if *byte == b'\r' && bytes.get(index + 1) == Some(&b'\n') {
+            continue;
+        }
+        kept.push(*byte);
+    }
+    kept
 }
 
 fn qmllint(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, RunnerError> {

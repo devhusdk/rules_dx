@@ -168,7 +168,7 @@ def helper_first(srcs):
     return helpers + [src for src in srcs if src not in helpers]
 
 def elixir_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over the rules_elixir ex_unit_test rule."""
+    """Thin wrapper over the rules_elixir ex_unit_test rule. srcs is required; test_helper.exs is loaded first and coverage loads through elixir_opts."""
     if srcs == None:
         fail("elixir_test //" + native.package_name() + ":" + name + " needs srcs")
     kwargs = elixir_kwargs(kwargs)

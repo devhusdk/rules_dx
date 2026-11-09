@@ -99,11 +99,11 @@ def ruby_library(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _rb_library, _ruby_library_forward, srcs, visibility = visibility, **kwargs)
 
 def ruby_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Minimal wrapper over rb_binary; srcs is optional."""
+    """Minimal wrapper over rb_binary. srcs is optional; main is linted unless it is an external label."""
     upstream = dict(kwargs, main = main) if main != None else kwargs
     dx_wrap_binary(name, _rb_binary, _ruby_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def ruby_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Minimal wrapper over rb_test; set main to a runner such as an RSpec bin."""
+    """Minimal wrapper over rb_test. Set main to a runner such as an RSpec bin; main is linted unless it is an external label."""
     upstream = dict(kwargs, main = main) if main != None else kwargs
     dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)

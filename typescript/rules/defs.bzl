@@ -310,7 +310,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
     )
 
 def typescript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources; declaration_srcs holds declaration inputs outside quality ownership."""
+    """Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources. runner defaults to "jest"; declaration_srcs are outside quality ownership."""
     srcs = srcs or []
     rejection = typescript_srcs_rejection(srcs)
     if rejection != None:

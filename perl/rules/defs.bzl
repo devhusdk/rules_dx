@@ -99,14 +99,14 @@ def perl_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _perl_library, _perl_library_forward, srcs or [], visibility = visibility, **kwargs)
 
 def perl_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Thin wrapper over perl_binary."""
+    """Thin wrapper over perl_binary. main is name.pl, else the single src."""
     main = dx_infer_main("perl_binary", name, main, srcs, dx_main_candidates(name, ".pl"))
     kwargs = dx_language_kwargs(kwargs, PERL_DEFERRED_SKIP_TAGS, PERL_COMPATIBLE_WITH)
     upstream = dict(kwargs, main = main)
     dx_wrap_binary(name, _perl_binary, _perl_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def perl_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Thin wrapper over perl_test."""
+    """Thin wrapper over perl_test. main is name.pl, else the single src."""
     main = dx_infer_main("perl_test", name, main, srcs, dx_main_candidates(name, ".pl"))
     kwargs = dx_language_kwargs(kwargs, PERL_DEFERRED_SKIP_TAGS, PERL_COMPATIBLE_WITH)
     upstream = dict(kwargs, main = main)

@@ -125,13 +125,13 @@ def flutter_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _flutter_library, _flutter_library_forward, srcs or [], visibility = visibility, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
 
 def flutter_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over flutter_test."""
+    """Thin wrapper over flutter_test. main is name.dart, then test/name.dart, else the single src."""
     main = dx_infer_main("flutter_test", name, main, srcs, dx_main_candidates(name, ".dart", ["test"]))
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def flutter_application(name, *, main = None, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over flutter_application."""
+    """Thin wrapper over flutter_application. main is name.dart, then lib/main.dart, else the single src."""
     main = dx_infer_main("flutter_application", name, main, srcs, dx_main_candidates(name, ".dart") + ["lib/main.dart"])
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap(
@@ -151,7 +151,7 @@ def flutter_application(name, *, main = None, srcs = None, visibility = None, **
     )
 
 def flutter_web_app(name, *, main = None, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over flutter_web_app."""
+    """Thin wrapper over flutter_web_app. main is name.dart, then lib/main.dart, else the single src."""
     main = dx_infer_main("flutter_web_app", name, main, srcs, dx_main_candidates(name, ".dart") + ["lib/main.dart"])
     kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
     dx_wrap_binary(name, _flutter_web_app, _flutter_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)

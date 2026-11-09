@@ -85,7 +85,7 @@ def dart_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _dart_library, _dart_library_forward, srcs or [], visibility = visibility, **kwargs)
 
 def dart_binary(name, *, main = None, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over dart_binary."""
+    """Thin wrapper over dart_binary. main is name.dart, then bin/name.dart, else the single src."""
     main = dx_infer_main("dart_binary", name, main, srcs, dx_main_candidates(name, ".dart", ["bin"]))
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_binary(name, _dart_binary, _dart_binary_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
@@ -96,15 +96,15 @@ def _dart_web_binary(kind, upstream_rule, name, main, srcs, visibility, kwargs):
     dx_wrap_binary(name, upstream_rule, _dart_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def dart_js_binary(name, *, main = None, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over dart_js_binary."""
+    """Thin wrapper over dart_js_binary. main is inferred as for dart_binary."""
     _dart_web_binary("dart_js_binary", _dart_js_binary, name, main, srcs, visibility, kwargs)
 
 def dart_wasm_binary(name, *, main = None, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over dart_wasm_binary."""
+    """Thin wrapper over dart_wasm_binary. main is inferred as for dart_binary."""
     _dart_web_binary("dart_wasm_binary", _dart_wasm_binary, name, main, srcs, visibility, kwargs)
 
 def dart_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over dart_test."""
+    """Thin wrapper over dart_test. main is name.dart, then test/name.dart, else the single src."""
     main = dx_infer_main("dart_test", name, main, srcs, dx_main_candidates(name, ".dart", ["test"]))
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)

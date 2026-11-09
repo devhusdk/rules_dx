@@ -92,14 +92,14 @@ def haskell_library(name, srcs = [], visibility = None, testonly = False, **kwar
     _haskell_library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
 
 def haskell_binary(name, srcs = [], visibility = None, **kwargs):
-    """Thin wrapper over the rules_haskell haskell_binary macro."""
+    """Thin wrapper over the rules_haskell haskell_binary macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False."""
     kwargs = haskell_kwargs(kwargs)
     upstream = haskell_upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_binary(name, _haskell_binary, _haskell_forward_binary, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
 
 def haskell_test(name, srcs = [], visibility = None, **kwargs):
-    """Thin wrapper over the rules_haskell haskell_test macro."""
+    """Thin wrapper over the rules_haskell haskell_test macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False."""
     kwargs = haskell_kwargs(kwargs)
     upstream = haskell_upstream_kwargs(kwargs)
     upstream["deps"] = with_gmp(upstream.get("deps"))

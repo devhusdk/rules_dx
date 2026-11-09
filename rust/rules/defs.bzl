@@ -245,7 +245,7 @@ def rust_binary(
         visibility = None,
         wasm = None,
         **kwargs):
-    """Minimal wrapper over rust_binary."""
+    """Minimal wrapper over rust_binary. edition defaults to 2024; crate_name defaults to the target name with - and / as _. srcs is required."""
     if srcs == None:
         fail("rust_binary //" + native.package_name() + ":" + name + " needs srcs")
     if wasm not in (None, "wasi", "browser"):
@@ -302,7 +302,7 @@ def rust_test(
         runtime = None,
         coverage_lib = None,
         **kwargs):
-    """Minimal wrapper over rust_test."""
+    """Minimal wrapper over rust_test. edition defaults to 2024."""
     if wasm not in (None, "wasi", "browser"):
         fail("rust_test: wasm must be \"wasi\" or \"browser\", got " + repr(wasm))
     if wasm != "wasi" and (preopens != None or runtime != None):

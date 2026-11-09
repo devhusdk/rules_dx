@@ -112,7 +112,7 @@ def d_library(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _d_library, _d_library_forward, srcs, visibility = visibility, quality_srcs = quality_srcs, **kwargs)
 
 def d_binary(name, *, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over the rules_d d_binary rule."""
+    """Thin wrapper over the rules_d d_binary rule. srcs is required."""
     if srcs == None:
         fail("d_binary //" + native.package_name() + ":" + name + " needs srcs")
     kwargs = d_kwargs(kwargs)
@@ -124,7 +124,7 @@ def d_binary(name, *, srcs = None, visibility = None, **kwargs):
 D_COVERAGE_COLLECTOR = True
 
 def d_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over the rules_d d_test rule."""
+    """Thin wrapper over the rules_d d_test rule. srcs is required; -cov is added to dopts under bazel coverage."""
     if srcs == None:
         fail("d_test //" + native.package_name() + ":" + name + " needs srcs")
     kwargs = d_kwargs(kwargs)

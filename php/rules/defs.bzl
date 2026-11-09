@@ -56,13 +56,13 @@ def php_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _php_library, _php_library_forward, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs, kwargs.get("autoload_files")), **kwargs)
 
 def php_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Runs main on the pinned PHP with the classes of deps autoloaded."""
+    """Runs main on the pinned PHP with the classes of deps autoloaded. main is name.php, else the single src."""
     main = dx_infer_main("php_binary", name, main, srcs, dx_main_candidates(name, ".php"))
     kwargs = dx_language_kwargs(kwargs, PHP_DEFERRED_SKIP_TAGS, PHP_COMPATIBLE_WITH)
     upstream = dict(kwargs, main = main)
     dx_wrap_binary(name, _php_binary, _php_forward_binary, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def php_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Runs PHPUnit test files on the pinned PHP and PHPUnit."""
+    """Runs PHPUnit test files on the pinned PHP and PHPUnit. srcs are the test files and are linted."""
     kwargs = dx_language_kwargs(kwargs, PHP_DEFERRED_SKIP_TAGS, PHP_COMPATIBLE_WITH)
     dx_wrap_test(name, _php_test, _php_forward_test, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs), **kwargs)

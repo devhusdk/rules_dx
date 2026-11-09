@@ -147,7 +147,7 @@ def javascript_wasm_bindgen_library(name, bindgen, deps = None, visibility = Non
     )
 
 def javascript_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Minimal wrapper over js_binary; main is the entry file."""
+    """Minimal wrapper over js_binary. main is the entry file; srcs are added to data."""
     effective_srcs = srcs if srcs != None else []
     if main != None:
         kwargs["entry_point"] = main
@@ -160,7 +160,7 @@ def javascript_test_rejection(runner, node_modules, main, kwargs):
     return node_test_runner_rejection("javascript_test", runner, node_modules, main, kwargs)
 
 def javascript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
-    """Minimal wrapper over jest_test, or js_test with runner = "node"."""
+    """Minimal wrapper over jest_test, or js_test with runner = "node". runner defaults to "jest"; main is linted unless it is an external label."""
     rejection = javascript_test_rejection(runner, node_modules, main, kwargs)
     if rejection != None:
         fail(rejection)

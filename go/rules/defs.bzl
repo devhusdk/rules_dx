@@ -82,11 +82,11 @@ def go_library(name, srcs, importpath, visibility = None, **kwargs):
     dx_wrap(name, _go_library, _go_library_forward, srcs, visibility = visibility, importpath = importpath, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
 def go_binary(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over go_binary."""
+    """Minimal wrapper over go_binary. cgo is off unless set."""
     dx_wrap_binary(name, _go_binary, _go_binary_forward, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
 def go_test(name, *, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over go_test."""
+    """Minimal wrapper over go_test. cgo is off unless set."""
     dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
 def go_fuzz_test(name, *, fuzz, srcs = None, visibility = None, tags = None, **kwargs):

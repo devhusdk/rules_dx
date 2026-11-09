@@ -67,11 +67,11 @@ def scala_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _scala_library, _scala_library_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))
 
 def scala_binary(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over scala_binary."""
+    """Minimal wrapper over scala_binary. -Xfatal-warnings is on unless warnings_as_errors is False."""
     dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))
 
 def scala_test(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over scala_test."""
+    """Minimal wrapper over scala_test. The dx test runner runs unless main_class is set. -Xfatal-warnings is on unless warnings_as_errors is False."""
     dx_wrap_test(
         name,
         _scala_test,

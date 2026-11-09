@@ -490,7 +490,7 @@ def erlang_bytecode(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _erlang_bytecode, _erlang_bytecode_forward, srcs, visibility = visibility, **kwargs)
 
 def erlang_escript_archive(name, visibility = None, **kwargs):
-    """Thin wrapper over rules_erlang escript_archive that runs on the pinned runtime."""
+    """Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs."""
     kwargs = erlang_kwargs(kwargs)
     srcs = kwargs.get("srcs", [])
     _escript_archive(name = name + "_upstream", **dx_binary_upstream_kwargs(kwargs, srcs))
@@ -504,7 +504,7 @@ def erlang_escript_archive(name, visibility = None, **kwargs):
     )
 
 def erlang_eunit_test(name = "eunit", visibility = None, **kwargs):
-    """Thin wrapper over the rules_erlang eunit test."""
+    """Thin wrapper over the rules_erlang eunit test. target and deps are the apps under test."""
     kwargs = erlang_kwargs(kwargs)
     target = kwargs.get("target")
     apps = ([target] if target else []) + (kwargs.get("deps") or [])
@@ -522,7 +522,7 @@ def ct_run_args(extra_args):
     return LOCAL_NODE_ARGS + extra_args
 
 def erlang_ct_suite_test(name, suite_name = "", visibility = None, **kwargs):
-    """Thin wrapper over the rules_erlang ct_suite macro."""
+    """Thin wrapper over the rules_erlang ct_suite macro. Adds -sname undefined and -start_epmd false unless ct_run_extra_args sets -sname or -name."""
     kwargs = erlang_kwargs(kwargs)
     suite = suite_name if suite_name != "" else name
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))

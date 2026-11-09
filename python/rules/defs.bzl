@@ -99,7 +99,7 @@ def python_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _py_library, _python_library_forward, srcs, visibility = visibility, **kwargs)
 
 def python_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
-    """Minimal wrapper over py_binary."""
+    """Minimal wrapper over py_binary. main is name.py, else the single src; several srcs need a name.py match. main is linted unless it is an external label."""
     if main != None:
         kwargs["main"] = main
     srcs = srcs if srcs != None else []
@@ -115,7 +115,7 @@ def python_test_rejection(runner, kwargs):
     return None
 
 def python_test(name, *, srcs = None, main = None, runner = "pytest", visibility = None, **kwargs):
-    """Wrapper over py_pytest_test, or py_test when runner is plain."""
+    """Wrapper over py_pytest_test, or py_test when runner = "plain". runner defaults to "pytest"; plain infers main as python_binary does."""
     if main != None:
         kwargs["main"] = main
     rejection = python_test_rejection(runner, kwargs)

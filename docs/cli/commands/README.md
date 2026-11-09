@@ -198,6 +198,13 @@ command), `1` other failures (no `.dx/pins`, no binary for the platform,
 download failure, sha256 mismatch, cache not writable). Otherwise the exit code
 or signal is the dx binary's own.
 
+## Main Entry Points
+
+Binary and test wrappers pick the program they run the same way. `main` is
+the source named `<name>.<ext>`, else the single entry in `srcs`, else the
+rule fails and asks for `main`. `main` is always linted unless it is an
+external label.
+
 ## Supported Surface
 
 `@rules_dx//:dx` runs every command.

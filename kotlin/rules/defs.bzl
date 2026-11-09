@@ -108,12 +108,12 @@ def kotlin_library(name, srcs = None, visibility = None, **kwargs):
     dx_wrap(name, _kt_jvm_library, _kotlin_library_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs), **dx_without_warnings_attr(kwargs))
 
 def kotlin_binary(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over kt_jvm_binary."""
+    """Minimal wrapper over kt_jvm_binary. Warnings are errors unless warnings_as_errors is False."""
     _kotlin_declare_warnings_as_errors_opts(name, kwargs)
     dx_wrap_binary(name, _kt_jvm_binary, _kotlin_binary_forward, srcs, visibility = visibility, upstream_kwargs = kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs), **dx_without_warnings_attr(kwargs))
 
 def kotlin_test(name, srcs = None, visibility = None, **kwargs):
-    """Minimal wrapper over kt_jvm_test."""
+    """Minimal wrapper over kt_jvm_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless main_class is set. Warnings are errors unless warnings_as_errors is False."""
     _kotlin_declare_warnings_as_errors_opts(name, kwargs)
     package = native.package_name()
     upstream_kwargs = kotlin_test_entry_kwargs(name, srcs, package, kotlin_kotlinc_opts_with_warnings_as_errors(name, kwargs))

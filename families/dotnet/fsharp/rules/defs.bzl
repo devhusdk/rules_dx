@@ -92,7 +92,7 @@ def fsharp_test(name, *, srcs = None, visibility = None, **kwargs):
         fail("fsharp_test //" + native.package_name() + ":" + name + " needs srcs")
     dx_wrap_test(name, _fsharp_test, _fsharp_forward_test, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), coverage_collector = FSHARP_COVERAGE_COLLECTOR, **kwargs)
 
-def fsharp_bench(name, srcs, deps = None, tags = None, **kwargs):
+def fsharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     """An fsharp_test that runs the [<Benchmark>] classes in srcs with BenchmarkDotNet and writes dx-bench.json."""
     fsharp_test(
         name = name,

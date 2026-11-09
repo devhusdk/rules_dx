@@ -94,12 +94,7 @@ def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnem
     )
 
 def dx_framework_build(name, what, mnemonic, packages, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, tool = _VITE_TOOL, keep_entry_path = False, **kwargs):
-    """Builds one framework app into a bundled web app tree and an optional SSR tree.
-
-    Creates the private `<name>_dist` build target behind the web app `<name>`.
-    With `ssr_entry` it also creates `<name>_ssr`, which takes the given visibility.
-    `tags`, `testonly` and `target_compatible_with` reach every target.
-    """
+    """Builds one framework app into a bundled web app tree and an optional SSR tree. Creates the private `<name>_dist` build target behind the web app `<name>`. With `ssr_entry` it also creates `<name>_ssr`, which takes the given visibility. `tags`, `testonly` and `target_compatible_with` reach every target."""
     tags = kwargs.get("tags", [])
     testonly = kwargs.get("testonly", False)
     compatible = kwargs.get("target_compatible_with", None)

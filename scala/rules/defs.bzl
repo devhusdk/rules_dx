@@ -85,27 +85,9 @@ def scala_test(name, srcs = None, visibility = None, **kwargs):
 
 
 def scala_fuzz_test(name, srcs, target_class, deps = None, visibility = None, tags = None, **kwargs):
-    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
-
-    Args:
-      name: the fuzz binary; the runner is `<name>_run`.
-      srcs: Scala sources. A top-level `object` exposes `fuzzerTestOneInput` as a static method.
-      target_class: the class Jazzer fuzzes.
-      deps: libraries the target uses.
-      visibility: visibility of the binary and the runner.
-      tags: extra tags. dx-fuzz and manual are added.
-      **kwargs: `args` and `target_compatible_with` go to the binary, the rest to the library.
-    """
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
     jazzer_fuzz(name, scala_library, srcs, deps, target_class, visibility, tags, kwargs)
 
 def scala_bench(name, srcs, deps = [], tags = [], **kwargs):
-    """Runs the JMH benchmarks in Scala srcs and writes dx-bench.json for dx bench.
-
-    Args:
-      name: the test target.
-      srcs: Scala sources with @Benchmark methods. Benchmark classes must be non-final classes, not objects.
-      deps: libraries the benchmarks use.
-      tags: extra tags. dx-bench and manual are added.
-      **kwargs: passed to the test.
-    """
+    """Runs the JMH benchmarks in Scala srcs and writes dx-bench.json for dx bench."""
     jmh_bench_generated(name, scala_library, java_jmh_test, srcs, deps, tags, kwargs)

@@ -449,10 +449,7 @@ _consumer_tarball = rule(
 )
 
 def consumer_archive(name, app, min_runtime, linkage = "dynamic", resources = [], runtime = [], notice = None, license_file = None, check_imports = True, format = "tar.gz", platform = None, tags = None, target_compatible_with = None, visibility = None, testonly = None):
-    """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file.
-
-    `name` is the archive; `name_checksum` is its sha256 file. `name_stage` and `name_archive` are helpers.
-    """
+    """Packages one consumer app with runtime, resources, NOTICE and IDENTITY as a tar.gz or zip and sha256 file. `name` is the archive; `name_checksum` is its sha256 file. `name_stage` and `name_archive` are helpers."""
     (tarball, checksum) = archive_filenames(name, format)
     stage_target = name + "_stage"
     archive_target = name + "_archive"

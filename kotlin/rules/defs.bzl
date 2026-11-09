@@ -131,15 +131,7 @@ def kotlin_test(name, srcs = None, visibility = None, **kwargs):
     )
 
 def kotlin_bench(name, srcs, deps = [], tags = [], **kwargs):
-    """Runs the JMH benchmarks in Kotlin srcs and writes dx-bench.json for dx bench.
-
-    Args:
-      name: the test target.
-      srcs: Kotlin sources with @Benchmark methods.
-      deps: libraries the benchmarks use.
-      tags: extra tags. dx-bench and manual are added.
-      **kwargs: passed to the test.
-    """
+    """Runs the JMH benchmarks in Kotlin srcs and writes dx-bench.json for dx bench."""
     kt_javac_options(
         name = name + "_javac_opts",
         warn = "off",
@@ -149,17 +141,7 @@ def kotlin_bench(name, srcs, deps = [], tags = [], **kwargs):
     jmh_bench(name, kotlin_library, java_jmh_test, srcs, deps, tags, kwargs, {"javac_opts": ":" + name + "_javac_opts"})
 
 def kotlin_fuzz_test(name, srcs, target_class, deps = None, visibility = None, tags = None, **kwargs):
-    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`.
-
-    Args:
-      name: the fuzz binary; the runner is `<name>_run`.
-      srcs: Kotlin sources. The target class needs a static `fuzzerTestOneInput`, so use `@JvmStatic` in an object.
-      target_class: the class Jazzer fuzzes.
-      deps: libraries the target uses.
-      visibility: visibility of the binary and the runner.
-      tags: extra tags. dx-fuzz and manual are added.
-      **kwargs: `args` and `target_compatible_with` go to the binary, the rest to the library.
-    """
+    """A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`."""
     kt_javac_options(
         name = name + "_javac_opts",
         warn = "off",

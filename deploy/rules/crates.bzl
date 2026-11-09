@@ -69,12 +69,7 @@ _crates_config = rule(
 )
 
 def crates_deploy(name, crate, package = "", version = "", build_mode = "release", api_compat = "fail", api_baseline = "registry", sbom = None, size_budget = "", tags = [], visibility = None, testonly = False, target_compatible_with = []):
-    """Publishes staged crate sources as a local-first crates.io deployment.
-
-    api_compat and api_baseline work as described under "Public API
-    compatibility" in the README; the tool is cargo-semver-checks, and the
-    git baseline needs a checked-in, standalone Cargo.toml.
-    """
+    """Publishes staged crate sources as a local-first crates.io deployment. api_compat and api_baseline work as described under "Public API compatibility" in the README; the tool is cargo-semver-checks, and the git baseline needs a checked-in, standalone Cargo.toml."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
     pkg, version = deploy_identity(name, package, version, crates_name_error, crates_version_error)
 

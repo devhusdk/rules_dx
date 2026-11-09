@@ -32,6 +32,6 @@ native_probe_runtime_files = rule(
     implementation = _runtime_files_impl,
     doc = "Copies the files of a native_runtime next to the probe package so a wheel ships them.",
     attrs = {
-        "runtime": attr.label(mandatory = True, providers = [NativeRuntimeInfo]),
+        "runtime": attr.label(mandatory = True, providers = [NativeRuntimeInfo], doc = "The native_runtime whose files are copied."),
     },
 )

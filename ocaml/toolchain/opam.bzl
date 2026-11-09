@@ -87,10 +87,7 @@ def _locked_version(filt):
     return version
 
 def parse_depends(text):
-    """Returns {package: version} for the depends entries that pin a version.
-
-    Entries limited to tests, docs or development versions are left out.
-    """
+    """Returns {package: version} for the depends entries that pin a version. Entries limited to tests, docs or development versions are left out."""
     at = _field(text, "depends:")
     if at < 0:
         return {}
@@ -131,11 +128,7 @@ def _hex_to_base64(digits):
     return out
 
 def parse_url(text):
-    """Returns struct(src, sha256, integrity) from the `url` section of an opam file.
-
-    A file with only a sha512 checksum gets an empty sha256 and a
-    `sha512-<base64>` integrity.
-    """
+    """Returns struct(src, sha256, integrity) from the `url` section of an opam file. A file with only a sha512 checksum gets an empty sha256 and a `sha512-<base64>` integrity."""
     at = _field(text, "url")
     if at < 0:
         fail("the opam file has no url section")

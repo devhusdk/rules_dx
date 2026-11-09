@@ -110,13 +110,5 @@ def java_fuzz_test(name, srcs = None, target_class = None, visibility = None, ta
     jazzer_fuzz(name, java_library, srcs, deps, target_class, visibility, tags, kwargs)
 
 def java_bench(name, srcs, deps = [], tags = [], **kwargs):
-    """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench.
-
-    Args:
-      name: the test target.
-      srcs: Java sources with @Benchmark methods.
-      deps: libraries the benchmarks use.
-      tags: extra tags. dx-bench and manual are added.
-      **kwargs: passed to the test.
-    """
+    """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench."""
     jmh_bench(name, java_library, java_jmh_test, srcs, deps, tags, kwargs)

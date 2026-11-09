@@ -64,19 +64,17 @@ def _jmh_generated_impl(ctx):
 
 _jmh_generated = rule(
     implementation = _jmh_generated_impl,
+    doc = "Runs the JMH bytecode generator over a library jar into a source jar and resources.",
     attrs = {
-        "lib": attr.label(providers = [JavaInfo], mandatory = True),
-        "srcjar": attr.output(mandatory = True),
-        "resources": attr.output(mandatory = True),
+        "lib": attr.label(providers = [JavaInfo], mandatory = True, doc = "The compiled benchmark library."),
+        "srcjar": attr.output(mandatory = True, doc = "The generated Java sources."),
+        "resources": attr.output(mandatory = True, doc = "The generated JMH resources."),
         "_generator": attr.label(default = _GENERATOR, executable = True, cfg = "exec"),
     },
 )
 
 def jmh_bench_generated(name, library, test, srcs, deps, tags, kwargs, library_kwargs = {}):
-    """Like jmh_bench for languages whose compiler runs no Java annotation processors.
-
-    The library compiles without the processor, JmhGenerate runs the JMH bytecode generator over its jar, and javac compiles the generated Java.
-    """
+    """Like jmh_bench for languages whose compiler runs no Java annotation processors. The library compiles without the processor, JmhGenerate runs the JMH bytecode generator over its jar, and javac compiles the generated Java."""
     library(
         name = name + "_bin",
         srcs = srcs,

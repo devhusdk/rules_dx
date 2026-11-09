@@ -212,9 +212,10 @@ def _srcs_impl(ctx):
 
 _py_grpc_srcs = rule(
     implementation = _srcs_impl,
+    doc = "Compiles the gRPC services of a proto_library into Python stubs.",
     attrs = {
-        "proto": attr.label(mandatory = True, providers = [ProtoInfo]),
-        "tool": attr.label(mandatory = True, executable = True, cfg = "exec"),
+        "proto": attr.label(mandatory = True, providers = [ProtoInfo], doc = "The proto_library with the service."),
+        "tool": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "The protoc binary from grpcio-tools."),
         "_exec_os": attr.label(
             default = "//libs/exec_os",
             cfg = "exec",
@@ -224,17 +225,7 @@ _py_grpc_srcs = rule(
 )
 
 def python_grpc_library(name, proto, py_proto, grpc_tools = "@pypi//grpcio_tools", grpc = "@pypi//grpcio", dep_group = None, **kwargs):
-    """Compiles the services of proto into <name>_pb2_grpc.py.
-
-    Args:
-      name: target name of the py_library.
-      proto: the proto_library with the service. It must sit in the same package.
-      py_proto: the py_proto_library for the same proto_library.
-      grpc_tools: label of the grpcio-tools package that provides protoc.
-      grpc: label of the grpcio package the stubs import.
-      dep_group: uv project name for the packages, when the hub has several.
-      **kwargs: forwarded to the py_library, for example visibility.
-    """
+    """Compiles the services of proto into <name>_pb2_grpc.py."""
     python_binary(
         name = name + "_protoc",
         srcs = ["@rules_dx//python/rules:grpc_protoc.py"],

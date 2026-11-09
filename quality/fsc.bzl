@@ -48,10 +48,7 @@ def _targetprofile(tfm):
     return "--targetprofile:mscorlib"
 
 def fsc_warnon_args(nowarn, compiler_options):
-    """Returns the warnings dx turns on beyond the real build: FS1182, unused values.
-
-    A target that silences 1182 itself through nowarn or compiler_options keeps it off.
-    """
+    """Returns the warnings dx turns on beyond the real build: FS1182, unused values. A target that silences 1182 itself through nowarn or compiler_options keeps it off."""
     if "1182" in nowarn or "FS1182" in nowarn:
         return []
     for option in compiler_options:

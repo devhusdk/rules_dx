@@ -33,16 +33,7 @@ dx_fuzz_binary = rule(
 )
 
 def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", harness = None, visibility = None):
-    """Defines `<name>_run`, the runner `dx fuzz` calls for the fuzz binary `fuzz`.
-
-    Args:
-      name: the fuzz target; the runner is `<name>_run`.
-      fuzz: label of the fuzz binary or test.
-      engine: `libfuzzer`, `jazzer`, `go` or `dotnet`.
-      target: the Jazzer target class or the Go fuzz function; unused for libfuzzer and dotnet.
-      harness: label of the .NET harness the `dotnet` engine passes to `fuzz` as `--target_path`.
-      visibility: visibility of the runner.
-    """
+    """Defines `<name>_run`, the runner `dx fuzz` calls for the fuzz binary `fuzz`."""
     sh_binary(
         name = name + "_run",
         srcs = [Label("//libs/starlark:fuzz_run.sh")],

@@ -322,7 +322,7 @@ def _consumer_stage_impl(ctx):
     by_member["IDENTITY.txt"] = identity_out
     groups = {}
     if ctx.attr.check_imports:
-        checked = [exe.basename] + runtime
+        checked = [exe.basename] + [member for member in runtime if native_library_name(member)]
         stamp = ctx.actions.declare_file(ctx.label.name + "/imports.ok")
         args = ctx.actions.args()
         args.use_param_file("@%s", use_always = True)

@@ -167,6 +167,12 @@ pub fn check_imports(args: &[String]) -> Result<(), String> {
             continue;
         }
         let bytes = std::fs::read(path).map_err(|error| format!("cannot read {path}: {error}"))?;
+        if !checks.is_empty()
+            && let Err(error) = dx_binfmt::inspect(&bytes)
+        {
+            problems.push(format!("{name}: not a readable binary image: {error}"));
+            continue;
+        }
         let missing = missing_imports(&bytes, &shipped, &provides)?;
         if !missing.is_empty() {
             problems.push(format!(
@@ -356,6 +362,29 @@ mod tests {
         assert!(missing_imports(&app, &shipped, &[]).unwrap().is_empty());
         let ucrt = pe_importing("api-ms-win-crt-runtime-l1-1-0.dll");
         assert!(missing_imports(&ucrt, &[], &[]).unwrap().is_empty());
+    }
+
+    #[test]
+    fn check_imports_rejects_a_checked_member_that_is_not_an_image() {
+        let dir = tempfile::TempDir::new().expect("dir");
+        let core = dir.path().join("_core.pyd");
+        std::fs::write(&core, b"not a library").expect("write core");
+        let notes = dir.path().join("NOTICE");
+        std::fs::write(&notes, b"text").expect("write notice");
+        let member = |name: &str, path: &std::path::Path| format!("{name}={}", path.display());
+        let error = check_imports(&[
+            "--check".to_owned(),
+            "_core.pyd".to_owned(),
+            member("_core.pyd", &core),
+            member("NOTICE", &notes),
+        ])
+        .unwrap_err();
+        assert!(
+            error.starts_with("_core.pyd: not a readable binary image: "),
+            "{error}"
+        );
+        assert!(!error.contains("NOTICE"), "{error}");
+        assert!(check_imports(&[member("NOTICE", &notes)]).is_ok());
     }
 
     #[test]

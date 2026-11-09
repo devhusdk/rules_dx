@@ -946,12 +946,27 @@ fn pypi_native_msvc_case() {
         std::fs::read(&notice).expect("wheel must ship the runtime notice"),
         std::fs::read(data("DX_MSVC_NOTICE")).expect("declared notice must be readable"),
     );
-    let output = archiver_imports(&members, &core(&members));
+    let core = core(&members);
+    let output = archiver_imports(&members, &core);
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    let alone: Vec<_> = members
+        .iter()
+        .filter(|(name, _)| *name == core)
+        .cloned()
+        .collect();
+    let output = archiver_imports(&alone, &core);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    println!("{core} without the shipped runtime:\n{stderr}");
+    assert!(!output.status.success(), "{stderr}");
+    assert!(
+        stderr.to_ascii_lowercase().contains("vcruntime140.dll"),
+        "{stderr}"
+    );
+
     let cwd = dx_testing::mkscratch("pypi-native-msvc-cwd").expect("scratch cwd");
     let output = import_from(&target, &cwd);
     assert!(
@@ -963,6 +978,21 @@ fn pypi_native_msvc_case() {
         String::from_utf8_lossy(&output.stdout).trim(),
         "dx-native-probe native"
     );
+    let moved = target.with_file_name(format!(
+        "{}-moved",
+        target
+            .file_name()
+            .and_then(|name| name.to_str())
+            .unwrap_or("t")
+    ));
+    std::fs::rename(&target, &moved).expect("rename install dir");
+    let output = import_from(&moved, &cwd);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    check_module(&moved, "dx_native_probe", "dx-native-probe native");
 }
 
 fn readelf_dynamic(library: &Path) -> String {

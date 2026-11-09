@@ -932,6 +932,8 @@ This writes `rollback.txt` in the promotion directory.
 
 Stages one wheel and an optional sdist as a local PEP 503 index. A live run
 uploads them to PyPI with `twine`.
+Native wheels come from `py_wheel`; there is no path that rebuilds an
+extension from the sdist.
 
 ```starlark
 load("@rules_dx//deploy/rules:pypi.bzl", "pypi_deploy")

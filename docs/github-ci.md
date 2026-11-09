@@ -45,6 +45,31 @@
    cp examples/docs-ci/caller.yml .github/workflows/docs.yml
    ```
 
+   ```yaml
+   name: docs
+   on:
+     pull_request: {}
+     merge_group:
+       types: [checks_requested]
+     push:
+       # Change to your default branch if it is not main.
+       branches: [main]
+     workflow_dispatch: {}
+   jobs:
+     docs:
+       uses: devhusdk/rules_dx/.github/workflows/reusable-docs.yml@d0b7fb20347ab37231cc7fdf55a54e93b7a0071e
+       with:
+         docs_scope: "//..."
+         site: "//docs:site"
+         publish: ${{ github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+       secrets:
+         BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+       permissions:
+         contents: read
+         pages: write
+         id-token: write
+   ```
+
    Require `docs-check`. Add `docs-publish (GitHub Pages)` when `publish` is true.
 
 ## What the job runs

@@ -3,8 +3,53 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "consumer-ci/caller.yml",
     "docs-ci/caller.yml",
 ])
+
+test_suite(
+    name = "consumer_ci_tests",
+    tests = ["//tools/ci:reusable_callers_test"],
+)
+
+test_suite(
+    name = "docs_ci_tests",
+    tests = ["//tools/ci:reusable_callers_test"],
+)
+
+test_suite(
+    name = "gitlab_ci_tests",
+    tests = [
+        "//tools/ci:gitlab_example_test",
+        "//tools/ci:gitlab_inputs_parity_test",
+    ],
+)
+
+test_suite(
+    name = "adopt_polyglot_tests",
+    tests = ["//examples/adopt-polyglot:consumer_test"],
+)
+
+test_suite(
+    name = "shared_rust_tests",
+    tests = [
+        "//examples/shared-rust:asset_test",
+        "//examples/shared-rust:native_test",
+        "//examples/shared-rust:tasks_core_test",
+        "//examples/shared-rust:tasks_model_test",
+    ],
+)
+
+test_suite(
+    name = "tests",
+    tests = [
+        ":adopt_polyglot_tests",
+        ":consumer_ci_tests",
+        ":docs_ci_tests",
+        ":gitlab_ci_tests",
+        ":shared_rust_tests",
+    ],
+)
 
 real_source_target(
     name = "corpus_markdown",

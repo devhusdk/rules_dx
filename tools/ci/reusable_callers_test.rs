@@ -11,7 +11,7 @@ const CI: &str = ".github/workflows/ci.yml";
 
 /// Each reusable workflow with the starter that calls it.
 const PAIRS: [(&str, &str); 2] = [
-    ("reusable-consumer.yml", CI),
+    ("reusable-consumer.yml", "examples/consumer-ci/caller.yml"),
     ("reusable-docs.yml", "examples/docs-ci/caller.yml"),
 ];
 
@@ -144,6 +144,21 @@ fn reusable_workflows_launch_dx_through_the_public_label() {
         assert!(
             !text.contains(CRATE_LABEL),
             "{workflow} must launch dx through {PUBLIC_LABEL}, never the crate label"
+        );
+    }
+}
+
+#[test]
+fn docs_page_embeds_every_starter_verbatim() {
+    let page = read_runfiles(DOCS);
+    for starter in ["examples/consumer-ci/caller.yml", "examples/docs-ci/caller.yml"] {
+        let block: String = read_runfiles(starter)
+            .lines()
+            .map(|line| if line.is_empty() { "\n".to_owned() } else { format!("   {line}\n") })
+            .collect();
+        assert!(
+            page.contains(&block),
+            "{DOCS} does not embed {starter} verbatim, indented 3 spaces"
         );
     }
 }

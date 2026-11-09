@@ -17,16 +17,34 @@ load(
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
-load("//deploy/rules:native_runtime.bzl", "NativeRuntimeInfo")
-load("//libs/starlark:cells.bzl", "unsupported_constraint")
-load("//qt/sdk:needs.bzl", "QtNeedsInfo")
-load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES", "QT_VERSION", "RUNTIME_PLUGINS")
-load("//qt/sdk:repos.bzl", "qualified_cells")
+load("//qt/sdk:pins.bzl", "RUNTIME_PLUGINS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "QtInfo")
-load(":validate.bzl", "qt_uri_error")
+load(":bundle.bzl", _QT_CONF = "QT_CONF", _qt_bundle = "qt_bundle", _qt_bundle_members = "qt_bundle_members", _qt_os_supplied_libraries = "qt_os_supplied_libraries", _qt_runtime_members = "qt_runtime_members")
+load(":cells.bzl", _QT_BUNDLE_COMPATIBLE_WITH = "QT_BUNDLE_COMPATIBLE_WITH", _QT_COMPATIBLE_WITH = "QT_COMPATIBLE_WITH", _QT_CONSUMER_MIN_RUNTIME = "QT_CONSUMER_MIN_RUNTIME", _QT_CONSUMER_RUNTIME = "QT_CONSUMER_RUNTIME", _qt_consumer_identity = "qt_consumer_identity")
+load(":constants.bzl", _QT_REPOSITORY = "QT_REPOSITORY", "QT_CC_HDRS", "QT_GENERATED", "QT_QML_SRCS")
+load(":text.bzl", _qt_framework_path = "qt_framework_path", _qt_identifier = "qt_identifier", _qt_module_path = "qt_module_path", _qt_package_path = "qt_package_path", _qt_qmldir = "qt_qmldir", _qt_qrc = "qt_qrc", _qt_version_parts = "qt_version_parts")
+load(":generate.bzl", _qt_generate = "qt_generate")
+load(":rust_bridge.bzl", "QT_BRIDGE_TOOL", _qt_rust_bridge = "qt_rust_bridge", _qt_rust_runtime_files = "qt_rust_runtime_files")
 
-QT_REPOSITORY = "@dx_qt"
+QT_CONF = _QT_CONF
+qt_bundle = _qt_bundle
+qt_bundle_members = _qt_bundle_members
+qt_os_supplied_libraries = _qt_os_supplied_libraries
+qt_runtime_members = _qt_runtime_members
+QT_BUNDLE_COMPATIBLE_WITH = _QT_BUNDLE_COMPATIBLE_WITH
+QT_COMPATIBLE_WITH = _QT_COMPATIBLE_WITH
+QT_CONSUMER_MIN_RUNTIME = _QT_CONSUMER_MIN_RUNTIME
+QT_CONSUMER_RUNTIME = _QT_CONSUMER_RUNTIME
+qt_consumer_identity = _qt_consumer_identity
+QT_REPOSITORY = _QT_REPOSITORY
+qt_framework_path = _qt_framework_path
+qt_identifier = _qt_identifier
+qt_module_path = _qt_module_path
+qt_package_path = _qt_package_path
+qt_qmldir = _qt_qmldir
+qt_qrc = _qt_qrc
+qt_version_parts = _qt_version_parts
 
 QT_BUNDLE_RUNPATH = "-Wl,--disable-new-dtags,-rpath,$$ORIGIN/resources/lib"
 QT_BUNDLE_MACOS_RUNPATH = "-Wl,-rpath,@executable_path/resources/lib"
@@ -39,366 +57,8 @@ QT_SOURCE_SPECS = [
 
 _CC_SRCS = [".c", ".cc", ".cpp", ".cxx"]
 
-_CC_HDRS = [".h", ".hh", ".hpp", ".hxx"]
-
-_QML_SRCS = [".qml", ".js", ".mjs"]
-
-_GENERATED = "_qt"
-
 _QML_MODULES = ["qml", "quick", "quick_test"]
 
-_TOOL_ENV = {"LC_ALL": "C.UTF-8"}
-
-_PUNCTUATION = " !\"#$%&'()*+,.:;<=>?@[\\]^`{|}~"
-
-def qt_identifier(label):
-    """Returns the C identifier rcc and qmltyperegistrar use for one label."""
-    out = ""
-    for index, part in enumerate([label.repo_name, label.package, label.name]):
-        out += "_p" if index > 0 else ""
-        for char in part.elems():
-            if char.isalnum():
-                out += char
-            elif char == "_":
-                out += "_u"
-            elif char == "/":
-                out += "_s"
-            elif char == "-":
-                out += "_d"
-            else:
-                index = _PUNCTUATION.find(char)
-                if index < 0:
-                    fail("qt_identifier: label '" + str(label) + "' holds unsupported character '" + char + "'")
-                out += "_x%d_" % index
-    return "qt" + out
-
-def qt_module_path(uri):
-    """Returns the directory a QML module URI lives in below an import root."""
-    return "/".join(uri.split("."))
-
-def qt_version_parts(version):
-    """Returns the major and minor version of one QML module version string."""
-    parts = version.split(".")
-    if len(parts) != 2 or not parts[0].isdigit() or not parts[1].isdigit():
-        fail("qt_qml_module: version '" + version + "' must be MAJOR.MINOR")
-    return (parts[0], parts[1])
-
-def qt_qmldir(uri, typeinfo, types, depends = []):
-    """Returns the qmldir text for one module, its (name, version, path) types and dependencies."""
-    lines = ["module " + uri]
-    if typeinfo != "":
-        lines.append("typeinfo " + typeinfo)
-    lines.append("prefer :/qt/qml/" + qt_module_path(uri) + "/")
-    for dependency in depends:
-        lines.append("depends " + dependency)
-    for name, version, path in types:
-        lines.append(name + " " + version + " " + path)
-    return "\n".join(lines) + "\n"
-
-def _xml(text):
-    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
-
-def qt_qrc(prefix, entries):
-    """Returns the .qrc text mapping (alias, path) entries under one prefix."""
-    lines = ["<RCC>", "  <qresource prefix=\"" + _xml(prefix) + "\">"]
-    for alias, path in entries:
-        lines.append("    <file alias=\"" + _xml(alias) + "\">" + _xml(path) + "</file>")
-    lines.extend(["  </qresource>", "</RCC>"])
-    return "\n".join(lines) + "\n"
-
-def qt_package_path(short_path, package):
-    """Returns a short path relative to its package, or None outside it."""
-    path = short_path
-    if path.startswith("../"):
-        path = path[3:].partition("/")[2]
-    if package == "":
-        return path
-    if not path.startswith(package + "/"):
-        return None
-    return path[len(package) + 1:]
-
-def _base(ctx):
-    return ctx.attr.base
-
-def _stem(f):
-    return f.basename[:-(len(f.extension) + 1)] if f.extension else f.basename
-
-def _relative(ctx, f, what):
-    path = qt_package_path(f.short_path, ctx.label.package)
-    if path == None or f.owner.repo_name != ctx.label.repo_name or f.owner.package != ctx.label.package:
-        fail(str(ctx.label) + ": " + what + " '" + str(f.owner) + "' must be in package " + str(ctx.label.package) + "; give it its own target")
-    return path
-
-def _from_execroot(directory, path):
-    return "../" * len(directory.split("/")) + path
-
-def _include_args(deps):
-    args = []
-    headers = []
-    for dep in deps:
-        if CcInfo not in dep:
-            continue
-        context = dep[CcInfo].compilation_context
-        headers.append(context.headers)
-        for directory in context.includes.to_list() + context.system_includes.to_list() + context.quote_includes.to_list():
-            args.append("-I" + directory)
-        for define in context.defines.to_list():
-            args.append("-D" + define)
-    return args, headers
-
-def _flag_args(ctx):
-    args = []
-    for flag in ctx.attr.copts:
-        expanded = ctx.expand_make_variables("copts", flag, {})
-        if expanded.startswith(("-D", "-U", "-I")):
-            args.append(expanded)
-    for define in ctx.attr.defines:
-        args.append("-D" + define)
-    return args
-
-def _moc(ctx, include_args, headers, generated):
-    sources = []
-    metatypes = []
-    for header in ctx.files.moc_hdrs:
-        relative = _relative(ctx, header, "moc header")
-        out = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/moc_" + relative.replace("/", "_").rsplit(".", 1)[0] + ".cpp")
-        json = ctx.actions.declare_file(out.basename + ".json", sibling = out)
-        include = header.short_path
-        if include.startswith("../"):
-            include = include[3:].partition("/")[2]
-        args = ctx.actions.args()
-        args.add("--output-json")
-        args.add("-o", out)
-        args.add("-f" + include)
-        args.add("-I.")
-        args.add("-I" + ctx.bin_dir.path)
-        args.add_all(include_args)
-        args.add_all(_flag_args(ctx))
-        args.add(header)
-        ctx.actions.run(
-            executable = ctx.executable.moc,
-            arguments = [args],
-            inputs = depset(ctx.files.moc_hdrs + ctx.files.hdrs + generated, transitive = headers),
-            outputs = [out, json],
-            env = _TOOL_ENV,
-            mnemonic = "QtMoc",
-            progress_message = "Running moc on %{input}",
-        )
-        sources.append(out)
-        metatypes.append(json)
-    return sources, metatypes
-
-def _collect(ctx, metatypes):
-    out = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/" + _base(ctx) + "_metatypes.json")
-    args = ctx.actions.args()
-    args.add("--collect-json")
-    args.add("-o", out)
-    args.add_all(metatypes)
-    ctx.actions.run(
-        executable = ctx.executable.moc,
-        arguments = [args],
-        inputs = metatypes,
-        outputs = [out],
-        env = _TOOL_ENV,
-        mnemonic = "QtMocCollect",
-        progress_message = "Collecting moc metatypes for %{label}",
-    )
-    return out
-
-def _uic(ctx):
-    headers = []
-    names = {}
-    for form in ctx.files.forms:
-        _relative(ctx, form, "form")
-        if _stem(form) in names:
-            fail(str(ctx.label) + ": forms '" + names[_stem(form)] + "' and '" + str(form.owner) + "' both produce ui_" + _stem(form) + ".h")
-        names[_stem(form)] = str(form.owner)
-        out = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/ui_" + _stem(form) + ".h")
-        args = ctx.actions.args()
-        args.add("-o", out)
-        args.add(form)
-        ctx.actions.run(
-            executable = ctx.executable.uic,
-            arguments = [args],
-            inputs = [form],
-            outputs = [out],
-            env = _TOOL_ENV,
-            mnemonic = "QtUic",
-            progress_message = "Running uic on %{input}",
-        )
-        headers.append(out)
-    return headers
-
-def _rcc(ctx, kind, prefix, entries, files):
-    name = qt_identifier(ctx.label.same_package_label(_base(ctx))) + "_" + kind
-    stem = _base(ctx) + "_" + kind
-    qrc = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/" + stem + ".qrc")
-    out = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/qrc_" + stem + ".cpp")
-    ctx.actions.write(qrc, qt_qrc(prefix, [(alias, _from_execroot(qrc.dirname, f.path)) for alias, f in entries]))
-    args = ctx.actions.args()
-    args.add("--format-version", "1")
-    args.add("--no-zstd")
-    args.add("--name", name)
-    args.add("-o", out)
-    args.add(qrc)
-    ctx.actions.run(
-        executable = ctx.executable.rcc,
-        arguments = [args],
-        inputs = [qrc] + files,
-        outputs = [out],
-        env = _TOOL_ENV,
-        mnemonic = "QtRcc",
-        progress_message = "Running rcc for %{label}",
-    )
-    return out
-
-def _qml_module(ctx, collected, dep_metatypes):
-    uri = ctx.attr.uri
-    error = qt_uri_error(uri)
-    if error != "":
-        fail(str(ctx.label) + ": " + error)
-    for dependency in ctx.attr.qml_depends:
-        error = qt_uri_error(dependency)
-        if error != "":
-            fail(str(ctx.label) + ": qml_depends " + error)
-    major, minor = qt_version_parts(ctx.attr.version)
-    root = _base(ctx) + "_qml/" + qt_module_path(uri)
-    sources = []
-    module_files = []
-    entries = []
-    typeinfo = ""
-    if collected != None:
-        typeinfo = _base(ctx) + ".qmltypes"
-        qmltypes = ctx.actions.declare_file(root + "/" + typeinfo)
-        registrations = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/" + _base(ctx) + "_qmltyperegistrations.cpp")
-        foreign = ctx.files.metatypes + dep_metatypes.to_list()
-        args = ctx.actions.args()
-        args.add("--import-name", uri)
-        args.add("--major-version", major)
-        args.add("--minor-version", minor)
-        args.add("--generate-qmltypes", qmltypes)
-        args.add_joined("--foreign-types", foreign, join_with = ",")
-        args.add("-o", registrations)
-        args.add(collected)
-        ctx.actions.run(
-            executable = ctx.executable.qmltyperegistrar,
-            arguments = [args],
-            inputs = [collected] + foreign,
-            outputs = [qmltypes, registrations],
-            env = _TOOL_ENV,
-            mnemonic = "QtQmlTypeRegistrar",
-            progress_message = "Registering QML types of %{label}",
-        )
-        sources.append(registrations)
-        module_files.append(qmltypes)
-        entries.append((typeinfo, qmltypes))
-    types = []
-    for src in ctx.files.qml_srcs:
-        relative = _relative(ctx, src, "QML source")
-        link = ctx.actions.declare_file(root + "/" + relative)
-        ctx.actions.symlink(output = link, target_file = src)
-        module_files.append(link)
-        entries.append((relative, src))
-        stem = _stem(src)
-        if src.extension == "qml" and stem[:1].isupper():
-            types.append((stem, ctx.attr.version, relative))
-    qmldir = ctx.actions.declare_file(root + "/qmldir")
-    ctx.actions.write(qmldir, qt_qmldir(uri, typeinfo, types, ctx.attr.qml_depends))
-    module_files.append(qmldir)
-    entries.append(("qmldir", qmldir))
-    files = [f for _, f in entries]
-    sources.append(_rcc(ctx, "qml", "/qt/qml/" + qt_module_path(uri), entries, files))
-    return sources, module_files
-
-def _lrelease(ctx):
-    entries = []
-    names = {}
-    for ts in ctx.files.translations:
-        _relative(ctx, ts, "translation")
-        if _stem(ts) in names:
-            fail(str(ctx.label) + ": translations '" + names[_stem(ts)] + "' and '" + str(ts.owner) + "' both produce " + _stem(ts) + ".qm")
-        names[_stem(ts)] = str(ts.owner)
-        out = ctx.actions.declare_file(_GENERATED + "/" + _base(ctx) + "/i18n/" + _stem(ts) + ".qm")
-        args = ctx.actions.args()
-        args.add("-silent")
-        args.add(ts)
-        args.add("-qm", out)
-        ctx.actions.run(
-            executable = ctx.executable.lrelease,
-            arguments = [args],
-            inputs = [ts],
-            outputs = [out],
-            env = _TOOL_ENV,
-            mnemonic = "QtLrelease",
-            progress_message = "Running lrelease on %{input}",
-        )
-        entries.append((out.basename, out))
-    return entries
-
-def _translation_owners(ctx):
-    own = [_stem(ts) + "=" + str(ctx.label.same_package_label(ctx.attr.base)) for ts in ctx.files.translations]
-    translations = depset(own, transitive = [dep[QtInfo].translations for dep in ctx.attr.deps if QtInfo in dep])
-    owners = {}
-    for entry in translations.to_list():
-        stem, _, owner = entry.partition("=")
-        if stem in owners and owners[stem] != owner:
-            fail(str(ctx.label) + ": " + owners[stem] + " and " + owner + " both embed :/i18n/" + stem + ".qm")
-        owners[stem] = owner
-    return translations
-
-def _qt_generate_impl(ctx):
-    include_args, headers = _include_args(ctx.attr.deps)
-    translations = _translation_owners(ctx)
-    public = _uic(ctx)
-    sources, metatypes = _moc(ctx, include_args, headers, public)
-    dep_metatypes = depset(transitive = [dep[QtInfo].metatypes for dep in ctx.attr.deps if QtInfo in dep])
-    collected = _collect(ctx, metatypes) if len(metatypes) > 0 else None
-    module_files = []
-    if ctx.attr.uri != "":
-        generated, module_files = _qml_module(ctx, collected, dep_metatypes)
-        sources.extend(generated)
-    if len(ctx.files.resources) > 0:
-        prefix = ctx.attr.resource_prefix.rstrip("/") or "/"
-        entries = [(_relative(ctx, f, "resource"), f) for f in ctx.files.resources]
-        sources.append(_rcc(ctx, "resources", prefix, entries, ctx.files.resources))
-    if len(ctx.files.translations) > 0:
-        entries = _lrelease(ctx)
-        sources.append(_rcc(ctx, "i18n", "/i18n", entries, [f for _, f in entries]))
-    return [
-        DefaultInfo(files = depset(module_files)),
-        OutputGroupInfo(
-            qt_hdrs = depset(public),
-            qt_srcs = depset(sources),
-        ),
-        QtInfo(metatypes = depset([collected] if collected != None else [], transitive = [dep_metatypes]), translations = translations),
-    ]
-
-_qt_generate = rule(
-    implementation = _qt_generate_impl,
-    doc = "Runs moc, uic, rcc, lrelease and qmltyperegistrar for one Qt target.",
-    attrs = {
-        "base": attr.string(mandatory = True, doc = "Name of the public target."),
-        "deps": attr.label_list(doc = "C++ and Qt dependencies whose include context moc reads."),
-        "copts": attr.string_list(doc = "Compiler options whose defines and include paths moc reads."),
-        "defines": attr.string_list(doc = "Preprocessor defines moc reads."),
-        "forms": attr.label_list(allow_files = [".ui"], doc = "Qt Designer forms for uic."),
-        "hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Public headers moc may include."),
-        "lrelease": attr.label(cfg = "exec", executable = True, doc = "lrelease executable."),
-        "metatypes": attr.label_list(allow_files = [".json"], doc = "Qt module metatypes for qmltyperegistrar."),
-        "moc": attr.label(cfg = "exec", executable = True, doc = "moc executable."),
-        "moc_hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Headers moc reads."),
-        "qml_depends": attr.string_list(doc = "QML modules the qmldir depends on."),
-        "qml_srcs": attr.label_list(allow_files = _QML_SRCS, doc = "QML and JavaScript module sources."),
-        "qmltyperegistrar": attr.label(cfg = "exec", executable = True, doc = "qmltyperegistrar executable."),
-        "rcc": attr.label(cfg = "exec", executable = True, doc = "rcc executable."),
-        "resource_prefix": attr.string(default = "/", doc = "Resource path prefix."),
-        "resources": attr.label_list(allow_files = True, doc = "Files compiled into Qt resources."),
-        "translations": attr.label_list(allow_files = [".ts"], doc = "Qt Linguist sources compiled into resources."),
-        "uic": attr.label(cfg = "exec", executable = True, doc = "uic executable."),
-        "uri": attr.string(doc = "QML module URI."),
-        "version": attr.string(default = "1.0", doc = "QML module version."),
-    },
-)
 
 def _quality_files(ctx):
     return ctx.files.srcs + ctx.files.hdrs + ctx.files.moc_hdrs + ctx.files.qml_srcs
@@ -419,10 +79,10 @@ def _qt_library_forward_impl(ctx):
 
 _SOURCE_ATTRS = {
     "deps": attr.label_list(doc = "Dependencies the QML import context walks."),
-    "hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Owned headers."),
-    "moc_hdrs": attr.label_list(allow_files = _CC_HDRS, doc = "Owned headers moc reads."),
-    "qml_srcs": attr.label_list(allow_files = _QML_SRCS, doc = "Owned QML sources."),
-    "srcs": attr.label_list(allow_files = _CC_SRCS + _CC_HDRS, doc = "Owned C++ sources."),
+    "hdrs": attr.label_list(allow_files = QT_CC_HDRS, doc = "Owned headers."),
+    "moc_hdrs": attr.label_list(allow_files = QT_CC_HDRS, doc = "Owned headers moc reads."),
+    "qml_srcs": attr.label_list(allow_files = QT_QML_SRCS, doc = "Owned QML sources."),
+    "srcs": attr.label_list(allow_files = _CC_SRCS + QT_CC_HDRS, doc = "Owned C++ sources."),
 }
 
 _qt_library_forward = rule(
@@ -541,14 +201,6 @@ _qt_forward_test = rule(
     attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **(dx_lcov_merger_attr() | dx_forward_data_attr() | dx_run_env_attrs())),
 )
 
-def qt_framework_path(short_path):
-    """Returns the path of one Qt framework binary below its framework directory, or None."""
-    parts = short_path.split("/")
-    for index in range(len(parts) - 3):
-        if parts[index].endswith(".framework") and "/".join(parts[index + 1:index + 3]) == "Versions/A":
-            return "/".join(parts[index:])
-    return None
-
 def _qt_frameworks_impl(ctx):
     staged = {}
     for dep in ctx.attr.deps:
@@ -615,7 +267,7 @@ def _include_copts(name):
     package = native.package_name()
     parts = (["external", repository] if repository != "" else []) + ([package] if package != "" else [])
     directory = "/".join(parts) if len(parts) > 0 else "."
-    return _pic_copts() + ["-I" + directory, "-I$(BINDIR)/" + directory, "-I$(BINDIR)/" + directory + "/" + _GENERATED + "/" + name]
+    return _pic_copts() + ["-I" + directory, "-I$(BINDIR)/" + directory, "-I$(BINDIR)/" + directory + "/" + QT_GENERATED + "/" + name]
 
 def _generate(name, qt, deps, hdrs, moc_hdrs, forms, copts, defines, resources, resource_prefix, translations, qml_srcs, uri, qml_depends, version, tags, testonly, target_compatible_with):
     uses_qml = uri != None
@@ -866,110 +518,6 @@ def qt_cc_test(
     deps = deps or []
     _executable("test", name, srcs, hdrs, moc_hdrs, forms, resources, resource_prefix, translations, deps, modules, qt, plugins, copts, visibility, kwargs)
 
-_BRIDGE_TOOL = Label("//qt/rust:qt_rust_bridge")
-
-_CXX_QT_FILES = Label("//qt/rust:cxx_qt_runtime_files")
-
-def _bridge(ctx, mode, src, outputs, include = None):
-    args = ctx.actions.args()
-    args.add(mode)
-    args.add(src)
-    if include != None:
-        args.add(include)
-    args.add_all(outputs)
-    ctx.actions.run(
-        executable = ctx.executable.generator,
-        arguments = [args],
-        inputs = [src],
-        outputs = outputs,
-        env = _TOOL_ENV,
-        mnemonic = "QtRustBridge",
-        progress_message = "Generating C++ for %{input}",
-    )
-
-def _qt_rust_bridge_impl(ctx):
-    headers = []
-    sources = []
-    qobjects = []
-    for src in ctx.files.bridges:
-        stem = _relative(ctx, src, "bridge")[:-len(".rs")]
-        if "/" in stem:
-            fail(str(ctx.label) + ": bridge '" + stem + ".rs' must sit in the package directory, not a subdirectory")
-        qobject_header = ctx.actions.declare_file(stem + ".cxxqt.h")
-        qobject_source = ctx.actions.declare_file(stem + ".cxxqt.cpp")
-        header = ctx.actions.declare_file(stem + ".cxx.h")
-        source = ctx.actions.declare_file(stem + ".cxx.cpp")
-        include = qt_package_path(src.short_path, "")[:-len(".rs")]
-        _bridge(ctx, "qt", src, [qobject_header, qobject_source, header, source], include)
-        headers.extend([qobject_header, header])
-        sources.extend([qobject_source, source])
-        qobjects.append(qobject_header)
-    return [
-        DefaultInfo(files = depset(headers + sources)),
-        OutputGroupInfo(
-            qt_rust_hdrs = depset(headers),
-            qt_rust_moc_hdrs = depset(qobjects),
-            qt_rust_srcs = depset(sources),
-        ),
-    ]
-
-_qt_rust_bridge = rule(
-    implementation = _qt_rust_bridge_impl,
-    doc = "Generates the C++ side of CXX-Qt bridges.",
-    attrs = {
-        "bridges": attr.label_list(allow_files = [".rs"], allow_empty = False, mandatory = True, doc = "Rust files holding one #[cxx_qt::bridge] module each."),
-        "generator": attr.label(cfg = "exec", executable = True, default = _BRIDGE_TOOL, doc = "Bridge generator."),
-    },
-)
-
-def _qt_rust_runtime_files_impl(ctx):
-    root = ctx.label.name + "/"
-    headers = []
-    sources = []
-    cxx_h = ctx.actions.declare_file(root + "rust/cxx.h")
-    args = ctx.actions.args()
-    args.add("header")
-    args.add(cxx_h)
-    ctx.actions.run(
-        executable = ctx.executable.generator,
-        arguments = [args],
-        outputs = [cxx_h],
-        env = _TOOL_ENV,
-        mnemonic = "QtRustBridge",
-        progress_message = "Writing rust/cxx.h",
-    )
-    headers.append(cxx_h)
-    for f in ctx.files.files:
-        if f.extension == "h":
-            out = ctx.actions.declare_file(root + "cxx-qt/" + f.basename)
-            ctx.actions.symlink(output = out, target_file = f)
-            headers.append(out)
-        elif f.extension == "cpp":
-            out = ctx.actions.declare_file(root + f.basename)
-            ctx.actions.symlink(output = out, target_file = f)
-            sources.append(out)
-        else:
-            header = ctx.actions.declare_file(root + _stem(f) + ".cxx.h")
-            source = ctx.actions.declare_file(root + _stem(f) + ".cxx.cpp")
-            _bridge(ctx, "cxx", f, [header, source])
-            headers.append(header)
-            sources.append(source)
-    return [
-        DefaultInfo(files = depset(headers + sources)),
-        OutputGroupInfo(
-            qt_rust_hdrs = depset(headers),
-            qt_rust_srcs = depset(sources),
-        ),
-    ]
-
-_qt_rust_runtime_files = rule(
-    implementation = _qt_rust_runtime_files_impl,
-    doc = "Stages the CXX-Qt runtime headers and generates its CXX bridges.",
-    attrs = {
-        "files": attr.label(allow_files = [".h", ".cpp", ".rs"], default = _CXX_QT_FILES, doc = "CXX-Qt crate headers, C++ sources and bridges."),
-        "generator": attr.label(cfg = "exec", executable = True, default = _BRIDGE_TOOL, doc = "Bridge generator."),
-    },
-)
 
 def _output_group(name, target, group, testonly = None):
     native.filegroup(
@@ -1028,7 +576,7 @@ def qt_rust_cc_library(
     _qt_rust_bridge(
         name = name + "_bridge",
         bridges = bridges,
-        generator = generator or _BRIDGE_TOOL,
+        generator = generator or QT_BRIDGE_TOOL,
         tags = (kwargs.get("tags", None) or []) + ["manual"],
         visibility = visibility,
         **shared
@@ -1057,225 +605,4 @@ def qt_rust_cc_library(
         kwargs,
         owned = False,
         static = True,
-    )
-
-def _soname(basename):
-    stem, separator, version = basename.rpartition(".so.")
-    return separator != "" and stem != "" and version.isdigit()
-
-def qt_consumer_identity(cell):
-    """Returns the consumer_archive arch, os and min_runtime of one qualified Qt cell."""
-    return IDENTITIES[cell]
-
-# Qualified cells that have a consumer identity.
-_CONSUMER_CELLS = [cell for cell in qualified_cells() if IDENTITIES[cell] != None]
-
-# Consumer cells with a needs table, the ones qt_bundle can stage.
-_BUNDLE_CELLS = [cell for cell in _CONSUMER_CELLS if CELLS[cell].needs != None]
-
-def _cell_setting(cell):
-    return Label("//qt/platforms:cell_" + cell)
-
-# target_compatible_with for targets that build against @dx_qt or run: every
-# consumer cell, including macOS. Packaging has its own gate, QT_BUNDLE_COMPATIBLE_WITH.
-QT_COMPATIBLE_WITH = select(
-    {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
-)
-
-# target_compatible_with added to every qt_bundle: cells with a needs table.
-QT_BUNDLE_COMPATIBLE_WITH = select(
-    {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
-)
-
-# consumer_archive min_runtime of the qualified cell the build targets.
-QT_CONSUMER_MIN_RUNTIME = select(
-    {_cell_setting(cell): qt_consumer_identity(cell).min_runtime for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": ""},
-)
-
-# Linux cells whose Qt apps import system libraries that the OS supplies.
-_RUNTIME_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "linux"]
-_WINDOWS_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "windows"]
-
-# consumer_archive runtime of the qualified cell the build targets.
-QT_CONSUMER_RUNTIME = select(
-    {_cell_setting(cell): [Label("//qt/rules:os_runtime_" + cell)] for cell in _RUNTIME_CELLS} |
-    {_cell_setting(cell): [Label("//cc/toolchains:msvc_vcruntime")] for cell in _WINDOWS_CELLS} |
-    {"//conditions:default": []},
-)
-
-def qt_os_supplied_libraries(library):
-    """Returns the sorted system libraries a Qt library table needs, which the bundle leaves to the OS."""
-    names = {}
-    for needed in library.values():
-        for name in needed:
-            if not name.startswith("libQt6") and not name.startswith("libicu"):
-                names[name] = True
-    return sorted(names)
-
-QT_CONF = "[Paths]\nPrefix = resources\n"
-
-def qt_runtime_members(members):
-    """Returns the bundle members that sit next to the executable: the Windows DLLs."""
-    return [member for member in members if member.startswith("bin/") and member.endswith(".dll")]
-
-def qt_bundle_members(runfiles, licenses, modules, needs):
-    """Returns the sorted (member, short path) pairs one bundle stages."""
-    roots = [path.rpartition("/")[0] for path in runfiles if path.rpartition("/")[2] == "builtins.qmltypes"]
-    if len(roots) > 1:
-        fail("qt_bundle: the binary carries " + str(len(roots)) + " QML import trees")
-    root = roots[0] + "/" if len(roots) == 1 else None
-    if len(modules) > 0 and root == None:
-        fail("qt_bundle: qml_modules " + str(modules) + " need a binary with the QML import tree")
-    members = {}
-    shipped = {}
-    libraries = {}
-    frameworks = {}
-    roots = []
-    ordered = sorted([("_solib_" in path, path) for path in runfiles])
-    for linked, path in ordered:
-        if root != None and path.startswith(root):
-            relative = path[len(root):]
-            for module in modules:
-                if relative.startswith(qt_module_path(module) + "/"):
-                    members["qml/" + relative] = path
-                    shipped[module] = True
-                    roots.extend(needs.plugin.get(relative, []))
-            continue
-        framework = qt_framework_path(path)
-        if framework != None:
-            name = framework.partition("/")[0]
-            if framework == name + "/Versions/A/" + name.removesuffix(".framework"):
-                if name not in frameworks:
-                    frameworks[name] = framework
-                    libraries[name] = path
-                if not path.startswith("../"):
-                    roots.append(name)
-            continue
-        name = path.rpartition("/")[2]
-        if path.rpartition("/")[0].endswith("/fonts") and (name == "fonts.conf" or name.endswith(".ttf")):
-            members["fonts/" + name] = path
-            continue
-        plugin = [key for key in needs.runtime_plugin if path.endswith("/plugins/" + key)]
-        if len(plugin) == 1:
-            members["plugins/" + plugin[0]] = path
-            roots.extend(needs.runtime_plugin[plugin[0]])
-            continue
-        if _soname(name) or name.endswith(".so") or name.endswith(".dylib"):
-            libraries.setdefault(name, path)
-            if linked:
-                roots.append(name)
-        elif name.endswith(".dll"):
-            libraries.setdefault(name, path)
-            if not path.startswith("../"):
-                roots.append(name)
-    needed = {}
-    for _ in range(len(libraries) + 1):
-        pending = [name for name in roots if name in libraries and name not in needed]
-        if len(pending) == 0:
-            break
-        for name in pending:
-            needed[name] = True
-            roots.extend(needs.library.get(name, []))
-    for name in needed:
-        if name.endswith(".dll"):
-            members["bin/" + name] = libraries[name]
-            continue
-        if name in frameworks:
-            members["lib/" + frameworks[name]] = libraries[name]
-            continue
-        versioned = [other for other in libraries if other.startswith(name + ".") and _soname(other)]
-        if _soname(name) or len(versioned) == 0:
-            members["lib/" + name] = libraries[name]
-    for module in modules:
-        if module not in shipped:
-            fail("qt_bundle: QML module '" + module + "' is not in the import tree")
-    for path in licenses:
-        relative = ("/" + path).partition("/licenses/")[2]
-        if relative == "":
-            fail("qt_bundle: license '" + path + "' is not below a licenses directory")
-        members["licenses/" + relative] = path
-    return sorted(members.items())
-
-def _qt_bundle_impl(ctx):
-    runfiles = ctx.attr.binary[DefaultInfo].default_runfiles.files.to_list() + ctx.files.display_plugins + ctx.files.runtime_plugins
-    files = {f.short_path: f for f in runfiles + ctx.files.license_files}
-    modules = ctx.attr.qml_modules
-    staged = []
-    for member, path in qt_bundle_members([f.short_path for f in runfiles], [f.short_path for f in ctx.files.license_files], modules, ctx.attr.needs[QtNeedsInfo]):
-        out = ctx.actions.declare_file(ctx.label.name + "/" + member)
-        ctx.actions.symlink(output = out, target_file = files[path])
-        staged.append(out)
-    return [DefaultInfo(files = depset(staged))]
-
-def _qt_bundle_runtime_impl(ctx):
-    prefix = "/" + ctx.attr.bundle.label.name + "/"
-    dlls = [f for f in ctx.attr.bundle[DefaultInfo].files.to_list() if qt_runtime_members([f.path.rpartition(prefix)[2]])]
-    if len(dlls) == 0:
-        return [
-            DefaultInfo(),
-            NativeRuntimeInfo(name = ctx.label.name, version = QT_VERSION, source = "Qt", redistribution = "os_supplied", files = [], notice = None, provides = []),
-        ]
-    conf = ctx.actions.declare_file(ctx.label.name + "/qt.conf")
-    ctx.actions.write(conf, QT_CONF)
-    files = dlls + [conf]
-    return [
-        DefaultInfo(files = depset(files)),
-        NativeRuntimeInfo(name = ctx.label.name, version = QT_VERSION, source = "Qt", redistribution = "app_local", files = files, notice = ctx.files.license_files[0], provides = []),
-    ]
-
-_qt_bundle_runtime = rule(
-    implementation = _qt_bundle_runtime_impl,
-    doc = "The Qt DLLs of a qt_bundle and a qt.conf for consumer_archive runtime; empty where the bundle has no DLLs.",
-    attrs = {
-        "bundle": attr.label(mandatory = True, providers = [DefaultInfo], doc = "qt_bundle to read the DLLs from."),
-        "license_files": attr.label_list(allow_files = True, doc = "License texts, the first is the notice."),
-    },
-)
-
-_qt_bundle = rule(
-    implementation = _qt_bundle_impl,
-    doc = "Stages the linked shared libraries (Windows DLLs under bin/), their dependencies, QML modules, plugins and licenses one Qt binary runs with.",
-    attrs = {
-        "binary": attr.label(mandatory = True, providers = [RunEnvironmentInfo], doc = "qt_cc_binary to bundle."),
-        "display_plugins": attr.label_list(allow_files = True, doc = "Display platform plugin files to ship."),
-        "license_files": attr.label_list(allow_files = True, doc = "License texts below a licenses directory."),
-        "needs": attr.label(mandatory = True, providers = [QtNeedsInfo], doc = "Dependency tables of the Qt cell the binary runs on."),
-        "qml_modules": attr.string_list(doc = "QML import modules to ship."),
-        "runtime_plugins": attr.label_list(allow_files = True, doc = "Qt runtime plugin files to ship."),
-    },
-)
-
-def qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugins = [], qt = QT_REPOSITORY, **kwargs):
-    """Stages a qt_cc_binary runtime for consumer_archive resources."""
-    for platform in display:
-        if platform not in ["wayland", "xcb"]:
-            fail("qt_bundle: display '" + platform + "' is not one of wayland, xcb")
-    for plugin in plugins:
-        if plugin not in RUNTIME_PLUGINS:
-            fail("qt_bundle: plugin '" + plugin + "' is not one of " + ", ".join(sorted(RUNTIME_PLUGINS.keys())))
-    compatible = kwargs.pop("target_compatible_with", None)
-    kwargs["target_compatible_with"] = (compatible or []) + QT_BUNDLE_COMPATIBLE_WITH
-    _qt_bundle(
-        name = name,
-        binary = binary,
-        display_plugins = select({
-            "@platforms//os:macos": [qt + "//:display_cocoa"] if len(display) > 0 else [],
-            "@platforms//os:windows": [],
-            "//conditions:default": [qt + "//:display_" + platform for platform in display],
-        }),
-        license_files = [qt + "//:licenses"] + licenses,
-        needs = qt + "//:needs",
-        qml_modules = qml_modules,
-        runtime_plugins = [qt + "//:plugins_" + plugin for plugin in plugins],
-        **kwargs
-    )
-    _qt_bundle_runtime(
-        name = name + "_runtime",
-        bundle = name,
-        license_files = [qt + "//:licenses"],
-        target_compatible_with = kwargs["target_compatible_with"],
-        visibility = kwargs.get("visibility"),
     )

@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("//quality:fixtures.bzl", "real_source_target")
-load(":cell_json.bzl", "qt_cell_json")
+load(":cell_json.bzl", "qt_cell_data")
 load(":metadata_tests.bzl", "qt_metadata_tests")
 
 package(default_visibility = ["//visibility:public"])
@@ -28,15 +28,7 @@ exports_files([
 
 qt_metadata_tests(name = "metadata")
 
-qt_cell_json(
-    name = "linux_arm64_cell",
-    cell = "linux_arm64",
-)
-
-qt_cell_json(
-    name = "linux_x86_64_cell",
-    cell = "linux_x86_64",
-)
+qt_cell_data()
 
 real_source_target(
     name = "corpus_starlark",

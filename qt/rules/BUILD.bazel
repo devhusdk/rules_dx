@@ -13,8 +13,14 @@ package(default_visibility = ["//visibility:public"])
 unsupported_value("unsupported")
 
 exports_files([
+    "bundle.bzl",
+    "cells.bzl",
+    "constants.bzl",
     "defs.bzl",
+    "generate.bzl",
     "providers.bzl",
+    "rust_bridge.bzl",
+    "text.bzl",
     "validate.bzl",
 ])
 
@@ -68,9 +74,15 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "bundle.bzl",
+        "cells.bzl",
+        "constants.bzl",
         "defs.bzl",
+        "generate.bzl",
         "providers.bzl",
         "rust.bzl",
+        "rust_bridge.bzl",
+        "text.bzl",
         "validate.bzl",
     ],
     tags = ["corpus"],

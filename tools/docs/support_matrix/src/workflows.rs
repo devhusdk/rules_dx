@@ -138,6 +138,9 @@ pub fn workflow_platforms(
             continue;
         }
         let label = runner_label(runs_on);
+        if label == "ubuntu-slim" {
+            continue;
+        }
         let Some(platform) = runners.get(label) else {
             return Err(format!(
                 "{path}: job {id} runs on {label}, which no preflight platform uses"
@@ -327,6 +330,15 @@ jobs:
             platforms.contains(&"macos_arm64".to_owned()),
             "{platforms:?}"
         );
+    }
+
+    #[test]
+    fn skips_jobs_that_run_no_bazel() {
+        let runners = runner_platforms("ci.yml", CI).expect("runners");
+        let extra = "jobs:\n  finish:\n    runs-on: ubuntu-slim\n";
+        assert!(workflow_platforms("evidence.yml", extra, &runners)
+            .expect("platforms")
+            .is_empty());
     }
 
     #[test]

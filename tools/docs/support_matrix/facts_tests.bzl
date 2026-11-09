@@ -10,6 +10,7 @@ load("//tools/docs/dart:defs.bzl", "dart_doc_shard")
 load("//tools/docs/d:defs.bzl", "d_doc_shard")
 load("//tools/docs/avro:defs.bzl", "avro_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
+load("//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
 load("//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
 load("//tools/docs/haskell:defs.bzl", "haskell_doc_shard")
@@ -37,6 +38,7 @@ _SHARD_RULES = {
     "dart_doc_shard": dart_doc_shard,
     "d_doc_shard": d_doc_shard,
     "cuda_doc_shard": cuda_doc_shard,
+    "fortran_doc_shard": fortran_doc_shard,
     "fsharp_doc_shard": fsharp_doc_shard,
     "go_doc_shard": go_doc_shard,
     "haskell_doc_shard": haskell_doc_shard,

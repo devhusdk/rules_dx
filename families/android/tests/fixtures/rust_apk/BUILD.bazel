@@ -56,7 +56,7 @@ rust_android_apk(
     assets = glob(["assets/**"]),
     assets_dir = "assets",
     permissions = ["android.permission.INTERNET"],
-    platforms = ["arm64-v8a"],
+    platforms = ["//platforms:arm64-v8a"],
     resource_files = glob(["res/**"]),
     deps = [":app_jni"],
 )
@@ -96,7 +96,7 @@ genrule(
 android_check(
     name = "check_test_bundle_test",
     package = ":test_bundle.aab",
-    platforms = ["x86_64"],
+    platforms = ["//platforms:x86_64"],
 )
 
 android_apk_set(
@@ -149,7 +149,7 @@ rust_android_apk(
         "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.VIBRATE",
     ],
-    platforms = ["x86_64"],
+    platforms = ["//platforms:x86_64"],
     resource_files = glob(["res/**"]),
     version_code = 7,
     version_name = "2.3",
@@ -248,8 +248,8 @@ android_check(
     name = "check_app_aab_test",
     package = ":app_apk_aab_file",
     platforms = [
-        "arm64-v8a",
-        "x86_64",
+        "//platforms:arm64-v8a",
+        "//platforms:x86_64",
     ],
     resources = ["string/app_name"],
     target_compatible_with = [
@@ -270,8 +270,8 @@ android_check(
     name = "check_app_aab_starlark_flag_test",
     package = ":app_apk_aab_file_x86_64_flag",
     platforms = [
-        "arm64-v8a",
-        "x86_64",
+        "//platforms:arm64-v8a",
+        "//platforms:x86_64",
     ],
     target_compatible_with = [
         "@platforms//os:linux",

@@ -1,4 +1,4 @@
-"""Shared path and platform helpers for package rules."""
+"""Shared path helpers for package rules."""
 
 def data_path(file, label):
     """Returns the install path of a data file relative to its target's package."""
@@ -7,15 +7,6 @@ def data_path(file, label):
         return file.basename
     prefix = ("../" + label.repo_name + "/" if label.repo_name else "") + (label.package + "/" if label.package else "")
     return file.short_path[len(prefix):]
-
-def platform_arch(has_constraint, os, arches):
-    """Returns the first matching arch name for the target OS, or ""."""
-    if not has_constraint(os):
-        return ""
-    for name, constraint in arches:
-        if has_constraint(constraint):
-            return name
-    return ""
 
 def claim_dest(seen, dest, value, fold_case = False):
     """Records value for dest and returns the earlier value, or None."""

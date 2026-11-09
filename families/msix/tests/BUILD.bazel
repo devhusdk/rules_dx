@@ -215,7 +215,7 @@ msix_package(
     libs = [":cell_dll"],
     logo = "fixtures/logo.png",
     notice = ["fixtures/NOTICE.txt"],
-    platforms = ["arm64"],
+    platform = "//platforms:windows_arm64",
     publisher = "CN=Dx Cell, O=Dx",
     tags = ["manual"],
     version = "1.0.0.0",
@@ -229,21 +229,7 @@ msix_package(
     libs = [":cell_dll"],
     logo = "fixtures/logo.png",
     notice = ["fixtures/NOTICE.txt"],
-    platforms = ["x86_64"],
-    publisher = "CN=Dx Cell, O=Dx",
-    tags = ["manual"],
-    version = "1.0.0.0",
-)
-
-msix_package(
-    name = "bad_platforms",
-    binary = ":cell_exe",
-    data = ["fixtures/greeting.txt"],
-    identity_name = "Dx.Cell",
-    libs = [":cell_dll"],
-    logo = "fixtures/logo.png",
-    notice = ["fixtures/NOTICE.txt"],
-    platforms = ["x86_32"],
+    platform = "//platforms:windows_x86_64",
     publisher = "CN=Dx Cell, O=Dx",
     tags = ["manual"],
     version = "1.0.0.0",
@@ -401,12 +387,6 @@ arch_on_arm64_test(
     name = "arch_attribute_over_arm64_test",
     arch = "x64",
     target_under_test = ":cell_x86_64",
-)
-
-attribute_failure_test(
-    name = "bad_platforms_fails",
-    expected = "platforms takes one of arm64, x86_64",
-    target_under_test = ":bad_platforms",
 )
 
 arm64_action_test(

@@ -14,7 +14,7 @@ def _platform_transition_impl(settings, attr):
         return {"//command_line_option:platforms": settings["//command_line_option:platforms"]}
     return {"//command_line_option:platforms": [str(attr.platform)]}
 
-_platform_transition = transition(
+platform_transition = transition(
     implementation = _platform_transition_impl,
     inputs = ["//command_line_option:platforms"],
     outputs = ["//command_line_option:platforms"],
@@ -50,7 +50,7 @@ PLATFORM_ATTRS = {
         providers = [platform_common.PlatformInfo],
     ),
     "_platform_probe": attr.label(
-        cfg = _platform_transition,
+        cfg = platform_transition,
         default = Label("//libs/starlark:platform_probe"),
     ),
 }
@@ -58,3 +58,9 @@ PLATFORM_ATTRS = {
 def platform_identity(ctx):
     """Returns the DxPlatformInfo for ctx.attr.platform, or for the current platform when unset."""
     return ctx.attr._platform_probe[0][DxPlatformInfo]
+
+def single_platform_error(rule, platforms):
+    """Returns the error for a platforms list that does not hold exactly one item, or ""."""
+    if len(platforms) == 1:
+        return ""
+    return rule + ": platforms takes exactly one platform label, got " + str(len(platforms))

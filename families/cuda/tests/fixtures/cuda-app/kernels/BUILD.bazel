@@ -25,7 +25,7 @@ cuda_library(
         "common.cuh",
         "kernels.h",
     ],
-    platforms = [
+    cuda_archs = [
         "compute_80:compute_80,sm_80",
         "sm_90",
     ],

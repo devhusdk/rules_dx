@@ -18,7 +18,7 @@ cuda_library(
     testonly = True,
     srcs = ["gpu_main.cu"],
     hdrs = ["gpu_test.h"],
-    platforms = ["compute_75"],
+    cuda_archs = ["compute_75"],
     deps = [":gpu_facts"],
 )
 

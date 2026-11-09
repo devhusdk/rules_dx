@@ -1,7 +1,8 @@
 """Linux AppImage packaging for target binaries."""
 
 load("//appimage:pins.bzl", "MKSQUASHFS_VERSION", "RUNTIME_VERSION", "TOOL_VERSION")
-load("//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
+load("//libs/starlark:packaging.bzl", "claim_dest", "data_path")
+load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
 load(":validate.bzl", "appimage_name_errors")
 
 AppImageInfo = provider(
@@ -25,11 +26,8 @@ def _add(ctx, args, inputs, seen, kind, dest, arg, file):
     inputs.append(file)
 
 def _appimage_impl(ctx):
-    cv = platform_common.ConstraintValueInfo
-    arch = platform_arch(ctx.target_platform_has_constraint, ctx.attr._linux[cv], [
-        ("aarch64", ctx.attr._arm64[cv]),
-        ("x86_64", ctx.attr._x86_64[cv]),
-    ])
+    identity = platform_identity(ctx)
+    arch = identity.cpu if identity.os == "linux" else ""
     if not arch:
         fail("appimage_package " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
     name = ctx.attr.app_name or ctx.label.name
@@ -102,14 +100,12 @@ _appimage_package = rule(
         "libs": attr.label_list(doc = "Shared libraries placed under usr/lib.", allow_files = True),
         "notice": attr.label_list(doc = "License and NOTICE files placed under usr/share/licenses/<name>.", allow_files = True, mandatory = True, allow_empty = False),
         "version": attr.string(doc = "Application version.", mandatory = True),
-        "_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_build": attr.label(default = "//appimage/packer:appimage_packer", executable = True, cfg = "exec"),
-        "_linux": attr.label(default = "@platforms//os:linux"),
         "_runtime_aarch64": attr.label(default = "@dx_appimage_tools//:runtime_aarch64", allow_single_file = True),
         "_runtime_x86_64": attr.label(default = "@dx_appimage_tools//:runtime_x86_64", allow_single_file = True),
         "_tools": attr.label(doc = "The appimagetool closure.", cfg = "exec", default = "@dx_appimage_tools//:tools"),
-        "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
-    },
+    } | PLATFORM_ATTRS,
+    cfg = platform_transition,
 )
 
 def appimage_package(name, target_compatible_with = [], **kwargs):

@@ -117,14 +117,14 @@ apple_macos_app(
     srcs = ["main.m"],
     bundle_id = "com.example.ledger",
     deployment = "14.0",
-    platforms = ["x86_64"],
+    platform = "//platforms:macos_x86_64",
     tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "x86_app_test",
-    expected_failure_substring = "apple_macos_app: platforms takes one of arm64",
+    expected_failure_substring = "apple_macos_app: arch 'x86_64' is outside macos: want arm64",
     target = ":x86_app_selection",
 )
 

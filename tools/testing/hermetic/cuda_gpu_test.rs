@@ -9,7 +9,7 @@ cuda_library(
     name = "kernels",
     srcs = ["reduce.cu", "stencil.cu", "vector_add.cu"],
     hdrs = ["common.cuh", "kernels.h"],
-    platforms = ["compute_80:compute_80,sm_80", "sm_90"],
+    cuda_archs = ["compute_80:compute_80,sm_80", "sm_90"],
     visibility = ["//visibility:public"],
 )
 "#;

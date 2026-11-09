@@ -151,8 +151,8 @@ dx_wrapper_contract_tests(
             [],
         ),
         expect_true(
-            "empty platforms fail",
-            "platforms is empty" in arch_errors([])[0],
+            "empty cuda_archs fail",
+            "cuda_archs is empty" in arch_errors([])[0],
         ),
         expect_true(
             "sm_70 fails",
@@ -226,7 +226,7 @@ dx_wrapper_contract_tests(
         ),
         expect_true(
             "cc below the lowest arch fails",
-            "below the lowest arch in platforms (8.9)" in gpu_requirement_errors(_SAXPY_ARCHS, "8.6", "13.0")[0],
+            "below the lowest arch in cuda_archs (8.9)" in gpu_requirement_errors(_SAXPY_ARCHS, "8.6", "13.0")[0],
         ),
         expect_true(
             "malformed cc fails",

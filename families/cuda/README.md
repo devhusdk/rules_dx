@@ -53,7 +53,7 @@ cuda_library(
     name = "kernels",
     srcs = ["saxpy.cu"],
     hdrs = ["saxpy.cuh", "saxpy.h"],
-    platforms = ["compute_89:compute_89,sm_89", "sm_120"],
+    cuda_archs = ["compute_89:compute_89,sm_89", "sm_120"],
 )
 ```
 
@@ -63,7 +63,7 @@ cuda_library(
   and `visibility` work as for `cc_library`. The CUDA runtime links
   statically.
 - `cuda_binary`: a `cc_binary`. Its `.cu` and `.cuh` sources go through a
-  `cuda_library` with the same `platforms`. The other sources compile as C++.
+  `cuda_library` with the same `cuda_archs`. The other sources compile as C++.
 - `cuda_test`: the same as `cuda_binary`, as a `cc_test`.
 
 `defines` and `local_defines` on `cuda_binary` and `cuda_test` apply to all
@@ -78,7 +78,7 @@ to nvcc.
 `__device__` functions can call across `.cu` files and across libraries.
 `rdc` supports `sm_` archs.
 
-`platforms` is required on all four. Each entry is one of:
+`cuda_archs` is required on all four. Each entry is one of:
 
 - `sm_XY`: SASS for compute capability X.Y.
 - `compute_XY`: PTX for X.Y, compiled for the device at load time.
@@ -104,7 +104,7 @@ failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
 | --- | --- |
 | `dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda_license.license(accept = ["cuda-eula"]) to the root MODULE.bazel` | Add the license tag to the root `MODULE.bazel`. |
 | `dx_cuda: unknown license '<name>'; the only one is 'cuda-eula'` | Accept `cuda-eula`. |
-| `dx_cuda: platforms is empty; set platforms, for example platforms = ["sm_89"]` | Set `platforms`. |
+| `dx_cuda: cuda_archs is empty; set cuda_archs, for example cuda_archs = ["sm_89"]` | Set `cuda_archs`. |
 | `dx_cuda: arch '<arch>' is not supported by nvcc 13.4; supported: ...` | Use an arch from the list. |
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
 | `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); declare the cuda.redist_json and cuda.toolkit tags from the dx CUDA README` | Add the `cuda.redist_json` and `cuda.toolkit` tags from Setup. |
@@ -125,7 +125,7 @@ Depend on the license-gated labels:
 cuda_library(
     name = "gemm",
     srcs = ["gemm.cu"],
-    platforms = ["sm_89"],
+    cuda_archs = ["sm_89"],
     deps = ["@rules_dx_cuda//components:cublas"],  # or :cufft, :curand
 )
 ```
@@ -147,7 +147,7 @@ load("@rules_dx_cuda//rules:defs.bzl", "cuda_test")
 cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
-    platforms = ["compute_89:compute_89,sm_89", "sm_120"],
+    cuda_archs = ["compute_89:compute_89,sm_89", "sm_120"],
     min_compute_capability = "8.9",
     min_driver = "13.0",
     tags = ["manual"],
@@ -167,9 +167,9 @@ when a kernel launch fails. Return 0.
 
 Set `min_compute_capability` and `min_driver` on `cuda_test` to run it on a GPU. Set both.
 
-- `platforms`: required arch specs, as for `cuda_library`.
+- `cuda_archs`: required arch specs, as for `cuda_library`.
 - `min_compute_capability`: lowest device compute capability, `X.Y`.
-  It must be at least the lowest arch in `platforms`.
+  It must be at least the lowest arch in `cuda_archs`.
 - `min_driver`: lowest CUDA driver version, `X.Y`, from `13.0` to `13.4`.
 
 The runtime version is always the pinned toolkit, 13.4.

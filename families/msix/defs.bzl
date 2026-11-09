@@ -1,9 +1,10 @@
 """Windows MSIX packaging for target binaries."""
 
 load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary")
-load("@rules_dx//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
+load("@rules_dx//libs/starlark:packaging.bzl", "claim_dest", "data_path")
+load("@rules_dx//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")
-load(":validate.bzl", "PLATFORM_VALUES", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_platform_errors", "msix_publisher_errors", "msix_version_errors")
+load(":validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
 
 MsixInfo = provider(
     doc = "Identity of one MSIX package.",
@@ -53,14 +54,8 @@ def _add(ctx, entries, seen, kind, dest, file):
     return True
 
 def _msix_impl(ctx):
-    errors = msix_platform_errors(ctx.attr.platforms)
-    if errors:
-        fail("msix_package " + str(ctx.label) + ": " + errors[0])
-    cv = platform_common.ConstraintValueInfo
-    arch = platform_arch(ctx.target_platform_has_constraint, ctx.attr._windows[cv], [
-        ("arm64", ctx.attr._arm64[cv]),
-        ("x64", ctx.attr._x86_64[cv]),
-    ])
+    identity = platform_identity(ctx)
+    arch = {"aarch64": "arm64", "x86_64": "x64"}.get(identity.cpu, "") if identity.os == "windows" else ""
     if not arch:
         fail("msix_package " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
     errors = (
@@ -169,17 +164,6 @@ def _msix_impl(ctx):
         ),
     ]
 
-def _platforms_transition_impl(settings, attr):
-    if msix_platform_errors(attr.platforms) or not attr.platforms:
-        return {"//command_line_option:platforms": settings["//command_line_option:platforms"]}
-    return {"//command_line_option:platforms": [str(Label("//platforms:" + PLATFORM_VALUES[attr.platforms[0]]))]}
-
-_platforms_transition = transition(
-    implementation = _platforms_transition_impl,
-    inputs = ["//command_line_option:platforms"],
-    outputs = ["//command_line_option:platforms"],
-)
-
 _msix_package = rule(
     implementation = _msix_impl,
     doc = "Packages one Windows target binary and its files as an unsigned MSIX.",
@@ -196,18 +180,14 @@ _msix_package = rule(
         "max_version_tested": attr.string(doc = "Highest Windows version tested.", default = MAX_VERSION_TESTED),
         "min_version": attr.string(doc = "Lowest Windows version supported.", default = MIN_VERSION),
         "notice": attr.label_list(doc = "License and NOTICE files placed under licenses/.", allow_files = True, mandatory = True, allow_empty = False),
-        "platforms": attr.string_list(doc = "One of arm64 or x86_64 to build the package for that architecture. Empty uses the current target platform. Do not set it with select()."),
         "publisher": attr.string(doc = "Publisher distinguished name. Must match the signing certificate subject.", mandatory = True),
         "publisher_display_name": attr.string(doc = "Publisher display name. Defaults to the publisher CN."),
         "version": attr.string(doc = "Four-part package version.", mandatory = True),
-        "_arm64": attr.label(default = "@platforms//cpu:arm64"),
         "_pack": attr.label(default = "//:pack.ps1", allow_single_file = True),
         "_pwsh": attr.label(default = "@rules_powershell//powershell:current_pwsh_toolchain", cfg = "exec"),
-        "_windows": attr.label(default = "@platforms//os:windows"),
-        "_x86_64": attr.label(default = "@platforms//cpu:x86_64"),
-    },
+    } | PLATFORM_ATTRS,
     toolchains = [config_common.toolchain_type(TOOLCHAIN_TYPE, mandatory = False)],
-    cfg = _platforms_transition,
+    cfg = platform_transition,
 )
 
 def _windowsonly_chars(target_compatible_with):

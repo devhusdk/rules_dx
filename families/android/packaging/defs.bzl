@@ -9,7 +9,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//platforms:defs.bzl", "api_floor")
 load("//sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
-load(":repos.bzl", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
+load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 load(":validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
 
 _TARGET_SDK = SDK_PLATFORM.removeprefix("android-")
@@ -141,11 +141,19 @@ _apk_manifest = rule(
     outputs = {"manifest": "%{name}.xml"},
 )
 
+def abis_for_platforms(platforms):
+    """Returns the ABI name of each platform label; an unknown label stays as its text for abi_errors."""
+    if type(platforms) != "list":
+        return platforms
+    by_label = {label: abi for abi, label in ABI_PLATFORMS.items()}
+    labels = [str(native.package_relative_label(platform)) for platform in platforms]
+    return [by_label.get(label, label) for label in labels]
+
 def rust_android_apk(
         name,
         app_id,
         deps,
-        platforms = ["arm64-v8a", "x86_64"],
+        platforms = [Label("//platforms:arm64-v8a"), Label("//platforms:x86_64")],
         activity = "android.app.NativeActivity",
         api_level = 0,
         assets = [],
@@ -161,11 +169,12 @@ def rust_android_apk(
         **kwargs):
     """Packages one APK and one unsigned App Bundle from native CcInfo deps with a Rust entry point."""
     inner = ":" + name + "_bin"
+    abis = abis_for_platforms(platforms)
     package = custom_package if custom_package != "" else app_id
     effective_api = api_level if api_level != 0 else api_floor()
     _apk_validation(
         name = name + "_validation",
-        abis = platforms,
+        abis = abis,
         api_level = api_level,
         apk_name = name,
         app_id = app_id,
@@ -200,8 +209,8 @@ def rust_android_apk(
         tags = ["manual"],
         visibility = visibility,
     )
-    plain = not _has_select([platforms, app_id, api_level, version_code])
-    invalid = plain and len(rust_android_apk_errors(name, app_id, platforms, api_level, version_code)) > 0
+    plain = not _has_select([abis, app_id, api_level, version_code])
+    invalid = plain and len(rust_android_apk_errors(name, app_id, abis, api_level, version_code)) > 0
     android_application(
         name = name + "_bundle",
         base_module = inner,
@@ -212,7 +221,7 @@ def rust_android_apk(
     )
     _aab_file(
         name = name + "_aab_file",
-        abis = platforms,
+        abis = abis,
         src = None if invalid else ":" + name + "_bundle",
         validation = ":" + name + "_validation",
         tags = ["manual"],
@@ -233,7 +242,7 @@ def rust_android_apk(
     )
     _rust_android_apk(
         name = name,
-        abis = platforms,
+        abis = abis,
         binary = None if invalid else inner,
         testonly = testonly,
         validation = ":" + name + "_validation",
@@ -640,17 +649,18 @@ _check_selection = rule(
 
 def android_check(name, package, platforms = [], resources = [], size = "small", tags = None, target_compatible_with = None, visibility = None):
     """Declares a test that the package is an unsigned APK or a valid App Bundle."""
+    abis = abis_for_platforms(platforms)
     _check_selection(
         name = name + "_selection",
         package = package,
-        abis = platforms,
+        abis = abis,
         resources = resources,
         tags = ["manual"],
         target_compatible_with = target_compatible_with,
         visibility = ["//visibility:private"],
     )
     args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + package + ")"]
-    for abi in platforms:
+    for abi in abis:
         args.extend(["--abi", abi])
     for resource in resources:
         args.extend(["--resource", resource])

@@ -26,14 +26,14 @@ cuda_library(
         "dep.cuh",
         "host_only.cuh",
     ],
-    platforms = ["sm_89"],
+    cuda_archs = ["sm_89"],
     includes = ["."],
 )
 
 cuda_library(
     name = "clean",
     srcs = ["clean.cu"],
-    platforms = ["sm_89"],
+    cuda_archs = ["sm_89"],
     copts = ["-DCLEAN_OFFSET=1"],
     deps = [":dep"],
 )
@@ -41,7 +41,7 @@ cuda_library(
 cuda_library(
     name = "two_archs",
     srcs = ["two_archs.cu"],
-    platforms = [
+    cuda_archs = [
         "sm_80",
         "sm_89",
     ],
@@ -53,7 +53,7 @@ cuda_library(
 cuda_library(
     name = "dirty",
     srcs = ["dirty.cu"],
-    platforms = ["sm_89"],
+    cuda_archs = ["sm_89"],
     tags = ["manual"],
     deps = [":dep"],
 )

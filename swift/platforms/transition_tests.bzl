@@ -12,25 +12,25 @@ def _settings(toolchains = []):
         "//command_line_option:platforms": ["@@//:p"],
     }
 
-def _attr(platform = "", toolchains = []):
-    return struct(swift_platform = platform, swift_extra_toolchains = toolchains)
+def _attr(platforms = [], toolchains = []):
+    return struct(platforms = platforms, _swift_extra_toolchains = toolchains)
 
 def _linux_test_impl(ctx):
     env = unittest.begin(ctx)
-    out = swift_transition_settings(_settings(["//a:b"]), _attr("//swift/platforms:exec_linux_x86_64"))
+    out = swift_transition_settings(_settings(["//a:b"]), _attr(["//swift/platforms:exec_linux_x86_64"]))
     asserts.equals(env, ["//a:b"], out["//command_line_option:extra_toolchains"])
     asserts.equals(env, 1, len(out["//command_line_option:platforms"]))
     return unittest.end(env)
 
 def _macos_first_test_impl(ctx):
     env = unittest.begin(ctx)
-    out = swift_transition_settings(_settings(["//a:b"]), _attr("", [_APPLE]))
+    out = swift_transition_settings(_settings(["//a:b"]), _attr([], [_APPLE]))
     asserts.equals(env, [_APPLE, "//a:b"], out["//command_line_option:extra_toolchains"])
     return unittest.end(env)
 
 def _idempotent_test_impl(ctx):
     env = unittest.begin(ctx)
-    attr = _attr("", [_APPLE])
+    attr = _attr([], [_APPLE])
     once = swift_transition_settings(_settings(["//a:b"]), attr)
     twice = swift_transition_settings(once, attr)
     asserts.equals(env, once, twice)

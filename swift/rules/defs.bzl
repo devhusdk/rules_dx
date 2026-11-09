@@ -11,14 +11,19 @@ load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
-load("//swift/platforms:transition.bzl", "swift_extra_toolchains", "swift_linux_platform", "swift_linux_transition")
+load("//swift/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
 
 # Re-exported unchanged: BUILD files need it to expose C modules to Swift.
 swift_interop_hint = _swift_interop_hint
 
 _PLATFORM_ATTR = {
-    "swift_extra_toolchains": attr.string_list(doc = "Toolchains put first for Swift targets."),
-    "swift_platform": attr.string(doc = "Swift platform to build for."),
+    "platforms": attr.label_list(
+        doc = "The one platform to build for. Empty uses the current target platform.",
+        providers = [platform_common.PlatformInfo],
+    ),
+    "_swift_extra_toolchains": attr.string_list(
+        default = [str(Label("@local_config_apple_cc_toolchains//:all"))],
+    ),
 }
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
 _INDEX = ["swift.index_while_building", "swift.disable_system_index", "-swift.index_store_compress"]
@@ -70,20 +75,17 @@ _swift_forward_test = dx_executable_forward_rule(
     quality_tools = SWIFT_QUALITY_TOOLS,
 )
 
-def _forward():
-    return {"swift_extra_toolchains": swift_extra_toolchains(), "swift_platform": swift_linux_platform()}
-
-def swift_library(name, srcs = None, visibility = None, **kwargs):
+def swift_library(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_library and builds it for Linux, or with Xcode on macOS."""
-    dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = _forward(), **kwargs)
+    dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
-def swift_binary(name, srcs = None, visibility = None, **kwargs):
+def swift_binary(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_binary and builds it for Linux, or with Xcode on macOS."""
-    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = _forward(), **kwargs)
+    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
-def swift_test(name, srcs = None, visibility = None, **kwargs):
+def swift_test(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_test and builds it for Linux, or with Xcode on macOS."""
-    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = _forward(), **kwargs)
+    dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
 def swift_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. Linux only."""

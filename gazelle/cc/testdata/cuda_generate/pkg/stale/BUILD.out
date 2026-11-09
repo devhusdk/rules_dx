@@ -3,5 +3,5 @@ load("@rules_dx_cuda//rules:defs.bzl", "cuda_library")
 cuda_library(
     name = "kernel",
     srcs = ["hand.cu"],
-    platforms = ["sm_89"],
+    cuda_archs = ["sm_89"],
 )

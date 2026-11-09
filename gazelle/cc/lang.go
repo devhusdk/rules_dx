@@ -35,22 +35,22 @@ var ccKinds = map[string]rule.KindInfo{
 	},
 }
 
-const platformsDirective = "dx_cuda_platforms"
+const archsDirective = "dx_cuda_archs"
 
 func configureCuda(c *config.Config, rel string, f *rule.File, rep common.Reporter) {
 	if f == nil {
 		return
 	}
 	for _, d := range f.Directives {
-		if d.Key != platformsDirective {
+		if d.Key != archsDirective {
 			continue
 		}
-		platforms := strings.Fields(d.Value)
-		if len(platforms) == 0 {
-			rep.Fail(common.InPackage(rel), "cc: %s: # gazelle:%s needs at least one arch", rel, platformsDirective)
+		archs := strings.Fields(d.Value)
+		if len(archs) == 0 {
+			rep.Fail(common.InPackage(rel), "cc: %s: # gazelle:%s needs at least one arch", rel, archsDirective)
 			continue
 		}
-		c.Exts[platformsDirective] = platforms
+		c.Exts[archsDirective] = archs
 	}
 }
 
@@ -63,7 +63,7 @@ func NewLanguage() language.Language {
 		ExtraKinds:     []string{CudaKind, TestKind},
 		KindDefs:       map[string]string{CudaKind: "@rules_dx_cuda//rules:defs.bzl"},
 		IndexKinds:     []string{CudaKind},
-		Directives:     []string{platformsDirective},
+		Directives:     []string{archsDirective},
 		ConfigureExt:   configureCuda,
 		ImportAttr:     "hdrs",
 		Identity:       HeaderIdentity,

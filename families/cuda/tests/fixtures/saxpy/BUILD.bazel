@@ -10,7 +10,7 @@ cuda_library(
         "saxpy.cuh",
         "saxpy.h",
     ],
-    platforms = [
+    cuda_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],

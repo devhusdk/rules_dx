@@ -1,7 +1,8 @@
 """Unit tests for the shared packaging helpers."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//libs/starlark:packaging.bzl", "claim_dest", "data_path", "platform_arch")
+load("//libs/starlark:packaging.bzl", "claim_dest", "data_path")
+load("//libs/starlark:platform.bzl", "single_platform_error")
 
 def _data_path_checks():
     root = struct(repo_name = "", package = "")
@@ -45,16 +46,11 @@ def _claim_checks():
         expect_equal("seeded entry is reported", claim_dest(seeded, "AppxManifest.xml", "data", fold_case = True), "the generated manifest"),
     ]
 
-def _has(constraints):
-    return lambda c: c in constraints
-
-def _platform_arch_checks():
-    arches = [("aarch64", "arm64"), ("x86_64", "x86_64")]
+def _single_platform_checks():
     return [
-        expect_equal("arm match", platform_arch(_has(["linux", "arm64"]), "linux", arches), "aarch64"),
-        expect_equal("x86 match", platform_arch(_has(["linux", "x86_64"]), "linux", arches), "x86_64"),
-        expect_equal("wrong os", platform_arch(_has(["macos", "arm64"]), "linux", arches), ""),
-        expect_equal("os without a pinned arch", platform_arch(_has(["linux", "riscv64"]), "linux", arches), ""),
+        expect_equal("one platform", single_platform_error("dx_x", ["//p:a"]), ""),
+        expect_equal("no platform", single_platform_error("dx_x", []), "dx_x: platforms takes exactly one platform label, got 0"),
+        expect_equal("two platforms", single_platform_error("dx_x", ["//p:a", "//p:b"]), "dx_x: platforms takes exactly one platform label, got 2"),
     ]
 
 def packaging_unit_tests(name):
@@ -62,5 +58,5 @@ def packaging_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
-        checks = _data_path_checks() + _claim_checks() + _platform_arch_checks(),
+        checks = _data_path_checks() + _claim_checks() + _single_platform_checks(),
     )

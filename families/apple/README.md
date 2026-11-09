@@ -540,7 +540,7 @@ rust_static_library(
 apple_macos_app(
     name = "ledger",
     srcs = ["main.m"],
-    platforms = ["arm64"],
+    platform = "@rules_dx_apple//platforms:macos_arm64",
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "14.0",
@@ -550,7 +550,8 @@ apple_macos_app(
 )
 ```
 
-`srcs` holds the native entry point. `library` is any target with
+`platform` is optional and defaults to the current target platform; only
+`macos_arm64` is accepted. `srcs` holds the native entry point. `library` is any target with
 `CcInfo` that links one static archive, such as `rust_static_library`.
 The app needs `srcs`, `library`, or both. `frameworks` takes frameworks
 `macos_dynamic_framework` targets, checked by bundle name under
@@ -612,7 +613,7 @@ Building signs ad hoc only, whatever `--macos_signing_cert_name` says.
 
 Failures read:
 
-- `apple_macos_app: platforms takes one of arm64`
+- `apple_macos_app: arch 'x86_64' is outside macos: want arm64`
 - `apple_macos_app: deployment '13.0' is below 14.0`
 - `apple_macos_app: plugin '//app:empty' places nothing under PlugIns`
 - `apple_macos_app: deployment '16.0' is above the Xcode 16 'macosx' ceiling 15.0`

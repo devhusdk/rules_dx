@@ -101,6 +101,9 @@ Build for arm64 from any Linux host:
 bazel build //pkg:app --platforms=//appimage/platforms:linux_arm64
 ```
 
+Or set `platform = "//appimage/platforms:linux_arm64"` on the target. Unset uses the
+current target platform.
+
 The image is packaged from the arm64 target bytes. Running it needs an arm64
 Linux host.
 

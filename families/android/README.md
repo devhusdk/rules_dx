@@ -123,7 +123,8 @@ rust_android_apk(
 The package links one `lib/<abi>/lib<name>_bin.so` per ABI from the
 static native deps and signs the APK with the debug key. Builds never
 use a release key. Build `:app_apk` for the installable `app_apk.apk`;
-it selects the platforms named in `platforms`, and an unknown ABI fails. The
+it builds for the platform labels in `platforms`, `//platforms:arm64-v8a` and
+`//platforms:x86_64` by default, and any other label fails. Do not set it with `select()`. The
 native deps need `alwayslink = True` so `ANativeActivity_onCreate` stays
 exported, and `-landroid -llog` as link options when they use the NDK
 APIs. The default manifest launches a `NativeActivity` loading that
@@ -226,7 +227,7 @@ load("@rules_dx_android//packaging:defs.bzl", "android_check")
 android_check(
     name = "aab_check",
     package = ":app_apk_aab_file",
-    platforms = ["arm64-v8a", "x86_64"],
+    platforms = ["@rules_dx_android//platforms:arm64-v8a", "@rules_dx_android//platforms:x86_64"],
     resources = ["string/app_name"],
 )
 ```
@@ -234,7 +235,7 @@ android_check(
 | Attribute | Default | Meaning |
 | --- | --- | --- |
 | `package` | required | The `.apk` or `.aab` to check. |
-| `platforms` | `[]` | ABIs that must ship a `base/lib/<abi>/*.so`. App Bundles only. |
+| `platforms` | `[]` | Platform labels whose ABI must ship a `base/lib/<abi>/*.so`. App Bundles only. |
 | `resources` | `[]` | `type/name` resources the bundle must resolve. App Bundles only. |
 | `size`, `tags`, `visibility` | `"small"`, none, none | Passed to the test. |
 

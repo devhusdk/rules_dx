@@ -7,7 +7,7 @@ cuda_library(
     name = "scale",
     srcs = ["scale.cu"],
     hdrs = ["scale.cuh"],
-    platforms = [
+    cuda_archs = [
         "sm_89",
         "sm_120",
     ],
@@ -18,7 +18,7 @@ cuda_library(
     name = "axpy",
     srcs = ["axpy.cu"],
     hdrs = ["axpy.h"],
-    platforms = [
+    cuda_archs = [
         "sm_89",
         "sm_120",
     ],
@@ -37,7 +37,7 @@ cuda_objects(
     name = "scale_objects",
     srcs = ["scale.cu"],
     hdrs = ["scale.cuh"],
-    platforms = [
+    cuda_archs = [
         "sm_89",
         "sm_120",
     ],
@@ -50,7 +50,7 @@ cuda_library(
         "axpy.h",
         "scale.cuh",
     ],
-    platforms = [
+    cuda_archs = [
         "sm_89",
         "sm_120",
     ],

@@ -261,7 +261,7 @@ func TestGenerateRootPackage(t *testing.T) {
 	}
 }
 
-func cudaFixture(t *testing.T, build string, platforms []string, files map[string]string) (language.Language, language.GenerateResult) {
+func cudaFixture(t *testing.T, build string, archs []string, files map[string]string) (language.Language, language.GenerateResult) {
 	t.Helper()
 	root := t.TempDir()
 	var regular []string
@@ -270,8 +270,8 @@ func cudaFixture(t *testing.T, build string, platforms []string, files map[strin
 		regular = append(regular, name)
 	}
 	cfg := &config.Config{RepoRoot: root, Exts: map[string]interface{}{}}
-	if platforms != nil {
-		cfg.Exts[platformsDirective] = platforms
+	if archs != nil {
+		cfg.Exts[archsDirective] = archs
 	}
 	var f *rule.File
 	if build != "" {
@@ -300,8 +300,8 @@ func TestCudaGenerateOwnedByDirectory(t *testing.T) {
 	if got := strings.Join(r.AttrStrings("hdrs"), ","); got != "k.cuh" {
 		t.Errorf("hdrs = %q", got)
 	}
-	if got := strings.Join(r.AttrStrings("platforms"), "|"); got != "compute_89:compute_89,sm_89|sm_120" {
-		t.Errorf("platforms = %q", got)
+	if got := strings.Join(r.AttrStrings("cuda_archs"), "|"); got != "compute_89:compute_89,sm_89|sm_120" {
+		t.Errorf("cuda_archs = %q", got)
 	}
 	if len(res.Imports) != 1 {
 		t.Errorf("imports = %v", res.Imports)
@@ -313,7 +313,7 @@ func TestCudaMissingDirectiveRefuses(t *testing.T) {
 	if len(res.Gen) != 0 {
 		t.Fatalf("gen = %+v", res.Gen)
 	}
-	wantRefusal(t, refusal(t, lang), "cc: pkg/demo: .cu/.cuh files need # gazelle:dx_cuda_platforms <arch>...")
+	wantRefusal(t, refusal(t, lang), "cc: pkg/demo: .cu/.cuh files need # gazelle:dx_cuda_archs <arch>...")
 }
 
 func TestCudaMainRefuses(t *testing.T) {
@@ -322,19 +322,19 @@ func TestCudaMainRefuses(t *testing.T) {
 }
 
 func TestCudaBinaryNameClashRefuses(t *testing.T) {
-	lang, _ := cudaFixture(t, "cuda_binary(name = \"demo\", srcs = [\"main.cu\"], platforms = [\"sm_89\"])\n", []string{"sm_89"}, map[string]string{"main.cu": "int main() {}\n", "k.cu": "\n"})
+	lang, _ := cudaFixture(t, "cuda_binary(name = \"demo\", srcs = [\"main.cu\"], cuda_archs = [\"sm_89\"])\n", []string{"sm_89"}, map[string]string{"main.cu": "int main() {}\n", "k.cu": "\n"})
 	wantRefusal(t, refusal(t, lang), "already creates demo_cuda")
 }
 
 func TestCudaOwnedFilesProduceNothing(t *testing.T) {
-	_, res := cudaFixture(t, "cuda_library(name = \"kernel\", srcs = [\"k.cu\"], hdrs = [\"k.cuh\"], platforms = [\"sm_89\"])\n", nil, map[string]string{"k.cu": "\n", "k.cuh": "\n"})
+	_, res := cudaFixture(t, "cuda_library(name = \"kernel\", srcs = [\"k.cu\"], hdrs = [\"k.cuh\"], cuda_archs = [\"sm_89\"])\n", nil, map[string]string{"k.cu": "\n", "k.cuh": "\n"})
 	if len(res.Gen) != 0 || len(res.Empty) != 0 {
 		t.Fatalf("result = %+v", res)
 	}
 }
 
 func TestCudaStaleOwnedTargetIsEmptied(t *testing.T) {
-	_, res := cudaFixture(t, "cuda_library(name = \"demo_cuda\", srcs = [\"gone.cu\"], platforms = [\"sm_89\"])\ncuda_library(name = \"hand\", srcs = [\"h.cu\"])\n", nil, map[string]string{"h.cu": "\n"})
+	_, res := cudaFixture(t, "cuda_library(name = \"demo_cuda\", srcs = [\"gone.cu\"], cuda_archs = [\"sm_89\"])\ncuda_library(name = \"hand\", srcs = [\"h.cu\"])\n", nil, map[string]string{"h.cu": "\n"})
 	if len(res.Gen) != 0 || len(res.Empty) != 1 || res.Empty[0].Name() != "demo_cuda" {
 		t.Fatalf("result = %+v", res)
 	}

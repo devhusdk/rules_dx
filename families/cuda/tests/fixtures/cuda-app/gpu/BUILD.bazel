@@ -14,7 +14,7 @@ exports_files([
 cuda_test(
     name = "gpu_test",
     srcs = ["gpu_test.cu"],
-    platforms = [
+    cuda_archs = [
         "compute_80:compute_80,sm_80",
         "sm_90",
     ],

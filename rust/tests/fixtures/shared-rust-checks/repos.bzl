@@ -236,7 +236,7 @@ rust_android_apk(
     name = "consumer_apk",
     testonly = True,
     app_id = "org.example.consumer.tasks",
-    platforms = ["x86_64"],
+    platforms = ["@rules_dx_android//platforms:x86_64"],
     api_level = 33,
     assets = [
         ":assets/board.txt",

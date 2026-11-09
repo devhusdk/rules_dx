@@ -18,14 +18,6 @@ def msix_version_errors(version):
     """Returns why a package version is not four numbers up to 65535."""
     return msix_named_version_errors("version", version)
 
-PLATFORM_VALUES = {"arm64": "windows_arm64", "x86_64": "windows_x86_64"}
-
-def msix_platform_errors(platforms):
-    """Returns why a platforms value is not empty or one known architecture."""
-    if len(platforms) == 0 or (len(platforms) == 1 and platforms[0] in PLATFORM_VALUES):
-        return []
-    return ["platforms takes one of " + ", ".join(sorted(PLATFORM_VALUES))]
-
 def msix_identity_errors(name):
     """Returns why a package identity name is invalid."""
     if len(name) < 3 or len(name) > 50 or not only_chars(name, _LETTERS + _DIGITS + ".-"):

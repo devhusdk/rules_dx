@@ -30,7 +30,7 @@ rust_test(
 cuda_test(
     name = "saxpy_gpu_test",
     srcs = ["saxpy_gpu_test.cu"],
-    platforms = [
+    cuda_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -105,7 +105,7 @@ hermetic_toolchain_test(
 cuda_test(
     name = "rdc_gpu_test",
     srcs = ["rdc_gpu_test.cu"],
-    platforms = [
+    cuda_archs = [
         "sm_89",
         "sm_120",
     ],
@@ -128,7 +128,7 @@ rust_test(
 )
 
 cuda_gpu_check(
-    name = "gpu_cc_below_platforms",
+    name = "gpu_cc_below_cuda_archs",
     archs = ["sm_89"],
     min_compute_capability = "7.5",
     min_driver = "13.0",
@@ -136,9 +136,9 @@ cuda_gpu_check(
 )
 
 failure_test(
-    name = "gpu_cc_below_platforms_failure_test",
-    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in platforms (8.9)",
-    target = ":gpu_cc_below_platforms",
+    name = "gpu_cc_below_cuda_archs_failure_test",
+    expected_failure_substring = "dx_cuda: min_compute_capability 7.5 is below the lowest arch in cuda_archs (8.9)",
+    target = ":gpu_cc_below_cuda_archs",
     target_compatible_with = CUDA_TARGET,
 )
 
@@ -160,7 +160,7 @@ rust_test(
 cuda_test(
     name = "cublas_gpu_test",
     srcs = ["cublas_gpu_test.cu"],
-    platforms = [
+    cuda_archs = [
         "compute_89:compute_89,sm_89",
         "sm_120",
     ],
@@ -209,23 +209,23 @@ gcc_hermetic_toolchain_test(
 )
 
 cuda_library(
-    name = "missing_platforms",
+    name = "missing_cuda_archs",
     srcs = ["//tests/fixtures/saxpy:saxpy.cu"],
-    platforms = [],
+    cuda_archs = [],
     tags = ["manual"],
 )
 
 failure_test(
-    name = "missing_platforms_failure_test",
-    expected_failure_substring = "dx_cuda: platforms is empty",
-    target = ":missing_platforms",
+    name = "missing_cuda_archs_failure_test",
+    expected_failure_substring = "dx_cuda: cuda_archs is empty",
+    target = ":missing_cuda_archs",
     target_compatible_with = CUDA_TARGET,
 )
 
 cuda_library(
     name = "unsupported_arch",
     srcs = ["//tests/fixtures/saxpy:saxpy.cu"],
-    platforms = ["sm_70"],
+    cuda_archs = ["sm_70"],
     tags = ["manual"],
 )
 

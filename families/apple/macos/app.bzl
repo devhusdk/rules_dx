@@ -7,11 +7,11 @@ load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_dx//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("@rules_dx//libs/starlark:rlocation.bzl", "rlocation_path")
 load("//bundle:defs.bzl", "TOOL_PATH", "adhoc_signing_transition", "archives", "check_cell", "display", "flat_resources", "label_text", "resolved_xcode")
-load("//bundle:validate.bzl", "bundle_platform_errors")
-load(":validate.bzl", "MACOS_ARCHES", "macos_app_errors")
+load(":validate.bzl", "macos_app_errors")
 
 _CELL = "macos/arm64"
 
@@ -37,12 +37,16 @@ _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 </plist>
 """
 
+def _macho_arch(ctx):
+    """Returns the Mach-O arch name of the platform, or "" when it is not a macOS platform."""
+    identity = platform_identity(ctx)
+    if identity.os != "macos":
+        return ""
+    return {"aarch64": "arm64", "x86_64": "x86_64"}.get(identity.cpu, "")
+
 def _macos_selection_impl(ctx):
-    selected = bundle_platform_errors("apple_macos_app", list(ctx.attr.platforms), MACOS_ARCHES)
-    if len(selected) > 0:
-        fail("; ".join(selected))
     failures = macos_app_errors(struct(
-        arch = ctx.attr.arch,
+        arch = _macho_arch(ctx),
         bundle_id = ctx.attr.bundle_id,
         deployment = ctx.attr.deployment,
         entitlements = ctx.attr.entitlements,
@@ -63,20 +67,18 @@ _macos_selection = rule(
     implementation = _macos_selection_impl,
     doc = "Fails analysis when a macOS app declaration is invalid.",
     attrs = {
-        "arch": attr.string(doc = "Target CPU architecture of the app.", mandatory = True),
         "bundle_id": attr.string(doc = "Reverse DNS bundle identifier of the app.", mandatory = True),
         "deployment": attr.string(doc = "Minimum macOS version the app supports.", mandatory = True),
         "entitlements": attr.string(doc = "Entitlements label text, which building rejects.", mandatory = True),
         "framework_imports": attr.string_list(doc = "Label texts of embedded frameworks.", mandatory = True),
         "library": attr.string(doc = "Label text of the Rust library the app links.", mandatory = True),
-        "platforms": attr.string_list(doc = "The one architecture the app is built for.", mandatory = True),
         "plugins": attr.string_list(doc = "Label texts of plugins placed under PlugIns.", mandatory = True),
         "provisioning_profile": attr.string(doc = "Provisioning profile label text, which building rejects.", mandatory = True),
         "resources": attr.string_list(doc = "Label texts of resource files bundled into the app.", mandatory = True),
         "srcs": attr.string_list(doc = "Label texts of native sources, including the entry point.", mandatory = True),
         "version": attr.string(doc = "Bundle version string of the app.", mandatory = True),
         "xcode_version": attr.string(doc = "Xcode version the app build is pinned to.", mandatory = True),
-    },
+    } | PLATFORM_ATTRS,
 )
 
 def _has(ctx, constraint):
@@ -213,7 +215,7 @@ def _macos_app_check_impl(ctx):
         info.bundle_id,
         ctx.attr.version,
         ctx.attr.deployment,
-        ctx.attr.arch,
+        _macho_arch(ctx),
         xcode,
         str(xcode_config.sdk_version_for_platform(apple_common.platform.macos)),
         _lines(_framework_names(ctx.attr.frameworks)),
@@ -264,7 +266,6 @@ _macos_app_check = rule(
             mandatory = True,
             providers = [AppleBundleInfo],
         ),
-        "arch": attr.string(doc = "Architecture every Mach-O file of the app must carry.", mandatory = True),
         "deployment": attr.string(doc = "Minimum macOS version the app supports.", mandatory = True),
         "frameworks": attr.label_list(
             doc = "Frameworks the bundle must embed under Frameworks.",
@@ -287,7 +288,7 @@ _macos_app_check = rule(
                 fragment = "apple",
             ),
         ),
-    },
+    } | PLATFORM_ATTRS,
     executable = True,
     fragments = ["apple"],
 )
@@ -305,7 +306,7 @@ def apple_macos_app(
         bundle_id = "",
         version = "",
         deployment = "",
-        platforms = ["arm64"],
+        platform = None,
         xcode_version = "",
         entitlements = None,
         provisioning_profile = None,
@@ -313,11 +314,9 @@ def apple_macos_app(
         testonly = False,
         visibility = None):
     """Builds one upstream macOS application over a Rust library, checked and ad hoc signed."""
-    arch = platforms[0] if len(platforms) == 1 else ""
     _macos_selection(
         name = name + "_selection",
-        arch = arch,
-        platforms = platforms,
+        platform = platform,
         bundle_id = bundle_id,
         deployment = deployment,
         entitlements = label_text(entitlements),
@@ -392,7 +391,7 @@ def apple_macos_app(
     _macos_app_check(
         name = name,
         app = ":" + name + "_bundle",
-        arch = arch,
+        platform = platform,
         deployment = deployment,
         frameworks = frameworks,
         plugins = plugins,

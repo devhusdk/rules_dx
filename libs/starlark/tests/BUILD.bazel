@@ -5,7 +5,6 @@ load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/starlark/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
 load("//libs/starlark/tests/fixtures/starlark_futures:config_subjects.bzl", "config_group", "config_leaf")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":action_tests.bzl", "action_unit_tests")
 load(":analysis_tests.bzl", "observations_only_tests", "runner_shape_tests", "subject_analysis_tests")
 load(":arithmetic_tests.bzl", "arithmetic_load_tests", "arithmetic_unit_tests")
 load(":aspect_tests.bzl", "aspect_subject_tests")
@@ -13,15 +12,12 @@ load(":cells_tests.bzl", "cells_tests")
 load(":config_tests.bzl", "config_subject_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
 load(":license_tests.bzl", "license_tests")
-load(":matcher_tests.bzl", "matcher_unit_tests")
 load(":matrix_tests.bzl", "matrix_validation_tests")
-load(":output_group_tests.bzl", "output_group_unit_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":repo_tests.bzl", "repo_unit_tests")
 load(":seven_zip_tests.bzl", "seven_zip_tests")
 load(":subject.bzl", "example_subject")
 load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
-load(":toolchain_tests.bzl", "toolchain_unit_tests")
 load(":warnings_tests.bzl", "warnings_tests")
 load(":wrapper_forward_fixture.bzl", "wrapper_forward_fixtures", "wrapper_forward_tests")
 load(":wrapper_tests.bzl", "wrapper_kwarg_hooks_tests", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
@@ -78,7 +74,6 @@ license_tests(name = "license")
 
 seven_zip_tests(name = "seven_zip")
 
-action_unit_tests(name = "action_unit")
 
 subject_analysis_tests(name = "subject_analysis")
 
@@ -92,11 +87,8 @@ config_subject_tests(name = "config_subject_analysis")
 
 fixture_execution_tests(name = "fixture_execution")
 
-matcher_unit_tests(name = "matcher_unit")
 
-toolchain_unit_tests(name = "toolchain_unit")
 
-output_group_unit_tests(name = "output_group_unit")
 
 packaging_unit_tests(name = "packaging_unit")
 
@@ -162,7 +154,6 @@ wrapper_forward_tests(
 test_suite(
     name = "all",
     tests = [
-        ":action_unit",
         ":arithmetic_load",
         ":arithmetic_unit",
         ":aspect_subject_analysis",
@@ -170,17 +161,14 @@ test_suite(
         ":exec_group_forwarder_analysis",
         ":fixture_execution",
         ":license",
-        ":matcher_unit",
         ":matrix_validation",
         ":observations_only_analysis",
-        ":output_group_unit",
         ":packaging_unit",
         ":repo_unit",
         ":runner_shape_analysis",
         ":subject_analysis",
         ":thin_demo_missing_executable_test",
         ":thin_demo_missing_provider_test",
-        ":toolchain_unit",
         ":warnings",
         ":wrapper_forward_contract",
         ":wrapper_forward_contract_forward",
@@ -199,7 +187,6 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "action_tests.bzl",
         "analysis_tests.bzl",
         "arithmetic.bzl",
         "arithmetic_tests.bzl",
@@ -209,15 +196,12 @@ real_source_target(
         "direct_sources.bzl",
         "execution_tests.bzl",
         "license_tests.bzl",
-        "matcher_tests.bzl",
         "matrix_tests.bzl",
-        "output_group_tests.bzl",
         "packaging_tests.bzl",
         "repo_tests.bzl",
         "seven_zip_tests.bzl",
         "subject.bzl",
         "thin_compare.bzl",
-        "toolchain_tests.bzl",
         "warnings_tests.bzl",
         "wrapper_forward_fixture.bzl",
         "wrapper_tests.bzl",

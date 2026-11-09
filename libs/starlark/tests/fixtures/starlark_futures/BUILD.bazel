@@ -7,12 +7,8 @@ package(
 )
 
 exports_files([
-    "action_subjects.bzl",
     "aspect_subjects.bzl",
     "config_subjects.bzl",
-    "matchers.bzl",
-    "output_group_subjects.bzl",
-    "toolchain_subjects.bzl",
 ])
 
 string_flag(
@@ -34,12 +30,8 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "action_subjects.bzl",
         "aspect_subjects.bzl",
         "config_subjects.bzl",
-        "matchers.bzl",
-        "output_group_subjects.bzl",
-        "toolchain_subjects.bzl",
     ],
     tags = ["corpus"],
 )

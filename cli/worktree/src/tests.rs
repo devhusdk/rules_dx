@@ -835,6 +835,45 @@ fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
 }
 
 #[test]
+fn release_frees_a_slot_whose_lease_record_is_missing() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    git(
+        &added.path,
+        &["push", "--quiet", "-u", "origin", "feature/a"],
+    );
+    pool.remove(added.slot);
+    let released = ops::release(&pool, &host, &me, &added.path, false).expect("release");
+    assert_eq!(released.slot, Some(added.slot));
+    assert!(!released.already_free);
+    assert_eq!(git(&added.path, &["branch", "--show-current"]), "");
+    let row = ops::list(&pool, &host, false)
+        .expect("list")
+        .rows
+        .into_iter()
+        .find(|row| row.slot == Some(added.slot))
+        .expect("row");
+    assert_eq!(row.state, State::Free);
+}
+
+#[test]
+fn release_succeeds_when_the_slot_directory_is_already_gone() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    std::fs::remove_dir_all(&added.path).expect("remove slot");
+    let released = ops::release(&pool, &host, &me, &added.path, false).expect("release");
+    assert!(released.already_free);
+    assert!(pool.record(added.slot).is_none());
+    ops::release(&pool, &host, &me, &added.path, false).expect("release again");
+}
+
+#[test]
 fn release_refuses_uncommitted_changes_unless_forced() {
     let fixture = Fixture::new();
     let pool = fixture.pool();

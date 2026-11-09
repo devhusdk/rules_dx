@@ -970,6 +970,48 @@ pub(crate) fn release_lease(
     release_locked(pool, host, who, lease.slot, Some(lease), false)
 }
 
+/// A lease record for a slot checkout whose record file is missing, held by the releaser so the usual checks run.
+fn orphan_record(pool: &Pool, slot: u32, who: &Who) -> Option<Record> {
+    let path = pool.slot_path(slot);
+    let checkout = pool
+        .checkouts()
+        .ok()?
+        .into_iter()
+        .find(|checkout| same_path(&checkout.path, &path))?;
+    Some(Record {
+        slot,
+        held: true,
+        branch: checkout.branch,
+        last_branch: None,
+        session: who.session.clone(),
+        agent: who.agent.clone(),
+        pid: Some(who.pid),
+        pid_start: None,
+        boot_id: None,
+        gone: false,
+        stopped_at: None,
+        unclaimed: false,
+        broken: false,
+        leased_at: 0,
+        last_used: 0,
+        lock_digest: None,
+    })
+}
+
+/// The outcome for a slot whose directory is already gone: only git's registration is left to drop.
+fn gone_slot(pool: &Pool, slot: u32, path: PathBuf, branch: Option<String>) -> Released {
+    pool.remove(slot);
+    let _ = git::run(&pool.main, &["worktree", "prune"]);
+    Released {
+        slot: Some(slot),
+        path,
+        branch,
+        already_free: true,
+        removed: false,
+        warnings: Vec::new(),
+    }
+}
+
 fn release_locked(
     pool: &Pool,
     host: &dyn Host,
@@ -978,12 +1020,16 @@ fn release_locked(
     expected: Option<&Record>,
     force: bool,
 ) -> Result<Released, WorktreeError> {
-    let record = pool.record(slot).ok_or_else(|| {
-        WorktreeError::usage(
+    let slot_path = pool.slot_path(slot);
+    let Some(record) = pool.record(slot).or_else(|| orphan_record(pool, slot, who)) else {
+        if !slot_path.exists() {
+            return Ok(gone_slot(pool, slot, slot_path, None));
+        }
+        return Err(WorktreeError::usage(
             "not_a_slot",
             &format!("slot {slot} has no lease record; pass a path from dx worktree list"),
-        )
-    })?;
+        ));
+    };
     if expected.is_some_and(|lease| {
         record.held != lease.held
             || record.branch != lease.branch
@@ -996,7 +1042,9 @@ fn release_locked(
             &format!("slot {slot} was leased again; run dx worktree list to see its holder"),
         ));
     }
-    let slot_path = pool.slot_path(slot);
+    if !slot_path.exists() {
+        return Ok(gone_slot(pool, slot, slot_path, record.branch));
+    }
     if !record.held {
         return Ok(Released {
             slot: Some(slot),

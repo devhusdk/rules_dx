@@ -8,7 +8,7 @@
     )
 )]
 
-use std::io::{self, Write};
+use std::io::{self, IsTerminal, Write};
 use std::path::Path;
 
 use dx_cli::bazel_restart::{RestartingQueryRunner, RestartingRunner};
@@ -248,6 +248,7 @@ fn run() -> i32 {
             return usage_error(code, &error.to_string(), json, command);
         }
     };
+    invocation.piped = !io::stdout().is_terminal();
     // LCOV_EXCL_STOP - reason: end thin run shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     dx_adopt::refresh_stale_pins_from_env();
     dx_cli::exec::set_usage_command(invocation.command);

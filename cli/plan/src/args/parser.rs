@@ -747,6 +747,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         bench_compare: compare,
         path_only,
         agent,
+        piped: false,
         bazel_startup_options,
     })
 }

@@ -46,6 +46,8 @@ dx coverage [--here] [--affected] [--timings] [--min-coverage <percent>] [--min-
 
 `--debug` and `--release` conflict. Both change compilation only.
 
+When stdout is not a terminal, dx passes Bazel the quiet flags `--noshow_progress`, `--noshow_loading_progress`, `--noshow_timestamps`, `--curses=no`, `--ui_event_filters=-info,-debug` and `--test_summary=none`. `-v` keeps full Bazel output.
+
 ## Scopes
 
 No scope means `//...`. Pass labels, patterns, files, or directories. A file runs its owning targets. For `test` and `coverage`, a file runs the tests that depend on its owners. A `manual` test runs only when it owns the file.

@@ -12,6 +12,7 @@
 
 2. Check `ci.yml`:
 
+   <!-- snippet: examples/consumer-ci/caller.yml -->
    ```yaml
    name: ci
    on:
@@ -45,6 +46,7 @@
    cp examples/docs-ci/caller.yml .github/workflows/docs.yml
    ```
 
+   <!-- snippet: examples/docs-ci/caller.yml -->
    ```yaml
    name: docs
    on:

@@ -9,12 +9,18 @@ exports_files([
 
 test_suite(
     name = "consumer_ci_tests",
-    tests = ["//tools/ci:reusable_callers_test"],
+    tests = [
+        "//tools/ci:reusable_callers_test",
+        "//tools/docs/snippets:embed_snippets_test",
+    ],
 )
 
 test_suite(
     name = "docs_ci_tests",
-    tests = ["//tools/ci:reusable_callers_test"],
+    tests = [
+        "//tools/ci:reusable_callers_test",
+        "//tools/docs/snippets:embed_snippets_test",
+    ],
 )
 
 test_suite(

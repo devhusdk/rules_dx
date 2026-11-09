@@ -40,7 +40,9 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     for f in sorted(info.transitive_srcs.to_list(), key = lambda f: f.path):
         rel = repo_relative(f.short_path)
         for name, root in roots:
-            inner = _within(rel, root)
+            inner = _within(f.short_path, root)
+            if inner == None:
+                inner = _within(rel, root)
             if inner != None and (not root or inner.startswith("lib/")):
                 link = ctx.actions.declare_file("%s.root/%s/%s" % (stem, name, inner))
                 ctx.actions.symlink(output = link, target_file = f)
@@ -48,8 +50,11 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
                 break
     own = info.package_name
     root_dir = ctx.bin_dir.path + "/" + ctx.label.package + "/" + stem + ".root"
-    pubspec = ctx.actions.declare_file("%s.root/%s/pubspec.yaml" % (stem, own))
-    ctx.actions.write(pubspec, "name: %s\nenvironment:\n  sdk: ^3.0.0\n" % own)
+    pubspecs = []
+    for name in sorted(packages.keys()):
+        pubspec = ctx.actions.declare_file("%s.root/%s/pubspec.yaml" % (stem, name))
+        ctx.actions.write(pubspec, "name: %s\nenvironment:\n  sdk: ^3.0.0\n" % name)
+        pubspecs.append(pubspec)
     entries = []
     for name in sorted(packages.keys()):
         entries.append('{"name":"%s","rootUri":"%s","packageUri":"lib/","languageVersion":"3.0"}' % (name, "../" if name == own else "../../" + name + "/"))
@@ -60,7 +65,7 @@ def dart_shard_action(ctx, info, package, stem, extract_tool):
     ctx.actions.run(
         executable = sdk.dart,
         arguments = ["doc", "--output", html.path, root_dir + "/" + own],
-        inputs = depset(staged + [pubspec, config]),
+        inputs = depset(staged + pubspecs + [config]),
         tools = sdk.tool_files,
         outputs = [html, home],
         mnemonic = "DxDocsDartDoc",

@@ -1988,6 +1988,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_flutter_library_subject",
+    target = "//tools/docs/dart/flutter_fixture:badge",
+)
+
+real_docs_subject(
     name = "docs_ruby_library_subject",
     target = "//tools/docs/ruby/fixture:geometry",
 )
@@ -2029,6 +2034,7 @@ real_docs_tests(
         ":docs_dart_library_subject",
         ":docs_demo_site_api_subject",
         ":docs_demo_site_subject",
+        ":docs_flutter_library_subject",
         ":docs_fsharp_ledger_subject",
         ":docs_fsharp_xmldoc_off_subject",
         ":docs_astro_library_subject",

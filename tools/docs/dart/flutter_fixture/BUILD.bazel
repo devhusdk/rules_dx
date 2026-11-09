@@ -1,0 +1,24 @@
+load("//flutter/rules:defs.bzl", "flutter_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/dart:defs.bzl", "dart_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+flutter_library(
+    name = "badge",
+    srcs = ["lib/badge.dart"],
+    package_name = "dx_docs_badge",
+    deps = ["@dx_flutter_app_deps//:flutter"],
+)
+
+dart_doc_shard(
+    name = "badge_docs",
+    lib = ":badge",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

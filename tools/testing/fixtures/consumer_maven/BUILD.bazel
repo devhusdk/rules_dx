@@ -4,7 +4,6 @@ exports_files(
     ["maven_install.json"],
     visibility = [
         "//quality/tests:__pkg__",
-        "//svelte/tests/consumer:__pkg__",
         "//tools/testing:__pkg__",
     ],
 )

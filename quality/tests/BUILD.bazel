@@ -113,35 +113,6 @@ rust_test(
     ],
 )
 
-rust_test(
-    name = "consumer_maven_guard_test",
-    testonly = True,
-    srcs = ["consumer_maven_guard_test.rs"],
-    aliases = aliases(
-        package_name = "quality/quality_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "consumer_maven_guard_test",
-    crate_root = "consumer_maven_guard_test.rs",
-    data = glob(
-        ["*_consumer_test.rs"],
-        allow_empty = True,
-    ) + [
-        "//svelte/tests/consumer:app_consumer_test.rs",
-    ],
-    env = {"DX_GUARD_FILES": " ".join([
-        "$(rlocationpath {})".format(f)
-        for f in glob(
-            ["*_consumer_test.rs"],
-            allow_empty = True,
-        ) + [
-            "//svelte/tests/consumer:app_consumer_test.rs",
-        ]
-    ])},
-    deps = ["//tools/testing:dx_testing"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

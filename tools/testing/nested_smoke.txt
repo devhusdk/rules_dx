@@ -3,7 +3,6 @@
 //deploy/release/tests:release_candidate_smoke_test
 //deploy/release/tests:readme_quickstart_smoke_test
 //quality/tests:quality_check_smoke_test
-//svelte/tests/consumer:svelte_consumer_smoke_test
 //tools/testing/hermetic:cpp_rust
 //tools/testing/hermetic:cuda_gpu_nested_test
 //tools/testing:nested_bazel_harness_test

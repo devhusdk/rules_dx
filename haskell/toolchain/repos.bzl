@@ -245,6 +245,7 @@ ROOT_BUILD = """exports_files(["LICENSE"])
 """
 
 _GHC_BUILD = """load("@rules_cc//cc:cc_import.bzl", "cc_import")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 {cc_loads}load("@rules_haskell//haskell:defs.bzl", "haskell_import", "haskell_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -301,6 +302,7 @@ filegroup(
 # The bundled mingw clang as a C toolchain. Only the hub's gated toolchain()
 # entries select it. Loads sit at the top of the generated file.
 _MINGW_CC_LOADS = """load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
+load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
 """
 
 _MINGW_CC_BUILD = """

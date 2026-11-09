@@ -39,7 +39,7 @@ pub use lifecycle::{
     FailureRelated, FinishedCounts, OwnedFileEvent, PlanFindingEvent, SCHEMA_MAJOR, SCHEMA_MINOR,
     SlotEvent, StatusEvent, SummaryEvent, TestCase, TestCounts, TestOutcome, TierEvent,
     ToolConfigEvent, build_failure_event, capability_event, capability_value,
-    changed_line_coverage_event, command_finished, command_started, config_file_event, coverage_event, error_event,
+    changed_line_coverage_event, command_finished, command_started, config_file_event, coverage_event, error_event, generation_error_event, GenerationDetail,
     failure_event, init_plan_event, nest_phase_event, operation_event, owned_file_event,
     quality_started, read_event, report_event, schema, selection_event, slot_event, status_event,
     summary_event, test_outcome_event, test_result_record, tier_event, tool_config_event,

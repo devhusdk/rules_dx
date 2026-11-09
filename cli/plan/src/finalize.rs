@@ -1,5 +1,5 @@
 use generation_result::proto::{
-    Edit, FileResult, GenerationError, GenerationManifest, IgnoredImport, Mode, Modification,
+    Edit, FileResult, Fix, GenerationError, GenerationManifest, IgnoredImport, Mode, Modification,
     Scope, WriteOutcome, file_result,
 };
 use serde::Deserialize;
@@ -94,6 +94,19 @@ struct IntendedError {
     #[serde(default)]
     package: Option<String>,
     message: String,
+    #[serde(default)]
+    kind: Option<String>,
+    #[serde(default)]
+    import: Option<String>,
+    #[serde(default)]
+    fix: Option<IntendedFix>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct IntendedFix {
+    file: String,
+    directive: String,
 }
 
 #[derive(Deserialize)]
@@ -326,6 +339,12 @@ pub fn finalize(input: &FinalizeInput<'_>) -> Result<Finalized, FinalizeError> {
             language: e.language,
             package: e.package,
             message: e.message,
+            kind: e.kind,
+            import: e.import,
+            fix: e.fix.map(|fix| Fix {
+                file: fix.file,
+                directive: fix.directive,
+            }),
         })
         .collect();
     errors.sort_by(|a, b| {

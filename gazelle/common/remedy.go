@@ -18,14 +18,42 @@ func BuildFilePath(c *config.Config, pkg string) string {
 
 // UnresolvedImport formats an unresolved import error with its hint and the ignore directive remedy.
 func UnresolvedImport(c *config.Config, lang string, from label.Label, name, hint string) string {
-	return fmt.Sprintf("%s: %s: unresolved import %q; %s; or add \"# gazelle:dx_ignore_import %s %s\" to %s",
-		lang, from, name, hint, lang, name, BuildFilePath(c, from.Pkg))
+	return UnresolvedImportError(c, lang, from, name, hint).Message
+}
+
+// UnresolvedImportError is UnresolvedImport as a GenerationError that also carries the kind, import and fix.
+func UnresolvedImportError(c *config.Config, lang string, from label.Label, name, hint string) GenerationError {
+	file := BuildFilePath(c, from.Pkg)
+	directive := fmt.Sprintf("# gazelle:dx_ignore_import %s %s", lang, name)
+	return GenerationError{
+		Language: lang,
+		Package:  InPackage(from.Pkg),
+		Message: fmt.Sprintf("%s: %s: unresolved import %q; %s; or add \"%s\" to %s",
+			lang, from, name, hint, directive, file),
+		Kind:   KindUnresolvedImport,
+		Import: name,
+		Fix:    Fix{File: file, Directive: directive},
+	}
 }
 
 // AmbiguousImport formats an ambiguous import error with the resolve directive remedy.
 func AmbiguousImport(c *config.Config, lang string, from label.Label, name, matches string) string {
-	return fmt.Sprintf("%s: %s: ambiguous import %q resolves to %s; add \"# gazelle:resolve %s %s <label>\" to %s",
-		lang, from, name, matches, lang, name, BuildFilePath(c, from.Pkg))
+	return AmbiguousImportError(c, lang, from, name, matches).Message
+}
+
+// AmbiguousImportError is AmbiguousImport as a GenerationError that also carries the kind, import and fix.
+func AmbiguousImportError(c *config.Config, lang string, from label.Label, name, matches string) GenerationError {
+	file := BuildFilePath(c, from.Pkg)
+	directive := fmt.Sprintf("# gazelle:resolve %s %s <label>", lang, name)
+	return GenerationError{
+		Language: lang,
+		Package:  InPackage(from.Pkg),
+		Message: fmt.Sprintf("%s: %s: ambiguous import %q resolves to %s; add \"%s\" to %s",
+			lang, from, name, matches, directive, file),
+		Kind:   KindAmbiguousImport,
+		Import: name,
+		Fix:    Fix{File: file, Directive: directive},
+	}
 }
 
 // ClaimError formats a claim conflict with a remedy. buildFile is the workspace-relative BUILD file holding the

@@ -110,3 +110,34 @@ func TestCheckClaimsRemedyUsesPackageBuildFile(t *testing.T) {
 		t.Errorf("CheckClaims generated =\n%v\nwant\n%s", err, wantOther)
 	}
 }
+
+func TestImportErrorsCarryKindImportAndFix(t *testing.T) {
+	c := &config.Config{ValidBuildFileNames: []string{"BUILD.bazel"}}
+	from := label.New("", "app", "app")
+
+	unresolved := UnresolvedImportError(c, "py", from, "x", "add a library")
+	wantUnresolved := GenerationError{
+		Language: "py",
+		Package:  InPackage("app"),
+		Message:  UnresolvedImport(c, "py", from, "x", "add a library"),
+		Kind:     KindUnresolvedImport,
+		Import:   "x",
+		Fix:      Fix{File: "app/BUILD.bazel", Directive: "# gazelle:dx_ignore_import py x"},
+	}
+	if unresolved != wantUnresolved {
+		t.Errorf("UnresolvedImportError =\n%+v\nwant\n%+v", unresolved, wantUnresolved)
+	}
+
+	ambiguous := AmbiguousImportError(c, "py", from, "x", "//a:x, //b:x")
+	wantAmbiguous := GenerationError{
+		Language: "py",
+		Package:  InPackage("app"),
+		Message:  AmbiguousImport(c, "py", from, "x", "//a:x, //b:x"),
+		Kind:     KindAmbiguousImport,
+		Import:   "x",
+		Fix:      Fix{File: "app/BUILD.bazel", Directive: "# gazelle:resolve py x <label>"},
+	}
+	if ambiguous != wantAmbiguous {
+		t.Errorf("AmbiguousImportError =\n%+v\nwant\n%+v", ambiguous, wantAmbiguous)
+	}
+}

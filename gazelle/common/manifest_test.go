@@ -951,3 +951,19 @@ func TestEmitFailedRootAndUnknownPackage(t *testing.T) {
 		t.Fatalf("errors = %+v, want root with an empty package", got)
 	}
 }
+
+func TestEmitFailedCarriesKindImportAndFix(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "intended.json")
+	in := GenerationError{
+		Language: "py", Package: InPackage("app"), Message: "py: unresolved",
+		Kind: KindUnresolvedImport, Import: "x",
+		Fix: Fix{File: "app/BUILD.bazel", Directive: "# gazelle:dx_ignore_import py x"},
+	}
+	if err := failedRecorder(t, out).EmitFailed([]GenerationError{in}); err != nil {
+		t.Fatalf("EmitFailed: %v", err)
+	}
+	got := readIntended(t, out).Errors[0]
+	if got.Kind != KindUnresolvedImport || got.Import != "x" || got.Fix == nil || *got.Fix != in.Fix {
+		t.Errorf("error = %+v, want kind, import and fix carried", got)
+	}
+}

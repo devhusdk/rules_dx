@@ -476,16 +476,16 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				continue
 			}
 			if imports.deferred[name] {
-				l.fail(common.InPackage(from.Pkg), "%s", common.UnresolvedImport(c, "rust", from, name, fmt.Sprintf("undeclared import: declare it in Cargo.toml, add a local rust_library with crate_name %q, or an exact # gazelle:resolve", name)))
+				l.errors = append(l.errors, common.UnresolvedImportError(c, "rust", from, name, fmt.Sprintf("undeclared import: declare it in Cargo.toml, add a local rust_library with crate_name %q, or an exact # gazelle:resolve", name)))
 				continue
 			}
 			if crate, renamed := imports.renames[name]; renamed {
-				l.fail(common.InPackage(from.Pkg), "%s", common.UnresolvedImport(c, "rust", from, name, fmt.Sprintf("renamed package crate %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", crate)))
+				l.errors = append(l.errors, common.UnresolvedImportError(c, "rust", from, name, fmt.Sprintf("renamed package crate %q; add a local crate, Cargo mapping, or exact # gazelle:resolve", crate)))
 				continue
 			}
-			l.fail(common.InPackage(from.Pkg), "%s", common.UnresolvedImport(c, "rust", from, name, "add a local crate, Cargo mapping, or exact # gazelle:resolve"))
+			l.errors = append(l.errors, common.UnresolvedImportError(c, "rust", from, name, "add a local crate, Cargo mapping, or exact # gazelle:resolve"))
 		default:
-			l.fail(common.InPackage(from.Pkg), "%s", common.AmbiguousImport(c, "rust", from, name, formatMatches(matches)))
+			l.errors = append(l.errors, common.AmbiguousImportError(c, "rust", from, name, formatMatches(matches)))
 		}
 	}
 	softRefs := append(append([]string{}, imports.mirrorPaths...), imports.pathRefs...)

@@ -66,6 +66,16 @@ message GenerationError {
   // Unset when the failing package is unknown; "" is the root package.
   optional string package = 2;
   string message = 3;
+  // Set for import failures: "unresolved_import" or "ambiguous_import".
+  optional string kind = 4;
+  optional string import = 5;
+  optional Fix fix = 6;
+}
+
+// The directive that resolves a failure and the BUILD file that takes it.
+message Fix {
+  string file = 1;
+  string directive = 2;
 }
 
 message GenerationManifest {

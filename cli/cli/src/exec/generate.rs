@@ -547,12 +547,20 @@ fn run_generate_request(
                 .filter(|p| !p.is_empty());
             if let Err(exit) = emit_built(
                 env.out,
-                dx_output::error_event(
+                dx_output::generation_error_event(
                     CODE_GENERATION_FAILED,
                     &generation_error.message,
                     package,
-                    None,
                     Some("execute"),
+                    &dx_output::GenerationDetail {
+                        language: &generation_error.language,
+                        kind: generation_error.kind.as_deref(),
+                        import: generation_error.import.as_deref(),
+                        fix: generation_error
+                            .fix
+                            .as_ref()
+                            .map(|(file, directive)| (file.as_str(), directive.as_str())),
+                    },
                 ),
             ) {
                 return kept_child(env.err, bazel_code, exit);

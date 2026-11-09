@@ -669,6 +669,43 @@ pub fn error_event(
     error_map(code, message, path, flag, phase).map(Value::Object)
 }
 
+/// Import failure details a language extension attaches to a `generation_failed` error.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct GenerationDetail<'a> {
+    pub language: &'a str,
+    pub kind: Option<&'a str>,
+    pub import: Option<&'a str>,
+    /// The BUILD file and the directive to add to it.
+    pub fix: Option<(&'a str, &'a str)>,
+}
+
+/// An `error` event that also names the language, failure kind, import and fix of a generation failure.
+pub fn generation_error_event(
+    code: &str,
+    message: &str,
+    path: Option<&str>,
+    phase: Option<&str>,
+    detail: &GenerationDetail<'_>,
+) -> Result<Value, OutputError> {
+    let mut map = error_map(code, message, path, None, phase)?;
+    if !detail.language.is_empty() {
+        map.insert("language".to_owned(), Value::String(detail.language.to_owned()));
+    }
+    if let Some(kind) = detail.kind {
+        map.insert("kind".to_owned(), Value::String(kind.to_owned()));
+    }
+    if let Some(import) = detail.import {
+        map.insert("import".to_owned(), Value::String(import.to_owned()));
+    }
+    if let Some((file, directive)) = detail.fix {
+        map.insert(
+            "fix".to_owned(),
+            serde_json::json!({ "file": file, "directive": directive }),
+        );
+    }
+    Ok(Value::Object(map))
+}
+
 fn error_map(
     code: &str,
     message: &str,
@@ -1314,6 +1351,27 @@ mod tests {
         .expect("error");
         assert_eq!(event["flag"], Value::String("--keep_going".to_owned()));
         assert!(event.get("path").is_none());
+    }
+
+    #[test]
+    fn generation_error_event_carries_kind_import_and_fix() {
+        let detail = GenerationDetail {
+            language: "py",
+            kind: Some("unresolved_import"),
+            import: Some("x"),
+            fix: Some(("app/BUILD.bazel", "# gazelle:dx_ignore_import py x")),
+        };
+        let event =
+            generation_error_event("generation_failed", "m", Some("app"), Some("execute"), &detail)
+                .expect("error");
+        assert_eq!(event["language"], "py");
+        assert_eq!(event["kind"], "unresolved_import");
+        assert_eq!(event["import"], "x");
+        assert_eq!(event["fix"]["file"], "app/BUILD.bazel");
+        assert_eq!(event["fix"]["directive"], "# gazelle:dx_ignore_import py x");
+        let bare = generation_error_event("generation_failed", "m", None, None, &GenerationDetail::default())
+            .expect("error");
+        assert!(bare.get("kind").is_none() && bare.get("fix").is_none());
     }
 
     #[test]

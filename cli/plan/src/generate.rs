@@ -26,6 +26,10 @@ pub struct ProjectedError {
     /// `None` when the failing package is unknown; `Some("")` is the root.
     pub package: Option<String>,
     pub message: String,
+    pub kind: Option<String>,
+    pub import: Option<String>,
+    /// The BUILD file and directive that resolve the failure.
+    pub fix: Option<(String, String)>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -215,6 +219,12 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
             language: e.language.clone(),
             package: e.package.clone(),
             message: e.message.clone(),
+            kind: e.kind.clone(),
+            import: e.import.clone(),
+            fix: e
+                .fix
+                .as_ref()
+                .map(|fix| (fix.file.clone(), fix.directive.clone())),
         })
         .collect();
     Ok(ProjectedManifest {
@@ -677,6 +687,7 @@ mod tests {
             language: "go".to_owned(),
             package: Some("pkg".to_owned()),
             message: "bad".to_owned(),
+            ..Default::default()
         }];
         generation_result::validate(&manifest).unwrap();
         let projected = project(&manifest).unwrap();
@@ -687,6 +698,9 @@ mod tests {
                 language: "go".to_owned(),
                 package: Some("pkg".to_owned()),
                 message: "bad".to_owned(),
+                kind: None,
+                import: None,
+                fix: None,
             }]
         );
     }

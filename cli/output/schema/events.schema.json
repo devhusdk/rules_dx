@@ -1079,6 +1079,31 @@
         },
         "next": {
           "type": "string"
+        },
+        "language": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "import": {
+          "type": "string"
+        },
+        "fix": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "directive": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "file",
+            "directive"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [

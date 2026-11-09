@@ -490,11 +490,13 @@ mod tests {
                 language: "cc".into(),
                 package: None,
                 message: "boom".into(),
+                ..Default::default()
             },
             GenerationError {
                 language: "go".into(),
                 package: Some("pkg".into()),
                 message: "bad".into(),
+                ..Default::default()
             },
         ];
         manifest

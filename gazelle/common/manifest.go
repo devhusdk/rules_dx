@@ -84,6 +84,9 @@ type IntendedError struct {
 	Language string  `json:"language"`
 	Package  *string `json:"package,omitempty"`
 	Message  string  `json:"message"`
+	Kind     string  `json:"kind,omitempty"`
+	Import   string  `json:"import,omitempty"`
+	Fix      *Fix    `json:"fix,omitempty"`
 }
 
 type PackageRecord struct {
@@ -301,7 +304,11 @@ func (r *ManifestRecorder) EmitFailed(errs []GenerationError) error {
 	}
 	sorted := SortErrors(append([]GenerationError(nil), errs...))
 	for _, e := range sorted {
-		item := IntendedError{Language: e.Language, Message: e.Message}
+		item := IntendedError{Language: e.Language, Message: e.Message, Kind: e.Kind, Import: e.Import}
+		if e.Fix != (Fix{}) {
+			fix := e.Fix
+			item.Fix = &fix
+		}
 		if e.Package.Known {
 			pkg := e.Package.Rel
 			item.Package = &pkg

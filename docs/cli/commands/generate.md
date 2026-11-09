@@ -32,7 +32,7 @@ Text starts with `Running generate for <scope>`. `--quiet` hides it. It then pri
 
 Each ignored import prints `Ignored import '<import>' in <path> [<language>]: ...`.
 
-JSON emits `command_started` with `mode` `check`, or `default` with `--apply`. It then emits one `change` per file with `path`, `kind` (`create` or `modify`), `edit_count`, and `effect` (`proposed`, `applied`, or `refused`). A refused change has a `reason`. A Bazel failure emits `bazel_failed`. A language extension failure emits one `generation_failed` error per entry. `command_finished` has `results_complete`, `exit_code`, and `changes` counts.
+JSON emits `command_started` with `mode` `check`, or `default` with `--apply`. It then emits one `change` per file with `path`, `kind` (`create` or `modify`), `edit_count`, and `effect` (`proposed`, `applied`, or `refused`). A refused change has a `reason`. A Bazel failure emits `bazel_failed`. A language extension failure emits one `generation_failed` error per entry with `language`. An unresolved or ambiguous import also carries `kind` (`unresolved_import` or `ambiguous_import`), `import`, and `fix` with the BUILD `file` and the `directive` to add; `message` keeps the same text. `command_finished` has `results_complete`, `exit_code`, and `changes` counts.
 
 ## Exit codes
 

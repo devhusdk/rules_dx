@@ -337,10 +337,10 @@ func (l *SingleLang) ResolveSpecFor(c *config.Config, r *rule.Rule, from label.L
 			if hint != "" {
 				hint += "; "
 			}
-			l.fail(InPackage(from.Pkg), "%s", UnresolvedImport(c, l.spec.LanguageName, from, name, hint+l.spec.UnresolvedHint))
+			l.errors = append(l.errors, UnresolvedImportError(c, l.spec.LanguageName, from, name, hint+l.spec.UnresolvedHint))
 		},
 		FailAmbiguous: func(from label.Label, name string, matches string) {
-			l.fail(InPackage(from.Pkg), "%s", AmbiguousImport(c, l.spec.LanguageName, from, name, matches))
+			l.errors = append(l.errors, AmbiguousImportError(c, l.spec.LanguageName, from, name, matches))
 		},
 	}
 }

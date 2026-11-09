@@ -24,6 +24,22 @@ type GenerationError struct {
 	Language string
 	Package  PackageRef
 	Message  string
+	// Kind, Import and Fix are set for import failures and empty otherwise.
+	Kind   string
+	Import string
+	Fix    Fix
+}
+
+// Kinds of import failure a GenerationError can carry.
+const (
+	KindUnresolvedImport = "unresolved_import"
+	KindAmbiguousImport  = "ambiguous_import"
+)
+
+// Fix names the directive that resolves a failure and the BUILD file that takes it.
+type Fix struct {
+	File      string `json:"file"`
+	Directive string `json:"directive"`
 }
 
 // ErrorSink collects generation errors from every language so the last

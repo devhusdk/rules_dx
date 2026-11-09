@@ -275,6 +275,19 @@ fn samples() -> Vec<Value> {
         full_diagnostic(),
         error_event("code", "m", None, None, None).expect("error"),
         error_event("code", "m", Some("a"), Some("--f"), Some("p")).expect("error"),
+        generation_error_event(
+            "code",
+            "m",
+            Some("a"),
+            Some("p"),
+            &GenerationDetail {
+                language: "py",
+                kind: Some("unresolved_import"),
+                import: Some("x"),
+                fix: Some(("a/BUILD.bazel", "d")),
+            },
+        )
+        .expect("error"),
         failure_event("code", "m", Some("p"), &facts).expect("failure"),
         init_plan_event(&plan).expect("plan"),
         notice_event(&NoticeEvent::warning("code", "message")).expect("notice"),

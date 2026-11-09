@@ -114,3 +114,18 @@ msvc.license(accept = ["visual-studio-build-tools"])
 Any other host or target platform fails with a message that names the supported pair. There is no clang-cl fallback.
 
 The hermetic harness denies the preinstalled Visual Studio, Windows Kits and Microsoft SDKs directories when it qualifies an MSVC consumer, so a build that reaches them fails. `c_fixture_msvc` and `cpp_fixture_msvc` qualified that way on `windows_x86_64` in ci.yml [run 42372644803](https://github.com/devhusdk/rules_dx/actions/runs/42372644803). They qualified the same way on `windows_arm64` in ci.yml [run 42375312749](https://github.com/devhusdk/rules_dx/actions/runs/42375312749). On `windows_arm64`, `msvc_arm64_hello_test` and `msvc_arm64_pe_machine_test` passed in [run 42183869292](https://github.com/devhusdk/rules_dx/actions/runs/42183869292).
+
+## Benchmarks
+
+`cc_bench` links Google Benchmark's `benchmark_main` into a private `<name>_bin` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
+
+```starlark
+load("@rules_dx//cc/rules:defs.bzl", "cc_bench")
+
+cc_bench(
+    name = "parse_bench",
+    srcs = ["parse_bench.cc"],
+)
+```
+
+The test writes `dx-bench.json` with one row per benchmark, using the real time in the unit the benchmark reports. Google Benchmark comes from the `google_benchmark` Bazel module that rules_dx depends on.

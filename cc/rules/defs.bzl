@@ -4,9 +4,10 @@ load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_libra
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("@rules_cc//cc:objc_library.bzl", _objc_library = "objc_library")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs")
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_append_flags", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//libs/starlark:msvc_crt.bzl", "dx_msvc_crt_aspect", "dx_msvc_crt_reset_transition", "dx_msvc_crt_validate")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
@@ -228,3 +229,28 @@ def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None
         **run
     )
     dx_fuzz_runner(name, ":" + name, visibility = visibility)
+
+def cc_bench(name, srcs = None, visibility = None, tags = None, deps = None, **kwargs):
+    """A Google Benchmark binary plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
+    binary = name + "_bin"
+    build, run = split_test_kwargs(kwargs)
+    run = with_default_size(run)
+    cc_binary(
+        name = binary,
+        srcs = srcs,
+        deps = (deps or []) + [Label("@google_benchmark//:benchmark_main")],
+        visibility = ["//visibility:private"],
+        testonly = True,
+        tags = merge_tags(tags, "manual"),
+        **build
+    )
+    sh_test(
+        name = name,
+        srcs = [Label("//cc/rules:bench_run.sh")],
+        args = ["$(rootpath :" + binary + ")"] + run.pop("args", []),
+        data = run.pop("data", []) + [":" + binary],
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        testonly = True,
+        visibility = visibility,
+        **run
+    )

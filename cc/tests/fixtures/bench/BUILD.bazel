@@ -1,0 +1,45 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//cc/rules:defs.bzl", "cc_bench")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_bench(
+    name = "parse_bench",
+    srcs = ["parse.cc"],
+)
+
+sh_test(
+    name = "parse_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_bench_bin)"],
+    data = [
+        ":parse_bench_bin",
+        "//cc/rules:bench_run.sh",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    timeout = "short",
+)
+
+cc_bench(
+    name = "sized_bench",
+    srcs = ["parse.cc"],
+    size = "large",
+    timeout = "long",
+    args = ["--benchmark_min_time=1x"],
+    tags = ["dx-bench", "extra"],
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "args": ["$(rootpath :sized_bench_bin)", "--benchmark_min_time=1x"],
+        "size": "large",
+        "tags": ["dx-bench", "extra", "manual"],
+        "timeout": "long",
+    },
+    runner = "sized_bench",
+)

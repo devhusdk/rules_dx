@@ -6,6 +6,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "README.md",
+    "bench_run.sh",
     "defs.bzl",
 ])
 

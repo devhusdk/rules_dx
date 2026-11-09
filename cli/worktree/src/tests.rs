@@ -1302,6 +1302,28 @@ fn add_keeps_a_free_slot_with_a_busy_lock() {
     assert_ne!(kept, slots[0].slot);
     assert!(!gone.contains(&slots[0].slot), "{gone:?}");
     assert!(slots[0].path.exists());
+    assert!(pool.record(slots[0].slot).is_some());
+    assert_eq!(gone.len(), 1, "{gone:?}");
+}
+
+#[test]
+fn add_keeps_a_reclaimable_slot_whose_holder_is_gone() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    three_free_slots(&pool, &host, &me);
+    host.live(20);
+    let other = who("s2", 20);
+    let held = ops::add(&pool, &host, &other, &create("feature/h")).expect("h");
+    host.kill(20);
+    host.advance(ops::STOP_GRACE_SECS);
+    assert!(pool.record(held.slot).is_some_and(|r| r.held));
+    host.live(10);
+    ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
+    assert!(held.path.exists());
+    assert!(pool.record(held.slot).is_some_and(|r| r.held));
 }
 
 #[test]
@@ -1333,12 +1355,14 @@ fn add_keeps_free_slots_with_unpushed_commits_above_the_limit() {
     git(&a.path, &["add", "n.txt"]);
     git(&a.path, &["commit", "--quiet", "-m", "local"]);
     host.advance(10);
+    ops::release(&pool, &host, &me, &a.path, true).expect("release a");
     ops::release(&pool, &host, &me, &b.path, true).expect("release b");
+    assert!(pool.record(a.slot).is_some_and(|r| !r.held));
     host.max_slots.store(1, Ordering::SeqCst);
     let listing = ops::list(&pool, &host, true).expect("list");
     assert!(listing.rows.iter().all(|row| row.slot != Some(a.slot) || !row.prunable));
     ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
-    assert!(a.path.exists(), "the held slot with unpushed work stays");
+    assert!(a.path.exists(), "the free slot with unpushed work stays");
     assert!(pool.record(a.slot).is_some());
 }
 

@@ -402,6 +402,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
 |  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_bench` |
+|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_fuzz_test` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_bench` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `compatible_with` |

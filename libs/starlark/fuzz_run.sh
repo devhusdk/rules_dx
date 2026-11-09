@@ -7,7 +7,7 @@ fuzz_bin="$2"
 shift 2
 target=""
 case "$engine" in
-    jazzer|go)
+    jazzer|go|dotnet)
         [ $# -gt 0 ] || { echo "$usage" >&2; exit 2; }
         target="$1"
         shift
@@ -17,6 +17,16 @@ esac
 case "$fuzz_bin" in
     /*) ;;
     *) fuzz_bin="$PWD/$fuzz_bin" ;;
+esac
+
+case "$engine" in
+    dotnet)
+        case "$target" in
+            /*) ;;
+            *) target="$PWD/$target" ;;
+        esac
+        export RUNFILES_DIR="${RUNFILES_DIR:-$(dirname "$PWD")}"
+        ;;
 esac
 
 seconds=60
@@ -46,7 +56,7 @@ trap 'rm -rf "$work"' EXIT
 crashes="$work/artifacts"
 
 case "$engine" in
-    libfuzzer|jazzer) mkdir -p "$work/corpus" "$crashes" ;;
+    libfuzzer|jazzer|dotnet) mkdir -p "$work/corpus" "$crashes" ;;
     go)
         crashes="$work/testdata/fuzz/$target"
         mkdir -p "$crashes"
@@ -57,6 +67,7 @@ esac
 if [ -n "$repro" ]; then
     case "$engine" in
         libfuzzer) exec "$fuzz_bin" "$(resolve "$repro")" ;;
+        dotnet) exec "$fuzz_bin" "--target_path=$target" "$(resolve "$repro")" ;;
         jazzer) exec "$fuzz_bin" "--target_class=$target" "$(resolve "$repro")" ;;
         go)
             cp "$(resolve "$repro")" "$crashes/"
@@ -77,6 +88,12 @@ case "$engine" in
         parallel=""
         [ -z "$jobs" ] || parallel="-fork=$jobs"
         "$fuzz_bin" "-max_total_time=$seconds" "-artifact_prefix=$crashes/" $parallel \
+            "$work/corpus" || status=$?
+        ;;
+    dotnet)
+        parallel=""
+        [ -z "$jobs" ] || parallel="-fork=$jobs"
+        "$fuzz_bin" "--target_path=$target" "-max_total_time=$seconds" "-artifact_prefix=$crashes/" $parallel \
             "$work/corpus" || status=$?
         ;;
     jazzer)

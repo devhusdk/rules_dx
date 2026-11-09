@@ -582,7 +582,7 @@ single_version_override(
 )
 
 dotnet_tools = use_extension("//dotnet:repos.bzl", "dotnet_tools")
-use_repo(dotnet_tools, "rules_dotnet")
+use_repo(dotnet_tools, "dx_libfuzzer_dotnet", "rules_dotnet")
 
 dotnet = use_extension("//dotnet:extensions.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")

@@ -20,6 +20,8 @@ nuget coverlet.console 10.1.0
 nuget Google.Protobuf 3.36.2
 nuget BenchmarkDotNet 0.15.8
 nuget Pragmastat = 3.2.4
+nuget SharpFuzz 2.3.0
+nuget SharpFuzz.CommandLine 2.3.0
 
 group fsharplint
 source https://api.nuget.org/v3/index.json

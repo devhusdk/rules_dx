@@ -8,6 +8,7 @@ load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
 load(":benchmarkdotnet.bzl", "BENCHMARKDOTNET")
 load(":proto.bzl", "csharp_proto_srcs")
+load(":sharpfuzz.bzl", "sharpfuzz_fuzz")
 load(":kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 
 # Set False to tag csharp tests dx-no-coverage-collector instead of running coverlet.
@@ -126,3 +127,10 @@ def csharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
         tags = merge_tags(tags, "dx-bench", "manual"),
         **kwargs
     )
+
+def csharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **kwargs):
+    """A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented.
+
+    The first source calls `Fuzzer.LibFuzzer.Run`. Linux only.
+    """
+    sharpfuzz_fuzz(name, csharp_binary, srcs, deps, visibility, tags, kwargs)

@@ -1,0 +1,27 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary")
+load("@rules_dx//libs/starlark:fuzz.bzl", "dx_fuzz_binary")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+cc_binary(
+    name = "libfuzzer_dotnet_bin",
+    srcs = ["@dx_libfuzzer_dotnet//:libfuzzer-dotnet.cc"],
+    copts = ["-fsanitize=fuzzer"],
+    linkopts = ["-fsanitize=fuzzer"],
+    target_compatible_with = ["@platforms//os:linux"],
+    testonly = True,
+    visibility = ["//visibility:private"],
+)
+
+dx_fuzz_binary(
+    name = "libfuzzer_dotnet",
+    binary = ":libfuzzer_dotnet_bin",
+    target_compatible_with = ["@platforms//os:linux"],
+    testonly = True,
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

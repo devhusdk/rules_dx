@@ -31,21 +31,22 @@ dx_fuzz_binary = rule(
     doc = "Builds `binary` with the pinned LLVM's AddressSanitizer and libFuzzer runtimes.",
 )
 
-def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", visibility = None):
+def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", harness = None, visibility = None):
     """Defines `<name>_run`, the runner `dx fuzz` calls for the fuzz binary `fuzz`.
 
     Args:
       name: the fuzz target; the runner is `<name>_run`.
       fuzz: label of the fuzz binary or test.
-      engine: `libfuzzer`, `jazzer` or `go`.
-      target: the Jazzer target class or the Go fuzz function; unused for libfuzzer.
+      engine: `libfuzzer`, `jazzer`, `go` or `dotnet`.
+      target: the Jazzer target class or the Go fuzz function; unused for libfuzzer and dotnet.
+      harness: label of the .NET harness the `dotnet` engine passes to `fuzz` as `--target_path`.
       visibility: visibility of the runner.
     """
     sh_binary(
         name = name + "_run",
         srcs = [Label("//libs/starlark:fuzz_run.sh")],
-        args = [engine, "$(rootpath {})".format(fuzz)] + ([target] if target else []),
-        data = [fuzz],
+        args = [engine, "$(rootpath {})".format(fuzz)] + ([target] if target else []) + (["$(rootpath {})".format(harness)] if harness else []),
+        data = [fuzz] + ([harness] if harness else []),
         testonly = True,
         visibility = visibility,
     )

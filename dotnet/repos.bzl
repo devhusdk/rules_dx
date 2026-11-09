@@ -4,6 +4,14 @@ load("//libs/starlark:repo.bzl", "pinned_archive")
 
 def _dotnet_tools_impl(mctx):
     pinned_archive(
+        name = "dx_libfuzzer_dotnet",
+        files = {"BUILD.bazel": "exports_files([\"libfuzzer-dotnet.cc\"])\n"},
+        required = ["libfuzzer-dotnet.cc"],
+        sha256 = "c7e8281f29072c9a067d703aeeaaf8aa6b7b063cba2d3bd67cb8d85a48fa7c94",
+        strip_prefix = "libfuzzer-dotnet-bd39d4e88d715ab460a929943645be2a186cde52",
+        urls = ["https://github.com/Metalnem/libfuzzer-dotnet/archive/bd39d4e88d715ab460a929943645be2a186cde52.tar.gz"],
+    )
+    pinned_archive(
         name = "rules_dotnet",
         dropped = ["MODULE.bazel"],
         patches = [

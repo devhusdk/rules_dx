@@ -29,6 +29,35 @@ dx build //app:hello
 dx test //app:tests
 ```
 
+## Fuzz and bench
+
+`swift_fuzz_test` builds a libFuzzer binary with AddressSanitizer and defines
+`<name>_run` for `dx fuzz`. The source exports `LLVMFuzzerTestOneInput` with
+`@_cdecl`. It links the libFuzzer from the Swift toolchain archive, because the
+pinned LLVM's libFuzzer needs libc++ and Swift binaries link libstdc++. Linux only.
+
+```python
+load("@rules_dx//swift/rules:defs.bzl", "swift_fuzz_test")
+
+swift_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["parse.swift"],
+)
+```
+
+`swift_bench` builds a `swift_binary` that times a loop with `dxBench` from
+`//swift/bench` and writes `dx-bench.json` for `dx bench`. It needs no
+package-benchmark download. The sources need a `main.swift` for top-level code.
+
+```python
+load("@rules_dx//swift/rules:defs.bzl", "swift_bench")
+
+swift_bench(
+    name = "parse_bench",
+    srcs = ["main.swift"],
+)
+```
+
 ## Format and lint
 
 `dx format` and `dx lint` run `swift-format` from the pinned toolchain on Swift

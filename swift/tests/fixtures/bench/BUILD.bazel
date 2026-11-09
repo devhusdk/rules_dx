@@ -1,0 +1,54 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//swift/rules:defs.bzl", "swift_bench")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_NATIVE = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+swift_bench(
+    name = "parse_bench",
+    srcs = ["main.swift"],
+    target_compatible_with = _NATIVE,
+)
+
+sh_test(
+    name = "parse_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_bench_bin)"],
+    data = [":parse_bench_bin"],
+    target_compatible_with = _NATIVE,
+    timeout = "short",
+)
+
+swift_bench(
+    name = "sized_bench",
+    srcs = ["main.swift"],
+    size = "large",
+    timeout = "long",
+    target_compatible_with = _NATIVE,
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "size": "large",
+        "timeout": "long",
+    },
+    runner = "sized_bench",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

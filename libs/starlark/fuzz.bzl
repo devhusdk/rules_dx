@@ -2,10 +2,10 @@
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-def _asan_fuzzer_transition_impl(_settings, _attr):
+def _asan_fuzzer_transition_impl(_settings, attr):
     return {
         "@llvm//config:asan": True,
-        "@llvm//config:fuzzer": True,
+        "@llvm//config:fuzzer": attr.pinned_libfuzzer,
     }
 
 _asan_fuzzer_transition = transition(
@@ -25,10 +25,11 @@ dx_fuzz_binary = rule(
     implementation = _dx_fuzz_binary_impl,
     attrs = {
         "binary": attr.label(doc = "Binary the runner executes.", executable = True, cfg = "target", mandatory = True),
+        "pinned_libfuzzer": attr.bool(default = True, doc = "Link the pinned LLVM's libFuzzer. Off when the binary brings its own."),
     },
     cfg = _asan_fuzzer_transition,
     executable = True,
-    doc = "Builds `binary` with the pinned LLVM's AddressSanitizer and libFuzzer runtimes.",
+    doc = "Builds `binary` with the pinned LLVM's AddressSanitizer runtime and, unless `pinned_libfuzzer` is off, its libFuzzer.",
 )
 
 def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", visibility = None):

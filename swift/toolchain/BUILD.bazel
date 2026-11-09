@@ -1,4 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load(":toolchain.bzl", "swift_linux_toolchain")
 
 package(default_visibility = ["//visibility:public"])
@@ -13,6 +14,19 @@ package(default_visibility = ["//visibility:public"])
         "x86_64",
     ]
 ]
+
+# The Swift archive's libFuzzer is built for libstdc++, which Swift binaries link;
+# the pinned LLVM's libFuzzer is built for libc++.
+cc_library(
+    name = "libfuzzer",
+    srcs = select({
+        "//swift/platforms:is_linux_aarch64": ["@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.fuzzer-aarch64.a"],
+        "//swift/platforms:is_linux_x86_64": ["@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.fuzzer-x86_64.a"],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = ["@platforms//os:linux"],
+    testonly = True,
+)
 
 real_source_target(
     name = "corpus_starlark",

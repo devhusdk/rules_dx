@@ -1,0 +1,53 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+_PROJECT = [
+    "cabal.project",
+    "hlint_tool.cabal",
+]
+
+exports_files(_PROJECT + ["haskell_deps.json"])
+
+haskell_deps_resolve(
+    name = "resolve",
+    srcs = _PROJECT,
+)
+
+haskell_deps_resolve_test(
+    name = "resolve_test",
+    srcs = _PROJECT,
+)
+
+alias(
+    name = "hlint",
+    actual = select({
+        "//haskell/toolchain:cell_linux_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
+        "//haskell/toolchain:cell_macos_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
+        "//conditions:default": "@dx_tools//:hlint",
+    }),
+)
+
+build_test(
+    name = "hlint_build_test",
+    target_compatible_with = select({
+        "//haskell/toolchain:cell_linux_arm64": [],
+        "//haskell/toolchain:cell_macos_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    targets = ["@haskell_hlint_hackage//:hlint-exe-hlint"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)

@@ -1,6 +1,7 @@
 """Haskell toolchain pin and settings tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load(":packages.bzl", "package_build")
 load(":pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
@@ -126,7 +127,20 @@ def _checks():
     ]
     for name in sorted(CELLS.keys()):
         checks += _cell_checks(name)
+    checks += _tool_checks()
     return checks
+
+_HACKAGE = {"source": "hackage", "version": "1.0", "components": ["lib"], "dependencies": []}
+
+def _tool_checks():
+    alex = dict(_HACKAGE, name = "alex", components = ["exe:alex"])
+    parser = dict(_HACKAGE, name = "ghc-lib-parser", tools = [{"package": "alex", "exe": "alex"}])
+    plain = dict(_HACKAGE, name = "plain")
+    sidecar = {"packages": [alex, parser, plain]}
+    return [
+        expect_contains("build tools render as tools", package_build("hub", sidecar, parser), 'tools = ["@hub_alex//:alex-exe-alex"]'),
+        expect_false("a missing tools list renders nothing", "tools" in package_build("hub", sidecar, plain)),
+    ]
 
 def haskell_metadata_tests(name):
     """Declares the Haskell toolchain metadata test."""

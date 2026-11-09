@@ -54,6 +54,11 @@ def dependency_label(hub, sidecar, name):
             return "@{}//:{}".format(repo_name(hub, name), name)
     return None
 
+def tool_labels(hub, sidecar, package):
+    """Returns the exec-configured build-tool labels of a sidecar package; a missing tools list is empty."""
+    fetched = fetched_packages(sidecar)
+    return sorted(["@{}//:{}-exe-{}".format(repo_name(hub, tool["package"]), tool["package"], tool["exe"]) for tool in package.get("tools", []) if tool["package"] in fetched])
+
 def _target(kind, name, attrs, deps):
     attrs = attrs + [
         'srcs = glob(["**"], exclude = ["BUILD.bazel", "REPO.bazel"])',
@@ -69,6 +74,8 @@ def package_build(hub, sidecar, package):
     deps = [dependency_label(hub, sidecar, dep) for dep in package["dependencies"]]
     deps = sorted([dep for dep in deps if dep])
     has_lib = "lib" in package["components"]
+    tools = tool_labels(hub, sidecar, package)
+    tools_attr = ["tools = " + repr(tools)] if tools else []
     lines = [
         'load("@rules_haskell//haskell:cabal.bzl", "haskell_cabal_binary", "haskell_cabal_library")',
         'load("{}", "HASKELL_COMPATIBLE_WITH")'.format(_DEFS),
@@ -77,11 +84,11 @@ def package_build(hub, sidecar, package):
         "",
     ]
     if has_lib:
-        attrs = ['package_name = "{}"'.format(name), 'version = "{}"'.format(package["version"]), "haddock = False"]
+        attrs = ['package_name = "{}"'.format(name), 'version = "{}"'.format(package["version"]), "haddock = False"] + tools_attr
         lines.append(_target("haskell_cabal_library", name, attrs, deps))
     for exe in executables(package):
         exe_deps = deps + [":" + name] if has_lib else deps
-        lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps))
+        lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)] + tools_attr, exe_deps))
     return "\n".join(lines)
 
 def hub_build(hub, sidecar):

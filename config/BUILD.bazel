@@ -52,7 +52,7 @@ label_flag(
 
 label_flag(
     name = "tool_hlint",
-    build_setting_default = "@dx_tools//:hlint",
+    build_setting_default = "//haskell/tools/hlint:hlint",
 )
 
 label_flag(

@@ -104,6 +104,7 @@ def sidecar_from_plan(plan, revisions):
     """Builds the package list of the sidecar from a cabal plan.json document."""
     entries = plan["install-plan"]
     names = {entry["id"]: entry["pkg-name"] for entry in entries}
+    exes = {entry["id"]: entry["component-name"][len("exe:"):] for entry in entries if entry.get("component-name", "").startswith("exe:")}
     packages = {}
     for entry in entries:
         key = (entry["pkg-name"], entry["pkg-version"])
@@ -113,6 +114,7 @@ def sidecar_from_plan(plan, revisions):
             "source": package_source(entry),
             "components": set(),
             "dependencies": set(),
+            "tools": set(),
         })
         if package["source"] == "url":
             package["url"] = entry["pkg-src"]["uri"]
@@ -125,14 +127,20 @@ def sidecar_from_plan(plan, revisions):
         if component is None:
             continue
         package["components"].add(component)
-        for dep in entry.get("depends", []) + entry.get("exe-depends", []):
+        for dep in entry.get("depends", []):
             if names.get(dep) not in (None, key[0]):
                 package["dependencies"].add(names[dep])
+        for dep in entry.get("exe-depends", []):
+            if dep in exes and names[dep] != key[0]:
+                package["tools"].add((names[dep], exes[dep]))
     out = []
     for key in sorted(packages):
         package = packages[key]
         package["components"] = sorted(package["components"])
         package["dependencies"] = sorted(package["dependencies"])
+        tools = [{"package": tool[0], "exe": tool[1]} for tool in sorted(package.pop("tools"))]
+        if tools:
+            package["tools"] = tools
         out.append(package)
     return out
 

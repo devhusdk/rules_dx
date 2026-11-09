@@ -1,0 +1,3 @@
+packages: .
+index-state: 2026-10-01T00:00:00Z
+constraints: ghc-lib-parser ==9.12.*, ghc-lib-parser-ex ==9.12.*, any.happy ==1.20.1.1

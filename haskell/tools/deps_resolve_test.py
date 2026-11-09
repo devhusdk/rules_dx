@@ -64,6 +64,24 @@ class DepsResolveTest(unittest.TestCase):
         self.assertEqual(foo["cabal_revision"], 2)
         self.assertEqual(foo["sdist_sha256"], "aa")
 
+    def test_exe_depends_become_tools(self):
+        plan = {"install-plan": PLAN["install-plan"] + [
+            {
+                "type": "configured", "id": "alex-3.5-exe", "pkg-name": "alex", "pkg-version": "3.5",
+                "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "cc", "pkg-cabal-sha256": CABAL_SHA,
+                "component-name": "exe:alex", "depends": ["base-4.20"],
+            },
+            {
+                "type": "configured", "id": "gp-9.12-inplace", "pkg-name": "gp", "pkg-version": "9.12",
+                "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "dd", "pkg-cabal-sha256": CABAL_SHA,
+                "component-name": "lib", "depends": ["base-4.20"], "exe-depends": ["alex-3.5-exe"],
+            },
+        ]}
+        by_name = {package["name"]: package for package in deps_resolve.sidecar_from_plan(plan, {})}
+        self.assertEqual(by_name["gp"]["tools"], [{"package": "alex", "exe": "alex"}])
+        self.assertEqual(by_name["gp"]["dependencies"], ["base"])
+        self.assertNotIn("tools", by_name["foo"])
+
     def test_remote_tarball_is_a_url_package(self):
         url = "https://example.invalid/bar-2.0.tar.gz"
         plan = {"install-plan": [

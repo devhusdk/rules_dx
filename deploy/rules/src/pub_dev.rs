@@ -489,8 +489,7 @@ pub fn pub_main_checked(
             return 1;
         }
     };
-    let Some(mode) = ApiCompatMode::parse(if api.mode.is_empty() { "off" } else { api.mode })
-    else {
+    let Some(mode) = ApiCompatMode::parse(api.mode) else {
         eprintln!("pub_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };

@@ -32,11 +32,9 @@ pub struct GithubConfig {
     pub notes: String,
     #[serde(default)]
     pub notes_rloc: String,
-    /// `off`, `warn` or `fail`; empty means off.
-    #[serde(default)]
+    /// `off`, `warn` or `fail`.
     pub api_compat: String,
-    /// `registry` or `git`; empty means registry.
-    #[serde(default)]
+    /// `registry` or `git`.
     pub api_baseline: String,
     #[serde(default)]
     pub apidiff_rloc: String,
@@ -83,9 +81,7 @@ pub struct PypiConfig {
     pub sdist_rloc: Option<String>,
     pub dist_name: String,
     pub repository_url: String,
-    #[serde(default)]
     pub api_compat: String,
-    #[serde(default)]
     pub api_baseline: String,
     #[serde(default)]
     pub api_package: String,
@@ -113,9 +109,7 @@ pub struct HelmChartConfig {
 pub struct NpmConfig {
     pub feed_rloc: String,
     pub tarball_rloc: String,
-    #[serde(default)]
     pub api_compat: String,
-    #[serde(default)]
     pub api_baseline: String,
     #[serde(default)]
     pub api_extractor_rloc: String,
@@ -130,9 +124,7 @@ pub struct NugetConfig {
     pub package_id: String,
     pub version: String,
     pub source: String,
-    #[serde(default)]
     pub api_compat: String,
-    #[serde(default)]
     pub api_baseline: String,
     #[serde(default)]
     pub dotnet_rloc: String,
@@ -168,9 +160,7 @@ pub struct PubConfig {
     pub package_name: String,
     pub version: String,
     pub hosted_url: String,
-    #[serde(default)]
     pub api_compat: String,
-    #[serde(default)]
     pub api_baseline: String,
     #[serde(default)]
     pub dart_rloc: String,
@@ -235,9 +225,7 @@ pub struct MavenConfig {
     pub artifact: String,
     pub version: String,
     pub repository_url: String,
-    #[serde(default)]
     pub api_compat: String,
-    #[serde(default)]
     pub api_baseline: String,
     #[serde(default)]
     pub japicmp_rloc: String,
@@ -694,7 +682,7 @@ mod tests {
     #[test]
     fn a_github_config_round_trips() {
         let config = parse(
-            r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":["_main/a","x;y"]},"kind":"github"}"#,
+            r#"{"config":{"deploy_name":"demo","tag":"v1.0.0","asset_rlocs":["_main/a","x;y"],"api_compat":"off","api_baseline":"registry"},"kind":"github"}"#,
         );
         assert_eq!(
             config,
@@ -704,8 +692,8 @@ mod tests {
                 asset_rlocs: vec!["_main/a".to_owned(), "x;y".to_owned()],
                 notes: String::new(),
                 notes_rloc: String::new(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 apidiff_rloc: String::new(),
                 go_rloc: String::new(),
                 go_modules: Vec::new(),
@@ -736,15 +724,15 @@ mod tests {
     fn the_new_kinds_round_trip() {
         assert_eq!(
             parse(
-                r#"{"kind":"pypi","config":{"wheel_rloc":"w","sdist_rloc":"s","dist_name":"d","repository_url":"https://x"}}"#
+                r#"{"kind":"pypi","config":{"wheel_rloc":"w","sdist_rloc":"s","dist_name":"d","repository_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#
             ),
             Ok(DeployConfig::Pypi(PypiConfig {
                 wheel_rloc: "w".to_owned(),
                 sdist_rloc: Some("s".to_owned()),
                 dist_name: "d".to_owned(),
                 repository_url: "https://x".to_owned(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 api_package: String::new(),
                 api_src: String::new(),
                 griffe_rloc: String::new(),
@@ -764,7 +752,7 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"nuget","config":{"nupkg_rloc":"n","deploy_name":"d","package_id":"","version":"1.0.0","source":"https://x"}}"#
+                r#"{"kind":"nuget","config":{"nupkg_rloc":"n","deploy_name":"d","package_id":"","version":"1.0.0","source":"https://x","api_compat":"off","api_baseline":"registry"}}"#
             ),
             Ok(DeployConfig::Nuget(NugetConfig {
                 nupkg_rloc: "n".to_owned(),
@@ -772,8 +760,8 @@ mod tests {
                 package_id: String::new(),
                 version: "1.0.0".to_owned(),
                 source: "https://x".to_owned(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 dotnet_rloc: String::new(),
                 apicompat_rloc: String::new(),
             }))
@@ -821,7 +809,7 @@ mod tests {
         );
         assert_eq!(
             parse(
-                r#"{"kind":"maven","config":{"jar_rloc":"j","pom_rloc":"p","sources_rloc":"s","group":"g","artifact":"a","version":"1","repository_url":"https://x"}}"#
+                r#"{"kind":"maven","config":{"jar_rloc":"j","pom_rloc":"p","sources_rloc":"s","group":"g","artifact":"a","version":"1","repository_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#
             ),
             Ok(DeployConfig::Maven(MavenConfig {
                 jar_rloc: "j".to_owned(),
@@ -832,8 +820,8 @@ mod tests {
                 artifact: "a".to_owned(),
                 version: "1".to_owned(),
                 repository_url: "https://x".to_owned(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 japicmp_rloc: String::new(),
                 java_rloc: String::new(),
             }))
@@ -887,7 +875,7 @@ mod tests {
     #[test]
     fn a_missing_optional_rloc_parses_to_none() {
         let config = parse(
-            r#"{"kind":"pypi","config":{"wheel_rloc":"w","dist_name":"d","repository_url":"https://x"}}"#,
+            r#"{"kind":"pypi","config":{"wheel_rloc":"w","dist_name":"d","repository_url":"https://x","api_compat":"off","api_baseline":"registry"}}"#,
         );
         assert!(
             matches!(&config, Ok(DeployConfig::Pypi(pypi)) if pypi.sdist_rloc.is_none()),
@@ -917,7 +905,7 @@ mod tests {
                 "missing field `checksum_rloc`",
             ),
             (
-                r#"{"kind":"github","config":{"deploy_name":"a","tag":"b","asset_rlocs":[]},"extra":1}"#,
+                r#"{"kind":"github","config":{"deploy_name":"a","tag":"b","asset_rlocs":[],"api_compat":"off","api_baseline":"registry"},"extra":1}"#,
                 "string \"extra\", expected \"kind\" or \"config\"",
             ),
             ("not json", "invalid deploy config"),
@@ -970,7 +958,7 @@ mod tests {
         let path = dir.path().join("demo.deploy.json");
         std::fs::write(
             &path,
-            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[]}}"#,
+            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[],"api_compat":"off","api_baseline":"registry"}}"#,
         )
         .expect("write config");
         let resolve = |rloc: &str| match rloc {
@@ -990,7 +978,7 @@ mod tests {
         let path = dir.path().join("demo.deploy.json");
         std::fs::write(
             &path,
-            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[]}}"#,
+            r#"{"kind":"github","config":{"deploy_name":"d","tag":"t","asset_rlocs":[],"api_compat":"off","api_baseline":"registry"}}"#,
         )
         .expect("write config");
         let text = path.to_string_lossy().into_owned();
@@ -1031,8 +1019,8 @@ mod tests {
                 asset_rlocs: vec!["a".to_owned()],
                 notes: String::new(),
                 notes_rloc: String::new(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 apidiff_rloc: String::new(),
                 go_rloc: String::new(),
                 go_modules: Vec::new(),
@@ -1061,8 +1049,8 @@ mod tests {
                 sdist_rloc: None,
                 dist_name: "demo".to_owned(),
                 repository_url: "https://pypi.invalid".to_owned(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 api_package: String::new(),
                 api_src: String::new(),
                 griffe_rloc: String::new(),
@@ -1078,8 +1066,8 @@ mod tests {
             DeployConfig::Npm(NpmConfig {
                 feed_rloc: "a".to_owned(),
                 tarball_rloc: "b".to_owned(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 api_extractor_rloc: String::new(),
             }),
             DeployConfig::Nuget(NugetConfig {
@@ -1088,8 +1076,8 @@ mod tests {
                 package_id: String::new(),
                 version: String::new(),
                 source: "https://nuget.invalid".to_owned(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 dotnet_rloc: String::new(),
                 apicompat_rloc: String::new(),
             }),
@@ -1129,8 +1117,8 @@ mod tests {
                 artifact: "a".to_owned(),
                 version: "1.0.0".to_owned(),
                 repository_url: "https://maven.invalid".to_owned(),
-                api_compat: String::new(),
-                api_baseline: String::new(),
+                api_compat: "off".to_owned(),
+                api_baseline: "registry".to_owned(),
                 japicmp_rloc: String::new(),
                 java_rloc: String::new(),
             }),

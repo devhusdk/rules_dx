@@ -631,11 +631,7 @@ pub fn npm_deploy_main_checked(
         api_baseline,
         api_extractor_rloc,
     } = *api;
-    let mode = ApiCompatMode::parse(if api_compat.is_empty() {
-        "off"
-    } else {
-        api_compat
-    });
+    let mode = ApiCompatMode::parse(api_compat);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(api_baseline)) else {
         eprintln!("npm_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'");
         return 1;

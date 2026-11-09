@@ -537,8 +537,7 @@ pub fn nuget_main_checked(
         }
     };
     let (package_id, package_version) = (identity.0.as_str(), identity.1.as_str());
-    let Some(mode) = ApiCompatMode::parse(if api.mode.is_empty() { "off" } else { api.mode })
-    else {
+    let Some(mode) = ApiCompatMode::parse(api.mode) else {
         eprintln!("nuget_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };

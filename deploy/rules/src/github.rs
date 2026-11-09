@@ -448,11 +448,7 @@ pub fn github_main_checked(
             }
         }
     }
-    let mode = if go_api.mode.is_empty() {
-        Some(ApiCompatMode::Off)
-    } else {
-        ApiCompatMode::parse(go_api.mode)
-    };
+    let mode = ApiCompatMode::parse(go_api.mode);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(go_api.baseline)) else {
         eprintln!(
             "github_deploy: invalid api_compat '{}' or api_baseline '{}'",

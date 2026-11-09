@@ -114,6 +114,8 @@ mod tests {
                     artifact: "demo",
                     version: "1.0.0",
                     repository_url: "https://maven.invalid",
+                    api_compat: "off",
+                    api_baseline: "registry",
                     ..Default::default()
                 },
                 &argv
@@ -182,6 +184,8 @@ mod tests {
                             artifact: "demo",
                             version: "1.0.0",
                             repository_url: "https://maven.invalid",
+                            api_compat: "off",
+                            api_baseline: "registry",
                             ..Default::default()
                         },
                         &argv
@@ -379,6 +383,8 @@ mod tests {
                             artifact: "demo",
                             version: "0.0.0",
                             repository_url: "https://maven.invalid",
+                            api_compat: "off",
+                            api_baseline: "registry",
                             ..Default::default()
                         },
                         &argv
@@ -645,6 +651,8 @@ mod tests {
                             artifact: "maven_demo",
                             version: "1.0.0",
                             repository_url: "https://maven.invalid",
+                            api_compat: "off",
+                            api_baseline: "registry",
                             ..Default::default()
                         },
                         &argv

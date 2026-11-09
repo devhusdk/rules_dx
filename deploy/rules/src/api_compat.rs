@@ -80,7 +80,7 @@ impl Baseline {
     /// Parses the `api_baseline` attribute value; empty means `registry`.
     pub fn parse(value: &str) -> Option<Self> {
         match value {
-            "" | "registry" => Some(Self::Registry),
+            "registry" => Some(Self::Registry),
             "git" => Some(Self::Git),
             _ => None,
         }
@@ -378,7 +378,6 @@ mod tests {
     #[test]
     fn baseline_parses_registry_and_git() {
         assert_eq!(Baseline::parse("registry"), Some(Baseline::Registry));
-        assert_eq!(Baseline::parse(""), Some(Baseline::Registry));
         assert_eq!(Baseline::parse("git"), Some(Baseline::Git));
         assert_eq!(Baseline::parse("tag"), None);
     }

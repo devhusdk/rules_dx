@@ -824,11 +824,7 @@ pub fn maven_main(spec: &MavenLaunch<'_>, argv: &[String]) -> i32 {
         };
         extra.push((classifier, path));
     }
-    let mode = if api_compat.is_empty() {
-        Some(ApiCompatMode::Off)
-    } else {
-        ApiCompatMode::parse(api_compat)
-    };
+    let mode = ApiCompatMode::parse(api_compat);
     let (Some(mode), Some(baseline)) = (mode, Baseline::parse(api_baseline)) else {
         eprintln!(
             "maven_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'"
@@ -1627,6 +1623,8 @@ pub(crate) mod tests {
                     artifact: "maven_demo",
                     version: "0.0.0",
                     repository_url: MAVEN_DEFAULT_REPOSITORY_URL,
+                    api_compat: "off",
+                    api_baseline: "registry",
                     ..Default::default()
                 },
                 &argv,

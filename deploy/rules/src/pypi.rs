@@ -626,8 +626,7 @@ pub fn pypi_main_checked(
             secrets.get("PYPI_API_TOKEN"),
         );
     }
-    let Some(mode) = ApiCompatMode::parse(if api.mode.is_empty() { "off" } else { api.mode })
-    else {
+    let Some(mode) = ApiCompatMode::parse(api.mode) else {
         eprintln!("pypi_deploy: invalid api_compat '{}'", api.mode);
         return 1;
     };

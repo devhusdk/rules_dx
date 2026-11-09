@@ -74,7 +74,7 @@ function Get-StoreCertificate([string]$Thumbprint) {
     $store = [System.Security.Cryptography.X509Certificates.X509Store]::new("My", "CurrentUser")
     $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
     try {
-        return @($store.Certificates | Where-Object { $_.Thumbprint -ceq $Thumbprint })
+        return ,@($store.Certificates | Where-Object { $_.Thumbprint -ceq $Thumbprint })
     } finally {
         $store.Close()
     }

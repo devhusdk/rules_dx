@@ -392,13 +392,15 @@ jobs:
           bazel run --noshow_progress "$@" --//cc/toolchains:compiler=msvc //tools/testing/hermetic:appcontainer_run -- \
             --backend user --ensure-host-denies "${denies[@]}"
       - name: Qualify the MSVC consumers without Visual Studio or network
+        env:
+          PLATFORM: ${{ matrix.platform }}
         run: |
           printf '%s\n' //tools/testing/hermetic:c_fixture_msvc //tools/testing/hermetic:cpp_fixture_msvc > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
-          if [ "${{ matrix.platform }}" = windows_x86_64 ]; then
+          if [ "$PLATFORM" = windows_x86_64 ]; then
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc/toolchains:compiler=msvc //deploy/rules:pypi_native_msvc_verify
           fi
       - name: Collect the evidence

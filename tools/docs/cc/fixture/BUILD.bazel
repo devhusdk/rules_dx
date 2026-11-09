@@ -13,6 +13,7 @@ exports_files(
 cc_library(
     name = "shapes",
     hdrs = ["include/shapes.h"],
+    features = ["parse_headers"],
     includes = ["include"],
 )
 

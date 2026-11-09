@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "quality_policy"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "clippy_policy_test"
+path = "clippy_policy_test.rs"
+
+[[test]]
+name = "jvm_classpath_policy_test"
+path = "jvm_classpath_policy_test.rs"
+
+[[test]]
+name = "preset_settings_test"
+path = "preset_settings_test.rs"

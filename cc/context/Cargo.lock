@@ -2454,6 +2454,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "gopls_gen"
+version = "0.0.0"
+
+[[package]]
 name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4112,6 +4116,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "quality_policy"
+version = "0.0.0"
+
+[[package]]
 name = "quality_result"
 version = "0.0.0"
 dependencies = [
@@ -4135,6 +4143,10 @@ dependencies = [
 
 [[package]]
 name = "quality_tests"
+version = "0.0.0"
+
+[[package]]
+name = "quality_tiers"
 version = "0.0.0"
 
 [[package]]

@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "quality_tiers"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "tiers_test"
+path = "tiers_test.rs"

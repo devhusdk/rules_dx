@@ -935,8 +935,8 @@ def real_pipeline_unit_tests(name):
             ),
             expect_equal(
                 "real_request_tool carries a dialect only when set",
-                real_request_tool(binary_path = "bin/prettier", dialect = "postgresql"),
-                {"binary": "bin/prettier", "dialect": "postgresql", "env": [], "files": [], "upstream": []},
+                real_request_tool(binary_path = "bin/sqlfluff", dialect = "postgresql"),
+                {"binary": "bin/sqlfluff", "dialect": "postgresql", "env": [], "files": [], "upstream": []},
             ),
             expect_equal(
                 "sql_dialect_error accepts a matching suffix and ignores unknown segments",

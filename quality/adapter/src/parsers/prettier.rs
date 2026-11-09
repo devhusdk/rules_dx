@@ -596,7 +596,7 @@ mod tests {
 
     #[test]
     fn prettier_check_fails_when_a_plugin_does_not_load() {
-        let missing = "[error] Cannot find module '/nonexistent/prettier-plugin-sql.js' imported from /r/prettier/index.mjs\n";
+        let missing = "[error] Cannot find module '/nonexistent/prettier-plugin-svelte.js' imported from /r/prettier/index.mjs\n";
         assert!(parse_prettier_check(missing.as_bytes(), Some(2), &["q.sql"]).is_err());
         assert!(parse_prettier_check(missing.as_bytes(), Some(1), &["q.sql"]).is_err());
         let dropped = "[warn] Ignored unknown option { formatter: \"sql-formatter\" }.\n[warn] Ignored unknown option { language: \"sql\" }.\n[warn] Ignored unknown option { keywordCase: \"preserve\" }.\n[error] No parser could be inferred for file \"/w/q.sql\".\n";

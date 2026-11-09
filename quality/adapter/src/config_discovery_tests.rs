@@ -184,7 +184,7 @@ fn table() -> Vec<(&'static str, How)> {
 
 fn prettier_flags(_binary: &Path, _file: &Path) -> Invocation {
     Invocation {
-        argv: prettier_args(None, None, PRETTIER_CHECK_TAIL),
+        argv: prettier_args(None, PRETTIER_CHECK_TAIL),
         cwd_rel: String::new(),
     }
 }

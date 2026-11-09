@@ -306,7 +306,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `taplo` | Format and lint TOML | |
 | `yamlfmt`, `yamllint` | Format and lint YAML | |
 | `xmllint` | Lint XML | |
-| `prettier` | Format XML, Ansible, Kubernetes, Dockerfile, Gherkin, PHP, SQL, API specs | |
+| `prettier` | Format XML, Ansible, Kubernetes, Dockerfile, Gherkin, PHP, API specs | |
 | `sqlfluff` | Format and lint SQL | |
 | `buildifier` | Format and lint Starlark | |
 | `cmakelint`, `gersemi` | Lint and format CMake | |

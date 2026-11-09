@@ -780,20 +780,12 @@ pub fn eslint_fix(
 /// The shim owns `--config`, `--no-config` and `--ignore-path`, so dx never sends those.
 pub const PRETTIER_DX_CONFIG: &str = "--dx-config=";
 
-/// dx-private flag the Prettier shim strips and turns into `--language` for the SQL plugin.
-pub const PRETTIER_DX_SQL_DIALECT: &str = "--dx-sql-dialect=";
-
-fn prettier_args(config: Option<&Path>, dialect: Option<&str>, tail: &[&str]) -> Vec<OsString> {
-    let mut args = Vec::with_capacity(tail.len() + 3);
+fn prettier_args(config: Option<&Path>, tail: &[&str]) -> Vec<OsString> {
+    let mut args = Vec::with_capacity(tail.len() + 2);
     if let Some(cfg) = config {
         let mut flag = OsString::from(PRETTIER_DX_CONFIG);
         flag.push(cfg.as_os_str());
         args.push(flag);
-    }
-    if let Some(dialect) = dialect {
-        args.push(OsString::from(format!(
-            "{PRETTIER_DX_SQL_DIALECT}{dialect}"
-        )));
     }
     args.push(OsString::from(PRETTIER_NO_EDITORCONFIG));
     args.extend(tail.iter().map(OsString::from));
@@ -804,18 +796,16 @@ pub fn prettier_check(
     launch: &ResolvedTool,
     files: &[&Path],
     config: Option<&Path>,
-    dialect: Option<&str>,
 ) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(config, dialect, PRETTIER_CHECK_TAIL), files)
+    launch.resolve(&prettier_args(config, PRETTIER_CHECK_TAIL), files)
 }
 
 pub fn prettier_fix(
     launch: &ResolvedTool,
     files: &[&Path],
     config: Option<&Path>,
-    dialect: Option<&str>,
 ) -> Result<Invocation, LaunchError> {
-    launch.resolve(&prettier_args(config, dialect, PRETTIER_FIX_TAIL), files)
+    launch.resolve(&prettier_args(config, PRETTIER_FIX_TAIL), files)
 }
 
 fn remark_args(tail: &[&str], settings: Option<&Path>) -> Vec<OsString> {

@@ -4,7 +4,6 @@ load("//quality:family_hooks.bzl", "default_files_hook", "without")
 load("//quality/private:native_config_impl.bzl", "native_config_scratch_rel")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
-load("//sql/rules:providers.bzl", "SqlDialectInfo")
 
 TOOLS = {
     "eslint": {
@@ -113,17 +112,11 @@ def _eslint_hook(target, _ctx, _resolved, _capability, _what, shared):
         env = [["DX_ESLINT_TYPED", "1"]],
     )
 
-def _prettier_hook(target, _ctx, _resolved, _capability, _what, _shared):
-    if SqlDialectInfo not in target:
-        return real_context()
-    return real_context(options = {"dialect": target[SqlDialectInfo].dialect})
-
-HOOK_ORDER = ["eslint", "tsc", "prettier", "redocly"]
+HOOK_ORDER = ["eslint", "tsc", "redocly"]
 
 HOOKS = {
     "eslint": _eslint_hook,
     "tsc": _tsc_hook,
-    "prettier": _prettier_hook,
     "redocly": default_files_hook(["yaml", "yml", "json"]),
 }
 

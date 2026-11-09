@@ -19,7 +19,7 @@ runs:
         while read -r label; do
           pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
           mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
-          cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
+          cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/"
         done < "$RUNNER_TEMP/hermetic-targets"
     - name: Verify the evidence
       if: ${{ job.status == 'success' }}

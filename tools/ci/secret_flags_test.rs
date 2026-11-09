@@ -482,3 +482,24 @@ fn helper_action_writes_a_working_helper() {
         assert_eq!(output.trim(), printed.expect("helper output"), "{name}");
     }
 }
+
+#[test]
+fn hermetic_verify_runs_only_while_the_job_is_succeeding() {
+    let action = ".github/actions/hermetic-evidence/action.yml";
+    let verify = named_step(action, "Verify the evidence");
+    let condition = verify["if"].as_str().expect("Verify has an if");
+    assert_eq!(
+        condition.replace(' ', ""),
+        "${{job.status=='success'}}",
+        "Verify must be skipped once an earlier step of the job failed"
+    );
+    for step in parse(action)["runs"]["steps"].as_array().unwrap() {
+        let run = step["run"].as_str().unwrap_or_default();
+        assert!(!run.contains("|| true"), "{action} swallows a failure: {run}");
+    }
+    let compiler = parse(".github/actions/compiler-evidence/action.yml");
+    for step in compiler["runs"]["steps"].as_array().unwrap() {
+        let run = step["run"].as_str().unwrap_or_default();
+        assert!(!run.contains("|| true"), "compiler-evidence swallows a failure: {run}");
+    }
+}

@@ -15,7 +15,7 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 71] = [
+const PACKAGES: [&str; 72] = [
     "appimage",
     "astro/rules",
     "bicep/rules",
@@ -73,6 +73,7 @@ const PACKAGES: [&str; 71] = [
     "terraform/rules",
     "tools/docs/go",
     "tools/docs/ir",
+    "tools/docs/javascript",
     "tools/docs/rust",
     "tools/docs/site",
     "tools/docs/site/browser",

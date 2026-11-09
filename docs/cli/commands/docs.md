@@ -82,6 +82,7 @@ tools/dx docs //lib:site
 | --- | --- | --- | --- |
 | Rust | `@rules_dx//tools/docs/site:site.bzl` | `docs_site` | `libraries` |
 | TypeScript | `@rules_dx//tools/docs/typescript:defs.bzl` | `typescript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig`, `options` |
+| JavaScript | `@rules_dx//tools/docs/javascript:defs.bzl` | `javascript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig` (sets `allowJs`), `options` |
 | Vue | `@rules_dx//tools/docs/components:defs.bzl` | `vue_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
 | Svelte | `@rules_dx//tools/docs/components:defs.bzl` | `svelte_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
 | Astro | `@rules_dx//tools/docs/components:defs.bzl` | `astro_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |
@@ -102,6 +103,6 @@ tools/dx docs //lib:site
 
 Rust, Go, Python, Java, Kotlin, Scala, D, Dart, C# and F# libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
-an F# library needs `generate_documentation_file = True`; others are skipped.
+an F# library needs `generate_documentation_file = True`; others are skipped. A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files gets one when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
 
 A source error fails the build and writes no pages. Bazel's exit code is kept.

@@ -195,6 +195,42 @@ def _typescript_docs_shard(target, ctx):
     )
     config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";typedoc-json=" + TYPEDOC_JSON_SCHEMA + ";options="
     return typescript_shard_action(ctx, typedoc_json, package, ctx.label.package, config, stem, ctx.executable._ts_extract)
+_JS_ENTRY_EXTENSIONS = ["js", "mjs", "cjs", "jsx"]
+
+def _javascript_docs_shard(target, ctx):
+    if _JsInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    srcs = sorted(getattr(ctx.rule.files, "srcs", []), key = lambda f: f.path)
+    if not srcs or not all([f.extension in _JS_ENTRY_EXTENSIONS for f in srcs]):
+        return None
+    js = target[_JsInfo]
+    package = ctx.label.package
+    tsconfigs = [f for f in js.transitive_sources.to_list() if f.basename == "tsconfig.json" and f.dirname.endswith("/" + package if package else "")]
+    if len(tsconfigs) != 1:
+        return None
+    entry_points = sorted([repo_relative(f.short_path) for f in srcs if not any([marker in f.basename for marker in _TS_TEST_MARKERS])])
+    if not entry_points:
+        return None
+    tsconfig = repo_relative(tsconfigs[0].short_path)
+    stem = "_dx_docs/" + ctx.label.name
+    typedoc_json = ctx.actions.declare_file(stem + ".typedoc.json")
+    arguments = ctx.actions.args()
+    arguments.add_all(typedoc_arguments(tsconfig, ctx.label.name, typedoc_json.path[len(ctx.bin_dir.path) + 1:], entry_points, [], package or "."))
+    js_binary_lib.run_binary_action(
+        ctx,
+        mnemonic = "DxTypedoc",
+        progress_message = "TypeDoc JSON of %{label}",
+        executable = ctx.attr._typedoc[DefaultInfo].files_to_run,
+        inputs = depset(transitive = [js.transitive_sources, js.npm_sources]),
+        outputs = [typedoc_json],
+        arguments = [arguments],
+        resource_set = dx_heavy_resources,
+    )
+    config = "tsconfig=" + tsconfig + ";entry=" + ",".join(entry_points) + ";typedoc-json=" + TYPEDOC_JSON_SCHEMA + ";options="
+    return typescript_shard_action(ctx, typedoc_json, ctx.label.name, package, config, stem, ctx.executable._ts_extract)
+
 def _component_docs_shard(target, ctx):
     if _JsInfo not in target or DocsShardInfo in target:
         return None
@@ -310,6 +346,9 @@ def _real_docs_aspect_impl(target, ctx):
     ts_shard = _typescript_docs_shard(target, ctx)
     if ts_shard:
         parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
+    js_shard = _javascript_docs_shard(target, ctx)
+    if js_shard:
+        parts.append({"dx_results": [js_shard], "dx_docs_shards": [js_shard]})
     component_shard = _component_docs_shard(target, ctx)
     if component_shard:
         parts.append({"dx_results": [component_shard], "dx_docs_shards": [component_shard]})
@@ -323,7 +362,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Ruby, Julia, OCaml, TypeScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Ruby, Julia, OCaml, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_component_extract": attr.label(

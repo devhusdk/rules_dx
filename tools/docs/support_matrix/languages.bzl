@@ -520,7 +520,7 @@ LANGUAGES = [
         bench = "javascript_bench",
         fuzz = "javascript_fuzz_test",
         deps = "`npm`",
-        doc = NO_DOC,
+        doc = struct(tool = "typedoc", shard = "javascript_doc_shard"),
         dead_code = ["eslint no-unused-vars"],
         coverage = ["jest"],
     ),

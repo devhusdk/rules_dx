@@ -760,6 +760,7 @@ rust_test(
         "//terraform/rules:corpus_starlark",
         "//tools/docs/go:corpus_starlark",
         "//tools/docs/ir:corpus_starlark",
+        "//tools/docs/javascript:corpus_starlark",
         "//tools/docs/rust:corpus_starlark",
         "//tools/docs/site:corpus_starlark",
         "//tools/docs/site/browser:corpus_starlark",

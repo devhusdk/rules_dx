@@ -1,0 +1,37 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("//javascript/rules:defs.bzl", "javascript_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["tsconfig.json"],
+    visibility = VIS_TOOLS,
+)
+
+javascript_doc_shard(
+    name = "greeting_docs",
+    srcs = glob(["src/*.js"]),
+    entry_points = ["src/index.js"],
+    package = "greeting",
+    tsconfig = "tsconfig.json",
+)
+
+js_library(
+    name = "tsconfig",
+    srcs = ["tsconfig.json"],
+)
+
+javascript_library(
+    name = "greeting_library",
+    srcs = glob(["src/*.js"]),
+    deps = [":tsconfig"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

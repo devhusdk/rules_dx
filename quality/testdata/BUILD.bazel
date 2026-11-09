@@ -1954,6 +1954,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_javascript_library_subject",
+    target = "//tools/docs/javascript/fixture:greeting_library",
+)
+
+real_docs_subject(
     name = "docs_kotlin_library_subject",
     target = "//tools/docs/jvm/fixture:kotlin_shapes",
 )
@@ -2041,6 +2046,7 @@ real_docs_tests(
         ":docs_astro_library_subject",
         ":docs_go_library_subject",
         ":docs_java_library_subject",
+        ":docs_javascript_library_subject",
         ":docs_kotlin_library_subject",
         ":docs_mdx_library_subject",
         ":docs_plain_subject",

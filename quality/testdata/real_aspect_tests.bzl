@@ -674,6 +674,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_java_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_javascript_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/javascript/fixture/_dx_docs/greeting_library.ir.pb
+field dx_docs_sites=(none)
+field dx_results=greeting_library.ir.pb
+field label=//tools/docs/javascript/fixture:greeting_library
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_javascript_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_kotlin_library_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/jvm/fixture/_dx_docs/kotlin_shapes.ir.pb

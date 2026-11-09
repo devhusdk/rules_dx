@@ -1,17 +1,20 @@
 use dx_output::{DiagnosticEvent, Severity};
 use std::path::Path;
 
-const TOOL: &str = "trivy_config";
+const TOOLS: [&str; 2] = ["trivy_config", "trivy_image_config"];
 
-/// Drops trivy_config findings covered by an unexpired `[[exception]]` with
-/// `set = "trivy_config"`, `advisory` naming the trivy ID, `package` naming the
-/// file or `*`, and `versions = "*"`.
+/// Drops trivy_config and trivy_image_config findings covered by an unexpired `[[exception]]` with
+/// `set` naming the tool, `advisory` naming the trivy ID, `package` naming the file or `*`, and
+/// `versions = "*"`.
 pub(super) fn drop_excepted_findings(
     workspace: &Path,
     audit_today: Option<&str>,
     status: &mut Vec<DiagnosticEvent>,
 ) {
-    if !status.iter().any(|diagnostic| diagnostic.tool == TOOL) {
+    if !status
+        .iter()
+        .any(|diagnostic| TOOLS.contains(&diagnostic.tool.as_str()))
+    {
         return;
     }
     let policy = match super::audit::load_security_policy(workspace) {
@@ -19,22 +22,22 @@ pub(super) fn drop_excepted_findings(
         Err(error) => {
             status.push(DiagnosticEvent {
                 path: Some("security.toml".to_owned()),
-                ..DiagnosticEvent::new(Severity::Error, TOOL, error.to_string())
+                ..DiagnosticEvent::new(Severity::Error, TOOLS[0], error.to_string())
             });
             return;
         }
     };
     let today = super::audit::today_utc(audit_today);
-    let live = dx_audit::exception::live_exceptions_for_set(&policy, TOOL, &today);
-    if live.is_empty() {
-        return;
-    }
+    let live: Vec<_> = TOOLS
+        .iter()
+        .map(|tool| dx_audit::exception::live_exceptions_for_set(&policy, tool, &today))
+        .collect();
     status.retain(|diagnostic| {
-        if diagnostic.tool != TOOL {
+        let Some(index) = TOOLS.iter().position(|tool| *tool == diagnostic.tool) else {
             return true;
-        }
+        };
         let path = diagnostic.path.as_deref().unwrap_or("").replace('\\', "/");
-        !live.iter().any(|exception| {
+        !live[index].iter().any(|exception| {
             exception.versions.trim() == "*"
                 && diagnostic.rule.as_deref() == Some(exception.advisory.as_str())
                 && (exception.package == "*" || exception.package == path)
@@ -46,6 +49,7 @@ pub(super) fn drop_excepted_findings(
 mod tests {
     use super::*;
 
+    const TOOL: &str = TOOLS[0];
     const TODAY: Option<&str> = Some("2026-11-06");
 
     fn finding(tool: &str, rule: &str, path: &str) -> DiagnosticEvent {
@@ -128,5 +132,14 @@ mod tests {
         assert_eq!(status.len(), 2);
         assert_eq!(status[1].path.as_deref(), Some("security.toml"));
         assert_eq!(status[1].severity, Severity::Error);
+    }
+
+    #[test]
+    fn image_config_findings_follow_their_own_set() {
+        let findings = vec![finding("trivy_image_config", "DS-0002", "BUILD.bazel")];
+        let text = exception("DS-0002", "BUILD.bazel", "trivy_image_config", "*", "2027-01-01");
+        assert!(run(Some(&text), findings.clone()).is_empty());
+        let other = exception("DS-0002", "BUILD.bazel", TOOL, "*", "2027-01-01");
+        assert_eq!(run(Some(&other), findings.clone()), findings);
     }
 }

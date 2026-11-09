@@ -6,6 +6,7 @@ Language aspects and probes sit in the `quality` entry of each `<lang>/lang.json
 REAL_ASPECT_LABELS = {
     "lint": [
         "quality:families/dockerfile.bzl%real_dockerfile_lint_aspect",
+        "quality:families/oci_image.bzl%real_oci_image_lint_aspect",
         "quality:families/make.bzl%real_make_lint_aspect",
         "quality:families/cmake.bzl%real_cmake_lint_aspect",
         "quality:families/terraform.bzl%real_terraform_lint_aspect",

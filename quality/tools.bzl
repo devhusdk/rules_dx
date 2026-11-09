@@ -29,6 +29,7 @@ load("//quality:families/latex_tools.bzl", _LATEX = "TOOLS")
 load("//quality:families/lua_tools.bzl", _LUA = "TOOLS")
 load("//quality:families/make_tools.bzl", _MAKE = "TOOLS")
 load("//quality:families/nix_tools.bzl", _NIX = "TOOLS")
+load("//quality:families/oci_image_tools.bzl", _OCI_IMAGE = "TOOLS")
 load("//quality:families/ocaml_tools.bzl", _OCAML = "TOOLS")
 load("//quality:families/perl_tools.bzl", _PERL = "TOOLS")
 load("//quality:families/php_tools.bzl", _PHP = "TOOLS")
@@ -74,6 +75,7 @@ FAMILY_TOOLS = {
     "lua": _LUA,
     "make": _MAKE,
     "nix": _NIX,
+    "oci_image": _OCI_IMAGE,
     "ocaml": _OCAML,
     "perl": _PERL,
     "php": _PHP,

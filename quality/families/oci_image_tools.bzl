@@ -1,0 +1,21 @@
+"""Quality tool rows for the oci_image family."""
+
+load("//quality:tool_defs.bzl", "row", "tool")
+
+TOOLS = [
+    tool(
+        id = "trivy_image_config",
+        adapters = {"lint": ["oci_image"]},
+        concerns = {"lint": "security"},
+        support = [
+            row(
+                capability = "lint",
+                classes = ["oci_image"],
+                family = "oci_image",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+                transport = "single",
+            ),
+        ],
+    ),
+]

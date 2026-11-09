@@ -180,6 +180,13 @@ pub const FAMILIES: &[CuratedFamily] = &[
         audit: &[],
     },
     CuratedFamily {
+        id: "oci_image",
+        lint: &["trivy_image_config"],
+        format: &[],
+        typecheck: &[],
+        audit: &[],
+    },
+    CuratedFamily {
         id: "powershell",
         lint: &["typos"],
         format: &[],
@@ -444,6 +451,7 @@ pub const TOOLS: &[&str] = &[
     "tinymist",
     "topiary",
     "trivy_config",
+    "trivy_image_config",
     "tsc",
     "ty",
     "typos",

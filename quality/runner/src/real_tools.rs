@@ -7719,3 +7719,74 @@ fn unsafe_fixes_reach_the_fixers_only_on_request() {
         .apply_fix("ansible_lint", "site.yml", "---\n", "lint")
         .expect("unsafe ansible-lint fix");
 }
+
+fn trivy_image_config_tool(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("image"));
+    assert!(argv.contains(&OsString::from("--offline-scan")));
+    let layout = argv.last().expect("layout").to_string_lossy().into_owned();
+    let report = serde_json::json!({
+        "SchemaVersion": 2,
+        "Results": [{
+            "Target": layout,
+            "Class": "config",
+            "Misconfigurations": [{
+                "ID": "DS-0002",
+                "Title": "Image user should not be 'root'",
+                "Severity": "HIGH",
+            }],
+        }],
+    });
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: report.to_string().into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+fn trivy_image_config_reports_the_image_on_the_build_file() {
+    let layout = tempfile::tempdir().expect("layout");
+    let image = layout.path().join("image");
+    std::fs::create_dir_all(image.join("blobs/sha256")).expect("blobs");
+    std::fs::write(image.join("oci-layout"), "{}").expect("marker");
+    let blob = layout.path().join("real-blob");
+    std::fs::write(&blob, "layer").expect("blob");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&blob, image.join("blobs/sha256/abc")).expect("symlink");
+    let tool = RealTool {
+        args: vec![image.to_string_lossy().into_owned()],
+        ..plain_tool()
+    };
+    let backend = backend_for("trivy_image_config", tool, trivy_image_config_tool);
+    let findings = backend
+        .diagnose(
+            "trivy_image_config",
+            "lint",
+            &single("BUILD.bazel", "# images\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "trivy_image_config");
+    assert_eq!(findings[0].rule_id, "DS-0002");
+    assert_eq!(findings[0].path, "BUILD.bazel");
+    assert!(findings[0].message.starts_with("image: "));
+}
+
+#[test]
+fn trivy_image_config_needs_the_layout() {
+    let backend = backend_for("trivy_image_config", plain_tool(), trivy_image_config_tool);
+    assert!(
+        backend
+            .diagnose(
+                "trivy_image_config",
+                "lint",
+                &single("BUILD.bazel", "# images\n")
+            )
+            .is_err()
+    );
+}

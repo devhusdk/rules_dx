@@ -275,6 +275,7 @@ fn gate_job_checks_evidence_statuses_with_read_only_statuses_scope() {
     let first = &steps[0];
     assert_eq!(first["if"], "${{ github.event_name == 'merge_group' }}");
     let run = first["run"].as_str().expect("run");
+    assert!(run.contains("set -euo pipefail"), "{run}");
     assert!(run.contains("/commits/$sha/statuses"), "{run}");
     assert!(run.contains("evidence\\/"), "{run}");
     assert!(

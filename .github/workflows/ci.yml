@@ -805,6 +805,7 @@ jobs:
           HEAD_REF: ${{ github.event.merge_group.head_ref }}
           REPO: ${{ github.repository }}
         run: |
+          set -euo pipefail
           sha="${HEAD_REF##*-}"
           [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "gate: no PR head sha in $HEAD_REF" >&2; exit 1; }
           bad="$(gh api --paginate "repos/$REPO/commits/$sha/statuses" --jq '.[] | [.context, .state] | @tsv' \

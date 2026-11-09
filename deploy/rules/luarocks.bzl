@@ -1,6 +1,6 @@
 """Local-first LuaRocks publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -75,23 +75,13 @@ _luarocks_config = rule(
 
 def luarocks_deploy(name, rockspec, package = "", version = "", build_mode = "release", sbom = None):
     """Uploads one rockspec after checking its package and version."""
-    name_error = luarocks_name_error(name)
-    if name_error != "":
-        fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    if package != "":
-        package_error = luarocks_name_error(package)
-        if package_error != "":
-            fail(package_error + " (in " + native.package_name() + ":" + name + ")")
-    if version != "":
-        version_error = luarocks_version_error(version)
-        if version_error != "":
-            fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    pkg, version = deploy_identity(name, package, version, luarocks_name_error, luarocks_version_error)
 
     config_target = name + "_config"
     _luarocks_config(
         name = config_target,
         deploy_name = name,
-        package = package,
+        package = pkg,
         rockspec = rockspec,
         version = version,
     )

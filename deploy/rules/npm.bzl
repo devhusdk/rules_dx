@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:shell.bzl", "shell")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "only_chars")
 
@@ -108,15 +108,13 @@ _npm_config = rule(
     },
 )
 
-def npm_deploy(name, package, dist_tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def npm_deploy(name, package = "", dist_tag = "latest", srcs = [], registry = "https://registry.npmjs.org", access = "public", provenance = "", build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Packs files into a local npm feed with public or restricted access and a provenance policy.
 
     api_compat and api_baseline work as described under "Public API
     compatibility" in the README; the tool is api-extractor on the types entry.
     """
-    pkg_error = npm_package_error(package)
-    if pkg_error != "":
-        fail(pkg_error + " (in " + native.package_name() + ":" + name + ")")
+    package, _ = deploy_identity(name, package, "", npm_package_error, npm_package_error)
     tag_error = npm_tag_error(dist_tag)
     if tag_error != "":
         fail(tag_error + " (in " + native.package_name() + ":" + name + ")")

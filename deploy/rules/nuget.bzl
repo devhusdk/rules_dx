@@ -1,7 +1,7 @@
 """Local-first NuGet publisher for dx deploy."""
 
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
 
@@ -68,7 +68,7 @@ def _nuget_config_impl(ctx):
     values = {
         "deploy_name": ctx.attr.deploy_name,
         "nupkg_rloc": nupkg_rloc,
-        "package_id": ctx.attr.package_id,
+        "package_id": ctx.attr.package,
         "source": ctx.attr.source,
         "version": ctx.attr.version,
     }
@@ -103,7 +103,7 @@ _nuget_config = rule(
             allow_single_file = True,
             mandatory = True,
         ),
-        "package_id": attr.string(doc = "NuGet package id the deploy config pins."),
+        "package": attr.string(doc = "NuGet package id the deploy config pins."),
         "source": attr.string(
             doc = "HTTPS NuGet feed URL the deploy tool publishes to.",
             mandatory = True,
@@ -112,26 +112,16 @@ _nuget_config = rule(
     },
 )
 
-def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFAULT_SOURCE, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
+def nuget_deploy(name, nupkg, package = "", version = "", source = NUGET_DEFAULT_SOURCE, build_mode = "release", sbom = None, api_compat = "fail", api_baseline = "registry"):
     """Publishes one nupkg after checking its nuspec id and version.
 
     api_compat and api_baseline work as described under "Public API
     compatibility" in the README; the tool is Microsoft.DotNet.ApiCompat.
     """
-    name_error = nuget_id_error(name)
-    if name_error != "":
-        fail(name_error + " (in " + native.package_name() + ":" + name + ")")
+    pkg, version = deploy_identity(name, package, version, nuget_id_error, nuget_version_error)
     api_error = api_compat_error("nuget_deploy", api_compat, api_baseline)
     if api_error != "":
         fail(api_error + " (in " + native.package_name() + ":" + name + ")")
-    if package_id != "":
-        id_error = nuget_id_error(package_id)
-        if id_error != "":
-            fail(id_error + " (in " + native.package_name() + ":" + name + ")")
-    if version != "":
-        version_error = nuget_version_error(version)
-        if version_error != "":
-            fail(version_error + " (in " + native.package_name() + ":" + name + ")")
     source_error = nuget_source_error(source)
     if source_error != "":
         fail(source_error + " (in " + native.package_name() + ":" + name + ")")
@@ -143,7 +133,7 @@ def nuget_deploy(name, nupkg, package_id = "", version = "", source = NUGET_DEFA
         api_compat = api_compat,
         deploy_name = name,
         nupkg = nupkg,
-        package_id = package_id,
+        package = pkg,
         source = source,
         version = version,
     )

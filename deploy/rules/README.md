@@ -119,7 +119,7 @@ npm_deploy(
 )
 ```
 
-- `package`: required. The npm package name, `name` or `@scope/name`.
+- `package`: the npm package name, `name` or `@scope/name`. Defaults to `name`.
 - `srcs`: files to pack, including `package.json`. Defaults to `[]`.
 - `dist_tag`: the dist-tag. Defaults to `latest`.
 - `registry`: defaults to `https://registry.npmjs.org`.
@@ -633,7 +633,7 @@ nuget_deploy(
 ```
 
 - `nupkg`: required. One `.nupkg` file.
-- `package_id`: optional. Must match the nuspec id.
+- `package`: the package id. Defaults to `name`. Must match the nuspec id.
 - `version`: optional. Must match the nuspec version.
 - `source`: defaults to `https://api.nuget.org/v3/index.json`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
@@ -652,7 +652,7 @@ through the `NUGET_API_TOKEN` env var, never the command line, so NuGet 7.6+
 (.NET SDK 10.0.300+) is required; older versions are refused. A live run refuses nuspec
 version `0.0.0`.
 
-A default run checks the nuspec id and version against `package_id` and
+A default run checks the nuspec id and version against `package` and
 `version`. It does not run `dotnet`. Rerunning a published version: the push is
 skipped, the run prints `nuget_deploy: skipped <id> <version>: already on
 <source>` and exits 0.
@@ -671,7 +671,7 @@ hackage_deploy(
 ```
 
 - `sdist`: required. One `<package>-<version>.tar.gz` made by `cabal sdist`.
-- `package`: optional. Must match the `name` in the `.cabal` file.
+- `package`: the package name. Defaults to `name`. Must match the `name` in the `.cabal` file.
 - `version`: optional. Must match the `version` in the `.cabal` file.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
@@ -703,7 +703,7 @@ luarocks_deploy(
 ```
 
 - `rockspec`: required. One `<package>-<version>.rockspec`.
-- `package`: optional. Must match the rockspec `package`.
+- `package`: the rock name. Defaults to `name`. Must match the rockspec `package`.
 - `version`: optional. Must match the rockspec `version`, with or without the
   `-<revision>` suffix.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.

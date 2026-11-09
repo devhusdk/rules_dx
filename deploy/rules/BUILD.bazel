@@ -826,6 +826,7 @@ test_suite(
         ":github_duplicate_basename_fails",
         ":github_sbom_demo_verify",
         ":github_unit",
+        ":hackage_alias_analysis",
         ":hackage_analysis",
         ":hackage_unit",
         ":helm_demo_verify",
@@ -838,12 +839,15 @@ test_suite(
         ":image_unit",
         ":linux_package_demo_verify",
         ":linux_package_unit",
+        ":luarocks_alias_analysis",
         ":luarocks_analysis",
         ":luarocks_unit",
         ":maven_analysis",
         ":maven_unit",
+        ":npm_alias_analysis",
         ":npm_analysis",
         ":npm_unit",
+        ":nuget_alias_analysis",
         ":nuget_analysis",
         ":nuget_config_content",
         ":nuget_unit",
@@ -1716,6 +1720,17 @@ deploy_analysis_test(
     subject = "npm_demo",
 )
 
+npm_deploy(
+    name = "npm+alias",
+    srcs = ["npm_demo/package.json"],
+    package = "npm-demo",
+)
+
+deploy_analysis_test(
+    name = "npm_alias_analysis",
+    subject = "npm+alias",
+)
+
 genrule(
     name = "nuget_demo_nuspec",
     outs = ["nuget_demo_nuspec/nuget_demo.nuspec"],
@@ -1744,6 +1759,17 @@ deploy_analysis_test(
     subject = "nuget_demo",
 )
 
+nuget_deploy(
+    name = "nuget+alias",
+    nupkg = ":nuget_demo_nupkg",
+    package = "nuget_demo",
+)
+
+deploy_analysis_test(
+    name = "nuget_alias_analysis",
+    subject = "nuget+alias",
+)
+
 genrule(
     name = "hackage_demo_sdist",
     outs = ["hackage-demo-0.0.0.tar.gz"],
@@ -1762,6 +1788,17 @@ deploy_analysis_test(
     subject = "hackage-demo",
 )
 
+hackage_deploy(
+    name = "hackage_alias",
+    package = "hackage-demo",
+    sdist = ":hackage_demo_sdist",
+)
+
+deploy_analysis_test(
+    name = "hackage_alias_analysis",
+    subject = "hackage_alias",
+)
+
 genrule(
     name = "luarocks_demo_rockspec",
     outs = ["luarocks_demo-0.0.0-1.rockspec"],
@@ -1778,6 +1815,17 @@ luarocks_unit_tests(name = "luarocks_unit")
 deploy_analysis_test(
     name = "luarocks_analysis",
     subject = "luarocks_demo",
+)
+
+luarocks_deploy(
+    name = "luarocks+alias",
+    package = "luarocks_demo",
+    rockspec = ":luarocks_demo_rockspec",
+)
+
+deploy_analysis_test(
+    name = "luarocks_alias_analysis",
+    subject = "luarocks+alias",
 )
 
 java_library(

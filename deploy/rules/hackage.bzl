@@ -1,6 +1,6 @@
 """Local-first Hackage publisher for dx deploy."""
 
-load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "rlocation_path")
+load(":config.bzl", "DEPLOY_TOOL", "deploy_config", "deploy_identity", "rlocation_path")
 load(":defs.bzl", "dx_deployment")
 load(":validate.bzl", "ALNUM", "only_chars")
 
@@ -79,23 +79,13 @@ _hackage_config = rule(
 
 def hackage_deploy(name, sdist, package = "", version = "", build_mode = "release", sbom = None):
     """Uploads one cabal sdist after checking its .cabal name and version."""
-    name_error = hackage_name_error(name)
-    if name_error != "":
-        fail(name_error + " (in " + native.package_name() + ":" + name + ")")
-    if package != "":
-        package_error = hackage_name_error(package)
-        if package_error != "":
-            fail(package_error + " (in " + native.package_name() + ":" + name + ")")
-    if version != "":
-        version_error = hackage_version_error(version)
-        if version_error != "":
-            fail(version_error + " (in " + native.package_name() + ":" + name + ")")
+    pkg, version = deploy_identity(name, package, version, hackage_name_error, hackage_version_error)
 
     config_target = name + "_config"
     _hackage_config(
         name = config_target,
         deploy_name = name,
-        package = package,
+        package = pkg,
         sdist = sdist,
         version = version,
     )

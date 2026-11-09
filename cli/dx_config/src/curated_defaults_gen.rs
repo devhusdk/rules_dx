@@ -183,7 +183,7 @@ pub const FAMILIES: &[CuratedFamily] = &[
         id: "oci_image",
         lint: &["trivy_image_config"],
         format: &[],
-        typecheck: &[],
+        typecheck: &["container_structure_test"],
         audit: &[],
     },
     CuratedFamily {
@@ -351,6 +351,7 @@ pub const TOOLS: &[&str] = &[
     "clang_tidy",
     "clippy",
     "cmakelint",
+    "container_structure_test",
     "credo",
     "csc",
     "csharpier",

@@ -12,6 +12,7 @@ load("//core/quality/artifacts:buf.bzl", _buf = "ARTIFACTS")
 load("//core/quality/artifacts:buildifier.bzl", _buildifier = "ARTIFACTS")
 load("//core/quality/artifacts:checkmake.bzl", _checkmake = "ARTIFACTS")
 load("//core/quality/artifacts:chktex.bzl", _chktex = "ARTIFACTS")
+load("//core/quality/artifacts:container_structure_test.bzl", _container_structure_test = "ARTIFACTS")
 load("//core/quality/artifacts:cue.bzl", _cue = "ARTIFACTS")
 load("//core/quality/artifacts:ffmt.bzl", _ffmt = "ARTIFACTS")
 load("//core/quality/artifacts:fortitude.bzl", _fortitude = "ARTIFACTS")
@@ -74,6 +75,7 @@ _ARTIFACTS = [
         _buildifier,
         _checkmake,
         _chktex,
+        _container_structure_test,
         _cue,
         _ffmt,
         _fortitude,

@@ -400,7 +400,7 @@ fn fix_route(tool_id: &str, tool: &RealTool, capability: &str) -> Result<Route, 
         | "ocaml" | "swiftc" | "zig" | "zig_ast_check" | "swift_lint" | "xmllint" | "selene"
         | "zanuda"
         | "thrift" | "avro_tools" | "tinymist" | "detekt" | "lychee" | "actionlint" | "zizmor"
-        | "trivy_config" | "trivy_image_config" | "weeder" => Ok(Route::Keep),
+        | "trivy_config" | "trivy_image_config" | "container_structure_test" | "weeder" => Ok(Route::Keep),
         "graphql_eslint" => match tool.config_rel {
             Some(_) => Ok(Route::Keep),
             None => Err(missing_tier_base(tool_id)),

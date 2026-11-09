@@ -3717,3 +3717,30 @@ fn trivy_image_config_scans_the_layout_offline() {
         ]
     );
 }
+
+#[test]
+fn container_structure_test_uses_the_tar_driver() {
+    let invocation = container_structure_test_check(
+        Path::new(BIN),
+        Path::new("/scratch/image.tar"),
+        &[Path::new("/w/a.yaml"), Path::new("/w/b.yaml")],
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "test",
+            "--driver",
+            "tar",
+            "--output",
+            "json",
+            "--no-color",
+            "--image",
+            "/scratch/image.tar",
+            "--config",
+            "/w/a.yaml",
+            "--config",
+            "/w/b.yaml",
+        ]
+    );
+}

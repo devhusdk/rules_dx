@@ -18,6 +18,7 @@ rust_binary(
 oci_image_from_binary(
     name = "image",
     binary = ":hello",
+    structure_tests = ["image_structure_test.yaml"],
 )
 
 oci_deploy(

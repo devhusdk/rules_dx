@@ -18,6 +18,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | buildifier | 8.5.1 | Apache-2.0 |
 | checkmake | 0.3.2 | MIT |
 | chktex | 2025 | GPL-2.0-or-later, LGPL-2.1-or-later |
+| container_structure_test | 1.22.1 | Apache-2.0 |
 | cue | 0.17.1 | Apache-2.0 |
 | detekt | 1.23.8 | Apache-2.0 |
 | ffmt | 0.4.5 | MIT |

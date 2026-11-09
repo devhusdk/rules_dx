@@ -188,8 +188,12 @@ _jars_for_platform = rule(
     },
 )
 
-def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy:linux_amd64"], tags = None, main = None, main_class = None, runtime = False, visibility = None, testonly = None):
-    """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy."""
+def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy:linux_amd64"], tags = None, main = None, main_class = None, runtime = False, structure_tests = [], visibility = None, testonly = None):
+    """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
+
+    structure_tests lists container-structure-test configs that dx typecheck runs against each
+    image with the tar driver: metadata, file existence, file content and license tests.
+    """
     if not main and type(binary) == "string":
         main = image_default_main(base, binary, native.package_name())
     if type(platforms) == "list":
@@ -273,6 +277,7 @@ def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx
             name = image + "_quality",
             build_files = native.glob(["BUILD", "BUILD.bazel"], allow_empty = True),
             image = image,
+            structure_tests = structure_tests,
             tags = tags,
             testonly = testonly,
         )

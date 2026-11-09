@@ -43,6 +43,7 @@ pub const LINT_ASPECTS: &[&str] = &[
 pub const TYPECHECK_ASPECTS: &[&str] = &[
     "core/quality:families/core.bzl%real_typecheck_aspect",
     "core/quality:families/cue.bzl%real_cue_typecheck_aspect",
+    "core/quality:families/oci_image.bzl%real_oci_image_typecheck_aspect",
 ];
 
 pub const FORMAT_PROBES: &[&str] = &[

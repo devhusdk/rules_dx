@@ -165,7 +165,7 @@ CURATED_DEFAULTS = {
         "audit": [],
         "format": [],
         "lint": ["trivy_image_config"],
-        "typecheck": [],
+        "typecheck": ["container_structure_test"],
     },
     "powershell": {
         "audit": [],

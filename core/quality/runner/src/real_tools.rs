@@ -7820,3 +7820,111 @@ fn trivy_image_config_needs_the_layout() {
             .is_err()
     );
 }
+
+fn container_structure_test_tool(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let at = |flag: &str| text.iter().position(|arg| arg == flag).expect(flag);
+    assert_eq!(text[at("--driver") + 1], "tar");
+    let archive = std::fs::read(&text[at("--image") + 1]).expect("archive");
+    assert_eq!(&archive[..13], b"manifest.json");
+    assert_eq!(&archive[257..262], b"ustar");
+    let body = String::from_utf8_lossy(&archive).into_owned();
+    assert!(body.contains("blobs/sha256/cc"));
+    assert!(body.contains("layer-bytes"));
+    assert!(text[at("--config") + 1].ends_with("test.yaml"));
+    let report = serde_json::json!({
+        "Pass": 0,
+        "Fail": 1,
+        "Total": 1,
+        "Results": [{
+            "Name": "Metadata Test",
+            "Pass": false,
+            "Errors": ["Image config entrypoint [/app/hello] does not match expected value: [/x]"],
+        }],
+    });
+    Ok(ChildOutput {
+        code: Some(1),
+        stdout: report.to_string().into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+fn structure_test_layout(root: &Path) -> PathBuf {
+    let image = root.join("image");
+    let blobs = image.join("blobs/sha256");
+    std::fs::create_dir_all(&blobs).expect("blobs");
+    let layer = format!("{}{}", "dd", "0".repeat(62));
+    let config = format!("{}{}", "cc", "0".repeat(62));
+    let manifest = format!("{}{}", "aa", "0".repeat(62));
+    std::fs::write(blobs.join(&layer), "layer-bytes").expect("layer");
+    std::fs::write(blobs.join(&config), "{}").expect("config");
+    std::fs::write(
+        blobs.join(&manifest),
+        serde_json::json!({
+            "config": {"digest": format!("sha256:{config}")},
+            "layers": [{"digest": format!("sha256:{layer}")}],
+        })
+        .to_string(),
+    )
+    .expect("manifest");
+    std::fs::write(
+        image.join("index.json"),
+        serde_json::json!({"manifests": [{"digest": format!("sha256:{manifest}")}]}).to_string(),
+    )
+    .expect("index");
+    image
+}
+
+#[test]
+fn container_structure_test_reports_failed_tests_on_the_build_file() {
+    let root = tempfile::tempdir().expect("root");
+    let image = structure_test_layout(root.path());
+    let config = root.path().join("test.yaml");
+    std::fs::write(&config, "schemaVersion: \"2.0.0\"\n").expect("config");
+    let tool = RealTool {
+        args: vec![
+            image.to_string_lossy().into_owned(),
+            config.to_string_lossy().into_owned(),
+        ],
+        ..plain_tool()
+    };
+    let backend = backend_for("container_structure_test", tool, container_structure_test_tool);
+    let findings = backend
+        .diagnose(
+            "container_structure_test",
+            "typecheck",
+            &single("BUILD.bazel", "# images\n"),
+        )
+        .expect("diagnosed");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].tool_id, "container_structure_test");
+    assert_eq!(findings[0].rule_id, "Metadata Test");
+    assert_eq!(findings[0].path, "BUILD.bazel");
+    assert!(findings[0].message.starts_with("image: Metadata Test: "));
+}
+
+#[test]
+fn container_structure_test_needs_the_layout() {
+    let backend = backend_for(
+        "container_structure_test",
+        plain_tool(),
+        container_structure_test_tool,
+    );
+    assert!(
+        backend
+            .diagnose(
+                "container_structure_test",
+                "typecheck",
+                &single("BUILD.bazel", "# images\n")
+            )
+            .is_err()
+    );
+}

@@ -146,6 +146,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_container_structure_test",
+    build_setting_default = "@dx_tools//:container_structure_test",
+)
+
+label_flag(
     name = "tool_trivy",
     scope = "universal",
     build_setting_default = "@dx_tools//:trivy",

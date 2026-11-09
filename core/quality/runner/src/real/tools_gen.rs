@@ -17,6 +17,7 @@ pub const REAL_TOOLS: &[&str] = &[
     "clang_tidy",
     "clippy",
     "cmakelint",
+    "container_structure_test",
     "credo",
     "csc",
     "csharpier",

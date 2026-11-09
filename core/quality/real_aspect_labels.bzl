@@ -26,6 +26,7 @@ REAL_ASPECT_LABELS = {
     "typecheck": [
         "core/quality:families/core.bzl%real_typecheck_aspect",
         "core/quality:families/cue.bzl%real_cue_typecheck_aspect",
+        "core/quality:families/oci_image.bzl%real_oci_image_typecheck_aspect",
     ],
     "format": [
         "core/quality:families/cue.bzl%real_cue_format_aspect",

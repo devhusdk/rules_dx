@@ -15,7 +15,7 @@ def _oci_image_quality_impl(ctx):
     return [
         DefaultInfo(),
         QualitySourcesInfo(direct_sources = direct_sources),
-        OciImageQualityInfo(layout = layouts[0], name = ctx.attr.image.label.name),
+        OciImageQualityInfo(layout = layouts[0], name = ctx.attr.image.label.name, structure_tests = ctx.files.structure_tests),
     ]
 
 oci_image_quality = rule(
@@ -24,5 +24,6 @@ oci_image_quality = rule(
     attrs = {
         "build_files": attr.label_list(allow_files = True, mandatory = True, doc = "The BUILD file of the package."),
         "image": attr.label(mandatory = True, doc = "An OCI image layout directory."),
+        "structure_tests": attr.label_list(allow_files = [".yaml", ".yml", ".json"], doc = "container-structure-test configs that dx typecheck runs against the image."),
     },
 )

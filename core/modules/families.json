@@ -167,6 +167,7 @@
         "real_ocaml_typecheck_aspect",
         "real_ocaml_typecheck_probe_aspect",
         "real_oci_image_lint_aspect",
+        "real_oci_image_typecheck_aspect",
         "real_perl_docs_aspect",
         "real_perl_format_aspect",
         "real_perl_format_probe_aspect",

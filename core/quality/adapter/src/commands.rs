@@ -376,6 +376,14 @@ const TRIVY_IMAGE_CONFIG_PREFIX: &[&str] = &[
     "--image-config-scanners",
     "misconfig,secret",
 ];
+const CONTAINER_STRUCTURE_TEST_PREFIX: &[&str] = &[
+    "test",
+    "--driver",
+    "tar",
+    "--output",
+    "json",
+    "--no-color",
+];
 const END_OF_FLAGS: &[&str] = &["--"];
 const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
@@ -2862,6 +2870,22 @@ pub fn trivy_image_config_check(binary: &Path, layout: &Path, cache_dir: &Path) 
     head.push(cache_dir.as_os_str().to_owned());
     head.push(OsString::from("--input"));
     head.push(layout.as_os_str().to_owned());
+    Invocation {
+        argv: head,
+        cwd_rel: String::new(),
+    }
+}
+
+/// Runs every config against one docker archive with the tar driver, so no container runtime is used.
+pub fn container_structure_test_check(binary: &Path, archive: &Path, configs: &[&Path]) -> Invocation {
+    let mut head = vec![binary.as_os_str().to_owned()];
+    head.extend(CONTAINER_STRUCTURE_TEST_PREFIX.iter().map(OsString::from));
+    head.push(OsString::from("--image"));
+    head.push(archive.as_os_str().to_owned());
+    for config in configs {
+        head.push(OsString::from("--config"));
+        head.push(config.as_os_str().to_owned());
+    }
     Invocation {
         argv: head,
         cwd_rel: String::new(),

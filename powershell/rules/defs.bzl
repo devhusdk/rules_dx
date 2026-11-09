@@ -90,10 +90,12 @@ def powershell_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_library; srcs are .ps1, .psm1 or .psd1 files."""
     dx_wrap(name, _pwsh_library, _pwsh_library_forward, srcs, visibility = visibility, **kwargs)
 
-def powershell_binary(name, srcs = None, visibility = None, **kwargs):
+def powershell_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_binary; srcs are .ps1 files and optional."""
     dx_wrap_binary(name, _pwsh_binary, _pwsh_binary_forward, srcs, visibility = visibility, **kwargs)
 
-def powershell_test(name, srcs, visibility = None, **kwargs):
+def powershell_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_test; srcs are .ps1 files."""
+    if srcs == None:
+        fail("powershell_test //" + native.package_name() + ":" + name + " needs srcs")
     dx_wrap_test(name, _pwsh_test, _pwsh_forward_test, srcs, visibility = visibility, **kwargs)

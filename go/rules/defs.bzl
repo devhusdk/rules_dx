@@ -81,15 +81,15 @@ def go_library(name, srcs, importpath, visibility = None, **kwargs):
     """Minimal wrapper over go_library."""
     dx_wrap(name, _go_library, _go_library_forward, srcs, visibility = visibility, importpath = importpath, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
-def go_binary(name, srcs = None, visibility = None, **kwargs):
+def go_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_binary."""
     dx_wrap_binary(name, _go_binary, _go_binary_forward, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
-def go_test(name, srcs = None, visibility = None, **kwargs):
+def go_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_test."""
     dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
-def go_fuzz_test(name, fuzz, srcs = None, visibility = None, tags = None, **kwargs):
+def go_fuzz_test(name, *, fuzz, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test plus a `<name>_run` runner that fuzzes the function `fuzz` for `dx fuzz`."""
     binary = name + "_bin"
     build, run = split_test_kwargs(kwargs)
@@ -111,7 +111,7 @@ def go_fuzz_test(name, fuzz, srcs = None, visibility = None, tags = None, **kwar
     )
     dx_fuzz_runner(name, ":" + name, visibility = visibility, engine = "go", target = fuzz)
 
-def go_bench(name, srcs = None, visibility = None, tags = None, **kwargs):
+def go_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test of the Benchmark functions plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
     binary = name + "_bin"
     build, run = split_test_kwargs(kwargs)

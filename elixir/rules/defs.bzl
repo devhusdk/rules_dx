@@ -198,8 +198,10 @@ def cover_opts(opts):
     })
     return load_script + (opts or [])
 
-def elixir_test(name, srcs, visibility = None, **kwargs):
+def elixir_test(name, *, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_elixir ex_unit_test rule."""
+    if srcs == None:
+        fail("elixir_test //" + native.package_name() + ":" + name + " needs srcs")
     kwargs = elixir_kwargs(kwargs)
     upstream = dict(kwargs, elixir_opts = cover_opts(kwargs.get("elixir_opts")))
     apps = {"apps": kwargs["deps"]} if kwargs.get("deps") else None

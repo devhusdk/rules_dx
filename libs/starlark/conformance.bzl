@@ -1,5 +1,6 @@
 """Shared wrapper conformance checks for language rules."""
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_equal", "starlark_test")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
@@ -254,4 +255,17 @@ def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, in
         testonly = True,
         subjects = [":" + name + "_" + kind for kind in kinds],
         expected_observations = dx_wrapper_forward_observations(native.package_name(), name, kinds, known_gaps),
+    )
+
+def dx_wrapper_signature_test(name, defs = "defs.bzl"):
+    """Fails when a binary, test, bench or fuzz wrapper in defs takes positional arguments after name."""
+    sh_test(
+        name = name,
+        srcs = [Label("//libs/starlark:wrapper_signatures.sh")],
+        args = ["$(rootpath {})".format(defs)],
+        data = [defs],
+        target_compatible_with = select({
+            "@platforms//os:windows": ["@platforms//:incompatible"],
+            "//conditions:default": [],
+        }),
     )

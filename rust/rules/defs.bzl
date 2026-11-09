@@ -238,13 +238,16 @@ def rust_library(
 
 def rust_binary(
         name,
-        srcs,
+        *,
+        srcs = None,
         crate_name = None,
         edition = RUST_EDITION,
         visibility = None,
         wasm = None,
         **kwargs):
     """Minimal wrapper over rust_binary."""
+    if srcs == None:
+        fail("rust_binary //" + native.package_name() + ":" + name + " needs srcs")
     if wasm not in (None, "wasi", "browser"):
         fail("rust_binary: wasm must be \"wasi\" or \"browser\", got " + repr(wasm))
     if wasm == "browser":
@@ -289,6 +292,7 @@ def _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs):
 
 def rust_test(
         name,
+        *,
         srcs = None,
         crate = None,
         edition = RUST_EDITION,
@@ -344,6 +348,7 @@ def rust_test(
 
 def rust_bench(
         name,
+        *,
         srcs = None,
         crate = None,
         crate_features = [],
@@ -670,7 +675,7 @@ _FUZZ_RUSTC_FLAGS = [
     "-Zexternal-clangrt",
 ]
 
-def rust_fuzz_test(name, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys = None, **kwargs):
+def rust_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, rustc_flags = None, rustc_env = None, libfuzzer_sys = None, **kwargs):
     """A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     build, run = split_runner_kwargs(kwargs)
     rust_binary(

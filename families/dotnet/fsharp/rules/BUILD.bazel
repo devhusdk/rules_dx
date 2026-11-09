@@ -1,6 +1,6 @@
 load("@rules_dotnet//dotnet/private:common.bzl", "framework_preprocessor_symbols")
 load("@rules_dx//dotnet:symbols.bzl", "fsharp_compile_defines")
-load("@rules_dx//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("@rules_dx//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "fsharp_tfm_with_defaults")
@@ -99,3 +99,5 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+dx_wrapper_signature_test(name = "wrapper_signature_test")

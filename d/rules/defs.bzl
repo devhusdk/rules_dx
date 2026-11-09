@@ -117,8 +117,10 @@ def d_library(name, srcs, visibility = None, **kwargs):
     kwargs = _string_srcs(name, kwargs)
     dx_wrap(name, _d_library, _d_library_forward, srcs, visibility = visibility, quality_srcs = quality_srcs, **kwargs)
 
-def d_binary(name, srcs, visibility = None, **kwargs):
+def d_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_binary rule."""
+    if srcs == None:
+        fail("d_binary //" + native.package_name() + ":" + name + " needs srcs")
     kwargs = d_kwargs(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _string_srcs(name, kwargs)
@@ -127,8 +129,10 @@ def d_binary(name, srcs, visibility = None, **kwargs):
 
 D_COVERAGE_COLLECTOR = True
 
-def d_test(name, srcs, visibility = None, **kwargs):
+def d_test(name, *, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_test rule."""
+    if srcs == None:
+        fail("d_test //" + native.package_name() + ":" + name + " needs srcs")
     kwargs = d_kwargs(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _cover(_string_srcs(name, kwargs))

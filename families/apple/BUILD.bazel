@@ -15,6 +15,7 @@ filegroup(
         "//bundle:module_srcs",
         "//ios:module_srcs",
         "//macos:module_srcs",
+        "//platforms:module_srcs",
         "//provisioning:module_srcs",
         "//signing:module_srcs",
     ],
@@ -41,12 +42,13 @@ sh_test(
         "//bundle:corpus_starlark",
         "//ios:corpus_starlark",
         "//macos:corpus_starlark",
+        "//platforms:corpus_starlark",
         "//provisioning:corpus_starlark",
         "//signing:corpus_starlark",
         "//tests:corpus_starlark",
         "@rules_dx//tools/ci:starlark_docs_family_test",
     ],
-    env = {"STARLARK_DOCS_PACKAGES": "bundle,ios,macos,provisioning,signing,tests"},
+    env = {"STARLARK_DOCS_PACKAGES": "bundle,ios,macos,platforms,provisioning,signing,tests"},
 )
 
 # dx:begin exports

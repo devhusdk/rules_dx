@@ -100,7 +100,7 @@ def _js_tool_binary_impl(ctx):
     lines.extend(["node_option=" + option for option in _NODE_OPTIONS])
     descriptor = ctx.actions.declare_file(ctx.label.name + ".launcher.txt")
     ctx.actions.write(descriptor, "\n".join(lines) + "\n")
-    launcher = ctx.attr._windows_launcher[DefaultInfo].files_to_run.executable
+    launcher = ctx.executable.windows_launcher
     link = ctx.actions.declare_file(ctx.label.name + ".exe")
     ctx.actions.symlink(output = link, target_file = launcher, is_executable = True)
     return [DefaultInfo(
@@ -123,10 +123,9 @@ js_tool_binary = rule(
             mandatory = True,
             allow_files = True,
         ),
-        "_windows_launcher": attr.label(
+        "windows_launcher": attr.label(
             cfg = "exec",
-            default = Label("//quality/tools/javascript/launcher:js_launcher"),
-            doc = "Launcher run on Windows hosts.",
+            doc = "Launcher run on Windows hosts; js_tool leaves it unset elsewhere so other hosts never build it.",
             executable = True,
         ),
         "_windows_os": attr.label(
@@ -143,5 +142,9 @@ def js_tool(name, js_binary, entry_point, **kwargs):
         name = name,
         entry_point = entry_point,
         js_binary = js_binary,
+        windows_launcher = select({
+            "@platforms//os:windows": "//quality/tools/javascript/launcher:js_launcher",
+            "//conditions:default": None,
+        }),
         **kwargs
     )

@@ -50,6 +50,8 @@ filegroup(name = "none")
 sh_binary(
     name = "kcov_launcher",
     srcs = ["kcov_launcher.sh"],
+    data = ["//tools/coverage/lib:runfile.sh"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
     visibility = VIS_TOOLS_PUBLIC,
 )
 

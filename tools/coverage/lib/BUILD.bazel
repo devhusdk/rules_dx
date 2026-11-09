@@ -1,0 +1,26 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["runfile.sh"],
+    visibility = VIS_TOOLS,
+)
+
+sh_test(
+    name = "runfile_test",
+    size = "small",
+    srcs = ["runfile_test.sh"],
+    args = ["$(rootpath runfile.sh)"],
+    data = ["runfile.sh"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)

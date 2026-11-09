@@ -182,15 +182,28 @@ selects.config_setting_group(
 sh_binary(
     name = "collect",
     srcs = ["collect.sh"],
+    data = ["//tools/coverage/lib:runfile.sh"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
     visibility = VIS_TOOLS_PUBLIC,
+)
+
+sh_binary(
+    name = "collect_test_upstream",
+    srcs = ["collect_test_upstream.sh"],
 )
 
 sh_test(
     name = "collect_test",
     size = "small",
     srcs = ["collect_test.sh"],
-    args = ["$(rootpath :collect)"],
-    data = [":collect"],
+    args = [
+        "$(rootpath :collect)",
+        "$(rlocationpath :collect_test_upstream)",
+    ],
+    data = [
+        ":collect",
+        ":collect_test_upstream",
+    ],
 )
 
 filegroup(

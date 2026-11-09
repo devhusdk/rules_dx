@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
@@ -15,13 +16,25 @@ exports_files(
 rust_binary(
     name = "process_probe",
     srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/process_probe",
+        normal = True,
+    ),
     crate_name = "process_probe",
     crate_root = "src/main.rs",
+    deps = [],
 )
 
 rust_test(
     name = "process_probe_test",
     srcs = ["probe_test.rs"],
+    aliases = aliases(
+        package_name = "tools/testing/process_probe",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "process_probe_test",
+    crate_root = "probe_test.rs",
     data = [":process_probe"],
     env = {
         "DX_PROCESS_PROBE": "$(rootpath :process_probe)",
@@ -37,4 +50,10 @@ real_source_target(
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

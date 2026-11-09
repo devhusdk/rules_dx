@@ -1,0 +1,25 @@
+[package]
+license = "Apache-2.0"
+name = "site_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "browser_test"
+path = "browser_test.rs"
+
+[[test]]
+name = "deploy_smoke_test"
+path = "deploy_smoke_test.rs"
+
+[[test]]
+name = "serve_test"
+path = "serve_test.rs"
+
+[[test]]
+name = "rendered_site_test"
+path = "rendered_site_test.rs"
+
+[[test]]
+name = "site_check_test"
+path = "site_check_test.rs"

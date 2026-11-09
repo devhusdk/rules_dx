@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "ruby_docs_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "extract_test"
+path = "extract_test.rs"

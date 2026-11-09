@@ -294,6 +294,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
+name = "bazelisk_wrapper"
+version = "0.0.0"
+
+[[package]]
 name = "beef"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1395,6 +1399,10 @@ name = "documentation_ir"
 version = "0.0.0"
 
 [[package]]
+name = "dotnet_docs_tests"
+version = "0.0.0"
+
+[[package]]
 name = "dotnet_extract"
 version = "0.0.0"
 dependencies = [
@@ -2367,6 +2375,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "go_docs_tests"
+version = "0.0.0"
+
+[[package]]
 name = "go_extract"
 version = "0.0.0"
 dependencies = [
@@ -2605,6 +2617,10 @@ dependencies = [
  "zerotrie",
  "zerovec",
 ]
+
+[[package]]
+name = "ide_tests"
+version = "0.0.0"
 
 [[package]]
 name = "idea"
@@ -3875,6 +3891,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "process_probe"
+version = "0.0.0"
+
+[[package]]
 name = "proptest"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3903,6 +3923,10 @@ dependencies = [
  "memchr",
  "unicase",
 ]
+
+[[package]]
+name = "python_docs_tests"
+version = "0.0.0"
 
 [[package]]
 name = "python_extract"
@@ -4310,6 +4334,10 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "ruby_docs_tests"
+version = "0.0.0"
 
 [[package]]
 name = "ruby_extract"
@@ -4859,6 +4887,10 @@ version = "0.0.0"
 
 [[package]]
 name = "site_check"
+version = "0.0.0"
+
+[[package]]
+name = "site_tests"
 version = "0.0.0"
 
 [[package]]
@@ -5434,6 +5466,10 @@ name = "typenum"
 version = "1.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6f5e870be6c3b371b77fe0ee0bafb859fa4964b4404c27de1d380043c4dda20"
+
+[[package]]
+name = "typescript_docs_tests"
+version = "0.0.0"
 
 [[package]]
 name = "typescript_extract"

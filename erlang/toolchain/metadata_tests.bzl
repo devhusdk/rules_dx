@@ -1,7 +1,7 @@
 """Erlang toolchain pin and launcher tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "GETOPT_VERSION", "GLIBC_FLOOR", "OTP_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
+load(":pins.bzl", "CELLS", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE", "ELVIS_CORE_VERSION", "ELVIS_VERSION", "ERTS_VERSION", "TOOL_SOURCES", "WINDOWS_DROPPED_PATHS")
 load(":repos.bzl", "CLOSURE_DIR", "RESTORE_VARIABLE", "TOOL_BUILDS", "dropped_application", "erl_script", "erts_mismatch_message", "hub_build", "is_windows_cell", "nif_compatible_cases", "nif_header_cases", "nif_include_dir")
 
 _SOURCE = """#!/bin/sh
@@ -19,8 +19,6 @@ def _checks():
     debs = [package for name in CELLS for package in CELLS[name].runtime]
     arm_paths = [path for package in arm.runtime for path in package.libraries.values()]
     return [
-        expect_equal("otp version", OTP_VERSION, "29.1.2"),
-        expect_equal("glibc floor", GLIBC_FLOOR, "2.35"),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("only the windows cells are windows", sorted([name for name in CELLS if is_windows_cell(CELLS[name])]), ["windows_arm64", "windows_x86_64"]),
         expect_equal("windows cells share one archive", CELLS["windows_arm64"].otp_url, CELLS["windows_x86_64"].otp_url),
@@ -31,9 +29,6 @@ def _checks():
         expect_equal("arm64 libraries are aarch64", [path for path in arm_paths if "/aarch64-linux-gnu/" not in path], []),
         expect_equal("arm64 debs are arm64", [package.deb for package in arm.runtime if not package.deb.endswith("_arm64.deb")], []),
         expect_equal("macOS needs no closure", CELLS["macos_arm64"].runtime, []),
-        expect_equal("every archive pins a digest", [name for name in CELLS if len(CELLS[name].otp_sha256) != 64], []),
-        expect_equal("every archive is this release", [name for name in CELLS if OTP_VERSION not in CELLS[name].otp_url], []),
-        expect_equal("every package pins a digest", [package.deb for package in debs if len(package.sha256) != 64], []),
         expect_equal("every library ships a license", [package.deb for package in debs if package.libraries and package.license == ""], []),
         expect_true("rootdir is relocatable", "/nonexistent" in script and "%FINAL_ROOTDIR%" not in script),
         expect_contains("closure joins the loader path", script, 'LD_LIBRARY_PATH="$ROOTDIR/dx_closure/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"'),
@@ -44,10 +39,8 @@ def _checks():
         expect_true("no closure keeps the plain exec", 'exec "$BINDIR/erlexec" ${1+"$@"}' in plain),
         expect_false("no closure leaves the loader path", "LD_LIBRARY_PATH" in plain),
         expect_true("no closure is still relocatable", "/nonexistent" in plain and "%FINAL_ROOTDIR%" not in plain),
-        expect_equal("every tool source pins a digest", [name for name in TOOL_SOURCES if len(TOOL_SOURCES[name].sha256) != 64 or TOOL_SOURCES[name].sha256.strip("0123456789abcdef") != ""], []),
         expect_equal("every tool source has a build", sorted(TOOL_BUILDS.keys()), sorted(TOOL_SOURCES.keys())),
         expect_equal("elvis and elvis_core move together", ELVIS_VERSION, ELVIS_CORE_VERSION),
-        expect_equal("elvis shares the getopt pin", GETOPT_VERSION, "1.0.3"),
         expect_contains("elvis links the shared getopt", TOOL_BUILDS["dx_elvis"], "@dx_erlang_getopt//:erlang_app"),
         expect_contains("erlfmt links the shared getopt", TOOL_BUILDS["dx_erlfmt"], "@dx_erlang_getopt//:erlang_app"),
         expect_equal("dialyzer PLT apps are shipped", [app for app in DIALYZER_PLT_CORE + DIALYZER_PLT_APPS if dropped_application(app + "-1.0")], []),

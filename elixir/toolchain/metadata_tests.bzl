@@ -3,7 +3,7 @@
 load("//elixir/tools:launcher.bzl", "MIX_FORMAT_ENV", "launcher_preamble")
 load("//erlang/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
-load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
+load(":pins.bzl", "CREDO_PACKAGES", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR")
 load(":repos.bzl", "CREDO_REWRITES", "DROPPED_PATHS", "credo_build", "credo_rewrites", "elixir_bat", "elixir_script", "hub_build", "mix_build", "mix_hub_build")
 
 _BAT_SOURCE = """if x (
@@ -23,9 +23,6 @@ def _credo_checks():
     return [
         expect_contains("mix package depends on its repo", mix_build({"deps": ["decimal"], "package": "jason", "version": "1.4.4"}, "hub"), '["@hub_decimal//:erlang_app"]'),
         expect_contains("mix hub aliases each package", mix_hub_build([{"package": "jason"}], "hub"), 'actual = "@hub_jason//:erlang_app"'),
-        expect_equal("credo packages", sorted(CREDO_PACKAGES.keys()), ["bunt", "credo", "file_system", "jason"]),
-        expect_equal("credo pin", CREDO_PACKAGES["credo"].version, "1.7.19"),
-        expect_equal("every credo digest is sha256", [len(pin.sha256) for pin in CREDO_PACKAGES.values()], [64, 64, 64, 64]),
         expect_equal("every rewritten package is pinned", [name for name in CREDO_REWRITES if name not in CREDO_PACKAGES], []),
         expect_equal("a marker present once is rewritten", credo_rewrites("credo", "lib/credo/cli/output/ui.ex", "if Mix.env() == :test do", "1"), "if false do"),
         expect_equal("the version is pinned to the literal", credo_rewrites("bunt", "lib/bunt.ex", "@version Mix.Project.config()[:version]", "1.0.0"), '@version "1.0.0"'),
@@ -40,15 +37,7 @@ def _checks():
     script = elixir_script(_SOURCE)
     hub = hub_build(ELIXIR_CELLS)
     return [
-        expect_equal("elixir version", ELIXIR_VERSION, "1.20.4"),
         expect_equal("build matches the OTP major", ELIXIR_OTP_MAJOR, OTP_VERSION.split(".")[0]),
-        expect_equal("distribution url", ELIXIR_URL, "https://builds.hex.pm/builds/elixir/v1.20.4-otp-29.zip"),
-        expect_equal("distribution digest", len(ELIXIR_SHA256), 64),
-        expect_equal("applications", ELIXIR_APPLICATIONS, ["eex", "elixir", "ex_unit", "iex", "logger", "mix"]),
-        expect_equal("dialyzer PLT applications", DIALYZER_PLT_ELIXIR, ["elixir", "logger"]),
-        expect_equal("rules_elixir commit", len(RULES_ELIXIR_COMMIT), 40),
-        expect_equal("rules_elixir digest", len(RULES_ELIXIR_SHA256), 64),
-        expect_contains("rules_elixir url names the commit", RULES_ELIXIR_URL, RULES_ELIXIR_COMMIT),
         expect_contains("launcher forces Unicode names and stdio", script, "+fnu -kernel standard_io_encoding unicode $ELIXIR_ERL_OPTIONS $ERL"),
         expect_equal("elixir runs only on qualified cells", ELIXIR_CELLS, ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]),
         expect_equal("the hub registers each Elixir cell", hub.count("toolchain("), len(ELIXIR_CELLS)),

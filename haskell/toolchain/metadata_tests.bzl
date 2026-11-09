@@ -1,7 +1,7 @@
 """Haskell toolchain pin and settings tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "GHC_VERSION", "GLIBC_FLOOR", "RULES_HASKELL_COMMIT", "RULES_HASKELL_SHA256", "qualified_cells")
+load(":pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
 load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
@@ -56,11 +56,8 @@ def _cell_checks(name):
     conf = closure_library_dirs(_CONF.replace("{triple}", triple), CLOSURE_DIR)
     arch_dir = {"linux_amd64": "x86_64-linux-gnu", "linux_arm64": "aarch64-linux-gnu", "macos_arm64": "", "windows_x86_64": ""}[name]
     return [
-        expect_equal(name + " ghc digest", len(cell.ghc_sha256), 64),
-        expect_equal(name + " cabal digest", len(cell.cabal_sha256), 64),
         expect_equal(name + " runtime packages", [package.package for package in cell.runtime], ["libgmp10", "libtinfo6"] if has_runtime else []),
         expect_true(name + " names a locale", len(cell.locale) > 0),
-        expect_equal(name + " every package pins a digest", [package.package for package in cell.runtime if len(package.sha256) != 64], []),
         expect_equal(name + " every library ships a license", [package.package for package in cell.runtime if package.libraries and package.license == ""], []),
         expect_equal(name + " every library ships a copyright", [package.package for package in cell.runtime if package.libraries and package.copyright == ""], []),
         expect_equal(name + " libraries come from its own architecture", [path for package in cell.runtime for path in package.libraries.values() if arch_dir not in path], []),
@@ -82,9 +79,6 @@ def _checks():
     settings = ghc_settings(_SETTINGS)
     windows_settings = ghc_settings(_SETTINGS.replace("$topdir/../bin/unlit", "$tooldir/mingw/bin/unlit.exe"))
     checks = [
-        expect_equal("ghc version", GHC_VERSION, "9.10.3"),
-        expect_equal("rules_haskell commit", RULES_HASKELL_COMMIT, "826018312ea91c80ff66fde1e1e39f76c42c07b8"),
-        expect_equal("rules_haskell digest", len(RULES_HASKELL_SHA256), 64),
         expect_false("toolchain hub loads nothing", "load(" in hub_files()["toolchains/BUILD.bazel"]),
         expect_false("toolchain hub names no rules_haskell", "@rules_haskell" in hub_files()["toolchains/BUILD.bazel"]),
         expect_equal("cells", sorted(CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),

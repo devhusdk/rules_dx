@@ -1,0 +1,54 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "typescript",
+  "title": "TypeScript",
+  "family": "js",
+  "ecosystems": [
+    "npm"
+  ],
+  "manifests": [
+    "package.json",
+    "tsconfig.json"
+  ],
+  "lockfiles": [
+    "pnpm-lock.yaml"
+  ],
+  "tools": [
+    "biome",
+    "eslint"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "typescript_srcs_rejection",
+    "typescript_declaration_srcs_rejection",
+    "typescript_upstream_srcs",
+    "typescript_empty_library_rejection",
+    "typescript_transpiler",
+    "dx_tsconfig_is_source",
+    "dx_tsconfig_relpath",
+    "dx_tsconfig_content",
+    "typescript_scoped_tsconfig_rejection",
+    "dx_scoped_tsconfig_out",
+    "typescript_library",
+    "typescript_proto_library",
+    "typescript_binary_main",
+    "typescript_binary_rejection",
+    "typescript_binary_kwargs_rejection",
+    "typescript_compiled_entry",
+    "typescript_binary_upstream_kwargs",
+    "typescript_binary_forward_kwargs",
+    "typescript_binary",
+    "typescript_test_rejection",
+    "typescript_test",
+    "typescript_bench",
+    "typescript_fuzz_test",
+    "typescript_playwright_test"
+  ]
+}

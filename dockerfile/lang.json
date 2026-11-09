@@ -1,0 +1,24 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "dockerfile",
+  "title": "dockerfile",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "hadolint",
+    "prettier"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "dockerfile_library"
+  ]
+}

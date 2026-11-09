@@ -1,0 +1,56 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "erlang",
+  "title": "Erlang",
+  "family": "beam",
+  "ecosystems": [
+    "hex"
+  ],
+  "manifests": [
+    "rebar.config"
+  ],
+  "lockfiles": [
+    "rebar.lock"
+  ],
+  "tools": [
+    "dialyzer",
+    "elvis",
+    "erlc",
+    "erlfmt"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [
+    "toolchain/pins.bzl"
+  ],
+  "entry_points": [
+    "erlc_opts",
+    "erlang_xrl_yrl",
+    "otp_launcher_text",
+    "runfiles_path",
+    "otp_launch_descriptor",
+    "otp_tool_binary_impl",
+    "native_priv_files",
+    "escript_nif_message",
+    "lcov_apps_dirs",
+    "ct_suite_source",
+    "app_sources",
+    "nif_priv_path",
+    "nif_linkopt_cases",
+    "erlang_nif",
+    "erlang_release",
+    "erlang_app",
+    "erlang_test_app",
+    "erlang_bytecode",
+    "erlang_escript_archive",
+    "erlang_eunit_test",
+    "ct_run_args",
+    "erlang_ct_suite_test",
+    "erlang_bench"
+  ]
+}

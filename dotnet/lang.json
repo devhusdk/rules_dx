@@ -1,0 +1,22 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "dotnet",
+  "title": "dotnet",
+  "family": "core",
+  "ecosystems": [
+    "nuget"
+  ],
+  "manifests": [
+    "*.csproj",
+    "*.fsproj"
+  ],
+  "lockfiles": [
+    "packages.lock.json"
+  ],
+  "tools": [],
+  "platforms": [],
+  "pins": [
+    "pins.bzl"
+  ],
+  "entry_points": []
+}

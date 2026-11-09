@@ -1,0 +1,37 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "dart",
+  "title": "Dart",
+  "family": "dart",
+  "ecosystems": [
+    "pub"
+  ],
+  "manifests": [
+    "pubspec.yaml"
+  ],
+  "lockfiles": [
+    "pubspec.lock"
+  ],
+  "tools": [
+    "dart"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [
+    "pins.bzl"
+  ],
+  "entry_points": [
+    "dart_codegen",
+    "dart_root_package_name",
+    "dart_library",
+    "dart_binary",
+    "dart_js_binary",
+    "dart_wasm_binary",
+    "dart_test",
+    "dart_bench"
+  ]
+}

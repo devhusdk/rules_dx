@@ -1,0 +1,26 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "flatbuffers",
+  "title": "flatbuffers",
+  "family": "generation",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "flatc"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [
+    "pins.bzl"
+  ],
+  "entry_points": [
+    "flatbuffers_library",
+    "resolve_root"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "php",
+  "title": "PHP",
+  "family": "php",
+  "ecosystems": [
+    "packagist"
+  ],
+  "manifests": [
+    "composer.json"
+  ],
+  "lockfiles": [
+    "composer.lock"
+  ],
+  "tools": [
+    "phpcs",
+    "phpstan",
+    "prettier"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [
+    "toolchain/pins.bzl"
+  ],
+  "entry_points": [
+    "php_library",
+    "php_binary",
+    "php_test",
+    "php_bench"
+  ]
+}

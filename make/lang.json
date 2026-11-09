@@ -1,0 +1,20 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "make",
+  "title": "make",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "checkmake",
+    "mbake"
+  ],
+  "platforms": [
+    "linux_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "make_library"
+  ]
+}

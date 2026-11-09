@@ -1,0 +1,32 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "terraform",
+  "title": "terraform",
+  "family": "core",
+  "ecosystems": [
+    "terraform registry"
+  ],
+  "manifests": [
+    "*.tf"
+  ],
+  "lockfiles": [
+    ".terraform.lock.hcl"
+  ],
+  "tools": [
+    "terraform",
+    "tflint",
+    "trivy_config"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "collect_providers",
+    "terraform_library"
+  ]
+}

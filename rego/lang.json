@@ -1,0 +1,19 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "rego",
+  "title": "rego",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "opa",
+    "regal"
+  ],
+  "platforms": [],
+  "pins": [],
+  "entry_points": [
+    "rego_library",
+    "rego_test"
+  ]
+}

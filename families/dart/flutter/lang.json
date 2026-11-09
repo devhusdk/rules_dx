@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../modules/lang.schema.json",
+  "name": "flutter",
+  "title": "Flutter",
+  "family": "dart",
+  "ecosystems": [
+    "pub"
+  ],
+  "manifests": [
+    "pubspec.yaml"
+  ],
+  "lockfiles": [
+    "pubspec.lock"
+  ],
+  "tools": [],
+  "platforms": [],
+  "pins": [],
+  "entry_points": []
+}

@@ -1,0 +1,22 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "sql",
+  "title": "sql",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "sqlfluff"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "sql_library"
+  ]
+}

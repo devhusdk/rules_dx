@@ -1,0 +1,36 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "haskell",
+  "title": "Haskell",
+  "family": "core",
+  "ecosystems": [
+    "hackage"
+  ],
+  "manifests": [
+    "*.cabal",
+    "package.yaml"
+  ],
+  "lockfiles": [
+    "cabal.project.freeze"
+  ],
+  "tools": [
+    "hlint",
+    "ormolu",
+    "weeder"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64"
+  ],
+  "pins": [
+    "toolchain/pins.bzl"
+  ],
+  "entry_points": [
+    "with_gmp",
+    "haskell_library",
+    "haskell_binary",
+    "haskell_test",
+    "haskell_bench"
+  ]
+}

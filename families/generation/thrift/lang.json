@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../modules/lang.schema.json",
+  "name": "thrift",
+  "title": "thrift",
+  "family": "generation",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "thrift"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": []
+}

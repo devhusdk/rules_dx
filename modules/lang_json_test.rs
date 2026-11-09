@@ -1,0 +1,188 @@
+//! Every language dir named in families.json has a lang.json that satisfies lang.schema.json.
+
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+
+use serde_json::Value;
+
+const NON_LANGUAGE: [&str; 34] = [
+    "appimage",
+    "bcr_test_module",
+    "bundle",
+    "ci",
+    "cli",
+    "components",
+    "config",
+    "containers",
+    "deploy",
+    "docs",
+    "dx",
+    "env",
+    "examples",
+    "families",
+    "gazelle",
+    "generation",
+    "ios",
+    "libs",
+    "macos",
+    "modules",
+    "packaging",
+    "patches",
+    "platforms",
+    "provisioning",
+    "quality",
+    "rules",
+    "sdk",
+    "signing",
+    "testing",
+    "tests",
+    "third_party",
+    "toolchain",
+    "toolchains",
+    "tools",
+];
+
+fn language_dirs(root: &Path, families: &Value) -> BTreeSet<PathBuf> {
+    let mut dirs = BTreeSet::new();
+    for family in families["families"].as_object().expect("families").values() {
+        let base = family["path"].as_str();
+        for dir in family["dirs"].as_array().expect("dirs") {
+            let dir = dir.as_str().expect("dir");
+            if NON_LANGUAGE.contains(&dir) {
+                continue;
+            }
+            if let Some(base) = base {
+                let nested = PathBuf::from(base).join(dir);
+                if root.join(&nested).is_dir() {
+                    dirs.insert(nested);
+                }
+            }
+            if root.join(dir).is_dir() {
+                dirs.insert(PathBuf::from(dir));
+            }
+        }
+    }
+    dirs
+}
+
+fn type_problem(path: &str, value: &Value, schema: &Value) -> Option<String> {
+    let wanted = schema["type"].as_str()?;
+    let ok = match wanted {
+        "string" => value.is_string(),
+        "array" => value.is_array(),
+        "object" => value.is_object(),
+        _ => true,
+    };
+    (!ok).then(|| format!("{path}: expected {wanted}"))
+}
+
+fn item_problems(path: &str, items: &[Value], schema: &Value, defs: &Value) -> Vec<String> {
+    let schema = match schema["$ref"].as_str() {
+        Some(reference) => &defs[reference.trim_start_matches("#/$defs/")],
+        None => schema,
+    };
+    let mut problems: Vec<String> = type_problem(path, &Value::Array(items.to_vec()), schema)
+        .into_iter()
+        .collect();
+    let seen: BTreeSet<String> = items.iter().map(Value::to_string).collect();
+    if schema["uniqueItems"] == true && seen.len() != items.len() {
+        problems.push(format!("{path}: duplicate items"));
+    }
+    let item_schema = &schema["items"];
+    for item in items {
+        if let Some(allowed) = item_schema["enum"].as_array() {
+            if !allowed.contains(item) {
+                problems.push(format!("{path}: {item} is not allowed"));
+            }
+        }
+        match item.as_str() {
+            Some(text) => {
+                let min = item_schema["minLength"].as_u64().unwrap_or(0) as usize;
+                if text.len() < min {
+                    problems.push(format!("{path}: empty string"));
+                }
+            }
+            None => problems.push(format!("{path}: item {item} is not a string")),
+        }
+    }
+    problems
+}
+
+fn schema_problems(manifest: &Value, schema: &Value) -> Vec<String> {
+    let Some(object) = manifest.as_object() else {
+        return vec!["not an object".to_owned()];
+    };
+    let properties = schema["properties"].as_object().expect("properties");
+    let mut problems = Vec::new();
+    for key in schema["required"].as_array().expect("required") {
+        let key = key.as_str().expect("required key");
+        if !object.contains_key(key) {
+            problems.push(format!("{key}: missing"));
+        }
+    }
+    for (key, value) in object {
+        let Some(property) = properties.get(key) else {
+            problems.push(format!("{key}: not in the schema"));
+            continue;
+        };
+        if let Some(items) = value.as_array() {
+            problems.extend(item_problems(key, items, property, &schema["$defs"]));
+        } else if let Some(problem) = type_problem(key, value, property) {
+            problems.push(problem);
+        } else if property["minLength"].as_u64().is_some() && value.as_str() == Some("") {
+            problems.push(format!("{key}: empty string"));
+        }
+    }
+    problems
+}
+
+fn problems(root: &Path, dir: &Path, schema: &Value) -> Vec<String> {
+    let file = root.join(dir).join("lang.json");
+    let Ok(text) = std::fs::read_to_string(&file) else {
+        return vec![format!("{}: lang.json missing", dir.display())];
+    };
+    let manifest: Value = match serde_json::from_str(&text) {
+        Ok(value) => value,
+        Err(error) => return vec![format!("{}: {error}", file.display())],
+    };
+    let mut found: Vec<String> = schema_problems(&manifest, schema)
+        .into_iter()
+        .map(|problem| format!("{}: {problem}", dir.display()))
+        .collect();
+    let name = dir.file_name().and_then(|name| name.to_str()).unwrap_or("");
+    if manifest["name"] != name {
+        found.push(format!("{}: name must be {name}", dir.display()));
+    }
+    found
+}
+
+#[test]
+fn every_language_dir_has_a_valid_lang_json() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("modules/families.json"))
+        .expect("families.json");
+    let schema: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("modules/lang.schema.json"))
+            .expect("lang.schema.json");
+    let dirs = language_dirs(&root, &families);
+    assert!(dirs.len() > 40, "found only {} language dirs", dirs.len());
+    let found: Vec<String> = dirs
+        .iter()
+        .flat_map(|dir| problems(&root, dir, &schema))
+        .collect();
+    assert!(found.is_empty(), "{}", found.join("\n"));
+}
+
+#[test]
+fn schema_rejects_a_bad_manifest() {
+    let schema: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("modules/lang.schema.json"))
+            .expect("schema");
+    let bad =
+        serde_json::json!({"name": "x", "extra": 1, "platforms": ["beos"], "tools": ["a", "a"]});
+    let found = schema_problems(&bad, &schema).join("\n");
+    assert!(found.contains("title: missing"), "{found}");
+    assert!(found.contains("extra: not in the schema"), "{found}");
+    assert!(found.contains("is not allowed"), "{found}");
+    assert!(found.contains("duplicate items"), "{found}");
+}

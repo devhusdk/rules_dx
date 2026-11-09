@@ -1,0 +1,25 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "rst",
+  "title": "rst",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "docstrfmt",
+    "lychee",
+    "vale"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "rst_library"
+  ]
+}

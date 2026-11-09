@@ -1,0 +1,38 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "go",
+  "title": "Go",
+  "family": "core",
+  "ecosystems": [
+    "go modules"
+  ],
+  "manifests": [
+    "go.mod",
+    "go.work"
+  ],
+  "lockfiles": [
+    "go.sum"
+  ],
+  "tools": [
+    "errcheck",
+    "gofumpt",
+    "gotype",
+    "govet",
+    "staticcheck"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "go_library",
+    "go_binary",
+    "go_test",
+    "go_fuzz_test",
+    "go_bench"
+  ]
+}

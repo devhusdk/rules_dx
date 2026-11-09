@@ -131,6 +131,21 @@ rust_test(
 
 # keep
 rust_test(
+    name = "lang_json_test",
+    srcs = ["lang_json_test.rs"],
+    data = [
+        "families.json",
+        "lang.schema.json",
+        "//:MODULE.bazel",
+    ],
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+# keep
+rust_test(
     name = "python_budget_test",
     srcs = ["python_budget_test.rs"],
     data = [
@@ -153,6 +168,7 @@ test_suite(
         ":consumer_deps_test",
         ":families_test",
         ":loaders_test",
+        ":lang_json_test",
         ":python_budget_test",
         ":versions_contract",
     ],

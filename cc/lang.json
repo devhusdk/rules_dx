@@ -1,0 +1,40 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "cc",
+  "title": "C and C++",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [
+    "CMakeLists.txt"
+  ],
+  "lockfiles": [],
+  "tools": [
+    "clang_format",
+    "clang_syntax",
+    "clang_tidy"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [
+    "toolchains/pins.bzl"
+  ],
+  "entry_points": [
+    "cc_coverage_features",
+    "cc_coverage_settings",
+    "cc_coverage_unsupported",
+    "cc_coverage_mismatch",
+    "cc_coverage_probe",
+    "cc_param_file_features",
+    "cc_library",
+    "objc_library",
+    "cc_binary",
+    "cc_test",
+    "cc_fuzz_test",
+    "cc_bench"
+  ]
+}

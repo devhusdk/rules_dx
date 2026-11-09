@@ -1,0 +1,27 @@
+{
+  "$schema": "../../../modules/lang.schema.json",
+  "name": "svelte",
+  "title": "Svelte",
+  "family": "js",
+  "ecosystems": [
+    "npm"
+  ],
+  "manifests": [
+    "package.json"
+  ],
+  "lockfiles": [
+    "pnpm-lock.yaml"
+  ],
+  "tools": [
+    "eslint"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": []
+}

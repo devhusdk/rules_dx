@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../modules/lang.schema.json",
+  "name": "capnproto",
+  "title": "capnproto",
+  "family": "generation",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [],
+  "pins": [],
+  "entry_points": []
+}

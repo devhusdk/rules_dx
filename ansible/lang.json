@@ -1,0 +1,22 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "ansible",
+  "title": "ansible",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "ansible_lint",
+    "yamlfmt"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "ansible_library"
+  ]
+}

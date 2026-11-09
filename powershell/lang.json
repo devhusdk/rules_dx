@@ -1,0 +1,31 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "powershell",
+  "title": "PowerShell",
+  "family": "core",
+  "ecosystems": [
+    "powershell gallery"
+  ],
+  "manifests": [
+    "*.psd1"
+  ],
+  "lockfiles": [],
+  "tools": [
+    "psscriptanalyzer"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [
+    "toolchain/pins.bzl"
+  ],
+  "entry_points": [
+    "powershell_library",
+    "powershell_binary",
+    "powershell_test"
+  ]
+}

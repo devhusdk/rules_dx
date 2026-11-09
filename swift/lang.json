@@ -1,0 +1,33 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "swift",
+  "title": "Swift",
+  "family": "core",
+  "ecosystems": [
+    "swiftpm"
+  ],
+  "manifests": [
+    "Package.swift"
+  ],
+  "lockfiles": [
+    "Package.resolved"
+  ],
+  "tools": [
+    "swift_format",
+    "swift_lint"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64"
+  ],
+  "pins": [],
+  "entry_points": [
+    "swift_interop_hint",
+    "swift_library",
+    "swift_binary",
+    "swift_test",
+    "swift_fuzz_test",
+    "swift_bench"
+  ]
+}

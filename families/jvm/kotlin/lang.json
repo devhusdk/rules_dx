@@ -1,0 +1,29 @@
+{
+  "$schema": "../../../modules/lang.schema.json",
+  "name": "kotlin",
+  "title": "Kotlin",
+  "family": "jvm",
+  "ecosystems": [
+    "maven"
+  ],
+  "manifests": [
+    "pom.xml"
+  ],
+  "lockfiles": [
+    "maven_install.json"
+  ],
+  "tools": [
+    "detekt",
+    "kotlinc",
+    "ktfmt"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": []
+}

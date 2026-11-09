@@ -1,0 +1,13 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "wasi",
+  "title": "wasi",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [],
+  "pins": [],
+  "entry_points": []
+}

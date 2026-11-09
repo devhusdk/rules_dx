@@ -1,0 +1,28 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "flutter",
+  "title": "Flutter",
+  "family": "dart",
+  "ecosystems": [
+    "pub"
+  ],
+  "manifests": [
+    "pubspec.yaml"
+  ],
+  "lockfiles": [
+    "pubspec.lock"
+  ],
+  "tools": [],
+  "platforms": [],
+  "pins": [],
+  "entry_points": [
+    "flutter_gen_l10n",
+    "flutter_library",
+    "flutter_test",
+    "flutter_application",
+    "flutter_web_app",
+    "flutter_web_bundle",
+    "flutter_android_app",
+    "flutter_ios_app"
+  ]
+}

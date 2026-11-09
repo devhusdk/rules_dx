@@ -1,0 +1,28 @@
+{
+  "$schema": "../../../modules/lang.schema.json",
+  "name": "ruby",
+  "title": "Ruby",
+  "family": "ruby",
+  "ecosystems": [
+    "rubygems"
+  ],
+  "manifests": [
+    "Gemfile",
+    "*.gemspec"
+  ],
+  "lockfiles": [
+    "Gemfile.lock"
+  ],
+  "tools": [
+    "rubocop",
+    "sorbet"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": []
+}

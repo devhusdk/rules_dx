@@ -1,0 +1,27 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "fortran",
+  "title": "Fortran",
+  "family": "fortran",
+  "ecosystems": [],
+  "manifests": [
+    "fpm.toml"
+  ],
+  "lockfiles": [],
+  "tools": [
+    "ffmt",
+    "fortitude"
+  ],
+  "platforms": [
+    "linux_x86_64"
+  ],
+  "pins": [
+    "toolchain/pins.bzl"
+  ],
+  "entry_points": [
+    "library_name",
+    "fortran_library",
+    "fortran_binary",
+    "fortran_test"
+  ]
+}

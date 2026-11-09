@@ -1,0 +1,18 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "capnproto",
+  "title": "capnproto",
+  "family": "generation",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [],
+  "pins": [
+    "pins.bzl"
+  ],
+  "entry_points": [
+    "std_import_path",
+    "capnp_library"
+  ]
+}

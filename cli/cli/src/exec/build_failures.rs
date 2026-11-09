@@ -1,4 +1,5 @@
 use super::common::{CODE_BUILD_EVENTS_INCOMPLETE, emit_built};
+use super::compiler_stderr;
 use super::rustc_stderr::{self, ActionDiagnostic};
 use super::skipped_targets::language_in_message;
 use dx_bep::{BuildFailure, FailureStage, StderrRef, collect_build_failures};
@@ -30,7 +31,7 @@ fn read_stderr(path: &Path) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
-fn rustc_diagnostics(failure: &BuildFailure) -> Diagnostics {
+fn stderr_diagnostics(failure: &BuildFailure, parse: fn(&[u8]) -> Vec<ActionDiagnostic>) -> Diagnostics {
     let StderrRef::Local(path) = &failure.stderr else {
         return Diagnostics {
             status: "unavailable",
@@ -38,7 +39,7 @@ fn rustc_diagnostics(failure: &BuildFailure) -> Diagnostics {
             items: Vec::new(),
         };
     };
-    let parsed = read_stderr(path).map(|bytes| rustc_stderr::parse(&bytes));
+    let parsed = read_stderr(path).map(|bytes| parse(&bytes));
     match parsed {
         None => Diagnostics {
             status: "unavailable",
@@ -58,15 +59,38 @@ fn rustc_diagnostics(failure: &BuildFailure) -> Diagnostics {
     }
 }
 
+fn compiler_tool(mnemonic: &str) -> Option<&'static str> {
+    let tools = [
+        ("CppCompile", "cc"),
+        ("Javac", "javac"),
+        ("GoCompile", "go"),
+        ("Kotlin", "kotlinc"),
+        ("Scala", "scalac"),
+        ("TypeScript", "tsc"),
+        ("CSharp", "csc"),
+        ("Swift", "swiftc"),
+    ];
+    tools
+        .iter()
+        .find(|(prefix, _)| mnemonic.starts_with(prefix))
+        .map(|(_, tool)| *tool)
+}
+
 pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
-    let tool = match failure.mnemonic.as_deref() {
-        Some("Clippy") => Some("clippy"),
-        Some(mnemonic) if mnemonic.starts_with("Rustc") => Some("rustc"),
-        _ => None,
+    let mnemonic = failure.mnemonic.as_deref();
+    let is_rustc = match mnemonic {
+        Some(name) => name == "Clippy" || name.starts_with("Rustc"),
+        None => false,
     };
-    let is_rustc = tool.is_some();
+    let tool = if is_rustc {
+        Some(if mnemonic == Some("Clippy") { "clippy" } else { "rustc" })
+    } else {
+        mnemonic.and_then(compiler_tool)
+    };
     let diagnostics = if is_rustc {
-        rustc_diagnostics(failure)
+        stderr_diagnostics(failure, rustc_stderr::parse)
+    } else if failure.stage == FailureStage::Compilation {
+        stderr_diagnostics(failure, compiler_stderr::parse)
     } else {
         Diagnostics {
             status: "unknown",
@@ -403,6 +427,34 @@ mod tests {
         assert_eq!(related[1]["applicability"], "MaybeIncorrect");
         assert!(!out.contains("hunter2"), "{out}");
         assert!(!out.contains("SECRET_TOKEN"), "{out}");
+    }
+
+    #[test]
+    fn a_cc_compile_error_reports_structured_diagnostics() {
+        let harness = Harness::new("bf-cc");
+        let uri = stderr_file(&harness, "e1", "src/a.c:3:5: error: 'x' undeclared\n");
+        let line = failed_action("//app:lib", "c1", "CppCompile", "bazel-out/bin/a.o", &uri);
+        let harness = with_bep("bf-cc", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures[0]["tool"], "cc", "{out}");
+        assert_eq!(failures[0]["diagnostics"]["status"], "parsed");
+        let first = &failures[0]["diagnostics"]["items"][0];
+        assert_eq!(first["path"], "src/a.c", "{out}");
+        assert_eq!(first["line"], 3);
+        assert_eq!(first["column"], 5);
+    }
+
+    #[test]
+    fn a_javac_error_reports_structured_diagnostics() {
+        let harness = Harness::new("bf-javac");
+        let uri = stderr_file(&harness, "e1", "A.java:4: error: cannot find symbol\n");
+        let line = failed_action("//app:lib", "c1", "Javac", "bazel-out/bin/a.jar", &uri);
+        let harness = with_bep("bf-javac", 1, vec![line]);
+        let (_, out, _) = harness.run(&["build", "--output=json"]);
+        let failures = failures_of(&out);
+        assert_eq!(failures[0]["tool"], "javac", "{out}");
+        assert_eq!(failures[0]["diagnostics"]["status"], "parsed");
     }
 
     #[test]

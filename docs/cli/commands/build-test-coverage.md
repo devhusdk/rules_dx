@@ -73,7 +73,7 @@ dx sets these flags. Another value exits `2` before Bazel starts.
 
 Text ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr. `--quiet` hides it.
 
-Each Bazel failure prints a `dx: build failure:` line with its rustc diagnostics. JSON adds a `build_failure` event per failure.
+Each Bazel failure prints a `dx: build failure:` line with its compiler diagnostics (rustc, clippy, and the gcc-style output of cc, javac, go, kotlinc, scalac, tsc, csc and swiftc). JSON adds a `build_failure` event per failure.
 
 `dx test` prints `dx: failed: //pkg:test: case_a, case_b and 2 more (log: <path>/test.log)` per failed result. JSON adds a `test_outcome` event per result that did not plainly pass.
 

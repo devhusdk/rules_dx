@@ -7,6 +7,7 @@ mod breaking_base;
 mod build_failures;
 mod changed_coverage;
 mod clean;
+mod compiler_stderr;
 pub mod common;
 mod coverage_candidate;
 #[cfg(test)]

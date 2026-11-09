@@ -122,7 +122,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | AsciiDoc | `lychee`, `typos`, `vale` | no | n/a | n/a | n/a | n/a |
 | Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
-| Cap'n Proto | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64), `typos` | n/a | `capnp` (not on `linux_arm64`: The capnp compiler is built only for Linux x86_64; `macos_arm64`: The capnp compiler is built only for Linux x86_64; `windows_x86_64`: The capnp compiler is built only for Linux x86_64) | n/a | n/a | n/a |
+| Cap'n Proto | `capnp`, `typos` | n/a | `capnp` | n/a | n/a | n/a |
 | CloudFormation | `cfn_lint`, `trivy_config`, `typos` | no | n/a | n/a | n/a | n/a |
 | CSS | `stylelint`, `typos` | `prettier` | no | n/a | n/a | n/a |
 | CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |
@@ -146,7 +146,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | SQL | `sqlfluff`, `typos` | `sqlfluff` | n/a | n/a | n/a | n/a |
 | Starlark | `buildifier`, `typos` | `buildifier` | no | n/a | n/a | `buildifier unused-variable` |
 | Terraform | `tflint`, `trivy_config`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
-| Thrift | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64), `typos` | n/a | `thrift` (not on `linux_arm64`: The thrift compiler is built only for Linux x86_64; `macos_arm64`: The thrift compiler is built only for Linux x86_64; `windows_x86_64`: The thrift compiler is built only for Linux x86_64) | n/a | n/a | n/a |
+| Thrift | `thrift` (not on `windows_x86_64`: The thrift compiler build relies on POSIX headers (arpa/inet.h, pthread) and is not built for Windows), `typos` | n/a | `thrift` (not on `windows_x86_64`: The thrift compiler build relies on POSIX headers (arpa/inet.h, pthread) and is not built for Windows) | n/a | n/a | n/a |
 | TOML | `taplo`, `typos` | `taplo` | no | n/a | n/a | n/a |
 | Typst | `tinymist`, `typos` | `typstyle` | n/a | n/a | n/a | n/a |
 | XML | `typos`, `xmllint` | `prettier` | n/a | n/a | n/a | n/a |

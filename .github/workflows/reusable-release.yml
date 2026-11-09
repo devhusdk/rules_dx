@@ -162,7 +162,6 @@ jobs:
             NUGET_PUBLISH_APPROVED \
             OCI_PUBLISH_APPROVED \
             OCTOPUS_PUBLISH_APPROVED \
-            PROMOTION_APPROVED \
             PUB_PUBLISH_APPROVED \
             PYPI_PUBLISH_APPROVED \
             RUBYGEMS_PUBLISH_APPROVED; do

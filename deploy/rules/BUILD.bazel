@@ -41,8 +41,6 @@ load(":oci.bzl", "oci_deploy")
 load(":oci_tests.bzl", "oci_layout_fixture", "oci_unit_tests")
 load(":octopus.bzl", "octopus_deploy")
 load(":octopus_tests.bzl", "octopus_unit_tests")
-load(":promotion.bzl", "promotion_deploy")
-load(":promotion_tests.bzl", "promotion_unit_tests")
 load(":pub.bzl", "pub_deploy")
 load(":pub_tests.bzl", "pub_config_content_tests", "pub_unit_tests")
 load(":pypi.bzl", "pypi_deploy")
@@ -103,8 +101,6 @@ exports_files([
     "oci_tests.bzl",
     "octopus.bzl",
     "octopus_tests.bzl",
-    "promotion.bzl",
-    "promotion_tests.bzl",
     "pub.bzl",
     "pub_tests.bzl",
     "pypi.bzl",
@@ -137,7 +133,6 @@ exports_files([
     "src/nuget.rs",
     "src/oci.rs",
     "src/octopus.rs",
-    "src/promotion.rs",
     "src/pub_dev.rs",
     "src/pypi.rs",
     "src/registry.rs",
@@ -179,7 +174,6 @@ rust_library(
         "src/oci.rs",
         "src/oci_scan.rs",
         "src/octopus.rs",
-        "src/promotion.rs",
         "src/pub_dev.rs",
         "src/pypi.rs",
         "src/registry.rs",
@@ -485,7 +479,6 @@ config_runfiles_tests(
         "nuget_demo": ["nuget_demo.0.0.0.nupkg"],
         "oci_demo": ["oci_demo.tar"],
         "octopus_demo": ["octopus_demo.0.0.0.tar.gz"],
-        "promotion_demo": ["release_demo.tar.gz"],
         "pub_demo": [
             "pubspec.yaml",
             "CHANGELOG.md",
@@ -868,8 +861,6 @@ test_suite(
         ":oci_unit",
         ":octopus_analysis",
         ":octopus_unit",
-        ":promotion_analysis",
-        ":promotion_unit",
         ":pub_analysis",
         ":pub_config_content",
         ":pub_unit",
@@ -2046,24 +2037,6 @@ deploy_analysis_test(
     subject = "octopus_demo",
 )
 
-promotion_deploy(
-    name = "promotion_demo",
-    artifact = ":release_demo_archive",
-    from_environment = "staging",
-    to_environment = "production",
-    version = "0.0.0",
-)
-
-promotion_unit_tests(name = "promotion_unit")
-
-deploy_analysis_test(
-    name = "promotion_analysis",
-    artifacts = [
-        "//deploy/rules:release_demo_archive",
-    ],
-    subject = "promotion_demo",
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
@@ -2098,8 +2071,6 @@ real_source_target(
         "oci_tests.bzl",
         "octopus.bzl",
         "octopus_tests.bzl",
-        "promotion.bzl",
-        "promotion_tests.bzl",
         "pub.bzl",
         "pub_tests.bzl",
         "pypi.bzl",

@@ -15,7 +15,6 @@ deploy/rules:npm.bzl
 deploy/rules:nuget.bzl
 deploy/rules:oci.bzl
 deploy/rules:octopus.bzl
-deploy/rules:promotion.bzl
 deploy/rules:pypi.bzl
 dockerfile/rules:defs.bzl
 d/rules:defs.bzl

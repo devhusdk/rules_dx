@@ -884,63 +884,6 @@ a failed `create-release`. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in it
 env, never the command line. A live run refuses version `0.0.0` and the default
 `registry_url`.
 
-# promotion_deploy
-
-Records the promotion of one pinned artifact from one environment to another.
-
-```starlark
-load("@rules_dx//deploy/rules:promotion.bzl", "promotion_deploy")
-
-promotion_deploy(
-    name = "promotion_demo",
-    artifact = ":release_demo_archive",
-    from_environment = "staging",
-    to_environment = "production",
-    version = "0.0.0",
-)
-```
-
-- `artifact`: required. One `.tar.gz`, `.tar`, `.tgz`, `.whl`, `.jar`,
-  `.nupkg` or `.zip` file.
-- `from_environment`: defaults to `staging`.
-- `to_environment`: defaults to `production`. Must differ from
-  `from_environment`.
-- `version`: required. The release version recorded for the promotion.
-- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
-
-Default run stages `<name>-promotion/` with the artifact, a
-`promotion.json` and a `would-run.txt`. No credentials needed. Health and
-registry gates do not run.
-
-`PROMOTION_SECRET_REFS` is a comma list of `ENV_NAME`, `file:<path>` or
-`cmd:<tool>` refs. Only the names are recorded.
-
-Promote:
-
-```sh
-PROMOTION_APPROVED=1 dx deploy --apply //pkg:promotion_demo
-```
-
-A live run refuses version `0.0.0` and checks the approval, the registry env,
-that every secret ref exists and the health command. It records the health
-result (`passed` or `not-required`) in `promotion.json`. It then exits `1`,
-because publishing is not implemented yet. Nothing is pushed.
-
-- `PROMOTION_REGISTRY_REQUIRED=1` needs `PROMOTION_REGISTRY_USER` and
-  `PROMOTION_REGISTRY_TOKEN`.
-- `PROMOTION_REQUIRE_HEALTH=1` needs `PROMOTION_HEALTH_CMD`. The promotion is
-  refused unless it exits `0`.
-
-Roll back:
-
-```sh
-PROMOTION_ROLLBACK=1 PROMOTION_ROLLBACK_TO=<version> \
-dx deploy --apply //pkg:promotion_demo
-```
-
-This writes `rollback.txt` in the promotion directory.
-`PROMOTION_ROLLBACK_SHA` adds the expected sha256.
-
 # pypi_deploy
 
 Stages one wheel and an optional sdist as a local PEP 503 index. A live run
@@ -1218,6 +1161,6 @@ directory. Deploy targets run through `bazel run` or `dx deploy`, which set
 `npm`) run with a cleared environment plus a per-tool keep-list. Secrets reach
 them only through that environment, stdin or a temp file, never
 argv. On Unix the temp file is mode 0600. On Windows it relies on the user
-temp directory's access list. The exceptions are the promotion `PROMOTION_HEALTH_CMD` and `wrangler`,
+temp directory's access list. The exception is `wrangler`,
 which has its own narrower list. The `npm`, `twine`, `dotnet` and `octo`
 output has the token replaced with `[redacted]` and appears when the tool exits.

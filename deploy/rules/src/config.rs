@@ -284,17 +284,6 @@ pub struct OctopusConfig {
     pub registry_url: String,
 }
 
-/// Pins one promotion: the artifact and the environment edge.
-#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct PromotionConfig {
-    pub artifact_rloc: String,
-    pub deploy_name: String,
-    pub from_environment: String,
-    pub to_environment: String,
-    pub version: String,
-}
-
 /// Holds one deploy config; `kind` picks the variant and `config` holds its fields.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(
@@ -321,7 +310,6 @@ pub enum DeployConfig {
     Maven(MavenConfig),
     Oci(OciConfig),
     Octopus(OctopusConfig),
-    Promotion(PromotionConfig),
 }
 
 /// Reads the deploy config named by `DX_DEPLOY_CONFIG`, then clears the variable.
@@ -567,14 +555,6 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 space_default: &octopus.space,
                 url_default: &octopus.registry_url,
             },
-            argv,
-        ),
-        DeployConfig::Promotion(promotion) => crate::promotion_main(
-            &promotion.artifact_rloc,
-            &promotion.deploy_name,
-            &promotion.from_environment,
-            &promotion.to_environment,
-            &promotion.version,
             argv,
         ),
     }
@@ -839,18 +819,6 @@ mod tests {
                 deploy_to: vec!["A,B".to_owned(), "C".to_owned()],
                 space: String::new(),
                 registry_url: "https://x".to_owned(),
-            }))
-        );
-        assert_eq!(
-            parse(
-                r#"{"kind":"promotion","config":{"artifact_rloc":"a","deploy_name":"d","from_environment":"s","to_environment":"p","version":"1"}}"#
-            ),
-            Ok(DeployConfig::Promotion(PromotionConfig {
-                artifact_rloc: "a".to_owned(),
-                deploy_name: "d".to_owned(),
-                from_environment: "s".to_owned(),
-                to_environment: "p".to_owned(),
-                version: "1".to_owned(),
             }))
         );
     }
@@ -1124,13 +1092,6 @@ mod tests {
                 deploy_to: vec!["Production".to_owned()],
                 space: String::new(),
                 registry_url: "https://octopus.invalid".to_owned(),
-            }),
-            DeployConfig::Promotion(PromotionConfig {
-                artifact_rloc: "a".to_owned(),
-                deploy_name: "demo".to_owned(),
-                from_environment: "staging".to_owned(),
-                to_environment: "production".to_owned(),
-                version: "1.0.0".to_owned(),
             }),
         ];
         for config in &configs {

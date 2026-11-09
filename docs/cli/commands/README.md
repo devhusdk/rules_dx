@@ -587,7 +587,6 @@ Packaging and deploy:
 - `@rules_dx//deploy/rules:nuget.bzl`: NuGet publish.
 - `@rules_dx//deploy/rules:oci.bzl`: OCI images.
 - `@rules_dx//deploy/rules:octopus.bzl`: Octopus Deploy.
-- `@rules_dx//deploy/rules:promotion.bzl`: release promotion.
 - `@rules_dx//deploy/rules:pub.bzl`: pub.dev publish.
 - `@rules_dx//deploy/rules:pypi.bzl`: PyPI publish.
 - `@rules_dx_msix//:defs.bzl`: MSIX packages.

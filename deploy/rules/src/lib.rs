@@ -28,7 +28,6 @@ mod nuget;
 mod oci;
 mod oci_scan;
 mod octopus;
-mod promotion;
 mod pub_dev;
 mod pypi;
 mod registry;
@@ -56,7 +55,6 @@ pub use nuget::*;
 pub use oci::*;
 pub use oci_scan::{OciChecks, ScanMode};
 pub use octopus::*;
-pub use promotion::*;
 pub use pub_dev::*;
 pub use pypi::*;
 pub use rubygems::*;
@@ -72,10 +70,6 @@ mod tests {
 
     #[test]
     fn command_formatters_cover_optional_segments() {
-        assert_eq!(
-            promotion_rollback_command("demo", "1.0.1"),
-            "rollback demo to 1.0.1 (restore the pinned artifact for that version)"
-        );
         assert_eq!(
             github_release_command("v1", &[]),
             "gh release create v1 --draft --verify-tag"
@@ -135,10 +129,6 @@ mod tests {
             1
         );
         assert_eq!(octopus_main(&spec, &argv), 1);
-        assert_eq!(
-            promotion_main("a", "b", "staging", "production", "1.0.0", &argv),
-            1
-        );
         assert_eq!(npm_deploy_main(&argv, "a", "b"), 1);
     }
 
@@ -222,10 +212,6 @@ mod tests {
                     ..spec
                 };
                 assert_eq!(octopus_main(&mismatch, &argv), 1);
-                assert_eq!(
-                    promotion_main(missing, "demo", "staging", "production", "1.0.0", &argv),
-                    1
-                );
             },
         );
         std::fs::remove_dir_all(&outdir).expect("cleanup");
@@ -245,7 +231,6 @@ mod tests {
             &maven::MAVEN_GATE,
             &OCI_GATE,
             &OCTOPUS_GATE,
-            &PROMOTION_GATE,
             &NPM_GATE,
         ];
         let tools: std::collections::BTreeSet<&str> = gates.iter().map(|gate| gate.tool).collect();
@@ -474,24 +459,12 @@ mod tests {
                 assert_eq!(npm_deploy_main(&argv, missing, missing), 1);
             },
         );
-        with_env(
-            &[
-                ("DX_DEPLOY_LIVE", Some("1")),
-                ("PROMOTION_APPROVED", Some("1")),
-            ],
-            || {
-                assert_eq!(
-                    promotion_main(missing, "demo", "staging", "production", "0.0.0", &argv),
-                    1
-                );
-            },
-        );
         std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 
     #[test]
-    fn archive_and_promotion_launchers_stage_locally() {
-        if env_test_in_child("tests::archive_and_promotion_launchers_stage_locally") {
+    fn archive_launcher_stages_locally() {
+        if env_test_in_child("tests::archive_launcher_stages_locally") {
             return;
         }
         let scratch = scratch_dir();
@@ -527,25 +500,6 @@ mod tests {
                 );
                 assert!(outdir.join("release_demo.tar.gz").is_file());
                 std::fs::remove_dir_all(&outdir).expect("cleanup");
-
-                let promotion_out = tempfile_stage_dir("dx-deploy-promotion-").expect("outdir");
-                let promotion_argv = vec![
-                    "prog".to_owned(),
-                    promotion_out.to_string_lossy().into_owned(),
-                ];
-                assert_eq!(
-                    promotion_main(
-                        "release_demo.tar.gz",
-                        "promotion_demo",
-                        "staging",
-                        "production",
-                        "1.2.3",
-                        &promotion_argv
-                    ),
-                    0
-                );
-                assert!(promotion_out.join("promotion_demo-promotion").is_dir());
-                std::fs::remove_dir_all(&promotion_out).expect("cleanup");
             },
         );
     }
@@ -855,14 +809,13 @@ mod tests {
         let homebrew: fn(&crate::HomebrewLaunch<'_>, &[String]) -> i32 = crate::homebrew_tap_main;
         let maven: fn(&crate::MavenLaunch<'_>, &[String]) -> i32 = crate::maven_main;
         let oci: fn(&str, &str, &str, &str, &str, crate::OciChecks, &[String]) -> i32 = crate::oci_main;
-        let promotion: Main5 = crate::promotion_main;
         let octopus: fn(&crate::OctopusLaunch<'_>, &[String]) -> i32 = crate::octopus_main;
         let npm_deploy: fn(&[String], &str, &str) -> i32 = crate::npm_deploy_main;
         let npm_pack: fn(&[String]) -> i32 = crate::npm_pack_main;
         let pages: fn(&crate::PagesLaunch<'_>, &[String]) -> i32 = crate::cloudflare_pages_main;
         let _ = (
-            archive, pypi, nuget, crates, rubygems, github, homebrew, maven, oci, promotion,
-            octopus, npm_deploy, npm_pack, pages,
+            archive, pypi, nuget, crates, rubygems, github, homebrew, maven, oci, octopus,
+            npm_deploy, npm_pack, pages,
         );
         let _ = crate::MavenLaunch {
             jar_rloc: "",

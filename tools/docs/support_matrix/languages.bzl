@@ -457,7 +457,7 @@ LANGUAGES = [
     _language(
         "flutter",
         deps = "`pub`",
-        doc = NO_DOC,
+        doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
         coverage = ["flutter_tester"],
         unsupported = "//flutter/rules:unsupported",

@@ -146,7 +146,7 @@ CURATED_DEFAULTS = {
         "lint": ["lychee", "typos"],
         "typecheck": ["tsc"],
     },
-    # nixfmt is pinned for linux_x86_64 only, so nix has no formatter (#8045).
+    # nixfmt does not build on Windows, so nix has no curated formatter (#8045).
     "nix": {
         "audit": [],
         "format": [],

@@ -1556,10 +1556,9 @@ TOOLS = [
                 family = "nix",
                 fix = "supported",
                 unsupported = {
-                    "linux_arm64": "nixfmt ships only a Linux x86_64 binary",
-                    "macos_arm64": "nixfmt ships only a Linux x86_64 binary",
-                    "windows_arm64": "nixfmt ships only a Linux x86_64 binary",
-                    "windows_x86_64": "nixfmt ships only a Linux x86_64 binary",
+                    "macos_arm64": "nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet",
+                    "windows_arm64": "nixfmt depends on the unix package and does not build on Windows",
+                    "windows_x86_64": "nixfmt depends on the unix package and does not build on Windows",
                 },
             ),
         ],

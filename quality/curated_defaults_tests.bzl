@@ -204,7 +204,7 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "nix curated defaults are deadnix lint only; nixfmt is single-platform",
+                "nix curated defaults are deadnix lint only; nixfmt does not build on Windows",
                 CURATED_DEFAULTS["nix"],
                 {
                     "audit": [],

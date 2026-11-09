@@ -64,6 +64,23 @@ class DepsResolveTest(unittest.TestCase):
         self.assertEqual(foo["cabal_revision"], 2)
         self.assertEqual(foo["sdist_sha256"], "aa")
 
+    def test_remote_tarball_is_a_url_package(self):
+        url = "https://example.invalid/bar-2.0.tar.gz"
+        plan = {"install-plan": [
+            {"type": "pre-existing", "id": "base-4.20", "pkg-name": "base", "pkg-version": "4.20", "depends": []},
+            {
+                "type": "configured", "id": "bar-2.0-exe", "pkg-name": "bar", "pkg-version": "2.0",
+                "pkg-src": {"type": "remote-tar", "uri": url},
+                "pkg-src-sha256": "bb", "component-name": "exe:bar", "depends": ["base-4.20"],
+            },
+        ]}
+        bar = {package["name"]: package for package in deps_resolve.sidecar_from_plan(plan, {})}["bar"]
+        self.assertEqual(bar["source"], "url")
+        self.assertEqual(bar["url"], url)
+        self.assertEqual(bar["sdist_sha256"], "bb")
+        self.assertEqual(bar["components"], ["exe:bar"])
+        self.assertNotIn("cabal_revision", bar)
+
     def test_revision_is_the_position_among_cabal_entries(self):
         with tempfile.TemporaryDirectory() as scratch:
             index = os.path.join(scratch, "01-index.tar")

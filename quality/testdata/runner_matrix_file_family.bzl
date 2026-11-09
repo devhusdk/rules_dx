@@ -4075,8 +4075,9 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["nixfmt;nix;matrix/nixfmt_clean.nix"],
         "tool_names": ["nixfmt"],
-        "tool_binaries": ["@dx_tools//:nixfmt"],
+        "tool_binaries": ["//quality/tools/nixfmt"],
         "expected_file": ":matrix/matrix_nix_format_pass.expected.txt",
+        "linux_arm64": True,
     },
     {
         "name": "matrix_nix_format_fail",
@@ -4086,8 +4087,9 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["nixfmt;nix;matrix/nixfmt_dirty.nix"],
         "tool_names": ["nixfmt"],
-        "tool_binaries": ["@dx_tools//:nixfmt"],
+        "tool_binaries": ["//quality/tools/nixfmt"],
         "expected_file": ":matrix/matrix_nix_format_fail.expected.txt",
+        "linux_arm64": True,
     },
     {
         # A parse failure is an error finding, never a clean run.
@@ -4098,8 +4100,9 @@ FILE_FAMILY_CASES = [
         "capability": "format",
         "stages": ["nixfmt;nix;matrix/nixfmt_broken.nix"],
         "tool_names": ["nixfmt"],
-        "tool_binaries": ["@dx_tools//:nixfmt"],
+        "tool_binaries": ["//quality/tools/nixfmt"],
         "expected_file": ":matrix/matrix_nix_format_syntax_error.expected.txt",
+        "linux_arm64": True,
     },
     {
         "name": "matrix_text_lint_pass",

@@ -15,7 +15,7 @@ _GHC_FILES = Label("//haskell/toolchain:ghc_files")
 def _input_args(inputs):
     return ["--input=$(rlocationpath {})".format(src) for src in inputs]
 
-def haskell_deps_resolve(name, srcs, **kwargs):
+def haskell_deps_resolve(name, srcs, target = "all", **kwargs):
     """Writes cabal.project.freeze and haskell_deps.json next to the cabal project in this package.
 
     Run it with `bazel run`. It needs network access to Hackage.
@@ -23,6 +23,7 @@ def haskell_deps_resolve(name, srcs, **kwargs):
     Args:
         name: Target name.
         srcs: The .cabal files and cabal.project of the project.
+        target: The cabal target to plan. Name the package or component when the project builds a remote tarball, which "all" does not cover.
         **kwargs: Passed to the py_binary.
     """
     package = native.package_name()
@@ -33,6 +34,7 @@ def haskell_deps_resolve(name, srcs, **kwargs):
         args = [
             "write",
             "--package=" + package,
+            "--target=" + target,
             "--cabal=$(rlocationpath {})".format(_CABAL),
             "--ghc=$(rlocationpath {})".format(_GHC),
         ] + _input_args(srcs),

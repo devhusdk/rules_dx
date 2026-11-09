@@ -7398,7 +7398,7 @@
     },
     "//qt/sdk:extensions.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "uHHN16219SgUx6vs9nf5h5bnzVNNXFZeXDudAXgywH4=",
+        "bzlTransitiveDigest": "w/yHKHnwWapu+gd9ERbqhMdGlZSt/+m5txbG+pjUzfg=",
         "usagesDigest": "HRmJHBhAllRM7yd3/3jSXN8KuMksqbmGdvKd1+Ak7Wk=",
         "recordedInputs": [],
         "generatedRepoSpecs": {

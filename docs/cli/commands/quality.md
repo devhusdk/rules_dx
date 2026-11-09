@@ -325,7 +325,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 | `bicep` | Format and lint Bicep | |
 | `cfn_lint` | Lint CloudFormation | |
 | `trivy_config` | Lint Dockerfiles, Kubernetes, Helm charts, Terraform, CloudFormation and Bicep (through `bicep build`) for misconfigurations; opt-in | |
-| `nixfmt` | Format Nix | all but `linux_x86_64` |
+| `nixfmt` | Format Nix | `macos_arm64`, `windows_x86_64`, `windows_arm64` |
 | `deadnix` | Lint Nix | |
 | `opa` | Format and typecheck Rego | |
 | `regal` | Lint Rego | |

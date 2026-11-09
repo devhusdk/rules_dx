@@ -23,13 +23,21 @@ def repo_name(hub, package):
     """Returns the repository name of one package."""
     return "{}_{}".format(hub, package)
 
-def hackage_packages(sidecar):
-    """Returns the Hackage packages of a parsed sidecar by name."""
+def fetched_packages(sidecar):
+    """Returns the packages of a parsed sidecar that are fetched as sdists (Hackage or a tarball URL) by name."""
     return {
         package["name"]: package
         for package in sidecar["packages"]
-        if package["source"] == "hackage"
+        if package["source"] in ("hackage", "url")
     }
+
+def sdist_url(package):
+    """Returns the sdist URL of a fetched sidecar package."""
+    return package["url"] if package["source"] == "url" else hackage_url(package)
+
+def has_revision(package):
+    """Returns whether a fetched package carries a pinned cabal revision above 0."""
+    return package["source"] == "hackage" and package["cabal_revision"] > 0
 
 def executables(package):
     """Returns the executable names of a package."""
@@ -42,7 +50,7 @@ def dependency_label(hub, sidecar, name):
             continue
         if package["source"] == "ghc":
             return "{}:{}".format(_TOOLCHAINS, name)
-        if package["source"] == "hackage":
+        if package["source"] in ("hackage", "url"):
             return "@{}//:{}".format(repo_name(hub, name), name)
     return None
 
@@ -79,7 +87,7 @@ def package_build(hub, sidecar, package):
 def hub_build(hub, sidecar):
     """Returns the hub BUILD file with one alias per package and per executable."""
     lines = ['package(default_visibility = ["//visibility:public"])', ""]
-    for name, package in sorted(hackage_packages(sidecar).items()):
+    for name, package in sorted(fetched_packages(sidecar).items()):
         repo = repo_name(hub, name)
         if "lib" in package["components"]:
             lines.append('alias(name = "{name}", actual = "@{repo}//:{name}")\n'.format(name = name, repo = repo))
@@ -132,8 +140,8 @@ def declare_packages(mctx, tag):
     if sidecar.get("version") != 1:
         fail("{} has sidecar version {}, expected 1".format(tag.lock, sidecar.get("version")))
     created = [tag.name]
-    for name, package in sorted(hackage_packages(sidecar).items()):
-        revised = package["cabal_revision"] > 0
+    for name, package in sorted(fetched_packages(sidecar).items()):
+        revised = has_revision(package)
         hackage_package(
             name = repo_name(tag.name, name),
             build = package_build(tag.name, sidecar, package),
@@ -141,7 +149,7 @@ def declare_packages(mctx, tag):
             cabal_url = cabal_url(package) if revised else "",
             package = name,
             sha256 = package["sdist_sha256"],
-            url = hackage_url(package),
+            url = sdist_url(package),
             version = package["version"],
         )
         created.append(repo_name(tag.name, name))

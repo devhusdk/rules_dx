@@ -90,6 +90,16 @@ def component_kind(component):
     return None
 
 
+def package_source(entry):
+    """Returns the sidecar source of one plan entry: hackage, url, local or ghc."""
+    source = entry.get("pkg-src", {}).get("type")
+    if source == "repo-tar":
+        return "hackage"
+    if source == "remote-tar":
+        return "url"
+    return "local" if entry["type"] == "configured" else "ghc"
+
+
 def sidecar_from_plan(plan, revisions):
     """Builds the package list of the sidecar from a cabal plan.json document."""
     entries = plan["install-plan"]
@@ -97,15 +107,17 @@ def sidecar_from_plan(plan, revisions):
     packages = {}
     for entry in entries:
         key = (entry["pkg-name"], entry["pkg-version"])
-        source = entry.get("pkg-src", {}).get("type")
         package = packages.setdefault(key, {
             "name": key[0],
             "version": key[1],
-            "source": "hackage" if source == "repo-tar" else ("local" if entry["type"] == "configured" else "ghc"),
+            "source": package_source(entry),
             "components": set(),
             "dependencies": set(),
         })
-        if entry["type"] == "configured" and entry.get("pkg-src-sha256"):
+        if package["source"] == "url":
+            package["url"] = entry["pkg-src"]["uri"]
+            package["sdist_sha256"] = entry["pkg-src-sha256"]
+        elif entry["type"] == "configured" and entry.get("pkg-src-sha256"):
             package["sdist_sha256"] = entry["pkg-src-sha256"]
             package["cabal_sha256"] = entry["pkg-cabal-sha256"]
             package["cabal_revision"] = revisions.get((key[0], key[1], entry["pkg-cabal-sha256"]))
@@ -192,7 +204,7 @@ def write(args):
         base = [cabal, "--with-compiler=" + host_compiler_wrapper(ghc, scratch), "--with-hc-pkg=" + sibling_ghc_pkg(ghc)]
         run(base + ["update", "--index-state=" + state], project, env)
         run(base + ["freeze"], project, env)
-        run(base + ["build", "--dry-run", "all"], project, env)
+        run(base + ["build", "--dry-run", args.target], project, env)
         with open(os.path.join(project, "dist-newstyle", "cache", "plan.json"), encoding="utf-8") as handle:
             plan = json.load(handle)
         packages = sidecar_from_plan(plan, {})
@@ -226,6 +238,7 @@ def main(argv):
     parser.add_argument("mode", choices=["write", "check"])
     parser.add_argument("--package", required=True)
     parser.add_argument("--label", default="")
+    parser.add_argument("--target", default="all")
     parser.add_argument("--cabal")
     parser.add_argument("--ghc")
     parser.add_argument("--input", action="append", default=[])

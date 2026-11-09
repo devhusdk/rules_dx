@@ -41,6 +41,11 @@ on:
         type: boolean
         required: false
         default: false
+      lock_refresh:
+        description: "Regenerate MODULE.bazel.lock on the platform and fail when it differs; the refreshed lock and diff land in lock/ of the artifact."
+        type: boolean
+        required: false
+        default: false
       release_cell:
         description: "Build and qualify the dx release cell of each platform with the script release-cells.yml runs, uncached, before the scope task."
         type: boolean
@@ -223,6 +228,14 @@ jobs:
           done
           bazel run --noshow_progress "${flags[@]}" //tools/testing/hermetic:appcontainer_run -- \
             --backend user --ensure-host-denies "${denies[@]}"
+      - name: Regenerate MODULE.bazel.lock
+        if: ${{ inputs.lock_refresh }}
+        run: |
+          out="$RUNNER_TEMP/evidence/lock"
+          mkdir -p "$out"
+          bazel mod deps --lockfile_mode=update 2>&1 | tee "$out/mod-deps.log"
+          cp MODULE.bazel.lock "$out/MODULE.bazel.lock"
+          git diff --exit-code MODULE.bazel.lock > "$out/lock.diff" || { cat "$out/lock.diff"; exit 1; }
       - name: Run evidence task
         env:
           DX_SCOPE: ${{ steps.inputs.outputs.scope }}

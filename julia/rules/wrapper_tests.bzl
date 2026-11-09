@@ -19,7 +19,7 @@ def _coverage_impl(ctx):
         asserts.true(env, content != None, "no coverage config written")
         if content != None:
             asserts.true(env, "source\t" + ctx.attr.source + "\n" in content, content)
-            asserts.true(env, "upstream\t_main/" in content, content)
+            asserts.true(env, "upstream\t" + (target.label.repo_name or ctx.workspace_name) + "/" in content, content)
     else:
         asserts.false(env, "DX_JULIA_COVERAGE_CONFIG" in run_env, "coverage env set without coverage")
         asserts.equals(env, None, content)

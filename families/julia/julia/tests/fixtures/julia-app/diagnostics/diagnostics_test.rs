@@ -5,7 +5,10 @@ fn file(var: &str) -> PathBuf {
 }
 
 fn julia_bin() -> PathBuf {
-    let key = std::env::var("DX_JULIA").expect("DX_JULIA is set");
+    let file = dx_testing::resolve_runfiles(
+        &std::env::var("DX_JULIA_PATH_FILE").expect("DX_JULIA_PATH_FILE is set"),
+    );
+    let key = std::fs::read_to_string(file).expect("julia path file is readable");
     if let Some(dir) = std::env::var_os("RUNFILES_DIR") {
         let direct = PathBuf::from(dir).join(&key);
         if direct.exists() {

@@ -51,10 +51,20 @@ def dx_julia_test_coverage(ctx, upstream):
         instrumented.instrumented_files,
         upstream[DxJuliaCoverageInfo].files if DxJuliaCoverageInfo in upstream else depset(),
     ])
-    paths = sorted({f.short_path: True for f in sources.to_list() if not f.short_path.startswith("../")}.keys())
+    repo = ctx.label.repo_name or ctx.workspace_name
+    paths = {}
+    for f in sources.to_list():
+        sp = f.short_path
+        if sp.startswith("../"):
+            owner, _, rest = sp[3:].partition("/")
+            if owner == repo:
+                paths[rest] = True
+        elif repo == ctx.workspace_name:
+            paths[sp] = True
+    paths = sorted(paths.keys())
     config = ctx.actions.declare_file(ctx.label.name + ".julia_coverage.cfg")
     ctx.actions.write(config, "\n".join(
-        ["workspace\t" + ctx.workspace_name, "upstream\t" + rlocation_path(ctx, upstream_exe)] +
+        ["workspace\t" + repo, "upstream\t" + rlocation_path(ctx, upstream_exe)] +
         ["source\t" + p for p in paths],
     ) + "\n")
     env = {}

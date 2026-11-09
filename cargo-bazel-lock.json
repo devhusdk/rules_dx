@@ -1,5 +1,5 @@
 {
-  "checksum": "7e7c61afde38f3a8720d167068ca462712d17d70a20abd19abea26c00c4385d1",
+  "checksum": "bcc6274acd615584b5ffdf695f9e7675f87c43613f540216ae05bfdcc0a4505f",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -17022,25 +17022,6 @@
       ],
       "version": "0.6.0"
     },
-    "parallel_worktrees 0.0.0": {
-      "common_attrs": {
-        "deps": [
-          {
-            "id": "serde_json 1.0.151",
-            "target": "serde_json"
-          }
-        ],
-        "edition": "2024"
-      },
-      "license": "Apache-2.0",
-      "license_ids": [
-        "Apache-2.0"
-      ],
-      "name": "parallel_worktrees",
-      "repository": null,
-      "targets": [],
-      "version": "0.0.0"
-    },
     "parking_lot 0.12.5": {
       "common_attrs": {
         "crate_features": [
@@ -29058,7 +29039,6 @@
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
     "native_call 0.1.0": "rust/tests/fixtures/native_call",
-    "parallel_worktrees 0.0.0": "tools/testing/parallel_worktrees",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",

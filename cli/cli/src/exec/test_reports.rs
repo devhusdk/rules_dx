@@ -1205,6 +1205,54 @@ fn coverage_threshold(
     Ok(threshold_ok)
 }
 
+/// How many files the text coverage table lists.
+const WORST_FILES: usize = 10;
+
+/// Prints the total coverage line (when no minimum prints it) and the least covered files.
+fn coverage_summary(
+    account: &CellAccount,
+    show_total: bool,
+    output: OutputMode,
+    err: &mut dyn Write,
+) {
+    let OutputMode::Text { quiet: false } = output else {
+        return;
+    };
+    let covered = account.covered_lines;
+    let eligible = account.eligible_lines;
+    if show_total {
+        if eligible > 0 {
+            let percent = 100.0 * covered as f64 / eligible as f64;
+            let _ = writeln!(
+                err,
+                "dx: coverage {percent:.1}% ({covered}/{eligible} lines)"
+            );
+        } else {
+            let _ = writeln!(err, "dx: coverage (0/0 lines)");
+        }
+    }
+    let mut worst: Vec<(&String, u64, u64)> = account
+        .file_lines
+        .iter()
+        .filter(|(_, (covered, eligible))| covered < eligible)
+        .map(|(path, (covered, eligible))| (path, *covered, *eligible))
+        .collect();
+    worst.sort_by(|a, b| {
+        (a.1 * b.2)
+            .cmp(&(b.1 * a.2))
+            .then((b.2 - b.1).cmp(&(a.2 - a.1)))
+            .then(a.0.cmp(b.0))
+    });
+    if worst.is_empty() {
+        return;
+    }
+    let _ = writeln!(err, "dx: least covered files:");
+    for (path, covered, eligible) in worst.into_iter().take(WORST_FILES) {
+        let percent = 100.0 * covered as f64 / eligible as f64;
+        let _ = writeln!(err, "  {percent:5.1}%  {covered}/{eligible}  {path}");
+    }
+}
+
 /// Accounts every owned source of the run against the merged coverage.
 fn account_sources(
     sources: &Sources,
@@ -1553,6 +1601,16 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     } else {
         true
     };
+    if verb == WorkflowVerb::Coverage
+        && let Some(account) = &account
+    {
+        coverage_summary(
+            account,
+            invocation.min_coverage.is_none(),
+            invocation.output,
+            err,
+        );
+    }
     let sources_ok = match &account {
         Some(account) => {
             let enforce = invocation.min_coverage.is_some();
@@ -4236,6 +4294,34 @@ mod tests {
             assert_eq!(case.configuration.as_deref(), Some("cfg"));
         }
         assert!(super::parse_cases(&result, b"no elements").is_err());
+    }
+
+    #[test]
+    fn coverage_summary_prints_the_total_and_the_worst_files() {
+        let mut account = dx_lcov::CellAccount {
+            eligible_lines: 20,
+            covered_lines: 13,
+            ..dx_lcov::CellAccount::default()
+        };
+        for (path, counts) in [("a.rs", (10, 10)), ("b.rs", (3, 6)), ("c.rs", (0, 4))] {
+            account.file_lines.insert(path.to_owned(), counts);
+        }
+        let text = dx_output::OutputMode::Text { quiet: false };
+        let mut err = Vec::new();
+        super::coverage_summary(&account, true, text, &mut err);
+        let got = String::from_utf8(err).unwrap();
+        assert!(got.contains("dx: coverage 65.0% (13/20 lines)"), "{got}");
+        assert!(!got.contains("a.rs"), "{got}");
+        assert!(
+            got.find("c.rs").unwrap() < got.find("b.rs").unwrap(),
+            "{got}"
+        );
+        let mut err = Vec::new();
+        super::coverage_summary(&account, false, text, &mut err);
+        assert!(!String::from_utf8(err).unwrap().contains("dx: coverage 65"));
+        let mut err = Vec::new();
+        super::coverage_summary(&account, true, dx_output::OutputMode::Json, &mut err);
+        assert!(err.is_empty());
     }
 
     #[test]

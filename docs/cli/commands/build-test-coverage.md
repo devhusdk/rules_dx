@@ -73,6 +73,8 @@ dx sets these flags. Another value exits `2` before Bazel starts.
 
 Text ends with `dx: <total> actions, <executed> executed, <cached> cached` on stderr. `--quiet` hides it.
 
+`dx coverage` also prints `dx: coverage 83.4% (1204/1444 lines)` without `--min-coverage` (with it, the minimum check prints the total), then up to ten least covered files as `percent covered/eligible path`. JSON carries the totals in the `coverage` event.
+
 Each Bazel failure prints a `dx: build failure:` line with its compiler diagnostics (rustc, clippy, and the gcc-style output of cc, javac, go, kotlinc, scalac, tsc, csc and swiftc). JSON adds a `build_failure` event per failure.
 
 `dx test` prints `dx: failed: //pkg:test: case_a, case_b and 2 more (log: <path>/test.log)` per failed result. JSON adds a `test_outcome` event per result that did not plainly pass. Each case in it has `classname`, `name`, `outcome` and `message`, plus `file` and `line` when the report's `file` and `line` attributes or the first workspace-relative `path:line` in the failure text give them. `results.json` cases carry the same fields.

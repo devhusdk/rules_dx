@@ -50,6 +50,8 @@ pub struct CellAccount {
     pub excluded_files: u64,
     pub unsupported_files: u64,
     pub files: BTreeMap<String, Disposition>,
+    /// Covered and eligible line counts of each eligible file.
+    pub file_lines: BTreeMap<String, (u64, u64)>,
     /// Production sources owned by an instrumented target that the report never saw.
     pub absent: Vec<String>,
     /// Tracked covered-language files that no Bazel rule uses.
@@ -439,6 +441,9 @@ pub fn account(
                 result.excluded_lines += count.ignored;
                 result.eligible_lines += count.eligible;
                 result.covered_lines += count.covered;
+                result
+                    .file_lines
+                    .insert(path.clone(), (count.covered, count.eligible));
                 Disposition::Eligible
             }
         } else if whole_file_excluded(

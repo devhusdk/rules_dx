@@ -5,7 +5,7 @@ stage buf classes=protobuf sources=matrix/buf_lint_dirty.proto
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR buf PACKAGE_DIRECTORY_MATCH matrix/buf_lint_dirty.proto 20 40 fixable=false "Files with package \"fixtures.v1\" must be within a directory \"fixtures/v1\" relative to root but were in directory \"matrix\"."
+initial WARNING buf PACKAGE_DIRECTORY_MATCH matrix/buf_lint_dirty.proto 20 40 fixable=false "Files with package \"fixtures.v1\" must be within a directory \"fixtures/v1\" relative to root but were in directory \"matrix\"."
 terminal 1
-terminal ERROR buf PACKAGE_DIRECTORY_MATCH matrix/buf_lint_dirty.proto 20 40 fixable=false "Files with package \"fixtures.v1\" must be within a directory \"fixtures/v1\" relative to root but were in directory \"matrix\"."
+terminal WARNING buf PACKAGE_DIRECTORY_MATCH matrix/buf_lint_dirty.proto 20 40 fixable=false "Files with package \"fixtures.v1\" must be within a directory \"fixtures/v1\" relative to root but were in directory \"matrix\"."
 replacements 0

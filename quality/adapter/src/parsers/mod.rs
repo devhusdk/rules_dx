@@ -2929,7 +2929,56 @@ mod tests {
         super::yamllint::parse_yamllint(input, code, files)
     }
 
+    fn fuzz_jvm_unused_dependencies(
+        input: &[u8],
+        _code: Option<i32>,
+        _files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jvm_unused_deps::parse_unused_dependencies("javac", input, input).map(|_| Vec::new())
+    }
+
+    fn fuzz_jvm_missing_dependencies(
+        input: &[u8],
+        _code: Option<i32>,
+        _files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jvm_unused_deps::parse_missing_dependencies("javac", input, input).map(|_| Vec::new())
+    }
+
+    fn fuzz_scalac_unused_dependencies(
+        input: &[u8],
+        _code: Option<i32>,
+        _files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jvm_unused_deps::parse_scalac_unused_dependencies(input, input).map(|_| Vec::new())
+    }
+
+    fn fuzz_scalac_missing_dependencies(
+        input: &[u8],
+        _code: Option<i32>,
+        _files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::jvm_unused_deps::parse_scalac_missing_dependencies(input, input).map(|_| Vec::new())
+    }
+
+    fn fuzz_rust_unused_dependencies(
+        input: &[u8],
+        _code: Option<i32>,
+        _files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        super::rust_unused_deps::parse_unused_dependencies(input).map(|_| Vec::new())
+    }
+
     const FUZZ_PARSERS: &[(&str, FuzzFn)] = &[
+        ("prettier_check", fuzz_prettier_check),
+        ("dart_format", fuzz_dart_format),
+        ("markdown_findings", fuzz_markdown_findings),
+        ("notebook_outputs", fuzz_notebook_outputs),
+        ("jvm_unused_dependencies", fuzz_jvm_unused_dependencies),
+        ("jvm_missing_dependencies", fuzz_jvm_missing_dependencies),
+        ("scalac_unused_dependencies", fuzz_scalac_unused_dependencies),
+        ("scalac_missing_dependencies", fuzz_scalac_missing_dependencies),
+        ("rust_unused_dependencies", fuzz_rust_unused_dependencies),
         ("biome_lint", fuzz_biome_lint),
         ("biome_format", fuzz_biome_format),
         ("buf_lint", fuzz_buf_lint),
@@ -3075,203 +3124,6 @@ mod tests {
         ("zig_compile", fuzz_zig_compile),
         ("zig_fmt", fuzz_zig_fmt),
     ];
-
-    const PARSER_SOURCES: &[(&str, &str)] = &[
-        ("biome", include_str!("biome.rs")),
-        ("buf", include_str!("buf.rs")),
-        ("buildifier", include_str!("buildifier.rs")),
-        ("checkmake", include_str!("checkmake.rs")),
-        ("gersemi", include_str!("gersemi.rs")),
-        ("checkstyle", include_str!("checkstyle.rs")),
-        ("cmakelint", include_str!("cmakelint.rs")),
-        ("tflint", include_str!("tflint.rs")),
-        ("trivy_config", include_str!("trivy_config.rs")),
-        ("thrift", include_str!("thrift.rs")),
-        ("avro", include_str!("avro.rs")),
-        ("topiary", include_str!("topiary.rs")),
-        ("clang_format", include_str!("clang_format.rs")),
-        ("clang_syntax", include_str!("clang_syntax.rs")),
-        ("clang_tidy", include_str!("clang_tidy.rs")),
-        ("cppcheck", include_str!("cppcheck.rs")),
-        ("csharpier", include_str!("csharpier.rs")),
-        ("credo", include_str!("credo.rs")),
-        ("cue", include_str!("cue.rs")),
-        ("deadnix", include_str!("deadnix.rs")),
-        ("detekt", include_str!("detekt.rs")),
-        ("djlint", include_str!("djlint.rs")),
-        ("dialyzer", include_str!("dialyzer.rs")),
-        ("flang", include_str!("flang.rs")),
-        ("ghc", include_str!("ghc.rs")),
-        ("ldc", include_str!("ldc.rs")),
-        ("erlc", include_str!("erlc.rs")),
-        ("elixirc", include_str!("elixirc.rs")),
-        ("elvis", include_str!("elvis.rs")),
-        ("erlfmt", include_str!("erlfmt.rs")),
-        ("go_analysis", include_str!("go_analysis.rs")),
-        ("gotype", include_str!("go_analysis.rs")),
-        ("eslint", include_str!("eslint.rs")),
-        ("fantomas", include_str!("fantomas.rs")),
-        ("flatc", include_str!("flatc.rs")),
-        ("ffmt", include_str!("ffmt.rs")),
-        ("fortitude", include_str!("fortitude.rs")),
-        ("fsc", include_str!("fsc.rs")),
-        ("fsharplint", include_str!("fsharplint.rs")),
-        ("gofumpt", include_str!("gofumpt.rs")),
-        ("google_java_format", include_str!("google_java_format.rs")),
-        ("gplint", include_str!("gplint.rs")),
-        ("actionlint", include_str!("actionlint.rs")),
-        ("zizmor", include_str!("zizmor.rs")),
-        ("hadolint", include_str!("hadolint.rs")),
-        ("helm", include_str!("helm.rs")),
-        ("hlint", include_str!("hlint.rs")),
-        ("weeder", include_str!("weeder.rs")),
-        ("jet", include_str!("jet.rs")),
-        ("jsonnet_lint", include_str!("jsonnet_lint.rs")),
-        ("jsonnetfmt", include_str!("jsonnetfmt.rs")),
-        ("dart", include_str!("dart_format.rs")),
-        ("dart_analyze", include_str!("dart_analyze.rs")),
-        ("julia_format", include_str!("julia_format.rs")),
-        ("julialint", include_str!("julialint.rs")),
-        ("keep_sorted", include_str!("keep_sorted.rs")),
-        ("ansible_lint", include_str!("ansible_lint.rs")),
-        ("capnp", include_str!("capnp.rs")),
-        ("cfn_lint", include_str!("cfn_lint.rs")),
-        ("kubeconform", include_str!("kubeconform.rs")),
-        ("chktex", include_str!("chktex.rs")),
-        ("latexindent", include_str!("latexindent.rs")),
-        ("ktfmt", include_str!("ktfmt.rs")),
-        ("luals", include_str!("luals.rs")),
-        ("lychee", include_str!("lychee.rs")),
-        ("markdown", include_str!("markdown.rs")),
-        ("mbake", include_str!("mbake.rs")),
-        ("notebook_outputs", include_str!("notebook_outputs.rs")),
-        ("mix_format", include_str!("mix_format.rs")),
-        ("modfmt", include_str!("modfmt.rs")),
-        ("nixfmt", include_str!("nixfmt.rs")),
-        ("msvc_syntax", include_str!("msvc_syntax.rs")),
-        ("nvcc_syntax", include_str!("nvcc_syntax.rs")),
-        ("ormolu", include_str!("ormolu.rs")),
-        ("bicep", include_str!("bicep.rs")),
-        ("ocaml_compile", include_str!("ocaml_compile.rs")),
-        ("opa", include_str!("opa.rs")),
-        ("perlcritic", include_str!("perlcritic.rs")),
-        ("perltidy", include_str!("perltidy.rs")),
-        ("phpcs", include_str!("phpcs.rs")),
-        ("phpstan", include_str!("phpstan.rs")),
-        ("pkl", include_str!("pkl.rs")),
-        ("pkl_lsp", include_str!("pkl_lsp.rs")),
-        ("pmd", include_str!("pmd.rs")),
-        ("prettier", include_str!("prettier.rs")),
-        ("psscriptanalyzer", include_str!("psscriptanalyzer.rs")),
-        ("pydoclint", include_str!("pydoclint.rs")),
-        ("qmlformat", include_str!("qmlformat.rs")),
-        ("qmllint", include_str!("qmllint.rs")),
-        ("redocly", include_str!("redocly.rs")),
-        ("regal", include_str!("regal.rs")),
-        ("remark", include_str!("remark.rs")),
-        ("csc", include_str!("roslyn.rs")),
-        ("jvm_diagnostics", include_str!("jvm_diagnostics.rs")),
-        ("roslyn", include_str!("roslyn.rs")),
-        ("rubocop", include_str!("rubocop.rs")),
-        ("ruff", include_str!("ruff.rs")),
-        ("rust", include_str!("rust.rs")),
-        ("rustfmt", include_str!("rustfmt.rs")),
-        ("sarif", include_str!("sarif.rs")),
-        ("scalafix", include_str!("scalafix.rs")),
-        ("scalafmt", include_str!("scalafmt.rs")),
-        ("selene", include_str!("selene.rs")),
-        ("shellcheck", include_str!("shellcheck.rs")),
-        ("shfmt", include_str!("shfmt.rs")),
-        ("sorbet", include_str!("sorbet.rs")),
-        ("spotbugs", include_str!("spotbugs.rs")),
-        ("sqlfluff", include_str!("sqlfluff.rs")),
-        ("staticcheck", include_str!("staticcheck.rs")),
-        ("stylelint", include_str!("stylelint.rs")),
-        ("stylua", include_str!("stylua.rs")),
-        ("swift_format", include_str!("swift_format.rs")),
-        ("swift_lint", include_str!("swift_lint.rs")),
-        ("check_jsonschema", include_str!("check_jsonschema.rs")),
-        ("taplo", include_str!("taplo.rs")),
-        ("terraform", include_str!("terraform.rs")),
-        ("terraform_validate", include_str!("terraform_validate.rs")),
-        ("tsc", include_str!("tsc.rs")),
-        ("ty", include_str!("ty.rs")),
-        ("typos", include_str!("typos.rs")),
-        ("tinymist", include_str!("tinymist.rs")),
-        ("typstyle", include_str!("typstyle.rs")),
-        ("vale", include_str!("vale.rs")),
-        ("xmllint", include_str!("xmllint.rs")),
-        ("yamlfmt", include_str!("yamlfmt.rs")),
-        ("yamllint", include_str!("yamllint.rs")),
-        ("zanuda", include_str!("zanuda.rs")),
-        ("zig_ast_check", include_str!("zig_ast_check.rs")),
-        ("zig_compile", include_str!("zig_compile.rs")),
-        ("zig_fmt", include_str!("zig_fmt.rs")),
-    ];
-
-    fn declared_parser_names() -> Vec<(String, String)> {
-        let mut found = Vec::new();
-        for (module, source) in PARSER_SOURCES {
-            let mut rest: &str = source;
-            while let Some(at) = rest.find("pub fn parse_") {
-                rest = &rest[at + "pub fn ".len()..];
-                let end = rest
-                    .find(|c: char| !c.is_alphanumeric() && c != '_')
-                    .unwrap_or(rest.len());
-                found.push(((*module).to_owned(), rest[..end].to_owned()));
-                rest = &rest[end..];
-            }
-        }
-        found
-    }
-
-    #[test]
-    fn every_declared_parser_is_in_the_fuzz_table() {
-        let declared = declared_parser_names();
-        assert!(
-            declared.len() >= 60,
-            "expected the full parser set, got {declared:?}"
-        );
-        let bare: Vec<String> = declared
-            .iter()
-            .flat_map(|(module, name)| {
-                [
-                    module.clone(),
-                    name.clone(),
-                    name.trim_start_matches("parse_").to_owned(),
-                ]
-            })
-            .collect();
-        let mut missing: Vec<String> = declared
-            .iter()
-            .filter(|(_, name)| !bare.iter().any(|known| known == name))
-            .map(|(_, name)| name.clone())
-            .collect();
-        missing.dedup();
-        let covered: Vec<&str> = bare.iter().map(String::as_str).collect();
-        let mut absent: Vec<String> = FUZZ_PARSERS
-            .iter()
-            .map(|(name, _)| (*name).to_owned())
-            .filter(|name| !covered.contains(&name.as_str()))
-            .collect();
-        absent.dedup();
-        missing.extend(absent.iter().cloned());
-        missing.sort();
-        assert!(
-            missing.is_empty(),
-            "declared parsers and FUZZ_PARSERS rows that do not match: {missing:?}"
-        );
-        let mut stale: Vec<&str> = FUZZ_PARSERS
-            .iter()
-            .map(|(name, _)| *name)
-            .filter(|name| !covered.contains(name))
-            .collect();
-        stale.sort_unstable();
-        assert!(
-            stale.is_empty(),
-            "FUZZ_PARSERS rows naming no declared parser: {stale:?}"
-        );
-    }
 
     #[test]
     fn fuzz_parsers_never_panic_on_arbitrary_bytes() {

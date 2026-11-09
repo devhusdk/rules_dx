@@ -26,7 +26,7 @@ bazel_dep(name = "rules_jvm_external", version = "7.2")
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
 maven.install(
     artifacts = [
-        "com.google.code.gson:gson:2.8.9",
+        "com.google.code.gson:gson:2.14.0",
         "com.google.guava:guava:32.0.1-jre",
         "junit:junit:4.13.2",
     ],

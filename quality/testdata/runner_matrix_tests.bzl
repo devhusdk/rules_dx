@@ -206,7 +206,8 @@ def _runner_matrix_test_impl(ctx):
     ctx.actions.write(output = manifest_file, content = json.encode(manifest) + "\n")
 
     executable = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = executable, target_file = harness, is_executable = True)
+    # Bazel stats the target of an executable symlink, which fails when the target exists only remotely.
+    ctx.actions.symlink(output = executable, target_file = harness)
 
     runfiles = ctx.runfiles(
         files = (

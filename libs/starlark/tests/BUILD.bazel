@@ -12,6 +12,7 @@ load(":cells_tests.bzl", "cells_tests")
 load(":config_tests.bzl", "config_subject_tests")
 load(":entry_tests.bzl", "entry_tests")
 load(":execution_tests.bzl", "fixture_execution_tests")
+load(":harness_link_tests.bzl", "harness_link_tests")
 load(":license_tests.bzl", "license_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":platform_tests.bzl", "platform_probe_tests")
@@ -97,6 +98,8 @@ fixture_execution_tests(name = "fixture_execution")
 
 packaging_unit_tests(name = "packaging_unit")
 
+harness_link_tests(name = "harness_link")
+
 warnings_tests(name = "warnings")
 
 wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
@@ -163,6 +166,7 @@ test_suite(
         ":config_subject_analysis",
         ":exec_group_forwarder_analysis",
         ":fixture_execution",
+        ":harness_link",
         ":license",
         ":observations_only_analysis",
         ":packaging_unit",

@@ -273,7 +273,8 @@ def _write_harness(ctx, records, observations):
         executable = ctx.actions.declare_file(ctx.label.name + ".exe")
     else:
         executable = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.symlink(output = executable, target_file = harness, is_executable = True)
+    # Bazel stats the target of an executable symlink, which fails when the target exists only remotely.
+    ctx.actions.symlink(output = executable, target_file = harness)
     transitive = []
     for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys() + ctx.attr.file_line_endings.keys():
         transitive.append(target[DefaultInfo].default_runfiles.files)

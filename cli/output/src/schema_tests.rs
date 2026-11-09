@@ -39,6 +39,7 @@ fn finished() -> Value {
         results_complete: Some(true),
         run_id: Some("r1".to_owned()),
         diagnostics: Some([1, 2, 3]),
+        findings: None,
         changes: Some([1, 2]),
         effects: Some([1, 0]),
         tests: Some(TestCounts::default()),

@@ -2,7 +2,7 @@ use crate::validation::{OutputError, check_correlation, check_path, parse_digest
 use serde_json::{Value, json};
 
 pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 9;
+pub const SCHEMA_MINOR: u64 = 10;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -1072,12 +1072,22 @@ pub struct FinishedCounts {
     /// Ties `.dx/local/results.json` to the run that wrote it.
     pub run_id: Option<String>,
     pub diagnostics: Option<[u64; 3]>,
+    /// Finding totals when the run printed findings, whether or not it capped them.
+    pub findings: Option<FindingCounts>,
     pub changes: Option<[u64; 2]>,
     pub effects: Option<[u64; 2]>,
     /// Test result counts; see `TestCounts` for the unit.
     pub tests: Option<TestCounts>,
     /// Bazel action counts summed over the command's builds.
     pub actions: Option<ActionCounts>,
+}
+
+/// Exact finding counts per tool and per rule, and how many findings the event stream left out.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct FindingCounts {
+    pub omitted: u64,
+    pub by_tool: std::collections::BTreeMap<String, u64>,
+    pub by_rule: std::collections::BTreeMap<String, u64>,
 }
 
 /// Bazel action counts; `executed` excludes disk and remote cache hits.
@@ -1139,6 +1149,12 @@ pub fn command_finished(exit_code: i32, counts: &FinishedCounts) -> Value {
         map.insert(
             "diagnostics".to_owned(),
             json!({"info": info, "warning": warning, "error": error}),
+        );
+    }
+    if let Some(findings) = &counts.findings {
+        map.insert(
+            "findings".to_owned(),
+            json!({"omitted": findings.omitted, "by_tool": findings.by_tool, "by_rule": findings.by_rule}),
         );
     }
     if counts.changes.is_some() || counts.effects.is_some() {
@@ -1342,6 +1358,7 @@ mod tests {
             results_complete: Some(true),
             run_id: Some("7-1-abc".to_owned()),
             diagnostics: Some([0, 3, 1]),
+            findings: None,
             changes: Some([0, 2]),
             effects: Some([1, 1]),
             tests: None,
@@ -1400,11 +1417,30 @@ mod tests {
     }
 
     #[test]
+    fn finished_findings_render_exact_counts() {
+        let mut findings = FindingCounts {
+            omitted: 70,
+            ..FindingCounts::default()
+        };
+        findings.by_tool.insert("ruff".to_owned(), 120);
+        findings.by_rule.insert("E501".to_owned(), 120);
+        let counts = FinishedCounts {
+            findings: Some(findings),
+            ..FinishedCounts::default()
+        };
+        let event = command_finished(1, &counts);
+        assert_eq!(event["findings"]["omitted"], Value::from(70));
+        assert_eq!(event["findings"]["by_tool"]["ruff"], Value::from(120));
+        assert_eq!(event["findings"]["by_rule"]["E501"], Value::from(120));
+    }
+
+    #[test]
     fn finished_changes_render() {
         let counts = FinishedCounts {
             results_complete: None,
             run_id: None,
             diagnostics: None,
+            findings: None,
             changes: Some([1, 2]),
             effects: None,
             tests: None,
@@ -1720,8 +1756,8 @@ mod tests {
     #[test]
     fn schema_is_three_three_with_forward_compat() {
         assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 9);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 9}));
+        assert_eq!(SCHEMA_MINOR, 10);
+        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 10}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1751,7 +1787,7 @@ mod tests {
             read_event(&line).expect("current")["event"],
             "command_started"
         );
-        let newer = r#"{"schema":{"major":3,"minor":9},"event":"future","added":1}"#;
+        let newer = r#"{"schema":{"major":3,"minor":10},"event":"future","added":1}"#;
         assert_eq!(read_event(newer).expect("newer minor")["added"], 1);
         assert_eq!(
             read_event(r#"{"schema":{"major":1,"minor":1},"event":"command_started"}"#)
@@ -2214,7 +2250,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 9},
+                "schema": {"major": 3, "minor": 10},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2253,7 +2289,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 9},
+                "schema": {"major": 3, "minor": 10},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

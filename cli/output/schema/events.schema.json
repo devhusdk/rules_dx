@@ -84,7 +84,7 @@
           "const": 3
         },
         "minor": {
-          "const": 9
+          "const": 10
         }
       },
       "required": [
@@ -537,6 +537,35 @@
             "info",
             "warning",
             "error"
+          ],
+          "additionalProperties": false
+        },
+        "findings": {
+          "type": "object",
+          "properties": {
+            "omitted": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "by_tool": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "by_rule": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "required": [
+            "omitted",
+            "by_tool",
+            "by_rule"
           ],
           "additionalProperties": false
         },

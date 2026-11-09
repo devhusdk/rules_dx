@@ -13,7 +13,7 @@ use super::quality_reports::{
 use super::results::{collect_results, invert_repo_mapping};
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    ActionCounts, FinishedCounts, NoticeEvent, OutputMode, Severity, command_finished,
+    ActionCounts, FindingCounts, FinishedCounts, NoticeEvent, OutputMode, Severity, command_finished,
     meets_threshold, notice_event, quality_started,
 };
 use dx_plan::args::{BREAKING_AGAINST_OPTION, Command, Invocation, QualityRequest};
@@ -750,7 +750,15 @@ fn run_quality_request(
     let mut info = 0u64;
     let mut warning = 0u64;
     let mut error = 0u64;
+    let mut finding_counts = FindingCounts {
+        omitted: emit_counts.findings_omitted,
+        ..FindingCounts::default()
+    };
     for diagnostic in &status {
+        *finding_counts.by_tool.entry(diagnostic.tool.clone()).or_insert(0) += 1;
+        if let Some(rule) = &diagnostic.rule {
+            *finding_counts.by_rule.entry(rule.clone()).or_insert(0) += 1;
+        }
         match diagnostic.severity {
             Severity::Info => info += 1,
             Severity::Warning => warning += 1,
@@ -802,6 +810,7 @@ fn run_quality_request(
                 results_complete: Some(collected.complete),
                 run_id: None,
                 diagnostics: Some([info, warning, error]),
+                findings: Some(finding_counts),
                 changes: Some([0, change_count]),
                 effects: if apply {
                     Some([applied_count, not_applied_count])

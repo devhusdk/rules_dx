@@ -37,6 +37,8 @@ impl OperationMode {
 pub struct CommonOptions {
     pub output: OutputMode,
     pub include_edits: bool,
+    /// `--max-findings`: findings per tool in JSON output; `None` is the default cap.
+    pub max_findings: Option<u32>,
     pub reports: Vec<ReportRequest>,
     pub quiet: bool,
     pub verbose: bool,
@@ -186,6 +188,7 @@ impl UmbrellaRequest {
         CommonOptions {
             output: self.common.output,
             include_edits: self.common.include_edits,
+            max_findings: self.common.max_findings,
             reports,
             quiet: self.common.quiet,
             verbose: self.common.verbose,
@@ -253,6 +256,7 @@ pub struct Invocation {
     /// `dx watch --poll`: poll the tree on every platform.
     pub poll: bool,
     pub include_edits: bool,
+    pub max_findings: Option<u32>,
     /// `--unsafe`: fixes include the ones the tool marks unsafe.
     pub unsafe_fixes: bool,
     pub min_coverage: Option<u32>,
@@ -440,6 +444,7 @@ impl Invocation {
         CommonOptions {
             output: self.output,
             include_edits: self.include_edits,
+            max_findings: self.max_findings,
             reports: self.reports.clone(),
             quiet: self.quiet,
             verbose: self.verbose,
@@ -510,6 +515,7 @@ impl Invocation {
                 test.apply = false;
                 test.reports = Vec::new();
                 test.include_edits = false;
+                test.max_findings = None;
                 test.unsafe_fixes = false;
                 test.targets = tests.clone();
                 test.affected_handoff = None;
@@ -692,6 +698,7 @@ mod tests {
             build_slots: None,
             poll: false,
             include_edits: false,
+            max_findings: None,
             unsafe_fixes: false,
             min_coverage: None,
             min_changed_line_coverage: None,

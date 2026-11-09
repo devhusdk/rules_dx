@@ -126,6 +126,7 @@ pub(crate) struct Flags {
     pub(crate) fail_on: Option<String>,
     pub(crate) build_slots: Option<String>,
     pub(crate) include_edits: bool,
+    pub(crate) max_findings: Option<u32>,
     pub(crate) min_coverage: Option<u32>,
     pub(crate) min_changed_line_coverage: Option<u32>,
     pub(crate) apply: bool,
@@ -396,6 +397,14 @@ flag_group! {
     IncludeEditsFlag, {
         #[arg(long = "include-edits", overrides_with = "include_edits")]
         include_edits: bool,
+    }
+}
+
+flag_group! {
+    /// Print at most this many findings per tool in JSON output (default 50, 0 for no limit).
+    MaxFindingsFlag, {
+        #[arg(long = "max-findings", value_name = "n", overrides_with = "max_findings")]
+        max_findings: Option<u32>,
     }
 }
 
@@ -1044,6 +1053,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
+        max_findings: MaxFindingsFlag,
         apply: ApplyFlag,
         unsafe_fixes: UnsafeFlag,
         online: OnlineFlag,
@@ -1058,6 +1068,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
+        max_findings: MaxFindingsFlag,
         apply: ApplyFlag,
         unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
@@ -1070,6 +1081,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
+        max_findings: MaxFindingsFlag,
         apply: ApplyFlag,
         unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
@@ -1133,6 +1145,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
+        max_findings: MaxFindingsFlag,
         apply: ApplyFlag,
         unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,
@@ -1189,6 +1202,7 @@ command_args! {
         output: OutputFlag,
         diff: DiffFlag,
         include_edits: IncludeEditsFlag,
+        max_findings: MaxFindingsFlag,
         apply: ApplyFlag,
         unsafe_fixes: UnsafeFlag,
         fail_on: FailOnFlag,

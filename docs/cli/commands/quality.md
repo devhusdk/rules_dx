@@ -29,6 +29,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `--report sarif=<dest>` | Write a SARIF report. Repeatable. `lint` and `typecheck` only; `format` has no report. |
 | `-o, --output text\|json` | Result shape. Default `text`. |
 | `--include-edits` | Add `source_digest` and full `edits` to JSON `change` events. Needs `--output json`, else exit `2`. |
+| `--max-findings <n>` | Print at most `n` `diagnostic` events per tool in JSON output. Default `50`; `0` prints all. Needs `--output json`, else exit `2`. A `findings_truncated` notice says how many were left out, and `command_finished` carries `findings.omitted`, `findings.by_tool` and `findings.by_rule` with exact counts. |
 | `--here` | Scope to the current directory tree. |
 | `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty. |
 | `--workspace <dir>` | Use this workspace dir. |

@@ -9,7 +9,7 @@ dx check --output json --report sarif=out.sarif //pkg/...
 ## `dx check`
 
 ```text
-dx check [--here] [--affected] [--apply] [--diff] [--unsafe] [--include-edits] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings n] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `--apply` writes validated fixes, then re-checks read-only.
@@ -22,6 +22,7 @@ Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `-
 | `--diff` | Print the edits as a patch. |
 | `--unsafe` | With `--apply` or `--diff`, also include the fixes tools mark unsafe. Without either, exit `2`. The read-only re-check after `--apply` runs without it. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |
+| `--max-findings <n>` | Print at most `n` findings per tool in JSON output (default `50`, `0` for all). Needs `--output json`. |
 | `--fail-on <level>` | Fail on `info`, `warning`, or `error`. Applies to `format`, `lint`, and `typecheck`. |
 | `--report sarif=<dest>` | Merge the `lint` and `typecheck` findings into one SARIF document. `-` is rejected. |
 | `-o, --output text\|json` | Choose the output format. |

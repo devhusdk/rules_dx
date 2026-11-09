@@ -327,6 +327,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         fail_on,
         build_slots,
         include_edits,
+        max_findings,
         min_coverage,
         min_changed_line_coverage,
         apply,
@@ -689,6 +690,11 @@ fn parse_inner<S: AsRef<OsStr>>(
     if output_from_flag && !output_supported(command, &output_name) {
         return Err(unsupported(command, format!("--output={output_name}")));
     }
+    if max_findings.is_some() && output_name != "json" {
+        return Err(ArgsError::NeedsJson {
+            option: "--max-findings",
+        });
+    }
     if include_edits && output_name != "json" {
         return Err(ArgsError::NeedsJson {
             option: "--include-edits",
@@ -719,6 +725,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         build_slots,
         poll,
         include_edits,
+        max_findings,
         unsafe_fixes,
         min_coverage,
         min_changed_line_coverage,

@@ -45,6 +45,9 @@ Options:
       --include-edits
           Include full edits in JSON change records (needs --output json)
 
+      --max-findings <n>
+          Print at most this many findings per tool in JSON output (default 50, 0 for no limit)
+
       --apply
           Apply the changes instead of only showing them
 

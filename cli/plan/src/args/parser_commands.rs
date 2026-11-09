@@ -1305,3 +1305,18 @@ fn update_add_missing_needs_apply_and_network() {
         assert!(parse(&strings(&words)).is_err(), "{words:?}");
     }
 }
+
+#[test]
+fn max_findings_needs_json_output() {
+    for command in ["lint", "typecheck", "format", "check"] {
+        match parse(&strings(&[command, "--max-findings=5"])) {
+            Err(ArgsError::NeedsJson { option }) => assert_eq!(option, "--max-findings"),
+            other => panic!("dx {command} gave {other:?} instead of NeedsJson"),
+        }
+        let words = [command, "--max-findings", "5", "--output=json"];
+        let invocation = parse(&strings(&words)).expect("json accepts --max-findings");
+        assert_eq!(invocation.max_findings, Some(5), "{words:?}");
+        let invocation = parse(&strings(&[command, "--output=json"])).expect("json alone parses");
+        assert_eq!(invocation.max_findings, None, "{command}");
+    }
+}

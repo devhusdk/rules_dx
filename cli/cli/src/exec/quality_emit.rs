@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use dx_output::{
-    ChangeEffect, ChangeKind, DiagnosticEvent, FindingRecord, OutputMode, Position, Resolution,
-    Snapshot, Span, change_value, finding_value, refusal_value,
+    ChangeEffect, ChangeKind, DiagnosticEvent, FindingRecord, NoticeEvent, OutputMode, Position,
+    Resolution, Snapshot, Span, change_value, finding_value, notice_event, refusal_value,
 };
 
 use super::common::{
-    FileChange, REASON_INCOMPLETE_COLLECTION, change_event_for, check_stdout_write, emit_event,
-    text_finding,
+    FileChange, REASON_INCOMPLETE_COLLECTION, change_event_for, check_stdout_write, emit_built,
+    emit_event, text_finding,
 };
 use super::quality_reconcile::Conflict;
 use super::quality_reports::Snapshots;
@@ -32,6 +32,27 @@ pub(crate) struct EmitInputs<'a> {
 pub(crate) struct EmitCounts {
     pub(crate) applied_count: u64,
     pub(crate) not_applied_count: u64,
+    pub(crate) findings_omitted: u64,
+}
+
+/// Findings per tool a JSON run prints when `--max-findings` is not given.
+const DEFAULT_MAX_FINDINGS: u32 = 50;
+
+/// Keeps the first `limit` records of each tool and says how many it dropped; 0 keeps all.
+fn cap_per_tool(records: Vec<FindingRecord>, limit: u32) -> (Vec<FindingRecord>, BTreeMap<String, u64>) {
+    let mut seen: BTreeMap<String, u64> = BTreeMap::new();
+    let mut omitted: BTreeMap<String, u64> = BTreeMap::new();
+    let mut kept = Vec::new();
+    for record in records {
+        let count = seen.entry(record.diagnostic.tool.clone()).or_insert(0);
+        *count += 1;
+        if limit == 0 || *count <= u64::from(limit) {
+            kept.push(record);
+        } else {
+            *omitted.entry(record.diagnostic.tool.clone()).or_insert(0) += 1;
+        }
+    }
+    (kept, omitted)
 }
 
 fn span_of(
@@ -150,6 +171,7 @@ pub(crate) fn emit_findings(
     } = inputs;
     let mut applied_count = 0u64;
     let mut not_applied_count = 0u64;
+    let mut findings_omitted = 0u64;
     if request.common.output == OutputMode::Json {
         let mutating = request.applies();
         let resolved: Vec<DiagnosticEvent> = status
@@ -170,8 +192,29 @@ pub(crate) fn emit_findings(
                 event_diagnostic
             })
             .collect();
-        for record in finding_records(&resolved, snapshots, original_digests, terminal_digests) {
-            emit_event(out, &finding_value(&record))?;
+        let records = finding_records(&resolved, snapshots, original_digests, terminal_digests);
+        let limit = request.common.max_findings.unwrap_or(DEFAULT_MAX_FINDINGS);
+        let (records, omitted) = cap_per_tool(records, limit);
+        for record in &records {
+            emit_event(out, &finding_value(record))?;
+        }
+        findings_omitted = omitted.values().sum();
+        if findings_omitted > 0 {
+            let tools: Vec<String> = omitted
+                .iter()
+                .map(|(tool, count)| format!("{tool}: {count}"))
+                .collect();
+            let notice = NoticeEvent {
+                related_command: Some(request.command.name().to_owned()),
+                ..NoticeEvent::info(
+                    "findings_truncated",
+                    format!(
+                        "{findings_omitted} finding(s) left out ({}); the command_finished counts are exact. Raise --max-findings or write a SARIF report with --report sarif=<dest> to see them.",
+                        tools.join(", ")
+                    ),
+                )
+            };
+            emit_built(out, notice_event(&notice))?;
         }
         let include_edits = request.common.include_edits;
         for change in changes {
@@ -262,6 +305,7 @@ pub(crate) fn emit_findings(
     Ok(EmitCounts {
         applied_count,
         not_applied_count,
+        findings_omitted,
     })
 }
 
@@ -271,5 +315,38 @@ fn human_line(human: &mut dyn Write, required: bool, line: &str) -> Result<(), i
         check_stdout_write(result)
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use dx_output::Severity;
+
+    fn record(tool: &str, n: u64) -> FindingRecord {
+        FindingRecord {
+            diagnostic: DiagnosticEvent::new(Severity::Warning, tool, format!("finding {n}")),
+            span: None,
+            related_spans: Vec::new(),
+            count: 1,
+        }
+    }
+
+    #[test]
+    fn the_cap_applies_to_each_tool_and_counts_what_it_drops() {
+        let mut records: Vec<FindingRecord> = (0..120).map(|n| record("ruff", n)).collect();
+        records.extend((0..3).map(|n| record("clippy", n)));
+        let (kept, omitted) = cap_per_tool(records, 50);
+        assert_eq!(kept.len(), 53);
+        assert_eq!(omitted.get("ruff"), Some(&70));
+        assert!(omitted.get("clippy").is_none());
+    }
+
+    #[test]
+    fn zero_keeps_every_finding() {
+        let records: Vec<FindingRecord> = (0..120).map(|n| record("ruff", n)).collect();
+        let (kept, omitted) = cap_per_tool(records, 0);
+        assert_eq!(kept.len(), 120);
+        assert!(omitted.is_empty());
     }
 }

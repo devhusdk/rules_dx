@@ -1,5 +1,5 @@
 {
-  "checksum": "4da2048d6d79be61f3b8d173df485d33fa3b524b5119a1058276b987427ce48b",
+  "checksum": "694e1db7dc9b3d737a9ee44a716764ce1bf3ecd4a56e0c9ebfb81143415afdc1",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1737,6 +1737,19 @@
         }
       ],
       "version": "1.8.3"
+    },
+    "bazelisk_wrapper 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "bazelisk_wrapper",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "beef 0.5.2": {
       "common_attrs": {
@@ -6958,6 +6971,19 @@
       ],
       "version": "0.0.0"
     },
+    "dotnet_docs_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dotnet_docs_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "dotnet_extract 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -11303,6 +11329,19 @@
       ],
       "version": "0.4.20"
     },
+    "go_docs_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "go_docs_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "go_extract 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -12496,6 +12535,19 @@
         }
       ],
       "version": "2.3.1"
+    },
+    "ide_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ide_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "idea 0.5.1": {
       "common_attrs": {
@@ -18436,6 +18488,19 @@
       ],
       "version": "1.0.107"
     },
+    "process_probe 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "process_probe",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "proptest 1.11.0": {
       "common_attrs": {
         "crate_features": [
@@ -18573,6 +18638,19 @@
         }
       ],
       "version": "0.13.5"
+    },
+    "python_docs_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "python_docs_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "python_extract 0.0.0": {
       "common_attrs": {
@@ -20424,6 +20502,19 @@
         }
       ],
       "version": "0.9.10"
+    },
+    "ruby_docs_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ruby_docs_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "ruby_extract 0.0.0": {
       "common_attrs": {
@@ -22984,6 +23075,19 @@
           }
         }
       ],
+      "version": "0.0.0"
+    },
+    "site_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "site_tests",
+      "repository": null,
+      "targets": [],
       "version": "0.0.0"
     },
     "slab 0.4.12": {
@@ -25764,6 +25868,19 @@
         }
       ],
       "version": "1.20.1"
+    },
+    "typescript_docs_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "typescript_docs_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "typescript_extract 0.0.0": {
       "common_attrs": {
@@ -29192,6 +29309,7 @@
   ],
   "workspace_members": {
     "appimage_packer 0.0.0": "appimage/appimage_packer",
+    "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "bench_fixture 0.0.0": "rust/tests/fixtures/bench_fixture",
     "cc_context 0.0.0": "cc/cc_context",
     "ci_coverage_cells 0.0.0": "tools/ci/ci_coverage_cells",
@@ -29209,6 +29327,7 @@
     "docs_powershell 0.0.0": "tools/docs/docs_powershell",
     "docs_rust 0.0.0": "tools/docs/docs_rust",
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
+    "dotnet_docs_tests 0.0.0": "tools/docs/dotnet_docs_tests",
     "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
@@ -29264,12 +29383,16 @@
     "env_stubs 0.0.0": "env/env_stubs",
     "fuzz_fixture 0.0.0": "rust/tests/fixtures/fuzz_fixture",
     "generation_result 0.0.0": "generation/generation_result",
+    "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "hello 0.0.0": "rust/tests/fixtures/hello",
+    "ide_tests 0.0.0": "tools/ide_tests",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
     "native_call 0.1.0": "rust/tests/fixtures/native_call",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
+    "process_probe 0.0.0": "tools/testing/process_probe",
+    "python_docs_tests 0.0.0": "tools/docs/python_docs_tests",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
     "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",
     "quality_adapter 0.0.0": "quality/quality_adapter",
@@ -29278,15 +29401,18 @@
     "quality_result 0.0.0": "quality/quality_result",
     "quality_runner 0.0.0": "quality/quality_runner",
     "repin_all 0.0.0": "tools/repin_all",
+    "ruby_docs_tests 0.0.0": "tools/docs/ruby_docs_tests",
     "ruby_extract 0.0.0": "tools/docs/ruby/ruby_extract",
     "rust_extract 0.0.0": "tools/docs/rust/rust_extract",
     "site_aggregate 0.0.0": "tools/docs/site/site_aggregate",
     "site_browser 0.0.0": "tools/docs/site/site_browser",
     "site_build 0.0.0": "tools/docs/site/site_build",
     "site_check 0.0.0": "tools/docs/site/site_check",
+    "site_tests 0.0.0": "tools/docs/site_tests",
     "starter_scaffold 0.0.0": "tools/testing/starter_scaffold",
     "support_matrix 0.0.0": "tools/docs/support_matrix",
     "tiers 0.0.0": "tools/docs/tiers",
+    "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract"
   }
 }

@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "process_probe"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "process_probe"
+path = "src/main.rs"
+
+[[test]]
+name = "process_probe_test"
+path = "probe_test.rs"

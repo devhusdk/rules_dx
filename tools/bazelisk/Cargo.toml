@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "bazelisk_wrapper"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "fake_bazel"
+path = "fake_bazel.rs"
+
+[[test]]
+name = "wrapper_test"
+path = "wrapper_test.rs"

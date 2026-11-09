@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -15,6 +16,13 @@ exports_files(
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/python_docs_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "extract_test",
+    crate_root = "extract_test.rs",
     data = [
         "//tools/docs/python/fixture:mylib_docs",
         "//tools/docs/python/fixture:npylib_docs",
@@ -40,4 +48,10 @@ real_source_target(
         "shard.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

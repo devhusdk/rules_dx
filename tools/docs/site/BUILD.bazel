@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -104,6 +105,12 @@ rust_test(
         "browser_test.rs",
         "preview_server.rs",
     ],
+    aliases = aliases(
+        package_name = "tools/docs/site_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "browser_test",
     crate_root = "browser_test.rs",
     data = [
         ":user_site",
@@ -135,6 +142,12 @@ rust_test(
         "deploy_smoke_test.rs",
         "preview_server.rs",
     ],
+    aliases = aliases(
+        package_name = "tools/docs/site_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "deploy_smoke_test",
     crate_root = "deploy_smoke_test.rs",
     data = [
         ":user_site",
@@ -163,6 +176,13 @@ rust_test(
 rust_test(
     name = "serve_test",
     srcs = ["serve_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/site_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "serve_test",
+    crate_root = "serve_test.rs",
     data = [":user_site"],
     env = {"DX_USER_SITE": "$(rootpath :user_site)"},
     tags = ["no-coverage"],
@@ -176,6 +196,13 @@ rust_test(
 rust_test(
     name = "rendered_site_test",
     srcs = ["rendered_site_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/site_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "rendered_site_test",
+    crate_root = "rendered_site_test.rs",
     data = [
         ":demo_changed_site",
         ":demo_polyglot_site",
@@ -203,6 +230,13 @@ rust_test(
 rust_test(
     name = "site_check_test",
     srcs = ["site_check_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/site_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "site_check_test",
+    crate_root = "site_check_test.rs",
     data = ["//tools/docs/site/check:site_check"],
     env = {"DX_SITE_CHECK": "$(rootpath //tools/docs/site/check:site_check)"},
     tags = ["no-coverage"],
@@ -278,5 +312,6 @@ real_source_target(
     toml_srcs = [
         "demo/book.toml",
         "user/book.toml",
+        "Cargo.toml",
     ],
 )

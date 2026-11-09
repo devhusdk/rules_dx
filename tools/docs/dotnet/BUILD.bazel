@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -18,6 +19,13 @@ exports_files(
 rust_test(
     name = "extract_test",
     srcs = ["extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/dotnet_docs_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "extract_test",
+    crate_root = "extract_test.rs",
     data = [
         "//tools/docs/dotnet/fixture/csharp:ledger_docs",
         "//tools/docs/dotnet/fixture/csharp:ledger_extra_docs",
@@ -36,6 +44,13 @@ rust_test(
 rust_test(
     name = "fsharp_extract_test",
     srcs = ["fsharp_extract_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/dotnet_docs_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "fsharp_extract_test",
+    crate_root = "fsharp_extract_test.rs",
     data = [
         "//tools/docs/dotnet/fixture/fsharp:ledger_docs",
         "//tools/docs/dotnet/fixture/fsharp:ledger_extra_docs",
@@ -59,4 +74,10 @@ real_source_target(
         "shard.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

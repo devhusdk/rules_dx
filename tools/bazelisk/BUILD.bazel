@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
@@ -9,17 +10,30 @@ real_source_target(
     tags = ["corpus"],
 )
 
-# keep: not in Cargo.toml; Gazelle would delete it
 rust_binary(
     name = "fake_bazel",
     testonly = True,
     srcs = ["fake_bazel.rs"],
+    aliases = aliases(
+        package_name = "tools/bazelisk_wrapper",
+        normal = True,
+    ),
+    crate_name = "fake_bazel",
+    crate_root = "fake_bazel.rs",
     target_compatible_with = ["@platforms//os:windows"],
+    deps = [],
 )
 
 rust_test(
     name = "wrapper_test",
     srcs = ["wrapper_test.rs"],
+    aliases = aliases(
+        package_name = "tools/bazelisk_wrapper",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "wrapper_test",
+    crate_root = "wrapper_test.rs",
     data = [
         "wrapper/bazel.ps1",
         ":fake_bazel",
@@ -33,4 +47,10 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
     ],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

@@ -178,7 +178,7 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     let security = read("DX_SETS_SECURITY");
     assert!(
         security.contains("failed to assess pypi-frontend")
-            && security.contains(".dx/local/advisory/pypi.json"),
+            && security.contains("no `advisory pypi` line in .dx/pins"),
         "audit checks configured uv sets against the PyPI snapshot: {security}"
     );
     for covered in ["pypi-frontend", "gems", "web", "pypi-worker"] {
@@ -207,7 +207,8 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     );
     let ruby = read("DX_SETS_SECURITY_RUBY");
     assert!(
-        ruby.contains("failed to assess gems") && ruby.contains(".dx/local/advisory/rubygems.json"),
+        ruby.contains("failed to assess gems")
+            && ruby.contains("no `advisory rubygems` line in .dx/pins"),
         "audit checks configured ruby sets against the RubyGems snapshot: {ruby}"
     );
     assert!(
@@ -216,16 +217,13 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     );
     let edit = read("DX_SETS_EDIT_PINNED");
     assert!(
-        edit.contains(
-            "update is not supported for ecosystem ruby set gems \
-(supported operations: audit; check and update report pinned)"
-        ),
-        "edit names the pinned operations: {edit}"
+        edit.contains("update pending: gems:rack 1.0 is not declared in apps/rb/Gemfile"),
+        "edit leaves the configured ruby set undeclared: {edit}"
     );
     let cargo = read("DX_SETS_SECURITY_CARGO");
     assert!(
         cargo.contains("failed to assess crates")
-            && cargo.contains(".dx/local/advisory/cargo.json"),
+            && cargo.contains("no `advisory cargo` line in .dx/pins"),
         "audit checks configured cargo sets against the cargo snapshot: {cargo}"
     );
     assert!(
@@ -235,7 +233,7 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     let cpan = read("DX_SETS_SECURITY_CPAN");
     assert!(
         cpan.contains("failed to assess cpan_deps")
-            && cpan.contains(".dx/local/advisory/cpan.json"),
+            && cpan.contains("no `advisory cpan` line in .dx/pins"),
         "audit checks configured cpan sets against the cpan snapshot: {cpan}"
     );
     assert!(
@@ -245,7 +243,7 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     let swiftpm = read("DX_SETS_SECURITY_SWIFTPM");
     assert!(
         swiftpm.contains("failed to assess swiftpm")
-            && swiftpm.contains(".dx/local/advisory/swifturl.json"),
+            && swiftpm.contains("no `advisory swifturl` line in .dx/pins"),
         "audit checks configured swiftpm sets against the swifturl snapshot: {swiftpm}"
     );
     assert!(
@@ -264,7 +262,7 @@ fn consumer_dependency_sets_audit_and_reject_edit() {
     let composer = read("DX_SETS_SECURITY_COMPOSER");
     assert!(
         composer.contains("failed to assess vendor")
-            && composer.contains(".dx/local/advisory/packagist.json"),
+            && composer.contains("no `advisory packagist` line in .dx/pins"),
         "audit checks configured composer sets against the Packagist snapshot: {composer}"
     );
     assert!(
@@ -364,7 +362,7 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
     );
     assert!(
         !apply.contains("wrote MODULE.bazel\n"),
-        "init leaves a non-empty tree without MODULE.bazel: {apply}"
+        "init keeps the MODULE.bazel of an existing tree: {apply}"
     );
     assert!(
         apply.contains("exit=0"),

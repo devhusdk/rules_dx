@@ -282,12 +282,12 @@ done
 cp "$(location sets_ok/apps/frontend/uv.lock)" "$$orig/consumer_sets_frontend_uv_lock.orig"
 cp "$(location sets_ok/services/worker/uv.lock)" "$$orig/consumer_sets_worker_uv_lock.orig"
 gitleaks="$$(type -P true)"
-if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" > "$(location security_json.txt)" 2>/dev/null; then
+if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$$ok" pypi-frontend > "$(location security_json.txt)" 2>/dev/null; then
   echo "security passed without a PyPI advisory snapshot" >&2
   exit 1
 fi
 grep -q "failed to assess pypi-frontend" "$(location security_json.txt)"
-grep -q ".dx/local/advisory/pypi.json" "$(location security_json.txt)"
+grep -q 'no `advisory pypi` line in .dx/pins' "$(location security_json.txt)"
 if grep -Eq 'no advisory coverage for [^"]*(pypi-frontend|gems|crates|cpan_deps|vendor|web|pypi-worker)' "$(location security_json.txt)"; then
   echo "security reported configured uv, npm, or ruby sets as uncovered" >&2
   exit 1
@@ -297,7 +297,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess web" "$(location security_npm_json.txt)"
-grep -q ".dx/local/advisory/npm.json" "$(location security_npm_json.txt)"
+grep -q 'no `advisory npm` line in .dx/pins' "$(location security_npm_json.txt)"
 if grep -q "no advisory coverage" "$(location security_npm_json.txt)"; then
   echo "security reported a configured npm set as uncovered" >&2
   exit 1
@@ -307,7 +307,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess crates" "$(location security_cargo_json.txt)"
-grep -q ".dx/local/advisory/cargo.json" "$(location security_cargo_json.txt)"
+grep -q 'no `advisory cargo` line in .dx/pins' "$(location security_cargo_json.txt)"
 if grep -q "no advisory coverage" "$(location security_cargo_json.txt)"; then
   echo "security reported a configured cargo set as uncovered" >&2
   exit 1
@@ -329,7 +329,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess vendor" "$(location security_composer_json.txt)"
-grep -q ".dx/local/advisory/packagist.json" "$(location security_composer_json.txt)"
+grep -q 'no `advisory packagist` line in .dx/pins' "$(location security_composer_json.txt)"
 if grep -q "no advisory coverage" "$(location security_composer_json.txt)"; then
   echo "security reported a configured composer set as uncovered" >&2
   exit 1
@@ -351,7 +351,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess gems" "$(location security_ruby_json.txt)"
-grep -q ".dx/local/advisory/rubygems.json" "$(location security_ruby_json.txt)"
+grep -q 'no `advisory rubygems` line in .dx/pins' "$(location security_ruby_json.txt)"
 if grep -q "no advisory coverage" "$(location security_ruby_json.txt)"; then
   echo "security reported a configured ruby set as uncovered" >&2
   exit 1
@@ -361,7 +361,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess cpan_deps" "$(location security_cpan_json.txt)"
-grep -q ".dx/local/advisory/cpan.json" "$(location security_cpan_json.txt)"
+grep -q 'no `advisory cpan` line in .dx/pins' "$(location security_cpan_json.txt)"
 if grep -q "no advisory coverage" "$(location security_cpan_json.txt)"; then
   echo "security reported a configured cpan set as uncovered" >&2
   exit 1
@@ -371,7 +371,7 @@ if DX_GITLEAKS_BIN="$$gitleaks" "$$public" security --output=json --workspace "$
   exit 1
 fi
 grep -q "failed to assess swiftpm" "$(location security_swiftpm_json.txt)"
-grep -q ".dx/local/advisory/swifturl.json" "$(location security_swiftpm_json.txt)"
+grep -q 'no `advisory swifturl` line in .dx/pins' "$(location security_swiftpm_json.txt)"
 if grep -q "no advisory coverage" "$(location security_swiftpm_json.txt)"; then
   echo "security reported a configured swiftpm set as uncovered" >&2
   exit 1
@@ -380,7 +380,7 @@ if "$$public" update gems:rack 1.0 --workspace "$$ok" > "$(location edit_pinned.
   echo "update unexpectedly widened a configured ruby set" >&2
   exit 1
 fi
-grep -q "update is not supported for ecosystem ruby set gems (supported operations: audit; check and update report pinned)" "$(location edit_pinned.txt)"
+grep -q "update pending: gems:rack 1.0 is not declared in apps/rb/Gemfile" "$(location edit_pinned.txt)"
 cmp "$$orig/consumer_sets_gemfile_lock.orig" "$(location sets_ok/apps/rb/Gemfile.lock)"
 "$$public" license --output=json --workspace "$$ok" > "$(location license_json.txt)"
 grep -q audit_license_clean "$(location license_json.txt)"
@@ -444,6 +444,9 @@ checktree="$$root/checktree"
 rm -rf "$$foreign" "$$fortree" "$$checktree"
 mkdir -p "$$foreign" "$$fortree" "$$checktree"
 echo "keep" > "$$fortree/README.md"
+mkdir -p "$$fortree/src"
+echo "keep" > "$$fortree/src/keep.txt"
+echo 'module(name = "mine")' > "$$fortree/MODULE.bazel"
 echo "keep" > "$$checktree/README.md"
 if "$$public" new --apply cpp bad --workspace "$$foreign" > "$(location new_removed.txt)" 2>&1; then
   echo "dx new still runs" >&2
@@ -468,7 +471,7 @@ cmp "$$root/module.orig" "$$foreign/myproj/MODULE.bazel"
 echo "exit=0" >> "$(location init_apply.txt)"
 grep -q "wrote .dx/pins" "$(location init_apply.txt)"
 test -f "$$fortree/.dx/pins"
-test ! -e "$$fortree/MODULE.bazel"
+grep -q 'name = "mine"' "$$fortree/MODULE.bazel"
 if "$$public" init --workspace "$$checktree" > "$(location init_check.txt)" 2>&1; then
   echo "check-mode applied a scaffold" >&2
   exit 1

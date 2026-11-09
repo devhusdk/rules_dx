@@ -2,9 +2,11 @@
 
 load("@rules_dotnet//dotnet:defs.bzl", _fsharp_binary = "fsharp_binary", _fsharp_library = "fsharp_library", _fsharp_test = "fsharp_test")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
+load("@rules_dx//libs/starlark:fuzz_bench.bzl", "merge_tags")
 load("@rules_dx//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_setdefaults", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
+load("//csharp/rules:benchmarkdotnet.bzl", "BENCHMARKDOTNET")
 
 # Set False to tag fsharp tests dx-no-coverage-collector instead of running coverlet.
 FSHARP_COVERAGE_COLLECTOR = True
@@ -92,3 +94,13 @@ def fsharp_test(name, *, srcs = None, visibility = None, **kwargs):
     if srcs == None:
         fail("fsharp_test //" + native.package_name() + ":" + name + " needs srcs")
     dx_wrap_test(name, _fsharp_test, _fsharp_forward_test, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), coverage_collector = FSHARP_COVERAGE_COLLECTOR, **kwargs)
+
+def fsharp_bench(name, srcs, deps = None, tags = None, **kwargs):
+    """An fsharp_test that runs the [<Benchmark>] classes in srcs with BenchmarkDotNet and writes dx-bench.json."""
+    fsharp_test(
+        name = name,
+        srcs = srcs + [Label("//fsharp/rules:BenchMain.fs")],
+        deps = (deps or []) + BENCHMARKDOTNET + [Label("@paket.main//fsharp.core")],
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        **kwargs
+    )

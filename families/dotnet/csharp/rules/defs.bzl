@@ -6,6 +6,7 @@ load("@rules_dx//libs/starlark:fuzz_bench.bzl", "merge_tags")
 load("@rules_dx//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_setdefaults", "dx_warnings_as_errors", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 load("@rules_dx//tools/coverage/dotnet:coverage.bzl", "dx_dotnet_coverage_aspect", "dx_dotnet_coverage_attrs", "dx_dotnet_test_coverage")
+load(":benchmarkdotnet.bzl", "BENCHMARKDOTNET")
 load(":proto.bzl", "csharp_proto_srcs")
 
 _BENCHMARKDOTNET = [Label("@paket.main//benchmarkdotnet"), Label("@paket.main//benchmarkdotnet.annotations")]
@@ -137,7 +138,7 @@ def csharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     csharp_test(
         name = name,
         srcs = srcs + [Label("//csharp/rules:BenchMain.cs")],
-        deps = (deps or []) + _BENCHMARKDOTNET,
+        deps = (deps or []) + BENCHMARKDOTNET,
         tags = merge_tags(tags, "dx-bench", "manual"),
         **kwargs
     )

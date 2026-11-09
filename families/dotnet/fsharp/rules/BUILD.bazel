@@ -8,6 +8,7 @@ load(":defs.bzl", "fsharp_tfm_with_defaults")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "BenchMain.fs",
     "defs.bzl",
 ])
 

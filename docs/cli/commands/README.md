@@ -472,6 +472,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_forward_kwargs` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_tfm_with_defaults` |
+|  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_bench` |
 |  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_tfm_with_defaults` |
 |  |  | `@rules_dx//flatbuffers/rules:defs.bzl` | `flatbuffers_library` |
 |  |  | `@rules_dx//flatbuffers/rules:defs.bzl` | `resolve_root` |

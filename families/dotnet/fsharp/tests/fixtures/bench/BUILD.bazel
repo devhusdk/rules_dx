@@ -1,0 +1,19 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//fsharp/rules:defs.bzl", "fsharp_bench")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_bench(
+    name = "sum_bench",
+    srcs = ["Sum.fs"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

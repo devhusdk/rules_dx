@@ -8,6 +8,7 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "BenchMain.cs",
+    "benchmarkdotnet.bzl",
     "coverage_check.bzl",
     "defs.bzl",
     "proto.bzl",

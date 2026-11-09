@@ -229,6 +229,7 @@ DEAD_CODE = {
 COVERAGE_COLLECTORS = {
     "cc": ["gcov", "llvm-cov"],
     "csharp": ["coverlet"],
+    "cuda": ["llvm-cov"],
     "d": ["ldc --coverage"],
     "dart": ["package:test"],
     "elixir": ["cover"],
@@ -258,6 +259,7 @@ COVERAGE_COLLECTORS = {
 
 # A note on where a row's coverage collector runs.
 COVERAGE_NOTES = {
+    "cuda": "host code only; device code is not covered",
     "fortran": "kcov runs on Linux only",
     "zig": "kcov runs on Linux only",
 }
@@ -267,7 +269,6 @@ NO_COVERAGE = {
     "android": "no dx coverage wiring in the Android rules",
     "apple": "no dx coverage wiring in the Apple rules",
     "astro": "js_test has no dx coverage wiring",
-    "cuda": "cuda_test has no dx coverage wiring",
     "mdx": "js_test has no dx coverage wiring",
     "qt": "no dx coverage wiring in the Qt rules",
     "swift": "no dx coverage wiring in the Swift rules",

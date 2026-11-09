@@ -64,7 +64,11 @@ cuda_library(
   statically.
 - `cuda_binary`: a `cc_binary`. Its `.cu` and `.cuh` sources go through a
   `cuda_library` with the same `cuda_archs`. The other sources compile as C++.
-- `cuda_test`: the same as `cuda_binary`, as a `cc_test`.
+- `cuda_test`: the same as `cuda_binary`, as a `cc_test`. Under
+  `bazel coverage` the host code, including the host side of `.cu` files, is
+  instrumented with llvm-cov through the cuda toolchain's host clang and
+  written as LCOV. Device code (kernels) is not covered. Coverage needs the
+  LLVM host compiler; the gcc toolchain does not write it.
 
 `defines` and `local_defines` on `cuda_binary` and `cuda_test` apply to all
 srcs. `copts` and `features` apply to the host srcs only. `cuda_copts` goes

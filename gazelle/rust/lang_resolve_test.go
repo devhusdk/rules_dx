@@ -228,6 +228,19 @@ func TestCargoImportValidationAndExpressions(t *testing.T) {
 	if err := validateExampleImports(cfg, manifest, targetImports{production: []string{"app_name"}}); err != nil {
 		t.Errorf("example self import rejected: %v", err)
 	}
+	renamedLib := &cargoManifest{
+		packageName: "app-name",
+		targets:     []cargoTarget{{kind: libraryKind, name: "app-name", crateName: "core_api"}},
+	}
+	if self, err := selfImport(renamedLib, "core_api"); err != nil || !self {
+		t.Errorf("selfImport(core_api) = %v, %v, want lib crate name to match", self, err)
+	}
+	if self, _ := selfImport(renamedLib, "app_name"); self {
+		t.Error("selfImport matched the package name instead of the [lib] name")
+	}
+	if !undeclaredImport(renamedLib, "app_name") || undeclaredImport(renamedLib, "core_api") {
+		t.Error("undeclaredImport did not use the [lib] crate name")
+	}
 	bad := &cargoManifest{packageName: "a.b"}
 	if err := validateCargoImports(cfg, bad, libraryKind, targetImports{production: []string{"x"}}); err == nil || !strings.Contains(err.Error(), "not a Cargo crate name") {
 		t.Errorf("bad package name error = %v", err)

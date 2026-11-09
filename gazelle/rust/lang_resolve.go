@@ -68,9 +68,13 @@ func undeclaredImport(manifest *cargoManifest, name string) bool {
 	return err == nil && !self
 }
 
+// selfImport reports whether name is the manifest's own library crate, which
+// can differ from the package name when [lib] sets name.
 func selfImport(manifest *cargoManifest, name string) (bool, error) {
-	self, err := CrateName(manifest.packageName)
-	return name == self, err
+	if _, err := CrateName(manifest.packageName); err != nil {
+		return false, err
+	}
+	return name == manifest.libCrateName(), nil
 }
 
 func noteDeferred(result *targetImports, name string) {

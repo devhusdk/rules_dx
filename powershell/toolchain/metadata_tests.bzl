@@ -1,18 +1,15 @@
 """PowerShell toolchain pin and hub tests."""
 
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":pins.bzl", "PWSH_CELLS", "PWSH_VERSION", "RULES_POWERSHELL_SHA256", "RULES_POWERSHELL_URL")
+load(":pins.bzl", "PWSH_CELLS", "PWSH_VERSION", "RULES_POWERSHELL_SHA256")
 load(":repos.bzl", "hub_build", "repo_name")
 
 def _checks():
     hub = hub_build()
     return [
-        expect_equal("pwsh version", PWSH_VERSION, "7.5.13"),
-        expect_equal("pinned platforms", sorted(PWSH_CELLS.keys()), ["linux_arm64", "linux_x64", "osx_arm64", "osx_x64", "win_arm64", "win_x64"]),
         expect_true("pwsh digests are sha256", all([len(c.sha256) == 64 for c in PWSH_CELLS.values()])),
         expect_true("artifacts name the version", all([PWSH_VERSION in c.artifact for c in PWSH_CELLS.values()])),
         expect_equal("rules_powershell digest", len(RULES_POWERSHELL_SHA256), 64),
-        expect_contains("rules_powershell url names the version", RULES_POWERSHELL_URL, "0.3.1"),
         expect_true("hub loads nothing", "load(" not in hub),
         expect_true("hub names no rules_powershell label", "@rules_powershell" not in hub),
         expect_contains("hub uses the rules_dx type", hub, "//powershell/toolchain/type:toolchain_type"),

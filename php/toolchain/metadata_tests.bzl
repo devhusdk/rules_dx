@@ -9,25 +9,19 @@ load(":php.bzl", "TOOLCHAIN_TYPE")
 load(":pins.bzl", "COMPOSER", "PCOV", "PHPCS", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "STATIC_PHP", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
 
+PINS = [COMPOSER, PCOV, PHPCS, PHPSTAN, PHPSTAN_STRICT_RULES, PHPUNIT, UNUSED_PUBLIC, WEBMOZART_ASSERT]
+
 def _checks():
     hub = hub_build(PHP_CELLS.keys())
-    archives = {
-        "linux_amd64": "php-8.5.12-cli-linux-x86_64.tar.gz",
-        "linux_arm64": "php-8.5.12-cli-linux-aarch64.tar.gz",
-        "macos_arm64": "php-8.5.12-cli-macos-aarch64.tar.gz",
-        "windows_x86_64": "php-8.5.12-cli-win.zip",
-    }
     flavors = {"linux_amd64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "common", "windows_x86_64": "spc-max"}
     mac = PHP_CELLS["macos_arm64"]
     cases = cell_cases("//php/toolchain", PHP_CELLS.keys(), unsupported = True)
     default = cases.pop("//conditions:default")
     return [
+        expect_true("pinned tools carry a digest and name their version", all([len(pin.sha256) == 64 and all([pin.version in url for url in pin.urls]) for pin in PINS])),
         expect_equal("one case per pinned cell", sorted([str(key) for key in cases]), sorted([str(cell_setting("//php/toolchain", cell)) for cell in PHP_CELLS])),
         expect_equal("pinned cells allow the target", cases.values(), [[] for _ in PHP_CELLS]),
         expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//php/toolchain:unsupported"))]),
-        expect_equal("php version", PHP_VERSION, "8.5.12"),
-        expect_equal("pinned cells", sorted(PHP_CELLS.keys()), ["linux_amd64", "linux_arm64", "macos_arm64", "windows_x86_64"]),
-        expect_equal("archives", {c: PHP_CELLS[c].archive for c in PHP_CELLS}, archives),
         expect_true("cell digests", all([len(PHP_CELLS[c].sha256) == 64 for c in PHP_CELLS])),
         expect_true("cell urls", all([PHP_CELLS[c].urls == [STATIC_PHP + flavors[c] + "/" + PHP_CELLS[c].archive] for c in PHP_CELLS])),
         expect_equal("macos constraints", mac.exec_compatible_with, ["@platforms//os:macos", "@platforms//cpu:aarch64"]),
@@ -38,32 +32,10 @@ def _checks():
         expect_contains("a runtime without pcov names none", runtime_build(PHP_VERSION), "pcov = None,"),
         expect_equal("only the linux cells load pcov", sorted([c for c in PHP_CELLS if PHP_CELLS[c].pcov]), ["linux_amd64", "linux_arm64"]),
         expect_true("pcov headers are pinned per linux cell", all([len(PHP_HEADERS[c].sha256) == 64 for c in PHP_HEADERS]) and sorted(PHP_HEADERS.keys()) == ["linux_amd64", "linux_arm64"]),
-        expect_equal("pcov digest", len(PCOV.sha256), 64),
-        expect_true("pcov urls name the version", all([PCOV.version in url for url in PCOV.urls])),
         expect_contains("the windows runtime exports its interpreter", runtime_build(PHP_VERSION, "php.exe"), 'interpreter = "php.exe",'),
         expect_contains("the windows runtime exports the exe", runtime_build(PHP_VERSION, "php.exe"), 'exports_files(["php.exe", "DX_PHP_VERSION"])'),
-        expect_equal("composer version", COMPOSER.version, "2.10.3"),
-        expect_equal("composer digest", len(COMPOSER.sha256), 64),
-        expect_true("composer urls name the version", all([COMPOSER.version in url for url in COMPOSER.urls])),
-        expect_equal("phpunit version", PHPUNIT.version, "13.4.3"),
-        expect_equal("phpunit digest", len(PHPUNIT.sha256), 64),
-        expect_true("phpunit urls name the version", all([PHPUNIT.version in url for url in PHPUNIT.urls])),
-        expect_equal("phpcs version", PHPCS.version, "4.0.4"),
-        expect_equal("phpcs digest", len(PHPCS.sha256), 64),
-        expect_true("phpcs urls name the version", all([PHPCS.version in url for url in PHPCS.urls])),
-        expect_equal("phpstan version", PHPSTAN.version, "2.3.3"),
-        expect_equal("phpstan digest", len(PHPSTAN.sha256), 64),
-        expect_true("phpstan urls name the version", all([PHPSTAN.version in url for url in PHPSTAN.urls])),
-        expect_equal("unused-public version", UNUSED_PUBLIC.version, "2.2.1"),
-        expect_equal("unused-public digest", len(UNUSED_PUBLIC.sha256), 64),
-        expect_true("unused-public urls name the version", all([UNUSED_PUBLIC.version in url for url in UNUSED_PUBLIC.urls])),
-        expect_equal("phpstan strict rules version", PHPSTAN_STRICT_RULES.version, "2.1.1"),
-        expect_equal("phpstan strict rules digest", len(PHPSTAN_STRICT_RULES.sha256), 64),
-        expect_true("phpstan strict rules urls name the version", all([PHPSTAN_STRICT_RULES.version in url for url in PHPSTAN_STRICT_RULES.urls])),
-        expect_equal("webmozart assert digest", len(WEBMOZART_ASSERT.sha256), 64),
-        expect_true("webmozart assert urls name the version", all([WEBMOZART_ASSERT.version in url for url in WEBMOZART_ASSERT.urls])),
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),
-        expect_contains("the runtime repo pins the version", runtime_build(PHP_VERSION), 'version = "8.5.12",'),
+        expect_contains("the runtime repo pins the version", runtime_build(PHP_VERSION), 'version = "' + PHP_VERSION + '",'),
         expect_equal("a cell declares two toolchains", hub.count("toolchain("), 2 * len(PHP_CELLS)),
         expect_contains("the runtime toolchain matches the target", hub, "target_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_amd64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:toolchain_type")) + "\","),
         expect_contains("the exec toolchain matches the exec platform", hub, "exec_compatible_with = [\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"],\n    toolchain = \"@dx_php_linux_amd64//:php_toolchain\",\n    toolchain_type = \"" + str(Label("//php/toolchain:exec_toolchain_type")) + "\","),

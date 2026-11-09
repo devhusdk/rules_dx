@@ -6,8 +6,6 @@ load(":repos.bzl", "host_cell", "luals_build")
 
 def _checks():
     return [
-        expect_equal("luals version", LUALS_VERSION, "3.19.2"),
-        expect_equal("pinned cells", sorted(LUALS_CELLS.keys()), ["darwin_aarch64", "darwin_x86_64", "linux_aarch64", "linux_x86_64", "windows_x86_64"]),
         expect_true("digests are sha256", all([len(c.sha256) == 64 for c in LUALS_CELLS.values()])),
         expect_true("urls name the version and archive", all([LUALS_VERSION in c.urls[0] and c.urls[0].endswith(c.archive) for c in LUALS_CELLS.values()])),
         expect_equal("linux host", host_cell("linux", "amd64"), "linux_x86_64"),

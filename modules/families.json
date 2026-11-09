@@ -892,7 +892,7 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//perl/cpan:extensions.bzl%cpan_dev"
+        "@rules_dx//perl/cpan:extensions.bzl%cpan"
       ],
       "file_extensions": [
         ".pl",

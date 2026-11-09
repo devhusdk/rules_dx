@@ -131,7 +131,7 @@ def zig_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
     }))
     dx_wrap_test(name, _zig_test, _zig_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, coverage_collector = ZIG_COVERAGE_COLLECTOR, **kwargs)
 
-def zig_bench(name, main = None, srcs = None, visibility = None, tags = None, **kwargs):
+def zig_bench(name, *, main = None, srcs = None, visibility = None, tags = None, **kwargs):
     """A ReleaseFast zig_binary plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
     binary = name + "_bin"
     build, run = split_test_kwargs(kwargs)

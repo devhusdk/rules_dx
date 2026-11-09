@@ -109,7 +109,7 @@ def ruby_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     upstream = dict(kwargs, main = main) if main != None else kwargs
     dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def ruby_bench(name, main, srcs = None, data = None, env = None, tags = None, **kwargs):
+def ruby_bench(name, *, main, srcs = None, data = None, env = None, tags = None, **kwargs):
     """A ruby_test run by dx bench: `main` calls DxBench.run with a benchmark-ips block, which writes dx-bench.json."""
     ips = Label("@dx_ruby_bench_gems//:benchmark-ips-2.14.0/lib/benchmark/ips.rb")
     ruby_test(

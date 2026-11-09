@@ -68,7 +68,7 @@ def php_test(name, *, srcs = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, PHP_DEFERRED_SKIP_TAGS, PHP_COMPATIBLE_WITH)
     dx_wrap_test(name, _php_test, _php_forward_test, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(None, srcs), **kwargs)
 
-def php_bench(name, benches, data = None, env = None, tags = None, **kwargs):
+def php_bench(name, *, benches, data = None, env = None, tags = None, **kwargs):
     """A php_test run by dx bench: phpbench runs the `benches` files, one class per file named like the file, and the result is written as dx-bench.json."""
     phar = Label("@dx_phpbench//:phpbench.phar")
     php_test(

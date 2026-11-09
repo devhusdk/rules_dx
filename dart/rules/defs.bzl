@@ -110,7 +110,7 @@ def dart_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def dart_bench(name, main = None, srcs = None, deps = None, tags = None, **kwargs):
+def dart_bench(name, *, main = None, srcs = None, deps = None, tags = None, **kwargs):
     """A dart_test run by dx bench: `main` calls runBenchmarks from package:dx_bench with BenchmarkBase objects, which writes dx-bench.json."""
     dart_test(
         name = name,

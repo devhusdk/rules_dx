@@ -113,7 +113,7 @@ def perl_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     upstream = dict(kwargs, main = main)
     dx_wrap_test(name, _perl_test, _perl_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def perl_bench(name, srcs = None, main = None, deps = None, tags = None, **kwargs):
+def perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json."""
     perl_test(
         name = name,

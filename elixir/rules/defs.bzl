@@ -177,7 +177,7 @@ def elixir_test(name, *, srcs = None, visibility = None, **kwargs):
     apps = {"apps": kwargs["deps"]} if kwargs.get("deps") else None
     dx_wrap_test(name, _ex_unit_test, _ex_unit_forward_test, helper_first(srcs), visibility = visibility, upstream_kwargs = upstream, extra_forward_kwargs = apps, **kwargs)
 
-def elixir_bench(name, srcs, tags = None, deps = None, **kwargs):
+def elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs):
     """elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-bench.json."""
     elixir_test(
         name = name,

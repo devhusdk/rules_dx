@@ -1,0 +1,119 @@
+# gazelle:dx_ignore_import python dxlinked
+# gazelle:dx_ignore_import python dxnative
+# gazelle:dx_ignore_import python python
+
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
+load("@rules_python//python/cc:py_extension.bzl", "py_extension")
+load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_test")
+load("@rules_dx//python/rules:defs.bzl", "python_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+py_extension(
+    name = "dxnative",
+    srcs = ["dxnative.cc"],
+    imports = ["."],
+)
+
+cc_library(
+    name = "dxhelper",
+    srcs = ["dxhelper.cc"],
+)
+
+cc_shared_library(
+    name = "dxhelper_shared",
+    deps = [":dxhelper"],
+)
+
+py_extension(
+    name = "dxlinked",
+    srcs = ["dxlinked.cc"],
+    dynamic_deps = [":dxhelper_shared"],
+    imports = ["."],
+    deps = [":dxhelper"],
+)
+
+python_test(
+    name = "native_ext_test",
+    testonly = True,
+    srcs = ["native_ext_test.py"],
+    data = select({
+        "@platforms//os:windows": ["@msvc_runtime//:vc_redist"],
+        "//conditions:default": [],
+    }),
+    env = select({
+        "@rules_cc//cc/compiler:clang": {"DX_EXPECTED_COMPILER": "clang"},
+        "@rules_cc//cc/compiler:gcc": {"DX_EXPECTED_COMPILER": "gcc"},
+        "@rules_cc//cc/compiler:msvc-cl": {"DX_EXPECTED_COMPILER": "msvc"},
+        "@rules_cc//cc/compiler:clang-cl": {"DX_EXPECTED_COMPILER": "clang-cl"},
+    }) | select({
+        "@platforms//os:windows": {"DX_VC_REDIST": "$(rlocationpaths @msvc_runtime//:vc_redist)"},
+        "//conditions:default": {},
+    }),
+    imports = ["."],
+    runner = "plain",
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:windows": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        ":dxlinked",
+        ":dxnative",
+    ] + select({
+        "@platforms//os:windows": ["@rules_python//python/runfiles"],
+        "//conditions:default": [],
+    }),
+)
+
+cc_toolchain_test(
+    name = "native_ext_gcc_test",
+    compiler = "gcc",
+    target_compatible_with = ["@platforms//os:linux"],
+    test = ":native_ext_test",
+)
+
+cc_toolchain_test(
+    name = "native_ext_msvc_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_ext_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_cpp",
+    testonly = True,
+    cpp_srcs = [
+        "dxhelper.cc",
+        "dxlinked.cc",
+        "dxnative.cc",
+    ],
+    tags = ["corpus"],
+)
+
+cc_library(
+    name = "native_ext",
+    testonly = True,
+    srcs = [
+        "dxhelper.cc",
+        "dxlinked.cc",
+        "dxnative.cc",
+    ],
+    deps = ["@rules_python//python/cc:current_py_cc_headers"],  # keep
+)

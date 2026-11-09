@@ -5,14 +5,10 @@ load("//modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_HUB = 
 load("//modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
 
 _UV_PROJECTS_BLOCK = """UV_PROJECTS = [
-    "//python/tests/fixtures/hello:pyproject.toml",
-    "//python/tests/fixtures/python-service:pyproject.toml",
     "//quality/tools/python:pyproject.toml",
 ]"""
 
 _UV_LOCKS_BLOCK = """UV_LOCKS = [
-    "//python/tests/fixtures/hello:uv.lock",
-    "//python/tests/fixtures/python-service:uv.lock",
     "//quality/tools/python:uv.lock",
 ]"""
 
@@ -58,29 +54,23 @@ def python_runtime_unit_tests(name):
                 "dx_pypi",
             ),
             expect_equal(
-                "wheel projects stay hello and ledger",
+                "wheel projects stay the quality tools",
                 _MOD_PY_PROJECTS,
                 [
-                    "//python/tests/fixtures/hello:pyproject.toml",
-                    "//python/tests/fixtures/python-service:pyproject.toml",
                     "//quality/tools/python:pyproject.toml",
                 ],
             ),
             expect_equal(
-                "wheel locks stay hello and ledger",
+                "wheel locks stay the quality tools",
                 _MOD_PY_LOCKS,
                 [
-                    "//python/tests/fixtures/hello:uv.lock",
-                    "//python/tests/fixtures/python-service:uv.lock",
                     "//quality/tools/python:uv.lock",
                 ],
             ),
             expect_equal(
-                "repin dirs stay hello and ledger",
+                "repin dirs stay the quality tools",
                 _MOD_PY_REPIN,
                 [
-                    "python/tests/fixtures/hello",
-                    "python/tests/fixtures/python-service",
                     "quality/tools/python",
                 ],
             ),
@@ -90,7 +80,7 @@ def python_runtime_unit_tests(name):
         },
         file_checks = {
             "//:MODULE.bazel": "python_version = \"3.12\"",
-            "//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
+            "@rules_dx_python//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
             "//quality/tools/python:pyproject.toml": "requires-python = \">=3.12\"",
         },
     )

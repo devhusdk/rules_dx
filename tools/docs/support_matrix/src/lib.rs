@@ -216,6 +216,7 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_lua",
         "@rules_dx_msix",
         "@rules_dx_perl",
+        "@rules_dx_python",
         "@rules_dx_php",
         "@rules_dx_powershell",
         "@rules_dx_ruby",

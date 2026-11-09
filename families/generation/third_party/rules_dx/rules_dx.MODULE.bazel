@@ -74,6 +74,7 @@ archive_override(
         "//third_party/rules_dx:rules_py.pep517_msvc.patch",
         "//third_party/rules_dx:rules_py.venv_bin_files.patch",
         "//third_party/rules_dx:rules_py.host_interpreter_windows_arm64.patch",
+        "//third_party/rules_dx:rules_py.external_repo_pytest_paths.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
@@ -156,4 +157,14 @@ single_version_override(
         "//third_party/rules_dx:windows_support.source_directory_headers.patch",
     ],
     version = "0.4.1",
+)
+
+single_version_override(
+    module_name = "rules_swift",
+    patch_strip = 1,
+    patches = [
+        "//third_party/rules_dx:rules_swift.toolchain_sysroot_env.patch",
+        "//third_party/rules_dx:rules_swift.non_root_toolchain.patch",
+    ],
+    version = "4.2.2",
 )

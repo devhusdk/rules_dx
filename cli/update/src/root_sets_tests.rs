@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 36] = [
+const EXPECTED_NAMES: [&str; 31] = [
     "d_app_dub",
     "dart_apitool_deps",
     "dub_fixture",
@@ -23,13 +23,8 @@ const EXPECTED_NAMES: [&str; 36] = [
     "dx_npm_tools",
     "dx_perl_cpan",
     "dx_pypi-grpc",
-    "dx_pypi-hello",
     "dx_pypi-python",
-    "dx_pypi-python-service",
     "dx_pypi-sqlfluff",
-    "dx_pypi_rust_sdist-rust_sdist",
-    "dx_pypi_sdist-sdist_native",
-    "dx_pypi_sdist_nodeps-nodeps",
     "dx_quality_crates",
     "dx_scala3_test",
     "dx_scalafix",

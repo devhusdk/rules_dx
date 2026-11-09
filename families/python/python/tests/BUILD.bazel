@@ -1,0 +1,66 @@
+# gazelle:dx_ignore_import python rpds
+
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_test")
+load("@rules_dx//python/rules:defs.bzl", "python_test")
+load(":soabi_tests.bzl", "soabi_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+# Outcome: rpds-py 2026.9.1 builds from its sdist offline with rustc 1.99.1.
+# CARGO_HOME points at the vendored crates because maturin does not pass
+# --config to cargo metadata.
+# aspect-build/rules_py#1526 vendors crates upstream; drop sdist_cargo_vendor in #6817.
+python_test(
+    name = "rust_sdist_test",
+    srcs = ["rust_sdist_test.py"],
+    data = ["@dx_rust_sdist_crates//:.cargo/config.toml"],
+    dep_group = "rust_sdist",
+    env = {"CARGO_CONFIG": "$(rlocationpath @dx_rust_sdist_crates//:.cargo/config.toml)"},
+    imports = ["."],
+    main = "rust_sdist_test.py",
+    runner = "plain",
+    target_compatible_with = select({
+        "@platforms//os:linux": ["@platforms//cpu:x86_64"],
+        "@platforms//os:windows": ["@platforms//cpu:x86_64"],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = ["@rust_sdist_pypi//rpds_py"],
+)
+
+# rustc's x86_64-pc-windows-msvc target links with link.exe from the MSVC env
+# that the sdist build action sets up.
+cc_toolchain_test(
+    name = "rust_sdist_msvc_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":rust_sdist_test",
+)
+
+[
+    soabi_test(
+        name = "soabi_{}_test".format(name),
+        soabi = soabi,
+        target_under_test = "@python_3_12_{}//:py_cc_toolchain".format(repo),
+    )
+    for name, repo, soabi in [
+        ("linux_x86_64", "x86_64_unknown_linux_gnu", "cpython-312-x86_64-linux-gnu"),
+        ("linux_aarch64", "aarch64_unknown_linux_gnu", "cpython-312-aarch64-linux-gnu"),
+        ("darwin_arm64", "aarch64_apple_darwin", "cpython-312-darwin"),
+        ("windows_x86_64", "x86_64_pc_windows_msvc", "cp312-win_amd64"),
+    ]
+]
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "soabi_tests.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

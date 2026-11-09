@@ -1,6 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
+    "external_repo_pytest_paths.patch",
     "host_interpreter_windows_arm64.patch",
     "native_sdist_toolchain_flags.patch",
     "pep517_msvc.patch",

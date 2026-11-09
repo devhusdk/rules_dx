@@ -375,6 +375,12 @@ local_path_override(
     path = "families/lua",
 )
 
+bazel_dep(name = "rules_dx_python", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_python",
+    path = "families/python",
+)
+
 bazel_dep(name = "rules_dx_powershell", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_powershell",
@@ -1349,6 +1355,7 @@ archive_override(
         "//patches/rules_py:pep517_msvc.patch",
         "//patches/rules_py:venv_bin_files.patch",  # upstream: https://github.com/aspect-build/rules_py/pull/1670
         "//patches/rules_py:host_interpreter_windows_arm64.patch",  # upstream: https://github.com/aspect-build/rules_py/issues/1676
+        "//patches/rules_py:external_repo_pytest_paths.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
@@ -1497,16 +1504,6 @@ uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(hub_name = "dx_pypi")
 uv.project(
     hub_name = "dx_pypi",
-    lock = "//python/tests/fixtures/python-service:uv.lock",
-    pyproject = "//python/tests/fixtures/python-service:pyproject.toml",
-)
-uv.project(
-    hub_name = "dx_pypi",
-    lock = "//python/tests/fixtures/hello:uv.lock",
-    pyproject = "//python/tests/fixtures/hello:pyproject.toml",
-)
-uv.project(
-    hub_name = "dx_pypi",
     lock = "//quality/tools/python:uv.lock",
     pyproject = "//quality/tools/python:pyproject.toml",
 )
@@ -1521,68 +1518,6 @@ uv.project(
     pyproject = "//gazelle/protobuf/tests/grpc:pyproject.toml",
 )
 use_repo(uv, pypi = "dx_pypi")
-
-# Dev-only. Remove this block and the sdist_cargo_vendor block below in #6817 once rules_py ships #1526.
-uv_rust = use_extension("@rules_py//uv:extensions.bzl", "uv", dev_dependency = True)
-uv_rust.declare_hub(hub_name = "dx_pypi_rust_sdist")
-uv_rust.project(
-    default_build_dependencies = [
-        "build",
-        "maturin",
-    ],
-    hub_name = "dx_pypi_rust_sdist",
-    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
-    pyproject = "//python/tests/fixtures/rust_sdist:pyproject.toml",
-)
-uv_rust.override_package(
-    name = "rpds-py",
-    env = {
-        "CARGO_NET_OFFLINE": "true",
-        "CARGO_HOME": "$(EXECROOT)/$(DX_CARGO_VENDOR)/../.cargo",
-    },
-    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
-    toolchains = [
-        "@rules_rust//rust/toolchain:current_rust_toolchain",
-        "@dx_rust_sdist_crates//:layer",
-    ],
-)
-use_repo(uv_rust, rust_sdist_pypi = "dx_pypi_rust_sdist")
-
-sdist_cargo_vendor = use_extension("//python/rules:sdist_cargo_vendor.bzl", "sdist_cargo_vendor", dev_dependency = True)
-sdist_cargo_vendor.crates(
-    name = "dx_rust_sdist_crates",
-    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
-    package = "rpds-py",
-)
-use_repo(sdist_cargo_vendor, "dx_rust_sdist_crates")
-
-# Dev-only hubs for the sdist-only package python-geohash: one builds with a
-# complete set of build tools, the other lacks setuptools.
-uv_sdist = use_extension("@rules_py//uv:extensions.bzl", "uv", dev_dependency = True)
-uv_sdist.declare_hub(hub_name = "dx_pypi_sdist")
-uv_sdist.project(
-    default_build_dependencies = [
-        "build",
-        "setuptools",
-    ],
-    hub_name = "dx_pypi_sdist",
-    lock = "//python/tests/sdist_native:uv.lock",
-    pyproject = "//python/tests/sdist_native:pyproject.toml",
-)
-uv_sdist.declare_hub(hub_name = "dx_pypi_sdist_nodeps")
-uv_sdist.project(
-    default_build_dependencies = ["build"],
-    hub_name = "dx_pypi_sdist_nodeps",
-    lock = "//python/tests/sdist_native/nodeps:uv.lock",
-    pyproject = "//python/tests/sdist_native/nodeps:pyproject.toml",
-)
-use_repo(
-    uv_sdist,
-    "dx_pypi_sdist",
-    "dx_pypi_sdist_nodeps",
-    "sdist_build__sdist_native__python_geohash__0_8_5",
-    "sdist_build__sdist_native_nodeps__python_geohash__0_8_5",
-)
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(

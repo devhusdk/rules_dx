@@ -74,6 +74,7 @@ archive_override(
         "//third_party/rules_dx:rules_py.pep517_msvc.patch",
         "//third_party/rules_dx:rules_py.venv_bin_files.patch",
         "//third_party/rules_dx:rules_py.host_interpreter_windows_arm64.patch",
+        "//third_party/rules_dx:rules_py.external_repo_pytest_paths.patch",
     ],
     strip_prefix = "rules_py-2.0.0-alpha.11",
     urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
@@ -140,6 +141,7 @@ single_version_override(
         "//third_party/rules_dx:llvm.msvc_source_directories.patch",
         "//third_party/rules_dx:llvm.lse_atomic_sources.patch",
         "//third_party/rules_dx:llvm.stage0_runtime_features.patch",
+        "//third_party/rules_dx:llvm.aarch64_outline_atomics.patch",
     ],
     version = "0.8.26",
 )

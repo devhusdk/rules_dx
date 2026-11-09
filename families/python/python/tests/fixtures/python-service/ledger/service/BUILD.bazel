@@ -1,0 +1,41 @@
+load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//python/tests/fixtures/python-service:__subpackages__"])
+
+python_library(
+    name = "service",
+    srcs = [
+        "__init__.py",
+        "server.py",
+    ],
+    imports = ["../.."],
+    deps = ["//python/tests/fixtures/python-service/ledger/core"],
+)
+
+python_test(
+    name = "server_test",
+    srcs = ["server_test.py"],
+    dep_group = "ledger",
+    imports = ["../.."],
+    deps = [
+        ":service",
+        "//python/tests/fixtures/python-service/ledger/core",
+        "@pypi//coverage",
+        "@pypi//pytest",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)
+
+exports_files([
+    "BUILD.bazel",
+    "__init__.py",
+    "server.py",
+    "server_test.py",
+])

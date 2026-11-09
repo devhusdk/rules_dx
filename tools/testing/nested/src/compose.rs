@@ -21,6 +21,7 @@ pub fn rules_py_override() -> String {
         "pep517_msvc",
         "venv_bin_files",
         "host_interpreter_windows_arm64",
+        "external_repo_pytest_paths",
     ]
     .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
     .concat();

@@ -1,0 +1,113 @@
+module(
+    name = "rules_dx_python",
+    version = "0.0.0",
+    bazel_compatibility = [">=9.2.0"],
+)
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+
+include("//third_party/rules_dx:rules_dx.MODULE.bazel")
+
+local_path_override(
+    module_name = "rules_dx",
+    path = "../..",
+)
+
+# floor: equals tested
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.27")
+bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
+bazel_dep(name = "rules_python", version = "2.4.6")
+bazel_dep(name = "rules_rust", version = "0.75.0")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "windows_support", version = "0.4.1")
+
+windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime")
+use_repo(windows_msvc_runtime, "msvc_runtime")
+
+python_interpreters = use_extension("@rules_py//py:extensions.bzl", "python_interpreters")
+use_repo(
+    python_interpreters,
+    "python_3_12_aarch64_apple_darwin",
+    "python_3_12_aarch64_pc_windows_msvc",
+    "python_3_12_aarch64_unknown_linux_gnu",
+    "python_3_12_x86_64_pc_windows_msvc",
+    "python_3_12_x86_64_unknown_linux_gnu",
+)
+
+uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
+uv.declare_hub(hub_name = "dx_pypi_fixtures")
+uv.project(
+    hub_name = "dx_pypi_fixtures",
+    lock = "//python/tests/fixtures/python-service:uv.lock",
+    pyproject = "//python/tests/fixtures/python-service:pyproject.toml",
+)
+uv.project(
+    hub_name = "dx_pypi_fixtures",
+    lock = "//python/tests/fixtures/hello:uv.lock",
+    pyproject = "//python/tests/fixtures/hello:pyproject.toml",
+)
+use_repo(uv, pypi = "dx_pypi_fixtures")
+
+# Dev-only. Remove this block and the sdist_cargo_vendor block below in #6817 once rules_py ships #1526.
+uv_rust = use_extension("@rules_py//uv:extensions.bzl", "uv")
+uv_rust.declare_hub(hub_name = "dx_pypi_rust_sdist")
+uv_rust.project(
+    default_build_dependencies = [
+        "build",
+        "maturin",
+    ],
+    hub_name = "dx_pypi_rust_sdist",
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    pyproject = "//python/tests/fixtures/rust_sdist:pyproject.toml",
+)
+uv_rust.override_package(
+    name = "rpds-py",
+    env = {
+        "CARGO_NET_OFFLINE": "true",
+        "CARGO_HOME": "$(EXECROOT)/$(DX_CARGO_VENDOR)/../.cargo",
+    },
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    toolchains = [
+        "@rules_rust//rust/toolchain:current_rust_toolchain",
+        "@dx_rust_sdist_crates//:layer",
+    ],
+)
+use_repo(uv_rust, rust_sdist_pypi = "dx_pypi_rust_sdist")
+
+sdist_cargo_vendor = use_extension("@rules_dx//python/rules:sdist_cargo_vendor.bzl", "sdist_cargo_vendor")
+sdist_cargo_vendor.crates(
+    name = "dx_rust_sdist_crates",
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    package = "rpds-py",
+)
+use_repo(sdist_cargo_vendor, "dx_rust_sdist_crates")
+
+# Dev-only hubs for the sdist-only package python-geohash: one builds with a
+# complete set of build tools, the other lacks setuptools.
+uv_sdist = use_extension("@rules_py//uv:extensions.bzl", "uv")
+uv_sdist.declare_hub(hub_name = "dx_pypi_sdist")
+uv_sdist.project(
+    default_build_dependencies = [
+        "build",
+        "setuptools",
+    ],
+    hub_name = "dx_pypi_sdist",
+    lock = "//python/tests/sdist_native:uv.lock",
+    pyproject = "//python/tests/sdist_native:pyproject.toml",
+)
+uv_sdist.declare_hub(hub_name = "dx_pypi_sdist_nodeps")
+uv_sdist.project(
+    default_build_dependencies = ["build"],
+    hub_name = "dx_pypi_sdist_nodeps",
+    lock = "//python/tests/sdist_native/nodeps:uv.lock",
+    pyproject = "//python/tests/sdist_native/nodeps:pyproject.toml",
+)
+use_repo(
+    uv_sdist,
+    "dx_pypi_sdist",
+    "dx_pypi_sdist_nodeps",
+    "sdist_build__sdist_native__python_geohash__0_8_5",
+    "sdist_build__sdist_native_nodeps__python_geohash__0_8_5",
+)

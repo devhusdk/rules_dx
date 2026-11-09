@@ -1,0 +1,33 @@
+load("@rules_dx//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("@rules_dx//python/rules:defs.bzl", "python_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+python_library(
+    name = "impl",
+    srcs = ["impl.py"],
+    imports = ["."],
+)
+
+python_library(
+    name = "api",
+    deps = [":impl"],
+)
+
+dx_direct_sources_test(
+    name = "api_sources_test",
+    expected = {},
+    target_under_test = ":api",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

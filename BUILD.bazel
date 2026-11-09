@@ -103,7 +103,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude quality/tools/dotnet/fsharplint
 # gazelle:exclude gazelle
 # gazelle:exclude examples/shared-rust
-# gazelle:exclude python/tests/fixtures/python-service
 # gazelle:exclude swift/tests/fixtures/swift-app
 # gazelle:exclude cc/tests/fixtures/c-app
 # gazelle:exclude cc/tests/fixtures/cpp-app
@@ -116,11 +115,8 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude appimage/tests/fixtures/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
 # gazelle:exclude go/tests/fixtures/hello
-# gazelle:exclude python/tests/fixtures/hello
 # gazelle:exclude go/tests/fixtures/no_srcs
-# gazelle:exclude python/tests/fixtures/no_srcs
 # gazelle:exclude javascript/tests/fixtures/web_app
-# gazelle:exclude python/tests/fixtures/entries
 # gazelle:exclude deploy/rules
 # gazelle:exclude deploy/tests/fixtures
 # gazelle:exclude deploy/tests/cross/cross_app.c

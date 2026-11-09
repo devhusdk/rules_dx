@@ -43,6 +43,7 @@ rust_test(
         "//patches/gomod-parser:glued_comment.patch",
         "//patches/ring:clang_cl_aarch64_windows.patch",
         "//patches/ring:msvc_fiat_include_path.patch",
+        "//patches/rules_py:external_repo_pytest_paths.patch",
         "//patches/rules_py:host_interpreter_windows_arm64.patch",
         "//patches/rules_py:native_sdist_toolchain_flags.patch",
         "//patches/rules_py:pep517_msvc.patch",

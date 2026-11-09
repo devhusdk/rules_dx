@@ -1,0 +1,41 @@
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+# gazelle:ignore
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("@rules_dx//python/rules:defs.bzl", "python_fuzz_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+python_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["parse_fuzz.py"],
+    dep_group = "hello",
+    main = "parse_fuzz.py",
+    deps = ["@pypi//atheris"],
+)
+
+sh_test(
+    name = "parse_fuzz_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :parse_fuzz)"],
+    data = [
+        ":parse_fuzz",
+        "@rules_dx//libs/starlark:fuzz_run.sh",
+    ],
+    target_compatible_with = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    timeout = "short",
+)
+
+dx_runner_attr_test(
+    name = "parse_fuzz_attrs",
+    expected = {
+        "tags": ["dx-fuzz", "manual"],
+        "target_compatible_with": ["@@platforms//os:linux", "@@platforms//cpu:x86_64"],
+    },
+    runner = "parse_fuzz",
+)

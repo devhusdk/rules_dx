@@ -3,7 +3,7 @@ use std::path::Path;
 /// Lock and manifest names dx knows an ecosystem for but no workspace set owns. The flag marks ecosystems that have a set kind; the others show `none` in the Dependencies column of docs/support-matrix.md.
 const UNOWNED_NAMES: &[(&str, &str, bool)] = &[
     ("mix.lock", "hex", true),
-    ("rebar.lock", "hex", false),
+    ("rebar.lock", "hex", true),
     ("pubspec.lock", "pub", true),
     ("composer.lock", "composer", true),
     ("stack.yaml.lock", "hackage", false),

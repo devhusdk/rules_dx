@@ -60,10 +60,38 @@ pub fn outdated(
     found
 }
 
-/// Reads `(package, version)` of every `{:hex, :package, "version", ...}` entry on the
-/// default hexpm repository; git entries and other repositories are skipped.
-fn locked_packages(lock: &str) -> Vec<(String, String)> {
+/// Reads `(package, version)` of every `{pkg,<<"package">>,<<"version">>}` entry of a
+/// rebar.lock; git entries carry no hex release and are skipped.
+fn rebar_packages(lock: &str) -> Vec<(String, String)> {
     let mut out = Vec::new();
+    let mut rest = lock;
+    while let Some(at) = rest.find("{pkg,") {
+        rest = &rest[at + "{pkg,".len()..];
+        let mut names = Vec::new();
+        let mut cursor = rest;
+        while names.len() < 2 {
+            let Some(open) = cursor.find("<<\"") else {
+                break;
+            };
+            let body = &cursor[open + 3..];
+            let Some(close) = body.find("\">>") else {
+                break;
+            };
+            names.push(body[..close].to_owned());
+            cursor = &body[close + 3..];
+        }
+        if let [package, version] = names.as_slice() {
+            out.push((package.clone(), version.clone()));
+        }
+    }
+    out
+}
+
+/// Reads `(package, version)` of every `{:hex, :package, "version", ...}` entry on the
+/// default hexpm repository of a mix.lock, and every pkg entry of a rebar.lock; git entries
+/// and other repositories are skipped.
+fn locked_packages(lock: &str) -> Vec<(String, String)> {
+    let mut out = rebar_packages(lock);
     for line in lock.lines() {
         let Some((_, tuple)) = line.trim().split_once("{:hex,") else {
             continue;
@@ -136,6 +164,18 @@ mod tests {
             _ => return Err(format!("unexpected lookup {name}")),
         }
         .to_owned())
+    }
+
+    #[test]
+    fn rebar_lock_pkg_entries_are_locked_packages() {
+        let lock = "{\"1.2.0\",\n[{<<\"cowboy\">>,{pkg,<<\"cowboy\">>,<<\"2.10.0\">>},0},\n {<<\"g\">>,{git,\"https://x/g.git\",{ref,\"abc\"}},0},\n {<<\"cowlib\">>,{pkg,<<\"cowlib\">>,<<\"2.12.1\">>},1}]}.\n";
+        assert_eq!(
+            locked_packages(lock),
+            [
+                ("cowboy".to_owned(), "2.10.0".to_owned()),
+                ("cowlib".to_owned(), "2.12.1".to_owned())
+            ]
+        );
     }
 
     #[test]

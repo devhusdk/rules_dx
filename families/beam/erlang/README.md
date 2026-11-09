@@ -165,3 +165,13 @@ the `.app.src`, and resolves remote calls, `-behaviour`, `-import` and
 kernel and stdlib go to `extra_apps`. Sources under `c_src` become one
 `erlang_nif` in the same package, wired through `nifs`. Test rules and
 `rebar.config` dependencies are not generated yet.
+
+## Locked Hex packages
+
+`erlang.rebar(name, lock)` in `MODULE.bazel` reads a `rebar.lock` (format
+1.2.0) and declares one `hex_package` per `pkg` entry, checked against the
+`pkg_hash_ext` sha256, plus a hub repository named `name` with one
+`erlang_app` alias per package. Each package depends on every package locked
+at a deeper level. Git entries are refused. The lock also becomes a `hex`
+dependency set for `dx audit` and `dx update`; `dx update` lists newer
+releases but does not refresh a `rebar.lock` yet.

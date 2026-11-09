@@ -37,7 +37,7 @@ function scratchConfig(root, config) {
 	};
 }
 
-async function build(out, config) {
+async function build(out, config, ssrEntry) {
 	if (!out) usage("build requires an output directory");
 	const root = process.cwd();
 	const astro = await import(resolveFromCwd("astro"));
@@ -45,7 +45,11 @@ async function build(out, config) {
 		...scratchConfig(root, config),
 		outDir: path.resolve(root, out),
 	});
-	if (!fs.existsSync(path.resolve(root, out, "index.html"))) {
+	if (ssrEntry) {
+		if (fs.readdirSync(path.resolve(root, out)).length === 0) {
+			usage(`SSR build produced an empty ${out}`);
+		}
+	} else if (!fs.existsSync(path.resolve(root, out, "index.html"))) {
 		usage(`build produced no ${out}/index.html`);
 	}
 }
@@ -53,7 +57,7 @@ async function build(out, config) {
 const [command, ...rest] = process.argv.slice(2);
 switch (command) {
 	case "build":
-		await build(rest[0], rest[1]);
+		await build(rest[0], rest[1], rest[2]);
 		break;
 	default:
 		usage(`unknown command '${command}'; expected build`);

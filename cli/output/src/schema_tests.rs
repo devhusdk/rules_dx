@@ -153,6 +153,8 @@ fn outcome(full: bool) -> TestOutcome {
             name: "n".to_owned(),
             outcome: "failed".to_owned(),
             message: Some("m".to_owned()),
+            file: Some("f.rs".to_owned()),
+            line: Some(3),
         }];
     }
     t

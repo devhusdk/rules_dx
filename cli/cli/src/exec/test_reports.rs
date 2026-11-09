@@ -350,14 +350,51 @@ fn case_message(case: &JunitCase) -> Option<&str> {
     (!text.is_empty()).then_some(text)
 }
 
+/// The first workspace-relative `path:line` in a failure text, such as `foo_test.go:42:` or `(Foo.java:17)`.
+fn text_location(text: &str) -> Option<(String, u64)> {
+    text.split(|c: char| c.is_whitespace() || matches!(c, '(' | ')' | '"' | '\'' | ',' | '<' | '>'))
+        .find_map(|token| {
+            let mut parts = token.split(':');
+            let path = parts.next()?;
+            let line: u64 = parts.next()?.parse().ok()?;
+            let relative = !path.starts_with('/') && !path.starts_with('\\');
+            let named = path
+                .rsplit('/')
+                .next()
+                .is_some_and(|name| name.contains('.'));
+            (relative && named && line > 0).then(|| (path.to_owned(), line))
+        })
+}
+
+/// Where a case failed: the report's `file` and `line` attributes, else the first location in its failure text.
+fn case_location(case: &JunitCase) -> (Option<String>, Option<u64>) {
+    if case.file.is_some() {
+        return (case.file.clone(), case.line);
+    }
+    let note = case.error.as_ref().or(case.failure.as_ref());
+    let found = note.and_then(|note| {
+        note.message
+            .as_deref()
+            .and_then(text_location)
+            .or_else(|| text_location(&note.text))
+    });
+    match found {
+        Some((file, line)) => (Some(file), Some(line)),
+        None => (None, None),
+    }
+}
+
 /// One case read from a result's native report.
 fn test_case(case: &JunitCase) -> TestCase {
     let message = case_message(case).map(|text| bounded(text, CASE_MESSAGE_LIMIT).0);
+    let (file, line) = case_location(case);
     TestCase {
         classname: case.classname.clone(),
         name: case.name.clone(),
         outcome: case_outcome(case).to_owned(),
         message,
+        file,
+        line,
     }
 }
 
@@ -4141,6 +4178,41 @@ mod tests {
             super::evidence_gap(false, &evidence(&[]), "none reported"),
             None
         );
+    }
+
+    fn located(xml: &str) -> Vec<(Option<String>, Option<u64>)> {
+        let cases = dx_plan::reports::parse_test_xml(xml.as_bytes(), 0, 0).expect("cases");
+        cases
+            .iter()
+            .map(|case| {
+                let found = super::test_case(case);
+                (found.file, found.line)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_case_takes_file_and_line_from_the_report_attributes() {
+        let xml = r#"<testsuites><testsuite name="s"><testcase name="a" file="t/a_test.py" line="7"><failure message="x:9: no">trace</failure></testcase></testsuite></testsuites>"#;
+        assert_eq!(located(xml), [(Some("t/a_test.py".to_owned()), Some(7))]);
+    }
+
+    #[test]
+    fn a_case_takes_file_and_line_from_the_failure_message() {
+        let xml = r#"<testsuites><testsuite name="s"><testcase name="a"><failure message="foo_test.go:42: got 1">t</failure></testcase><testcase name="b"><error>at Foo.method(Foo.java:17)</error></testcase></testsuite></testsuites>"#;
+        assert_eq!(
+            located(xml),
+            [
+                (Some("foo_test.go".to_owned()), Some(42)),
+                (Some("Foo.java".to_owned()), Some(17)),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_case_without_a_location_leaves_file_and_line_unset() {
+        let xml = r#"<testsuites><testsuite name="s"><testcase name="a"><failure message="took 12:30:45 at /abs/x.rs:3">t</failure></testcase><testcase name="b"/></testsuite></testsuites>"#;
+        assert_eq!(located(xml), [(None, None), (None, None)]);
     }
 
     #[test]

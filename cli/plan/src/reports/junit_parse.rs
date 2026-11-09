@@ -76,6 +76,11 @@ pub fn parse_test_xml(
                 attempt,
                 run: 0,
                 configuration: None,
+                file: case.extra.get("file").map(|f| f.as_str().to_owned()),
+                line: case
+                    .extra
+                    .get("line")
+                    .and_then(|l| l.as_str().trim().parse().ok()),
             });
         }
     }

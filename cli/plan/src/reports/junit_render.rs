@@ -135,6 +135,8 @@ pub fn junit_infrastructure_case(detail: &str) -> (String, Vec<JunitCase>) {
             shard: 0,
             attempt: 0,
             run: 0,
+            file: None,
+            line: None,
             configuration: None,
         }],
     )
@@ -158,6 +160,8 @@ mod tests {
             shard: 0,
             attempt: 0,
             run: 0,
+            file: None,
+            line: None,
             configuration: None,
         }
     }
@@ -207,6 +211,8 @@ mod tests {
                 shard: 0,
                 attempt: 0,
                 run: 0,
+                file: None,
+                line: None,
                 configuration: None,
             }],
         )])
@@ -351,6 +357,8 @@ mod tests {
                 shard: 0,
                 attempt: 0,
                 run: 0,
+                file: None,
+                line: None,
                 configuration: None,
             }],
         )])

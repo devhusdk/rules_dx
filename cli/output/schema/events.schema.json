@@ -1764,6 +1764,13 @@
               "classname": {
                 "type": "string"
               },
+              "file": {
+                "type": "string"
+              },
+              "line": {
+                "type": "integer",
+                "minimum": 1
+              },
               "message": {
                 "type": "string"
               }

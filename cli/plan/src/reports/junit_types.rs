@@ -12,6 +12,8 @@ pub struct JunitCase {
     pub attempt: u32,
     pub run: u32,
     pub configuration: Option<String>,
+    pub file: Option<String>,
+    pub line: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

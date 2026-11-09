@@ -769,6 +769,8 @@ pub struct TestCase {
     pub name: String,
     pub outcome: String,
     pub message: Option<String>,
+    pub file: Option<String>,
+    pub line: Option<u64>,
 }
 
 /// Failing cases one `test_outcome` event carries before it counts the rest.
@@ -811,6 +813,8 @@ fn case_value(case: &TestCase, message_limit: usize) -> Value {
     opt_str(&mut map, "classname", &case.classname);
     map.insert("name".to_owned(), Value::String(case.name.clone()));
     map.insert("outcome".to_owned(), Value::String(case.outcome.clone()));
+    opt_str(&mut map, "file", &case.file);
+    opt_u64(&mut map, "line", case.line);
     if let Some(message) = &case.message {
         map.insert(
             "message".to_owned(),
@@ -1854,6 +1858,7 @@ mod tests {
                     name: "fails".to_owned(),
                     outcome: "failed".to_owned(),
                     message: Some("boom".to_owned()),
+                    ..TestCase::default()
                 },
             ],
             log_path: Some("/out/test.log".to_owned()),

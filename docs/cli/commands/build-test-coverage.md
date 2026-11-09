@@ -75,7 +75,7 @@ Text ends with `dx: <total> actions, <executed> executed, <cached> cached` on st
 
 Each Bazel failure prints a `dx: build failure:` line with its compiler diagnostics (rustc, clippy, and the gcc-style output of cc, javac, go, kotlinc, scalac, tsc, csc and swiftc). JSON adds a `build_failure` event per failure.
 
-`dx test` prints `dx: failed: //pkg:test: case_a, case_b and 2 more (log: <path>/test.log)` per failed result. JSON adds a `test_outcome` event per result that did not plainly pass.
+`dx test` prints `dx: failed: //pkg:test: case_a, case_b and 2 more (log: <path>/test.log)` per failed result. JSON adds a `test_outcome` event per result that did not plainly pass. Each case in it has `classname`, `name`, `outcome` and `message`, plus `file` and `line` when the report's `file` and `line` attributes or the first workspace-relative `path:line` in the failure text give them. `results.json` cases carry the same fields.
 
 An agent session defaults to `--output=json`. `--output` and `DX_OUTPUT` win.
 

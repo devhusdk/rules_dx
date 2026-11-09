@@ -337,15 +337,18 @@ fn hold_known(pool: &Pool, host: &dyn Host, record: &Record, busy: bool) -> Hold
 
 /// What `surplus_slots` weighs.
 struct SurplusLimit {
-    /// The slot `add` is about to use.
+    /// The slot `add` just used.
     keep: u32,
-    /// The slot count once `add` is done.
+    /// The slots that stay once the stale and broken ones are gone.
     total: usize,
     low_disk: bool,
 }
 
+/// Candidates `surplus_slots` examines beyond the number it needs.
+const SCAN_EXTRA: usize = 4;
+
 /// The oldest slots to delete so the pool fits `Host::max_slots`, or one when the disk is low.
-/// A slot qualifies only when nobody holds it, its tree is clean and every commit is on a remote.
+/// A slot qualifies only when `deletable`; it runs git in each examined slot, so call it without the pool lock.
 fn surplus_slots(
     pool: &Pool,
     host: &dyn Host,
@@ -365,29 +368,68 @@ fn surplus_slots(
     }
     let mut candidates: Vec<&Record> = records
         .iter()
-        .filter(|record| record.slot != limit.keep && !record.broken)
+        .filter(|record| record.slot != limit.keep && !record.held && !record.broken)
         .collect();
     candidates.sort_by_key(|record| (record.last_used, record.slot));
     let mut picked = Vec::new();
-    for record in candidates {
-        if picked.len() == want {
+    for record in candidates.into_iter().take(want + SCAN_EXTRA) {
+        if picked.len() == want || host.interrupted().is_some() {
             break;
         }
-        if pushed_and_idle(pool, host, record) {
+        if deletable(pool, host, record) {
             picked.push(record.slot);
         }
     }
     picked
 }
 
-fn pushed_and_idle(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
-    match hold(pool, host, record) {
-        Hold::Free | Hold::Reclaimable => {}
-        Hold::Alive | Hold::Waiting(_) => return false,
+/// Whether nobody holds the slot, no process or dx command runs in it, nothing is in progress,
+/// the tree holds no file but `bazel-*` links and every commit is on a remote.
+fn deletable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
+    if record.held || record.broken {
+        return false;
     }
     let path = pool.slot_path(record.slot);
-    matches!(git::dirty(&path, &|| host.interrupted()), Ok(false))
-        && matches!(git::unpushed(&path, &|| host.interrupted()), Ok(0))
+    if pool.busy(record.slot) || host.process_in(&path) {
+        return false;
+    }
+    let stop = || host.interrupted();
+    matches!(git::operation_in_progress(&path, &stop), Ok(false))
+        && matches!(git::holds_files(&path, &stop), Ok(false))
+        && matches!(git::unpushed(&path, &stop), Ok(0))
+}
+
+/// Deletes the surplus slots after `add` has switched `keep`: scans without the pool lock, then
+/// takes it and checks each slot again before deleting it.
+fn delete_surplus(pool: &Pool, host: &dyn Host, keep: u32, low_disk: bool) {
+    let records = pool.records();
+    let total = records.iter().filter(|record| !record.broken).count();
+    let picked = surplus_slots(
+        pool,
+        host,
+        &records,
+        &SurplusLimit {
+            keep,
+            total,
+            low_disk,
+        },
+    );
+    if picked.is_empty() {
+        return;
+    }
+    let Ok(_lock) = pool.lock() else {
+        return;
+    };
+    let bases = scan_output_bases(&host.output_roots(&host.servers()));
+    for slot in picked {
+        let Some(record) = pool.record(slot) else {
+            continue;
+        };
+        if slot != keep && deletable(pool, host, &record) {
+            // A slot that cannot be deleted stays recorded as broken.
+            let _ = delete_slot(pool, host, slot, &bases);
+        }
+    }
 }
 
 fn reclaimable(pool: &Pool, host: &dyn Host, record: &Record) -> bool {
@@ -699,7 +741,7 @@ pub(crate) fn lease_locked(
         chosen = first_quiet(pool, &candidates, &mut quiet)?;
         reclaimed = chosen.is_some();
     }
-    let mut stale: Vec<u32> = records
+    let stale: Vec<u32> = records
         .iter()
         .filter(|record| {
             !record.held
@@ -717,21 +759,7 @@ pub(crate) fn lease_locked(
     }
     let _quiet = quiet;
     let low = low_disk(host, &pool.base);
-    let surplus = surplus_slots(
-        pool,
-        host,
-        &records,
-        &SurplusLimit {
-            keep: slot,
-            total: records.len() + usize::from(fresh),
-            low_disk: low.is_some(),
-        },
-    );
-    for number in surplus {
-        if !stale.contains(&number) {
-            stale.push(number);
-        }
-    }
+    let low_now = low.is_some();
     let mut reclaim_warning =
         low.map(|low| reclaim_locked(pool, host, Some(slot), low, &lock).warning);
     let reuse = chosen
@@ -829,6 +857,7 @@ pub(crate) fn lease_locked(
     let mut record = placeholder;
     record.lock_digest = git::lock_digest(&path, "HEAD");
     pool.write(&record)?;
+    delete_surplus(pool, host, slot, low_now);
     Ok(Added {
         slot,
         path,
@@ -1450,7 +1479,10 @@ pub fn list(pool: &Pool, host: &dyn Host, disk: bool) -> Result<Listing, Worktre
             &records,
             &SurplusLimit {
                 keep: 0,
-                total: records.len(),
+                total: records
+                    .iter()
+                    .filter(|record| !record.broken && !prunable.contains(&record.slot))
+                    .count(),
                 low_disk: false,
             },
         );

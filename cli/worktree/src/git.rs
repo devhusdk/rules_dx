@@ -197,6 +197,42 @@ pub(super) fn dirty(
     Ok(status.lines().any(|line| !line.starts_with("?? bazel-")))
 }
 
+/// Whether the checkout has any change, untracked file or ignored file besides `bazel-*` links.
+pub(super) fn holds_files(
+    checkout: &Path,
+    stop: &dyn Fn() -> Option<i32>,
+) -> Result<bool, WorktreeError> {
+    let status = run_until(
+        checkout,
+        &["status", "--porcelain", "--ignored", "--untracked-files=normal"],
+        READ_TIMEOUT,
+        stop,
+    )?;
+    Ok(status
+        .lines()
+        .any(|line| !line.starts_with("?? bazel-") && !line.starts_with("!! bazel-")))
+}
+
+/// Whether a rebase, merge, cherry-pick, revert or bisect is in progress in the checkout.
+pub(super) fn operation_in_progress(
+    checkout: &Path,
+    stop: &dyn Fn() -> Option<i32>,
+) -> Result<bool, WorktreeError> {
+    let dir = run_until(checkout, &["rev-parse", "--absolute-git-dir"], READ_TIMEOUT, stop)?;
+    let dir = PathBuf::from(dir.trim());
+    Ok([
+        "rebase-merge",
+        "rebase-apply",
+        "MERGE_HEAD",
+        "CHERRY_PICK_HEAD",
+        "REVERT_HEAD",
+        "BISECT_LOG",
+        "sequencer",
+    ]
+    .iter()
+    .any(|name| dir.join(name).exists()))
+}
+
 /// How many commits on HEAD are on no remote.
 pub(super) fn unpushed(
     checkout: &Path,

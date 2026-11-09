@@ -742,7 +742,7 @@ flag_group! {
 }
 
 flag_group! {
-    /// Measure disk use per slot (list only, slow).
+    /// Measure disk use per slot and mark slots past DX_WORKTREE_MAX_SLOTS prunable (list only, slow).
     DiskFlag, {
         #[arg(long, overrides_with = "disk")]
         disk: bool,

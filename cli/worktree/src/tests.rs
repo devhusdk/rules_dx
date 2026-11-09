@@ -1192,23 +1192,41 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
     assert!(entry.contains("locked"), "{entry}");
 }
 
+/// Three released slots, oldest first, with room for two.
+fn three_free_slots(pool: &Pool, host: &FakeHost, me: &Who) -> Vec<ops::Added> {
+    let mut slots = Vec::new();
+    for name in ["feature/a", "feature/b", "feature/c"] {
+        let added = ops::add(pool, host, me, &create(name)).expect("add");
+        host.advance(10);
+        slots.push(added);
+    }
+    for added in &slots {
+        ops::release(pool, host, me, &added.path, true).expect("release");
+        host.advance(10);
+    }
+    host.max_slots.store(2, Ordering::SeqCst);
+    slots
+}
+
+/// Adds a branch and returns the slots that are gone afterwards.
+fn gone_after_add(pool: &Pool, host: &FakeHost, me: &Who, slots: &[ops::Added]) -> (u32, Vec<u32>) {
+    let added = ops::add(pool, host, me, &create("feature/d")).expect("d");
+    let gone = slots
+        .iter()
+        .filter(|old| pool.record(old.slot).is_none() && !old.path.exists())
+        .map(|old| old.slot)
+        .collect();
+    (added.slot, gone)
+}
+
 #[test]
-fn add_deletes_the_oldest_pushed_free_slots_above_the_limit() {
+fn add_deletes_the_oldest_pushed_free_slot_above_the_limit() {
     let fixture = Fixture::new();
     let pool = fixture.pool();
     let host = FakeHost::new();
     host.live(10);
     let me = who("s1", 10);
-    let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
-    host.advance(10);
-    let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
-    host.advance(10);
-    let c = ops::add(&pool, &host, &me, &create("feature/c")).expect("c");
-    for added in [&a, &b, &c] {
-        ops::release(&pool, &host, &me, &added.path, true).expect("release");
-        host.advance(10);
-    }
-    host.max_slots.store(2, Ordering::SeqCst);
+    let slots = three_free_slots(&pool, &host, &me);
     let listing = ops::list(&pool, &host, true).expect("list");
     let flagged: Vec<Option<u32>> = listing
         .rows
@@ -1216,12 +1234,90 @@ fn add_deletes_the_oldest_pushed_free_slots_above_the_limit() {
         .filter(|row| row.prunable)
         .map(|row| row.slot)
         .collect();
-    assert_eq!(flagged, vec![Some(a.slot)]);
-    let d = ops::add(&pool, &host, &me, &create("feature/d")).expect("d");
-    let left: Vec<u32> = pool.records().iter().map(|record| record.slot).collect();
-    assert_eq!(left.len(), 2, "{left:?}");
-    assert!(!a.path.exists() || d.slot == a.slot);
-    assert!(pool.record(c.slot).is_some() || d.slot == c.slot);
+    assert_eq!(flagged, vec![Some(slots[0].slot)]);
+    let (kept, gone) = gone_after_add(&pool, &host, &me, &slots);
+    let oldest_other = slots.iter().find(|old| old.slot != kept).expect("other");
+    assert_eq!(gone, vec![oldest_other.slot]);
+    assert_eq!(pool.records().len(), 2);
+}
+
+/// Runs `add` with `refuse` applied to every slot but the newest and asserts the refused ones stay.
+fn assert_refused(refuse: impl Fn(&FakeHost, &ops::Added)) {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let slots = three_free_slots(&pool, &host, &me);
+    refuse(&host, &slots[0]);
+    let (kept, gone) = gone_after_add(&pool, &host, &me, &slots);
+    assert_ne!(kept, slots[0].slot);
+    assert!(!gone.contains(&slots[0].slot), "{gone:?}");
+    assert!(slots[0].path.exists());
+    assert!(pool.record(slots[0].slot).is_some());
+    assert_eq!(gone.len(), 1, "{gone:?}");
+}
+
+#[test]
+fn add_keeps_a_free_slot_with_a_process_in_it() {
+    assert_refused(|host, slot| host.occupy(&slot.path));
+}
+
+#[test]
+fn add_keeps_a_free_slot_with_an_ignored_file() {
+    assert_refused(|_, slot| {
+        let common = git(&slot.path, &["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+        let exclude = Path::new(common.trim()).join("info");
+        std::fs::create_dir_all(&exclude).expect("info");
+        std::fs::write(exclude.join("exclude"), "ignored.txt\n").expect("exclude");
+        std::fs::write(slot.path.join("ignored.txt"), "x\n").expect("write");
+    });
+}
+
+#[test]
+fn add_keeps_a_free_slot_with_an_untracked_file() {
+    assert_refused(|_, slot| {
+        std::fs::write(slot.path.join("n.txt"), "x\n").expect("write");
+    });
+}
+
+#[test]
+fn add_keeps_a_free_slot_in_the_middle_of_a_rebase() {
+    assert_refused(|_, slot| {
+        let dir = git(&slot.path, &["rev-parse", "--absolute-git-dir"]);
+        std::fs::create_dir_all(Path::new(dir.trim()).join("rebase-merge")).expect("state");
+    });
+}
+
+#[test]
+fn add_keeps_a_free_slot_with_a_busy_lock() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let slots = three_free_slots(&pool, &host, &me);
+    let _busy = pool.try_quiet(slots[0].slot).expect("quiet").expect("free");
+    let (kept, gone) = gone_after_add(&pool, &host, &me, &slots);
+    assert_ne!(kept, slots[0].slot);
+    assert!(!gone.contains(&slots[0].slot), "{gone:?}");
+    assert!(slots[0].path.exists());
+}
+
+#[test]
+fn add_never_deletes_a_slot_that_is_still_held() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    host.live(10);
+    let me = who("s1", 10);
+    let held = ops::add(&pool, &host, &me, &create("feature/h")).expect("h");
+    host.max_slots.store(1, Ordering::SeqCst);
+    host.advance(10);
+    let other = who("s2", 10);
+    ops::add(&pool, &host, &other, &create("feature/d")).expect("d");
+    assert!(held.path.exists());
+    assert!(pool.record(held.slot).is_some());
 }
 
 #[test]

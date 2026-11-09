@@ -29,7 +29,7 @@ A bare `dx worktree` runs `list`. Slots live in `<cache>/dx/worktrees/<repo>/<n>
 | `--create <ref>` | Start a new branch from `<ref>`. `add` only. |
 | `--force` | `add`: take a slot held by another holder. `release`: discard unpushed work or free another holder's slot. |
 | `--path-only` | Print only the path on stdout. `add` only. |
-| `--disk` | Measure disk use per slot. `list` only, slow. |
+| `--disk` | Measure disk use per slot and mark surplus slots `prunable`. `list` only, slow. |
 | `--apply` | Delete what `prune` lists. `prune` only. |
 | `--bases` | List every free slot's output base. `prune` only. |
 | `-o`, `--output text\|json` | Output format. |
@@ -86,14 +86,17 @@ keeps the slot held and blocks a release by another holder until it exits or
 The columns are slot, branch, holder, state, server, disk use and path. State
 is `held`, `free`, `reclaimable` (the holder is gone) or `external` (outside
 the pool). ` busy` is appended while a `dx` command runs in the slot. ` prunable`
-is appended to a slot `add` would delete. `--disk` fills the disk column, marks
-the surplus slots described below and adds the shared disk cache size to the last
-line.
+is appended to a slot `add` would delete. Every `list` marks free slots idle
+for 30 days. `--disk` also marks the surplus slots described below, fills the
+disk column and adds the shared disk cache size to the last line.
 
-`add` also deletes free slots, oldest first, when the pool would hold more than
-`DX_WORKTREE_MAX_SLOTS` slots (default `24`; `0` turns it off), and one when the
-disk is low. It deletes only a slot nobody holds, with a clean tree and every
-commit on a remote.
+After `add` switches its slot it deletes free slots, oldest first, while the pool
+holds more than `DX_WORKTREE_MAX_SLOTS` slots (default `24`; `0` turns it off),
+and one when the disk is low. A surplus slot is deleted only when it is free, no
+process or `dx` command runs in it, no rebase, merge, cherry-pick, revert or
+bisect is in progress, `git status --ignored` shows nothing but `bazel-*` links
+and every commit is on a remote. `add` checks the oldest few slots and checks
+each again under the pool lock before it deletes it.
 
 `path <branch>` prints the path of the checkout that holds `<branch>`. It exits
 `1` when none does.

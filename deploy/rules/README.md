@@ -317,7 +317,7 @@ A `runtime` entry may be a `dx_native_runtime` target, which records where a
 library comes from and whether it may ship:
 
 ```starlark
-load("@rules_dx//deploy/rules:native_runtime.bzl", "dx_native_runtime")
+load("@rules_dx//deploy/rules:defs.bzl", "dx_native_runtime")
 
 dx_native_runtime(
     name = "vcruntime",

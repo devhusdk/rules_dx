@@ -14,6 +14,7 @@ load(":image.bzl", _oci_image_from_binary = "oci_image_from_binary")
 load(":linux_package.bzl", _linux_package_deploy = "linux_package_deploy")
 load(":luarocks.bzl", _luarocks_deploy = "luarocks_deploy")
 load(":maven.bzl", _maven_deploy = "maven_deploy")
+load(":native_runtime.bzl", _NativeRuntimeInfo = "NativeRuntimeInfo", _dx_native_runtime = "dx_native_runtime")
 load(":npm.bzl", _npm_deploy = "npm_deploy")
 load(":nuget.bzl", _nuget_deploy = "nuget_deploy")
 load(":oci.bzl", _oci_deploy = "oci_deploy")
@@ -25,6 +26,7 @@ load(":rubygems.bzl", _rubygems_deploy = "rubygems_deploy")
 load(":sbom.bzl", _dx_sbom = "dx_sbom")
 
 DxDeployInfo = _DxDeployInfo
+NativeRuntimeInfo = _NativeRuntimeInfo
 VALID_DEPLOY_BUILD_MODES = _VALID_DEPLOY_BUILD_MODES
 archive_deploy = _archive_deploy
 cloudflare_pages_deploy = _cloudflare_pages_deploy
@@ -32,6 +34,7 @@ consumer_archive = _consumer_archive
 crates_deploy = _crates_deploy
 dx_deployment = _dx_deployment
 dx_dsym = _dx_dsym
+dx_native_runtime = _dx_native_runtime
 dx_pdb = _dx_pdb
 dx_resources = _dx_resources
 dx_sbom = _dx_sbom

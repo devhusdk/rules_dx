@@ -19,7 +19,9 @@ deploy/rules:pypi.bzl
 dockerfile/rules:defs.bzl
 d/rules:defs.bzl
 elixir/rules:defs.bzl
+dotnet:defs.bzl
 elixir/rules:hex.bzl
+env:defs.bzl
 erlang/rules:defs.bzl
 go/rules:defs.bzl
 haskell/rules:defs.bzl

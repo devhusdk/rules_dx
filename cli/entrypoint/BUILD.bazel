@@ -139,11 +139,17 @@ rust_test(
     crate_root = "surface_test.rs",
     data = [
         "consumer_surface.txt",
+        "pending_entry_points.txt",
         "@dx_consumer_surface//:closure.txt",
+        "@dx_consumer_surface//:entry_points.txt",
+        "@dx_consumer_surface//:legacy_entry_points.txt",
     ],
     env = {
         "DX_SURFACE_CLOSURE": "$(rootpath @dx_consumer_surface//:closure.txt)",
+        "DX_SURFACE_ENTRY_POINTS": "$(rootpath @dx_consumer_surface//:entry_points.txt)",
+        "DX_SURFACE_LEGACY_ENTRY_POINTS": "$(rootpath @dx_consumer_surface//:legacy_entry_points.txt)",
         "DX_SURFACE_LIST": "$(rootpath consumer_surface.txt)",
+        "DX_SURFACE_PENDING": "$(rootpath pending_entry_points.txt)",
     },
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],

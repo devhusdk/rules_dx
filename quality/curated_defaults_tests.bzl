@@ -214,7 +214,7 @@ def curated_defaults_unit_tests(name):
                 },
             ),
             expect_equal(
-                "swift curated defaults are typos only; swift-format and swiftlint have no macos_arm64 build",
+                "swift curated defaults are typos only; swift-format and swift_lint are opt-in",
                 CURATED_DEFAULTS["swift"],
                 {
                     "audit": [],

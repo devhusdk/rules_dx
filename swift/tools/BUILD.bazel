@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
@@ -18,11 +19,20 @@ dx_unavailable_tool(
     tool = "swift_format",
 )
 
-# The Swift archives are Linux builds. On macOS swift-format is the one the
-# Xcode Swift toolchain ships, found through xcrun, as the host swift is.
-sh_binary(
+# The Swift archives are Linux builds. On macOS arm64 swift-format is the
+# sha256-pinned release build.
+config_setting(
+    name = "is_macos_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:macos",
+    ],
+)
+
+native_binary(
     name = "swift_format_macos",
-    srcs = ["swift_format_macos.sh"],
+    src = "@dx_swift_format_macos_arm64//:bin/swift-format",
+    out = "swift_format_macos_bin",
 )
 
 # Elsewhere the alias is a marked stub and the aspect skips the stage with a note.
@@ -30,7 +40,7 @@ alias(
     name = "swift_format",
     actual = select({
         "@platforms//os:linux": ":swift_format_linux",
-        "@platforms//os:macos": ":swift_format_macos",
+        ":is_macos_arm64": ":swift_format_macos",
         "//conditions:default": ":swift_format_unsupported",
     }),
 )

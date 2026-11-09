@@ -928,6 +928,9 @@ use_repo(
 swift_host = use_extension("//swift/toolchain:repos.bzl", "swift_host")
 use_repo(swift_host, "dx_swift_host")
 
+swift_format_macos = use_extension("//swift/toolchain:repos.bzl", "swift_format_macos")
+use_repo(swift_format_macos, "dx_swift_format_macos_arm64")
+
 # floor: equals tested; dev only, for the swift-app fixture packages
 bazel_dep(name = "rules_swift_package_manager", version = "1.25.0", dev_dependency = True)
 single_version_override(

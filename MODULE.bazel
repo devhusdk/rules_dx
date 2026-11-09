@@ -1437,6 +1437,7 @@ use_repo(
     "nodejs_linux_amd64",
     "nodejs_linux_arm64",
     "nodejs_windows_amd64",
+    "nodejs_windows_arm64",
 )
 
 typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")

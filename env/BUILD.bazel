@@ -234,6 +234,11 @@ config_setting(
     constraint_values = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
 )
 
+config_setting(
+    name = "windows_arm64",
+    constraint_values = ["@platforms//os:windows", "@platforms//cpu:arm64"],
+)
+
 alias(
     name = "node",
     actual = select({
@@ -242,6 +247,7 @@ alias(
         ":macos_arm64": "@nodejs_darwin_arm64//:node_bin",
         ":macos_x86_64": "@nodejs_darwin_amd64//:node_bin",
         ":windows_x86_64": "@nodejs_windows_amd64//:node_bin",
+        ":windows_arm64": "@nodejs_windows_arm64//:node_bin",
     }),
 )
 

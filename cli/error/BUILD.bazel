@@ -1,0 +1,49 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI_PLATFORM")
+
+package(default_visibility = VIS_CLI_PLATFORM)
+
+rust_library(
+    name = "dx_error",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_error",
+        normal = True,
+    ),
+    crate_name = "dx_error",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_error",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "dx_error_test",
+    size = "small",
+    crate = ":dx_error",
+    deps = all_crate_deps(
+        package_name = "cli/dx_error",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)

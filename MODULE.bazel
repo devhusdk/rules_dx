@@ -1786,6 +1786,7 @@ crate.from_cargo(
         "//cli/tool_resolve:Cargo.toml",
         "//cli/output:Cargo.toml",
         "//cli/path:Cargo.toml",
+        "//cli/error:Cargo.toml",
         "//cli/sbom:Cargo.toml",
         "//cli/sbom/schema:Cargo.toml",
         "//libs/shard_writer:Cargo.toml",

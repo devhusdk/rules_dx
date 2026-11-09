@@ -92,6 +92,7 @@ When `CLAUDECODE`, `CODEX_THREAD_ID`, `CURSOR_AGENT`, `GEMINI_CLI`, `AI_AGENT`,
 | `0` | Success. |
 | `1` | Failed check or operational failure. |
 | `2` | Usage error. |
+| `3` | Infrastructure failure. |
 | Bazel's code | Bazel failed. |
 | `101` | dx crashed. |
 | `128` plus signal | A signal stopped dx. |

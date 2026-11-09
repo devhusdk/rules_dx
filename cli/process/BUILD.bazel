@@ -39,7 +39,10 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_process",
         normal = True,
-    ) + ["//cli/atomic_fs:dx_atomic_fs"],
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/error:dx_error",
+    ],
 )
 
 rust_test(
@@ -98,6 +101,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/error:dx_error",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",

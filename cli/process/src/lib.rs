@@ -636,9 +636,9 @@ pub fn build_workflow_argv_with(
     Ok(argv)
 }
 
-pub const EXIT_SUCCESS: i32 = 0;
-pub const EXIT_OPERATIONAL: i32 = 1;
-pub const EXIT_PRE_EXEC: i32 = 2;
+pub const EXIT_SUCCESS: i32 = dx_error::EXIT_SUCCESS;
+pub const EXIT_OPERATIONAL: i32 = dx_error::EXIT_FAILURE;
+pub const EXIT_PRE_EXEC: i32 = dx_error::EXIT_USAGE;
 pub const EXIT_BROKEN_PIPE: i32 = 128 + 13;
 
 pub fn pre_exec_code() -> i32 {

@@ -491,10 +491,10 @@ func TestMalformedIgnoreFails(t *testing.T) {
 
 func TestLanguageMetadata(t *testing.T) {
 	l := &rustLang{}
-	if len(l.Kinds()) != 13 {
+	if len(l.Kinds()) != 9 {
 		t.Fatalf("invalid kinds")
 	}
-	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_native_tools,dx_corpus,dx_rust_crates_hub" {
+	if strings.Join(l.KnownDirectives(), ",") != "dx_ignore_import,dx_corpus,dx_rust_crates_hub" {
 		t.Fatal("invalid directives")
 	}
 	loads := l.ApparentLoads(func(name string) string {
@@ -510,7 +510,6 @@ func TestLanguageMetadata(t *testing.T) {
 		binaryKind:           "@renamed_dx//rust/rules:defs.bzl",
 		scriptKind:           "@rules_rust//cargo:defs.bzl",
 		"all_crate_deps":     "@renamed_crates//:crates.bzl",
-		"buildifier_config":  "@renamed_dx//quality:native_config.bzl",
 		"real_source_target": "@renamed_dx//quality:fixtures.bzl",
 	}); len(got) != 0 {
 		t.Errorf("apparent loads miss %v", got)
@@ -709,7 +708,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 	}
 
 	missingManifest := &rustLang{}
-	missingManifest.generateCargo(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "missing"), Rel: "missing"}, nil, &nativePlan{})
+	missingManifest.generateCargo(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "missing"), Rel: "missing"}, nil)
 	if len(missingManifest.errors) != 1 || !strings.Contains(missingManifest.errors[0].Message, "Cargo.toml") {
 		t.Errorf("missing manifest errors = %v", missingManifest.errors)
 	}
@@ -724,7 +723,7 @@ func TestGenerateCargoAPIAndFailures(t *testing.T) {
 
 	member := "[package]\nname = \"app\"\n[dependencies]\nserde.workspace = true\n"
 	generateMember := func(l *rustLang, root, rel string) {
-		l.generateCargo(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, rel), Rel: rel, RegularFiles: []string{"Cargo.toml"}}, nil, &nativePlan{})
+		l.generateCargo(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, rel), Rel: rel, RegularFiles: []string{"Cargo.toml"}}, nil)
 	}
 	orphan := t.TempDir()
 	writeFixture(t, orphan, "crates/app/Cargo.toml", member)
@@ -1121,7 +1120,7 @@ func TestRustErrorPackages(t *testing.T) {
 	common.Errors.Reset()
 	t.Cleanup(common.Errors.Reset)
 	l := &rustLang{}
-	l.Configure(config.New(), "", &rule.File{Directives: []rule.Directive{{Key: nativeToolsDirective, Value: "bogus!"}}})
+	l.Configure(config.New(), "", &rule.File{Directives: []rule.Directive{{Key: cratesHubDirective, Value: "bad/hub"}}})
 	l.Configure(config.New(), "a/b", &rule.File{Directives: []rule.Directive{{Key: corpusDirective, Value: "bogus!"}}})
 	l.AfterResolvingDeps(context.Background())
 	var got []common.PackageRef

@@ -1,3 +1,0 @@
-# gazelle:dx_native_tools rustfmt
-
-# Only the selected tool generates; the skipped file stays unmanaged.

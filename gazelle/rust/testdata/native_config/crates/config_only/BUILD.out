@@ -1,9 +1,0 @@
-load("@rules_dx//quality:native_config.bzl", "taplo_config")
-
-# Config-only package: no Rust sources, just a managed tool config.
-
-taplo_config(
-    name = "taplo_config",
-    src = "taplo.toml",
-    visibility = ["//crates/config_only:__subpackages__"],
-)

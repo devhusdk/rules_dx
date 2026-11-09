@@ -51,9 +51,6 @@ func isLibraryKind(kind string) bool {
 }
 
 func init() {
-	for kind, info := range nativeConfigKinds() {
-		rustKinds[kind] = info
-	}
 	for kind, info := range corpusKinds() {
 		rustKinds[kind] = info
 	}
@@ -90,7 +87,6 @@ type rustLang struct {
 
 type rustConfig struct {
 	common.IgnoreConfig
-	tools     []string
 	corpus    bool
 	cratesHub string
 }
@@ -131,19 +127,15 @@ func (l *rustLang) RegisterFlags(*flag.FlagSet, string, *config.Config) {}
 func (l *rustLang) CheckFlags(*flag.FlagSet, *config.Config) error { return nil }
 
 func (*rustLang) KnownDirectives() []string {
-	return []string{"dx_ignore_import", nativeToolsDirective, corpusDirective, cratesHubDirective}
+	return []string{"dx_ignore_import", corpusDirective, cratesHubDirective}
 }
 
 func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	common.ConfigureOwnedConfigs(c, rel)
-	tools := defaultNativeTools()
 	corpus := false
 	cratesHub := ""
 	if raw, ok := c.Exts[languageName]; ok {
 		parent := raw.(*rustConfig)
-		if parent.tools != nil {
-			tools = parent.tools
-		}
 		corpus = parent.corpus
 		cratesHub = parent.cratesHub
 	}
@@ -166,15 +158,6 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 				corpus = enabled
 				continue
 			}
-			if directive.Key != nativeToolsDirective {
-				continue
-			}
-			selected, err := parseNativeToolsDirective(directive.Value)
-			if err != nil {
-				l.fail(common.InPackage(rel), "%v", err)
-				continue
-			}
-			tools = selected
 		}
 	}
 	declared, errs := common.DeclaredIgnores(languageName, rel, file)
@@ -183,7 +166,7 @@ func (l *rustLang) Configure(c *config.Config, rel string, file *rule.File) {
 	}
 	l.ignores = append(l.ignores, declared...)
 	inherited := common.MergeIgnores(common.InheritedIgnores(c, languageName), declared)
-	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, tools: tools, corpus: corpus, cratesHub: cratesHub}
+	c.Exts[languageName] = &rustConfig{IgnoreConfig: common.IgnoreConfig{Ignores: inherited}, corpus: corpus, cratesHub: cratesHub}
 }
 
 func corpusEnabled(c *config.Config) bool {
@@ -242,7 +225,6 @@ func rustLoads(rulesRepo, cratesRepo, rulesRustRepo string) []rule.LoadInfo {
 		{Name: "@" + rulesRepo + "//rust/rules:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, benchmarkKind, procMacroKind, sharedKind, staticKind}},
 		{Name: "@" + rulesRustRepo + "//cargo:defs.bzl", Symbols: []string{scriptKind}},
 		{Name: "@" + cratesRepo + "//:crates.bzl", Symbols: []string{"aliases", "all_crate_deps"}},
-		nativeConfigLoads(rulesRepo),
 		corpusLoads(rulesRepo),
 	}
 }
@@ -266,14 +248,6 @@ func (l *rustLang) GenerateRules(args language.GenerateArgs) language.GenerateRe
 }
 
 func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateResult {
-	plan, err := planNativeConfig(args.Config, args)
-	if err != nil {
-		l.fail(common.InPackage(args.Rel), "%v", err)
-		return language.GenerateResult{}
-	}
-	for _, e := range plan.errs {
-		l.fail(common.InPackage(args.Rel), "%v", e)
-	}
 	files, err := sourceFiles(args.Dir, args.Rel)
 	if err != nil {
 		l.fail(common.InPackage(args.Rel), "rust: %s: %v", args.Rel, err)
@@ -281,16 +255,16 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 	}
 	for _, name := range args.RegularFiles {
 		if name == "Cargo.toml" {
-			return l.generateCargo(args, files, plan)
+			return l.generateCargo(args, files)
 		}
 	}
 	if len(files) == 0 {
-		return l.attachNative(args, language.GenerateResult{}, plan)
+		return l.finish(args, language.GenerateResult{})
 	}
 
 	roots := DiscoverCrateRoots(args.Rel, files)
 	if !roots.HasRoots() {
-		return l.attachNative(args, language.GenerateResult{}, plan)
+		return l.finish(args, language.GenerateResult{})
 	}
 	read := func(name string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(args.Config.RepoRoot, filepath.FromSlash(name)))
@@ -356,7 +330,7 @@ func (l *rustLang) generateRules(args language.GenerateArgs) language.GenerateRe
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, importsFor(trees[test.Root]))
 	}
-	return l.attachNative(args, result, plan)
+	return l.finish(args, result)
 }
 
 // sourceOnlyTestImports returns the imports of a source-only unit test. A
@@ -370,7 +344,7 @@ func sourceOnlyTestImports(tree map[string]*FileFacts, selfContained bool) targe
 	return targetImports{test: imports.test, pathRefsTest: imports.pathRefsTest}
 }
 
-func (l *rustLang) attachNative(args language.GenerateArgs, result language.GenerateResult, plan *nativePlan) language.GenerateResult {
+func (l *rustLang) finish(args language.GenerateArgs, result language.GenerateResult) language.GenerateResult {
 	renamed := adoptExistingNames(args.File, result.Gen)
 	inherited, err := inheritCrateAttrs(args.File, result.Gen)
 	if err != nil {
@@ -399,11 +373,6 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 		result.Imports[i] = current
 	}
 	setCoverageLib(args.Config, args.File, result.Gen)
-	for _, r := range result.Gen {
-		applyNativeHints(args.Config, args.Rel, r, plan)
-	}
-	result.Gen = append(result.Gen, plan.gen...)
-	result.Imports = append(result.Imports, plan.imports...)
 	hasOtherGen := len(result.Gen) > 0 || args.File != nil
 	corpus := &corpusPlan{}
 	if corpusEnabled(args.Config) {
@@ -426,7 +395,6 @@ func (l *rustLang) attachNative(args language.GenerateArgs, result language.Gene
 		return language.GenerateResult{}
 	}
 	merged := mergeStale(args.File, result)
-	merged.Empty = append(merged.Empty, plan.empty...)
 	return merged
 }
 
@@ -657,3 +625,9 @@ func plainStrings(e bzl.Expr) []string {
 }
 
 func init() { common.RegisterLanguage(NewLanguage) }
+
+const cratesHubDirective = "dx_rust_crates_hub"
+
+func validCratesHub(repo string) bool {
+	return repo != "" && !strings.ContainsAny(repo, "@/: \t")
+}

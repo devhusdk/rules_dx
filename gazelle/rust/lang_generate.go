@@ -176,7 +176,7 @@ func (l *rustLang) checkPathDepVersions(args language.GenerateArgs, manifestPath
 	return nil
 }
 
-func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, plan *nativePlan) language.GenerateResult {
+func (l *rustLang) generateCargo(args language.GenerateArgs, files []string) language.GenerateResult {
 	manifestPath := path.Join(args.Rel, "Cargo.toml")
 	content, err := os.ReadFile(filepath.Join(args.Dir, "Cargo.toml"))
 	if err != nil {
@@ -189,7 +189,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		return language.GenerateResult{}
 	}
 	if manifest.virtual {
-		return l.attachNative(args, language.GenerateResult{}, plan)
+		return l.finish(args, language.GenerateResult{})
 	}
 	existsSet := make(map[string]bool, len(files))
 	for _, name := range files {
@@ -314,7 +314,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string, pla
 		}
 		loadCratesHub(args.File, hub, crateDeps)
 	}
-	return l.attachNative(args, result, plan)
+	return l.finish(args, result)
 }
 
 // loadCratesHub points the aliases and all_crate_deps calls at hub. Gazelle
@@ -912,9 +912,6 @@ func staleRules(file *rule.File, desired map[string]bool) language.GenerateResul
 		return result
 	}
 	for _, existing := range file.Rules {
-		if isNativeConfigKind(existing.Kind()) {
-			continue
-		}
 		if _, owned := rustKinds[existing.Kind()]; !owned || desired[existing.Kind()+"\x00"+existing.Name()] {
 			continue
 		}

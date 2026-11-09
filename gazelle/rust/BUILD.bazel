@@ -17,7 +17,6 @@ go_library(
         "lang_resolve.go",
         "layout.go",
         "naming.go",
-        "native_config.go",
         "parser.go",
         "tsnode.go",
     ],
@@ -88,22 +87,6 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
-rust_test(
-    name = "native_config_test",
-    srcs = ["harness_test.rs"],
-    data = [
-        "@dx_gazelle//:gazelle",
-    ],
-    env = {
-        "DX_GAZELLE_BIN": "$(rootpath @dx_gazelle//:gazelle)",
-        "DX_GAZELLE_CASE": "native_config",
-    },
-    tags = ["no-coverage"],
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
 go_test(
     name = "rust_test",
     srcs = [
@@ -113,7 +96,6 @@ go_test(
         "lang_test.go",
         "layout_test.go",
         "naming_test.go",
-        "native_config_test.go",
         "parser_test.go",
     ],
     data = ["//modules:versions.bzl"],
@@ -130,7 +112,6 @@ real_source_target(
         "testdata/corpus/sub/notes.md",
         "testdata/merge/README.md",
         "testdata/merge/crates/stale_corpus/README.md",
-        "testdata/native_config/README.md",
         "testdata/source_only/README.md",
     ],
     tags = ["corpus"],
@@ -160,12 +141,6 @@ real_source_target(
         "testdata/cargo_workspace/crates/app/Cargo.toml",
         "testdata/corpus/config.toml",
         "testdata/merge/crates/cargo_trim/Cargo.toml",
-        "testdata/native_config/crates/config_only/taplo.toml",
-        "testdata/native_config/crates/full/rustfmt.toml",
-        "testdata/native_config/crates/merge/custom.toml",
-        "testdata/native_config/crates/merge/rustfmt.toml",
-        "testdata/native_config/crates/skip/rustfmt.toml",
-        "testdata/native_config/crates/skip/taplo.toml",
     ],
 )
 

@@ -6,7 +6,6 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 
 # gazelle:dx_fixture_testonly true
-# gazelle:dx_native_tools buildifier taplo rustfmt
 # gazelle:resolve rust dx_deploy_tools //deploy/rules:dx_deploy_tools
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir/proto:doc_ir_proto_rs
 # gazelle:resolve rust marker_proto //env/proto:marker_proto_rs

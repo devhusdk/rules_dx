@@ -1,0 +1,34 @@
+diff --git a/python/private/cc/py_extension_macro.bzl b/python/private/cc/py_extension_macro.bzl
+--- a/python/private/cc/py_extension_macro.bzl
++++ b/python/private/cc/py_extension_macro.bzl
+@@ -154,6 +154,7 @@
+     # from CcInfo in py_cc_toolchain because system_provided=True in cc_import leaves DefaultInfo empty.
+     py_extension_libs(
+         name = win_libs_name,
++        py_limited_api = bool(py_limited_api),
+         tags = ["manual"],
+         visibility = ["//visibility:private"],
+     )
+diff --git a/python/private/cc/py_extension_rule.bzl b/python/private/cc/py_extension_rule.bzl
+--- a/python/private/cc/py_extension_rule.bzl
++++ b/python/private/cc/py_extension_rule.bzl
+@@ -124,10 +124,19 @@
+             elif lib.dynamic_library:
+                 files.append(lib.dynamic_library)
+     link_files = [f for f in files if not f.path.endswith(".dll")]
++
++    # Link.exe and lld-link get all the files as one argument, so keep one:
++    # the stable ABI library for limited API modules, else the versioned one.
++    abi3_files = [f for f in link_files if f.basename in ("python3.lib", "python3t.lib")]
++    if ctx.attr.py_limited_api:
++        link_files = abi3_files or link_files
++    else:
++        link_files = [f for f in link_files if f not in abi3_files] or link_files
+     return [DefaultInfo(files = depset(link_files))]
+ 
+ py_extension_libs = rule(
+     implementation = _py_extension_libs_impl,
++    attrs = {"py_limited_api": attr.bool()},
+     toolchains = [PY_CC_TOOLCHAIN_TYPE],
+     doc = """\
+ Private internal helper rule for extracting Windows C/C++ library files from toolchain.

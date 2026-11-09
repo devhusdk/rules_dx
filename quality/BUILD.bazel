@@ -277,7 +277,7 @@ consumer_policy_tests(
                 "hello-real-lint-text.pb",
             ],
             "policy": "//quality:default_workspace_policy",
-            "subject": "//powershell/tests/fixtures/hello:hello",
+            "subject": "@rules_dx_powershell//tests/fixtures/hello:hello",
         },
         {
             "case": "default_swift",

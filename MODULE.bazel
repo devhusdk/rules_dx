@@ -306,6 +306,18 @@ local_path_override(
     path = "families/fortran",
 )
 
+bazel_dep(name = "rules_dx_msix", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_msix",
+    path = "families/msix",
+)
+
+bazel_dep(name = "rules_dx_powershell", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_powershell",
+    path = "families/powershell",
+)
+
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
@@ -2647,12 +2659,7 @@ _hub_fixture_repo(
 appimage_tools = use_extension("//appimage:repos.bzl", "appimage_tools")
 use_repo(appimage_tools, "dx_appimage_tools")
 
-msix_tools = use_extension("//msix:repos.bzl", "msix_tools")
-use_repo(msix_tools, "dx_msix_tools")
-
-register_toolchains("//msix/toolchains:all")
-
-msix_dev = use_extension("//msix:repos.bzl", "msix_tools", dev_dependency = True)
+msix_dev = use_extension("@rules_dx_msix//:repos.bzl", "msix_tools", dev_dependency = True)
 msix_dev.license(accept = ["windows-sdk-buildtools"])
 
 windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime")

@@ -35,5 +35,5 @@ windows_failure_test = analysistest.make(
             mandatory = True,
         ),
     },
-    config_settings = {"//command_line_option:platforms": str(Label("//msix/platforms:windows_x86_64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("@llvm//platforms:windows_x86_64"))},
 )

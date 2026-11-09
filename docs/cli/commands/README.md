@@ -530,17 +530,17 @@ dx rule that wraps it.
 |  |  | `@rules_dx//make/rules:defs.bzl` | `make_library` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_build` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_library` |
-|  |  | `@rules_dx//msix:defs.bzl` | `alias_errors` |
-|  |  | `@rules_dx//msix:defs.bzl` | `application_errors` |
-|  |  | `@rules_dx//msix:defs.bzl` | `compatible_with` |
-|  |  | `@rules_dx//msix:defs.bzl` | `dx_msix` |
-|  |  | `@rules_dx//msix:defs.bzl` | `identity_errors` |
-|  |  | `@rules_dx//msix:defs.bzl` | `msix_sign` |
-|  |  | `@rules_dx//msix:defs.bzl` | `named_version_errors` |
-|  |  | `@rules_dx//msix:defs.bzl` | `platform_errors` |
-|  |  | `@rules_dx//msix:defs.bzl` | `publisher_cn` |
-|  |  | `@rules_dx//msix:defs.bzl` | `publisher_errors` |
-|  |  | `@rules_dx//msix:defs.bzl` | `version_errors` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `alias_errors` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `application_errors` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `compatible_with` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `dx_msix` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `identity_errors` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `msix_sign` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `named_version_errors` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `platform_errors` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `publisher_cn` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `publisher_errors` |
+|  |  | `@rules_dx_msix//:defs.bzl` | `version_errors` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `binary_forward_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `binary_upstream_kwargs` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `coverage_kwargs` |
@@ -690,7 +690,7 @@ Packaging and deploy:
 - `@rules_dx//deploy/rules:promotion.bzl`: release promotion.
 - `@rules_dx//deploy/rules:pub.bzl`: pub.dev publish.
 - `@rules_dx//deploy/rules:pypi.bzl`: PyPI publish.
-- `@rules_dx//msix:defs.bzl`: MSIX packages.
+- `@rules_dx_msix//:defs.bzl`: MSIX packages.
 
 SDK and toolchain extensions:
 
@@ -700,7 +700,7 @@ SDK and toolchain extensions:
 - `@rules_dx_cuda//toolchain:repos.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell/rules:gallery.bzl`: PowerShell Gallery modules.
-- `@rules_dx//msix:repos.bzl`: MSIX tools.
+- `@rules_dx_msix//:repos.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:repos.bzl`: Qt SDK.
 
 API docs:

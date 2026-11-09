@@ -346,7 +346,7 @@ ROWS = [
     {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "title": "OCaml"},
     {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": "Perl"},
     {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": "PHP"},
-    {"ci_tests": _hello("powershell"), "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": "PowerShell"},
+    {"ci_tests": ["@rules_dx_powershell//tests/fixtures/hello:hello_test"], "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": "PowerShell"},
     {"ci_tests": ["//generation:codegen_prost_fixture_argv_test"], "name": "protobuf", "section": "languages", "title": "Protobuf"},
     {
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
@@ -425,7 +425,7 @@ ROWS = [
         "section": "targets",
         "title": "CMake",
     },
-    {"ci_tests": ["//msix/tests:pack_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:msix"], "name": "msix", "section": "targets", "title": "MSIX"},
+    {"ci_tests": ["@rules_dx_msix//tests:pack_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:msix"], "name": "msix", "section": "targets", "title": "MSIX"},
     {
         "ci_tests": ["//qt/tests:qt_test"],
         "consumer_tests": ["//tools/testing/hermetic:qt_tasks", "//tools/testing/hermetic:qt_rust"],

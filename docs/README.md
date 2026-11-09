@@ -75,7 +75,7 @@ Per-language guides in the repository:
 - [Julia](https://github.com/devhusdk/rules_dx/blob/main/julia/README.md)
 - [Kotlin](https://github.com/devhusdk/rules_dx/blob/main/families/jvm/kotlin/README.md)
 - [Lua](https://github.com/devhusdk/rules_dx/blob/main/lua/README.md)
-- [MSIX](https://github.com/devhusdk/rules_dx/blob/main/msix/README.md)
+- [MSIX](https://github.com/devhusdk/rules_dx/blob/main/families/msix/README.md)
 - [OCaml](https://github.com/devhusdk/rules_dx/blob/main/ocaml/README.md)
 - [Perl](https://github.com/devhusdk/rules_dx/blob/main/perl/README.md)
 - [PHP](https://github.com/devhusdk/rules_dx/blob/main/php/README.md)

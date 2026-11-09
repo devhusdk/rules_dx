@@ -1,0 +1,39 @@
+load("@rules_dx//powershell/rules:defs.bzl", "powershell_library", "powershell_test")
+load("@rules_dx//powershell/rules:wrapper_tests.bzl", "pwsh_coverage_env_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+powershell_library(
+    name = "greeter_lib",
+    srcs = ["Greeter.psm1"],
+)
+
+powershell_test(
+    name = "greeter_test",
+    srcs = ["Greeter.Tests.ps1"],
+    data = ["Greeter.Describe.ps1"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = [
+        ":greeter_lib",
+        "@rules_dx//powershell/coverage:dx_coverage",
+        "@rules_dx//powershell/gallery:pester",
+    ],
+)
+
+pwsh_coverage_env_test(
+    name = "greeter_test_coverage_env_test",
+    target = ":greeter_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)

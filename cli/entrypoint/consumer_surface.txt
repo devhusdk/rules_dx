@@ -32,8 +32,6 @@ kotlin/rules:defs.bzl
 kubernetes/rules:defs.bzl
 lua/rules:defs.bzl
 make/rules:defs.bzl
-msix:defs.bzl
-msix:repos.bzl
 perl/rules:defs.bzl
 php/rules:defs.bzl
 powershell/rules:defs.bzl

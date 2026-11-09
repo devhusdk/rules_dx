@@ -1,0 +1,30 @@
+module(
+    name = "rules_dx_msix",
+    version = "0.0.0",
+    bazel_compatibility = [">=9.2.0"],
+)
+
+bazel_dep(name = "rules_dx", version = "0.0.0")
+include("//third_party/rules_dx:rules_dx.MODULE.bazel")
+local_path_override(
+    module_name = "rules_dx",
+    path = "../..",
+)
+
+# floor: equals tested
+bazel_dep(name = "bazel_skylib", version = "1.9.2")
+bazel_dep(name = "llvm", version = "0.8.26")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "rules_cc", version = "0.2.27")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+
+powershell = use_extension("@rules_dx//powershell/toolchain:repos.bzl", "powershell")
+use_repo(powershell, "rules_powershell")
+
+msix_tools = use_extension("//:repos.bzl", "msix_tools")
+use_repo(msix_tools, "dx_msix_tools")
+
+msix_dev = use_extension("//:repos.bzl", "msix_tools", dev_dependency = True)
+msix_dev.license(accept = ["windows-sdk-buildtools"])
+
+register_toolchains("//toolchains:all")

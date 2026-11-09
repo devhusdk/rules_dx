@@ -19,7 +19,7 @@ def _windows_argv_impl(ctx):
 
 _windows_argv_test = analysistest.make(
     _windows_argv_impl,
-    config_settings = {"//command_line_option:platforms": str(Label("//msix/platforms:windows_x86_64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("@llvm//platforms:windows_x86_64"))},
     extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 

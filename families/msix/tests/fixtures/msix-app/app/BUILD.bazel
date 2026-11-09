@@ -1,0 +1,49 @@
+# gazelle:resolve cc greet.h //tests/fixtures/msix-app/greet:greet
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
+load("//:defs.bzl", "dx_msix", "msix_sign")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "NOTICE.txt",
+    "greeting.txt",
+    "logo.png",
+    "main.c",
+])
+
+cc_binary(
+    name = "dxmsix",
+    srcs = ["main.c"],
+    dynamic_deps = ["//tests/fixtures/msix-app/greet:greet_dll"],
+    features = [
+        "-runtime_library_search_directories",
+        "-runtime_library_search_directories_workaround",
+    ],
+    target_compatible_with = ["@platforms//os:windows"],
+    deps = ["//tests/fixtures/msix-app/greet"],
+)
+
+dx_msix(
+    name = "app",
+    alias = "dxmsix.exe",
+    binary = ":dxmsix",
+    data = ["greeting.txt"],
+    display_name = "dx MSIX example",
+    identity_name = "DxMsix.Example",
+    logo = "logo.png",
+    notice = ["NOTICE.txt"],
+    publisher = "CN=DxMsixExample, O=Dx",
+    version = "1.2.3.0",
+)
+
+msix_sign(
+    name = "app_sign",
+    package = ":app",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

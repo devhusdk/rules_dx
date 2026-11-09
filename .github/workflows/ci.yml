@@ -714,7 +714,7 @@ jobs:
         run: |
           if [ "$EVENT_NAME" != "pull_request" ]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
-          elif git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^msix/'; then
+          elif git diff --name-only "$BASE_SHA"...HEAD | grep -qE '^families/msix/'; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
             echo "run=false" >> "$GITHUB_OUTPUT"
@@ -728,7 +728,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel test --noshow_progress --test_output=errors "$@" //msix/tests:install_test
+          bazel test --noshow_progress --test_output=errors "$@" @rules_dx_msix//tests:install_test
       - name: Write job summary
         if: always()
         env:
@@ -736,7 +736,7 @@ jobs:
           RAN: ${{ steps.changes.outputs.run }}
         run: |
           echo "### msix-install (windows_x86_64) — ${JOB_STATUS}" >> "$GITHUB_STEP_SUMMARY"
-          echo "Ran //msix/tests:install_test: ${RAN}. It installs the signed and unsigned packages and launches the app." >> "$GITHUB_STEP_SUMMARY"
+          echo "Ran @rules_dx_msix//tests:install_test: ${RAN}. It installs the signed and unsigned packages and launches the app." >> "$GITHUB_STEP_SUMMARY"
   preflight:
     name: preflight (native bootstrap and tool launch) (${{ matrix.platform }}, ${{ matrix.runner }})
     timeout-minutes: 30
@@ -837,7 +837,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test //powershell/tests/fixtures/hello:hello_test //zig/tests/fixtures/zig-app/... //dart/tests/fixtures/dart-app/... //dart/tests/runtime:all //dart/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia-app/... //julia/tools/... $QUALITY_TARGETS
+          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test @rules_dx_powershell//tests/fixtures/hello:hello_test //zig/tests/fixtures/zig-app/... //dart/tests/fixtures/dart-app/... //dart/tests/runtime:all //dart/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia-app/... //julia/tools/... $QUALITY_TARGETS
       - name: Run the PyPI probe verification
         run: |
           # shellcheck disable=SC2086

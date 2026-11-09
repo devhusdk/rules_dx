@@ -1,0 +1,67 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":metadata_tests.bzl", "msix_metadata_tests")
+load(":toolchain.bzl", "msix_signtool")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "BUILD.bazel",
+    "README.md",
+    "defs.bzl",
+    "metadata_tests.bzl",
+    "pack.ps1",
+    "pins.bzl",
+    "repos.bzl",
+    "sign.ps1",
+    "toolchain.bzl",
+])
+
+toolchain_type(name = "toolchain_type")
+
+msix_signtool(
+    name = "signtool",
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+msix_metadata_tests(name = "metadata")
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "metadata_tests.bzl",
+        "pins.bzl",
+        "repos.bzl",
+        "toolchain.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+sh_test(
+    name = "starlark_docs_test",
+    srcs = ["starlark_docs_test.sh"],
+    args = ["$(rootpath @rules_dx//tools/ci:starlark_docs_family_test)"],
+    data = [
+        "//:corpus_starlark",
+        "//platforms:corpus_starlark",
+        "//tests:corpus_starlark",
+        "//toolchains:corpus_starlark",
+        "@rules_dx//tools/ci:starlark_docs_family_test",
+    ],
+    env = {"STARLARK_DOCS_PACKAGES": ",platforms,tests,toolchains"},
+)
+
+# dx:begin exports
+exports_files(
+    [".buildifier.json"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

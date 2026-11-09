@@ -15,7 +15,7 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 72] = [
+const PACKAGES: [&str; 71] = [
     "appimage",
     "astro/rules",
     "bicep/rules",
@@ -48,7 +48,6 @@ const PACKAGES: [&str; 72] = [
     "lua/toolchain",
     "mdx/rules",
     "modules",
-    "msix",
     "ocaml/rules",
     "ocaml/toolchain",
     "perl/cpan",

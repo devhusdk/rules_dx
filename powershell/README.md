@@ -107,7 +107,7 @@ bazel run @rules_dx//:dx -- lint //scripts/...
 
 `dx generate --apply` writes a `powershell_library` per directory of `.psm1`
 modules and a `powershell_test` per `*.Tests.ps1` script. The
-`powershell/tests/fixtures/adopt-powershell` tree shows a full layout.
+`tests/fixtures/adopt-powershell` tree in `rules_dx_powershell` shows a full layout.
 
 ## Platforms
 

@@ -1,0 +1,10 @@
+--- a/toolchain/defs.bzl
++++ b/toolchain/defs.bzl
+@@ -1081,6 +1081,7 @@
+             "**/*.la",
+             "**/*.o",
+             "**/*.lo",
++            "**/lib*/libsanitizer.spec",
+         ],
+         exclude = ["lib*/**/*python*/**"],
+         allow_empty = True,

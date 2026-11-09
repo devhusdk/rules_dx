@@ -226,6 +226,7 @@
         "protobuf",
         "rules_android",
         "rules_apple",
+        "rules_batch",
         "rules_cc",
         "rules_go",
         "rules_java",
@@ -280,6 +281,7 @@
         "mdx",
         "modules",
         "patches",
+        "powershell",
         "qt",
         "quality",
         "rego",
@@ -308,6 +310,7 @@
         "//fortran/toolchain:repos.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
+        "//powershell/toolchain:repos.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
         "//third_party/dotnet:extension.bzl%paket",
         "//tools/bazelrc:repos.bzl%bazel_version",
@@ -374,6 +377,7 @@
         "//gazelle/javascript",
         "//gazelle/kotlin",
         "//gazelle/mdx",
+        "//gazelle/powershell",
         "//gazelle/protobuf",
         "//gazelle/scala",
         "//gazelle/svelte",
@@ -382,6 +386,7 @@
         "//gazelle/vue"
       ],
       "repo_rules": [
+        "//powershell/rules:gallery.bzl%psgallery_module",
         "//quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
@@ -398,6 +403,7 @@
         "//cc/toolchains:msvc_windows_x86_64",
         "//cc/toolchains:msvc_windows_x86_64_to_arm64",
         "//tools/platforms:protoc_windows_arm64",
+        "@dx_powershell_toolchains//:all",
         "@llvm//toolchain:all"
       ]
     },
@@ -802,18 +808,32 @@
     },
     "msix": {
       "aspects": [],
-      "bazel_deps": [],
+      "bazel_deps": [
+        "bazel_skylib",
+        "llvm",
+        "platforms",
+        "rules_cc",
+        "rules_dx",
+        "rules_shell"
+      ],
       "dirs": [
-        "msix"
+        "bcr_test_module",
+        "platforms",
+        "tests",
+        "third_party",
+        "toolchains"
       ],
       "extensions": [
-        "//msix:repos.bzl%msix_tools"
+        "//:repos.bzl%msix_tools",
+        "@rules_dx//powershell/toolchain:repos.bzl%powershell"
       ],
       "file_extensions": [],
       "gazelle": [],
+      "module": "rules_dx_msix",
+      "path": "families/msix",
       "repo_rules": [],
       "toolchains": [
-        "//msix/toolchains:all"
+        "//toolchains:all"
       ]
     },
     "ocaml": {
@@ -903,27 +923,25 @@
         "real_powershell_lint_probe_aspect"
       ],
       "bazel_deps": [
-        "rules_batch"
+        "platforms",
+        "rules_dx",
+        "rules_shell"
       ],
       "dirs": [
-        "powershell"
+        "bcr_test_module",
+        "tests",
+        "third_party"
       ],
-      "extensions": [
-        "//powershell/toolchain:repos.bzl%powershell"
-      ],
+      "extensions": [],
       "file_extensions": [
         ".ps1",
         ".psm1"
       ],
-      "gazelle": [
-        "//gazelle/powershell"
-      ],
-      "repo_rules": [
-        "//powershell/rules:gallery.bzl%psgallery_module"
-      ],
-      "toolchains": [
-        "@dx_powershell_toolchains//:all"
-      ]
+      "gazelle": [],
+      "repo_rules": [],
+      "toolchains": [],
+      "module": "rules_dx_powershell",
+      "path": "families/powershell"
     },
     "python": {
       "aspects": [

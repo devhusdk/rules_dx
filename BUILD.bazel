@@ -128,7 +128,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude qt/tests/fixtures/qt-tasks
 # gazelle:exclude zig/tests/fixtures/zig-app
 # gazelle:exclude julia/tests/fixtures/julia-app
-# gazelle:exclude msix/tests/fixtures/msix-app
 # gazelle:exclude dart/tests/fixtures/dart-app
 # gazelle:exclude appimage/tests/fixtures/appimage-app
 # gazelle:exclude examples/adopt-polyglot/native_cpp/main
@@ -138,7 +137,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude python/tests/fixtures/no_srcs
 # gazelle:exclude javascript/tests/fixtures/web_app
 # gazelle:exclude python/tests/fixtures/entries
-# gazelle:exclude powershell/tests/fixtures
 # gazelle:exclude deploy/rules
 # gazelle:exclude deploy/tests/fixtures
 # gazelle:exclude deploy/tests/cross/cross_app.c

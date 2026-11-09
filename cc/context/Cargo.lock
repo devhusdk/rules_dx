@@ -2280,6 +2280,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "fortran_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "fraction"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

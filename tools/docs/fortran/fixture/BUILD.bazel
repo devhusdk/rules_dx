@@ -1,0 +1,20 @@
+load("//fortran/rules:defs.bzl", "fortran_library")
+load("//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["src/geom.f90"],
+    visibility = VIS_TOOLS,
+)
+
+fortran_library(
+    name = "geom",
+    srcs = ["src/geom.f90"],
+)
+
+fortran_doc_shard(
+    name = "geom_docs",
+    lib = ":geom",
+)

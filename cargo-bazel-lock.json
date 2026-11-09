@@ -1,5 +1,5 @@
 {
-  "checksum": "bd12de886a8ad5536508441e70fd5ee1a1f0ed742c33a5482c34b1ff70fa4cdc",
+  "checksum": "f57e8cf73c0b5d190597d37cbfd7e1f66901918c1759b6cf4221b200f248746c",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -10257,6 +10257,33 @@
         }
       ],
       "version": "1.2.2"
+    },
+    "fortran_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_docs_fortran_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "fortran_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_fortran_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "fraction 0.17.0": {
       "common_attrs": {
@@ -28699,6 +28726,7 @@
     "dx_worktree 0.0.0": "cli/dx_worktree",
     "env_shard 0.0.0": "env/env_shard",
     "env_stubs 0.0.0": "env/env_stubs",
+    "fortran_extract 0.0.0": "tools/docs/fortran/fortran_extract",
     "generation_result 0.0.0": "generation/generation_result",
     "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",
     "go_extract 0.0.0": "tools/docs/go/go_extract",

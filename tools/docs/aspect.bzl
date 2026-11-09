@@ -7,6 +7,7 @@ load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo")
 load("@rules_ruby//ruby/private:providers.bzl", _RubyFilesInfo = "RubyFilesInfo")
 load("@rules_dart//dart:providers.bzl", _DartInfo = "DartInfo")
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
+load("@rules_fortran//fortran:defs.bzl", _FortranInfo = "FortranInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
@@ -18,6 +19,7 @@ load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_conf
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/d:defs.bzl", "D_TOOLCHAIN", "d_shard_action")
 load("//tools/docs/dotnet:shard.bzl", "DotnetDocsInfo", "dotnet_docs_collect_aspect", "dotnet_docs_problem", "dotnet_shard_action")
+load("//tools/docs/fortran:defs.bzl", "FORTRAN_SOURCE_EXTENSIONS", "fortran_shard_action")
 load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/julia:defs.bzl", "julia_shard_action")
 load("//tools/docs/ocaml:defs.bzl", "ODOC_CONFIG", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
@@ -158,6 +160,16 @@ def _ocaml_docs_shard(target, ctx):
     if not trees:
         return None
     return ocaml_shard_action(ctx, trees, ctx.label.name, ODOC_CONFIG, "_dx_docs/" + ctx.label.name, ctx.executable._odoc, ctx.executable._ocaml_extract).shard
+
+def _fortran_docs_shard(target, ctx):
+    if _FortranInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary"):
+        return None
+    own = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension in FORTRAN_SOURCE_EXTENSIONS]
+    if not own:
+        return None
+    return fortran_shard_action(ctx, own, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.executable._ford_driver, ctx.executable._fortran_extract).shard
 
 _TS_ENTRY_EXTENSIONS = ["ts", "tsx", "mts", "cts"]
 _TS_TEST_MARKERS = [".test.", ".spec.", "_test."]
@@ -343,6 +355,9 @@ def _real_docs_aspect_impl(target, ctx):
     ocaml_shard = _ocaml_docs_shard(target, ctx)
     if ocaml_shard:
         parts.append({"dx_results": [ocaml_shard], "dx_docs_shards": [ocaml_shard]})
+    fortran_shard = _fortran_docs_shard(target, ctx)
+    if fortran_shard:
+        parts.append({"dx_results": [fortran_shard], "dx_docs_shards": [fortran_shard]})
     ts_shard = _typescript_docs_shard(target, ctx)
     if ts_shard:
         parts.append({"dx_results": [ts_shard], "dx_docs_shards": [ts_shard]})
@@ -362,7 +377,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Ruby, Julia, OCaml, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, D, Dart, C#, F#, PowerShell, Ruby, Julia, OCaml, Fortran, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_component_extract": attr.label(
@@ -399,6 +414,16 @@ real_docs_aspect = aspect(
         "_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/rust/extract:rust_extract"),
+            executable = True,
+        ),
+        "_ford_driver": attr.label(
+            cfg = "exec",
+            default = Label("//quality/tools/python:ford_dump"),
+            executable = True,
+        ),
+        "_fortran_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/fortran/extract:fortran_extract"),
             executable = True,
         ),
         "_fsharp_driver": attr.label(

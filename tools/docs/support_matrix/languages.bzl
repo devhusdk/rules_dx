@@ -468,7 +468,7 @@ LANGUAGES = [
     _language(
         "fortran",
         deps = "none: no package manager",
-        doc = NO_DOC,
+        doc = struct(tool = "ford", shard = "fortran_doc_shard"),
         dead_code = ["fortitude C191 unreachable-statement"],
         coverage = ["kcov"],
         coverage_note = "kcov runs on Linux only",

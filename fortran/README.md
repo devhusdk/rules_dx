@@ -44,6 +44,22 @@ bazel run //:solve
 bazel test //:solver_test
 ```
 
+## API docs
+
+`dx docs` documents every `fortran_library` that lists its own sources, with no
+setup. FORD, pinned by hash in `quality/tools/python/uv.lock`, parses the public
+modules, types and procedures on the hermetic Python toolchain; nothing is
+compiled and no host tool runs. To build the shard yourself, declare one:
+
+```python
+load("@rules_dx//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
+
+fortran_doc_shard(
+    name = "units_docs",
+    lib = ":units",
+)
+```
+
 ## Rules
 
 Load the rules from `@rules_dx//fortran/rules:defs.bzl`. `fortran_library`

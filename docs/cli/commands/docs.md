@@ -91,6 +91,7 @@ tools/dx docs //lib:site
 | Ruby | `@rules_dx//tools/docs/ruby:defs.bzl` | `ruby_doc_shard` | `lib`, `package`, `deps` |
 | OCaml | `@rules_dx//tools/docs/ocaml:defs.bzl` | `ocaml_doc_shard` | `lib`, `package` |
 | Julia | `@rules_dx//tools/docs/julia:defs.bzl` | `julia_doc_shard` | `lib`, `module`, `package` |
+| Fortran | `@rules_dx//tools/docs/fortran:defs.bzl` | `fortran_doc_shard` | `lib`, `package` |
 | Python | `@rules_dx//tools/docs/python:defs.bzl` | `python_doc_shard` | `library`, `package`, `docstyle` (`google`, `numpy` or `sphinx`) |
 | Java | `@rules_dx//tools/docs/jvm:defs.bzl` | `java_doc_shard` | `lib`, `package`, `deps` |
 | Kotlin | `@rules_dx//tools/docs/jvm:defs.bzl` | `kotlin_doc_shard` | `lib`, `package`, `deps` |
@@ -101,7 +102,7 @@ tools/dx docs //lib:site
 | C# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
 
-Rust, Go, Python, Java, Kotlin, Scala, D, Dart, C# and F# libraries in scope that have
+Rust, Go, Python, Fortran, Java, Kotlin, Scala, D, Dart, C# and F# libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
 an F# library needs `generate_documentation_file = True`; others are skipped. A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files gets one when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
 

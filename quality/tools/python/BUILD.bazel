@@ -216,6 +216,23 @@ py_unittest_test(
 )
 
 py_binary(
+    name = "ford_dump",
+    srcs = [
+        "ford_dump.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    imports = ["."],
+    main = "ford_dump.py",
+    visibility = [
+        "//quality:__pkg__",
+        "//tools/docs:__pkg__",
+        "//tools/docs/fortran:__subpackages__",
+    ],
+    deps = ["@pypi//ford"],
+)
+
+py_binary(
     name = "griffe_dump",
     srcs = [
         "griffe_dump.py",

@@ -16,7 +16,7 @@ const FIXTURE_DIR: &str = "tools/ci/actionlint_fixtures";
 
 const FIXTURE_WORKFLOWS: [&str; 2] = ["invalid.yml", "reusable.yml"];
 
-const PLATFORM_RUNNERS: &str = "tools/ci/input_validation.rs";
+const PLATFORM_RUNNERS: &str = "tools/ci/input_validation/src/lib.rs";
 
 const SUPPORTED_PLATFORMS: usize = 5;
 
@@ -181,7 +181,7 @@ fn configured_runners() -> Vec<String> {
     runners
 }
 
-/// Returns the platform table, platform to runner label, that `input_validation.rs` declares.
+/// Returns the platform table, platform to runner label, that `input_validation/src/lib.rs` declares.
 fn platform_table() -> BTreeMap<String, String> {
     let text = read_runfiles(PLATFORM_RUNNERS);
     let start = text

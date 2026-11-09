@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "ci_input_validation"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "input_validation"
+path = "src/lib.rs"
+
+[[bin]]
+name = "input_validation_bin"
+path = "src/main.rs"

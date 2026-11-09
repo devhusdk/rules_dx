@@ -612,6 +612,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "ci_coverage_cells"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "ci_docs_scope"
+version = "0.0.0"
+
+[[package]]
+name = "ci_evidence_inputs"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "ci_fill_pins"
+version = "0.0.0"
+dependencies = [
+ "tempfile",
+]
+
+[[package]]
+name = "ci_gate_base"
+version = "0.0.0"
+
+[[package]]
+name = "ci_input_validation"
+version = "0.0.0"
+
+[[package]]
+name = "ci_producers"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "ci_workflow"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+ "yaml_serde",
+]
+
+[[package]]
 name = "ciborium"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

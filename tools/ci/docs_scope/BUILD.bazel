@@ -1,0 +1,48 @@
+load("@crates//:crates.bzl", "aliases")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    ["src/lib.rs"],
+    visibility = VIS_TOOLS,
+)
+
+rust_library(
+    name = "docs_scope",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/ci_docs_scope",
+        normal = True,
+    ),
+    crate_name = "docs_scope",
+    crate_root = "src/lib.rs",
+    deps = [],
+)
+
+rust_binary(
+    name = "docs_scope_bin",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/ci_docs_scope",
+        normal = True,
+    ),
+    crate_name = "docs_scope_bin",
+    crate_root = "src/main.rs",
+    visibility = VIS_TOOLS_PUBLIC,
+    deps = [":docs_scope"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

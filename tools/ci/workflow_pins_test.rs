@@ -10,10 +10,10 @@ const REUSABLE: [&str; 3] = [
 
 const SCRIPTS: [(&str, &[&str]); 2] = [
     (
-        "tools/ci/input_validation.rs",
+        "tools/ci/input_validation/src/lib.rs",
         &["reusable-consumer.yml", "reusable-release.yml"],
     ),
-    ("tools/ci/docs_scope.rs", &["reusable-docs.yml"]),
+    ("tools/ci/docs_scope/src/lib.rs", &["reusable-docs.yml"]),
 ];
 
 const OWNER: &str = "devhusdk";
@@ -138,8 +138,8 @@ fn every_tools_ci_script_runs_from_its_bazel_target_and_is_never_inlined() {
         assert!(!summary.is_empty(), "{script} has no docstring summary");
         let name = script
             .trim_start_matches("tools/ci/")
-            .trim_end_matches(".rs");
-        let target = format!("@rules_dx//tools/ci:{name}_bin");
+            .trim_end_matches("/src/lib.rs");
+        let target = format!("@rules_dx//tools/ci/{name}:{name}_bin");
         for workflow in REUSABLE {
             let text = read_runfiles(&format!(".github/workflows/{workflow}"));
             assert!(
@@ -235,7 +235,7 @@ fn bare_main_repo_labels(text: &str) -> Vec<(usize, String)> {
 #[test]
 fn bare_main_repo_label_check_flags_only_unqualified_labels() {
     for good in [
-        "run: bazel run @rules_dx//tools/ci:input_validation_bin",
+        "run: bazel run @rules_dx//tools/ci/input_validation:input_validation_bin",
         "run: bazel run @dx_tools//:dx",
         "run: bazel run @@//:dx",
         "url: https://example.com/a",

@@ -148,7 +148,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" @rules_dx//tools/ci:docs_scope_bin
+          bazel run "$@" @rules_dx//tools/ci/docs_scope:docs_scope_bin
       - name: Check the docs site sources
         if: inputs.site_check != ''
         run: |

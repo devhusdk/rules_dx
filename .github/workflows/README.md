@@ -22,7 +22,7 @@
 
 `ci.yml` runs only on `workflow_dispatch`, a daily schedule (`17 3 * * *`, UTC) against the default branch head, and `merge_group`. There are no push or pull-request triggers. Its `gate` job runs `dx check --affected` and is required on main by `.github/rulesets/main.json`. Runs share one concurrency group per ref (`ci-ci-<ref>`, no cancel): a new run on main replaces only the queued one. The repository cache prune runs after scheduled or dispatched main runs. A red scheduled run opens or updates one issue titled `ci: scheduled run is failing` (the `scheduled-report` job). The next green scheduled run closes it. GitHub may delay or drop scheduled runs under load.
 
-The platform table is `PLATFORMS` in `tools/ci/input_validation.rs`; `input_validation_test` pins every other copy to it.
+The platform table is `PLATFORMS` in `tools/ci/input_validation/src/lib.rs`; `input_validation_test` pins every other copy to it.
 
 Land a PR with `gh pr checks <n> --required --watch --fail-fast`, then `gh pr merge <n> --squash`, never `--admin`.
 

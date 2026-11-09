@@ -1,5 +1,5 @@
 {
-  "checksum": "bcc6274acd615584b5ffdf695f9e7675f87c43613f540216ae05bfdcc0a4505f",
+  "checksum": "8e2e3c39e8bb52a111b9617a813cd1a6d38bfbe78b11613c013180f8f3a88dc3",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -3143,6 +3143,200 @@
         }
       ],
       "version": "0.4.45"
+    },
+    "ci_coverage_cells 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "coverage_cells",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_coverage_cells",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "coverage_cells",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "ci_docs_scope 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "docs_scope",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_docs_scope",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "docs_scope",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "ci_evidence_inputs 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "evidence_inputs",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_evidence_inputs",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "evidence_inputs",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "ci_fill_pins 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "fill_pins",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_fill_pins",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "fill_pins",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "ci_gate_base 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "gate_base",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_gate_base",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "gate_base",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "ci_input_validation 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "input_validation",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_input_validation",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "input_validation",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "ci_producers 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_producers",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "ci_workflow 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "yaml_serde 0.10.7",
+            "target": "yaml_serde"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "ci_workflow",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "ci_workflow",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "ci_workflow",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "ciborium 0.2.2": {
       "common_attrs": {
@@ -28973,6 +29167,14 @@
     "appimage_packer 0.0.0": "appimage/appimage_packer",
     "bench_fixture 0.0.0": "rust/tests/fixtures/bench_fixture",
     "cc_context 0.0.0": "cc/cc_context",
+    "ci_coverage_cells 0.0.0": "tools/ci/ci_coverage_cells",
+    "ci_docs_scope 0.0.0": "tools/ci/ci_docs_scope",
+    "ci_evidence_inputs 0.0.0": "tools/ci/ci_evidence_inputs",
+    "ci_fill_pins 0.0.0": "tools/ci/ci_fill_pins",
+    "ci_gate_base 0.0.0": "tools/ci/ci_gate_base",
+    "ci_input_validation 0.0.0": "tools/ci/ci_input_validation",
+    "ci_producers 0.0.0": "tools/ci/ci_producers",
+    "ci_workflow 0.0.0": "tools/ci/ci_workflow",
     "codegen_shard 0.0.0": "generation/codegen_shard",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
     "docs_components 0.0.0": "tools/docs/docs_components",

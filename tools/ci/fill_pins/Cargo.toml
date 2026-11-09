@@ -1,0 +1,20 @@
+[package]
+license = "Apache-2.0"
+name = "ci_fill_pins"
+version = "0.0.0"
+edition = "2024"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lib]
+name = "fill_pins"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fill_pins_bin"
+path = "src/main.rs"
+
+[[test]]
+name = "fill_pins_test"
+path = "tests/fill_pins_test.rs"

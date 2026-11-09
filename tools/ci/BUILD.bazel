@@ -39,56 +39,33 @@ rust_test(
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     tags = ["no-remote"],
     deps = [
-        ":ci_workflow",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "input_validation",
-    srcs = ["input_validation.rs"],
-    crate_name = "input_validation",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "input_validation_bin",
-    srcs = ["input_validation_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":input_validation"],
 )
 
 rust_test(
     name = "input_validation_test",
     srcs = ["input_validation_test.rs"],
     data = [
-        ":input_validation_bin",
         ":input_validation_fixtures",
         "//.github:actionlint.yaml",
         "//.github:workflows/ci.yml",
         "//.github:workflows/release-cells.yml",
         "//.github:workflows/release-consumer.yml",
         "//docs:github-ci.md",
+        "//tools/ci/input_validation:input_validation_bin",
     ],
-    env = {"DX_INPUT_VALIDATION": "$(rootpath :input_validation_bin)"},
+    env = {"DX_INPUT_VALIDATION": "$(rootpath //tools/ci/input_validation:input_validation_bin)"},
     deps = [
-        ":evidence_inputs",
-        ":input_validation",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/evidence_inputs",
+        "//tools/ci/input_validation",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "evidence_inputs",
-    srcs = ["evidence_inputs.rs"],
-    crate_name = "evidence_inputs",
-    deps = ["@crates//:serde_json"],
 )
 
 rust_test(
@@ -99,102 +76,33 @@ rust_test(
         "//.github:workflows/evidence.yml",
     ],
     deps = [
-        ":evidence_inputs",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/evidence_inputs",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "docs_scope",
-    srcs = ["docs_scope.rs"],
-    crate_name = "docs_scope",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "docs_scope_bin",
-    srcs = ["docs_scope_main.rs"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [":docs_scope"],
 )
 
 rust_test(
     name = "docs_scope_test",
     srcs = ["docs_scope_test.rs"],
-    data = [":docs_scope_bin"],
-    env = {"DX_DOCS_SCOPE_BIN": "$(rootpath :docs_scope_bin)"},
+    data = ["//tools/ci/docs_scope:docs_scope_bin"],
+    env = {"DX_DOCS_SCOPE_BIN": "$(rootpath //tools/ci/docs_scope:docs_scope_bin)"},
     deps = [
-        ":docs_scope",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/docs_scope",
         "//tools/testing:dx_testing",
     ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "fill_pins",
-    srcs = ["fill_pins.rs"],
-    crate_name = "fill_pins",
-    deps = ["//cli/adopt:dx_adopt"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "fill_pins_bin",
-    srcs = ["fill_pins_main.rs"],
-    deps = [":fill_pins"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_test(
-    name = "fill_pins_test",
-    srcs = ["fill_pins_test.rs"],
-    deps = [
-        ":fill_pins",
-        "//cli/adopt:dx_adopt",
-        "//cli/test_scratch:dx_test_scratch",
-        "@crates//:tempfile",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "gate_base",
-    srcs = ["gate_base.rs"],
-    crate_name = "gate_base",
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "gate_base_bin",
-    srcs = ["gate_base_main.rs"],
-    deps = [":gate_base"],
 )
 
 rust_test(
     name = "gate_base_test",
     srcs = ["gate_base_test.rs"],
-    data = [":gate_base_bin"],
-    env = {"DX_GATE_BASE": "$(rootpath :gate_base_bin)"},
+    data = ["//tools/ci/gate_base:gate_base_bin"],
+    env = {"DX_GATE_BASE": "$(rootpath //tools/ci/gate_base:gate_base_bin)"},
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "ci_workflow",
-    testonly = True,
-    srcs = ["ci_workflow.rs"],
-    crate_name = "ci_workflow",
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 
@@ -202,11 +110,11 @@ rust_test(
     name = "actionlint_test",
     srcs = ["actionlint_test.rs"],
     data = [
-        "input_validation.rs",
         ":actionlint_fixtures",
         "//.github:actionlint.yaml",
         "//.github:workflows",
         "//examples:docs-ci/caller.yml",
+        "//tools/ci/input_validation:src/lib.rs",
         "@dx_tools//:actionlint",
         "@dx_tools//:shellcheck",
     ],
@@ -234,7 +142,7 @@ rust_test(
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -255,7 +163,7 @@ rust_test(
     srcs = ["advisory_snapshots_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "@crates//:serde_json",
     ],
 )
@@ -268,7 +176,7 @@ rust_test(
         "//docs:github-ci.md",
     ],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -305,7 +213,7 @@ rust_test(
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -333,7 +241,7 @@ rust_test(
     srcs = ["tool_resolve_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "@crates//:serde_json",
     ],
 )
@@ -371,7 +279,7 @@ rust_test(
     srcs = ["dx_update_workflow_test.rs"],
     data = ["//.github:workflows/dx-update.yml"],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -385,7 +293,7 @@ rust_test(
         "//deploy/rules:gate_sources",
     ],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -400,7 +308,7 @@ rust_test(
         "//.github:workflows/pr-check.yml",
     ],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
     ],
 )
@@ -427,8 +335,8 @@ rust_test(
     srcs = ["consumer_inputs_test.rs"],
     data = ["//.github:workflows/reusable-consumer.yml"],
     deps = [
-        ":ci_workflow",
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "@crates//:serde_json",
     ],
 )
@@ -490,8 +398,8 @@ rust_test(
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = [
-        ":ci_workflow",
         "//tools/bazelrc:dx_preset",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -607,7 +515,7 @@ rust_test(
     ],
     env = {"DX_RELEASE_MATRIX": "$(rootpath //deploy/release:release_matrix)"},
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -658,7 +566,7 @@ rust_test(
         "//ci/gitlab:dx.gitlab-ci.yml",
     ],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -676,7 +584,7 @@ rust_test(
         "//examples:docs-ci/caller.yml",
     ],
     deps = [
-        ":ci_workflow",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -686,13 +594,13 @@ rust_test(
     name = "workflow_pins_test",
     srcs = ["workflow_pins_test.rs"],
     data = [
-        "docs_scope.rs",
-        "input_validation.rs",
         "starter_pin.sha256",
         "//.github:workflows/reusable-consumer.yml",
         "//.github:workflows/reusable-docs.yml",
         "//.github:workflows/reusable-release.yml",
         "//examples:docs-ci/caller.yml",
+        "//tools/ci/docs_scope:src/lib.rs",
+        "//tools/ci/input_validation:src/lib.rs",
     ],
     deps = ["//tools/testing:dx_testing"],
 )
@@ -703,39 +611,13 @@ real_source_target(
     tags = ["corpus"],
 )
 
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_library(
-    name = "coverage_cells",
-    srcs = ["coverage_cells.rs"],
-    crate_name = "coverage_cells",
-    deps = ["@crates//:serde_json"],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "coverage_cells_bin",
-    srcs = ["coverage_cells_main.rs"],
-    deps = [":coverage_cells"],
-)
-
 rust_test(
     name = "coverage_cells_test",
     srcs = ["coverage_cells_test.rs"],
     data = ["//tools/coverage:cells.txt"],
     deps = [
-        ":coverage_cells",
+        "//tools/ci/coverage_cells",
         "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
-)
-
-# keep: no Cargo.toml here; Gazelle would delete it
-rust_binary(
-    name = "producers_bin",
-    testonly = True,
-    srcs = ["producers_main.rs"],
-    deps = [
-        "//libs/binfmt:dx_binfmt",
         "@crates//:serde_json",
     ],
 )
@@ -745,9 +627,9 @@ rust_test(
     srcs = ["compiler_evidence_test.rs"],
     data = [
         "compiler_evidence.sh",
-        ":producers_bin",
+        "//tools/ci/producers:producers_bin",
     ],
-    env = {"DX_PRODUCERS_BIN": "$(rootpath :producers_bin)"},
+    env = {"DX_PRODUCERS_BIN": "$(rootpath //tools/ci/producers:producers_bin)"},
     tags = ["no-remote"],
     deps = [
         "//cli/test_scratch:dx_test_scratch",

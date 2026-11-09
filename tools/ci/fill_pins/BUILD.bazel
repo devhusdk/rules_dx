@@ -1,0 +1,63 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS)
+
+rust_library(
+    name = "fill_pins",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/ci_fill_pins",
+        normal = True,
+    ),
+    crate_name = "fill_pins",
+    crate_root = "src/lib.rs",
+    deps = ["//cli/adopt:dx_adopt"],
+)
+
+rust_binary(
+    name = "fill_pins_bin",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/ci_fill_pins",
+        normal = True,
+    ),
+    crate_name = "fill_pins_bin",
+    crate_root = "src/main.rs",
+    deps = [":fill_pins"],
+)
+
+rust_test(
+    name = "fill_pins_test",
+    srcs = ["tests/fill_pins_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci/ci_fill_pins",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "fill_pins_test",
+    crate_root = "tests/fill_pins_test.rs",
+    deps = all_crate_deps(
+        package_name = "tools/ci/ci_fill_pins",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":fill_pins",
+        "//cli/adopt:dx_adopt",
+        "//cli/test_scratch:dx_test_scratch",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

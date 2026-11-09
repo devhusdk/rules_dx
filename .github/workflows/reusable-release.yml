@@ -55,14 +55,14 @@ jobs:
         id: platforms
         env:
           DX_PLATFORMS: ${{ inputs.platforms }}
-        run: bazel run --lockfile_mode=error @rules_dx//tools/ci:input_validation_bin
+        run: bazel run --lockfile_mode=error @rules_dx//tools/ci/input_validation:input_validation_bin
       - name: List the deployables
         id: list
         shell: bash
         run: |
           set -euo pipefail
           if [ -n "$DX_DEPLOYABLES" ]; then
-            bazel run --lockfile_mode=error @rules_dx//tools/ci:input_validation_bin -- deployables > "$RUNNER_TEMP/deployables.txt"
+            bazel run --lockfile_mode=error @rules_dx//tools/ci/input_validation:input_validation_bin -- deployables > "$RUNNER_TEMP/deployables.txt"
           else
             bazel query --output=label 'attr(tags, "[\\[ ]release[,\\]]", kind(dx_deployment, //...))' > "$RUNNER_TEMP/deployables.txt"
           fi

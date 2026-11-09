@@ -1,0 +1,16 @@
+[package]
+license = "Apache-2.0"
+name = "ci_coverage_cells"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+
+[lib]
+name = "coverage_cells"
+path = "src/lib.rs"
+
+[[bin]]
+name = "coverage_cells_bin"
+path = "src/main.rs"

@@ -66,7 +66,7 @@ jobs:
           while IFS= read -r file; do
             files+=("$file")
           done < <(find "$RUNNER_TEMP/coverage-reports" -name coverage.ndjson | sort)
-          bazel run "$@" //tools/ci:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
+          bazel run "$@" //tools/ci/coverage_cells:coverage_cells_bin -- "$GITHUB_WORKSPACE/tools/coverage/cells.txt" "$GITHUB_SHA" "${files[@]}"
   docs:
     name: docs (self-call reusable docs workflow)
     uses: ./.github/workflows/reusable-docs.yml
@@ -193,10 +193,10 @@ jobs:
           out="$RUNNER_TEMP/compiler-evidence/linux_x86_64.jsonl"
           mkdir -p "$(dirname "$out")"
           : > "$out"
-          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci:producers_bin
+          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci/producers:producers_bin
           DX_BIN="$(bazel info "$@" bazel-bin)"
           DX_TESTLOGS="$(bazel info "$@" bazel-testlogs)"
-          DX_PRODUCERS="$DX_BIN/tools/ci/producers_bin"
+          DX_PRODUCERS="$DX_BIN/tools/ci/producers/producers_bin"
           [ -f "$DX_PRODUCERS" ] || DX_PRODUCERS="$DX_PRODUCERS.exe"
           export DX_BIN DX_TESTLOGS DX_PRODUCERS
           facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
@@ -637,10 +637,10 @@ jobs:
           out="$RUNNER_TEMP/compiler-evidence/starter-${PLATFORM}.jsonl"
           mkdir -p "$(dirname "$out")"
           : > "$out"
-          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci:producers_bin
+          bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci/producers:producers_bin
           DX_BIN="$PWD/bazel-bin"
           DX_TESTLOGS="$PWD/bazel-testlogs"
-          DX_PRODUCERS="$DX_BIN/tools/ci/producers_bin"
+          DX_PRODUCERS="$DX_BIN/tools/ci/producers/producers_bin"
           [ -f "$DX_PRODUCERS" ] || DX_PRODUCERS="$DX_PRODUCERS.exe"
           export DX_BIN DX_TESTLOGS DX_PRODUCERS
           facts="${DX_BIN}/tools/docs/support_matrix/facts.json"
@@ -916,7 +916,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(sed -n 's/^DX_VERSION = "\(.*\)"$/\1/p' cli/prebuilt/pins.bzl)"
-          bazel run //tools/ci:fill_pins_bin -- "v$version" --check
+          bazel run //tools/ci/fill_pins:fill_pins_bin -- "v$version" --check
       - name: Write job summary
         if: always()
         env:

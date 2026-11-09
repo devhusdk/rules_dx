@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "ci_workflow"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+serde_json = "1"
+yaml_serde = "0.10"
+
+[lib]
+name = "ci_workflow"
+path = "src/lib.rs"

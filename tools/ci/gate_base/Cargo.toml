@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "ci_gate_base"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "gate_base"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gate_base_bin"
+path = "src/main.rs"

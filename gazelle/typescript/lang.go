@@ -18,7 +18,7 @@ const (
 	languageName    = "typescript"
 	libraryKind     = "typescript_library"
 	testKind        = "typescript_test"
-	binaryKind      = "javascript_binary"
+	binaryKind      = "typescript_binary"
 	configKind      = "ts_config"
 	packageKind     = "npm_package"
 	configName      = "tsconfig"
@@ -69,12 +69,13 @@ func testKindInfo() rule.KindInfo {
 
 func binaryKindInfo() rule.KindInfo {
 	return rule.KindInfo{
-		MatchAttrs:    []string{"main"},
-		NonEmptyAttrs: map[string]bool{"data": true},
+		MatchAttrs:    []string{"srcs"},
+		NonEmptyAttrs: map[string]bool{"srcs": true},
 		MergeableAttrs: map[string]bool{
-			"data": true,
+			"srcs": true,
+			"deps": true,
 		},
-		ResolveAttrs: map[string]bool{"data": true},
+		ResolveAttrs: map[string]bool{"deps": true},
 	}
 }
 
@@ -92,7 +93,6 @@ func newLang() *typescriptLang {
 		Kinds:        typescriptKinds,
 		DefsPackage:  "typescript/rules:defs.bzl",
 		KindDefs: map[string]string{
-			binaryKind:  "javascript/rules:defs.bzl",
 			configKind:  "@aspect_rules_ts//ts:defs.bzl",
 			packageKind: "@aspect_rules_js//npm:defs.bzl",
 		},
@@ -282,7 +282,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		}
 		p := plan{name: name, src: src, test: IsTestFile(src)}
 		p.decl = IsDeclaration(src)
-		p.entry = !p.test && !p.decl && IsEntryFile(src)
+		p.entry = !p.test && !p.decl && IsEntryFile(src) && !strings.HasSuffix(src, ".tsx")
 		p.refs = common.JSImportRefs(common.ParseSourceImportRefs(src, content, path.Join(args.Rel, path.Dir(src))))
 		plans = append(plans, p)
 	}
@@ -290,13 +290,16 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		return language.GenerateResult{}
 	}
 
+	imported := importedEntries(args.Rel, plans)
 	claimants := make([]Claimant, 0, len(plans)*2)
 	for _, p := range plans {
 		kind := libraryKind
 		if p.test {
 			kind = testKind
 		}
-		claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: kind})
+		if !p.entry || imported[p.src] {
+			claimants = append(claimants, Claimant{Name: p.name, Source: p.src, Kind: kind})
+		}
 		if p.entry {
 			claimants = append(claimants, Claimant{Name: common.BinaryName(p.name), Source: p.src, Kind: binaryKind})
 		}
@@ -338,6 +341,21 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 			result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
 			continue
 		}
+		if p.entry {
+			if !common.CoveredBinary(args.File, binaryKind, common.BinaryName(p.name), servesEntry(p.src)) {
+				bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
+				bin.SetAttr("srcs", []string{p.src})
+				bin.SetAttr("main", p.src)
+				if tsconfig != "" {
+					bin.SetAttr("tsconfig", tsconfig)
+				}
+				result.Gen = append(result.Gen, bin)
+				result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
+			}
+			if !imported[p.src] {
+				continue
+			}
+		}
 		r := rule.NewRule(libraryKind, p.name)
 		if p.decl {
 			r.SetAttr("declaration_srcs", []string{p.src})
@@ -349,13 +367,6 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 		libraries = append(libraries, ":"+p.name)
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapRefImportSet(p.refs))
-		if p.entry && !common.CoveredBinary(args.File, binaryKind, common.BinaryName(p.name), servesEntry(EntryPointName(p.src))) {
-			bin := rule.NewRule(binaryKind, common.BinaryName(p.name))
-			bin.SetAttr("main", EntryPointName(p.src))
-			bin.SetAttr("data", []string{":" + p.name})
-			result.Gen = append(result.Gen, bin)
-			result.Imports = append(result.Imports, common.WrapRefImportSet(nil))
-		}
 	}
 	if common.IsPnpmWorkspaceMember(repoRoot, args.Rel) {
 		pkg := rule.NewRule(packageKind, packageName)
@@ -402,7 +413,35 @@ func allHaveTSConfig(file *rule.File, plans []plan) bool {
 
 // servesEntry reports whether a binary runs entry.
 func servesEntry(entry string) func(*rule.Rule) bool {
-	return func(r *rule.Rule) bool { return r.AttrString("main") == entry }
+	return func(r *rule.Rule) bool {
+		main := r.AttrString("main")
+		if main == "" {
+			if srcs := r.AttrStrings("srcs"); len(srcs) == 1 {
+				main = srcs[0]
+			}
+		}
+		return main == entry
+	}
+}
+
+// importedEntries maps each entry source that another source in the package
+// imports.
+func importedEntries(rel string, plans []plan) map[string]bool {
+	roots := map[string]string{}
+	for _, p := range plans {
+		if p.entry {
+			roots[common.ModuleIdentity(rel, ModuleName(p.src))] = p.src
+		}
+	}
+	out := map[string]bool{}
+	for _, p := range plans {
+		for _, ref := range p.refs {
+			if src, ok := roots[ref.Root]; ok && src != p.src {
+				out[src] = true
+			}
+		}
+	}
+	return out
 }
 
 func mergeStale(file *rule.File, result language.GenerateResult) language.GenerateResult {
@@ -415,10 +454,21 @@ func mergeStale(file *rule.File, result language.GenerateResult) language.Genera
 		case testKind:
 			return r.AttrString("runner") == ""
 		case binaryKind:
-			return common.GeneratedBinary(r, "data")
+			return generatedBinary(r)
 		}
 		return true
 	})
+}
+
+// generatedBinary reports whether r is the _bin binary gazelle derives from
+// an entry source.
+func generatedBinary(r *rule.Rule) bool {
+	target, ok := strings.CutSuffix(r.Name(), common.BinaryName(""))
+	if !ok || target == "" {
+		return false
+	}
+	srcs := r.AttrStrings("srcs")
+	return len(srcs) == 1 && IsEntryFile(srcs[0]) && ModuleName(srcs[0]) == target
 }
 
 // rootPackageJSONExists reports whether the repo root has a package.json file.

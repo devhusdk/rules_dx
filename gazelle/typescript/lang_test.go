@@ -176,57 +176,55 @@ func TestGenerateFailures(t *testing.T) {
 	}
 }
 
-func TestGenerateEntryThinBinary(t *testing.T) {
+func TestGenerateEntryBinary(t *testing.T) {
 	result := generateFixture(t, map[string]string{
 		"package.json":            jestManifest,
 		"pkg/demo/main.ts":        "import helper from \"./helper\";\nconsole.log(helper(\"x\"));\n",
 		"pkg/demo/helper.ts":      "export function helper(name: string): string { return name; }\n",
 		"pkg/demo/helper_test.ts": "import helper from \"./helper\";\n",
 	}, []string{"main.ts", "helper.ts", "helper_test.ts"})
-	if len(result.Gen) != 4 || len(result.Imports) != 4 {
-		t.Fatalf("generated %d rules and %d import sets, want 4 each", len(result.Gen), len(result.Imports))
+	if len(result.Gen) != 3 || len(result.Imports) != 3 {
+		t.Fatalf("generated %d rules and %d import sets, want 3 each", len(result.Gen), len(result.Imports))
 	}
 	byRule := make(map[string]int, len(result.Gen))
 	for i, r := range result.Gen {
 		byRule[r.Kind()+"\x00"+r.Name()] = i
 	}
-	libIdx, ok := byRule[libraryKind+"\x00main"]
-	if !ok {
-		t.Fatalf("missing typescript_library(main) in %v", result.Gen)
+	if _, ok := byRule[libraryKind+"\x00main"]; ok {
+		t.Errorf("unimported entry must not get a library: %v", result.Gen)
 	}
 	binIdx, ok := byRule[binaryKind+"\x00main_bin"]
 	if !ok {
-		t.Fatalf("missing javascript_binary(main_bin) in %v", result.Gen)
-	}
-	testIdx, ok := byRule[testKind+"\x00helper_test"]
-	if !ok {
-		t.Fatalf("missing typescript_test(helper_test) in %v", result.Gen)
-	}
-	if got := result.Gen[testIdx].AttrString("node_modules"); got != rootNodeModules {
-		t.Errorf("test node_modules = %q, want %q", got, rootNodeModules)
-	}
-	if got := result.Gen[testIdx].AttrString("package_json"); got != rootPackageJSON {
-		t.Errorf("test package_json = %q, want %q", got, rootPackageJSON)
-	}
-	lib := result.Gen[libIdx]
-	if got := strings.Join(lib.AttrStrings("srcs"), ","); got != "main.ts" {
-		t.Errorf("library srcs = %q, want main.ts", got)
+		t.Fatalf("missing typescript_binary(main_bin) in %v", result.Gen)
 	}
 	bin := result.Gen[binIdx]
-	if got := bin.AttrString("main"); got != "main.js" {
-		t.Errorf("binary main = %q, want main.js", got)
+	if got := strings.Join(bin.AttrStrings("srcs"), ","); got != "main.ts" {
+		t.Errorf("binary srcs = %q, want main.ts", got)
 	}
-	if got := strings.Join(bin.AttrStrings("data"), ","); got != ":main" {
-		t.Errorf("binary data = %q, want :main", got)
+	if got := bin.AttrString("main"); got != "main.ts" {
+		t.Errorf("binary main = %q, want main.ts", got)
 	}
-	if bin.Attr("srcs") != nil {
-		t.Errorf("thin binary must own no srcs, got %v", bin.AttrStrings("srcs"))
+	if got := bin.AttrString("tsconfig"); got != "//:tsconfig" {
+		t.Errorf("binary tsconfig = %q, want //:tsconfig", got)
 	}
-	if raw := importRefs(result.Imports[libIdx]); strings.Join(common.RefRoots(raw), ",") != "pkg/demo/helper" {
-		t.Errorf("library imports = %+v, want [pkg/demo/helper]", raw)
+	if raw := importRefs(result.Imports[binIdx]); strings.Join(common.RefRoots(raw), ",") != "pkg/demo/helper" {
+		t.Errorf("binary imports = %+v, want [pkg/demo/helper]", raw)
 	}
-	if raw := importRefs(result.Imports[binIdx]); len(raw) != 0 {
-		t.Errorf("binary imports = %+v, want empty", raw)
+}
+
+func TestGenerateImportedEntryKeepsLibrary(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/main.ts":   "export const x = 1;\n",
+		"pkg/demo/helper.ts": "import { x } from \"./main\";\nexport const y = x;\n",
+	}, []string{"main.ts", "helper.ts"})
+	kinds := map[string]bool{}
+	for _, r := range result.Gen {
+		kinds[r.Kind()+"\x00"+r.Name()] = true
+	}
+	for _, want := range []string{libraryKind + "\x00main", binaryKind + "\x00main_bin", libraryKind + "\x00helper"} {
+		if !kinds[want] {
+			t.Errorf("missing %q in %v", want, result.Gen)
+		}
 	}
 }
 
@@ -234,19 +232,11 @@ func TestGenerateEntryCompiledExtensions(t *testing.T) {
 	result := generateFixture(t, map[string]string{
 		"pkg/demo/main.mts": "export const x = 1;\n",
 	}, []string{"main.mts"})
-	if len(result.Gen) != 2 {
-		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	if len(result.Gen) != 1 {
+		t.Fatalf("generated %d rules, want 1", len(result.Gen))
 	}
-	byRule := make(map[string]int, len(result.Gen))
-	for i, r := range result.Gen {
-		byRule[r.Kind()+"\x00"+r.Name()] = i
-	}
-	binIdx, ok := byRule[binaryKind+"\x00main_bin"]
-	if !ok {
-		t.Fatalf("missing javascript_binary(main_bin) in %v", result.Gen)
-	}
-	if got := result.Gen[binIdx].AttrString("main"); got != "main.mjs" {
-		t.Errorf("binary main = %q, want main.mjs", got)
+	if got := result.Gen[0].AttrString("main"); got != "main.mts" {
+		t.Errorf("binary main = %q, want main.mts", got)
 	}
 }
 
@@ -276,37 +266,19 @@ func TestGenerateEntryCollision(t *testing.T) {
 
 func TestBinaryKindInfo(t *testing.T) {
 	info := binaryKindInfo()
-	for _, attr := range info.MatchAttrs {
-		if attr == "srcs" {
-			t.Errorf("binary MatchAttrs must not contain srcs: %v", info.MatchAttrs)
+	if len(info.MatchAttrs) != 1 || info.MatchAttrs[0] != "srcs" {
+		t.Errorf("binary MatchAttrs = %v, want [srcs]", info.MatchAttrs)
+	}
+	if !info.NonEmptyAttrs["srcs"] {
+		t.Errorf("binary NonEmptyAttrs = %v, want srcs so stale binaries are removed", info.NonEmptyAttrs)
+	}
+	for _, attr := range []string{"srcs", "deps"} {
+		if !info.MergeableAttrs[attr] {
+			t.Errorf("binary MergeableAttrs = %v, want %s", info.MergeableAttrs, attr)
 		}
 	}
-	if len(info.MatchAttrs) != 1 || info.MatchAttrs[0] != "main" {
-		t.Errorf("binary MatchAttrs = %v, want [main]", info.MatchAttrs)
-	}
-	if len(info.NonEmptyAttrs) != 1 || !info.NonEmptyAttrs["data"] {
-		t.Errorf("binary NonEmptyAttrs = %v, want data so stale binaries are removed", info.NonEmptyAttrs)
-	}
-	if !info.MergeableAttrs["data"] {
-		t.Errorf("binary MergeableAttrs = %v, want data", info.MergeableAttrs)
-	}
-	if !info.ResolveAttrs["data"] {
-		t.Errorf("binary ResolveAttrs = %v, want data", info.ResolveAttrs)
-	}
-}
-
-func TestResolvePreservesBinaryData(t *testing.T) {
-	l := newLang()
-	cfg := resolverConfig(t, nil)
-	bin := rule.NewRule(binaryKind, "main_bin")
-	bin.SetAttr("main", "main.js")
-	bin.SetAttr("data", []string{":main"})
-	l.Resolve(cfg, resolverIndex(l), nil, bin, refs(), label.New("", "app", "main_bin"))
-	if got := strings.Join(bin.AttrStrings("data"), ","); got != ":main" {
-		t.Errorf("binary data = %q, want preserved :main", got)
-	}
-	if len(l.Errors()) != 0 {
-		t.Errorf("binary resolve errors = %v", l.Errors())
+	if !info.ResolveAttrs["deps"] {
+		t.Errorf("binary ResolveAttrs = %v, want deps", info.ResolveAttrs)
 	}
 }
 
@@ -353,29 +325,30 @@ func binaries(file *rule.File) map[string]*rule.Rule {
 
 func TestMergeStaleCleansBinary(t *testing.T) {
 	sources := map[string]string{"greet.ts": "export const x = 1;\n", "main.ts": "import { x } from \"./greet\";\n"}
-	readme := binaries(regenerate(t, sources, `javascript_binary(
+	readme := binaries(regenerate(t, sources, `typescript_binary(
     name = "hello",
-    data = [":greet"],
-    main = "main.js",
+    srcs = ["main.ts"],
+    deps = [":greet"],
+    main = "main.ts",
 )
 `))
 	if readme["hello"] == nil || len(readme) != 1 {
 		t.Fatalf("binaries = %v, want only hello", readme)
 	}
-	if got := strings.Join(readme["hello"].AttrStrings("data"), ","); got != ":greet" {
-		t.Errorf("hello data = %q, want :greet", got)
+	if got := strings.Join(readme["hello"].AttrStrings("deps"), ","); got != ":greet" {
+		t.Errorf("hello deps = %q, want :greet", got)
 	}
 
-	kept := binaries(regenerate(t, sources, `javascript_binary(name = "main_bin", data = [":main"], main = "main.js")
+	kept := binaries(regenerate(t, sources, `typescript_binary(name = "main_bin", srcs = ["main.ts"], main = "main.ts")
 `))
 	if kept["main_bin"] == nil || len(kept) != 1 {
 		t.Fatalf("binaries = %v, want only main_bin", kept)
 	}
-	if got := strings.Join(kept["main_bin"].AttrStrings("data"), ","); got != ":main" {
-		t.Errorf("main_bin data = %q, want :main", got)
+	if got := strings.Join(kept["main_bin"].AttrStrings("srcs"), ","); got != "main.ts" {
+		t.Errorf("main_bin srcs = %q, want main.ts", got)
 	}
 
-	stale := binaries(regenerate(t, map[string]string{"greet.ts": "export const x = 1;\n"}, `javascript_binary(name = "main_bin", data = [":main"], main = "main.js")
+	stale := binaries(regenerate(t, map[string]string{"greet.ts": "export const x = 1;\n"}, `typescript_binary(name = "main_bin", srcs = ["main.ts"], main = "main.ts")
 `))
 	if len(stale) != 0 {
 		t.Errorf("binaries = %v, want stale main_bin removed", stale)
@@ -616,10 +589,10 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 func TestApparentLoadsDefault(t *testing.T) {
 	l := newLang()
 	got := l.ApparentLoads(func(string) string { return "" })
-	if len(got) != 4 || got[0].Name != "@rules_dx//typescript/rules:defs.bzl" {
+	if len(got) != 3 || got[0].Name != "@rules_dx//typescript/rules:defs.bzl" {
 		t.Fatalf("default apparent loads = %+v", got)
 	}
-	if got[3].Name != "@rules_dx//javascript/rules:defs.bzl" || strings.Join(got[3].Symbols, ",") != "javascript_binary" {
+	if !strings.Contains(strings.Join(got[0].Symbols, ","), "typescript_binary") {
 		t.Errorf("default apparent binary loads = %+v", got)
 	}
 }

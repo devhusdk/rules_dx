@@ -1,17 +1,9 @@
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
+load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary")
 
-typescript_library(
-    name = "main",
-    srcs = ["main.ts"],
-    declaration = True,
-    tsconfig = "//:tsconfig",
-    visibility = ["//visibility:public"],
-    deps = ["//lib:util"],
-)
-
-javascript_binary(
+typescript_binary(
     name = "main_bin",
-    data = [":main"],
-    main = "main.js",
+    srcs = ["main.ts"],
+    main = "main.ts",
+    tsconfig = "//:tsconfig",
+    deps = ["//lib:util"],
 )

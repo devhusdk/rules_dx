@@ -299,6 +299,12 @@ local_path_override(
     path = "families/generation",
 )
 
+bazel_dep(name = "rules_dx_fortran", version = "0.0.0", dev_dependency = True)
+local_path_override(
+    module_name = "rules_dx_fortran",
+    path = "families/fortran",
+)
+
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
@@ -1168,9 +1174,7 @@ use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "rules_ocam
 register_toolchains("@dx_ocaml_toolchains//:all")
 
 fortran = use_extension("//fortran/toolchain:repos.bzl", "fortran")
-use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
-
-register_toolchains("@dx_fortran_toolchains//:all")
+use_repo(fortran, "rules_fortran")
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.4.6.bcr.1")

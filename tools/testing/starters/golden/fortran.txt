@@ -5,3 +5,4 @@ hello.f90
 hello_test.f90
 main.f90
 bazel_dep rules_dx
+bazel_dep rules_dx_fortran

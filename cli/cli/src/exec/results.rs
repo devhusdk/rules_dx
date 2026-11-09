@@ -3,6 +3,7 @@ use std::path::Path;
 
 use dx_output::{DiagnosticEvent, Origin, RelatedEvent, Severity, Snapshot};
 use dx_plan::plan::OUTPUT_GROUP;
+use dx_plan::resolve::path_in_filter;
 use quality_result::{build_deps, decode_validated, proto};
 
 use super::common::{FileChange, apply_to_bytes, collect_output_account};
@@ -190,6 +191,19 @@ pub(crate) struct Collected {
 }
 
 impl Collected {
+    /// Drops findings, changes and conflicts for paths outside `filter`; pathless findings stay.
+    pub(crate) fn keep_paths(&mut self, filter: &[String]) {
+        let wanted = |path: &str| path_in_filter(path, filter);
+        let wanted_event =
+            |event: &DiagnosticEvent| event.path.as_deref().is_none_or(|path| wanted(path));
+        self.initial.retain(wanted_event);
+        self.terminal.retain(wanted_event);
+        self.changes.retain(|change| wanted(&change.path));
+        self.conflicts.retain(|conflict| wanted(&conflict.path));
+        self.original_digests.retain(|path, _| wanted(path));
+        self.terminal_digests.retain(|path, _| wanted(path));
+    }
+
     /// Names the first missing or invalid result, with how many there were.
     pub(crate) fn problem_detail(&self) -> Option<String> {
         let first = self.problems.first()?;
@@ -651,6 +665,44 @@ mod tests {
     use super::*;
     use crate::exec::common::CODE_INVALID_BEP;
     use quality_result::{encode_validated, proto};
+
+    #[test]
+    fn keep_paths_drops_other_files() {
+        let mut collected = Collected {
+            tools: Vec::new(),
+            initial: Vec::new(),
+            terminal: Vec::new(),
+            changes: Vec::new(),
+            terminal_digests: BTreeMap::new(),
+            original_digests: BTreeMap::new(),
+            conflicts: Vec::new(),
+            unstable: Vec::new(),
+            complete: true,
+            problems: Vec::new(),
+        };
+        for path in ["src/a.py", "src/b.py"] {
+            let mut event = map_diagnostic(
+                &Harness::diagnostic("m", false),
+                Snapshot::Initial,
+                Path::new("."),
+            )
+            .expect("event");
+            event.path = Some(path.to_owned());
+            collected.initial.push(event);
+            collected.changes.push(FileChange {
+                path: path.to_owned(),
+                original_digest: [0; 32],
+                edits: Vec::new(),
+            });
+            collected.original_digests.insert(path.to_owned(), [0; 32]);
+        }
+        collected.keep_paths(&["src/a.py".to_owned()]);
+        assert_eq!(collected.initial.len(), 1);
+        assert_eq!(collected.initial[0].path.as_deref(), Some("src/a.py"));
+        assert_eq!(collected.changes.len(), 1);
+        assert_eq!(collected.changes[0].path, "src/a.py");
+        assert_eq!(collected.original_digests.len(), 1);
+    }
 
     #[test]
     fn severity_mapping_covers_all_arms() {

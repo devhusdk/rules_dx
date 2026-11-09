@@ -4732,7 +4732,7 @@ mod tests {
         let mut harness = pkg_harness("umbrella-graph-reload");
         harness.results.insert(
             "//test:corpus".to_owned(),
-            harness.valid_result(vec![], vec![harness.replacement(b"y")]),
+            harness.valid_result(vec![], vec![harness.replacement_in("pkg/a.py", b"y")]),
         );
         harness.intended = Some(intended_witness("default", true, "", ""));
         harness

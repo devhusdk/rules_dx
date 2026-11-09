@@ -42,7 +42,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 
 ## Scopes
 
-No scope means `//...`. Pass Bazel labels or patterns, or workspace-relative files and dirs. `--here` and `--affected` cannot be combined with explicit scopes or with each other. Targets that do not fit the target platform are skipped, even when named. See [Scope Defaults](scope-defaults.md).
+No scope means `//...`. Pass Bazel labels or patterns, or workspace-relative files and dirs. `--here` and `--affected` cannot be combined with explicit scopes or with each other. When every scope is a file or directory, findings and fixes are limited to those paths; the rest of the owning target is checked but neither reported nor rewritten. A label or pattern among the scopes reports its whole target. Targets that do not fit the target platform are skipped, even when named. See [Scope Defaults](scope-defaults.md).
 
 ## Bazel options
 

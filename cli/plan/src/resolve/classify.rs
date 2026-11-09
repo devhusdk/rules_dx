@@ -29,6 +29,32 @@ fn normalize_rel(raw: &str) -> Result<String, ResolveError> {
     Ok(parts.join("/"))
 }
 
+/// The workspace-relative files and directories named when every scope is a path.
+/// A scope with a label gives `None`: its whole target is wanted.
+pub fn path_filter(scopes: &[String], workspace: &Path) -> Option<Vec<String>> {
+    let mut paths = Vec::new();
+    for raw in scopes {
+        if raw.starts_with('@') || raw.starts_with(':') || raw.starts_with("//") {
+            return None;
+        }
+        let rel = normalize_rel(raw).ok()?;
+        std::fs::symlink_metadata(workspace.join(&rel)).ok()?;
+        paths.push(rel);
+    }
+    (!paths.is_empty()).then_some(paths)
+}
+
+/// Whether `path` is one of `filter` or lies under one. An empty entry is the workspace root.
+pub fn path_in_filter(path: &str, filter: &[String]) -> bool {
+    filter.iter().any(|entry| {
+        entry.is_empty()
+            || path == entry
+            || path
+                .strip_prefix(entry.as_str())
+                .is_some_and(|rest| rest.starts_with('/'))
+    })
+}
+
 fn dir_pattern(rel: &str) -> String {
     if rel.is_empty() {
         "//...".to_owned()
@@ -938,6 +964,21 @@ mod tests {
             }
         );
         assert!(err.to_string().contains("not a package"), "{err}");
+    }
+
+    #[test]
+    fn path_filter_needs_every_scope_to_be_a_path() {
+        let scratch = dx_test_scratch::scratch("dx-resolve-test-path-filter-");
+        let workspace = scratch.path();
+        write(workspace, "src/a.py", "x\n");
+        let filter = path_filter(&strings(&["./src/a.py", "src"]), workspace).expect("paths");
+        assert_eq!(filter, strings(&["src/a.py", "src"]));
+        assert!(path_filter(&strings(&["src/a.py", "//src:lib"]), workspace).is_none());
+        assert!(path_filter(&strings(&["missing.py"]), workspace).is_none());
+        assert!(path_in_filter("src/a.py", &strings(&["src/a.py"])));
+        assert!(path_in_filter("src/a.py", &strings(&["src"])));
+        assert!(!path_in_filter("src/b.py", &strings(&["src/a.py"])));
+        assert!(!path_in_filter("src2/a.py", &strings(&["src"])));
     }
 
     #[test]

@@ -21,7 +21,7 @@ use dx_plan::plan::{
     SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Selection, bep_path, plan_build_with, plan_probe,
 };
 use dx_plan::reports::{Destination, plan_reports};
-use dx_plan::resolve::resolve;
+use dx_plan::resolve::{path_filter, resolve};
 use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
@@ -596,6 +596,9 @@ fn run_quality_request(
         }
     }
     collected.complete = collected.complete && bazel_code == 0;
+    if let Some(filter) = path_filter(&request.targets, workspace) {
+        collected.keep_paths(&filter);
+    }
     dx_output::sort_diagnostics(&mut collected.initial);
     dx_output::sort_diagnostics(&mut collected.terminal);
     collected

@@ -20,7 +20,7 @@ pub use changed::{
     AffectedSelection, WidenedScope, collect_range, collect_working_tree, local_override_changes,
     merge_base, missing_base_shallow_error, resolve_affected, shallow_clone,
 };
-pub use classify::first_line;
+pub use classify::{first_line, path_filter, path_in_filter};
 pub(crate) use classify::{classify_generate_scopes, classify_scopes, owners_in_graph, parse_owners};
 pub use codegen_expand::expand_codegen_roots;
 pub use entry::{resolve, resolve_for_generate, resolve_for_test_with_selection};

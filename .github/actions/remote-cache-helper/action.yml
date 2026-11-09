@@ -1,0 +1,55 @@
+name: remote-cache-helper
+description: Write a credential helper for the remote cache so the key never reaches a command line or rc file.
+runs:
+  using: composite
+  steps:
+    - name: Configure the remote cache credential helper
+      shell: bash
+      run: |
+        args="${DX_REMOTE_CACHE_ARG:-}"
+        dir="$RUNNER_TEMP/dx-credential-helper"
+        if [ -n "${REMOTE_CACHE_HEADER:-}" ] || [ -n "${BUILDBUDDY_API_KEY:-}" ]; then
+          key_name=x-buildbuddy-api-key
+          header="${REMOTE_CACHE_HEADER:-$key_name=$BUILDBUDDY_API_KEY}"
+          name="${header%%=*}"
+          value="${header#*=}"
+          if [ "$name" = "$header" ] || [ -z "$name" ] || [ -z "$value" ]; then
+            echo "::error::REMOTE_CACHE_HEADER must look like name=value"
+            exit 1
+          fi
+          case "$name$value" in
+            *['"\%&|<>^']*)
+              echo "::error::The remote cache header has a character the credential helper cannot carry: one of \" \\ % & | < > ^"
+              exit 1
+              ;;
+          esac
+          host=remote.buildbuddy.io
+          if [ -n "${REMOTE_CACHE_HEADER:-}" ]; then
+            host="${DX_REMOTE_CACHE_ARG#--remote_cache=}"
+            host="${host#*://}"
+            host="${host%%/*}"
+            host="${host##*@}"
+            host="${host%%:*}"
+            host="${host:-remote.buildbuddy.io}"
+          fi
+          mkdir -p "$dir"
+          if [ "$RUNNER_OS" = Windows ]; then
+            helper="$dir/helper.bat"
+            printf '@if not defined REMOTE_CACHE_HEADER set "REMOTE_CACHE_HEADER=%s=%%BUILDBUDDY_API_KEY%%"\r\n@for /f "tokens=1* delims==" %%%%a in ("%%REMOTE_CACHE_HEADER%%") do @echo {"headers":{"%%%%a":["%%%%b"]}}\r\n' "$key_name" > "$helper"
+            chmod 700 "$helper"
+            helper="$(cygpath -m "$helper")"
+          else
+            helper="$dir/helper.sh"
+            cat > "$helper" <<'EOF'
+        #!/bin/sh
+        key_name=x-buildbuddy-api-key
+        h="${REMOTE_CACHE_HEADER:-$key_name=$BUILDBUDDY_API_KEY}"
+        printf '{"headers":{"%s":["%s"]}}\n' "${h%%=*}" "${h#*=}"
+        EOF
+            chmod 700 "$helper"
+          fi
+          args="${args:+$args }--credential_helper=$host=$helper"
+        fi
+        if [ -n "$args" ]; then
+          echo "BB_ARGS=$args" >> "$GITHUB_ENV"
+        fi

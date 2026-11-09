@@ -1,2 +1,4 @@
 #!/bin/sh
-printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$BUILDBUDDY_API_KEY"
+key_name=x-buildbuddy-api-key
+h="${REMOTE_CACHE_HEADER:-$key_name=$BUILDBUDDY_API_KEY}"
+printf '{"headers":{"%s":["%s"]}}\n' "${h%%=*}" "${h#*=}"

@@ -7,7 +7,7 @@ use serde_json::Value;
 
 use dx_testing::read_runfiles;
 
-const SETUP_ACTION: &str = ".github/actions/setup-bazel/action.yml";
+const SETUP_ACTION: &str = ".github/actions/remote-cache-helper/action.yml";
 const SCAN_ACTION: &str = ".github/actions/assert-no-secret/action.yml";
 const LOCAL_HELPER: &str = "tools/buildbuddy-credential-helper.sh";
 const HELPER_STEP: &str = "Configure the remote cache credential helper";
@@ -368,4 +368,83 @@ fn blanked_key_keeps_header_visible() {
         );
     }
     assert!(matched > 0, "no workflow blanks the key for a header");
+}
+
+#[cfg(unix)]
+#[test]
+fn helper_action_writes_a_working_helper() {
+    let step = named_step(SETUP_ACTION, HELPER_STEP);
+    let script = step["run"].as_str().expect("helper run");
+    let key = ("BUILDBUDDY_API_KEY", "k3y");
+    let cache = ("DX_REMOTE_CACHE_ARG", "--remote_cache=grpcs://remote.example.com");
+    let header = ("REMOTE_CACHE_HEADER", "x-t=s3cr3t");
+    let own_host = (
+        "DX_REMOTE_CACHE_ARG",
+        "--remote_cache=grpcs://u@cache.example.com:443",
+    );
+    let cases: &[(&str, &[(&str, &str)], i32, Option<&str>, Option<&str>)] = &[
+        (
+            "key only",
+            &[key],
+            0,
+            Some("remote.buildbuddy.io="),
+            Some(r#"{"headers":{"x-buildbuddy-api-key":["k3y"]}}"#),
+        ),
+        (
+            "key with a custom cache",
+            &[key, cache],
+            0,
+            Some("--remote_cache=grpcs://remote.example.com --credential_helper=remote.buildbuddy.io="),
+            Some(r#"{"headers":{"x-buildbuddy-api-key":["k3y"]}}"#),
+        ),
+        (
+            "header",
+            &[header, own_host],
+            0,
+            Some("--credential_helper=cache.example.com="),
+            Some(r#"{"headers":{"x-t":["s3cr3t"]}}"#),
+        ),
+        (
+            "header wins over key",
+            &[key, header, own_host],
+            0,
+            Some("--credential_helper=cache.example.com="),
+            Some(r#"{"headers":{"x-t":["s3cr3t"]}}"#),
+        ),
+        ("no equals", &[("REMOTE_CACHE_HEADER", "novalue")], 1, None, None),
+        ("quote", &[("REMOTE_CACHE_HEADER", "x=a\"b")], 1, None, None),
+        ("percent", &[("REMOTE_CACHE_HEADER", "x=a%b")], 1, None, None),
+        ("nothing set", &[], 0, None, None),
+    ];
+    for (name, env, status, args, printed) in cases {
+        let dir = dx_test_scratch::scratch("helper-action");
+        let temp = dir.path().join("temp");
+        std::fs::create_dir(&temp).expect("create temp");
+        let github_env = dir.path().join("github_env");
+        let mut env = env.to_vec();
+        env.push(("RUNNER_OS", "Linux"));
+        env.push(("RUNNER_TEMP", temp.to_str().expect("utf-8 path")));
+        env.push(("GITHUB_ENV", github_env.to_str().expect("utf-8 path")));
+        let (code, output) = run_script(dir.path(), script, &env);
+        assert_eq!(code, *status, "{name}: {output}");
+        assert_no_secret_printed(name, &output);
+        let written = std::fs::read_to_string(&github_env).unwrap_or_default();
+        let Some(args) = args else {
+            assert!(written.is_empty(), "{name} wrote {written:?}");
+            continue;
+        };
+        assert!(
+            written.starts_with("BB_ARGS=") && written.contains(args),
+            "{name}: {written}"
+        );
+        let helper = written
+            .trim()
+            .rsplit('=')
+            .next()
+            .expect("helper path")
+            .to_owned();
+        let (code, output) = run_script(dir.path(), &helper, &env);
+        assert_eq!(code, 0, "{name}: {output}");
+        assert_eq!(output.trim(), printed.expect("helper output"), "{name}");
+    }
 }

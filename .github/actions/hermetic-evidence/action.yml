@@ -1,0 +1,55 @@
+name: hermetic-evidence
+description: Collect, verify and upload the evidence of the hermetic qualification targets listed in $RUNNER_TEMP/hermetic-targets.
+inputs:
+  platform:
+    description: Platform suffix of the uploaded artifact name.
+    required: true
+  manifest-from:
+    description: Where the manifest sits, bazel-bin or evidence (the collected outputs).
+    required: false
+    default: bazel-bin
+runs:
+  using: composite
+  steps:
+    - name: Collect the evidence
+      if: always()
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/hermetic-evidence"
+        while read -r label; do
+          pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+          mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
+          cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/" || true
+        done < "$RUNNER_TEMP/hermetic-targets"
+    - name: Verify the evidence
+      if: ${{ job.status == 'success' }}
+      shell: bash
+      env:
+        DX_MANIFEST_FROM: ${{ inputs.manifest-from }}
+      run: |
+        # shellcheck disable=SC2086
+        set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+        while read -r label; do
+          pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
+          if [ "$DX_MANIFEST_FROM" = evidence ]; then
+            dir="$(cygpath -m "$RUNNER_TEMP/hermetic-evidence/$name")"
+            evidence="$dir/evidence.json"
+            manifest="$dir/manifest.json"
+          else
+            evidence="$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json"
+            manifest="$PWD/bazel-bin/$pkg/${name}_manifest.json"
+          fi
+          bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$evidence" --commit "$(git rev-parse HEAD)" --manifest "$manifest"
+        done < "$RUNNER_TEMP/hermetic-targets"
+    - name: Check the upload holds no secret
+      id: scan-hermetic-evidence
+      if: always()
+      uses: ./.github/actions/assert-no-secret
+      with:
+        path: ${{ runner.temp }}/hermetic-evidence
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
+      with:
+        name: hermetic-evidence-${{ inputs.platform }}
+        path: ${{ runner.temp }}/hermetic-evidence
+        retention-days: 3

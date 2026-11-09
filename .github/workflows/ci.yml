@@ -167,23 +167,10 @@ jobs:
           echo "$targets" > "$RUNNER_TEMP/hermetic-targets"
           # shellcheck disable=SC2086
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test $targets
-      - name: Verify the evidence
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
-          done < "$RUNNER_TEMP/hermetic-targets"
-      - name: Collect the evidence
+      - uses: ./.github/actions/hermetic-evidence
         if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/hermetic-evidence"
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
-            [ ! -d "bazel-testlogs/$pkg/$name/test.outputs" ] || cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/"
-          done < "$RUNNER_TEMP/hermetic-targets"
+        with:
+          platform: linux_x86_64
       - name: Run the compiler probe tests
         id: compiler-probes
         if: ${{ !cancelled() }}
@@ -242,18 +229,6 @@ jobs:
           name: compiler-evidence-linux_x86_64
           path: ${{ runner.temp }}/compiler-evidence
           retention-days: 3
-      - name: Check the upload holds no secret
-        id: scan-hermetic-evidence
-        if: always()
-        uses: ./.github/actions/assert-no-secret
-        with:
-          path: ${{ runner.temp }}/hermetic-evidence
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
-        with:
-          name: hermetic-evidence-linux_x86_64
-          path: ${{ runner.temp }}/hermetic-evidence
-          retention-days: 3
       - name: Write job summary
         if: always()
         env:
@@ -287,35 +262,10 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" $(cat "$RUNNER_TEMP/hermetic-targets")
-      - name: Verify the evidence
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
-          done < "$RUNNER_TEMP/hermetic-targets"
-      - name: Collect the evidence
+      - uses: ./.github/actions/hermetic-evidence
         if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/hermetic-evidence"
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
-            [ ! -d "bazel-testlogs/$pkg/$name/test.outputs" ] || cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/"
-          done < "$RUNNER_TEMP/hermetic-targets"
-      - name: Check the upload holds no secret
-        id: scan-hermetic-evidence
-        if: always()
-        uses: ./.github/actions/assert-no-secret
         with:
-          path: ${{ runner.temp }}/hermetic-evidence
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
-        with:
-          name: hermetic-evidence-linux_arm64
-          path: ${{ runner.temp }}/hermetic-evidence
-          retention-days: 3
+          platform: linux_arm64
   hermetic-macos:
     name: hermetic-macos (macOS-compatible consumer qualifications on macos_arm64)
     timeout-minutes: 90
@@ -338,35 +288,10 @@ jobs:
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
-      - name: Verify the evidence
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$PWD/bazel-testlogs/$pkg/$name/test.outputs/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$PWD/bazel-bin/$pkg/${name}_manifest.json"
-          done < "$RUNNER_TEMP/hermetic-targets"
-      - name: Collect the evidence
+      - uses: ./.github/actions/hermetic-evidence
         if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/hermetic-evidence"
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
-            [ ! -d "bazel-testlogs/$pkg/$name/test.outputs" ] || cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/"
-          done < "$RUNNER_TEMP/hermetic-targets"
-      - name: Check the upload holds no secret
-        id: scan-hermetic-evidence
-        if: always()
-        uses: ./.github/actions/assert-no-secret
         with:
-          path: ${{ runner.temp }}/hermetic-evidence
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
-        with:
-          name: hermetic-evidence-macos_arm64
-          path: ${{ runner.temp }}/hermetic-evidence
-          retention-days: 3
+          platform: macos_arm64
   hermetic-windows:
     name: hermetic-windows (MSVC consumer fixtures on ${{ matrix.platform }})
     timeout-minutes: 90
@@ -419,36 +344,11 @@ jobs:
           if [ "$PLATFORM" = windows_x86_64 ]; then
             bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc/toolchains:compiler=msvc //deploy/rules:pypi_native_msvc_verify
           fi
-      - name: Collect the evidence
+      - uses: ./.github/actions/hermetic-evidence
         if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/hermetic-evidence"
-          while read -r label; do
-            pkg="${label%%:*}"; pkg="${pkg#//}"; name="${label##*:}"
-            mkdir -p "$RUNNER_TEMP/hermetic-evidence/$name"
-            [ ! -d "bazel-testlogs/$pkg/$name/test.outputs" ] || cp -R "bazel-testlogs/$pkg/$name/test.outputs/." "$RUNNER_TEMP/hermetic-evidence/$name/"
-          done < "$RUNNER_TEMP/hermetic-targets"
-      # The test copies its manifest into its outputs; bazel-bin on Windows does not hold it.
-      - name: Verify the evidence
-        run: |
-          # shellcheck disable=SC2086
-          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          while read -r label; do
-            dir="$(cygpath -m "$RUNNER_TEMP/hermetic-evidence/${label##*:}")"
-            bazel run --noshow_progress "$@" //tools/testing/hermetic:verify -- --evidence "$dir/evidence.json" --commit "$(git rev-parse HEAD)" --manifest "$dir/manifest.json"
-          done < "$RUNNER_TEMP/hermetic-targets"
-      - name: Check the upload holds no secret
-        id: scan-hermetic-evidence
-        if: always()
-        uses: ./.github/actions/assert-no-secret
         with:
-          path: ${{ runner.temp }}/hermetic-evidence
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ always() && steps.scan-hermetic-evidence.outcome == 'success' }}
-        with:
-          name: hermetic-evidence-${{ matrix.platform }}
-          path: ${{ runner.temp }}/hermetic-evidence
-          retention-days: 3
+          platform: ${{ matrix.platform }}
+          manifest-from: evidence
   gcc-cross-build:
     name: gcc-cross-build (linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45

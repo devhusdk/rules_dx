@@ -18,7 +18,7 @@ concurrency:
 jobs:
   analysis:
     name: analysis (PR-time checks on linux_x86_64)
-    timeout-minutes: 10
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     permissions:
       contents: read

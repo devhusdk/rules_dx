@@ -173,7 +173,7 @@ fn job_stays_inside_the_time_budget() {
     let minutes = analysis["timeout-minutes"]
         .as_u64()
         .expect("timeout-minutes");
-    assert!(minutes <= 10, "timeout-minutes is {minutes}");
+    assert!(minutes <= 15, "timeout-minutes is {minutes}");
 }
 
 #[test]

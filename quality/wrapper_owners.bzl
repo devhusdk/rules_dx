@@ -53,6 +53,7 @@ WRAPPER_OWNERS = {
     "latex": "//quality/rules:defs.bzl",
     "rst": "//rst/rules:defs.bzl",
     "asciidoc": "//asciidoc/rules:defs.bzl",
+    "oci_image": "//deploy/rules:defs.bzl",
     "objc": "//cc/rules:defs.bzl",
     "ocaml": "//ocaml/rules:defs.bzl",
     "perl": "//perl/rules:defs.bzl",

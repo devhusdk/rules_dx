@@ -3621,3 +3621,36 @@ fn trivy_config_runs_offline_against_the_cache_dir() {
         ]
     );
 }
+
+#[test]
+fn trivy_image_config_scans_the_layout_offline() {
+    let invocation = trivy_image_config_check(
+        Path::new(BIN),
+        Path::new("/scratch/image"),
+        Path::new("/cache/trivy"),
+    );
+    assert_eq!(
+        argv_strings(&invocation),
+        vec![
+            BIN,
+            "image",
+            "--format",
+            "json",
+            "--exit-code",
+            "0",
+            "--quiet",
+            "--skip-db-update",
+            "--skip-check-update",
+            "--offline-scan",
+            "--disable-telemetry",
+            "--scanners",
+            "secret",
+            "--image-config-scanners",
+            "misconfig,secret",
+            "--cache-dir",
+            "/cache/trivy",
+            "--input",
+            "/scratch/image",
+        ]
+    );
+}

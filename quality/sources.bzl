@@ -104,6 +104,7 @@ KNOWN_SEMANTIC_FILE_CLASSES = [
     "latex",
     "rst",
     "asciidoc",
+    "oci_image",
 ]
 
 RUST = "rust"

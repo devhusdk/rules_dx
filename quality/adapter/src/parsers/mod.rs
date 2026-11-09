@@ -114,6 +114,7 @@ pub mod thrift;
 pub mod tinymist;
 pub mod topiary;
 pub mod trivy_config;
+pub mod trivy_image_config;
 pub mod tsc;
 pub mod ty;
 pub mod typos;
@@ -241,6 +242,7 @@ pub use thrift::{ThriftReport, parse_thrift};
 pub use tinymist::parse_tinymist;
 pub use topiary::parse_topiary;
 pub use trivy_config::parse_trivy_config;
+pub use trivy_image_config::parse_trivy_image_config;
 pub use tsc::{parse_tsc, parse_tsc_format};
 pub use ty::parse_ty;
 pub use typos::parse_typos;
@@ -2563,6 +2565,17 @@ mod tests {
         super::trivy_config::parse_trivy_config(input, input, code, files)
     }
 
+    fn fuzz_trivy_image_config(
+        input: &[u8],
+        code: Option<i32>,
+        files: &[&str],
+    ) -> Result<Vec<super::FileFinding>, ParseError> {
+        let file = files.first().copied().unwrap_or("BUILD.bazel");
+        super::trivy_image_config::parse_trivy_image_config(
+            input, input, code, "image", "image", file,
+        )
+    }
+
     fn fuzz_tflint(
         input: &[u8],
         code: Option<i32>,
@@ -2977,6 +2990,7 @@ mod tests {
         ("cmakelint", fuzz_cmakelint),
         ("tflint", fuzz_tflint),
         ("trivy_config", fuzz_trivy_config),
+        ("trivy_image_config", fuzz_trivy_image_config),
         ("thrift", fuzz_thrift),
         ("avro", fuzz_avro),
         ("topiary", fuzz_topiary),

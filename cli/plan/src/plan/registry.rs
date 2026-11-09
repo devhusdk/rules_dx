@@ -25,6 +25,7 @@ pub fn spec(command: Command) -> CommandSpec {
             aspects: &[
                 "quality:real_aspects.bzl%real_cc_lint_aspect",
                 "quality:real_aspects.bzl%real_dockerfile_lint_aspect",
+                "quality:real_aspects.bzl%real_oci_image_lint_aspect",
                 "quality:real_aspects.bzl%real_make_lint_aspect",
                 "quality:real_aspects.bzl%real_cmake_lint_aspect",
                 "quality:real_aspects.bzl%real_terraform_lint_aspect",
@@ -566,6 +567,7 @@ mod tests {
             &[
                 "quality:real_aspects.bzl%real_cc_lint_aspect",
                 "quality:real_aspects.bzl%real_dockerfile_lint_aspect",
+                "quality:real_aspects.bzl%real_oci_image_lint_aspect",
                 "quality:real_aspects.bzl%real_make_lint_aspect",
                 "quality:real_aspects.bzl%real_cmake_lint_aspect",
                 "quality:real_aspects.bzl%real_terraform_lint_aspect",

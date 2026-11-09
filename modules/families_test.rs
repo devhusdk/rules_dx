@@ -544,7 +544,7 @@ fn real_facade_loads_no_rule_set() {
     );
 }
 
-const FAMILY_FILES: [&str; 44] = [
+const FAMILY_FILES: [&str; 45] = [
     "ansible",
     "beam",
     "cc",
@@ -568,6 +568,7 @@ const FAMILY_FILES: [&str; 44] = [
     "lua",
     "make",
     "nix",
+    "oci_image",
     "ocaml",
     "perl",
     "php",

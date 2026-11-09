@@ -103,7 +103,7 @@ fn files(entry: &Entry) -> Vec<ConfigFileEvent> {
         file: file.to_owned(),
         role: role.to_owned(),
         base,
-        edited,
+        edited: Some(edited),
     };
     let mut files = Vec::new();
     if let Some(root) = &entry.root {

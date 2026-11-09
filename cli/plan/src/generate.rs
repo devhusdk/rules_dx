@@ -203,7 +203,7 @@ pub fn project(manifest: &GenerationManifest) -> Result<ProjectedManifest, Error
     let mut notices = Vec::with_capacity(manifest.ignored_imports.len());
     for ignored in &manifest.ignored_imports {
         notices.push(NoticeEvent {
-            level: IGNORED_IMPORT_LEVEL.to_owned(),
+            severity: IGNORED_IMPORT_LEVEL.to_owned(),
             code: IGNORED_IMPORT_CODE.to_owned(),
             message: IGNORED_IMPORT_MESSAGE.to_owned(),
             related_command: None,
@@ -449,7 +449,7 @@ mod tests {
         assert!(change_event(&projected.files[0].change, effect, reason, false).is_ok());
         assert!(notice_event(&projected.notices[0]).is_ok());
         assert_eq!(projected.notices[0].code, IGNORED_IMPORT_CODE);
-        assert_eq!(projected.notices[0].level, IGNORED_IMPORT_LEVEL);
+        assert_eq!(projected.notices[0].severity, IGNORED_IMPORT_LEVEL);
         assert_eq!(projected.notices[0].message, IGNORED_IMPORT_MESSAGE);
         assert_eq!(projected.notices[0].scope, None);
         assert_eq!(projected.notices[0].related_command, None);

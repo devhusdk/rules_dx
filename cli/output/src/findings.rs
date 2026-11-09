@@ -344,7 +344,7 @@ pub fn sort_diagnostics(diagnostics: &mut [DiagnosticEvent]) {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NoticeEvent {
-    pub level: String,
+    pub severity: String,
     pub code: String,
     pub message: String,
     pub related_command: Option<String>,
@@ -357,17 +357,17 @@ pub struct NoticeEvent {
 impl NoticeEvent {
     /// An `info` notice with no related command, scope, or path.
     pub fn info(code: &str, message: impl Into<String>) -> Self {
-        Self::at_level("info", code, message.into())
+        Self::at_severity("info", code, message.into())
     }
 
     /// A `warning` notice with no related command, scope, or path.
     pub fn warning(code: &str, message: impl Into<String>) -> Self {
-        Self::at_level("warning", code, message.into())
+        Self::at_severity("warning", code, message.into())
     }
 
-    fn at_level(level: &str, code: &str, message: String) -> Self {
+    fn at_severity(severity: &str, code: &str, message: String) -> Self {
         NoticeEvent {
-            level: level.to_owned(),
+            severity: severity.to_owned(),
             code: code.to_owned(),
             message,
             related_command: None,
@@ -385,8 +385,8 @@ pub fn notice_event(notice: &NoticeEvent) -> Result<Value, OutputError> {
 }
 
 fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
-    if notice.level != "info" && notice.level != "warning" {
-        return Err(OutputError::EmptyField { field: "level" });
+    if notice.severity != "info" && notice.severity != "warning" {
+        return Err(OutputError::EmptyField { field: "severity" });
     }
     nonempty("code", &notice.code)?;
     nonempty("message", &notice.message)?;
@@ -408,7 +408,7 @@ fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
 /// Builds the event for a notice whose producer already validated it.
 pub fn notice_value(notice: &NoticeEvent) -> Value {
     let mut map = base("notice");
-    map.insert("level".to_owned(), Value::String(notice.level.clone()));
+    map.insert("severity".to_owned(), Value::String(notice.severity.clone()));
     map.insert("code".to_owned(), Value::String(notice.code.clone()));
     map.insert("message".to_owned(), Value::String(notice.message.clone()));
     if let Some(related) = &notice.related_command {
@@ -598,7 +598,7 @@ mod tests {
     #[test]
     fn ignored_import_notice_shape() {
         let notice = NoticeEvent {
-            level: "warning".to_owned(),
+            severity: "warning".to_owned(),
             code: "ignored_import".to_owned(),
             message: "ignored".to_owned(),
             related_command: None,
@@ -654,7 +654,7 @@ mod tests {
     #[test]
     fn notice_events_carry_every_field() {
         let notice = NoticeEvent {
-            level: "warning".to_owned(),
+            severity: "warning".to_owned(),
             code: "ignored_import".to_owned(),
             message: "ignored".to_owned(),
             related_command: None,
@@ -665,7 +665,7 @@ mod tests {
         };
         let event = notice_value(&notice);
         assert_eq!(event, notice_event(&notice).expect("ignored import"));
-        assert_eq!(event["level"], Value::from("warning"));
+        assert_eq!(event["severity"], Value::from("warning"));
         assert_eq!(event["code"], Value::from("ignored_import"));
         assert_eq!(event["message"], Value::from("ignored"));
         assert_eq!(event["path"], Value::from("src/plugin.py"));
@@ -673,7 +673,7 @@ mod tests {
         assert!(event.get("scope").is_none());
 
         let plain = NoticeEvent {
-            level: "info".to_owned(),
+            severity: "info".to_owned(),
             code: "other".to_owned(),
             message: "m".to_owned(),
             related_command: Some("lint".to_owned()),
@@ -691,12 +691,12 @@ mod tests {
 
     #[test]
     fn notice_constructors_match_the_literal() {
-        for (level, notice) in [
+        for (severity, notice) in [
             ("info", NoticeEvent::info("other", "m")),
             ("warning", NoticeEvent::warning("other", "m")),
         ] {
             let literal = NoticeEvent {
-                level: level.to_owned(),
+                severity: severity.to_owned(),
                 code: "other".to_owned(),
                 message: "m".to_owned(),
                 related_command: None,
@@ -752,7 +752,7 @@ mod tests {
     #[test]
     fn notice_level_and_scope_rules() {
         let mut bad_level = NoticeEvent {
-            level: "debug".to_owned(),
+            severity: "debug".to_owned(),
             code: "other".to_owned(),
             message: "m".to_owned(),
             related_command: None,
@@ -762,9 +762,9 @@ mod tests {
             import: None,
         };
         assert!(notice_event(&bad_level).is_err());
-        bad_level.level = "info".to_owned();
+        bad_level.severity = "info".to_owned();
         let event = notice_event(&bad_level).expect("plain notice");
-        assert_eq!(event["level"], Value::String("info".to_owned()));
+        assert_eq!(event["severity"], Value::String("info".to_owned()));
         let mut scoped = bad_level.clone();
         scoped.related_command = Some("lint".to_owned());
         scoped.scope = Some(vec!["//src/...".to_owned()]);
@@ -772,7 +772,7 @@ mod tests {
         assert_eq!(event["related_command"], Value::String("lint".to_owned()));
         assert_eq!(event["scope"][0], Value::String("//src/...".to_owned()));
         let mut import = NoticeEvent {
-            level: "warning".to_owned(),
+            severity: "warning".to_owned(),
             code: "ignored_import".to_owned(),
             message: "ignored".to_owned(),
             related_command: Some("lint".to_owned()),

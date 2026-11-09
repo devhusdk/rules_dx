@@ -93,10 +93,10 @@ impl StatusRun {
 fn consumer_status_reports_a_healthy_selected_tool() {
     let run = status_run("DX_STATUS_HEALTHY");
     assert_eq!(run.exit, 0, "{}", run.stderr);
-    assert_eq!(run.check("module")["status"], "ok");
-    assert_eq!(run.check("pin")["status"], "ok");
+    assert_eq!(run.check("module")["severity"], "info");
+    assert_eq!(run.check("pin")["severity"], "info");
     let tools = run.check("tools");
-    assert_eq!(tools["status"], "ok", "{tools}");
+    assert_eq!(tools["severity"], "info", "{tools}");
     assert_eq!(
         tools["detail"],
         "available: 1 managed tool in environment aaaaaaaaaaaa"
@@ -111,7 +111,7 @@ fn consumer_status_keeps_unobserved_evidence_unknown() {
     let run = status_run("DX_STATUS_UNSELECTED");
     assert_eq!(run.exit, 0, "{}", run.stderr);
     let tools = run.check("tools");
-    assert_eq!(tools["status"], "warn");
+    assert_eq!(tools["severity"], "warning");
     assert!(
         tools["detail"]
             .as_str()
@@ -128,9 +128,9 @@ fn consumer_status_findings_use_their_own_error_code() {
     let bare = status_run("DX_STATUS_BARE");
     assert_eq!(bare.exit, 1);
     assert_eq!(bare.error_code(), Some("status_check_failed"));
-    assert_eq!(bare.check("module")["status"], "error");
+    assert_eq!(bare.check("module")["severity"], "error");
     assert_eq!(bare.check("module")["hint"], "dx init");
-    assert_eq!(bare.check("pin")["status"], "ok");
+    assert_eq!(bare.check("pin")["severity"], "info");
     let skew = status_run("DX_STATUS_SKEW");
     assert_eq!(skew.exit, 1);
     assert_eq!(skew.error_code(), Some("status_check_failed"));
@@ -141,7 +141,7 @@ fn consumer_status_findings_use_their_own_error_code() {
     );
     let pin = status_run("DX_STATUS_PIN");
     assert_eq!(pin.exit, 0);
-    assert_eq!(pin.check("pin")["status"], "warn");
+    assert_eq!(pin.check("pin")["severity"], "warning");
 }
 
 #[test]
@@ -162,7 +162,7 @@ fn consumer_status_detects_missing_and_corrupt_tools() {
             run.stderr
         );
         let tools = run.check("tools");
-        assert_eq!(tools["status"], "error", "{key}");
+        assert_eq!(tools["severity"], "error", "{key}");
         assert_eq!(
             tools["detail"],
             format!("unavailable: environment aaaaaaaaaaaa: {problem}").as_str(),

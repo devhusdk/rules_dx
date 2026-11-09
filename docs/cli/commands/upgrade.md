@@ -92,7 +92,7 @@ dx: upgrade_failed: pinned <to> but <step> not refreshed: <error>; recovery: rer
 
 After a move, run `dx init` and `dx sync` when an override file is missing and `MODULE.bazel` does not include the overrides.
 
-JSON streams `command_started`, one `status` event named `pin` (status `ok`, hint `dx status`), then `command_finished`. A refusal emits `upgrade_failed` instead of `pin`. A pending upgrade emits `upgrade_pending`.
+JSON streams `command_started`, one `status` event named `pin` (severity `info`, hint `dx status`), then `command_finished`. A refusal emits `upgrade_failed` instead of `pin`. A pending upgrade emits `upgrade_pending`.
 
 ## Exit Codes
 

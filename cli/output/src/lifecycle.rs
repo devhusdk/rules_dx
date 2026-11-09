@@ -1,8 +1,9 @@
+use crate::severity::Severity;
 use crate::validation::{OutputError, check_correlation, check_path, parse_digest};
 use serde_json::{Value, json};
 
-pub const SCHEMA_MAJOR: u64 = 3;
-pub const SCHEMA_MINOR: u64 = 10;
+pub const SCHEMA_MAJOR: u64 = 4;
+pub const SCHEMA_MINOR: u64 = 0;
 
 pub const EVENTS: &[&str] = &[
     "build_failure",
@@ -28,7 +29,6 @@ pub const EVENTS: &[&str] = &[
     "summary",
     "test_outcome",
     "tier",
-    "tool_config",
     "tools",
 ];
 
@@ -202,24 +202,23 @@ pub fn selection_event(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StatusEvent {
     pub name: String,
-    pub status: String,
+    /// `info`, `warning` or `error`.
+    pub severity: String,
     pub detail: String,
     pub hint: String,
 }
 
 pub fn status_event(check: &StatusEvent) -> Result<Value, OutputError> {
     nonempty("name", &check.name)?;
-    nonempty("status", &check.status)?;
-    if check.status != "ok" && check.status != "warn" && check.status != "error" {
-        return Err(OutputError::BadSeverity {
-            value: check.status.clone(),
-        });
-    }
+    Severity::parse(&check.severity)?;
     nonempty("detail", &check.detail)?;
     nonempty("hint", &check.hint)?;
     let mut map = base("status");
     map.insert("name".to_owned(), Value::String(check.name.clone()));
-    map.insert("status".to_owned(), Value::String(check.status.clone()));
+    map.insert(
+        "severity".to_owned(),
+        Value::String(check.severity.clone()),
+    );
     map.insert("detail".to_owned(), Value::String(check.detail.clone()));
     map.insert("hint".to_owned(), Value::String(check.hint.clone()));
     Ok(Value::Object(map))
@@ -266,22 +265,6 @@ pub fn tier_event(tier: &TierEvent) -> Result<Value, OutputError> {
     Ok(Value::Object(map))
 }
 
-/// A root tool config file that binds a generated `.dx` config.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ToolConfigEvent {
-    pub tool: String,
-    pub file: String,
-}
-
-pub fn tool_config_event(config: &ToolConfigEvent) -> Result<Value, OutputError> {
-    nonempty("tool", &config.tool)?;
-    nonempty("file", &config.file)?;
-    let mut map = base("tool_config");
-    map.insert("tool".to_owned(), Value::String(config.tool.clone()));
-    map.insert("file".to_owned(), Value::String(config.file.clone()));
-    Ok(Value::Object(map))
-}
-
 /// The tools a family runs for one capability after `dx.toml` edits.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FamilyToolsEvent {
@@ -304,7 +287,7 @@ pub fn family_tools_event(entry: &FamilyToolsEvent) -> Result<Value, OutputError
     Ok(Value::Object(map))
 }
 
-/// One file a tool reads, from `dx config`. `base` and `edited` are set on the root file.
+/// One file a tool reads, from `dx config`. `base` and `edited` are set on the root file; `edited` is left out when unknown.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ConfigFileEvent {
     pub tool: String,
@@ -313,7 +296,7 @@ pub struct ConfigFileEvent {
     pub role: String,
     /// The base the root file extends, or `tier base` when the tool runs on the base itself.
     pub base: Option<String>,
-    pub edited: bool,
+    pub edited: Option<bool>,
 }
 
 pub fn config_file_event(file: &ConfigFileEvent) -> Result<Value, OutputError> {
@@ -328,7 +311,9 @@ pub fn config_file_event(file: &ConfigFileEvent) -> Result<Value, OutputError> {
         nonempty("base", base)?;
         map.insert("base".to_owned(), Value::String(base.clone()));
     }
-    map.insert("edited".to_owned(), Value::Bool(file.edited));
+    if let Some(edited) = file.edited {
+        map.insert("edited".to_owned(), Value::Bool(edited));
+    }
     Ok(Value::Object(map))
 }
 
@@ -344,7 +329,7 @@ pub struct PlanFindingEvent {
     pub line: usize,
     pub hint: String,
     /// `hard` fails `dx init`'s check; `advisory` is only reported.
-    pub severity: String,
+    pub strength: String,
 }
 
 pub fn init_plan_event(finding: &PlanFindingEvent) -> Result<Value, OutputError> {
@@ -354,9 +339,10 @@ pub fn init_plan_event(finding: &PlanFindingEvent) -> Result<Value, OutputError>
     nonempty("after", &finding.after)?;
     nonempty("file", &finding.file)?;
     nonempty("hint", &finding.hint)?;
-    if finding.severity != "hard" && finding.severity != "advisory" {
-        return Err(OutputError::BadSeverity {
-            value: finding.severity.clone(),
+    if finding.strength != "hard" && finding.strength != "advisory" {
+        return Err(OutputError::BadValue {
+            field: "init_plan strength",
+            value: finding.strength.clone(),
         });
     }
     let mut map = base("init_plan");
@@ -367,7 +353,7 @@ pub fn init_plan_event(finding: &PlanFindingEvent) -> Result<Value, OutputError>
         ("after", &finding.after),
         ("path", &finding.file),
         ("hint", &finding.hint),
-        ("severity", &finding.severity),
+        ("strength", &finding.strength),
     ] {
         map.insert(key.to_owned(), Value::String(value.clone()));
     }
@@ -466,7 +452,10 @@ pub fn coverage_event(coverage: &CoverageEvent) -> Result<Value, OutputError> {
     if let Some(minimum) = coverage.minimum {
         map.insert("minimum".to_owned(), Value::from(minimum));
     }
-    map.insert("passed".to_owned(), Value::Bool(coverage.passed));
+    map.insert(
+        "result".to_owned(),
+        Value::String(if coverage.passed { "pass" } else { "fail" }.to_owned()),
+    );
     map.insert("errors".to_owned(), Value::from(coverage.errors));
     map.insert(
         "dx_version".to_owned(),
@@ -893,7 +882,7 @@ fn outcome_fields(
     map.insert("target".to_owned(), Value::String(outcome.target.clone()));
     opt_str(map, "configuration", &outcome.configuration);
     map.insert("outcome".to_owned(), Value::String(outcome.outcome.clone()));
-    opt_str(map, "status", &outcome.status);
+    opt_str(map, "bazel_status", &outcome.status);
     if let Some(cached) = outcome.cached {
         map.insert("cached".to_owned(), Value::Bool(cached));
     }
@@ -1754,13 +1743,13 @@ mod tests {
             file: "MODULE.bazel".to_owned(),
             line: 3,
             hint: "h".to_owned(),
-            severity: "advisory".to_owned(),
+            strength: "advisory".to_owned(),
         };
         let event = init_plan_event(&finding).expect("event");
         assert_eq!(event["event"], "init_plan");
         assert_eq!(event["schema"], schema());
         assert_eq!(event["line"], 3);
-        assert_eq!(event["severity"], "advisory");
+        assert_eq!(event["strength"], "advisory");
         assert_eq!(event["path"], "MODULE.bazel");
         assert!(event.get("file").is_none());
         finding.line = 0;
@@ -1770,9 +1759,9 @@ mod tests {
                 .get("line")
                 .is_none()
         );
-        finding.severity = "bogus".to_owned();
+        finding.strength = "bogus".to_owned();
         assert!(init_plan_event(&finding).is_err());
-        finding.severity = "hard".to_owned();
+        finding.strength = "hard".to_owned();
         finding.file = String::new();
         assert!(init_plan_event(&finding).is_err());
     }
@@ -1781,7 +1770,7 @@ mod tests {
     fn status_event_shape() {
         let event = status_event(&StatusEvent {
             name: "pin".to_owned(),
-            status: "ok".to_owned(),
+            severity: "info".to_owned(),
             detail: "dx 0.0.0 vs module 0.0.0".to_owned(),
             hint: "dx status".to_owned(),
         })
@@ -1789,20 +1778,20 @@ mod tests {
         assert_eq!(event["event"], Value::String("status".to_owned()));
         assert_eq!(event["schema"], schema());
         assert_eq!(event["name"], Value::String("pin".to_owned()));
-        assert_eq!(event["status"], Value::String("ok".to_owned()));
+        assert_eq!(event["severity"], Value::String("info".to_owned()));
         let mut bad = StatusEvent {
             name: "pin".to_owned(),
-            status: "bogus".to_owned(),
+            severity: "bogus".to_owned(),
             detail: "d".to_owned(),
             hint: "h".to_owned(),
         };
         assert!(status_event(&bad).is_err());
-        bad.status = String::new();
+        bad.severity = String::new();
         assert!(status_event(&bad).is_err());
         assert!(
             status_event(&StatusEvent {
                 name: String::new(),
-                status: "ok".to_owned(),
+                severity: "info".to_owned(),
                 detail: "d".to_owned(),
                 hint: "h".to_owned(),
             })
@@ -1840,9 +1829,9 @@ mod tests {
 
     #[test]
     fn schema_is_three_three_with_forward_compat() {
-        assert_eq!(SCHEMA_MAJOR, 3);
-        assert_eq!(SCHEMA_MINOR, 10);
-        assert_eq!(schema(), serde_json::json!({"major": 3, "minor": 10}));
+        assert_eq!(SCHEMA_MAJOR, 4);
+        assert_eq!(SCHEMA_MINOR, 0);
+        assert_eq!(schema(), serde_json::json!({"major": 4, "minor": 0}));
         assert!(!EVENTS.contains(&"test_case"));
         assert!(!EVENTS.contains(&"mutation"));
         let correlated = with_correlation(
@@ -1872,7 +1861,7 @@ mod tests {
             read_event(&line).expect("current")["event"],
             "command_started"
         );
-        let newer = r#"{"schema":{"major":3,"minor":10},"event":"future","added":1}"#;
+        let newer = r#"{"schema":{"major":4,"minor":1},"event":"future","added":1}"#;
         assert_eq!(read_event(newer).expect("newer minor")["added"], 1);
         assert_eq!(
             read_event(r#"{"schema":{"major":1,"minor":1},"event":"command_started"}"#)
@@ -1884,8 +1873,8 @@ mod tests {
             OutputError::UnsupportedSchema { major: 2, minor: 0 }
         );
         assert_eq!(
-            read_event(r#"{"schema":{"major":4,"minor":0},"event":"x"}"#).expect_err("new major"),
-            OutputError::UnsupportedSchema { major: 4, minor: 0 }
+            read_event(r#"{"schema":{"major":5,"minor":0},"event":"x"}"#).expect_err("new major"),
+            OutputError::UnsupportedSchema { major: 5, minor: 0 }
         );
         for bad in [
             "",
@@ -2336,7 +2325,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 10},
+                "schema": {"major": 4, "minor": 0},
                 "event": "coverage",
                 "cell": "linux_x86_64",
                 "covered_lines": 7,
@@ -2348,7 +2337,7 @@ mod build_failure_tests {
                 "excluded_files": 1,
                 "unsupported_files": 5,
                 "minimum": 100,
-                "passed": false,
+                "result": "fail",
                 "errors": 2,
                 "dx_version": "1.2.3",
             })
@@ -2375,7 +2364,7 @@ mod build_failure_tests {
         assert_eq!(
             event,
             serde_json::json!({
-                "schema": {"major": 3, "minor": 10},
+                "schema": {"major": 4, "minor": 0},
                 "event": "changed_line_coverage",
                 "base": "origin/main",
                 "merge_base": "abc123",

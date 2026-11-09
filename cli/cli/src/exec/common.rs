@@ -1660,7 +1660,7 @@ mod tests {
         let notices: Vec<_> = events.iter().filter(|e| e["event"] == "notice").collect();
         assert_eq!(notices.len(), 1, "{out}");
         assert_eq!(notices[0]["code"], "disk_low");
-        assert_eq!(notices[0]["level"], "warning");
+        assert_eq!(notices[0]["severity"], "warning");
         let errors: Vec<_> = events.iter().filter(|e| e["event"] == "error").collect();
         assert_eq!(errors.len(), 1, "{out}");
         assert_eq!(errors[0]["code"], "disk_full");

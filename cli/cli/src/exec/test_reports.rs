@@ -2403,7 +2403,7 @@ mod tests {
         assert_eq!(event["covered_lines"], 1, "{event}");
         assert_eq!(event["eligible_lines"], 1, "{event}");
         assert_eq!(event["minimum"], 100, "{event}");
-        assert_eq!(event["passed"], false, "{event}");
+        assert_eq!(event["result"], "fail", "{event}");
         assert_eq!(event["errors"], 1, "{event}");
         assert_eq!(event["dx_version"], dx_adopt::DX_VERSION, "{event}");
         assert!(
@@ -2424,7 +2424,7 @@ mod tests {
             .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
             .find(|event| event["event"] == "coverage")
             .unwrap_or_else(|| panic!("no coverage event: {out}"));
-        assert_eq!(event["passed"], true, "{event}");
+        assert_eq!(event["result"], "pass", "{event}");
         assert!(event.get("minimum").is_none(), "{event}");
     }
 
@@ -2476,7 +2476,7 @@ mod tests {
             .find(|event| event["code"] == "coverage_sources_incomplete")
             .unwrap_or_else(|| panic!("no notice: {out}"));
         assert_eq!(notice["event"], "notice", "{notice}");
-        assert_eq!(notice["level"], "warning", "{notice}");
+        assert_eq!(notice["severity"], "warning", "{notice}");
         assert_eq!(
             notice["message"],
             "production source absent from coverage report: src/b.py"
@@ -2486,7 +2486,7 @@ mod tests {
             .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
             .find(|event| event["code"] == "coverage_sources")
             .unwrap_or_else(|| panic!("no counts notice: {out}"));
-        assert_eq!(counts["level"], "info", "{counts}");
+        assert_eq!(counts["severity"], "info", "{counts}");
         assert!(
             counts["message"]
                 .as_str()
@@ -3934,7 +3934,7 @@ mod tests {
         let entries = results["results"].as_array().expect("results");
         assert_eq!(entries.len(), 7, "{results}");
         assert!(
-            entries.iter().all(|entry| entry["status"] == "PASSED"),
+            entries.iter().all(|entry| entry["bazel_status"] == "PASSED"),
             "{results}"
         );
         let no_cases = entries
@@ -4380,7 +4380,7 @@ mod tests {
         assert_eq!(outcomes.len(), 2, "{out}");
         assert_eq!(outcomes[0]["outcome"], serde_json::json!("failed"));
         assert_eq!(outcomes[1]["outcome"], serde_json::json!("timeout"));
-        assert_eq!(outcomes[1]["status"], serde_json::json!("TIMEOUT"));
+        assert_eq!(outcomes[1]["bazel_status"], serde_json::json!("TIMEOUT"));
     }
 
     #[test]
@@ -4402,7 +4402,7 @@ mod tests {
         let outcomes = events_of_kind(&events, "test_outcome");
         assert_eq!(outcomes.len(), 1, "{out}");
         assert_eq!(outcomes[0]["outcome"], serde_json::json!("unknown"));
-        assert!(outcomes[0].get("status").is_none(), "{out}");
+        assert!(outcomes[0].get("bazel_status").is_none(), "{out}");
         assert!(outcomes[0].get("evidence_complete").is_none(), "{out}");
     }
 
@@ -5285,7 +5285,7 @@ mod tests {
             .as_array()
             .expect("results")
             .iter()
-            .filter(|entry| entry["status"] == "PASSED" && entry["final"] != false)
+            .filter(|entry| entry["bazel_status"] == "PASSED" && entry["final"] != false)
             .count();
         assert_eq!(passed, 4, "{results}");
     }
@@ -5501,7 +5501,7 @@ mod tests {
         assert_eq!(outcomes[0]["outcome"], serde_json::json!("not_reported"));
         assert_eq!(outcomes[0]["shard"], serde_json::json!(2));
         assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(false));
-        assert!(outcomes[0].get("status").is_none(), "{out}");
+        assert!(outcomes[0].get("bazel_status").is_none(), "{out}");
         assert!(outcomes[0].get("cases_total").is_none(), "{out}");
         let error = events_of_kind(&events, "error")
             .into_iter()
@@ -5591,7 +5591,7 @@ mod tests {
         let outcome = event(&events, "test_outcome");
         assert_eq!(outcome["target"], serde_json::json!("//a:broken"));
         assert_eq!(outcome["outcome"], serde_json::json!("failed_to_build"));
-        assert_eq!(outcome["status"], serde_json::json!("FAILED_TO_BUILD"));
+        assert_eq!(outcome["bazel_status"], serde_json::json!("FAILED_TO_BUILD"));
         assert_eq!(outcome["evidence_complete"], serde_json::json!(false));
         for field in ["cases_total", "run", "shard", "attempt", "cached"] {
             assert!(outcome.get(field).is_none(), "{field}: {out}");
@@ -5651,7 +5651,7 @@ mod tests {
         assert_eq!(outcomes[0]["outcome"], serde_json::json!("failed_to_build"));
         assert_eq!(outcomes[0]["configuration"], serde_json::json!("cfg1"));
         assert_eq!(outcomes[0]["evidence_complete"], serde_json::json!(false));
-        for field in ["status", "cases_total", "run", "shard", "attempt", "cached"] {
+        for field in ["bazel_status", "cases_total", "run", "shard", "attempt", "cached"] {
             assert!(outcomes[0].get(field).is_none(), "{field}: {out}");
         }
         let error = events_of_kind(&events, "error")
@@ -5680,7 +5680,7 @@ mod tests {
         let events = json_events(&out);
         let outcomes = events_of_kind(&events, "test_outcome");
         assert_eq!(outcomes.len(), 1, "{out}");
-        assert_eq!(outcomes[0]["status"], serde_json::json!("FAILED_TO_BUILD"));
+        assert_eq!(outcomes[0]["bazel_status"], serde_json::json!("FAILED_TO_BUILD"));
     }
 
     #[test]

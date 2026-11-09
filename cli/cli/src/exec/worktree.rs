@@ -1042,7 +1042,7 @@ mod tests {
             .map(|event| event["event"].as_str().expect("event"))
             .collect();
         assert_eq!(kinds, ["command_started", "notice", "slot"], "{text}");
-        assert_eq!(events[1]["level"], "warning");
+        assert_eq!(events[1]["severity"], "warning");
         assert_eq!(events[1]["code"], "fetch_failed");
         assert_eq!(
             events[1]["message"],
@@ -1277,7 +1277,7 @@ mod tests {
             .map(|event| event["event"].as_str().expect("event"))
             .collect();
         assert_eq!(kinds, ["command_started", "notice", "slot"], "{text}");
-        assert_eq!(events[1]["level"], "warning");
+        assert_eq!(events[1]["severity"], "warning");
         assert_eq!(events[1]["code"], "disk_low");
         assert_eq!(events[2]["action"], "release");
         assert_eq!(events[2]["state"], "free");

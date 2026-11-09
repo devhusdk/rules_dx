@@ -73,9 +73,6 @@
       "$ref": "#/$defs/tier"
     },
     {
-      "$ref": "#/$defs/tool_config"
-    },
-    {
       "$ref": "#/$defs/tools"
     }
   ],
@@ -84,10 +81,10 @@
       "type": "object",
       "properties": {
         "major": {
-          "const": 3
+          "const": 4
         },
         "minor": {
-          "const": 10
+          "const": 0
         }
       },
       "required": [
@@ -747,8 +744,7 @@
         "event",
         "tool",
         "file",
-        "role",
-        "edited"
+        "role"
       ],
       "additionalProperties": false
     },
@@ -796,8 +792,11 @@
           "type": "integer",
           "minimum": 0
         },
-        "passed": {
-          "type": "boolean"
+        "result": {
+          "enum": [
+            "pass",
+            "fail"
+          ]
         },
         "errors": {
           "type": "integer",
@@ -834,7 +833,7 @@
         "support_files",
         "excluded_files",
         "unsupported_files",
-        "passed",
+        "result",
         "errors",
         "cell",
         "dx_version"
@@ -1176,7 +1175,7 @@
         "hint": {
           "type": "string"
         },
-        "severity": {
+        "strength": {
           "enum": [
             "hard",
             "advisory"
@@ -1196,7 +1195,7 @@
         "after",
         "path",
         "hint",
-        "severity"
+        "strength"
       ],
       "additionalProperties": false
     },
@@ -1212,7 +1211,7 @@
         "correlation": {
           "type": "string"
         },
-        "level": {
+        "severity": {
           "enum": [
             "info",
             "warning"
@@ -1246,7 +1245,7 @@
       "required": [
         "schema",
         "event",
-        "level",
+        "severity",
         "code",
         "message"
       ],
@@ -1657,10 +1656,10 @@
         "name": {
           "type": "string"
         },
-        "status": {
+        "severity": {
           "enum": [
-            "ok",
-            "warn",
+            "info",
+            "warning",
             "error"
           ]
         },
@@ -1675,7 +1674,7 @@
         "schema",
         "event",
         "name",
-        "status",
+        "severity",
         "detail",
         "hint"
       ],
@@ -1744,7 +1743,7 @@
         "configuration": {
           "type": "string"
         },
-        "status": {
+        "bazel_status": {
           "type": "string"
         },
         "cached": {
@@ -1894,33 +1893,6 @@
         "event",
         "tier",
         "source"
-      ],
-      "additionalProperties": false
-    },
-    "tool_config": {
-      "type": "object",
-      "properties": {
-        "schema": {
-          "$ref": "#/$defs/schema"
-        },
-        "event": {
-          "const": "tool_config"
-        },
-        "correlation": {
-          "type": "string"
-        },
-        "tool": {
-          "type": "string"
-        },
-        "file": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "schema",
-        "event",
-        "tool",
-        "file"
       ],
       "additionalProperties": false
     },

@@ -2012,7 +2012,7 @@ mod tests {
                 serde_json::json!(format!("check/{phase}")),
                 "{event}"
             );
-            assert_eq!(event["schema"]["major"], 3, "{event}");
+            assert_eq!(event["schema"]["major"], 4, "{event}");
         }
     }
 

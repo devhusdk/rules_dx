@@ -4,9 +4,9 @@ use clap::ValueEnum;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
-    CapabilityEvent, FamilyToolsEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, TierEvent,
-    ToolConfigEvent, capability_event, command_finished, command_started, family_tools_event, owned_file_event,
-    status_event, tier_event, tool_config_event,
+    CapabilityEvent, ConfigFileEvent, FamilyToolsEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, TierEvent,
+    capability_event, command_finished, command_started, config_file_event, family_tools_event, owned_file_event,
+    status_event, tier_event,
 };
 use dx_plan::args::grammar::advertises_passthrough;
 use dx_plan::args::{Command, Invocation};
@@ -199,9 +199,18 @@ fn owned_files(workspace: &std::path::Path) -> Result<Vec<OwnedFileEvent>, Strin
 /// The tiers in force, the root tool configs bound to `.dx`, and any `dx.toml` problem.
 struct Bindings {
     tiers: Vec<TierEvent>,
-    configs: Vec<ToolConfigEvent>,
+    configs: Vec<ConfigFileEvent>,
     tools: Vec<FamilyToolsEvent>,
     problem: Option<dx_adopt::StatusCheck>,
+}
+
+/// The event vocabulary for a check status.
+fn severity(status: &str) -> &str {
+    match status {
+        "ok" => "info",
+        "warn" => "warning",
+        other => other,
+    }
 }
 
 fn problem_check(name: &str, detail: String) -> dx_adopt::StatusCheck {
@@ -301,9 +310,12 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
     let configs = match dx_generate::bound_configs(config.as_ref(), &families, &root_files) {
         Ok(configs) => configs
             .into_iter()
-            .map(|(tool, file)| ToolConfigEvent {
+            .map(|(tool, file)| ConfigFileEvent {
                 tool: tool.to_owned(),
                 file,
+                role: "root".to_owned(),
+                base: None,
+                edited: None,
             })
             .collect(),
         Err(error) => {
@@ -415,7 +427,7 @@ pub(crate) fn execute_status(
                 out,
                 status_event(&StatusEvent {
                     name: check.name.clone(),
-                    status: check.status.clone(),
+                    severity: severity(&check.status).to_owned(),
                     detail: check.detail.clone(),
                     hint: check.hint.clone(),
                 }),
@@ -427,7 +439,7 @@ pub(crate) fn execute_status(
             .tiers
             .iter()
             .map(tier_event)
-            .chain(bound.configs.iter().map(tool_config_event))
+            .chain(bound.configs.iter().map(config_file_event))
             .chain(bound.tools.iter().map(family_tools_event));
         for event in events {
             match event {
@@ -755,7 +767,7 @@ mod tests {
                     && event["name"] == serde_json::json!("pin")
             })
             .expect("pin status event");
-        assert_eq!(status["status"], serde_json::json!("ok"));
+        assert_eq!(status["severity"], serde_json::json!("info"));
         assert!(err.is_empty());
     }
 
@@ -856,7 +868,7 @@ mod tests {
             .iter()
             .find(|event| event["event"] == "status" && event["name"] == "dx.toml")
             .expect("dx.toml status event");
-        assert_eq!(check["status"], "warn");
+        assert_eq!(check["severity"], "warning");
     }
 
     #[test]
@@ -880,7 +892,7 @@ mod tests {
         let tier = event(&json, "tier");
         assert_eq!(tier["tier"], "standard");
         assert_eq!(tier["source"], "default");
-        let config = event(&json, "tool_config");
+        let config = event(&json, "config_file");
         assert_eq!(config["tool"], "ruff");
         assert_eq!(config["file"], "ruff.toml");
     }
@@ -896,7 +908,7 @@ mod tests {
                 .iter()
                 .find(|event| event["name"] == serde_json::json!("pin"))
                 .expect("pin status event");
-            assert_eq!(pin["status"], serde_json::json!("warn"));
+            assert_eq!(pin["severity"], serde_json::json!("warning"));
             assert_eq!(pin["hint"], serde_json::json!("dx init --apply"));
         } else {
             assert!(out.contains("pin: warn"), "{out}");
@@ -1116,7 +1128,7 @@ mod tests {
             .iter()
             .find(|event| event["name"] == serde_json::json!("module"))
             .expect("module check");
-        assert_eq!(module["status"], serde_json::json!("error"));
+        assert_eq!(module["severity"], serde_json::json!("error"));
         assert!(module["hint"].as_str().expect("hint").starts_with("dx "));
         for name in ["bazel", "host", "tools"] {
             assert!(
@@ -1187,7 +1199,7 @@ mod tests {
                     && event["name"] == serde_json::json!("tools")
             })
             .expect("tools check");
-        assert_eq!(tools["status"], serde_json::json!("error"));
+        assert_eq!(tools["severity"], serde_json::json!("error"));
         let record = events
             .iter()
             .find(|event| event["name"] == serde_json::json!("workspace:tools"))

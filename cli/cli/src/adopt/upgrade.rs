@@ -30,7 +30,7 @@ fn json_pin(
         out,
         status_event(&StatusEvent {
             name: "pin".to_owned(),
-            status: "ok".to_owned(),
+            severity: "info".to_owned(),
             detail: detail.to_owned(),
             hint: "dx status".to_owned(),
         }),

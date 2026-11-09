@@ -259,7 +259,7 @@ fn samples() -> Vec<Value> {
         file: "f".to_owned(),
         line: 3,
         hint: "h".to_owned(),
-        severity: "hard".to_owned(),
+        strength: "hard".to_owned(),
     };
     let phase = |event: Value| nest_phase_event(event, "check", "lint", "c1").expect("nest");
     vec![
@@ -311,7 +311,7 @@ fn samples() -> Vec<Value> {
         slot_event(&slot(true)).expect("slot"),
         status_event(&StatusEvent {
             name: "n".to_owned(),
-            status: "ok".to_owned(),
+            severity: "info".to_owned(),
             detail: "d".to_owned(),
             hint: "h".to_owned(),
         })
@@ -337,11 +337,14 @@ fn samples() -> Vec<Value> {
             source: "dx.toml".to_owned(),
         })
         .expect("family tier"),
-        tool_config_event(&ToolConfigEvent {
+        config_file_event(&ConfigFileEvent {
             tool: "ruff".to_owned(),
             file: "ruff.toml".to_owned(),
+            role: "root".to_owned(),
+            base: None,
+            edited: None,
         })
-        .expect("tool config"),
+        .expect("bound config file"),
         family_tools_event(&FamilyToolsEvent {
             family: "python".to_owned(),
             capability: "lint".to_owned(),
@@ -353,7 +356,7 @@ fn samples() -> Vec<Value> {
             file: ".hlint.yaml".to_owned(),
             role: "root".to_owned(),
             base: Some(".dx/config/hlint/base.yaml".to_owned()),
-            edited: true,
+            edited: Some(true),
         })
         .expect("config file"),
         with_correlation(started(), "c1").expect("correlation"),

@@ -210,7 +210,7 @@ advisory findings never change the exit code.
 
 With `--output=json`, the plan is one `init_plan` event per finding instead of text, with
 `kind` (`override_conflict`, `toolchain_conflict`, `bazelrc_conflict`, `workspace_ignored`),
-`subject`, `before`, `after`, `path`, `line` (left out when unknown), `hint`, and `severity`
+`subject`, `before`, `after`, `path`, `line` (left out when unknown), `hint`, and `strength`
 (`hard` or `advisory`). Plan notes, such as a `MODULE.bazel` that could not be compared, are `notice` events
 with code `init_plan_partial`. `--apply` refuses `--output=json`. The agent default of `json` does not apply to `--apply`, which prints text.
 

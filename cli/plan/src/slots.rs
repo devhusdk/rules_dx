@@ -2943,7 +2943,7 @@ mod tests {
                 .collect();
             assert_eq!(notices.len(), 1, "{events}");
             assert_eq!(notices[0]["event"], "notice");
-            assert_eq!(notices[0]["level"], "warning");
+            assert_eq!(notices[0]["severity"], "warning");
             assert_eq!(notices[0]["code"], "disk_low");
             assert_eq!(notices[0]["message"], RECLAIMED);
             assert_eq!(notices[0]["related_command"], "test");
@@ -3942,7 +3942,7 @@ mod tests {
                 assert_eq!(events.lines().count(), 1, "{events}");
                 assert!(events.contains("\"event\":\"notice\""));
                 assert!(events.contains("build_slot_skipped"));
-                assert!(events.contains("\"level\":\"warning\""));
+                assert!(events.contains("\"severity\":\"warning\""));
             } else {
                 assert!(events.is_empty(), "{events}");
             }
@@ -4098,7 +4098,7 @@ mod tests {
                 assert_eq!(lines.lines().count(), 1);
                 assert!(lines.contains("\"event\":\"notice\""));
                 assert!(lines.contains("build_slots_disabled"));
-                assert!(lines.contains("\"level\":\"warning\""));
+                assert!(lines.contains("\"severity\":\"warning\""));
             } else {
                 assert!(lines.is_empty());
             }

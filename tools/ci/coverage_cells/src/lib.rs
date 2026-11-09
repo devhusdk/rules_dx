@@ -85,7 +85,7 @@ pub fn aggregate(expected: &[String], sha: &str, ndjson: &str) -> Vec<String> {
         if number(event, "errors") != Some(0) {
             errors.push(format!("{cell}: report records errors"));
         }
-        if event.get("passed").and_then(Value::as_bool) != Some(true) {
+        if event.get("result").and_then(Value::as_str) != Some("pass") {
             errors.push(format!("{cell}: gate did not pass"));
         }
     }

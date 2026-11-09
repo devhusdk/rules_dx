@@ -66,9 +66,9 @@ With `--capabilities`, text adds one `capability <name>` line per command.
 
 With `--files`, text adds one `file <path> <owns> <state>` line per file `dx init` writes. `state` is `current`, `stale` (a dx-owned value is out of date), `missing` (an essential file is gone), `absent` (an optional file is gone) or `yours` (a `once` file that exists, which dx never rewrites). `docs/cli/commands/init.md` lists the labels.
 
-JSON streams `command_started`, one `status` event per check (`name`, `status`, `detail`, `hint`), then `command_finished`. With `--capabilities` it adds one `capability` event per command (`name`, `source`, `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`, `effect`, `passthrough`). `source` is `cli-grammar` or `workspace-record`. `availability` is `available`, `unavailable` or `unknown`.
+JSON streams `command_started`, one `status` event per check (`name`, `severity`, `detail`, `hint`), where `severity` is `info`, `warning` or `error`, then `command_finished`. With `--capabilities` it adds one `capability` event per command (`name`, `source`, `availability`, `detail`, `flags`, `outputs`, `reports`, `scope_policy`, `effect`, `passthrough`). `source` is `cli-grammar` or `workspace-record`. `availability` is `available`, `unavailable` or `unknown`.
 
-JSON adds a `tier` event (`tier`, `source`, and `family` for a per-family tier) and one `tool_config` event (`tool`, `file`) per bound root config, and one `tools` event (`family`, `capability`, `tools`) per line above, before any `capability` events.
+JSON adds a `tier` event (`tier`, `source`, and `family` for a per-family tier), one `config_file` event (`tool`, `file`, `role` `root`) per bound root config, and one `tools` event (`family`, `capability`, `tools`) per line above, before any `capability` events.
 
 With `--files` JSON adds one `owned_file` event per file (`path`, `owns`, `state`).
 

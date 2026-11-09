@@ -41,7 +41,7 @@ fn a_skip_note_becomes_a_tool_skipped_notice() {
     let note = "hlint: skipped, no pinned artifact for this execution platform";
     let event = dx_output::notice_event(&skip_notice("lint", note)).expect("valid notice");
     assert_eq!(event["code"], "tool_skipped");
-    assert_eq!(event["level"], "warning");
+    assert_eq!(event["severity"], "warning");
     assert_eq!(event["related_command"], "lint");
     assert_eq!(event["message"], note);
 }

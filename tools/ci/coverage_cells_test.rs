@@ -9,7 +9,7 @@ fn cells() -> Vec<String> {
 
 fn event(cell: &str) -> Value {
     json!({"event": "coverage", "cell": cell, "sha": SHA, "collector": "c1",
-        "covered_lines": 10, "eligible_lines": 10, "errors": 0, "passed": true})
+        "covered_lines": 10, "eligible_lines": 10, "errors": 0, "result": "pass"})
 }
 
 fn run(events: &[Value]) -> Vec<String> {
@@ -141,7 +141,7 @@ fn dropped_errors_and_failed_gate_fail() {
     fails(
         &[
             event("linux_x86_64"),
-            with("macos_arm64", "passed", json!(false)),
+            with("macos_arm64", "result", json!("fail")),
         ],
         "did not pass",
     );

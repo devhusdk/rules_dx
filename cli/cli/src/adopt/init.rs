@@ -329,7 +329,7 @@ fn check_init(
                 file: f.file,
                 line: f.line,
                 hint: f.hint,
-                severity: "advisory".to_owned(),
+                strength: "advisory".to_owned(),
             });
             if let Err(exit) = emit_built(out, event) {
                 return exit;
@@ -348,7 +348,7 @@ fn check_init(
                 file: f.file.clone(),
                 line: f.line,
                 hint: f.hint.clone(),
-                severity: if f.hard { "hard" } else { "advisory" }.to_owned(),
+                strength: if f.hard { "hard" } else { "advisory" }.to_owned(),
             });
             if let Err(exit) = emit_built(out, event) {
                 return exit;
@@ -914,7 +914,7 @@ mod tests {
         assert_eq!(f["subject"], "rules_cc");
         assert_eq!(f["path"], "MODULE.bazel");
         assert_eq!(f["line"], 3);
-        assert_eq!(f["severity"], "advisory");
+        assert_eq!(f["strength"], "advisory");
         assert!(f["hint"].as_str().is_some_and(|h| !h.is_empty()));
     }
 
@@ -934,7 +934,7 @@ mod tests {
         assert!(
             events(&out)
                 .iter()
-                .any(|e| e["kind"] == "workspace_ignored" && e["severity"] == "advisory"),
+                .any(|e| e["kind"] == "workspace_ignored" && e["strength"] == "advisory"),
             "{out}"
         );
     }
@@ -950,7 +950,7 @@ mod tests {
         assert!(
             events(&out)
                 .iter()
-                .any(|e| e["event"] == "init_plan" && e["severity"] == "hard"),
+                .any(|e| e["event"] == "init_plan" && e["strength"] == "hard"),
             "{out}"
         );
     }

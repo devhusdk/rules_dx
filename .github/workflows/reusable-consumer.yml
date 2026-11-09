@@ -673,7 +673,7 @@ jobs:
           events="${RUNNER_TEMP:-/tmp}/dx-reports/coverage/coverage.ndjson"
           dx_line="$(jq -rR 'fromjson? | select(.event=="error" and .code=="coverage_below_minimum") | .message' "$events" 2>/dev/null | head -n 1 || true)"
           if [[ -z "$dx_line" ]]; then
-            dx_line="$(jq -rR 'fromjson? | select(.event=="coverage" and .passed==true and .minimum!=null) | "coverage \(.covered_lines)/\(.eligible_lines) lines meets minimum \(.minimum)% in cell \(.cell)"' "$events" 2>/dev/null | head -n 1 || true)"
+            dx_line="$(jq -rR 'fromjson? | select(.event=="coverage" and .result=="pass" and .minimum!=null) | "coverage \(.covered_lines)/\(.eligible_lines) lines meets minimum \(.minimum)% in cell \(.cell)"' "$events" 2>/dev/null | head -n 1 || true)"
           fi
           sources_lines="$(jq -rR 'fromjson? | select(.code=="coverage_sources" or .code=="coverage_sources_incomplete") | "\(.code): \(.message)"' "$events" 2>/dev/null | head -n 200 || true)"
           if [[ -z "$DX_MIN_CHANGED_LINE_COVERAGE" ]]; then

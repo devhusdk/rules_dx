@@ -107,6 +107,7 @@ tools/dx docs //lib:site
 | C# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `csharp_doc_shard` | `library`, `package` |
 | F# | `@rules_dx//tools/docs/dotnet:defs.bzl` | `fsharp_doc_shard` | `library`, `package` |
 | Protobuf | `@rules_dx//tools/docs/protobuf:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
+| Avro | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_doc_shard` | `avro`, `package` |
 
 Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Dart, C#, F# and Perl libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
@@ -124,5 +125,13 @@ a class, a field a field, an enum and its values an enum and its variants, a
 service an interface and an rpc a method. The comment above an item, or after
 it on the same line, is its doc text. A `map<K, V>` field shows as a map and
 its generated entry message is left out. Streaming rpcs say `stream`.
+
+An `avro_library` in scope that has no shard gets one automatically. Avro
+shards read the `doc` attribute straight from the schemas: a record is a class,
+a field a field, an enum an enum and its symbols variants, a fixed type a type
+alias and a protocol message a method. Ids start with the schema namespace. An
+`.avdl` file is first turned into schemas by the pinned avro-tools
+(`idl2schemata`) on the hermetic JDK. Avro enum symbols carry no doc of their
+own, so they are marked incomplete.
 
 A source error fails the build and writes no pages. Bazel's exit code is kept.

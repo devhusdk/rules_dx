@@ -12,5 +12,11 @@ A workspace that only uses the code generation rules needs nothing more than
 `protobuf_doc_shard` in `@rules_dx//tools/docs/protobuf:defs.bzl` documents one
 `proto_library`. It runs the protoc of the registered proto toolchain with
 `--include_source_info` and reads the comments above each message, field, enum,
-enum value, service and rpc from the descriptor set. Avro schemas are not
-covered; their `doc` fields are tracked in #9936.
+enum value, service and rpc from the descriptor set. 
+## Avro docs
+
+`avro_doc_shard` in `@rules_dx//tools/docs/avro:defs.bzl` documents one
+`avro_library`. The `doc` attribute of every record, field, enum, fixed type and
+protocol message is read from the `.avsc` files directly. An `.avdl` file is
+first converted with `idl2schemata` of the pinned avro-tools (`//config:tool_avro`),
+which runs on the hermetic JDK, and then read the same way.

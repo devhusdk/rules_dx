@@ -1,0 +1,11 @@
+{
+  "type": "record",
+  "name": "Order",
+  "namespace": "shop.v1",
+  "doc": "A customer order.",
+  "fields": [
+    {"name": "id", "type": "string", "doc": "The order id."},
+    {"name": "status", "type": {"type": "enum", "name": "Status", "doc": "Where an order is in its life.", "symbols": ["OPEN", "SHIPPED"]}, "doc": "The current state."},
+    {"name": "digest", "type": {"type": "fixed", "name": "Digest", "size": 16, "doc": "A 128 bit content hash."}, "doc": "Hash of the order lines."}
+  ]
+}

@@ -575,6 +575,17 @@ aspect_field field_count=5
 aspect_field has_subject=True
 aspect_field subject_label=//quality/testdata:docs_astro_library_subject
 aspect_field transitive_count=0
+subject //quality/testdata:docs_avro_library_subject
+field docs_shard_count=1
+field docs_shards=tools/docs/avro/fixture/_dx_docs/shop_avro.ir.pb
+field dx_docs_sites=(none)
+field dx_results=shop_avro.ir.pb
+field label=//tools/docs/avro/fixture:shop_avro
+aspect_field aspect_seen=True
+aspect_field field_count=5
+aspect_field has_subject=True
+aspect_field subject_label=//quality/testdata:docs_avro_library_subject
+aspect_field transitive_count=0
 subject //quality/testdata:docs_csharp_ledger_subject
 field docs_shard_count=1
 field docs_shards=tools/docs/dotnet/fixture/csharp/_dx_docs/ledger.ir.pb

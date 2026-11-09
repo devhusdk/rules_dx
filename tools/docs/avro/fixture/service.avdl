@@ -1,0 +1,20 @@
+/** The order API. */
+@namespace("shop.v1")
+protocol Shop {
+  /** Raised when an order id is unknown. */
+  error NoSuchOrder {
+    /** The id that was asked for. */
+    string id;
+  }
+
+  /** One line of an order. */
+  record Line {
+    /** What was bought. */
+    string sku;
+    /** How many were bought. */
+    int quantity;
+  }
+
+  /** Reads one order. */
+  string getOrder(/** The order id. */ string id) throws NoSuchOrder;
+}

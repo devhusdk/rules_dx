@@ -1,0 +1,35 @@
+load("//avro/rules:defs.bzl", "avro_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/docs/avro:defs.bzl", "avro_doc_shard")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+
+package(default_visibility = VIS_TOOLS)
+
+exports_files(
+    [
+        "service.avdl",
+        "shop.avsc",
+    ],
+    visibility = VIS_TOOLS,
+)
+
+avro_library(
+    name = "shop_avro",
+    srcs = [
+        "service.avdl",
+        "shop.avsc",
+    ],
+)
+
+avro_doc_shard(
+    name = "shop_docs",
+    testonly = True,
+    avro = ":shop_avro",
+    package = "shop",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

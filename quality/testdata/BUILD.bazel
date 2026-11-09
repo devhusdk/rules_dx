@@ -2009,6 +2009,11 @@ real_docs_subject(
 )
 
 real_docs_subject(
+    name = "docs_avro_library_subject",
+    target = "//tools/docs/avro/fixture:shop_avro",
+)
+
+real_docs_subject(
     name = "docs_ruby_library_subject",
     target = "//tools/docs/ruby/fixture:geometry",
 )
@@ -2054,6 +2059,7 @@ real_docs_tests(
         ":docs_fsharp_ledger_subject",
         ":docs_fsharp_xmldoc_off_subject",
         ":docs_astro_library_subject",
+        ":docs_avro_library_subject",
         ":docs_go_library_subject",
         ":docs_java_library_subject",
         ":docs_javascript_library_subject",

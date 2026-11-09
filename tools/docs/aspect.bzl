@@ -23,6 +23,8 @@ load("//libs/exec_os:defs.bzl", "ExecOsInfo")
 load("//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/cc:defs.bzl", "cc_shard_action", "doxygen_available")
+load("//avro/rules:providers.bzl", _AvroInfo = "AvroInfo")
+load("//tools/docs/avro:defs.bzl", "avro_shard_action")
 load("//tools/docs/components:shard.bzl", "COMPONENT_LANGUAGES", "component_config", "component_shard_action")
 load("//tools/docs/dart:defs.bzl", "dart_shard_action")
 load("//tools/docs/d:defs.bzl", "D_TOOLCHAIN", "d_shard_action")
@@ -159,6 +161,14 @@ def _powershell_docs_shard(target, ctx):
     package = manifests[0].basename[:-len(".psd1")] if manifests else ctx.label.name
     pwsh = ctx.attr._pwsh[platform_common.ToolchainInfo]
     return powershell_shard_action(ctx, sources, manifests[0] if manifests else None, package, "", "_dx_docs/" + ctx.label.name, pwsh, ctx.file._pwsh_script, ctx.executable._pwsh_extract).shard
+
+def _avro_docs_shard(target, ctx):
+    if _AvroInfo not in target or DocsShardInfo in target:
+        return None
+    info = target[_AvroInfo]
+    if not info.direct_srcs:
+        return None
+    return avro_shard_action(ctx, info.direct_srcs, info.transitive_srcs, ctx.attr._avro_tools[DefaultInfo].files_to_run, ctx.label.name, "_dx_docs/" + ctx.label.name, ctx.executable._avro_extract).shard
 
 def _ruby_docs_shard(target, ctx):
     if _RubyFilesInfo not in target or DocsShardInfo in target:
@@ -411,6 +421,9 @@ def _real_docs_aspect_impl(target, ctx):
     pwsh_shard = _powershell_docs_shard(target, ctx)
     if pwsh_shard:
         parts.append({"dx_results": [pwsh_shard], "dx_docs_shards": [pwsh_shard]})
+    avro_shard = _avro_docs_shard(target, ctx)
+    if avro_shard:
+        parts.append({"dx_results": [avro_shard], "dx_docs_shards": [avro_shard]})
     ruby_shard = _ruby_docs_shard(target, ctx)
     if ruby_shard:
         parts.append({"dx_results": [ruby_shard], "dx_docs_shards": [ruby_shard]})
@@ -451,9 +464,19 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Haskell, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Julia, OCaml, Fortran, PHP, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Haskell, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Julia, OCaml, Fortran, PHP, Avro, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The Avro branch reads the `doc` attributes of an avro_library's own .avsc srcs and of the schemas the pinned avro-tools (//config:tool_avro) writes for its .avdl srcs with idl2schemata, with the DocIr extractor (//tools/docs/avro/extract:avro_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
+        "_avro_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/avro/extract:avro_extract"),
+            executable = True,
+        ),
+        "_avro_tools": attr.label(
+            cfg = "exec",
+            default = Label("//config:tool_avro"),
+            executable = True,
+        ),
         "_cc_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/cc/extract:cc_extract"),

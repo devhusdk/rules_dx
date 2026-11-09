@@ -8,6 +8,7 @@ load("//tools/docs/cc:defs.bzl", "cc_doc_shard", "cuda_doc_shard")
 load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
 load("//tools/docs/dart:defs.bzl", "dart_doc_shard")
 load("//tools/docs/d:defs.bzl", "d_doc_shard")
+load("//tools/docs/avro:defs.bzl", "avro_doc_shard")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard", "fsharp_doc_shard")
 load("//tools/docs/go:defs.bzl", "go_doc_shard")
 load("//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
@@ -28,6 +29,7 @@ load(":languages.bzl", "BENCH", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "PLATFORMS"
 
 # Loading each symbol proves the shard rule exists; the names are what DOC_TOOLS may point at.
 _SHARD_RULES = {
+    "avro_doc_shard": avro_doc_shard,
     "astro_doc_shard": astro_doc_shard,
     "cc_doc_shard": cc_doc_shard,
     "csharp_doc_shard": csharp_doc_shard,

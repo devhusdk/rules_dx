@@ -1,5 +1,5 @@
 {
-  "checksum": "c978dbd2ef70f7bebc134112a424e06fc4aae969ec64256d80463c455ca43c44",
+  "checksum": "72951dade25a7dda429098a64a357be578a2a81401ca32287b43d5d4d4d18989",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1489,6 +1489,33 @@
         }
       ],
       "version": "1.5.1"
+    },
+    "avro_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_docs_avro_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "avro_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_avro_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
     },
     "base16ct 0.2.0": {
       "common_attrs": {
@@ -28771,6 +28798,7 @@
   ],
   "workspace_members": {
     "appimage_packer 0.0.0": "appimage/appimage_packer",
+    "avro_extract 0.0.0": "tools/docs/avro/avro_extract",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "cc_context 0.0.0": "cc/cc_context",
     "cc_extract 0.0.0": "tools/docs/cc/cc_extract",

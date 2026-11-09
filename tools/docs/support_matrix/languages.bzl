@@ -370,7 +370,7 @@ LANGUAGES = [
     _language(
         "avro",
         deps = "none: schemas only, no packages",
-        doc = NO_DOC,
+        doc = struct(tool = "avro-tools", shard = "avro_doc_shard"),
         dead_code = ["none"],
     ),
     _language(

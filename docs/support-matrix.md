@@ -80,7 +80,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Name | Lint | Format | Typecheck | API docs | Coverage | Dead code |
 | --- | --- | --- | --- | --- | --- | --- |
 | Astro | `eslint`, `typos` | `prettier` | `tsc` | `astro-compiler` | `jest` | `eslint @typescript-eslint/no-unused-vars` |
-| Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | no | n/a | none |
+| Avro | `avro_tools`, `typos` | `prettier` | `avro_tools` | `avro-tools` | n/a | none |
 | C and C++ | `clang_tidy`, `typos` | `clang_format` | `clang_syntax` | `doxygen` | `gcov`, `llvm-cov` | `clang_tidy misc-unused-parameters, misc-unused-using-decls` |
 | C# | `roslyn`, `typos` | `csharpier` | `csc` | `csharp doc driver` | `coverlet` | `roslyn IDE0051, IDE0052, IDE0060, IDE0005` |
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | `doxygen` | no: cuda_test has no dx coverage wiring | none |

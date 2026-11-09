@@ -176,6 +176,20 @@ fn workflow_runs_on_pull_requests() {
 }
 
 #[test]
+fn families_set_errors_on_a_stale_lockfile() {
+    let script = read_runfiles(SCRIPT);
+    let body = script
+        .split("families() {")
+        .nth(1)
+        .and_then(|rest| rest.split("\n}\n").next())
+        .expect("families body");
+    assert!(
+        body.contains("--lockfile_mode=error"),
+        "{SCRIPT} families() does not pass --lockfile_mode=error"
+    );
+}
+
+#[test]
 fn consumer_queries_skip_the_private_upstream_copies() {
     for path in [CI, SCRIPT] {
         let text = read_runfiles(path);

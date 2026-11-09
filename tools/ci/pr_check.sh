@@ -64,7 +64,7 @@ families() {
   for dir in families/*/; do
     [ -f "$dir/MODULE.bazel" ] || continue
     echo "::group::$dir"
-    (cd "$dir" && ../../tools/dx build //... -- --nobuild "$@")
+    (cd "$dir" && ../../tools/dx build //... -- --nobuild --lockfile_mode=error "$@")
     echo "::endgroup::"
   done
 }

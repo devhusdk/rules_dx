@@ -5,10 +5,11 @@ pipeline as the `helm` class.
 
 ## Formatting
 
-`dx format` formats a chart with the pinned prettier: `Chart.yaml`, `values.yaml` and other plain
-YAML or JSON files in the chart go through prettier's YAML and JSON parsers.
+`dx format` formats a chart with two pinned tools.
 
-Files under `templates/` (and `*.tpl`) are Go templates and are not formatted.
-`prettier-plugin-go-template` parses them as HTML, and on common chart idioms such as
-`{{- include ... | nindent 4 }}` it joins and re-indents YAML lines into a different document, so it
-is not loaded. The prettier wrapper skips those files.
+- prettier formats `Chart.yaml`, `values.yaml` and other plain YAML or JSON files in the chart.
+- helmfmt formats Go templates: files under `templates/` next to a `Chart.yaml`, and `*.tpl`. It
+  re-indents only the lines that start with a template tag; every other line stays as written.
+
+A file goes to exactly one of the two. The prettier wrapper skips templates and `*.tpl`, and helmfmt
+is never given anything else.

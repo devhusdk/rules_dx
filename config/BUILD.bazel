@@ -136,6 +136,11 @@ label_flag(
 )
 
 label_flag(
+    name = "tool_helmfmt",
+    build_setting_default = "@dx_tools//:helmfmt",
+)
+
+label_flag(
     name = "tool_kubeconform",
     build_setting_default = "@dx_tools//:kubeconform",
 )

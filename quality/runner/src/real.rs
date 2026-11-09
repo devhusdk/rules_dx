@@ -19,6 +19,7 @@ const BICEP_CONFIG_REL: &str = "bicepconfig.json";
 /// reference resolves from the host.
 const BICEP_HOME_REL: &str = "dx-bicep/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
+const HELMFMT_HOME_REL: &str = "dx-helmfmt/home";
 /// Empty plugin home: tflint never downloads or finds a provider ruleset.
 /// The request env key naming the provider mirror roots, joined with `|`.
 const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
@@ -550,6 +551,15 @@ impl RealBackend {
                 ("DOTNET_SYSTEM_GLOBALIZATION_INVARIANT", "1"),
             ] {
                 env.push((OsString::from(key), OsString::from(value)));
+            }
+        }
+        if tool_id == "helmfmt" {
+            let home = scratch.root().join(HELMFMT_HOME_REL);
+            std::fs::create_dir_all(&home)
+                .map_err(|err| execution(tool_id, format!("helmfmt home: {err}")))?;
+            for name in ["HOME", "USERPROFILE"] {
+                env.retain(|(key, _)| !key.to_string_lossy().eq_ignore_ascii_case(name));
+                env.push((OsString::from(name), home.clone().into_os_string()));
             }
         }
         if tool_id == "pkl_lsp" {

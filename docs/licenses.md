@@ -27,6 +27,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | google_java_format | 1.35.0 | Apache-2.0 |
 | hadolint | 2.15.1 | GPL-3.0 |
 | helm | 4.3.1 | Apache-2.0 |
+| helmfmt | 0.7.0 | GPL-3.0 |
 | hlint | 3.10 | BSD-3-Clause |
 | jsonnet_lint | 0.22.0 | Apache-2.0 |
 | jsonnetfmt | 0.22.0 | Apache-2.0 |

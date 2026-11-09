@@ -306,7 +306,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 | Tool | Checks | Not on |
 | --- | --- | --- |
-| `taplo` | Format and lint TOML | |
+| `taplo` | Format, lint and typecheck TOML (schema validation from `#:schema` or `.taplo.toml` rules) | |
 | `yamlfmt`, `yamllint` | Format and lint YAML | |
 | `xmllint` | Lint XML | |
 | `prettier` | Format XML, Ansible, Kubernetes, Dockerfile, Gherkin, PHP, API specs | |

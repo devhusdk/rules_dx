@@ -110,6 +110,7 @@ _HOOK_ORDER = [
     "avro_tools",
     "buf",
     "psscriptanalyzer",
+    "taplo",
     "vale",
     "gofumpt",
 ]

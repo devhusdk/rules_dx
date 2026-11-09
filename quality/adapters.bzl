@@ -158,10 +158,8 @@ NOT_APPLICABLE = {
 # to the tool that would fill it. A `no` cell must name one; otherwise the
 # family belongs in NOT_APPLICABLE["typecheck"] with a reason.
 TYPECHECK_CANDIDATES = {
-    "graphql": "graphql-inspector validate (schema and documents against the schema)",
     "oci": "check-jsonschema against the OCI image-spec manifest and config schemas",
     "swift": "swiftc -typecheck",
-    "toml": "taplo check (validates against a schema)",
 }
 
 def not_applicable_error(not_applicable, adapters, class_to_family):

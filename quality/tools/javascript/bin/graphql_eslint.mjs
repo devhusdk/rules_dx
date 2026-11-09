@@ -53,13 +53,15 @@ function fail(message) {
 function parseArgs(argv) {
   const separator = argv.indexOf("--");
   if (separator === -1) {
-    fail("usage: graphql_eslint --config <json> --root <dir> -- <files...>");
+    fail("usage: graphql_eslint [--typecheck] --config <json> --root <dir> -- <files...>");
   }
   const options = {};
   const flags = argv.slice(0, separator);
-  for (let index = 0; index < flags.length; index += 2) {
-    const flag = flags[index];
-    const value = flags[index + 1];
+  const typecheck = flags.includes("--typecheck");
+  const pairs = flags.filter((flag) => flag !== "--typecheck");
+  for (let index = 0; index < pairs.length; index += 2) {
+    const flag = pairs[index];
+    const value = pairs[index + 1];
     if ((flag !== "--config" && flag !== "--root") || value === undefined) {
       fail(`unexpected argument ${flag}`);
     }
@@ -67,9 +69,9 @@ function parseArgs(argv) {
   }
   const files = argv.slice(separator + 1);
   if (options.config === undefined || options.root === undefined || files.length === 0) {
-    fail("usage: graphql_eslint --config <json> --root <dir> -- <files...>");
+    fail("usage: graphql_eslint [--typecheck] --config <json> --root <dir> -- <files...>");
   }
-  return { config: options.config, root: options.root, files };
+  return { config: options.config, root: options.root, files, typecheck };
 }
 
 function pointers(config, key, required) {
@@ -140,6 +142,72 @@ function readConfig(file) {
   return config;
 }
 
+async function typecheck(schemaFiles, documentFiles, files) {
+  const graphql = await import("graphql");
+  const { validateSDL } = await import("graphql/validation/validate.mjs");
+  const messages = new Map(files.map((file) => [file, []]));
+  const report = (file, ruleId, error) => {
+    const location = error.locations?.[0];
+    messages.get(file).push({
+      ruleId,
+      severity: 2,
+      message: error.message,
+      line: location?.line ?? 1,
+      column: location?.column ?? 1,
+      ...end(error),
+    });
+  };
+  const end = (error) => {
+    const loc = error.nodes?.[0]?.loc;
+    if (loc === undefined) {
+      return {};
+    }
+    const { line, column } = graphql.getLocation(loc.source, loc.end);
+    return { endLine: line, endColumn: column };
+  };
+  const fallback = files[0];
+  const owner = (error) => {
+    const name = error.nodes?.[0]?.loc?.source?.name ?? error.source?.name;
+    return messages.has(name) ? name : fallback;
+  };
+  const parsed = [];
+  for (const file of [...schemaFiles, ...documentFiles]) {
+    try {
+      parsed.push([file, graphql.parse(new graphql.Source(fs.readFileSync(file, "utf8"), file))]);
+    } catch (error) {
+      if (!(error instanceof graphql.GraphQLError)) {
+        throw error;
+      }
+      report(owner(error), "graphql/syntax", error);
+    }
+  }
+  const schemaDocs = parsed.filter(([file]) => schemaFiles.includes(file)).map(([, doc]) => doc);
+  const sdl = { kind: "Document", definitions: schemaDocs.flatMap((doc) => doc.definitions) };
+  if (schemaDocs.length === schemaFiles.length) {
+    const sdlErrors = validateSDL(sdl);
+    for (const error of sdlErrors) {
+      report(owner(error), "graphql/validate-sdl", error);
+    }
+    if (sdlErrors.length === 0) {
+      const schema = graphql.buildASTSchema(sdl, { assumeValidSDL: true });
+      for (const error of graphql.validateSchema(schema)) {
+        report(owner(error), "graphql/validate-schema", error);
+      }
+      for (const [file, doc] of parsed) {
+        if (!messages.has(file) || schemaFiles.includes(file)) {
+          continue;
+        }
+        for (const error of graphql.validate(schema, doc)) {
+          report(file, "graphql/validate", error);
+        }
+      }
+    }
+  }
+  const results = files.map((file) => ({ filePath: file, messages: messages.get(file) }));
+  process.stdout.write(JSON.stringify(results));
+  return results.some((result) => result.messages.length > 0) ? 1 : 0;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const config = readConfig(path.resolve(args.config));
@@ -155,6 +223,9 @@ async function main() {
   const documents = [...new Set([...pointers(config, "documents", false), ...files])].filter(
     (file) => !schemaFiles.has(file),
   );
+  if (args.typecheck) {
+    return typecheck([...schemaFiles], documents, files);
+  }
   const schemaRules = ruleSet(config, "schema", SCHEMA_RULES);
   const operationRules = ruleSet(config, "operations", OPERATION_RULES);
   const { ESLint } = await import("eslint");

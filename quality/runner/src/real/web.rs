@@ -79,6 +79,8 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let capability = call.capability;
             let invocation = if capability == "format" {
                 commands::taplo_format(&tool.binary, &refs, config, true)
+            } else if capability == "typecheck" {
+                commands::taplo_typecheck(&tool.binary, &refs, config)
             } else {
                 commands::taplo_lint(&tool.binary, &refs, config)
             };
@@ -326,8 +328,12 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let Some(cfg) = config else {
                 return Err(missing_tier_base(tool_id));
             };
-            let invocation = commands::graphql_eslint_check(&launch, &refs, cfg, scratch.root())
-                .map_err(|err| execution(tool_id, err.to_string()))?;
+            let invocation = if call.capability == "typecheck" {
+                commands::graphql_typecheck(&launch, &refs, cfg, scratch.root())
+            } else {
+                commands::graphql_eslint_check(&launch, &refs, cfg, scratch.root())
+            }
+            .map_err(|err| execution(tool_id, err.to_string()))?;
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
             if !matches!(out.code, Some(0 | 1)) {
                 let code = out

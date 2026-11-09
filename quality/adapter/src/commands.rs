@@ -27,6 +27,7 @@ const RUSTFMT_MIDDLE: &[&str] = &[
 ];
 const RUSTFMT_CHECK_FLAG: &[&str] = &["--check"];
 const TAPLO_LINT_BASE: &[&str] = &["lint", "--colors=never", "--no-auto-config", "--no-schema"];
+const TAPLO_TYPECHECK_BASE: &[&str] = &["lint", "--colors=never", "--no-auto-config"];
 const TAPLO_FORMAT_BASE: &[&str] = &["format", "--colors=never", "--no-auto-config"];
 const TAPLO_FORMAT_CHECK_FLAG: &[&str] = &["--check"];
 const TAPLO_CONFIG_FLAG: &[&str] = &["-c"];
@@ -523,6 +524,20 @@ pub fn taplo_lint(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invo
     optional_flag(
         binary,
         TAPLO_LINT_BASE,
+        TAPLO_CONFIG_FLAG[0],
+        config,
+        EMPTY_ARGS,
+        files,
+        "",
+    )
+}
+
+/// Validates TOML against the schema each file names with `#:schema` or the
+/// config's `[[rule]]` tables; no catalog is consulted.
+pub fn taplo_typecheck(binary: &Path, files: &[&Path], config: Option<&Path>) -> Invocation {
+    optional_flag(
+        binary,
+        TAPLO_TYPECHECK_BASE,
         TAPLO_CONFIG_FLAG[0],
         config,
         EMPTY_ARGS,
@@ -2295,6 +2310,24 @@ pub fn graphql_eslint_check(
     root: &Path,
 ) -> Result<Invocation, LaunchError> {
     let args = vec![
+        OsString::from("--config"),
+        config.as_os_str().to_owned(),
+        OsString::from("--root"),
+        root.as_os_str().to_owned(),
+        OsString::from("--"),
+    ];
+    launch.resolve(&args, files)
+}
+
+/// One `graphql_eslint --typecheck` run: schema validity and operation validation through graphql-js.
+pub fn graphql_typecheck(
+    launch: &ResolvedTool,
+    files: &[&Path],
+    config: &Path,
+    root: &Path,
+) -> Result<Invocation, LaunchError> {
+    let args = vec![
+        OsString::from("--typecheck"),
         OsString::from("--config"),
         config.as_os_str().to_owned(),
         OsString::from("--root"),

@@ -159,13 +159,13 @@ def real_pipeline_unit_tests(name):
                 [["astro", "javascript", "jsx", "mdx", "svelte", "tsx", "typescript", "vue"], [], []],
             ),
             expect_equal(
-                "real_supported_classes returns graphql_eslint lint support only",
+                "real_supported_classes returns graphql_eslint lint and typecheck support",
                 [
                     real_supported_classes("graphql_eslint", "lint"),
                     real_supported_classes("graphql_eslint", "format"),
                     real_supported_classes("graphql_eslint", "typecheck"),
                 ],
-                [["graphql"], [], []],
+                [["graphql"], [], ["graphql"]],
             ),
             expect_equal(
                 "real_supported_classes returns redocly lint support only",

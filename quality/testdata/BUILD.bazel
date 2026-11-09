@@ -96,6 +96,7 @@ exports_files(
         "stylelint_cfg/standard.stylelintrc.json",
         "stylelint_cfg/strict.stylelintrc.json",
         "styles/Dx/Markers.yml",
+        "taplo_cfg/schema.json",
         "vale_test.ini",
         "yamllint_profile/standard/yamllint.yaml",
         "yamllint_profile/strict/yamllint.yaml",

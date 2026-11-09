@@ -1215,11 +1215,21 @@ TOOLS = [
     ),
     tool(
         id = "graphql_eslint",
-        adapters = {"lint": ["graphql"]},
+        adapters = {
+            "lint": ["graphql"],
+            "typecheck": ["graphql"],
+        },
         config = config(suffixes = [".json"], tier_active = True),
         support = [
             row(
                 capability = "lint",
+                classes = ["graphql"],
+                family = "graphql",
+                fix = "check_only",
+                platforms = ["linux_x86_64"],
+            ),
+            row(
+                capability = "typecheck",
                 classes = ["graphql"],
                 family = "graphql",
                 fix = "check_only",
@@ -2441,6 +2451,7 @@ TOOLS = [
         adapters = {
             "format": ["toml"],
             "lint": ["toml"],
+            "typecheck": ["toml"],
         },
         config = config(
             suffixes = [".toml"],
@@ -2451,6 +2462,13 @@ TOOLS = [
         support = [
             row(
                 capability = "lint",
+                classes = ["toml"],
+                family = "toml",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "typecheck",
                 classes = ["toml"],
                 family = "toml",
                 fix = "check_only",

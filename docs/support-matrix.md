@@ -129,7 +129,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | FlatBuffers | `flatc`, `typos` | n/a | `flatc` | n/a | n/a | n/a |
 | Gherkin | `gplint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | GitHub workflows | `actionlint`, `zizmor` | `yamlfmt` | n/a | n/a | n/a | n/a |
-| GraphQL | `graphql_eslint`, `typos` | `prettier` | no | n/a | n/a | n/a |
+| GraphQL | `graphql_eslint`, `typos` | `prettier` | `graphql_eslint` | n/a | n/a | n/a |
 | Helm | `helm`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | HTML templates | `djlint`, `typos` | `djlint` | n/a | n/a | n/a | n/a |
 | Jsonnet | `jsonnet_lint`, `typos` | `jsonnetfmt` | n/a | n/a | n/a | n/a |
@@ -147,7 +147,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Starlark | `buildifier`, `typos` | `buildifier` | n/a | n/a | n/a | `buildifier unused-variable` |
 | Terraform | `tflint`, `trivy_config`, `typos` | `terraform` | `terraform` | n/a | n/a | n/a |
 | Thrift | `thrift`, `typos` | n/a | `thrift` | n/a | n/a | n/a |
-| TOML | `taplo`, `typos` | `taplo` | no | n/a | n/a | n/a |
+| TOML | `taplo`, `typos` | `taplo` | `taplo` | n/a | n/a | n/a |
 | Typst | `tinymist`, `typos` | `typstyle` | n/a | n/a | n/a | n/a |
 | XML | `typos`, `xmllint` | `prettier` | n/a | n/a | n/a | n/a |
 | YAML | `typos`, `yamllint` | `yamlfmt` | n/a | n/a | n/a | n/a |

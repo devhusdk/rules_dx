@@ -120,6 +120,19 @@ fn taplo_lint_and_format_encode_schema_policy() {
             FILE
         ]
     );
+    let typecheck = taplo_typecheck(Path::new(BIN), &[file], Some(Path::new("/s/t.toml")));
+    assert_eq!(
+        argv_strings(&typecheck),
+        vec![
+            BIN,
+            "lint",
+            "--colors=never",
+            "--no-auto-config",
+            "-c",
+            "/s/t.toml",
+            FILE
+        ]
+    );
     let check = taplo_format(Path::new(BIN), &[file], None, true);
     assert!(argv_strings(&check).contains(&"--check".to_owned()));
     assert!(!argv_strings(&check).contains(&"--diff".to_owned()));
@@ -2199,6 +2212,32 @@ fn sqlfluff_format_invocations_share_the_bound_config_and_flags() {
     let mut want = vec![BIN, "format"];
     want.extend(tail);
     assert_eq!(fix, want);
+}
+
+#[test]
+fn graphql_typecheck_flags_the_validation_mode() {
+    let query = Path::new("/scratch/api/query.graphql");
+    let launch = ResolvedTool::javascript("graphql_eslint", Path::new(BIN));
+    let check = graphql_typecheck(
+        &launch,
+        &[query],
+        Path::new("/scratch/api/graphql.json"),
+        Path::new("/scratch"),
+    )
+    .expect("resolves");
+    assert_eq!(
+        argv_strings(&check),
+        vec![
+            BIN,
+            "--typecheck",
+            "--config",
+            "/scratch/api/graphql.json",
+            "--root",
+            "/scratch",
+            "--",
+            "/scratch/api/query.graphql"
+        ]
+    );
 }
 
 #[test]

@@ -35,6 +35,36 @@ MARKUP_CASES = [
         "expected_file": ":matrix/matrix_graphql_lint_pass.expected.txt",
     },
     {
+        "name": "matrix_graphql_typecheck_pass",
+        "generated": {
+            "matrix/graphql_typecheck_pass.graphql": "query GetUser($id: ID!) {\n  user(id: $id) {\n    id\n    name\n  }\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["graphql_eslint;graphql;matrix/graphql_typecheck_pass.graphql"],
+        "tool_names": ["graphql_eslint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:graphql_eslint"],
+        "toolfile_tools": ["graphql_eslint", "graphql_eslint"],
+        "toolfile_srcs": [":graphql_cfg/graphql.json", ":graphql_cfg/schema.graphql"],
+        "config_tools": ["graphql_eslint"],
+        "config_files": [":graphql_cfg/graphql.json"],
+        "expected_file": ":matrix/matrix_graphql_typecheck_pass.expected.txt",
+    },
+    {
+        "name": "matrix_graphql_typecheck_fail",
+        "generated": {
+            "matrix/graphql_typecheck_fail.graphql": "query GetUser($id: ID!) {\n  user(id: $id) {\n    email\n  }\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["graphql_eslint;graphql;matrix/graphql_typecheck_fail.graphql"],
+        "tool_names": ["graphql_eslint"],
+        "tool_binaries": ["//quality/tools/javascript/bin:graphql_eslint"],
+        "toolfile_tools": ["graphql_eslint", "graphql_eslint"],
+        "toolfile_srcs": [":graphql_cfg/graphql.json", ":graphql_cfg/schema.graphql"],
+        "config_tools": ["graphql_eslint"],
+        "config_files": [":graphql_cfg/graphql.json"],
+        "expected_file": ":matrix/matrix_graphql_typecheck_fail.expected.txt",
+    },
+    {
         "name": "matrix_graphql_lint_shared_fragments_pass",
         "generated": {
             "matrix/graphql_shared_fragments.graphql": "fragment UserFields on User {\n  id\n  name\n}\n",

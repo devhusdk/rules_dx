@@ -1,5 +1,6 @@
 """Core real quality aspects."""
 
+load("//quality:family_hooks.bzl", "default_files_hook")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 load("//quality:sources.bzl", "QualityToolsInfo")
 
@@ -134,10 +135,11 @@ def _actionlint_hook(_target, ctx, _resolved, _capability, _what, _shared):
         options = {"path_tools": [("shellcheck", ctx.file._actionlint_shellcheck)]},
     )
 
-HOOK_ORDER = ["actionlint", "vale"]
+HOOK_ORDER = ["actionlint", "taplo", "vale"]
 
 HOOKS = {
     "actionlint": _actionlint_hook,
+    "taplo": default_files_hook(["json"], only_capability = "typecheck"),
     "vale": _vale_hook,
 }
 

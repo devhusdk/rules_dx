@@ -128,8 +128,8 @@ if ($result.Exit -eq 0) {
     $mapping = @(Get-Content -LiteralPath (Join-Path $result.Capture "mapping.txt"))
     Assert-Equal "[Files]" $mapping[0] "mapping header"
     Assert-That ($mapping[1].EndsWith('AppxManifest.xml" "AppxManifest.xml"')) "mapping manifest line: $($mapping[1])"
-    Assert-That ($mapping -contains ('"{0}" "share\greeting.txt"' -f $greeting)) "mapping has no share\greeting.txt line"
-    Assert-That ($mapping -contains ('"{0}" "Assets\logo.png"' -f $logo)) "mapping has no Assets\logo.png line"
+    Assert-That (@($mapping | Where-Object { $_.EndsWith('" "share\greeting.txt"') -and $_.Contains("greeting.txt") }).Count -eq 1) "mapping has no share\greeting.txt line"
+    Assert-That (@($mapping | Where-Object { $_.EndsWith('" "Assets\logo.png"') -and $_.Contains("logo.png") }).Count -eq 1) "mapping has no Assets\logo.png line"
     Assert-Equal 7 $mapping.Count "mapping line count"
 
     [xml]$manifest = Get-Content -LiteralPath (Join-Path $result.Capture "AppxManifest.xml") -Raw

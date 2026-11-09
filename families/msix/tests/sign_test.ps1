@@ -50,7 +50,10 @@ function New-TestCertificate([string]$Subject, [string]$Path, [string]$Password,
 }
 
 function Invoke-Sign([string[]]$Arguments, [string]$Package = $env:DX_MSIX_PACKAGE, [hashtable]$Environment = @{}) {
-    $start = [System.Diagnostics.ProcessStartInfo]::new($sign)
+    $start = [System.Diagnostics.ProcessStartInfo]::new((Get-Process -Id $PID).Path)
+    foreach ($argument in @("-NoLogo", "-NoProfile", "-NonInteractive", "-File", $sign)) {
+        $start.ArgumentList.Add($argument)
+    }
     $start.Environment["DX_MSIX_PACKAGE"] = $Package
     foreach ($name in $Environment.Keys) {
         $start.Environment[$name] = $Environment[$name]

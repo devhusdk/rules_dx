@@ -151,6 +151,7 @@ var conformanceRows = map[string]conformanceRow{
 			"@rules_dx//cmake/rules:defs.bzl":    {"cmake_library"},
 			"@rules_dx//bicep/rules:defs.bzl":    {"bicep_library"},
 			"@rules_dx//asciidoc/rules:defs.bzl": {"asciidoc_library"},
+			"@rules_dx//deploy/rules:image_quality.bzl": {"oci_image_quality"},
 		},
 	},
 	"perl": {

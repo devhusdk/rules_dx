@@ -1,0 +1,9 @@
+load("@rules_dx//deploy/rules:image_quality.bzl", "oci_image_quality")
+
+oci_image(name = "app")
+
+oci_image_quality(
+    name = "app_quality",
+    build_files = [":BUILD.bazel"],
+    image = ":app",
+)

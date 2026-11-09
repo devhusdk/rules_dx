@@ -1,4 +1,20 @@
-exports_files(
-    ["JmhRunner.java"],
-    visibility = ["//visibility:public"],
+load("@rules_java//java:defs.bzl", "java_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["JmhRunner.java"])
+
+java_binary(
+    name = "jmh_generate",
+    srcs = ["JmhGenerate.java"],
+    main_class = "dx.bench.JmhGenerate",
+    deps = [
+        "@dx_jmh_asm//jar",
+        "@dx_jmh_commons_math3//jar",
+        "@dx_jmh_core//jar",
+        "@dx_jmh_generator_asm//jar",
+        "@dx_jmh_generator_bytecode//jar",
+        "@dx_jmh_generator_reflection//jar",
+        "@dx_jmh_jopt_simple//jar",
+    ],
 )

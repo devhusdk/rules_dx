@@ -60,3 +60,18 @@ scala_fuzz_test(
 ```
 
 The target class needs a static `fuzzerTestOneInput(data: Array[Byte])`, which a top-level `object` method provides.
+
+## Benchmarks
+
+`scala_bench` runs JMH benchmarks and writes `dx-bench.json` for `dx bench`, like `java_bench`.
+
+```python
+load("@rules_dx//scala/rules:defs.bzl", "scala_bench")
+
+scala_bench(
+    name = "sum_bench",
+    srcs = ["Sum.scala"],
+)
+```
+
+scalac runs no Java annotation processors, so the rule compiles the sources, runs the JMH bytecode generator (reflection mode) over the classes, and compiles the generated Java. Benchmark classes must be non-final classes with a public no-argument constructor, not `object`s.

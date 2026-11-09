@@ -4,7 +4,9 @@ load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_scala//scala:scala.bzl", _scala_binary = "scala_binary", _scala_library = "scala_library", _scala_test = "scala_test")
 load("@rules_scala//scala:semanticdb_provider.bzl", "SemanticdbInfo")
 load("//java/rules:coverage.bzl", "dx_jvm_test_coverage")
+load("//java/rules:defs.bzl", "java_jmh_test")
 load("//java/rules:jazzer.bzl", "jazzer_fuzz")
+load("//java/rules:jmh.bzl", "jmh_bench_generated")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
@@ -95,3 +97,15 @@ def scala_fuzz_test(name, srcs, target_class, deps = None, visibility = None, ta
       **kwargs: `args` and `target_compatible_with` go to the binary, the rest to the library.
     """
     jazzer_fuzz(name, scala_library, srcs, deps, target_class, visibility, tags, kwargs)
+
+def scala_bench(name, srcs, deps = [], tags = [], **kwargs):
+    """Runs the JMH benchmarks in Scala srcs and writes dx-bench.json for dx bench.
+
+    Args:
+      name: the test target.
+      srcs: Scala sources with @Benchmark methods. Benchmark classes must be non-final classes, not objects.
+      deps: libraries the benchmarks use.
+      tags: extra tags. dx-bench and manual are added.
+      **kwargs: passed to the test.
+    """
+    jmh_bench_generated(name, scala_library, java_jmh_test, srcs, deps, tags, kwargs)

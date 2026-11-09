@@ -16,5 +16,4 @@ helm_chart_deploy(
     name = "helm_demo",
     chart = ":chart",
     registry = "registry.invalid/charts",
-    version = "1.2.3",
 )

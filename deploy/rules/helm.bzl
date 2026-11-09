@@ -62,16 +62,17 @@ _helm_config = rule(
         ),
         "registry": attr.string(doc = "OCI registry host plus optional path.", mandatory = True),
         "repository": attr.string(doc = "Path under the registry, empty for none.", mandatory = True),
-        "version": attr.string(doc = "Release version Chart.yaml must carry.", mandatory = True),
+        "version": attr.string(doc = "Release version Chart.yaml must declare, empty to publish Chart.yaml's version."),
     },
 )
 
-def helm_chart_deploy(name, chart, version, registry, repository = "", helm = None, build_mode = "release", sbom = None):
+def helm_chart_deploy(name, chart, registry, version = "", repository = "", helm = None, build_mode = "release", sbom = None):
     """Packages a helm_chart and pushes it to an OCI registry as a local-first deployment."""
     where = " (in " + native.package_name() + ":" + name + ")"
-    version_error = helm_version_error(version)
-    if version_error != "":
-        fail(version_error + where)
+    if version != "":
+        version_error = helm_version_error(version)
+        if version_error != "":
+            fail(version_error + where)
     registry_error = oci_registry_error(registry)
     if registry_error != "":
         fail(registry_error.replace("oci_deploy", "helm_chart_deploy") + where)

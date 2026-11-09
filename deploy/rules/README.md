@@ -1032,19 +1032,19 @@ helm_chart_deploy(
     name = "helm_demo",
     chart = ":chart",
     registry = "ghcr.io/acme/charts",
-    version = "1.2.3",
 )
 ```
 
 - `chart`: a `helm_chart` target. Its files are copied to a staging directory.
-- `version`: must equal `version` in `Chart.yaml`, or the run fails.
+- `version`: optional; empty publishes `Chart.yaml`'s `version`, a non-empty value
+  must equal it.
 - `registry`: host plus optional path (lowercase, no empty segments, as for
   `oci_deploy`). `repository` adds a path below it.
 - `helm`: defaults to the pinned helm from `//config:tool_helm`.
 
 A dry run runs `helm lint`, then `helm package`, and prints the `.tgz` path.
-A live run (`dx deploy --apply`) needs `HELM_PUBLISH_APPROVED=1`, `HELM_API_USER`
-and `HELM_API_TOKEN`. It logs
+A live run (`dx deploy --apply`) needs `HELM_PUBLISH_APPROVED=1`, `OCI_API_USER`
+and `OCI_API_TOKEN`. It logs
 in with `helm registry login` into a throwaway registry config, runs
 `helm push <chart>.tgz oci://<registry>/<repository>`, and removes the config.
 Placeholder versions (`0.0.0`) are refused. `helm` runs with a cleared

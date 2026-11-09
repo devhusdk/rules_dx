@@ -2,7 +2,7 @@
 
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, pages_redact,
-    placeholder_refusal, scrubbed_command,
+    placeholder_refusal, resolve_version, scrubbed_command,
 };
 use crate::stage::copy_verified;
 use std::io::Write as _;
@@ -216,15 +216,20 @@ fn helm_main_with(
             return 1;
         }
     };
-    if version != launch.version {
-        eprintln!(
-            "helm_chart_deploy: Chart.yaml version {version} must equal the release version {}",
-            launch.version
-        );
-        return 1;
-    }
+    let version = match resolve_version(
+        "helm_chart_deploy",
+        "Chart.yaml",
+        Some(&version),
+        launch.version,
+    ) {
+        Ok(version) => version,
+        Err(error) => {
+            eprintln!("{error}");
+            return 1;
+        }
+    };
     let creds = if HELM_GATE.requested(var) {
-        if let Some(error) = placeholder_refusal("helm_chart_deploy", launch.version) {
+        if let Some(error) = placeholder_refusal("helm_chart_deploy", &version) {
             eprintln!("{error}");
             return 1;
         }
@@ -438,6 +443,16 @@ mod tests {
         ];
         assert_eq!(run(&fx, &helm, "0.0.0", &live), 1);
         assert_eq!(calls(&fx), "");
+        assert_eq!(run(&fx, &helm, "", &live), 1);
+        assert_eq!(calls(&fx), "");
+    }
+
+    #[test]
+    fn empty_version_publishes_the_chart_yaml_version() {
+        let fx = fixture(CHART);
+        let helm = fake_helm(fx.dir.path(), 0);
+        assert_eq!(run(&fx, &helm, "", &[]), 0);
+        assert!(calls(&fx).contains("package"), "{}", calls(&fx));
     }
 
     #[test]

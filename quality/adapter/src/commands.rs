@@ -137,6 +137,7 @@ const PHPSTAN_ARGS: &[&str] = &[
     "--error-format=json",
 ];
 const BUF_LINT_ARGS: &[&str] = &["lint", "--error-format=json"];
+const BUF_BUILD_ARGS: &[&str] = &["build", "--error-format=json", "-o"];
 const BUF_BREAKING_ARGS: &[&str] = &["breaking", "--error-format=json"];
 const BUF_AGAINST_FLAG: &str = "--against";
 const BUF_FORMAT_CHECK_ARGS: &[&str] = &["format"];
@@ -1464,6 +1465,22 @@ pub fn buf_lint_check(
     config: Option<&Path>,
 ) -> Invocation {
     buf(binary, BUF_LINT_ARGS, config, root, files)
+}
+
+/// Compiles the checked protos with `buf build`, which writes the image to
+/// `out` and reports compile errors as JSON records.
+pub fn buf_build_check(
+    binary: &Path,
+    files: &[&Path],
+    root: &Path,
+    config: Option<&Path>,
+    out: &Path,
+) -> Invocation {
+    let mut args: Vec<OsString> = BUF_BUILD_ARGS.iter().map(OsString::from).collect();
+    args.push(out.as_os_str().to_owned());
+    let mut invocation = buf(binary, &[], config, root, files);
+    invocation.argv.splice(1..1, args);
+    invocation
 }
 
 /// Runs `buf breaking` on `root` against a base image built with

@@ -993,6 +993,26 @@ fn structured_checks_encode_pinned_shapes() {
         ]
     );
     assert_eq!(lint.cwd_rel, "");
+    let build = buf_build_check(
+        Path::new(BIN),
+        &[proto],
+        root,
+        None,
+        Path::new("/scratch/.dx-buf-out/image.binpb"),
+    );
+    assert_eq!(
+        argv_strings(&build),
+        vec![
+            BIN,
+            "build",
+            "--error-format=json",
+            "-o",
+            "/scratch/.dx-buf-out/image.binpb",
+            "--path",
+            "/scratch/proto/hello.proto",
+            "/scratch"
+        ]
+    );
     let breaking = buf_breaking_check(Path::new(BIN), Path::new("/tmp/base.binpb"), root, None);
     assert_eq!(
         argv_strings(&breaking),

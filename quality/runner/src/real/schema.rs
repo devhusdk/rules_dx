@@ -45,6 +45,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 }
                 Ok(findings)
             } else {
+                let typecheck = capability == "typecheck";
                 let mut linted: Vec<(PathBuf, &Path)> = Vec::with_capacity(pairs.len());
                 for (workspace, absolute) in pairs {
                     let import_copy =
@@ -71,13 +72,30 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     .iter()
                     .map(|(copy, import)| (copy.as_str(), *import))
                     .collect();
-                let invocation =
-                    commands::buf_lint_check(&call.tool.binary, &targets, &root, call.config);
+                let image_dir = call.staged.scratch.root().join(".dx-buf-out");
+                std::fs::create_dir_all(&image_dir)
+                    .map_err(|err| execution(call.tool_id, format!("create output dir: {err}")))?;
+                let invocation = if typecheck {
+                    commands::buf_build_check(
+                        &call.tool.binary,
+                        &targets,
+                        &root,
+                        call.config,
+                        &image_dir.join("image.binpb"),
+                    )
+                } else {
+                    commands::buf_lint_check(&call.tool.binary, &targets, &root, call.config)
+                };
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;
                 let mut found = parsed(
                     call.tool_id,
-                    parsers::parse_buf_lint(&out.stdout, out.code, &names, &context),
+                    parsers::parse_buf_lint(
+                        if typecheck { &out.stderr } else { &out.stdout },
+                        out.code,
+                        &names,
+                        &context,
+                    ),
                 )?;
                 let base = call
                     .tool
@@ -85,7 +103,7 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     .iter()
                     .find(|(name, _)| name == "DX_BUF_BREAKING_AGAINST")
                     .map(|(_, image)| image.as_str());
-                if let Some(image) = base {
+                if let Some(image) = base.filter(|_| !typecheck) {
                     let invocation = commands::buf_breaking_check(
                         &call.tool.binary,
                         Path::new(image),

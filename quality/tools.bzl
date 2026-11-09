@@ -317,6 +317,7 @@ TOOLS = [
         adapters = {
             "format": ["protobuf"],
             "lint": ["protobuf"],
+            "typecheck": ["protobuf"],
         },
         config = config(
             suffixes = [".yaml"],
@@ -336,6 +337,13 @@ TOOLS = [
             ),
             row(
                 capability = "lint",
+                classes = ["protobuf"],
+                family = "protobuf",
+                fix = "check_only",
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
+            ),
+            row(
+                capability = "typecheck",
                 classes = ["protobuf"],
                 family = "protobuf",
                 fix = "check_only",

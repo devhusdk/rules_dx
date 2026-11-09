@@ -101,6 +101,12 @@ SHARD_SPECS = {
         "shard": "protobuf",
         "suffix": "-protobuf",
     },
+    "real_protobuf_typecheck": {
+        "capability": "typecheck",
+        "doc": "Additive Protocol Buffers typecheck family aspect (buf build).",
+        "shard": "protobuf",
+        "suffix": "-protobuf",
+    },
     "real_protobuf_lint": {
         "capability": "lint",
         "doc": "Additive Protocol Buffers lint family aspect (buf lint).",
@@ -203,6 +209,8 @@ real_flatbuffers_typecheck_aspect = real_make_aspect(_CFG, "real_flatbuffers_typ
 real_protobuf_format_aspect = real_make_aspect(_CFG, "real_protobuf_format")
 
 real_protobuf_lint_aspect = real_make_aspect(_CFG, "real_protobuf_lint")
+
+real_protobuf_typecheck_aspect = real_make_aspect(_CFG, "real_protobuf_typecheck")
 
 real_thrift_lint_aspect = real_make_aspect(_CFG, "real_thrift_lint")
 

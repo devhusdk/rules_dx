@@ -343,7 +343,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 | Tool | Checks | Not on |
 | --- | --- | --- |
-| `buf` | Format and lint Protocol Buffers; breaking changes with `dx lint --breaking-against` | |
+| `buf` | Format, lint and typecheck (`buf build`) Protocol Buffers; breaking changes with `dx lint --breaking-against` | |
 | `flatc` | Lint and typecheck FlatBuffers | |
 | `capnp` | Lint and typecheck Cap'n Proto | `linux_arm64`, `macos_arm64`, `windows_x86_64` |
 | `thrift` | Lint and typecheck Thrift | `linux_arm64`, `macos_arm64`, `windows_x86_64` |

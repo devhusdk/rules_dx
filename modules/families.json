@@ -652,6 +652,7 @@
         "real_generation_typecheck_probe_aspect",
         "real_protobuf_format_aspect",
         "real_protobuf_lint_aspect",
+        "real_protobuf_typecheck_aspect",
         "real_thrift_lint_aspect",
         "real_thrift_typecheck_aspect"
       ],

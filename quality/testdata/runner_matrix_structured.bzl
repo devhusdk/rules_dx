@@ -66,6 +66,38 @@ STRUCTURED_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_protobuf_typecheck_pass",
+        "generated": {
+            "fixtures/v1/buf_typecheck_clean.proto": "syntax = \"proto3\";\n\npackage fixtures.v1;\n\nmessage Sample {\n  string greet = 1;\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["buf;protobuf;fixtures/v1/buf_typecheck_clean.proto"],
+        "tool_names": ["buf"],
+        "tool_binaries": ["@dx_tools//:buf"],
+        "tool_env": ["buf=PATH=/usr/bin:/bin"],
+        "expected_file": ":matrix/matrix_protobuf_typecheck_pass.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
+        "name": "matrix_protobuf_typecheck_fail",
+        "generated": {
+            "fixtures/v1/buf_typecheck_dirty.proto": "syntax = \"proto3\";\n\npackage fixtures.v1;\n\nmessage Sample {\n  Nope greet = 1;\n}\n",
+        },
+        "capability": "typecheck",
+        "stages": ["buf;protobuf;fixtures/v1/buf_typecheck_dirty.proto"],
+        "tool_names": ["buf"],
+        "tool_binaries": ["@dx_tools//:buf"],
+        "tool_env": ["buf=PATH=/usr/bin:/bin"],
+        "expected_file": ":matrix/matrix_protobuf_typecheck_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
+    },
+    {
         "name": "matrix_flatbuffers_lint_pass",
         "generated": {
             "quality/testdata/matrix/flatbuffers_pass/main.fbs": "include \"common.fbs\";\n\nnamespace fixtures;\n\ntable Sample {\n  common:Common;\n}\n",

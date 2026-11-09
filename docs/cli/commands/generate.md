@@ -54,7 +54,7 @@ pnpm add left-pad
 dx generate --apply
 ```
 
-When the root `Cargo.lock`, `uv.lock`, or `pnpm-lock.yaml` has its manifest beside it and `MODULE.bazel` has no stanza for it, `dx generate --apply` adds one: a `crates`, `pypi`, or `npm` hub plus its `bazel_dep`. A stanza you wrote is left alone. Without `--apply`, dx says what it would add and exits `1`. Each wiring step is also a `notice` in JSON, with code `wiring`, `wiring_pending`, or `wiring_failed`. List Cargo workspace members written as globs in `manifests` yourself.
+When the root `Cargo.lock`, `uv.lock`, `pnpm-lock.yaml`, or `pubspec.lock` has its manifest beside it and `MODULE.bazel` has no stanza for it, `dx generate --apply` adds one: a `crates`, `pypi`, `npm`, or `pub_deps` hub plus its `bazel_dep`. A stanza you wrote is left alone. Without `--apply`, dx says what it would add and exits `1`. Each wiring step is also a `notice` in JSON, with code `wiring`, `wiring_pending`, or `wiring_failed`. List Cargo workspace members written as globs in `manifests` yourself.
 
 When files of a language family are in the tree and its `rules_dx_<family>` module is published, `--apply` adds `bazel_dep(name = "rules_dx_<family>")`.
 

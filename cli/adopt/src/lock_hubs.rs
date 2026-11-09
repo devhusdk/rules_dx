@@ -15,6 +15,7 @@ const MODULE_FILE: &str = "MODULE.bazel";
 const CARGO_LOCK: &str = "Cargo.lock";
 const UV_LOCK: &str = "uv.lock";
 const PNPM_LOCK: &str = "pnpm-lock.yaml";
+const PUB_LOCK: &str = "pubspec.lock";
 
 /// The planned `MODULE.bazel` edit, if any, and what the planner could not do.
 #[derive(Debug, Default, Eq, PartialEq)]
@@ -64,6 +65,15 @@ const TYPESCRIPT: Ecosystem = Ecosystem {
     binding: "typescript",
     hub: "npm_typescript",
 };
+const PUB: Ecosystem = Ecosystem {
+    dep: "rules_dart",
+    version: dx_versions::RULES_DART_VERSION,
+    bzl: "@rules_dx//dart:extensions.bzl",
+    ext: "pub",
+    binding: "pub",
+    hub: "pub_deps",
+};
+const PUB_UPSTREAM_BZL: &str = "@rules_dart//dart/pub:extensions.bzl";
 const TSCONFIG: &str = "tsconfig.json";
 
 const PNPM: Ecosystem = Ecosystem {
@@ -172,6 +182,7 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
         plan.cargo()?;
         plan.uv()?;
         plan.npm()?;
+        plan.pub_()?;
         plan.typescript()
     })
 }
@@ -464,6 +475,33 @@ impl Planner<'_> {
         self.add(&NPM, &tags, &hubs)
     }
 
+    fn pub_(&mut self) -> Result<(), AdoptError> {
+        let dirs = self.lock_dirs(PUB_LOCK, "pubspec.yaml");
+        let Some(dir) = dirs.first() else {
+            return Ok(());
+        };
+        let wired = self.files.iter().any(|file| {
+            !file.extension_bindings(PUB.bzl, PUB.ext).is_empty()
+                || !file.extension_bindings(PUB_UPSTREAM_BZL, PUB.ext).is_empty()
+        });
+        if wired {
+            return Ok(());
+        }
+        for other in &dirs[1..] {
+            self.notes.push(format!(
+                "{other}/{PUB_LOCK} is not wired; add a pub.from_lock for it"
+            ));
+        }
+        let tags = vec![tag(
+            "from_lock",
+            vec![
+                ("name", string(PUB.hub)),
+                ("lock", string(&dir_label(dir, PUB_LOCK))),
+            ],
+        )];
+        self.add(&PUB, &tags, &[PUB.hub])
+    }
+
     fn pnpm(&mut self) -> Result<(), AdoptError> {
         if self.files.iter().any(|file| binds_name(file, &PNPM)) {
             return Ok(());
@@ -689,6 +727,22 @@ mod tests {
         assert_eq!(hubs.notes.len(), 2, "{:?}", hubs.notes);
         assert!(hubs.notes[0].contains("libs/*"), "{:?}", hubs.notes);
         assert!(hubs.notes[1].contains("gone"), "{:?}", hubs.notes);
+    }
+
+    #[test]
+    fn pubspec_lock_gets_a_pub_deps_hub() {
+        let hubs = plan(&[("pubspec.lock", ""), ("pubspec.yaml", "")]);
+        let text = new_text(&hubs);
+        assert!(text.contains("bazel_dep(name = \"rules_dart\""), "{text}");
+        assert!(
+            text.contains("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"),
+            "{text}"
+        );
+    }
+
+    #[test]
+    fn pubspec_lock_without_its_manifest_is_left_alone() {
+        assert_eq!(plan(&[("pubspec.lock", "")]).edit, None);
     }
 
     fn unlocked(files: &[(&str, &str)]) -> Vec<&'static str> {

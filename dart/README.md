@@ -106,7 +106,7 @@ turned into a rule: bind `dart_config` by hand through `aspect_hints`.
 dx init demo-app
 ```
 
-Then add `rules_dart` and a `pub` hub to `MODULE.bazel`, add a `pubspec.lock`, and declare `dart_library`, `dart_binary` and `dart_test` targets.
+Add a `pubspec.lock` and run `dx generate --apply`: it adds `rules_dart` and a `pub_deps` hub to `MODULE.bazel` and declares `dart_library`, `dart_binary` and `dart_test` targets.
 
 ## Pub dependencies
 

@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-run=./libs/fuzz_run/fuzz_run
-bin="$1"
+run="$TEST_SRCDIR/$1"
+bin="$2"
 
 out="$TEST_TMPDIR/out"
 status=0

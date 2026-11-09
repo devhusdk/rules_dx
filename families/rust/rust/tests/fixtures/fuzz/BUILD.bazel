@@ -17,7 +17,10 @@ rust_fuzz_test(
 sh_test(
     name = "parse_fuzz_run_test",
     srcs = ["run_test.sh"],
-    args = ["$(rootpath :parse_fuzz)"],
+    args = [
+        "$(rlocationpath @rules_dx//libs/fuzz_run:fuzz_run)",
+        "$(rootpath :parse_fuzz)",
+    ],
     data = [
         ":parse_fuzz",
         "@rules_dx//libs/fuzz_run:fuzz_run",

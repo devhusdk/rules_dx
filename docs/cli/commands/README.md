@@ -405,6 +405,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_fuzz_test` |
 |  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_bench` |
+|  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_fuzz_test` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `compatible_with` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_package` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_sign` |

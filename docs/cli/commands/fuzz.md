@@ -26,6 +26,8 @@ Rust: `rust_fuzz_test(name, srcs, crate_root = ...)` from `//rust/rules:defs.bzl
 
 C#: `csharp_fuzz_test(name, srcs, deps)` from `//csharp/rules:defs.bzl` declares a harness binary that calls `Fuzzer.LibFuzzer.Run` from SharpFuzz, tags it and adds the `<name>_run` runner. The macro instruments each library in `deps` with SharpFuzz.CommandLine at build time; NuGet packages stay uninstrumented. `<name>` is the harness, and the runner starts it from the libfuzzer-dotnet driver that rules_dx builds from a pinned source archive. Linux only for now.
 
+F#: `fsharp_fuzz_test(name, srcs, deps)` from `//fsharp/rules:defs.bzl` works like `csharp_fuzz_test` with an F# harness. Linux only for now.
+
 Java, Kotlin and Scala: `java_fuzz_test`, `kotlin_fuzz_test` and `scala_fuzz_test` from `//java/rules:defs.bzl`, `//kotlin/rules:defs.bzl` and `//scala/rules:defs.bzl` build a Jazzer binary, tag it and add the `<name>_run` runner. Pass `target_class`, a class with a static `fuzzerTestOneInput(byte[])`: a Kotlin `object` method marked `@JvmStatic`, or a top-level Scala `object` method. Linux runs are tested; Jazzer comes from rules_dx's pinned Maven artifacts.
 
 | Flag | What it does |

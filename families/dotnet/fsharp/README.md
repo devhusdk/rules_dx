@@ -48,6 +48,7 @@ fsharp_test(
 | `fsharp_binary` | Executable run with `bazel run`. `srcs` is optional |
 | `fsharp_test` | Test executable run with `bazel test` |
 | `fsharp_bench` | `fsharp_test` that runs `[<Benchmark>]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; add `nuget BenchmarkDotNet` to your `paket.dependencies` |
+| `fsharp_fuzz_test` | SharpFuzz harness whose `main` calls `Fuzzer.LibFuzzer.Run`, plus a `<name>_run` runner for `dx fuzz`. The libraries in `deps` are instrumented at build time. Linux only; SharpFuzz comes with rules_dx_dotnet |
 
 - `target_frameworks` defaults to `["net10.0"]`. Set it to change it.
 - `warnings_as_errors` follows `//config:warnings_as_errors`, which is on by

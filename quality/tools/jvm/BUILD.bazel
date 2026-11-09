@@ -95,7 +95,7 @@ pinned_java_runtime(
 
 jar_lsp_tool(
     name = "pkl_lsp",
-    driver = "//quality/lsp_check",
+    driver = "@dx_prebuilt//:lsp_check",
     jar = "@jvm_pkl_lsp//file",
     runtime = ":jdk25",
 )

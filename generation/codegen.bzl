@@ -290,7 +290,7 @@ dx_codegen_shard = rule(
             default = "protobuf",
         ),
         "_writer": attr.label(
-            default = "//generation/codegen_shard:codegen_shard_writer",
+            default = "@dx_prebuilt//:codegen_shard_writer",
             executable = True,
             cfg = "exec",
         ),
@@ -394,7 +394,7 @@ def codegen_bound_shard_providers(ctx, rule_kind, schema_kind, upstream_label, g
         OutputGroupInfo(dx_codegen_plans = depset([out] + generated)),
     ]
 
-CODEGEN_SHARD_WRITER_LABEL = Label("//generation/codegen_shard:codegen_shard_writer")
+CODEGEN_SHARD_WRITER_LABEL = Label("@dx_prebuilt//:codegen_shard_writer")
 
 def _prost_codegen_shard_impl(ctx):
     generated = ctx.attr.generated
@@ -429,7 +429,7 @@ prost_codegen_shard = rule(
             mandatory = True,
         ),
         "_writer": attr.label(
-            default = "//generation/codegen_shard:codegen_shard_writer",
+            default = "@dx_prebuilt//:codegen_shard_writer",
             executable = True,
             cfg = "exec",
         ),

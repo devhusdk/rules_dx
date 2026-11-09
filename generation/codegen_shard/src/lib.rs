@@ -8,6 +8,8 @@
     )
 )]
 
+pub mod writer;
+
 pub use codegen_proto::rules_dx::codegen as proto;
 use proto::{DxCodegenEntry, DxCodegenShard};
 

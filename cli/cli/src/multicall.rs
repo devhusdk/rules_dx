@@ -1,5 +1,6 @@
-//! `dx` runs a quality tool when started under that tool's name, so the prebuilt hub can ship one
-//! binary and expose it as `quality_runner`, `quality_markdown` and `quality_notebook`.
+//! `dx` runs a bundled tool when started under that tool's name, so the prebuilt hub can ship one
+//! binary and expose it as `quality_runner`, `quality_markdown`, `quality_notebook`, `lsp_check`,
+//! `collect_native`, `env_shard_writer` and `codegen_shard_writer`.
 
 use std::ffi::OsStr;
 use std::path::Path;
@@ -9,6 +10,10 @@ pub enum Tool {
     Runner,
     Markdown,
     Notebook,
+    LspCheck,
+    CollectNative,
+    EnvShardWriter,
+    CodegenShardWriter,
 }
 
 /// The tool `dx` was started as, judged by the file stem of argv[0] so `.exe` does not matter.
@@ -17,6 +22,10 @@ pub fn tool_for(argv0: &OsStr) -> Option<Tool> {
         "quality_runner" => Some(Tool::Runner),
         "quality_markdown" => Some(Tool::Markdown),
         "quality_notebook" => Some(Tool::Notebook),
+        "lsp_check" => Some(Tool::LspCheck),
+        "collect_native" => Some(Tool::CollectNative),
+        "env_shard_writer" => Some(Tool::EnvShardWriter),
+        "codegen_shard_writer" => Some(Tool::CodegenShardWriter),
         _ => None,
     }
 }
@@ -36,6 +45,18 @@ mod tests {
             tool_for(OsStr::new("quality_notebook")),
             Some(Tool::Notebook)
         );
+    }
+
+    #[test]
+    fn rule_helpers_pick_their_tool() {
+        for (name, tool) in [
+            ("lsp_check", Tool::LspCheck),
+            ("collect_native", Tool::CollectNative),
+            ("env_shard_writer.exe", Tool::EnvShardWriter),
+            ("codegen_shard_writer", Tool::CodegenShardWriter),
+        ] {
+            assert_eq!(tool_for(OsStr::new(name)), Some(tool), "{name}");
+        }
     }
 
     #[test]

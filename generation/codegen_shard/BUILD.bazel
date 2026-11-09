@@ -10,7 +10,10 @@ package(default_visibility = VIS_CLI_GENERATION)
 
 rust_library(
     name = "codegen_shard",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/writer.rs",
+    ],
     aliases = aliases(
         package_name = "generation/codegen_shard",
         normal = True,
@@ -23,6 +26,7 @@ rust_library(
     ) + [
         "//cli/path:dx_path",
         "//generation/proto:codegen_proto_rs",
+        "//libs/shard_writer:dx_shard_writer",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -30,19 +34,10 @@ rust_library(
 rust_binary(
     name = "codegen_shard_writer",
     srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "generation/codegen_shard",
-        normal = True,
-    ),
     crate_name = "codegen_shard_writer",
     crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "generation/codegen_shard",
-        normal = True,
-    ) + [
-        ":codegen_shard",
-        "//libs/shard_writer:dx_shard_writer",
-    ],
+    visibility = ["//visibility:public"],
+    deps = [":codegen_shard"],
 )
 
 rust_test(
@@ -60,26 +55,6 @@ rust_test(
     ) + [
         "//generation/proto:codegen_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
-    ],
-)
-
-# keep: Gazelle would add a self dep on //generation/codegen_shard
-rust_test(
-    name = "codegen_shard_writer_bin_test",
-    aliases = aliases(
-        package_name = "generation/codegen_shard",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":codegen_shard_writer",
-    deps = all_crate_deps(
-        package_name = "generation/codegen_shard",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":codegen_shard",
-        "//generation/proto:codegen_proto_rs",
-        "//libs/shard_writer:dx_shard_writer",
     ],
 )
 

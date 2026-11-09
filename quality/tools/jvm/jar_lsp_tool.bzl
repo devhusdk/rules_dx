@@ -20,7 +20,7 @@ def _impl(ctx):
         fail(ctx.label.name + ": the JDK has no file at " + runtime.java_executable_exec_path)
     driver = ctx.executable.driver
     extension = driver.extension
-    exe = ctx.actions.declare_file(ctx.label.name + (("." + extension) if extension else ""))
+    exe = ctx.actions.declare_file(ctx.label.name + "/lsp_check" + (("." + extension) if extension else ""))
     ctx.actions.symlink(output = exe, target_file = driver, is_executable = True)
     runfiles = ctx.runfiles(files = [ctx.file.jar], transitive_files = runtime.files)
     runfiles = runfiles.merge(ctx.attr.driver[DefaultInfo].default_runfiles)

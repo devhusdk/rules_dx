@@ -8,6 +8,8 @@
     )
 )]
 
+pub mod writer;
+
 pub use plan_proto::rules_dx::env as proto;
 use proto::{DxEnvEntry, DxEnvShard};
 

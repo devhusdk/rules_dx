@@ -215,7 +215,7 @@ def dx_toolchain_tool(cc_toolchain, basename):
 
 def dx_native_coverage_attrs():
     """Returns the attributes native (C/C++/LLVM) coverage collection needs."""
-    return dx_collect_cc_coverage_attr(Label("//tools/coverage/collect:collect_native")) | {
+    return dx_collect_cc_coverage_attr(Label("@dx_prebuilt//:collect_native")) | {
         "_llvm_cov": attr.label(
             default = Label("@llvm//tools:llvm-cov"),
             executable = True,

@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -10,16 +10,26 @@ real_source_target(
     tags = ["corpus"],
 )
 
-rust_binary(
-    name = "collect_native",
+rust_library(
+    name = "collect_native_lib",
     srcs = [
         "src/collect.rs",
         "src/gcov.rs",
-        "src/main.rs",
+        "src/lib.rs",
     ],
     crate_name = "collect_native",
-    crate_root = "src/main.rs",
+    crate_root = "src/lib.rs",
+    visibility = VIS_TOOLS + ["//cli/cli:__pkg__"],
     deps = ["@crates//:serde_json"],
+)
+
+rust_binary(
+    name = "collect_native",
+    srcs = ["src/main.rs"],
+    crate_name = "collect_native",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":collect_native_lib"],
 )
 
 rust_test(
@@ -27,9 +37,9 @@ rust_test(
     srcs = [
         "src/collect.rs",
         "src/gcov.rs",
-        "src/main.rs",
+        "src/lib.rs",
     ],
-    crate_root = "src/main.rs",
+    crate_root = "src/lib.rs",
     deps = ["@crates//:serde_json"],
 )
 

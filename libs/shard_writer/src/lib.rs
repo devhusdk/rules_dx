@@ -117,12 +117,14 @@ pub fn run<K: ShardKind>(args: &[String]) -> Result<(), WriterError> {
 }
 
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-pub fn main<K: ShardKind>() {
+pub fn run_process<K: ShardKind>(args: Vec<String>) -> i32 {
     dx_output::init_diagnostics(false);
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    if let Err(error) = run::<K>(&args) {
-        tracing::error!("{}: {error}", K::PROGRAM);
-        std::process::exit(1);
+    match run::<K>(&args) {
+        Ok(()) => 0,
+        Err(error) => {
+            tracing::error!("{}: {error}", K::PROGRAM);
+            1
+        }
     }
 }
 // LCOV_EXCL_STOP - reason: end process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md

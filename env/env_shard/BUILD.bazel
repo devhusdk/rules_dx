@@ -10,7 +10,10 @@ package(default_visibility = VIS_ENV_SHARD)
 
 rust_library(
     name = "env_shard",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/writer.rs",
+    ],
     aliases = aliases(
         package_name = "env/env_shard",
         normal = True,
@@ -23,6 +26,7 @@ rust_library(
     ) + [
         "//cli/path:dx_path",
         "//env/proto:plan_proto_rs",
+        "//libs/shard_writer:dx_shard_writer",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -30,19 +34,10 @@ rust_library(
 rust_binary(
     name = "env_shard_writer",
     srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "env/env_shard",
-        normal = True,
-    ),
     crate_name = "env_shard_writer",
     crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "env/env_shard",
-        normal = True,
-    ) + [
-        ":env_shard",
-        "//libs/shard_writer:dx_shard_writer",
-    ],
+    visibility = ["//visibility:public"],
+    deps = [":env_shard"],
 )
 
 rust_test(
@@ -60,26 +55,6 @@ rust_test(
     ) + [
         "//env/proto:plan_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
-    ],
-)
-
-# keep
-rust_test(
-    name = "env_shard_writer_bin_test",
-    aliases = aliases(
-        package_name = "env/env_shard",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate = ":env_shard_writer",
-    deps = all_crate_deps(
-        package_name = "env/env_shard",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":env_shard",
-        "//env/proto:plan_proto_rs",
-        "//libs/shard_writer:dx_shard_writer",
     ],
 )
 

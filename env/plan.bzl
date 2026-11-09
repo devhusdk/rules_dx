@@ -220,7 +220,7 @@ dx_env_shard = rule(
             default = "rust",
         ),
         "_writer": attr.label(
-            default = "//env/env_shard:env_shard_writer",
+            default = "@dx_prebuilt//:env_shard_writer",
             executable = True,
             cfg = "exec",
         ),
@@ -325,7 +325,7 @@ rust_env_shard = rule(
             mandatory = True,
         ),
         "_writer": attr.label(
-            default = "//env/env_shard:env_shard_writer",
+            default = "@dx_prebuilt//:env_shard_writer",
             executable = True,
             cfg = "exec",
         ),

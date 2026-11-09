@@ -93,7 +93,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.go": "package demo\n"},
 		inert: []string{"notes.txt"},
 		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
-		symbols: []string{"go_library", "go_test", "go_bench"},
+		symbols: []string{"go_library", "go_binary", "go_test", "go_bench"},
 	},
 	"haskell": {
 		files: map[string]string{"Demo.hs": "module Demo where\n\nimport Data.List (sort)\n"},
@@ -110,8 +110,12 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
 		kind:  "javascript_library", target: "demo", defs: "javascript/rules:defs.bzl",
 		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary"},
-		extraLoads: map[string][]string{"@npm//:defs.bzl": {"npm_link_all_packages"}},
-		inert:      []string{"notes.txt", "widget.d.ts"},
+		extraLoads: map[string][]string{
+			"@npm//:defs.bzl":                {"npm_link_all_packages"},
+			"@aspect_rules_js//js:defs.bzl":  {"js_library"},
+			"@aspect_rules_js//npm:defs.bzl": {"npm_package"},
+		},
+		inert: []string{"notes.txt", "widget.d.ts"},
 	},
 	"julia": {
 		files: map[string]string{
@@ -251,11 +255,15 @@ var conformanceRows = map[string]conformanceRow{
 		symbols: []string{"swift_library", "swift_test"},
 	},
 	"typescript": {
-		files: map[string]string{"demo.ts": "export const x = 1;\n"},
+		files: map[string]string{"demo.ts": "export const x = 1;\n", "tsconfig.json": "{}\n"},
 		kind:  "typescript_library", target: "demo", defs: "typescript/rules:defs.bzl",
 		symbols:    []string{"typescript_library", "typescript_test"},
-		extraLoads: map[string][]string{"@rules_dx//javascript/rules:defs.bzl": {"javascript_binary"}},
-		inert:      []string{"notes.txt", "widget.d.ts", "orphan.d.mts"},
+		extraLoads: map[string][]string{
+			"@rules_dx//javascript/rules:defs.bzl": {"javascript_binary"},
+			"@aspect_rules_js//npm:defs.bzl":       {"npm_package"},
+			"@aspect_rules_ts//ts:defs.bzl":        {"ts_config"},
+		},
+		inert: []string{"notes.txt", "widget.d.ts", "orphan.d.mts"},
 	},
 	"vue": {
 		files: map[string]string{"demo.vue": "<template>\n  <div>hello</div>\n</template>\n\n<script>\nexport default {};\n</script>\n"},

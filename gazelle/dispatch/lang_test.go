@@ -462,7 +462,7 @@ func TestSingleLanguageUnresolvedImportHints(t *testing.T) {
 		"csharp":      csharp,
 		"fsharp":      oneSource,
 		"java":        jvm,
-		"javascript":  oneSource + ", or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
+		"javascript":  "add \"Missing\" to package.json dependencies; " + oneSource + ", or a tsconfig/jsconfig paths alias (relative imports use the workspace path, with the module extension removed, or <path>/index)",
 		"kotlin":      jvm,
 		"lua":         oneSource,
 		"mdx":         oneSourceRelative,

@@ -8,7 +8,7 @@ load("@rules_swift//swift:swift_library.bzl", _swift_library = "swift_library")
 load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
+load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
@@ -116,23 +116,14 @@ def swift_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = N
 
 def swift_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A swift_binary timing loop run by `dx bench`; it links `//swift/bench` to write dx-bench.json."""
-    binary = name + "_bin"
-    build, run = split_test_kwargs(kwargs)
-    run = with_default_size(run)
-    build["deps"] = build.get("deps", []) + [Label("//swift/bench")]
-    swift_binary(
-        name = binary,
-        srcs = srcs,
-        visibility = ["//visibility:private"],
-        tags = merge_tags(tags, "manual"),
-        testonly = True,
-        **build
-    )
-    native_test(
-        name = name,
-        src = ":" + binary,
-        tags = merge_tags(tags, "dx-bench", "manual"),
-        testonly = True,
+    dx_bench_test(
+        name,
+        swift_binary,
+        native_test,
+        kwargs,
+        tags = tags,
         visibility = visibility,
-        **run
+        binary_kwargs = {"srcs": srcs},
+        extra_deps = [Label("//swift/bench")],
+        runner_kwargs = {"src": ":" + name + "_bin"},
     )

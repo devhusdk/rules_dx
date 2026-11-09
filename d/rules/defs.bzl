@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_d//d:defs.bzl", _d_binary = "d_binary", _d_library = "d_library", _d_test = "d_test")
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
+load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "d_kwargs", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH")
@@ -162,24 +162,14 @@ def d_fuzz_test(name, *, srcs = None, visibility = None, tags = None, dopts = No
 
 def d_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A d_binary run by `dx bench`; it writes dx-bench.json to TEST_UNDECLARED_OUTPUTS_DIR."""
-    binary = name + "_bin"
-    build, run = split_test_kwargs(kwargs)
-    run = with_default_size(run)
-    run["target_compatible_with"] = (run.get("target_compatible_with") or []) + D_COMPATIBLE_WITH
-    d_binary(
-        name = binary,
-        srcs = srcs,
-        visibility = ["//visibility:private"],
-        testonly = True,
-        tags = merge_tags(tags, "manual"),
-        **build
-    )
-    native_test(
-        name = name,
-        src = ":" + binary,
-        data = run.pop("data", []),
-        tags = merge_tags(tags, "dx-bench", "manual"),
-        testonly = True,
+    dx_bench_test(
+        name,
+        d_binary,
+        native_test,
+        kwargs,
+        tags = tags,
         visibility = visibility,
-        **run
+        binary_kwargs = {"srcs": srcs},
+        compatible_with = D_COMPATIBLE_WITH,
+        runner_kwargs = {"src": ":" + name + "_bin"},
     )

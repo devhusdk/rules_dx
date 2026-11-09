@@ -6,7 +6,7 @@ load("@rules_rust//rust:defs.bzl", _rust_binary = "rust_binary", _rust_common = 
 load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_binary", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_runner_kwargs", "split_test_kwargs", "with_default_size")
+load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_runner_kwargs")
 load("//libs/starlark:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
 load("//libs/starlark:resources.bzl", "dx_test_resource_tags")
 load("//libs/starlark:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
@@ -355,28 +355,18 @@ def rust_bench(
         visibility = None,
         **kwargs):
     """A rust_test run by `dx bench`; it reports its bencher output as dx-bench.json."""
-    binary = name + "_bin"
-    build, run = split_test_kwargs(kwargs)
-    run = with_default_size(run)
-    rust_test(
-        name = binary,
-        srcs = srcs,
-        crate = crate,
-        crate_features = crate_features + ["dx_bench"],
-        tags = merge_tags(tags, "manual"),
-        testonly = True,
-        visibility = ["//visibility:private"],
-        **(dict(use_libtest_harness = False) | build)
-    )
-    native_test(
-        name = name,
-        src = Label("//rust/rules/bench_report"),
-        args = ["$(rootpath :%s)" % binary, "--bench", "--output-format", "bencher"] + run.pop("args", []),
-        data = run.pop("data", []) + [":" + binary],
-        tags = merge_tags(tags, "dx-bench", "manual"),
-        testonly = True,
+    dx_bench_test(
+        name,
+        rust_test,
+        native_test,
+        kwargs,
+        tags = tags,
         visibility = visibility,
-        **run
+        binary_kwargs = {"srcs": srcs, "crate": crate, "crate_features": crate_features + ["dx_bench"]},
+        build_defaults = {"use_libtest_harness": False},
+        runner_kwargs = {"src": Label("//rust/rules/bench_report")},
+        pass_binary = True,
+        argv = ["--bench", "--output-format", "bencher"],
     )
 
 def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs):

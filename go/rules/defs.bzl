@@ -5,7 +5,7 @@ load("@rules_go//go:def.bzl", _GoArchive = "GoArchive", _GoInfo = "GoInfo", _go_
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
+load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test", "merge_tags", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 load(":cgo.bzl", "cgo_toolchain_error")
@@ -113,24 +113,15 @@ def go_fuzz_test(name, *, fuzz, srcs = None, visibility = None, tags = None, **k
 
 def go_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A go_test of the Benchmark functions plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
-    binary = name + "_bin"
-    build, run = split_test_kwargs(kwargs)
-    run = with_default_size(run)
-    go_test(
-        name = binary,
-        srcs = srcs,
-        visibility = ["//visibility:private"],
-        tags = merge_tags(tags, "manual"),
-        testonly = True,
-        **build
-    )
-    sh_test(
-        name = name,
-        srcs = [Label("//go/rules:bench_run.sh")],
-        args = ["$(rootpath :" + binary + ")", "-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1"] + run.pop("args", []),
-        data = run.pop("data", []) + [":" + binary],
-        tags = merge_tags(tags, "dx-bench", "manual"),
-        testonly = True,
+    dx_bench_test(
+        name,
+        go_test,
+        sh_test,
+        kwargs,
+        tags = tags,
         visibility = visibility,
-        **run
+        binary_kwargs = {"srcs": srcs},
+        runner_kwargs = {"srcs": [Label("//go/rules:bench_run.sh")]},
+        pass_binary = True,
+        argv = ["-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1"],
     )

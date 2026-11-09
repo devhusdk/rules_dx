@@ -40,13 +40,13 @@ const QUERY_STARTUP_OPTS: &[&str] = &["--noblock_for_lock"];
 const QUERY_MAX_BYTES: usize = 256 * 1024;
 
 /// Serve the shell request in COMPLETE, and report whether there was one.
-pub fn try_complete() -> Result<bool, String> {
+pub fn try_complete() -> Result<bool, dx_error::DxError> {
     clap_complete::CompleteEnv::with_factory(super::grammar::cli_command)
         .try_complete(
             std::env::args_os(),
             dx_process::current_directory().ok().as_deref(),
         )
-        .map_err(|error| error.to_string())
+        .map_err(|error| dx_error::DxError::infra(error.to_string()))
 }
 
 /// Give every command the completer for its own scope slot.

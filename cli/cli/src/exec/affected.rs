@@ -236,7 +236,7 @@ pub(crate) fn named_base(
 ) -> Result<(String, String), PlanError> {
     let git = PathBuf::from("git");
     let branch = default_branch(runner, workspace)?;
-    let base = merge_base(&git, workspace, runner, &branch, "HEAD").map_err(PlanError::Git)?;
+    let base = merge_base(&git, workspace, runner, &branch, "HEAD").map_err(|error| PlanError::Git(error.to_string()))?;
     Ok((branch, base))
 }
 
@@ -249,11 +249,11 @@ pub(crate) fn plan(
 ) -> Result<AffectedPlan, PlanError> {
     let git = PathBuf::from("git");
     let mut changes =
-        collect_range(&git, workspace, runner, &base, "HEAD").map_err(PlanError::Git)?;
-    changes.extend(collect_working_tree(&git, workspace, runner).map_err(PlanError::Git)?);
+        collect_range(&git, workspace, runner, &base, "HEAD").map_err(|error| PlanError::Git(error.to_string()))?;
+    changes.extend(collect_working_tree(&git, workspace, runner).map_err(|error| PlanError::Git(error.to_string()))?);
     let changes = dx_adopt::dedupe_changes(changes);
     let overrides =
-        local_override_changes(&git, workspace, runner, &base).map_err(PlanError::Git)?;
+        local_override_changes(&git, workspace, runner, &base).map_err(|error| PlanError::Git(error.to_string()))?;
     let mut changed_files: Vec<String> = overrides.clone();
     for change in &changes {
         changed_files.push(change.path.clone());

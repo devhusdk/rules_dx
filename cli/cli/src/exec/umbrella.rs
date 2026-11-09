@@ -695,7 +695,7 @@ fn verify_fix(
                         request.common.output,
                         phase_env.out,
                         phase_env.err,
-                        &message,
+                        message.message(),
                     ),
                 }
             }
@@ -828,7 +828,7 @@ pub(crate) fn execute_umbrella(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(request) => request,
         Err(message) => {
             let Env { out, err, .. } = env;
-            return pre_exec(invocation.output, out, err, &message);
+            return pre_exec(invocation.output, out, err, message.message());
         }
     };
     execute_umbrella_request(&request, env)
@@ -1016,7 +1016,7 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
                             request.common.output,
                             phase_env.out,
                             phase_env.err,
-                            &message,
+                            message.message(),
                         ),
                         kind: PhaseKind::Selection,
                         effects: PhaseEffects::default(),

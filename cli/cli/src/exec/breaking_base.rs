@@ -47,7 +47,7 @@ fn build_image(reference: &str, context: &Context<'_>) -> Result<PathBuf, String
         context.query_runner,
         "HEAD",
         reference,
-    )?;
+    ).map_err(|error| error.to_string())?;
     let bazel = QueryBazel {
         query_runner: context.query_runner,
         workspace: context.workspace,

@@ -222,7 +222,7 @@ fn run() -> i32 {
             return startup_failure(
                 &format!("dx: {message}\n{}", dx_plan::args::help::usage_banner()),
                 "completion_failed",
-                &message,
+                message.message(),
                 pre_exec_code(),
                 bare_intent,
             );
@@ -340,7 +340,7 @@ fn run() -> i32 {
                 return startup_failure(
                     &format!("dx: {detail}"),
                     "invalid_scope",
-                    &detail,
+                    detail.message(),
                     pre_exec_code(),
                     invocation.output == OutputMode::Json,
                 );

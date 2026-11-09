@@ -55,12 +55,15 @@ pub(crate) struct ModuleGraph {
     pub(crate) registers: BTreeSet<String>,
 }
 
-fn module_input_error() -> String {
-    "workspace input MODULE.bazel".to_owned()
+fn module_input_error() -> dx_error::DxError {
+    dx_error::DxError::failure("workspace input MODULE.bazel")
 }
 
 /// The `bazel_dep` names whose version changed, with their new versions, when nothing else in MODULE.bazel did.
-pub(crate) fn updated_deps(base: &str, head: &str) -> Result<BTreeMap<String, String>, String> {
+pub(crate) fn updated_deps(
+    base: &str,
+    head: &str,
+) -> Result<BTreeMap<String, String>, dx_error::DxError> {
     let base_file = ModuleFile::parse(base).map_err(|_| module_input_error())?;
     let head_file = ModuleFile::parse(head).map_err(|_| module_input_error())?;
     let base_versions = dep_versions(&base_file)?;
@@ -81,11 +84,14 @@ pub(crate) fn updated_deps(base: &str, head: &str) -> Result<BTreeMap<String, St
 }
 
 /// Fails unless the lock pins a registry `MODULE.bazel` for every updated module at its new version.
-pub(crate) fn lock_pins(lock: &str, updated: &BTreeMap<String, String>) -> Result<(), String> {
+pub(crate) fn lock_pins(
+    lock: &str,
+    updated: &BTreeMap<String, String>,
+) -> Result<(), dx_error::DxError> {
     if updated.is_empty() {
         return Ok(());
     }
-    let unpinned = || "workspace input MODULE.bazel.lock".to_owned();
+    let unpinned = || dx_error::DxError::failure("workspace input MODULE.bazel.lock");
     let lock = parse_lock(lock)?;
     let Some(Json::Object(hashes)) = lock.get("registryFileHashes") else {
         return Err(unpinned());
@@ -109,7 +115,7 @@ pub(crate) fn lock_pins(lock: &str, updated: &BTreeMap<String, String>) -> Resul
 
 type DepVersions = BTreeMap<String, (String, Option<std::ops::Range<usize>>)>;
 
-fn dep_versions(file: &ModuleFile) -> Result<DepVersions, String> {
+fn dep_versions(file: &ModuleFile) -> Result<DepVersions, dx_error::DxError> {
     let mut versions = DepVersions::new();
     for call in file.calls_named("bazel_dep") {
         if call.unpacked {
@@ -164,23 +170,27 @@ fn extension_owner(key: &str) -> Option<&str> {
     (!name.is_empty()).then_some(name)
 }
 
-fn parse_lock(text: &str) -> Result<Map<String, Json>, String> {
+fn parse_lock(text: &str) -> Result<Map<String, Json>, dx_error::DxError> {
     match serde_json::from_str(text) {
         Ok(Json::Object(map)) => Ok(map),
-        Ok(_) => Err("cannot read MODULE.bazel.lock: not a JSON object".to_owned()),
-        Err(error) => Err(format!("cannot read MODULE.bazel.lock: {error}")),
+        Ok(_) => Err(dx_error::DxError::infra(
+            "cannot read MODULE.bazel.lock: not a JSON object".to_owned(),
+        )),
+        Err(error) => Err(dx_error::DxError::infra(format!(
+            "cannot read MODULE.bazel.lock: {error}"
+        ))),
     }
 }
 
-fn lock_changed(key: &str) -> String {
-    format!("MODULE.bazel.lock changed {key}")
+fn lock_changed(key: &str) -> dx_error::DxError {
+    dx_error::DxError::failure(format!("MODULE.bazel.lock changed {key}"))
 }
 
 fn section<'a>(
     value: Option<&'a Json>,
     empty: &'a Map<String, Json>,
     key: &str,
-) -> Result<&'a Map<String, Json>, String> {
+) -> Result<&'a Map<String, Json>, dx_error::DxError> {
     match value {
         None => Ok(empty),
         Some(Json::Object(map)) => Ok(map),
@@ -189,7 +199,7 @@ fn section<'a>(
 }
 
 /// The modules and module-owned keys that differ between two lock files.
-pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, String> {
+pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, dx_error::DxError> {
     let base = parse_lock(base)?;
     let head = parse_lock(head)?;
     let empty = Map::new();
@@ -234,7 +244,7 @@ pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, String
 }
 
 /// The registry files of the versions the lock selects, skipping files a registry lacks.
-pub(crate) fn registry_files(lock: &str) -> Result<Vec<RegistryFile>, String> {
+pub(crate) fn registry_files(lock: &str) -> Result<Vec<RegistryFile>, dx_error::DxError> {
     let lock = parse_lock(lock)?;
     let Some(Json::Object(hashes)) = lock.get("registryFileHashes") else {
         return Ok(Vec::new());
@@ -300,7 +310,7 @@ pub(crate) fn registers_toolchains(file: &ModuleFile) -> bool {
 pub(crate) fn module_graph(
     files: &[RegistryFile],
     read: &dyn Fn(&str) -> Option<String>,
-) -> Result<ModuleGraph, String> {
+) -> Result<ModuleGraph, dx_error::DxError> {
     let mut graph = ModuleGraph::default();
     graph.deps.insert(
         BUILTIN_TOOLS.to_owned(),
@@ -312,14 +322,19 @@ pub(crate) fn module_graph(
     graph.registers.insert(BUILTIN_TOOLS.to_owned());
     for file in files {
         let id = format!("{}@{}", file.name, file.version);
-        let text = read(&file.hash).ok_or_else(|| format!("no cached MODULE.bazel for {id}"))?;
-        let module = ModuleFile::parse(&text)
-            .map_err(|error| format!("cannot read MODULE.bazel of {id}: {error}"))?;
+        let text = read(&file.hash).ok_or_else(|| {
+            dx_error::DxError::failure(format!("no cached MODULE.bazel for {id}"))
+        })?;
+        let module = ModuleFile::parse(&text).map_err(|error| {
+            dx_error::DxError::infra(format!("cannot read MODULE.bazel of {id}: {error}"))
+        })?;
         let deps = graph.deps.entry(file.name.clone()).or_default();
         for call in module.calls_named("bazel_dep") {
-            let name = call
-                .str("name")
-                .ok_or_else(|| format!("cannot read MODULE.bazel of {id}: computed bazel_dep"))?;
+            let name = call.str("name").ok_or_else(|| {
+                dx_error::DxError::infra(format!(
+                    "cannot read MODULE.bazel of {id}: computed bazel_dep"
+                ))
+            })?;
             deps.insert(name.to_owned());
         }
         if registers_toolchains(&module) {
@@ -527,7 +542,9 @@ mod tests {
             ),
             "",
         );
-        let error = Err("workspace input MODULE.bazel.lock".to_owned());
+        let error = Err(dx_error::DxError::failure(
+            "workspace input MODULE.bazel.lock",
+        ));
         assert_eq!(lock_pins(&stale, &updated), error);
         assert_eq!(lock_pins(&missing, &updated), error);
         assert_eq!(lock_pins("{}", &updated), error);
@@ -699,12 +716,16 @@ mod tests {
         assert!(closure(&set(&["rules_cc"]), &graph.deps).contains(BUILTIN_TOOLS));
         assert_eq!(
             module_graph(&[file("lost", "lost")], &read),
-            Err("no cached MODULE.bazel for lost@1".to_owned())
+            Err(dx_error::DxError::failure(
+                "no cached MODULE.bazel for lost@1"
+            ))
         );
         let broken = |_: &str| Some("bazel_dep(".to_owned());
         let error = module_graph(&[file("bad", "bad")], &broken).expect_err("parse error");
         assert!(
-            error.starts_with("cannot read MODULE.bazel of bad@1: "),
+            error
+                .message()
+                .starts_with("cannot read MODULE.bazel of bad@1: "),
             "{error}"
         );
     }

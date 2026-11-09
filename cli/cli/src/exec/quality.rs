@@ -31,7 +31,7 @@ pub(crate) fn execute_quality(invocation: &Invocation, env: Env<'_>) -> i32 {
         Ok(request) => request,
         Err(message) => {
             let Env { out, err, .. } = env;
-            return pre_exec(invocation.output, out, err, &message);
+            return pre_exec(invocation.output, out, err, message.message());
         }
     };
     execute_quality_request(&request, env)

@@ -71,7 +71,7 @@ impl LockKind {
         }
     }
 
-    pub(crate) fn changed(&self, base: &str, head: &str) -> Result<LockChange, String> {
+    pub(crate) fn changed(&self, base: &str, head: &str) -> Result<LockChange, dx_error::DxError> {
         match self {
             LockKind::Cargo(_) => Ok(LockChange {
                 crates: changed_crates(base, head)?,
@@ -98,10 +98,10 @@ impl LockKind {
                 npm: false,
             }),
             LockKind::CrateBazelLock(_) => changed_crates_from_bazel_lock(base, head),
-            LockKind::Go(_) => Err("use changed_go".to_owned()),
+            LockKind::Go(_) => Err(dx_error::DxError::failure("use changed_go".to_owned())),
             LockKind::Pnpm(_) => changed_npm_packages(base, head),
             LockKind::Gemfile(_) => changed_gems(base, head),
-            LockKind::Unknown => Err("unknown lock format".to_owned()),
+            LockKind::Unknown => Err(dx_error::DxError::failure("unknown lock format".to_owned())),
         }
     }
 }
@@ -120,21 +120,25 @@ struct Node {
 
 type Nodes = BTreeMap<Key, Node>;
 
-fn literal(call: &Call, key: &str, index: Option<usize>) -> Result<Option<String>, String> {
+fn literal(
+    call: &Call,
+    key: &str,
+    index: Option<usize>,
+) -> Result<Option<String>, dx_error::DxError> {
     let value = index
         .and_then(|index| call.positional.get(index))
         .or_else(|| call.arg(key));
     match value {
         None => Ok(None),
         Some(Value::Str(literal)) => Ok(Some(literal.value.clone())),
-        Some(_) => Err(format!(
+        Some(_) => Err(dx_error::DxError::failure(format!(
             "{} at MODULE.bazel line {} has a computed {key}",
             call.name, call.line
-        )),
+        ))),
     }
 }
 
-fn workspace_path(label: &str) -> Result<String, String> {
+fn workspace_path(label: &str) -> Result<String, dx_error::DxError> {
     let rest = if let Some(relative) = label.strip_prefix(':') {
         relative
     } else {
@@ -142,18 +146,20 @@ fn workspace_path(label: &str) -> Result<String, String> {
             .strip_prefix("@@")
             .or_else(|| label.strip_prefix('@'))
             .unwrap_or(label);
-        local
-            .strip_prefix("//")
-            .ok_or_else(|| format!("label {label} is not in the main repository"))?
+        local.strip_prefix("//").ok_or_else(|| {
+            dx_error::DxError::failure(format!("label {label} is not in the main repository"))
+        })?
     };
     let (package, name) = if label.starts_with(':') {
         ("", rest)
     } else {
         rest.split_once(':')
-            .ok_or_else(|| format!("label {label} names no file"))?
+            .ok_or_else(|| dx_error::DxError::failure(format!("label {label} names no file")))?
     };
     if name.is_empty() {
-        return Err(format!("label {label} names no file"));
+        return Err(dx_error::DxError::failure(format!(
+            "label {label} names no file"
+        )));
     }
     if package.is_empty() {
         Ok(name.to_owned())
@@ -162,16 +168,17 @@ fn workspace_path(label: &str) -> Result<String, String> {
     }
 }
 
-pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
-    let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
+pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError> {
+    let module = ModuleFile::parse(module_text)
+        .map_err(|error| dx_error::DxError::failure(error.to_string()))?;
     let mut bindings: BTreeSet<&str> = BTreeSet::new();
     let mut npm_bindings: BTreeSet<&str> = BTreeSet::new();
     for call in module.calls_named("use_extension") {
         if call.unpacked {
-            return Err(format!(
+            return Err(dx_error::DxError::failure(format!(
                 "use_extension at MODULE.bazel line {} unpacks its arguments",
                 call.line
-            ));
+            )));
         }
         let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
         let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
@@ -193,22 +200,26 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
         if let Some((binding, "npm_translate_lock")) = call.name.split_once('.') {
             if npm_bindings.contains(binding) {
                 if call.unpacked {
-                    return Err(format!(
+                    return Err(dx_error::DxError::failure(format!(
                         "{} at MODULE.bazel line {} unpacks its arguments",
                         call.name, call.line
-                    ));
+                    )));
                 }
                 let name = literal(call, "name", Some(0))?.ok_or_else(|| {
-                    format!(
-                        "{} at MODULE.bazel line {} has no name",
-                        call.name, call.line
-                    )
+                    dx_error::DxError::failure({
+                        format!(
+                            "{} at MODULE.bazel line {} has no name",
+                            call.name, call.line
+                        )
+                    })
                 })?;
                 let pnpm_lock = literal(call, "pnpm_lock", None)?.ok_or_else(|| {
-                    format!(
-                        "{} at MODULE.bazel line {} has no pnpm_lock",
-                        call.name, call.line
-                    )
+                    dx_error::DxError::failure({
+                        format!(
+                            "{} at MODULE.bazel line {} has no pnpm_lock",
+                            call.name, call.line
+                        )
+                    })
                 })?;
                 hubs.push(Hub {
                     name,
@@ -230,17 +241,19 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
             continue;
         }
         if call.unpacked {
-            return Err(format!(
+            return Err(dx_error::DxError::failure(format!(
                 "{} at MODULE.bazel line {} unpacks its arguments",
                 call.name, call.line
-            ));
+            )));
         }
         let name = literal(call, "name", None)?.unwrap_or_else(|| DEFAULT_HUB.to_owned());
         let cargo_lockfile = literal(call, "cargo_lockfile", None)?.ok_or_else(|| {
-            format!(
-                "{} at MODULE.bazel line {} has no cargo_lockfile",
-                call.name, call.line
-            )
+            dx_error::DxError::failure({
+                format!(
+                    "{} at MODULE.bazel line {} has no cargo_lockfile",
+                    call.name, call.line
+                )
+            })
         })?;
         let lockfile = literal(call, "lockfile", None)?
             .map(|label| workspace_path(&label))
@@ -319,7 +332,11 @@ pub(crate) fn go_repo_name(module: &str) -> String {
 
 /// The Gazelle repositories of the modules a go.mod or go.sum edit changes, or
 /// an error when the edit is more than requirement or checksum lines.
-pub(crate) fn changed_go(path: &str, base: &str, head: &str) -> Result<LockChange, String> {
+pub(crate) fn changed_go(
+    path: &str,
+    base: &str,
+    head: &str,
+) -> Result<LockChange, dx_error::DxError> {
     let sum = path.ends_with("go.sum");
     let parse = |text: &str| {
         let mut modules: BTreeSet<(String, String)> = BTreeSet::new();
@@ -344,7 +361,9 @@ pub(crate) fn changed_go(path: &str, base: &str, head: &str) -> Result<LockChang
     let (base_modules, base_other) = parse(base);
     let (head_modules, head_other) = parse(head);
     if base_other != head_other {
-        return Err("go.mod changed beyond its requirements".to_owned());
+        return Err(dx_error::DxError::failure(
+            "go.mod changed beyond its requirements".to_owned(),
+        ));
     }
     let go_repos = base_modules
         .symmetric_difference(&head_modules)
@@ -407,9 +426,9 @@ fn closure(base: &Nodes, head: &Nodes) -> ChangedCrates {
     out
 }
 
-fn cargo_nodes(text: &str) -> Result<Nodes, String> {
+fn cargo_nodes(text: &str) -> Result<Nodes, dx_error::DxError> {
     let mut nodes = Nodes::new();
-    for entry in dx_audit::locks::cargo_lock_graph(text)? {
+    for entry in dx_audit::locks::cargo_lock_graph(text).map_err(dx_error::DxError::failure)? {
         let content = format!(
             "{:?} {:?} {:?}",
             entry.source, entry.checksum, entry.dependencies
@@ -425,14 +444,14 @@ fn cargo_nodes(text: &str) -> Result<Nodes, String> {
     Ok(nodes)
 }
 
-pub(crate) fn changed_crates(base: &str, head: &str) -> Result<ChangedCrates, String> {
+pub(crate) fn changed_crates(base: &str, head: &str) -> Result<ChangedCrates, dx_error::DxError> {
     Ok(closure(&cargo_nodes(base)?, &cargo_nodes(head)?))
 }
 
-fn crate_key(id: &str) -> Result<Key, String> {
+fn crate_key(id: &str) -> Result<Key, dx_error::DxError> {
     id.split_once(' ')
         .map(|(name, version)| (name.to_owned(), version.to_owned()))
-        .ok_or_else(|| format!("crate id {id:?} has no version"))
+        .ok_or_else(|| dx_error::DxError::failure(format!("crate id {id:?} has no version")))
 }
 
 fn collect_ids<'a>(value: &'a serde_json::Value, out: &mut Vec<&'a str>) {
@@ -454,9 +473,13 @@ fn collect_ids<'a>(value: &'a serde_json::Value, out: &mut Vec<&'a str>) {
     }
 }
 
-fn bazel_lock_nodes(lock: &serde_json::Map<String, serde_json::Value>) -> Result<Nodes, String> {
+fn bazel_lock_nodes(
+    lock: &serde_json::Map<String, serde_json::Value>,
+) -> Result<Nodes, dx_error::DxError> {
     let Some(serde_json::Value::Object(crates)) = lock.get("crates") else {
-        return Err("crate_universe lockfile has no crates object".to_owned());
+        return Err(dx_error::DxError::failure(
+            "crate_universe lockfile has no crates object".to_owned(),
+        ));
     };
     let mut nodes = Nodes::new();
     for (id, entry) in crates {
@@ -465,7 +488,7 @@ fn bazel_lock_nodes(lock: &serde_json::Map<String, serde_json::Value>) -> Result
         let mut deps = ids
             .into_iter()
             .map(crate_key)
-            .collect::<Result<Vec<Key>, String>>()?;
+            .collect::<Result<Vec<Key>, dx_error::DxError>>()?;
         deps.sort();
         deps.dedup();
         nodes.insert(
@@ -479,11 +502,17 @@ fn bazel_lock_nodes(lock: &serde_json::Map<String, serde_json::Value>) -> Result
     Ok(nodes)
 }
 
-fn json_object(text: &str) -> Result<serde_json::Map<String, serde_json::Value>, String> {
+fn json_object(
+    text: &str,
+) -> Result<serde_json::Map<String, serde_json::Value>, dx_error::DxError> {
     match serde_json::from_str(text) {
         Ok(serde_json::Value::Object(map)) => Ok(map),
-        Ok(_) => Err("crate_universe lockfile is not a JSON object".to_owned()),
-        Err(error) => Err(format!("invalid crate_universe lockfile: {error}")),
+        Ok(_) => Err(dx_error::DxError::failure(
+            "crate_universe lockfile is not a JSON object".to_owned(),
+        )),
+        Err(error) => Err(dx_error::DxError::failure(format!(
+            "invalid crate_universe lockfile: {error}"
+        ))),
     }
 }
 
@@ -533,10 +562,12 @@ fn collect_aliases<'a>(value: &'a serde_json::Value, out: &mut Vec<(&'a str, &'a
 /// the crates it points at.
 fn hub_aliases(
     lock: &serde_json::Map<String, serde_json::Value>,
-) -> Result<BTreeMap<String, BTreeSet<Key>>, String> {
+) -> Result<BTreeMap<String, BTreeSet<Key>>, dx_error::DxError> {
     let mut out: BTreeMap<String, BTreeSet<Key>> = BTreeMap::new();
     let Some(serde_json::Value::Object(crates)) = lock.get("crates") else {
-        return Err("crate_universe lockfile has no crates object".to_owned());
+        return Err(dx_error::DxError::failure(
+            "crate_universe lockfile has no crates object".to_owned(),
+        ));
     };
     let members = id_set(lock, "workspace_members");
     let binaries = id_set(lock, "binary_crates");
@@ -577,7 +608,10 @@ fn hub_aliases(
     Ok(out)
 }
 
-pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<LockChange, String> {
+pub(crate) fn changed_crates_from_bazel_lock(
+    base: &str,
+    head: &str,
+) -> Result<LockChange, dx_error::DxError> {
     let base = json_object(base)?;
     let head = json_object(head)?;
     let keys: BTreeSet<&String> = base.keys().chain(head.keys()).collect();
@@ -587,7 +621,9 @@ pub(crate) fn changed_crates_from_bazel_lock(base: &str, head: &str) -> Result<L
             && !ID_LIST_KEYS.contains(&key.as_str())
             && base.get(key) != head.get(key)
         {
-            return Err(format!("crate_universe lockfile changed {key}"));
+            return Err(dx_error::DxError::failure(format!(
+                "crate_universe lockfile changed {key}"
+            )));
         }
     }
     let mut crates = closure(&bazel_lock_nodes(&base)?, &bazel_lock_nodes(&head)?);
@@ -904,13 +940,13 @@ fn maven_name(coordinate: &str) -> String {
     coordinate.replace(['.', '-', ':'], "_")
 }
 
-fn maven_artifacts(text: &str) -> Result<BTreeMap<String, String>, String> {
-    let value: serde_json::Value =
-        serde_json::from_str(text).map_err(|error| format!("invalid JSON: {error}"))?;
+fn maven_artifacts(text: &str) -> Result<BTreeMap<String, String>, dx_error::DxError> {
+    let value: serde_json::Value = serde_json::from_str(text)
+        .map_err(|error| dx_error::DxError::failure(format!("invalid JSON: {error}")))?;
     let artifacts = value
         .get("artifacts")
         .and_then(serde_json::Value::as_object)
-        .ok_or_else(|| "no artifacts table".to_owned())?;
+        .ok_or_else(|| dx_error::DxError::failure("no artifacts table".to_owned()))?;
     Ok(artifacts
         .iter()
         .map(|(key, entry)| (maven_name(key), entry.to_string()))
@@ -919,7 +955,10 @@ fn maven_artifacts(text: &str) -> Result<BTreeMap<String, String>, String> {
 
 /// Artifacts added, removed or changed (version or checksum) between two
 /// `maven_install.json` files, by underscore name.
-pub(crate) fn changed_maven_artifacts(base: &str, head: &str) -> Result<ChangedCrates, String> {
+pub(crate) fn changed_maven_artifacts(
+    base: &str,
+    head: &str,
+) -> Result<ChangedCrates, dx_error::DxError> {
     let (base, head) = (maven_artifacts(base)?, maven_artifacts(head)?);
     let mut out = ChangedCrates::new();
     for name in base.keys().chain(head.keys()) {
@@ -1024,15 +1063,16 @@ pub(crate) fn classify(path: &str, hubs: &[Hub]) -> LockKind {
 }
 
 /// The `ruby.bundle_fetch` repos with the Gemfile.lock each one reads.
-pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
-    let module = ModuleFile::parse(module_text).map_err(|error| error.to_string())?;
+pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError> {
+    let module = ModuleFile::parse(module_text)
+        .map_err(|error| dx_error::DxError::failure(error.to_string()))?;
     let mut bindings: BTreeSet<&str> = BTreeSet::new();
     for call in module.calls_named("use_extension") {
         if call.unpacked {
-            return Err(format!(
+            return Err(dx_error::DxError::failure(format!(
                 "use_extension at MODULE.bazel line {} unpacks its arguments",
                 call.line
-            ));
+            )));
         }
         let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
         let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
@@ -1052,22 +1092,26 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
             continue;
         }
         if call.unpacked {
-            return Err(format!(
+            return Err(dx_error::DxError::failure(format!(
                 "{} at MODULE.bazel line {} unpacks its arguments",
                 call.name, call.line
-            ));
+            )));
         }
         let name = literal(call, "name", None)?.ok_or_else(|| {
-            format!(
-                "{} at MODULE.bazel line {} has no name",
-                call.name, call.line
-            )
+            dx_error::DxError::failure({
+                format!(
+                    "{} at MODULE.bazel line {} has no name",
+                    call.name, call.line
+                )
+            })
         })?;
         let gemfile_lock = literal(call, "gemfile_lock", None)?.ok_or_else(|| {
-            format!(
-                "{} at MODULE.bazel line {} has no gemfile_lock",
-                call.name, call.line
-            )
+            dx_error::DxError::failure({
+                format!(
+                    "{} at MODULE.bazel line {} has no gemfile_lock",
+                    call.name, call.line
+                )
+            })
         })?;
         hubs.push(Hub {
             name,
@@ -1084,9 +1128,10 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, String> {
 }
 
 /// The Gemfile.lock diff as crate-style name/version changes.
-fn changed_gems(base: &str, head: &str) -> Result<LockChange, String> {
-    let gems = |text: &str| -> Result<BTreeSet<(String, String)>, String> {
-        Ok(dx_audit::locks::parse_gemfile_lock(text)?
+fn changed_gems(base: &str, head: &str) -> Result<LockChange, dx_error::DxError> {
+    let gems = |text: &str| -> Result<BTreeSet<(String, String)>, dx_error::DxError> {
+        Ok(dx_audit::locks::parse_gemfile_lock(text)
+            .map_err(dx_error::DxError::failure)?
             .into_iter()
             .map(|package| {
                 let version = match package.platform {
@@ -1157,12 +1202,18 @@ fn pnpm_settings(text: &str) -> BTreeMap<String, String> {
 }
 
 /// The npm packages (name and version) that differ between two pnpm locks.
-pub(crate) fn changed_npm_packages(base: &str, head: &str) -> Result<LockChange, String> {
+pub(crate) fn changed_npm_packages(
+    base: &str,
+    head: &str,
+) -> Result<LockChange, dx_error::DxError> {
     if pnpm_settings(base) != pnpm_settings(head) {
-        return Err("pnpm lock settings changed".to_owned());
+        return Err(dx_error::DxError::failure(
+            "pnpm lock settings changed".to_owned(),
+        ));
     }
-    let packages = |text: &str| -> Result<BTreeSet<(String, String)>, String> {
-        Ok(dx_audit::locks::parse_pnpm_lock(text)?
+    let packages = |text: &str| -> Result<BTreeSet<(String, String)>, dx_error::DxError> {
+        Ok(dx_audit::locks::parse_pnpm_lock(text)
+            .map_err(dx_error::DxError::failure)?
             .into_iter()
             .map(|package| (package.name, package.version))
             .collect())
@@ -1496,7 +1547,10 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         bazel_lock_with(serde, &["serde_json 1.0.0", extra], None).to_string()
     }
 
-    fn change(base: &serde_json::Value, head: &serde_json::Value) -> Result<LockChange, String> {
+    fn change(
+        base: &serde_json::Value,
+        head: &serde_json::Value,
+    ) -> Result<LockChange, dx_error::DxError> {
         changed_crates_from_bazel_lock(&base.to_string(), &head.to_string())
     }
 
@@ -1536,7 +1590,9 @@ go.from_cargo(name = "nope", cargo_lockfile = "//:other.lock")
         head["conditions"] = serde_json::json!({});
         assert_eq!(
             change(&base, &head),
-            Err("crate_universe lockfile changed conditions".to_owned())
+            Err(dx_error::DxError::failure(
+                "crate_universe lockfile changed conditions"
+            ))
         );
         let mut head = base.clone();
         head["mystery"] = serde_json::json!(1);

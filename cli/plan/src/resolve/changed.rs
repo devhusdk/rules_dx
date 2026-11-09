@@ -20,8 +20,8 @@ pub struct AffectedSelection {
     pub graph: Option<RuleGraph>,
 }
 
-fn git_failure(what: &str, detail: String) -> String {
-    format!("git {what} failed: {detail}")
+fn git_failure(what: &str, detail: String) -> dx_error::DxError {
+    dx_error::DxError::infra(format!("git {what} failed: {detail}"))
 }
 
 fn first_diagnostic(bytes: &[u8]) -> String {
@@ -68,7 +68,7 @@ pub fn diff_name_status(
     workspace: &Path,
     runner: &dyn QueryRunner,
     extra: &[String],
-) -> Result<Vec<dx_adopt::GitChange>, String> {
+) -> Result<Vec<dx_adopt::GitChange>, dx_error::DxError> {
     let mut argv = vec![git.to_string_lossy().into_owned()];
     argv.extend(extra.iter().cloned());
     let result = runner
@@ -76,11 +76,11 @@ pub fn diff_name_status(
         .map_err(|error| git_failure("diff", error.to_string()))?;
     if result.code != Some(0) {
         if shallow_clone(workspace) {
-            return Err(shallow_error());
+            return Err(dx_error::DxError::failure(shallow_error()));
         }
         return Err(git_failure("diff", first_diagnostic(&result.stderr)));
     }
-    dx_adopt::parse_name_status_nul(&result.stdout)
+    dx_adopt::parse_name_status_nul(&result.stdout).map_err(dx_error::DxError::failure)
 }
 
 pub fn merge_base(
@@ -89,7 +89,7 @@ pub fn merge_base(
     runner: &dyn QueryRunner,
     first: &str,
     second: &str,
-) -> Result<String, String> {
+) -> Result<String, dx_error::DxError> {
     let mut argv = vec![git.to_string_lossy().into_owned()];
     argv.extend(
         ["merge-base", first, second]
@@ -101,7 +101,7 @@ pub fn merge_base(
         .map_err(|error| git_failure("merge-base", error.to_string()))?;
     if result.code != Some(0) {
         if shallow_clone(workspace) {
-            return Err(shallow_error());
+            return Err(dx_error::DxError::failure(shallow_error()));
         }
         return Err(git_failure("merge-base", first_diagnostic(&result.stderr)));
     }
@@ -120,17 +120,22 @@ pub fn merge_base(
     Ok(base.to_owned())
 }
 
-fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, String> {
+fn parse_untracked(output: &[u8]) -> Result<Vec<dx_adopt::GitChange>, dx_error::DxError> {
     let mut fields: Vec<&[u8]> = output.split(|byte| *byte == 0).collect();
     if fields.last().is_some_and(|field| field.is_empty()) {
         fields.pop();
     }
     let mut changes = Vec::with_capacity(fields.len());
     for field in fields {
-        let path = std::str::from_utf8(field)
-            .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
+        let path = std::str::from_utf8(field).map_err(|_| {
+            dx_error::DxError::failure(
+                "git path is not UTF-8: rename the file to a UTF-8 name".to_owned(),
+            )
+        })?;
         if path.is_empty() {
-            return Err("git change list has an empty path".to_owned());
+            return Err(dx_error::DxError::failure(
+                "git change list has an empty path".to_owned(),
+            ));
         }
         if dx_adopt::is_dx_state(path) {
             continue;
@@ -148,7 +153,7 @@ pub fn collect_working_tree(
     git: &Path,
     workspace: &Path,
     runner: &dyn QueryRunner,
-) -> Result<Vec<dx_adopt::GitChange>, String> {
+) -> Result<Vec<dx_adopt::GitChange>, dx_error::DxError> {
     let staged = diff_name_status(
         git,
         workspace,
@@ -197,7 +202,7 @@ pub fn collect_range(
     runner: &dyn QueryRunner,
     base: &str,
     head: &str,
-) -> Result<Vec<dx_adopt::GitChange>, String> {
+) -> Result<Vec<dx_adopt::GitChange>, dx_error::DxError> {
     let changes = diff_name_status(
         git,
         workspace,
@@ -220,7 +225,7 @@ fn run_git_lines(
     runner: &dyn QueryRunner,
     what: &str,
     args: &[String],
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, dx_error::DxError> {
     let mut argv = vec![git.to_string_lossy().into_owned()];
     argv.extend(args.iter().cloned());
     let result = runner
@@ -229,8 +234,11 @@ fn run_git_lines(
     if result.code != Some(0) {
         return Err(git_failure(what, first_diagnostic(&result.stderr)));
     }
-    let text = std::str::from_utf8(&result.stdout)
-        .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())?;
+    let text = std::str::from_utf8(&result.stdout).map_err(|_| {
+        dx_error::DxError::failure(
+            "git path is not UTF-8: rename the file to a UTF-8 name".to_owned(),
+        )
+    })?;
     Ok(text
         .split(['\0', '\n'])
         .filter(|field| !field.is_empty())
@@ -257,7 +265,7 @@ pub fn local_override_changes(
     workspace: &Path,
     runner: &dyn QueryRunner,
     base: &str,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, dx_error::DxError> {
     let text = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap_or_default();
     let overrides: Vec<String> = dx_adopt::local_path_overrides(&text)
         .into_iter()
@@ -526,7 +534,7 @@ pub(crate) fn show_at_base(
     runner: &dyn QueryRunner,
     base: &str,
     path: &str,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, dx_error::DxError> {
     let argv = vec![
         git.to_string_lossy().into_owned(),
         "show".to_owned(),
@@ -553,9 +561,9 @@ fn lock_change(
     workspace: &Path,
     runner: &dyn QueryRunner,
     base: Option<(&Path, &str)>,
-) -> Result<Vec<(String, LockChange)>, String> {
+) -> Result<Vec<(String, LockChange)>, dx_error::DxError> {
     let kind = lock_inputs::classify(path, hubs);
-    let workspace_input = || format!("workspace input {path}");
+    let workspace_input = || dx_error::DxError::failure(format!("workspace input {path}"));
     if kind == LockKind::Unknown {
         return Err(workspace_input());
     }
@@ -566,16 +574,16 @@ fn lock_change(
         return Err(workspace_input());
     }
     let head = std::fs::read_to_string(workspace.join(path))
-        .map_err(|error| format!("cannot read {path}: {error}"))?;
+        .map_err(|error| dx_error::DxError::infra(format!("cannot read {path}: {error}")))?;
     let base = show_at_base(git, workspace, runner, base, path)
-        .map_err(|detail| format!("cannot read {path}: {detail}"))?
+        .map_err(|detail| dx_error::DxError::infra(format!("cannot read {path}: {detail}")))?
         .ok_or_else(workspace_input)?;
     let changed = if matches!(kind, LockKind::Go(_)) {
         lock_inputs::changed_go(path, &base, &head)
     } else {
         kind.changed(&base, &head)
     }
-    .map_err(|detail| format!("cannot read {path}: {detail}"))?;
+    .map_err(|detail| dx_error::DxError::infra(format!("cannot read {path}: {detail}")))?;
     Ok(kind
         .hubs()
         .iter()
@@ -599,15 +607,15 @@ fn module_text(
     workspace: &Path,
     runner: &dyn QueryRunner,
     base: (&Path, &str),
-) -> Result<(String, String), String> {
-    let workspace_input = || format!("workspace input {path}");
+) -> Result<(String, String), dx_error::DxError> {
+    let workspace_input = || dx_error::DxError::failure(format!("workspace input {path}"));
     let head = std::fs::read_to_string(workspace.join(path)).map_err(|_| workspace_input())?;
     if !changed {
         return Ok((head.clone(), head));
     }
     let (git, base) = base;
     let before = show_at_base(git, workspace, runner, base, path)
-        .map_err(|detail| format!("cannot read {path}: {detail}"))?
+        .map_err(|detail| dx_error::DxError::infra(format!("cannot read {path}: {detail}")))?
         .ok_or_else(workspace_input)?;
     Ok((before, head))
 }
@@ -618,10 +626,12 @@ fn module_change(
     runner: &dyn QueryRunner,
     base: Option<(&Path, &str)>,
     startup_options: &[String],
-) -> Result<ModuleEdit, String> {
+) -> Result<ModuleEdit, dx_error::DxError> {
     let first = paths.first().map_or(ROOT_MODULE, String::as_str);
     let Some(base) = base else {
-        return Err(format!("workspace input {first}"));
+        return Err(dx_error::DxError::failure(format!(
+            "workspace input {first}"
+        )));
     };
     let changed = |path: &str| paths.iter().any(|changed| changed == path);
     let (base_module, head_module) =
@@ -637,9 +647,9 @@ fn module_change(
             .map_err(|_| format!("workspace input {label}"))
     };
     let files = dx_module_bazel::load_with_includes(&head_module, &read_include)
-        .map_err(|_| format!("workspace input {ROOT_MODULE}"))?;
+        .map_err(|_| dx_error::DxError::failure(format!("workspace input {ROOT_MODULE}")))?;
     if let Some(reason) = module_inputs::overrides_that_widen(&files) {
-        return Err(reason);
+        return Err(dx_error::DxError::failure(reason));
     }
     let caches = dx_process::repository_caches(
         &|name| std::env::var(name).ok(),
@@ -661,7 +671,9 @@ fn module_change(
         .iter()
         .find(|module| graph.registers.contains(*module) || old_graph.registers.contains(*module))
     {
-        return Err(format!("changed module {module} registers toolchains"));
+        return Err(dx_error::DxError::failure(format!(
+            "changed module {module} registers toolchains"
+        )));
     }
     let owners = module_inputs::repo_owners(&files);
     let owned_by_affected = |repo: &str| {
@@ -692,7 +704,10 @@ fn module_change(
                             .iter()
                             .any(|module| repo.starts_with(&format!("{module}+")))
                 }) {
-                    return Err(format!("{ROOT_MODULE} registers {}", label.value));
+                    return Err(dx_error::DxError::failure(format!(
+                        "{ROOT_MODULE} registers {}",
+                        label.value
+                    )));
                 }
             }
         }
@@ -702,7 +717,9 @@ fn module_change(
         .iter()
         .find(|(_, module)| !modules.contains(module))
     {
-        return Err(format!("{ROOT_LOCK} changed {key}"));
+        return Err(dx_error::DxError::failure(format!(
+            "{ROOT_LOCK} changed {key}"
+        )));
     }
     let mut loads: BTreeSet<String> = owners
         .iter()
@@ -969,7 +986,11 @@ pub fn resolve_affected(
     let mut narrowed: Vec<(String, Vec<(String, LockChange)>)> = Vec::new();
     for path in lock_paths {
         match lock_change(&path, &hubs, workspace, runner, base) {
-            Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
+            Err(reason) => push_widened(
+                &mut widened,
+                "//...".to_owned(),
+                reason.message().to_owned(),
+            ),
             Ok(changed) => {
                 match cache.file_label(workspace, &path, &path) {
                     Ok(label) => candidates.push((path.clone(), label, Fallback::Keep)),
@@ -985,7 +1006,11 @@ pub fn resolve_affected(
     let mut update = None;
     if !module_paths.is_empty() {
         match module_change(&module_paths, workspace, runner, base, startup_options) {
-            Err(reason) => push_widened(&mut widened, "//...".to_owned(), reason),
+            Err(reason) => push_widened(
+                &mut widened,
+                "//...".to_owned(),
+                reason.message().to_owned(),
+            ),
             Ok(found) => {
                 let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels);
                 widen_impact(impact, "@", &mut widened);
@@ -3173,7 +3198,7 @@ mod tests {
         ]);
         let err =
             collect_working_tree(Path::new("/hermetic/git"), &workspace, &query).expect_err("utf8");
-        assert!(err.contains("UTF-8"), "{err}");
+        assert!(err.message().contains("UTF-8"), "{err}");
     }
 
     #[test]
@@ -3232,7 +3257,7 @@ mod tests {
                 "HEAD",
             )
             .expect_err("bad base");
-            assert!(err.contains("merge-base"), "{name}: {err}");
+            assert!(err.message().contains("merge-base"), "{name}: {err}");
         }
     }
 
@@ -3250,8 +3275,8 @@ mod tests {
             &strings(&["diff", "--name-status", "-z", "base", "head"]),
         )
         .expect_err("shallow");
-        assert!(err.contains("shallow"), "{err}");
-        assert!(err.contains("fetch --unshallow"), "{err}");
+        assert!(err.message().contains("shallow"), "{err}");
+        assert!(err.message().contains("fetch --unshallow"), "{err}");
         assert_eq!(query.calls().len(), 1, "shallow needs no extra process");
     }
 
@@ -3277,7 +3302,7 @@ mod tests {
             &strings(&["diff", "--name-status", "-z", "base", "head"]),
         )
         .expect_err("shallow worktree");
-        assert!(err.contains("shallow"), "{err}");
+        assert!(err.message().contains("shallow"), "{err}");
     }
 
     #[test]
@@ -3292,8 +3317,8 @@ mod tests {
             &strings(&["diff", "--name-status", "-z", "base", "head"]),
         )
         .expect_err("plain failure");
-        assert!(err.contains("git diff failed"), "{err}");
-        assert!(err.contains("bad revision"), "{err}");
+        assert!(err.message().contains("git diff failed"), "{err}");
+        assert!(err.message().contains("bad revision"), "{err}");
     }
 
     #[test]

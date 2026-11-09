@@ -39,7 +39,7 @@ pub enum Ci {
 }
 
 /// A report request.
-fn report_request(raw: &str) -> Result<ReportRequest, String> {
+fn report_request(raw: &str) -> Result<ReportRequest, dx_error::DxError> {
     match raw.split_once('=') {
         Some((format, destination)) if !format.is_empty() && !destination.is_empty() => {
             Ok(ReportRequest {
@@ -47,24 +47,26 @@ fn report_request(raw: &str) -> Result<ReportRequest, String> {
                 destination: destination.to_owned(),
             })
         }
-        _ => Err(format!("want <format>=<destination>, got {raw:?}")),
+        _ => Err(dx_error::DxError::usage(format!(
+            "want <format>=<destination>, got {raw:?}"
+        ))),
     }
 }
 
 /// A value that must not be empty.
-fn non_empty(raw: &str) -> Result<String, String> {
+fn non_empty(raw: &str) -> Result<String, dx_error::DxError> {
     if raw.is_empty() {
-        Err("want a value".to_owned())
+        Err(dx_error::DxError::usage("want a value".to_owned()))
     } else {
         Ok(raw.to_owned())
     }
 }
 
 /// A coverage percent between 0 and 100.
-fn percent(raw: &str) -> Result<u32, String> {
+fn percent(raw: &str) -> Result<u32, dx_error::DxError> {
     match raw.parse::<u32>() {
         Ok(value) if value <= 100 => Ok(value),
-        _ => Err(format!("want 0-100, got {raw:?}")),
+        _ => Err(dx_error::DxError::usage(format!("want 0-100, got {raw:?}"))),
     }
 }
 
@@ -83,12 +85,12 @@ pub fn fuzz_seconds(raw: &str) -> Option<u64> {
     count.checked_mul(scale)
 }
 
-fn fuzz_duration(raw: &str) -> Result<String, String> {
+fn fuzz_duration(raw: &str) -> Result<String, dx_error::DxError> {
     match fuzz_seconds(raw) {
         Some(_) => Ok(raw.to_owned()),
-        None => Err(format!(
+        None => Err(dx_error::DxError::usage(format!(
             "want a duration such as 90s, 5m or 1h, got {raw:?}"
-        )),
+        ))),
     }
 }
 

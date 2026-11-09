@@ -159,7 +159,7 @@ impl UmbrellaRequest {
         &self,
         phase: Command,
         reports: Vec<ReportRequest>,
-    ) -> Result<QualityRequest, String> {
+    ) -> Result<QualityRequest, dx_error::DxError> {
         self.quality_request(phase, self.mode, reports)
     }
 
@@ -167,7 +167,10 @@ impl UmbrellaRequest {
         self.generate_request(self.mode, reports)
     }
 
-    pub fn verify_quality_request(&self, phase: Command) -> Result<QualityRequest, String> {
+    pub fn verify_quality_request(
+        &self,
+        phase: Command,
+    ) -> Result<QualityRequest, dx_error::DxError> {
         let mut request = self.quality_request(phase, OperationMode::Check, Vec::new())?;
         request.unsafe_fixes = false;
         Ok(request)
@@ -201,12 +204,12 @@ impl UmbrellaRequest {
         phase: Command,
         mode: OperationMode,
         reports: Vec<ReportRequest>,
-    ) -> Result<QualityRequest, String> {
+    ) -> Result<QualityRequest, dx_error::DxError> {
         if !matches!(phase, Command::Lint | Command::Typecheck | Command::Format) {
-            return Err(format!(
+            return Err(dx_error::DxError::usage(format!(
                 "umbrella phase {} is not a quality request",
                 phase.name()
-            ));
+            )));
         }
         Ok(QualityRequest {
             command: phase,
@@ -453,15 +456,15 @@ impl Invocation {
         }
     }
 
-    pub fn quality_request(&self) -> Result<QualityRequest, String> {
+    pub fn quality_request(&self) -> Result<QualityRequest, dx_error::DxError> {
         if !matches!(
             self.command,
             Command::Lint | Command::Typecheck | Command::Format
         ) {
-            return Err(format!(
+            return Err(dx_error::DxError::usage(format!(
                 "option \"--command\" is not supported by dx {}: want lint|typecheck|format",
                 self.command.name()
-            ));
+            )));
         }
         Ok(QualityRequest {
             command: self.command,
@@ -477,12 +480,12 @@ impl Invocation {
         })
     }
 
-    pub fn generate_request(&self) -> Result<GenerateRequest, String> {
+    pub fn generate_request(&self) -> Result<GenerateRequest, dx_error::DxError> {
         if self.command != Command::Generate {
-            return Err(format!(
+            return Err(dx_error::DxError::usage(format!(
                 "option \"--command\" is not supported by dx {}: want generate",
                 self.command.name()
-            ));
+            )));
         }
         Ok(GenerateRequest {
             mode: self.operation(),
@@ -499,12 +502,12 @@ impl Invocation {
         self.affected_handoff.is_some()
     }
 
-    pub fn umbrella_request(&self) -> Result<UmbrellaRequest, String> {
+    pub fn umbrella_request(&self) -> Result<UmbrellaRequest, dx_error::DxError> {
         if self.command != Command::Check {
-            return Err(format!(
+            return Err(dx_error::DxError::usage(format!(
                 "option \"--command\" is not supported by dx {}: want check",
                 self.command.name()
-            ));
+            )));
         }
         let affected = self.is_affected_plan();
         let test = match (&self.affected_handoff, self.command) {
@@ -554,15 +557,18 @@ impl Invocation {
     }
 }
 
-pub fn here_scope(workspace: &std::path::Path, cwd: &std::path::Path) -> Result<String, String> {
+pub fn here_scope(
+    workspace: &std::path::Path,
+    cwd: &std::path::Path,
+) -> Result<String, dx_error::DxError> {
     use std::path::Component;
-    let rel = cwd.strip_prefix(workspace).map_err(|_| {
+    let rel = cwd.strip_prefix(workspace).map_err(|_| dx_error::DxError::usage({
         format!(
             "current directory {} is outside workspace {}: --here needs a directory under the workspace",
             cwd.display(),
             workspace.display()
         )
-    })?;
+    }))?;
     if rel.as_os_str().is_empty() {
         return Ok("//...".to_owned());
     }
@@ -571,10 +577,12 @@ pub fn here_scope(workspace: &std::path::Path, cwd: &std::path::Path) -> Result<
         match component {
             Component::Normal(part) => {
                 let text = part.to_str().ok_or_else(|| {
-                    format!(
-                        "current directory {} is not valid UTF-8: --here needs a UTF-8 path",
-                        cwd.display()
-                    )
+                    dx_error::DxError::usage({
+                        format!(
+                            "current directory {} is not valid UTF-8: --here needs a UTF-8 path",
+                            cwd.display()
+                        )
+                    })
                 })?;
                 for piece in dx_path::posix(std::path::Path::new(&text)).split('/') {
                     if !piece.is_empty() && piece != "." {
@@ -584,11 +592,11 @@ pub fn here_scope(workspace: &std::path::Path, cwd: &std::path::Path) -> Result<
             }
             Component::CurDir => {}
             Component::RootDir | Component::Prefix(_) | Component::ParentDir => {
-                return Err(format!(
+                return Err(dx_error::DxError::usage(format!(
                     "current directory {} is outside workspace {}: --here needs a directory under the workspace",
                     cwd.display(),
                     workspace.display()
-                ));
+                )));
             }
         }
     }
@@ -602,21 +610,23 @@ pub fn apply_here(
     invocation: &Invocation,
     workspace: &std::path::Path,
     cwd: &std::path::Path,
-) -> Result<Invocation, String> {
+) -> Result<Invocation, dx_error::DxError> {
     if !invocation.here {
         return Ok(invocation.clone());
     }
     let (owner, at) = here_owner(invocation);
     if !owner.supports_here() {
-        return Err(format!(
+        return Err(dx_error::DxError::usage(format!(
             "option \"--here\" is not supported by dx {}",
             owner.name()
-        ));
+        )));
     }
     let scope = here_scope(workspace, cwd)?;
     let mut next = invocation.clone();
     if next.targets.len() > at {
-        return Err("option \"--here\" cannot be combined with explicit scopes".to_owned());
+        return Err(dx_error::DxError::usage(
+            "option \"--here\" cannot be combined with explicit scopes".to_owned(),
+        ));
     }
     next.targets.truncate(at);
     next.targets.push(scope);
@@ -891,7 +901,11 @@ mod tests {
 
         let refused = apply_here(&invocation_for(Command::Watch, &["run"]), workspace, subdir)
             .expect_err("run takes no --here");
-        assert!(refused.starts_with("option \"--here\" is not supported by dx run"));
+        assert!(
+            refused
+                .message()
+                .starts_with("option \"--here\" is not supported by dx run")
+        );
 
         let combined = apply_here(
             &invocation_for(Command::Watch, &["test", "//a:one"]),
@@ -900,7 +914,7 @@ mod tests {
         )
         .expect_err("explicit scope");
         assert_eq!(
-            combined,
+            combined.message(),
             "option \"--here\" cannot be combined with explicit scopes"
         );
     }
@@ -1169,7 +1183,10 @@ mod tests {
         inv.piped = true;
         let mut want = quiet_flags();
         want.push("--jobs=4".to_owned());
-        assert_eq!(inv.generate_request().expect("generate").bazel_options, want);
+        assert_eq!(
+            inv.generate_request().expect("generate").bazel_options,
+            want
+        );
         inv.verbose = true;
         assert_eq!(
             inv.generate_request().expect("generate").bazel_options,

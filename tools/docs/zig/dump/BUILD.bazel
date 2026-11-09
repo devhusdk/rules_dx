@@ -1,0 +1,28 @@
+# gazelle:exclude dump.zig
+
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+load("//zig/rules:defs.bzl", "zig_binary", "zig_test")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    ["dump.zig"],
+    visibility = VIS_TOOLS,
+)
+
+zig_binary(
+    name = "zig_doc_dump",
+    main = "dump.zig",
+)
+
+zig_test(
+    name = "zig_doc_dump_test",
+    main = "dump.zig",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

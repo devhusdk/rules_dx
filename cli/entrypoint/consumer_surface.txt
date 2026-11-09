@@ -62,6 +62,7 @@ tools/docs/ruby:defs.bzl
 tools/docs/rust:defs.bzl
 tools/docs/site:site.bzl
 tools/docs/typescript:defs.bzl
+tools/docs/zig:defs.bzl
 typescript/rules:defs.bzl
 vue/rules:defs.bzl
 zig/rules:defs.bzl

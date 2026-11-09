@@ -600,6 +600,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//tools/docs/rust:defs.bzl` | `rust_shard_action` |
 |  |  | `@rules_dx//tools/docs/typescript:defs.bzl` | `docs_typescript_shard` |
 |  |  | `@rules_dx//tools/docs/typescript:defs.bzl` | `typescript_doc_shard` |
+|  |  | `@rules_dx//tools/docs/zig:defs.bzl` | `zig_doc_shard` |
+|  |  | `@rules_dx//tools/docs/zig:defs.bzl` | `zig_shard_action` |
 |  |  | `@rules_dx//tools/testing/hermetic:defs.bzl` | `hermetic_manifest` |
 |  |  | `@rules_dx//tools/testing/hermetic:defs.bzl` | `hermetic_qualification` |
 |  |  | `@rules_dx//tools/testing/hermetic:defs.bzl` | `nested_bazel_test` |

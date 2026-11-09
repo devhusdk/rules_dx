@@ -353,6 +353,7 @@ fn page_text(page: &Page, known: &BTreeSet<&str>, titles: &Titles, source_url: &
             Some(("vue", _)) => "ts",
             Some(("d", _)) => "d",
             Some(("haskell", _)) => "haskell",
+            Some(("zig", _)) => "zig",
             _ => "text",
         };
         text.push_str(&format!("```{fence}\n{}\n```\n\n", symbol.signature_text));

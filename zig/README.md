@@ -31,6 +31,15 @@ zig_test(
 
 Start a project with `dx init --apply demo` and add sources.
 
+## API docs
+
+`dx docs` documents every `zig_library` in scope. A small Zig program built with
+the pinned Zig reads each source with `std.zig.Ast`, and `zig_doc_shard`
+(`@rules_dx//tools/docs/zig:defs.bzl`) turns the `///` and `//!` comments of the
+public declarations into the API reference. Own files the main file re-exports
+with `pub const x = @import("x.zig")` become modules. Nothing needs to be
+installed.
+
 ## Benchmarks
 
 `zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.

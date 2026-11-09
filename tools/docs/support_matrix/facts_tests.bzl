@@ -24,6 +24,7 @@ load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/docs/julia:defs.bzl", "julia_doc_shard")
 load("//tools/docs/ocaml:defs.bzl", "ocaml_doc_shard")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+load("//tools/docs/zig:defs.bzl", "zig_doc_shard")
 load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
 load(":languages.bzl", "BENCH", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "PLATFORMS", "UNSUPPORTED_CONSTRAINTS")
 
@@ -56,6 +57,7 @@ _SHARD_RULES = {
     "svelte_doc_shard": svelte_doc_shard,
     "typescript_doc_shard": typescript_doc_shard,
     "vue_doc_shard": vue_doc_shard,
+    "zig_doc_shard": zig_doc_shard,
 }
 
 def _doc_problems(facts):

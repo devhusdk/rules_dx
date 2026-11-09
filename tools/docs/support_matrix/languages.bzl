@@ -700,7 +700,7 @@ LANGUAGES = [
         "zig",
         bench = "zig_bench",
         deps = "none for `build.zig.zon`: the zig family does not fetch `.dependencies`",
-        doc = NO_DOC,
+        doc = struct(tool = "zig std.zig.Ast", shard = "zig_doc_shard"),
         dead_code = ["zig ast-check unused local, unused parameter"],
         coverage = ["kcov"],
         coverage_note = "kcov runs on Linux only",

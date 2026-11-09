@@ -12,6 +12,7 @@ load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("@rules_fortran//fortran:defs.bzl", _FortranInfo = "FortranInfo")
 load("//php/rules:providers.bzl", _PhpInfo = "PhpInfo")
 load("//php/toolchain:php.bzl", _PHP_EXEC_TOOLCHAIN = "EXEC_TOOLCHAIN_TYPE")
+load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_haskell//haskell:providers.bzl", _HaskellInfo = "HaskellInfo")
@@ -34,6 +35,7 @@ load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/julia:defs.bzl", "julia_shard_action")
 load("//tools/docs/ocaml:defs.bzl", "ODOC_CONFIG", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
 load("//tools/docs/haskell:defs.bzl", "HASKELL_TOOLCHAIN", "haskell_shard_action")
+load("//tools/docs/zig:defs.bzl", "zig_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
 load("//tools/docs/perl:defs.bzl", "perl_shard_action")
 load("//tools/docs/powershell:defs.bzl", "powershell_shard_action")
@@ -136,6 +138,16 @@ def _haskell_docs_shard(target, ctx):
     if ctx.toolchains[HASKELL_TOOLCHAIN] == None or not target[_HaskellInfo].source_files.to_list():
         return None
     return haskell_shard_action(ctx, target[_HaskellInfo], ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._haskell_extract).shard
+
+def _zig_docs_shard(target, ctx):
+    if _ZigModuleInfo not in target or DocsShardInfo in target:
+        return None
+    if ctx.rule.kind.endswith("_test") or ctx.rule.kind.endswith("_binary") or ctx.label.name.endswith("_upstream"):
+        return None
+    own = [f for f in getattr(ctx.rule.files, "srcs", []) if f.extension == "zig"]
+    if not own:
+        return None
+    return zig_shard_action(ctx, own, ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._zig_dump, ctx.executable._zig_extract).shard
 
 def _dotnet_docs_shard(target, ctx):
     if DocsShardInfo in target or DotnetDocsInfo not in target:
@@ -415,6 +427,9 @@ def _real_docs_aspect_impl(target, ctx):
     haskell_shard = _haskell_docs_shard(target, ctx)
     if haskell_shard:
         parts.append({"dx_results": [haskell_shard], "dx_docs_shards": [haskell_shard]})
+    zig_shard = _zig_docs_shard(target, ctx)
+    if zig_shard:
+        parts.append({"dx_results": [zig_shard], "dx_docs_shards": [zig_shard]})
     dotnet_shard = _dotnet_docs_shard(target, ctx)
     if dotnet_shard:
         parts.append({"dx_results": [dotnet_shard], "dx_docs_shards": [dotnet_shard]})
@@ -464,7 +479,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Haskell, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Julia, OCaml, Fortran, PHP, Avro, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The Avro branch reads the `doc` attributes of an avro_library's own .avsc srcs and of the schemas the pinned avro-tools (//config:tool_avro) writes for its .avdl srcs with idl2schemata, with the DocIr extractor (//tools/docs/avro/extract:avro_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Haskell, Zig, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Julia, OCaml, Fortran, PHP, Avro, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The Avro branch reads the `doc` attributes of an avro_library's own .avsc srcs and of the schemas the pinned avro-tools (//config:tool_avro) writes for its .avdl srcs with idl2schemata, with the DocIr extractor (//tools/docs/avro/extract:avro_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_avro_extract": attr.label(
@@ -672,6 +687,16 @@ real_docs_aspect = aspect(
         ),
         "_svelte_meta": _component_meta_attr("svelte"),
         "_vue_meta": _component_meta_attr("vue"),
+        "_zig_dump": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/zig/dump:zig_doc_dump"),
+            executable = True,
+        ),
+        "_zig_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/zig/extract:zig_extract"),
+            executable = True,
+        ),
     },
     fragments = ["cpp"],
     requires = [rust_doc_inputs_aspect, dotnet_docs_collect_aspect],

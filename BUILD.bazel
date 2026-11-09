@@ -41,7 +41,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude quality/testdata
 # gazelle:exclude cli/entrypoint
 # gazelle:exclude tools/coverage
-# gazelle:exclude tools/testing/hermetic
 # gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture

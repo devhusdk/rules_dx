@@ -1818,6 +1818,7 @@ crate.from_cargo(
         "//tools/docs/site:Cargo.toml",
         "//tools/ide:Cargo.toml",
         "//tools/testing/process_probe:Cargo.toml",
+        "//tools/testing/hermetic:Cargo.toml",
         "//tools/docs/support_matrix:Cargo.toml",
         "//tools/docs/tiers:Cargo.toml",
         "//tools/docs/components:Cargo.toml",

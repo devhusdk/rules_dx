@@ -12,9 +12,15 @@ fn starter_generates_its_files_and_deps() {
     let root = scaffold::scaffold_fixture(&scratch, &fixture, "demo-app");
 
     let prefix = format!("{}/{fixture}/", scaffold::FIXTURES_DIR);
+    let common = format!("{}/common/", scaffold::FIXTURES_DIR);
     let mut paths: Vec<&str> = files
         .split_whitespace()
-        .filter_map(|file| file.strip_prefix(&prefix)?.strip_suffix(".fixture"))
+        .filter_map(|file| {
+            let rest = file
+                .strip_prefix(&prefix)
+                .or_else(|| file.strip_prefix(&common)?.split_once('/').map(|split| split.1))?;
+            rest.strip_suffix(".fixture")
+        })
         .filter(|path| *path != "families")
         .collect();
     paths.sort_unstable();

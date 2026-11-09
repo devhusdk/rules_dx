@@ -11,6 +11,10 @@ pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 /// `DX_FIXTURE_FILES` lists (`$(rootpaths //tools/testing/starters/fixtures:<fixture>)`; files of
 /// other fixtures in the list are skipped).
 ///
+/// Files under `common/<layer>/` of the fixtures directory are shared layers the fixture lists in
+/// `starter_fixture(layers = ...)`; they are written like the fixture's own files, and a fixture
+/// file with the same destination as a shared file panics.
+///
 /// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` and `.bazelrc` are appended to
 /// what `dx init` wrote; every other file is written as is. A `families.fixture` file lists family
 /// names, one per line; `MODULE.bazel` then also depends on each `rules_dx_<family>` from
@@ -34,9 +38,22 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
     let files = std::env::var("DX_FIXTURE_FILES")
         .unwrap_or_else(|_| panic!("DX_FIXTURE_FILES must list the {fixture} fixture"));
     let prefix = format!("{FIXTURES_DIR}/{fixture}/");
+    let common = format!("{FIXTURES_DIR}/common/");
     let mut copied = 0;
+    let mut own = Vec::new();
+    let mut shared = Vec::new();
     for file in files.split_whitespace() {
-        let Some(rest) = file.strip_prefix(&prefix) else {
+        let rest = if let Some(rest) = file.strip_prefix(&prefix) {
+            own.push(rest);
+            rest
+        } else if let Some(rest) = file.strip_prefix(&common) {
+            let rest = rest
+                .split_once('/')
+                .unwrap_or_else(|| panic!("{file} is not under a common layer"))
+                .1;
+            shared.push(rest);
+            rest
+        } else {
             continue;
         };
         let dest = rest
@@ -81,6 +98,11 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
         std::fs::write(&target, body).unwrap_or_else(|error| panic!("write {target:?}: {error}"));
         copied += 1;
     }
+    let duplicated: Vec<&&str> = own.iter().filter(|path| shared.contains(path)).collect();
+    assert!(
+        duplicated.is_empty(),
+        "{fixture} repeats files of its common layers: {duplicated:?}"
+    );
     assert!(
         copied > 0,
         "DX_FIXTURE_FILES lists no {fixture} files: {files}"

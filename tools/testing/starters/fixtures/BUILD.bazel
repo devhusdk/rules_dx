@@ -3,213 +3,181 @@
 # starter_scaffold::scaffold_fixture strips the suffix after `dx init --apply`; the hermetic
 # qualifications map single files to their workspace paths.
 
+load(":defs.bzl", "starter_fixture")
+
 exports_files(
     glob(["**/*.fixture"]),
     visibility = ["//visibility:public"],
 )
 
-filegroup(
+starter_fixture(
     name = "astro",
-    srcs = glob(["astro/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme-web", "js"],
 )
 
-filegroup(
+starter_fixture(
     name = "c",
-    srcs = glob(["c/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "cpp",
-    srcs = glob(["cpp/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "csharp",
-    srcs = glob(["csharp/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "cuda",
-    srcs = glob(["cuda/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc"],
 )
 
-filegroup(
+starter_fixture(
     name = "d",
-    srcs = glob(["d/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "dart",
-    srcs = glob(["dart/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme-web"],
 )
 
-filegroup(
+starter_fixture(
     name = "elixir",
-    srcs = glob(["elixir/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "erlang",
-    srcs = glob(["erlang/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "flutter",
-    srcs = glob(["flutter/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme-web"],
 )
 
-filegroup(
+starter_fixture(
     name = "fortran",
-    srcs = glob(["fortran/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "fsharp",
-    srcs = glob(["fsharp/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "go",
-    srcs = glob(["go/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "haskell",
-    srcs = glob(["haskell/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc"],
 )
 
-filegroup(
+starter_fixture(
     name = "java",
-    srcs = glob(["java/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "javascript",
-    srcs = glob(["javascript/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "julia",
-    srcs = glob(["julia/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc"],
 )
 
-filegroup(
+starter_fixture(
     name = "kotlin",
-    srcs = glob(["kotlin/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "lua",
-    srcs = glob(["lua/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "mdx",
-    srcs = glob(["mdx/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme-web", "js"],
 )
 
-filegroup(
+starter_fixture(
     name = "ocaml",
-    srcs = glob(["ocaml/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "perl",
-    srcs = glob(["perl/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "php",
-    srcs = glob(["php/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "powershell",
-    srcs = glob(["powershell/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc"],
 )
 
-filegroup(
+starter_fixture(
     name = "python",
-    srcs = glob(["python/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "ruby",
-    srcs = glob(["ruby/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
-    name = "rust-android",
-    srcs = glob(["rust-android/**"]),
-    visibility = ["//visibility:public"],
-)
-
-filegroup(
+starter_fixture(
     name = "rust",
-    srcs = glob(["rust/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
+    name = "rust-android",
+    layers = ["bazelrc"],
+)
+
+starter_fixture(
     name = "scala",
-    srcs = glob(["scala/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "svelte",
-    srcs = glob(["svelte/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme-web", "js"],
 )
 
-filegroup(
+starter_fixture(
     name = "swift",
-    srcs = glob(["swift/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "typescript",
-    srcs = glob(["typescript/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
-filegroup(
+starter_fixture(
     name = "vue",
-    srcs = glob(["vue/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme-web", "js"],
 )
 
-filegroup(
+starter_fixture(
     name = "zig",
-    srcs = glob(["zig/**"]),
-    visibility = ["//visibility:public"],
+    layers = ["bazelrc", "readme"],
 )
 
 filegroup(

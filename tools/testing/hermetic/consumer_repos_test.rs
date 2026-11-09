@@ -10,18 +10,21 @@ use dx_testing::{read_text, runfiles_root};
 /// `rules_dx` module itself, and the ones Bazel provides.
 const DEFAULT_REPOS: &[&str] = &["my_dx", "rules_dx", "platforms", "bazel_tools"];
 
+/// The repository a label string names after `@` or `@@`, if it names one.
+fn label_repo(label: &str) -> Option<&str> {
+    let rest = label.strip_prefix('@')?;
+    let rest = rest.strip_prefix('@').unwrap_or(rest);
+    let name = rest.split(['/', ':']).next().unwrap_or_default();
+    (!name.is_empty()).then_some(name)
+}
+
 /// Repository names after `@` in the label-like strings of a BUILD file.
 fn referenced(build: &str) -> BTreeSet<String> {
     let mut found = BTreeSet::new();
     for line in build.lines() {
         let code = line.split('#').next().unwrap_or_default();
         for piece in code.split(['"', '\'']).skip(1).step_by(2) {
-            let Some(rest) = piece.strip_prefix('@') else {
-                continue;
-            };
-            let rest = rest.strip_prefix('@').unwrap_or(rest);
-            let name = rest.split(['/', ':']).next().unwrap_or_default();
-            if !name.is_empty() {
+            if let Some(name) = label_repo(piece) {
                 found.insert(name.to_owned());
             }
         }
@@ -29,13 +32,23 @@ fn referenced(build: &str) -> BTreeSet<String> {
     found
 }
 
-/// Repositories a fragment declares with `bazel_dep`, `use_repo` or a repository rule.
+/// Repositories a fragment declares with `bazel_dep`, `use_repo` or a repository rule, or
+/// loads an extension or repository rule from: the family modules a consumer uses are
+/// provided by the harness, and the label of the extension it loads must resolve.
 fn declared(fragment: &str) -> BTreeSet<String> {
     let module = ModuleFile::parse(fragment).expect("fragment parses");
     let mut names = BTreeSet::new();
     for call in module.calls_named("bazel_dep") {
         if let Some(name) = call.str("repo_name").or_else(|| call.str("name")) {
             names.insert(name.to_owned());
+        }
+    }
+    for call in module
+        .calls_named("use_extension")
+        .chain(module.calls_named("use_repo_rule"))
+    {
+        if let Some(Value::Str(label)) = call.positional.first() {
+            names.extend(label_repo(&label.value).map(str::to_owned));
         }
     }
     for call in module.calls_named("use_repo") {
@@ -121,5 +134,12 @@ fn an_undeclared_repository_is_found() {
     assert_eq!(
         declared(fragment).into_iter().collect::<Vec<_>>(),
         ["maven", "rules_cc"]
+    );
+    // A family module the harness provides is declared by the extension the fragment loads from it.
+    let family = "msix_tools = use_extension(\"@rules_dx_msix//:extensions.bzl\", \"msix_tools\")\n\
+                  rule = use_repo_rule(\"@@rules_dx_android//toolchain:repos.bzl\", \"repo\")\n";
+    assert_eq!(
+        declared(family).into_iter().collect::<Vec<_>>(),
+        ["rules_dx_android", "rules_dx_msix"]
     );
 }

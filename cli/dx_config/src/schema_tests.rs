@@ -28,3 +28,16 @@ fn schema_accepts_a_config_and_rejects_typos() {
     assert!(!schema.is_valid(&toml_value("schema_version = 1\nprofle = \"strict\"")));
     assert!(!schema.is_valid(&toml_value("schema_version = 1\nprofile = \"loose\"")));
 }
+
+#[test]
+fn schema_lists_family_and_tool_ids() {
+    let schema = validator();
+    assert!(schema.is_valid(&toml_value(
+        "schema_version = 1\nskip_tools = [\"typos\"]\n[families.erlang]\nlint = [\"elvis\", \"+typos\", \"-dialyzer\"]\n"
+    )));
+    assert!(!schema.is_valid(&toml_value("schema_version = 1\n[families.erlnag]\n")));
+    assert!(!schema.is_valid(&toml_value(
+        "schema_version = 1\n[families.erlang]\nlint = [\"elvs\"]\n"
+    )));
+    assert!(!schema.is_valid(&toml_value("schema_version = 1\nskip_tools = [\"nope\"]\n")));
+}

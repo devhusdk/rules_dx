@@ -44,9 +44,11 @@ taplo  -  tier base .dx/config/taplo/base.toml
 Picks the tier, the tools of each family, and what dx leaves out. Optional:
 with no `dx.toml`, every family found in the tree runs its curated tools at the
 standard tier. dx writes `.dx/` from it; never edit `.dx/`. The JSON Schema is
-[`dx.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/dx_config/schema/dx.schema.json).
+[`dx.schema.json`](https://github.com/devhusdk/rules_dx/blob/main/cli/dx_config/schema/dx.schema.json);
+it lists every family and tool id, so an editor with a TOML schema plugin completes them. Start the file with the `#:schema` line below to point the editor at it.
 
 ```toml
+#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/dx_config/schema/dx.schema.json
 schema_version = 1
 tier = "strict"
 

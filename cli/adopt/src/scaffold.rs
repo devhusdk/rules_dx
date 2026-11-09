@@ -116,7 +116,7 @@ const GITATTRIBUTES_CONTENT: &str = concat!(
 const BAZEL_EDITOR_EXTENSION: &str = "bazelbuild.vscode-bazel";
 
 /// Language editor extensions, each with the file extensions that bring it in.
-const LANGUAGE_EDITOR_EXTENSIONS: [(&str, &[&str]); 10] = [
+const LANGUAGE_EDITOR_EXTENSIONS: [(&str, &[&str]); 17] = [
     ("rust-lang.rust-analyzer", &[".rs"]),
     ("ms-python.python", &[".py", ".pyi"]),
     (
@@ -133,6 +133,13 @@ const LANGUAGE_EDITOR_EXTENSIONS: [(&str, &[&str]); 10] = [
     ("scalameta.metals", &[".scala"]),
     ("ms-dotnettools.csharp", &[".cs"]),
     ("ionide.ionide-fsharp", &[".fs", ".fsi", ".fsx"]),
+    ("Dart-Code.dart-code", &[".dart"]),
+    ("astro-build.astro-vscode", &[".astro"]),
+    ("haskell.haskell", &[".hs"]),
+    ("elixir-lsp.vscode-elixir-ls", &[".ex", ".exs"]),
+    ("julialang.language-julia", &[".jl"]),
+    ("ms-azuretools.vscode-bicep", &[".bicep", ".bicepparam"]),
+    ("ms-vscode.cmake-tools", &[".cmake"]),
 ];
 
 const JS_FILES: &[&str] = &[".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"];
@@ -1344,6 +1351,31 @@ mod tests {
         assert!(got.contains(&"rust-lang.rust-analyzer".to_owned()));
         assert!(got.contains(&"ionide.ionide-fsharp".to_owned()));
         assert!(!got.contains(&"ms-python.python".to_owned()));
+    }
+
+    #[test]
+    fn newer_languages_get_their_extension() {
+        let files = [
+            ("a.dart", ""),
+            ("b.astro", ""),
+            ("c.hs", ""),
+            ("d.exs", ""),
+            ("e.jl", ""),
+            ("f.bicep", ""),
+            ("g.cmake", ""),
+        ];
+        let got = recommendations(&files);
+        for id in [
+            "Dart-Code.dart-code",
+            "astro-build.astro-vscode",
+            "haskell.haskell",
+            "elixir-lsp.vscode-elixir-ls",
+            "julialang.language-julia",
+            "ms-azuretools.vscode-bicep",
+            "ms-vscode.cmake-tools",
+        ] {
+            assert!(got.contains(&id.to_owned()), "{id} missing from {got:?}");
+        }
     }
 
     #[test]

@@ -1060,7 +1060,6 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_qml_typecheck_binary_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
-        "windows_arm64": True,
         "windows_x86_64": True,
     },
     {

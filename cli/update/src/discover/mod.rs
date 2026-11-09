@@ -13,6 +13,7 @@ pub mod github;
 pub mod go;
 pub mod hex;
 pub mod julia;
+pub mod luarocks;
 pub mod maven;
 pub mod npm;
 pub mod nuget;
@@ -122,6 +123,7 @@ pub enum Registry {
     CodeDlang,
     Hex,
     JuliaGeneral,
+    LuaRocksOrg,
     GitHub,
     BazelReleases,
 }
@@ -152,6 +154,7 @@ impl Registry {
             Registry::CodeDlang => format!("https://code.dlang.org/packages/{package}"),
             Registry::Hex => format!("https://hex.pm/packages/{package}"),
             Registry::JuliaGeneral => format!("https://juliahub.com/ui/Packages/General/{package}"),
+            Registry::LuaRocksOrg => format!("https://luarocks.org/search?q={package}"),
             Registry::GitHub => format!("https://github.com/{package}/releases"),
             Registry::BazelReleases => "https://github.com/bazelbuild/bazel/releases".to_owned(),
         }

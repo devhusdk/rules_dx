@@ -9,7 +9,7 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_update::discover::{
     Candidate, Fetch, Findings, Registry, bcr, cabal, cargo, composer, containers, cpan, dub,
-    github, go, hex, julia, maven, npm, nuget, opam, pub_dev, pypi, ruby, swiftpm,
+    github, go, hex, julia, luarocks, maven, npm, nuget, opam, pub_dev, pypi, ruby, swiftpm,
 };
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -452,6 +452,40 @@ pub(super) fn collect(
                     ),
                 );
             }
+            Ecosystem::LuaRocks => {
+                registries.insert(name.to_owned(), Registry::LuaRocksOrg);
+                let locks: Vec<String> = target
+                    .set
+                    .locks
+                    .iter()
+                    .filter(|lock| lock.ends_with(dependency_sets::LUAROCKS_LOCK))
+                    .cloned()
+                    .collect();
+                let mut pins = Vec::new();
+                for text in read_texts(workspace, name, &locks, &mut read_errors) {
+                    match dx_audit::locks::parse_luarocks_lock(&text) {
+                        Ok(parsed) => {
+                            pins.extend(parsed.into_iter().map(|p| (p.name, p.version)));
+                        }
+                        Err(reason) => read_errors.push(dx_update::discover::LookupError {
+                            set: name.to_owned(),
+                            package: dependency_sets::LUAROCKS_LOCK.to_owned(),
+                            reason,
+                        }),
+                    }
+                }
+                merge(
+                    &mut found,
+                    luarocks::outdated(
+                        name,
+                        &pins,
+                        only,
+                        prereleases,
+                        luarocks::DEFAULT_BASE,
+                        fetch,
+                    ),
+                );
+            }
             Ecosystem::Pub => {
                 registries.insert(name.to_owned(), Registry::PubDev);
                 let texts = read_texts(workspace, name, &target.set.locks, &mut read_errors);
@@ -645,7 +679,7 @@ fn merge(into: &mut Findings, from: Findings) {
 }
 
 fn command_for(candidate: &Candidate, ecosystem: Ecosystem) -> Option<String> {
-    if ecosystem == Ecosystem::Dub {
+    if matches!(ecosystem, Ecosystem::Dub | Ecosystem::LuaRocks) {
         return None;
     }
     Some(format!(
@@ -779,9 +813,8 @@ fn emit_text(
             candidate.package,
             candidate.current,
             candidate.latest,
-            command_for(candidate, ecosystem_of(ecosystems, candidate)).unwrap_or_else(|| {
-                "edit dub.json, run dub upgrade, then refresh dub.digests.json".to_owned()
-            })
+            command_for(candidate, ecosystem_of(ecosystems, candidate))
+                .unwrap_or_else(|| { outdated_hint(ecosystem_of(ecosystems, candidate)) })
         ))?;
     }
     for set in unsupported {
@@ -1221,5 +1254,14 @@ mod tests {
         let json = String::from_utf8_lossy(&out);
         assert!(json.contains(CODE_UPDATE_OUTDATED_OVERRIDDEN), "{json}");
         assert!(json.contains("\"maven:com.google.guava:guava\""), "{json}");
+    }
+}
+
+fn outdated_hint(ecosystem: Ecosystem) -> String {
+    match ecosystem {
+        Ecosystem::LuaRocks => {
+            "edit luarocks.lock, then regenerate luarocks.digests.json".to_owned()
+        }
+        _ => "edit dub.json, run dub upgrade, then refresh dub.digests.json".to_owned(),
     }
 }

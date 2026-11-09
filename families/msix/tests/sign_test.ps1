@@ -81,7 +81,7 @@ function Get-StoreCertificate([string]$Thumbprint) {
 }
 
 function Test-NoStoreCert([string]$Thumbprint, [string]$Label) {
-    Assert-Equal 0 (Get-StoreCertificate $Thumbprint).Count "$Label left the certificate in CurrentUser\My"
+    Assert-Equal 0 @(Get-StoreCertificate $Thumbprint).Count "$Label left the certificate in CurrentUser\My"
 }
 
 function Test-KeyGone([string]$KeyLine, [string]$Label) {

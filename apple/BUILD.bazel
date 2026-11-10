@@ -2,3 +2,18 @@ exports_files([
     "README.md",
     "defs.bzl",
 ])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]) + [
+        "//apple/private/bundle:module_srcs",
+        "//apple/private/ios:module_srcs",
+        "//apple/private/macos:module_srcs",
+        "//apple/private/provisioning:module_srcs",
+        "//apple/private/signing:module_srcs",
+    ],
+    visibility = ["//:__subpackages__"],
+)

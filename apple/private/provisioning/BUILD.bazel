@@ -399,3 +399,12 @@ probe_failure_test(
     target = ":managed_simulator_probe",
     target_compatible_with = ["@platforms//os:linux"],
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

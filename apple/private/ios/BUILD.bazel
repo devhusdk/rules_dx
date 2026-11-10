@@ -920,3 +920,12 @@ cell_failure_test(
     expected_failure_substring = "//apple/private/ios:share_stub links no static archive",
     target = ":empty_lib_cell",
 )
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

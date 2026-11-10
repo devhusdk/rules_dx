@@ -196,6 +196,9 @@ rust_test(
     crate_name = "module_srcs_test",
     crate_root = "module_srcs_test.rs",
     data = [
+        "//android:module_srcs",
+        "//apple:module_srcs",
+        "//cuda:module_srcs",
         "//deploy:module_srcs",
         "//erlang:module_srcs",
         "//qt:module_srcs",

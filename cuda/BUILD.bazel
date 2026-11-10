@@ -3,3 +3,15 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
 ])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]) + [
+        "//cuda/private:module_srcs",
+        "//cuda/private/toolchain:module_srcs",
+    ],
+    visibility = ["//:__subpackages__"],
+)

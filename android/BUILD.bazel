@@ -4,3 +4,18 @@ exports_files([
     "extensions.bzl",
     "repos.bzl",
 ])
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]) + [
+        "//android/platforms:module_srcs",
+        "//android/private/packaging:module_srcs",
+        "//android/private/rules:module_srcs",
+        "//android/private/sdk:module_srcs",
+        "//android/private/toolchain:module_srcs",
+    ],
+    visibility = ["//:__subpackages__"],
+)

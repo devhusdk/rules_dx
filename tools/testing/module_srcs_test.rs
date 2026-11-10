@@ -14,6 +14,12 @@ const DECLARED: &[&str] = &[
 
 /// The `.bzl` files that nested consumers of each area load first.
 const ENTRY_POINTS: &[&str] = &[
+    "//android:defs.bzl",
+    "//android:extensions.bzl",
+    "//android:repos.bzl",
+    "//apple:defs.bzl",
+    "//cuda:defs.bzl",
+    "//cuda:extensions.bzl",
     "//deploy/private:archive.bzl",
     "//deploy/private:defs.bzl",
     "//deploy/private:deployment.bzl",

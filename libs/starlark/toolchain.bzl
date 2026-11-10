@@ -68,15 +68,7 @@ cell_archive_rule = repository_rule(
 )
 
 def host_archive(name, tool, cells, build, aliases = {}):
-    """Declares a repository holding the pinned archive of the host cell.
-
-    Args:
-        name: Repository name.
-        tool: Tool name used in failure messages.
-        cells: Dict of cell to a struct with urls, sha256 and binary, and optionally strip_prefix.
-        build: BUILD file content; {binary} is replaced by the cell's binary path.
-        aliases: Dict of host cell to the pinned cell that serves it.
-    """
+    """Declares a repository holding the pinned archive of the host cell."""
     host_archive_rule(
         name = name,
         aliases = aliases,
@@ -86,13 +78,7 @@ def host_archive(name, tool, cells, build, aliases = {}):
     )
 
 def pin_checks(cells, version, archive_attr = "archive"):
-    """Returns the checks every archive pin table shares.
-
-    Args:
-        cells: Dict of cell to a struct with sha256, urls and the archive file name.
-        version: Version string every URL must name.
-        archive_attr: Struct field holding the archive file name each first URL must end with.
-    """
+    """Returns the checks every archive pin table shares."""
     pins = cells.values()
     return [
         expect_true("digests are sha256", all([len(p.sha256) == 64 for p in pins])),
@@ -101,17 +87,7 @@ def pin_checks(cells, version, archive_attr = "archive"):
     ]
 
 def toolchain_target(name, toolchain, toolchain_type, exec_compatible_with = None, target_compatible_with = None, target_settings = None, visibility = None):
-    """Returns one toolchain() target; attributes left as None are omitted.
-
-    Args:
-        name: Target name.
-        toolchain: Label string of the toolchain implementation.
-        toolchain_type: Label string of the toolchain type.
-        exec_compatible_with: List of constraint label strings, or None.
-        target_compatible_with: List of constraint label strings, or None.
-        target_settings: List of config_setting label strings, or None.
-        visibility: List of visibility label strings, or None.
-    """
+    """Returns one toolchain() target; attributes left as None are omitted."""
     lines = ["toolchain(", "    name = {},".format(repr(name))]
     for attr, value in [
         ("exec_compatible_with", exec_compatible_with),
@@ -128,14 +104,7 @@ def toolchain_target(name, toolchain, toolchain_type, exec_compatible_with = Non
     return "\n".join(lines) + "\n"
 
 def hub_checks(hub, toolchain_type, count, forbidden = []):
-    """Returns the checks every toolchain hub BUILD file shares.
-
-    Args:
-        hub: Rendered hub BUILD file content.
-        toolchain_type: Label string the hub must name.
-        count: Number of toolchain() targets the hub must hold.
-        forbidden: Repository names the hub must not mention.
-    """
+    """Returns the checks every toolchain hub BUILD file shares."""
     return [
         expect_true("hub loads nothing", "load(" not in hub),
         expect_true("hub names the toolchain type", toolchain_type in hub),

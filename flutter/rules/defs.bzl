@@ -87,9 +87,9 @@ _flutter_application_forward = dx_library_forward_rule(
     allow_files = FLUTTER_SOURCE_EXTS,
     upstream_providers = [[FlutterApplicationInfo]],
     extra_attrs = {
-        "deps": attr.label_list(providers = [DartInfo]),
-        "language_version": attr.string(),
-        "package_name": attr.string(mandatory = True),
+        "deps": attr.label_list(doc = "Dart libraries the application imports.", providers = [DartInfo]),
+        "language_version": attr.string(doc = "Dart language version of the application."),
+        "package_name": attr.string(doc = "Dart package name of the application.", mandatory = True),
     },
     extra_providers = _application_dart_info,
     runtime = "besteffort",
@@ -105,7 +105,11 @@ def _missing_font_impl(ctx):
     )
     return [DefaultInfo(files = depset([out]))]
 
-_missing_font = rule(implementation = _missing_font_impl, attrs = {"asset": attr.string()})
+_missing_font = rule(
+    implementation = _missing_font_impl,
+    doc = "Fails the build because a font asset named in fonts_json has no file.",
+    attrs = {"asset": attr.string(doc = "Font asset path that has no file.")},
+)
 
 def _missing_font_asset(font_files, fonts_json):
     if type(fonts_json) != "string":
@@ -166,7 +170,8 @@ def _bad_abi_impl(ctx):
 
 _bad_abi = rule(
     implementation = _bad_abi_impl,
-    attrs = {"message": attr.string(mandatory = True)},
+    doc = "Fails the build with the given ABI message.",
+    attrs = {"message": attr.string(doc = "Failure message.", mandatory = True)},
 )
 
 def _flutter_app_kwargs(kwargs):

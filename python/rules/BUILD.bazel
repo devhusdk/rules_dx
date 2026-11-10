@@ -1,6 +1,6 @@
 # gazelle:dx_ignore_import python pytest
 
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "python_library", "python_main", "python_main_rejection", "python_test_rejection")
@@ -254,5 +254,3 @@ real_source_target(
 )
 
 exports_files(["grpc_protoc.py"])
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

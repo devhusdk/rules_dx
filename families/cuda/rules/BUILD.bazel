@@ -1,5 +1,5 @@
 load("//toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "gpu_requirement_errors", "toolkit_errors")
-load("@rules_dx//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
+load("@rules_dx//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "expect_true")
 load("@rules_dx//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
@@ -283,5 +283,3 @@ filegroup(
     ),
     visibility = ["//visibility:public"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

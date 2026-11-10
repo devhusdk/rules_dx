@@ -35,7 +35,6 @@ exports_files([
     "tag_probe.bzl",
     "toolchain.bzl",
     "wrapper.bzl",
-    "wrapper_signatures.sh",
 ])
 
 real_source_target(

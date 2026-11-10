@@ -164,10 +164,7 @@ exit "$status"
 """
 
 def coverage_launcher_script(php, ini, tokens, pcov, converter, tree):
-    """Returns the bash launcher of a php_test under coverage: PCOV loaded, a Clover report converted to LCOV in $COVERAGE_OUTPUT_FILE.
-
-    The first token is the PHPUnit phar; the coverage flags follow it. The tree is the runfiles key of the autoload tree; the converter keeps the sources below its last path segment.
-    """
+    """Returns the bash launcher of a php_test under coverage: PCOV loaded, a Clover report converted to LCOV in $COVERAGE_OUTPUT_FILE."""
     flags = "".join([shell_quote(flag) + " " for flag in ini_flags(ini)])
     tail = " ".join([_bash_word(token) for token in tokens[1:]] + ['"$@"'])
     body = _COVERAGE_BODY.format(tree = tree, php = php, flags = flags, pcov = pcov, head = _bash_word(tokens[0]), tail = tail, converter = converter, marker = tree.rsplit("/", 1)[-1])
@@ -191,10 +188,7 @@ def launcher_descriptor(php, ini, tokens):
     return "\n".join(lines) + "\n"
 
 def write_launcher(ctx, php, ini, tokens):
-    """Writes the launcher of a php program: a bash script, or the native launcher with a descriptor on Windows.
-
-    Returns the executable and the runfiles the launcher needs beside the php files.
-    """
+    """Writes the launcher of a php program: a bash script, or the native launcher with a descriptor on Windows."""
     key = runfiles_path(ctx.workspace_name, php.interpreter)
     if target_is_windows(ctx):
         launcher, _, runfiles = write_native_launcher(ctx, launcher_descriptor(key, ini, tokens))

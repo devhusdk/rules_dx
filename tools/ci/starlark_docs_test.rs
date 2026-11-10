@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::runfiles_root;
 use starlark_syntax::syntax::ast::{
-    ArgumentP, AstArgument, AstExpr, AstLiteral, AstStmt, ExprP, StmtP,
+    ArgumentP, AstArgument, AstExpr, AstLiteral, AstParameter, AstStmt, ExprP, ParameterP, StmtP,
 };
 use starlark_syntax::syntax::{AstModule, Dialect};
 
@@ -14,8 +14,11 @@ const DOCUMENTED_CALLS: [&str; 2] = ["rule", "aspect"];
 /// Path segments whose .bzl files are test support, not public rules.
 const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_party"];
 
+/// Name suffixes of public wrappers whose parameters after `name` must be keyword-only.
+const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test", "_application"];
+
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 72] = [
+const PACKAGES: [&str; 92] = [
     "appimage",
     "astro/private",
     "bicep/rules",
@@ -88,6 +91,26 @@ const PACKAGES: [&str; 72] = [
     "vue/private",
     "zig/rules",
     "zig/tools",
+    "api_spec/rules",
+    "asciidoc/rules",
+    "avro/rules",
+    "cloudformation/rules",
+    "cmake/rules",
+    "d/rules",
+    "dotnet",
+    "flutter/rules",
+    "fortran/rules",
+    "haskell/rules",
+    "helm/rules",
+    "kubernetes/rules",
+    "libs/exec_os",
+    "make/rules",
+    "php/rules",
+    "rego/rules",
+    "rst/rules",
+    "swift/rules",
+    "tools/platforms",
+    "tools/testing/starters",
 ];
 
 /// Set by a family workspace to the comma-separated packages it checks; the size floors then do not apply.
@@ -147,7 +170,46 @@ fn scan(path: &str, source: &str) -> Scan {
         .node
         .visit_expr(|expr| walk(&ast, path, expr, &mut out));
     check_defs(&ast, path, ast.statement(), &mut out);
+    if path.rsplit('/').next() == Some("defs.bzl") {
+        check_wrappers(&ast, path, ast.statement(), &mut out);
+    }
     out
+}
+
+/// Reports every public top-level wrapper def with a positional parameter after `name`.
+fn check_wrappers(ast: &AstModule, path: &str, stmt: &AstStmt, out: &mut Scan) {
+    let stmts = match &stmt.node {
+        StmtP::Statements(stmts) => stmts.iter().collect::<Vec<_>>(),
+        _ => vec![stmt],
+    };
+    for stmt in stmts {
+        let StmtP::Def(def) = &stmt.node else {
+            continue;
+        };
+        let name = def.name.node.ident.as_str();
+        if name.starts_with('_') || !WRAPPER_SUFFIXES.iter().any(|suffix| name.ends_with(suffix)) {
+            continue;
+        }
+        if positional_after_name(&def.params) {
+            out.findings.push(format!(
+                "{path}:{}: def {name} takes positional parameters after name; use `name, *, ...`",
+                ast.file_span(stmt.span).resolve_span().begin.line + 1
+            ));
+        }
+    }
+}
+
+/// Whether a parameter follows `name` before the first `*` or `**kwargs`.
+fn positional_after_name(params: &[AstParameter]) -> bool {
+    let Some(at) = params.iter().position(
+        |param| matches!(&param.node, ParameterP::Normal(id, _, _) if id.node.ident == "name"),
+    ) else {
+        return false;
+    };
+    params[at + 1..]
+        .iter()
+        .take_while(|param| !matches!(param.node, ParameterP::NoArgs | ParameterP::KwArgs(..)))
+        .any(|param| matches!(param.node, ParameterP::Normal(..) | ParameterP::Args(..)))
 }
 
 /// Reports every def whose docstring spans more than one line.
@@ -366,8 +428,8 @@ fn every_rule_aspect_and_attr_has_doc() {
 
 #[test]
 fn a_package_with_only_a_build_file_is_not_missing() {
-    let root = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR"))
-        .join("missing_packages");
+    let root =
+        PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR")).join("missing_packages");
     std::fs::create_dir_all(root.join("tests")).expect("create tests");
     std::fs::write(root.join("tests/BUILD.bazel"), "").expect("write BUILD.bazel");
     let packages = ["tests".to_string(), "absent".to_string()];
@@ -522,4 +584,40 @@ fn an_attr_with_kwargs_still_needs_doc() {
 fn a_non_attr_dict_value_is_ignored() {
     let source = "_A = {\"x\": \"s\", \"y\": foo.label()}\n";
     assert!(findings("pkg/defs.bzl", source).is_empty());
+}
+
+#[test]
+fn a_positional_wrapper_parameter_is_reported() {
+    let source = "def x_test(name, srcs, *, deps = []):\n    pass\n";
+    assert_eq!(
+        findings("pkg/defs.bzl", source),
+        ["pkg/defs.bzl:1: def x_test takes positional parameters after name; use `name, *, ...`"]
+    );
+}
+
+#[test]
+fn a_positional_parameter_with_a_default_is_reported() {
+    let source = "def x_application(name = \"a\", srcs = []):\n    pass\n";
+    assert_eq!(findings("pkg/defs.bzl", source).len(), 1);
+}
+
+#[test]
+fn a_keyword_only_wrapper_is_accepted() {
+    let source = "def x_binary(name, *, srcs = []):\n    pass\ndef y_bench(name = \"b\", *, srcs = []):\n    pass\ndef z_fuzz_test(name, **kwargs):\n    pass\n";
+    assert!(findings("pkg/defs.bzl", source).is_empty());
+}
+
+#[test]
+fn a_wrapper_with_only_name_is_accepted() {
+    assert!(findings("pkg/defs.bzl", "def x_test(name):\n    pass\n").is_empty());
+}
+
+#[test]
+fn a_private_wrapper_is_ignored() {
+    assert!(findings("pkg/defs.bzl", "def _x_test(name, srcs):\n    pass\n").is_empty());
+}
+
+#[test]
+fn a_def_outside_defs_bzl_is_ignored() {
+    assert!(findings("pkg/other.bzl", "def x_test(name, srcs):\n    pass\n").is_empty());
 }

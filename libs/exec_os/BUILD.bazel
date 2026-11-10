@@ -35,4 +35,5 @@ real_source_target(
         "exec_os_tests.bzl",
     ],
     tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
 )

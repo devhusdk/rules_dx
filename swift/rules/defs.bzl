@@ -116,10 +116,7 @@ def _swift_runtime_kwargs(kwargs, platforms):
     return out
 
 def _swift_coverage_kwargs(kwargs):
-    """Links Swift's own profile runtime into a swift_test under bazel coverage.
-
-    swiftc writes the profile data layout of its LLVM, so the runtime that reads it must come from the same archive, not from the pinned cc toolchain.
-    """
+    """Links Swift's own profile runtime into a swift_test under bazel coverage."""
     out = dx_append_flags(kwargs, "features", _STATIC + _INDEX)
     out = dx_append_flags(out, "features", select({
         Label("//swift/rules:coverage_linux"): ["-llvm_coverage_map_format"],

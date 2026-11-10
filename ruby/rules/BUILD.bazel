@@ -1,4 +1,3 @@
-load("//libs/starlark:conformance.bzl", "dx_wrapper_signature_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":toolchain_tests.bzl", "ruby_toolchain_contract_tests")
 load(":wrapper_tests.bzl", "ruby_wrapper_contract_tests")
@@ -28,5 +27,3 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

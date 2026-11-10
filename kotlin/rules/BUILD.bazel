@@ -1,5 +1,5 @@
 load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "label_string")
 load("//libs/starlark:wrapper.bzl", "dx_warnings_as_errors")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -166,5 +166,3 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

@@ -1,6 +1,6 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//libs/starlark:cells.bzl", "unsupported_value")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -102,5 +102,3 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

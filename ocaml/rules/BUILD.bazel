@@ -1,4 +1,4 @@
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//libs/starlark:wrapper.bzl", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -328,5 +328,3 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

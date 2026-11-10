@@ -43,9 +43,10 @@ def _dx_fuzz_run_impl(ctx):
 
 _dx_fuzz_run = rule(
     implementation = _dx_fuzz_run_impl,
+    doc = "The runner executable that `dx fuzz` calls for one fuzz binary.",
     attrs = {
-        "data": attr.label_list(allow_files = True),
-        "runner": attr.label(default = Label("//libs/fuzz_run:fuzz_run"), executable = True, cfg = "target"),
+        "data": attr.label_list(doc = "Files the runner needs at run time.", allow_files = True),
+        "runner": attr.label(doc = "The fuzz_run binary.", default = Label("//libs/fuzz_run:fuzz_run"), executable = True, cfg = "target"),
     },
     executable = True,
 )
@@ -61,11 +62,7 @@ def dx_fuzz_runner(name, fuzz, engine = "libfuzzer", target = "", harness = None
     )
 
 def dx_fuzz_target(name, rule, *, tags = None, visibility = None, engine = "libfuzzer", target = "", fuzz = None, harness = None, **attrs):
-    """Declares the fuzz binary `<name>` with `rule` and the `<name>_run` runner `dx fuzz` calls.
-
-    `<name>` is testonly and tagged "dx-fuzz" and "manual". `fuzz` is the label the runner
-    executes, `:<name>` by default. `harness` is passed to the runner after it. `attrs` go to `rule`.
-    """
+    """Declares the fuzz binary `<name>` with `rule` and the `<name>_run` runner `dx fuzz` calls."""
     rule(
         name = name,
         testonly = True,
@@ -88,13 +85,7 @@ def dx_fuzz_test(
         target = "",
         test = False,
         **kwargs):
-    """Declares the private `<name>_bin` with `binary_rule`, the fuzz binary `<name>` and the `<name>_run` runner.
-
-    `<name>` is a `dx_fuzz_binary` unless `fuzz_rule` is set; `fuzz_kwargs` are its extra attributes.
-    `binary_kwargs` are the language rule's own attributes and win over `kwargs`. With `test`, `kwargs`
-    split like a test rule's and `<name>` gets the default size; otherwise into `args` and
-    `target_compatible_with`, which `<name>` takes.
-    """
+    """Declares the private `<name>_bin` with `binary_rule`, the fuzz binary `<name>` and the `<name>_run` runner."""
     if test:
         build, run = split_test_kwargs(kwargs)
         run = with_default_size(run)

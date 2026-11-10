@@ -1,5 +1,4 @@
 load("@rules_cc//cc:defs.bzl", "cc_import")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_signature_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
@@ -84,5 +83,3 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

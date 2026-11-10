@@ -43,7 +43,7 @@ def _coverage_impl(ctx):
 
 _coverage_test = analysistest.make(
     _coverage_impl,
-    attrs = {"swift_tools": attr.bool()},
+    attrs = {"swift_tools": attr.bool(doc = "Whether the coverage tools must come from the Swift toolchain.")},
     config_settings = {
         "//command_line_option:collect_code_coverage": True,
         "//command_line_option:experimental_generate_llvm_lcov": True,

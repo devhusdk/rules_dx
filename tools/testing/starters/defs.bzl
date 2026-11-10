@@ -3,7 +3,7 @@
 load("//rust/rules:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "STARTER_CONSUMER_TAGS")
 
-def starter_consumer_test(name, fixture = None, target_compatible_with = None, bazel_deps = ["rules_dx"]):
+def starter_consumer_test(name, *, fixture = None, target_compatible_with = None, bazel_deps = ["rules_dx"]):
     """Declares a test that checks one starter fixture's generated files and its MODULE.bazel bazel_dep names."""
     target_compatible_with = target_compatible_with or []
     fixture = fixture or name

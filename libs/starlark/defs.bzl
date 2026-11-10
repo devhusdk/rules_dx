@@ -435,7 +435,7 @@ _MODES = {
     "unit": _starlark_unit_test,
 }
 
-def starlark_test(name, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, file_line_endings = {}, **kwargs):
+def starlark_test(name, *, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, file_line_endings = {}, **kwargs):
     """Instantiates one test target in the given mode."""
     if mode not in _MODES:
         fail("starlark_test: unknown mode '" + mode + "': want one of " +

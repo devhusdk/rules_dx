@@ -16,17 +16,7 @@ def _input_args(inputs):
     return ["--input=$(rlocationpath {})".format(src) for src in inputs]
 
 def haskell_deps_resolve(name, srcs, target = "all", stack_lock = "", **kwargs):
-    """Writes cabal.project.freeze and haskell_deps.json next to the cabal project in this package.
-
-    Run it with `bazel run`. It needs network access to Hackage.
-
-    Args:
-        name: Target name.
-        srcs: The .cabal files and cabal.project of the project.
-        target: The cabal target to plan. Name the package or component when the project builds a remote tarball, which "all" does not cover.
-        stack_lock: Name of a stack.yaml.lock in this package. The resolve pins the versions of its snapshot and extra-deps instead of letting cabal pick them. Include the file in srcs.
-        **kwargs: Passed to the py_binary.
-    """
+    """Writes cabal.project.freeze and haskell_deps.json next to the cabal project in this package."""
     package = native.package_name()
     py_binary(
         name = name,
@@ -44,19 +34,7 @@ def haskell_deps_resolve(name, srcs, target = "all", stack_lock = "", **kwargs):
     )
 
 def haskell_deps_resolve_test(name, srcs, freeze = "cabal.project.freeze", sidecar = "haskell_deps.json", **kwargs):
-    """Fails when the freeze file or the sidecar is stale against the cabal project.
-
-    The resolve target is named like this one without the _test suffix.
-
-    The check reads the committed files only and needs no network.
-
-    Args:
-        name: Target name.
-        srcs: The .cabal files and cabal.project of the project.
-        freeze: The committed freeze file.
-        sidecar: The committed JSON sidecar.
-        **kwargs: Passed to the py_test.
-    """
+    """Fails when the freeze file or the sidecar is stale against the cabal project."""
     package = native.package_name()
     py_test(
         name = name,

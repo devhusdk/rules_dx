@@ -89,7 +89,7 @@ def java_test(name, *, srcs = None, visibility = None, **kwargs):
         **dx_without_warnings_attr(kwargs)
     )
 
-def java_jmh_test(name, runtime_deps, **kwargs):
+def java_jmh_test(name, *, runtime_deps, **kwargs):
     """The test target that runs the JMH runner, wrapped like java_test."""
     dx_wrap_test(
         name,

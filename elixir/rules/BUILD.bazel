@@ -1,4 +1,3 @@
-load("//libs/starlark:conformance.bzl", "dx_wrapper_signature_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":wrapper_tests.bzl", "elixir_wrapper_contract_tests")
 
@@ -27,7 +26,6 @@ real_source_target(
     tags = ["corpus"],
 )
 
-dx_wrapper_signature_test(name = "wrapper_signature_test")
 
 filegroup(
     name = "module_srcs",

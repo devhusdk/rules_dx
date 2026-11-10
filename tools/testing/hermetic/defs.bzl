@@ -200,7 +200,7 @@ def hermetic_qualification(
         **kwargs
     )
 
-def nested_bazel_test(name, network = False, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
+def nested_bazel_test(name, *, network = False, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
     """Declares a rust_test that runs a nested Bazel with the shared tags, env and offline downloader."""
     target_compatible_with = target_compatible_with or []
     env_inherit = kwargs.pop("env_inherit", NESTED_BAZEL_ENV_INHERIT)

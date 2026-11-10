@@ -1,7 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//javascript:defs.bzl", "javascript_library")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_signature_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
 load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
@@ -22,8 +21,6 @@ exports_files([
 dev_hub_tests(name = "dev_hub_test")
 
 javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")
 
 javascript_library(
     name = "bench_driver",

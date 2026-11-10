@@ -158,6 +158,7 @@ def _real_source_target_impl(ctx):
 
 _real_source_target = rule(
     implementation = _real_source_target_impl,
+    doc = "Carries source files of several classes for the quality aspects.",
     attrs = dict({
         class_id + "_srcs": attr.label_list(
             doc = "Files of the %s class checked by quality aspects." % class_id,

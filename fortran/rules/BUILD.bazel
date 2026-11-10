@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "FORTRAN_COMPATIBLE_WITH", "FORTRAN_EXTENSIONS", "library_name")
@@ -144,9 +144,6 @@ real_source_target(
         "defs.bzl",
         "fpm_lock.bzl",
         "kwargs.bzl",
-        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

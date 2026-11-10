@@ -1,5 +1,5 @@
 load("//haskell/toolchain:pins.bzl", "qualified_cells")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_signature_test")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "with_gmp")
@@ -159,5 +159,3 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
 )
-
-dx_wrapper_signature_test(name = "wrapper_signature_test")

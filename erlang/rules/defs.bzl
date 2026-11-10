@@ -506,7 +506,7 @@ def erlang_escript_archive(name, visibility = None, **kwargs):
         **dx_binary_forward_kwargs(kwargs)
     )
 
-def erlang_eunit_test(name = "eunit", visibility = None, **kwargs):
+def erlang_eunit_test(name = "eunit", *, visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang eunit test. target and deps are the apps under test."""
     kwargs = erlang_kwargs(kwargs)
     target = kwargs.get("target")
@@ -524,7 +524,7 @@ def ct_run_args(extra_args):
         return extra_args
     return LOCAL_NODE_ARGS + extra_args
 
-def erlang_ct_suite_test(name, suite_name = "", visibility = None, **kwargs):
+def erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang ct_suite macro. Adds -sname undefined and -start_epmd false unless ct_run_extra_args sets -sname or -name."""
     kwargs = erlang_kwargs(kwargs)
     suite = suite_name if suite_name != "" else name

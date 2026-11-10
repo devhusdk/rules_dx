@@ -240,10 +240,7 @@ def dx_gcov_tool(cc_toolchain):
     fail("the gcc toolchain does not ship gcov at " + gcov_path)
 
 def dx_native_test_coverage(ctx, upstream, gcov = False, llvm_cov = None, llvm_profdata = None):
-    """Returns coverage providers that collect native LLVM or gcov coverage.
-
-    llvm_cov and llvm_profdata override the cc toolchain tools with the pair that matches the compiler that wrote the profiles.
-    """
+    """Returns coverage providers that collect native LLVM or gcov coverage."""
     collector = ctx.executable._collect_cc_coverage
     cc_toolchain = find_cc_toolchain(ctx, mandatory = False)
     gcov_tool = None

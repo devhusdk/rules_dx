@@ -12,6 +12,7 @@
 
 use std::fs;
 
+use documentation_ir::json::{field, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -53,41 +54,10 @@ pub fn run(options: &Options) -> Result<(), String> {
     documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
-fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))
-}
-
-fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
-    field(object, key, at)?
-        .as_str()
-        .map(str::to_owned)
-        .ok_or_else(|| format!("{at} '{key}' is not a string"))
-}
-
-fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, String> {
-    field(object, key, at)?
-        .as_u64()
-        .ok_or_else(|| format!("{at} '{key}' is not a number"))
-}
-
 fn list<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Vec<Value>, String> {
     field(object, key, at)?
         .as_array()
         .ok_or_else(|| format!("{at} '{key}' is not a list"))
-}
-
-fn strings(object: &Map<String, Value>, key: &str, at: &str) -> Result<Vec<String>, String> {
-    list(object, key, at)?
-        .iter()
-        .map(|value| {
-            value
-                .as_str()
-                .map(str::to_owned)
-                .ok_or_else(|| format!("{at} '{key}' holds a non-string"))
-        })
-        .collect()
 }
 
 fn entries<'a>(
@@ -236,7 +206,8 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
                 return Err(format!("{item_at} has an empty name"));
             }
             let item_at = format!("{at} item '{item_name}'");
-            let Some(item_kind) = item_kind(&string(item, "kind", &item_at)?, &item_name, &item_at)?
+            let Some(item_kind) =
+                item_kind(&string(item, "kind", &item_at)?, &item_name, &item_at)?
             else {
                 continue;
             };

@@ -12,6 +12,7 @@
 
 use std::fs;
 
+use documentation_ir::json::{boolean, field, number, string};
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -49,31 +50,6 @@ pub fn run(options: &Options) -> Result<(), String> {
         .map_err(|error| format!("cannot read {}: {error}", options.json))?;
     let shard = convert(&json)?;
     documentation_ir::tool::write_shard(&options.out, &shard)
-}
-
-fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))
-}
-
-fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
-    field(object, key, at)?
-        .as_str()
-        .map(str::to_owned)
-        .ok_or_else(|| format!("{at} '{key}' is not a string"))
-}
-
-fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, String> {
-    field(object, key, at)?
-        .as_u64()
-        .ok_or_else(|| format!("{at} '{key}' is not a number"))
-}
-
-fn boolean(object: &Map<String, Value>, key: &str, at: &str) -> Result<bool, String> {
-    field(object, key, at)?
-        .as_bool()
-        .ok_or_else(|| format!("{at} '{key}' is not a boolean"))
 }
 
 fn source(object: &Map<String, Value>, at: &str) -> Result<SourceRef, String> {

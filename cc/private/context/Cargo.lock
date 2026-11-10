@@ -1555,6 +1555,9 @@ version = "0.0.0"
 [[package]]
 name = "documentation_ir"
 version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "dotnet_docs_tests"

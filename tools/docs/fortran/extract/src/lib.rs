@@ -13,6 +13,7 @@
 use std::collections::BTreeSet;
 use std::fs;
 
+use documentation_ir::json::{field, number, string};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -54,25 +55,6 @@ pub fn run(options: &Options) -> Result<(), String> {
     documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
-fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))
-}
-
-fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
-    field(object, key, at)?
-        .as_str()
-        .map(str::to_owned)
-        .ok_or_else(|| format!("{at} '{key}' is not a string"))
-}
-
-fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, String> {
-    field(object, key, at)?
-        .as_u64()
-        .ok_or_else(|| format!("{at} '{key}' is not a number"))
-}
-
 /// Normalizes CRLF line endings and trims trailing whitespace.
 fn normalize(text: &str) -> String {
     text.replace("\r\n", "\n").trim_end().to_owned()
@@ -108,7 +90,11 @@ fn kind_of(kind: &str, signature: &str, at: &str) -> Result<SymbolKind, String> 
     })
 }
 
-fn params(object: &Map<String, Value>, at: &str, incomplete: &mut Vec<String>) -> Result<Vec<Param>, String> {
+fn params(
+    object: &Map<String, Value>,
+    at: &str,
+    incomplete: &mut Vec<String>,
+) -> Result<Vec<Param>, String> {
     let list = field(object, "params", at)?
         .as_array()
         .ok_or_else(|| format!("{at} 'params' is not a list"))?;
@@ -136,7 +122,11 @@ fn params(object: &Map<String, Value>, at: &str, incomplete: &mut Vec<String>) -
     Ok(out)
 }
 
-fn returns(object: &Map<String, Value>, at: &str, incomplete: &mut Vec<String>) -> Result<Option<Returns>, String> {
+fn returns(
+    object: &Map<String, Value>,
+    at: &str,
+    incomplete: &mut Vec<String>,
+) -> Result<Option<Returns>, String> {
     match field(object, "returns", at)? {
         Value::Null => Ok(None),
         Value::Object(returns) => {

@@ -23,6 +23,7 @@ use std::fs;
 use std::path::Path;
 
 use documentation_ir::escape_segment;
+use documentation_ir::json::{field, string};
 use documentation_ir::proto::{
     DocIr, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -122,19 +123,6 @@ pub fn run(options: &Options) -> Result<(), String> {
         let _ = fs::remove_file(&temp);
         format!("cannot write {}: {error}", options.out)
     })
-}
-
-fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))
-}
-
-fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
-    field(object, key, at)?
-        .as_str()
-        .map(str::to_owned)
-        .ok_or_else(|| format!("{at} '{key}' is not a string"))
 }
 
 fn optional<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a Value> {

@@ -4,6 +4,9 @@ name = "documentation_ir"
 version = "0.0.0"
 edition = "2024"
 
+[dependencies]
+serde_json = "1"
+
 [lib]
 name = "documentation_ir"
 path = "src/lib.rs"

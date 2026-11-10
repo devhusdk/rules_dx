@@ -331,7 +331,9 @@ mod tests {
                         assert!(file == in_quality || file == in_language, "{label}");
                     }
                     _ => assert!(
-                        file.starts_with("quality:families/") || file == "tools/docs:aspect.bzl",
+                        file.starts_with("quality:families/")
+                            || file.contains("/private/quality:")
+                            || file == "tools/docs:aspect.bzl",
                         "{label}"
                     ),
                 }

@@ -1,0 +1,18 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//rego:__subpackages__", "//modules:__pkg__", "//quality:__subpackages__", "//tools/ci:__pkg__"])
+
+exports_files([
+    "rego.bzl",
+    "rego_tools.bzl",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "rego.bzl",
+        "rego_tools.bzl",
+    ],
+    tags = ["corpus"],
+)

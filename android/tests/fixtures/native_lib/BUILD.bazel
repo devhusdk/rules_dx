@@ -56,6 +56,7 @@ android_native_library(
     copts = ["-DNATIVE_OFFSET=7"],
     crate_name = "bad_api",
     rust_srcs = ["src/lib.rs"],
+    tags = ["manual"],
     deps = [":native_lib_build_script"],
 )
 

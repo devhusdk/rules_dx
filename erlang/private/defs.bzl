@@ -409,18 +409,15 @@ def _erlang_release_impl(ctx):
             apps.append(app)
     out = ctx.actions.declare_directory(ctx.label.name)
     inputs = []
-    lines = ["set -eu", 'out="$1"', 'mkdir -p "$out"']
+    args = ctx.actions.args()
+    args.add(out.path)
     for app in apps:
         info = app[_ErlangAppInfo]
-        base = '"$out/lib/' + info.app_name + '"'
-        priv = '"$out/lib/' + info.app_name + "/priv/"
-        lines.append("mkdir -p " + base + "/ebin " + base + "/priv")
+        base = "lib/" + info.app_name
+        args.add_all(["--dir", base + "/ebin", "--dir", base + "/priv"])
         for f in info.beam:
             inputs.append(f)
-            if f.is_directory:
-                lines.append('cp -R "' + f.path + '"/. ' + base + "/ebin/")
-            else:
-                lines.append('cp -f "' + f.path + '" ' + base + "/ebin/")
+            args.add_all(["--copy", f.path, base + "/ebin" if f.is_directory else base + "/ebin/" + f.basename])
         placed = {}
         for f in info.priv:
             placed[release_priv_path(_package_path(app.label), f.short_path)] = f
@@ -429,18 +426,14 @@ def _erlang_release_impl(ctx):
                 placed[f.basename] = f
         for rel, f in placed.items():
             inputs.append(f)
-            if "/" in rel:
-                lines.append("mkdir -p " + priv + rel.rpartition("/")[0] + '"')
-            lines.append('cp -f "' + f.path + '" ' + priv + rel + '"')
-
-    # run_shell: The script copies files into the release tree.
-    ctx.actions.run_shell(
+            args.add_all(["--copy", f.path, base + "/priv/" + rel])
+    ctx.actions.run(
         inputs = inputs,
         outputs = [out],
-        command = "\n".join(lines),
-        arguments = [out.path],
+        executable = ctx.executable._release_tree,
+        arguments = [args],
+        env = {"PATH": "/dx_no_path"},
         mnemonic = "ErlangRelease",
-        toolchain = None,
         progress_message = "Assembling Erlang release %{label}",
     )
     return [DefaultInfo(files = depset([out]), runfiles = ctx.runfiles([out]))]
@@ -448,11 +441,14 @@ def _erlang_release_impl(ctx):
 erlang_release = rule(
     implementation = _erlang_release_impl,
     doc = "Assembles a release tree with lib/<app>/ebin and lib/<app>/priv, carrying each app's NIF libraries in priv.",
-    attrs = {"apps": attr.label_list(
-        mandatory = True,
-        providers = [_ErlangAppInfo],
-        doc = "erlang_app targets to include, with their dependencies.",
-    )},
+    attrs = {
+        "apps": attr.label_list(
+            mandatory = True,
+            providers = [_ErlangAppInfo],
+            doc = "erlang_app targets to include, with their dependencies.",
+        ),
+        "_release_tree": attr.label(default = Label("//cli/release_tree"), executable = True, cfg = "exec"),
+    },
     provides = [DefaultInfo],
 )
 

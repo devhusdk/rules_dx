@@ -1,0 +1,41 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "release_tree",
+    srcs = [
+        "src/main.rs",
+        "src/tree.rs",
+    ],
+    crate_root = "src/main.rs",
+)
+
+rust_test(
+    name = "release_tree_test",
+    srcs = [
+        "src/main.rs",
+        "src/tree.rs",
+        "src/tree_tests.rs",
+    ],
+    crate_name = "release_tree",
+    crate_root = "src/main.rs",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["src/main.rs"],
+    visibility = ["//core/quality:__pkg__"],
+)

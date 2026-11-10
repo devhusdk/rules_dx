@@ -45,26 +45,6 @@ fn write(path: &Path, bytes: &[u8]) {
     std::fs::write(path, bytes).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-/// Runs git with a fixed identity and no user or system config.
-fn git(dir: &Path, args: &[&str]) -> String {
-    let output = dx_process::capture::run_checked(
-        dx_process::capture::git(dir)
-            .args([
-                "-c",
-                "commit.gpgsign=false",
-                "-c",
-                "user.name=candidate",
-                "-c",
-                "user.email=candidate@example.com",
-            ])
-            .args(args)
-            .env("GIT_CONFIG_NOSYSTEM", "1"),
-        dx_process::capture::DEFAULT_TIMEOUT,
-    )
-    .unwrap_or_else(|error| panic!("git {args:?} in {dir:?}: {error}"));
-    output.stdout_text().trim().to_owned()
-}
-
 /// What the checkout looks like to git, to prove the snapshot leaves it alone.
 #[derive(Debug, PartialEq, Eq)]
 struct RepoState {
@@ -74,7 +54,8 @@ struct RepoState {
     index: (u64, Option<std::time::SystemTime>),
 }
 
-fn repo_state(root: &Path) -> RepoState {
+fn repo_state(root: &Path, sandbox: &Path) -> RepoState {
+    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, sandbox, args);
     let index = git(
         root,
         &["rev-parse", "--path-format=absolute", "--git-path", "index"],
@@ -95,6 +76,7 @@ fn repo_state(root: &Path) -> RepoState {
 /// Commits the checkout's working tree in a scratch git dir that borrows the real objects.
 /// Returns the scratch git dir and the commit.
 fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
+    let git = |dir: &Path, args: &[&str]| dx_test_scratch::git(dir, scratch, args);
     let common = git(
         root,
         &["rev-parse", "--path-format=absolute", "--git-common-dir"],
@@ -320,12 +302,12 @@ fn assert_gcc_consumer(case: &Case) {
 #[test]
 fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
     let root = rules_dx_source();
-    let before = repo_state(&root);
     let scratch =
         mkscratch("candidate-snapshot").unwrap_or_else(|error| panic!("scratch: {error}"));
+    let before = repo_state(&root, &scratch);
     let (git_dir, sha) = snapshot_commit(&root, &scratch);
     assert_eq!(
-        repo_state(&root),
+        repo_state(&root, &scratch),
         before,
         "the snapshot touched the checkout"
     );
@@ -338,5 +320,5 @@ fn a_candidate_archive_builds_tests_and_checks_a_registry_consumer() {
         .unwrap_or_else(|error| panic!("{error}"));
 
     assert_registry_consumer(&candidate, &archive, &built.integrity);
-    assert_eq!(repo_state(&root), before, "the test touched the checkout");
+    assert_eq!(repo_state(&root, &scratch), before, "the test touched the checkout");
 }

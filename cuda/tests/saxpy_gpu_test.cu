@@ -1,8 +1,8 @@
 #include <cstdint>
 #include <vector>
 
-#include "testing/gpu_test.h"
-#include "tests/fixtures/saxpy/saxpy.h"
+#include "cuda/private/testing/gpu_test.h"
+#include "cuda/tests/fixtures/saxpy/saxpy.h"
 
 namespace {
 

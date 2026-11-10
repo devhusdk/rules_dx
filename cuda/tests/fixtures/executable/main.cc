@@ -1,6 +1,6 @@
 #include <cstdio>
 
-#include "tests/fixtures/executable/add.h"
+#include "cuda/tests/fixtures/executable/add.h"
 
 int main(int argc, char **) {
   if (argc > 100) {

@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "tests/fixtures/rdc/axpy.h"
+#include "cuda/tests/fixtures/rdc/axpy.h"
 
 int main() {
   const int n = 1024;

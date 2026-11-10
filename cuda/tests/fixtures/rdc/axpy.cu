@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 
-#include "tests/fixtures/rdc/axpy.h"
-#include "tests/fixtures/rdc/scale.cuh"
+#include "cuda/tests/fixtures/rdc/axpy.h"
+#include "cuda/tests/fixtures/rdc/scale.cuh"
 
 __global__ void dx_rdc_axpy_kernel(int n, float a, const float* x, float* y) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;

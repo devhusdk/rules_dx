@@ -803,10 +803,7 @@ def apple_ios_xcframework(
         tags = None,
         testonly = False,
         visibility = None):
-    """Builds and checks one XCFramework over a Rust static library and public headers.
-
-    platforms takes iOS platform labels: @apple_support//platforms:ios_arm64, ios_sim_arm64, ios_x86_64.
-    """
+    """Builds and checks one XCFramework over a Rust static library and public headers."""
     deps = deps or []
     tags = tags or []
     module = bundle_name or name

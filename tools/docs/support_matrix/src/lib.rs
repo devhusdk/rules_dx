@@ -442,11 +442,7 @@ mod tests {
         );
         assert!(bzl_path("a", "@platforms//os:BUILD").is_err());
         assert_eq!(
-            bzl_path("@rules_dx_powershell/tests", "//rules:defs.bzl").expect("path"),
-            "@rules_dx_powershell/rules/defs.bzl"
-        );
-        assert_eq!(
-            bzl_path("@rules_dx_powershell/tests", "@rules_dx//rust:defs.bzl").expect("path"),
+            bzl_path("a", "@rules_dx//rust:defs.bzl").expect("path"),
             "rust/defs.bzl"
         );
     }

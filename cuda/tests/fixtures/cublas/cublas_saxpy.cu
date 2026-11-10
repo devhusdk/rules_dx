@@ -1,7 +1,7 @@
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 
-#include "tests/fixtures/cublas/cublas_saxpy.h"
+#include "cuda/tests/fixtures/cublas/cublas_saxpy.h"
 
 namespace {
 

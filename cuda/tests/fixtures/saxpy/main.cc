@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "tests/fixtures/saxpy/saxpy.h"
+#include "cuda/tests/fixtures/saxpy/saxpy.h"
 
 int main() {
   const int n = 1024;

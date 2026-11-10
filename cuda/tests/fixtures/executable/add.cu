@@ -1,4 +1,4 @@
-#include "tests/fixtures/executable/add.h"
+#include "cuda/tests/fixtures/executable/add.h"
 
 __global__ void dx_exec_add_kernel(int n, const int *x, int *y) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;

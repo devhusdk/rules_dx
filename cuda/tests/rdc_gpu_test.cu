@@ -1,7 +1,7 @@
 #include <vector>
 
-#include "testing/gpu_test.h"
-#include "tests/fixtures/rdc/axpy.h"
+#include "cuda/private/testing/gpu_test.h"
+#include "cuda/tests/fixtures/rdc/axpy.h"
 
 namespace {
 

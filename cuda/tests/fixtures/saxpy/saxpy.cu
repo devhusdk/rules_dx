@@ -1,7 +1,7 @@
 #include <cuda_runtime.h>
 
-#include "tests/fixtures/saxpy/saxpy.cuh"
-#include "tests/fixtures/saxpy/saxpy.h"
+#include "cuda/tests/fixtures/saxpy/saxpy.cuh"
+#include "cuda/tests/fixtures/saxpy/saxpy.h"
 
 __global__ void dx_saxpy_kernel(int n, float a, const float* x, float* y) {
   int i = blockIdx.x * blockDim.x + threadIdx.x;

@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <vector>
 
-#include "tests/fixtures/cublas/cublas_saxpy.h"
+#include "cuda/tests/fixtures/cublas/cublas_saxpy.h"
 
 int main() {
   const int n = 1024;

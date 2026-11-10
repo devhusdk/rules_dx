@@ -1,4 +1,4 @@
-#include "testing/gpu_facts.h"
+#include "cuda/private/testing/gpu_facts.h"
 
 #include <cmath>
 #include <string>

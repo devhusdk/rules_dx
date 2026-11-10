@@ -1,7 +1,7 @@
 #include <cstdio>
 
-#include "tests/fixtures/executable/add.h"
-#include "tests/fixtures/rdc/axpy.h"
+#include "cuda/tests/fixtures/executable/add.h"
+#include "cuda/tests/fixtures/rdc/axpy.h"
 
 int main(int argc, char **) {
   float x[4] = {1, 2, 3, 4};

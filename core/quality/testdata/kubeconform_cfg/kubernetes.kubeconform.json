@@ -1,1 +1,1 @@
-{"kubernetes_version":"1.31.0","strict":true,"skip_kinds":[],"core_dir":"schemas/core","crd_dir":"schemas/crd"}
+{"kubernetes_version":"1.31.0","skip_kinds":[],"core_dir":"schemas/core","crd_dir":"schemas/crd"}

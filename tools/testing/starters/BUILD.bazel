@@ -33,10 +33,7 @@ STARTER_BAZEL_DEPS = {
     "ocaml": ["rules_dx"],
     "perl": ["rules_dx"],
     "php": ["rules_dx"],
-    "powershell": [
-        "rules_dx",
-        "platforms",
-    ],
+    "powershell": ["rules_dx"],
     "python": ["rules_dx"],
     "ruby": [
         "rules_dx",

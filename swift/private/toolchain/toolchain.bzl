@@ -4,12 +4,27 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
+load("@rules_swift//swift/internal:action_names.bzl", "SWIFT_ACTION_DUMP_AST", "SWIFT_ACTION_PRECOMPILE_C_MODULE", "SWIFT_ACTION_SYMBOL_GRAPH_EXTRACT", "all_compile_action_names")
 load("@rules_swift//swift/toolchains:swift_toolchain.bzl", "swift_toolchain")
 load("@rules_swift//swift/toolchains:swift_tools.bzl", "swift_tools")
+load("@rules_swift//swift/toolchains/config:action_config.bzl", "ActionConfigInfo", "add_arg")
 
 def _with_link_libs_impl(ctx):
     info = ctx.attr.toolchain[SwiftToolchainInfo]
     fields = {name: getattr(info, name) for name in dir(info) if name not in ("to_json", "to_proto")}
+    if ctx.attr.runtime:
+        runtime = ctx.attr.runtime[SwiftToolchainInfo]
+        fields["dynamic_runtime_cc_info"] = runtime.dynamic_runtime_cc_info
+        fields["static_runtime_cc_info"] = runtime.static_runtime_cc_info
+    if ctx.attr.resource_dir:
+        fields["action_configs"] = info.action_configs + [ActionConfigInfo(
+            actions = all_compile_action_names() + [
+                SWIFT_ACTION_DUMP_AST,
+                SWIFT_ACTION_PRECOMPILE_C_MODULE,
+                SWIFT_ACTION_SYMBOL_GRAPH_EXTRACT,
+            ],
+            configurators = [add_arg("-Xwrapped-swift=-resource-dir=" + ctx.attr.resource_dir)],
+        )]
     extra = ctx.attr.link_libs[CcInfo]
     for name in ("dynamic_runtime_cc_info", "static_runtime_cc_info"):
         if fields[name]:
@@ -24,6 +39,11 @@ _with_link_libs = rule(
     implementation = _with_link_libs_impl,
     attrs = {
         "link_libs": attr.label(mandatory = True, providers = [CcInfo]),
+        "resource_dir": attr.string(doc = "The Swift resource directory of the target cpu, when the tools run on another cpu."),
+        "runtime": attr.label(
+            doc = "The toolchain whose Swift runtime the target links, when the tools run on another cpu.",
+            providers = [SwiftToolchainInfo],
+        ),
         "toolchain": attr.label(mandatory = True, providers = [SwiftToolchainInfo]),
     },
 )
@@ -70,7 +90,6 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu):
         ],
         os = "linux",
         parsed_version = _VERSION,
-        runtime_root = Label(target_repo + "//:.swift-version").workspace_root + "/usr",
         sdkroot = Label(target_sysroot + "//:files").workspace_root,
         static_runtime = [target_repo + "//:linux_static_runtime"],
         swift_tools = name + "_tools",
@@ -107,10 +126,15 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
         ],
     )
 
+    target_native = "@dx_swift_linux_" + target_cpu + "//:swift_toolchain_exec"
     if exec_cpu == target_cpu:
-        upstream = "@dx_swift_linux_" + exec_cpu + "//:swift_toolchain_exec"
+        upstream = target_native
+        resource_dir = None
+        runtime = None
     else:
         upstream = ":swift_cross_" + pair
+        resource_dir = Label(target_native).workspace_root + "/usr/lib/swift"
+        runtime = target_native
         _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu)
 
     _with_link_libs(
@@ -118,6 +142,8 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
         tags = ["manual"],
         target_compatible_with = _LINUX,
         link_libs = ":linux_link_libs_" + pair,
+        resource_dir = resource_dir,
+        runtime = runtime,
         toolchain = upstream,
     )
 

@@ -1,6 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//swift:defs.bzl", "swift_binary")
+load("//swift/private/toolchain:tests.bzl", "swift_cross_runtime_test")
 
 package(default_testonly = True)
 
@@ -27,6 +28,18 @@ rust_test(
     ],
     deps = ["//tools/testing:dx_testing"],
 )
+
+[
+    swift_cross_runtime_test(
+        name = "cross_runtime_%s_%s_test" % (exec_cpu, target_cpu),
+        exec_cpu = exec_cpu,
+        target_cpu = target_cpu,
+    )
+    for exec_cpu, target_cpu in [
+        ("aarch64", "x86_64"),
+        ("x86_64", "aarch64"),
+    ]
+]
 
 real_source_target(
     name = "corpus_starlark",

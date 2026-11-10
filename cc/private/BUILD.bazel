@@ -1,3 +1,4 @@
+# gazelle:exclude fuzz_driver.cc
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")

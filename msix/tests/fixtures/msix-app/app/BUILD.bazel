@@ -1,3 +1,4 @@
+# gazelle:exclude main.c
 # gazelle:resolve cc greet.h //msix/tests/fixtures/msix-app/greet:greet
 load("//cc:defs.bzl", "cc_binary")
 load("//msix:defs.bzl", "msix_package", "msix_sign")

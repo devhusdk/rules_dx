@@ -34,6 +34,7 @@ def _psgallery_module_impl(ctx):
         if path.exists:
             ctx.delete(path)
     ctx.file("BUILD.bazel", _BUILD.format(name = ctx.attr.module.lower(), module = ctx.attr.module))
+    return ctx.repo_metadata(reproducible = True)
 
 psgallery_module = repository_rule(
     implementation = _psgallery_module_impl,

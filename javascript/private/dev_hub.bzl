@@ -33,6 +33,7 @@ def dev_hub_defs(hub, forward):
 def _link_repo_impl(rctx):
     rctx.file("BUILD.bazel", "")
     rctx.file("defs.bzl", dev_hub_defs(rctx.attr.hub, rctx.attr.forward))
+    return rctx.repo_metadata(reproducible = True)
 
 _link_repo = repository_rule(
     implementation = _link_repo_impl,

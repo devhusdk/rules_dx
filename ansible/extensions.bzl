@@ -72,6 +72,7 @@ filegroup(
 )
 """.format(srcs = ", ".join(['":%s"' % name for name in names])))
     rctx.file("BUILD.bazel", "".join(blocks))
+    return rctx.repo_metadata(reproducible = True)
 
 _collections_repo = repository_rule(
     implementation = _collections_repo_impl,

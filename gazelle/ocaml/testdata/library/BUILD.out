@@ -1,0 +1,14 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module")
+
+ocaml_module(
+    name = "greet",
+    sig = "greet.mli",
+    struct = "greet.ml",
+    visibility = ["//visibility:public"],
+)
+
+ocaml_module(
+    name = "util",
+    struct = "util.ml",
+    visibility = ["//visibility:public"],
+)

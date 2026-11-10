@@ -1,0 +1,7 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module")
+
+ocaml_module(
+    name = "main",
+    struct = "main.ml",
+    visibility = ["//visibility:public"],
+)

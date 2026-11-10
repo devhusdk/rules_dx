@@ -1,0 +1,1 @@
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module")

@@ -21,8 +21,8 @@ impl CommandSpec {
     }
 }
 
-/// The labels of the aspect files without a language, then those of every language's `quality`
-/// entry (and, for `docs`, its `docs` entry) in `lang.json`.
+/// The labels of the aspect files in core, then those of every language's `quality` entry (and,
+/// for `docs`, its `docs` entry) in `lang.json`.
 fn with_languages(
     command: &'static str,
     probes: bool,
@@ -223,24 +223,25 @@ pub fn probes_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
         .collect()
 }
 
-/// Whether the file that defines `label` loads no language rule set or loads one the consumer has.
+/// Whether the file that defines `label` is a core file or one the consumer's `lang.json` entry
+/// asks for.
 fn wanted(label: &str, consumer: Consumer) -> bool {
     let file = label.split_once('%').map_or(label, |(file, _)| file);
-    let extensions = dx_families::quality_languages()
+    if let Some(language) = dx_families::quality_languages()
         .iter()
         .find(|language| language.bzl == file)
-        .map(|language| &language.file_extensions)
-        .or_else(|| {
-            dx_families::docs_languages()
+    {
+        return language.wanted(consumer.extensions);
+    }
+    dx_families::docs_languages()
+        .iter()
+        .find(|language| language.bzl == file)
+        .is_none_or(|language| {
+            language
+                .file_extensions
                 .iter()
-                .find(|language| language.bzl == file)
-                .map(|language| &language.file_extensions)
-        });
-    extensions.is_none_or(|extensions| {
-        extensions
-            .iter()
-            .any(|extension| consumer.extensions.contains(extension))
-    })
+                .any(|extension| consumer.extensions.contains(extension))
+        })
 }
 
 /// Every aspect label dx passes to Bazel.
@@ -326,7 +327,9 @@ mod tests {
         assert!(
             probes.contains(&"core/quality:families/core_probe.bzl%real_core_lint_probe_aspect")
         );
-        assert!(probes.contains(&"python/private/quality:python.bzl%real_python_lint_probe_aspect"));
+        assert!(
+            probes.contains(&"python/private/quality:python.bzl%real_python_lint_probe_aspect")
+        );
         assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
         assert!(probes.contains(&"swift/private/quality:swift.bzl%real_swift_lint_probe_aspect"));
         assert!(probes_for(Command::Docs, consumer(&extensions)).is_empty());
@@ -358,11 +361,16 @@ mod tests {
                     .iter()
                     .find(|language| language.bzl == file);
                 assert!(
-                    language.is_none_or(|language| language.bzl == "go/private/quality:go.bzl"),
+                    language.is_none_or(|language| language.every_workspace
+                        || language.bzl == "go/private/quality:go.bzl"),
                     "{command:?}: {label}"
                 );
             }
-            assert!(labels.iter().any(|label| label.contains("go/private/quality:go.bzl")));
+            assert!(
+                labels
+                    .iter()
+                    .any(|label| label.contains("go/private/quality:go.bzl"))
+            );
             assert!(
                 labels
                     .iter()
@@ -398,6 +406,61 @@ mod tests {
             let before = sorted.len();
             sorted.dedup();
             assert_eq!(before, sorted.len(), "{command:?} lists a label twice");
+        }
+    }
+
+    #[test]
+    fn core_table_lists_only_core_files() {
+        for label in [
+            registry_gen::LINT_ASPECTS,
+            registry_gen::LINT_PROBES,
+            registry_gen::TYPECHECK_ASPECTS,
+            registry_gen::TYPECHECK_PROBES,
+            registry_gen::FORMAT_ASPECTS,
+            registry_gen::FORMAT_PROBES,
+            registry_gen::DOCS_ASPECTS,
+        ]
+        .into_iter()
+        .flatten()
+        {
+            assert!(
+                label.starts_with("core/quality:families/") || label.starts_with("tools/docs:"),
+                "{label} belongs in its lang.json quality entry"
+            );
+        }
+    }
+
+    #[test]
+    fn every_workspace_languages_are_selected_without_their_files() {
+        let extensions = extensions(&[".go"]);
+        let lint = aspects_for(Command::Lint, consumer(&extensions));
+        assert!(
+            lint.contains(&"dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect")
+        );
+        assert!(lint.contains(&"make/private/quality:make.bzl%real_make_lint_aspect"));
+        assert!(!lint.contains(&"sql/private/quality:sql.bzl%real_sql_lint_aspect"));
+    }
+
+    #[test]
+    fn a_language_outside_the_core_table_is_selected_by_its_files() {
+        for (extension, label) in [
+            (
+                ".bicep",
+                "bicep/private/quality:bicep.bzl%real_bicep_lint_aspect",
+            ),
+            (
+                ".rego",
+                "rego/private/quality:rego.bzl%real_rego_lint_aspect",
+            ),
+            (".sql", "sql/private/quality:sql.bzl%real_sql_lint_aspect"),
+            (
+                ".tf",
+                "terraform/private/quality:terraform.bzl%real_terraform_lint_aspect",
+            ),
+        ] {
+            let extensions = extensions(&[extension]);
+            let lint = aspects_for(Command::Lint, consumer(&extensions));
+            assert!(lint.contains(&label), "{label}");
         }
     }
 

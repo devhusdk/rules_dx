@@ -50,6 +50,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "ansible/private/quality:ansible.bzl",
+      "every_workspace": true,
       "file_extensions": [
         ".yaml",
         ".yml"
@@ -464,6 +465,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "cloudformation/private/quality:cloudformation.bzl",
+      "every_workspace": true,
       "file_extensions": [
         ".yaml",
         ".yml",
@@ -506,6 +508,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "cmake/private/quality:cmake.bzl",
+      "every_workspace": true,
       "file_extensions": [
         ".cmake"
       ]
@@ -733,6 +736,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "dockerfile/private/quality:dockerfile.bzl",
+      "every_workspace": true,
       "file_extensions": []
     },
     "title": "dockerfile",
@@ -1603,6 +1607,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "kubernetes/private/quality:kubernetes.bzl",
+      "every_workspace": true,
       "file_extensions": [
         ".yaml",
         ".yml"
@@ -1710,6 +1715,7 @@ LANGS = json.decode("""{
         ]
       },
       "bzl": "make/private/quality:make.bzl",
+      "every_workspace": true,
       "file_extensions": [
         ".mk"
       ]

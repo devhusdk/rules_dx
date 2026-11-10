@@ -257,6 +257,39 @@ fn languages_json_lists_every_depcheck_language() {
         .expect("cli/ecosystems/languages.json is generated from every lang.json");
 }
 
+#[test]
+fn families_languages_json_lists_every_quality_and_docs_entry() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+        .expect("families.json");
+    let mut rows = Vec::new();
+    for dir in language_dirs(&root, &families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let mut row = serde_json::Map::new();
+        row.insert("name".to_owned(), manifest["name"].clone());
+        for key in ["quality", "docs"] {
+            if !manifest[key].is_null() {
+                row.insert(key.to_owned(), manifest[key].clone());
+            }
+        }
+        if row.len() > 1 {
+            rows.push((manifest["name"].as_str().expect("name").to_owned(), Value::Object(row)));
+        }
+    }
+    rows.sort_by(|a, b| a.0.cmp(&b.0));
+    let rows: Vec<Value> = rows.into_iter().map(|(_, row)| row).collect();
+    let text = serde_json::to_string_pretty(&serde_json::json!({"languages": rows}))
+        .expect("serializes")
+        + "\n";
+    let scratch = dx_testing::mkscratch("families_languages_json").expect("scratch");
+    let actual = scratch.join("languages.json");
+    dx_testing::write_text(&actual, &text);
+    let expected = dx_testing::resolve_runfiles("cli/families/languages.json");
+    dx_testing::snapshot_diff(&expected, &actual, Some("cli/families/languages.json"))
+        .expect("cli/families/languages.json is generated from every lang.json");
+}
+
 fn bzl_label_path(label: &str) -> String {
     let (package, file) = label.split_once(':').expect("quality.bzl is package:file");
     format!("{package}/{file}")

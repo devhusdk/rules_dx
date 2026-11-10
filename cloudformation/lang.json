@@ -24,6 +24,7 @@
   ],
   "quality": {
     "bzl": "cloudformation/private/quality:cloudformation.bzl",
+    "every_workspace": true,
     "file_extensions": [
       ".yaml",
       ".yml",

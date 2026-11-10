@@ -14,6 +14,7 @@ fn quality_entries_merge_by_aspect_file() {
         merged,
         vec![QualityFiles {
             bzl: "core/quality:families/a.bzl".to_owned(),
+            every_workspace: false,
             file_extensions: vec![".x".to_owned(), ".y".to_owned()],
             aspects: BTreeMap::from([("lint".to_owned(), vec!["a_lint".to_owned()])]),
             probes: BTreeMap::from([("lint".to_owned(), vec!["a_probe".to_owned()])]),
@@ -23,9 +24,26 @@ fn quality_entries_merge_by_aspect_file() {
 }
 
 #[test]
+fn every_workspace_entry_is_wanted_without_its_files() {
+    let merged = parse_quality(&[
+        r#"{"quality": {"bzl": "a:a.bzl", "every_workspace": true, "file_extensions": [".x"]}}"#,
+        r#"{"quality": {"bzl": "b:b.bzl", "file_extensions": [".y"]}}"#,
+    ])
+    .expect("parse");
+    let none = std::collections::BTreeSet::new();
+    let y = std::collections::BTreeSet::from([".y".to_owned()]);
+    assert!(merged[0].wanted(&none));
+    assert!(!merged[1].wanted(&none));
+    assert!(merged[1].wanted(&y));
+}
+
+#[test]
 fn every_quality_extension_has_one_aspect_file() {
     let mut owners: BTreeMap<&str, &str> = BTreeMap::new();
     for language in quality_languages() {
+        if language.every_workspace {
+            continue;
+        }
         assert!(!language.file_extensions.is_empty(), "{}", language.bzl);
         for ext in &language.file_extensions {
             let seen = owners.insert(ext, &language.bzl);

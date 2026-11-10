@@ -1,0 +1,1377 @@
+{
+  "languages": [
+    {
+      "name": "ansible",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_ansible_lint_aspect"
+          ]
+        },
+        "bzl": "ansible/private/quality:ansible.bzl",
+        "every_workspace": true,
+        "file_extensions": [
+          ".yaml",
+          ".yml"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_protobuf_docs_aspect"
+        ],
+        "bzl": "tools/docs/protobuf:aspect.bzl",
+        "file_extensions": [
+          ".proto"
+        ]
+      },
+      "name": "api_spec",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_protobuf_format_aspect"
+          ],
+          "lint": [
+            "real_protobuf_lint_aspect"
+          ],
+          "typecheck": [
+            "real_protobuf_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/generation.bzl",
+        "file_extensions": [
+          ".proto"
+        ],
+        "probes": {
+          "format": [
+            "real_generation_format_probe_aspect"
+          ],
+          "lint": [
+            "real_generation_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_generation_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [],
+        "bzl": "tools/docs/components:aspect.bzl",
+        "file_extensions": [
+          ".astro"
+        ]
+      },
+      "name": "astro",
+      "quality": {
+        "bzl": "javascript/private/quality:js.bzl",
+        "file_extensions": [
+          ".astro"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_avro_docs_aspect"
+        ],
+        "bzl": "tools/docs/avro:aspect.bzl",
+        "file_extensions": [
+          ".avdl",
+          ".avsc"
+        ]
+      },
+      "name": "avro",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_avro_lint_aspect"
+          ],
+          "typecheck": [
+            "real_avro_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/generation.bzl",
+        "file_extensions": [
+          ".avsc"
+        ]
+      }
+    },
+    {
+      "name": "bicep",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_bicep_format_aspect"
+          ],
+          "lint": [
+            "real_bicep_lint_aspect"
+          ]
+        },
+        "bzl": "bicep/private/quality:bicep.bzl",
+        "file_extensions": [
+          ".bicep",
+          ".bicepparam"
+        ]
+      }
+    },
+    {
+      "name": "capnproto",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_capnp_lint_aspect"
+          ],
+          "typecheck": [
+            "real_capnp_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/generation.bzl",
+        "file_extensions": [
+          ".capnp"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_cc_docs_aspect"
+        ],
+        "bzl": "tools/docs/cc:aspect.bzl",
+        "file_extensions": [
+          ".c",
+          ".cc",
+          ".cpp",
+          ".cu",
+          ".cuh",
+          ".cxx",
+          ".h",
+          ".hh",
+          ".hpp",
+          ".hxx",
+          ".inl",
+          ".ipp"
+        ]
+      },
+      "name": "cc",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_cc_format_aspect"
+          ],
+          "lint": [
+            "real_cc_lint_aspect"
+          ],
+          "typecheck": [
+            "real_cc_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/cc.bzl",
+        "file_extensions": [
+          ".c",
+          ".cc",
+          ".cpp",
+          ".cu",
+          ".cuh",
+          ".cxx",
+          ".h",
+          ".hh",
+          ".hpp",
+          ".hxx",
+          ".inl",
+          ".ipp",
+          ".m",
+          ".mm"
+        ],
+        "probes": {
+          "format": [
+            "real_cc_format_probe_aspect"
+          ],
+          "lint": [
+            "real_cc_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_cc_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "cloudformation",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_cloudformation_lint_aspect"
+          ]
+        },
+        "bzl": "cloudformation/private/quality:cloudformation.bzl",
+        "every_workspace": true,
+        "file_extensions": [
+          ".yaml",
+          ".yml",
+          ".json"
+        ]
+      }
+    },
+    {
+      "name": "cmake",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_cmake_format_aspect"
+          ],
+          "lint": [
+            "real_cmake_lint_aspect"
+          ]
+        },
+        "bzl": "cmake/private/quality:cmake.bzl",
+        "every_workspace": true,
+        "file_extensions": [
+          ".cmake"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_d_docs_aspect"
+        ],
+        "bzl": "tools/docs/d:aspect.bzl",
+        "file_extensions": [
+          ".d"
+        ]
+      },
+      "name": "d",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_d_format_aspect"
+          ],
+          "lint": [
+            "real_d_lint_aspect"
+          ],
+          "typecheck": [
+            "real_d_typecheck_aspect"
+          ]
+        },
+        "bzl": "d/private/quality:d.bzl",
+        "file_extensions": [
+          ".d"
+        ],
+        "probes": {
+          "format": [
+            "real_d_format_probe_aspect"
+          ],
+          "lint": [
+            "real_d_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_d_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_dart_docs_aspect"
+        ],
+        "bzl": "tools/docs/dart:aspect.bzl",
+        "file_extensions": [
+          ".dart"
+        ]
+      },
+      "name": "dart",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_dart_format_aspect"
+          ],
+          "lint": [
+            "real_dart_lint_aspect"
+          ],
+          "typecheck": [
+            "real_dart_typecheck_aspect"
+          ]
+        },
+        "bzl": "dart/private/quality:dart.bzl",
+        "file_extensions": [
+          ".dart"
+        ],
+        "probes": {
+          "format": [
+            "real_dart_format_probe_aspect"
+          ],
+          "lint": [
+            "real_dart_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_dart_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "dockerfile",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_dockerfile_lint_aspect"
+          ]
+        },
+        "bzl": "dockerfile/private/quality:dockerfile.bzl",
+        "every_workspace": true,
+        "file_extensions": []
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_dotnet_docs_aspect"
+        ],
+        "bzl": "tools/docs/dotnet:aspect.bzl",
+        "file_extensions": [
+          ".cs",
+          ".fs"
+        ]
+      },
+      "name": "dotnet",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_dotnet_format_aspect"
+          ],
+          "lint": [
+            "real_dotnet_lint_aspect"
+          ],
+          "typecheck": [
+            "real_dotnet_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/dotnet.bzl",
+        "file_extensions": [
+          ".cs",
+          ".csproj",
+          ".fs",
+          ".fsproj",
+          ".fsx"
+        ],
+        "probes": {
+          "format": [
+            "real_dotnet_format_probe_aspect"
+          ],
+          "lint": [
+            "real_dotnet_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_dotnet_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_beam_docs_aspect"
+        ],
+        "bzl": "tools/docs/beam:aspect.bzl",
+        "file_extensions": [
+          ".ex",
+          ".exs"
+        ]
+      },
+      "name": "elixir",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_elixir_format_aspect"
+          ],
+          "lint": [
+            "real_elixir_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/beam.bzl",
+        "file_extensions": [
+          ".ex",
+          ".exs"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_beam_docs_aspect"
+        ],
+        "bzl": "tools/docs/beam:aspect.bzl",
+        "file_extensions": [
+          ".erl",
+          ".hrl"
+        ]
+      },
+      "name": "erlang",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_erlang_format_aspect"
+          ],
+          "lint": [
+            "real_erlang_lint_aspect"
+          ],
+          "typecheck": [
+            "real_erlang_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/beam.bzl",
+        "file_extensions": [
+          ".erl",
+          ".hrl"
+        ],
+        "probes": {
+          "format": [
+            "real_beam_format_probe_aspect"
+          ],
+          "lint": [
+            "real_beam_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_beam_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "flatbuffers",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_flatbuffers_lint_aspect"
+          ],
+          "typecheck": [
+            "real_flatbuffers_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/generation.bzl",
+        "file_extensions": [
+          ".fbs"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_fortran_docs_aspect"
+        ],
+        "bzl": "tools/docs/fortran:aspect.bzl",
+        "file_extensions": [
+          ".f",
+          ".f03",
+          ".f08",
+          ".f90",
+          ".f95"
+        ]
+      },
+      "name": "fortran",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_fortran_format_aspect"
+          ],
+          "lint": [
+            "real_fortran_lint_aspect"
+          ],
+          "typecheck": [
+            "real_fortran_typecheck_aspect"
+          ]
+        },
+        "bzl": "fortran/private/quality:fortran.bzl",
+        "file_extensions": [
+          ".f",
+          ".f03",
+          ".f08",
+          ".f90",
+          ".f95"
+        ],
+        "probes": {
+          "format": [
+            "real_fortran_format_probe_aspect"
+          ],
+          "lint": [
+            "real_fortran_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_fortran_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_go_docs_aspect"
+        ],
+        "bzl": "tools/docs/go:aspect.bzl",
+        "file_extensions": [
+          ".go"
+        ]
+      },
+      "name": "go",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_go_format_aspect"
+          ],
+          "lint": [
+            "real_go_lint_aspect"
+          ],
+          "typecheck": [
+            "real_go_typecheck_aspect"
+          ]
+        },
+        "bzl": "go/private/quality:go.bzl",
+        "file_extensions": [
+          ".go"
+        ],
+        "probes": {
+          "format": [
+            "real_go_format_probe_aspect"
+          ],
+          "lint": [
+            "real_go_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_go_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_haskell_docs_aspect"
+        ],
+        "bzl": "tools/docs/haskell:aspect.bzl",
+        "file_extensions": [
+          ".hs"
+        ]
+      },
+      "name": "haskell",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_haskell_format_aspect"
+          ],
+          "lint": [
+            "real_haskell_lint_aspect"
+          ],
+          "typecheck": [
+            "real_haskell_typecheck_aspect"
+          ]
+        },
+        "bzl": "haskell/private/quality:haskell.bzl",
+        "file_extensions": [
+          ".hs"
+        ],
+        "probes": {
+          "format": [
+            "real_haskell_format_probe_aspect"
+          ],
+          "lint": [
+            "real_haskell_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_haskell_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_jvm_docs_aspect"
+        ],
+        "bzl": "tools/docs/jvm:aspect.bzl",
+        "file_extensions": [
+          ".java"
+        ]
+      },
+      "name": "java",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_jvm_format_aspect"
+          ],
+          "lint": [
+            "real_jvm_lint_aspect"
+          ],
+          "typecheck": [
+            "real_jvm_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/jvm.bzl",
+        "file_extensions": [
+          ".java"
+        ],
+        "probes": {
+          "format": [
+            "real_jvm_format_probe_aspect"
+          ],
+          "lint": [
+            "real_jvm_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_jvm_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_javascript_docs_aspect"
+        ],
+        "bzl": "tools/docs/javascript:aspect.bzl",
+        "file_extensions": [
+          ".cjs",
+          ".js",
+          ".jsx",
+          ".mjs"
+        ]
+      },
+      "name": "javascript",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_js_format_aspect"
+          ],
+          "lint": [
+            "real_js_lint_aspect"
+          ],
+          "typecheck": [
+            "real_js_typecheck_aspect"
+          ]
+        },
+        "bzl": "javascript/private/quality:js.bzl",
+        "file_extensions": [
+          ".cjs",
+          ".js",
+          ".jsx",
+          ".mjs"
+        ],
+        "probes": {
+          "format": [
+            "real_js_format_probe_aspect"
+          ],
+          "lint": [
+            "real_js_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_js_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_julia_docs_aspect"
+        ],
+        "bzl": "tools/docs/julia:aspect.bzl",
+        "file_extensions": [
+          ".jl"
+        ]
+      },
+      "name": "julia",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_julia_format_aspect"
+          ],
+          "lint": [
+            "real_julia_lint_aspect"
+          ],
+          "typecheck": [
+            "real_julia_typecheck_aspect"
+          ]
+        },
+        "bzl": "julia/private/quality:julia.bzl",
+        "file_extensions": [
+          ".jl"
+        ],
+        "probes": {
+          "format": [
+            "real_julia_format_probe_aspect"
+          ],
+          "lint": [
+            "real_julia_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_julia_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [],
+        "bzl": "tools/docs/jvm:aspect.bzl",
+        "file_extensions": [
+          ".kt"
+        ]
+      },
+      "name": "kotlin",
+      "quality": {
+        "bzl": "core/quality:families/jvm.bzl",
+        "file_extensions": [
+          ".kt",
+          ".kts"
+        ]
+      }
+    },
+    {
+      "name": "kubernetes",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_kubernetes_format_aspect"
+          ],
+          "lint": [
+            "real_kubernetes_lint_aspect"
+          ]
+        },
+        "bzl": "kubernetes/private/quality:kubernetes.bzl",
+        "every_workspace": true,
+        "file_extensions": [
+          ".yaml",
+          ".yml"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_lua_docs_aspect"
+        ],
+        "bzl": "tools/docs/lua:aspect.bzl",
+        "file_extensions": [
+          ".lua"
+        ]
+      },
+      "name": "lua",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_lua_format_aspect"
+          ],
+          "lint": [
+            "real_lua_lint_aspect"
+          ],
+          "typecheck": [
+            "real_lua_typecheck_aspect"
+          ]
+        },
+        "bzl": "lua/private/quality:lua.bzl",
+        "file_extensions": [
+          ".lua"
+        ],
+        "probes": {
+          "format": [
+            "real_lua_format_probe_aspect"
+          ],
+          "lint": [
+            "real_lua_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_lua_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "make",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_make_format_aspect"
+          ],
+          "lint": [
+            "real_make_lint_aspect"
+          ]
+        },
+        "bzl": "make/private/quality:make.bzl",
+        "every_workspace": true,
+        "file_extensions": [
+          ".mk"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [],
+        "bzl": "tools/docs/components:aspect.bzl",
+        "file_extensions": [
+          ".mdx"
+        ]
+      },
+      "name": "mdx",
+      "quality": {
+        "bzl": "javascript/private/quality:js.bzl",
+        "file_extensions": [
+          ".mdx"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_ocaml_docs_aspect"
+        ],
+        "bzl": "tools/docs/ocaml:aspect.bzl",
+        "file_extensions": [
+          ".ml",
+          ".mli"
+        ]
+      },
+      "name": "ocaml",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_ocaml_format_aspect"
+          ],
+          "lint": [
+            "real_ocaml_lint_aspect"
+          ],
+          "typecheck": [
+            "real_ocaml_typecheck_aspect"
+          ]
+        },
+        "bzl": "ocaml/private/quality:ocaml.bzl",
+        "file_extensions": [
+          ".ml",
+          ".mli"
+        ],
+        "probes": {
+          "format": [
+            "real_ocaml_format_probe_aspect"
+          ],
+          "lint": [
+            "real_ocaml_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_ocaml_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_perl_docs_aspect"
+        ],
+        "bzl": "tools/docs/perl:aspect.bzl",
+        "file_extensions": [
+          ".pl",
+          ".pm"
+        ]
+      },
+      "name": "perl",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_perl_format_aspect"
+          ],
+          "lint": [
+            "real_perl_lint_aspect"
+          ]
+        },
+        "bzl": "perl/private/quality:perl.bzl",
+        "file_extensions": [
+          ".pl",
+          ".pm"
+        ],
+        "probes": {
+          "format": [
+            "real_perl_format_probe_aspect"
+          ],
+          "lint": [
+            "real_perl_lint_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_php_docs_aspect"
+        ],
+        "bzl": "tools/docs/php:aspect.bzl",
+        "file_extensions": [
+          ".php"
+        ]
+      },
+      "name": "php",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_php_lint_aspect"
+          ],
+          "typecheck": [
+            "real_php_typecheck_aspect"
+          ]
+        },
+        "bzl": "php/private/quality:php.bzl",
+        "file_extensions": [
+          ".php"
+        ],
+        "probes": {
+          "lint": [
+            "real_php_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_php_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "pkl",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_pkl_format_aspect"
+          ],
+          "lint": [
+            "real_pkl_lint_aspect"
+          ],
+          "typecheck": [
+            "real_pkl_typecheck_aspect"
+          ]
+        },
+        "bzl": "pkl/private/quality:pkl.bzl",
+        "file_extensions": [
+          ".pkl"
+        ],
+        "probes": {
+          "format": [
+            "real_pkl_format_probe_aspect"
+          ],
+          "lint": [
+            "real_pkl_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_pkl_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_powershell_docs_aspect"
+        ],
+        "bzl": "tools/docs/powershell:aspect.bzl",
+        "file_extensions": [
+          ".ps1",
+          ".psd1",
+          ".psm1"
+        ]
+      },
+      "name": "powershell",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_powershell_format_aspect"
+          ],
+          "lint": [
+            "real_powershell_lint_aspect"
+          ]
+        },
+        "bzl": "powershell/private/quality:powershell.bzl",
+        "file_extensions": [
+          ".ps1",
+          ".psd1",
+          ".psm1"
+        ],
+        "probes": {
+          "format": [
+            "real_powershell_format_probe_aspect"
+          ],
+          "lint": [
+            "real_powershell_lint_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_python_docs_aspect"
+        ],
+        "bzl": "tools/docs/python:aspect.bzl",
+        "file_extensions": [
+          ".py",
+          ".pyi"
+        ]
+      },
+      "name": "python",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_python_format_aspect"
+          ],
+          "lint": [
+            "real_python_lint_aspect"
+          ],
+          "typecheck": [
+            "real_python_typecheck_aspect"
+          ]
+        },
+        "bzl": "python/private/quality:python.bzl",
+        "file_extensions": [
+          ".py",
+          ".pyi"
+        ],
+        "probes": {
+          "format": [
+            "real_python_format_probe_aspect"
+          ],
+          "lint": [
+            "real_python_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_python_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "qt",
+      "quality": {
+        "bzl": "core/quality:families/cc.bzl",
+        "file_extensions": [
+          ".qml"
+        ]
+      }
+    },
+    {
+      "name": "rego",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_rego_format_aspect"
+          ],
+          "lint": [
+            "real_rego_lint_aspect"
+          ],
+          "typecheck": [
+            "real_rego_typecheck_aspect"
+          ]
+        },
+        "bzl": "rego/private/quality:rego.bzl",
+        "file_extensions": [
+          ".rego"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_ruby_docs_aspect"
+        ],
+        "bzl": "tools/docs/ruby:aspect.bzl",
+        "file_extensions": [
+          ".rb"
+        ]
+      },
+      "name": "ruby",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_ruby_format_aspect"
+          ],
+          "lint": [
+            "real_ruby_lint_aspect"
+          ],
+          "typecheck": [
+            "real_ruby_typecheck_aspect"
+          ]
+        },
+        "bzl": "ruby/private/quality:ruby.bzl",
+        "file_extensions": [
+          ".rb",
+          ".rbs"
+        ],
+        "probes": {
+          "format": [
+            "real_ruby_format_probe_aspect"
+          ],
+          "lint": [
+            "real_ruby_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_ruby_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_rust_docs_aspect"
+        ],
+        "bzl": "tools/docs/rust:aspect.bzl",
+        "file_extensions": [
+          ".rs"
+        ]
+      },
+      "name": "rust",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_rust_format_aspect"
+          ],
+          "lint": [
+            "real_rust_lint_aspect"
+          ],
+          "typecheck": [
+            "real_rust_typecheck_aspect"
+          ]
+        },
+        "bzl": "rust/private/quality:rust.bzl",
+        "file_extensions": [
+          ".rs"
+        ],
+        "probes": {
+          "format": [
+            "real_rust_format_probe_aspect"
+          ],
+          "lint": [
+            "real_rust_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_rust_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "docs": {
+        "aspects": [],
+        "bzl": "tools/docs/jvm:aspect.bzl",
+        "file_extensions": [
+          ".scala"
+        ]
+      },
+      "name": "scala",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_scala_format_aspect"
+          ],
+          "lint": [
+            "real_scala_lint_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/jvm.bzl",
+        "file_extensions": [
+          ".sc",
+          ".scala"
+        ]
+      }
+    },
+    {
+      "name": "sql",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_sql_format_aspect"
+          ],
+          "lint": [
+            "real_sql_lint_aspect"
+          ]
+        },
+        "bzl": "sql/private/quality:sql.bzl",
+        "file_extensions": [
+          ".sql"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [],
+        "bzl": "tools/docs/components:aspect.bzl",
+        "file_extensions": [
+          ".svelte"
+        ]
+      },
+      "name": "svelte",
+      "quality": {
+        "bzl": "javascript/private/quality:js.bzl",
+        "file_extensions": [
+          ".svelte"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_swift_docs_aspect"
+        ],
+        "bzl": "tools/docs/swift:aspect.bzl",
+        "file_extensions": [
+          ".swift"
+        ]
+      },
+      "name": "swift",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_swift_format_aspect"
+          ],
+          "lint": [
+            "real_swift_lint_aspect"
+          ],
+          "typecheck": [
+            "real_swift_typecheck_aspect"
+          ]
+        },
+        "bzl": "swift/private/quality:swift.bzl",
+        "file_extensions": [
+          ".swift"
+        ],
+        "probes": {
+          "format": [
+            "real_swift_format_probe_aspect"
+          ],
+          "lint": [
+            "real_swift_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_swift_typecheck_probe_aspect"
+          ]
+        }
+      }
+    },
+    {
+      "name": "terraform",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_terraform_format_aspect"
+          ],
+          "lint": [
+            "real_terraform_lint_aspect"
+          ],
+          "typecheck": [
+            "real_terraform_typecheck_aspect"
+          ]
+        },
+        "bzl": "terraform/private/quality:terraform.bzl",
+        "file_extensions": [
+          ".tf",
+          ".tfvars"
+        ]
+      }
+    },
+    {
+      "name": "thrift",
+      "quality": {
+        "aspects": {
+          "lint": [
+            "real_thrift_lint_aspect"
+          ],
+          "typecheck": [
+            "real_thrift_typecheck_aspect"
+          ]
+        },
+        "bzl": "core/quality:families/generation.bzl",
+        "file_extensions": [
+          ".thrift"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_typescript_docs_aspect"
+        ],
+        "bzl": "tools/docs/typescript:aspect.bzl",
+        "file_extensions": [
+          ".cts",
+          ".mts",
+          ".ts",
+          ".tsx"
+        ]
+      },
+      "name": "typescript",
+      "quality": {
+        "bzl": "javascript/private/quality:js.bzl",
+        "file_extensions": [
+          ".cts",
+          ".mts",
+          ".ts",
+          ".tsx"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_components_docs_aspect"
+        ],
+        "bzl": "tools/docs/components:aspect.bzl",
+        "file_extensions": [
+          ".vue"
+        ]
+      },
+      "name": "vue",
+      "quality": {
+        "bzl": "javascript/private/quality:js.bzl",
+        "file_extensions": [
+          ".vue"
+        ]
+      }
+    },
+    {
+      "docs": {
+        "aspects": [
+          "real_zig_docs_aspect"
+        ],
+        "bzl": "tools/docs/zig:aspect.bzl",
+        "file_extensions": [
+          ".zig"
+        ]
+      },
+      "name": "zig",
+      "quality": {
+        "aspects": {
+          "format": [
+            "real_zig_format_aspect"
+          ],
+          "lint": [
+            "real_zig_lint_aspect"
+          ],
+          "typecheck": [
+            "real_zig_typecheck_aspect"
+          ]
+        },
+        "bzl": "zig/private/quality:zig.bzl",
+        "file_extensions": [
+          ".zig"
+        ],
+        "probes": {
+          "format": [
+            "real_zig_format_probe_aspect"
+          ],
+          "lint": [
+            "real_zig_lint_probe_aspect"
+          ],
+          "typecheck": [
+            "real_zig_typecheck_probe_aspect"
+          ]
+        }
+      }
+    }
+  ]
+}

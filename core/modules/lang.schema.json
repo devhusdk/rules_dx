@@ -28,6 +28,7 @@
       "required": ["bzl", "file_extensions"],
       "properties": {
         "bzl": {"type": "string", "minLength": 1},
+        "every_workspace": {"type": "boolean"},
         "file_extensions": {"$ref": "#/$defs/strings"},
         "aspects": {"$ref": "#/$defs/commands"},
         "probes": {"$ref": "#/$defs/commands"}

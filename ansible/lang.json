@@ -25,6 +25,7 @@
   ],
   "quality": {
     "bzl": "ansible/private/quality:ansible.bzl",
+    "every_workspace": true,
     "file_extensions": [
       ".yaml",
       ".yml"

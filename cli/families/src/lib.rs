@@ -21,6 +21,8 @@ use serde::Deserialize;
 pub struct QualityFiles {
     /// The aspect file, like `go/private/quality:go.bzl`.
     pub bzl: String,
+    /// Whether every workspace needs the file, whatever files it has.
+    pub every_workspace: bool,
     pub file_extensions: Vec<String>,
     /// Aspect names defined in `bzl`, by command.
     pub aspects: std::collections::BTreeMap<String, Vec<String>>,
@@ -29,6 +31,15 @@ pub struct QualityFiles {
 }
 
 impl QualityFiles {
+    /// Whether a workspace with the files of `extensions` needs the aspect file.
+    pub fn wanted(&self, extensions: &BTreeSet<String>) -> bool {
+        self.every_workspace
+            || self
+                .file_extensions
+                .iter()
+                .any(|extension| extensions.contains(extension))
+    }
+
     /// The `bzl%name` labels of the aspects (or probes) of `command`.
     pub fn labels(&self, command: &str, probes: bool) -> Vec<String> {
         let table = if probes { &self.probes } else { &self.aspects };
@@ -62,45 +73,18 @@ impl DocsFiles {
     }
 }
 
-const LANGUAGE_MANIFESTS: &[&str] = &[
-    include_str!("../../../api_spec/lang.json"),
-    include_str!("../../../astro/lang.json"),
-    include_str!("../../../avro/lang.json"),
-    include_str!("../../../capnproto/lang.json"),
-    include_str!("../../../cc/lang.json"),
-    include_str!("../../../d/lang.json"),
-    include_str!("../../../dart/lang.json"),
-    include_str!("../../../dotnet/lang.json"),
-    include_str!("../../../elixir/lang.json"),
-    include_str!("../../../erlang/lang.json"),
-    include_str!("../../../flatbuffers/lang.json"),
-    include_str!("../../../fortran/lang.json"),
-    include_str!("../../../go/lang.json"),
-    include_str!("../../../haskell/lang.json"),
-    include_str!("../../../java/lang.json"),
-    include_str!("../../../javascript/lang.json"),
-    include_str!("../../../julia/lang.json"),
-    include_str!("../../../kotlin/lang.json"),
-    include_str!("../../../lua/lang.json"),
-    include_str!("../../../mdx/lang.json"),
-    include_str!("../../../msix/lang.json"),
-    include_str!("../../../ocaml/lang.json"),
-    include_str!("../../../perl/lang.json"),
-    include_str!("../../../php/lang.json"),
-    include_str!("../../../pkl/lang.json"),
-    include_str!("../../../powershell/lang.json"),
-    include_str!("../../../python/lang.json"),
-    include_str!("../../../qt/lang.json"),
-    include_str!("../../../ruby/lang.json"),
-    include_str!("../../../rust/lang.json"),
-    include_str!("../../../scala/lang.json"),
-    include_str!("../../../svelte/lang.json"),
-    include_str!("../../../swift/lang.json"),
-    include_str!("../../../thrift/lang.json"),
-    include_str!("../../../typescript/lang.json"),
-    include_str!("../../../vue/lang.json"),
-    include_str!("../../../zig/lang.json"),
-];
+const LANGUAGES: &str = include_str!("../languages.json");
+
+#[derive(Deserialize)]
+struct Languages {
+    languages: Vec<Manifest>,
+}
+
+fn shipped() -> Vec<Manifest> {
+    serde_json::from_str::<Languages>(LANGUAGES)
+        .map(|table| table.languages)
+        .unwrap_or_default()
+}
 
 #[derive(Deserialize)]
 struct Manifest {
@@ -111,12 +95,23 @@ struct Manifest {
 /// Merges the `quality` entries of `lang.json` texts by aspect file, sorted by file. A text
 /// without a `quality` entry is skipped.
 pub fn parse_quality(texts: &[&str]) -> Result<Vec<QualityFiles>, serde_json::Error> {
+    Ok(merge_quality(parse_manifests(texts)?))
+}
+
+fn parse_manifests(texts: &[&str]) -> Result<Vec<Manifest>, serde_json::Error> {
+    texts
+        .iter()
+        .map(|text| serde_json::from_str(text))
+        .collect()
+}
+
+fn merge_quality(manifests: Vec<Manifest>) -> Vec<QualityFiles> {
     let mut merged: std::collections::BTreeMap<String, QualityFiles> = Default::default();
-    for text in texts {
-        let manifest: Manifest = serde_json::from_str(text)?;
+    for manifest in manifests {
         if let Some(quality) = manifest.quality {
             let entry = merged.entry(quality.bzl.clone()).or_default();
             entry.bzl = quality.bzl;
+            entry.every_workspace |= quality.every_workspace;
             entry.file_extensions.extend(quality.file_extensions);
             for (target, source) in [
                 (&mut entry.aspects, quality.aspects),
@@ -128,22 +123,25 @@ pub fn parse_quality(texts: &[&str]) -> Result<Vec<QualityFiles>, serde_json::Er
             }
         }
     }
-    Ok(merged
+    merged
         .into_values()
         .map(|mut files| {
             let extensions: BTreeSet<String> = files.file_extensions.drain(..).collect();
             files.file_extensions = extensions.into_iter().collect();
             files
         })
-        .collect())
+        .collect()
 }
 
 /// Merges the `docs` entries of `lang.json` texts by aspect file, sorted by file. A text
 /// without a `docs` entry is skipped.
 pub fn parse_docs(texts: &[&str]) -> Result<Vec<DocsFiles>, serde_json::Error> {
+    Ok(merge_docs(parse_manifests(texts)?))
+}
+
+fn merge_docs(manifests: Vec<Manifest>) -> Vec<DocsFiles> {
     let mut merged: std::collections::BTreeMap<String, DocsFiles> = Default::default();
-    for text in texts {
-        let manifest: Manifest = serde_json::from_str(text)?;
+    for manifest in manifests {
         if let Some(docs) = manifest.docs {
             let entry = merged.entry(docs.bzl.clone()).or_default();
             entry.bzl = docs.bzl;
@@ -151,7 +149,7 @@ pub fn parse_docs(texts: &[&str]) -> Result<Vec<DocsFiles>, serde_json::Error> {
             entry.aspects.extend(docs.aspects);
         }
     }
-    Ok(merged
+    merged
         .into_values()
         .map(|mut files| {
             let extensions: BTreeSet<String> = files.file_extensions.drain(..).collect();
@@ -160,21 +158,20 @@ pub fn parse_docs(texts: &[&str]) -> Result<Vec<DocsFiles>, serde_json::Error> {
             files.aspects = aspects.into_iter().collect();
             files
         })
-        .collect())
+        .collect()
 }
 
 /// The docs aspect files of the languages, with the file extensions that make a workspace need
 /// them.
 pub fn docs_languages() -> &'static [DocsFiles] {
     static ALL: OnceLock<Vec<DocsFiles>> = OnceLock::new();
-    ALL.get_or_init(|| parse_docs(LANGUAGE_MANIFESTS).unwrap_or_default())
+    ALL.get_or_init(|| merge_docs(shipped()))
 }
 
-/// The aspect files that load a language rule set, with the file extensions that make a
-/// workspace need them. Every other aspect file is needed by every workspace.
+/// The aspect files of every `lang.json` `quality` entry, with what makes a workspace need them.
 pub fn quality_languages() -> &'static [QualityFiles] {
     static ALL: OnceLock<Vec<QualityFiles>> = OnceLock::new();
-    ALL.get_or_init(|| parse_quality(LANGUAGE_MANIFESTS).unwrap_or_default())
+    ALL.get_or_init(|| merge_quality(shipped()))
 }
 
 #[cfg(test)]

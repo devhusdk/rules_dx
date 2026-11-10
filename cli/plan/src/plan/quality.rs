@@ -866,6 +866,12 @@ mod tests {
         )
         .expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
+        let labels: Vec<String> = crate::plan::registry::spec(Command::Lint)
+            .aspects
+            .iter()
+            .map(|label| crate::plan::rules_dx_label(label))
+            .collect();
+        let aspects = format!("--aspects={}", labels.join(","));
         assert_eq!(
             argv[..11],
             [
@@ -877,7 +883,7 @@ mod tests {
                 "--jobs=4",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--aspects=@rules_dx//dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect,@rules_dx//core/quality:families/oci_image.bzl%real_oci_image_lint_aspect,@rules_dx//make/private/quality:make.bzl%real_make_lint_aspect,@rules_dx//cmake/private/quality:cmake.bzl%real_cmake_lint_aspect,@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//core/quality:families/shell.bzl%real_shell_lint_aspect,@rules_dx//core/quality:families/text.bzl%real_text_lint_aspect,@rules_dx//core/quality:families/html_template.bzl%real_html_template_lint_aspect,@rules_dx//core/quality:families/yaml.bzl%real_yaml_lint_aspect,@rules_dx//core/quality:families/nix.bzl%real_nix_lint_aspect,@rules_dx//kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect,@rules_dx//ansible/private/quality:ansible.bzl%real_ansible_lint_aspect,@rules_dx//cloudformation/private/quality:cloudformation.bzl%real_cloudformation_lint_aspect,@rules_dx//core/quality:families/jsonnet.bzl%real_jsonnet_lint_aspect,@rules_dx//core/quality:families/typst.bzl%real_typst_lint_aspect,@rules_dx//core/quality:families/xml.bzl%real_xml_lint_aspect,@rules_dx//core/quality:families/latex.bzl%real_latex_lint_aspect,@rules_dx//core/quality:families/beam.bzl%real_elixir_lint_aspect,@rules_dx//core/quality:families/beam.bzl%real_erlang_lint_aspect,@rules_dx//core/quality:families/cc.bzl%real_cc_lint_aspect,@rules_dx//core/quality:families/dotnet.bzl%real_dotnet_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_protobuf_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_avro_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_capnp_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_flatbuffers_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_thrift_lint_aspect,@rules_dx//core/quality:families/jvm.bzl%real_jvm_lint_aspect,@rules_dx//core/quality:families/jvm.bzl%real_scala_lint_aspect,@rules_dx//d/private/quality:d.bzl%real_d_lint_aspect,@rules_dx//dart/private/quality:dart.bzl%real_dart_lint_aspect,@rules_dx//fortran/private/quality:fortran.bzl%real_fortran_lint_aspect,@rules_dx//go/private/quality:go.bzl%real_go_lint_aspect,@rules_dx//haskell/private/quality:haskell.bzl%real_haskell_lint_aspect,@rules_dx//javascript/private/quality:js.bzl%real_js_lint_aspect,@rules_dx//julia/private/quality:julia.bzl%real_julia_lint_aspect,@rules_dx//lua/private/quality:lua.bzl%real_lua_lint_aspect,@rules_dx//ocaml/private/quality:ocaml.bzl%real_ocaml_lint_aspect,@rules_dx//perl/private/quality:perl.bzl%real_perl_lint_aspect,@rules_dx//php/private/quality:php.bzl%real_php_lint_aspect,@rules_dx//pkl/private/quality:pkl.bzl%real_pkl_lint_aspect,@rules_dx//powershell/private/quality:powershell.bzl%real_powershell_lint_aspect,@rules_dx//python/private/quality:python.bzl%real_python_lint_aspect,@rules_dx//ruby/private/quality:ruby.bzl%real_ruby_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect,@rules_dx//swift/private/quality:swift.bzl%real_swift_lint_aspect,@rules_dx//zig/private/quality:zig.bzl%real_zig_lint_aspect",
+                aspects.as_str(),
                 "--output_groups=dx_results,dx_skips",
                 "--remote_download_outputs=toplevel",
             ]
@@ -1018,9 +1024,8 @@ mod tests {
                 && arg.contains(
                     "@rules_dx//swift/private/quality:swift.bzl%real_swift_typecheck_aspect"
                 )
-                && arg.contains(
-                    "@rules_dx//zig/private/quality:zig.bzl%real_zig_typecheck_aspect"
-                )
+                && arg
+                    .contains("@rules_dx//zig/private/quality:zig.bzl%real_zig_typecheck_aspect")
                 && arg.contains(
                     "@rules_dx//ocaml/private/quality:ocaml.bzl%real_ocaml_typecheck_aspect"
                 )

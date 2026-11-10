@@ -23,6 +23,7 @@
   ],
   "quality": {
     "bzl": "dockerfile/private/quality:dockerfile.bzl",
+    "every_workspace": true,
     "file_extensions": [],
     "aspects": {
       "lint": [

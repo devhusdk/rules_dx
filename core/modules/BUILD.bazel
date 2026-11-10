@@ -199,6 +199,7 @@ rust_test(
         "//:MODULE.bazel",
         "//cli/ecosystems:ecosystems.json",
         "//cli/ecosystems:languages.json",
+        "//cli/families:languages.json",
         "//core/quality/testdata:all_languages.bzl",
     ],
     deps = all_crate_deps(

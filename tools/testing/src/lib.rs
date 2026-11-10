@@ -11,6 +11,7 @@
 use std::path::{Path, PathBuf};
 
 pub mod cli;
+pub mod exec_log;
 pub mod fatbin;
 pub mod http;
 

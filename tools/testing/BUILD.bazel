@@ -36,6 +36,7 @@ rust_library(
     testonly = True,
     srcs = [
         "src/cli.rs",
+        "src/exec_log.rs",
         "src/fatbin.rs",
         "src/http.rs",
         "src/lib.rs",
@@ -67,6 +68,10 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_testing",
+    compile_data = [
+        "exec_log_fixtures/first.log.zst",
+        "exec_log_fixtures/second.log.zst",
+    ],
     data = [
         ":process_probe_child",
         "//:.bazelversion",

@@ -84,6 +84,7 @@ single_version_override(
         "//patches/llvm:lse_atomic_sources.patch",
         "//patches/llvm:stage0_runtime_features.patch",
         "//patches/llvm:aarch64_outline_atomics.patch",
+        "//patches/llvm:macos_sdk_resolve_symlinks.patch",
     ],
     version = "0.8.26",
 )
@@ -640,6 +641,7 @@ osx.frameworks(names = [
     "SystemConfiguration",
 ])
 osx.libraries(names = ["libffi"])
+use_repo(osx, "macos_sdk")
 
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
 register_toolchains("@dx_haskell_toolchains//cc:all")

@@ -10,6 +10,7 @@ exports_files([
     "lse_atomic_sources.patch",
     "stage0_runtime_features.patch",
     "aarch64_outline_atomics.patch",
+    "macos_sdk_resolve_symlinks.patch",
 ])
 
 sh_test(
@@ -43,6 +44,15 @@ sh_test(
     srcs = ["lse_atomic_sources_test.sh"],
     args = ["$(rootpath :aarch64_builtins)"],
     data = [":aarch64_builtins"],
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+sh_test(
+    name = "macos_sdk_symlinks_test",
+    size = "small",
+    srcs = ["macos_sdk_symlinks_test.sh"],
+    args = ["$(rootpath @macos_sdk//sysroot)"],
+    data = ["@macos_sdk//sysroot"],
     target_compatible_with = ["@platforms//os:linux"],
 )
 

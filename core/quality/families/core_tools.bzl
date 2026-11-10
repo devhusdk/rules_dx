@@ -131,9 +131,8 @@ TOOLS = [
                 classes = ["capnp"],
                 family = "capnp",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 unsupported = {
-                    "macos_arm64": "capnproto does not compile on macOS, pending #9832",
                     "windows_arm64": "capnp rejects the runner's Windows scratch paths, pending #9832",
                     "windows_x86_64": "capnp rejects the runner's Windows scratch paths, pending #9832",
                 },
@@ -143,9 +142,8 @@ TOOLS = [
                 classes = ["capnp"],
                 family = "capnp",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 unsupported = {
-                    "macos_arm64": "capnproto does not compile on macOS, pending #9832",
                     "windows_arm64": "capnp rejects the runner's Windows scratch paths, pending #9832",
                     "windows_x86_64": "capnp rejects the runner's Windows scratch paths, pending #9832",
                 },

@@ -122,7 +122,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | API specs | `redocly`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | AsciiDoc | `lychee`, `typos`, `vale` | n/a | n/a | n/a | n/a | n/a |
 | Bicep | `bicep`, `trivy_config`, `typos` | `bicep` | n/a | n/a | n/a | n/a |
-| Cap'n Proto | `capnp` (not on `macos_arm64`: capnproto does not compile on macOS, pending #9832; `windows_x86_64`: capnp rejects the runner's Windows scratch paths, pending #9832; `windows_arm64`: capnp rejects the runner's Windows scratch paths, pending #9832), `typos` | n/a | `capnp` (not on `macos_arm64`: capnproto does not compile on macOS, pending #9832; `windows_x86_64`: capnp rejects the runner's Windows scratch paths, pending #9832; `windows_arm64`: capnp rejects the runner's Windows scratch paths, pending #9832) | n/a | n/a | n/a |
+| Cap'n Proto | `capnp` (not on `windows_x86_64`: capnp rejects the runner's Windows scratch paths, pending #9832; `windows_arm64`: capnp rejects the runner's Windows scratch paths, pending #9832), `typos` | n/a | `capnp` (not on `windows_x86_64`: capnp rejects the runner's Windows scratch paths, pending #9832; `windows_arm64`: capnp rejects the runner's Windows scratch paths, pending #9832) | n/a | n/a | n/a |
 | CloudFormation | `cfn_lint`, `trivy_config`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | CSS | `stylelint`, `typos` | `prettier` | n/a | n/a | n/a | n/a |
 | CUE | n/a | `cue` | `cue` | n/a | n/a | n/a |

@@ -283,6 +283,15 @@ ci_rust_test(
 )
 
 ci_rust_test(
+    name = "has_marker_test",
+    data = [
+        "has_marker.sh",
+        "//.github:workflows/issue-labels.yml",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+ci_rust_test(
     name = "upgrade_e2e_test",
     data = [
         "release_cell.sh",

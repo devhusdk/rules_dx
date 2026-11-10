@@ -61,7 +61,7 @@ def _elixirc_impl(target, ctx):
     (erlang_home, _, erlang_runfiles) = erlang_dirs(elixir_ctx)
     (elixir_home, elixir_runfiles) = elixir_dirs(elixir_ctx)
     opts = [shell.quote(o) for o in attrs.elixirc_opts if o != "--warnings-as-errors"]
-    env = "\n".join(["export %s=%s" % (k, v) for k, v in attrs.env.items()])
+    env = "\n".join(["export %s=%s" % (k, shell.quote(v)) for k, v in attrs.env.items()])
 
     log = ctx.actions.declare_file("dx_elixirc/%s/%s.log" % (name, name))
     status = ctx.actions.declare_file("dx_elixirc/%s/%s.exit" % (name, name))
@@ -73,7 +73,7 @@ case "{elixir_home}" in
     /*) ABS_ELIXIR_HOME="{elixir_home}" ;;
     *) ABS_ELIXIR_HOME="$PWD/{elixir_home}" ;;
 esac
-export PATH="$ABS_ELIXIR_HOME"/bin:"{erlang_home}"/bin:"$PATH"
+export PATH="$ABS_ELIXIR_HOME"/bin:"{erlang_home}"/bin
 if [ -n "{erl_libs_path}" ]; then
     export ERL_LIBS="{erl_libs_path}"
 fi

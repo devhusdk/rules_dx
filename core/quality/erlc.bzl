@@ -109,7 +109,6 @@ def _erlc_impl(target, ctx):
         ),
         outputs = [log, status, out_tree],
         resource_set = dx_medium_resources,
-        use_default_shell_env = True,
         toolchain = _TOOLCHAIN,
     )
     return [ErlcInfo(logs = [log], names = [name], statuses = [status])]

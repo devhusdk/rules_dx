@@ -11,7 +11,6 @@ load("//thrift:defs.bzl", "ThriftInfo")
 TOOLS = {
     "buf": {
         "attr": attr.label(default = "@dx_tools//:buf", allow_single_file = True, cfg = "exec"),
-        "env": [["PATH", "/usr/bin:/bin"]],
         "kind": "file",
         "resources": "light",
         "shard": "protobuf",

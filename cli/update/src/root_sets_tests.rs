@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 40] = [
+const EXPECTED_NAMES: [&str; 47] = [
     "d_app_dub",
     "dart_apitool_deps",
     "dub_fixture",
@@ -29,10 +29,16 @@ const EXPECTED_NAMES: [&str; 40] = [
     "dx_pypi-grpc",
     "dx_pypi-python",
     "dx_pypi-sqlfluff",
+    "dx_pypi_fixtures-hello",
+    "dx_pypi_fixtures-python-service",
+    "dx_pypi_rust_sdist-rust_sdist",
+    "dx_pypi_sdist-sdist_native",
+    "dx_pypi_sdist_nodeps-nodeps",
     "dx_quality_crates",
     "dx_scala3_test",
     "dx_scalafix",
     "dx_thrift_crates",
+    "elixir_app_deps",
     "go",
     "haskell_app_hackage",
     "haskell_bench_hackage",
@@ -41,6 +47,7 @@ const EXPECTED_NAMES: [&str; 40] = [
     "haskell_nixfmt_hackage",
     "haskell_ormolu_hackage",
     "haskell_weeder_hackage",
+    "julia_app_pkgs",
     "maven",
     "nuget",
     "ocaml_app",

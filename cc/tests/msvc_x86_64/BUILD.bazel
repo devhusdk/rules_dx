@@ -48,7 +48,6 @@ rust_test(
     srcs = ["archive_test.rs"],
     data = [":hello_msvc_release"],
     env = {"ARCHIVE": "$(rootpath :hello_msvc_release)"},
-    tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,
     deps = [
         "//deploy/private:dx_deploy_tools",
@@ -67,7 +66,6 @@ rust_test(
         "APP": "$(rootpath :hello_msvc)",
         "ARCHIVER": "$(rootpath //deploy/private:archiver)",
     },
-    tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,
     deps = ["//tools/testing:dx_testing"],
 )
@@ -80,7 +78,6 @@ rust_test(
         "APP": "$(rootpath :hello_msvc)",
         "PRODUCER": "msvc 261." + MSVC_CL_BUILD,
     },
-    tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,
     deps = [
         "//cli/binfmt:dx_binfmt",

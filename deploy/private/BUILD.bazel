@@ -1471,7 +1471,6 @@ rust_test(
     },
     tags = [
         "block-network",
-        "manual",
         "no-coverage",
     ],
     target_compatible_with = _WINDOWS_X64,

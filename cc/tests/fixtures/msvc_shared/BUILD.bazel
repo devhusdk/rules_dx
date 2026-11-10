@@ -65,7 +65,6 @@ cc_test(
     name = "shared_test",
     srcs = ["shared_test.cc"],
     dynamic_deps = [":greet_dll"],
-    tags = ["manual"],
     target_compatible_with = _MSVC_ONLY,
     deps = [
         ":add_c",
@@ -77,14 +76,12 @@ cc_test(
 cc_test(
     name = "pe_machine_test",
     srcs = ["pe_machine_test.cc"],
-    tags = ["manual"],
     target_compatible_with = _MSVC_ONLY,
 )
 
 cc_test(
     name = "c_test",
     srcs = ["c_test.c"],
-    tags = ["manual"],
     target_compatible_with = _MSVC_ONLY,
     deps = [":add_c"],
 )
@@ -92,7 +89,6 @@ cc_test(
 cc_test(
     name = "spaced_test",
     srcs = ["dir with space/spaced_test.cc"],
-    tags = ["manual"],
     target_compatible_with = _MSVC_ONLY,
 )
 

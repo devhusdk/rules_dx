@@ -36,13 +36,13 @@ dx waits up to 10 seconds for the commit lock (`.dx/local/.commit.lock`). If ano
 
 Editors lose their tool links until you run `dx sync`, so the output ends with `next: dx sync`.
 
-### Output
+## Output
 
 Text prints `removed <path> (<n> bytes)` for each entry, a `dx clean: removed <n> paths (<b> bytes)` line, and `next: dx sync`.
 
 JSON emits one `notice` with code `clean_removed` per path, with `path` and the byte size in `message`, then one `clean_removed` notice with the total. A failure emits a `clean_failed` error.
 
-### Exit codes
+## Exit codes
 
 | Code | Meaning |
 | --- | --- |

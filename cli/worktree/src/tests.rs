@@ -1426,6 +1426,19 @@ fn bazel_links_do_not_make_a_slot_dirty_and_survive_reuse() {
 }
 
 #[test]
+fn an_untracked_bazel_named_file_makes_a_slot_dirty() {
+    let fixture = Fixture::new();
+    let pool = fixture.pool();
+    let host = FakeHost::new();
+    let me = who("s1", 10);
+    let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
+    std::fs::write(first.path.join("bazel-notes.md"), "x").expect("notes");
+    let never = || None;
+    assert!(super::git::dirty(&first.path, &never).expect("dirty"));
+    assert!(super::git::holds_files(&first.path, &never).expect("holds"));
+}
+
+#[test]
 fn a_branch_held_in_another_slot_is_an_error_but_the_same_session_gets_it_back() {
     let fixture = Fixture::new();
     let pool = fixture.pool();

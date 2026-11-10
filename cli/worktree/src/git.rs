@@ -194,7 +194,7 @@ pub(super) fn dirty(
         READ_TIMEOUT,
         stop,
     )?;
-    Ok(status.lines().any(|line| !line.starts_with("?? bazel-")))
+    Ok(status.lines().any(|line| !bazel_link(checkout, line, "?? ")))
 }
 
 /// Whether the checkout has any change, untracked file or ignored file besides `bazel-*` links.
@@ -210,7 +210,25 @@ pub(super) fn holds_files(
     )?;
     Ok(status
         .lines()
-        .any(|line| !line.starts_with("?? bazel-") && !line.starts_with("!! bazel-")))
+        .any(|line| !bazel_link(checkout, line, "?? ") && !bazel_link(checkout, line, "!! ")))
+}
+
+/// Whether a porcelain status line names a Bazel convenience link.
+fn bazel_link(checkout: &Path, line: &str, prefix: &str) -> bool {
+    let Some(name) = line.strip_prefix(prefix) else {
+        return false;
+    };
+    let name = name.trim_end_matches('/');
+    if !name.starts_with("bazel-") {
+        return false;
+    }
+    let workspace = checkout.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    name == "bazel-bin"
+        || name == "bazel-out"
+        || name == "bazel-testlogs"
+        || name == format!("bazel-{workspace}")
+        || std::fs::symlink_metadata(checkout.join(name))
+            .is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
 /// Whether a rebase, merge, cherry-pick, revert or bisect is in progress in the checkout.

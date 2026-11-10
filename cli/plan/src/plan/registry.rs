@@ -352,30 +352,25 @@ mod tests {
         }
     }
 
-    fn families_json(python_module: &str) -> Vec<dx_families::Family> {
-        let python_module = if python_module.is_empty() {
-            String::new()
-        } else {
-            format!(r#""module": "{python_module}","#)
-        };
-        dx_families::parse(&format!(
-            r#"{{"families": {{
-                "python": {{{python_module} "aspects": ["real_python_lint_aspect"]}},
-                "jvm": {{"module": "rules_dx_jvm", "aspects": ["real_jvm_lint_aspect"]}},
-                "rust": {{"module": "rules_dx_rust", "aspects": ["real_rust_lint_aspect"]}},
-                "core": {{"aspects": ["real_lint_aspect"]}}
-            }}}}"#
-        ))
+    fn families_json() -> Vec<dx_families::Family> {
+        dx_families::parse(
+            r#"{"families": {
+                "python": {"aspects": ["real_python_lint_aspect"]},
+                "jvm": {"module": "rules_dx_jvm", "aspects": ["real_jvm_lint_aspect"]},
+                "rust": {"module": "rules_dx_rust", "aspects": ["real_rust_lint_aspect"]},
+                "core": {"aspects": ["real_lint_aspect"]}
+            }}"#,
+        )
         .expect("families")
     }
 
     #[test]
     fn aspects_for_drops_aspects_of_families_that_are_not_installed() {
-        let installed = ["rules_dx_python".to_owned()];
+        let installed = ["rules_dx_rust".to_owned()];
         let extensions = extensions(&[".c", ".py", ".rs"]);
         let lint = aspects_for_families(
             Command::Lint,
-            &families_json("rules_dx_python"),
+            &families_json(),
             consumer(&installed, &extensions),
         );
         let has = |name: &str| {
@@ -385,8 +380,8 @@ mod tests {
         assert!(has("real_lint_aspect"));
         assert!(has("real_python_lint_aspect"));
         assert!(has("real_cc_lint_aspect"));
+        assert!(has("real_rust_lint_aspect"));
         assert!(!has("real_jvm_lint_aspect"));
-        assert!(!has("real_rust_lint_aspect"));
     }
 
     #[test]
@@ -394,7 +389,7 @@ mod tests {
         let extensions = extensions(&[".py", ".java"]);
         let lint = aspects_for_families(
             Command::Lint,
-            &families_json(""),
+            &families_json(),
             consumer(&[], &extensions),
         );
         assert!(lint.contains(&"quality:families/python.bzl%real_python_lint_aspect"));
@@ -403,13 +398,13 @@ mod tests {
 
     #[test]
     fn probes_for_lists_the_core_probe_and_the_installed_families_probes() {
-        let installed = ["rules_dx_python".to_owned(), "rules_dx_rust".to_owned()];
-        let extensions = extensions(&[".py", ".rs", ".erl"]);
+        let installed = ["rules_dx_rust".to_owned()];
+        let extensions = extensions(&[".py", ".rs", ".swift"]);
         let probes = probes_for(Command::Lint, consumer(&installed, &extensions));
         assert!(probes.contains(&"quality:families/core_probe.bzl%real_core_lint_probe_aspect"));
         assert!(probes.contains(&"quality:families/python.bzl%real_python_lint_probe_aspect"));
         assert!(probes.contains(&"quality:families/rust.bzl%real_rust_lint_probe_aspect"));
-        assert!(!probes.contains(&"quality:families/beam.bzl%real_beam_lint_probe_aspect"));
+        assert!(!probes.contains(&"quality:families/swift.bzl%real_swift_lint_probe_aspect"));
         assert!(probes_for(Command::Docs, consumer(&installed, &extensions)).is_empty());
     }
 

@@ -658,7 +658,7 @@ mod tests {
     #[test]
     fn probe_with_installed_modules_passes_core_and_installed_family_probes() {
         let scope = resolved(&["//pkg:lib"]);
-        let installed = strings(&["rules_dx_python"]);
+        let installed = strings(&["rules_dx_rust"]);
         let extensions = strings(&[".py", ".go"]).into_iter().collect();
         let plan = plan_probe(
             Command::Lint,

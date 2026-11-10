@@ -1689,19 +1689,25 @@ uv.project(
     lock = "//gazelle/protobuf/tests/grpc:uv.lock",
     pyproject = "//gazelle/protobuf/tests/grpc:pyproject.toml",
 )
-uv.declare_hub(hub_name = "dx_pypi_fixtures")
-uv.project(
+use_repo(
+    uv,
+    pypi = "dx_pypi",
+)
+
+uv_fixtures = use_extension("@rules_py//uv:extensions.bzl", "uv", dev_dependency = True)
+uv_fixtures.declare_hub(hub_name = "dx_pypi_fixtures")
+uv_fixtures.project(
     hub_name = "dx_pypi_fixtures",
     lock = "//python/tests/fixtures/python-service:uv.lock",
     pyproject = "//python/tests/fixtures/python-service:pyproject.toml",
 )
-uv.project(
+uv_fixtures.project(
     hub_name = "dx_pypi_fixtures",
     lock = "//python/tests/fixtures/hello:uv.lock",
     pyproject = "//python/tests/fixtures/hello:pyproject.toml",
 )
-uv.declare_hub(hub_name = "dx_pypi_rust_sdist")
-uv.project(
+uv_fixtures.declare_hub(hub_name = "dx_pypi_rust_sdist")
+uv_fixtures.project(
     default_build_dependencies = [
         "build",
         "maturin",
@@ -1710,7 +1716,7 @@ uv.project(
     lock = "//python/tests/fixtures/rust_sdist:uv.lock",
     pyproject = "//python/tests/fixtures/rust_sdist:pyproject.toml",
 )
-uv.override_package(
+uv_fixtures.override_package(
     name = "rpds-py",
     env = {
         "CARGO_NET_OFFLINE": "true",
@@ -1722,8 +1728,8 @@ uv.override_package(
         "@dx_rust_sdist_crates//:layer",
     ],
 )
-uv.declare_hub(hub_name = "dx_pypi_sdist")
-uv.project(
+uv_fixtures.declare_hub(hub_name = "dx_pypi_sdist")
+uv_fixtures.project(
     default_build_dependencies = [
         "build",
         "setuptools",
@@ -1732,25 +1738,28 @@ uv.project(
     lock = "//python/tests/sdist_native:uv.lock",
     pyproject = "//python/tests/sdist_native:pyproject.toml",
 )
-uv.declare_hub(hub_name = "dx_pypi_sdist_nodeps")
-uv.project(
+uv_fixtures.declare_hub(hub_name = "dx_pypi_sdist_nodeps")
+uv_fixtures.project(
     default_build_dependencies = ["build"],
     hub_name = "dx_pypi_sdist_nodeps",
     lock = "//python/tests/sdist_native/nodeps:uv.lock",
     pyproject = "//python/tests/sdist_native/nodeps:pyproject.toml",
 )
 use_repo(
-    uv,
+    uv_fixtures,
     "dx_pypi_fixtures",
     "dx_pypi_sdist",
     "dx_pypi_sdist_nodeps",
     "sdist_build__sdist_native__python_geohash__0_8_5",
     "sdist_build__sdist_native_nodeps__python_geohash__0_8_5",
-    pypi = "dx_pypi",
     rust_sdist_pypi = "dx_pypi_rust_sdist",
 )
 
-sdist_cargo_vendor = use_extension("//python:extensions.bzl", "sdist_cargo_vendor")
+sdist_cargo_vendor = use_extension(
+    "//python:extensions.bzl",
+    "sdist_cargo_vendor",
+    dev_dependency = True,
+)
 sdist_cargo_vendor.crates(
     name = "dx_rust_sdist_crates",
     lock = "//python/tests/fixtures/rust_sdist:uv.lock",

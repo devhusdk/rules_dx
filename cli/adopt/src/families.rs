@@ -314,7 +314,7 @@ mod tests {
         };
         vec![
             family("go", "rules_dx_go", ".go"),
-            family("python", "rules_dx_python", ".py"),
+            family("jvm", "rules_dx_jvm", ".java"),
             family("rust", "rules_dx_rust", ".rs"),
             Family {
                 name: "core".to_owned(),
@@ -350,13 +350,13 @@ mod tests {
 
     #[test]
     fn adds_a_dep_for_each_language_after_rules_dx() {
-        let dir = workspace(MODULE, &["a.py", "b.go", "c.md"], true);
+        let dir = workspace(MODULE, &["A.java", "b.go", "c.md"], true);
         let deps = plan_family_deps(dir.path(), &table()).expect("plan");
         assert_eq!(
             new_text(&deps),
             format!(
                 "{MODULE}bazel_dep(name = \"rules_dx_go\", version = \"1.0.0\")\n\
-                 bazel_dep(name = \"rules_dx_python\", version = \"1.0.0\")\n"
+                 bazel_dep(name = \"rules_dx_jvm\", version = \"1.0.0\")\n"
             )
         );
         assert!(deps.notes.is_empty());
@@ -364,15 +364,15 @@ mod tests {
 
     #[test]
     fn dx_directory_files_are_not_sources() {
-        let dir = workspace(MODULE, &["a.py", ".dx/config/ruff/extra.toml"], true);
+        let dir = workspace(MODULE, &["A.java", ".dx/config/ruff/extra.toml"], true);
         let extensions = file_extensions(dir.path());
-        assert!(extensions.contains(".py"));
+        assert!(extensions.contains(".java"));
         assert!(!extensions.contains(".toml"));
     }
 
     #[test]
     fn a_second_run_plans_nothing() {
-        let dir = workspace(MODULE, &["a.py", "b.go"], true);
+        let dir = workspace(MODULE, &["A.java", "b.go"], true);
         let deps = plan_family_deps(dir.path(), &table()).expect("plan");
         write(dir.path(), MODULE_FILE, new_text(&deps));
         let again = plan_family_deps(dir.path(), &table()).expect("plan");
@@ -393,7 +393,7 @@ mod tests {
 
     #[test]
     fn no_rules_dx_dep_plans_nothing() {
-        let dir = workspace("module(name = \"app\")\n", &["a.py"], true);
+        let dir = workspace("module(name = \"app\")\n", &["A.java"], true);
         assert_eq!(
             plan_family_deps(dir.path(), &table()).expect("plan"),
             FamilyDeps::default()
@@ -404,7 +404,7 @@ mod tests {
     fn rules_dx_itself_plans_nothing() {
         let module =
             "module(name = \"rules_dx\")\nbazel_dep(name = \"rules_dx\", version = \"1\")\n";
-        let dir = workspace(module, &["a.py"], true);
+        let dir = workspace(module, &["A.java"], true);
         assert_eq!(
             plan_family_deps(dir.path(), &table()).expect("plan"),
             FamilyDeps::default()
@@ -415,7 +415,7 @@ mod tests {
     fn a_rules_dx_family_module_plans_nothing() {
         let module =
             "module(name = \"rules_dx_jvm\")\nbazel_dep(name = \"rules_dx\", version = \"1\")\n";
-        let dir = workspace(module, &["a.py"], true);
+        let dir = workspace(module, &["A.java"], true);
         assert_eq!(
             plan_family_deps(dir.path(), &table()).expect("plan"),
             FamilyDeps::default()
@@ -424,10 +424,10 @@ mod tests {
 
     #[test]
     fn a_tree_without_git_is_walked() {
-        let dir = workspace(MODULE, &["src/a.py", ".git/x.go", "bazel-out/y.go"], false);
+        let dir = workspace(MODULE, &["src/A.java", ".git/x.go", "bazel-out/y.go"], false);
         let deps = plan_family_deps(dir.path(), &table()).expect("plan");
         let text = new_text(&deps);
-        assert!(text.contains("rules_dx_python"), "{text}");
+        assert!(text.contains("rules_dx_jvm"), "{text}");
         assert!(!text.contains("rules_dx_go"), "{text}");
     }
 
@@ -437,7 +437,7 @@ mod tests {
         let deps = plan_family_deps(dir.path(), &table()).expect("plan");
         let text = new_text(&deps);
         assert!(text.contains("rules_dx_rust"), "{text}");
-        assert!(!text.contains("rules_dx_python"), "{text}");
+        assert!(!text.contains("rules_dx_jvm"), "{text}");
     }
 
     #[test]
@@ -446,18 +446,18 @@ mod tests {
         git(outer.path());
         let root = outer.path().join("app");
         write(&root, MODULE_FILE, MODULE);
-        for file in ["src/a.py", ".git/x.go", "bazel-out/y.go"] {
+        for file in ["src/A.java", ".git/x.go", "bazel-out/y.go"] {
             write(&root, file, "");
         }
         let deps = plan_family_deps(&root, &table()).expect("plan");
         let text = new_text(&deps);
-        assert!(text.contains("rules_dx_python"), "{text}");
+        assert!(text.contains("rules_dx_jvm"), "{text}");
         assert!(!text.contains("rules_dx_go"), "{text}");
     }
 
     #[test]
     fn bazelignore_dirs_are_skipped() {
-        let dir = workspace(MODULE, &["vendor/a.py", ".bazelignore"], true);
+        let dir = workspace(MODULE, &["vendor/A.java", ".bazelignore"], true);
         write(dir.path(), ".bazelignore", "# vendored\nvendor/\n");
         assert_eq!(
             plan_family_deps(dir.path(), &table()).expect("plan"),

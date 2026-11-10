@@ -7368,7 +7368,7 @@
     "//python:extensions.bzl%sdist_cargo_vendor": {
       "general": {
         "bzlTransitiveDigest": "R0FnbsQH5Ad7CrtDzh22qjUJdmm+spEilI6lV/4CJnU=",
-        "usagesDigest": "jpBrt2x724IzTwKbYFPXRz753gpo7ayI84tlzsNzlWI=",
+        "usagesDigest": "P+NCxvyJI3jT4IxjGY079k7LrOk3o8Chcqq1iy/j40U=",
         "recordedInputs": [],
         "generatedRepoSpecs": {
           "dx_rust_sdist_crates": {

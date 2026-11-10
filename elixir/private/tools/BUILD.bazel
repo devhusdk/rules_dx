@@ -20,7 +20,7 @@ mix_format(
 
 mix_format(
     name = "mix",
-    inherit_env = True,
+    caller_homes = True,
     mix_args = [],
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )

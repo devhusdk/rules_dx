@@ -16,7 +16,6 @@ package(default_visibility = ["//d/tests/fixtures/d-app:__subpackages__"])
 
 alias(
     name = "ldc",
-    tags = ["manual"],
     testonly = True,
     actual = select(
         {cell_setting("//d/private/toolchain", cell): "@dx_d_ldc_%s//:dmd" % cell for cell in _CELLS},
@@ -39,7 +38,6 @@ rust_test(
         "DX_LDC": "$(rootpath :ldc)",
         "DX_MISSING_DEP": "$(rootpath missing_dep.d)",
     },
-    tags = ["manual"],
     target_compatible_with = D_COMPATIBLE_WITH,
     deps = ["//tools/testing:dx_testing"],
 )

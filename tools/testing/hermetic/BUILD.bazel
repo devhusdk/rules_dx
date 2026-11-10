@@ -1,3 +1,5 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
@@ -1281,4 +1283,29 @@ exports_files(
         "src/lib.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
+)
+
+_HERMETIC_BINARIES = [
+    "//tools/testing/hermetic:appcontainer_run",
+    "//tools/testing/hermetic:hermetic",
+    "//tools/testing/hermetic:isolation_windows_probe",
+    "//tools/testing/hermetic:verify",
+]
+
+genquery(
+    name = "non_testonly_hermetic_dependents",
+    expression = "attr(testonly, 0, rdeps(set(%s), //tools/testing/hermetic:hermetic))" % " ".join(_HERMETIC_BINARIES),
+    scope = _HERMETIC_BINARIES,
+)
+
+write_file(
+    name = "no_dependents",
+    out = "no_dependents.txt",
+    content = [],
+)
+
+diff_test(
+    name = "hermetic_dependents_testonly_test",
+    file1 = ":non_testonly_hermetic_dependents",
+    file2 = ":no_dependents",
 )

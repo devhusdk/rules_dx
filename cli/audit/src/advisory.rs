@@ -36,18 +36,10 @@ pub const REFRESH_COMMAND: &str = "bazel run @rules_dx//cli/advisory_prep --";
 /// Maps a dependency set name to its advisory family; the sole set-to-family step.
 pub fn advisory_family(set: &str) -> Option<&'static str> {
     match set {
-        "cargo" => Some("cargo"),
-        "npm" | "npm-adopt" | "npm-adopt-polyglot" | "npm-tools" => Some("npm"),
-        "maven" => Some("maven"),
-        "nuget" => Some("nuget"),
-        "go" => Some("go"),
-        "ruby" | "rubygems" => Some("rubygems"),
-        PYPI_FAMILY => Some(PYPI_FAMILY),
-        "cpan" => Some("cpan"),
-        _ => crate::vuln::VERSION_FAMILIES
-            .iter()
-            .copied()
-            .find(|family| *family == set),
+        "npm-adopt" | "npm-adopt-polyglot" | "npm-tools" => Some("npm"),
+        "ruby" => Some("rubygems"),
+        "cran" => Some("cran"),
+        _ => dx_ecosystems::advisory_family_named(set),
     }
 }
 
@@ -67,23 +59,8 @@ pub const TRIVY_FAMILY: &str = "trivy";
 
 pub fn advisory_source(family: &str) -> Option<&'static str> {
     match family {
-        "cargo" => Some("https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"),
-        "npm" => Some("https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"),
-        "maven" => Some("https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip"),
-        "nuget" => Some("https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip"),
-        "go" => Some("https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"),
-        "rubygems" => Some("https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"),
-        "pypi" => Some("https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"),
-        "hex" => Some("https://osv-vulnerabilities.storage.googleapis.com/Hex/all.zip"),
-        "pub" => Some("https://osv-vulnerabilities.storage.googleapis.com/Pub/all.zip"),
-        "packagist" => Some("https://osv-vulnerabilities.storage.googleapis.com/Packagist/all.zip"),
-        "hackage" => Some("https://osv-vulnerabilities.storage.googleapis.com/Hackage/all.zip"),
-        "swifturl" => Some("https://osv-vulnerabilities.storage.googleapis.com/SwiftURL/all.zip"),
-        "julia" => Some("https://osv-vulnerabilities.storage.googleapis.com/Julia/all.zip"),
-        "opam" => Some("https://osv-vulnerabilities.storage.googleapis.com/opam/all.zip"),
         "cran" => Some("https://osv-vulnerabilities.storage.googleapis.com/CRAN/all.zip"),
-        "cpan" => Some(crate::advisory_prep::CPANSA_URL),
-        _ => None,
+        _ => dx_ecosystems::osv_source_of_family(family),
     }
 }
 

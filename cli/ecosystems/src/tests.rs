@@ -15,7 +15,11 @@ fn rows_are_complete_and_unique() {
         assert!(!row.name.is_empty());
         assert!(!row.manifest.is_empty(), "{} has no manifest", row.name);
         assert!(seen.insert(row.name.as_str()), "duplicate {}", row.name);
-        assert!(Ecosystem::parse(&row.name).is_some(), "{} unparsed", row.name);
+        assert!(
+            Ecosystem::parse(&row.name).is_some(),
+            "{} unparsed",
+            row.name
+        );
     }
 }
 
@@ -44,4 +48,46 @@ fn false_flags_report_pinned() {
     assert_eq!(Ecosystem::Bazel.supported_check(), "pinned");
     assert_eq!(Ecosystem::Uv.supported_check(), "check");
     assert_eq!(Ecosystem::Dub.advisory_family(), None);
+}
+
+#[test]
+fn lock_and_source_columns_match_the_audit_column() {
+    for row in rows() {
+        assert!(
+            row.lockfiles
+                .iter()
+                .all(|name| !name.is_empty() && !name.contains('/'))
+        );
+        if row.advisory_family.is_none() {
+            assert_eq!(
+                row.osv_source, None,
+                "{} has a source but no family",
+                row.name
+            );
+        }
+        if let Some(url) = &row.osv_source {
+            assert!(url.starts_with("https://"), "{} source {url}", row.name);
+        }
+        if row.audit && row.advisory_family.is_some() {
+            assert!(
+                row.osv_source.is_some(),
+                "{} audited without source",
+                row.name
+            );
+        }
+    }
+}
+
+#[test]
+fn lookups_resolve_rows() {
+    assert_eq!(Ecosystem::Hex.lockfiles(), ["mix.lock", "rebar.lock"]);
+    assert_eq!(Ecosystem::Npm.lockfiles()[0], "pnpm-lock.yaml");
+    assert_eq!(advisory_family_named("rubygems"), Some("rubygems"));
+    assert_eq!(advisory_family_named("ruby"), None);
+    assert_eq!(advisory_family_named("unknown-set"), None);
+    assert_eq!(
+        osv_source_of_family("cargo"),
+        Some("https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip")
+    );
+    assert_eq!(osv_source_of_family("nope"), None);
 }

@@ -356,17 +356,17 @@ pub(super) fn find(
 }
 
 fn lock_file_name(set: &ResolvedSet) -> &'static str {
-    match set.ecosystem {
-        Ecosystem::Cargo => "Cargo.lock",
-        Ecosystem::Npm => "pnpm-lock.yaml",
-        Ecosystem::Uv => "uv.lock",
-        Ecosystem::Pub => "pubspec.lock",
-        Ecosystem::Hex => match hex_backend(set) {
-            Some(HexBackend::Rebar3) => dx_adopt::dependency_sets::REBAR_LOCK,
-            _ => dx_adopt::dependency_sets::MIX_LOCK,
-        },
-        _ => "Gemfile.lock",
-    }
+    let locks = set.ecosystem.lockfiles();
+    let wanted = match (set.ecosystem, hex_backend(set)) {
+        (Ecosystem::Hex, Some(HexBackend::Rebar3)) => dx_adopt::dependency_sets::REBAR_LOCK,
+        (Ecosystem::Hex, _) => dx_adopt::dependency_sets::MIX_LOCK,
+        _ => return locks.first().map_or("", String::as_str),
+    };
+    locks
+        .iter()
+        .map(String::as_str)
+        .find(|name| *name == wanted)
+        .unwrap_or(wanted)
 }
 
 /// Imports under the manifest's directory that no declared dependency covers, and hub labels
@@ -390,10 +390,11 @@ pub(super) fn find_missing(
             missing_hubs(workspace, target, eco, &excepted, query, startup, &mut out);
         }
         let lock = target.set.locks.iter().find(|lock| {
-            Path::new(lock.as_str())
-                .file_name()
-                .and_then(|n| n.to_str())
-                == Some(lock_file_name(&target.set))
+            !graph_only(ecosystem)
+                && Path::new(lock.as_str())
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    == Some(lock_file_name(&target.set))
         });
         if ecosystem != Ecosystem::Go && lock.is_none() {
             continue;

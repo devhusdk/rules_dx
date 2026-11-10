@@ -26,6 +26,8 @@ struct Row {
     audit: bool,
     advisory_family: Option<String>,
     uses_repository: bool,
+    lockfiles: Vec<String>,
+    osv_source: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -41,6 +43,24 @@ fn parse_rows(text: &str) -> Result<Vec<Row>, serde_json::Error> {
 fn rows() -> &'static [Row] {
     static ROWS: OnceLock<Vec<Row>> = OnceLock::new();
     ROWS.get_or_init(|| parse_rows(TABLE).unwrap_or_default())
+}
+
+/// Names the OSV archive URL of an advisory family.
+pub fn osv_source_of_family(family: &str) -> Option<&'static str> {
+    rows()
+        .iter()
+        .find(|row| row.advisory_family.as_deref() == Some(family))?
+        .osv_source
+        .as_deref()
+}
+
+/// Returns the table's spelling of an advisory family name.
+pub fn advisory_family_named(family: &str) -> Option<&'static str> {
+    rows().iter().find_map(|row| {
+        row.advisory_family
+            .as_deref()
+            .filter(|name| *name == family)
+    })
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -174,6 +194,16 @@ impl Ecosystem {
     /// Names the advisory snapshot family that covers this ecosystem's locks.
     pub fn advisory_family(self) -> Option<&'static str> {
         self.row()?.advisory_family.as_deref()
+    }
+
+    /// Lists the lock file names of this ecosystem, preferred backend first.
+    pub fn lockfiles(self) -> &'static [String] {
+        self.row().map_or(&[], |row| row.lockfiles.as_slice())
+    }
+
+    /// Names the OSV archive URL of this ecosystem's advisories.
+    pub fn osv_source(self) -> Option<&'static str> {
+        self.row()?.osv_source.as_deref()
     }
 
     /// Names the file every manifest of this ecosystem must have.

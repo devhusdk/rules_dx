@@ -7,7 +7,9 @@
       "update": true,
       "audit": true,
       "advisory_family": "pypi",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["uv.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip"
     },
     {
       "name": "npm",
@@ -16,7 +18,9 @@
       "update": true,
       "audit": true,
       "advisory_family": "npm",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["pnpm-lock.yaml", "yarn.lock", "package-lock.json"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip"
     },
     {
       "name": "bazel",
@@ -25,7 +29,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": [],
+      "osv_source": null
     },
     {
       "name": "ruby",
@@ -34,7 +40,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "rubygems",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["Gemfile.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip"
     },
     {
       "name": "powershell",
@@ -43,7 +51,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["PSGallery.lock.json"],
+      "osv_source": null
     },
     {
       "name": "cargo",
@@ -52,7 +62,9 @@
       "update": true,
       "audit": true,
       "advisory_family": "cargo",
-      "uses_repository": true
+      "uses_repository": true,
+      "lockfiles": ["Cargo.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip"
     },
     {
       "name": "maven",
@@ -61,7 +73,9 @@
       "update": true,
       "audit": true,
       "advisory_family": "maven",
-      "uses_repository": true
+      "uses_repository": true,
+      "lockfiles": [],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip"
     },
     {
       "name": "nuget",
@@ -70,7 +84,9 @@
       "update": true,
       "audit": true,
       "advisory_family": "nuget",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["paket.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip"
     },
     {
       "name": "go",
@@ -79,7 +95,9 @@
       "update": true,
       "audit": true,
       "advisory_family": "go",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["go.sum"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip"
     },
     {
       "name": "cpan",
@@ -88,7 +106,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "cpan",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["cpanfile.snapshot"],
+      "osv_source": "https://metacpan.org/release/CPANSA-DB"
     },
     {
       "name": "pub",
@@ -97,7 +117,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "pub",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["pubspec.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Pub/all.zip"
     },
     {
       "name": "conan",
@@ -106,7 +128,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["conan.lock"],
+      "osv_source": null
     },
     {
       "name": "julia",
@@ -115,7 +139,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "julia",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["Manifest.toml", "Manifest.bazel.json"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Julia/all.zip"
     },
     {
       "name": "hex",
@@ -124,7 +150,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "hex",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["mix.lock", "rebar.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Hex/all.zip"
     },
     {
       "name": "composer",
@@ -133,7 +161,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "packagist",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["composer.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Packagist/all.zip"
     },
     {
       "name": "opam",
@@ -142,7 +172,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "opam",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": [],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/opam/all.zip"
     },
     {
       "name": "swiftpm",
@@ -151,7 +183,9 @@
       "update": true,
       "audit": true,
       "advisory_family": "swifturl",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["Package.resolved"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/SwiftURL/all.zip"
     },
     {
       "name": "cabal",
@@ -160,7 +194,9 @@
       "update": false,
       "audit": true,
       "advisory_family": "hackage",
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["cabal.project.freeze", "stack.yaml.lock"],
+      "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Hackage/all.zip"
     },
     {
       "name": "dub",
@@ -169,7 +205,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["dub.selections.json"],
+      "osv_source": null
     },
     {
       "name": "fpm",
@@ -178,7 +216,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["fpm.lock"],
+      "osv_source": null
     },
     {
       "name": "zig",
@@ -187,7 +227,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["zig.digests.json"],
+      "osv_source": null
     },
     {
       "name": "luarocks",
@@ -196,7 +238,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": ["luarocks.lock"],
+      "osv_source": null
     },
     {
       "name": "ansible",
@@ -205,7 +249,9 @@
       "update": true,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": [],
+      "osv_source": null
     },
     {
       "name": "bicep",
@@ -214,7 +260,9 @@
       "update": false,
       "audit": true,
       "advisory_family": null,
-      "uses_repository": false
+      "uses_repository": false,
+      "lockfiles": [],
+      "osv_source": null
     }
   ]
 }

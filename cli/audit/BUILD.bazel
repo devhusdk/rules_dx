@@ -94,6 +94,7 @@ rust_library(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/dx_config",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
@@ -193,6 +194,7 @@ rust_test(
     ) + [
         "//cli/digest:dx_digest",
         "//cli/dx_config",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/process:dx_process",
         "//cli/sbom/schema:dx_sbom_schema",

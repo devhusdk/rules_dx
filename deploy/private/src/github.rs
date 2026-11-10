@@ -554,6 +554,99 @@ mod tests {
         assert!(github_release_command("v1", &["a".to_owned()]).contains("gh release create v1 a"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn breaking_go_api_change_stops_a_live_release_before_gh_runs() {
+        if env_test_in_child("github::tests::breaking_go_api_change_stops_a_live_release_before_gh_runs")
+        {
+            return;
+        }
+        let scratch = scratch_dir();
+        let repo = scratch.path().join("repo");
+        let runfiles = scratch.path().join("runfiles");
+        let bin = scratch.path().join("bin");
+        write_crate_file(&repo, "go.mod", "module example.com/lib\n\ngo 1.22\n");
+        write_crate_file(&repo, "lib.go", "package lib\n");
+        for dir in [&runfiles, &bin] {
+            std::fs::create_dir_all(dir).expect("dir");
+        }
+        for args in [
+            vec!["init", "-q"],
+            vec!["add", "."],
+            vec![
+                "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "x",
+            ],
+            vec!["tag", "v1.2.0"],
+        ] {
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&repo).args(&args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
+        }
+        std::fs::write(runfiles.join("asset.tar.gz"), b"asset").expect("asset");
+        let marker = scratch.path().join("apidiff-ran");
+        let apidiff = runfiles.join("apidiff");
+        std::fs::write(
+            &apidiff,
+            format!(
+                "#!/bin/sh\ntouch {}\ncase \"$*\" in *-w*) exit 0;; esac\necho 'Incompatible changes:'\necho '- Hello: removed'\n",
+                marker.display()
+            ),
+        )
+        .expect("fake apidiff");
+        set_mode(&apidiff, 0o755);
+        std::fs::write(runfiles.join("go"), "#!/bin/sh\nexit 0\n").expect("fake go");
+        set_mode(&runfiles.join("go"), 0o755);
+        let gh_log = bin.join("gh.log");
+        std::fs::write(
+            bin.join("gh"),
+            format!("#!/bin/sh\ntouch {}\n", gh_log.display()),
+        )
+        .expect("fake gh");
+        set_mode(&bin.join("gh"), 0o755);
+        let path = format!(
+            "{}:{}",
+            bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        let outdir = tempfile_stage_dir("dx-deploy-gh-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        let repo_dir = repo.display().to_string();
+        let go_api = GoApi {
+            mode: "fail",
+            baseline: "git",
+            apidiff_rloc: "apidiff",
+            go_rloc: "go",
+            modules: &[],
+        };
+        let code = with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("BUILD_WORKSPACE_DIRECTORY", Some(repo_dir.as_str())),
+                ("PATH", Some(path.as_str())),
+                ("DX_DEPLOY_LIVE", Some("1")),
+                ("GITHUB_TOKEN", Some("fake")),
+                ("GH_TOKEN", Some("fake")),
+                ("GITHUB_PUBLISH_APPROVED", Some("1")),
+            ],
+            || {
+                github_main_checked(
+                    &["asset.tar.gz".to_owned()],
+                    "demo",
+                    "v1.3.0",
+                    &Notes::None,
+                    &go_api,
+                    &argv,
+                )
+            },
+        );
+        assert_eq!(code, 1);
+        assert!(marker.exists(), "the live run skipped the check");
+        assert!(!gh_log.exists(), "gh ran after a breaking change");
+    }
+
     #[test]
     fn github_staging_without_artifacts_holds_only_the_manifest() {
         let scratch = scratch_dir();

@@ -1824,6 +1824,94 @@ mod tests {
         assert!(!seen.contains("sekret"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn breaking_api_change_stops_a_live_npm_publish_before_npm_runs() {
+        if env_test_in_child(
+            "npm::tests::breaking_api_change_stops_a_live_npm_publish_before_npm_runs",
+        ) {
+            return;
+        }
+        let scratch = scratch_dir();
+        let runfiles = scratch.path().join("runfiles");
+        let bin = scratch.path().join("bin");
+        for dir in [&runfiles, &bin] {
+            std::fs::create_dir_all(dir).expect("dir");
+        }
+        fake_npm(&bin, 0);
+        let published = scratch.path().join("published.tgz");
+        types_package("0.9.0", "export declare function a(): void;\n", &published);
+        let tarball = std::fs::read(&published).expect("published");
+        let registry = static_registry(|origin| {
+            let packument = format!(
+                "{{\"versions\":{{\"0.9.0\":{{\"dist\":{{\"tarball\":\"{origin}/npm-demo/-/npm-demo-0.9.0.tgz\"}}}}}}}}"
+            );
+            vec![
+                ("/npm-demo".to_owned(), packument.into_bytes()),
+                ("/npm-demo/-/npm-demo-0.9.0.tgz".to_owned(), tarball),
+            ]
+        });
+        let manifest = runfiles.join("package.json");
+        std::fs::write(
+            &manifest,
+            b"{\"name\": \"npm-demo\", \"version\": \"1.0.0\", \"types\": \"./index.d.ts\"}\n",
+        )
+        .expect("manifest");
+        let index = runfiles.join("index.d.ts");
+        std::fs::write(&index, b"export declare function b(): void;\n").expect("index");
+        npm_create_pack(
+            "npm-demo",
+            "latest",
+            &registry,
+            "public",
+            "none",
+            &runfiles.join("npm_demo.tgz"),
+            &runfiles.join("npm_demo.feed.json"),
+            &[manifest, index],
+        )
+        .expect("pack");
+        let marker = scratch.path().join("extractor-ran");
+        let extractor = runfiles.join("api-extractor");
+        std::fs::write(
+            &extractor,
+            format!(
+                "#!/bin/sh\ntouch {}\ndir=$(sed -n 's/.*\"reportFolder\":\"\\([^\"]*\\)\".*/\\1/p' \"$3\")\nmkdir -p \"$dir\"\ncase \"$PWD\" in */staged/*) echo 'export function b' ;; *) echo 'export function a' ;; esac > \"$dir/pkg.api.md\"\n",
+                marker.display()
+            ),
+        )
+        .expect("fake extractor");
+        set_mode(&extractor, 0o755);
+        let path = format!(
+            "{}:{}",
+            bin.display(),
+            std::env::var("PATH").unwrap_or_default()
+        );
+        let outdir = tempfile_stage_dir("dx-deploy-npm-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        let api = NpmApiSettings {
+            api_compat: "fail",
+            api_baseline: "registry",
+            api_extractor_rloc: "api-extractor",
+        };
+        let code = with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("BUILD_WORKSPACE_DIRECTORY", None),
+                ("PATH", Some(path.as_str())),
+                ("DX_DEPLOY_LIVE", Some("1")),
+                ("NPM_PUBLISH_DRY_RUN", None),
+                ("NPM_API_TOKEN", Some("fake")),
+                ("NPM_PUBLISH_APPROVED", Some("1")),
+            ],
+            || npm_deploy_main_checked(&argv, "npm_demo.feed.json", "npm_demo.tgz", &api),
+        );
+        assert_eq!(code, 1);
+        assert!(marker.exists(), "the live run skipped the check");
+        assert!(!bin.join("args.txt").exists(), "npm ran after a breaking change");
+        std::fs::remove_dir_all(&outdir).expect("cleanup");
+    }
+
     #[test]
     fn npm_deploy_main_refuses_required_provenance_without_identity() {
         if env_test_in_child(

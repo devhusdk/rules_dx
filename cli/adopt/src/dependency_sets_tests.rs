@@ -1933,7 +1933,7 @@ fn go_set(manifest: &str, locks: &[&str]) -> Result<DependencySet, DependencySet
     hub_set("go", Ecosystem::Go, strings(&[manifest]), strings(locks))
 }
 
-const GO_MODULE: &str = "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\n";
+const GO_MODULE: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 const GO_MOD_TEXT: &str =
     "module example.com/m\n\ngo 1.22\n\nrequire github.com/google/go-cmp v0.7.0\n";
@@ -1989,6 +1989,13 @@ fn go_layout_accepts_one_go_mod_with_go_sum() {
 }
 
 #[test]
+fn go_layout_accepts_rules_dx_only() {
+    let (scratch, set) = go_workspace(&GO_SUM, GO_MODULE, GO_MOD_TEXT);
+    assert!(!GO_MODULE.contains("rules_go"));
+    assert_eq!(check_backend_settings(scratch.path(), &set), Ok(()));
+}
+
+#[test]
 fn go_layout_refuses_what_staging_cannot_reproduce() {
     let (scratch, set) = go_workspace(&["third_party/go/go.work.sum"], GO_MODULE, GO_MOD_TEXT);
     assert!(matches!(
@@ -1997,17 +2004,13 @@ fn go_layout_refuses_what_staging_cannot_reproduce() {
     ));
     let extra: &[&str] = &["third_party/go/go.sum", "third_party/go/go.work.sum"];
     let replaced = format!("{GO_MOD_TEXT}\nreplace example.com/x => ../x\n");
-    let renamed =
-        "bazel_dep(name = \"rules_go\", version = \"0.50.1\", repo_name = \"io_bazel_rules_go\")\n";
     let with_env =
         format!("{GO_MODULE}\ngo_deps.config(go_env = {{\"GOPRIVATE\": \"corp.example.com\"}})\n");
-    let cases: [(&[&str], &str, &str, &str); 6] = [
+    let cases: [(&[&str], &str, &str, &str); 4] = [
         (&GO_SUM, with_env.as_str(), GO_MOD_TEXT, "go_env"),
         (extra, GO_MODULE, GO_MOD_TEXT, "exactly"),
         (&GO_SUM, GO_MODULE, replaced.as_str(), "local path"),
         (&GO_SUM, GO_MODULE, "not a go.mod {", "cannot parse"),
-        (&GO_SUM, "", GO_MOD_TEXT, "bazel_dep(name = \"rules_go\")"),
-        (&GO_SUM, renamed, GO_MOD_TEXT, "repo_name"),
     ];
     for (locks, module, go_mod, want) in cases {
         let (scratch, set) = go_workspace(locks, module, go_mod);

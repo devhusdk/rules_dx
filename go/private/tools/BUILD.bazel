@@ -1,0 +1,5 @@
+alias(
+    name = "go",
+    actual = "@rules_go//go",
+    visibility = ["//visibility:public"],
+)

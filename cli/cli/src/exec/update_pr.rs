@@ -1435,7 +1435,7 @@ mod tests {
             &[
                 (
                     "MODULE.bazel",
-                    "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:go.mod\")\n",
+                    "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:go.mod\")\n",
                 ),
                 (
                     "go.mod",

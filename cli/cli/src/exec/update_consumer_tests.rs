@@ -1902,7 +1902,7 @@ fn go_harness(name: &str) -> Harness {
     let harness = consumer_harness(
         name,
         &format!(
-            "{UV_MODULE}bazel_dep(name = \"rules_go\", version = \"0.50.1\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n"
+            "{UV_MODULE}go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n"
         ),
         true,
     );
@@ -1943,7 +1943,7 @@ fn consumer_go_check_runs_go_in_scratch_with_forced_env_and_cleans_up() {
     head.extend(strings_of(&[
         "run",
         "--config=dx_build_dev",
-        "@rules_go//go",
+        "@rules_dx//go/private/tools:go",
         "--",
         "-C",
     ]));
@@ -2034,7 +2034,7 @@ fn consumer_go_changed_go_mod_fails_and_writes_nothing() {
 fn consumer_go_failing_run_fails_only_its_set() {
     let harness = go_harness("go-fail");
     let before = go_bytes(&harness);
-    let key = ScriptRunner::key_for(&strings_of(&["@rules_go//go"]));
+    let key = ScriptRunner::key_for(&strings_of(&["@rules_dx//go/private/tools:go"]));
     let runner = ScriptRunner::new(&[(key.as_str(), Some(1))]);
     stage(&runner, &[("go.sum", "new\n"), ("go.mod", GO_MOD)]);
     let (code, out, err) = run_with(&["update", "--apply", "go"], &runner, &harness);

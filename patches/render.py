@@ -35,6 +35,8 @@ def render(module_text, readme_text):
             module = cells[0][3:].split("`", 1)[0]
             if module not in known:
                 raise SystemExit("patches/README.md: %s has no override in MODULE.bazel" % module)
+            if not (cells[3].startswith("Root only.") or re.search(r"Consumer fix: #\d+ \|?$", cells[3])):
+                raise SystemExit("patches/README.md: %s row has no class" % module)
             version, patches = known[module]
             for patch in re.findall(r"`([^`]+\.patch)`", cells[2]):
                 if patch not in patches:

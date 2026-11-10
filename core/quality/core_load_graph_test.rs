@@ -15,11 +15,9 @@ const ALLOWED_REPOS: &[&str] = &[
 
 /// Language helpers that sit in `core/quality/` and are not roots; this list only shrinks.
 const LANGUAGE_HELPERS: &[&str] = &[
-    "clang_syntax",
     "elixirc",
     "erlc",
     "fsc",
-    "go_analysis",
     "jvm_check",
     "nvcc_syntax",
     "roslyn",
@@ -27,11 +25,29 @@ const LANGUAGE_HELPERS: &[&str] = &[
 
 /// Packages of core tool defaults that load a language rule set; this list only shrinks.
 const PENDING_TOOL_PACKAGES: &[&str] = &[
-    "core/quality/tools/python",    // #10545
-    "haskell/private/tools/hlint",  // #10548
-    "haskell/private/tools/ormolu", // #10548
-    "haskell/private/tools/weeder", // #10548
+    "core/quality/tools/python",     // #10545
+    "haskell/private/tools/hlint",   // #10548
+    "haskell/private/tools/ormolu",  // #10548
+    "haskell/private/tools/weeder",  // #10548
+    "core/quality/tools/nixfmt/bin", // #10565
+    "core/quality/tools/xml",        // #10566
+    "rust/private/quality/tools",    // #10567
 ];
+
+/// External repositories named by `"@repo//` labels in `actual =` and `select()` values of `text`.
+fn alias_repos(text: &str) -> BTreeSet<String> {
+    text.split("\"@")
+        .skip(1)
+        .filter_map(|part| part.split_once("//").map(|(repo, _)| repo))
+        .filter(|repo| {
+            !repo.is_empty()
+                && repo
+                    .chars()
+                    .all(|c| c.is_alphanumeric() || "_.-+~".contains(c))
+        })
+        .map(str::to_owned)
+        .collect()
+}
 
 /// Quoted `//pkg:name` strings that follow `default = ` or `Label(` in `text`.
 fn default_labels(text: &str) -> Vec<String> {
@@ -140,6 +156,23 @@ fn core_loads_only_allowed_external_repos() {
     let source = dx_testing::rules_dx_source();
     let roots = roots(&source);
     let found = dx_adopt::external_repos(&source, &roots).expect("load graph");
+    let mut aliased: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+    for path in roots
+        .iter()
+        .filter(|path| path.ends_with("/BUILD.bazel") && *path != "config/BUILD.bazel")
+    {
+        let bad: BTreeSet<String> = alias_repos(&dx_testing::read_text(&source.join(path)))
+            .into_iter()
+            .filter(|repo| repo != "dx_tools" && !ALLOWED_REPOS.contains(&repo.as_str()))
+            .collect();
+        if !bad.is_empty() {
+            aliased.insert(path.clone(), bad);
+        }
+    }
+    assert!(
+        aliased.is_empty(),
+        "core tool defaults alias into source-built external repos; use a pinned prebuilt in @dx_tools:\n{aliased:#?}"
+    );
     let offenders: BTreeMap<&str, BTreeSet<&str>> = found
         .iter()
         .filter_map(|(file, repos)| {
@@ -173,11 +206,14 @@ fn pending_tool_packages_still_offend() {
     let source = dx_testing::rules_dx_source();
     for package in PENDING_TOOL_PACKAGES {
         let root = format!("{package}/BUILD.bazel");
-        let found = dx_adopt::external_repos(&source, &[root]).expect("load graph");
+        let found = dx_adopt::external_repos(&source, &[root.clone()]).expect("load graph");
         let offends = found
             .values()
             .flatten()
-            .any(|repo| !ALLOWED_REPOS.contains(&repo.as_str()));
+            .any(|repo| !ALLOWED_REPOS.contains(&repo.as_str()))
+            || alias_repos(&dx_testing::read_text(&source.join(&root)))
+                .iter()
+                .any(|repo| repo != "dx_tools" && !ALLOWED_REPOS.contains(&repo.as_str()));
         assert!(
             offends,
             "{package} reaches no language rule set; drop it from PENDING_TOOL_PACKAGES"

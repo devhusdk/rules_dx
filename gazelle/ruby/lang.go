@@ -24,7 +24,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          rubyKinds,
 		ExtraKinds:     []string{TestKind},
-		DefsPackage:    "ruby/rules:defs.bzl",
+		DefsPackage:    "ruby:defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       ClassIdentity,
 		IsImportSource: isSupported,

@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//lua/rules:defs.bzl", "lua_library")
+load("//lua:defs.bzl", "lua_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/lua:defs.bzl", "lua_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")

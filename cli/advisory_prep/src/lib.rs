@@ -37,7 +37,7 @@ pub struct PrepareOptions {
     pub archives: BTreeMap<String, PathBuf>,
     /// File holding the cpansa_dump output instead of running the binary.
     pub cpansa_output: Option<PathBuf>,
-    /// The `//perl/tools:cpansa_dump` binary that prints the CPANSA::DB database.
+    /// The `//perl/private/tools:cpansa_dump` binary that prints the CPANSA::DB database.
     pub cpansa_dump: Option<PathBuf>,
     /// The pinned trivy binary; set, it downloads the trivy databases under `out`.
     pub trivy: Option<PathBuf>,

@@ -647,11 +647,11 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     (
         "perl_test",
-        Constraint::Appended("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH"),
+        Constraint::Appended("//perl:defs.bzl", "PERL_COMPATIBLE_WITH"),
     ),
     (
         "php_test",
-        Constraint::Appended("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH"),
+        Constraint::Appended("//php:defs.bzl", "PHP_COMPATIBLE_WITH"),
     ),
     ("owns_cmake_class_test", Constraint::AsWritten),
     ("owns_dockerfile_class_test", Constraint::AsWritten),
@@ -892,7 +892,7 @@ mod tests {
         }
 
         fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
-            if label == "//perl/rules:defs.bzl" && symbol == "PERL_COMPATIBLE_WITH" {
+            if label == "//perl:defs.bzl" && symbol == "PERL_COMPATIBLE_WITH" {
                 return Some(vec![
                     vec![
                         "@platforms//os:linux".to_owned(),
@@ -941,7 +941,7 @@ mod tests {
                 format!("FORTRAN_COMPATIBLE_WITH = {linux_x86_64}"),
             ),
             (
-                "//php/rules:defs.bzl".to_owned(),
+                "//php:defs.bzl".to_owned(),
                 format!("PHP_COMPATIBLE_WITH = {linux_x86_64}"),
             ),
             (

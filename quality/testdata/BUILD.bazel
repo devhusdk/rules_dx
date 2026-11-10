@@ -1385,7 +1385,7 @@ workspace_policy(
 php_lint_subject(
     name = "php_lint_subject",
     testonly = True,
-    target = "@rules_dx_php//php/tests/fixtures/hello:greeter",
+    target = "//php/tests/fixtures/hello:greeter",
 )
 
 phpcs_flag_tests(
@@ -1412,7 +1412,7 @@ workspace_policy(
 lua_typecheck_subject(
     name = "lua_typecheck_subject",
     testonly = True,
-    target = "@rules_dx_lua//lua/tests/runtime:lib",
+    target = "//lua/tests/runtime:lib",
 )
 
 luals_flag_tests(
@@ -1439,7 +1439,7 @@ workspace_policy(
 ruby_typecheck_subject(
     name = "ruby_typecheck_subject",
     testonly = True,
-    target = "@rules_dx_ruby//ruby/tests/fixtures/hello:hello_lib",
+    target = "//ruby/tests/fixtures/hello:hello_lib",
 )
 
 sorbet_flag_tests(
@@ -1466,7 +1466,7 @@ workspace_policy(
 php_typecheck_subject(
     name = "php_typecheck_subject",
     testonly = True,
-    target = "@rules_dx_php//php/tests/fixtures/hello:greeter",
+    target = "//php/tests/fixtures/hello:greeter",
 )
 
 phpstan_flag_tests(
@@ -1547,7 +1547,7 @@ workspace_policy(
 perl_subject(
     name = "perl_subject",
     testonly = True,
-    target = "@rules_dx_perl//perl/tests/runtime:dx_probe",
+    target = "//perl/tests/runtime:dx_probe",
 )
 
 perltidy_flag_tests(
@@ -1574,7 +1574,7 @@ workspace_policy(
 perl_lint_subject(
     name = "perl_lint_subject",
     testonly = True,
-    target = "@rules_dx_perl//perl/tests/runtime:dx_probe",
+    target = "//perl/tests/runtime:dx_probe",
 )
 
 perlcritic_flag_tests(

@@ -1,21 +1,21 @@
 """PHP real quality aspects."""
 
-load("//php/rules:php.bzl", "staged_path")
-load("//php/rules:providers.bzl", "PhpInfo")
+load("//php/private:php.bzl", "staged_path")
+load("//php/private:providers.bzl", "PhpInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "phpcs": {
         "attr": attr.label(default = "//config:tool_phpcs", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//php/tools:phpcs",
+        "fallback": "=@rules_dx//php/private/tools:phpcs",
         "kind": "setting",
         "resources": "medium",
         "shard": "php",
     },
     "phpstan": {
         "attr": attr.label(default = "//config:tool_phpstan", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//php/tools:phpstan",
+        "fallback": "=@rules_dx//php/private/tools:phpstan",
         "kind": "setting",
         "resources": "heavy",
         "shard": "php",

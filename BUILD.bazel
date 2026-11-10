@@ -39,7 +39,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/components/tests/fixture
 # gazelle:exclude gazelle/protobuf/tests/roundtrip
 # gazelle:exclude examples/adopt-polyglot
-# gazelle:exclude quality/tools/lua/testdata
+# gazelle:exclude lua/private/quality/testdata
 # gazelle:exclude quality/testdata
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/starters/fixtures
@@ -93,19 +93,19 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
 # gazelle:exclude deploy/symbols/fixture
-# gazelle:exclude lua/runtime
+# gazelle:exclude lua/private/runtime
 # gazelle:exclude avro/rules/testdata
 # gazelle:exclude capnproto/rules/testdata
 # gazelle:exclude thrift/rules/testdata
 # gazelle:exclude ocaml/tests/fixtures/dune-lib/src
-# gazelle:exclude php/tools/digests/bin
+# gazelle:exclude php/private/tools/digests/bin
 # gazelle:exclude gazelle/cc/testdata
 # gazelle:exclude gazelle/d/testdata
 # gazelle:exclude gazelle/dart/testdata
 # gazelle:exclude rust/tests/fixtures/wasm_bindgen
 # gazelle:exclude ocaml/tests/runtime
 # gazelle:exclude ocaml/tests/native
-# gazelle:exclude php/rules/tool.php
+# gazelle:exclude php/private/tool.php
 # gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src
 # gazelle:exclude quality/tools/dotnet/fsharplint
@@ -177,10 +177,7 @@ exports_files([
     "MODULE.bazel.lock",
     "README.md",
     "go/README.md",
-    "lua/README.md",
     "ocaml/README.md",
-    "perl/README.md",
-    "php/README.md",
     "powershell/README.md",
     "swift/README.md",
     "cargo-bazel-lock.json",
@@ -255,10 +252,10 @@ real_source_target(
         "go/README.md",
         "//java:README.md",
         "//kotlin:README.md",
-        "lua/README.md",
+        "//lua:README.md",
         "ocaml/README.md",
-        "perl/README.md",
-        "php/README.md",
+        "//perl:README.md",
+        "//php:README.md",
         "//patches:README.md",
         "powershell/README.md",
         "//python:README.md",

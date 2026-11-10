@@ -7,7 +7,7 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "luals": {
         "attr": attr.label(default = "//config:tool_luals", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//lua/tools:luals",
+        "fallback": "=@rules_dx//lua/private/tools:luals",
         "kind": "setting",
         "resources": "heavy",
         "shard": "lua",

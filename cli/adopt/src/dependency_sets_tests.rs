@@ -216,18 +216,18 @@ fn cabal_layout_compares_freeze_and_sidecar_versions() {
 
 #[test]
 fn cpan_installs_become_cpan_sets() {
-    let module = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_cpan\", lock = \"//perl/tools:cpanfile.snapshot.lock.json\")\n";
+    let module = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_cpan\", lock = \"//perl/private/tools:cpanfile.snapshot.lock.json\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("perl_cpan").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Cpan);
-    assert_eq!(set.manifests, ["perl/tools/cpanfile"]);
+    assert_eq!(set.manifests, ["perl/private/tools/cpanfile"]);
     assert_eq!(
         set.locks,
         [
-            "perl/tools/cpanfile.snapshot",
-            "perl/tools/cpanfile.snapshot.lock.json"
+            "perl/private/tools/cpanfile.snapshot",
+            "perl/private/tools/cpanfile.snapshot.lock.json"
         ]
     );
 }
@@ -315,7 +315,7 @@ fn composer_workspace(digest_reference: &str) -> (dx_test_scratch::TempDir, Reso
 
 #[test]
 fn composer_locks_become_composer_sets() {
-    let module = "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\n";
+    let module = "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");

@@ -1,4 +1,4 @@
-load("@rules_dx//lua/rules:defs.bzl", "lua_library", "lua_test")
+load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
 
 lua_library(
     name = "catalog",

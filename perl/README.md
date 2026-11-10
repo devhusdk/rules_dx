@@ -13,11 +13,11 @@ its sources appear.
 
 ## Rules
 
-Load the rules from `@rules_dx//perl/rules:defs.bzl`. They wrap rules_perl
+Load the rules from `@rules_dx//perl:defs.bzl`. They wrap rules_perl
 and take the same attributes, `select()` values included.
 
 ```python
-load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_library", "perl_test")
+load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
 
 perl_library(
     name = "ledger",
@@ -51,7 +51,7 @@ perl_binary(
 - Read data files through `@rules_perl//perl/runfiles` and its `Runfiles`
   module.
 - `PerlInfo` passes through unchanged. Load it from
-  `@rules_dx//perl/rules:defs.bzl`.
+  `@rules_dx//perl:defs.bzl`.
 - There is no build-time compile check. A syntax error fails the first test
   or run that loads the module.
 - `perl_xs` is not wrapped, and the `cpan` extension does not build XS
@@ -102,7 +102,7 @@ formatter with its default style, LF line endings and no profile, so
 `.perltidyrc` and `$PERLTIDY` are never read. They also carry Perl::Critic
 1.156, which runs as the linter at severity 5 only with no profile, so
 `.perlcriticrc` and `$PERLCRITIC` are never read. Perl::Critic needs two XS
-modules the cpan hub cannot build, so `perl/tools/perlcritic.pl` swaps in
+modules the cpan hub cannot build, so `perl/private/tools/perlcritic.pl` swaps in
 pure-Perl stand-ins (Clone::PP and Params::Util's PP mode). Until typecheck
 exists, the Perl rules add the `no-typecheck` tag to every target. Set
 `--@rules_dx//config:tool_perltidy` or `tool_perlcritic` to use another tool.
@@ -119,13 +119,13 @@ exists, the Perl rules add the `no-typecheck` tag to every target. Set
 | `windows_arm64` | Unsupported |
 
 `macos_x86_64` has no CI cell. The `linux_arm64` cell is qualified by
-evidence.yml run 42002623118 (`@rules_dx_perl//perl/tests/fixtures/perl-app/...`,
-`@rules_dx_perl//perl/tests/runtime:all`, `//tools/testing/hermetic:perl`). The `macos_arm64`
+evidence.yml run 42002623118 (`//perl/tests/fixtures/perl-app/...`,
+`//perl/tests/runtime:all`, `//tools/testing/hermetic:perl`). The `macos_arm64`
 cell is qualified by evidence.yml run 42083319727: the example and runtime
 tests pass, a build and test pass rather than a hermetic one, since the
 hermetic qualification is linux only. The `windows_x86_64` cell is
-qualified by evidence.yml run 42112137283 (`@rules_dx_perl//perl/tests/fixtures/perl-app/...`,
-`@rules_dx_perl//perl/tests/runtime:all`), also a build and test pass. The `.bat` launcher
+qualified by evidence.yml run 42112137283 (`//perl/tests/fixtures/perl-app/...`,
+`//perl/tests/runtime:all`), also a build and test pass. The `.bat` launcher
 needs `RUNFILES_MANIFEST_FILE` with backslashes and no `RUNFILES_DIR`, and
 `cmd` needs double quotes.
 
@@ -136,7 +136,7 @@ Perl. Unix launchers start through a bash script.
 ## Coverage
 
 `dx coverage` runs `perl_test` through the `DxLcov` collector in
-`@rules_dx//perl/coverage`. It loads in every Perl the test starts, counts the
+`@rules_dx//perl/private/coverage`. It loads in every Perl the test starts, counts the
 statements that run, and writes LCOV for the instrumented sources to
 `$COVERAGE_OUTPUT_FILE`. Devel::Cover needs XS, which the `cpan` extension
 cannot build.

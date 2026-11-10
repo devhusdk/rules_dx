@@ -39,7 +39,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{TestKind},
 		Kinds:          luaKinds,
-		DefsPackage:    "lua/rules:defs.bzl",
+		DefsPackage:    "lua:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsStdLib:       IsStdLib,

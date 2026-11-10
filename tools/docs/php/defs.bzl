@@ -1,8 +1,8 @@
 """PHP API reference shards parsed by the pinned phpDocumentor on the registered PHP toolchain."""
 
-load("//php/rules:providers.bzl", "PhpInfo")
-load("//php/toolchain:pins.bzl", "PHPDOCUMENTOR")
-load("//php/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE")
+load("//php/private:providers.bzl", "PhpInfo")
+load("//php/private/toolchain:pins.bzl", "PHPDOCUMENTOR")
+load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
 _PhpDirectSrcsInfo = provider(

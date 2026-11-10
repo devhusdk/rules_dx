@@ -134,7 +134,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"lua": {
 		files: map[string]string{"demo.lua": "return {}\n"},
-		kind:  "lua_library", target: "demo", defs: "lua/rules:defs.bzl",
+		kind:  "lua_library", target: "demo", defs: "lua:defs.bzl",
 		symbols: []string{"lua_library", "lua_test"},
 		inert:   []string{"demo.txt"},
 	},
@@ -155,13 +155,13 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"perl": {
 		files: map[string]string{"Demo.pm": "package Demo;\n1;\n"},
-		kind:  "perl_library", target: "demo", defs: "perl/rules:defs.bzl",
+		kind:  "perl_library", target: "demo", defs: "perl:defs.bzl",
 		symbols: []string{"perl_library", "perl_test"},
 		inert:   []string{"script.pl"},
 	},
 	"php": {
 		files: map[string]string{"Demo.php": "<?php\nclass Demo {}\n"},
-		kind:  "php_library", target: "demo", defs: "php/rules:defs.bzl",
+		kind:  "php_library", target: "demo", defs: "php:defs.bzl",
 		symbols: []string{"php_library", "php_test"},
 		inert:   []string{"bin/x.php"},
 	},
@@ -220,7 +220,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"ruby": {
 		files: map[string]string{"demo.rb": "module Demo\nend\n"},
-		kind:  "ruby_library", target: "demo", defs: "ruby/rules:defs.bzl",
+		kind:  "ruby_library", target: "demo", defs: "ruby:defs.bzl",
 		symbols: []string{"ruby_library", "ruby_test"},
 	},
 	"rust": {

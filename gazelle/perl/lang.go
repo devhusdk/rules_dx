@@ -37,7 +37,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{TestKind},
 		Kinds:          perlKinds,
-		DefsPackage:    "perl/rules:defs.bzl",
+		DefsPackage:    "perl:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsStdLib:       IsStdLib,

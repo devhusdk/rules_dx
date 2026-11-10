@@ -1,0 +1,49 @@
+load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
+load("//cc/rules:defs.bzl", "cc_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+cc_binary(
+    name = "launcher",
+    srcs = ["launcher.cc"],
+    deps = [
+        "@lua//:liblua",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+genrule(
+    name = "launcher_test_entry",
+    testonly = True,
+    outs = ["launcher_test.luaentry"],
+    cmd = "printf '_main/lua/private/runtime/launcher_test.lua\\n\\nhelper\\t_main/lua/private/runtime/launcher_test_helper.lua\\n' > $@",
+)
+
+# The test binary is the launcher itself, started on launcher_test.luaentry.
+cc_test(
+    name = "launcher_test",
+    srcs = ["launcher.cc"],
+    args = ["one"],
+    data = [
+        "launcher_test.lua",
+        "launcher_test_helper.lua",
+        ":launcher_test_entry",
+    ],
+    target_compatible_with = select({
+        # Its cases skip on Windows, and the LLVM toolchain cannot emit coverage maps for the MSVC ABI.
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    visibility = ["//visibility:private"],
+    deps = [
+        "@lua//:liblua",
+        "@rules_cc//cc/runfiles",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

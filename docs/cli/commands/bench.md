@@ -54,10 +54,10 @@ Rust: `rust_bench` from `//rust/rules:defs.bzl` runs a criterion or `#[bench]` t
 
 JavaScript and TypeScript: `javascript_bench(name, srcs, node_modules)` from `//javascript:defs.bzl` and `typescript_bench` from `//typescript:defs.bzl` run a [tinybench](https://github.com/tinylibs/tinybench) `Bench` that the first source (or `main`) exports as its default export. Each task becomes one row, in milliseconds. List `tinybench` in `package.json` so `node_modules` links it. `typescript_bench` also takes the `typescript_test` attributes such as `deps` and `tsconfig`.
 
-Perl: `perl_bench` from `//perl/rules:defs.bzl` is a `perl_test` whose script calls `DxBench::run_benchmarks([name => sub { ... }, ...])`. It times each sub with the core `Benchmark` module and reports seconds per call.
+Perl: `perl_bench` from `//perl:defs.bzl` is a `perl_test` whose script calls `DxBench::run_benchmarks([name => sub { ... }, ...])`. It times each sub with the core `Benchmark` module and reports seconds per call.
 
-Ruby: `ruby_bench` from `//ruby/rules:defs.bzl` takes `main`, a script (name.rb, else the single src) that calls `DxBench.run { |x| x.report("name") { ... } }` with the benchmark-ips API. The pinned benchmark-ips gem comes with rules_dx, so no Gemfile entry is needed. Results are in seconds per call.
+Ruby: `ruby_bench` from `//ruby:defs.bzl` takes `main`, a script (name.rb, else the single src) that calls `DxBench.run { |x| x.report("name") { ... } }` with the benchmark-ips API. The pinned benchmark-ips gem comes with rules_dx, so no Gemfile entry is needed. Results are in seconds per call.
 
 Dart: `dart_bench` from `//dart/rules:defs.bzl` takes `main`, a program that calls `runBenchmarks([...])` from `package:dx_bench` with benchmark_harness `BenchmarkBase` objects. The pinned benchmark_harness comes from the `@dx_dart_bench_deps` hub of rules_dx. Results are in seconds per run.
 
-PHP: `php_bench` from `//php/rules:defs.bzl` takes `srcs`, phpbench files with one class per file named like the file, with `#[Revs]` and `#[Iterations]` attributes. The pinned phpbench phar comes with rules_dx and runs on the pinned PHP. Results are in seconds per revolution.
+PHP: `php_bench` from `//php:defs.bzl` takes `srcs`, phpbench files with one class per file named like the file, with `#[Revs]` and `#[Iterations]` attributes. The pinned phpbench phar comes with rules_dx and runs on the pinned PHP. Results are in seconds per revolution.

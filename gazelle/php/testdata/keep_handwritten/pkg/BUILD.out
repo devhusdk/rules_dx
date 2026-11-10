@@ -1,4 +1,4 @@
-load("@rules_dx//php/rules:defs.bzl", "php_binary", "php_library")
+load("@rules_dx//php:defs.bzl", "php_binary", "php_library")
 
 php_library(
     name = "pkg",

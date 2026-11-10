@@ -26,8 +26,8 @@ rust_binary(
     ),
     crate_name = "advisory_prep",
     crate_root = "src/main.rs",
-    data = ["//perl/tools:cpansa_dump"],
-    env = {"DX_CPANSA_DUMP": "$(rlocationpath //perl/tools:cpansa_dump)"},
+    data = ["//perl/private/tools:cpansa_dump"],
+    env = {"DX_CPANSA_DUMP": "$(rlocationpath //perl/private/tools:cpansa_dump)"},
     deps = all_crate_deps(
         package_name = "cli/dx_advisory_prep",
         normal = True,

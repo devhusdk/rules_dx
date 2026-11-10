@@ -200,7 +200,7 @@ func TestAspectHintsSurviveRegen(t *testing.T) {
 	} {
 		writeFixture(t, root, name, content)
 	}
-	build := `load("@rules_dx//ruby/rules:defs.bzl", "ruby_library")
+	build := `load("@rules_dx//ruby:defs.bzl", "ruby_library")
 
 ruby_library(
     name = "demo",

@@ -1,4 +1,4 @@
-"""Re-exports the rules_ruby module extension."""
+"""Public Ruby module extensions."""
 
 load("@rules_ruby//ruby:extensions.bzl", _ruby = "ruby")
 

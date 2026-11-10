@@ -416,7 +416,7 @@ fn composer_update_runs_composer_then_the_digest_refresh() {
     assert_eq!(
         runs[0].argv[runs[0].argv.len() - 6..],
         [
-            "@rules_dx//php/tools:composer",
+            "@rules_dx//php/private/tools:composer",
             "--",
             "update",
             "psr/log",
@@ -429,7 +429,7 @@ fn composer_update_runs_composer_then_the_digest_refresh() {
     assert_eq!(
         runs[1].argv[runs[1].argv.len() - 4..],
         [
-            "@rules_dx//php/tools/digests:refresh_digests",
+            "@rules_dx//php/private/tools/digests:refresh_digests",
             "--",
             "composer.lock",
             "composer.digests.json"
@@ -478,7 +478,7 @@ fn composer_check_validates_the_lock() {
     assert_eq!(
         argv[argv.len() - 5..],
         [
-            "@rules_dx//php/tools:composer",
+            "@rules_dx//php/private/tools:composer",
             "--",
             "validate",
             "--check-lock",
@@ -551,7 +551,7 @@ fn cpan_update_runs_carton_then_the_compiler() {
         .position(|arg| arg.starts_with("--run_under="));
     assert_eq!(
         carton[tail.expect("run_under") + 1..],
-        ["@rules_dx//perl/tools:carton", "--", "update", "Try::Tiny"]
+        ["@rules_dx//perl/private/tools:carton", "--", "update", "Try::Tiny"]
     );
     assert_eq!(runs[0].env[0].0, "PERL_CARTON_PATH");
     assert_eq!(

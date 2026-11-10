@@ -32,11 +32,11 @@ julia:defs.bzl
 kotlin/private:defs.bzl
 kubernetes/rules:defs.bzl
 libs/web_server:server.bzl
-lua/rules:defs.bzl
+lua:defs.bzl
 make/rules:defs.bzl
 mdx:defs.bzl
-perl/rules:defs.bzl
-php/rules:defs.bzl
+perl:defs.bzl
+php:defs.bzl
 powershell/rules:defs.bzl
 powershell/toolchain:gallery.bzl
 python:defs.bzl
@@ -92,7 +92,7 @@ quality:families/yaml.bzl
 quality:families/zig.bzl
 quality:native_config.bzl
 rego/rules:defs.bzl
-ruby/rules:defs.bzl
+ruby:defs.bzl
 rust/rules:defs.bzl
 scala/private:defs.bzl
 sql/rules:defs.bzl

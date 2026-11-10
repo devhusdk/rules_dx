@@ -321,7 +321,7 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
     assert_eq!(families_of(shared.path()), vec!["npm", "nuget"]);
     let ruby = workspace_with(&[
         "third_party/ruby/Gemfile.lock",
-        "families/ruby/ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
+        "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
     ]);
     assert_eq!(families_of(ruby.path()), vec!["rubygems"]);
     let powershell = workspace_with(&["third_party/powershell/PSGallery.lock.json"]);

@@ -174,10 +174,24 @@
         "real_latex_lint_aspect",
         "real_lint_aspect",
         "real_lint_probe_aspect",
+        "real_lua_format_aspect",
+        "real_lua_format_probe_aspect",
+        "real_lua_lint_aspect",
+        "real_lua_lint_probe_aspect",
+        "real_lua_typecheck_aspect",
+        "real_lua_typecheck_probe_aspect",
         "real_make_format_aspect",
         "real_make_lint_aspect",
         "real_nix_format_aspect",
         "real_nix_lint_aspect",
+        "real_perl_format_aspect",
+        "real_perl_format_probe_aspect",
+        "real_perl_lint_aspect",
+        "real_perl_lint_probe_aspect",
+        "real_php_lint_aspect",
+        "real_php_lint_probe_aspect",
+        "real_php_typecheck_aspect",
+        "real_php_typecheck_probe_aspect",
         "real_pkl_format_aspect",
         "real_pkl_format_probe_aspect",
         "real_pkl_lint_aspect",
@@ -187,6 +201,12 @@
         "real_rego_format_aspect",
         "real_rego_lint_aspect",
         "real_rego_typecheck_aspect",
+        "real_ruby_format_aspect",
+        "real_ruby_format_probe_aspect",
+        "real_ruby_lint_aspect",
+        "real_ruby_lint_probe_aspect",
+        "real_ruby_typecheck_aspect",
+        "real_ruby_typecheck_probe_aspect",
         "real_scala_format_aspect",
         "real_scala_lint_aspect",
         "real_shell_format_aspect",
@@ -347,13 +367,13 @@
         "//haskell/toolchain:extensions.bzl%haskell",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
         "//libs/starlark:extensions.bzl%dx_pins",
-        "//lua/toolchain:extensions.bzl%lua",
+        "//lua:extensions.bzl%lua",
         "//ocaml/toolchain:extensions.bzl%ocaml",
-        "//php/toolchain:extensions.bzl%php",
+        "//php:extensions.bzl%php",
         "//powershell/toolchain:extensions.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
-        "//ruby/coverage:extensions.bzl%ruby_coverage",
-        "//ruby/toolchain:extensions.bzl%ruby_tools",
+        "//ruby/private/coverage:extensions.bzl%ruby_coverage",
+        "//ruby/private/toolchain:extensions.bzl%ruby_tools",
         "//ruby:extensions.bzl%ruby",
         "//swift/toolchain:extensions.bzl%swift_format_macos",
         "//swift/toolchain:extensions.bzl%swift_host",
@@ -431,7 +451,13 @@
         ".xml",
         ".yaml",
         ".yml",
-        ".zig"
+        ".zig",
+        ".lua",
+        ".pl",
+        ".pm",
+        ".php",
+        ".rb",
+        ".rbs"
       ],
       "gazelle": [
         "//gazelle/astro",
@@ -487,13 +513,16 @@
         "//cc/toolchains:msvc_windows_arm64",
         "//cc/toolchains:msvc_windows_x86_64",
         "//cc/toolchains:msvc_windows_x86_64_to_arm64",
+        "//lua/private/toolchain:all",
         "//tools/platforms:protoc_windows_arm64",
         "@dx_d_toolchains//:all",
         "@dx_fortran_toolchains//:all",
         "@dx_haskell_toolchains//cc:all",
+        "@dx_php_toolchains//:all",
         "@dx_powershell_toolchains//:all",
         "@llvm//toolchain:all",
         "@python_interpreters//:all",
+        "@ruby_toolchains//:all",
         "@rust_toolchains//:all"
       ]
     },
@@ -744,41 +773,6 @@
       "module": "rules_dx_js",
       "path": "families/js"
     },
-    "lua": {
-      "aspects": [
-        "real_lua_format_aspect",
-        "real_lua_format_probe_aspect",
-        "real_lua_lint_aspect",
-        "real_lua_lint_probe_aspect",
-        "real_lua_typecheck_aspect",
-        "real_lua_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_skylib",
-        "lua",
-        "platforms",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "lua",
-        "third_party"
-      ],
-      "extensions": [],
-      "file_extensions": [
-        ".lua"
-      ],
-      "gazelle": [],
-      "repo_rules": [
-        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive"
-      ],
-      "toolchains": [
-        "@rules_dx//lua/toolchain:all"
-      ],
-      "module": "rules_dx_lua",
-      "path": "families/lua"
-    },
     "msix": {
       "aspects": [],
       "bazel_deps": [
@@ -839,69 +833,6 @@
       "toolchains": [
         "@dx_ocaml_toolchains//:all"
       ]
-    },
-    "perl": {
-      "aspects": [
-        "real_perl_format_aspect",
-        "real_perl_format_probe_aspect",
-        "real_perl_lint_aspect",
-        "real_perl_lint_probe_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_skylib",
-        "platforms",
-        "rules_dx",
-        "rules_perl",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "perl",
-        "third_party"
-      ],
-      "extensions": [],
-      "file_extensions": [
-        ".pl",
-        ".pm"
-      ],
-      "gazelle": [],
-      "repo_rules": [],
-      "toolchains": [],
-      "module": "rules_dx_perl",
-      "path": "families/perl"
-    },
-    "php": {
-      "aspects": [
-        "real_php_lint_aspect",
-        "real_php_lint_probe_aspect",
-        "real_php_typecheck_aspect",
-        "real_php_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_skylib",
-        "platforms",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "php",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dx//php/composer:extensions.bzl%composer",
-        "@rules_dx//php/toolchain:extensions.bzl%php"
-      ],
-      "file_extensions": [
-        ".php"
-      ],
-      "gazelle": [],
-      "repo_rules": [],
-      "toolchains": [
-        "@dx_php_toolchains//:all"
-      ],
-      "module": "rules_dx_php",
-      "path": "families/php"
     },
     "powershell": {
       "aspects": [
@@ -971,40 +902,6 @@
       "toolchains": [],
       "module": "rules_dx_python",
       "path": "families/python"
-    },
-    "ruby": {
-      "aspects": [
-        "real_ruby_format_aspect",
-        "real_ruby_format_probe_aspect",
-        "real_ruby_lint_aspect",
-        "real_ruby_lint_probe_aspect",
-        "real_ruby_typecheck_aspect",
-        "real_ruby_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_skylib",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "ruby",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dx//ruby:extensions.bzl%ruby"
-      ],
-      "file_extensions": [
-        ".rb",
-        ".rbs"
-      ],
-      "gazelle": [],
-      "repo_rules": [],
-      "toolchains": [
-        "@ruby_toolchains//:all"
-      ],
-      "module": "rules_dx_ruby",
-      "path": "families/ruby"
     },
     "rust": {
       "aspects": [

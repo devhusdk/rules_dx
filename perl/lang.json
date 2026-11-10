@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "perl",
   "title": "Perl",
-  "family": "perl",
+  "family": "core",
   "ecosystems": [
     "cpan"
   ],

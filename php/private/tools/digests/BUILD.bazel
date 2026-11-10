@@ -1,0 +1,27 @@
+load("//php:defs.bzl", "php_binary", "php_library", "php_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+php_library(
+    name = "digests",
+    srcs = ["src/Digests/Refresh.php"],
+)
+
+php_binary(
+    name = "refresh_digests",
+    main = "bin/refresh_digests.php",
+    deps = [":digests"],
+)
+
+php_test(
+    name = "refresh_test",
+    srcs = ["test/RefreshTest.php"],
+    deps = [":digests"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

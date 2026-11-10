@@ -1,4 +1,4 @@
-load("@rules_dx//perl/rules:defs.bzl", "perl_library", "perl_test")
+load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 
 # gazelle:resolve perl Text::CSV @cpan//:Text-CSV
 

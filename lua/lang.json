@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "lua",
   "title": "Lua",
-  "family": "lua",
+  "family": "core",
   "ecosystems": [
     "luarocks"
   ],
@@ -22,7 +22,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "toolchain/pins.bzl"
+    "private/toolchain/pins.bzl"
   ],
   "entry_points": [
     "lua_library",

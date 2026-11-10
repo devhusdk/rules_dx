@@ -332,7 +332,7 @@ pub fn fetch_many_plan(
 
 pub const CPANSA_URL: &str = "https://metacpan.org/release/CPANSA-DB";
 
-/// Splits the output of `//perl/tools:cpansa_dump` into the CPANSA::DB version and the database text.
+/// Splits the output of `//perl/private/tools:cpansa_dump` into the CPANSA::DB version and the database text.
 pub fn split_cpansa_output(output: &str) -> Result<(&str, &str), PrepError> {
     match output.split_once('\n') {
         Some((version, database)) if !version.trim().is_empty() => Ok((version.trim(), database)),

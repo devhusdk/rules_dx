@@ -48,7 +48,7 @@ func importRoot(pkg, stripImportPrefix string) string {
 // ModuleName returns the require name of the repo-relative .lua path
 // path.Join(pkg, src) under the rule's strip_import_prefix and import_prefix.
 // It ports module_name in lua/private/lua.bzl; keep the two in sync with the
-// vectors in naming_test.go and lua/rules/wrapper_tests.bzl.
+// vectors in naming_test.go and lua/private/wrapper_tests.bzl.
 func ModuleName(pkg, src, stripImportPrefix, importPrefix string) (string, bool) {
 	return moduleNameOf(path.Join(pkg, src), pkg, stripImportPrefix, importPrefix)
 }

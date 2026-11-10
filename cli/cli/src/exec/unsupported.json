@@ -23,7 +23,7 @@
     },
     "title": "Julia"
   },
-  "//php/toolchain:unsupported": {
+  "//php/private/toolchain:unsupported": {
     "platforms": {
       "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
     },

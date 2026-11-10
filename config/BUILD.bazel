@@ -76,7 +76,7 @@ label_flag(
 
 label_flag(
     name = "tool_luals",
-    build_setting_default = "//lua/tools:luals",
+    build_setting_default = "//lua/private/tools:luals",
 )
 
 label_flag(
@@ -96,7 +96,7 @@ label_flag(
 
 label_flag(
     name = "tool_sorbet",
-    build_setting_default = "//ruby/tools:sorbet",
+    build_setting_default = "//ruby/private/tools:sorbet",
 )
 
 label_flag(
@@ -280,12 +280,12 @@ filegroup(name = "no_dart")
 
 label_flag(
     name = "tool_phpcs",
-    build_setting_default = "//php/tools:phpcs",
+    build_setting_default = "//php/private/tools:phpcs",
 )
 
 label_flag(
     name = "tool_phpstan",
-    build_setting_default = "//php/tools:phpstan",
+    build_setting_default = "//php/private/tools:phpstan",
 )
 
 label_flag(

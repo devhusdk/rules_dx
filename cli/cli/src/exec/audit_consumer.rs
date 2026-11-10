@@ -652,7 +652,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/GHSA"), "{out}");
     }
 
-    const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//apps/php:composer.lock\", digests = \"//apps/php:composer.digests.json\")\n";
+    const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//apps/php:composer.lock\", digests = \"//apps/php:composer.digests.json\")\n";
 
     const COMPOSER_LOCK: &str = r#"{"packages": [{"name": "psr/http-message", "version": "v2.0", "dist": {"reference": "402d35bc"}}], "packages-dev": []}"#;
 

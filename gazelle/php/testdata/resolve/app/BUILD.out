@@ -1,4 +1,4 @@
-load("@rules_dx//php/rules:defs.bzl", "php_library", "php_test")
+load("@rules_dx//php:defs.bzl", "php_library", "php_test")
 
 # gazelle:resolve php Monolog\Logger @vendor//monolog/monolog
 

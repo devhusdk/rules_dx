@@ -1,0 +1,87 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
+load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "composer.digests.json",
+    "composer.json",
+    "composer.lock",
+])
+
+php_library(
+    name = "factory",
+    srcs = ["src/Fixture/RequestFactory.php"],
+    deps = ["@php_fixture_vendor//psr/http-factory"],
+)
+
+php_library(
+    name = "factory_deprecations",
+    srcs = [],
+    deps = [
+        ":factory",
+        "@php_fixture_vendor//symfony/deprecation-contracts",
+    ],
+)
+
+php_binary(
+    name = "main",
+    main = "bin/main.php",
+    deps = [":factory_deprecations"],
+)
+
+php_test(
+    name = "request_factory_test",
+    srcs = ["test/RequestFactoryTest.php"],
+    deps = [":factory_deprecations"],
+)
+
+# A class of a package that is not in deps is not found at run time.
+php_binary(
+    name = "missing",
+    main = "bin/missing.php",
+)
+
+php_test(
+    name = "cli_test",
+    srcs = ["test/CliTest.php"],
+    data = [
+        ":autoload_a",
+        ":autoload_b",
+        ":main",
+        ":missing",
+    ],
+    env = {
+        "MAIN_BIN": "$(rootpath :main)",
+        "MISSING_BIN": "$(rootpath :missing)",
+        "TREE_A": "$(rootpath :autoload_a)",
+        "TREE_B": "$(rootpath :autoload_b)",
+    },
+)
+
+[
+    php_autoload_tree(
+        name = "autoload_" + copy,
+        suffix = "Dx_reproducible",
+        target_compatible_with = PHP_COMPATIBLE_WITH,
+        deps = [":factory_deprecations"],
+    )
+    for copy in ("a", "b")
+]
+
+build_test(
+    name = "groups_test",
+    targets = [
+        "@php_fixture_vendor//:all_packages",
+        "@php_fixture_vendor//:dev_packages",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

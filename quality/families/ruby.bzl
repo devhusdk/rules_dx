@@ -1,20 +1,20 @@
 """Ruby real quality aspects."""
 
 load("@rules_ruby//ruby/private:providers.bzl", "RubyFilesInfo")
-load("//php/rules:php.bzl", "staged_path")
+load("//php/private:php.bzl", "staged_path")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {
     "sorbet": {
         "attr": attr.label(default = "//config:tool_sorbet", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//ruby/tools:sorbet",
+        "fallback": "=@rules_dx//ruby/private/tools:sorbet",
         "kind": "setting",
         "resources": "heavy",
         "shard": "ruby",
     },
     "rubocop": {
-        "attr": attr.label(default = "//quality/tools/ruby:rubocop", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//ruby/private/quality:rubocop", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "medium",
         "shard": "ruby",

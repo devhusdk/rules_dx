@@ -114,4 +114,4 @@ common --modify_execution_info=PySdist.*=+block-network
 
 try-import %workspace%/user.bazelrc
 
-build --//quality/tools/ruby:rubocop=@bundle//bin:rubocop
+build --//ruby/private/quality:rubocop=@bundle//bin:rubocop

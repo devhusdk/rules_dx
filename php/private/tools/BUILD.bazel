@@ -1,0 +1,46 @@
+load("@rules_dx//php:defs.bzl", "php_library")
+load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":composer.bzl", "composer_tool")
+load(":phpcs.bzl", "phpcs_tool")
+load(":phpstan.bzl", "phpstan_tool")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "composer.bzl",
+    "phpcs.bzl",
+    "phpstan.bzl",
+    "phpstan_autoload.php",
+])
+
+composer_tool(
+    name = "composer",
+    target_compatible_with = PHP_COMPATIBLE_WITH,
+)
+
+phpcs_tool(
+    name = "phpcs",
+    target_compatible_with = PHP_COMPATIBLE_WITH,
+)
+
+phpstan_tool(
+    name = "phpstan",
+    target_compatible_with = PHP_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "composer.bzl",
+        "phpcs.bzl",
+        "phpstan.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+php_library(
+    name = "tools",
+    srcs = ["phpstan_autoload.php"],
+)

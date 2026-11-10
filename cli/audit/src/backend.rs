@@ -105,7 +105,7 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
         "go" => &["third_party/go/go.mod"],
         "ruby" | "rubygems" => &[
             "third_party/ruby/Gemfile.lock",
-            "families/ruby/ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
+            "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
         ],
         _ => &[],
     }
@@ -258,7 +258,7 @@ mod tests {
             vuln_locks("ruby"),
             &[
                 "third_party/ruby/Gemfile.lock",
-                "families/ruby/ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
+                "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
             ]
         );
         assert!(!is_empty_set("ruby"));

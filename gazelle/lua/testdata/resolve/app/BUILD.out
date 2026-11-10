@@ -1,4 +1,4 @@
-load("@rules_dx//lua/rules:defs.bzl", "lua_library")
+load("@rules_dx//lua:defs.bzl", "lua_library")
 
 # gazelle:resolve lua inspect @lua_app_inspect//:inspect
 

@@ -113,7 +113,7 @@ fn consumer_ruby_set_refuses_an_unversioned_gem_without_mutation() {
     assert!(harness.seen_env.borrow().is_empty());
 }
 
-const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", digests = \"//apps/php:composer.digests.json\", lock = \"//apps/php:composer.lock\")\n";
+const COMPOSER_MODULE: &str = "composer = use_extension(\"@rules_dx//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", digests = \"//apps/php:composer.digests.json\", lock = \"//apps/php:composer.lock\")\n";
 const COMPOSER_JSON: &str = "{\n    \"require\": {\n        \"psr/log\": \"^1.1\"\n    }\n}\n";
 
 fn seed_composer_set(harness: &Harness) {
@@ -181,7 +181,7 @@ fn consumer_cpan_set_widens_the_cpanfile_and_refreshes() {
     assert!(
         runs[0]
             .iter()
-            .any(|arg| arg == "@rules_dx//perl/tools:carton"),
+            .any(|arg| arg == "@rules_dx//perl/private/tools:carton"),
         "{:?}",
         runs[0]
     );

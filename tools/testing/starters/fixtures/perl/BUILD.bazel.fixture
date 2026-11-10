@@ -1,4 +1,4 @@
-load("@rules_dx//perl/rules:defs.bzl", "perl_binary", "perl_library", "perl_test")
+load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
 
 perl_library(
     name = "demo-app",

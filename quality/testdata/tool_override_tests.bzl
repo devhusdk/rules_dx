@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
-load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
+load("//perl:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//dart/rules:dart_config.bzl", "DxDartConfigInfo")
 load(
     "//quality/testdata:all_languages.bzl",
@@ -49,7 +49,7 @@ _ZIG_AST_CHECK_SETTING = _CANONICAL + "//config:tool_zig_ast_check"
 _ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
 _ZIG_FMT_TOOL = _CANONICAL + "//zig/private/tools:zig"
 _PERLCRITIC_SETTING = _CANONICAL + "//config:tool_perlcritic"
-_PERLCRITIC_TOOL = _CANONICAL + "//perl/tools:perlcritic"
+_PERLCRITIC_TOOL = _CANONICAL + "//perl/private/tools:perlcritic"
 _PERL_LINT_POLICY = _CANONICAL + "//quality/testdata:perl_lint_policy"
 _DART_POLICY = _CANONICAL + "//quality/testdata:dart_policy"
 _DART_SETTING = _CANONICAL + "//config:tool_dart"
@@ -62,7 +62,7 @@ _JET_SETTING = _CANONICAL + "//config:tool_jet"
 _JET_TOOL = _CANONICAL + "//julia/private/tools/jet:jet"
 _PERL_POLICY = _CANONICAL + "//quality/testdata:perl_policy"
 _PERLTIDY_SETTING = _CANONICAL + "//config:tool_perltidy"
-_PERLTIDY_TOOL = _CANONICAL + "//perl/tools:perltidy"
+_PERLTIDY_TOOL = _CANONICAL + "//perl/private/tools:perltidy"
 _ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
 _ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
 _ERLFMT_TOOL = _CANONICAL + "//erlang/private/tools:erlfmt"
@@ -76,15 +76,15 @@ _DIALYZER_TOOL = _CANONICAL + "//erlang/private/tools:dialyzer"
 _PHP_LINT_POLICY = _CANONICAL + "//quality/testdata:php_lint_policy"
 _LUA_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:lua_typecheck_policy"
 _LUALS_SETTING = _CANONICAL + "//config:tool_luals"
-_LUALS_TOOL = _CANONICAL + "//lua/tools:luals"
+_LUALS_TOOL = _CANONICAL + "//lua/private/tools:luals"
 _RUBY_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:ruby_typecheck_policy"
 _SORBET_SETTING = _CANONICAL + "//config:tool_sorbet"
-_SORBET_TOOL = _CANONICAL + "//ruby/tools:sorbet"
+_SORBET_TOOL = _CANONICAL + "//ruby/private/tools:sorbet"
 _PHP_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:php_typecheck_policy"
 _PHPCS_SETTING = _CANONICAL + "//config:tool_phpcs"
-_PHPCS_TOOL = _CANONICAL + "//php/tools:phpcs"
+_PHPCS_TOOL = _CANONICAL + "//php/private/tools:phpcs"
 _PHPSTAN_SETTING = _CANONICAL + "//config:tool_phpstan"
-_PHPSTAN_TOOL = _CANONICAL + "//php/tools:phpstan"
+_PHPSTAN_TOOL = _CANONICAL + "//php/private/tools:phpstan"
 _ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/private/tools:mix_format"

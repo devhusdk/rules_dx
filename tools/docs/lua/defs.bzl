@@ -1,7 +1,7 @@
 """Lua API reference shards read from doc comments by the pinned LDoc."""
 
 load("//lua/private:providers.bzl", "LuaInfo")
-load("//lua/toolchain:pins.bzl", "LDOC_VERSION")
+load("//lua/private/toolchain:pins.bzl", "LDOC_VERSION")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
 def lua_shard_action(ctx, own, package, stem, runner, ldoc, penlight, filter, extract_tool):

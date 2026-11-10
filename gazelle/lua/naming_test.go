@@ -2,7 +2,7 @@ package lua
 
 import "testing"
 
-// The vectors mirror lua/rules/wrapper_tests.bzl; keep the two in sync.
+// The vectors mirror lua/private/wrapper_tests.bzl; keep the two in sync.
 func TestModuleName(t *testing.T) {
 	cases := []struct {
 		name                     string

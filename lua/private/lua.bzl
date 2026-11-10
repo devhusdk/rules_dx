@@ -2,7 +2,7 @@
 
 load(":providers.bzl", "LUA_ENTRY_SUFFIX", "LuaInfo")
 
-LUA_TOOLCHAIN_TYPE = Label("//lua/toolchain:toolchain_type")
+LUA_TOOLCHAIN_TYPE = Label("//lua/private/toolchain:toolchain_type")
 
 def repo_relative_path(short_path):
     """Returns a File.short_path relative to the root of its own repository."""
@@ -222,7 +222,7 @@ LUA_EXECUTABLE_ATTRS = LUA_LIBRARY_ATTRS | {
 
 LUA_TEST_ATTRS = LUA_EXECUTABLE_ATTRS | {
     "_coverage": attr.label_list(
-        default = [Label("//lua/coverage:libs")],
+        default = [Label("//lua/private/coverage:libs")],
         providers = [LuaInfo],
         doc = "luacov and its LCOV reporter, present only under bazel coverage.",
     ),

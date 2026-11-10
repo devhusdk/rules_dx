@@ -2239,7 +2239,7 @@ fn cpan_bytes(harness: &Harness) -> Vec<Vec<u8>> {
 fn carton_tail(argv: &[String]) -> &[String] {
     let at = argv
         .iter()
-        .position(|arg| arg == "@rules_dx//perl/tools:carton")
+        .position(|arg| arg == "@rules_dx//perl/private/tools:carton")
         .expect("carton target");
     &argv[at..]
 }
@@ -2262,7 +2262,7 @@ fn consumer_cpan_check_installs_the_snapshot_in_deployment_mode() {
     assert_eq!(
         carton_tail(argv),
         &strings_of(&[
-            "@rules_dx//perl/tools:carton",
+            "@rules_dx//perl/private/tools:carton",
             "--",
             "install",
             "--deployment"
@@ -2287,7 +2287,7 @@ fn consumer_cpan_apply_module_runs_carton_then_the_compiler() {
     assert_eq!(launches.len(), 2, "{launches:?}");
     assert_eq!(
         carton_tail(&launches[0].argv),
-        &strings_of(&["@rules_dx//perl/tools:carton", "--", "update", "Text::CSV"])[..]
+        &strings_of(&["@rules_dx//perl/private/tools:carton", "--", "update", "Text::CSV"])[..]
     );
     assert_eq!(
         launches[1].argv[launches[1].argv.len() - 3..],

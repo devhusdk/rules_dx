@@ -162,7 +162,7 @@ TAXONOMY = {
         classes = ["latex"],
     ),
     "lua": struct(
-        owner = "//lua/rules:defs.bzl",
+        owner = "//lua:defs.bzl",
         classes = ["lua"],
     ),
     "make": struct(
@@ -190,11 +190,11 @@ TAXONOMY = {
         classes = ["ocaml"],
     ),
     "perl": struct(
-        owner = "//perl/rules:defs.bzl",
+        owner = "//perl:defs.bzl",
         classes = ["perl"],
     ),
     "php": struct(
-        owner = "//php/rules:defs.bzl",
+        owner = "//php:defs.bzl",
         classes = ["php"],
     ),
     "pkl": struct(
@@ -226,7 +226,7 @@ TAXONOMY = {
         classes = ["rst"],
     ),
     "ruby": struct(
-        owner = "//ruby/rules:defs.bzl",
+        owner = "//ruby:defs.bzl",
         classes = ["ruby"],
     ),
     "rust": struct(

@@ -30,6 +30,7 @@ rust_library(
     ),
     crate_name = "dx_lcov",
     crate_root = "src/lib.rs",
+    visibility = VIS_CLI_TOOLS + ["//php/private/coverage:__pkg__"],
     deps = all_crate_deps(
         package_name = "cli/dx_lcov",
         normal = True,

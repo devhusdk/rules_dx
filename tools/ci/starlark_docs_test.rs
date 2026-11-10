@@ -18,7 +18,7 @@ const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_par
 const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test", "_application"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 92] = [
+const PACKAGES: [&str; 91] = [
     "appimage",
     "astro/private",
     "bicep/rules",
@@ -47,14 +47,13 @@ const PACKAGES: [&str; 92] = [
     "libs/testing",
     "lua/private",
     "dart/rules",
-    "lua/rules",
-    "lua/toolchain",
+    "lua/private/toolchain",
     "mdx/private",
     "modules",
     "ocaml/rules",
     "ocaml/toolchain",
-    "perl/cpan",
-    "perl/rules",
+    "perl/private/cpan",
+    "perl/private",
     "powershell/rules",
     "python/private",
     "qt/rules",
@@ -66,8 +65,8 @@ const PACKAGES: [&str; 92] = [
     "quality/rules",
     "quality/tools/javascript",
     "quality/tools/jvm",
-    "quality/tools/ruby",
-    "ruby/rules",
+    "ruby/private/quality",
+    "ruby/private",
     "rust/rules",
     "rust/toolchains",
     "scala/private",
@@ -105,7 +104,7 @@ const PACKAGES: [&str; 92] = [
     "kubernetes/rules",
     "libs/exec_os",
     "make/rules",
-    "php/rules",
+    "php/private",
     "rego/rules",
     "rst/rules",
     "swift/rules",

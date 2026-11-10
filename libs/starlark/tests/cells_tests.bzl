@@ -7,10 +7,10 @@ load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/toolchain:pins.bzl", haskell_cells = "CELLS")
 load("//libs/starlark:cells.bzl", "cell_cases", "cell_setting", "unknown_cells", "unsupported_constraint")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//lua/toolchain:pins.bzl", "LUALS_CELLS")
+load("//lua/private/toolchain:pins.bzl", "LUALS_CELLS")
 load("//modules:cuda.bzl", "CUDA_CELLS")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
-load("//php/toolchain:pins.bzl", "PHP_CELLS")
+load("//php/private/toolchain:pins.bzl", "PHP_CELLS")
 load("//qt/sdk:pins.bzl", qt_cells = "CELLS")
 
 _DEFAULT = "//conditions:default"

@@ -1,4 +1,4 @@
-load("//php/rules:defs.bzl", "php_library")
+load("//php:defs.bzl", "php_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/php:defs.bzl", "php_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")

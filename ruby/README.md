@@ -16,12 +16,12 @@ wired when its sources appear.
 
 ## Rules
 
-Load the rules from `@rules_dx//ruby/rules:defs.bzl`. They wrap
+Load the rules from `@rules_dx//ruby:defs.bzl`. They wrap
 [rules_ruby](https://github.com/bazel-contrib/rules_ruby) and take the same
 attributes.
 
 ```python
-load("@rules_dx//ruby/rules:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
+load("@rules_dx//ruby:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
 
 ruby_library(
     name = "hello_lib",
@@ -111,7 +111,7 @@ needed) over `ruby_library`, `ruby_binary` and `ruby_test` sources. Select
 ## Generating BUILD files
 
 `dx generate` writes `ruby_library` and `ruby_test` targets from your `.rb`
-files and `require` lines. The command reference covers `dx generate`. The `families/ruby/ruby/tests/fixtures/adopt-ruby` tree shows a full run.
+files and `require` lines. The command reference covers `dx generate`. The `ruby/tests/fixtures/adopt-ruby` tree shows a full run.
 
 ## Platforms
 

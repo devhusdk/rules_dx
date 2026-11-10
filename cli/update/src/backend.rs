@@ -865,7 +865,7 @@ pub fn plan_configured(
                     workspace,
                     set,
                     head,
-                    "@rules_dx//php/tools:composer",
+                    "@rules_dx//php/private/tools:composer",
                     &command,
                 )?,
                 env: composer_env(),
@@ -882,7 +882,7 @@ pub fn plan_configured(
                         workspace,
                         set,
                         head,
-                        "@rules_dx//php/tools/digests:refresh_digests",
+                        "@rules_dx//php/private/tools/digests:refresh_digests",
                         &["composer.lock", digests],
                     )?,
                     env: composer_env(),
@@ -1268,7 +1268,7 @@ pub fn check_configured(
                 workspace,
                 set,
                 head,
-                "@rules_dx//php/tools:composer",
+                "@rules_dx//php/private/tools:composer",
                 &["validate", "--check-lock", "--no-check-publish"],
             )?,
             env: composer_env(),
@@ -1683,7 +1683,7 @@ fn carton_argv(
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
     let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
-    let mut argv = bazel(head, "run", &[&under, "@rules_dx//perl/tools:carton", "--"]);
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//perl/private/tools:carton", "--"]);
     argv.extend(strings(command));
     Ok(argv)
 }

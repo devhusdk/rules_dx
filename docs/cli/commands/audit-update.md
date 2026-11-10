@@ -447,7 +447,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `uv.project` | `<hub_name>-<pyproject directory name>` | `pyproject` | `lock` |
 | `go_deps.from_file` with `go_mod` | `go` | `go_mod` | `go.sum` beside it |
 | `ruby.bundle_fetch` | `name`, default `bundle` | `gemfile` | `gemfile_lock` |
-| `composer.lock` of `@rules_dx//php/composer:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
+| `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
 | `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` or `dub.sdl` beside `lock` | `lock`, `digests` |
 | `fortran.fpm` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
 | `zig_deps.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
@@ -517,7 +517,7 @@ julia_pkg.from_manifest(
 ### composer
 
 ```starlark
-composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
+composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
 composer.lock(
     name = "php_deps",
     digests = "//apps/php:composer.digests.json",
@@ -664,11 +664,11 @@ cpan.install(
 ```
 
 - The `cpanfile` and `cpanfile.snapshot` sit beside the lock JSON. The distributions of the snapshot and the lock JSON must match.
-- A check runs `carton install --deployment` in the set's directory through `bazel run @rules_dx//perl/tools:carton`, with carton's `local/` tree outside the workspace. `--offline` fails with `offline_required`. A set takes no `set:package` for a check.
+- A check runs `carton install --deployment` in the set's directory through `bazel run @rules_dx//perl/private/tools:carton`, with carton's `local/` tree outside the workspace. `--offline` fails with `offline_required`. A set takes no `set:package` for a check.
 - `dx update --outdated` compares the `requires` modules of `cpanfile` with the latest release on MetaCPAN.
 - `dx update <set>:<Module> --apply` runs `carton update <Module>`, then the `cpan_compiler` of the lock's `BUILD.bazel` with `--incremental`, so the snapshot and the lock JSON change together. Without such a compiler it is refused. `--offline` and `--frozen` fail with `offline_required` and `frozen_locked`.
 - `dx update <set>:<Module> <version> --apply` first rewrites the version in the module's `requires` line of `cpanfile`, keeping the operator, then refreshes as above.
-- `dx security` matches the distributions of `cpanfile.snapshot` against `.dx/local/advisory/cpan.json`. `bazel run @rules_dx//cli/advisory_prep --` builds it from `CPANSA::DB` through the pinned `//perl/tools:cpansa_dump`, not from the host perl.
+- `dx security` matches the distributions of `cpanfile.snapshot` against `.dx/local/advisory/cpan.json`. `bazel run @rules_dx//cli/advisory_prep --` builds it from `CPANSA::DB` through the pinned `//perl/private/tools:cpansa_dump`, not from the host perl.
 
 ### go
 

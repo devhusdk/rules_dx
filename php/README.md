@@ -14,10 +14,10 @@ its sources appear.
 
 ## Rules
 
-Load the rules from `@rules_dx//php/rules:defs.bzl`.
+Load the rules from `@rules_dx//php:defs.bzl`.
 
 ```python
-load("@rules_dx//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
+load("@rules_dx//php:defs.bzl", "php_binary", "php_library", "php_test")
 
 php_library(
     name = "ledger",
@@ -57,7 +57,7 @@ php_binary(
   `config` to use one.
 - `autoload_files` on `php_library` lists files that are loaded on every run,
   like Composer's `files` autoload. Use it for function files.
-- `PhpInfo` is exported from `@rules_dx//php/rules:defs.bzl`.
+- `PhpInfo` is exported from `@rules_dx//php:defs.bzl`.
 
 ## Autoloading
 
@@ -79,7 +79,7 @@ package through its repository cache; Composer never runs at fetch time and
 no resolver runs.
 
 ```starlark
-composer = use_extension("@rules_dx//php/composer:extensions.bzl", "composer")
+composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
 composer.lock(
     name = "vendor",
     digests = "//:composer.digests.json",
@@ -169,14 +169,14 @@ PHP_CodeSniffer 4.0.4 lints `php` targets against PSR12 or a bound ruleset.
 Select `phpcs` in a `php` family. The tool flag overrides the pinned binary:
 
 ```sh
-dx lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/tools:phpcs
+dx lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/private/tools:phpcs
 ```
 
 PHPStan 2.3.3 type checks `php` targets. Select `phpstan` in a `php` family.
 The tool flag overrides the pinned binary:
 
 ```sh
-dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/tools:phpstan
+dx typecheck -- --@rules_dx//config:tool_phpstan=@rules_dx//php/private/tools:phpstan
 ```
 
 Dependencies are scanned, not run. See `docs/cli/commands/quality.md`.

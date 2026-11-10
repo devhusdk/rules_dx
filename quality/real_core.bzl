@@ -23,8 +23,8 @@ _TARGET_TOOL_OWNERS = {
     "swift_lint": ("swift_library, swift_binary or swift_test", "@rules_dx//swift/rules:defs.bzl", "@rules_dx//swift/tools:swift_format"),
     "zig_ast_check": ("zig_library, zig_binary or zig_test", "@rules_dx//zig:defs.bzl", "@rules_dx//zig/private/tools:zig"),
     "zig_fmt": ("zig_library, zig_binary or zig_test", "@rules_dx//zig:defs.bzl", "@rules_dx//zig/private/tools:zig"),
-    "perlcritic": ("perl_library, perl_binary or perl_test", "@rules_dx//perl/rules:defs.bzl", "@rules_dx//perl/tools:perlcritic"),
-    "perltidy": ("perl_library, perl_binary or perl_test", "@rules_dx//perl/rules:defs.bzl", "@rules_dx//perl/tools:perltidy"),
+    "perlcritic": ("perl_library, perl_binary or perl_test", "@rules_dx//perl:defs.bzl", "@rules_dx//perl/private/tools:perlcritic"),
+    "perltidy": ("perl_library, perl_binary or perl_test", "@rules_dx//perl:defs.bzl", "@rules_dx//perl/private/tools:perltidy"),
     "julia_format": ("julia_library, julia_binary or julia_test", "@rules_dx//julia:defs.bzl", "@rules_dx//julia/private/tools:julia_format"),
 }
 

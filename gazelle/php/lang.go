@@ -36,7 +36,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{TestKind},
 		Kinds:          phpKinds,
-		DefsPackage:    "php/rules:defs.bzl",
+		DefsPackage:    "php:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsStdLib:       IsStdLib,

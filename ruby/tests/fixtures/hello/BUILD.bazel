@@ -1,0 +1,76 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//ruby:defs.bzl", "ruby_binary", "ruby_library", "ruby_test")
+load("@rules_dx//ruby/private:wrapper_tests.bzl", "ruby_coverage_env_test")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load(":quality_tests.bzl", "main_outside_srcs_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+ruby_library(
+    name = "hello_lib",
+    srcs = ["hello.rb"],
+)
+
+ruby_binary(
+    name = "hello",
+    srcs = ["main.rb"],
+    main = "main.rb",
+    deps = [":hello_lib"],
+)
+
+ruby_binary(
+    name = "main_outside_srcs",
+    srcs = ["hello.rb"],
+    main = "main_outside_srcs.rb",
+)
+
+main_outside_srcs_test(
+    name = "main_outside_srcs_quality_test",
+    target_under_test = ":main_outside_srcs",
+)
+
+ruby_test(
+    name = "hello_test",
+    srcs = ["hello_test.rb"],
+    main = "hello_test.rb",
+    deps = [":hello_lib"],
+)
+
+# The cross-host SF check for Ruby coverage (#3954): a child run of
+# hello_test.rb must write LCOV naming hello.rb with hits.
+ruby_test(
+    name = "coverage_probe_test",
+    srcs = ["coverage_probe_test.rb"],
+    data = ["hello_test.rb"],
+    main = "coverage_probe_test.rb",
+    deps = [":hello_lib"],
+)
+
+ruby_coverage_env_test(
+    name = "hello_test_coverage_env_test",
+    target = ":hello_test",
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello",
+    expected = "hello world",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "quality_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel", "main_outside_srcs.rb"],
+    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
+)

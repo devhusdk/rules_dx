@@ -14,8 +14,8 @@ load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
 load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
 load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
-load("//perl/rules:platforms.bzl", "PERL_PLATFORMS")
-load("//php/toolchain:pins.bzl", "PHP_CELLS")
+load("//perl/private:platforms.bzl", "PERL_PLATFORMS")
+load("//php/private/toolchain:pins.bzl", "PHP_CELLS")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 load("//tools/platforms:defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
@@ -51,8 +51,8 @@ COMPUTED_CONSTRAINTS = {
     "//julia:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
     "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _cells(OCAML_CELLS, sorted(OCAML_CELLS.keys())),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
-    "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(PERL_PLATFORMS),
-    "//php/rules:defs.bzl%PHP_COMPATIBLE_WITH": _cells(PHP_CELLS, sorted(PHP_CELLS.keys())),
+    "//perl:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(PERL_PLATFORMS),
+    "//php:defs.bzl%PHP_COMPATIBLE_WITH": _cells(PHP_CELLS, sorted(PHP_CELLS.keys())),
     "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
 }
 
@@ -190,11 +190,11 @@ ROWS = [
     {"ci_tests": _hello("javascript", "@rules_dx_js"), "consumer_tests": _starter_consumers("javascript"), "name": "javascript", "section": "languages", "title": "JavaScript"},
     {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("julia"), "name": "julia", "section": "languages", "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "title": "Kotlin"},
-    {"ci_tests": ["@rules_dx_lua//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": "Lua"},
+    {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": "Lua"},
     {"ci_tests": _hello("mdx", "@rules_dx_js") + ["@rules_dx_js//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": "MDX"},
     {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "title": "OCaml"},
-    {"ci_tests": ["@rules_dx_perl//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": "Perl"},
-    {"ci_tests": ["@rules_dx_php//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": "PHP"},
+    {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": "Perl"},
+    {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": "PHP"},
     {"ci_tests": ["@rules_dx_powershell//tests/fixtures/hello:hello_test"], "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": "PowerShell"},
     {"ci_tests": ["//generation:codegen_prost_fixture_argv_test"], "name": "protobuf", "section": "languages", "title": "Protobuf"},
     {
@@ -206,7 +206,7 @@ ROWS = [
         "section": "languages",
         "title": "Python",
     },
-    {"ci_tests": _hello("ruby", "@rules_dx_ruby"), "consumer_tests": _starter_consumers("ruby"), "name": "ruby", "section": "languages", "title": "Ruby"},
+    {"ci_tests": _hello("ruby"), "consumer_tests": _starter_consumers("ruby"), "name": "ruby", "section": "languages", "title": "Ruby"},
     {
         "ci_tests": ["@rules_dx_rust//rust/tests/fixtures/consumer_wasm:consumer_wasm_test"],
         "consumer_tests": ["//tools/testing/hermetic:rust_wasi", "//tools/testing/hermetic:cpp_rust"] + _starter_consumers("rust"),
@@ -594,7 +594,7 @@ LANGUAGES = [
         doc = struct(tool = "phpdocumentor", shard = "php_doc_shard"),
         dead_code = ["phpcs Generic.CodeAnalysis.UnusedFunctionParameter"],
         coverage = ["pcov (Linux only)"],
-        unsupported = "//php/toolchain:unsupported",
+        unsupported = "//php/private/toolchain:unsupported",
         not_applicable = {
             "windows_arm64": "static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build"
         },

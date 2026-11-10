@@ -230,13 +230,13 @@ mod tests {
     }
 
     const JSON: &str = r#"{
-        "//php/toolchain:unsupported": {"title": "PHP", "platforms": {"windows_arm64": "no PHP build"}},
+        "//php/private/toolchain:unsupported": {"title": "PHP", "platforms": {"windows_arm64": "no PHP build"}},
         "//dart/rules:unsupported": {"title": "Dart", "platforms": {"a": "x", "b": "y"}}
     }"#;
 
     fn fake_query(constraint: &str, _labels: &[String]) -> Option<Vec<String>> {
         match constraint {
-            "//php/toolchain:unsupported" => Some(vec!["//a:x".to_owned(), "//a:y".to_owned()]),
+            "//php/private/toolchain:unsupported" => Some(vec!["//a:x".to_owned(), "//a:y".to_owned()]),
             _ => None,
         }
     }

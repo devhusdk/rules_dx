@@ -1,4 +1,4 @@
-load("@rules_dx//php/rules:defs.bzl", "php_binary", "php_library", "php_test")
+load("@rules_dx//php:defs.bzl", "php_binary", "php_library", "php_test")
 
 php_library(
     name = "demo-app",

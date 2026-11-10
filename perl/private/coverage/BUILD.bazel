@@ -1,0 +1,42 @@
+load("//perl:defs.bzl", "perl_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files(["DxLcov.pm"])
+
+config_setting(
+    name = "coverage_on",
+    values = {"collect_code_coverage": "true"},
+)
+
+filegroup(
+    name = "none",
+    srcs = [],
+)
+
+# The LCOV collector under `bazel coverage`, nothing otherwise (#7324).
+alias(
+    name = "collector",
+    actual = select({
+        ":coverage_on": ":collector_files",
+        "//conditions:default": ":none",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "collector_files",
+    srcs = ["DxLcov.pm"],
+)
+
+perl_library(
+    name = "dx_lcov",
+    srcs = ["DxLcov.pm"],
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

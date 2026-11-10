@@ -11,10 +11,10 @@ registers the Lua toolchain, so there is no toolchain setup in
 Run `dx init --apply demo-app` and add sources. The language is wired when
 its sources appear.
 
-Load the rules from `@rules_dx//lua/rules:defs.bzl`.
+Load the rules from `@rules_dx//lua:defs.bzl`.
 
 ```python
-load("@rules_dx//lua/rules:defs.bzl", "lua_binary", "lua_library", "lua_test")
+load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
 
 lua_library(
     name = "catalog",
@@ -62,7 +62,7 @@ lua_binary(
 | `env` | `lua_binary`, `lua_test` | Environment variables set when the target runs or is tested; `$(location)` is expanded |
 
 `LuaInfo` carries the modules of a target and its deps. Load it from
-`@rules_dx//lua/rules:defs.bzl`.
+`@rules_dx//lua:defs.bzl`.
 
 ## Modules and data files
 
@@ -104,7 +104,7 @@ http_archive(
 ```
 
 ```python
-load("@rules_dx//lua/rules:defs.bzl", "lua_library")
+load("@rules_dx//lua:defs.bzl", "lua_library")
 
 lua_library(
     name = "inspect",

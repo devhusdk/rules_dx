@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "ruby",
   "title": "Ruby",
-  "family": "ruby",
+  "family": "core",
   "ecosystems": [
     "rubygems"
   ],
@@ -24,7 +24,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "toolchain/pins.json"
+    "private/toolchain/pins.json"
   ],
   "entry_points": [
     "ruby_coverage_lib_dirs",

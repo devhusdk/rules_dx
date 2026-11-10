@@ -1,5 +1,6 @@
 # gazelle:ignore
 
+load("//core:defs.bzl", "starlark_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":cell_json.bzl", "qt_cell_data")
 load(":metadata_tests.bzl", "qt_metadata_tests")
@@ -28,6 +29,19 @@ exports_files([
 ])
 
 qt_metadata_tests(name = "metadata")
+
+starlark_test(
+    name = "hub_load_test",
+    expected_observations = """subject +qt_sdk+dx_qt//:linux_x86_64
+aspect_field aspect_seen=True
+aspect_field field_count=0
+aspect_field has_subject=False
+aspect_field subject_label=+qt_sdk+dx_qt//:linux_x86_64
+aspect_field transitive_count=0
+""",
+    mode = "analysis",
+    subjects = ["@dx_qt//:linux_x86_64"],
+)
 
 qt_cell_data()
 

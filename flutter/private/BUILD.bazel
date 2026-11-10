@@ -9,7 +9,9 @@ unsupported_value("unsupported")
 
 exports_files([
     "defs.bzl",
+    "pins.json",
     "platforms.bzl",
+    "pub.bzl",
 ])
 
 [
@@ -35,6 +37,7 @@ real_source_target(
         "BUILD.bazel",
         "defs.bzl",
         "platforms.bzl",
+        "pub.bzl",
     ],
     tags = ["corpus"],
 )

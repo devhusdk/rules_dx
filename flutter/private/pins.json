@@ -1,0 +1,12 @@
+{
+  "archives": {
+    "rules_flutter": {
+      "sha256": "b0d3f0dbc33663ea0872dca6914dd963db2f0a8006e556942cde6207e96fcc69",
+      "strip_prefix": "rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353",
+      "urls": [
+        "https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz"
+      ],
+      "version": "2b203359a0a79edaae66126ea5c212d1d7b19353"
+    }
+  }
+}

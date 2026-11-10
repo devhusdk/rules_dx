@@ -130,18 +130,6 @@ fn conan_publish(
     Ok(())
 }
 
-/// Finds the pinned conan, or `conan` on PATH when none is pinned.
-fn find_conan(run: &DeployRun, conan_rloc: &str) -> Option<PathBuf> {
-    if conan_rloc.is_empty() {
-        let conan = which_on_path("conan");
-        if conan.is_none() {
-            eprintln!("conan_deploy: 'conan' not found on PATH; set conan");
-        }
-        return conan;
-    }
-    run.resolve(conan_rloc)
-}
-
 /// Runs the Conan deploy tool.
 pub fn conan_main(spec: &ConanLaunch<'_>, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
@@ -198,7 +186,7 @@ fn conan_deploy_checked(
             return Err(error);
         }
         let secrets = CONAN_GATE.authorize(env_or_empty)?;
-        let conan = find_conan(run, spec.conan_rloc)
+        let conan = run.resolve(spec.conan_rloc)
             .ok_or_else(|| "conan_deploy: no conan executable".to_owned())?;
         conan_publish(
             &conan,

@@ -718,7 +718,7 @@ conan_deploy(
 - `remote`, `remote_url`: required. The remote name and its https URL.
 - `package`: the package name. Defaults to `name`. Must match `name` in `conanfile.py` when it sets one.
 - `version`: optional. Must match `version` in `conanfile.py`; required when the recipe sets none.
-- `conan`, `conan_files`: optional conan and the files it needs. Default is the pinned conan on linux x86_64; other hosts take `conan` from `PATH`.
+- `conan`, `conan_files`: optional conan and the files it needs. Default is the pinned conan on linux x86_64 and arm64, macos x86_64 and arm64, and windows x86_64.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 A default run checks the recipe and stages `<name>-recipe/`. No credentials needed.

@@ -66,8 +66,6 @@ pub trait Host {
     fn max_slots(&self) -> usize {
         DEFAULT_MAX_SLOTS
     }
-    /// Where nested-Bazel tests keep their slots, if this host has such a root.
-    fn nested_root(&self) -> Option<PathBuf>;
     fn interrupted(&self) -> Option<i32>;
     /// Deletes a directory tree, including read-only entries; true when it is gone afterwards.
     #[must_use]
@@ -784,16 +782,6 @@ impl Host for SystemHost {
             .ok()
             .and_then(|text| text.trim().parse().ok())
             .unwrap_or(DEFAULT_MAX_SLOTS)
-    }
-
-    fn nested_root(&self) -> Option<PathBuf> {
-        let env = std::env::var_os(dx_path::nested_bazel::ROOT_ENV);
-        let profile = std::env::var_os("USERPROFILE").map(PathBuf::from);
-        Some(dx_path::nested_bazel::root(
-            env.as_deref(),
-            current_uid(),
-            profile.as_deref(),
-        ))
     }
 
     fn interrupted(&self) -> Option<i32> {

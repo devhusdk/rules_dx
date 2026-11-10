@@ -517,11 +517,6 @@ fn prune_lines(plan: &PrunePlan) -> Vec<String> {
                 size(base.bytes),
                 base.dir.display()
             ),
-            ops::BaseOwner::Nested { case, .. } => format!(
-                "output base of nested Bazel test {case}, {}: {}",
-                size(base.bytes),
-                base.dir.display()
-            ),
             ops::BaseOwner::Orphan => format!(
                 "output base of removed {}, {}: {}",
                 base.workspace.display(),
@@ -571,11 +566,6 @@ fn skipped_lines(
             base.reason,
             base.dir.display()
         ),
-        ops::BaseOwner::Nested { case, .. } => format!(
-            "skipped output base of nested Bazel test {case} ({}): {}",
-            base.reason,
-            base.dir.display()
-        ),
         ops::BaseOwner::Orphan => format!(
             "skipped output base of removed {} ({}): {}",
             base.workspace.display(),
@@ -596,19 +586,12 @@ fn skipped_lines(
 
 /// The line for an output base `prune` keeps because a server still uses it.
 fn kept_base_line(base: &ops::PruneKeptBase) -> String {
-    match &base.owner {
-        ops::BaseOwner::Nested { case, .. } => format!(
-            "kept output base of nested Bazel test {case} ({}): {}",
-            base.reason,
-            base.dir.display()
-        ),
-        _ => format!(
-            "kept output base of removed {} ({}): {}",
-            base.workspace.display(),
-            base.reason,
-            base.dir.display()
-        ),
-    }
+    format!(
+        "kept output base of removed {} ({}): {}",
+        base.workspace.display(),
+        base.reason,
+        base.dir.display()
+    )
 }
 
 fn prune(
@@ -670,7 +653,6 @@ fn prune_events(pruned: &ops::Pruned) -> Vec<serde_json::Value> {
     for base in &plan.bases {
         let state = match base.owner {
             ops::BaseOwner::Slot(_) => "free",
-            ops::BaseOwner::Nested { .. } => "nested",
             ops::BaseOwner::Orphan => "orphaned",
         };
         let mut event = simple_event("prune_base", base.owner.slot(), &base.dir, None, state);
@@ -1394,7 +1376,6 @@ mod tests {
                     bytes: 1024,
                     owner: ops::BaseOwner::Slot(2),
                 },
-                nested_base(),
             ],
             ..PrunePlan::default()
         };
@@ -1403,38 +1384,7 @@ mod tests {
             [
                 "output base of removed /gone, 2.0 KiB: /bazel/aaa",
                 "output base of free slot 2, 1.0 KiB: /bazel/bbb",
-                "output base of nested Bazel test hello, 512 B: /tmp/dxnb-1000/0/u/nnn",
             ]
-        );
-    }
-
-    fn nested_owner() -> ops::BaseOwner {
-        ops::BaseOwner::Nested {
-            slot: PathBuf::from("/tmp/dxnb-1000/0"),
-            case: "hello".to_owned(),
-        }
-    }
-
-    fn nested_base() -> ops::PruneBase {
-        ops::PruneBase {
-            dir: PathBuf::from("/tmp/dxnb-1000/0/u/nnn"),
-            workspace: PathBuf::from("/tmp/dxnb-1000/0/w/hello"),
-            bytes: 512,
-            owner: nested_owner(),
-        }
-    }
-
-    #[test]
-    fn kept_nested_bases_name_the_test_case() {
-        let kept = ops::PruneKeptBase {
-            dir: PathBuf::from("/tmp/dxnb-1000/0/u/nnn"),
-            workspace: PathBuf::from("/tmp/dxnb-1000/0/w/hello"),
-            owner: nested_owner(),
-            reason: "server",
-        };
-        assert_eq!(
-            kept_base_line(&kept),
-            "kept output base of nested Bazel test hello (server): /tmp/dxnb-1000/0/u/nnn"
         );
     }
 
@@ -1472,18 +1422,11 @@ mod tests {
                 owner: ops::BaseOwner::Slot(2),
                 reason: "server",
             },
-            ops::PruneKeptBase {
-                dir: PathBuf::from("/tmp/dxnb-1000/0/u/nnn"),
-                workspace: PathBuf::from("/tmp/dxnb-1000/0/w/hello"),
-                owner: nested_owner(),
-                reason: "busy",
-            },
         ];
         assert_eq!(
             skipped_lines(&[], &skipped, &[]),
             [
                 "skipped output base of free slot 2 (server): /bazel/bbb",
-                "skipped output base of nested Bazel test hello (busy): /tmp/dxnb-1000/0/u/nnn",
             ]
         );
     }
@@ -1538,7 +1481,6 @@ mod tests {
                         bytes: 2048,
                         owner: ops::BaseOwner::Orphan,
                     },
-                    nested_base(),
                 ],
                 kept_bases: vec![ops::PruneKeptBase {
                     dir: PathBuf::from("/bazel/kkk"),
@@ -1663,13 +1605,12 @@ mod tests {
                 ("prune_base", "skipped"),
                 ("prune_base", "free"),
                 ("prune_base", "orphaned"),
-                ("prune_base", "nested"),
                 ("prune_downloads", "stale"),
             ]
         );
-        assert_eq!(events[11]["entries"], 2);
+        assert_eq!(events[10]["entries"], 2);
         #[allow(clippy::type_complexity)]
-        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 12] = [
+        let expected: [(&str, Option<u64>, Option<&str>, Option<u64>, Option<&str>); 11] = [
             ("/cache/slots/3", Some(3), None, Some(100), None),
             ("/cache/slots/4", Some(4), None, None, Some("busy")),
             ("/ext", None, Some("e"), Some(200), None),
@@ -1680,7 +1621,6 @@ mod tests {
             ("/bazel/sss", Some(2), None, None, Some("server")),
             ("/bazel/bbb", Some(2), None, Some(1024), None),
             ("/bazel/aaa", None, None, Some(2048), None),
-            ("/tmp/dxnb-1000/0/u/nnn", None, None, Some(512), None),
             (
                 "/bazel/cache/repos/v1/content_addressable",
                 None,
@@ -1752,13 +1692,12 @@ mod tests {
              external worktree e, 200 B: /ext\n\
              output base of free slot 2, 1.0 KiB: /bazel/bbb\n\
              output base of removed /gone, 2.0 KiB: /bazel/aaa\n\
-             output base of nested Bazel test hello, 512 B: /tmp/dxnb-1000/0/u/nnn\n\
              repository cache downloads unused for 30 days, 2 entries, 1.0 KiB: /bazel/cache/repos/v1/content_addressable\n\
-             dx worktree: 4.8 KiB to reclaim; run `dx worktree prune --apply`\n"
+             dx worktree: 4.3 KiB to reclaim; run `dx worktree prune --apply`\n"
         );
         let (code, text) = run_prune_output(&["worktree", "prune", "--apply"], &full);
         assert_eq!(code, 0);
-        assert!(text.ends_with("dx worktree: pruned 4.8 KiB\n"), "{text}");
+        assert!(text.ends_with("dx worktree: pruned 4.3 KiB\n"), "{text}");
         for words in [
             &["worktree", "prune"][..],
             &["worktree", "prune", "--apply"],

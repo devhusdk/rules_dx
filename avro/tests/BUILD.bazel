@@ -1,6 +1,6 @@
 # gazelle:ignore
-# gazelle:dx_ignore_import cc avro/tests/point.hh
-# gazelle:dx_ignore_import cc avro/tests/shape.hh
+# gazelle:dx_ignore_import cc avro/tests/shapes_cc.hh
+# gazelle:dx_ignore_import cc avro/tests/shape_avsc_cc.hh
 load("//avro:defs.bzl", "avro_cc_library", "avro_codegen_shard", "avro_java_library", "avro_library")
 load("//cc:defs.bzl", "cc_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
@@ -20,10 +20,19 @@ avro_library(
     deps = [":point"],
 )
 
+avro_library(
+    name = "ring",
+    srcs = ["ring.avdl"],
+    deps = [":point"],
+)
+
 avro_cc_library(
     name = "shapes_cc",
     namespace = "dx_avro",
-    deps = [":shape"],
+    deps = [
+        ":ring",
+        ":shape",
+    ],
 )
 
 # keep
@@ -43,7 +52,7 @@ avro_cc_library(
 
 avro_codegen_shard(
     name = "point_cc_shard",
-    entries = ["gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point.hh"],
+    entries = ["gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point_cc.hh"],
     language = "cpp",
     generated = ":point_cc",
 )
@@ -56,7 +65,7 @@ codegen_shard_argv_test(
         "--language",
         "cpp",
         "--entry",
-        "gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point.hh",
+        "gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/point_cc/avro/tests/point_cc.hh",
         "--output",
     ],
     output = "avro/tests/point_cc_shard.dxcodegen.pb",
@@ -65,10 +74,7 @@ codegen_shard_argv_test(
 
 avro_codegen_shard(
     name = "shapes_cc_shard",
-    entries = [
-        "gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/point.hh",
-        "gen/shape.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shape.hh",
-    ],
+    entries = ["gen/shapes.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shapes_cc.hh"],
     language = "cpp",
     generated = ":shapes_cc",
 )
@@ -81,9 +87,7 @@ codegen_shard_argv_test(
         "--language",
         "cpp",
         "--entry",
-        "gen/point.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/point.hh",
-        "--entry",
-        "gen/shape.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shape.hh",
+        "gen/shapes.hh|gen|dx_avro|avro/tests/_avro_cc/shapes_cc/avro/tests/shapes_cc.hh",
         "--output",
     ],
     output = "avro/tests/shapes_cc_shard.dxcodegen.pb",
@@ -106,10 +110,26 @@ avro_library(
     srcs = ["ping.avdl"],
 )
 
+avro_cc_library(
+    name = "shape_avsc_cc",
+    namespace = "dx_test",
+    deps = [":shape_avsc"],
+)
+
+# keep
+cc_test(
+    name = "cc_shape_avsc_roundtrip_test",
+    srcs = ["cc_shape_avsc_roundtrip_test.cc"],
+    copts = ["-std=c++17"],
+    linkstatic = True,
+    deps = [":shape_avsc_cc"],
+)
+
 avro_java_library(
     name = "shapes_java",
     deps = [
         ":ping",
+        ":ring",
         ":shape_avsc",
     ],
 )
@@ -117,7 +137,7 @@ avro_java_library(
 java_test(
     name = "RoundtripTest",
     srcs = ["RoundtripTest.java"],
-    jvm_flags = ["-Dorg.apache.avro.SERIALIZABLE_PACKAGES=dx.test"],
+    jvm_flags = ["-Dorg.apache.avro.SERIALIZABLE_PACKAGES=dx.test,dx.avro"],
     main_class = "RoundtripTest",
     tags = ["no-lint"],
     test_class = "RoundtripTest",

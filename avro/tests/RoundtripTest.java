@@ -1,3 +1,5 @@
+import dx.avro.Point;
+import dx.avro.Ring;
 import dx.test.Base;
 import dx.test.Ping;
 import dx.test.Shape;
@@ -24,6 +26,16 @@ public final class RoundtripTest {
     }
     if (!"hi".equals(Ping.newBuilder().setNote("hi").build().getNote().toString())) {
       throw new AssertionError("avdl record mismatch");
+    }
+    Ring ring = Ring.newBuilder().setCenter(new Point(3, -4)).setRadius(9).build();
+    ByteArrayOutputStream ringOut = new ByteArrayOutputStream();
+    BinaryEncoder ringEncoder = EncoderFactory.get().binaryEncoder(ringOut, null);
+    new SpecificDatumWriter<Ring>(Ring.class).write(ring, ringEncoder);
+    ringEncoder.flush();
+    BinaryDecoder ringDecoder = DecoderFactory.get().binaryDecoder(ringOut.toByteArray(), null);
+    Ring ringRead = new SpecificDatumReader<Ring>(Ring.class).read(null, ringDecoder);
+    if (ringRead.getCenter().getX() != 3 || ringRead.getCenter().getY() != -4 || ringRead.getRadius() != 9) {
+      throw new AssertionError("avdl import mismatch");
     }
   }
 }

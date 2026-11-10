@@ -11,7 +11,6 @@ def _closure_impl(ctx):
     asserts.equals(env, ["top.avdl"], [f.basename for f in info.direct_srcs])
     asserts.equals(env, ["base.avsc", "top.avdl"], sorted([f.basename for f in info.transitive_srcs.to_list()]))
     asserts.equals(env, 1, len(info.direct_deps))
-    asserts.equals(env, ".", info.import_root)
     return analysistest.end(env)
 
 _closure_test = analysistest.make(_closure_impl)

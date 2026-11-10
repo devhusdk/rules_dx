@@ -7,6 +7,5 @@ AvroInfo = provider(
         "direct_deps": "List[Label]: avro_library dependencies.",
         "direct_srcs": "List[File]: schemas owned by this library.",
         "transitive_srcs": "depset[File]: schemas of this library and every dependency.",
-        "import_root": "str: directory imports resolve from, the workspace root.",
     },
 )

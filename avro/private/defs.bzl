@@ -17,7 +17,6 @@ def _avro_library_impl(ctx):
             direct_deps = [dep.label for dep in ctx.attr.deps],
             direct_srcs = direct,
             transitive_srcs = transitive,
-            import_root = ".",
         ),
         dx_quality_sources(direct, [("avro", ["avsc", "avdl"])], str(ctx.label)),
     ]

@@ -1,0 +1,7 @@
+# gazelle:ignore
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = ["//d/tests/fixtures/cc_interop:cc_interop_output_test"],
+)

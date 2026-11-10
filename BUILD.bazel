@@ -96,9 +96,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/go/godoc
 # gazelle:exclude cli/depcheck/testdata
 # gazelle:exclude go/private/tools/analysis
-# gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude go/tests/fixtures/golint
-# gazelle:exclude go/tests/fixtures/testonly_binary
 # gazelle:exclude cc/private/testdata
 # gazelle:exclude cc/tests/fixtures
 # gazelle:exclude appimage/tests/fixtures
@@ -136,7 +134,6 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude lua/tests/consumer
 # gazelle:exclude rust/tests/consumer
 # gazelle:exclude zig/tests/consumer
-# gazelle:exclude go/tests/fixtures/no_srcs
 # gazelle:exclude javascript/tests/fixtures/web_app
 # gazelle:exclude deploy/private/*.rs
 # gazelle:exclude deploy/private/cloudflare_demo
@@ -155,12 +152,9 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude deploy/tests/cross/cross_app.c
 # gazelle:exclude core/quality/artifacts
 # gazelle:exclude core/quality/tools/python
-# gazelle:exclude go/tests/fixtures/gofumpt
 # gazelle:exclude go/tests/fixtures/staticcheck
-# gazelle:exclude go/tests/fixtures/godeps
 # gazelle:exclude swift/tests/fixtures/hello
 # gazelle:exclude d/tests/fixtures/hello
-# gazelle:exclude d/tests/fixtures/cc_interop
 # gazelle:exclude core/quality/tests/fixtures/strict_preset
 # gazelle:exclude core/quality/tests/fixtures/consumer_policy
 # gazelle:exclude astro/tests/app

@@ -942,7 +942,12 @@ fn referenced_fixtures(tree: &Tree) -> BTreeSet<String> {
         if !names_fixtures(path) {
             continue;
         }
-        let text = text.replace(':', "/");
+        let text = text
+            .lines()
+            .filter(|line| !line.trim_start().starts_with('#'))
+            .collect::<Vec<_>>()
+            .join("\n")
+            .replace(':', "/");
         let bytes = text.as_bytes();
         let mut add = |lang: &str, name: &str, end: usize| {
             let dotted = bytes.get(end) == Some(&b'.');
@@ -1852,11 +1857,18 @@ fn fixture_referenced_rejects_a_fixture_no_build_file_names() {
         put(files, "toy/tests/fixtures/app_two/main.toy", "");
         put(files, "toy/tests/fixtures/readme_only/main.toy", "");
         append(files, "toy/README.md", "toy/tests/fixtures/readme_only\n");
+        put(files, "toy/tests/fixtures/comment_only/main.toy", "");
+        append(
+            files,
+            "toy/BUILD.bazel",
+            "# gazelle:exclude toy/tests/fixtures/comment_only\n",
+        );
     });
     assert_eq!(
         found,
         [
             "fixture-referenced toy/tests/fixtures/app_two",
+            "fixture-referenced toy/tests/fixtures/comment_only",
             "fixture-referenced toy/tests/fixtures/orphan",
             "fixture-referenced toy/tests/fixtures/readme_only",
         ]

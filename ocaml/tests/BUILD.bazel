@@ -1,0 +1,10 @@
+# gazelle:ignore
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//ocaml/tests/fixtures/dune-lib:greet_dune_native_test",
+        "//ocaml/tests/fixtures/dune-lib:greet_dune_run_test",
+    ],
+)

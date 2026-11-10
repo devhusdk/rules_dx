@@ -23,6 +23,7 @@ Each tool and host takes the first rule that applies.
 - The pin is the upstream URL plus the sha256 of the downloaded file and of the executable inside it.
 - `checksum_source` names the upstream digest when upstream publishes one, and maintainer-established byte identity otherwise.
 - A dynamically linked Linux binary records its ABI floor. A floor above the hub floor makes the binary unusable, and the host falls to the next rule.
+- A binary that fails the tool's smoke test (missing features the default config needs) is unusable, and the host falls to the next rule.
 - An upstream asset whose name carries no CPU is pinned for one host only, after a matrix case ran on that host.
 
 ## Consumer build
@@ -64,14 +65,14 @@ Where release-built assets are hosted is the owner's decision. The rules above h
 | --- | --- | --- | --- | --- | --- | --- |
 | nixfmt | MPL-2.0 | one static Linux x86_64 binary | up | rel | rel | no |
 | deadnix | GPL-3.0 | source only | rel | rel | rel | rel |
-| selene | MPL-2.0 | Linux x86_64, macOS and Windows x86_64 zips | up | rel | up | up |
+| selene | MPL-2.0 | Linux x86_64, macOS and Windows x86_64 zips, built without the lua52/53/54 features | rel | rel | rel | rel |
 | zanuda | LGPL-3.0 | source only | own | own | own | no |
 | weeder | BSD-3-Clause | source only | own | own | own | own |
 | core Python tools | per wheel | wheels on PyPI | rel | rel | rel | rel |
 
 - nixfmt: the executable depends on the `unix` package, so no Windows host is supported. `macos_arm64` is unsupported until the source target builds there.
 - deadnix: the release carries the deadnix source archive next to each binary.
-- selene: the Linux zip is dynamically linked. It is fetched only when its ABI floor is inside the hub floor, and is release-built otherwise.
+- selene: upstream zips lack the Lua 5.2 to 5.4 parsers (Kampfkarren/selene#645). The default `std = "lua53+lua54"` (`lua/private/quality/selene.toml`) needs them, so every host is release-built from `@dx_selene_src`. Revisit when an upstream release enables the features. Gate it on `lua/private/quality/selene_smoke_test.sh`.
 - zanuda: it reads `.cmt` files of the consumer's OCaml. Windows is unsupported until the OCaml toolchain has a Windows cell.
 - weeder: it reads `.hie` files and is built with the consumer's GHC. `windows_x86_64` is supported once its matrix case passes. `windows_arm64` is unsupported because GHC ships no bindist for it.
 - Core Python tools: the release job assembles one bundle per host from a python-build-standalone interpreter and the wheels locked in `uv.lock`. Nothing is compiled. ansible-lint is unsupported on Windows.

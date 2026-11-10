@@ -1018,7 +1018,7 @@ fn unreadable_and_non_utf8_manifests_fail_without_refresh() {
             };
             let (code, out, err) =
                 harness.run(&["update", "bazel:.bazelversion", "9.3.0", output, "--apply"]);
-            assert_eq!(code, if invalid_utf8 { 1 } else { 3 }, "{out}{err}");
+            assert_eq!(code, 1, "{out}{err}");
             assert!(err.contains(if invalid_utf8 {
                 "not valid UTF-8"
             } else {
@@ -1031,13 +1031,29 @@ fn unreadable_and_non_utf8_manifests_fail_without_refresh() {
                     .map(|line| serde_json::from_str(line).expect("event"))
                     .collect();
                 assert_eq!(events[1]["code"], super::CODE_UPDATE_WIDEN_FAILED);
-                assert_eq!(
-                    events.last().expect("finished")["exit_code"],
-                    if invalid_utf8 { 1 } else { 3 }
-                );
+                assert_eq!(events.last().expect("finished")["exit_code"], 1);
             }
         }
     }
+}
+
+#[test]
+fn unreadable_bazelversion_is_infra() {
+    let harness = Harness::new("update-bazelversion-dir");
+    std::fs::create_dir(harness.workspace.join(".bazelversion")).expect("directory");
+    let (code, out, err) = harness.run(&[
+        "update",
+        "bazel:.bazelversion",
+        "9.3.0",
+        "--output=json",
+        "--apply",
+    ]);
+    assert_eq!(code, 3, "{out}{err}");
+    let events: Vec<serde_json::Value> = out
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("event"))
+        .collect();
+    assert_eq!(events.last().expect("finished")["exit_code"], 3);
 }
 
 #[test]
@@ -1429,11 +1445,7 @@ fn live_github_tag_resolution_matrix() {
         }
         let (code, out, err) =
             harness.run(&["update", "github-actions:actions/checkout", "v5", "--apply"]);
-        assert_eq!(
-            code,
-            if name == "missing-file" { 3 } else { 1 },
-            "{name}: {out}{err}"
-        );
+        assert_eq!(code, 1, "{name}: {out}{err}");
         assert!(err.contains("update_widen_failed"), "{name}: {err}");
         assert_eq!(
             std::fs::read_to_string(harness.workspace.join(".github/workflows/ci.yml"))
@@ -1568,7 +1580,7 @@ fn live_github_actions_fails_closed_and_writes_no_workflow() {
     missing.write_source(".bazelversion", "9.2.0\n");
     let (code, _, err) =
         missing.run(&["update", "github-actions:actions/checkout", sha, "--apply"]);
-    assert_eq!(code, 3, "{err}");
+    assert_eq!(code, 1, "{err}");
     assert!(err.contains("cannot list .github/workflows"), "{err}");
 }
 

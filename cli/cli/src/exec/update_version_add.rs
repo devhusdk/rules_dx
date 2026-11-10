@@ -115,10 +115,10 @@ fn plan_insert(
                     request.selector
                 ))
             } else {
-                DxError::infra(format!(
-                    "failed to add {}: cannot read {manifest}",
-                    request.selector
-                ))
+                DxError::from_io(
+                    format!("failed to add {}: cannot read {manifest}", request.selector),
+                    &error,
+                )
             }
         })?;
     let text = String::from_utf8(original).map_err(|_| {

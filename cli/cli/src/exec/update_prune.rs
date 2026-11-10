@@ -13,7 +13,7 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
     for (manifest, mut items) in by_manifest {
         let path = workspace.join(manifest);
         let text = std::fs::read_to_string(&path)
-            .map_err(|e| DxError::infra(format!("{manifest}: {e}")))?;
+            .map_err(|e| DxError::from_io(format!("{manifest}: {e}"), &e))?;
         let mut lines: Vec<String> = text.split_inclusive('\n').map(str::to_owned).collect();
         items.sort_by_key(|item| std::cmp::Reverse(item.line));
         let json = manifest.ends_with(".json");
@@ -39,7 +39,7 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
         }
         if changed {
             std::fs::write(&path, lines.concat())
-                .map_err(|e| DxError::infra(format!("{manifest}: {e}")))?;
+                .map_err(|e| DxError::from_io(format!("{manifest}: {e}"), &e))?;
         }
     }
     removed.sort_by(|a, b| (&a.set, &a.name).cmp(&(&b.set, &b.name)));

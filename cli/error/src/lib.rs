@@ -53,6 +53,15 @@ impl DxError {
         Self::new(ErrorKind::Infra, message)
     }
 
+    pub fn from_io(message: impl Into<String>, error: &std::io::Error) -> Self {
+        match error.kind() {
+            std::io::ErrorKind::NotFound
+            | std::io::ErrorKind::InvalidInput
+            | std::io::ErrorKind::InvalidData => Self::failure(message),
+            _ => Self::infra(message),
+        }
+    }
+
     #[must_use]
     pub const fn kind(&self) -> ErrorKind {
         self.kind
@@ -114,6 +123,23 @@ mod tests {
         assert_eq!(error.exit_code(), EXIT_USAGE);
         assert_eq!(DxError::failure("x").exit_code(), EXIT_FAILURE);
         assert_eq!(DxError::infra("x").exit_code(), EXIT_INFRA);
+    }
+
+    #[test]
+    fn from_io_classifies_by_io_kind() {
+        use std::io::{Error, ErrorKind as Io};
+        for (kind, expected) in [
+            (Io::NotFound, ErrorKind::Failure),
+            (Io::InvalidInput, ErrorKind::Failure),
+            (Io::InvalidData, ErrorKind::Failure),
+            (Io::PermissionDenied, ErrorKind::Infra),
+            (Io::IsADirectory, ErrorKind::Infra),
+            (Io::Other, ErrorKind::Infra),
+        ] {
+            let error = DxError::from_io("m", &Error::from(kind));
+            assert_eq!(error.kind(), expected, "{kind:?}");
+            assert_eq!(error.message(), "m");
+        }
     }
 
     #[test]

@@ -70,7 +70,7 @@ fn plan(
         .clone();
     if !texts.contains_key(&manifest) {
         let text = std::fs::read_to_string(workspace.join(&manifest))
-            .map_err(|error| DxError::infra(format!("{manifest}: {error}")))?;
+            .map_err(|error| DxError::from_io(format!("{manifest}: {error}"), &error))?;
         texts.insert(manifest.clone(), text);
     }
     let request_for = |version: &str| {
@@ -172,7 +172,7 @@ fn declare(
     }
     for manifest in added.iter().map(|done| &done.manifest) {
         std::fs::write(workspace.join(manifest), &texts[manifest])
-            .map_err(|error| DxError::infra(format!("{manifest}: {error}")))?;
+            .map_err(|error| DxError::from_io(format!("{manifest}: {error}"), &error))?;
     }
     if failures.is_empty() {
         Ok(added)

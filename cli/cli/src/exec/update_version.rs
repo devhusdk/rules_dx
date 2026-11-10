@@ -330,12 +330,15 @@ fn widen_targets(
     if request.set != dx_update::edit::UpdateSet::GithubActions {
         return Ok(vec![request.target_manifest().to_owned()]);
     }
-    dx_update::edit::gha::list_workflows(workspace).map_err(|_| {
-        DxError::infra(format!(
-            "failed to widen {}: cannot list {}",
-            request.selector,
-            dx_update::edit::gha::WORKFLOW_DIR
-        ))
+    dx_update::edit::gha::list_workflows(workspace).map_err(|error| {
+        DxError::from_io(
+            format!(
+                "failed to widen {}: cannot list {}",
+                request.selector,
+                dx_update::edit::gha::WORKFLOW_DIR
+            ),
+            &error,
+        )
     })
 }
 
@@ -369,10 +372,13 @@ fn plan_widens(
                         request.selector
                     ))
                 } else {
-                    DxError::infra(format!(
-                        "failed to widen {}: cannot read {manifest}",
-                        request.selector
-                    ))
+                    DxError::from_io(
+                        format!(
+                            "failed to widen {}: cannot read {manifest}",
+                            request.selector
+                        ),
+                        &error,
+                    )
                 }
             })?;
         let text = String::from_utf8(original).map_err(|_| {
@@ -451,8 +457,9 @@ fn resolve_gha_tag_request(
         )
     };
     let sha = if let Some(path) = commit_json {
-        let text = std::fs::read_to_string(path).map_err(|_| {
-            failed(ErrorKind::Infra, format!(
+        let text = std::fs::read_to_string(path).map_err(|error| {
+            let kind = DxError::from_io("", &error).kind();
+            failed(kind, format!(
                 "cannot read {path} (nothing widened; unknown tags fail closed, never invent a SHA)"
             ))
         })?;

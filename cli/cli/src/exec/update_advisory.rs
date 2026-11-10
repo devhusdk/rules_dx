@@ -64,7 +64,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             return fail(
                 out,
                 err,
-                &DxError::infra(format!("cannot read {PINS}: {error}")),
+                &DxError::from_io(format!("cannot read {PINS}: {error}"), &error),
             );
         }
     };
@@ -194,7 +194,7 @@ fn plan_word(diff: &[String]) -> &'static str {
 
 fn write_pins(workspace: &Path, text: &str) -> Result<(), DxError> {
     std::fs::write(workspace.join(PINS), text)
-        .map_err(|error| DxError::infra(format!("cannot write {PINS}: {error}")))
+        .map_err(|error| DxError::from_io(format!("cannot write {PINS}: {error}"), &error))
 }
 
 /// The vulnerability messages of a `dx security --output=json` stream.

@@ -40,7 +40,7 @@ fn unsupported_selectors_do_not_write() {
     harness.write_source(".bazelversion", "9.2.0\n");
     let (code, _, err) =
         harness.run(&["update", "github-actions:actions/checkout", "v4", "--apply"]);
-    assert_eq!(code, 3, "{err}");
+    assert_eq!(code, 1, "{err}");
     let (code, _, err) = harness.run(&["update", "bazel", "1.2.3", "--apply"]);
     assert_eq!(code, 2, "{err}");
     assert!(err.contains("selects the set"), "{err}");

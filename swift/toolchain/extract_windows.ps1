@@ -10,6 +10,9 @@ $system32 = Join-Path $env:SystemRoot "System32"
 
 function Fail($message) {
     [Console]::Error.WriteLine("extract_windows: $message")
+    if ($script:trees -and (Test-Path -LiteralPath $script:trees)) {
+        Get-ChildItem -LiteralPath $script:trees -Recurse -Directory -Depth 7 | ForEach-Object { [Console]::Error.WriteLine("  $($_.FullName)") }
+    }
     exit 1
 }
 
@@ -135,7 +138,13 @@ foreach ($msi in $msis) {
         Start-Sleep -Seconds 10
     }
     if ($code -ne 0 -and $code -ne 3010) {
-        if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 40 | ForEach-Object { [Console]::Error.WriteLine($_) } }
+        if (Test-Path -LiteralPath $log) {
+            [Console]::Error.WriteLine("extract_windows: $($msi.Name) log")
+            Get-Content -LiteralPath $log | Where-Object { $_ -notmatch "^Property\(" -and $_ -match "Action start|Action ended|Return value|Note: 1:|rror|ail|CustomAction|Cabinet|Media|Source" } |
+                Select-Object -First 120 | ForEach-Object { [Console]::Error.WriteLine($_) }
+        }
+        [Console]::Error.WriteLine("extract_windows: packages")
+        Get-ChildItem -LiteralPath $packages -Recurse | ForEach-Object { [Console]::Error.WriteLine("  $($_.FullName) $($_.Length)") }
         $failed += "$($msi.Name) ($code)"
         continue
     }
@@ -149,10 +158,13 @@ if ($failed.Count -gt 0) { [Console]::Error.WriteLine("extract_windows: msiexec 
 $swiftc = Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftc.exe" |
     Where-Object { $_.Directory.Name -eq "bin" -and $_.Directory.Parent.Name -eq "usr" } | Select-Object -First 1
 if (-not $swiftc) { Fail "no usr\bin\swiftc.exe in the extracted packages; msiexec failures: $($failed -join ', ')" }
-$runtime = Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftCore.dll" |
-    Where-Object { $_.FullName -match "Runtimes" } | Select-Object -First 1
-if (-not $runtime) { $runtime = Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftCore.dll" | Select-Object -First 1 }
-if (-not $runtime) { Fail "no swiftCore.dll in the extracted packages" }
+$dlls = @(Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftCore.dll" | Where-Object { $_.Directory.Name -eq "bin" })
+$runtime = $dlls | Where-Object { $_.FullName -match "Runtimes" } | Select-Object -First 1
+if (-not $runtime) { $runtime = $dlls | Select-Object -First 1 }
+if (-not $runtime) {
+    Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftCore.dll" | ForEach-Object { [Console]::Error.WriteLine("  found $($_.FullName)") }
+    Fail "no bin\swiftCore.dll in the extracted packages"
+}
 $sdk = Find-Dir $trees "Windows.sdk"
 if (-not $sdk) { Fail "no Windows.sdk in the extracted packages" }
 $xctest = Find-Dir $trees "XCTest-*"

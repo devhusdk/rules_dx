@@ -5,8 +5,8 @@ const DIGEST_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 const DIGEST_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const ARCHIVE_SHA: &str = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
-fn no_includes(label: &str) -> Result<String, String> {
-    Err(format!("no include {label}"))
+fn no_includes(label: &str) -> Result<String, dx_error::DxError> {
+    Err(dx_error::DxError::failure(format!("no include {label}")))
 }
 
 fn inputs_of(module: &str, lock_text: &str) -> Result<Vec<BazelInput>, dx_error::DxError> {
@@ -384,7 +384,7 @@ _custom(name = "loose")
 #[test]
 fn included_segments_are_read() {
     let module = "include(\"//:deps.MODULE.bazel\")\n";
-    let read = |label: &str| -> Result<String, String> {
+    let read = |label: &str| -> Result<String, dx_error::DxError> {
         assert_eq!(label, "//:deps.MODULE.bazel");
         Ok("bazel_dep(name = \"rules_bar\", version = \"0.1.0\")\ngit_override(module_name = \"rules_bar\", remote = \"https://example.com/bar.git\", commit = \"abc123\")\n".to_owned())
     };
@@ -403,7 +403,7 @@ fn an_unreadable_or_repeated_include_fails() {
         error.message().contains("no include //:deps.MODULE.bazel"),
         "{error}"
     );
-    let read = |_: &str| -> Result<String, String> { Ok(String::new()) };
+    let read = |_: &str| -> Result<String, dx_error::DxError> { Ok(String::new()) };
     let twice = "include(\"//:a.MODULE.bazel\")\ninclude(\"//:a.MODULE.bazel\")\n";
     let error = parse_bazel_inputs(twice, &lock(&[]), &read).expect_err("fails");
     assert!(error.message().contains("more than once"), "{error}");
@@ -411,7 +411,7 @@ fn an_unreadable_or_repeated_include_fails() {
 
 #[test]
 fn an_include_of_a_repo_label_is_rejected() {
-    let read = |label: &str| -> Result<String, String> { panic!("read {label}") };
+    let read = |label: &str| -> Result<String, dx_error::DxError> { panic!("read {label}") };
     let error = parse_bazel_inputs("include(\"@//:deps.MODULE.bazel\")\n", &lock(&[]), &read)
         .expect_err("fails");
     assert!(

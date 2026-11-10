@@ -1860,11 +1860,41 @@ fn line_of(ast: &AstModule, span: Span) -> usize {
     ast.file_span(span).resolve_span().begin.line + 1
 }
 
+/// Why loading a MODULE.bazel with its includes failed.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LoadError<E> {
+    /// The `read_include` callback failed; carries its error unchanged.
+    Read(E),
+    /// A file did not parse, or an include is malformed or repeated.
+    Parse(String),
+}
+
+impl<E> LoadError<E> {
+    /// Collapses to the callback's error type, building one from a parse message.
+    pub fn into_error(self, parse: impl FnOnce(String) -> E) -> E {
+        match self {
+            Self::Read(error) => error,
+            Self::Parse(message) => parse(message),
+        }
+    }
+}
+
+impl<E: std::fmt::Display> std::fmt::Display for LoadError<E> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Read(error) => error.fmt(f),
+            Self::Parse(message) => f.write_str(message),
+        }
+    }
+}
+
+impl<E: std::fmt::Debug + std::fmt::Display> std::error::Error for LoadError<E> {}
+
 /// Parses the root MODULE.bazel and every file it includes, in include order.
-pub fn load_with_includes(
+pub fn load_with_includes<E>(
     root_text: &str,
-    read_include: &dyn Fn(&str) -> Result<String, String>,
-) -> Result<Vec<ModuleFile>, String> {
+    read_include: &dyn Fn(&str) -> Result<String, E>,
+) -> Result<Vec<ModuleFile>, LoadError<E>> {
     Ok(load_with_includes_labeled(root_text, read_include)?
         .into_iter()
         .map(|(_, file)| file)
@@ -1873,10 +1903,10 @@ pub fn load_with_includes(
 
 /// Like [`load_with_includes`], pairing each file with the include label it came from
 /// (`None` for the root), so a finding can name its file.
-pub fn load_with_includes_labeled(
+pub fn load_with_includes_labeled<E>(
     root_text: &str,
-    read_include: &dyn Fn(&str) -> Result<String, String>,
-) -> Result<Vec<(Option<String>, ModuleFile)>, String> {
+    read_include: &dyn Fn(&str) -> Result<String, E>,
+) -> Result<Vec<(Option<String>, ModuleFile)>, LoadError<E>> {
     let mut files = Vec::new();
     let mut seen = BTreeSet::new();
     collect_module(root_text, None, read_include, &mut seen, &mut files)?;
@@ -1946,39 +1976,44 @@ pub fn include_rel(module_dir: &str, label: &str) -> Result<String, String> {
 }
 
 /// Parses one module file, then recurses into its includes.
-fn collect_module(
+fn collect_module<E>(
     text: &str,
     label: Option<&str>,
-    read_include: &dyn Fn(&str) -> Result<String, String>,
+    read_include: &dyn Fn(&str) -> Result<String, E>,
     seen: &mut BTreeSet<String>,
     files: &mut Vec<(Option<String>, ModuleFile)>,
-) -> Result<(), String> {
-    let module = ModuleFile::parse(text).map_err(|error| match label {
-        Some(label) => format!("{label}: {error}"),
-        None => error.to_string(),
+) -> Result<(), LoadError<E>> {
+    let module = ModuleFile::parse(text).map_err(|error| {
+        LoadError::Parse(match label {
+            Some(label) => format!("{label}: {error}"),
+            None => error.to_string(),
+        })
     })?;
     let mut labels = Vec::new();
     for call in module.calls_named("include") {
         match call.positional.first().or_else(|| call.arg("label")) {
             Some(Value::Str(label)) => {
-                include_parts(&label.value)
-                    .map_err(|error| format!("{error} at MODULE.bazel line {}", call.line))?;
+                include_parts(&label.value).map_err(|error| {
+                    LoadError::Parse(format!("{error} at MODULE.bazel line {}", call.line))
+                })?;
                 labels.push(label.value.clone());
             }
             _ => {
-                return Err(format!(
+                return Err(LoadError::Parse(format!(
                     "include at MODULE.bazel line {} needs a string literal label",
                     call.line
-                ));
+                )));
             }
         }
     }
     files.push((label.map(str::to_owned), module));
     for label in labels {
         if !seen.insert(label.clone()) {
-            return Err(format!("MODULE.bazel includes {label} more than once"));
+            return Err(LoadError::Parse(format!(
+                "MODULE.bazel includes {label} more than once"
+            )));
         }
-        let included = read_include(&label)?;
+        let included = read_include(&label).map_err(LoadError::Read)?;
         collect_module(&included, Some(&label), read_include, seen, files)?;
     }
     Ok(())

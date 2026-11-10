@@ -39,8 +39,10 @@ pub fn plan_rules_dx_version(root: &Path, version: &str) -> Result<ModuleEdit, A
         std::fs::read_to_string(root.join(rel)).map_err(|e| format!("cannot read {rel}: {e}"))
     };
     let root_text = read(MODULE_FILE).map_err(|detail| refuse(MODULE_FILE, detail))?;
-    let read_include =
-        |label: &str| -> Result<String, String> { read(&dx_module_bazel::include_rel("", label)?) };
+    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
+        let rel = dx_module_bazel::include_rel("", label).map_err(dx_error::DxError::failure)?;
+        read(&rel).map_err(dx_error::DxError::failure)
+    };
     let files = dx_module_bazel::load_with_includes_labeled(&root_text, &read_include)
         .map_err(|detail| refuse(MODULE_FILE, detail))?;
 

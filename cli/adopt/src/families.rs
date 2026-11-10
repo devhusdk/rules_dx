@@ -37,9 +37,10 @@ pub fn plan_family_deps(root: &Path, families: &[Family]) -> Result<FamilyDeps, 
     let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
         return Ok(FamilyDeps::default());
     };
-    let read_include = |label: &str| -> Result<String, String> {
-        let rel = dx_module_bazel::include_rel("", label)?;
-        std::fs::read_to_string(root.join(&rel)).map_err(|e| format!("cannot read {rel}: {e}"))
+    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
+        let rel = dx_module_bazel::include_rel("", label).map_err(dx_error::DxError::failure)?;
+        std::fs::read_to_string(root.join(&rel))
+            .map_err(|e| dx_error::DxError::failure(format!("cannot read {rel}: {e}")))
     };
     let loaded =
         dx_module_bazel::load_with_includes_labeled(&text, &read_include).map_err(refuse)?;

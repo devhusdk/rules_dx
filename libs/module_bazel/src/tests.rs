@@ -449,9 +449,12 @@ fn nested_includes_load_in_order() {
 #[test]
 fn an_included_parse_error_names_the_label_and_the_root_does_not() {
     let read = |_: &str| -> Result<String, String> { Ok("bazel_dep(".to_owned()) };
-    let error = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect_err("fails");
+    let error = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect_err("fails")
+        .to_string();
     assert!(error.starts_with("//:a.MODULE.bazel: "), "{error}");
-    let root = load_with_includes("bazel_dep(", &read).expect_err("fails");
+    let root = load_with_includes("bazel_dep(", &read)
+        .expect_err("fails")
+        .to_string();
     assert!(!root.contains("a.MODULE.bazel"), "{root}");
 }
 
@@ -459,7 +462,9 @@ fn an_included_parse_error_names_the_label_and_the_root_does_not() {
 fn repeated_and_repo_includes_fail_before_reading() {
     let read = |label: &str| -> Result<String, String> { panic!("read {label}") };
     let error =
-        load_with_includes("include(\"@//:deps.MODULE.bazel\")\n", &read).expect_err("fails");
+        load_with_includes("include(\"@//:deps.MODULE.bazel\")\n", &read)
+            .expect_err("fails")
+            .to_string();
     assert!(
         error.contains("include @//:deps.MODULE.bazel is not a //package:file label")
             && error.contains("MODULE.bazel line 1"),
@@ -1524,4 +1529,23 @@ fn rebar_locks_follow_the_erlang_rebar_tag() {
         .map(|entry| (entry.name, entry.lock))
         .collect();
     assert_eq!(found, [("deps", "//app:rebar.lock")]);
+}
+
+#[test]
+fn a_read_failure_keeps_the_callbacks_error_type() {
+    let read = |label: &str| -> Result<String, u32> {
+        assert_eq!(label, "//:a.MODULE.bazel");
+        Err(7)
+    };
+    let error = load_with_includes("include(\"//:a.MODULE.bazel\")\n", &read).expect_err("fails");
+    assert_eq!(error, LoadError::Read(7));
+    assert_eq!(error.into_error(|_| 0), 7);
+}
+
+#[test]
+fn a_parse_failure_is_a_parse_variant() {
+    let read = |_: &str| -> Result<String, u32> { Ok(String::new()) };
+    let error = load_with_includes("bazel_dep(", &read).expect_err("fails");
+    assert!(matches!(error, LoadError::Parse(_)), "{error:?}");
+    assert_eq!(error.into_error(|_| 9), 9);
 }

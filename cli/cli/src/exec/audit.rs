@@ -566,10 +566,12 @@ pub(super) fn bazel_inputs_for_configured(
         other => other,
     })?;
     let module_dir = module_rel.rsplit_once('/').map_or("", |(dir, _)| dir);
-    let read_include = |label: &str| -> Result<String, String> {
-        let rel = dx_module_bazel::include_rel(module_dir, label)?;
-        read_workspace_text(workspace, &rel)
-            .map_err(|error| format!("cannot read included {label}: {error}"))
+    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
+        let rel =
+            dx_module_bazel::include_rel(module_dir, label).map_err(dx_error::DxError::failure)?;
+        read_workspace_text(workspace, &rel).map_err(|error| {
+            dx_error::DxError::failure(format!("cannot read included {label}: {error}"))
+        })
     };
     let inventory = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
         .map_err(|detail| AuditError::LockParse {

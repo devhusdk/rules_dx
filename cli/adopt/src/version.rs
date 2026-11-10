@@ -173,9 +173,8 @@ pub fn parse_module_dependency(
         override_kind: None,
         override_source: None,
     };
-    let read_text = |label: &str| read_include(label).map_err(|error| error.message().to_owned());
-    let modules =
-        dx_module_bazel::load_with_includes(text, &read_text).map_err(DxError::failure)?;
+    let modules = dx_module_bazel::load_with_includes(text, read_include)
+        .map_err(|error| error.into_error(DxError::failure))?;
     for call in modules.iter().flat_map(ModuleFile::calls) {
         let name = call.name.as_str();
         if name == "module" {

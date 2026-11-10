@@ -134,13 +134,14 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
     let Ok(text) = std::fs::read_to_string(root.join("MODULE.bazel")) else {
         return result;
     };
-    let read_include = |label: &str| -> Result<String, String> {
+    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
         if label == OVERRIDES_INCLUDE {
             return Ok(String::new());
         }
-        let rel = dx_module_bazel::include_rel("", label)?;
-        std::fs::read_to_string(root.join(rel))
-            .map_err(|e| format!("cannot read included {label}: {e}"))
+        let rel = dx_module_bazel::include_rel("", label).map_err(dx_error::DxError::failure)?;
+        std::fs::read_to_string(root.join(rel)).map_err(|e| {
+            dx_error::DxError::failure(format!("cannot read included {label}: {e}"))
+        })
     };
     let loaded = match dx_module_bazel::load_with_includes_labeled(&text, &read_include) {
         Ok(loaded) => loaded,

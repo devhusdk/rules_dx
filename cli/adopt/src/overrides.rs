@@ -556,7 +556,8 @@ fn observe(root: &Path, text: &str) -> Result<Observed, String> {
         std::fs::read_to_string(root.join(rel))
             .map_err(|e| format!("cannot read included {label}: {e}"))
     };
-    let modules = dx_module_bazel::load_with_includes(text, &read_include)?;
+    let modules =
+        dx_module_bazel::load_with_includes(text, &read_include).map_err(|error| error.to_string())?;
     let mut observed = Observed {
         rules_dx_module: false,
         has_dep: false,

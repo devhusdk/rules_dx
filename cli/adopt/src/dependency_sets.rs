@@ -313,7 +313,8 @@ pub fn discover(
 ) -> Result<Option<Registry>, DependencySetsError> {
     let module_error = |detail: String| DependencySetsError::Module { detail };
     let read_include = |label: &str| read(&dx_module_bazel::include_rel("", label)?);
-    let modules = dx_module_bazel::load_with_includes(root, &read_include).map_err(module_error)?;
+    let modules = dx_module_bazel::load_with_includes(root, &read_include)
+        .map_err(|error| module_error(error.to_string()))?;
     let path = |label: &str| dx_module_bazel::label_path(label).map_err(module_error);
     let hub = |error: dx_module_bazel::ModuleError| module_error(error.to_string());
     let mut sets = Vec::new();
@@ -1643,12 +1644,14 @@ fn check_cargo_hub(workspace: &Path, set: &ResolvedSet) -> Result<String, Depend
     };
     let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
         .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
-    let read_include = |label: &str| -> Result<String, String> {
-        let rel = dx_module_bazel::include_rel("", label)?;
-        std::fs::read_to_string(workspace.join(rel))
-            .map_err(|error| format!("cannot read included {label}: {error}"))
+    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
+        let rel = dx_module_bazel::include_rel("", label).map_err(dx_error::DxError::failure)?;
+        std::fs::read_to_string(workspace.join(rel)).map_err(|error| {
+            dx_error::DxError::failure(format!("cannot read included {label}: {error}"))
+        })
     };
-    let modules = dx_module_bazel::load_with_includes(&root, &read_include).map_err(unsupported)?;
+    let modules = dx_module_bazel::load_with_includes(&root, &read_include)
+        .map_err(|error| unsupported(error.to_string()))?;
     let mut hubs = Vec::new();
     for (index, module) in modules.iter().enumerate() {
         let found = module
@@ -1740,12 +1743,14 @@ fn check_maven_hub(workspace: &Path, set: &ResolvedSet) -> Result<MavenHub, Depe
     };
     let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
         .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
-    let read_include = |label: &str| -> Result<String, String> {
-        let rel = dx_module_bazel::include_rel("", label)?;
-        std::fs::read_to_string(workspace.join(rel))
-            .map_err(|error| format!("cannot read included {label}: {error}"))
+    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
+        let rel = dx_module_bazel::include_rel("", label).map_err(dx_error::DxError::failure)?;
+        std::fs::read_to_string(workspace.join(rel)).map_err(|error| {
+            dx_error::DxError::failure(format!("cannot read included {label}: {error}"))
+        })
     };
-    let modules = dx_module_bazel::load_with_includes(&root, &read_include).map_err(unsupported)?;
+    let modules = dx_module_bazel::load_with_includes(&root, &read_include)
+        .map_err(|error| unsupported(error.to_string()))?;
     let mut found = Vec::new();
     let mut used = false;
     for module in &modules {

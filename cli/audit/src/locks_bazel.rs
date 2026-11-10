@@ -98,10 +98,10 @@ pub struct BazelInventory {
 pub fn parse_bazel_inputs(
     module_text: &str,
     lock_text: &str,
-    read_include: &dyn Fn(&str) -> Result<String, String>,
+    read_include: &dyn Fn(&str) -> Result<String, DxError>,
 ) -> Result<BazelInventory, DxError> {
-    let modules =
-        dx_module_bazel::load_with_includes(module_text, read_include).map_err(DxError::failure)?;
+    let modules = dx_module_bazel::load_with_includes(module_text, read_include)
+        .map_err(|error| error.into_error(DxError::failure))?;
     let calls: Vec<&Call> = modules.iter().flat_map(ModuleFile::calls).collect();
     let lock: serde_json::Value = serde_json::from_str(lock_text)
         .map_err(|error| DxError::failure(format!("invalid MODULE.bazel.lock: {error}")))?;

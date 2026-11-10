@@ -30,7 +30,7 @@ _PLATFORM_ATTR = {
 }
 _WINDOWS_RUNTIME = Label("@dx_swift_windows_x86_64//:runtime_dlls")
 _WINDOWS_RUNTIME_ROOT = "..\\" + _WINDOWS_RUNTIME.workspace_root.removeprefix("external/")
-SWIFT_WINDOWS_RUNTIME_PATH = _WINDOWS_RUNTIME_ROOT + "\\runtime\\usr\\bin;" + _WINDOWS_RUNTIME_ROOT + "\\platform\\Developer\\Library\\XCTest-6.4.1\\usr\\bin64"
+SWIFT_WINDOWS_RUNTIME_PATH = _WINDOWS_RUNTIME_ROOT + "\\runtime\\usr\\bin;" + _WINDOWS_RUNTIME_ROOT + "\\platform\\Developer\\Library\\XCTest-6.4.2\\usr\\bin64"
 SWIFT_WINDOWS_RUNTIME_DLLS = _WINDOWS_RUNTIME
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
 _INDEX = ["swift.index_while_building", "swift.disable_system_index", "-swift.index_store_compress"]

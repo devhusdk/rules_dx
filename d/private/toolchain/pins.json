@@ -47,11 +47,11 @@
       ]
     },
     "dx_d_dcd": {
-      "version": "0.16.2",
-      "sha256": "3c333269fdd8b3b2f7278d4f3a5693ec8450547c2091312a805b9605149b205a",
-      "strip_prefix": "DCD-0.16.2",
+      "version": "0.19.4",
+      "sha256": "9e592f8deede2cee92a687053dd9797cd4edb385818263279b79815e52df3976",
+      "strip_prefix": "DCD-0.19.4",
       "urls": [
-        "https://github.com/dlang-community/DCD/archive/refs/tags/v0.16.2.tar.gz"
+        "https://github.com/dlang-community/DCD/archive/refs/tags/v0.19.4.tar.gz"
       ]
     },
     "dx_d_inifiled": {

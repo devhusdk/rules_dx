@@ -23,16 +23,16 @@ swift_host_repo = repository_rule(
     doc = "A `swift` command that runs the managed toolchain on Linux and the Xcode one on macOS.",
 )
 
-_SWIFT_WINDOWS_VERSION = "6.4.1"
+_SWIFT_WINDOWS_VERSION = "6.4.2"
 _WINDOWS_CELL_CPU = {"aarch64": "arm64"}
 _SWIFT_WINDOWS = {
     "x86_64": struct(
-        url = "https://download.swift.org/swift-6.4.1-release/windows10/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-windows10.exe",
-        sha256 = "9382e14919eeae5e7b5dbfe0575452fe2154178e089a595c8b44d03960d91d59",
+        url = "https://download.swift.org/swift-6.4.2-release/windows10/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-windows10.exe",
+        sha256 = "8fe5d31ca1153dfe6be3a76de0b93347fd42a27599671e9f9ade23a3648e7184",
     ),
     "aarch64": struct(
-        url = "https://download.swift.org/swift-6.4.1-release/windows10-arm64/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-windows10-arm64.exe",
-        sha256 = "faff6a12cdae099d76372ca971b0c83b13280ad704e1022faa599dbe0b146e64",
+        url = "https://download.swift.org/swift-6.4.2-release/windows10-arm64/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-windows10-arm64.exe",
+        sha256 = "e4e5fdb6ca88b18ac430fbce3de35dd80e2249a84a484a02272d82d89f2c7969",
     ),
 }
 

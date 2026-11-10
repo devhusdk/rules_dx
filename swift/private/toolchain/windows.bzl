@@ -3,7 +3,7 @@
 load("@rules_swift//swift/toolchains:swift_toolchain.bzl", "swift_toolchain")
 
 _WINDOWS = ["@platforms//os:windows"]
-_VERSION = "6.4.1"
+_VERSION = "6.4.2"
 
 def swift_windows_toolchain(name, cpu):
     """Declares the Swift toolchain for one Windows cpu."""

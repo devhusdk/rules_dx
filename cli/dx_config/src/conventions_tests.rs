@@ -108,3 +108,26 @@ fn bad_patterns_are_rejected() {
         assert!(is_valid_pattern(good), "{good}");
     }
 }
+
+#[test]
+fn recursive_dir_reads_every_recursive_spelling() {
+    for pattern in [
+        "//vendor/...",
+        "//vendor/...:all",
+        "//vendor/...:*",
+        "//vendor/...:all-targets",
+    ] {
+        assert_eq!(recursive_dir(pattern), Some("vendor"), "{pattern}");
+    }
+    assert_eq!(recursive_dir("//a/b/..."), Some("a/b"));
+    for pattern in [
+        "//...",
+        "//...:all",
+        "//pkg:all",
+        "//pkg",
+        "@ext//vendor/...",
+        "//vendor/...:x",
+    ] {
+        assert_eq!(recursive_dir(pattern), None, "{pattern}");
+    }
+}

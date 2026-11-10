@@ -754,6 +754,9 @@
         },
         "edited": {
           "type": "boolean"
+        },
+        "patch": {
+          "type": "string"
         }
       },
       "required": [

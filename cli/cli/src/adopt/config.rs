@@ -108,6 +108,7 @@ fn files(entry: &Entry) -> Vec<ConfigFileEvent> {
         role: role.to_owned(),
         base,
         edited: Some(edited),
+        patch: None,
     };
     let mut files = Vec::new();
     if let Some(root) = &entry.root {
@@ -238,14 +239,39 @@ pub(super) fn execute_config(
         return code;
     }
     let result = match words.as_slice() {
-        ["diff", tool] => match one(workspace, tool).and_then(|entry| diff(workspace, &entry)) {
-            Ok(patch) => check_stdout_write(write!(out, "{patch}")),
-            Err(error) => return fail(out, err, &error),
-        },
-        ["override", tool] => match override_tool(workspace, tool) {
-            Ok(name) => check_stdout_write(writeln!(out, "{name}")),
-            Err(error) => return fail(out, err, &error),
-        },
+        ["diff", tool] => {
+            let patched = one(workspace, tool)
+                .and_then(|entry| diff(workspace, &entry).map(|patch| (entry, patch)));
+            match patched {
+                Ok((entry, patch)) if json => {
+                    let events: Vec<ConfigFileEvent> = files(&entry)
+                        .into_iter()
+                        .filter(|event| event.role == "root")
+                        .map(|event| ConfigFileEvent {
+                            patch: Some(patch.clone()),
+                            ..event
+                        })
+                        .collect();
+                    emit_files(invocation, out, &events, &[])
+                }
+                Ok((_, patch)) => check_stdout_write(write!(out, "{patch}")),
+                Err(error) => return fail(out, err, &error),
+            }
+        }
+        ["override", tool] => {
+            let written = override_tool(workspace, tool)
+                .and_then(|name| one(workspace, tool).map(|entry| (entry, name)));
+            match written {
+                Ok((entry, name)) => {
+                    let events: Vec<ConfigFileEvent> = files(&entry)
+                        .into_iter()
+                        .filter(|event| event.role == "root")
+                        .collect();
+                    emit_files(invocation, out, &events, &[name])
+                }
+                Err(error) => return fail(out, err, &error),
+            }
+        }
         [tool] => match one(workspace, tool) {
             Ok(entry) => {
                 let events = files(&entry);
@@ -417,6 +443,63 @@ mod tests {
         );
         assert_eq!(dx_adopt::ownership::override_base(&text), Some(sha.trim()));
         assert_ne!(run(scratch.path(), &["config", "override", "hlint"]).0, 0);
+    }
+
+    fn assert_json_lines(out: &str) -> Vec<serde_json::Value> {
+        let lines: Vec<serde_json::Value> = out
+            .lines()
+            .map(|line| serde_json::from_str(line).unwrap_or_else(|e| panic!("{line:?}: {e}")))
+            .collect();
+        assert!(lines.iter().all(serde_json::Value::is_object), "{out}");
+        assert_eq!(lines.first().expect("first")["event"], "command_started");
+        assert_eq!(lines.last().expect("last")["event"], "command_finished");
+        lines
+    }
+
+    #[test]
+    fn json_diff_is_one_event_with_the_patch() {
+        let mut files = FILES.to_vec();
+        files.push((".hlint.yaml", "- warn: {name: y}\n"));
+        let scratch = workspace(&files);
+        let (code, out) = run(
+            scratch.path(),
+            &["config", "diff", "hlint", "--output=json"],
+        );
+        assert_eq!(code, 0, "{out}");
+        let lines = assert_json_lines(&out);
+        assert_eq!(lines.len(), 3, "{out}");
+        let event = &lines[1];
+        assert_eq!(event["event"], "config_file");
+        assert_eq!(event["tool"], "hlint");
+        assert_eq!(event["file"], ".hlint.yaml");
+        assert_eq!(event["role"], "root");
+        let patch = event["patch"].as_str().expect("patch");
+        assert!(patch.contains("-- warn: {name: x}\n"), "{patch}");
+        assert!(patch.contains("+- warn: {name: y}\n"), "{patch}");
+    }
+
+    #[test]
+    fn json_override_is_one_event_with_the_written_file() {
+        let scratch = workspace(FILES);
+        dx_process::capture::run_checked(
+            dx_process::capture::git(scratch.path()).args(["init", "-q"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("git init");
+        let (code, out) = run(
+            scratch.path(),
+            &["config", "override", "hlint", "--output=json"],
+        );
+        assert_eq!(code, 0, "{out}");
+        let lines = assert_json_lines(&out);
+        assert_eq!(lines.len(), 3, "{out}");
+        let event = &lines[1];
+        assert_eq!(event["event"], "config_file");
+        assert_eq!(event["file"], ".hlint.yaml");
+        assert_eq!(event["role"], "root");
+        assert_eq!(event["base"], "override of .dx/config/hlint/base.yaml");
+        assert!(event.get("patch").is_none(), "{out}");
+        assert!(scratch.path().join(".hlint.yaml").is_file());
     }
 
     #[test]

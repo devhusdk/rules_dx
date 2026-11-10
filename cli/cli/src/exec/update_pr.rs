@@ -211,7 +211,12 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     if builtins.selects_all_pins() {
         full_sets.push(dx_update::pins::SET.to_owned());
     }
-    let scope = Scope::new(full_sets);
+    let pending = found
+        .errors
+        .iter()
+        .map(|error| error.set.as_str())
+        .chain(found.candidates.iter().map(|c| c.set.as_str()));
+    let scope = Scope::new(full_sets).without(pending);
     let mut step = |words: &[String]| -> Result<(), DxError> {
         let inner =
             dx_plan::args::parse(words).map_err(|error| DxError::failure(format!("{error:?}")))?;
@@ -1245,8 +1250,8 @@ mod tests {
         assert_eq!(argv.matches("pr edit").count(), 2);
     }
 
-    #[test]
-    fn run_with_dir_registries_closes_stale_when_current() {
+    /// Runs `dx update --pr` over one crates set with open pull request 5 and `index` as the serde registry entry.
+    fn run_crates_with_open_pr(index: Option<&str>, json: bool) -> (i32, String, String, String) {
         let fx = fixture("[{\"number\":5,\"headRefName\":\"dx-update/crates\"}]");
         let harness = super::super::test_support::Harness::new("update-pr-run");
         let root = &harness.workspace;
@@ -1259,13 +1264,11 @@ mod tests {
             .expect("manifest");
         std::fs::write(root.join("Cargo.lock"), "a\n").expect("lock");
         let registry = harness.temp.join("registry");
-        let index = registry.join("index.crates.io/se/rd");
-        std::fs::create_dir_all(&index).expect("mkdir");
-        std::fs::write(
-            index.join("serde"),
-            "{\"vers\":\"1.0.0\",\"yanked\":false}\n",
-        )
-        .expect("index");
+        let dir = registry.join("index.crates.io/se/rd");
+        std::fs::create_dir_all(&dir).expect("mkdir");
+        if let Some(index) = index {
+            std::fs::write(dir.join("serde"), index).expect("index");
+        }
         sh(root, &["init", "-q", "-b", "main"]);
         sh(root, &["config", "user.email", "t@example.com"]);
         sh(root, &["config", "user.name", "t"]);
@@ -1281,7 +1284,10 @@ mod tests {
             &["remote", "add", "origin", origin.to_str().expect("utf8")],
         );
         sh(root, &["push", "-q", "origin", "main"]);
-        let words = ["update".to_owned(), "--pr".to_owned()];
+        let mut words = vec!["update".to_owned(), "--pr".to_owned()];
+        if json {
+            words.push("--output=json".to_owned());
+        }
         let inv = dx_plan::args::parse(&words).expect("parse");
         let runner = harness.runner();
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -1291,11 +1297,43 @@ mod tests {
             &super::super::update_outdated::DirFetch(registry),
             &fx.tools,
         );
-        let out = String::from_utf8_lossy(&out);
-        assert_eq!(code, 0, "{out}{}", String::from_utf8_lossy(&err));
+        let out = String::from_utf8_lossy(&out).into_owned();
+        let err = String::from_utf8_lossy(&err).into_owned();
+        let argv = std::fs::read_to_string(&fx.argv).unwrap_or_default();
+        (code, out, err, argv)
+    }
+
+    #[test]
+    fn run_with_dir_registries_closes_stale_when_current() {
+        let (code, out, err, argv) =
+            run_crates_with_open_pr(Some("{\"vers\":\"1.0.0\",\"yanked\":false}\n"), false);
+        assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("closed #5"), "{out}");
-        let argv = std::fs::read_to_string(&fx.argv).expect("argv");
         assert!(argv.contains("pr close 5"));
+    }
+
+    #[test]
+    fn a_failed_lookup_keeps_the_open_pull_request() {
+        let (code, out, err, argv) = run_crates_with_open_pr(None, false);
+        assert_eq!(code, 1, "{out}{err}");
+        assert!(
+            err.contains("update_pr_lookup_failed: crates:serde"),
+            "{err}"
+        );
+        assert!(argv.contains("pr list"), "{argv}");
+        assert!(!argv.contains("pr close"), "{argv}");
+    }
+
+    #[test]
+    fn a_policy_skip_keeps_the_open_pull_request() {
+        let (code, out, err, argv) = run_crates_with_open_pr(
+            Some("{\"vers\":\"1.0.0\",\"yanked\":false}\n{\"vers\":\"2.0.0\",\"yanked\":false}\n"),
+            false,
+        );
+        assert_eq!(code, 0, "{out}{err}");
+        assert!(out.contains("skipped crates:serde"), "{out}");
+        assert!(argv.contains("pr list"), "{argv}");
+        assert!(!argv.contains("pr close"), "{argv}");
     }
 
     /// Runs `dx update --pr` in a git workspace made of `files`, with `mirror` as the registry.

@@ -16,6 +16,15 @@ impl Scope {
         Scope { sets }
     }
 
+    /// Drops `sets` from the scope, so their pull requests stay open.
+    #[must_use]
+    pub fn without<'a>(mut self, sets: impl IntoIterator<Item = &'a str>) -> Scope {
+        for set in sets {
+            self.sets.retain(|kept| kept != set);
+        }
+        self
+    }
+
     /// Tells whether this run may close the pull request on `branch`.
     pub fn covers(&self, branch: &str) -> bool {
         self.sets

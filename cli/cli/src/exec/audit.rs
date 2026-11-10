@@ -762,10 +762,7 @@ fn gitleaks_path(
 fn excluded_dirs(excludes: &[String]) -> Vec<String> {
     excludes
         .iter()
-        .filter_map(|pattern| {
-            let pattern = pattern.strip_suffix(":all").unwrap_or(pattern);
-            pattern.strip_prefix("//")?.strip_suffix("/...")
-        })
+        .filter_map(|pattern| dx_config::conventions::recursive_dir(pattern))
         .map(|dir| format!("{dir}/"))
         .collect()
 }

@@ -519,6 +519,18 @@ source = { registry = "https://pypi.org/simple" }
             ]),
             ["third_party/", "vendor/"]
         );
+        for pattern in [
+            "//vendor/...",
+            "//vendor/...:all",
+            "//vendor/...:*",
+            "//vendor/...:all-targets",
+        ] {
+            assert_eq!(
+                super::super::excluded_dirs(&[pattern.to_owned()]),
+                ["vendor/"],
+                "{pattern}"
+            );
+        }
     }
 
     const NPM_MODULE: &str = "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"frontend\", pnpm_lock = \"//apps/web:pnpm-lock.yaml\")\n";

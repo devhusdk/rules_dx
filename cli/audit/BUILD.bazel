@@ -92,6 +92,7 @@ rust_library(
         package_name = "cli/dx_audit",
         normal = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",
@@ -192,6 +193,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
         "//cli/dx_config",
         "//cli/ecosystems:dx_ecosystems",

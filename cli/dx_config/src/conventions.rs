@@ -217,6 +217,16 @@ pub fn pattern_covers(entry: &str, root: &str) -> bool {
     }
 }
 
+/// The workspace-relative directory of a recursive pattern in the main repository, such as
+/// `vendor` for `//vendor/...:all`. `//...` and external patterns have none.
+pub fn recursive_dir(text: &str) -> Option<&str> {
+    let pattern = parse_pattern(text)?;
+    (pattern.kind == PatternKind::Recursive
+        && pattern.repo.is_empty()
+        && !pattern.package.is_empty())
+    .then_some(pattern.package)
+}
+
 /// Whether `text` is a Bazel label pattern dx understands.
 pub fn is_valid_pattern(text: &str) -> bool {
     parse_pattern(text).is_some()

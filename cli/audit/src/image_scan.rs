@@ -12,6 +12,7 @@ use crate::advisory::{AdvisoryPin, CODE_ADVISORY_REFRESH_FAILED, PIN_MAX_AGE_DAY
 use crate::exception::RiskException;
 
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
+const LOCK_NAME: &str = "trivy.lock";
 
 pub const SEVERITIES: [&str; 4] = ["LOW", "MEDIUM", "HIGH", "CRITICAL"];
 
@@ -160,14 +161,18 @@ pub fn trivy_cache(
         );
     }
     let cache = root.join(pin.trivy_cache_rel());
-    if cache.join("db").join("metadata.json").is_file() {
+    if installed(&cache) {
         return Ok(Some(cache));
     }
     fetch_trivy_pin(&pin, &cache, offline)?;
     Ok(Some(cache))
 }
 
-/// Downloads the pinned archive, checks its sha256 and unpacks it into `cache`.
+fn installed(cache: &Path) -> bool {
+    cache.join("db").join("metadata.json").is_file()
+}
+
+/// Installs the pinned archive into `cache` under the lock next to it, unless another run already did.
 fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(), DxError> {
     let local = crate::advisory::file_url_path(&pin.url);
     if offline && local.is_none() {
@@ -181,14 +186,35 @@ fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(),
         .ok_or_else(|| DxError::infra("trivy cache has no parent"))?;
     std::fs::create_dir_all(parent)
         .map_err(|error| DxError::infra(format!("{}: {error}", parent.display())))?;
+    let lock = parent.join(LOCK_NAME);
+    let _lock = dx_atomic_fs::lease::acquire_exclusive_at(&lock, FETCH_TIMEOUT)
+        .map_err(|error| DxError::infra(format!("{}: {error}", lock.display())))?;
+    if installed(cache) {
+        return Ok(());
+    }
     let id = std::process::id();
     let archive = parent.join(format!("trivy.part{id}.tar.gz"));
+    let partial = parent.join(format!("trivy.part{id}"));
+    let result = install_trivy_pin(pin, local.as_deref(), &archive, &partial, cache);
+    let _ = std::fs::remove_file(&archive);
+    let _ = std::fs::remove_dir_all(&partial);
+    result
+}
+
+/// Downloads the pinned archive, checks its sha256, unpacks it into `partial` and moves that to `cache`.
+fn install_trivy_pin(
+    pin: &AdvisoryPin,
+    local: Option<&Path>,
+    archive: &Path,
+    partial: &Path,
+    cache: &Path,
+) -> Result<(), DxError> {
     let bytes = match local {
-        Some(path) => std::fs::read(&path)
+        Some(path) => std::fs::read(path)
             .map_err(|error| DxError::infra(format!("{}: {error}", path.display())))?,
         None => {
             let plan = crate::advisory_prep::fetch_many_plan(
-                &[(pin.url.clone(), archive.clone())],
+                &[(pin.url.clone(), archive.to_path_buf())],
                 crate::advisory_prep::DEFAULT_LIMITS,
                 1,
             )
@@ -198,10 +224,8 @@ fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(),
                 FETCH_TIMEOUT,
             )
             .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)))?;
-            let bytes = std::fs::read(&archive)
-                .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)));
-            let _ = std::fs::remove_file(&archive);
-            bytes?
+            std::fs::read(archive)
+                .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)))?
         }
     };
     let actual = dx_digest::sha256_hex(&bytes);
@@ -211,16 +235,16 @@ fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(),
             pin.sha256
         )));
     }
-    let partial = parent.join(format!("trivy.part{id}"));
-    let _ = std::fs::remove_dir_all(&partial);
-    let unpacked = tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()))
-        .unpack(&partial)
-        .map_err(|error| DxError::failure(format!("unpacking the trivy archive: {error}")));
-    if let Err(error) = unpacked {
-        let _ = std::fs::remove_dir_all(&partial);
-        return Err(error);
+    let _ = std::fs::remove_dir_all(partial);
+    tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()))
+        .unpack(partial)
+        .map_err(|error| DxError::failure(format!("unpacking the trivy archive: {error}")))?;
+    match std::fs::remove_dir_all(cache) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(DxError::infra(format!("{}: {error}", cache.display()))),
     }
-    std::fs::rename(&partial, cache)
+    std::fs::rename(partial, cache)
         .map_err(|error| DxError::infra(format!("{}: {error}", cache.display())))
 }
 
@@ -330,6 +354,68 @@ mod tests {
         assert!(cache.ends_with("trivy"));
         let again = trivy_cache(Some(&workspace), "2026-11-06", true).expect("again");
         assert_eq!(again, Some(cache));
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    fn partials(cache: &Path) -> Vec<String> {
+        std::fs::read_dir(cache.parent().expect("parent"))
+            .expect("read dir")
+            .map(|entry| {
+                entry
+                    .expect("entry")
+                    .file_name()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+            .filter(|name| name.starts_with("trivy.part"))
+            .collect()
+    }
+
+    fn pinned_cache(workspace: &Path) -> PathBuf {
+        let pins = std::fs::read_to_string(workspace.join(".dx/pins")).expect("pins");
+        let pin = crate::advisory::find_pin(&pins, TRIVY_FAMILY).expect("pin");
+        workspace.join(pin.trivy_cache_rel())
+    }
+
+    #[test]
+    fn a_partial_cache_directory_is_replaced() {
+        let (dir, workspace) = pinned_workspace("heal", false);
+        let cache = pinned_cache(&workspace);
+        std::fs::create_dir_all(cache.join("db")).expect("partial cache");
+        std::fs::write(cache.join("db").join("trivy.db"), "half").expect("leftover");
+        let got = trivy_cache(Some(&workspace), "2026-11-06", false).expect("cache");
+        assert_eq!(got, Some(cache.clone()));
+        assert!(cache.join("db").join("metadata.json").is_file());
+        assert!(!cache.join("db").join("trivy.db").exists());
+        assert_eq!(partials(&cache), Vec::<String>::new());
+        std::fs::remove_dir_all(&dir).expect("cleanup");
+    }
+
+    #[test]
+    fn a_cache_installed_during_the_fetch_is_kept() {
+        let (dir, workspace) = pinned_workspace("raced", false);
+        let cache = pinned_cache(&workspace);
+        let pins = std::fs::read_to_string(workspace.join(".dx/pins")).expect("pins");
+        let pin = crate::advisory::find_pin(&pins, TRIVY_FAMILY).expect("pin");
+        let parent = cache.parent().expect("parent").to_path_buf();
+        std::fs::create_dir_all(&parent).expect("parent dir");
+        let held = dx_atomic_fs::lease::acquire_exclusive_at(
+            &parent.join(LOCK_NAME),
+            std::time::Duration::from_secs(10),
+        )
+        .expect("lock");
+        let result = std::thread::scope(|scope| {
+            let fetch = scope.spawn(|| fetch_trivy_pin(&pin, &cache, false));
+            std::fs::create_dir_all(cache.join("db")).expect("winner dir");
+            std::fs::write(cache.join("db").join("metadata.json"), "{\"winner\":1}")
+                .expect("winner");
+            drop(held);
+            fetch.join().expect("join")
+        });
+        assert_eq!(result, Ok(()));
+        let kept = std::fs::read_to_string(cache.join("db").join("metadata.json")).expect("kept");
+        assert_eq!(kept, "{\"winner\":1}");
+        assert_eq!(partials(&cache), Vec::<String>::new());
         std::fs::remove_dir_all(&dir).expect("cleanup");
     }
 

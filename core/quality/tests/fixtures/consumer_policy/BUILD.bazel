@@ -20,10 +20,12 @@ workspace_policy(
     name = "shared_policy",
     families = [
         ":ansible_family",
+        ":api_spec_family",
         ":asciidoc_family",
         ":bicep_family",
         ":biome_json_family",
         ":cloudformation_family",
+        ":cmake_family",
         ":cue_family",
         ":eslint_js_family",
         ":eslint_ts_family",
@@ -32,9 +34,11 @@ workspace_policy(
         ":helm_family",
         ":html_template_family",
         ":jsonnet_family",
+        ":jupyter_family",
         ":kubernetes_family",
         ":latex_family",
         ":lua_family",
+        ":make_family",
         ":nix_family",
         ":pkl_family",
         ":rego_family",
@@ -337,11 +341,6 @@ quality_family(
     lint = ["checkmake"],
 )
 
-workspace_policy(
-    name = "make_policy",
-    families = [":make_family"],
-)
-
 filegroup(
     name = "make_module",
     srcs = [
@@ -362,11 +361,6 @@ quality_family(
     family_id = "cmake",
     format = ["gersemi"],
     lint = ["cmakelint"],
-)
-
-workspace_policy(
-    name = "cmake_policy",
-    families = [":cmake_family"],
 )
 
 filegroup(
@@ -411,11 +405,6 @@ quality_family(
         "ruff",
         "notebook_outputs",
     ],
-)
-
-workspace_policy(
-    name = "jupyter_policy",
-    families = [":jupyter_family"],
 )
 
 filegroup(
@@ -612,11 +601,6 @@ quality_family(
     family_id = "api_spec",
     format = ["prettier"],
     lint = ["redocly"],
-)
-
-workspace_policy(
-    name = "api_spec_policy",
-    families = [":api_spec_family"],
 )
 
 filegroup(

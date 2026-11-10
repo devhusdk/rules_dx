@@ -442,7 +442,7 @@ consumer_policy_tests(
                 "clean_cmake-real-format-cmake.pb",
                 "clean_cmake-real-lint-cmake.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:cmake_policy",
+            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_cmake",
         },
         {
@@ -451,7 +451,7 @@ consumer_policy_tests(
                 "clean_make-real-format-make.pb",
                 "clean_make-real-lint-make.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:make_policy",
+            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_make",
         },
         {
@@ -461,7 +461,7 @@ consumer_policy_tests(
                 "clean_jupyter-real-lint-py.pb",
                 "clean_jupyter-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:jupyter_policy",
+            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_jupyter",
         },
         {
@@ -511,7 +511,7 @@ consumer_policy_tests(
                 "clean_api_spec-real-format-js.pb",
                 "clean_api_spec-real-lint-js.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:api_spec_policy",
+            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_api_spec",
         },
         {

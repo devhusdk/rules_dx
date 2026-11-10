@@ -14,7 +14,7 @@ rust_library(
     ),
     crate_name = "gate_base",
     crate_root = "src/lib.rs",
-    deps = [],
+    deps = ["//cli/process:dx_process"],
 )
 
 rust_binary(

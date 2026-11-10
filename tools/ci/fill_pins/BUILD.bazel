@@ -26,7 +26,10 @@ rust_binary(
     ),
     crate_name = "fill_pins_bin",
     crate_root = "src/main.rs",
-    deps = [":fill_pins"],
+    deps = [
+        ":fill_pins",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(

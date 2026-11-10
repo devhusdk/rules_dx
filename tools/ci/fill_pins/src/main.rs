@@ -4,6 +4,11 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
+use std::time::Duration;
+
+use dx_process::capture::run_checked;
+
+const GH_TIMEOUT: Duration = Duration::from_secs(600);
 
 const USAGE: &str = "usage: fill_pins_bin <tag> [--check [--filled]] [--dir DIR] [--pins PATH] [--repo OWNER/NAME] [--manifest FILE --gazelle-manifest FILE]";
 
@@ -130,12 +135,7 @@ fn verify(tag: &str, repo: &str, manifest: &Path, bundle: &Path) -> Result<(), S
 }
 
 fn run_command(command: &mut Command) -> Result<(), String> {
-    let output = command.output().map_err(|e| format!("run gh: {e}"))?;
-    if output.status.success() {
-        return Ok(());
-    }
-    Err(format!(
-        "gh failed: {}",
-        String::from_utf8_lossy(&output.stderr).trim()
-    ))
+    run_checked(command, GH_TIMEOUT)
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }

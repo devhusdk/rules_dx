@@ -1,7 +1,9 @@
 //! Pins refs/remotes/origin/main to the commit the affected checks compare against.
 
 use std::io::Write;
-use std::process::Command;
+use std::path::Path;
+
+use dx_process::capture::{DEFAULT_TIMEOUT, git as git_command, run_captured};
 
 pub struct Event {
     pub name: String,
@@ -16,11 +18,11 @@ struct Git {
 }
 
 fn git(args: &[&str]) -> Git {
-    match Command::new("git").args(args).output() {
+    match run_captured(git_command(Path::new(".")).args(args), DEFAULT_TIMEOUT) {
         Ok(done) => Git {
-            code: done.status.code().unwrap_or(-1),
-            out: String::from_utf8_lossy(&done.stdout).trim().to_string(),
-            err: String::from_utf8_lossy(&done.stderr).trim().to_string(),
+            code: done.code.unwrap_or(-1),
+            out: done.stdout_text().trim().to_string(),
+            err: done.stderr_text(),
         },
         Err(error) => Git {
             code: -1,

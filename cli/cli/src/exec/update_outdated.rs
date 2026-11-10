@@ -470,7 +470,7 @@ pub(super) fn collect(
                         Err(reason) => read_errors.push(dx_update::discover::LookupError {
                             set: name.to_owned(),
                             package: dependency_sets::LUAROCKS_LOCK.to_owned(),
-                            reason,
+                            reason: reason.message().to_owned(),
                         }),
                     }
                 }

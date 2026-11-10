@@ -167,6 +167,7 @@ _SETS_BUILD_BAZEL = '''genrule(
         "sets_ok/apps/php/composer.digests.json",
         "sets_ok/apps/lua/luarocks.lock",
         "sets_ok/apps/lua/luarocks.digests.json",
+        "sets_ok/license.toml",
         "sets_ok/apps/ml/ocaml_app.opam",
         "sets_ok/apps/ml/ocaml_app.opam.locked",
         "sets_bad/MODULE.bazel",
@@ -224,6 +225,16 @@ echo '{"packages": [], "packages-dev": []}' > "$(location sets_ok/apps/php/compo
 echo '{"packages": {}}' > "$(location sets_ok/apps/php/composer.digests.json)"
 printf 'return {\n   dependencies = {\n      inspect = "3.1.3-0",\n   },\n}\n' > "$(location sets_ok/apps/lua/luarocks.lock)"
 echo '{"packages": {}}' > "$(location sets_ok/apps/lua/luarocks.digests.json)"
+cat > "$(location sets_ok/license.toml)" <<'EOF'
+schema_version = 1
+
+[[inventory]]
+package = "inspect"
+set = "luarocks"
+license = "MIT"
+versions = "3.1.3-0"
+text_present = true
+EOF
 cp "$(location sets_ok/apps/php/composer.json)" "$$orig/consumer_sets_composer_json.orig"
 printf 'opam-version: "2.0"\ndepends: [\n  "astring" {>= "0.8.5"}\n]\n' > "$(location sets_ok/apps/ml/ocaml_app.opam)"
 printf 'opam-version: "2.0"\ndepends: [\n  "astring" {= "0.8.5"}\n]\n' > "$(location sets_ok/apps/ml/ocaml_app.opam.locked)"

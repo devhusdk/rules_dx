@@ -4,6 +4,7 @@ static ERL_NIF_TERM probe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
   return enif_make_int(env, 1);
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static ErlNifFunc funcs[] = {{"probe", 0, probe}};
 
 ERL_NIF_INIT(probe_nif, funcs, NULL, NULL, NULL, NULL)

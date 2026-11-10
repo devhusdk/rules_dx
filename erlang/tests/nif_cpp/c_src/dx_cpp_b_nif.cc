@@ -33,6 +33,7 @@ ERL_NIF_TERM probe(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
                           enif_make_int(env, next_call()));
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 ErlNifFunc funcs[] = {{"probe", 0, probe, 0}};
 
 } // namespace

@@ -329,6 +329,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
 |  |  | `@rules_dx//cloudformation/private:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
+|  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_bench` |
+|  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_binary` |
+|  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_fuzz_test` |
+|  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_library` |
+|  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_proto_library` |
+|  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_test` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_bench` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_binary` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_fuzz_test` |
@@ -433,11 +439,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
 |  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
-|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_bench` |
-|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_fuzz_test` |
-|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_proto_library` |
-|  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_bench` |
-|  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_fuzz_test` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `compatible_with` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_package` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_sign` |
@@ -455,6 +456,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fortran/private:defs.bzl` | `fortran_library` |
 |  |  | `@rules_dx//fortran/private:defs.bzl` | `fortran_test` |
 |  |  | `@rules_dx//fortran/private:defs.bzl` | `library_name` |
+|  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_bench` |
+|  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_binary` |
+|  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_fuzz_test` |
+|  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_library` |
+|  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_test` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_bench` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_bench` |

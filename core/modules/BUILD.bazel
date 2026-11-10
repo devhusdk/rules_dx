@@ -49,6 +49,18 @@ rust_test(
 )
 
 rust_test(
+    name = "cargo_manifests_test",
+    srcs = ["cargo_manifests_test.rs"],
+    crate_name = "cargo_manifests_test",
+    crate_root = "cargo_manifests_test.rs",
+    data = ["//:module_srcs"],
+    deps = [
+        "//cli/module_bazel:dx_module_bazel",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
     name = "loaders_test",
     srcs = ["loaders_test.rs"],
     aliases = aliases(
@@ -229,6 +241,7 @@ rust_test(
 test_suite(
     name = "all",
     tests = [
+        ":cargo_manifests_test",
         ":consumer_deps_test",
         ":families_test",
         ":lang_json_test",

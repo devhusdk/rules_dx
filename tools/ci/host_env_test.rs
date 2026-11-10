@@ -26,12 +26,13 @@ const HOST_DIRS: [&str; 4] = ["/usr/bin", "/usr/local/bin", "$PATH", "${PATH}"];
 const XCODE_FILE: &str = "apple/private/ops/src/xcode.rs";
 
 /// The strings that file may hold, whole.
-const XCODE_TOOLS: [&str; 5] = [
+const XCODE_TOOLS: [&str; 6] = [
     "/usr/bin/xcrun",
     "/usr/bin/codesign",
     "/usr/bin/security",
     "/usr/bin/plutil",
     "/usr/bin/ditto",
+    "/usr/bin/openssl",
 ];
 
 /// Shells a `#!` line may name.

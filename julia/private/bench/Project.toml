@@ -1,0 +1,11 @@
+name = "DxBench"
+uuid = "b3c5a1d2-7e44-4f0a-9c1b-5d2e8a6f3c71"
+version = "0.0.1"
+
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Preferences = "21216c6a-2e73-6563-6e65-726566657250"
+
+[compat]
+BenchmarkTools = "=1.8.0"
+Preferences = "=1.5.0"

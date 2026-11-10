@@ -91,7 +91,6 @@ const PACKAGES: [&str; 112] = [
     "ocaml/private",
     "ocaml/private/toolchain",
     "perl/private",
-    "perl/private/cpan",
     "php/private",
     "powershell/private",
     "python/private",

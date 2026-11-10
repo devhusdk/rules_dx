@@ -431,8 +431,8 @@
     "https://bcr.bazel.build/modules/rules_nodejs/6.7.7/source.json": "60081c2448d70db3c5c0e75f55c0a55a22b2144646c21977c46c4986dacacdb6",
     "https://bcr.bazel.build/modules/rules_oci/2.3.0/MODULE.bazel": "49075197960c924c0a4d759b7c765c3d00a41d2fdd4a943b42823c1d016ab4ec",
     "https://bcr.bazel.build/modules/rules_oci/2.3.0/source.json": "47710c28446211b5e61a24015a4669c50c6862d5f91e6bdbc710de8d750cf613",
-    "https://bcr.bazel.build/modules/rules_perl/1.5.0/MODULE.bazel": "7a7cb1197e01287cded2c7c46a11e921ab5eb4a3a3b834dcf734740a5d656b02",
-    "https://bcr.bazel.build/modules/rules_perl/1.5.0/source.json": "d7d3504a77bb226609e4258033973b58d8ccc84acde048a08d825da84df5b197",
+    "https://bcr.bazel.build/modules/rules_perl/2.1.0/MODULE.bazel": "94f693c9a01c026c5086e8ea6ad97684612c1f93f17efb6700839b28eae10c4c",
+    "https://bcr.bazel.build/modules/rules_perl/2.1.0/source.json": "6d58bec48ea044651d5422144ffc4b191eba356a6f87936da19458d850d3c5b0",
     "https://bcr.bazel.build/modules/rules_pkg/1.3.0/MODULE.bazel": "ae0bdefbacc990c91f843206c90cf0f4be620639a5bf22119043599ba86d51a3",
     "https://bcr.bazel.build/modules/rules_pkg/1.3.0/source.json": "58ae84c545141762f7c434c0ce78bfb55ef0be08d84863e7f0503fff135fe4e2",
     "https://bcr.bazel.build/modules/rules_proto/7.1.0/MODULE.bazel": "002d62d9108f75bb807cd56245d45648f38275cb3a99dcd45dfb864c5d74cb96",
@@ -7381,7 +7381,7 @@
     },
     "//qt:extensions.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "7j+YDYbejh+8lhJCqIzP/psT3FS3Fr5050bEojISxOM=",
+        "bzlTransitiveDigest": "ywznfDezBrSgQ92e52txWOrwxRYvf4RXMgRE1Rdp5P4=",
         "usagesDigest": "3BS0SqqE9nsbYI9+Bl0Un9zfcl6driMWFHsFPN6Mr1M=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_pins_data +dx_pins+dx_pins_data",

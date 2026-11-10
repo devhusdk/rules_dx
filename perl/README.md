@@ -63,7 +63,7 @@ Declare a hub with the rules_perl `cpan` extension. Its lock pins each
 distribution to a URL and a sha256.
 
 ```python
-bazel_dep(name = "rules_perl", version = "1.5.0")
+bazel_dep(name = "rules_perl", version = "2.1.0")
 
 cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
 cpan.install(

@@ -45,7 +45,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("tar.bzl", "0.10.9"),
     ("yaml.bzl", "0.1.2"),
     ("rules_julia", "0.8.0"),
-    ("rules_perl", "1.5.0"),
+    ("rules_perl", "2.1.0"),
     ("rules_batch", "0.1.1"),
     ("lua", "5.4.6.bcr.1"),
     ("rules_oci", "2.3.0"),

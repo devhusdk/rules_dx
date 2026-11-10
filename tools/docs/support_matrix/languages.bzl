@@ -573,7 +573,7 @@ LANGUAGES = [
         dead_code = ["perlcritic ProhibitUnusedVariables"],
         coverage = ["DxLcov"],
         not_applicable = {
-            "windows_arm64": "rules_perl 1.5.0 ships no Windows ARM64 perl build"
+            "windows_arm64": "Windows ARM64 perl is not qualified"
         },
     ),
     _language(

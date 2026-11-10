@@ -1231,10 +1231,10 @@ julia_pkg.pkg_annotation(
 use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
 
 # floor: equals tested
-bazel_dep(name = "rules_perl", version = "1.5.0")
+bazel_dep(name = "rules_perl", version = "2.1.0")
 single_version_override(
     module_name = "rules_perl",
-    version = "1.5.0",
+    version = "2.1.0",
 )
 
 perl_tools_cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
@@ -1248,8 +1248,8 @@ perl_tools_cpan.install(
 )
 use_repo(perl_tools_cpan, "dx_perl_cpan")
 
-cpan = use_extension("//perl:extensions.bzl", "cpan", dev_dependency = True)
-cpan.lock(
+cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan", dev_dependency = True)
+cpan.install(
     name = "perl_app_cpan",
     lock = "//perl/tests/fixtures/perl-app/third_party:cpanfile.snapshot.lock.json",
 )

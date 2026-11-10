@@ -741,7 +741,6 @@ rust_test(
         "//ocaml/private:corpus_starlark",
         "//ocaml/private/toolchain:corpus_starlark",
         "//perl/private:corpus_starlark",
-        "//perl/private/cpan:corpus_starlark",
         "//perl/private/quality:corpus_starlark",
         "//php/private:corpus_starlark",
         "//php/private/quality:corpus_starlark",

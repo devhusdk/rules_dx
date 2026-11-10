@@ -35,7 +35,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Lua | none | `luarocks` (pinned, no advisories) | `lua_bench` | n/a |
 | MDX | none | `npm` | n/a | n/a |
 | OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` | `ocaml_bench` | `ocaml_fuzz_test` |
-| Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build | `cpan` | `perl_bench` | n/a |
+| Perl | `windows_arm64`: Windows ARM64 perl is not qualified | `cpan` | `perl_bench` | n/a |
 | PHP | `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build | `packagist` | `php_bench` | n/a |
 | PowerShell | none | `powershell` (pinned, no advisories) | n/a | n/a |
 | Protobuf | none | none: schemas only, no packages | n/a | n/a |
@@ -100,7 +100,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Lua | `selene` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `stylua` | `luals` | `ldoc` | `luacov` | `selene unused_variable` |
 | MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | `jest` | `eslint no-unused-vars` |
 | OCaml | `typos`, `zanuda` (not on `windows_x86_64`: zanuda has no Windows build; `windows_arm64`: zanuda has no Windows build) | `topiary` | `ocaml` | `odoc` | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
-| Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | `pod (perl)` | `DxLcov` | `perlcritic ProhibitUnusedVariables` |
+| Perl | `perlcritic` (not on `windows_arm64`: Windows ARM64 perl is not qualified), `typos` | `perltidy` (not on `windows_arm64`: Windows ARM64 perl is not qualified) | n/a | `pod (perl)` | `DxLcov` | `perlcritic ProhibitUnusedVariables` |
 | PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `phpdocumentor` | `pcov (Linux only)` | `phpcs Generic.CodeAnalysis.UnusedFunctionParameter` |
 | PowerShell | `psscriptanalyzer`, `typos` | `psscriptanalyzer` | n/a | `pwsh` | `pester` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |
 | Protobuf | `buf`, `typos` | `buf` | `buf` | `protoc` | n/a | none |

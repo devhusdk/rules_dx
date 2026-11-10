@@ -1,5 +1,7 @@
 //! Lists `bazel_dep` modules whose declared version is behind the newest stable BCR version.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 use std::cmp::Ordering;
@@ -59,14 +61,14 @@ pub fn outdated(
                     });
                 }
             }
-            Err(reason) => found.errors.push(error(reason)),
+            Err(reason) => found.errors.push(error(reason.to_string())),
         }
     }
     found
 }
 
 /// Returns the newest stable version of `name` in the registry at `base`.
-pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     newest(
         &fetch.get(&format!("{base}/modules/{name}/metadata.json"))?,
         false,
@@ -90,11 +92,12 @@ fn is_skipped(module: &ModuleFile, name: &str) -> bool {
     })
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<String, String> {
-    let metadata: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
+    let metadata: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     let versions = metadata["versions"]
         .as_array()
-        .ok_or("metadata has no versions")?;
+        .ok_or_else(|| DxError::failure("metadata has no versions"))?;
     let yanked = &metadata["yanked_versions"];
     versions
         .iter()
@@ -102,7 +105,7 @@ fn newest(body: &str, prereleases: bool) -> Result<String, String> {
         .filter(|v| (prereleases || !v.contains('-')) && yanked.get(*v).is_none())
         .max_by(|a, b| compare_module_versions(a, b))
         .map(str::to_owned)
-        .ok_or_else(|| "no stable version".to_owned())
+        .ok_or_else(|| DxError::failure("no stable version"))
 }
 
 #[cfg(test)]
@@ -199,7 +202,7 @@ mod tests {
             &[],
             false,
             DEFAULT_BASE,
-            &|_: &str| Err("HTTP 404".to_owned()),
+            &|_: &str| Err(DxError::failure("HTTP 404")),
         );
         assert!(found.candidates.is_empty());
         assert_eq!(found.errors[0].package, "rules_x");
@@ -214,7 +217,7 @@ mod tests {
             &["other".to_owned()],
             false,
             DEFAULT_BASE,
-            &|_: &str| Err("must not fetch".to_owned()),
+            &|_: &str| Err(DxError::failure("must not fetch")),
         );
         assert_eq!(found, Findings::default());
     }

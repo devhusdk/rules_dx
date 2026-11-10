@@ -1,4 +1,5 @@
 use super::*;
+use dx_error::DxError;
 
 pub(super) fn plan_bazelversion(
     content: &str,
@@ -1165,7 +1166,7 @@ pub(super) fn plan_paket_dependencies(
         manifest: manifest_path.to_owned(),
         reason: format!("{package:?}: {reason}"),
     };
-    let decl = parse_paket_declaration(line).map_err(unsupported)?;
+    let decl = parse_paket_declaration(line).map_err(|error| unsupported(error.to_string()))?;
     let mut out = String::with_capacity(content.len() + new.len());
     out.push_str(&content[..at + decl.requirement.start]);
     out.push_str(&new);
@@ -1176,7 +1177,8 @@ pub(super) fn plan_paket_dependencies(
         .split_inclusive('\n')
         .next()
         .unwrap_or_default();
-    let reparsed = parse_paket_declaration(reparsed_line).map_err(unsupported)?;
+    let reparsed =
+        parse_paket_declaration(reparsed_line).map_err(|error| unsupported(error.to_string()))?;
     let kept = reparsed_line[reparsed.requirement.clone()] == *new
         && reparsed.id.eq_ignore_ascii_case(package)
         && reparsed_line[..reparsed.requirement.start] == line[..decl.requirement.start]
@@ -1247,11 +1249,11 @@ fn is_paket_version(token: &str) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '+' | '_' | '*'))
 }
 
-fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, String> {
+fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, DxError> {
     let tokens = paket_tokens(line);
     let (id, rest) = match tokens.as_slice() {
         [(_, _, kind), (_, _, id), rest @ ..] if kind.eq_ignore_ascii_case("nuget") => (*id, rest),
-        _ => return Err("not a nuget declaration".to_owned()),
+        _ => return Err(DxError::failure("not a nuget declaration")),
     };
     let mut index = 0usize;
     let mut first = None;
@@ -1263,7 +1265,7 @@ fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, String> {
                 let operand = &token[op.len()..];
                 if operand.is_empty() {
                     if expect_version {
-                        return Err("comparison operator without a version".to_owned());
+                        return Err(DxError::failure("comparison operator without a version"));
                     }
                     expect_version = true;
                     None
@@ -1276,7 +1278,9 @@ fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, String> {
         };
         if let Some(operand) = operand {
             if !is_paket_version(operand) {
-                return Err(format!("malformed version requirement {token:?}"));
+                return Err(DxError::failure(format!(
+                    "malformed version requirement {token:?}"
+                )));
             }
             expect_version = false;
         }
@@ -1285,17 +1289,19 @@ fn parse_paket_declaration(line: &str) -> Result<PaketDeclaration<'_>, String> {
         index += 1;
     }
     if expect_version {
-        return Err("comparison operator without a version".to_owned());
+        return Err(DxError::failure("comparison operator without a version"));
     }
     let Some(first) = first else {
-        return Err("no version requirement to replace".to_owned());
+        return Err(DxError::failure("no version requirement to replace"));
     };
     for &(_, _, token) in &rest[index..] {
         if token.contains(':') {
             break;
         }
         if !token.chars().all(|c| c.is_ascii_alphabetic()) {
-            return Err(format!("unsupported token {token:?} after requirement"));
+            return Err(DxError::failure(format!(
+                "unsupported token {token:?} after requirement"
+            )));
         }
     }
     Ok(PaketDeclaration {

@@ -1,4 +1,5 @@
 use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, Selection};
+use dx_error::DxError;
 use std::path::Path;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -217,6 +218,18 @@ impl BackendError {
             BackendError::FrozenLocked { .. } => "frozen_locked",
             BackendError::NonUtf8Path { .. } => "invalid_path",
             BackendError::BackendUnavailable { .. } => "backend_unavailable",
+        }
+    }
+}
+
+impl From<BackendError> for DxError {
+    fn from(error: BackendError) -> Self {
+        match error {
+            BackendError::BackendUnavailable { .. } => DxError::infra(error.to_string()),
+            BackendError::Unsupported { .. }
+            | BackendError::OfflineRequired { .. }
+            | BackendError::FrozenLocked { .. }
+            | BackendError::NonUtf8Path { .. } => DxError::failure(error.to_string()),
         }
     }
 }

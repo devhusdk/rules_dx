@@ -1,5 +1,7 @@
 //! Lists Maven artifacts whose newest release on Maven Central is newer than the declared version.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, Overridden, wanted};
 use dx_module_bazel::ModuleFile;
 use mvn_version::ComparableVersion;
@@ -76,7 +78,7 @@ pub fn outdated(
             Err(reason) => found.errors.push(LookupError {
                 set: set.to_owned(),
                 package,
-                reason,
+                reason: reason.to_string(),
             }),
         }
     }
@@ -92,12 +94,12 @@ fn is_release(version: &str) -> bool {
     })
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<String, String> {
+fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
     let versions = body
         .split_once("<versions>")
         .and_then(|(_, rest)| rest.split_once("</versions>"))
         .map(|(inside, _)| inside)
-        .ok_or_else(|| "no versions in maven-metadata.xml".to_owned())?;
+        .ok_or_else(|| DxError::failure("no versions in maven-metadata.xml"))?;
     versions
         .split("<version>")
         .skip(1)
@@ -105,7 +107,7 @@ fn newest(body: &str, prereleases: bool) -> Result<String, String> {
         .filter(|version| !version.is_empty() && (prereleases || is_release(version)))
         .max_by_key(|version| ComparableVersion::new(version))
         .map(str::to_owned)
-        .ok_or_else(|| "no release version".to_owned())
+        .ok_or_else(|| DxError::failure("no release version"))
 }
 
 #[cfg(test)]
@@ -124,7 +126,7 @@ mod tests {
         )
     }
 
-    fn repo(url: &str) -> Result<String, String> {
+    fn repo(url: &str) -> Result<String, DxError> {
         let path = url
             .strip_prefix("https://repo1.maven.org/maven2/")
             .unwrap_or(url);
@@ -142,7 +144,7 @@ mod tests {
             }
             "com/x/fresh/maven-metadata.xml" => metadata(&["1.0", "1.0-RC1"]),
             "g/a/maven-metadata.xml" => metadata(&["1.0", "2.0"]),
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         })
     }
 
@@ -241,7 +243,7 @@ mod tests {
             "https://m",
             &|url: &str| {
                 seen.borrow_mut().push(url.to_owned());
-                Err("HTTP 404".to_owned())
+                Err(DxError::failure("HTTP 404"))
             },
         );
         assert_eq!(

@@ -1,5 +1,7 @@
 //! Lists npm dependencies whose latest registry version is outside the declared range.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use nodejs_semver::{Range, Version};
 use std::collections::BTreeMap;
@@ -67,7 +69,7 @@ pub fn outdated(
         }) {
             Ok(found) => found,
             Err(reason) => {
-                found.errors.push(error(reason));
+                found.errors.push(error(reason.to_string()));
                 continue;
             }
         };
@@ -97,11 +99,11 @@ pub fn outdated(
 }
 
 /// The `latest` stable version of package `name` in the registry at `base`.
-pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/{name}"))?;
     match latest(&body, false)? {
         Some((version, _)) => Ok(version.to_string()),
-        None => Err("no stable version".to_owned()),
+        None => Err(DxError::failure("no stable version")),
     }
 }
 
@@ -120,8 +122,9 @@ fn repo(body: &str) -> Option<String> {
 
 type Latest = Option<(Version, Option<String>)>;
 
-fn latest(body: &str, prereleases: bool) -> Result<Latest, String> {
-    let doc: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn latest(body: &str, prereleases: bool) -> Result<Latest, DxError> {
+    let doc: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     if prereleases {
         let newest = doc["versions"]
             .as_object()
@@ -136,8 +139,8 @@ fn latest(body: &str, prereleases: bool) -> Result<Latest, String> {
     }
     let tag = doc["dist-tags"]["latest"]
         .as_str()
-        .ok_or_else(|| "no latest tag".to_owned())?;
-    let version = Version::parse(tag).map_err(|e| e.to_string())?;
+        .ok_or_else(|| DxError::failure("no latest tag"))?;
+    let version = Version::parse(tag).map_err(|e| DxError::failure(e.to_string()))?;
     if version.is_prerelease() {
         return Ok(None);
     }
@@ -166,13 +169,13 @@ mod tests {
   "optionalDependencies": { "pre": "^1.0.0" }
 }"#;
 
-    fn doc(latest: &str, time: &str) -> Result<String, String> {
+    fn doc(latest: &str, time: &str) -> Result<String, DxError> {
         Ok(format!(
             r#"{{"dist-tags":{{"latest":"{latest}"}},"versions":{{"{latest}":{{}}}},"time":{{"{latest}":"{time}"}}}}"#
         ))
     }
 
-    fn registry(name: &str) -> Result<String, String> {
+    fn registry(name: &str) -> Result<String, DxError> {
         match name {
             "fresh" => doc("1.9.0", "2026-01-01T00:00:00.000Z"),
             "old" => doc("2.0.0", "2026-01-02T00:00:00.000Z"),
@@ -180,7 +183,7 @@ mod tests {
             "tool" => doc("3.1.0", "2026-01-04T00:00:00.000Z"),
             "bad" => doc("1.0.0", "2026-01-05T00:00:00.000Z"),
             "pre" => doc("2.0.0-beta.1", "2026-01-06T00:00:00.000Z"),
-            _ => Err("HTTP 404".to_owned()),
+            _ => Err(DxError::failure("HTTP 404")),
         }
     }
 

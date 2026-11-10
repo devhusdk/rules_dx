@@ -25,12 +25,13 @@ fn kind_of(ecosystem: Ecosystem) -> Option<ConfiguredKind> {
 }
 
 fn latest(ecosystem: Ecosystem, name: &str, fetch: &dyn Fetch) -> Result<String, String> {
-    match ecosystem {
+    let latest = match ecosystem {
         Ecosystem::Cargo => cargo::latest_stable(name, cargo::DEFAULT_BASE, fetch),
         Ecosystem::Npm => npm::latest_stable(name, npm::DEFAULT_BASE, fetch),
         Ecosystem::Uv => pypi::latest_stable(name, pypi::DEFAULT_BASE, fetch),
         _ => ruby::latest_stable(name, ruby::DEFAULT_BASE, fetch),
-    }
+    };
+    latest.map_err(|error| error.to_string())
 }
 
 /// The manifest of the set whose directory holds `file`, else the first one.
@@ -186,6 +187,7 @@ fn declare(
 mod tests {
     use super::*;
     use dx_adopt::dependency_sets::{DependencySet, ResolvedSet, Selection};
+    use dx_error::DxError;
 
     struct NoQuery;
 
@@ -219,13 +221,13 @@ mod tests {
         std::fs::write(path, text).unwrap();
     }
 
-    fn registry(url: &str) -> Result<String, String> {
+    fn registry(url: &str) -> Result<String, DxError> {
         if url.ends_with("/re/ge/regex") {
             Ok("{\"vers\":\"1.5.0\",\"yanked\":false}\n{\"vers\":\"2.0.0-rc.1\",\"yanked\":false}\n".to_owned())
         } else if url.ends_with("/left-pad") {
             Ok("{\"dist-tags\":{\"latest\":\"1.3.0\"}}".to_owned())
         } else {
-            Err(format!("unexpected {url}"))
+            Err(DxError::failure(format!("unexpected {url}")))
         }
     }
 
@@ -317,15 +319,18 @@ mod tests {
             "web/pnpm-lock.yaml",
         )];
         resolved[0].request = Selection::Packages(vec!["left-pad".to_owned(), "react".to_owned()]);
-        let no_network = |url: &str| -> Result<String, String> {
+        let no_network = |url: &str| -> Result<String, DxError> {
             if url.ends_with("/react") {
-                Err("declared packages are not looked up".to_owned())
+                Err(DxError::failure("declared packages are not looked up"))
             } else {
                 registry(url)
             }
         };
         let added = add_named(root, &resolved, &no_network).expect("added");
-        let names: Vec<_> = added.iter().map(|a| format!("{} {}", a.name, a.version)).collect();
+        let names: Vec<_> = added
+            .iter()
+            .map(|a| format!("{} {}", a.name, a.version))
+            .collect();
         assert_eq!(names, ["left-pad 1.3.0"]);
         let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");

@@ -164,6 +164,7 @@ fn latest_release(fetch: &dyn dx_update::discover::Fetch) -> Result<String, Stri
         dx_update::discover::bcr::DEFAULT_BASE,
         fetch,
     )
+    .map_err(|error| error.to_string())
 }
 
 /// Moves the `.dx/pins` pin to `--to` (or the newest release), newer or older, then refreshes existing

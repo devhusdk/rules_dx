@@ -1,6 +1,7 @@
 use super::common::*;
 use super::update_unused::{self, Missing, Unused};
 use dx_adopt::dependency_sets::{self, Ecosystem, Selection};
+use dx_error::DxError;
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     notice_event,
@@ -817,14 +818,14 @@ fn emit_text(
 pub(super) struct DirFetch(pub(super) PathBuf);
 
 impl Fetch for DirFetch {
-    fn digest(&self, url: &str) -> Result<String, String> {
+    fn digest(&self, url: &str) -> Result<String, DxError> {
         self.get(url).map(|text| text.trim().to_owned())
     }
 
-    fn get(&self, url: &str) -> Result<String, String> {
+    fn get(&self, url: &str) -> Result<String, DxError> {
         let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
         let path: &Path = &self.0.join(rest);
-        std::fs::read_to_string(path).map_err(|_| "HTTP 404".to_owned())
+        std::fs::read_to_string(path).map_err(|_| DxError::failure("HTTP 404"))
     }
 }
 
@@ -858,39 +859,45 @@ impl HttpFetch {
 }
 
 impl Fetch for HttpFetch {
-    fn digest(&self, url: &str) -> Result<String, String> {
+    fn digest(&self, url: &str) -> Result<String, DxError> {
         let response = self
             .0
             .head(url)
             .header("Accept", MANIFEST_ACCEPT)
             .call()
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| DxError::infra(e.to_string()))?;
         if !response.status().is_success() {
-            return Err(format!("HTTP {}", response.status().as_u16()));
+            return Err(DxError::failure(format!(
+                "HTTP {}",
+                response.status().as_u16()
+            )));
         }
         response
             .headers()
             .get("docker-content-digest")
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned)
-            .ok_or_else(|| "no Docker-Content-Digest header".to_owned())
+            .ok_or_else(|| DxError::failure("no Docker-Content-Digest header"))
     }
 
-    fn get(&self, url: &str) -> Result<String, String> {
+    fn get(&self, url: &str) -> Result<String, DxError> {
         let mut request = self.0.get(url);
         if let Some((name, value)) = github_auth(url, self.1.as_deref()) {
             request = request
                 .header(name, value)
                 .header("Accept", "application/vnd.github+json");
         }
-        let mut response = request.call().map_err(|e| e.to_string())?;
+        let mut response = request.call().map_err(|e| DxError::infra(e.to_string()))?;
         if response.status().as_u16() != 200 {
-            return Err(format!("HTTP {}", response.status().as_u16()));
+            return Err(DxError::failure(format!(
+                "HTTP {}",
+                response.status().as_u16()
+            )));
         }
         response
             .body_mut()
             .read_to_string()
-            .map_err(|e| e.to_string())
+            .map_err(|e| DxError::infra(e.to_string()))
     }
 }
 
@@ -927,11 +934,11 @@ mod tests {
         let fetch = HttpFetch(agent(false), None);
         assert_eq!(
             fetch.get(&serve_once(NOT_FOUND)),
-            Err("HTTP 404".to_owned())
+            Err(DxError::failure("HTTP 404"))
         );
         assert_eq!(
             fetch.digest(&serve_once(NOT_FOUND)),
-            Err("HTTP 404".to_owned())
+            Err(DxError::failure("HTTP 404"))
         );
     }
 
@@ -942,7 +949,7 @@ mod tests {
         );
         assert_eq!(
             HttpFetch(agent(false), None).get(&url),
-            Err("HTTP 500".to_owned())
+            Err(DxError::failure("HTTP 500"))
         );
     }
 
@@ -1025,7 +1032,7 @@ mod tests {
         );
         assert_eq!(
             fetch.get("https://index.crates.io/3/o/none"),
-            Err("HTTP 404".into())
+            Err(DxError::failure("HTTP 404"))
         );
         let _ = std::fs::remove_dir_all(dir);
     }

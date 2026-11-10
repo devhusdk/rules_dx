@@ -1,5 +1,7 @@
 //! Lists NuGet packages whose newest stable version on nuget.org is newer than the paket.dependencies requirement.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, release_cmp, wanted};
 use crate::edit::request::plans::paket_tokens;
 use std::cmp::Ordering;
@@ -39,7 +41,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: id,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -85,8 +87,9 @@ fn declaration(line: &str) -> Option<(String, String)> {
     best.map(|current| ((*id).to_owned(), current.to_owned()))
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<String, String> {
-    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
+    let json: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     json["versions"]
         .as_array()
         .into_iter()
@@ -97,7 +100,7 @@ fn newest(body: &str, prereleases: bool) -> Result<String, String> {
         })
         .max_by(|a, b| release_cmp(a, b))
         .map(str::to_owned)
-        .ok_or_else(|| "no stable version".to_owned())
+        .ok_or_else(|| DxError::failure("no stable version"))
 }
 
 #[cfg(test)]
@@ -106,7 +109,7 @@ mod tests {
 
     const PAKET: &str = "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json ~> 12.0 >= 11.0.1\nnuget Fresh 2.0.0\nnuget Gone 1.0.0\nnuget Unversioned\ngithub owner/repo\n# nuget Commented 1.0\n";
 
-    fn feed(url: &str) -> Result<String, String> {
+    fn feed(url: &str) -> Result<String, DxError> {
         let path = url
             .strip_prefix("https://api.nuget.org/v3-flatcontainer/")
             .unwrap_or(url);
@@ -115,7 +118,7 @@ mod tests {
                 r#"{"versions":["12.0.1","13.0.1","13.0.3","14.0.0-beta1"]}"#
             }
             "fresh/index.json" => r#"{"versions":["2.0.0","2.1.0-rc.1"]}"#,
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         }
         .to_owned())
     }
@@ -188,7 +191,7 @@ mod tests {
             "https://n",
             &|url: &str| {
                 seen.borrow_mut().push(url.to_owned());
-                Err("HTTP 404".to_owned())
+                Err(DxError::failure("HTTP 404"))
             },
         );
         assert_eq!(seen.into_inner(), ["https://n/gone/index.json"]);

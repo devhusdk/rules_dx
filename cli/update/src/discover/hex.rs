@@ -1,5 +1,7 @@
 //! Lists locked hex packages whose newest release on hex.pm is newer than the one in mix.lock.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -37,7 +39,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: name,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -114,8 +116,9 @@ fn locked_packages(lock: &str) -> Vec<(String, String)> {
     out
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), String> {
-    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxError> {
+    let json: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     let releases = json["releases"].as_array().map_or(&[][..], Vec::as_slice);
     let mut best = json["latest_stable_version"].as_str().map(str::to_owned);
     if prereleases || best.is_none() {
@@ -131,7 +134,7 @@ fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), Str
             }
         }
     }
-    let best = best.ok_or_else(|| "no version".to_owned())?;
+    let best = best.ok_or_else(|| DxError::failure("no version"))?;
     let published = releases
         .iter()
         .find(|entry| entry["version"].as_str() == Some(best.as_str()))
@@ -153,7 +156,7 @@ mod tests {
 }
 "#;
 
-    fn api(url: &str) -> Result<String, String> {
+    fn api(url: &str) -> Result<String, DxError> {
         let name = url
             .strip_prefix("https://hex.pm/api/packages/")
             .unwrap_or(url);
@@ -161,7 +164,7 @@ mod tests {
             "jason" => r#"{"latest_stable_version":"1.4.4","releases":[{"version":"1.5.0-rc.1"},{"version":"1.4.4","inserted_at":"2026-03-01T00:00:00Z"}]}"#,
             "current" => r#"{"latest_stable_version":"2.0.0","releases":[]}"#,
             "pre" => r#"{"latest_stable_version":"1.0.0","releases":[{"version":"2.0.0-rc.1","inserted_at":"2026-04-01T00:00:00Z"}]}"#,
-            _ => return Err(format!("unexpected lookup {name}")),
+            _ => return Err(DxError::failure(format!("unexpected lookup {name}"))),
         }
         .to_owned())
     }
@@ -222,7 +225,7 @@ mod tests {
             &[],
             false,
             DEFAULT_BASE,
-            &|_: &str| Err("down".to_owned()),
+            &|_: &str| Err(DxError::failure("down")),
         );
         assert_eq!(found.errors.len(), 3);
     }

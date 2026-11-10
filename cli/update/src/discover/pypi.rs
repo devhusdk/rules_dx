@@ -1,5 +1,7 @@
 //! Lists PyPI dependencies whose latest release is outside the declared specifier.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use crate::edit::request::pyproject::normalize;
 use pep440_rs::{Version, VersionSpecifiers};
@@ -61,7 +63,7 @@ pub fn outdated(
         }) {
             Ok(found) => found,
             Err(reason) => {
-                found.errors.push(error(reason));
+                found.errors.push(error(reason.to_string()));
                 continue;
             }
         };
@@ -90,7 +92,7 @@ pub fn outdated(
 }
 
 /// The newest stable release of `name` on PyPI at `base`.
-pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/{name}/json"))?;
     newest(&body, false).map(|(version, _)| version.to_string())
 }
@@ -138,11 +140,12 @@ fn repo(body: &str) -> Option<String> {
 }
 
 /// The release versions whose every file is yanked (PEP 592).
-pub fn yanked_releases(body: &str) -> Result<Vec<String>, String> {
-    let doc: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+pub fn yanked_releases(body: &str) -> Result<Vec<String>, DxError> {
+    let doc: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     let releases = doc["releases"]
         .as_object()
-        .ok_or_else(|| "no releases".to_owned())?;
+        .ok_or_else(|| DxError::failure("no releases"))?;
     Ok(releases
         .iter()
         .filter(|(_, files)| {
@@ -157,11 +160,12 @@ fn is_yanked(file: &serde_json::Value) -> bool {
     file["yanked"].as_bool().unwrap_or(false)
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), String> {
-    let doc: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), DxError> {
+    let doc: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     let releases = doc["releases"]
         .as_object()
-        .ok_or_else(|| "no releases".to_owned())?;
+        .ok_or_else(|| DxError::failure("no releases"))?;
     let yanked = yanked_releases(body)?;
     let mut best: Option<(Version, Option<String>)> = None;
     for (key, files) in releases {
@@ -192,7 +196,7 @@ fn newest(body: &str, prereleases: bool) -> Result<(Version, Option<String>), St
             best = Some((version, published));
         }
     }
-    best.ok_or_else(|| "no stable version".to_owned())
+    best.ok_or_else(|| DxError::failure("no stable version"))
 }
 
 #[cfg(test)]
@@ -228,7 +232,7 @@ test = ["grouped<3", { include-group = "dev" }]
         format!(r#""{version}":[{{"yanked":{yanked},"upload_time_iso_8601":"{time}"}}]"#)
     }
 
-    fn registry(name: &str) -> Result<String, String> {
+    fn registry(name: &str) -> Result<String, DxError> {
         let releases = match name {
             "fresh" => files("1.5", "2026-01-01T00:00:00Z", false),
             "old-pkg" => format!(
@@ -248,7 +252,7 @@ test = ["grouped<3", { include-group = "dev" }]
                 files("1.0", "2025-01-01T00:00:00Z", false),
                 files("2.0rc1", "2026-01-06T00:00:00Z", false)
             ),
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         };
         Ok(format!(r#"{{"releases":{{{releases}}}}}"#))
     }

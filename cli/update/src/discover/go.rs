@@ -1,5 +1,7 @@
 //! Lists Go modules whose newest release on the module proxy is newer than the go.mod requirement.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
 use semver::Version;
 
@@ -46,7 +48,7 @@ pub fn outdated(
             {
                 Ok(latest) => latest,
                 Err(reason) => {
-                    found.errors.push(error(reason));
+                    found.errors.push(error(reason.to_string()));
                     continue;
                 }
             };
@@ -132,7 +134,7 @@ fn newest(
     body: &str,
     incompatible_ok: bool,
     prereleases: bool,
-) -> Result<(Version, String), String> {
+) -> Result<(Version, String), DxError> {
     let mut best: Option<(Version, String)> = None;
     for line in body.lines().map(str::trim).filter(|line| !line.is_empty()) {
         let text = line.trim_start_matches('v');
@@ -148,7 +150,7 @@ fn newest(
             best = Some((version, text.to_owned()));
         }
     }
-    best.ok_or_else(|| "no stable version".to_owned())
+    best.ok_or_else(|| DxError::failure("no stable version"))
 }
 
 #[cfg(test)]
@@ -157,7 +159,7 @@ mod tests {
 
     const GO_MOD: &str = "module example.com/app\n\ngo 1.22\n\nrequire (\n\tgithub.com/Foo/bar v1.0.0\n\tgithub.com/fresh/lib v1.2.0\n\tgithub.com/ind/lib v1.0.0 // indirect\n\tgithub.com/repl/lib v1.0.0\n\tgithub.com/gone/lib v1.0.0\n\tgithub.com/old/inc v2.0.0+incompatible\n)\n\nreplace github.com/repl/lib => ../repl\n";
 
-    fn proxy(url: &str) -> Result<String, String> {
+    fn proxy(url: &str) -> Result<String, DxError> {
         let path = url.strip_prefix("https://proxy.golang.org/").unwrap_or(url);
         let body = match path {
             "github.com/!foo/bar/@v/list" => "v1.0.0\nv1.1.0\nv1.2.0-rc.1\nv2.0.0+incompatible\n",
@@ -166,7 +168,7 @@ mod tests {
             }
             "github.com/fresh/lib/@v/list" => "v1.2.0\nv1.3.0-beta\n",
             "github.com/old/inc/@v/list" => "v2.0.0+incompatible\nv2.1.0+incompatible\n",
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         };
         Ok(body.to_owned())
     }

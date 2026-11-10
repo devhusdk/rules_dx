@@ -1,5 +1,7 @@
 //! Lists Cargo dependencies whose newest stable crates.io version is outside the declared requirement.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, wanted};
 use semver::{Version, VersionReq};
 use std::collections::BTreeMap;
@@ -44,7 +46,7 @@ pub fn outdated(
         {
             Ok(release) => release,
             Err(reason) => {
-                found.errors.push(error(reason));
+                found.errors.push(error(reason.to_string()));
                 continue;
             }
         };
@@ -79,7 +81,7 @@ pub fn outdated(
 }
 
 /// The newest stable version of crate `name` in the sparse index at `base`.
-pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/{}", index_path(name)))?;
     newest(&body, false).map(|release| release.version.to_string())
 }
@@ -159,10 +161,11 @@ pub struct IndexEntry {
     pub published: Option<String>,
 }
 
-pub fn index_entries(body: &str) -> Result<Vec<IndexEntry>, String> {
+pub fn index_entries(body: &str) -> Result<Vec<IndexEntry>, DxError> {
     let mut out = Vec::new();
     for line in body.lines().filter(|line| !line.trim().is_empty()) {
-        let entry: serde_json::Value = serde_json::from_str(line).map_err(|e| e.to_string())?;
+        let entry: serde_json::Value =
+            serde_json::from_str(line).map_err(|e| DxError::failure(e.to_string()))?;
         let Some(version) = entry["vers"].as_str() else {
             continue;
         };
@@ -176,7 +179,7 @@ pub fn index_entries(body: &str) -> Result<Vec<IndexEntry>, String> {
 }
 
 /// The yanked versions one crate's index file lists.
-pub fn yanked_versions(body: &str) -> Result<Vec<String>, String> {
+pub fn yanked_versions(body: &str) -> Result<Vec<String>, DxError> {
     Ok(index_entries(body)?
         .into_iter()
         .filter(|entry| entry.yanked)
@@ -184,7 +187,7 @@ pub fn yanked_versions(body: &str) -> Result<Vec<String>, String> {
         .collect())
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<Release, String> {
+fn newest(body: &str, prereleases: bool) -> Result<Release, DxError> {
     let mut best: Option<Release> = None;
     for entry in index_entries(body)? {
         if entry.yanked {
@@ -203,7 +206,7 @@ fn newest(body: &str, prereleases: bool) -> Result<Release, String> {
             });
         }
     }
-    best.ok_or_else(|| "no stable version".to_owned())
+    best.ok_or_else(|| DxError::failure("no stable version"))
 }
 
 #[cfg(test)]
@@ -234,7 +237,7 @@ tool = "2"
 wsdep = "1.0"
 "#;
 
-    fn index(name: &str) -> Result<String, String> {
+    fn index(name: &str) -> Result<String, DxError> {
         let body = match name {
             "an/yh/anyhow" => r#"{"vers":"1.0.104","yanked":false}"#,
             "se/rd/serde" => r#"{"vers":"1.0.200","yanked":false}"#,
@@ -243,7 +246,7 @@ wsdep = "1.0"
             }
             "to/ol/tool" => r#"{"vers":"2.1.0","yanked":false}"#,
             "ws/de/wsdep" => r#"{"vers":"2.0.0","yanked":false}"#,
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         };
         Ok(body.to_owned())
     }
@@ -260,7 +263,7 @@ wsdep = "1.0"
                 Some("old") => {
                     Ok(r#"{"crate":{"repository":"https://github.com/acme/old"}}"#.to_owned())
                 }
-                Some(_) => Err("HTTP 500".to_owned()),
+                Some(_) => Err(DxError::failure("HTTP 500")),
                 None => index(url.strip_prefix("https://index.crates.io/").unwrap_or(url)),
             },
         )

@@ -1,5 +1,7 @@
 //! Appends accepted findings to `security.toml` and `license.toml`, keeping the file's comments and order.
 
+use dx_error::DxError;
+
 use toml_edit::{ArrayOfTables, DocumentMut, Item, Table, value};
 
 /// One `[[table]]` entry to append.
@@ -18,15 +20,15 @@ pub fn append_entries(
     text: Option<&str>,
     header: &str,
     entries: &[Entry],
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, DxError> {
     let existing = text.filter(|text| !text.trim().is_empty());
     let mut doc: DocumentMut = match existing {
         Some(text) => text
             .parse()
-            .map_err(|error| format!("invalid TOML: {error}"))?,
+            .map_err(|error| DxError::failure(format!("invalid TOML: {error}")))?,
         None => format!("{header}\nschema_version = 1\n")
             .parse()
-            .map_err(|error| format!("invalid TOML: {error}"))?,
+            .map_err(|error| DxError::failure(format!("invalid TOML: {error}")))?,
     };
     let mut added = false;
     for entry in entries {
@@ -40,9 +42,9 @@ pub fn append_entries(
         let item = doc
             .entry(entry.table)
             .or_insert_with(|| Item::ArrayOfTables(ArrayOfTables::new()));
-        let tables = item
-            .as_array_of_tables_mut()
-            .ok_or_else(|| format!("{} is not an array of tables", entry.table))?;
+        let tables = item.as_array_of_tables_mut().ok_or_else(|| {
+            DxError::failure(format!("{} is not an array of tables", entry.table))
+        })?;
         tables.push(table);
         added = true;
     }

@@ -1,6 +1,8 @@
 //! Lists packages of an opam.locked file whose newest version in the pinned opam-repository
 //! snapshot is newer than the locked one. It reads the snapshot's `packages/<name>/` directories.
 
+use dx_error::DxError;
+
 use super::{Candidate, Findings, LookupError, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -34,7 +36,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: name,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -127,10 +129,10 @@ fn is_toolchain(name: &str) -> bool {
         )
 }
 
-fn newest(snapshot: &Path, name: &str, prereleases: bool) -> Result<String, String> {
+fn newest(snapshot: &Path, name: &str, prereleases: bool) -> Result<String, DxError> {
     let dir = snapshot.join("packages").join(name);
-    let entries =
-        std::fs::read_dir(&dir).map_err(|_| "not in the opam-repository snapshot".to_owned())?;
+    let entries = std::fs::read_dir(&dir)
+        .map_err(|_| DxError::failure("not in the opam-repository snapshot"))?;
     let prefix = format!("{name}.");
     let mut versions: Vec<String> = entries
         .filter_map(Result::ok)
@@ -141,7 +143,7 @@ fn newest(snapshot: &Path, name: &str, prereleases: bool) -> Result<String, Stri
     versions.sort_by(|a, b| version_cmp(a, b));
     versions
         .pop()
-        .ok_or_else(|| "no version in the snapshot".to_owned())
+        .ok_or_else(|| DxError::failure("no version in the snapshot"))
 }
 
 fn is_prerelease(version: &str) -> bool {

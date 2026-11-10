@@ -55,6 +55,52 @@ fn backend_error_message_starts_with_code() {
 }
 
 #[test]
+fn backend_error_maps_to_a_dx_error_kind() {
+    use dx_error::ErrorKind;
+    let set = || "go".to_owned();
+    let cases = [
+        (
+            BackendError::Unsupported {
+                set: set(),
+                reason: "why",
+            },
+            ErrorKind::Failure,
+        ),
+        (
+            BackendError::OfflineRequired { set: set() },
+            ErrorKind::Failure,
+        ),
+        (
+            BackendError::FrozenLocked { set: set() },
+            ErrorKind::Failure,
+        ),
+        (
+            BackendError::NonUtf8Path {
+                set: set(),
+                path: "p".to_owned(),
+            },
+            ErrorKind::Failure,
+        ),
+        (
+            BackendError::BackendUnavailable {
+                set: set(),
+                tool: "uv",
+                var: UV_BIN_VAR,
+                what: "uv",
+                detail: None,
+            },
+            ErrorKind::Infra,
+        ),
+    ];
+    for (error, kind) in cases {
+        let text = error.to_string();
+        let mapped = DxError::from(error);
+        assert_eq!(mapped.kind(), kind, "{text}");
+        assert_eq!(mapped.message(), text);
+    }
+}
+
+#[test]
 fn unavailable_renders_the_bazel_detail_and_keeps_the_pin_text() {
     let error = BackendError::BackendUnavailable {
         set: "s".to_owned(),

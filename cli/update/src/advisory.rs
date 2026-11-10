@@ -1,5 +1,7 @@
 //! The `advisory` update set: advisory snapshot pins in `.dx/pins` against the newest published release.
 
+use dx_error::DxError;
+
 use std::collections::BTreeMap;
 use std::fmt::Write;
 
@@ -58,20 +60,22 @@ pub struct Release {
 }
 
 /// Reads the releases API answer: the tag and the pin lines of the body.
-pub fn parse_release(json: &str) -> Result<Release, String> {
-    let value: serde_json::Value =
-        serde_json::from_str(json).map_err(|error| format!("invalid release answer: {error}"))?;
+pub fn parse_release(json: &str) -> Result<Release, DxError> {
+    let value: serde_json::Value = serde_json::from_str(json)
+        .map_err(|error| DxError::failure(format!("invalid release answer: {error}")))?;
     let tag = value
         .get("tag_name")
         .and_then(|tag| tag.as_str())
-        .ok_or("the release has no tag_name")?;
+        .ok_or_else(|| DxError::failure("the release has no tag_name"))?;
     let body = value
         .get("body")
         .and_then(|body| body.as_str())
         .unwrap_or("");
     let pins = pins(body);
     if pins.is_empty() {
-        return Err(format!("release {tag} lists no advisory pin lines"));
+        return Err(DxError::failure(format!(
+            "release {tag} lists no advisory pin lines"
+        )));
     }
     Ok(Release {
         tag: tag.to_owned(),

@@ -103,7 +103,7 @@ impl AddRequest {
         let package = self.package();
         if self.set() == UpdateSet::Ruby {
             return plans::insert_gem(content, package, &self.version.display())
-                .map_err(unsupported);
+                .map_err(|error| unsupported(error.to_string()));
         }
         let version = match &self.version {
             WidenVersion::Semver(version) => version.to_string(),
@@ -111,7 +111,7 @@ impl AddRequest {
         };
         if self.target.configured.as_ref().map(|set| set.kind) == Some(ConfiguredKind::Uv) {
             return plans::insert_pyproject_dependency(content, package, &version)
-                .map_err(unsupported);
+                .map_err(|error| unsupported(error.to_string()));
         }
         let package = self.package();
         match self.set() {
@@ -139,15 +139,12 @@ impl AddRequest {
                     dx_gomod::GoEditError::Invalid(reason) => unsupported(reason),
                     other => unsupported(format!("{other:?}")),
                 }),
-            UpdateSet::Cargo => {
-                plans::insert_cargo_dependency(content, package, &version).map_err(unsupported)
-            }
-            UpdateSet::Npm => {
-                plans::insert_npm_dependency(content, package, &version).map_err(unsupported)
-            }
-            UpdateSet::NuGet => {
-                plans::insert_paket_dependency(content, package, &version).map_err(unsupported)
-            }
+            UpdateSet::Cargo => plans::insert_cargo_dependency(content, package, &version)
+                .map_err(|error| unsupported(error.to_string())),
+            UpdateSet::Npm => plans::insert_npm_dependency(content, package, &version)
+                .map_err(|error| unsupported(error.to_string())),
+            UpdateSet::NuGet => plans::insert_paket_dependency(content, package, &version)
+                .map_err(|error| unsupported(error.to_string())),
             UpdateSet::GithubActions => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: GITHUB_ACTIONS_HINT,

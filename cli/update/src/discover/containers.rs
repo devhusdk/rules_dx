@@ -36,7 +36,7 @@ pub fn outdated(module: &ModuleFile, only: &[String], fetch: &dyn Fetch) -> Find
                 tags: None,
             }),
             Ok(_) => {}
-            Err(reason) => found.errors.push(problem(name, reason)),
+            Err(reason) => found.errors.push(problem(name, reason.to_string())),
         }
     }
     found
@@ -60,6 +60,7 @@ fn problem(package: &str, reason: String) -> LookupError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_error::DxError;
 
     const OLD: &str = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
     const NEW: &str = "sha256:2222222222222222222222222222222222222222222222222222222222222222";
@@ -67,17 +68,17 @@ mod tests {
     struct Digests;
 
     impl Fetch for Digests {
-        fn get(&self, _url: &str) -> Result<String, String> {
-            Err("unused".to_owned())
+        fn get(&self, _url: &str) -> Result<String, DxError> {
+            Err(DxError::failure("unused"))
         }
 
-        fn digest(&self, url: &str) -> Result<String, String> {
+        fn digest(&self, url: &str) -> Result<String, DxError> {
             match url {
                 "https://gcr.io/v2/distroless/static-debian12/manifests/latest" => {
                     Ok(NEW.to_owned())
                 }
                 "https://gcr.io/v2/distroless/cc-debian12/manifests/latest" => Ok(OLD.to_owned()),
-                _ => Err("HTTP 404".to_owned()),
+                _ => Err(DxError::failure("HTTP 404")),
             }
         }
     }

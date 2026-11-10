@@ -1,5 +1,7 @@
 //! Lists direct hosted packages whose newest release on pub.dev is newer than the one locked.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -37,7 +39,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: name,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -105,10 +107,13 @@ fn direct_hosted(lock: &str) -> Vec<(String, String)> {
     out
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), String> {
-    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>), DxError> {
+    let json: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     let stable = json["latest"]["version"].as_str().map(str::to_owned);
-    let mut best = stable.clone().ok_or_else(|| "no version".to_owned())?;
+    let mut best = stable
+        .clone()
+        .ok_or_else(|| DxError::failure("no version"))?;
     if prereleases {
         for entry in json["versions"].as_array().into_iter().flatten() {
             if let Some(version) = entry["version"].as_str()
@@ -176,7 +181,7 @@ sdks:
   dart: ">=3.0.0 <4.0.0"
 "#;
 
-    fn api(url: &str) -> Result<String, String> {
+    fn api(url: &str) -> Result<String, DxError> {
         let name = url
             .strip_prefix("https://pub.dev/api/packages/")
             .unwrap_or(url);
@@ -184,7 +189,7 @@ sdks:
             "old_pkg" => r#"{"latest":{"version":"1.2.0","published":"2026-03-01T00:00:00Z"},"versions":[]}"#,
             "current_pkg" => r#"{"latest":{"version":"2.0.0"},"versions":[]}"#,
             "pre_pkg" => r#"{"latest":{"version":"1.0.0"},"versions":[{"version":"1.0.0"},{"version":"2.0.0-beta.1","published":"2026-04-01T00:00:00Z"}]}"#,
-            _ => return Err(format!("unexpected lookup {name}")),
+            _ => return Err(DxError::failure(format!("unexpected lookup {name}"))),
         }
         .to_owned())
     }

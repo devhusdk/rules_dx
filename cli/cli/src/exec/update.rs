@@ -673,6 +673,7 @@ mod update_live;
 mod tests {
     use super::*;
     use dx_adopt::dependency_sets::{DependencySet, Ecosystem, Registry};
+    use dx_error::DxError;
     use dx_plan::args::parse;
     use std::path::Path;
 
@@ -735,7 +736,8 @@ mod tests {
             "{\n  \"dependencies\": {\n    \"react\": \"18.0.0\"\n  }\n}\n",
             "import pad from 'left-pad';\nimport React from 'react';\n",
         );
-        let fetch = |url: &str| -> Result<String, String> { Err(format!("404 {url}")) };
+        let fetch =
+            |url: &str| -> Result<String, DxError> { Err(DxError::failure(format!("404 {url}"))) };
         let (mut out, mut err) = (Vec::new(), Vec::new());
         let code = add_missing(
             &json_invocation("--add-missing"),

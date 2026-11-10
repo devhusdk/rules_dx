@@ -1,5 +1,7 @@
 //! Lists DUB selections whose newest release on code.dlang.org is newer than the pinned one.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
 use std::cmp::Ordering;
 
@@ -22,7 +24,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: "dub.selections.json".to_owned(),
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -38,7 +40,7 @@ pub fn outdated(
                     found.errors.push(LookupError {
                         set: set.to_owned(),
                         package: name,
-                        reason,
+                        reason: reason.to_string(),
                     });
                     continue;
                 }
@@ -63,12 +65,12 @@ pub fn outdated(
 }
 
 /// The `(name, version)` pairs of released versions; branch pins such as `~master` are skipped.
-fn pinned(text: &str) -> Result<Vec<(String, String)>, String> {
-    let root: serde_json::Value =
-        serde_json::from_str(text).map_err(|e| format!("invalid dub.selections.json: {e}"))?;
+fn pinned(text: &str) -> Result<Vec<(String, String)>, DxError> {
+    let root: serde_json::Value = serde_json::from_str(text)
+        .map_err(|e| DxError::failure(format!("invalid dub.selections.json: {e}")))?;
     let versions = root["versions"]
         .as_object()
-        .ok_or("invalid dub.selections.json: missing versions")?;
+        .ok_or_else(|| DxError::failure("invalid dub.selections.json: missing versions"))?;
     Ok(versions
         .iter()
         .filter_map(|(name, entry)| {
@@ -80,8 +82,8 @@ fn pinned(text: &str) -> Result<Vec<(String, String)>, String> {
         .collect())
 }
 
-fn latest(body: &str) -> Result<String, String> {
-    serde_json::from_str::<String>(body.trim()).map_err(|_| "no version".to_owned())
+fn latest(body: &str) -> Result<String, DxError> {
+    serde_json::from_str::<String>(body.trim()).map_err(|_| DxError::failure("no version"))
 }
 
 #[cfg(test)]
@@ -90,7 +92,7 @@ mod tests {
 
     const SELECTIONS: &str = r#"{"fileVersion":1,"versions":{"semver":"0.8.0","vibe-d":"0.9.0","current":"1.0.0","branch":"~master","beta":"1.0.0"}}"#;
 
-    fn api(url: &str) -> Result<String, String> {
+    fn api(url: &str) -> Result<String, DxError> {
         let name = url
             .strip_prefix("https://code.dlang.org/api/packages/")
             .and_then(|rest| rest.strip_suffix("/latest"))
@@ -100,7 +102,7 @@ mod tests {
             "vibe-d" => r#""0.9.0""#,
             "current" => r#""1.0.0""#,
             "beta" => r#""2.0.0-beta.1""#,
-            _ => return Err(format!("unexpected lookup {name}")),
+            _ => return Err(DxError::failure(format!("unexpected lookup {name}"))),
         }
         .to_owned())
     }

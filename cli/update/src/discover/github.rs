@@ -1,5 +1,7 @@
 //! Lists GitHub Actions pins and the `.bazelversion` pin that lag the newest GitHub release.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError};
 use crate::edit::gha::{
     parse_workflow_pins, resolve_sha_from_commit_response, split_pin, version_numbers as numbers,
@@ -174,7 +176,7 @@ pub fn commit_sha(
     tag: &str,
     base: &str,
     fetch: &dyn Fetch,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let mut encoded = String::new();
     for byte in tag.bytes() {
         if byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'_' | b'-') {
@@ -184,7 +186,7 @@ pub fn commit_sha(
         }
     }
     let body = fetch.get(&format!("{base}/repos/{package}/commits/{encoded}"))?;
-    resolve_sha_from_commit_response(&body).map_err(|error| error.to_string())
+    resolve_sha_from_commit_response(&body).map_err(|error| DxError::failure(error.to_string()))
 }
 
 fn latest_release(package: &str, base: &str, fetch: &dyn Fetch) -> Result<Release, LookupError> {
@@ -192,10 +194,10 @@ fn latest_release(package: &str, base: &str, fetch: &dyn Fetch) -> Result<Releas
     let body = fetch
         .get(&format!("{base}/repos/{package}/releases/latest"))
         .map_err(|reason| {
-            fail(if reason == "HTTP 404" {
+            fail(if reason.message() == "HTTP 404" {
                 NO_RELEASE.to_owned()
             } else {
-                reason
+                reason.to_string()
             })
         })?;
     let json: Value = serde_json::from_str(&body).map_err(|e| fail(e.to_string()))?;
@@ -229,13 +231,13 @@ mod tests {
         )
     }
 
-    fn release(tag: &str) -> Result<String, String> {
+    fn release(tag: &str) -> Result<String, DxError> {
         Ok(format!(
             "{{\"tag_name\":\"{tag}\",\"published_at\":\"2026-01-01T00:00:00Z\"}}"
         ))
     }
 
-    fn run(uses: &str, body: Result<String, String>) -> Findings {
+    fn run(uses: &str, body: Result<String, DxError>) -> Findings {
         actions(&[flow(uses)], &[], "b", &move |_: &str| body.clone())
     }
 
@@ -252,12 +254,19 @@ mod tests {
 
     #[test]
     fn commit_sha_reports_fetch_and_upstream_errors() {
-        let missing = commit_sha("o/r", "v9", "b", &|_: &str| Err("HTTP 404".to_owned()));
-        assert_eq!(missing, Err("HTTP 404".to_owned()));
+        let missing = commit_sha("o/r", "v9", "b", &|_: &str| {
+            Err(DxError::failure("HTTP 404"))
+        });
+        assert_eq!(missing, Err(DxError::failure("HTTP 404")));
         let upstream = commit_sha("o/r", "v9", "b", &|_: &str| {
             Ok("{\"message\":\"No commit found\"}".to_owned())
         });
-        assert!(upstream.expect_err("error").contains("No commit found"));
+        assert!(
+            upstream
+                .expect_err("error")
+                .message()
+                .contains("No commit found")
+        );
     }
 
     #[test]
@@ -294,19 +303,19 @@ mod tests {
 
     #[test]
     fn local_and_docker_pins_are_skipped() {
-        let fetch = |_: &str| -> Result<String, String> { panic!("no fetch") };
+        let fetch = |_: &str| -> Result<String, DxError> { panic!("no fetch") };
         let flows = [flow("./local"), flow("docker://alpine:3")];
         assert_eq!(actions(&flows, &[], "b", &fetch), Findings::default());
     }
 
     #[test]
     fn missing_release_is_unknown_and_bad_json_is_an_error() {
-        let found = run("o/r@v1", Err("HTTP 404".into()));
+        let found = run("o/r@v1", Err(DxError::failure("HTTP 404")));
         assert_eq!(found.unknown[0].reason, "no GitHub release");
         assert!(found.errors.is_empty());
         let found = run("o/r@v1", Ok("nope".into()));
         assert_eq!(found.errors.len(), 1);
-        let found = run("o/r@v1", Err("HTTP 403".into()));
+        let found = run("o/r@v1", Err(DxError::failure("HTTP 403")));
         assert_eq!(found.errors.len(), 1);
     }
 

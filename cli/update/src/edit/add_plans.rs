@@ -1,5 +1,7 @@
 //! Insert planners for the manifests a missing `dx update` package is written to. Each one keeps every other byte.
 
+use dx_error::DxError;
+
 use crate::edit::request::plans::{JsonScan, NPM_SECTIONS, paket_tokens};
 
 fn line_ending(content: &str) -> &'static str {
@@ -16,16 +18,18 @@ pub(super) fn insert_cargo_dependency(
     content: &str,
     package: &str,
     version: &str,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let mut doc = content
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|_| "manifest is not valid TOML".to_owned())?;
+        .map_err(|_| DxError::failure("manifest is not valid TOML"))?;
     let item = doc.entry("dependencies").or_insert_with(toml_edit::table);
     let Some(table) = item.as_table_mut() else {
-        return Err("[dependencies] is not a table".to_owned());
+        return Err(DxError::failure("[dependencies] is not a table"));
     };
     if table.contains_key(package) {
-        return Err(format!("{package:?} is already in [dependencies]"));
+        return Err(DxError::failure(format!(
+            "{package:?} is already in [dependencies]"
+        )));
     }
     let keys: Vec<String> = table.iter().map(|(key, _)| key.to_owned()).collect();
     let sorted = keys.windows(2).all(|pair| pair[0] <= pair[1]);
@@ -36,14 +40,14 @@ pub(super) fn insert_cargo_dependency(
     let out = doc.to_string();
     let reparsed = out
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|_| "edit did not round-trip".to_owned())?;
+        .map_err(|_| DxError::failure("edit did not round-trip"))?;
     let kept = reparsed
         .get("dependencies")
         .and_then(|deps| deps.get(package))
         .and_then(|dep| dep.as_str())
         == Some(version);
     if !kept {
-        return Err("edit did not round-trip".to_owned());
+        return Err(DxError::failure("edit did not round-trip"));
     }
     Ok(out)
 }
@@ -53,11 +57,11 @@ pub(super) fn insert_npm_dependency(
     content: &str,
     package: &str,
     version: &str,
-) -> Result<String, String> {
-    let bad = |_| "manifest is not valid JSON".to_owned();
+) -> Result<String, DxError> {
+    let bad = |_| DxError::failure("manifest is not valid JSON");
     let root: serde_json::Value = serde_json::from_str(content).map_err(bad)?;
     let Some(root_object) = root.as_object() else {
-        return Err("manifest root is not an object".to_owned());
+        return Err(DxError::failure("manifest root is not an object"));
     };
     let eol = line_ending(content);
     let key = serde_json::to_string(package).map_err(bad)?;
@@ -70,28 +74,28 @@ pub(super) fn insert_npm_dependency(
     let root_open = scan.at;
     let members = scan
         .members()
-        .map_err(|_| "manifest is not valid JSON".to_owned())?;
+        .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
     let root_close = scan.at;
     let Some(&(_, last_root_value)) = members.last() else {
-        return Err("manifest root has no members".to_owned());
+        return Err(DxError::failure("manifest root has no members"));
     };
     let unit = line_indent(content, last_root_value);
     let multiline = content[root_open..root_close].contains('\n');
     let out = match members.iter().find(|(name, _)| name == "dependencies") {
         Some(&(_, at)) => {
             if !content[at..].starts_with('{') {
-                return Err("dependency section is not an object".to_owned());
+                return Err(DxError::failure("dependency section is not an object"));
             }
             scan.at = at;
             let entries = scan
                 .members()
-                .map_err(|_| "manifest is not valid JSON".to_owned())?;
+                .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
             let close = scan.at;
             match entries.last() {
                 Some(&(_, last)) => {
                     scan.at = last;
                     scan.skip_value()
-                        .map_err(|_| "manifest is not valid JSON".to_owned())?;
+                        .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
                     let end = scan.at;
                     let entry = if content[at..close].contains('\n') {
                         format!(",{eol}{}{key}: {value}", line_indent(content, last))
@@ -127,7 +131,7 @@ pub(super) fn insert_npm_dependency(
             };
             scan.at = after;
             scan.skip_value()
-                .map_err(|_| "manifest is not valid JSON".to_owned())?;
+                .map_err(|_| DxError::failure("manifest is not valid JSON"))?;
             let end = scan.at;
             let entry = if multiline {
                 format!(",{eol}{unit}{section}")
@@ -138,7 +142,7 @@ pub(super) fn insert_npm_dependency(
         }
     };
     let reparsed: serde_json::Value =
-        serde_json::from_str(&out).map_err(|_| "edit did not round-trip".to_owned())?;
+        serde_json::from_str(&out).map_err(|_| DxError::failure("edit did not round-trip"))?;
     let mut expected = root_object.clone();
     let deps = expected
         .entry("dependencies")
@@ -150,7 +154,7 @@ pub(super) fn insert_npm_dependency(
         );
     }
     if reparsed != serde_json::Value::Object(expected) {
-        return Err("edit did not round-trip".to_owned());
+        return Err(DxError::failure("edit did not round-trip"));
     }
     let declared = NPM_SECTIONS
         .iter()
@@ -162,7 +166,7 @@ pub(super) fn insert_npm_dependency(
         })
         .count();
     if declared != 1 {
-        return Err("edit did not round-trip".to_owned());
+        return Err(DxError::failure("edit did not round-trip"));
     }
     Ok(out)
 }
@@ -187,7 +191,7 @@ pub(super) fn insert_paket_dependency(
     content: &str,
     package: &str,
     version: &str,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let mut anchor = None;
     let mut fallback = None;
     let mut offset = 0usize;
@@ -208,7 +212,7 @@ pub(super) fn insert_paket_dependency(
         }
     }
     let Some((start, line)) = anchor.or(fallback) else {
-        return Err("no main-group declaration to add after".to_owned());
+        return Err(DxError::failure("no main-group declaration to add after"));
     };
     let eol = line_ending(content);
     let indent = &line[..line.len() - line.trim_start().len()];
@@ -230,19 +234,19 @@ pub(super) fn insert_pyproject_dependency(
     content: &str,
     package: &str,
     version: &str,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let mut doc = content
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|_| "manifest is not valid TOML".to_owned())?;
+        .map_err(|_| DxError::failure("manifest is not valid TOML"))?;
     let project = doc
         .get_mut("project")
         .and_then(toml_edit::Item::as_table_like_mut)
-        .ok_or_else(|| "no [project] table".to_owned())?;
+        .ok_or_else(|| DxError::failure("no [project] table"))?;
     let item = project
         .entry("dependencies")
         .or_insert_with(|| toml_edit::value(toml_edit::Array::new()));
     let Some(array) = item.as_array_mut() else {
-        return Err("[project].dependencies is not an array".to_owned());
+        return Err(DxError::failure("[project].dependencies is not an array"));
     };
     let requirement = format!("{package}>={version}");
     let multiline = array.iter().any(|value| {
@@ -279,18 +283,18 @@ pub(super) fn insert_pyproject_dependency(
         })
         .unwrap_or(false);
     if !kept {
-        return Err("edit did not round-trip".to_owned());
+        return Err(DxError::failure("edit did not round-trip"));
     }
     Ok(out)
 }
 
 /// Adds `gem "package", "~> major.minor"` after the last top-level `gem` line, or at the end.
-pub(super) fn insert_gem(content: &str, package: &str, version: &str) -> Result<String, String> {
+pub(super) fn insert_gem(content: &str, package: &str, version: &str) -> Result<String, DxError> {
     let mut parts = version.split('.');
     let requirement = match (parts.next(), parts.next()) {
         (Some(major), Some(minor)) => format!("{major}.{minor}"),
         (Some(major), None) => major.to_owned(),
-        _ => return Err("empty gem version".to_owned()),
+        _ => return Err(DxError::failure("empty gem version")),
     };
     let eol = line_ending(content);
     let mut at = content.len();

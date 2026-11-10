@@ -1,5 +1,7 @@
 //! Lists direct Julia packages whose newest General registry release is newer than the one locked.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -41,7 +43,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: name,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -100,10 +102,10 @@ fn locked_versions(manifest: &str) -> Vec<(String, String)> {
 }
 
 /// The newest version of a registry `Versions.toml`, skipping yanked ones.
-fn newest(body: &str, prereleases: bool) -> Result<String, String> {
+fn newest(body: &str, prereleases: bool) -> Result<String, DxError> {
     let doc: toml_edit::DocumentMut = body
         .parse()
-        .map_err(|e| format!("invalid Versions.toml: {e}"))?;
+        .map_err(|e| DxError::failure(format!("invalid Versions.toml: {e}")))?;
     let mut best: Option<String> = None;
     for (version, entry) in doc.iter() {
         let yanked = entry
@@ -121,7 +123,7 @@ fn newest(body: &str, prereleases: bool) -> Result<String, String> {
             best = Some(version);
         }
     }
-    best.ok_or_else(|| "no usable version".to_owned())
+    best.ok_or_else(|| DxError::failure("no usable version"))
 }
 
 fn strip_build(version: &str) -> String {
@@ -155,7 +157,7 @@ uuid = "00000000"
 version = "0.1.0"
 "#;
 
-    fn registry(url: &str) -> Result<String, String> {
+    fn registry(url: &str) -> Result<String, DxError> {
         let name = url
             .strip_prefix(&format!("{DEFAULT_BASE}/"))
             .and_then(|rest| rest.strip_suffix("/Versions.toml"))
@@ -164,7 +166,7 @@ version = "0.1.0"
             "O/OrderedCollections" => "[\"1.6.0\"]\ngit-tree-sha1 = \"a\"\n\n[\"1.8.1\"]\ngit-tree-sha1 = \"b\"\n\n[\"1.9.0\"]\ngit-tree-sha1 = \"c\"\nyanked = true\n",
             "P/Preferences" => "[\"1.5.0\"]\ngit-tree-sha1 = \"a\"\n\n[\"1.6.0-DEV\"]\ngit-tree-sha1 = \"b\"\n",
             "J/JSON" => "[\"0.21.4\"]\ngit-tree-sha1 = \"a\"\n",
-            _ => return Err(format!("unexpected lookup {name}")),
+            _ => return Err(DxError::failure(format!("unexpected lookup {name}"))),
         }
         .to_owned())
     }
@@ -211,7 +213,7 @@ version = "0.1.0"
             &["JSON".to_owned()],
             false,
             DEFAULT_BASE,
-            &|_: &str| Err("offline".to_owned()),
+            &|_: &str| Err(DxError::failure("offline")),
         );
         assert!(found.candidates.is_empty());
         assert_eq!(found.errors[0].package, "JSON");

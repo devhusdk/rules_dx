@@ -1,5 +1,7 @@
 //! Lists Composer packages whose newest stable release on Packagist is newer than composer.lock.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, github_repo, release_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -40,7 +42,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: name,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -111,11 +113,12 @@ fn is_prerelease(version: &str) -> bool {
 
 type Release = (String, Option<String>, bool, Option<String>);
 
-fn newest(body: &str, name: &str, prereleases: bool) -> Result<Release, String> {
-    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str, name: &str, prereleases: bool) -> Result<Release, DxError> {
+    let json: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     let entries = json["packages"][name]
         .as_array()
-        .ok_or_else(|| "package not found".to_owned())?;
+        .ok_or_else(|| DxError::failure("package not found"))?;
     entries
         .iter()
         .filter_map(|entry| {
@@ -137,7 +140,7 @@ fn newest(body: &str, name: &str, prereleases: bool) -> Result<Release, String> 
             ))
         })
         .max_by(|a, b| release_cmp(&a.0, &b.0))
-        .ok_or_else(|| "no stable version".to_owned())
+        .ok_or_else(|| DxError::failure("no stable version"))
 }
 
 #[cfg(test)]
@@ -147,7 +150,7 @@ mod tests {
     const JSON: &str = r#"{"require":{"php":"^8.2","ext-json":"*","psr/log":"^1.0","acme/gone":"^1.0"},"require-dev":{"phpunit/phpunit":"^10.0","acme/fresh":"^2.0"}}"#;
     const LOCK: &str = r#"{"packages":[{"name":"psr/log","version":"1.1.3"},{"name":"acme/gone","version":"v1.0.0"},{"name":"acme/fresh","version":"2.0.0"},{"name":"psr/extra","version":"1.0.0"}],"packages-dev":[{"name":"phpunit/phpunit","version":"10.5.1"}]}"#;
 
-    fn api(url: &str) -> Result<String, String> {
+    fn api(url: &str) -> Result<String, DxError> {
         let path = url
             .strip_prefix("https://repo.packagist.org/")
             .unwrap_or(url);
@@ -159,7 +162,7 @@ mod tests {
                 r#"{"packages":{"phpunit/phpunit":[{"version":"v10.5.1"}]}}"#
             }
             "p2/acme/fresh.json" => r#"{"packages":{"acme/fresh":[{"version":"2.0.0"}]}}"#,
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         }
         .to_owned())
     }

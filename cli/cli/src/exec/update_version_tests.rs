@@ -1285,7 +1285,7 @@ fn gha_tag_is_resolved_through_the_fetch() {
 
 #[test]
 fn gha_tag_fetch_error_and_offline_resolve_nothing() {
-    let failing = |_: &str| Err("HTTP 404".to_owned());
+    let failing = |_: &str| Err(dx_error::DxError::failure("HTTP 404"));
     let (code, message) =
         resolve_gha_tag_request(&tag_request(), None, false, &failing).expect_err("error");
     assert_eq!(code, CODE_UPDATE_WIDEN_FAILED);
@@ -1293,7 +1293,7 @@ fn gha_tag_fetch_error_and_offline_resolve_nothing() {
     let calls = std::cell::Cell::new(0);
     let counting = |_: &str| {
         calls.set(calls.get() + 1);
-        Err("unused".to_owned())
+        Err(dx_error::DxError::failure("unused"))
     };
     let (code, _) =
         resolve_gha_tag_request(&tag_request(), None, true, &counting).expect_err("error");

@@ -1,5 +1,7 @@
 //! Lists gems whose newest release on rubygems.org is newer than the version in the Gemfile.
 
+use dx_error::DxError;
+
 use super::{
     Candidate, Fetch, Findings, LookupError, github_repo, numeric_cmp, release_cmp, wanted,
 };
@@ -41,7 +43,7 @@ pub fn outdated(
                     found.errors.push(LookupError {
                         set: set.to_owned(),
                         package: name,
-                        reason,
+                        reason: reason.to_string(),
                     });
                     continue;
                 }
@@ -71,7 +73,7 @@ pub fn outdated(
 }
 
 /// The newest stable release of gem `name` on the API at `base`.
-pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, String> {
+pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let body = fetch.get(&format!("{base}/api/v1/versions/{name}.json"))?;
     newest(&body, false).map(|(version, _, _)| version)
 }
@@ -109,8 +111,9 @@ fn unquote(text: &str) -> Option<&str> {
     inner.split_once(quote).map(|(inside, _)| inside)
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool), String> {
-    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool), DxError> {
+    let json: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     json.as_array()
         .into_iter()
         .flatten()
@@ -127,7 +130,7 @@ fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool
             ))
         })
         .max_by(|a, b| release_cmp(&a.0, &b.0))
-        .ok_or_else(|| "no stable version".to_owned())
+        .ok_or_else(|| DxError::failure("no stable version"))
 }
 
 #[cfg(test)]
@@ -136,7 +139,7 @@ mod tests {
 
     const GEMFILE: &str = "source 'https://rubygems.org'\ngem 'rake'\ngem \"rails\", \"~> 7.0\", \">= 7.0.4\"\ngem 'fresh', '2.0', require: false\ngem 'gone', '1.0'\n  gem 'nokogiri', '>= 1.0'\n";
 
-    fn api(url: &str) -> Result<String, String> {
+    fn api(url: &str) -> Result<String, DxError> {
         let path = url.strip_prefix("https://rubygems.org/").unwrap_or(url);
         Ok(match path {
             "api/v1/versions/rails.json" => {
@@ -147,7 +150,7 @@ mod tests {
             }
             "api/v1/versions/fresh.json" => r#"[{"number":"2.0","prerelease":false}]"#,
             "api/v1/versions/nokogiri.json" => r#"[{"number":"1.16.0","prerelease":false}]"#,
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         }
         .to_owned())
     }

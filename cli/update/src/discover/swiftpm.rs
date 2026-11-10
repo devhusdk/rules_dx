@@ -49,7 +49,7 @@ pub fn outdated(
             let body = match fetch.get(&format!("{base}/repos/{repo}/tags?per_page=100")) {
                 Ok(body) => body,
                 Err(reason) => {
-                    found.errors.push(error(reason));
+                    found.errors.push(error(reason.to_string()));
                     continue;
                 }
             };
@@ -106,6 +106,7 @@ fn newest(body: &str, prereleases: bool) -> Option<(Version, String)> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_error::DxError;
 
     fn pin(location: &str, version: &str) -> String {
         format!(
@@ -117,13 +118,13 @@ mod tests {
         vec![format!(r#"{{"pins":[{}],"version":2}}"#, pins.join(","))]
     }
 
-    fn tags(url: &str) -> Result<String, String> {
+    fn tags(url: &str) -> Result<String, DxError> {
         Ok(match url.split("/repos/").nth(1).unwrap_or("") {
             u if u.starts_with("apple/swift-argument-parser/") => {
                 r#"[{"name":"1.9.0-beta.1"},{"name":"1.8.3"},{"name":"1.8.2"},{"name":"docs"}]"#
             }
             u if u.starts_with("vapor/vapor/") => r#"[{"name":"v4.50.0"},{"name":"v4.49.0"}]"#,
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         }
         .to_owned())
     }

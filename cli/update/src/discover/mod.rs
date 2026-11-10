@@ -1,5 +1,7 @@
 //! Finds packages whose newest stable version is outside the declared requirement.
 
+use dx_error::DxError;
+
 pub mod bcr;
 pub mod cabal;
 pub mod cargo;
@@ -23,16 +25,16 @@ pub mod swiftpm;
 /// Reads one registry URL and returns the response body.
 pub trait Fetch {
     /// Returns the body, or a short reason the lookup failed.
-    fn get(&self, url: &str) -> Result<String, String>;
+    fn get(&self, url: &str) -> Result<String, DxError>;
 
     /// Returns the `Docker-Content-Digest` a registry reports for a manifest URL.
-    fn digest(&self, _url: &str) -> Result<String, String> {
-        Err("this fetcher cannot read image digests".to_owned())
+    fn digest(&self, _url: &str) -> Result<String, DxError> {
+        Err(DxError::failure("this fetcher cannot read image digests"))
     }
 }
 
-impl<F: Fn(&str) -> Result<String, String>> Fetch for F {
-    fn get(&self, url: &str) -> Result<String, String> {
+impl<F: Fn(&str) -> Result<String, DxError>> Fetch for F {
+    fn get(&self, url: &str) -> Result<String, DxError> {
         self(url)
     }
 }

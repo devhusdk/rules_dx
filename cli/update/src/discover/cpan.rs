@@ -1,5 +1,7 @@
 //! Lists modules whose newest release on MetaCPAN is newer than the version in the cpanfile.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -38,7 +40,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: name,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -84,12 +86,13 @@ fn unquote(text: &str) -> Option<&str> {
     text[1..].split_once(quote).map(|(inside, _)| inside)
 }
 
-fn newest(body: &str) -> Result<(String, Option<String>, bool), String> {
-    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str) -> Result<(String, Option<String>, bool), DxError> {
+    let json: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     let version = match &json["version"] {
         serde_json::Value::String(text) => text.clone(),
         serde_json::Value::Number(number) => number.to_string(),
-        _ => return Err("no version".to_owned()),
+        _ => return Err(DxError::failure("no version")),
     };
     Ok((
         version,
@@ -132,7 +135,7 @@ mod tests {
 
     const CPANFILE: &str = "requires 'Clone::PP', '== 1.09';\nrequires 'Carton', '== v1.0.35';\nrequires 'Fresh', '0.5';\nrequires 'NoVersion';\nrequires 'Gone', '1.0';\n  requires 'Dev', '>= 1.0';\n";
 
-    fn api(url: &str) -> Result<String, String> {
+    fn api(url: &str) -> Result<String, DxError> {
         let path = url.strip_prefix("https://fastapi.metacpan.org/v1/module/");
         let module = path.and_then(|p| p.split('?').next()).unwrap_or(url);
         Ok(match module {
@@ -144,7 +147,7 @@ mod tests {
             }
             "Fresh" => r#"{"version":0.5,"maturity":"released"}"#,
             "Dev" => r#"{"version":"2.0","maturity":"developer"}"#,
-            _ => return Err("HTTP 404".to_owned()),
+            _ => return Err(DxError::failure("HTTP 404")),
         }
         .to_owned())
     }

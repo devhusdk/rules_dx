@@ -1,5 +1,7 @@
 //! Lists cabal packages whose newest preferred release on Hackage is newer than the freeze file pin.
 
+use dx_error::DxError;
+
 use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, wanted};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
@@ -51,7 +53,7 @@ pub fn outdated(
                 found.errors.push(LookupError {
                     set: set.to_owned(),
                     package: name,
-                    reason,
+                    reason: reason.to_string(),
                 });
                 continue;
             }
@@ -99,8 +101,9 @@ fn frozen(text: &str) -> Vec<(String, String)> {
 }
 
 /// The highest version Hackage lists as normal, which leaves out deprecated ones.
-fn newest(body: &str) -> Result<String, String> {
-    let json: serde_json::Value = serde_json::from_str(body).map_err(|e| e.to_string())?;
+fn newest(body: &str) -> Result<String, DxError> {
+    let json: serde_json::Value =
+        serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     json["normal-version"]
         .as_array()
         .into_iter()
@@ -108,7 +111,7 @@ fn newest(body: &str) -> Result<String, String> {
         .filter_map(|version| version.as_str())
         .max_by(|a, b| numeric_cmp(a, b))
         .map(str::to_owned)
-        .ok_or_else(|| "no preferred version".to_owned())
+        .ok_or_else(|| DxError::failure("no preferred version"))
 }
 
 /// Reads every package of the `build-depends` fields of a `.cabal` file, with the byte range of its bound.
@@ -215,7 +218,7 @@ mod tests {
     const CABAL: &str = "name: demo\nlibrary\n  build-depends: base, safe ==0.3.21, split ==0.2.5\n  -- note, ignored\n  default-language: Haskell2010\n";
     const FREEZE: &str = "constraints: any.base ==4.20.2.0,\n             any.safe ==0.3.21,\n             any.split ==0.2.5,\n             any.text ==2.1.2\nindex-state: hackage.haskell.org 2026-09-30T23:43:34Z\n";
 
-    fn preferred(url: &str) -> Result<String, String> {
+    fn preferred(url: &str) -> Result<String, DxError> {
         let name = url
             .strip_prefix("https://hackage.haskell.org/package/")
             .and_then(|rest| rest.strip_suffix("/preferred"))
@@ -226,7 +229,7 @@ mod tests {
             }
             "split" => r#"{"normal-version":["0.2.5"],"deprecated-version":[]}"#,
             "base" => r#"{"normal-version":["4.20.2.0","4.9.0.0"]}"#,
-            _ => return Err(format!("unexpected lookup {name}")),
+            _ => return Err(DxError::failure(format!("unexpected lookup {name}"))),
         }
         .to_owned())
     }
@@ -252,7 +255,7 @@ mod tests {
 
     #[test]
     fn a_failed_lookup_is_an_error_not_a_candidate() {
-        let fail = |_: &str| Err("offline".to_owned());
+        let fail = |_: &str| Err(DxError::failure("offline"));
         let found = outdated(
             "hs",
             &[CABAL.to_owned()],

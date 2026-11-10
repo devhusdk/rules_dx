@@ -537,6 +537,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_thrift_lint_warning_fail",
@@ -551,6 +552,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_thrift_lint_semantic_fail",
@@ -580,6 +582,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_thrift_lint_include_undeclared",
@@ -594,6 +597,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_qml_format_pass",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check that each bench and fuzz macro in a rules/defs.bzl has a language row."""
+"""Check that each bench and fuzz macro in a private/defs.bzl has a language row."""
 
 import os
 import re
@@ -27,7 +27,7 @@ def macros(root):
     found = {}
     for dirpath, dirs, files in os.walk(root):
         dirs[:] = [d for d in dirs if not d.startswith((".", "bazel-"))]
-        if os.path.basename(dirpath) != "rules" or "defs.bzl" not in files:
+        if os.path.basename(dirpath) != "private" or "defs.bzl" not in files:
             continue
         path = os.path.join(dirpath, "defs.bzl")
         with open(path, encoding="utf-8") as f:

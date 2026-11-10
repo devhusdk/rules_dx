@@ -54,7 +54,8 @@ fn hits(report: &str, source: &str) -> u64 {
 #[test]
 fn hello_test_covers_the_component_and_its_helper() {
     let report = lcov();
-    for source in ["hello/Hello.vue", "hello/helper.js"] {
+    let sources_env = std::env::var("HELLO_SOURCES").expect("HELLO_SOURCES is set");
+    for source in sources_env.split_whitespace() {
         assert!(
             sources(&report).iter().any(|name| name.ends_with(source)),
             "{source} missing from {:?}",

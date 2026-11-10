@@ -68,7 +68,7 @@ func (l *juliaLang) Imports(_ *config.Config, r *rule.Rule, _ *rule.File) []reso
 }
 
 // listSources returns the .jl files under root/dir, sorted. A directory with
-// its own Project.toml is another package and is skipped; a directory with a
+// its own project file is another package and is skipped; a directory with a
 // BUILD file is an error because a label cannot cross into it.
 func listSources(root, dir string) ([]string, error) {
 	base := filepath.Join(root, dir)

@@ -8,7 +8,7 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
-// goModManifest holds the module paths a go.mod requires.
+// goModManifest holds the module paths the Go module file requires.
 type goModManifest struct {
 	direct   []string
 	indirect []string

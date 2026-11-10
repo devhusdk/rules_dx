@@ -13,7 +13,7 @@ import (
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
-// Project holds the facts dx generate reads from a Project.toml.
+// Project holds the facts dx generate reads from the project file.
 type Project struct {
 	Name string
 	UUID string
@@ -48,7 +48,7 @@ func IsIdentifier(name string) bool {
 	return true
 }
 
-// ParseProject reads path's content. A Project.toml without a name is an
+// ParseProject reads path's content. A project file without a name is an
 // environment and parses to an empty Name. Errors name path.
 func ParseProject(path string, content []byte) (Project, error) {
 	var raw projectTOML
@@ -100,7 +100,7 @@ func uuidTable(path, table string, raw map[string]any) (map[string]string, error
 }
 
 // TestDeps returns the sorted package names the tests need, excluding the
-// package itself: test/Project.toml [deps] when it exists (override), else
+// package itself: the test project file [deps] when it exists (override), else
 // [extras] filtered by [targets].test.
 func (p Project) TestDeps(override *Project) map[string]string {
 	out := make(map[string]string)

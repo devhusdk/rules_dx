@@ -106,12 +106,12 @@ func listSources(root, dir string, keep func(string) bool) ([]string, error) {
 	return out, err
 }
 
-// mixOutputDirs are the directories Mix fills next to a mix.exs: fetched Hex
-// checkouts and build output. Their mix.exs files belong to other projects.
+// mixOutputDirs are the directories Mix fills next to the Mix project file: fetched Hex
+// checkouts and build output. Their project files belong to other projects.
 var mixOutputDirs = []string{"deps", "_build"}
 
 // inMixOutput reports whether rel sits under deps/ or _build/ of an ancestor
-// directory that has a mix.exs. A custom deps_path or build_path is not read;
+// directory that has a Mix project file. A custom deps_path or build_path is not read;
 // exclude it with # gazelle:exclude.
 func inMixOutput(root, rel string) bool {
 	if rel == "" {

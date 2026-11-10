@@ -1,4 +1,4 @@
-// Command modfmt formats go.mod files.
+// Command modfmt formats Go module files.
 package main
 
 import (

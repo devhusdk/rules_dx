@@ -13,8 +13,8 @@ const defaultNpmHub = "npm"
 var npmHubs sync.Map
 
 // NpmHub returns the repository name of the npm hub that links the
-// pnpm-lock.yaml at lockRel, read from the npm_translate_lock call in the root
-// MODULE.bazel and the files it includes. It returns "npm" when nothing matches.
+// pnpm lock at lockRel, read from the npm_translate_lock call in the root
+// root module file and the files it includes. It returns "npm" when nothing matches.
 func NpmHub(repoRoot, lockRel string) string {
 	hubs, ok := npmHubs.Load(repoRoot)
 	if !ok {

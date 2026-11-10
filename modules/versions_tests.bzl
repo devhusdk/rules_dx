@@ -53,8 +53,8 @@ def versions_contract_tests(name):
         for cell in _CUDA_CELLS.values()
         for pin in cell.components.values()
     ]
-    gem_pins = [_GEM_CHECKSUMS[gem] for gem in _GEM_CHECKSUMS]
-    portable_ruby_pins = [_PORTABLE_RUBY_CHECKSUMS[name] for name in _PORTABLE_RUBY_CHECKSUMS]
+    gem_pins = ["        \"" + gem + "\": \"" + _GEM_CHECKSUMS[gem] + "\"," for gem in _GEM_CHECKSUMS]
+    portable_ruby_pins = ["        \"" + name + "\": \"" + _PORTABLE_RUBY_CHECKSUMS[name] + "\"," for name in _PORTABLE_RUBY_CHECKSUMS]
     source_archive_pins = [
         _archive_pin(FLATBUFFERS_SHA256, FLATBUFFERS_STRIP_PREFIX, FLATBUFFERS_URL),
         _archive_pin(FLATBUFFERS_SHA256, FLATBUFFERS_RUST_STRIP_PREFIX, FLATBUFFERS_URL),
@@ -103,7 +103,7 @@ def versions_contract_tests(name):
         ],
         file_blocks = {
             "@cuda_redistrib_json//file": cuda_manifest_blocks,
-            "//:MODULE.bazel": [manifests_block] + source_archive_pins + [
+            "//:MODULE.bazel": [manifests_block, "    version = \"" + _RUBY_VERSION + "\",\n"] + gem_pins + portable_ruby_pins + source_archive_pins + [
                 "    sha256 = \"" + _CUDA_REDIST_SHA256 + "\",\n    urls = [\"" + _CUDA_REDIST_URL + "\"],",
             ],
             "//tools/bazelrc:src/lib.rs": [
@@ -115,7 +115,6 @@ def versions_contract_tests(name):
             "//:.bazelrc": "common --check_direct_dependencies=error",
             "@rules_dx_cuda//:README.md": cuda_stanza,
             "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
-            "@rules_dx_ruby//:MODULE.bazel": "\n".join(["version = \"" + _RUBY_VERSION + "\""] + gem_pins + portable_ruby_pins),
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//quality/tools/javascript:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//quality/tools/javascript:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",

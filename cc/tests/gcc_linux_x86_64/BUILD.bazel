@@ -24,7 +24,7 @@ cc_toolchain_files(
     name = "gcc_x86_64",
     srcs = [
         ":hello_c",
-        "//cc/tests/fixtures/gcc_shared:greet_shared",
+        "//cc/tests/fixtures/shared:greet_shared",
         "//cc/tests/fixtures/hello:hello",
     ],
     compiler = "gcc",

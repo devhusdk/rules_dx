@@ -142,7 +142,7 @@ fn reports_shared_library_lines() {
     let lcov = fs::read_to_string(run.coverage_dir.join("coverage.dat")).unwrap();
     let record = lcov
         .split("end_of_record")
-        .find(|r| r.contains("SF:cc/tests/fixtures/gcc_shared/greet.cc"))
+        .find(|r| r.contains("SF:cc/tests/fixtures/shared/greet.cc"))
         .unwrap_or_else(|| panic!("{lcov}"));
     let hit = record
         .lines()

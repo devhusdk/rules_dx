@@ -60,11 +60,12 @@ def shard_bzl(root, shard):
     pattern = re.compile(r"^(%s\s*=|def %s\()" % (re.escape(shard), re.escape(shard)), re.M)
     base = os.path.join(root, "tools/docs")
     for name in sorted(os.listdir(base)):
-        path = "tools/docs/%s/defs.bzl" % name
-        text = read(root, path)
-        if text is not None and pattern.search(text):
-            return name, path
-    raise SystemExit("languages: no defs.bzl defines %s" % shard)
+        for bzl in ("defs.bzl", "%s.bzl" % name):
+            path = "tools/docs/%s/%s" % (name, bzl)
+            text = read(root, path)
+            if text is not None and pattern.search(text):
+                return path
+    raise SystemExit("languages: no bzl defines %s" % shard)
 
 
 def read(root, path):
@@ -231,9 +232,9 @@ def api_docs(root, lang, rows):
     if not shard:
         out.append("No API doc tool yet.\n")
         return out
-    package, path = shard_bzl(root, shard)
+    path = shard_bzl(root, shard)
     out.append("Tool: `%s`.\n" % row["doc"])
-    out.append("```python\nload(\"@rules_dx//tools/docs/%s:defs.bzl\", \"%s\")\n```\n" % (package, shard))
+    out.append("```python\nload(\"@rules_dx//%s\", \"%s\")\n```\n" % ("%s:%s" % os.path.split(path), shard))
     out.append("### `%s`\n" % shard)
     out.extend(render(shard, describe(root, path, shard)))
     out.append("Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).\n")

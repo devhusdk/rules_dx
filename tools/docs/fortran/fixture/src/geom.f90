@@ -15,7 +15,7 @@ module geom
     !> Computes area.
     procedure(area_i), deferred :: area
   end type
-  type, extends(shape_t) :: sq_t
+  type, abstract, extends(shape_t) :: sq_t
      real :: side
   end type
   abstract interface

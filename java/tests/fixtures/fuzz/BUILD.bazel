@@ -57,3 +57,5 @@ dx_runner_attr_test(
     ]},
     runner = "parse_fuzz_run",
 )
+
+exports_files(["run_test.sh"])

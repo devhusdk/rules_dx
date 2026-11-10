@@ -3,7 +3,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//flutter:defs.bzl", "flutter_application", "flutter_library", "flutter_test", "flutter_web_app")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load(":web_tests.bzl", "web_owns_main_test")
+load("@rules_dx//dart/tests/web:web_tests.bzl", "web_owns_main_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -57,6 +57,6 @@ flutter_test(
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel", "web_tests.bzl"],
+    starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

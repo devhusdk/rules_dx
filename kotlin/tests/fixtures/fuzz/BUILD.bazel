@@ -14,7 +14,7 @@ kotlin_fuzz_test(
 
 sh_test(
     name = "parse_fuzz_run_test",
-    srcs = ["run_test.sh"],
+    srcs = ["//java/tests/fixtures/fuzz:run_test.sh"],
     args = [
         "$(rlocationpath @rules_dx//cli/fuzz_run:fuzz_run)",
         "$(rootpath :parse_fuzz)",

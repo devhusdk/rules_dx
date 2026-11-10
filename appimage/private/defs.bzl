@@ -71,6 +71,8 @@ def _appimage_impl(ctx):
     for target in ctx.attr.data:
         for file in target[DefaultInfo].files.to_list():
             rel = data_path(file, target.label)
+            if ":" in rel:
+                fail("appimage_package " + str(ctx.label) + ": data destination must not contain ':': " + rel)
             _add(ctx, args, inputs, seen, "data", "usr/share/" + name + "/" + rel, "data:" + rel + ":" + file.path, file)
 
     ctx.actions.run(

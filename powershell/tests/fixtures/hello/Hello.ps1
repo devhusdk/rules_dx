@@ -1,3 +1,4 @@
 #!/usr/bin/env pwsh
 # Hello entry point for the PowerShell foundation fixture.
-Write-Output "hello powershell"
+Import-Module (Join-Path $PSScriptRoot "Greet.psm1") -Force
+Write-Output (Get-Greeting)

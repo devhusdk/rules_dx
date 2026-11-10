@@ -2,6 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "non_root_toolchain.patch",
+    "target_runtime_root.patch",
     "toolchain_sysroot_env.patch",
 ])
 

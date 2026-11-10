@@ -1,19 +1,18 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
-load(":toolchain.bzl", "swift_linux_toolchain")
+load(":toolchain.bzl", "SWIFT_LINUX_CPUS", "swift_linux_toolchain")
 load(":windows.bzl", "swift_windows_toolchain")
 
 package(default_visibility = ["//visibility:public"])
 
 [
     swift_linux_toolchain(
-        name = "toolchain_" + cpu,
-        cpu = cpu,
+        name = "toolchain_%s_%s" % (exec_cpu, target_cpu),
+        exec_cpu = exec_cpu,
+        target_cpu = target_cpu,
     )
-    for cpu in [
-        "aarch64",
-        "x86_64",
-    ]
+    for exec_cpu in SWIFT_LINUX_CPUS
+    for target_cpu in SWIFT_LINUX_CPUS
 ]
 
 swift_windows_toolchain(

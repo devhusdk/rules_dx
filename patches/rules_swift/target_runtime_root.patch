@@ -1,0 +1,117 @@
+diff --git a/swift/internal/extensions/toolchain.BUILD b/swift/internal/extensions/toolchain.BUILD
+--- a/swift/internal/extensions/toolchain.BUILD
++++ b/swift/internal/extensions/toolchain.BUILD
+@@ -304,6 +304,34 @@
+     ],
+ )
+ 
++exports_files([".swift-version"])
++
++filegroup(
++    name = "swift_tool_inputs",
++    srcs = _SWIFT_TOOL_INPUTS,
++)
++
++filegroup(
++    name = "linux_dynamic_runtime",
++    srcs = glob(
++        ["usr/lib/swift/linux/*.so*"],
++        allow_empty = True,
++    ),
++)
++
++filegroup(
++    name = "linux_static_runtime",
++    srcs = glob(
++        [
++            "usr/lib/swift/linux/*.a",
++            "usr/lib/swift_static/linux/*.a",
++            "usr/lib/swift_static/linux/*.lnk",
++            "usr/lib/swift_static/linux/*/*.o",
++        ],
++        allow_empty = True,
++    ),
++)
++
+ swift_tools(
+     name = "tools",
+     additional_inputs = _SWIFT_TOOL_INPUTS,
+diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolchain.bzl
+--- a/swift/toolchains/swift_toolchain.bzl
++++ b/swift/toolchains/swift_toolchain.bzl
+@@ -207,7 +207,7 @@
+ 
+     return tool_configs
+ 
+-def _all_action_configs(os, arch, target_triple, sdkroot, xctest_version, additional_swiftc_copts):
++def _all_action_configs(os, arch, target_triple, sdkroot, resource_dir, xctest_version, additional_swiftc_copts):
+     """Returns the action configurations for the Swift toolchain.
+ 
+     Args:
+@@ -215,6 +215,8 @@
+         arch: The architecture we are compiling for.
+         target_triple: The triple of the platform being targeted.
+         sdkroot: The path to the SDK that we should use to build against.
++        resource_dir: The path to the Swift resource directory of the target,
++            or `None` to use the one next to the Swift tools.
+         xctest_version: The version of XCTest to use.
+         additional_swiftc_copts: Additional Swift compiler flags obtained from
+             the `.../swift:copt` build setting.
+@@ -252,6 +254,17 @@
+             ],
+         ),
+     ]
++    if resource_dir:
++        action_configs.append(
++            ActionConfigInfo(
++                actions = all_compile_action_names() + [
++                    SWIFT_ACTION_DUMP_AST,
++                    SWIFT_ACTION_PRECOMPILE_C_MODULE,
++                    SWIFT_ACTION_SYMBOL_GRAPH_EXTRACT,
++                ],
++                configurators = [add_arg("-Xwrapped-swift=-resource-dir=" + resource_dir)],
++            ),
++        )
+     if sdkroot:
+         action_configs.append(
+             ActionConfigInfo(
+@@ -710,6 +723,8 @@
+ 
+         toolchain_root = paths.dirname(ctx.attr.swift_tools[SwiftToolsInfo].swift_driver.dirname)
+ 
++    runtime_root = ctx.attr.runtime_root or toolchain_root
++
+     dynamic_runtime_cc_info = None
+     static_runtime_cc_info = None
+     if ctx.attr.os == "windows":
+@@ -752,7 +767,7 @@
+             ctx.attr.arch,
+             ctx.attr.os,
+             ctx.label,
+-            toolchain_root,
++            runtime_root,
+             ctx.attr.swift_tools[SwiftToolsInfo].additional_inputs if ctx.attr.swift_tools else [],
+             ctx.files.dynamic_runtime,
+             ctx.files.static_runtime,
+@@ -812,6 +827,7 @@
+         arch = ctx.attr.arch,
+         target_triple = target_triple,
+         sdkroot = sdkroot,
++        resource_dir = paths.join(runtime_root, "lib", "swift") if ctx.attr.runtime_root else None,
+         xctest_version = ctx.attr.xctest_version,
+         additional_swiftc_copts = ctx.attr.copts + swiftcopts,
+     )
+@@ -1007,6 +1023,13 @@
+                 mandatory = True,
+             ),
+             "root": attr.string(),
++            "runtime_root": attr.string(
++                doc = """\
++The root of the toolchain whose Swift runtime and resource directory the target
++is built and linked against. Defaults to the root of the Swift tools. Set it to
++the toolchain of the target cpu when the tools run on another cpu.
++""",
++            ),
+             "sdkroot": attr.string(
+                 doc = """\
+ The root of a SDK to be used for building the target.

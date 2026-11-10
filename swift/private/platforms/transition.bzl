@@ -1,17 +1,34 @@
 """Builds Swift targets for the Swift Linux platform."""
 
+load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
 load("//core:platform.bzl", "single_platform_error")
 
 _PLATFORMS = "//command_line_option:platforms"
 _EXEC = "//command_line_option:extra_execution_platforms"
 _TOOLCHAINS = "//command_line_option:extra_toolchains"
 
-def swift_transition_settings(settings, attr):
+def swift_exec_platform(platform, host_constraints):
+    """Returns the execution platform that builds for a platform.
+
+    Args:
+        platform: The target platform label string.
+        host_constraints: The constraint labels of the host.
+
+    Returns:
+        The Linux platform of the host cpu on a Linux host, else the target platform.
+    """
+    if "@platforms//os:linux" not in host_constraints:
+        return platform
+    cpu = "aarch64" if "@platforms//cpu:aarch64" in host_constraints else "x86_64"
+    return str(Label("//swift/private/platforms:exec_linux_" + cpu))
+
+def swift_transition_settings(settings, attr, host_constraints = HOST_CONSTRAINTS):
     """Returns the settings Swift targets build with.
 
     Args:
         settings: The incoming command line option values.
         attr: The attributes of the rule being configured.
+        host_constraints: The constraint labels of the host.
 
     Returns:
         The new platforms, execution platforms and toolchains.
@@ -26,9 +43,10 @@ def swift_transition_settings(settings, attr):
     if error:
         fail(error)
     platform = str(attr.platforms[0])
+    exec_platform = swift_exec_platform(platform, host_constraints)
     return {
         _PLATFORMS: [platform],
-        _EXEC: [platform] + [str(p) for p in settings[_EXEC] if str(p) != platform],
+        _EXEC: [exec_platform] + [str(p) for p in settings[_EXEC] if str(p) != exec_platform],
         _TOOLCHAINS: toolchains,
     }
 

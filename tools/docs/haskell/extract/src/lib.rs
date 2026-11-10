@@ -46,35 +46,16 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut values: BTreeMap<&str, &str> = BTreeMap::new();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        if !["--hoogle", "--sources", "--out", "--package", "--config"].contains(&flag) {
-            return Err(format!("unknown argument '{flag}'"));
-        }
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if values.insert(flag, value.as_str()).is_some() {
-            return Err(format!("{flag} given more than once"));
-        }
-        index += 2;
-    }
-    let one = |name: &str| match values.get(name) {
-        Some(value) if !value.is_empty() => Ok((*value).to_owned()),
-        Some(_) => Err(format!("{name} must not be empty")),
-        None => Err(format!("{name} is required")),
-    };
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &["--hoogle", "--sources", "--out", "--package", "--config"],
+    )?;
     Ok(Options {
-        hoogle: one("--hoogle")?,
-        sources: one("--sources")?,
-        out: one("--out")?,
-        package: one("--package")?,
-        config: values
-            .get("--config")
-            .map(|value| (*value).to_owned())
-            .unwrap_or_default(),
+        hoogle: flags.one("--hoogle")?,
+        sources: flags.one("--sources")?,
+        out: flags.one("--out")?,
+        package: flags.one("--package")?,
+        config: flags.optional("--config")?.unwrap_or_default(),
     })
 }
 
@@ -121,9 +102,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         texts.insert(source.exec_path.clone(), read(&source.exec_path)?);
     }
     let shard = convert(&hoogle, &sources, &texts, &options.package, &options.config)?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 struct Module<'a> {

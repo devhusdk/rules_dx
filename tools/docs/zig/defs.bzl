@@ -54,7 +54,8 @@ def zig_shard_action(ctx, own, package, config, stem, dump_tool, extract_tool):
     extract.add("--dump", dump)
     extract.add("--sources", manifest)
     extract.add("--package", package)
-    extract.add("--config", config)
+    if config:
+        extract.add("--config", config)
     extract.add("--out", shard)
     ctx.actions.run(
         executable = extract_tool,

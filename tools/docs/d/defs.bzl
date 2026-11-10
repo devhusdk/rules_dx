@@ -68,7 +68,8 @@ def d_shard_action(ctx, info, own, package, config, stem, extract_tool):
     extract.add("--api", api_json)
     extract.add("--sources", manifest)
     extract.add("--package", package)
-    extract.add("--config", config)
+    if config:
+        extract.add("--config", config)
     extract.add("--out", shard)
     ctx.actions.run(
         executable = extract_tool,

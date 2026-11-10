@@ -1,7 +1,3 @@
-android/private/packaging/BUILD.bazel manual 4
-android/tests/fixtures/adopt-android/app/BUILD.bazel manual 1
-android/tests/fixtures/consumer_android/BUILD.bazel manual 1
-android/tests/fixtures/native_lib/BUILD.bazel manual 2
 apple/private/ios/BUILD.bazel manual 3
 apple/private/ios/app.bzl manual 1
 apple/private/ios/app.bzl no-sandbox 1

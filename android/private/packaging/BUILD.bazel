@@ -2,7 +2,7 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_java//java:java_import.bzl", "java_import")
-load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_sign", "rust_android_apk")
+load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check_selection", "android_sign", "rust_android_apk")
 load(":metadata_tests.bzl", "android_packaging_tests")
 load(":rotation_tests.bzl", "keystore_properties_test")
 
@@ -44,8 +44,7 @@ rust_android_apk(
 
 keystore_properties_test(
     name = "rotated_bundle_test",
-    oldest_key_short_path = "../rules_android+/tools/android/debug_keystore",
-    tags = ["manual"],
+    oldest_key_short_path = "../rules_android+/tools/android/bazel_debug.keystore",
     target_under_test = ":rotated_bundle",
 )
 
@@ -243,11 +242,10 @@ failure_test(
     target = ":v4_only_sign_selection",
 )
 
-android_check(
+android_check_selection(
     name = "bad_abi_aab_check",
     package = "//android/tests/fixtures/rust_apk:dummy.apk",
     platforms = ["//android/platforms:mips"],
-    tags = ["manual"],
 )
 
 failure_test(
@@ -256,11 +254,10 @@ failure_test(
     target = ":bad_abi_aab_check_selection",
 )
 
-android_check(
+android_check_selection(
     name = "bad_resource_aab_check",
     package = "//android/tests/fixtures/rust_apk:dummy.apk",
     resources = ["app_name"],
-    tags = ["manual"],
 )
 
 failure_test(
@@ -354,11 +351,10 @@ real_source_target(
     tags = ["corpus"],
 )
 
-android_check(
+android_check_selection(
     name = "apk_platforms_check",
     package = "//android/tests/fixtures/rust_apk:dummy.apk",
     resources = ["string/app_name"],
-    tags = ["manual"],
 )
 
 failure_test(

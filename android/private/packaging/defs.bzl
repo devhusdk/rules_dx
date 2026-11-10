@@ -648,17 +648,35 @@ _check_selection = rule(
     },
 )
 
-def android_check(name, package, platforms = [], resources = [], size = "small", tags = None, target_compatible_with = None, visibility = None):
-    """Declares a test that the package is an unsigned APK or a valid App Bundle."""
-    abis = abis_for_platforms(platforms)
+def android_check_selection(name, package, platforms = [], resources = [], target_compatible_with = None):
+    """Declares the validation of an android_check without its test, for analysis-failure proofs.
+
+    Args:
+        name: Target name; the rule is declared as name + "_selection".
+        package: The APK or App Bundle to check.
+        platforms: Platforms the bundle must package.
+        resources: type/name resources the bundle must resolve.
+        target_compatible_with: Platform constraints of the target.
+    """
     _check_selection(
         name = name + "_selection",
         package = package,
-        abis = abis,
+        abis = abis_for_platforms(platforms),
         resources = resources,
         tags = ["manual"],
         target_compatible_with = target_compatible_with,
         visibility = ["//visibility:private"],
+    )
+
+def android_check(name, package, platforms = [], resources = [], size = "small", tags = None, target_compatible_with = None, visibility = None):
+    """Declares a test that the package is an unsigned APK or a valid App Bundle."""
+    abis = abis_for_platforms(platforms)
+    android_check_selection(
+        name = name,
+        package = package,
+        platforms = platforms,
+        resources = resources,
+        target_compatible_with = target_compatible_with,
     )
     args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + package + ")"]
     for abi in abis:

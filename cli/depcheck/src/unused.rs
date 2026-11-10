@@ -1,8 +1,9 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::DepcheckError;
 use crate::dep_key::normalize_dep_key;
-use crate::{DepcheckError, Ecosystem};
+use dx_ecosystems::Language;
 
 /// A declared dependency that no source file under the scanned root uses.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,7 +43,7 @@ fn string_list(value: Option<&toml::Value>) -> Vec<String> {
 
 /// Names the manifest itself marks as intentionally unused: cargo-machete `ignored` for Cargo and
 /// deptry `DEP002` for pyproject.
-fn native_ignores(eco: Ecosystem, manifest: &Path) -> BTreeSet<String> {
+fn native_ignores(eco: Language, manifest: &Path) -> BTreeSet<String> {
     let Ok(text) = std::fs::read_to_string(manifest) else {
         return BTreeSet::new();
     };
@@ -50,7 +51,7 @@ fn native_ignores(eco: Ecosystem, manifest: &Path) -> BTreeSet<String> {
         return BTreeSet::new();
     };
     let names = match eco {
-        Ecosystem::Rust => {
+        Language::Rust => {
             let mut names = string_list(
                 data.get("package")
                     .and_then(|v| v.get("metadata"))
@@ -65,7 +66,7 @@ fn native_ignores(eco: Ecosystem, manifest: &Path) -> BTreeSet<String> {
             ));
             names
         }
-        Ecosystem::Python => string_list(
+        Language::Python => string_list(
             data.get("tool")
                 .and_then(|v| v.get("deptry"))
                 .and_then(|v| v.get("per_rule_ignores"))
@@ -80,9 +81,9 @@ fn native_ignores(eco: Ecosystem, manifest: &Path) -> BTreeSet<String> {
 }
 
 /// Declared dependencies of `manifest` without JS peers and natively ignored entries.
-pub fn declared(eco: Ecosystem, manifest: &Path) -> Result<Vec<DeclaredDep>, DepcheckError> {
+pub fn declared(eco: Language, manifest: &Path) -> Result<Vec<DeclaredDep>, DepcheckError> {
     let mut deps = crate::consistency::load_manifest(eco, manifest)?;
-    if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
+    if matches!(eco, Language::Js | Language::Ts) {
         deps.retain(|_, v| !v.peer);
     }
     let text = std::fs::read_to_string(manifest).unwrap_or_default();
@@ -109,13 +110,13 @@ pub fn declared(eco: Ecosystem, manifest: &Path) -> Result<Vec<DeclaredDep>, Dep
 
 /// Declared dependencies of `manifest` that nothing under `sources` uses and no target depends on (`used`).
 pub fn find_unused(
-    eco: Ecosystem,
+    eco: Language,
     manifest: &Path,
     sources: &Path,
     used: &[String],
 ) -> Result<Vec<UnusedDep>, DepcheckError> {
     let mut deps = crate::consistency::load_manifest(eco, manifest)?;
-    if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
+    if matches!(eco, Language::Js | Language::Ts) {
         deps.retain(|_, v| !v.peer);
     }
     let mut used: BTreeSet<String> = used
@@ -160,7 +161,7 @@ mod tests {
         );
         write(dir.path(), "src/lib.rs", "use serde::Serialize;\n");
         let manifest = dir.path().join("Cargo.toml");
-        let found = find_unused(Ecosystem::Rust, &manifest, dir.path(), &[]).expect("find unused");
+        let found = find_unused(Language::Rust, &manifest, dir.path(), &[]).expect("find unused");
         assert_eq!(
             found,
             vec![UnusedDep {
@@ -168,7 +169,7 @@ mod tests {
                 line: 6
             }]
         );
-        let found = find_unused(Ecosystem::Rust, &manifest, dir.path(), &["regex".into()])
+        let found = find_unused(Language::Rust, &manifest, dir.path(), &["regex".into()])
             .expect("find unused");
         assert!(found.is_empty());
     }
@@ -182,7 +183,7 @@ mod tests {
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nre = { package = \"regex\", version = \"1\" }\n",
         );
         let manifest = dir.path().join("Cargo.toml");
-        let got = declared(Ecosystem::Rust, &manifest).expect("declared");
+        let got = declared(Language::Rust, &manifest).expect("declared");
         let hubs: Vec<(&str, &str)> = got
             .iter()
             .map(|d| (d.name.as_str(), d.hub.as_str()))
@@ -199,10 +200,10 @@ mod tests {
             "[package]\nname = \"x\"\n\n[package.metadata.cargo-machete]\nignored = [\"cc\"]\n\n[dependencies]\nserde = \"1\"\ncc = \"1\"\n",
         );
         let manifest = dir.path().join("Cargo.toml");
-        let found = find_unused(Ecosystem::Rust, &manifest, dir.path(), &[]).expect("unused");
+        let found = find_unused(Language::Rust, &manifest, dir.path(), &[]).expect("unused");
         let names: Vec<&str> = found.iter().map(|d| d.name.as_str()).collect();
         assert_eq!(names, vec!["serde"]);
-        let got = declared(Ecosystem::Rust, &manifest).expect("declared");
+        let got = declared(Language::Rust, &manifest).expect("declared");
         assert!(got.iter().all(|d| d.name != "cc"));
     }
 
@@ -215,7 +216,7 @@ mod tests {
             "[project]\nname = \"x\"\nversion = \"1\"\ndependencies = [\"Requests>=2\", \"attrs>=1\"]\n\n[tool.deptry.per_rule_ignores]\nDEP002 = [\"requests\"]\n",
         );
         let manifest = dir.path().join("pyproject.toml");
-        let found = find_unused(Ecosystem::Python, &manifest, dir.path(), &[]).expect("unused");
+        let found = find_unused(Language::Python, &manifest, dir.path(), &[]).expect("unused");
         let names: Vec<&str> = found.iter().map(|d| d.name.as_str()).collect();
         assert_eq!(names, vec!["attrs"]);
     }

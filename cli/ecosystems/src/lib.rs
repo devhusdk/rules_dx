@@ -17,30 +17,141 @@ pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo,
 const TABLE: &str = include_str!("../ecosystems.json");
 const LANGUAGES: &str = include_str!("../languages.json");
 
-/// A language that depcheck reads, generated from its `lang.json`.
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct Language {
-    pub name: String,
-    pub depcheck: String,
-    pub semver: bool,
-    pub ecosystems: Vec<String>,
+struct LanguageRow {
+    name: String,
+    depcheck: String,
+    semver: bool,
+    ecosystems: Vec<Ecosystem>,
+    #[serde(skip)]
+    id: Option<Language>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct LanguageTable {
-    languages: Vec<Language>,
+    languages: Vec<LanguageRow>,
 }
 
-/// Lists the depcheck languages in name order.
-pub fn languages() -> &'static [Language] {
-    static LANGUAGES_TABLE: OnceLock<Vec<Language>> = OnceLock::new();
-    LANGUAGES_TABLE.get_or_init(|| {
-        serde_json::from_str::<LanguageTable>(LANGUAGES)
-            .map(|table| table.languages)
-            .unwrap_or_default()
-    })
+fn parse_language_rows(text: &str) -> Result<Vec<LanguageRow>, serde_json::Error> {
+    let mut rows = serde_json::from_str::<LanguageTable>(text)?.languages;
+    for row in &mut rows {
+        let name = serde_json::Value::String(row.depcheck.clone());
+        row.id = Some(serde_json::from_value(name)?);
+    }
+    Ok(rows)
+}
+
+fn language_rows() -> &'static [LanguageRow] {
+    static LANGUAGES_TABLE: OnceLock<Vec<LanguageRow>> = OnceLock::new();
+    LANGUAGES_TABLE.get_or_init(|| parse_language_rows(LANGUAGES).unwrap_or_default())
+}
+
+/// A language whose manifests and sources depcheck reads.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Language {
+    Rust,
+    Python,
+    Js,
+    Ts,
+    Go,
+    Java,
+    Kotlin,
+    Scala,
+    Csharp,
+    Fsharp,
+    Cc,
+    Ruby,
+    Perl,
+    Zig,
+    Julia,
+    Dart,
+    Php,
+    Elixir,
+    Erlang,
+    Fortran,
+    D,
+    Haskell,
+    Swift,
+    Powershell,
+    Lua,
+    Ocaml,
+}
+
+impl Language {
+    pub const ALL: [Language; 26] = [
+        Language::Rust,
+        Language::Python,
+        Language::Js,
+        Language::Ts,
+        Language::Go,
+        Language::Java,
+        Language::Kotlin,
+        Language::Scala,
+        Language::Csharp,
+        Language::Fsharp,
+        Language::Cc,
+        Language::Ruby,
+        Language::Perl,
+        Language::Zig,
+        Language::Julia,
+        Language::Dart,
+        Language::Php,
+        Language::Elixir,
+        Language::Erlang,
+        Language::Fortran,
+        Language::D,
+        Language::Haskell,
+        Language::Swift,
+        Language::Powershell,
+        Language::Lua,
+        Language::Ocaml,
+    ];
+
+    fn row(self) -> Option<&'static LanguageRow> {
+        language_rows().iter().find(|row| row.id == Some(self))
+    }
+
+    /// Names the language as depcheck spells it.
+    pub fn name(self) -> &'static str {
+        self.row().map_or("", |row| row.depcheck.as_str())
+    }
+
+    /// Parses a depcheck language name, returning `None` when it is not one of them.
+    pub fn parse(text: &str) -> Option<Language> {
+        language_rows().iter().find(|row| row.depcheck == text)?.id
+    }
+
+    /// Names the language directory that holds this language's `lang.json`.
+    pub fn directory(self) -> &'static str {
+        self.row().map_or("", |row| row.name.as_str())
+    }
+
+    /// Picks the language that reads `ecosystem`, `prefer` first when it reads it too.
+    pub fn of_ecosystem(ecosystem: Ecosystem, prefer: Option<Language>) -> Option<Language> {
+        let reads = |row: &&LanguageRow| row.ecosystems.contains(&ecosystem);
+        let rows = language_rows();
+        prefer
+            .and_then(|language| {
+                rows.iter()
+                    .filter(reads)
+                    .find(|row| row.id == Some(language))
+            })
+            .or_else(|| rows.iter().find(reads))?
+            .id
+    }
+
+    /// Lists the ecosystems whose packages this language depends on.
+    pub fn ecosystems(self) -> &'static [Ecosystem] {
+        self.row().map_or(&[], |row| row.ecosystems.as_slice())
+    }
+
+    /// Whether this language states its requirements in the semver grammar.
+    pub fn uses_semver_grammar(self) -> bool {
+        self.row().is_some_and(|row| row.semver)
+    }
 }
 
 #[derive(Debug, Deserialize)]

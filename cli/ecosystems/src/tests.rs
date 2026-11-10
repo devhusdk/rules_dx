@@ -147,18 +147,41 @@ fn lookups_resolve_rows() {
 }
 
 #[test]
-fn languages_name_known_ecosystems() {
-    assert_eq!(languages().len(), 26);
-    for language in languages() {
-        assert!(!language.depcheck.is_empty(), "{} unnamed", language.name);
-        for id in &language.ecosystems {
-            assert!(
-                Ecosystem::parse(id).is_some(),
-                "{} lists {id}",
-                language.name
-            );
-        }
+fn every_language_row_is_complete() {
+    assert_eq!(language_rows().len(), Language::ALL.len());
+    for language in Language::ALL {
+        assert!(!language.name().is_empty(), "{language:?} unnamed");
+        assert_eq!(Language::parse(language.name()), Some(language));
+        assert!(!language.directory().is_empty(), "{language:?} has no row");
+        assert!(
+            !language.ecosystems().is_empty(),
+            "{language:?} lists no ecosystem"
+        );
     }
+    assert_eq!(Language::parse("bogus"), None);
+}
+
+#[test]
+fn language_columns_resolve() {
+    assert_eq!(Language::Js.name(), "js");
+    assert_eq!(Language::Js.directory(), "javascript");
+    assert_eq!(Language::Ts.directory(), "typescript");
+    assert!(Language::Rust.uses_semver_grammar());
+    assert!(!Language::Python.uses_semver_grammar());
+    assert_eq!(Language::Kotlin.ecosystems(), [Ecosystem::Maven]);
+    assert_eq!(
+        Language::of_ecosystem(Ecosystem::Hex, None),
+        Some(Language::Elixir)
+    );
+    assert_eq!(
+        Language::of_ecosystem(Ecosystem::Hex, Some(Language::Erlang)),
+        Some(Language::Erlang)
+    );
+    assert_eq!(
+        Language::of_ecosystem(Ecosystem::Cargo, Some(Language::Erlang)),
+        Some(Language::Rust)
+    );
+    assert_eq!(Language::of_ecosystem(Ecosystem::Bazel, None), None);
 }
 
 #[test]

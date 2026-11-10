@@ -12,7 +12,7 @@ use clap::{Parser, Subcommand};
 use std::ffi::OsString;
 use std::path::PathBuf;
 
-use dx_depcheck::Ecosystem;
+use dx_ecosystems::Language;
 use dx_error::DxError;
 
 // LCOV_EXCL_START - reason: clap schema, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
@@ -27,16 +27,16 @@ struct Cli {
 #[allow(clippy::large_enum_variant)]
 enum Command {
     Consistency {
-        #[arg(long)]
-        ecosystem: Ecosystem,
+        #[arg(long, value_parser = dx_depcheck::language_named)]
+        ecosystem: Language,
         #[arg(long)]
         manifest: PathBuf,
         #[arg(long)]
         lock: PathBuf,
     },
     Usage {
-        #[arg(long)]
-        ecosystem: Ecosystem,
+        #[arg(long, value_parser = dx_depcheck::language_named)]
+        ecosystem: Language,
         #[arg(long)]
         manifest: PathBuf,
         #[arg(long)]
@@ -227,7 +227,7 @@ mod tests {
     #[test]
     fn every_documented_ecosystem_name_round_trips() {
         for name in ECOSYSTEMS {
-            let eco: Ecosystem = name.parse().unwrap_or_else(|_| panic!("{name} must parse"));
+            let eco = Language::parse(name).unwrap_or_else(|| panic!("{name} must parse"));
             assert_eq!(eco.name(), name);
         }
     }

@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use crate::{DepcheckError, Ecosystem};
+use crate::DepcheckError;
+use dx_ecosystems::Language;
 
 /// A third-party import that no declared dependency covers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,7 +111,7 @@ pub fn find_missing_go(
     Ok(found.into_values().collect())
 }
 
-fn registry_packages(lock: &Path, eco: Ecosystem) -> Result<Vec<String>, DepcheckError> {
+fn registry_packages(lock: &Path, eco: Language) -> Result<Vec<String>, DepcheckError> {
     let text = std::fs::read_to_string(lock).map_err(DepcheckError::LockIo)?;
     let data: toml::Value = toml::from_str(&text).map_err(DepcheckError::LockToml)?;
     let mut out = Vec::new();
@@ -124,7 +125,7 @@ fn registry_packages(lock: &Path, eco: Ecosystem) -> Result<Vec<String>, Depchec
             continue;
         };
         let external = match (eco, item.get("source")) {
-            (Ecosystem::Python, Some(source)) => {
+            (Language::Python, Some(source)) => {
                 source.get("registry").is_some()
                     || source.get("git").is_some()
                     || source.get("url").is_some()
@@ -138,39 +139,39 @@ fn registry_packages(lock: &Path, eco: Ecosystem) -> Result<Vec<String>, Depchec
     Ok(out)
 }
 
-fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckError> {
+fn lock_packages(eco: Language, lock: &Path) -> Result<Vec<String>, DepcheckError> {
     match eco {
-        Ecosystem::Rust => registry_packages(lock, eco),
-        Ecosystem::Python => Ok(registry_packages(lock, eco)?
+        Language::Rust => registry_packages(lock, eco),
+        Language::Python => Ok(registry_packages(lock, eco)?
             .iter()
             .map(|name| crate::normalize_py(name))
             .collect()),
-        Ecosystem::Js | Ecosystem::Ts => Ok(crate::parse_pnpm_lock(lock)?
+        Language::Js | Language::Ts => Ok(crate::parse_pnpm_lock(lock)?
             .package_names()
             .into_iter()
             .collect()),
-        Ecosystem::Ruby => Ok(crate::parse_paren_lock(lock)?.into_keys().collect()),
-        Ecosystem::Perl => Ok(crate::parse_perl_lock(lock)?.into_keys().collect()),
-        Ecosystem::Julia => Ok(crate::parse_julia_lock(lock)?.into_keys().collect()),
-        Ecosystem::Zig => Ok(crate::parse_zig_lock(lock)?.into_keys().collect()),
-        Ecosystem::Dart => crate::dart_lock_candidates(lock),
-        Ecosystem::Php => Ok(crate::parse_php_lock(lock)?.into_keys().collect()),
-        Ecosystem::Elixir => Ok(crate::ecosystem::beam::parse_mix_lock(lock)?
+        Language::Ruby => Ok(crate::parse_paren_lock(lock)?.into_keys().collect()),
+        Language::Perl => Ok(crate::parse_perl_lock(lock)?.into_keys().collect()),
+        Language::Julia => Ok(crate::parse_julia_lock(lock)?.into_keys().collect()),
+        Language::Zig => Ok(crate::parse_zig_lock(lock)?.into_keys().collect()),
+        Language::Dart => crate::dart_lock_candidates(lock),
+        Language::Php => Ok(crate::parse_php_lock(lock)?.into_keys().collect()),
+        Language::Elixir => Ok(crate::ecosystem::beam::parse_mix_lock(lock)?
             .into_keys()
             .collect()),
-        Ecosystem::Erlang => Ok(crate::ecosystem::beam::parse_rebar_lock(lock)?
+        Language::Erlang => Ok(crate::ecosystem::beam::parse_rebar_lock(lock)?
             .into_keys()
             .collect()),
-        Ecosystem::Fortran => Ok(crate::parse_fortran_lock(lock)?.into_keys().collect()),
-        Ecosystem::D => Ok(crate::parse_d_lock(lock)?.into_keys().collect()),
-        Ecosystem::Haskell => Ok(crate::parse_haskell_lock(lock)?
+        Language::Fortran => Ok(crate::parse_fortran_lock(lock)?.into_keys().collect()),
+        Language::D => Ok(crate::parse_d_lock(lock)?.into_keys().collect()),
+        Language::Haskell => Ok(crate::parse_haskell_lock(lock)?
             .into_keys()
             .filter(|name| name != "base")
             .collect()),
-        Ecosystem::Swift => Ok(crate::parse_swift_lock(lock)?.into_keys().collect()),
-        Ecosystem::Powershell => Ok(crate::parse_powershell_lock(lock)?.into_keys().collect()),
-        Ecosystem::Lua => Ok(crate::parse_lua_lock(lock)?.into_keys().collect()),
-        Ecosystem::Ocaml => Ok(crate::parse_ocaml_lock(lock)?.into_keys().collect()),
+        Language::Swift => Ok(crate::parse_swift_lock(lock)?.into_keys().collect()),
+        Language::Powershell => Ok(crate::parse_powershell_lock(lock)?.into_keys().collect()),
+        Language::Lua => Ok(crate::parse_lua_lock(lock)?.into_keys().collect()),
+        Language::Ocaml => Ok(crate::parse_ocaml_lock(lock)?.into_keys().collect()),
         _ => Ok(Vec::new()),
     }
 }
@@ -179,7 +180,7 @@ fn lock_packages(eco: Ecosystem, lock: &Path) -> Result<Vec<String>, DepcheckErr
 /// Workspace and path members are not candidates. A package imported under a different name
 /// (`PyYAML` as `yaml`) is not found.
 pub fn find_missing(
-    eco: Ecosystem,
+    eco: Language,
     manifest: &Path,
     lock: &Path,
     sources: &Path,
@@ -189,7 +190,7 @@ pub fn find_missing(
     let key = |name: &str| crate::dep_key::normalize_dep_key(eco, name);
     let excepted: BTreeSet<String> = excepted.iter().map(|name| key(name)).collect();
     let mut pinned = lock_packages(eco, lock)?;
-    if eco == Ecosystem::Swift {
+    if eco == Language::Swift {
         let taken: BTreeSet<&str> = declared.values().map(|dep| dep.package.as_str()).collect();
         pinned
             .retain(|package| !taken.contains(package.as_str()) && !declared.contains_key(package));
@@ -208,22 +209,22 @@ pub fn find_missing(
     candidates.sort();
     candidates.dedup();
     let nested = match eco {
-        Ecosystem::Rust => "Cargo.toml",
-        Ecosystem::Python => "pyproject.toml",
-        Ecosystem::Ruby => "Gemfile",
-        Ecosystem::Perl => "cpanfile",
-        Ecosystem::Zig => "build.zig.zon",
-        Ecosystem::Julia => "Project.toml",
-        Ecosystem::Dart => "pubspec.yaml",
-        Ecosystem::Php => "composer.json",
-        Ecosystem::Elixir => "mix.exs",
-        Ecosystem::Erlang => "rebar.config",
-        Ecosystem::Fortran => "fpm.toml",
-        Ecosystem::D => "dub.json",
-        Ecosystem::Haskell => "package.cabal",
-        Ecosystem::Swift => "Package.swift",
-        Ecosystem::Lua => "luarocks.lock",
-        Ecosystem::Ocaml => "dune-project",
+        Language::Rust => "Cargo.toml",
+        Language::Python => "pyproject.toml",
+        Language::Ruby => "Gemfile",
+        Language::Perl => "cpanfile",
+        Language::Zig => "build.zig.zon",
+        Language::Julia => "Project.toml",
+        Language::Dart => "pubspec.yaml",
+        Language::Php => "composer.json",
+        Language::Elixir => "mix.exs",
+        Language::Erlang => "rebar.config",
+        Language::Fortran => "fpm.toml",
+        Language::D => "dub.json",
+        Language::Haskell => "package.cabal",
+        Language::Swift => "Package.swift",
+        Language::Lua => "luarocks.lock",
+        Language::Ocaml => "dune-project",
         _ => "package.json",
     };
     let found = crate::usage::find_first_imports(eco, sources, nested, &candidates)?;
@@ -271,7 +272,7 @@ mod tests {
         assert_eq!(found.len(), 1);
     }
 
-    fn eco_case(eco: Ecosystem, files: &[(&str, &str)], manifest: &str, lock: &str) -> Vec<String> {
+    fn eco_case(eco: Language, files: &[(&str, &str)], manifest: &str, lock: &str) -> Vec<String> {
         let dir = tempfile::tempdir().expect("tempdir");
         for (rel, text) in files {
             write(dir.path(), rel, text);
@@ -293,7 +294,7 @@ mod tests {
     fn rust_transitive_crate_is_missing_but_local_mod_is_not() {
         let lock = "version = 3\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"serde\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"itoa\"\nversion = \"1.0.0\"\nsource = \"registry+https://x\"\n\n[[package]]\nname = \"time\"\nversion = \"0.3.0\"\nsource = \"registry+https://x\"\n";
         let got = eco_case(
-            Ecosystem::Rust,
+            Language::Rust,
             &[
                 (
                     "Cargo.toml",
@@ -317,7 +318,7 @@ mod tests {
     fn npm_transitive_package_is_missing() {
         let lock = "lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^18\n        version: 18.0.0\npackages:\n  react@18.0.0:\n    resolution: {integrity: x}\n  lodash@4.0.0:\n    resolution: {integrity: x}\nsnapshots:\n  react@18.0.0: {}\n  lodash@4.0.0: {}\n";
         let got = eco_case(
-            Ecosystem::Js,
+            Language::Js,
             &[
                 ("package.json", "{\"dependencies\": {\"react\": \"^18\"}}"),
                 ("pnpm-lock.yaml", lock),
@@ -336,7 +337,7 @@ mod tests {
     fn uv_transitive_package_is_missing() {
         let lock = "version = 1\n\n[[package]]\nname = \"app\"\nversion = \"0.1.0\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"requests\"\nversion = \"2.0.0\"\nsource = { registry = \"https://pypi.org/simple\" }\n\n[[package]]\nname = \"urllib3\"\nversion = \"2.0.0\"\nsource = { registry = \"https://pypi.org/simple\" }\n";
         let got = eco_case(
-            Ecosystem::Python,
+            Language::Python,
             &[
                 (
                     "pyproject.toml",
@@ -358,7 +359,7 @@ mod tests {
     fn ruby_transitive_gem_is_missing() {
         let lock = "GEM\n  remote: https://rubygems.org/\n  specs:\n    rack (3.0.0)\n    sinatra (3.0.0)\n      rack (~> 3)\n";
         let got = eco_case(
-            Ecosystem::Ruby,
+            Language::Ruby,
             &[
                 ("Gemfile", "source 'https://rubygems.org'\ngem 'sinatra'\n"),
                 ("Gemfile.lock", lock),

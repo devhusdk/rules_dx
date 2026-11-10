@@ -1,6 +1,7 @@
 use super::*;
 use std::path::{Path, PathBuf};
 
+use dx_ecosystems::Language;
 use dx_error::{DxError, ErrorKind};
 
 fn exit_code(result: Result<(), DxError>) -> i32 {
@@ -53,21 +54,21 @@ fn normalizes_match_python() {
 fn dep_keys_per_ecosystem() {
     use crate::dep_key::normalize_dep_key;
     for (eco, want) in [
-        (Ecosystem::Python, "foo_bar_baz"),
-        (Ecosystem::Rust, "foo-bar.baz"),
-        (Ecosystem::Js, "foo-bar.baz"),
-        (Ecosystem::Ts, "foo-bar.baz"),
-        (Ecosystem::Go, "foo-bar.baz"),
-        (Ecosystem::Java, "foo-bar.baz"),
-        (Ecosystem::Kotlin, "foo-bar.baz"),
-        (Ecosystem::Scala, "foo-bar.baz"),
-        (Ecosystem::Csharp, "foo-bar.baz"),
-        (Ecosystem::Fsharp, "foo-bar.baz"),
-        (Ecosystem::Cc, "foo_bar.baz"),
-        (Ecosystem::Ruby, "foo-bar.baz"),
-        (Ecosystem::Dart, "foo-bar.baz"),
-        (Ecosystem::Elixir, "foo-bar.baz"),
-        (Ecosystem::Erlang, "foo-bar.baz"),
+        (Language::Python, "foo_bar_baz"),
+        (Language::Rust, "foo-bar.baz"),
+        (Language::Js, "foo-bar.baz"),
+        (Language::Ts, "foo-bar.baz"),
+        (Language::Go, "foo-bar.baz"),
+        (Language::Java, "foo-bar.baz"),
+        (Language::Kotlin, "foo-bar.baz"),
+        (Language::Scala, "foo-bar.baz"),
+        (Language::Csharp, "foo-bar.baz"),
+        (Language::Fsharp, "foo-bar.baz"),
+        (Language::Cc, "foo_bar.baz"),
+        (Language::Ruby, "foo-bar.baz"),
+        (Language::Dart, "foo-bar.baz"),
+        (Language::Elixir, "foo-bar.baz"),
+        (Language::Erlang, "foo-bar.baz"),
     ] {
         assert_eq!(normalize_dep_key(eco, "Foo-Bar.Baz"), want, "{eco:?}");
     }
@@ -123,7 +124,7 @@ fn non_semver_grammar_settles_tilde_and_range() {
 
 #[test]
 fn semver_ecosystems_delegate_to_semver() {
-    for eco in [Ecosystem::Rust, Ecosystem::Js, Ecosystem::Ts, Ecosystem::Go] {
+    for eco in [Language::Rust, Language::Js, Language::Ts, Language::Go] {
         let name = eco.name();
         assert!(eco.uses_semver_grammar(), "{name}");
         assert!(satisfies_for(eco, "^1.2.3", "1.9.0"), "{name} caret");
@@ -140,7 +141,7 @@ fn semver_ecosystems_delegate_to_semver() {
 
 #[test]
 fn semver_ecosystems_keep_the_fallback_when_semver_cannot_parse() {
-    for eco in [Ecosystem::Rust, Ecosystem::Js, Ecosystem::Ts, Ecosystem::Go] {
+    for eco in [Language::Rust, Language::Js, Language::Ts, Language::Go] {
         assert!(satisfies_for(eco, "foo", "foo"), "{}", eco.name());
         assert!(!satisfies_for(eco, "foo", "bar"), "{}", eco.name());
         assert!(satisfies_for(eco, "", "1.0.0"), "{}", eco.name());
@@ -152,13 +153,13 @@ fn semver_ecosystems_keep_the_fallback_when_semver_cannot_parse() {
 #[test]
 fn non_semver_ecosystems_keep_their_own_grammar() {
     for eco in [
-        Ecosystem::Java,
-        Ecosystem::Kotlin,
-        Ecosystem::Scala,
-        Ecosystem::Csharp,
-        Ecosystem::Fsharp,
-        Ecosystem::Cc,
-        Ecosystem::Ruby,
+        Language::Java,
+        Language::Kotlin,
+        Language::Scala,
+        Language::Csharp,
+        Language::Fsharp,
+        Language::Cc,
+        Language::Ruby,
     ] {
         let name = eco.name();
         assert!(!eco.uses_semver_grammar(), "{name}");
@@ -166,9 +167,9 @@ fn non_semver_ecosystems_keep_their_own_grammar() {
         assert!(satisfies_for(eco, "1.0.0", "1.0.0"), "{name}");
         assert!(!satisfies_for(eco, "1.0.0", "1.0.1"), "{name}");
     }
-    assert!(!Ecosystem::Python.uses_semver_grammar());
-    assert!(satisfies_for(Ecosystem::Python, ">=8", "8.4.0"));
-    assert!(!satisfies_for(Ecosystem::Python, ">=8", "7.0.0"));
+    assert!(!Language::Python.uses_semver_grammar());
+    assert!(satisfies_for(Language::Python, ">=8", "8.4.0"));
+    assert!(!satisfies_for(Language::Python, ">=8", "7.0.0"));
 }
 
 #[test]
@@ -465,15 +466,15 @@ fn cc_manifest_and_lock() {
 
 #[test]
 fn test_file_detection_per_eco() {
-    assert!(is_test_file(Ecosystem::Rust, Path::new("a/tests/foo.rs")));
-    assert!(is_test_file(Ecosystem::Python, Path::new("a/test_foo.py")));
-    assert!(!is_test_file(Ecosystem::Python, Path::new("a/hello.py")));
-    assert!(is_test_file(Ecosystem::Go, Path::new("a/foo_test.go")));
-    assert!(is_test_file(Ecosystem::Js, Path::new("a/foo.test.js")));
-    assert!(is_test_file(Ecosystem::Rust, Path::new("tests/foo.rs")));
-    assert!(!is_test_file(Ecosystem::Rust, Path::new("src/latest.rs")));
-    assert!(!is_test_file(Ecosystem::Rust, Path::new("src/contest.rs")));
-    assert!(!is_test_file(Ecosystem::Rust, Path::new("src/testing.rs")));
+    assert!(is_test_file(Language::Rust, Path::new("a/tests/foo.rs")));
+    assert!(is_test_file(Language::Python, Path::new("a/test_foo.py")));
+    assert!(!is_test_file(Language::Python, Path::new("a/hello.py")));
+    assert!(is_test_file(Language::Go, Path::new("a/foo_test.go")));
+    assert!(is_test_file(Language::Js, Path::new("a/foo.test.js")));
+    assert!(is_test_file(Language::Rust, Path::new("tests/foo.rs")));
+    assert!(!is_test_file(Language::Rust, Path::new("src/latest.rs")));
+    assert!(!is_test_file(Language::Rust, Path::new("src/contest.rs")));
+    assert!(!is_test_file(Language::Rust, Path::new("src/testing.rs")));
 }
 
 #[test]
@@ -482,14 +483,14 @@ fn find_usages_rust_and_python() {
     write_file(&dir.path().join("src/lib.rs"), "use anyhow::Result;\n");
     write_file(&dir.path().join("src/main.py"), "import pytest\n");
     let rust_hits =
-        find_usages(Ecosystem::Rust, dir.path(), &["anyhow".to_owned()]).expect("usages");
+        find_usages(Language::Rust, dir.path(), &["anyhow".to_owned()]).expect("usages");
     assert!(rust_hits["anyhow"].src);
     let py_hits =
-        find_usages(Ecosystem::Python, dir.path(), &["pytest".to_owned()]).expect("usages");
+        find_usages(Language::Python, dir.path(), &["pytest".to_owned()]).expect("usages");
     assert!(py_hits["pytest"].src);
 }
 
-fn usage_of(eco: Ecosystem, files: &[(&str, &str)], dep: &str) -> crate::Usage {
+fn usage_of(eco: Language, files: &[(&str, &str)], dep: &str) -> crate::Usage {
     let dir = tempfile::tempdir().expect("scratch");
     for (rel, text) in files {
         write_file(&dir.path().join(rel), text);
@@ -497,7 +498,7 @@ fn usage_of(eco: Ecosystem, files: &[(&str, &str)], dep: &str) -> crate::Usage {
     find_usages(eco, dir.path(), &[dep.to_owned()]).expect("usages")[dep]
 }
 
-fn hits(eco: Ecosystem, rel: &str, text: &str, dep: &str) -> bool {
+fn hits(eco: Language, rel: &str, text: &str, dep: &str) -> bool {
     let usage = usage_of(eco, &[(rel, text)], dep);
     usage.src || usage.test || usage.build
 }
@@ -505,7 +506,7 @@ fn hits(eco: Ecosystem, rel: &str, text: &str, dep: &str) -> bool {
 #[test]
 fn usage_patterns_rust_test_file_detection() {
     for rel in ["src/latest.rs", "src/contest.rs"] {
-        let usage = usage_of(Ecosystem::Rust, &[(rel, "use anyhow::Result;\n")], "anyhow");
+        let usage = usage_of(Language::Rust, &[(rel, "use anyhow::Result;\n")], "anyhow");
         assert!(usage.src && !usage.test, "{rel}");
     }
     for rel in [
@@ -514,11 +515,11 @@ fn usage_patterns_rust_test_file_detection() {
         "tests/a.rs",
         "benches/b.rs",
     ] {
-        let usage = usage_of(Ecosystem::Rust, &[(rel, "use anyhow::Result;\n")], "anyhow");
+        let usage = usage_of(Language::Rust, &[(rel, "use anyhow::Result;\n")], "anyhow");
         assert!(usage.test && !usage.src, "{rel}");
     }
     let usage = usage_of(
-        Ecosystem::Rust,
+        Language::Rust,
         &[("src/helpers.rs", "#![cfg(test)]\nuse anyhow::Result;\n")],
         "anyhow",
     );
@@ -531,39 +532,39 @@ fn usage_patterns_root_under_tests_dir_stays_src() {
     let root = dir.path().join("tests/fixtures/x");
     write_file(&root.join("src/lib.rs"), "use anyhow::Result;\n");
     let usage =
-        find_usages(Ecosystem::Rust, &root, &["anyhow".to_owned()]).expect("usages")["anyhow"];
+        find_usages(Language::Rust, &root, &["anyhow".to_owned()]).expect("usages")["anyhow"];
     assert!(usage.src && !usage.test);
 }
 
 #[test]
 fn usage_patterns_js_subpath_and_side_effect() {
     assert!(hits(
-        Ecosystem::Js,
+        Language::Js,
         "a.js",
         "import debounce from 'lodash/debounce';\n",
         "lodash"
     ));
     assert!(hits(
-        Ecosystem::Ts,
+        Language::Ts,
         "a.ts",
         "const x = require(\"@scope/pkg/sub\");\n",
         "@scope/pkg"
     ));
-    assert!(hits(Ecosystem::Js, "a.js", "import 'pkg';\n", "pkg"));
+    assert!(hits(Language::Js, "a.js", "import 'pkg';\n", "pkg"));
     assert!(hits(
-        Ecosystem::Js,
+        Language::Js,
         "a.js",
         "const m = await import('pkg/x');\n",
         "pkg"
     ));
     assert!(!hits(
-        Ecosystem::Js,
+        Language::Js,
         "a.js",
         "import x from 'lodash-es';\n",
         "lodash"
     ));
     assert!(!hits(
-        Ecosystem::Js,
+        Language::Js,
         "a.js",
         "import d from 'lodash.debounce';\n",
         "lodash"
@@ -573,43 +574,43 @@ fn usage_patterns_js_subpath_and_side_effect() {
 #[test]
 fn usage_patterns_rust_local_module_shadows_crate() {
     assert!(!hits(
-        Ecosystem::Rust,
+        Language::Rust,
         "src/lib.rs",
         "mod config;\nfn f() { config::load(); }\n",
         "config"
     ));
     assert!(!hits(
-        Ecosystem::Rust,
+        Language::Rust,
         "src/lib.rs",
         "pub(crate) mod config {\n}\nuse config::X;\n",
         "config"
     ));
     assert!(!hits(
-        Ecosystem::Rust,
+        Language::Rust,
         "src/lib.rs",
         "fn f() { crate::config::x(); self::config::y(); }\n",
         "config"
     ));
     assert!(hits(
-        Ecosystem::Rust,
+        Language::Rust,
         "src/lib.rs",
         "mod config;\nextern crate config;\n",
         "config"
     ));
     assert!(hits(
-        Ecosystem::Rust,
+        Language::Rust,
         "src/lib.rs",
         "mod config;\nfn f() { ::config::x(); }\n",
         "config"
     ));
     assert!(hits(
-        Ecosystem::Rust,
+        Language::Rust,
         "src/lib.rs",
         "use config::X;\n",
         "config"
     ));
     assert!(hits(
-        Ecosystem::Rust,
+        Language::Rust,
         "src/lib.rs",
         "fn f() {\nanyhow::bail!(\"x\");\n}\n",
         "anyhow"
@@ -619,20 +620,20 @@ fn usage_patterns_rust_local_module_shadows_crate() {
 #[test]
 fn usage_patterns_cc_include() {
     assert!(!hits(
-        Ecosystem::Cc,
+        Language::Cc,
         "a.cc",
         "#include \"zlib_wrapper.h\"\n",
         "zlib"
     ));
-    assert!(hits(Ecosystem::Cc, "a.cc", "#include <zlib.h>\n", "zlib"));
+    assert!(hits(Language::Cc, "a.cc", "#include <zlib.h>\n", "zlib"));
     assert!(hits(
-        Ecosystem::Cc,
+        Language::Cc,
         "a.cc",
         "#include <zlib/zlib.h>\n",
         "zlib"
     ));
     assert!(hits(
-        Ecosystem::Cc,
+        Language::Cc,
         "a.cc",
         "#include \"greet/greet.h\"\n",
         "greet"
@@ -642,153 +643,153 @@ fn usage_patterns_cc_include() {
 #[test]
 fn usage_patterns_jvm_group_and_artifact() {
     assert!(!hits(
-        Ecosystem::Java,
+        Language::Java,
         "A.java",
         "import org.foo.other.X;\n",
         "org.foo:core"
     ));
     assert!(!hits(
-        Ecosystem::Java,
+        Language::Java,
         "A.java",
         "import a.core.B;\n",
         "org.foo:core"
     ));
     assert!(hits(
-        Ecosystem::Java,
+        Language::Java,
         "A.java",
         "import org.foo.core.X;\n",
         "org.foo:core"
     ));
     assert!(hits(
-        Ecosystem::Java,
+        Language::Java,
         "A.java",
         "import org.junit.Test;\n",
         "junit:junit"
     ));
     assert!(hits(
-        Ecosystem::Java,
+        Language::Java,
         "A.java",
         "import static org.foo.core.X.y;\n",
         "org.foo:core"
     ));
     assert!(hits(
-        Ecosystem::Scala,
+        Language::Scala,
         "A.scala",
         "import zio._\n",
         "dev.zio:zio"
     ));
     assert!(hits(
-        Ecosystem::Scala,
+        Language::Scala,
         "A.scala",
         "import zio.{ZIO, Console}\n",
         "dev.zio:zio"
     ));
     assert!(hits(
-        Ecosystem::Scala,
+        Language::Scala,
         "A.scala",
         "import upickle.default._\n",
         "com.lihaoyi:upickle"
     ));
     assert!(!hits(
-        Ecosystem::Scala,
+        Language::Scala,
         "A.scala",
         "import other.zio.X\n",
         "dev.zio:zio"
     ));
     assert!(hits(
-        Ecosystem::Kotlin,
+        Language::Kotlin,
         "A.kt",
         "import example.greet.Greeter\n",
         "example:greet"
     ));
 }
 
-fn manifest_name(eco: Ecosystem) -> &'static str {
+fn manifest_name(eco: Language) -> &'static str {
     match eco {
-        Ecosystem::Rust => "Cargo.toml",
-        Ecosystem::Python => "pyproject.toml",
-        Ecosystem::Js | Ecosystem::Ts => "package.json",
-        Ecosystem::Go => "go.mod",
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => "jvm_deps.toml",
-        Ecosystem::Csharp | Ecosystem::Fsharp => "paket.dependencies",
-        Ecosystem::Cc => "cc_deps.toml",
-        Ecosystem::Lua => "mixed-1.0-1.rockspec",
-        Ecosystem::Ruby => "Gemfile",
-        Ecosystem::Perl => "cpanfile",
-        Ecosystem::Zig => "build.zig.zon",
-        Ecosystem::Julia => "Project.toml",
-        Ecosystem::Dart => "pubspec.yaml",
-        Ecosystem::Php => "composer.json",
-        Ecosystem::Elixir => "mix.exs",
-        Ecosystem::Erlang => "rebar.config",
-        Ecosystem::Fortran => "fpm.toml",
-        Ecosystem::D => "dub.json",
-        Ecosystem::Haskell => "hello.cabal",
-        Ecosystem::Swift => "Package.swift",
-        Ecosystem::Powershell => "Hello.psd1",
-        Ecosystem::Ocaml => "project.opam",
+        Language::Rust => "Cargo.toml",
+        Language::Python => "pyproject.toml",
+        Language::Js | Language::Ts => "package.json",
+        Language::Go => "go.mod",
+        Language::Java | Language::Kotlin | Language::Scala => "jvm_deps.toml",
+        Language::Csharp | Language::Fsharp => "paket.dependencies",
+        Language::Cc => "cc_deps.toml",
+        Language::Lua => "mixed-1.0-1.rockspec",
+        Language::Ruby => "Gemfile",
+        Language::Perl => "cpanfile",
+        Language::Zig => "build.zig.zon",
+        Language::Julia => "Project.toml",
+        Language::Dart => "pubspec.yaml",
+        Language::Php => "composer.json",
+        Language::Elixir => "mix.exs",
+        Language::Erlang => "rebar.config",
+        Language::Fortran => "fpm.toml",
+        Language::D => "dub.json",
+        Language::Haskell => "hello.cabal",
+        Language::Swift => "Package.swift",
+        Language::Powershell => "Hello.psd1",
+        Language::Ocaml => "project.opam",
     }
 }
 
-fn lock_name(eco: Ecosystem) -> &'static str {
+fn lock_name(eco: Language) -> &'static str {
     match eco {
-        Ecosystem::Rust => "Cargo.lock",
-        Ecosystem::Python => "uv.lock",
-        Ecosystem::Js | Ecosystem::Ts => "pnpm-lock.yaml",
-        Ecosystem::Go => "go.sum",
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => "maven_install.json",
-        Ecosystem::Csharp | Ecosystem::Fsharp => "paket.lock",
-        Ecosystem::Cc => "cc_lock.json",
-        Ecosystem::Ruby => "Gemfile.lock",
-        Ecosystem::Perl => "cpanfile.snapshot",
-        Ecosystem::Zig => "build.zig.zon.lock",
-        Ecosystem::Julia => "Manifest.toml",
-        Ecosystem::Dart => "pubspec.lock",
-        Ecosystem::Php => "composer.lock",
-        Ecosystem::Elixir => "mix.lock",
-        Ecosystem::Erlang => "rebar.lock",
-        Ecosystem::Fortran => "fpm.lock",
-        Ecosystem::Lua => "luarocks.lock",
-        Ecosystem::D => "dub.selections.json",
-        Ecosystem::Haskell => "cabal.project.freeze",
-        Ecosystem::Swift => "Package.resolved",
-        Ecosystem::Powershell => "installed_modules.txt",
-        Ecosystem::Ocaml => "opam.locked",
+        Language::Rust => "Cargo.lock",
+        Language::Python => "uv.lock",
+        Language::Js | Language::Ts => "pnpm-lock.yaml",
+        Language::Go => "go.sum",
+        Language::Java | Language::Kotlin | Language::Scala => "maven_install.json",
+        Language::Csharp | Language::Fsharp => "paket.lock",
+        Language::Cc => "cc_lock.json",
+        Language::Ruby => "Gemfile.lock",
+        Language::Perl => "cpanfile.snapshot",
+        Language::Zig => "build.zig.zon.lock",
+        Language::Julia => "Manifest.toml",
+        Language::Dart => "pubspec.lock",
+        Language::Php => "composer.lock",
+        Language::Elixir => "mix.lock",
+        Language::Erlang => "rebar.lock",
+        Language::Fortran => "fpm.lock",
+        Language::Lua => "luarocks.lock",
+        Language::D => "dub.selections.json",
+        Language::Haskell => "cabal.project.freeze",
+        Language::Swift => "Package.resolved",
+        Language::Powershell => "installed_modules.txt",
+        Language::Ocaml => "opam.locked",
     }
 }
 
-fn eco_dir(eco: Ecosystem) -> &'static str {
+fn eco_dir(eco: Language) -> &'static str {
     match eco {
-        Ecosystem::Rust => "rust",
-        Ecosystem::Python => "python",
-        Ecosystem::Js => "js",
-        Ecosystem::Ts => "ts",
-        Ecosystem::Go => "go",
-        Ecosystem::Java => "java",
-        Ecosystem::Kotlin => "kotlin",
-        Ecosystem::Scala => "scala",
-        Ecosystem::Csharp => "csharp",
-        Ecosystem::Fsharp => "fsharp",
-        Ecosystem::Cc => "cc",
-        Ecosystem::Ruby => "ruby",
-        Ecosystem::Perl => "perl",
-        Ecosystem::Zig => "zig",
-        Ecosystem::Julia => "julia",
-        Ecosystem::Dart => "dart",
-        Ecosystem::Php => "php",
-        Ecosystem::Elixir => "elixir",
-        Ecosystem::Erlang => "erlang",
-        Ecosystem::Fortran => "fortran",
-        Ecosystem::D => "d",
-        Ecosystem::Haskell => "haskell",
-        Ecosystem::Swift => "swift",
-        Ecosystem::Powershell => "powershell",
-        Ecosystem::Lua => "lua",
-        Ecosystem::Ocaml => "ocaml",
+        Language::Rust => "rust",
+        Language::Python => "python",
+        Language::Js => "js",
+        Language::Ts => "ts",
+        Language::Go => "go",
+        Language::Java => "java",
+        Language::Kotlin => "kotlin",
+        Language::Scala => "scala",
+        Language::Csharp => "csharp",
+        Language::Fsharp => "fsharp",
+        Language::Cc => "cc",
+        Language::Ruby => "ruby",
+        Language::Perl => "perl",
+        Language::Zig => "zig",
+        Language::Julia => "julia",
+        Language::Dart => "dart",
+        Language::Php => "php",
+        Language::Elixir => "elixir",
+        Language::Erlang => "erlang",
+        Language::Fortran => "fortran",
+        Language::D => "d",
+        Language::Haskell => "haskell",
+        Language::Swift => "swift",
+        Language::Powershell => "powershell",
+        Language::Lua => "lua",
+        Language::Ocaml => "ocaml",
     }
 }
 
-fn consistency(eco: Ecosystem, case: &str) -> i32 {
+fn consistency(eco: Language, case: &str) -> i32 {
     let root = testdata_root();
     let man = root.join(eco_dir(eco)).join(case).join(manifest_name(eco));
     let lock = root.join(eco_dir(eco)).join(case).join(lock_name(eco));
@@ -797,7 +798,7 @@ fn consistency(eco: Ecosystem, case: &str) -> i32 {
     exit_code(cmd_consistency(eco, &man, &lock, &mut out, &mut err))
 }
 
-fn usage(eco: Ecosystem, case: &str) -> (i32, String) {
+fn usage(eco: Language, case: &str) -> (i32, String) {
     let root = testdata_root();
     let base = root.join(eco_dir(eco)).join(case);
     let man = base.join(manifest_name(eco));
@@ -810,17 +811,17 @@ fn usage(eco: Ecosystem, case: &str) -> (i32, String) {
 #[test]
 fn parity_consistency_truth_table() {
     for eco in [
-        Ecosystem::Rust,
-        Ecosystem::Python,
-        Ecosystem::Js,
-        Ecosystem::Ts,
-        Ecosystem::Go,
-        Ecosystem::Java,
-        Ecosystem::Kotlin,
-        Ecosystem::Scala,
-        Ecosystem::Csharp,
-        Ecosystem::Fsharp,
-        Ecosystem::Cc,
+        Language::Rust,
+        Language::Python,
+        Language::Js,
+        Language::Ts,
+        Language::Go,
+        Language::Java,
+        Language::Kotlin,
+        Language::Scala,
+        Language::Csharp,
+        Language::Fsharp,
+        Language::Cc,
     ] {
         assert_eq!(consistency(eco, "ok_used"), 0, "{:?} ok_used", eco);
         assert_eq!(consistency(eco, "stale"), 1, "{:?} stale", eco);
@@ -851,7 +852,7 @@ fn parity_consistency_missing_lock_is_actionable() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         &lock,
         &mut out,
@@ -863,17 +864,17 @@ fn parity_consistency_missing_lock_is_actionable() {
 #[test]
 fn parity_usage_truth_table() {
     for eco in [
-        Ecosystem::Rust,
-        Ecosystem::Python,
-        Ecosystem::Js,
-        Ecosystem::Ts,
-        Ecosystem::Go,
-        Ecosystem::Java,
-        Ecosystem::Kotlin,
-        Ecosystem::Scala,
-        Ecosystem::Csharp,
-        Ecosystem::Fsharp,
-        Ecosystem::Cc,
+        Language::Rust,
+        Language::Python,
+        Language::Js,
+        Language::Ts,
+        Language::Go,
+        Language::Java,
+        Language::Kotlin,
+        Language::Scala,
+        Language::Csharp,
+        Language::Fsharp,
+        Language::Cc,
     ] {
         let (ok_code, _) = usage(eco, "ok_used");
         assert_eq!(ok_code, 0, "{:?} ok_used usage", eco);
@@ -913,7 +914,7 @@ fn cc_missing_sha256_fails() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Cc,
+        Language::Cc,
         &dir.path().join("cc_deps.toml"),
         &dir.path().join("cc_lock.json"),
         &mut out,
@@ -939,7 +940,7 @@ fn cc_pair_checks_sha256_through_the_shared_body() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(consistency::check_pair(
-        consistency::lock_pair(Ecosystem::Cc, &manifest, &lock),
+        consistency::lock_pair(Language::Cc, &manifest, &lock),
         &mut out,
         &mut err,
     ));
@@ -951,7 +952,7 @@ fn cc_pair_checks_sha256_through_the_shared_body() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(consistency::check_pair(
-        consistency::lock_pair(Ecosystem::Cc, &manifest, &lock),
+        consistency::lock_pair(Language::Cc, &manifest, &lock),
         &mut out,
         &mut err,
     ));
@@ -1149,7 +1150,7 @@ fn dotnet_lock_ignores_nested_constraints() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Csharp,
+        Language::Csharp,
         &dir.path().join("paket.dependencies"),
         &dir.path().join("paket.lock"),
         &mut out,
@@ -1233,7 +1234,7 @@ fn ruby_consistency_accepts_pessimistic() {
         let mut out = String::new();
         let mut err = String::new();
         let code = exit_code(cmd_consistency(
-            Ecosystem::Ruby,
+            Language::Ruby,
             &dir.path().join("Gemfile"),
             &dir.path().join("Gemfile.lock"),
             &mut out,
@@ -1257,7 +1258,7 @@ fn ruby_consistency_ok() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Ruby,
+        Language::Ruby,
         &dir.path().join("Gemfile"),
         &dir.path().join("Gemfile.lock"),
         &mut out,
@@ -1269,36 +1270,36 @@ fn ruby_consistency_ok() {
 #[test]
 fn ecosystem_parse_covers_every_name() {
     for (text, eco) in [
-        ("rust", Ecosystem::Rust),
-        ("python", Ecosystem::Python),
-        ("js", Ecosystem::Js),
-        ("ts", Ecosystem::Ts),
-        ("go", Ecosystem::Go),
-        ("java", Ecosystem::Java),
-        ("kotlin", Ecosystem::Kotlin),
-        ("scala", Ecosystem::Scala),
-        ("csharp", Ecosystem::Csharp),
-        ("fsharp", Ecosystem::Fsharp),
-        ("cc", Ecosystem::Cc),
-        ("ruby", Ecosystem::Ruby),
-        ("perl", Ecosystem::Perl),
-        ("zig", Ecosystem::Zig),
-        ("julia", Ecosystem::Julia),
-        ("dart", Ecosystem::Dart),
-        ("php", Ecosystem::Php),
-        ("elixir", Ecosystem::Elixir),
-        ("erlang", Ecosystem::Erlang),
-        ("fortran", Ecosystem::Fortran),
-        ("d", Ecosystem::D),
-        ("haskell", Ecosystem::Haskell),
-        ("swift", Ecosystem::Swift),
-        ("powershell", Ecosystem::Powershell),
-        ("lua", Ecosystem::Lua),
-        ("ocaml", Ecosystem::Ocaml),
+        ("rust", Language::Rust),
+        ("python", Language::Python),
+        ("js", Language::Js),
+        ("ts", Language::Ts),
+        ("go", Language::Go),
+        ("java", Language::Java),
+        ("kotlin", Language::Kotlin),
+        ("scala", Language::Scala),
+        ("csharp", Language::Csharp),
+        ("fsharp", Language::Fsharp),
+        ("cc", Language::Cc),
+        ("ruby", Language::Ruby),
+        ("perl", Language::Perl),
+        ("zig", Language::Zig),
+        ("julia", Language::Julia),
+        ("dart", Language::Dart),
+        ("php", Language::Php),
+        ("elixir", Language::Elixir),
+        ("erlang", Language::Erlang),
+        ("fortran", Language::Fortran),
+        ("d", Language::D),
+        ("haskell", Language::Haskell),
+        ("swift", Language::Swift),
+        ("powershell", Language::Powershell),
+        ("lua", Language::Lua),
+        ("ocaml", Language::Ocaml),
     ] {
-        assert_eq!(Ecosystem::parse(text), Some(eco), "{text}");
+        assert_eq!(Language::parse(text), Some(eco), "{text}");
     }
-    assert_eq!(Ecosystem::parse("node"), None);
+    assert_eq!(Language::parse("node"), None);
 }
 
 #[test]
@@ -1355,7 +1356,7 @@ fn non_semver_pessimistic_padding_and_prerelease() {
         satisfies_non_semver(">=2.0.0-beta", "2.0.0-beta"),
         ">=2.0.0-beta 2.0.0-beta"
     );
-    assert!(satisfies_for(Ecosystem::Ruby, "~> 3.13", "3.13.0"));
+    assert!(satisfies_for(Language::Ruby, "~> 3.13", "3.13.0"));
 }
 
 #[test]
@@ -1589,7 +1590,7 @@ version = "0.1.0rc1"
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Python,
+        Language::Python,
         &man,
         &lock,
         &mut out,
@@ -1716,9 +1717,9 @@ fn parsers_skip_unrecognized_lines() {
 
 #[test]
 fn test_file_detection_ruby() {
-    assert!(is_test_file(Ecosystem::Ruby, Path::new("a/foo_spec.rb")));
-    assert!(is_test_file(Ecosystem::Ruby, Path::new("a/foo_test.rb")));
-    assert!(!is_test_file(Ecosystem::Ruby, Path::new("a/foo.rb")));
+    assert!(is_test_file(Language::Ruby, Path::new("a/foo_spec.rb")));
+    assert!(is_test_file(Language::Ruby, Path::new("a/foo_test.rb")));
+    assert!(!is_test_file(Language::Ruby, Path::new("a/foo.rb")));
 }
 
 #[test]
@@ -1742,13 +1743,12 @@ fn find_usages_walks_odd_files() {
         let _ = std::fs::write(&odd, "fn odd() {}\n");
     }
     let rust_hits =
-        find_usages(Ecosystem::Rust, dir.path(), &["codegen".to_owned()]).expect("usages");
+        find_usages(Language::Rust, dir.path(), &["codegen".to_owned()]).expect("usages");
     assert!(rust_hits["codegen"].build);
-    let ruby_hits =
-        find_usages(Ecosystem::Ruby, dir.path(), &["rspec".to_owned()]).expect("usages");
+    let ruby_hits = find_usages(Language::Ruby, dir.path(), &["rspec".to_owned()]).expect("usages");
     assert!(ruby_hits["rspec"].src);
     let missing_root = dir.path().join("MISSING_DIR");
-    let none = find_usages(Ecosystem::Rust, &missing_root, &["anyhow".to_owned()]).expect("empty");
+    let none = find_usages(Language::Rust, &missing_root, &["anyhow".to_owned()]).expect("empty");
     assert!(!none["anyhow"].src);
 }
 
@@ -1760,13 +1760,13 @@ fn find_usages_reads_only_source_suffixes() {
         "fn main() { codegen::run(); }\n",
     );
     let dep = ["codegen".to_owned()];
-    let skipped = find_usages(Ecosystem::Rust, dir.path(), &dep).expect("usages");
+    let skipped = find_usages(Language::Rust, dir.path(), &dep).expect("usages");
     assert!(!skipped["codegen"].src && !skipped["codegen"].test);
     write_file(
         &dir.path().join("notes.rs"),
         "fn main() { codegen::run(); }\n",
     );
-    let read = find_usages(Ecosystem::Rust, dir.path(), &dep).expect("usages");
+    let read = find_usages(Language::Rust, dir.path(), &dep).expect("usages");
     assert!(read["codegen"].src);
 }
 
@@ -1778,7 +1778,7 @@ fn consistency_cmd_error_paths() {
     let mut out = String::new();
     let mut err = String::new();
     let result = cmd_consistency(
-        Ecosystem::Rust,
+        Language::Rust,
         &dir.path().join("MISSING.toml"),
         &lock,
         &mut out,
@@ -1796,14 +1796,14 @@ fn consistency_cmd_error_paths() {
         &lock,
         "[[package]]\nname = \"anyhow\"\nversion = \"1.0.0\"\n",
     );
-    let result = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let result = cmd_consistency(Language::Rust, &man, &lock, &mut out, &mut err);
     assert_eq!(result.expect_err("bad manifest").kind(), ErrorKind::Failure);
     assert!(err.contains("unreadable manifest"), "{err}");
 
     err.clear();
     write_file(&man, "[dependencies]\nanyhow = \"1\"\n");
     write_file(&lock, "[[package]");
-    let result = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let result = cmd_consistency(Language::Rust, &man, &lock, &mut out, &mut err);
     assert_eq!(result.expect_err("bad lock").kind(), ErrorKind::Failure);
     assert!(err.contains("unreadable lock"), "{err}");
 }
@@ -1824,7 +1824,7 @@ fn consistency_missing_entry_prefers_alt_names() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         &lock,
         &mut out,
@@ -1850,7 +1850,7 @@ fn consistency_passes_when_any_locked_version_matches() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         &lock,
         &mut out,
@@ -1869,7 +1869,7 @@ fn consistency_stale_lists_all_locked_versions() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         &lock,
         &mut out,
@@ -1910,7 +1910,7 @@ fn consistency_finds_renamed_crate() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         &lock,
         &mut out,
@@ -1923,7 +1923,7 @@ fn consistency_finds_renamed_crate() {
     );
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         &lock,
         &mut out,
@@ -1942,7 +1942,7 @@ fn usage_matches_renamed_crate_by_alias() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_usage(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         dir.path(),
         &mut out,
@@ -1965,7 +1965,7 @@ fn consistency_stale_cc_sha_fails() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Cc,
+        Language::Cc,
         &dir.path().join("cc_deps.toml"),
         &dir.path().join("cc_lock.json"),
         &mut out,
@@ -2056,7 +2056,7 @@ fn usage_cmd_error_paths() {
     let mut err = String::new();
 
     let code = exit_code(cmd_usage(
-        Ecosystem::Rust,
+        Language::Rust,
         &dir.path().join("MISSING.toml"),
         &src,
         &mut out,
@@ -2067,7 +2067,7 @@ fn usage_cmd_error_paths() {
 
     err.clear();
     let code = exit_code(cmd_usage(
-        Ecosystem::Rust,
+        Language::Rust,
         &man,
         &dir.path().join("MISSING_DIR"),
         &mut out,
@@ -2079,7 +2079,7 @@ fn usage_cmd_error_paths() {
     err.clear();
     let bad = dir.path().join("bad.toml");
     write_file(&bad, "not = [valid");
-    let error = cmd_usage(Ecosystem::Rust, &bad, &src, &mut out, &mut err).expect_err("bad");
+    let error = cmd_usage(Language::Rust, &bad, &src, &mut out, &mut err).expect_err("bad");
     assert_eq!(error.kind(), ErrorKind::Failure);
     assert!(err.contains("unreadable manifest"), "{err}");
 }
@@ -2098,7 +2098,7 @@ fn usage_rust_build_only_is_category_error() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_usage(
-        Ecosystem::Rust,
+        Language::Rust,
         &dir.path().join("Cargo.toml"),
         dir.path(),
         &mut out,
@@ -2121,7 +2121,7 @@ fn usage_rust_prod_and_dev_dep_used_only_by_tests() {
         let mut out = String::new();
         let mut err = String::new();
         let code = exit_code(cmd_usage(
-            Ecosystem::Rust,
+            Language::Rust,
             &dir.path().join("Cargo.toml"),
             dir.path(),
             &mut out,
@@ -2145,7 +2145,7 @@ fn usage_python_prod_and_dev_dep_used_only_by_tests() {
         let mut out = String::new();
         let mut err = String::new();
         let code = exit_code(cmd_usage(
-            Ecosystem::Python,
+            Language::Python,
             &dir.path().join("pyproject.toml"),
             dir.path(),
             &mut out,
@@ -2189,7 +2189,7 @@ fn js_consistency(dir: &Path) -> (i32, String, String) {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Js,
+        Language::Js,
         &dir.join("package.json"),
         &dir.join("pnpm-lock.yaml"),
         &mut out,
@@ -2202,7 +2202,7 @@ fn js_usage(dir: &Path) -> (i32, String) {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_usage(
-        Ecosystem::Js,
+        Language::Js,
         &dir.join("package.json"),
         dir,
         &mut out,
@@ -2495,7 +2495,7 @@ fn pnpm_selects_the_workspace_subdirectory_importer() {
         let mut out = String::new();
         let mut err = String::new();
         let code = exit_code(cmd_consistency(
-            Ecosystem::Js,
+            Language::Js,
             manifest,
             &dir.path().join("pnpm-lock.yaml"),
             &mut out,
@@ -2577,11 +2577,11 @@ fn perl_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("perl/mixed");
     let manifest = base.join("cpanfile");
     let lock = base.join("cpanfile.snapshot");
-    assert_eq!(consistency(Ecosystem::Perl, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Perl, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Perl, "mixed"), 0);
+    let unused = find_unused(Language::Perl, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["Text::CSV"]);
-    let missing = find_missing(Ecosystem::Perl, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Perl, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -2601,13 +2601,13 @@ fn perl_usage_covers_use_require_and_parent() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Perl, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Perl, dir.path(), &names).expect("usages");
     assert!(hits["Foo::Bar"].src);
     assert!(hits["Baz"].src);
     assert!(hits["Qux"].src);
     assert!(hits["Test::More"].test && !hits["Test::More"].src);
     assert!(!hits["Nope"].src);
-    assert!(is_test_file(Ecosystem::Perl, Path::new("t/x.t")));
+    assert!(is_test_file(Language::Perl, Path::new("t/x.t")));
 }
 
 #[test]
@@ -2631,11 +2631,11 @@ fn zig_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("zig/mixed");
     let manifest = base.join("build.zig.zon");
     let lock = base.join("build.zig.zon.lock");
-    assert_eq!(consistency(Ecosystem::Zig, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Zig, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Zig, "mixed"), 0);
+    let unused = find_unused(Language::Zig, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["clap"]);
-    let missing = find_missing(Ecosystem::Zig, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Zig, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -2656,7 +2656,7 @@ fn zig_consistency_flags_stale_hash() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Zig,
+        Language::Zig,
         &zon,
         &lock,
         &mut out,
@@ -2683,7 +2683,7 @@ fn zig_usage_covers_dependency_calls_and_imports() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Zig, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Zig, dir.path(), &names).expect("usages");
     assert!(hits["lz"].src);
     assert!(hits["imp"].src);
     assert!(hits["tst"].test && !hits["tst"].src);
@@ -2728,11 +2728,11 @@ fn julia_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("julia/mixed");
     let manifest = base.join("Project.toml");
     let lock = base.join("Manifest.toml");
-    assert_eq!(consistency(Ecosystem::Julia, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Julia, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Julia, "mixed"), 0);
+    let unused = find_unused(Language::Julia, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["CSV"]);
-    let missing = find_missing(Ecosystem::Julia, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Julia, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -2752,7 +2752,7 @@ fn julia_usage_covers_using_import_and_lists() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Julia, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Julia, dir.path(), &names).expect("usages");
     for name in ["A", "B", "C", "D"] {
         assert!(hits[name].src, "{name}");
     }
@@ -2765,11 +2765,11 @@ fn dart_fixture_reports_the_unused_and_the_missing_package() {
     let app = testdata_root().join("dart/app");
     let manifest = app.join("pubspec.yaml");
     let lock = app.join("pubspec.lock");
-    let unused = find_unused(Ecosystem::Dart, &manifest, &app, &[]).expect("unused");
+    let unused = find_unused(Language::Dart, &manifest, &app, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, vec!["intl"]);
     assert_eq!(unused[0].line, 9);
-    let missing = find_missing(Ecosystem::Dart, &manifest, &lock, &app, &[]).expect("missing");
+    let missing = find_missing(Language::Dart, &manifest, &lock, &app, &[]).expect("missing");
     let got: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -2780,18 +2780,18 @@ fn dart_fixture_reports_the_unused_and_the_missing_package() {
 
 #[test]
 fn dart_ranges_and_any_are_settled() {
-    assert!(satisfies_for(Ecosystem::Dart, "^1.2.0", "1.9.0"));
-    assert!(!satisfies_for(Ecosystem::Dart, "^1.2.0", "2.0.0"));
-    assert!(satisfies_for(Ecosystem::Dart, ">=1.0.0 <2.0.0", "1.5.0"));
-    assert!(!satisfies_for(Ecosystem::Dart, ">=1.0.0 <2.0.0", "2.0.0"));
-    assert!(satisfies_for(Ecosystem::Dart, "*", "3.0.0"));
+    assert!(satisfies_for(Language::Dart, "^1.2.0", "1.9.0"));
+    assert!(!satisfies_for(Language::Dart, "^1.2.0", "2.0.0"));
+    assert!(satisfies_for(Language::Dart, ">=1.0.0 <2.0.0", "1.5.0"));
+    assert!(!satisfies_for(Language::Dart, ">=1.0.0 <2.0.0", "2.0.0"));
+    assert!(satisfies_for(Language::Dart, "*", "3.0.0"));
 }
 
 fn consistency_code(manifest: &std::path::Path, lock: &std::path::Path) -> i32 {
     let mut out = String::new();
     let mut err = String::new();
     exit_code(cmd_consistency(
-        Ecosystem::Dart,
+        Language::Dart,
         manifest,
         lock,
         &mut out,
@@ -2827,11 +2827,11 @@ fn php_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("php/mixed");
     let manifest = base.join("composer.json");
     let lock = base.join("composer.lock");
-    assert_eq!(consistency(Ecosystem::Php, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Php, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Php, "mixed"), 0);
+    let unused = find_unused(Language::Php, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["guzzlehttp/guzzle"]);
-    let missing = find_missing(Ecosystem::Php, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Php, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -2872,7 +2872,7 @@ fn php_usage_covers_namespaces() {
     .iter()
     .map(|name| (*name).to_owned())
     .collect();
-    let hits = find_usages(Ecosystem::Php, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Php, dir.path(), &names).expect("usages");
     assert!(hits["guzzlehttp/guzzle"].src);
     assert!(hits["symfony/console"].src);
     assert!(hits["monolog/monolog"].src);
@@ -2880,7 +2880,7 @@ fn php_usage_covers_namespaces() {
     assert!(!hits["symfony/process"].src);
 }
 
-fn unused_and_missing(eco: Ecosystem) -> (Vec<String>, Vec<String>) {
+fn unused_and_missing(eco: Language) -> (Vec<String>, Vec<String>) {
     let base = testdata_root().join(eco_dir(eco)).join("mixed");
     let manifest = base.join(manifest_name(eco));
     let unused = find_unused(eco, &manifest, &base, &[]).expect("unused");
@@ -2894,18 +2894,18 @@ fn unused_and_missing(eco: Ecosystem) -> (Vec<String>, Vec<String>) {
 
 #[test]
 fn elixir_reports_the_unused_and_the_missing_dep() {
-    let (unused, missing) = unused_and_missing(Ecosystem::Elixir);
+    let (unused, missing) = unused_and_missing(Language::Elixir);
     assert_eq!(unused, ["telemetry"]);
     assert_eq!(missing, ["plug"]);
-    assert_eq!(consistency(Ecosystem::Elixir, "mixed"), 0);
+    assert_eq!(consistency(Language::Elixir, "mixed"), 0);
 }
 
 #[test]
 fn erlang_reports_the_unused_and_the_missing_dep() {
-    let (unused, missing) = unused_and_missing(Ecosystem::Erlang);
+    let (unused, missing) = unused_and_missing(Language::Erlang);
     assert_eq!(unused, ["hackney"]);
     assert_eq!(missing, ["ranch"]);
-    assert_eq!(consistency(Ecosystem::Erlang, "mixed"), 0);
+    assert_eq!(consistency(Language::Erlang, "mixed"), 0);
 }
 
 #[test]
@@ -2940,16 +2940,13 @@ fn erlang_manifest_reads_atoms_tuples_and_git_deps() {
 
 #[test]
 fn beam_test_files_are_recognised() {
-    assert!(is_test_file(Ecosystem::Elixir, Path::new("a/foo_test.exs")));
-    assert!(!is_test_file(Ecosystem::Elixir, Path::new("a/lib/foo.ex")));
-    assert!(is_test_file(
-        Ecosystem::Erlang,
-        Path::new("a/foo_SUITE.erl")
-    ));
-    assert!(!is_test_file(Ecosystem::Erlang, Path::new("a/src/foo.erl")));
+    assert!(is_test_file(Language::Elixir, Path::new("a/foo_test.exs")));
+    assert!(!is_test_file(Language::Elixir, Path::new("a/lib/foo.ex")));
+    assert!(is_test_file(Language::Erlang, Path::new("a/foo_SUITE.erl")));
+    assert!(!is_test_file(Language::Erlang, Path::new("a/src/foo.erl")));
 }
 
-fn assert_unused_and_missing(eco: Ecosystem, unused: &[&str], missing: &[(&str, &str, usize)]) {
+fn assert_unused_and_missing(eco: Language, unused: &[&str], missing: &[(&str, &str, usize)]) {
     let base = testdata_root().join(eco_dir(eco)).join("mixed");
     let manifest = base.join(manifest_name(eco));
     let lock = base.join(lock_name(eco));
@@ -2968,7 +2965,7 @@ fn assert_unused_and_missing(eco: Ecosystem, unused: &[&str], missing: &[(&str, 
 #[test]
 fn fortran_fixture_reports_unused_and_missing() {
     assert_unused_and_missing(
-        Ecosystem::Fortran,
+        Language::Fortran,
         &["json-fortran"],
         &[("fftpack", "src/hello.f90", 3)],
     );
@@ -2977,7 +2974,7 @@ fn fortran_fixture_reports_unused_and_missing() {
 #[test]
 fn d_fixture_reports_unused_and_missing() {
     assert_unused_and_missing(
-        Ecosystem::D,
+        Language::D,
         &["mir-algorithm"],
         &[("silly", "source/app.d", 5)],
     );
@@ -3042,7 +3039,7 @@ fn d_and_fortran_usage_patterns() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::D, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::D, dir.path(), &names).expect("usages");
     assert!(hits["vibe-d"].src);
     assert!(!hits["mir-algorithm"].src);
     assert!(hits["silly"].test && !hits["silly"].src);
@@ -3055,7 +3052,7 @@ fn d_and_fortran_usage_patterns() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Fortran, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Fortran, dir.path(), &names).expect("usages");
     assert!(hits["stdlib"].src);
     assert!(hits["iso-c-binding"].src);
 }
@@ -3095,11 +3092,11 @@ fn haskell_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("haskell/mixed");
     let manifest = base.join("hello.cabal");
     let lock = base.join("cabal.project.freeze");
-    assert_eq!(consistency(Ecosystem::Haskell, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Haskell, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Haskell, "mixed"), 0);
+    let unused = find_unused(Language::Haskell, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["aeson"]);
-    let missing = find_missing(Ecosystem::Haskell, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Haskell, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -3128,10 +3125,10 @@ fn haskell_usage_covers_import_forms() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Haskell, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Haskell, dir.path(), &names).expect("usages");
     assert!(hits["text"].src && hits["containers"].src && hits["acme-widgets"].src);
     assert!(hits["hspec"].test && !hits["hspec"].src);
-    assert!(is_test_file(Ecosystem::Haskell, Path::new("test/Spec.hs")));
+    assert!(is_test_file(Language::Haskell, Path::new("test/Spec.hs")));
 }
 
 #[test]
@@ -3171,11 +3168,11 @@ fn swift_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("swift/mixed");
     let manifest = base.join("Package.swift");
     let lock = base.join("Package.resolved");
-    assert_eq!(consistency(Ecosystem::Swift, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Swift, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Swift, "mixed"), 0);
+    let unused = find_unused(Language::Swift, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["Vapor"]);
-    let missing = find_missing(Ecosystem::Swift, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Swift, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -3200,7 +3197,7 @@ fn swift_usage_covers_import_forms() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Swift, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Swift, dir.path(), &names).expect("usages");
     assert!(hits["Foo"].src && hits["Bar"].src);
     assert!(hits["Baz"].test && !hits["Baz"].src);
     assert!(!hits["Nope"].src);
@@ -3243,12 +3240,12 @@ fn powershell_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("powershell/mixed");
     let manifest = base.join("Hello.psd1");
     let lock = base.join("installed_modules.txt");
-    assert_eq!(consistency(Ecosystem::Powershell, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Powershell, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Powershell, "mixed"), 0);
+    let unused = find_unused(Language::Powershell, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["PSReadLine"]);
     let missing =
-        find_missing(Ecosystem::Powershell, &manifest, &lock, &base, &[]).expect("missing");
+        find_missing(Language::Powershell, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -3269,7 +3266,7 @@ fn powershell_consistency_flags_old_install() {
     let mut out = String::new();
     let mut err = String::new();
     let code = exit_code(cmd_consistency(
-        Ecosystem::Powershell,
+        Language::Powershell,
         &psd1,
         &lock,
         &mut out,
@@ -3297,7 +3294,7 @@ fn powershell_usage_covers_import_using_and_requires() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Powershell, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Powershell, dir.path(), &names).expect("usages");
     assert!(hits["Foo.Bar"].src);
     assert!(hits["Baz"].src);
     assert!(hits["Other"].src);
@@ -3343,11 +3340,11 @@ fn lua_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("lua/mixed");
     let manifest = base.join("mixed-1.0-1.rockspec");
     let lock = base.join("luarocks.lock");
-    assert_eq!(consistency(Ecosystem::Lua, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Lua, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Lua, "mixed"), 0);
+    let unused = find_unused(Language::Lua, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["penlight"]);
-    let missing = find_missing(Ecosystem::Lua, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Lua, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -3372,7 +3369,7 @@ fn lua_usage_covers_require_forms() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Lua, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Lua, dir.path(), &names).expect("usages");
     assert!(hits["luasocket"].src);
     assert!(hits["lua-cjson"].src);
     assert!(hits["busted"].test && !hits["busted"].src);
@@ -3401,11 +3398,11 @@ fn ocaml_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("ocaml/mixed");
     let manifest = base.join("project.opam");
     let lock = base.join("opam.locked");
-    assert_eq!(consistency(Ecosystem::Ocaml, "mixed"), 0);
-    let unused = find_unused(Ecosystem::Ocaml, &manifest, &base, &[]).expect("unused");
+    assert_eq!(consistency(Language::Ocaml, "mixed"), 0);
+    let unused = find_unused(Language::Ocaml, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();
     assert_eq!(names, ["cmdliner"]);
-    let missing = find_missing(Ecosystem::Ocaml, &manifest, &lock, &base, &[]).expect("missing");
+    let missing = find_missing(Language::Ocaml, &manifest, &lock, &base, &[]).expect("missing");
     let found: Vec<(&str, &str, usize)> = missing
         .iter()
         .map(|dep| (dep.name.as_str(), dep.file.as_str(), dep.line))
@@ -3428,7 +3425,7 @@ fn ocaml_usage_reads_libraries_and_pps() {
         .iter()
         .map(|name| (*name).to_owned())
         .collect();
-    let hits = find_usages(Ecosystem::Ocaml, dir.path(), &names).expect("usages");
+    let hits = find_usages(Language::Ocaml, dir.path(), &names).expect("usages");
     assert!(hits["lwt"].src);
     assert!(hits["ppx_deriving"].src);
     assert!(hits["alcotest"].test && !hits["alcotest"].src);

@@ -72,6 +72,7 @@ rust_binary(
         normal = True,
     ) + [
         ":depcheck_lib",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/gomod:dx_gomod",
     ],
@@ -118,6 +119,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/gomod:dx_gomod",
     ],
@@ -132,6 +134,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":depcheck_lib",
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/gomod:dx_gomod",
     ],

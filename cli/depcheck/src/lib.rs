@@ -43,7 +43,7 @@ pub use ecosystem::swift::{parse_swift_lock, parse_swift_manifest};
 pub use ecosystem::zig::{parse_zig_lock, parse_zig_manifest};
 pub use ecosystem::{normalize_lower, normalize_snake, parse_paren_lock};
 pub use missing::{MissingDep, find_missing, find_missing_go};
-pub use types::{DepInfo, DepcheckError, Ecosystem, LockVersions, Usage, WorkspaceLocks};
+pub use types::{DepInfo, DepcheckError, LockVersions, Usage, WorkspaceLocks, language_named};
 pub use unused::{DeclaredDep, UnusedDep, declared, find_unused};
 pub use usage::{cmd_usage, find_usages, is_test_file};
 pub use version::satisfies_for;

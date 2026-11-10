@@ -3,8 +3,9 @@ use std::path::{Path, PathBuf};
 
 use dx_error::DxError;
 
+use crate::DepcheckError;
 use crate::consistency::reported;
-use crate::{DepcheckError, Ecosystem};
+use dx_ecosystems::Language;
 
 fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     let mut out = Vec::new();
@@ -36,7 +37,7 @@ fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
     out
 }
 
-pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
+pub fn is_test_file(eco: Language, path: &Path) -> bool {
     let s = format!("/{}", dx_path::posix(path).trim_start_matches('/'));
     let name = path
         .file_name()
@@ -44,7 +45,7 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
         .unwrap_or("")
         .to_owned();
     match eco {
-        Ecosystem::Rust => {
+        Language::Rust => {
             let stem = name.strip_suffix(".rs").unwrap_or(&name);
             s.contains("/tests/")
                 || s.contains("/benches/")
@@ -53,61 +54,59 @@ pub fn is_test_file(eco: Ecosystem, path: &Path) -> bool {
                 || stem == "test"
                 || stem == "tests"
         }
-        Ecosystem::Python => {
+        Language::Python => {
             name.starts_with("test_") || name.ends_with("_test.py") || s.contains("/tests/")
         }
-        Ecosystem::Go => {
-            name.ends_with("_test.go") || s.contains("/tests/") || s.contains("/test/")
-        }
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => {
+        Language::Go => name.ends_with("_test.go") || s.contains("/tests/") || s.contains("/test/"),
+        Language::Java | Language::Kotlin | Language::Scala => {
             name.contains("Test") || s.to_lowercase().contains("/test/") || s.contains("/tests/")
         }
-        Ecosystem::Csharp | Ecosystem::Fsharp => {
+        Language::Csharp | Language::Fsharp => {
             name.contains("Test") || s.to_lowercase().contains("/test/") || s.contains("/tests/")
         }
-        Ecosystem::Cc => {
+        Language::Cc => {
             name.to_lowercase().contains("test")
                 || s.to_lowercase().contains("/test/")
                 || s.contains("/tests/")
         }
-        Ecosystem::Js | Ecosystem::Ts => {
+        Language::Js | Language::Ts => {
             name.ends_with(".test.js")
                 || name.ends_with(".test.ts")
                 || s.contains("/__tests__/")
                 || s.contains("/tests/")
         }
-        Ecosystem::Dart => {
+        Language::Dart => {
             name.ends_with("_test.dart") || s.contains("/test/") || s.contains("/integration_test/")
         }
-        Ecosystem::Ruby => {
+        Language::Ruby => {
             name.ends_with("_spec.rb") || name.ends_with("_test.rb") || s.contains("/tests/")
         }
-        Ecosystem::Julia => name == "runtests.jl" || s.contains("/test/") || s.contains("/tests/"),
-        Ecosystem::Zig => {
+        Language::Julia => name == "runtests.jl" || s.contains("/test/") || s.contains("/tests/"),
+        Language::Zig => {
             name.ends_with("_test.zig") || s.contains("/test/") || s.contains("/tests/")
         }
-        Ecosystem::Php => {
+        Language::Php => {
             name.ends_with("Test.php") || s.contains("/tests/") || s.contains("/Tests/")
         }
-        Ecosystem::Fortran | Ecosystem::D => {
+        Language::Fortran | Language::D => {
             s.contains("/test/") || s.contains("/tests/") || name.contains("_test.")
         }
-        Ecosystem::Haskell => {
+        Language::Haskell => {
             name.ends_with("Spec.hs")
                 || name.ends_with("Test.hs")
                 || name.ends_with("Tests.hs")
                 || s.contains("/test/")
                 || s.contains("/tests/")
         }
-        Ecosystem::Swift => s.contains("/Tests/") || name.ends_with("Tests.swift"),
-        Ecosystem::Powershell => name.ends_with(".Tests.ps1") || s.contains("/tests/"),
-        Ecosystem::Lua => {
+        Language::Swift => s.contains("/Tests/") || name.ends_with("Tests.swift"),
+        Language::Powershell => name.ends_with(".Tests.ps1") || s.contains("/tests/"),
+        Language::Lua => {
             name.ends_with("_spec.lua") || s.contains("/spec/") || s.contains("/tests/")
         }
-        Ecosystem::Ocaml => s.contains("/test/") || s.contains("/tests/"),
-        Ecosystem::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
-        Ecosystem::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
-        Ecosystem::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
+        Language::Ocaml => s.contains("/test/") || s.contains("/tests/"),
+        Language::Perl => name.ends_with(".t") || s.contains("/t/") || s.contains("/xt/"),
+        Language::Elixir => name.ends_with("_test.exs") || s.contains("/test/"),
+        Language::Erlang => name.ends_with("_SUITE.erl") || s.contains("/test/"),
     }
 }
 
@@ -281,11 +280,11 @@ impl DepPatterns {
     }
 }
 
-fn compile(eco: Ecosystem, patterns: Vec<String>) -> Result<Vec<regex::Regex>, DepcheckError> {
+fn compile(eco: Language, patterns: Vec<String>) -> Result<Vec<regex::Regex>, DepcheckError> {
     patterns
         .into_iter()
         .map(|pat| {
-            if matches!(eco, Ecosystem::Csharp | Ecosystem::Fsharp) {
+            if matches!(eco, Language::Csharp | Language::Fsharp) {
                 regex::Regex::new(&format!("(?i){pat}"))
             } else {
                 regex::Regex::new(&pat)
@@ -352,8 +351,8 @@ fn elixir_modules(dep: &str) -> Vec<String> {
 }
 
 /// Extra spellings a source can use for a package: a dub package `vibe-d` is imported as `vibe`.
-fn module_forms(eco: Ecosystem, dep: &str) -> Vec<String> {
-    if eco != Ecosystem::D {
+fn module_forms(eco: Language, dep: &str) -> Vec<String> {
+    if eco != Language::D {
         return Vec::new();
     }
     let root = dep.replace('-', "_");
@@ -364,11 +363,11 @@ fn module_forms(eco: Ecosystem, dep: &str) -> Vec<String> {
     forms
 }
 
-fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError> {
+fn dep_patterns(eco: Language, dep: &str) -> Result<DepPatterns, DepcheckError> {
     let mut weak = Vec::new();
     let mut shadow = None;
     let strong: Vec<String> = match eco {
-        Ecosystem::Rust => {
+        Language::Rust => {
             let c = regex_escape(&dep.replace('-', "_"));
             weak = vec![format!(r"\buse\s+{c}\b"), format!(r"(?:^|[^\w:]){c}\s*::")];
             shadow = Some(format!(
@@ -380,7 +379,7 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r"\buse\s+::{c}\b"),
             ]
         }
-        Ecosystem::Python => {
+        Language::Python => {
             let raw_dash = dep.replace('_', "-");
             vec![
                 format!(r"(?m)^\s*import\s+{}\b", regex_escape(dep)),
@@ -389,19 +388,19 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r"(?m)^\s*from\s+{}\b", regex_escape(&raw_dash)),
             ]
         }
-        Ecosystem::Go => vec![
+        Language::Go => vec![
             format!(r#"import\s+(?:\(\s*)?["']{}["']"#, regex_escape(dep)),
             format!(r#"["']{}(?:/[^"']*)?["']"#, regex_escape(dep)),
         ],
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => jvm_patterns(dep),
-        Ecosystem::Csharp | Ecosystem::Fsharp => {
+        Language::Java | Language::Kotlin | Language::Scala => jvm_patterns(dep),
+        Language::Csharp | Language::Fsharp => {
             let base = dep.split('.').next_back().unwrap_or(dep).to_owned();
             vec![
                 format!(r"(?m)^\s*(using|open)\s+.*{}\b", regex_escape(dep)),
                 format!(r"(?m)^\s*(using|open)\s+.*{}\b", regex_escape(&base)),
             ]
         }
-        Ecosystem::Cc => {
+        Language::Cc => {
             let cname = dep.replace('-', "_");
             [dep, cname.as_str()]
                 .iter()
@@ -413,7 +412,7 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 })
                 .collect()
         }
-        Ecosystem::Js | Ecosystem::Ts => {
+        Language::Js | Language::Ts => {
             let spec = format!(r#"['"]{}(?:/[^'"]*)?['"]"#, regex_escape(dep));
             vec![
                 format!(r"from\s+{spec}"),
@@ -422,7 +421,7 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 format!(r"(?m)^\s*import\s+{spec}"),
             ]
         }
-        Ecosystem::Powershell => {
+        Language::Powershell => {
             let module = regex_escape(dep);
             let end = r#"(?:['"\s,;)]|$)"#;
             vec![
@@ -433,13 +432,13 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 ),
             ]
         }
-        Ecosystem::Julia => {
+        Language::Julia => {
             let name = regex_escape(dep);
             vec![format!(
                 r"(?m)^\s*(?:using|import)\s+(?:[^\n#:]*,\s*)?{name}\b(?:\s*[:,]|\s*(?:#.*)?$|\.)"
             )]
         }
-        Ecosystem::Lua => {
+        Language::Lua => {
             let mut names = vec![dep.to_owned()];
             let trimmed = dep.strip_suffix(".lua").unwrap_or(dep);
             let trimmed = trimmed.strip_prefix("lua-").unwrap_or(trimmed);
@@ -455,26 +454,26 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 names.join("|")
             )]
         }
-        Ecosystem::Ocaml => {
+        Language::Ocaml => {
             let name = regex_escape(dep);
             vec![format!(
                 r"\((?:libraries|pps|preprocess_deps)\b[^()]*?[\s(]{name}(?:\.[\w.]+)?[\s)]"
             )]
         }
-        Ecosystem::Zig => {
+        Language::Zig => {
             let name = regex_escape(dep);
             vec![
                 format!(r#"\b(?:lazyDependency|dependency)\(\s*"{name}""#),
                 format!(r#"@import\(\s*"{name}"\s*\)"#),
             ]
         }
-        Ecosystem::Swift => {
+        Language::Swift => {
             let module = regex_escape(dep);
             vec![format!(
                 r"(?m)^\s*(?:@\w+(?:\([^)]*\))?\s+)*import\s+(?:(?:struct|class|enum|protocol|typealias|func|var|let)\s+)?{module}\b"
             )]
         }
-        Ecosystem::Perl => {
+        Language::Perl => {
             let module = regex_escape(dep);
             vec![
                 format!(r"(?m)^\s*(?:use|require|no)\s+{module}\b"),
@@ -483,15 +482,15 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 ),
             ]
         }
-        Ecosystem::Dart => {
+        Language::Dart => {
             let dep = regex_escape(dep);
             vec![
                 format!(r#"(?m)^\s*(?:import|export|part)\s+['"]package:{dep}/"#),
                 format!(r#"(?m)^\s*include:\s*['"]?package:{dep}/"#),
             ]
         }
-        Ecosystem::Php => php_patterns(dep),
-        Ecosystem::Elixir => {
+        Language::Php => php_patterns(dep),
+        Language::Elixir => {
             let mut patterns = vec![format!(r"(?:^|[^\w:]):{}\b", regex_escape(dep))];
             for module in elixir_modules(dep) {
                 let module = regex_escape(&module);
@@ -502,18 +501,18 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
             }
             patterns
         }
-        Ecosystem::Erlang => vec![
+        Language::Erlang => vec![
             format!(r#"(?m)^\s*-include(?:_lib)?\(\s*"{}/"#, regex_escape(dep)),
             format!(r"(?m)^\s*-behaviou?r\(\s*{}\s*\)", regex_escape(dep)),
             format!(r"(?:^|[^\w:]){}:[a-z_]\w*\(", regex_escape(dep)),
         ],
-        Ecosystem::Fortran => {
+        Language::Fortran => {
             let module = regex_escape(&dep.replace('-', "_"));
             vec![format!(
                 r"(?mi)^\s*use\s*(?:,\s*(?:non_)?intrinsic\s*)?(?:::\s*)?{module}(?:_\w+)?\b"
             )]
         }
-        Ecosystem::D => {
+        Language::D => {
             let roots: Vec<String> = module_forms(eco, dep)
                 .iter()
                 .map(|root| regex_escape(root))
@@ -523,7 +522,7 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 roots.join("|")
             )]
         }
-        Ecosystem::Haskell => {
+        Language::Haskell => {
             let head = r#"(?m)^\s*import\s+(?:safe\s+)?(?:qualified\s+)?"#;
             let package = format!(r#"(?:"{}"\s+(?:qualified\s+)?)?"#, regex_escape(dep));
             crate::ecosystem::haskell::module_prefixes(dep)
@@ -532,7 +531,7 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
                 .chain([format!(r#"{head}"{}"\s+[A-Z]"#, regex_escape(dep))])
                 .collect()
         }
-        Ecosystem::Ruby => vec![
+        Language::Ruby => vec![
             format!(r#"(?m)^\s*require\s+['"]{}['"]"#, regex_escape(dep)),
             format!(
                 r#"(?m)^\s*require\s+['"]{}(?:/[^'"]*)?['"]"#,
@@ -550,7 +549,7 @@ fn dep_patterns(eco: Ecosystem, dep: &str) -> Result<DepPatterns, DepcheckError>
 /// First `file:line` under `root` that imports each of `names`. Directories holding their own
 /// `nested` manifest are not entered.
 pub(crate) fn find_first_imports(
-    eco: Ecosystem,
+    eco: Language,
     root: &Path,
     nested: &str,
     names: &[String],
@@ -579,16 +578,16 @@ pub(crate) fn find_first_imports(
         let mut forms = vec![name.clone(), name.replace('-', "_"), name.replace('_', "-")];
         forms.extend(elixir_modules(name));
         forms.extend(module_forms(eco, name));
-        if eco == Ecosystem::Haskell {
+        if eco == Language::Haskell {
             forms.extend(crate::ecosystem::haskell::module_prefixes(name));
         }
         let hits: Vec<&(String, String)> = texts
             .iter()
             .filter(|(_, text)| {
-                if eco == Ecosystem::Php {
+                if eco == Language::Php {
                     return true;
                 }
-                let text = if eco == Ecosystem::Powershell {
+                let text = if eco == Language::Powershell {
                     text.to_lowercase()
                 } else {
                     text.clone()
@@ -612,7 +611,7 @@ pub(crate) fn find_first_imports(
 }
 
 pub fn find_usages(
-    eco: Ecosystem,
+    eco: Language,
     sources_root: &Path,
     dep_names: &[String],
 ) -> Result<BTreeMap<String, crate::Usage>, DepcheckError> {
@@ -644,7 +643,7 @@ pub fn find_usages(
         let rel = file.strip_prefix(sources_root).unwrap_or(&file);
         let kind = if fname == "build.rs" {
             FileKind::Build
-        } else if is_test_file(eco, rel) || (eco == Ecosystem::Rust && cfg_test.is_match(&text)) {
+        } else if is_test_file(eco, rel) || (eco == Language::Rust && cfg_test.is_match(&text)) {
             FileKind::Test
         } else {
             FileKind::Src
@@ -671,7 +670,7 @@ pub fn find_usages(
 }
 
 pub fn cmd_usage(
-    eco: Ecosystem,
+    eco: Language,
     manifest: &Path,
     sources: &Path,
     stdout: &mut dyn std::fmt::Write,
@@ -695,7 +694,7 @@ pub fn cmd_usage(
             return Err(reported(stderr, err.into()));
         }
     };
-    if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
+    if matches!(eco, Language::Js | Language::Ts) {
         deps.retain(|_, v| !v.peer);
     }
     let dep_names: Vec<String> = deps.keys().cloned().collect();
@@ -717,7 +716,7 @@ pub fn cmd_usage(
                 ));
                 continue;
             }
-            if eco == Ecosystem::Rust
+            if eco == Language::Rust
                 && info.category == "prod"
                 && !usage.src
                 && usage.build

@@ -1,23 +1,23 @@
-use crate::Ecosystem;
 use crate::ecosystem::{normalize_lower, normalize_snake, python};
+use dx_ecosystems::Language;
 
-pub(crate) fn normalize_dep_key(eco: Ecosystem, raw: &str) -> String {
+pub(crate) fn normalize_dep_key(eco: Language, raw: &str) -> String {
     match eco {
-        Ecosystem::Python => python::normalize_py(raw),
-        Ecosystem::Rust => normalize_lower(raw),
-        Ecosystem::Go => normalize_lower(raw),
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => normalize_lower(raw),
-        Ecosystem::Csharp | Ecosystem::Fsharp => normalize_lower(raw),
-        Ecosystem::Cc => normalize_snake(raw),
-        Ecosystem::Js | Ecosystem::Ts => normalize_lower(raw),
-        Ecosystem::Perl | Ecosystem::Zig | Ecosystem::Julia | Ecosystem::Swift => raw.to_owned(),
-        Ecosystem::Dart => normalize_lower(raw),
-        Ecosystem::Php => normalize_lower(raw),
-        Ecosystem::Ruby | Ecosystem::Elixir | Ecosystem::Erlang => normalize_lower(raw),
-        Ecosystem::Fortran | Ecosystem::D => normalize_lower(raw),
-        Ecosystem::Haskell => raw.to_owned(),
-        Ecosystem::Powershell => normalize_lower(raw),
-        Ecosystem::Lua => raw.to_owned(),
-        Ecosystem::Ocaml => raw.to_owned(),
+        Language::Python => python::normalize_py(raw),
+        Language::Rust => normalize_lower(raw),
+        Language::Go => normalize_lower(raw),
+        Language::Java | Language::Kotlin | Language::Scala => normalize_lower(raw),
+        Language::Csharp | Language::Fsharp => normalize_lower(raw),
+        Language::Cc => normalize_snake(raw),
+        Language::Js | Language::Ts => normalize_lower(raw),
+        Language::Perl | Language::Zig | Language::Julia | Language::Swift => raw.to_owned(),
+        Language::Dart => normalize_lower(raw),
+        Language::Php => normalize_lower(raw),
+        Language::Ruby | Language::Elixir | Language::Erlang => normalize_lower(raw),
+        Language::Fortran | Language::D => normalize_lower(raw),
+        Language::Haskell => raw.to_owned(),
+        Language::Powershell => normalize_lower(raw),
+        Language::Lua => raw.to_owned(),
+        Language::Ocaml => raw.to_owned(),
     }
 }

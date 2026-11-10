@@ -8,35 +8,36 @@ use crate::ecosystem::{
 use dx_error::DxError;
 
 use crate::version::satisfies_for;
-use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
+use crate::{DepInfo, DepcheckError, LockVersions, WorkspaceLocks};
+use dx_ecosystems::Language;
 
 pub(crate) fn load_manifest(
-    eco: Ecosystem,
+    eco: Language,
     manifest: &Path,
 ) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     match eco {
-        Ecosystem::Rust => rust::parse_rust_manifest(manifest),
-        Ecosystem::Python => python::parse_python_manifest(manifest),
-        Ecosystem::Js | Ecosystem::Ts => js::parse_js_manifest(manifest),
-        Ecosystem::Go => go::parse_go_manifest(manifest),
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => jvm::parse_jvm_manifest(manifest),
-        Ecosystem::Csharp | Ecosystem::Fsharp => dotnet::parse_dotnet_manifest(manifest),
-        Ecosystem::Cc => cc::parse_cc_manifest(manifest),
-        Ecosystem::Ruby => ruby::parse_ruby_manifest(manifest),
-        Ecosystem::Perl => perl::parse_perl_manifest(manifest),
-        Ecosystem::Zig => zig::parse_zig_manifest(manifest),
-        Ecosystem::Julia => julia::parse_julia_manifest(manifest),
-        Ecosystem::Dart => dart::parse_dart_manifest(manifest),
-        Ecosystem::Php => php::parse_php_manifest(manifest),
-        Ecosystem::Elixir => beam::parse_elixir_manifest(manifest),
-        Ecosystem::Erlang => beam::parse_erlang_manifest(manifest),
-        Ecosystem::Fortran => fortran::parse_fortran_manifest(manifest),
-        Ecosystem::D => dlang::parse_d_manifest(manifest),
-        Ecosystem::Haskell => haskell::parse_haskell_manifest(manifest),
-        Ecosystem::Swift => swift::parse_swift_manifest(manifest),
-        Ecosystem::Powershell => powershell::parse_powershell_manifest(manifest),
-        Ecosystem::Lua => lua::parse_lua_manifest(manifest),
-        Ecosystem::Ocaml => ocaml::parse_ocaml_manifest(manifest),
+        Language::Rust => rust::parse_rust_manifest(manifest),
+        Language::Python => python::parse_python_manifest(manifest),
+        Language::Js | Language::Ts => js::parse_js_manifest(manifest),
+        Language::Go => go::parse_go_manifest(manifest),
+        Language::Java | Language::Kotlin | Language::Scala => jvm::parse_jvm_manifest(manifest),
+        Language::Csharp | Language::Fsharp => dotnet::parse_dotnet_manifest(manifest),
+        Language::Cc => cc::parse_cc_manifest(manifest),
+        Language::Ruby => ruby::parse_ruby_manifest(manifest),
+        Language::Perl => perl::parse_perl_manifest(manifest),
+        Language::Zig => zig::parse_zig_manifest(manifest),
+        Language::Julia => julia::parse_julia_manifest(manifest),
+        Language::Dart => dart::parse_dart_manifest(manifest),
+        Language::Php => php::parse_php_manifest(manifest),
+        Language::Elixir => beam::parse_elixir_manifest(manifest),
+        Language::Erlang => beam::parse_erlang_manifest(manifest),
+        Language::Fortran => fortran::parse_fortran_manifest(manifest),
+        Language::D => dlang::parse_d_manifest(manifest),
+        Language::Haskell => haskell::parse_haskell_manifest(manifest),
+        Language::Swift => swift::parse_swift_manifest(manifest),
+        Language::Powershell => powershell::parse_powershell_manifest(manifest),
+        Language::Lua => lua::parse_lua_manifest(manifest),
+        Language::Ocaml => ocaml::parse_ocaml_manifest(manifest),
     }
 }
 
@@ -46,41 +47,41 @@ fn single(
     Ok(pkgs?.into_iter().map(|(k, v)| (k, vec![v])).collect())
 }
 
-fn load_lock(eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError> {
+fn load_lock(eco: Language, lock: &Path) -> Result<LockVersions, DepcheckError> {
     match eco {
-        Ecosystem::Rust => rust::parse_rust_lock(lock),
-        Ecosystem::Python => python::parse_python_lock(lock),
-        Ecosystem::Js | Ecosystem::Ts => Err(DepcheckError::LockParse(
+        Language::Rust => rust::parse_rust_lock(lock),
+        Language::Python => python::parse_python_lock(lock),
+        Language::Js | Language::Ts => Err(DepcheckError::LockParse(
             "pnpm locks are read per importer".to_owned(),
         )),
-        Ecosystem::Go => single(go::parse_go_lock(lock)),
-        Ecosystem::Java | Ecosystem::Kotlin | Ecosystem::Scala => single(jvm::parse_jvm_lock(lock)),
-        Ecosystem::Csharp | Ecosystem::Fsharp => single(parse_paren_lock(lock)),
-        Ecosystem::Cc => single(cc::parse_cc_lock(lock)),
-        Ecosystem::Ruby => single(parse_paren_lock(lock)),
-        Ecosystem::Perl => single(perl::parse_perl_lock(lock)),
-        Ecosystem::Zig => single(zig::parse_zig_lock(lock)),
-        Ecosystem::Julia => single(julia::parse_julia_lock(lock)),
-        Ecosystem::Dart => dart::parse_dart_lock(lock),
-        Ecosystem::Php => single(php::parse_php_lock(lock)),
-        Ecosystem::Elixir => single(beam::parse_mix_lock(lock)),
-        Ecosystem::Erlang => single(beam::parse_rebar_lock(lock)),
-        Ecosystem::Fortran => single(fortran::parse_fortran_lock(lock)),
-        Ecosystem::D => single(dlang::parse_d_lock(lock)),
-        Ecosystem::Haskell => single(haskell::parse_haskell_lock(lock)),
-        Ecosystem::Swift => single(swift::parse_swift_lock(lock)),
-        Ecosystem::Powershell => single(powershell::parse_powershell_lock(lock)),
-        Ecosystem::Lua => single(lua::parse_lua_lock(lock)),
-        Ecosystem::Ocaml => single(ocaml::parse_ocaml_lock(lock)),
+        Language::Go => single(go::parse_go_lock(lock)),
+        Language::Java | Language::Kotlin | Language::Scala => single(jvm::parse_jvm_lock(lock)),
+        Language::Csharp | Language::Fsharp => single(parse_paren_lock(lock)),
+        Language::Cc => single(cc::parse_cc_lock(lock)),
+        Language::Ruby => single(parse_paren_lock(lock)),
+        Language::Perl => single(perl::parse_perl_lock(lock)),
+        Language::Zig => single(zig::parse_zig_lock(lock)),
+        Language::Julia => single(julia::parse_julia_lock(lock)),
+        Language::Dart => dart::parse_dart_lock(lock),
+        Language::Php => single(php::parse_php_lock(lock)),
+        Language::Elixir => single(beam::parse_mix_lock(lock)),
+        Language::Erlang => single(beam::parse_rebar_lock(lock)),
+        Language::Fortran => single(fortran::parse_fortran_lock(lock)),
+        Language::D => single(dlang::parse_d_lock(lock)),
+        Language::Haskell => single(haskell::parse_haskell_lock(lock)),
+        Language::Swift => single(swift::parse_swift_lock(lock)),
+        Language::Powershell => single(powershell::parse_powershell_lock(lock)),
+        Language::Lua => single(lua::parse_lua_lock(lock)),
+        Language::Ocaml => single(ocaml::parse_ocaml_lock(lock)),
     }
 }
 
-type DepLoader = fn(Ecosystem, &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError>;
-type PkgLoader = fn(Ecosystem, &Path) -> Result<LockVersions, DepcheckError>;
+type DepLoader = fn(Language, &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError>;
+type PkgLoader = fn(Language, &Path) -> Result<LockVersions, DepcheckError>;
 
 /// One manifest/lock pair to check, with the parsers that read it.
 pub(crate) struct Pair<'a> {
-    eco: Ecosystem,
+    eco: Language,
     manifest: &'a Path,
     lock: &'a Path,
     load_deps: DepLoader,
@@ -88,7 +89,7 @@ pub(crate) struct Pair<'a> {
 }
 
 /// Builds the pair an ecosystem's manifest and lock parsers read.
-pub(crate) fn lock_pair<'a>(eco: Ecosystem, manifest: &'a Path, lock: &'a Path) -> Pair<'a> {
+pub(crate) fn lock_pair<'a>(eco: Language, manifest: &'a Path, lock: &'a Path) -> Pair<'a> {
     Pair {
         eco,
         manifest,
@@ -99,7 +100,7 @@ pub(crate) fn lock_pair<'a>(eco: Ecosystem, manifest: &'a Path, lock: &'a Path) 
 }
 
 pub fn cmd_consistency(
-    eco: Ecosystem,
+    eco: Language,
     manifest: &Path,
     lock: &Path,
     stdout: &mut dyn std::fmt::Write,
@@ -109,7 +110,7 @@ pub fn cmd_consistency(
 }
 
 fn check_maps(
-    eco: Ecosystem,
+    eco: Language,
     deps: &BTreeMap<String, DepInfo>,
     pkgs: &LockVersions,
     cc_lock_sha: &BTreeMap<String, String>,
@@ -146,7 +147,7 @@ fn check_maps(
                 info.spec,
                 locked.join(", ")
             ));
-        } else if eco == Ecosystem::Zig {
+        } else if eco == Language::Zig {
             let want = info.sha256.trim();
             if want.is_empty() {
                 failures.push(format!("missing hash for '{}'", info.raw));
@@ -157,7 +158,7 @@ fn check_maps(
                     locked.join(", ")
                 ));
             }
-        } else if eco == Ecosystem::Cc {
+        } else if eco == Language::Cc {
             let want_sha = info.sha256.trim().to_owned();
             let got_sha = cc_lock_sha
                 .get(name)
@@ -182,7 +183,7 @@ fn check_maps(
 }
 
 fn report(
-    eco: Ecosystem,
+    eco: Language,
     declared: usize,
     failures: &[String],
     stdout: &mut dyn std::fmt::Write,
@@ -253,10 +254,10 @@ pub(crate) fn check_pair(
             return Err(reported(stderr, err.into()));
         }
     };
-    if matches!(pair.eco, Ecosystem::Js | Ecosystem::Ts) {
+    if matches!(pair.eco, Language::Js | Language::Ts) {
         deps.retain(|_, v| !v.peer);
     }
-    if matches!(pair.eco, Ecosystem::Js | Ecosystem::Ts) {
+    if matches!(pair.eco, Language::Js | Language::Ts) {
         return match check_pnpm(&deps, pair.manifest, pair.lock) {
             Ok(failures) => report(pair.eco, deps.len(), &failures, stdout, stderr),
             Err(err) => Err(reported(stderr, err.into())),
@@ -268,7 +269,7 @@ pub(crate) fn check_pair(
             return Err(reported(stderr, err.into()));
         }
     };
-    let cc_lock_sha = if pair.eco == Ecosystem::Cc {
+    let cc_lock_sha = if pair.eco == Language::Cc {
         cc::parse_cc_lock_sha(pair.lock)
     } else {
         BTreeMap::new()
@@ -277,13 +278,13 @@ pub(crate) fn check_pair(
 }
 
 fn maven_deps(
-    _eco: Ecosystem,
+    _eco: Language,
     artifacts: &Path,
 ) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     jvm::parse_maven_artifacts_list(artifacts)
 }
 
-fn maven_lock(_eco: Ecosystem, lock: &Path) -> Result<LockVersions, DepcheckError> {
+fn maven_lock(_eco: Language, lock: &Path) -> Result<LockVersions, DepcheckError> {
     single(jvm::parse_jvm_lock(lock))
 }
 
@@ -295,28 +296,28 @@ pub fn cmd_locks(
     let mut worst: Option<DxError> = None;
     for result in [
         check_pair(
-            lock_pair(Ecosystem::Rust, locks.cargo_manifest, locks.cargo_lock),
+            lock_pair(Language::Rust, locks.cargo_manifest, locks.cargo_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            lock_pair(Ecosystem::Python, locks.uv_manifest, locks.uv_lock),
+            lock_pair(Language::Python, locks.uv_manifest, locks.uv_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            lock_pair(Ecosystem::Js, locks.pnpm_manifest, locks.pnpm_lock),
+            lock_pair(Language::Js, locks.pnpm_manifest, locks.pnpm_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            lock_pair(Ecosystem::Go, locks.go_manifest, locks.go_lock),
+            lock_pair(Language::Go, locks.go_manifest, locks.go_lock),
             stdout,
             stderr,
         ),
         check_pair(
             Pair {
-                eco: Ecosystem::Java,
+                eco: Language::Java,
                 manifest: locks.maven_artifacts,
                 lock: locks.maven_lock,
                 load_deps: maven_deps,
@@ -326,12 +327,12 @@ pub fn cmd_locks(
             stderr,
         ),
         check_pair(
-            lock_pair(Ecosystem::Csharp, locks.paket_manifest, locks.paket_lock),
+            lock_pair(Language::Csharp, locks.paket_manifest, locks.paket_lock),
             stdout,
             stderr,
         ),
         check_pair(
-            lock_pair(Ecosystem::Ruby, locks.ruby_manifest, locks.ruby_lock),
+            lock_pair(Language::Ruby, locks.ruby_manifest, locks.ruby_lock),
             stdout,
             stderr,
         ),

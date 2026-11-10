@@ -4,18 +4,18 @@ use std::cmp::Ordering;
 
 use semver::{Version, VersionReq};
 
-use crate::Ecosystem;
 use crate::ecosystem::python;
+use dx_ecosystems::Language;
 
 /// Settles `spec` against `locked` in the grammar `eco` declares requirements in.
-pub fn satisfies_for(eco: Ecosystem, spec: &str, locked: &str) -> bool {
-    if eco == Ecosystem::Python
+pub fn satisfies_for(eco: Language, spec: &str, locked: &str) -> bool {
+    if eco == Language::Python
         && let Some(matched) = python::satisfies_py(spec, locked)
     {
         return matched;
     }
     if eco.uses_semver_grammar() {
-        let spec = if eco == Ecosystem::Dart {
+        let spec = if eco == Language::Dart {
             dart_range(spec)
         } else {
             spec.to_owned()

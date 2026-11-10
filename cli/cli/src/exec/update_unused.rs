@@ -3,6 +3,7 @@ use dx_adopt::dependency_sets::{
     Ecosystem, HexBackend, ResolvedSet, ResolvedTarget, Selection, cargo_fetch_repository,
     hex_backend,
 };
+use dx_ecosystems::Language;
 use dx_output::{NoticeEvent, notice_event};
 use dx_plan::resolve::{QueryRunner, run_label_query_file};
 use std::collections::BTreeMap;
@@ -42,12 +43,12 @@ impl Via {
     }
 }
 
-fn depcheck_ecosystem(set: &ResolvedSet) -> Option<dx_depcheck::Ecosystem> {
+fn depcheck_language(set: &ResolvedSet) -> Option<Language> {
     let prefer = match (set.ecosystem, hex_backend(set)) {
-        (Ecosystem::Hex, Some(HexBackend::Rebar3)) => Some("erlang"),
+        (Ecosystem::Hex, Some(HexBackend::Rebar3)) => Some(Language::Erlang),
         _ => None,
     };
-    dx_depcheck::Ecosystem::of_dependency_ecosystem(set.ecosystem.name(), prefer)
+    Language::of_ecosystem(set.ecosystem, prefer)
 }
 
 /// Crate name behind a label of a crate_universe hub: `serde-1.0.229` is `serde`, `cc` stays, and
@@ -218,7 +219,7 @@ fn dep_keys(ecosystem: Ecosystem, dir: &str, dep: &dx_depcheck::DeclaredDep) -> 
 /// Declared dependencies no BUILD target depends on, read from the Bazel graph.
 fn find_unused_in_graph(
     target: &ResolvedTarget,
-    eco: dx_depcheck::Ecosystem,
+    eco: Language,
     manifest: &str,
     path: &Path,
     workspace: &Path,
@@ -259,7 +260,7 @@ fn go_repo_name(module: &str) -> String {
 /// cc).
 fn named_in_deps(
     target: &ResolvedTarget,
-    eco: dx_depcheck::Ecosystem,
+    eco: Language,
     manifest: &Path,
     workspace: &Path,
     query: &dyn QueryRunner,
@@ -300,7 +301,7 @@ pub(super) fn find(
 ) -> Vec<Unused> {
     let mut out = Vec::new();
     for target in resolved {
-        let Some(eco) = depcheck_ecosystem(&target.set) else {
+        let Some(eco) = depcheck_language(&target.set) else {
             continue;
         };
         let set = target.set.name.as_str();
@@ -370,7 +371,7 @@ pub(super) fn find_missing(
 ) -> Vec<Missing> {
     let mut out = Vec::new();
     for target in resolved {
-        let Some(eco) = depcheck_ecosystem(&target.set) else {
+        let Some(eco) = depcheck_language(&target.set) else {
             continue;
         };
         let ecosystem = target.set.ecosystem;
@@ -436,7 +437,7 @@ pub(super) fn find_missing(
 fn missing_hubs(
     workspace: &Path,
     target: &ResolvedTarget,
-    eco: dx_depcheck::Ecosystem,
+    eco: Language,
     excepted: &[String],
     query: &dyn QueryRunner,
     startup: &[String],

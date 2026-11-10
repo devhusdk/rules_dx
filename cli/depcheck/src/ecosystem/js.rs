@@ -2,7 +2,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use crate::version::satisfies_for;
-use crate::{DepInfo, DepcheckError, Ecosystem};
+use crate::{DepInfo, DepcheckError};
+use dx_ecosystems::Language;
 
 use super::normalize_lower;
 
@@ -387,7 +388,7 @@ pub fn pnpm_failures(
         } else {
             (info.raw.as_str(), spec, resolved)
         };
-        if !satisfies_for(Ecosystem::Js, range, locked) {
+        if !satisfies_for(Language::Js, range, locked) {
             failures.push(stale(version));
         } else if !lock.has_package(target, locked) {
             failures.push(format!(

@@ -1,6 +1,7 @@
 """Project-owned Starlark testing facade."""
 
 load("//core:canonical.bzl", "strip_canonical")
+load("//core:rlocation.bzl", "rlocation_path")
 
 DxSubjectInfo = provider(
     doc = "Analysis observations a subject rule exposes to starlark_test.",
@@ -192,13 +193,6 @@ _HARNESS_MANIFEST_VERSION = 2
 
 _HARNESS_MANIFEST_ENV = "STARLARK_HARNESS_MANIFEST"
 
-def _harness_runfiles_key(ctx, f):
-    """Returns the runfiles key naming one staged file."""
-    short_path = f.short_path
-    if short_path.startswith("../"):
-        return short_path[3:]
-    return ctx.workspace_name + "/" + short_path
-
 def _file_check_files(target, attr):
     """Returns the files of one target of a file attribute, failing analysis when it has none."""
     target_files = target.files.to_list()
@@ -218,7 +212,7 @@ def _harness_file_entries(ctx):
             fail("starlark_test: file_checks value is empty for " + str(target.label))
         for f in files:
             entries.append({
-                "key": _harness_runfiles_key(ctx, f),
+                "key": rlocation_path(ctx, f),
                 "label": _display_label(target.label),
                 "needles": required,
             })
@@ -235,7 +229,7 @@ def _harness_file_entries(ctx):
                 fail("starlark_test: file_blocks block is empty for " + str(target.label))
         for f in files:
             entries.append({
-                "key": _harness_runfiles_key(ctx, f),
+                "key": rlocation_path(ctx, f),
                 "label": _display_label(target.label),
                 "needles": blocks,
             })
@@ -246,7 +240,7 @@ def _harness_file_entries(ctx):
             fail("starlark_test: file_line_endings value must be crlf or lf for " + str(target.label))
         for f in _file_check_files(target, "file_line_endings"):
             entries.append({
-                "key": _harness_runfiles_key(ctx, f),
+                "key": rlocation_path(ctx, f),
                 "label": _display_label(target.label),
                 "line_endings": kind,
                 "needles": [],
@@ -284,7 +278,7 @@ def _write_harness(ctx, records, observations):
     runfiles = runfiles.merge(ctx.attr._harness[DefaultInfo].default_runfiles)
     return [
         DefaultInfo(executable = executable, runfiles = runfiles),
-        RunEnvironmentInfo({_HARNESS_MANIFEST_ENV: _harness_runfiles_key(ctx, manifest)}),
+        RunEnvironmentInfo({_HARNESS_MANIFEST_ENV: rlocation_path(ctx, manifest)}),
         OutputGroupInfo(starlark_manifest = depset([manifest])),
     ]
 

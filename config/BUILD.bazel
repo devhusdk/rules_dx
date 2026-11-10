@@ -2,7 +2,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag", "st
 load("//core/quality:default_policy.bzl", "default_workspace_policy")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:policy_subject.bzl", "policy_subject")
-load(":settings_tests.bzl", "exec_settings_tests", "settings_tests", "workspace_policy_tests")
+load(":settings_tests.bzl", "exec_settings_tests", "settings_tests", "tool_flag_scope_tests", "workspace_policy_tests")
 load(":subject.bzl", "exec_settings_subject", "settings_subject")
 
 package(default_visibility = ["//visibility:public"])
@@ -147,6 +147,7 @@ label_flag(
 
 label_flag(
     name = "tool_container_structure_test",
+    scope = "universal",
     build_setting_default = "@dx_tools//:container_structure_test",
 )
 
@@ -403,11 +404,14 @@ policy_subject(
 
 workspace_policy_tests(name = "workspace_policy")
 
+tool_flag_scope_tests(name = "tool_flag_scope")
+
 test_suite(
     name = "all",
     tests = [
         ":exec_settings",
         ":settings",
+        ":tool_flag_scope",
         ":workspace_policy",
     ],
 )

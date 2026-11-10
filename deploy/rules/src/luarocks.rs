@@ -3,7 +3,7 @@
 use crate::archive::basename;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, print_redacted, scrubbed_command,
+    exit_text, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::path::Path;
@@ -108,15 +108,15 @@ fn luarocks_live_upload(
     cmd.arg("upload")
         .arg(rockspec)
         .arg(format!("--api-key={key}"));
-    match cmd.output() {
-        Ok(out) if out.status.success() => {
+    match run_publish(&mut cmd) {
+        Ok(out) if out.success() => {
             print_redacted(&out, key);
             println!("luarocks_deploy: uploaded {package} {version}");
             0
         }
         Ok(out) => {
             print_redacted(&out, key);
-            eprintln!("luarocks_deploy: luarocks failed with {}", out.status);
+            eprintln!("luarocks_deploy: luarocks failed with {}", exit_text(&out));
             1
         }
         Err(error) => {

@@ -50,6 +50,14 @@ julia_standalone_binary(name, **kwargs)
 
 Standalone binary from a dx julia_library that defines julia_main()::Cint.
 
+### `julia_bench`
+
+```python
+julia_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs)
+```
+
+A julia_test run by dx bench: main calls DxBench.run_benchmarks(["name" => fn, ...]), which times each function with BenchmarkTools and writes dx-bench.json.
+
 ## API docs
 
 Tool: `documenter`.

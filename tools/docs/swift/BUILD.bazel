@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -12,6 +13,11 @@ exports_files(
 rust_test(
     name = "shard_test",
     srcs = ["shard_test.rs"],
+    aliases = aliases(
+        package_name = "tools/docs/docs_swift_tests",
+        normal = True,
+        normal_dev = True,
+    ),
     crate_name = "shard_test",
     crate_root = "shard_test.rs",
     data = ["//tools/docs/swift/fixture:shapes_docs"],
@@ -35,4 +41,10 @@ real_source_target(
         "defs.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

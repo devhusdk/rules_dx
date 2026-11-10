@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//dart:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
@@ -13,22 +14,41 @@ dart_tool(
 rust_test(
     name = "format_cli_test",
     srcs = ["format_cli_test.rs"],
+    aliases = aliases(
+        package_name = "dart/private/dart_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "format_cli_test",
+    crate_root = "format_cli_test.rs",
     data = [":dart"],
     env = {"DART": "$(rootpath :dart)"},
     target_compatible_with = DART_COMPATIBLE_WITH,
-    deps = ["//tools/testing:dx_testing"],
+    deps = all_crate_deps(
+        package_name = "dart/private/dart_tools",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
 )
 
 rust_test(
     name = "analyze_cli_test",
     srcs = ["analyze_cli_test.rs"],
+    aliases = aliases(
+        package_name = "dart/private/dart_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "analyze_cli_test",
+    crate_root = "analyze_cli_test.rs",
     data = [":dart"],
     env = {"DART": "$(rootpath :dart)"},
     target_compatible_with = DART_COMPATIBLE_WITH,
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-    ],
+    deps = all_crate_deps(
+        package_name = "dart/private/dart_tools",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
 )
 
 real_source_target(
@@ -38,4 +58,10 @@ real_source_target(
         "dart_tool.bzl",
     ],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

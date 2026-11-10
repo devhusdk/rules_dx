@@ -1,0 +1,21 @@
+[package]
+license = "Apache-2.0"
+name = "cc_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "driver_policy_test"
+path = "driver_policy.rs"
+
+[[test]]
+name = "foreign_cmake_log_test"
+path = "foreign_cmake_log.rs"
+
+[[test]]
+name = "foreign_cmake_msvc_log_test"
+path = "foreign_cmake_msvc_log.rs"
+
+[[test]]
+name = "foreign_cmake_cross_test"
+path = "foreign_cmake_cross.rs"

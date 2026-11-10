@@ -1,5 +1,5 @@
 {
-  "checksum": "e85af2167a55e894de7aaa7f3648cf25d76b024a4a3fcb3bd7fd724025630087",
+  "checksum": "0e1b1137d1fb58f6f67ab3bb9f4f58681c9a64b776deef18c9b48da393a8b07a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2849,6 +2849,19 @@
           }
         }
       ],
+      "version": "0.0.0"
+    },
+    "cc_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_tests",
+      "repository": null,
+      "targets": [],
       "version": "0.0.0"
     },
     "cfb-mode 0.8.2": {
@@ -5838,6 +5851,25 @@
       ],
       "version": "0.0.0"
     },
+    "dart_tools 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dart_tools",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "dashmap 6.2.1": {
       "common_attrs": {
         "deps": [
@@ -6506,6 +6538,19 @@
       ],
       "version": "0.8.1"
     },
+    "devcontainer_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "devcontainer_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "difflib 0.4.0": {
       "common_attrs": {
         "edition": "2015"
@@ -6683,6 +6728,19 @@
       ],
       "version": "0.2.7"
     },
+    "docs_avro_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "docs_avro_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "docs_components 0.0.0": {
       "common_attrs": {
         "edition": "2024"
@@ -6709,6 +6767,19 @@
       "targets": [],
       "version": "0.0.0"
     },
+    "docs_protobuf_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "docs_protobuf_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "docs_rust 0.0.0": {
       "common_attrs": {
         "edition": "2024"
@@ -6718,6 +6789,19 @@
         "Apache-2.0"
       ],
       "name": "docs_rust",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "docs_swift_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "docs_swift_tests",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -13651,6 +13735,45 @@
       ],
       "version": "0.0.0"
     },
+    "julia_jet 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "julia_jet",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "julia_lint 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "julia_lint",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "julia_tools 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "julia_tools",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "jvm_convert 0.0.0": {
       "common_attrs": {
         "deps": [
@@ -20010,6 +20133,19 @@
         }
       ],
       "version": "0.8.11"
+    },
+    "rego_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "rego_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "repin_all 0.0.0": {
       "common_attrs": {
@@ -29080,6 +29216,7 @@
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "cc_context 0.0.0": "cc/cc_context",
     "cc_extract 0.0.0": "tools/docs/cc/cc_extract",
+    "cc_tests 0.0.0": "cc/cc_tests",
     "ci_coverage_cells 0.0.0": "tools/ci/ci_coverage_cells",
     "ci_docs_scope 0.0.0": "tools/ci/ci_docs_scope",
     "ci_evidence_inputs 0.0.0": "tools/ci/ci_evidence_inputs",
@@ -29097,13 +29234,18 @@
     "d_coverage_launcher 0.0.0": "tools/coverage/d_coverage_launcher",
     "d_extract 0.0.0": "tools/docs/d/d_extract",
     "dart_extract 0.0.0": "tools/docs/dart/dart_extract",
+    "dart_tools 0.0.0": "dart/private/dart_tools",
     "deploy_cross_tests 0.0.0": "deploy/tests/deploy_cross_tests",
     "deploy_offline_tests 0.0.0": "deploy/private/deploy_offline_tests",
     "deploy_release_tests 0.0.0": "deploy/private/release/deploy_release_tests",
     "deploy_runfiles_tests 0.0.0": "deploy/tests/deploy_runfiles_tests",
+    "devcontainer_tests 0.0.0": "devcontainer_tests",
+    "docs_avro_tests 0.0.0": "tools/docs/docs_avro_tests",
     "docs_components 0.0.0": "tools/docs/docs_components",
     "docs_powershell 0.0.0": "tools/docs/docs_powershell",
+    "docs_protobuf_tests 0.0.0": "tools/docs/docs_protobuf_tests",
     "docs_rust 0.0.0": "tools/docs/docs_rust",
+    "docs_swift_tests 0.0.0": "tools/docs/docs_swift_tests",
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
     "dotnet_docs_tests 0.0.0": "tools/docs/dotnet_docs_tests",
     "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
@@ -29170,6 +29312,9 @@
     "hermetic 0.0.0": "tools/testing/hermetic",
     "ide_tests 0.0.0": "tools/ide_tests",
     "julia_extract 0.0.0": "tools/docs/julia/julia_extract",
+    "julia_jet 0.0.0": "julia/private/tools/julia_jet",
+    "julia_lint 0.0.0": "julia/private/tools/julia_lint",
+    "julia_tools 0.0.0": "julia/private/julia_tools",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
@@ -29193,6 +29338,7 @@
     "quality_tests 0.0.0": "quality/quality_tests",
     "quality_tiers 0.0.0": "quality/quality_tiers",
     "quality_tools_jvm 0.0.0": "quality/tools/quality_tools_jvm",
+    "rego_tests 0.0.0": "rego/rego_tests",
     "repin_all 0.0.0": "tools/repin_all",
     "ruby_docs_tests 0.0.0": "tools/docs/ruby_docs_tests",
     "ruby_extract 0.0.0": "tools/docs/ruby/ruby_extract",

@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_julia//julia:defs.bzl", "julia_binary")
 load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
@@ -45,6 +46,13 @@ julia_pkg_resolve_test(
 rust_test(
     name = "jet_cli_test",
     srcs = ["jet_cli_test.rs"],
+    aliases = aliases(
+        package_name = "julia/private/tools/julia_jet",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "jet_cli_test",
+    crate_root = "jet_cli_test.rs",
     data = [
         "testdata/buggy.jl",
         "testdata/clean.jl",
@@ -67,5 +75,6 @@ real_source_target(
     toml_srcs = [
         "Manifest.toml",
         "Project.toml",
+        "Cargo.toml",
     ],
 )

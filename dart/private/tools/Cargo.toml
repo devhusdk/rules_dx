@@ -1,0 +1,16 @@
+[package]
+license = "Apache-2.0"
+name = "dart_tools"
+version = "0.0.0"
+edition = "2024"
+
+[dev-dependencies]
+serde_json = "1"
+
+[[test]]
+name = "format_cli_test"
+path = "format_cli_test.rs"
+
+[[test]]
+name = "analyze_cli_test"
+path = "analyze_cli_test.rs"

@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "docs_swift_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "shard_test"
+path = "shard_test.rs"

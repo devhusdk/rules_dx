@@ -1,12 +1,19 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# keep
 rust_test(
     name = "devcontainer_parity_test",
     srcs = ["devcontainer_parity_test.rs"],
+    aliases = aliases(
+        package_name = "devcontainer_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "devcontainer_parity_test",
+    crate_root = "devcontainer_parity_test.rs",
     data = [
         ":devcontainer.json",
         "//cli/cli:dx",
@@ -24,4 +31,10 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

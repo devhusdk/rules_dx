@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_julia//julia:defs.bzl", "julia_binary")
 load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
 load("@rules_julia//julia/pkg:julia_pkg_resolve_test.bzl", "julia_pkg_resolve_test")
@@ -61,6 +62,13 @@ julia_pkg_resolve_test(
 rust_test(
     name = "format_cli_test",
     srcs = ["format_cli_test.rs"],
+    aliases = aliases(
+        package_name = "julia/private/julia_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "format_cli_test",
+    crate_root = "format_cli_test.rs",
     data = [":julia_format"],
     env = {"JULIA_FORMAT": "$(rootpath :julia_format)"},
     target_compatible_with = JULIA_COMPATIBLE_WITH,
@@ -82,5 +90,6 @@ real_source_target(
     toml_srcs = [
         "Manifest.toml",
         "Project.toml",
+        "Cargo.toml",
     ],
 )

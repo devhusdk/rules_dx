@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "julia_tools"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "format_cli_test"
+path = "format_cli_test.rs"

@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
@@ -101,7 +102,14 @@ test_descriptor_test(
 
 rust_test(
     name = "opa_test_run_test",
+    testonly = True,
     srcs = ["opa_test_run_test.rs"],
+    aliases = aliases(
+        package_name = "rego/rego_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "opa_test_run_test",
     crate_root = "opa_test_run_test.rs",
     data = [
         ":empty_test",
@@ -123,6 +131,7 @@ rust_test(
         "@platforms//os:windows": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
+    deps = [],
 )
 
 real_source_target(
@@ -154,4 +163,11 @@ dx_direct_sources_test(
     name = "generated_src_skipped_test",
     expected = {"rego": ["app.rego"]},
     target_under_test = ":mixed_srcs",
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

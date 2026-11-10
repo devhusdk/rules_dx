@@ -219,7 +219,9 @@ fn fails_on_stale_gcda() {
             .into_iter()
             .find(|p| Path::new(p).file_name() == Some(name))
             .unwrap();
-        fs::copy(absolute(source), run.root.join(dest)).unwrap();
+        let dest = run.root.join(dest);
+        fs::remove_file(&dest).unwrap();
+        fs::copy(absolute(source), dest).unwrap();
         replaced = true;
     }
     assert!(replaced);

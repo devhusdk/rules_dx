@@ -254,7 +254,7 @@ rust_test(
     env = select({
         "@platforms//os:linux": NESTED_BAZEL_ENV | {
             "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
-            "PATH": "/usr/bin:/bin",
+            "PATH": "/dx_no_path",
             "RUST_TEST_THREADS": "1",
         },
         "//conditions:default": NESTED_BAZEL_ENV | {

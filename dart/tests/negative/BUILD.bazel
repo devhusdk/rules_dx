@@ -1,7 +1,7 @@
-load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library")
 load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load(":negative_tests.bzl", "dart_module_input_test")
+load(":negative_tests.bzl", "dart_kernel_input_test")
 
 real_source_target(
     name = "corpus_starlark",
@@ -50,24 +50,23 @@ dart_library(
     tags = ["manual"],
 )
 
-dart_test(
-    name = "uses_other_test",
+dart_binary(
+    name = "uses_other",
     testonly = True,
     main = "test/uses_other_test.dart",
-    tags = ["manual"],
     deps = [":other"],
 )
 
-dart_module_input_test(
+dart_kernel_input_test(
     name = "declared_dep_is_an_input_test",
-    file = "other_upstream.vm.modules",
+    file = "lib/other.dart",
     present = True,
-    target = ":uses_other_test_upstream",
+    target = ":uses_other_upstream",
 )
 
-dart_module_input_test(
+dart_kernel_input_test(
     name = "undeclared_dep_is_not_an_input_test",
-    file = "base_upstream.vm.modules",
+    file = "lib/base.dart",
     present = False,
-    target = ":uses_other_test_upstream",
+    target = ":uses_other_upstream",
 )

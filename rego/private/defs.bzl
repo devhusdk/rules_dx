@@ -84,18 +84,27 @@ def _rego_test_impl(ctx):
         dx_quality_sources(ctx.files.srcs, [("rego", ["rego"])], str(ctx.label)),
     ]
 
+_REGO_TEST_ATTRS = {
+    "srcs": attr.label_list(allow_files = [".rego"], mandatory = True, doc = "Rego test files."),
+    "data": attr.label_list(allow_files = [".json", ".yaml", ".yml"], doc = "Data files loaded with the Rego files."),
+    "deps": attr.label_list(providers = [RegoInfo], doc = "Rego libraries the tests import."),
+    "_opa": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "target"),
+    "_launcher": attr.label(default = "//rego/private/launcher:opa_test_launcher", executable = True, cfg = "target"),
+    "_windows_os": attr.label(default = "@platforms//os:windows"),
+}
+
 _rego_test = rule(
     implementation = _rego_test_impl,
     doc = "Runs opa test over Rego files and their library dependencies.",
     test = True,
-    attrs = {
-        "srcs": attr.label_list(allow_files = [".rego"], mandatory = True, doc = "Rego test files."),
-        "data": attr.label_list(allow_files = [".json", ".yaml", ".yml"], doc = "Data files loaded with the Rego files."),
-        "deps": attr.label_list(providers = [RegoInfo], doc = "Rego libraries the tests import."),
-        "_opa": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "target"),
-        "_launcher": attr.label(default = "//rego/private/launcher:opa_test_launcher", executable = True, cfg = "target"),
-        "_windows_os": attr.label(default = "@platforms//os:windows"),
-    },
+    attrs = _REGO_TEST_ATTRS,
+)
+
+rego_exec = rule(
+    implementation = _rego_test_impl,
+    doc = "Builds the opa test launcher as a plain executable.",
+    executable = True,
+    attrs = _REGO_TEST_ATTRS,
 )
 
 def rego_test(name, *, srcs, visibility = None, **kwargs):

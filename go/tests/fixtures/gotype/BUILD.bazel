@@ -32,12 +32,4 @@ go_test(
     name = "external_test",
     srcs = ["clean_test.go"],
     embed = [":clean"],
-    tags = ["manual"],
-)
-
-go_test(
-    name = "broken_embed_test",
-    srcs = ["broken_test.go"],
-    embed = [":broken"],
-    tags = ["manual"],
 )

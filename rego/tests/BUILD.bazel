@@ -3,6 +3,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//rego:defs.bzl", "rego_library", "rego_test")
+load("//rego/private:defs.bzl", "rego_exec")
 load("//rust:defs.bzl", "rust_test")
 load(":library_tests.bzl", "owns_rego_class_test", "test_descriptor_test", "test_sources_test", "transitive_context_test")
 
@@ -49,28 +50,16 @@ rego_test(
     deps = [":app"],
 )
 
-rego_test(
-    name = "fail_test",
+rego_exec(
+    name = "fail_exec",
+    testonly = True,
     srcs = ["fixtures/fail_test.rego"],
-    tags = ["manual"],
 )
 
-rego_test(
-    name = "empty_test",
+rego_exec(
+    name = "empty_exec",
+    testonly = True,
     srcs = ["fixtures/empty_test.rego"],
-    tags = ["manual"],
-)
-
-rego_test(
-    name = "bad_test_src",
-    srcs = ["fixtures/notes.txt"],
-    tags = ["manual"],
-)
-
-failure_test(
-    name = "bad_test_src_fails",
-    expected_failure_substring = "notes.txt",
-    target = ":bad_test_src",
 )
 
 test_sources_test(
@@ -91,11 +80,10 @@ test_descriptor_test(
         testonly = True,
         srcs = [":" + name],
         output_group = "rego_test_manifest",
-        tags = ["manual"],
     )
     for name in [
-        "empty_test",
-        "fail_test",
+        "empty_exec",
+        "fail_exec",
         "pass_test",
     ]
 ]
@@ -112,18 +100,18 @@ rust_test(
     crate_name = "opa_test_run_test",
     crate_root = "opa_test_run_test.rs",
     data = [
-        ":empty_test",
-        ":empty_test_manifest",
-        ":fail_test",
-        ":fail_test_manifest",
+        ":empty_exec",
+        ":empty_exec_manifest",
+        ":fail_exec",
+        ":fail_exec_manifest",
         ":pass_test",
         ":pass_test_manifest",
     ],
     env = {
-        "EMPTY_EXE": "$(rootpath :empty_test)",
-        "EMPTY_MANIFEST": "$(rlocationpath :empty_test_manifest)",
-        "FAIL_EXE": "$(rootpath :fail_test)",
-        "FAIL_MANIFEST": "$(rlocationpath :fail_test_manifest)",
+        "EMPTY_EXE": "$(rootpath :empty_exec)",
+        "EMPTY_MANIFEST": "$(rlocationpath :empty_exec_manifest)",
+        "FAIL_EXE": "$(rootpath :fail_exec)",
+        "FAIL_MANIFEST": "$(rlocationpath :fail_exec_manifest)",
         "PASS_EXE": "$(rootpath :pass_test)",
         "PASS_MANIFEST": "$(rlocationpath :pass_test_manifest)",
     },

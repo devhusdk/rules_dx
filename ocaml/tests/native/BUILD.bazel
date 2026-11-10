@@ -42,7 +42,10 @@ ocaml_test(
     name = "native_test_bin",
     data = ["data.txt"],
     main = ":native_test_main",
-    tags = ["manual"],
+    target_compatible_with = select({
+        "//ocaml/private/toolchain:emitter_sys": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
 )
 
 sys_cell_test(

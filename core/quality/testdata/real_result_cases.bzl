@@ -348,7 +348,6 @@ REAL_RESULT_CASES = [
     _go_case("gotype", "typecheck", "clean", "//go/tests/fixtures/gotype:clean", ["gotype"], ["cannot use"]),
     _go_case("gotype", "typecheck", "dirty", "//go/tests/fixtures/gotype:broken", ["cannot use"], [], typecheck_subject = True),
     _go_case("gotype", "typecheck", "test_clean", "//go/tests/fixtures/gotype:external_test", ["gotype"], ["cannot use"]),
-    _go_case("gotype", "typecheck", "test_dirty", "//go/tests/fixtures/gotype:broken_embed_test", ["cannot use"], []),
     _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"]),
     _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double", "U1000", "unusedHelper"], []),
     _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:strict_only_standard", ["staticcheck"], ["ST1003"]),

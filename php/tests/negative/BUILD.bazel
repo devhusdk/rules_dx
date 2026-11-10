@@ -1,5 +1,5 @@
 load("@rules_dx//core:failure_test.bzl", "failure_test")
-load("@rules_dx//php:defs.bzl", "php_library", "php_test")
+load("@rules_dx//php:defs.bzl", "php_binary", "php_library")
 load("//php/tests/negative:negative_tests.bzl", "php_autoload_input_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
@@ -45,16 +45,16 @@ php_library(
     tags = ["manual"],
 )
 
-php_test(
+php_binary(
     name = "undeclared_dep",
-    srcs = ["Dependent.php"],
-    tags = ["manual"],
+    testonly = True,
+    main = "Dependent.php",
 )
 
-php_test(
+php_binary(
     name = "declared_dep",
-    srcs = ["Dependent.php"],
-    tags = ["manual"],
+    testonly = True,
+    main = "Dependent.php",
     deps = [":answer"],
 )
 

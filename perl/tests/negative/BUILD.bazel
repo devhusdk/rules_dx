@@ -1,5 +1,5 @@
 load("@rules_dx//core:failure_test.bzl", "failure_test")
-load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
+load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library")
 load("//perl/tests/negative:negative_tests.bzl", "perl_runfile_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
@@ -26,16 +26,16 @@ perl_library(
     tags = ["manual"],
 )
 
-perl_test(
+perl_binary(
     name = "undeclared_dep",
-    srcs = ["base.t"],
-    tags = ["manual"],
+    testonly = True,
+    main = "base.t",
 )
 
-perl_test(
+perl_binary(
     name = "declared_dep",
-    srcs = ["base.t"],
-    tags = ["manual"],
+    testonly = True,
+    main = "base.t",
     deps = [":base"],
 )
 

@@ -1,39 +1,18 @@
 //! Checks that the fixture shard carries the symbol graph docs and the source lines of the fixture module.
 
-use std::path::PathBuf;
-
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
-use documentation_ir::{decode_shard, validate_shard};
+use documentation_ir::validate_shard;
+use shard_test_support::shard;
 
 const PREFIX: &str = "swift:shapes:";
 
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn shard() -> DocIr {
-    let bytes = std::fs::read(runfile("DX_FIXTURE_SHARD")).expect("read the shard");
-    decode_shard(&bytes).expect("the shard decodes")
-}
-
-fn symbol<'a>(shard: &'a DocIr, qualified: &str) -> &'a Symbol {
-    let id = format!("{PREFIX}{qualified}");
-    shard
-        .symbols
-        .iter()
-        .find(|s| s.id == id)
-        .unwrap_or_else(|| {
-            panic!(
-                "{id} is missing from {:?}",
-                shard.symbols.iter().map(|s| &s.id).collect::<Vec<_>>()
-            )
-        })
+fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
 }
 
 #[test]
 fn the_fixture_shard_documents_the_module() {
-    let shard = shard();
+    let shard = shard("DX_FIXTURE_SHARD");
     validate_shard(&shard).expect("validate_shard passes");
     assert_eq!(shard.language, "swift");
     assert_eq!(shard.package, "shapes");
@@ -111,7 +90,7 @@ fn the_fixture_shard_documents_the_module() {
 
 #[test]
 fn the_fixture_shard_documents_members_added_to_other_modules_types() {
-    let shard = shard();
+    let shard = shard("DX_FIXTURE_SHARD");
     let shout = symbol(&shard, "Swift.String.shout~28~29");
     assert_eq!(shout.kind, SymbolKind::Method as i32);
     assert_eq!(shout.doc_markdown, "Upper-cases the string.");
@@ -128,7 +107,7 @@ fn the_fixture_shard_documents_members_added_to_other_modules_types() {
 
 #[test]
 fn docc_symbol_links_become_dx_links() {
-    let shard = shard();
+    let shard = shard("DX_FIXTURE_SHARD");
     let area = symbol(&shard, "Shapes.Measured.area");
     assert_eq!(
         area.doc_markdown,

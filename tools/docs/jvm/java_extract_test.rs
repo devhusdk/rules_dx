@@ -5,7 +5,7 @@ use std::process::Command;
 
 use documentation_ir::proto::SymbolKind;
 use documentation_ir::validate_shard;
-use jvm_test_support::{ids, line_of, runfile, shard, symbol};
+use shard_test_support::{ids, line_of, shard, symbol};
 
 const SHAPES: &str = "java:shapes:dx.fixture.shapes.";
 const CIRCLE: &str = "tools/docs/jvm/fixture/java/dx/fixture/shapes/Circle.java";
@@ -204,7 +204,7 @@ impl Driver {
     fn new(name: &str) -> Driver {
         let scratch = dx_test_scratch::scratch(name);
         let dir = scratch.path().to_path_buf();
-        let root = runfile("DX_CIRCLE_JAVA")
+        let root = dx_testing::env_file("DX_CIRCLE_JAVA")
             .ancestors()
             .nth(CIRCLE.matches('/').count() + 1)
             .expect("the repo root")
@@ -243,7 +243,7 @@ impl Driver {
     }
 
     fn run(&self, manifest: &Path, classpath: &Path) -> (i32, String) {
-        let output = Command::new(runfile("DX_JAVADOC_EXTRACT"))
+        let output = Command::new(dx_testing::env_file("DX_JAVADOC_EXTRACT"))
             .arg("--srcs-manifest")
             .arg(manifest)
             .arg("--classpath-file")
@@ -264,8 +264,8 @@ impl Driver {
 #[test]
 fn the_adapter_documents_the_fixture_sources() {
     let driver = Driver::new("java-ok");
-    let circle = runfile("DX_CIRCLE_JAVA");
-    let shape = runfile("DX_SHAPE_JAVA");
+    let circle = dx_testing::env_file("DX_CIRCLE_JAVA");
+    let shape = dx_testing::env_file("DX_SHAPE_JAVA");
     let manifest = driver.manifest(&[circle, shape]);
     let (code, stderr) = driver.run(&manifest, &driver.classpath(&[]));
     assert_eq!(code, 0, "{stderr}");
@@ -297,7 +297,7 @@ fn the_adapter_fails_on_a_missing_source_or_classpath_jar() {
     let (code, stderr) = driver.run(&driver.manifest(&[nope]), &driver.classpath(&[]));
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("missing source"), "{stderr}");
-    let manifest = driver.manifest(&[runfile("DX_SHAPE_JAVA")]);
+    let manifest = driver.manifest(&[dx_testing::env_file("DX_SHAPE_JAVA")]);
     let (code, stderr) = driver.run(&manifest, &driver.classpath(&["no-such.jar"]));
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("missing classpath entry"), "{stderr}");
@@ -305,7 +305,7 @@ fn the_adapter_fails_on_a_missing_source_or_classpath_jar() {
 }
 
 fn convert(json: &Path, manifest: &Path, out: &Path) -> (i32, String) {
-    let output = Command::new(runfile("DX_JVM_CONVERT"))
+    let output = Command::new(dx_testing::env_file("DX_JVM_CONVERT"))
         .arg("--json")
         .arg(json)
         .arg("--language")
@@ -341,7 +341,8 @@ fn an_empty_public_api_fails_in_the_converter() {
 #[test]
 fn the_converter_rejects_bad_records() {
     let driver = Driver::new("java-convert");
-    let json = std::fs::read_to_string(runfile("DX_SHAPES_JSON")).expect("adapter json");
+    let json =
+        std::fs::read_to_string(dx_testing::env_file("DX_SHAPES_JSON")).expect("adapter json");
     assert!(json.starts_with("{\"format\":1,"), "{json}");
     let manifest = driver.dir.join("fixture.tsv");
     std::fs::write(
@@ -374,6 +375,6 @@ fn the_converter_rejects_bad_records() {
     assert_eq!(code, 0, "{stderr}");
     assert_eq!(
         std::fs::read(&out).expect("shard"),
-        std::fs::read(runfile("DX_SHAPES_SHARD")).expect("fixture")
+        std::fs::read(dx_testing::env_file("DX_SHAPES_SHARD")).expect("fixture")
     );
 }

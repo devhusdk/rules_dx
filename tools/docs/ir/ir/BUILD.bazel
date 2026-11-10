@@ -30,6 +30,18 @@ rust_library(
     ],
 )
 
+rust_library(
+    name = "shard_test_support",
+    testonly = True,
+    srcs = ["shard_test_support.rs"],
+    crate_name = "shard_test_support",
+    crate_root = "shard_test_support.rs",
+    deps = [
+        ":documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
 rust_test(
     name = "documentation_ir_test",
     aliases = aliases(
@@ -68,6 +80,7 @@ rust_test(
     ],
     deps = [
         ":documentation_ir",
+        ":shard_test_support",
         "//tools/testing:dx_testing",
     ],
 )

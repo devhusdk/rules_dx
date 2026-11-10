@@ -1,5 +1,5 @@
 {
-  "checksum": "9b8cfc4426a7d036629acb799c3cdfc3a6bc419b213b2ad0af946e9e0bccadee",
+  "checksum": "e8a4f860d6a6106332b77f04ffefb2ac6294557606986d18d5b4ad728b5ed4cc",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -14644,25 +14644,17 @@
       ],
       "version": "0.0.0"
     },
-    "jvm_test_support 0.0.0": {
+    "jvm_docs_tests 0.0.0": {
       "common_attrs": {
         "edition": "2024"
       },
-      "library_target_name": "jvm_test_support",
       "license": "Apache-2.0",
       "license_ids": [
         "Apache-2.0"
       ],
-      "name": "jvm_test_support",
+      "name": "jvm_docs_tests",
       "repository": null,
-      "targets": [
-        {
-          "Library": {
-            "crate_name": "jvm_test_support",
-            "crate_root": "jvm_test_support.rs"
-          }
-        }
-      ],
+      "targets": [],
       "version": "0.0.0"
     },
     "k256 0.13.4": {
@@ -31320,7 +31312,7 @@
     "julia_lint 0.0.0": "julia/private/tools/julia_lint",
     "julia_tools 0.0.0": "julia/private/julia_tools",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
-    "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
+    "jvm_docs_tests 0.0.0": "tools/docs/jvm_docs_tests",
     "kotlin_app_cli_fixture 0.0.0": "kotlin/tests/fixtures/kotlin-app/kotlin_app_cli_fixture",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
     "modules_tests 0.0.0": "core/modules_tests",

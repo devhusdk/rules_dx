@@ -29,6 +29,7 @@ rust_test(
     }),
     deps = [
         "//tools/docs/ir/ir:documentation_ir",
+        "//tools/docs/ir/ir:shard_test_support",
         "//tools/testing:dx_testing",
     ],
 )

@@ -24,6 +24,7 @@ rust_test(
     env = {"DX_FIXTURE_SHARD": "$(rootpath //tools/docs/avro/fixture:shop_docs)"},
     deps = [
         "//tools/docs/ir/ir:documentation_ir",
+        "//tools/docs/ir/ir:shard_test_support",
         "//tools/testing:dx_testing",
     ],
 )

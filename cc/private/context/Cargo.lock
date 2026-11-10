@@ -3243,7 +3243,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "jvm_test_support"
+name = "jvm_docs_tests"
 version = "0.0.0"
 
 [[package]]

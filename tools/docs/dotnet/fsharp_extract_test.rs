@@ -1,22 +1,11 @@
 //! Checks the F# fixture shards: shapes, signatures, docs, sources and configuration.
 
-use std::path::PathBuf;
-
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
-use documentation_ir::{decode_shard, validate_shard};
+use documentation_ir::validate_shard;
+use shard_test_support::{extension, shard};
 
 const PREFIX: &str = "fsharp:Dx.Fixture.FsLedger:Dx.Fixture.FsLedger.";
 const LEDGER: &str = "tools/docs/dotnet/fixture/fsharp/ledger/Ledger.fs";
-
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn shard(var: &str) -> DocIr {
-    let bytes = std::fs::read(runfile(var)).expect("read the shard");
-    decode_shard(&bytes).expect("the shard decodes")
-}
 
 fn symbols<'a>(shard: &'a DocIr, name: &str) -> Vec<&'a Symbol> {
     let id = format!("{PREFIX}{name}");
@@ -39,15 +28,6 @@ fn overload<'a>(shard: &'a DocIr, name: &str, signature: &str) -> &'a Symbol {
         .into_iter()
         .find(|s| s.signature_text == signature)
         .unwrap_or_else(|| panic!("{name} has no overload {signature}"))
-}
-
-fn extension(symbol: &Symbol, key: &str) -> String {
-    let found = symbol
-        .extensions
-        .iter()
-        .find(|e| e.key == key)
-        .unwrap_or_else(|| panic!("{} has no {key}", symbol.id));
-    String::from_utf8(found.value.clone()).expect("utf-8 extension")
 }
 
 #[test]
@@ -122,8 +102,16 @@ fn signatures_docs_and_sources_come_from_the_compile() {
 fn undocumented_members_are_marked_incomplete() {
     let shard = shard("DX_FIXTURE_FSHARP_SHARD");
     let undocumented = symbol(&shard, "Amounts.undocumented");
-    assert!(extension(undocumented, "fsharp.incomplete").contains("summary"));
-    assert!(extension(undocumented, "fsharp.config").starts_with("assembly="));
+    assert!(
+        extension(undocumented, "fsharp.incomplete")
+            .expect("extension")
+            .contains("summary")
+    );
+    assert!(
+        extension(undocumented, "fsharp.config")
+            .expect("extension")
+            .starts_with("assembly=")
+    );
 }
 
 #[test]
@@ -132,9 +120,13 @@ fn the_defines_select_the_members() {
     let extra = shard("DX_FIXTURE_FSHARP_EXTRA_SHARD");
     assert!(symbols(&base, "Amounts.extra").is_empty());
     let found = symbol(&extra, "Amounts.extra");
-    assert!(extension(found, "fsharp.config").contains("defines=DX_EXTRA"));
+    assert!(
+        extension(found, "fsharp.config")
+            .expect("extension")
+            .contains("defines=DX_EXTRA")
+    );
     assert_ne!(
-        std::fs::read(runfile("DX_FIXTURE_FSHARP_SHARD")).expect("read"),
-        std::fs::read(runfile("DX_FIXTURE_FSHARP_EXTRA_SHARD")).expect("read")
+        std::fs::read(dx_testing::env_file("DX_FIXTURE_FSHARP_SHARD")).expect("read"),
+        std::fs::read(dx_testing::env_file("DX_FIXTURE_FSHARP_EXTRA_SHARD")).expect("read")
     );
 }

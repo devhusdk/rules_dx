@@ -394,11 +394,11 @@ fn wrapper_values(word: &str) -> Option<Wrapper> {
         "stdbuf" => plain(&["-i", "-o", "-e", "--input", "--output", "--error"]),
         "setsid" => plain(&[]),
         "ionice" => plain(&["-c", "-n", "-p", "-P", "-u", "--class", "--classdata"]),
-        other => legacy_values(other).and_then(plain),
+        other => prefix_command_values(other).and_then(plain),
     }
 }
 
-fn legacy_values(word: &str) -> Option<&'static [&'static str]> {
+fn prefix_command_values(word: &str) -> Option<&'static [&'static str]> {
     match word {
         "env" => Some(&["-u", "-C", "-S", "--unset", "--chdir", "--split-string"]),
         "command" | "nohup" | "time" => Some(&[]),

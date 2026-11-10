@@ -379,7 +379,7 @@ fn presentation_flags_change_neither_findings_nor_exit() {
 }
 
 #[test]
-fn suggested_commands_never_name_removed_or_destructive_actions() {
+fn suggested_commands_never_name_unsupported_or_destructive_actions() {
     let mut harness = Harness {
         bazel_code: 1,
         ..Harness::new("text-banned")

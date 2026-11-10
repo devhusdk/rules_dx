@@ -470,12 +470,6 @@ fn parses_single_requirement_shapes() {
 }
 
 #[test]
-fn removed_aliases_fail_closed() {
-    assert!(UpdateRequest::parse_grammar("gomod:example.com/mod", "1.2.3").is_err());
-    assert!(UpdateRequest::parse_grammar("gha:actions/checkout", "v4").is_err());
-}
-
-#[test]
 fn bare_sets_targets_and_unknown_fail_closed() {
     assert!(matches!(
         UpdateRequest::parse_grammar("cargo", "1.2.3"),
@@ -493,6 +487,7 @@ fn bare_sets_targets_and_unknown_fail_closed() {
         UpdateRequest::parse_grammar("crates", "1.2.3"),
         Err(EditError::UnknownSelector { .. })
     ));
+    assert!(UpdateRequest::parse_grammar("nosuchset:example.com/mod", "1.2.3").is_err());
     assert!(matches!(
         UpdateRequest::parse_grammar("cargo:", "1.2.3"),
         Err(EditError::InvalidPackage { .. })

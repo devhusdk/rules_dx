@@ -261,8 +261,8 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
         }
     };
     let families = dx_adopt::detected_families(workspace);
-    let explicit = config.as_ref().and_then(|config| config.profile);
-    let from = |profile: Option<dx_config::Profile>, family: Option<String>| TierEvent {
+    let explicit = config.as_ref().and_then(|config| config.tier);
+    let from = |profile: Option<dx_config::Tier>, family: Option<String>| TierEvent {
         family,
         tier: profile.unwrap_or_default().as_str().to_owned(),
         source: if profile.is_some() {
@@ -275,7 +275,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
     let mut tiers = vec![from(explicit, None)];
     if let Some(config) = &config {
         tiers.extend(config.families.iter().filter_map(|(id, family)| {
-            let profile = family.profile?;
+            let profile = family.tier?;
             (!family.disabled && families.contains(id))
                 .then(|| from(Some(profile), Some(id.clone())))
         }));

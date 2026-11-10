@@ -8,7 +8,7 @@ use dx_audit::exception::{load_security, validate_exception};
 use dx_audit::image_scan::{
     ImageFinding, covers, parse_report, severity_list, trivy_args, trivy_cache,
 };
-use dx_audit::profile_base::Profile;
+use dx_audit::profile_base::Tier;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum ScanMode {
@@ -58,8 +58,7 @@ pub fn apply_exceptions(
     security_toml: Option<&str>,
     today: &str,
 ) -> Result<Vec<ImageFinding>, String> {
-    let policy =
-        load_security(security_toml, Profile::Standard).map_err(|error| error.to_string())?;
+    let policy = load_security(security_toml, Tier::Standard).map_err(|error| error.to_string())?;
     let label = (!label.is_empty()).then_some(label);
     let live: Vec<_> = policy
         .exceptions

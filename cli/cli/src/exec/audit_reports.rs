@@ -231,11 +231,8 @@ fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
         }
     }
     let load = |text: &str| {
-        dx_audit::license_policy::load_licenses(
-            Some(text),
-            dx_audit::profile_base::Profile::Standard,
-        )
-        .expect("policy")
+        dx_audit::license_policy::load_licenses(Some(text), dx_audit::profile_base::Tier::Standard)
+            .expect("policy")
     };
     let roots = |labels: &[&str]| {
         labels

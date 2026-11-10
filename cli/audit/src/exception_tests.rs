@@ -1,5 +1,5 @@
 use super::*;
-use crate::profile_base::Profile;
+use crate::profile_base::Tier;
 
 fn sample() -> RiskException {
     RiskException {
@@ -330,7 +330,7 @@ fn exception_schema_stays_versioned_without_allowlist() {
 }
 
 fn load(text: &str) -> Result<SecurityPolicy, SecurityProblem> {
-    load_security(Some(text), Profile::Standard)
+    load_security(Some(text), Tier::Standard)
 }
 
 fn security_toml(entries: &[RiskException]) -> String {
@@ -372,17 +372,20 @@ fn security_toml_loads_every_exception_in_file_order() {
 #[test]
 fn security_toml_defaults_to_no_exceptions_and_needs_a_schema_version() {
     assert_eq!(
-        load_security(None, Profile::Standard).expect("no file"),
+        load_security(None, Tier::Standard).expect("no file"),
         SecurityPolicy::default()
     );
     assert_eq!(
-        load_security(Some("  \n"), Profile::Standard).expect("blank file"),
+        load_security(Some("  \n"), Tier::Standard).expect("blank file"),
         SecurityPolicy::default()
     );
     assert_eq!(load("schema_version = 1\n"), Ok(SecurityPolicy::default()));
     for (text, want) in [
         ("fail_on = []\n", "schema_version is missing"),
-        ("schema_version = 99\n", "schema_version 99 is newer"),
+        (
+            "schema_version = 99\n",
+            "schema_version 99 is not accepted; the only accepted value is 1",
+        ),
         ("schema_version = \"1\"\n", "must be a whole number"),
     ] {
         let error = load(text).expect_err(text).to_string();
@@ -540,22 +543,22 @@ fn empty_fields_show_as_question_mark() {
 
 #[test]
 fn the_profile_picks_the_base_and_a_root_list_replaces_it() {
-    let standard = load_security(None, Profile::Standard).expect("standard");
+    let standard = load_security(None, Tier::Standard).expect("standard");
     assert_eq!(
         standard.fail_on,
         vec![AdvisoryKind::Vulnerability, AdvisoryKind::Unsound]
     );
     assert_eq!(standard.fail_on, SecurityPolicy::default().fail_on);
-    let strict = load_security(None, Profile::Strict).expect("strict");
+    let strict = load_security(None, Tier::Strict).expect("strict");
     assert!(strict.fails_on(AdvisoryKind::Unmaintained));
     assert!(strict.fails_on(AdvisoryKind::Notice));
     assert!(strict.fails_on(AdvisoryKind::Yanked));
     let with_exception = security_toml(&[sample()]);
-    let strict = load_security(Some(&with_exception), Profile::Strict).expect("strict");
+    let strict = load_security(Some(&with_exception), Tier::Strict).expect("strict");
     assert!(strict.fails_on(AdvisoryKind::Unmaintained));
     assert_eq!(strict.exceptions.len(), 1);
     let own = "schema_version = 1\nfail_on = [\"unsound\"]\n";
-    let own = load_security(Some(own), Profile::Strict).expect("own list");
+    let own = load_security(Some(own), Tier::Strict).expect("own list");
     assert_eq!(own.fail_on, vec![AdvisoryKind::Unsound]);
 }
 

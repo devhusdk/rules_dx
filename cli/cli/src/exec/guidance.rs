@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    fn a_rerun_is_a_check_and_never_a_removed_command() {
+    fn a_rerun_is_a_check() {
         let line = rerun_hint(&request(), "fix the report path");
         assert!(
             line.starts_with("next: fix the report path, then run: dx lint "),

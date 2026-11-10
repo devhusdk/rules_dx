@@ -137,19 +137,6 @@ fn bare_commands_check_by_default_and_check_spelling_agrees() {
 }
 
 #[test]
-fn removed_dry_run_flag_is_unknown() {
-    for words in [
-        vec!["lint", "--dry-run"],
-        vec!["lint", "--dry-run=true"],
-        vec!["lint", "--dry-run=false"],
-        vec!["clean", "--dry-run", "--apply"],
-        vec!["check", "--apply", "--dry-run"],
-    ] {
-        assert_usage(&words, parse(&strings(&words)).unwrap_err(), &["--dry-run"]);
-    }
-}
-
-#[test]
 fn repeated_apply_is_idempotent() {
     let repeated = parse(&strings(&["check", "--apply", "--apply"])).expect("last wins");
     assert!(repeated.apply);
@@ -434,7 +421,11 @@ fn unknown_options_fail() {
     for (words, needle) in [
         (vec!["lint", "--parallel=4"], "--parallel"),
         (vec!["lint", "-z"], "-z"),
-        (vec!["lint", "--dry-run"], "--dry-run"),
+        (vec!["lint", "--no-such-flag"], "--no-such-flag"),
+        (vec!["lint", "--no-such-flag=true"], "--no-such-flag"),
+        (vec!["clean", "--no-such-flag", "--apply"], "--no-such-flag"),
+        (vec!["check", "--apply", "--no-such-flag"], "--no-such-flag"),
+        (vec!["sync", "--no-such-flag=value"], "--no-such-flag"),
         (vec!["-"], "-"),
     ] {
         assert_usage(&words, parse(&strings(&words)).unwrap_err(), &[needle]);

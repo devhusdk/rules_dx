@@ -11,7 +11,7 @@ fn no_file_is_the_curated_standard_tier() {
     let selection = effective(None).unwrap();
     assert_eq!(selection.families.len(), FAMILIES.len());
     assert_eq!(selection.families["rust"].format, ["rustfmt"]);
-    assert_eq!(selection.families["rust"].profile.as_str(), "standard");
+    assert_eq!(selection.families["rust"].tier.as_str(), "standard");
 }
 
 #[test]
@@ -41,7 +41,7 @@ fn a_family_override_replaces_one_capability() {
     let selection = effective(Some(&config)).unwrap();
     assert_eq!(selection.families["rust"].lint, ["typos"]);
     assert_eq!(selection.families["rust"].format, ["rustfmt"]);
-    assert_eq!(selection.families["rust"].profile.as_str(), "strict");
+    assert_eq!(selection.families["rust"].tier.as_str(), "strict");
     assert!(!selection.families.contains_key("go"));
     assert_eq!(selection.disabled, ["go".to_owned()].into());
 }
@@ -62,7 +62,7 @@ fn an_opt_in_family_runs_only_the_tools_it_names() {
     let selection = effective(Some(&config)).unwrap();
     assert_eq!(selection.families["lua"].format, ["stylua"]);
     assert!(selection.families["lua"].lint.is_empty());
-    assert_eq!(selection.families["lua"].profile.as_str(), "standard");
+    assert_eq!(selection.families["lua"].tier.as_str(), "standard");
     assert_eq!(selection.families["flatbuffers"].lint, ["flatc"]);
     let unlisted = effective(None).unwrap();
     assert!(!unlisted.families.contains_key("lua"));
@@ -84,7 +84,7 @@ fn an_unknown_tool_gets_a_hint() {
 }
 
 #[test]
-fn two_profiles_on_one_shared_tool_conflict() {
+fn two_tiers_on_one_shared_tool_conflict() {
     let error = problem(
         "schema_version = 1\n[families.go]\ntier = \"strict\"\nlint = [\"yamllint\"]\n[families.rust]\nlint = [\"yamllint\"]\n",
     );
@@ -94,10 +94,11 @@ fn two_profiles_on_one_shared_tool_conflict() {
         text.contains("`go` (strict)") && text.contains("`rust` (standard)"),
         "{text}"
     );
+    assert!(text.contains("the same `tier`"), "{text}");
 }
 
 #[test]
-fn cross_family_tools_follow_the_root_profile() {
+fn cross_family_tools_follow_the_root_tier() {
     let config = parse(
         "schema_version = 1\n[families.go]\ntier = \"strict\"\n[families.rust]\ntier = \"standard\"\n",
     )
@@ -134,12 +135,16 @@ fn skip_tools_drops_a_tool_everywhere() {
 fn plus_and_minus_edit_the_curated_list() {
     let curated = effective(None).unwrap().families["cc"].lint.clone();
     assert!(curated.iter().any(|tool| tool == "typos"));
-    let config = parse(
-        "schema_version = 1\n[families.cc]\nlint = [\"+yamllint\", \"-clang_tidy\"]\n",
-    )
-    .unwrap();
-    let lint = effective(Some(&config)).unwrap().families["cc"].lint.clone();
-    let mut expected: Vec<String> = curated.into_iter().filter(|tool| tool != "clang_tidy").collect();
+    let config =
+        parse("schema_version = 1\n[families.cc]\nlint = [\"+yamllint\", \"-clang_tidy\"]\n")
+            .unwrap();
+    let lint = effective(Some(&config)).unwrap().families["cc"]
+        .lint
+        .clone();
+    let mut expected: Vec<String> = curated
+        .into_iter()
+        .filter(|tool| tool != "clang_tidy")
+        .collect();
     expected.push("yamllint".to_owned());
     assert_eq!(lint, expected);
 }

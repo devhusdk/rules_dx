@@ -10,26 +10,22 @@ fn schema_version_is_required_and_checked() {
         check_schema_version(None),
         Err(ConventionProblem::MissingSchemaVersion)
     );
-    assert_eq!(check_schema_version(Some(&value("1"))), Ok(1));
+    assert_eq!(check_schema_version(Some(&value("1"))), Ok(()));
     assert!(matches!(
         check_schema_version(Some(&value("\"1\""))),
         Err(ConventionProblem::BadSchemaVersion { .. })
     ));
-    assert_eq!(
-        check_schema_version(Some(&value("2"))),
-        Err(ConventionProblem::NewerSchemaVersion { found: 2 })
-    );
-    assert_eq!(
-        check_schema_version(Some(&value("0"))),
-        Err(ConventionProblem::OldSchemaVersion { found: 0 })
-    );
-}
-
-#[test]
-fn unknown_key_messages_pass_through_without_a_newer_schema() {
-    let message = "unknown field `colour`, expected `profile`";
-    assert_eq!(explain_unknown_key(message), message);
-    assert_eq!(explain_unknown_key("other"), "other");
+    for (text, found) in [("2", 2), ("0", 0), ("-1", -1)] {
+        let problem = check_schema_version(Some(&value(text))).unwrap_err();
+        assert_eq!(
+            problem,
+            ConventionProblem::UnsupportedSchemaVersion { found }
+        );
+        assert_eq!(
+            problem.to_string(),
+            format!("schema_version {found} is not accepted; the only accepted value is 1")
+        );
+    }
 }
 
 #[test]

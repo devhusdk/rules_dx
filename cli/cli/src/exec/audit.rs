@@ -640,9 +640,9 @@ fn package_ref(
 }
 
 /// The tier from the dx.toml `profile`; standard without one.
-fn audit_profile(workspace: &Path) -> Result<dx_audit::profile_base::Profile, DxError> {
+fn audit_profile(workspace: &Path) -> Result<dx_audit::profile_base::Tier, DxError> {
     match dx_config::load(workspace) {
-        Ok(config) => Ok(config.and_then(|config| config.profile).unwrap_or_default()),
+        Ok(config) => Ok(config.and_then(|config| config.tier).unwrap_or_default()),
         Err(problem) => Err(DxError::failure(format!("dx.toml: {problem}"))),
     }
 }

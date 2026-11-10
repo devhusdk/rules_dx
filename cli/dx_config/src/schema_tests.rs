@@ -25,8 +25,8 @@ fn schema_accepts_a_config_and_rejects_typos() {
     assert!(schema.is_valid(&toml_value(
         "schema_version = 1\ntier = \"strict\"\n[families.go]\nlint = [\"typos\"]\n"
     )));
-    assert!(!schema.is_valid(&toml_value("schema_version = 1\nprofle = \"strict\"")));
-    assert!(!schema.is_valid(&toml_value("schema_version = 1\nprofile = \"loose\"")));
+    assert!(!schema.is_valid(&toml_value("schema_version = 1\nteir = \"strict\"")));
+    assert!(!schema.is_valid(&toml_value("schema_version = 1\ntier = \"loose\"")));
 }
 
 #[test]

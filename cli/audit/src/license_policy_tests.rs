@@ -1,17 +1,16 @@
 use super::*;
 use crate::license_expr::{IdClass, LicenseExpr, TierOutcome, evaluate};
-use crate::profile_base::Profile;
 
 /// Loads `body` as a standard-profile license.toml whose line 1 is `schema_version = 1`.
 fn load(body: &str) -> Result<LicensePolicy, PolicyProblem> {
     load_licenses(
         Some(&format!("schema_version = 1\n{body}")),
-        Profile::Standard,
+        dx_config::Tier::Standard,
     )
 }
 
 fn standard() -> LicensePolicy {
-    load_licenses(None, Profile::Standard).expect("standard")
+    load_licenses(None, dx_config::Tier::Standard).expect("standard")
 }
 
 fn tables() -> PolicyTables {
@@ -492,7 +491,7 @@ fn loader_defaults_missing_sections_to_the_base_and_stays_closed() {
     let policy = load("").expect("empty document loads");
     assert_eq!(policy, standard());
     assert_eq!(
-        load_licenses(Some(" \n"), Profile::Standard),
+        load_licenses(Some(" \n"), dx_config::Tier::Standard),
         Ok(standard())
     );
     assert!(policy.tables.allow.contains("MIT"));
@@ -548,13 +547,22 @@ fn loaded_exceptions_validate_against_audit_date() {
 
 #[test]
 fn schema_version_is_required_and_must_be_current() {
-    let read = |text: &str| load_licenses(Some(text), Profile::Standard);
+    let read = |text: &str| load_licenses(Some(text), dx_config::Tier::Standard);
     read("schema_version = 1\n").expect("v1 loads");
     for (bad, want) in [
         ("[policy]\nblocked = []\n", "schema_version is missing"),
-        ("schema_version = 0\n", "no longer read"),
-        ("schema_version = 2\n", "newer than this dx reads"),
-        ("schema_version = 999\n", "newer than this dx reads"),
+        (
+            "schema_version = 0\n",
+            "schema_version 0 is not accepted; the only accepted value is 1",
+        ),
+        (
+            "schema_version = 2\n",
+            "schema_version 2 is not accepted; the only accepted value is 1",
+        ),
+        (
+            "schema_version = 999\n",
+            "schema_version 999 is not accepted",
+        ),
     ] {
         let error = read(bad).expect_err(bad).to_string();
         assert!(error.contains(want), "{bad:?}: {error}");
@@ -732,14 +740,14 @@ fn a_root_list_replaces_that_list_and_inherits_the_rest() {
 #[test]
 fn the_strict_profile_denies_what_the_standard_profile_only_reviews() {
     let standard = standard();
-    let strict = load_licenses(None, Profile::Strict).expect("strict");
+    let strict = load_licenses(None, dx_config::Tier::Strict).expect("strict");
     for id in ["LGPL-3.0-only", "MPL-2.0", "EPL-2.0", "CDDL-1.0"] {
         assert!(standard.tables.review.contains(id));
         assert!(strict.tables.deny.contains(id));
     }
     assert!(strict.tables.review.is_empty());
     let root = "schema_version = 1\n[distribution]\ninternal = [\"//a/...\"]\n";
-    let strict_root = load_licenses(Some(root), Profile::Strict).expect("strict root");
+    let strict_root = load_licenses(Some(root), dx_config::Tier::Strict).expect("strict root");
     assert_eq!(strict_root.tables, strict.tables);
     assert_eq!(
         strict_root.distribution.internal,

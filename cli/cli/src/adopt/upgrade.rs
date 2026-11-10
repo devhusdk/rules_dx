@@ -657,10 +657,10 @@ mod tests {
         std::fs::read_to_string(root.join("MODULE.bazel")).expect("module")
     }
 
-    fn legacy_launcher(root: &Path, version: &str) {
+    fn sh_launcher(root: &Path, version: &str) {
         std::fs::create_dir_all(root.join("tools")).expect("tools");
         let text = format!("#!/bin/sh\nset -eu\nDX_PINS=.dx/pins\n# {version}\n");
-        std::fs::write(root.join("tools/dx"), text).expect("legacy launcher");
+        std::fs::write(root.join("tools/dx"), text).expect("launcher");
     }
 
     fn set_module_version(root: &Path, version: &str) {
@@ -700,7 +700,7 @@ mod tests {
         let (_scratch, root) = pinned("dx-adopt-upgrade-hint-", OLD);
         set_module_version(&root, OLD);
         std::fs::write(root.join("AGENTS.md"), STALE_AGENTS).expect("agents");
-        legacy_launcher(&root, OLD);
+        sh_launcher(&root, OLD);
         let inv = invocation(&["upgrade", "--to", module(), "--apply"]);
         let (code, out, err) = run(&inv, &root);
         assert_eq!(code, 0, "{out}{err}");
@@ -756,7 +756,7 @@ mod tests {
         .expect("init");
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
         dx_adopt::write_version_pin(&root, OLD).expect("pin");
-        legacy_launcher(&root, OLD);
+        sh_launcher(&root, OLD);
         let stale = [
             (".dx/bazelrc/correctness.bazelrc", "old\n".to_owned()),
             (dx_worktree::setup::HOOK_FILES[0].path, "{}".to_owned()),
@@ -939,7 +939,7 @@ mod tests {
             init_files::plan(&root, "refresh", false, &dx_plan::args::Agent::ALL).expect("plan");
         std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
         dx_adopt::write_version_pin(&root, OLD).expect("pin");
-        legacy_launcher(&root, OLD);
+        sh_launcher(&root, OLD);
         let ci = root.join(".github/workflows/ci.yml");
         let fresh = dx_adopt::render_consumer_caller();
         std::fs::write(&ci, fresh.replace(dx_adopt::CONSUMER_WORKFLOW_PIN, "0.0.1"))
@@ -994,7 +994,7 @@ mod tests {
     fn check_mode_lists_the_stale_files_apply_would_touch() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-preview-", OLD);
         set_module_version(&root, OLD);
-        legacy_launcher(&root, OLD);
+        sh_launcher(&root, OLD);
         let (code, out, err) = run(&upgrade(&[]), &root);
         assert_eq!(code, 1, "{err}");
         assert!(out.contains("MODULE.bazel: rules_dx"), "{out}");
@@ -1004,7 +1004,7 @@ mod tests {
     #[test]
     fn check_mode_at_the_current_version_reports_a_stale_launcher() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-half-", module());
-        legacy_launcher(&root, OLD);
+        sh_launcher(&root, OLD);
         let (code, out, err) = run(&upgrade(&[]), &root);
         assert_eq!(code, 1, "{err}");
         assert_eq!(out, "tools/dx: refresh\n");
@@ -1014,7 +1014,7 @@ mod tests {
     #[test]
     fn check_for_another_binary_lists_existing_refreshable_files() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-other-", module());
-        legacy_launcher(&root, OLD);
+        sh_launcher(&root, OLD);
         let before = snapshot(&root);
         let (code, out, err) = run(&upgrade(&["--to=9.9.9"]), &root);
         assert_eq!(code, 1, "{err}");

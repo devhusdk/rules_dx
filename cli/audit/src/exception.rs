@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::Deserialize;
 
-use crate::profile_base::{Profile, base_text};
+use crate::profile_base::{Tier, base_text};
 use crate::vuln::{AdvisoryKind, VersionScope};
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, JsonSchema)]
@@ -212,8 +212,7 @@ fn parse_file(text: &str) -> Result<SecurityFile, SecurityProblem> {
     dx_config::conventions::check_schema_version(table.get("schema_version"))
         .map_err(|problem| invalid(problem.to_string()))?;
     toml::from_str(text).map_err(|error: toml::de::Error| {
-        let message = dx_config::conventions::explain_unknown_key(error.message());
-        invalid(toml_message(text, &error, message))
+        invalid(toml_message(text, &error, error.message().to_owned()))
     })
 }
 
@@ -229,10 +228,7 @@ pub(crate) fn toml_message(text: &str, error: &toml::de::Error, message: String)
 
 /// The policy for `profile`: its embedded base with `text`, the workspace's
 /// security.toml, merged over it. Missing or blank text means the base alone.
-pub fn load_security(
-    text: Option<&str>,
-    profile: Profile,
-) -> Result<SecurityPolicy, SecurityProblem> {
+pub fn load_security(text: Option<&str>, profile: Tier) -> Result<SecurityPolicy, SecurityProblem> {
     let base_text = base_text("security", profile).ok_or_else(|| SecurityProblem::InvalidToml {
         message: format!("the {} base is missing", profile.as_str()),
     })?;

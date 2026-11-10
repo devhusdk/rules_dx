@@ -116,10 +116,7 @@ impl UpdateSet {
     pub fn needs_update_refresh(self) -> bool {
         !matches!(
             self,
-            UpdateSet::Bazel
-                | UpdateSet::Containers
-                | UpdateSet::GithubActions
-                | UpdateSet::Pins
+            UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions | UpdateSet::Pins
         )
     }
 }
@@ -139,6 +136,7 @@ mod tests {
         assert_eq!(seen.len(), 18);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
+        assert_eq!(UpdateSet::parse("unknown"), None);
         assert_eq!(UpdateSet::parse(""), None);
     }
 
@@ -148,13 +146,6 @@ mod tests {
             UpdateSet::builtin_names(),
             vec!["bazel", "containers", "github-actions", "pins"]
         );
-    }
-
-    #[test]
-    fn removed_aliases_are_unknown() {
-        assert_eq!(UpdateSet::parse("gomod"), None);
-        assert_eq!(UpdateSet::parse("gha"), None);
-        assert_eq!(UpdateSet::parse("unknown"), None);
     }
 
     #[test]

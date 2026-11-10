@@ -584,11 +584,6 @@ fn version_flags_stay_with_their_commands() {
 }
 
 #[test]
-fn sync_rejects_the_removed_shell_flag() {
-    assert!(parse(&strings(&["sync", "--shell=direnv"])).is_err());
-}
-
-#[test]
 fn check_defaults_to_check_and_applies_only_with_apply() {
     for command in ["lint", "typecheck", "format", "check"] {
         let bare = parse(&strings(&[command])).expect("bare parses");

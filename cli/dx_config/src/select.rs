@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::config::{DxConfig, FamilyConfig, Profile};
+use crate::config::{DxConfig, FamilyConfig, Tier};
 use crate::curated_defaults_gen::{CROSS_FAMILY_TOOLS, FAMILIES, OPT_IN_FAMILIES, OVERLAPS, TOOLS};
 
 /// One row of the generated curated table.
@@ -23,7 +23,7 @@ pub struct Overlap {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FamilySelection {
-    pub profile: Profile,
+    pub tier: Tier,
     pub lint: Vec<String>,
     pub format: Vec<String>,
     pub typecheck: Vec<String>,
@@ -51,7 +51,7 @@ impl FamilySelection {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Selection {
-    pub profile: Profile,
+    pub tier: Tier,
     pub families: BTreeMap<String, FamilySelection>,
     /// Families dx.toml turns off.
     pub disabled: BTreeSet<String>,
@@ -88,15 +88,15 @@ pub enum SelectionProblem {
         second: String,
     },
     #[error(
-        "tool `{tool}` is selected by family `{first}` ({first_profile}) and family `{second}` \
-         ({second_profile}); give both families the same profile or select `{tool}` in only one"
+        "tool `{tool}` is selected by family `{first}` ({first_tier}) and family `{second}` \
+         ({second_tier}); give both families the same `tier` or select `{tool}` in only one"
     )]
-    ProfileConflict {
+    TierConflict {
         tool: String,
         first: String,
-        first_profile: &'static str,
+        first_tier: &'static str,
         second: String,
-        second_profile: &'static str,
+        second_tier: &'static str,
     },
 }
 
@@ -191,7 +191,7 @@ fn pick(
 
 fn apply(
     curated: &CuratedFamily,
-    root: Profile,
+    root: Tier,
     over: Option<&FamilyConfig>,
     skip: &[String],
 ) -> Result<FamilySelection, SelectionProblem> {
@@ -199,7 +199,7 @@ fn apply(
     let over = over.unwrap_or(&none);
     let id = curated.id;
     Ok(FamilySelection {
-        profile: over.profile.unwrap_or(root),
+        tier: over.tier.unwrap_or(root),
         lint: pick(id, &over.lint, curated.lint, skip)?,
         format: pick(id, &over.format, curated.format, skip)?,
         typecheck: pick(id, &over.typecheck, curated.typecheck, skip)?,
@@ -210,8 +210,10 @@ fn apply(
 /// The curated selection with the `dx.toml` overrides applied. No file means the
 /// curated tools at the standard tier.
 pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProblem> {
-    let root = config.and_then(|config| config.profile).unwrap_or_default();
-    let skip = config.map(|config| config.skip_tools.as_slice()).unwrap_or(&[]);
+    let root = config.and_then(|config| config.tier).unwrap_or_default();
+    let skip = config
+        .map(|config| config.skip_tools.as_slice())
+        .unwrap_or(&[]);
     for tool in skip {
         check_known("skip_tools", tool)?;
     }
@@ -251,10 +253,10 @@ pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProble
             families.insert(curated.id.to_owned(), selection);
         }
     }
-    check_profiles(&families)?;
+    check_tiers(&families)?;
     check_overlaps(&families)?;
     Ok(Selection {
-        profile: root,
+        tier: root,
         families,
         disabled,
         exclude: config
@@ -263,26 +265,26 @@ pub fn effective(config: Option<&DxConfig>) -> Result<Selection, SelectionProble
     })
 }
 
-fn check_profiles(families: &BTreeMap<String, FamilySelection>) -> Result<(), SelectionProblem> {
-    let mut seen: BTreeMap<&str, (&str, Profile)> = BTreeMap::new();
+fn check_tiers(families: &BTreeMap<String, FamilySelection>) -> Result<(), SelectionProblem> {
+    let mut seen: BTreeMap<&str, (&str, Tier)> = BTreeMap::new();
     for (id, family) in families {
         for tool in family.tools() {
             if CROSS_FAMILY_TOOLS.contains(&tool.as_str()) {
                 continue;
             }
             match seen.get(tool.as_str()) {
-                Some((first, profile)) if *profile != family.profile => {
-                    return Err(SelectionProblem::ProfileConflict {
+                Some((first, tier)) if *tier != family.tier => {
+                    return Err(SelectionProblem::TierConflict {
                         tool: tool.clone(),
                         first: (*first).to_owned(),
-                        first_profile: profile.as_str(),
+                        first_tier: tier.as_str(),
                         second: id.clone(),
-                        second_profile: family.profile.as_str(),
+                        second_tier: family.tier.as_str(),
                     });
                 }
                 Some(_) => {}
                 None => {
-                    seen.insert(tool, (id, family.profile));
+                    seen.insert(tool, (id, family.tier));
                 }
             }
         }

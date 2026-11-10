@@ -152,7 +152,7 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | `.devcontainer/devcontainer.json` | pin | Written when missing. Only the `image` and the bazel feature version are updated, and only while they still name the image and feature dx wrote. Another image or feature is kept. |
 | `.editorconfig`, `.gitattributes` | once | Written when missing. Never rewritten. `.editorconfig` sets LF line endings, a final newline, UTF-8, and indent sizes per language. `.gitattributes` sets `* text=auto eol=lf` and CRLF for `*.bat`, `*.cmd` and `*.ps1`. |
 | `.vscode/settings.json` | keys | Written when missing. Only the keys dx sets are updated; comments, other keys and order stay. |
-| `.github/workflows/ci.yml` | pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated, and a retired `rules_dx_version` input is removed. |
+| `.github/workflows/ci.yml` | pin | Written when missing. Only the `uses:` pin of the rules_dx workflow is updated. |
 | `.gitlab-ci.yml` | pin | Written with `--ci gitlab` when missing. Only the commit in the template `remote:` URL is updated. |
 | `.github/workflows/dx-update.yml` | once | Written when missing. Never rewritten. |
 | `.github/workflows/release.yml` | pin | Written when missing and a BUILD file declares a `dx_deployment`; run init again after adding the first one. Only the `uses:` pin is updated. Calls `reusable-release.yml` on `v*` tags. A `workflow_dispatch` takes `publish` (default `false`), so a branch dispatch only plans and dry-runs. Existing files keep their triggers; add `publish` by hand. |

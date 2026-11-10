@@ -1,4 +1,4 @@
-use crate::config::{LoadProblem, Profile, load, parse};
+use crate::config::{LoadProblem, Tier, load, parse};
 use crate::conventions::ConventionProblem;
 
 fn message(text: &str) -> String {
@@ -22,8 +22,8 @@ exclude = ["//third_party/..."]
 "#,
     )
     .unwrap();
-    assert_eq!(config.profile, Some(Profile::Strict));
-    assert_eq!(config.families["rust"].profile, Some(Profile::Standard));
+    assert_eq!(config.tier, Some(Tier::Strict));
+    assert_eq!(config.families["rust"].tier, Some(Tier::Standard));
     assert_eq!(config.scope.exclude, ["//third_party/..."]);
 }
 
@@ -33,7 +33,7 @@ fn schema_version_is_required() {
         parse("tier = \"strict\"").unwrap_err(),
         LoadProblem::Convention(ConventionProblem::MissingSchemaVersion)
     );
-    assert!(message("schema_version = 9").contains("newer"));
+    assert!(message("schema_version = 9").contains("the only accepted value is 1"));
     assert!(message("schema_version = \"one\"").contains("whole number"));
 }
 
@@ -56,7 +56,7 @@ fn paths_are_not_supported_yet() {
 }
 
 #[test]
-fn bad_profile_and_pattern_are_errors() {
+fn bad_tier_and_pattern_are_errors() {
     assert!(message("schema_version = 1\ntier = \"loose\"").contains("loose"));
     assert!(
         message("schema_version = 1\n[scope]\nexclude = [\"third_party\"]")

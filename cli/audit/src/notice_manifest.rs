@@ -24,7 +24,7 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, DxError> {
         let fields: Vec<&str> = line.split('|').collect();
         if fields.len() != 6 {
             return Err(DxError::failure(format!(
-                "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256' where text is a per-package relative path (for example 'cargo/serde/LICENSE'), got {} (5-field manifests predate the text sha256 column; regenerate the inventory)",
+                "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256' where text is a per-package relative path (for example 'cargo/serde/LICENSE'), got {}",
                 index + 1,
                 fields.len()
             )));

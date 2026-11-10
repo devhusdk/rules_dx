@@ -105,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    fn adopt_errors_render_byte_identical_to_legacy_strings() {
+    fn adopt_errors_render_exact_strings() {
         assert_eq!(
             AdoptError::WatchRefusesCi.to_string(),
             "dx watch refuses CI (local-only)"

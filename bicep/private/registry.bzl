@@ -1,5 +1,6 @@
 """Repository rule that restores one Bicep registry module and pins it by digest."""
 
+load("//core:host.bzl", "host_cell")
 load("//core/quality/artifacts:bicep.bzl", "ARTIFACTS")
 
 _HEX = "0123456789abcdef"
@@ -16,33 +17,17 @@ def registry_errors(ref, digest):
         errors.append("digest %r must be sha256: plus 64 lowercase hex characters" % digest)
     return errors
 
-def _platform(rctx):
-    os = rctx.os.name.lower()
-    arch = rctx.os.arch
-    if arch == "amd64":
-        arch = "x86_64"
-    if arch == "aarch64":
-        arch = "arm64"
-    if os.startswith("windows"):
-        os = "windows"
-    elif os.startswith("mac"):
-        os = "macos"
-    key = "%s_%s" % (os, arch)
-    if key not in ARTIFACTS:
-        fail("bicep registry module: no Bicep CLI for host %s" % key)
-    return key
+def digest_mismatch(ref, expected, actual):
+    """Returns the error for a restored manifest digest, empty when it matches."""
+    if actual == expected:
+        return ""
+    return "bicep registry module %s: manifest digest mismatch\n  expected %s\n  actual   %s" % (ref, expected, actual)
 
 def _sha256(rctx, path):
-    if rctx.os.name.lower().startswith("windows"):
-        result = rctx.execute(["certutil", "-hashfile", str(path), "SHA256"])
-        if result.return_code == 0:
-            return result.stdout.splitlines()[1].strip().replace(" ", "").lower()
-    else:
-        for cmd in (["sha256sum", str(path)], ["shasum", "-a", "256", str(path)]):
-            result = rctx.execute(cmd)
-            if result.return_code == 0:
-                return result.stdout.split(" ")[0].strip()
-    fail("bicep registry module: cannot hash %s: %s" % (path, result.stderr))
+    copy = "manifest.sha"
+    sha = rctx.download(url = "file://" + str(path), output = copy).sha256
+    rctx.delete(copy)
+    return sha
 
 def _find_manifests(root):
     found = []
@@ -61,7 +46,9 @@ def _impl(rctx):
     errors = registry_errors(rctx.attr.ref, rctx.attr.digest)
     if errors:
         fail("bicep registry module: " + "; ".join(errors))
-    key = _platform(rctx)
+    key = host_cell(rctx)
+    if key not in ARTIFACTS:
+        fail("bicep registry module: no Bicep CLI for host %s" % key)
     exe = rctx.path(rctx.attr.clis[key])
     rctx.file("restore.bicep", "module m '%s' = {\n  name: 'm'\n}\n" % rctx.attr.ref)
     home = str(rctx.path("home"))
@@ -80,8 +67,9 @@ def _impl(rctx):
     if len(paths) != 1:
         fail("bicep restore %s: expected one cached manifest, found %d" % (rctx.attr.ref, len(paths)))
     actual = "sha256:" + _sha256(rctx, paths[0])
-    if actual != rctx.attr.digest:
-        fail("bicep registry module %s: manifest digest mismatch\n  expected %s\n  actual   %s" % (rctx.attr.ref, rctx.attr.digest, actual))
+    mismatch = digest_mismatch(rctx.attr.ref, rctx.attr.digest, actual)
+    if mismatch:
+        fail(mismatch)
     rctx.delete("home/dotnet")
     rctx.file("BUILD.bazel", """load("@rules_dx//bicep:defs.bzl", "bicep_registry_module")
 

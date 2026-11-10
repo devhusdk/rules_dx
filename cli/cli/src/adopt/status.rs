@@ -159,10 +159,10 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
 }
 
 /// One file dx init writes, its ownership label and whether it is in step with this dx.
-fn owned_files(workspace: &std::path::Path) -> Result<Vec<OwnedFileEvent>, String> {
+fn owned_files(workspace: &std::path::Path) -> Result<Vec<OwnedFileEvent>, dx_error::DxError> {
     let files =
         super::init_files::plan(workspace, "refresh", dx_adopt::is_fresh_dir(workspace), &[])
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| super::from_adopt("", &error))?;
     let drift = super::init_files::drift(workspace, &files);
     let named = |list: &[String], path: &str| {
         list.iter().any(|entry| {
@@ -398,7 +398,15 @@ pub(crate) fn execute_status(
     let owned = if invocation.files {
         match owned_files(workspace) {
             Ok(files) => files,
-            Err(message) => return operational(invocation, out, err, "init_failed", &message),
+            Err(error) => {
+                return crate::exec::common::report_dx_error(
+                    invocation.output,
+                    out,
+                    err,
+                    "init_failed",
+                    &error,
+                );
+            }
         }
     } else {
         Vec::new()

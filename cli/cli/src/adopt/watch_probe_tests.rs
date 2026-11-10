@@ -386,7 +386,7 @@ fn removing_the_workspace_is_an_observer_failure() {
     probe.idle(1);
     fs::remove_dir_all(&probe.workspace).expect("remove workspace");
     let status = probe.exit();
-    assert_eq!(status.code(), Some(1), "{}", probe.stderr());
+    assert_eq!(status.code(), Some(3), "{}", probe.stderr());
     assert!(
         probe
             .stderr()

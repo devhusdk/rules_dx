@@ -116,7 +116,7 @@ Output: `--output text|json`. JSON covers the check only; see Init plan below.
 
 Exit codes: `0` check passed (absent paths may be named on stderr) or apply succeeded, `2` usage error, including
 extra positionals, an unknown flag, or an invalid directory, `1` check found drift or apply
-failed, `141` apply wrote every file but stdout closed early.
+failed on content dx refuses, `3` apply could not read, write or start something, `141` apply wrote every file but stdout closed early.
 
 ## Fixed file set
 

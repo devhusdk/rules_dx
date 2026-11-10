@@ -87,3 +87,4 @@ dx: status_check_failed: failed checks: module, tools (see hint)
 | `0` | All checks pass. |
 | `1` | A check failed. |
 | `2` | Usage error. |
+| `3` | `--files` could not read or plan the files dx init owns. |

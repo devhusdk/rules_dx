@@ -8,11 +8,12 @@ use dx_adopt::AdoptError;
 use dx_output::OutputMode;
 
 use crate::exec::Env;
-use crate::exec::common::check_stdout_write;
+use crate::exec::common::{check_stdout_write, report_dx_error};
 use dx_plan::args::{Command, Invocation};
 use dx_plan::resolve::QueryRunner;
 
-use super::{operational, pre_exec, summaries_suppressed};
+use super::{from_adopt, pre_exec, summaries_suppressed};
+use dx_error::DxError;
 
 const WATCH_POLL: Duration = Duration::from_millis(100);
 
@@ -121,6 +122,21 @@ fn refuse(invocation: &Invocation, out: &mut dyn Write, err: &mut dyn Write, mes
     pre_exec(invocation.output, out, err, message)
 }
 
+fn watch_failed(
+    invocation: &Invocation,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    message: &str,
+) -> i32 {
+    report_dx_error(
+        invocation.output,
+        out,
+        err,
+        "watch_failed",
+        &DxError::infra(message),
+    )
+}
+
 fn stopped(progress: Progress, out: &mut dyn Write, err: &mut dyn Write, signo: i32) -> i32 {
     if let Err(exit) = progress.say(out, err, "stopped") {
         return exit;
@@ -160,12 +176,12 @@ fn watch(
         .unwrap_or_default();
     let plan = match dx_adopt::plan_watch(wrapped, ci) {
         Ok(plan) => plan,
-        Err(error) => return refuse(invocation, out, err, &error.to_string()),
+        Err(error) => return refuse(invocation, out, err, from_adopt("", &error).message()),
     };
     let progress = Progress::of(invocation);
     let iteration = match build_iteration(invocation) {
         Ok(iteration) => iteration,
-        Err(message) => return refuse(invocation, out, err, &message),
+        Err(error) => return refuse(invocation, out, err, error.message()),
     };
     let scope = scope_label(&iteration);
     let session = match dx_adopt::watch::WatchSession::start(
@@ -175,7 +191,7 @@ fn watch(
     ) {
         Ok(session) => session,
         Err(error) => {
-            return operational(invocation, out, err, "watch_failed", &error.to_string());
+            return watch_failed(invocation, out, err, &error.to_string());
         }
     };
     let wait = RefCell::new(wait_for_change);
@@ -294,7 +310,7 @@ fn watch(
                     break;
                 }
                 Err(error) => {
-                    return operational(invocation, out, err, "watch_failed", &error.to_string());
+                    return watch_failed(invocation, out, err, &error.to_string());
                 }
             }
         }
@@ -302,7 +318,7 @@ fn watch(
 }
 
 /// Builds the invocation one watch iteration executes: the wrapped command with its scopes and flags.
-fn build_iteration(invocation: &Invocation) -> Result<Invocation, String> {
+fn build_iteration(invocation: &Invocation) -> Result<Invocation, DxError> {
     let wrapped = invocation
         .targets
         .first()
@@ -310,7 +326,7 @@ fn build_iteration(invocation: &Invocation) -> Result<Invocation, String> {
         .unwrap_or_default();
     let command = match Command::parse(wrapped) {
         Some(command) => command,
-        None => return Err(format!("not watchable: {wrapped}")),
+        None => return Err(DxError::usage(format!("not watchable: {wrapped}"))),
     };
     let mut iteration = invocation.clone();
     iteration.command = command;
@@ -671,7 +687,7 @@ mod tests {
                 }),
             }
         });
-        assert_eq!(code, 1, "watch failures are operational");
+        assert_eq!(code, 3, "watch failures are infra");
         assert_eq!(harness.seen.borrow().len(), 3, "one run plus two reruns");
         let stdout = harness.stdout();
         assert!(stdout.contains("iteration=1"), "{stdout}");
@@ -712,7 +728,7 @@ mod tests {
                 detail: "stop".to_owned(),
             })
         });
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         assert_eq!(harness.seen.borrow().len(), 1, "idle never reruns");
     }
 
@@ -724,7 +740,7 @@ mod tests {
                 detail: "stop".to_owned(),
             })
         });
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         assert_eq!(harness.seen.borrow().len(), 1);
         assert!(harness.stdout().is_empty(), "{}", harness.stdout());
     }
@@ -1099,7 +1115,7 @@ mod tests {
             &|| None,
             |_, _| Ok(Vec::new()),
         );
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         assert!(runner.seen.borrow().is_empty(), "nothing runs");
         assert!(
             String::from_utf8(err)
@@ -1188,7 +1204,7 @@ mod tests {
                     }),
                 }
             });
-            assert_eq!(code, 1, "{words:?}");
+            assert_eq!(code, 3, "{words:?}");
             let stdout = harness.stdout();
             let events = json_events(&stdout);
             let kinds = event_kinds(&events);
@@ -1207,7 +1223,7 @@ mod tests {
                 "two iterations plus the failure: {stdout}"
             );
             assert_eq!(finished[0]["exit_code"], 0, "{stdout}");
-            assert_eq!(finished[2]["exit_code"], 1, "{stdout}");
+            assert_eq!(finished[2]["exit_code"], 3, "{stdout}");
             assert_eq!(
                 events_of_kind(&events, "error")
                     .last()
@@ -1295,7 +1311,7 @@ mod tests {
                 }
             },
         );
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         let stdout = String::from_utf8(out).expect("stdout");
         let stderr = String::from_utf8(err).expect("stderr");
         assert_eq!(
@@ -1435,7 +1451,7 @@ mod tests {
                 }
             },
         );
-        assert_eq!(code, 1, "{stderr}");
+        assert_eq!(code, 3, "{stderr}");
         assert!(stderr.contains("watch_failed"), "{stderr}");
         let events = runner.events.borrow();
         assert_eq!(
@@ -1493,7 +1509,7 @@ mod tests {
                     detail: "stop".to_owned(),
                 })
             });
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         assert_eq!(
             runner.events.borrow().last().map(String::as_str),
             Some("exited")
@@ -1520,7 +1536,7 @@ mod tests {
                 }
             },
         );
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         let events = json_events(&stdout);
         assert_eq!(
             event_kinds(&events)
@@ -1534,7 +1550,7 @@ mod tests {
         assert_eq!(finished.len(), 3, "{stdout}");
         assert_eq!(finished[0]["exit_code"], 143, "{stdout}");
         assert_eq!(finished[1]["exit_code"], 143, "{stdout}");
-        assert_eq!(finished[2]["exit_code"], 1, "{stdout}");
+        assert_eq!(finished[2]["exit_code"], 3, "{stdout}");
         assert!(stderr.contains("changed /ws/src/main.rs"), "{stderr}");
     }
 
@@ -1548,7 +1564,7 @@ mod tests {
                 detail: "stop".to_owned(),
             })
         });
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         assert_eq!(waits, [WATCH_POLL], "build is never polled mid-run");
         let events = runner.events.borrow();
         assert_eq!(events.len(), 1, "{events:?}");

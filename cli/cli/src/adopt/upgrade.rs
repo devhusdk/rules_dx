@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 use std::io::Write;
 use std::path::Path;
 
-use crate::exec::common::{check_stdout_write, emit_built, emit_event, emit_started};
+use crate::exec::common::{
+    check_stdout_write, emit_built, emit_event, emit_started, report_dx_error,
+};
+use dx_error::{DxError, ErrorKind};
 use dx_output::{FinishedCounts, StatusEvent, command_finished, command_started, status_event};
 use dx_plan::args::Invocation;
 use dx_plan::resolve::QueryRunner;
@@ -10,7 +13,7 @@ use dx_process::Runner;
 
 use dx_output::OutputMode;
 
-use super::{init_files, operational, pre_exec, summaries_suppressed};
+use super::{from_adopt, init_files, pre_exec, summaries_suppressed};
 
 pub(crate) const CODE_UPGRADE_FAILED: &str = "upgrade_failed";
 pub(crate) const CODE_UPGRADE_PENDING: &str = "upgrade_pending";
@@ -44,14 +47,14 @@ fn fail(
     out: &mut dyn Write,
     err: &mut dyn Write,
     code: &str,
-    message: &str,
+    error: &DxError,
 ) -> i32 {
     if invocation.output == OutputMode::Json
         && let Err(exit) = emit_started(invocation, out)
     {
         return exit;
     }
-    operational(invocation, out, err, code, message)
+    report_dx_error(invocation.output, out, err, code, error)
 }
 
 const LOCKFILE: &str = "MODULE.bazel.lock";
@@ -86,10 +89,10 @@ fn write_module(
     workspace: &Path,
     runner: &dyn Runner,
     edit: &dx_adopt::ModuleEdit,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let lock = workspace.join(LOCKFILE);
     let lock_before = std::fs::read(&lock).ok();
-    dx_adopt::write_module_edit(workspace, edit).map_err(|error| error.to_string())?;
+    dx_adopt::write_module_edit(workspace, edit).map_err(|error| from_adopt("", &error))?;
     let mode = if lock_before.is_some() {
         "update"
     } else {
@@ -101,21 +104,27 @@ fn write_module(
     };
     let mut argv = head.argv("mod");
     argv.extend(["deps".to_owned(), format!("--lockfile_mode={mode}")]);
-    let detail = match runner.run(&argv, workspace, &[]) {
+    let (kind, detail) = match runner.run(&argv, workspace, &[]) {
         Ok(status) if status.code == Some(0) => return Ok(()),
-        Ok(status) => match status.code {
-            Some(code) => format!("exit {code}"),
-            None => "killed by a signal".to_owned(),
-        },
-        Err(error) => error.to_string(),
+        Ok(status) => (
+            ErrorKind::Failure,
+            match status.code {
+                Some(code) => format!("exit {code}"),
+                None => "killed by a signal".to_owned(),
+            },
+        ),
+        Err(error) => (ErrorKind::Infra, error.to_string()),
     };
     let _ = std::fs::write(workspace.join(&edit.path), &edit.old);
     if let Some(lock_bytes) = lock_before {
         let _ = std::fs::write(&lock, lock_bytes);
     }
-    Err(format!(
-        "refreshing {LOCKFILE} failed ({detail}); {} restored",
-        edit.path
+    Err(DxError::new(
+        kind,
+        format!(
+            "refreshing {LOCKFILE} failed ({detail}); {} restored",
+            edit.path
+        ),
     ))
 }
 
@@ -152,19 +161,25 @@ fn hand_off(
             let message = format!(
                 "upgrade refused: cannot start rules_dx {to} ({error}); rules_dx is at {to}; finish with bazel run @rules_dx//:dx -- upgrade --to {to} --apply"
             );
-            fail(invocation, out, err, CODE_UPGRADE_FAILED, &message)
+            fail(
+                invocation,
+                out,
+                err,
+                CODE_UPGRADE_FAILED,
+                &DxError::infra(message),
+            )
         }
     }
 }
 
 /// Looks up the newest stable rules_dx in the Bazel registry.
-fn latest_release(fetch: &dyn dx_update::discover::Fetch) -> Result<String, String> {
+fn latest_release(fetch: &dyn dx_update::discover::Fetch) -> Result<String, DxError> {
     dx_update::discover::bcr::latest_stable(
         "rules_dx",
         dx_update::discover::bcr::DEFAULT_BASE,
         fetch,
     )
-    .map_err(|error| error.to_string())
+    .map_err(|error| DxError::infra(error.to_string()))
 }
 
 /// Moves the `.dx/pins` pin to `--to` (or the newest release), newer or older, then refreshes existing
@@ -194,7 +209,7 @@ fn upgrade_with(
     workspace: &Path,
     runner: &dyn Runner,
     query_runner: Option<&dyn QueryRunner>,
-    newest: &dyn Fn() -> Result<String, String>,
+    newest: &dyn Fn() -> Result<String, DxError>,
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) -> i32 {
@@ -215,29 +230,37 @@ fn upgrade_with(
         apply: invocation.applies(),
         workspace: invocation.workspace.clone(),
     };
-    let refuse = |out: &mut dyn Write, err: &mut dyn Write, message: &str| {
+    let refuse = |out: &mut dyn Write, err: &mut dyn Write, error: &DxError| {
+        let message = format!(
+            "upgrade refused: {} (nothing was written)",
+            error.message()
+        );
         fail(
             invocation,
             out,
             err,
             CODE_UPGRADE_FAILED,
-            &format!("upgrade refused: {message} (nothing was written)"),
+            &DxError::new(error.kind(), message),
         )
     };
     let Some(pin) = dx_adopt::module_rules_dx_version(workspace) else {
-        return refuse(out, err, "no rules_dx bazel_dep; run `dx init --apply`");
+        return refuse(
+            out,
+            err,
+            &DxError::failure("no rules_dx bazel_dep; run `dx init --apply`"),
+        );
     };
     let rerun = dx_adopt::version_pin_matches_module(&pin, to);
     let is_json = invocation.output == OutputMode::Json;
     let edit = match dx_adopt::plan_rules_dx_version(workspace, to) {
         Ok(edit) => edit,
-        Err(error) => return refuse(out, err, &error.to_string()),
+        Err(error) => return refuse(out, err, &from_adopt("", &error)),
     };
     let edits_module = edit.old != edit.new;
     if !invocation.applies() {
         let files = match init_files::plan(workspace, "refresh", false, &[]) {
             Ok(files) => files,
-            Err(error) => return refuse(out, err, &error.to_string()),
+            Err(error) => return refuse(out, err, &from_adopt("", &error)),
         };
         let mut lines = Vec::new();
         if edits_module {
@@ -318,19 +341,31 @@ fn upgrade_with(
                 return exit;
             }
         }
-        return fail(invocation, out, err, CODE_UPGRADE_PENDING, &message);
+        return fail(
+            invocation,
+            out,
+            err,
+            CODE_UPGRADE_PENDING,
+            &DxError::failure(message),
+        );
     }
     if let Err(error) = dx_adopt::plan_launcher_files(workspace, false) {
-        return refuse(out, err, &error.to_string());
+        return refuse(out, err, &from_adopt("", &error));
     }
     let files = match init_files::plan(workspace, "refresh", false, &[]) {
         Ok(files) => files,
-        Err(error) => return refuse(out, err, &error.to_string()),
+        Err(error) => return refuse(out, err, &from_adopt("", &error)),
     };
     let recovery = dx_adopt::upgrade_recovery_message(to, &intent);
-    let landed = |out: &mut dyn Write, err: &mut dyn Write, what: &str| {
-        let message = format!("pinned {to} but {what}; {recovery}");
-        fail(invocation, out, err, CODE_UPGRADE_FAILED, &message)
+    let landed = |out: &mut dyn Write, err: &mut dyn Write, what: &DxError| {
+        let message = format!("pinned {to} but {}; {recovery}", what.message());
+        fail(
+            invocation,
+            out,
+            err,
+            CODE_UPGRADE_FAILED,
+            &DxError::new(what.kind(), message),
+        )
     };
     let mut wrote = Vec::new();
     if edits_module {
@@ -346,7 +381,7 @@ fn upgrade_with(
         return hand_off(invocation, workspace, runner, to, &wrote, out, err);
     }
     if let Err(error) = dx_adopt::write_version_pin(workspace, to) {
-        return refuse(out, err, &error.to_string());
+        return refuse(out, err, &from_adopt("", &error));
     }
     let before = dx_snapshot(workspace);
     let mut applied = dx_adopt::Applied::default();
@@ -378,7 +413,13 @@ fn upgrade_with(
         let message = format!(
             "pinned {to} but {conflicts} override(s) have merge conflicts; resolve the markers"
         );
-        fail(invocation, out, err, CODE_UPGRADE_FAILED, &message)
+        fail(
+            invocation,
+            out,
+            err,
+            CODE_UPGRADE_FAILED,
+            &DxError::failure(message),
+        )
     };
     let ide_warning = query_runner.and_then(|runner| {
         crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
@@ -1354,7 +1395,7 @@ mod tests {
     }
 
     fn run_latest(
-        newest: &dyn Fn() -> Result<String, String>,
+        newest: &dyn Fn() -> Result<String, DxError>,
         root: &Path,
     ) -> (i32, String, String) {
         let (mut out, mut err) = (Vec::new(), Vec::new());
@@ -1391,7 +1432,7 @@ mod tests {
     #[test]
     fn upgrade_without_to_keeps_the_old_error_offline() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-offline-", OLD);
-        let (code, out, err) = run_latest(&|| Err("offline".to_owned()), &root);
+        let (code, out, err) = run_latest(&|| Err(DxError::infra("offline")), &root);
         assert_eq!(code, 2, "{out}{err}");
         assert!(err.contains("upgrade needs --to <version>"), "{err}");
     }

@@ -1,10 +1,12 @@
 use std::io::Write;
 
-use crate::exec::common::check_stdout_write;
+use crate::exec::common::{check_stdout_write, report_dx_error};
 use dx_adopt::Applied;
 use dx_plan::args::Invocation;
 
-use super::{operational, summaries_suppressed};
+use dx_error::DxError;
+
+use super::summaries_suppressed;
 
 /// Prints one apply run after every write: notes and refusals, written paths, then any failure.
 ///
@@ -13,7 +15,7 @@ pub(super) fn report(
     invocation: &Invocation,
     applied: &Applied,
     notes: &[String],
-    result: Result<(), String>,
+    result: Result<(), DxError>,
     code: &str,
     out: &mut dyn Write,
     err: &mut dyn Write,
@@ -38,7 +40,7 @@ pub(super) fn report(
         }
     }
     match (result, closed) {
-        (Err(message), _) => operational(invocation, out, err, code, &message),
+        (Err(error), _) => report_dx_error(invocation.output, out, err, code, &error),
         (Ok(()), Some(exit)) => exit,
         (Ok(()), None) => 0,
     }
@@ -57,6 +59,7 @@ mod tests {
     use dx_plan::args::Agent;
 
     use dx_adopt::Applied;
+    use dx_error::{DxError, ErrorKind};
 
     use crate::adopt::init::CODE_INIT_FAILED;
     use crate::adopt::test_support::{Truncated, invocation};
@@ -174,19 +177,17 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-launcher-fail-");
         let root = scratch.path();
         std::fs::write(root.join("tools"), "file").expect("blocker");
-        assert_eq!(
-            init_files::preflight(root, "demo/", &plan(root)),
-            Err("demo/tools is not a directory".to_owned())
-        );
+        let error = init_files::preflight(root, "demo/", &plan(root)).expect_err("blocked");
+        assert_eq!(error.kind(), ErrorKind::Failure);
+        assert_eq!(error.message(), "demo/tools is not a directory");
         let (code, _out, err) = init(root);
-        assert_eq!(code, 1);
+        assert_eq!(code, 3);
         assert!(err.contains("init_failed"));
         let file = scratch.path().join("file");
         std::fs::write(&file, "x").expect("file");
-        assert_eq!(
-            init_files::preflight(&file, "file/", &plan(&file)),
-            Err("file is not a directory".to_owned())
-        );
+        let error = init_files::preflight(&file, "file/", &plan(&file)).expect_err("not a dir");
+        assert_eq!(error.kind(), ErrorKind::Failure);
+        assert_eq!(error.message(), "file is not a directory");
         assert!(!root.join(".claude").exists());
     }
 
@@ -276,7 +277,7 @@ mod tests {
             &inv,
             &applied,
             &notes,
-            Err("disk full".to_owned()),
+            Err(DxError::failure("disk full")),
             CODE_INIT_FAILED,
             &mut out,
             &mut err,
@@ -305,7 +306,7 @@ mod tests {
             wrote: vec!["tools/dx".to_owned(), "AGENTS.md".to_owned()],
             refused: Vec::new(),
         };
-        let report = |result: Result<(), String>| {
+        let report = |result: Result<(), DxError>| {
             super::report(
                 &inv,
                 &applied,
@@ -317,7 +318,8 @@ mod tests {
             )
         };
         assert_eq!(report(Ok(())), 141);
-        assert_eq!(report(Err("disk full".to_owned())), 1);
+        assert_eq!(report(Err(DxError::failure("disk full"))), 1);
+        assert_eq!(report(Err(DxError::infra("disk full"))), 3);
     }
 
     #[test]

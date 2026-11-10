@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal};
+use crate::exec::common::{check_stdout_write, emit_built, emit_event, refusal, report_dx_error};
 use crate::exec::notice_codes::{CODE_INIT_ABSENT, CODE_INIT_PLAN_PARTIAL};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, PlanFindingEvent, command_finished, command_started,
@@ -8,7 +8,9 @@ use dx_output::{
 };
 use dx_plan::args::{Agent, Invocation};
 
-use super::{operational, summaries_suppressed};
+use dx_error::ErrorKind;
+
+use super::{from_adopt, operational, summaries_suppressed};
 
 pub(crate) const CODE_INIT_FAILED: &str = "init_failed";
 
@@ -18,13 +20,11 @@ fn invalid_module_code(
     err: &mut dyn Write,
     error: &dx_adopt::AdoptError,
 ) -> i32 {
-    match error {
-        dx_adopt::AdoptError::InitInvalidModule { .. }
-        | dx_adopt::AdoptError::InitInvalidDir { .. } => {
-            refusal(invocation.output, out, err, &error.to_string())
-        }
-        _ => operational(invocation, out, err, CODE_INIT_FAILED, &error.to_string()),
+    let error = from_adopt("", error);
+    if error.kind() == ErrorKind::Usage {
+        return refusal(invocation.output, out, err, error.message());
     }
+    report_dx_error(invocation.output, out, err, CODE_INIT_FAILED, &error)
 }
 
 /// The directory one `dx init` run works in.
@@ -147,8 +147,8 @@ pub(crate) fn execute_init(
         Ok(files) => files,
         Err(error) => return invalid_module_code(invocation, out, err, &error),
     };
-    if let Err(message) = super::init_files::preflight(root, &target.prefix, &planned) {
-        return operational(invocation, out, err, CODE_INIT_FAILED, &message);
+    if let Err(error) = super::init_files::preflight(root, &target.prefix, &planned) {
+        return report_dx_error(invocation.output, out, err, CODE_INIT_FAILED, &error);
     }
     let mut notes = Vec::new();
     notes.extend(

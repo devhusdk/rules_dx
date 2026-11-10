@@ -28,6 +28,34 @@ pub struct AdoptEnv<'a> {
     pub err: &'a mut dyn Write,
 }
 
+/// Classifies an adoption error: bad input is usage, a refused tree or version is a failure, and a file or process that cannot be read, written or started is infra. `prefix` goes in front of a path in the message.
+pub(crate) fn from_adopt(prefix: &str, error: &dx_adopt::AdoptError) -> dx_error::DxError {
+    use dx_adopt::AdoptError as E;
+    let message = match error {
+        E::NotADirectory { path } => format!("{prefix}{path} is not a directory"),
+        _ => error.to_string(),
+    };
+    match error {
+        E::InitInvalidDir { .. }
+        | E::InitInvalidModule { .. }
+        | E::UnknownShell { .. }
+        | E::NotWatchable { .. }
+        | E::WatchRefusesCi
+        | E::EmptyVersion
+        | E::InvalidDefaults { .. } => dx_error::DxError::usage(message),
+        E::CreateParent { .. }
+        | E::WriteFile { .. }
+        | E::ReadFile { .. }
+        | E::ReadVersionPin { .. }
+        | E::ReadModuleFile { .. }
+        | E::CreateDxDir { .. }
+        | E::WriteVersionPin { .. }
+        | E::WatchSpawn { .. }
+        | E::WorkspaceScan { .. } => dx_error::DxError::infra(message),
+        _ => dx_error::DxError::failure(message),
+    }
+}
+
 fn summaries_suppressed(invocation: &Invocation) -> bool {
     invocation.quiet || matches!(invocation.output, OutputMode::Text { quiet: true })
 }
@@ -55,6 +83,43 @@ pub fn execute_adoption(invocation: &Invocation, env: AdoptEnv<'_>) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_adopt_classifies_by_cause() {
+        use dx_adopt::AdoptError as E;
+        use dx_error::ErrorKind;
+        let kind = |error: E| from_adopt("", &error).kind();
+        assert_eq!(
+            kind(E::InitInvalidDir {
+                dir: "x".to_owned(),
+                reason: "r".to_owned()
+            }),
+            ErrorKind::Usage
+        );
+        assert_eq!(
+            kind(E::InvalidVersionPin {
+                version: "x".to_owned()
+            }),
+            ErrorKind::Failure
+        );
+        assert_eq!(
+            kind(E::WriteFile {
+                path: "p".to_owned(),
+                detail: "d".to_owned()
+            }),
+            ErrorKind::Infra
+        );
+        assert_eq!(
+            from_adopt(
+                "d/",
+                &E::NotADirectory {
+                    path: "p".to_owned()
+                }
+            )
+            .message(),
+            "d/p is not a directory"
+        );
+    }
     use crate::adopt::test_support::{Truncated, env, invocation, run};
 
     #[test]

@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
 
+use dx_error::DxError;
 use dx_diff::{FilePatch, PatchKind, render_patch};
 use dx_generate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 use dx_output::{
@@ -10,8 +11,7 @@ use dx_output::{
 };
 use dx_plan::args::Invocation;
 
-use super::operational;
-use crate::exec::common::{check_stdout_write, emit_built};
+use crate::exec::common::{check_stdout_write, emit_built, report_dx_error};
 
 const CODE_CONFIG_FAILED: &str = "config_failed";
 const TIER_BASE: &str = "tier base";
@@ -75,12 +75,12 @@ fn entry(workspace: &Path, config: &ToolConfig, root_files: &BTreeSet<String>) -
     })
 }
 
-fn selected(workspace: &Path) -> Result<Vec<Entry>, String> {
-    let config = dx_config::load(workspace).map_err(|error| error.to_string())?;
+fn selected(workspace: &Path) -> Result<Vec<Entry>, DxError> {
+    let config = dx_config::load(workspace).map_err(|error| DxError::failure(error.to_string()))?;
     let families = dx_adopt::detected_families(workspace);
     let root_files = root_names(workspace);
     let tools = dx_generate::selected_configs(config.as_ref(), &families)
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| DxError::failure(error.to_string()))?;
     let mut entries: Vec<Entry> = tools
         .into_iter()
         .filter_map(|tool| entry(workspace, tool, &root_files))
@@ -89,12 +89,16 @@ fn selected(workspace: &Path) -> Result<Vec<Entry>, String> {
     Ok(entries)
 }
 
-fn one(workspace: &Path, tool: &str) -> Result<Entry, String> {
+fn one(workspace: &Path, tool: &str) -> Result<Entry, DxError> {
     TOOL_CONFIGS
         .iter()
         .filter(|config| config.id == tool)
         .find_map(|config| entry(workspace, config, &root_names(workspace)))
-        .ok_or_else(|| format!("unknown tool {tool:?}: it has no dx-owned base to list"))
+        .ok_or_else(|| {
+            DxError::usage(format!(
+                "unknown tool {tool:?}: it has no dx-owned base to list"
+            ))
+        })
 }
 
 fn files(entry: &Entry) -> Vec<ConfigFileEvent> {
@@ -118,16 +122,17 @@ fn files(entry: &Entry) -> Vec<ConfigFileEvent> {
     files
 }
 
-fn diff(workspace: &Path, entry: &Entry) -> Result<String, String> {
+fn diff(workspace: &Path, entry: &Entry) -> Result<String, DxError> {
     let Some(root) = &entry.root else {
-        return Err(format!(
+        return Err(DxError::usage(format!(
             "{} has no root file, so there is no override to diff",
             entry.tool
-        ));
+        )));
     };
     let read = |name: &str| {
-        std::fs::read_to_string(workspace.join(name))
-            .map_err(|error| format!("cannot read {name}: {error}; run dx sync"))
+        std::fs::read_to_string(workspace.join(name)).map_err(|error| {
+            DxError::from_io(format!("cannot read {name}: {error}; run dx sync"), &error)
+        })
     };
     let base = read(&entry.base)?;
     let current = read(root)?;
@@ -141,57 +146,62 @@ fn diff(workspace: &Path, entry: &Entry) -> Result<String, String> {
         original: &base,
         candidate: body,
     }])
-    .map_err(|error| error.to_string())
+    .map_err(|error| DxError::failure(error.to_string()))
 }
 
-fn tool_config(tool: &str) -> Result<&'static ToolConfig, String> {
+fn tool_config(tool: &str) -> Result<&'static ToolConfig, DxError> {
     TOOL_CONFIGS
         .iter()
         .find(|config| config.id == tool && dx_generate::base_path(config).is_some())
-        .ok_or_else(|| format!("unknown tool {tool:?}: it has no dx-owned base to override"))
+        .ok_or_else(|| {
+            DxError::usage(format!(
+                "unknown tool {tool:?}: it has no dx-owned base to override"
+            ))
+        })
 }
 
-pub(super) fn blob_sha(workspace: &Path, base: &str) -> Result<String, String> {
+pub(super) fn blob_sha(workspace: &Path, base: &str) -> Result<String, DxError> {
     let output = dx_process::capture::run_checked(
         dx_process::capture::git(workspace).args(["hash-object", "--", base]),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| DxError::infra(error.to_string()))?;
     Ok(output.stdout_text().trim().to_owned())
 }
 
 /// Copies the base to the tool's root file behind a `dx: override of base <sha>` comment and
 /// returns the file written.
-fn override_tool(workspace: &Path, tool: &str) -> Result<String, String> {
+fn override_tool(workspace: &Path, tool: &str) -> Result<String, DxError> {
     let config = tool_config(tool)?;
-    let base = dx_generate::base_path(config).ok_or("no base")?;
+    let base = dx_generate::base_path(config).ok_or_else(|| DxError::failure("no base"))?;
     if !config.extends_syntax.is_empty() {
         let line = config.extends_syntax.replace("{base}", &base);
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "{tool} extends its base, so add this to its root file instead of copying the base:\n{line}"
-        ));
+        )));
     }
     if let Some(root) = dx_generate::root_file(config, &root_names(workspace)) {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "{root} already exists and {tool} cannot extend the base; remove it first to override again"
-        ));
+        )));
     }
     let name = config
         .files
         .iter()
         .find(|name| !name.contains('*'))
-        .ok_or_else(|| format!("{tool} has no root file name to write"))?;
+        .ok_or_else(|| DxError::failure(format!("{tool} has no root file name to write")))?;
     if config.comment.is_empty() {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "{tool} files take no comment, so no header can be written"
-        ));
+        )));
     }
-    let text = std::fs::read_to_string(workspace.join(&base))
-        .map_err(|error| format!("cannot read {base}: {error}; run dx sync"))?;
+    let text = std::fs::read_to_string(workspace.join(&base)).map_err(|error| {
+        DxError::from_io(format!("cannot read {base}: {error}; run dx sync"), &error)
+    })?;
     let sha = blob_sha(workspace, &base)?;
     let header = format!("{} dx: override of base {sha}\n", config.comment);
     std::fs::write(workspace.join(name), format!("{header}{text}"))
-        .map_err(|error| format!("cannot write {name}: {error}"))?;
+        .map_err(|error| DxError::from_io(format!("cannot write {name}: {error}"), &error))?;
     Ok((*name).to_owned())
 }
 
@@ -221,8 +231,8 @@ pub(super) fn execute_config(
 ) -> i32 {
     let words: Vec<&str> = invocation.targets.iter().map(String::as_str).collect();
     let json = invocation.output == OutputMode::Json;
-    let fail = |out: &mut dyn Write, err: &mut dyn Write, message: &str| {
-        operational(invocation, out, err, CODE_CONFIG_FAILED, message)
+    let fail = |out: &mut dyn Write, err: &mut dyn Write, error: &DxError| {
+        report_dx_error(invocation.output, out, err, CODE_CONFIG_FAILED, error)
     };
     if json && let Err(code) = emit_built(out, command_started("config", "default")) {
         return code;
@@ -230,11 +240,11 @@ pub(super) fn execute_config(
     let result = match words.as_slice() {
         ["diff", tool] => match one(workspace, tool).and_then(|entry| diff(workspace, &entry)) {
             Ok(patch) => check_stdout_write(write!(out, "{patch}")),
-            Err(message) => return fail(out, err, &message),
+            Err(error) => return fail(out, err, &error),
         },
         ["override", tool] => match override_tool(workspace, tool) {
             Ok(name) => check_stdout_write(writeln!(out, "{name}")),
-            Err(message) => return fail(out, err, &message),
+            Err(error) => return fail(out, err, &error),
         },
         [tool] => match one(workspace, tool) {
             Ok(entry) => {
@@ -242,7 +252,7 @@ pub(super) fn execute_config(
                 let lines: Vec<String> = events.iter().map(|event| event.file.clone()).collect();
                 emit_files(invocation, out, &events, &lines)
             }
-            Err(message) => return fail(out, err, &message),
+            Err(error) => return fail(out, err, &error),
         },
         _ => match selected(workspace) {
             Ok(entries) => {
@@ -258,7 +268,7 @@ pub(super) fn execute_config(
                 }
                 emit_files(invocation, out, &events, &lines)
             }
-            Err(message) => return fail(out, err, &message),
+            Err(error) => return fail(out, err, &error),
         },
     };
     if let Err(code) = result {
@@ -443,5 +453,16 @@ mod tests {
         let scratch = workspace(FILES);
         assert_ne!(run(scratch.path(), &["config", "nope"]).0, 0);
         assert_ne!(run(scratch.path(), &["config", "diff", "hlint"]).0, 0);
+    }
+
+    #[test]
+    fn errors_carry_their_kind() {
+        let scratch = workspace(FILES);
+        let unknown = one(scratch.path(), "nope").err().expect("unknown tool");
+        assert_eq!(unknown.kind(), dx_error::ErrorKind::Usage);
+        let extends = override_tool(scratch.path(), "ruff").expect_err("extends");
+        assert_eq!(extends.kind(), dx_error::ErrorKind::Failure);
+        let (code, _) = run_err(scratch.path(), &["config", "nope"]);
+        assert_eq!(code, 2);
     }
 }

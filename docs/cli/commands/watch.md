@@ -61,7 +61,7 @@ Watch runs until stopped and has no success exit.
 
 | Code | Meaning |
 | --- | --- |
-| `1` | Operational failure such as `watch_failed`. |
+| `3` | The watcher could not start or lost the workspace (`watch_failed`). |
 | `2` | Usage error, `not watchable`, or `CI=true`. |
 | `129` | `SIGHUP`. |
 | `130` | Ctrl-C. |

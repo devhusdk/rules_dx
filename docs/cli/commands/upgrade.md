@@ -101,3 +101,4 @@ JSON streams `command_started`, one `status` event named `pin` (severity `info`,
 | `0` | Moved, or already current. |
 | `1` | The pin can move (check), or the move was refused. |
 | `2` | Usage error, including no `--to` when the registry cannot be reached. |
+| `3` | A file could not be read or written, or the `--to` binary could not start. |

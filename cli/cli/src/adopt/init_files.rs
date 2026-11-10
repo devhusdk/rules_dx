@@ -6,7 +6,25 @@ use dx_adopt::{AdoptError, Applied, FileKind, Ownership};
 use dx_plan::args::{Agent, Ci};
 use dx_worktree::setup;
 
-use super::{agents, claude_md, copilot_md};
+use dx_error::DxError;
+
+use super::{agents, claude_md, copilot_md, from_adopt};
+
+fn adopt_refresh(what: &str, error: &AdoptError) -> DxError {
+    let error = from_adopt("", error);
+    DxError::new(
+        error.kind(),
+        format!("{what} not refreshed: {}", error.message()),
+    )
+}
+
+fn io_refresh(what: &str, error: &std::io::Error) -> DxError {
+    DxError::from_io(format!("{what} not refreshed: {error}"), error)
+}
+
+fn io_error(error: std::io::Error) -> DxError {
+    DxError::from_io(error.to_string(), &error)
+}
 
 const ESSENTIAL: [&str; 6] = [
     ".dx/pins",
@@ -219,13 +237,13 @@ fn sync_generated(
     prefix: &str,
     applied: &mut Applied,
     notes: &mut Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let report = dx_generate::sync(
         root,
         dx_generate::Mode::Full,
         &mut dx_adopt::detected_families,
     )
-    .map_err(|error| format!("{prefix}.dx not generated: {error}"))?;
+    .map_err(|error| DxError::failure(format!("{prefix}.dx not generated: {error}")))?;
     applied
         .wrote
         .extend(report.written.iter().map(|path| format!("{prefix}{path}")));
@@ -240,24 +258,24 @@ fn sync_generated(
 }
 
 /// Refuses when `MODULE.bazel` asks for another rules_dx than this dx binary.
-fn check_module_version(root: &Path) -> Result<(), String> {
+fn check_module_version(root: &Path) -> Result<(), DxError> {
     match dx_adopt::module_rules_dx_version(root) {
         Some(pinned)
             if !dx_adopt::version_pin_matches_module(&pinned, dx_adopt::MODULE_VERSION) =>
         {
-            Err(format!(
+            Err(DxError::failure(format!(
                 "MODULE.bazel pins rules_dx {pinned}, dx is {}; run `{}`",
                 dx_adopt::MODULE_VERSION,
                 dx_adopt::init_apply_command(root)
-            ))
+            )))
         }
         _ => Ok(()),
     }
 }
 
-fn check_pin(root: &Path, prefix: &str) -> Result<(), String> {
+fn check_pin(root: &Path, prefix: &str) -> Result<(), DxError> {
     match dx_adopt::read_version_pin(root) {
-        Ok(pin) if !pin.is_empty() && !dx_adopt::pin_is_valid(&pin) => Err(adopt_message(
+        Ok(pin) if !pin.is_empty() && !dx_adopt::pin_is_valid(&pin) => Err(from_adopt(
             prefix,
             &AdoptError::InvalidVersionPin { version: pin },
         )),
@@ -273,13 +291,6 @@ fn prefix_entry(prefix: &str, entry: &str) -> String {
     }
 }
 
-fn adopt_message(prefix: &str, error: &AdoptError) -> String {
-    match error {
-        AdoptError::NotADirectory { path } => format!("{prefix}{path} is not a directory"),
-        _ => error.to_string(),
-    }
-}
-
 fn hook_paths(files: &[InitFile]) -> Vec<&str> {
     files
         .iter()
@@ -289,21 +300,21 @@ fn hook_paths(files: &[InitFile]) -> Vec<&str> {
 }
 
 /// Fails before any write when a planned file cannot be read or written under `root`.
-pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result<(), String> {
+pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result<(), DxError> {
     if root.exists() && !root.is_dir() {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "{} is not a directory",
             prefix.trim_end_matches('/')
-        ));
+        )));
     }
     let destinations: Vec<&str> = files.iter().map(|file| file.path.as_str()).collect();
     dx_adopt::preflight_destinations(root, &destinations)
-        .map_err(|error| adopt_message(prefix, &error))?;
+        .map_err(|error| from_adopt(prefix, &error))?;
     check_pin(root, prefix)?;
-    dx_adopt::plan_launcher_files(root, true).map_err(|error| adopt_message(prefix, &error))?;
-    dx_adopt::preflight_overrides(root).map_err(|error| adopt_message(prefix, &error))?;
-    dx_adopt::preflight_preset(root).map_err(|error| adopt_message(prefix, &error))?;
-    let io = |error: std::io::Error| error.to_string();
+    dx_adopt::plan_launcher_files(root, true).map_err(|error| from_adopt(prefix, &error))?;
+    dx_adopt::preflight_overrides(root).map_err(|error| from_adopt(prefix, &error))?;
+    dx_adopt::preflight_preset(root).map_err(|error| from_adopt(prefix, &error))?;
+    let io = io_error;
     setup::inspect(root, &hook_paths(files)).map_err(io)?;
     agents::planned(root, true).map_err(io)?;
     claude_md::state(root).map_err(io)?;
@@ -321,7 +332,7 @@ pub(super) fn apply(
     mode: Mode,
     applied: &mut Applied,
     notes: &mut Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     check_module_version(root)?;
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
     if mode == Mode::Refresh {
@@ -355,18 +366,18 @@ pub(super) fn apply(
     }
     applied.wrote.extend(prefixed(own.wrote));
     applied.refused.extend(prefixed(own.refused));
-    written.map_err(|error| error.to_string())?;
+    written.map_err(|error| from_adopt(prefix, &error))?;
     check_pin(root, prefix)?;
     if has(|kind| *kind == Kind::Launcher) {
         let mut launchers = Applied::default();
         let written = dx_adopt::write_launcher_files(root, &mut launchers);
         applied.wrote.extend(prefixed(launchers.wrote));
         applied.refused.extend(prefixed(launchers.refused));
-        written.map_err(|error| adopt_message(prefix, &error))?;
+        written.map_err(|error| from_adopt(prefix, &error))?;
     }
     if has(|kind| *kind == Kind::Override) {
         for entry in
-            dx_adopt::apply_overrides(root).map_err(|error| adopt_message(prefix, &error))?
+            dx_adopt::apply_overrides(root).map_err(|error| from_adopt(prefix, &error))?
         {
             match entry.strip_prefix("refused:") {
                 Some(refused) => notes.push(format!("{prefix}{refused}")),
@@ -385,10 +396,10 @@ pub(super) fn apply(
                 .into_iter()
                 .map(|note| format!("{prefix}{note}")),
         );
-        written.map_err(|error| adopt_message(prefix, &error))?;
+        written.map_err(|error| from_adopt(prefix, &error))?;
     }
     if has(|kind| *kind == Kind::Hooks) {
-        let outcome = setup::apply(root, &hook_paths(files)).map_err(|error| error.to_string())?;
+        let outcome = setup::apply(root, &hook_paths(files)).map_err(io_error)?;
         applied
             .wrote
             .extend(outcome.wrote.iter().map(|path| format!("{prefix}{path}")));
@@ -414,17 +425,17 @@ pub(super) fn apply(
         }
     }
     if has(|kind| *kind == Kind::AgentsBlock)
-        && agents::write(root, true).map_err(|error| error.to_string())?
+        && agents::write(root, true).map_err(io_error)?
     {
         applied.wrote.push(format!("{prefix}{}", agents::FILE));
     }
     if has(|kind| *kind == Kind::ClaudeImport)
-        && claude_md::write(root).map_err(|error| error.to_string())?
+        && claude_md::write(root).map_err(io_error)?
     {
         applied.wrote.push(format!("{prefix}{}", claude_md::FILE));
     }
     if has(|kind| *kind == Kind::CopilotInstructions)
-        && copilot_md::write(root).map_err(|error| error.to_string())?
+        && copilot_md::write(root).map_err(io_error)?
     {
         applied.wrote.push(format!("{prefix}{}", copilot_md::FILE));
     }
@@ -438,18 +449,18 @@ fn wire_module(
     prefix: &str,
     applied: &mut Applied,
     notes: &mut Vec<String>,
-) -> Result<(), String> {
-    let hubs = dx_adopt::plan_lock_hubs(root).map_err(|error| adopt_message(prefix, &error))?;
+) -> Result<(), DxError> {
+    let hubs = dx_adopt::plan_lock_hubs(root).map_err(|error| from_adopt(prefix, &error))?;
     notes.extend(hubs.notes.iter().map(|note| format!("{prefix}{note}")));
     if let Some(edit) = hubs.edit {
-        dx_adopt::write_module_edit(root, &edit).map_err(|error| adopt_message(prefix, &error))?;
+        dx_adopt::write_module_edit(root, &edit).map_err(|error| from_adopt(prefix, &error))?;
         applied.wrote.push(format!("{prefix}{}", edit.path));
     }
     let deps = dx_adopt::plan_family_deps(root, dx_families::families())
-        .map_err(|error| adopt_message(prefix, &error))?;
+        .map_err(|error| from_adopt(prefix, &error))?;
     notes.extend(deps.notes.iter().map(|note| format!("{prefix}{note}")));
     if let Some(edit) = deps.edit {
-        dx_adopt::write_module_edit(root, &edit).map_err(|error| adopt_message(prefix, &error))?;
+        dx_adopt::write_module_edit(root, &edit).map_err(|error| from_adopt(prefix, &error))?;
         let entry = format!("{prefix}{}", edit.path);
         if !applied.wrote.contains(&entry) {
             applied.wrote.push(entry);
@@ -464,7 +475,7 @@ fn refresh(
     files: &[InitFile],
     applied: &mut Applied,
     notes: &mut Vec<String>,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let has = |wanted: fn(&Kind) -> bool| files.iter().any(|file| wanted(&file.kind));
     let record = |applied: &mut Applied, paths: Vec<String>| {
         applied
@@ -473,7 +484,7 @@ fn refresh(
     };
     if has(|kind| *kind == Kind::Launcher) {
         let wrote = dx_adopt::refresh_launcher_files(root)
-            .map_err(|error| format!("launchers not refreshed: {error}"))?;
+            .map_err(|error| adopt_refresh("launchers", &error))?;
         record(applied, wrote);
     }
     let scaffold: Vec<ScaffoldFile> = files
@@ -490,33 +501,33 @@ fn refresh(
     if !scaffold.is_empty() {
         let mut own = Applied::default();
         dx_adopt::refresh_scaffold(root, &scaffold, &mut own)
-            .map_err(|error| format!("editor and CI files not refreshed: {error}"))?;
+            .map_err(|error| adopt_refresh("editor and CI files", &error))?;
         record(applied, own.wrote);
     }
     if has(|kind| *kind == Kind::Override) {
         let wrote = dx_adopt::refresh_overrides(root)
-            .map_err(|error| format!("overrides not refreshed: {error}"))?;
+            .map_err(|error| adopt_refresh("overrides", &error))?;
         record(applied, wrote);
     }
     if has(|kind| *kind == Kind::Hooks) {
         let outcome =
-            setup::refresh(root).map_err(|error| format!("hooks not refreshed: {error}"))?;
+            setup::refresh(root).map_err(|error| io_refresh("hooks", &error))?;
         record(applied, outcome.wrote);
     }
     if has(|kind| *kind == Kind::AgentsBlock)
         && agents::write(root, false)
-            .map_err(|error| format!("AGENTS.md not refreshed: {error}"))?
+            .map_err(|error| io_refresh("AGENTS.md", &error))?
     {
         record(applied, vec![agents::FILE.to_owned()]);
     }
     if has(|kind| *kind == Kind::ClaudeImport)
-        && claude_md::refresh(root).map_err(|error| format!("CLAUDE.md not refreshed: {error}"))?
+        && claude_md::refresh(root).map_err(|error| io_refresh("CLAUDE.md", &error))?
     {
         record(applied, vec![claude_md::FILE.to_owned()]);
     }
     if has(|kind| *kind == Kind::CopilotInstructions)
         && copilot_md::refresh(root)
-            .map_err(|error| format!("{} not refreshed: {error}", copilot_md::FILE))?
+            .map_err(|error| io_refresh(copilot_md::FILE, &error))?
     {
         record(applied, vec![copilot_md::FILE.to_owned()]);
     }

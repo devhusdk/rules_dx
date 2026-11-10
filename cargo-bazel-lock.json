@@ -1,5 +1,5 @@
 {
-  "checksum": "3ad4a52effb4ad395dc73744c0fb558fa2f85a3655ec5b51f6af4bd5e302b4d5",
+  "checksum": "179aba1b2a4ba687b97242706cd5e34be0950e85a1b931183da45353f8c1173a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7184,6 +7184,10 @@
           {
             "id": "flate2 1.1.10",
             "target": "flate2"
+          },
+          {
+            "id": "tar 0.4.46",
+            "target": "tar"
           },
           {
             "id": "tempfile 3.27.0",

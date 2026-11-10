@@ -85,7 +85,7 @@ pub fn prepare_with(
     })
 }
 
-/// Packs the trivy cache directory into a `.tar.gz` at `dest` with the system `tar` and returns its bytes.
+/// Packs the trivy cache directory into a reproducible `.tar.gz` at `dest` and returns its bytes.
 pub fn pack_cache(cache: &Path, dest: &Path) -> Result<Vec<u8>, PrepError> {
     let fail = |detail: String| PrepError::Write {
         path: dest.display().to_string(),
@@ -94,18 +94,45 @@ pub fn pack_cache(cache: &Path, dest: &Path) -> Result<Vec<u8>, PrepError> {
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent).map_err(|error| fail(error.to_string()))?;
     }
-    let done = Process::new("tar")
-        .arg("-czf")
-        .arg(dest)
-        .arg("-C")
-        .arg(cache)
-        .arg(".")
-        .status()
-        .map_err(|error| fail(format!("tar: {error}")))?;
-    if !done.success() {
-        return Err(fail(format!("tar exited with {done}")));
+    let mut files = Vec::new();
+    collect(cache, Path::new(""), &mut files).map_err(|error| fail(error.to_string()))?;
+    files.sort();
+    let encoder = flate2::GzBuilder::new()
+        .mtime(0)
+        .write(Vec::new(), flate2::Compression::new(6));
+    let mut builder = tar::Builder::new(encoder);
+    for relative in &files {
+        let data = std::fs::read(cache.join(relative)).map_err(|error| fail(error.to_string()))?;
+        let mut header = tar::Header::new_gnu();
+        header.set_size(data.len() as u64);
+        header.set_mode(0o644);
+        header.set_uid(0);
+        header.set_gid(0);
+        header.set_mtime(0);
+        header.set_entry_type(tar::EntryType::Regular);
+        builder
+            .append_data(&mut header, relative, data.as_slice())
+            .map_err(|error| fail(error.to_string()))?;
     }
-    std::fs::read(dest).map_err(|error| fail(error.to_string()))
+    let bytes = builder
+        .into_inner()
+        .and_then(flate2::write::GzEncoder::finish)
+        .map_err(|error| fail(error.to_string()))?;
+    std::fs::write(dest, &bytes).map_err(|error| fail(error.to_string()))?;
+    Ok(bytes)
+}
+
+fn collect(root: &Path, relative: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(root.join(relative))? {
+        let entry = entry?;
+        let path = relative.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            collect(root, &path, out)?;
+        } else {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn run(binary: &Path, args: &[String]) -> Result<(), PrepError> {

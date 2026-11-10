@@ -100,3 +100,13 @@ fn the_cache_is_packed_into_an_archive_that_unpacks_to_the_same_files() {
     assert_eq!(bytes, std::fs::read(&dest).expect("archive"));
     assert_eq!(&bytes[..2], &[0x1f, 0x8b]);
 }
+
+#[test]
+fn packing_the_same_directory_twice_gives_the_same_bytes() {
+    let out = tempfile::tempdir().expect("tempdir");
+    write_db(out.path());
+    let cache = out.path().join(CACHE_DIR);
+    let first = pack_cache(&cache, &out.path().join("a").join("t.tar.gz")).expect("first");
+    let second = pack_cache(&cache, &out.path().join("b").join("t.tar.gz")).expect("second");
+    assert_eq!(first, second);
+}

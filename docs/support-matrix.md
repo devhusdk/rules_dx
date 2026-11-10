@@ -92,7 +92,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Fortran | `fortitude`, `typos` | `ffmt` | `flang` | `ford` | `kcov` (kcov runs on Linux only) | `fortitude C191 unreachable-statement` |
 | F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` | `fsc FS1182 (--warnon:1182)` |
 | Go | `errcheck`, `govet`, `staticcheck`, `typos` | `gofumpt` | `gotype` | `go doc` | `go cover` | `staticcheck U1000` |
-| Haskell | `hlint` (not on `macos_arm64`: hlint v3.10 ships only x86_64-osx, and the managed GHC has no hermetic macOS cabal path yet), `typos`, `weeder` (not on `windows_x86_64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_arm64`: weeder is built from Hackage and only the linux_x86_64 build is verified) | `ormolu` | `ghc` | `haddock` | `hpc` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
+| Haskell | `hlint`, `typos`, `weeder` (not on `windows_x86_64`: weeder is built from Hackage and only the linux_x86_64 build is verified; `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist) | `ormolu` | `ghc` | `haddock` | `hpc` | `ghc -Wunused-local-binds, -Wunused-matches (-Wall)` |
 | Java | `pmd`, `spotbugs`, `typos` | `google_java_format` | `javac` | `javadoc` | `jacoco` | `pmd UnusedLocalVariable, UnusedPrivateField, UnusedPrivateMethod, UnusedFormalParameter` |
 | JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | `CoverageTools` | none |

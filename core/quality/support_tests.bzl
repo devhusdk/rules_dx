@@ -334,6 +334,11 @@ def support_unit_tests(name):
                 [],
             ),
             expect_equal(
+                "hlint claims are proven",
+                unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "hlint"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
+                [],
+            ),
+            expect_equal(
                 "ormolu claims are proven",
                 unproven_claims([r for r in SUPPORT_RECORDS if r["tool"] == "ormolu"], RUNNER_MATRIX_CASES + [real_result_evidence(c) for c in REAL_RESULT_CASES]),
                 [],

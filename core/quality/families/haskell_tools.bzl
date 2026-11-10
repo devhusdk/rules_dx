@@ -25,10 +25,7 @@ TOOLS = [
                 classes = ["haskell"],
                 family = "haskell",
                 fix = "check_only",
-                platforms = ["linux_arm64", "linux_x86_64", "windows_arm64", "windows_x86_64"],
-                unsupported = {
-                    "macos_arm64": "hlint v3.10 ships only x86_64-osx, and the managed GHC has no hermetic macOS cabal path yet",
-                },
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"],
             ),
         ],
     ),
@@ -62,7 +59,7 @@ TOOLS = [
                 platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 transport = "single",
                 unsupported = {
-                    "windows_arm64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
+                    "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist",
                     "windows_x86_64": "weeder is built from Hackage and only the linux_x86_64 build is verified",
                 },
             ),

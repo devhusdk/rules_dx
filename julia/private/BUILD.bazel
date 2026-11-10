@@ -7,7 +7,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "JULIA_QUALITY_TOOLS", "JULIA_SOURCE_EXTS", "JULIA_SOURCE_SPECS")
 load(":platforms.bzl", "JULIA_PLATFORMS")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//julia:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 unsupported_value("unsupported")
 
@@ -88,6 +88,7 @@ dx_wrapper_contract_tests(
 
 selects.config_setting_group(
     name = "rules_julia_platform",
+    visibility = ["//visibility:public"],
     match_any = [":" + name for name in JULIA_PLATFORMS],
 )
 

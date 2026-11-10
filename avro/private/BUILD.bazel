@@ -1,7 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs_tests.bzl", "avro_library_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//avro:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "codegen.bzl",

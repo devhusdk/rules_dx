@@ -7,7 +7,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "DART_SOURCE_SPECS", "dart_root_package_name")
 load(":platforms.bzl", "DART_PLATFORMS")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//dart:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 unsupported_value("unsupported")
 
@@ -116,6 +116,7 @@ dx_wrapper_contract_tests(
 
 selects.config_setting_group(
     name = "rules_dart_platform",
+    visibility = ["//visibility:public"],
     match_any = [":" + name for name in DART_PLATFORMS],
 )
 

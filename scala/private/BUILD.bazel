@@ -3,7 +3,7 @@ load("//core:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//scala:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 _ON = {"warnings_as_errors": True}
 

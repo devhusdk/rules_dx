@@ -8,7 +8,7 @@ load("//qt/private/sdk:repos.bzl", "qualified_cells")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//qt:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 unsupported_value("unsupported")
 
@@ -65,6 +65,7 @@ dx_wrapper_contract_tests(
         redistribution = "os_supplied",
         source = "operating system",
         version = IDENTITIES[cell].min_runtime,
+        visibility = ["//visibility:public"],
     )
     for cell in qualified_cells()
     if CELLS[cell].layout.os == "linux" and IDENTITIES[cell] != None and CELLS[cell].needs != None
@@ -96,6 +97,7 @@ filegroup(
 
 cc_library(
     name = "windows_test_console",
+    visibility = ["//visibility:public"],
     srcs = ["windows_test_console.cc"],
     linkopts = ["user32.lib"],
     tags = ["manual"],

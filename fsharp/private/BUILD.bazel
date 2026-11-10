@@ -5,7 +5,7 @@ load("@rules_dx//core:defs.bzl", "expect_equal")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load(":kwargs.bzl", "fsharp_tfm_with_defaults")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//fsharp:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "BenchMain.fs",

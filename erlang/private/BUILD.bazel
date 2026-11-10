@@ -2,7 +2,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":dialyzer.bzl", "dialyzer_plt")
 load(":wrapper_tests.bzl", "dialyzer_plt_needs_input_test", "erlang_wrapper_contract_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//erlang:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "defs.bzl",
@@ -53,6 +53,7 @@ filegroup(
 
 platform(
     name = "windows_x86_64",
+    visibility = ["//visibility:public"],
     constraint_values = [
         "@platforms//cpu:x86_64",
         "@platforms//os:windows",

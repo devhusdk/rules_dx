@@ -6,7 +6,7 @@ load("//core:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "ZIG_COVERAGE_COLLECTOR", "ZIG_QUALITY_TOOLS", "zig_import_name")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//zig:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "bench_run.sh",
@@ -15,16 +15,19 @@ exports_files([
 
 bool_flag(
     name = "kcov",
+    visibility = ["//visibility:public"],
     build_setting_default = False,
 )
 
 config_setting(
     name = "kcov_build",
+    visibility = ["//visibility:public"],
     flag_values = {":kcov": "true"},
 )
 
 platform(
     name = "kcov_linux_x86_64",
+    visibility = ["//tools/coverage/kcov:__pkg__"],
     constraint_values = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
@@ -33,6 +36,7 @@ platform(
 
 platform(
     name = "kcov_macos_arm64",
+    visibility = ["//tools/coverage/kcov:__pkg__"],
     constraint_values = [
         "@platforms//cpu:arm64",
         "@platforms//os:macos",

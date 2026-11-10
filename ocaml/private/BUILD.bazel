@@ -6,7 +6,7 @@ load(":defs.bzl", "launcher_script", "owned_sources", "runfiles_path", "toolchai
 load(":kwargs.bzl", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults")
 load(":providers.bzl", "STANDARD_WARNING_OPTS", "STRICT_WARNING_OPTS", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//ocaml:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "dune.bzl",

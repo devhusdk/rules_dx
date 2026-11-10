@@ -6,7 +6,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "kotlin_warnings_as_errors_opts")
 load(":kwargs.bzl", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_class", "kotlin_test_entry_kwargs")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//kotlin:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 kt_kotlinc_options(
     name = "base_opts",
@@ -16,6 +16,7 @@ kt_kotlinc_options(
 
 kotlin_warnings_as_errors_opts(
     name = "warnings_as_errors",
+    visibility = ["//visibility:public"],
     warnings_as_errors = dx_warnings_as_errors({}, True, False)[1],
 )
 

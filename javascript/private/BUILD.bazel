@@ -5,7 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
 load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//javascript:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "defs.bzl",
@@ -24,26 +24,31 @@ javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
 
 javascript_library(
     name = "bench_driver",
+    visibility = ["//visibility:public"],
     srcs = ["bench_driver.mjs"],
 )
 
 js_library(
     name = "fuzz_driver",
+    visibility = ["//visibility:public"],
     srcs = ["fuzz_driver.cjs"],
 )
 
 js_binary(
     name = "vite_tool",
+    visibility = ["//visibility:public"],
     entry_point = "vite_tool.mjs",
 )
 
 copy_to_bin(
     name = "framework_jest_config",
+    visibility = ["//visibility:public"],
     srcs = ["framework_jest_config.cjs"],
 )
 
 copy_to_bin(
     name = "vite_tool_entry",
+    visibility = ["//svelte:__subpackages__"],
     srcs = ["vite_tool.mjs"],
 )
 

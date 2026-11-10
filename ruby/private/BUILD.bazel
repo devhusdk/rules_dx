@@ -4,7 +4,7 @@ load(":wrapper_tests.bzl", "ruby_wrapper_contract_tests")
 
 # gazelle:dx_ignore_import ruby benchmark/ips
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//ruby:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "bench_main.rb",

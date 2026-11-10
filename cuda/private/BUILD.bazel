@@ -5,7 +5,7 @@ load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//cuda:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "components.bzl",

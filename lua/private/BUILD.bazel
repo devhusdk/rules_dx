@@ -12,7 +12,7 @@ load(
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "LUA_ENTRY_SUFFIX", "lua_library")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//lua:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "defs.bzl",

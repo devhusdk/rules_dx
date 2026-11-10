@@ -60,7 +60,7 @@ load(":rubygems_tests.bzl", "rubygems_unit_tests")
 load(":standard_attrs_tests.bzl", "PROBE_COMPATIBLE", "PROBE_TAG", "PROBE_VISIBILITY", "standard_attrs_unit_tests")
 load(":validate_tests.bzl", "validate_unit_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//deploy:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "api_compat.bzl",
@@ -482,6 +482,7 @@ rust_binary(
 
 dx_deployment(
     name = "deploy_default",
+    visibility = ["//visibility:public"],
     deploy = ":deploy_program",
 )
 
@@ -630,6 +631,7 @@ failure_test(
 
 sh_binary(
     name = "resources_demo_processor",
+    visibility = ["//visibility:public"],
     srcs = ["resources_demo/process.sh"],
 )
 
@@ -641,6 +643,7 @@ genrule(
 
 dx_resources(
     name = "resources_demo_plain",
+    visibility = ["//visibility:public"],
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
         ":resources_demo_generated": "generated/sprite.bin",
@@ -649,6 +652,7 @@ dx_resources(
 
 dx_resources(
     name = "resources_demo_processed",
+    visibility = ["//visibility:public"],
     mappings = {
         "resources_demo/logo.txt": "logo.txt",
         ":resources_demo_generated": "generated/sprite.bin",
@@ -1590,6 +1594,7 @@ sh_binary(
 
 site_dir(
     name = "cloudflare_demo_site",
+    visibility = ["//visibility:public"],
     srcs = glob(["cloudflare_demo/site/**"]),
     strip = "deploy/private/cloudflare_demo/site",
 )

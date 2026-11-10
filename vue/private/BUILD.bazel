@@ -2,7 +2,7 @@
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//vue:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "defs.bzl",
@@ -12,11 +12,13 @@ exports_files([
 
 copy_to_bin(
     name = "jest_config",
+    visibility = ["//visibility:public"],
     srcs = ["jest.config.cjs"],
 )
 
 copy_to_bin(
     name = "jest_transform",
+    visibility = ["//visibility:public"],
     srcs = ["jest_transform.cjs"],
 )
 

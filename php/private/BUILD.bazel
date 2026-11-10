@@ -5,7 +5,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
 load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "runfiles_path", "shell_quote", "staged_path")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//php:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "BenchTest.php",

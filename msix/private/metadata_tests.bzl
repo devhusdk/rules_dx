@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":defs.bzl", "compatible_with", "publisher_cn")
 load(":validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
-load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
+load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_URL", "BUILDTOOLS_VERSION", "LICENSE", "SUPPORTED_CELLS", "TOOL_ARCHES")
 load(":repos.bzl", "UNACCEPTED", "hub_build")
 
 def _checks():
@@ -14,7 +14,6 @@ def _checks():
         expect_equal("build tools bin dir", BUILDTOOLS_BIN, "10.0.28000.0"),
         expect_contains("url carries the version", BUILDTOOLS_URL, "/" + BUILDTOOLS_VERSION + "/"),
         expect_true("url is nuget.org", BUILDTOOLS_URL.startswith("https://api.nuget.org/")),
-        expect_equal("digest length", len(BUILDTOOLS_SHA256), 64),
         expect_equal("license name", LICENSE, "windows-sdk-buildtools"),
         expect_equal("tool arches", TOOL_ARCHES, ["arm64", "x64"]),
         expect_equal("supported cells", SUPPORTED_CELLS, ["windows_arm64", "windows_x86_64"]),

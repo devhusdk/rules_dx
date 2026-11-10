@@ -14,6 +14,7 @@ unsupported_value("unsupported")
 exports_files([
     "dart_config.bzl",
     "defs.bzl",
+    "pins.json",
     "platforms.bzl",
     "providers.bzl",
 ])

@@ -1,9 +1,11 @@
-"""Pinned rules_dart archive for the pub extension."""
+"""Pinned rules_dart archive for the pub extension; the archive data is in pins.json."""
 
-load("//core/modules:versions.bzl", "RULES_DART_VERSION")
+load("@dx_pins_data//:pins.bzl", "DATA")
 
-RULES_DART_SHA256 = "e7d9271bb10e5ed0a20415a70a120b367a22d8dd7afe7b0368810f1a08f43170"
+_RULES_DART = DATA["dx_dart"]["archives"]["rules_dart"]
 
-RULES_DART_STRIP_PREFIX = "rules_dart-" + RULES_DART_VERSION
+RULES_DART_SHA256 = _RULES_DART["sha256"]
 
-RULES_DART_URL = "https://github.com/aran/rules_dart/releases/download/v" + RULES_DART_VERSION + "/rules_dart-v" + RULES_DART_VERSION + ".tar.gz"
+RULES_DART_STRIP_PREFIX = _RULES_DART["strip_prefix"]
+
+RULES_DART_URL = _RULES_DART["urls"][0]

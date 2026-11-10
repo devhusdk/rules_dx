@@ -1,0 +1,12 @@
+{
+  "archives": {
+    "rules_dart": {
+      "sha256": "e7d9271bb10e5ed0a20415a70a120b367a22d8dd7afe7b0368810f1a08f43170",
+      "strip_prefix": "rules_dart-0.8.1",
+      "urls": [
+        "https://github.com/aran/rules_dart/releases/download/v0.8.1/rules_dart-v0.8.1.tar.gz"
+      ],
+      "version": "0.8.1"
+    }
+  }
+}

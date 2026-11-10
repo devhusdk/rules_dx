@@ -1,12 +1,16 @@
-"""Pinned Windows SDK Build Tools identity."""
+"""Pinned Windows SDK Build Tools identity; the archive data is in pins.json."""
 
-BUILDTOOLS_VERSION = "10.0.28000.2705"
+load("@dx_pins_data//:pins.bzl", "DATA")
+
+_BUILDTOOLS = DATA["dx_msix"]["archives"]["buildtools"]
+
+BUILDTOOLS_VERSION = _BUILDTOOLS["version"]
 
 BUILDTOOLS_BIN = "10.0.28000.0"
 
-BUILDTOOLS_URL = "https://api.nuget.org/v3-flatcontainer/microsoft.windows.sdk.buildtools/10.0.28000.2705/microsoft.windows.sdk.buildtools.10.0.28000.2705.nupkg"
+BUILDTOOLS_URL = _BUILDTOOLS["urls"][0]
 
-BUILDTOOLS_SHA256 = "8bfdfb6ca2633f531cf80b5fa22512ba61a394d7988f0970db83baadc67929ed"
+BUILDTOOLS_SHA256 = _BUILDTOOLS["sha256"]
 
 LICENSE = "windows-sdk-buildtools"
 

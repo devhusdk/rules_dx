@@ -7,6 +7,7 @@ exports_files([
     "defs.bzl",
     "metadata_tests.bzl",
     "pins.bzl",
+    "pins.json",
     "repos.bzl",
     "validate.bzl",
 ])

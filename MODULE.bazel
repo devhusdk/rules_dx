@@ -770,6 +770,22 @@ dx_pins.data(
     name = "dx_ocaml",
     pins = "//ocaml/private/toolchain:pins.json",
 )
+dx_pins.data(
+    name = "dx_msix",
+    pins = "//msix/private:pins.json",
+)
+dx_pins.data(
+    name = "dx_appimage",
+    pins = "//appimage/private:pins.json",
+)
+dx_pins.data(
+    name = "dx_dart",
+    pins = "//dart/private:pins.json",
+)
+dx_pins.data(
+    name = "dx_dotnet",
+    pins = "//dotnet:pins.json",
+)
 use_repo(
     dx_pins,
     "dx_pins_data",

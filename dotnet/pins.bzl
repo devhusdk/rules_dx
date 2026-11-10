@@ -1,17 +1,19 @@
-"""Pinned rules_dotnet and libfuzzer-dotnet archives."""
+"""Pinned rules_dotnet and libfuzzer-dotnet archives; the archive data is in pins.json."""
 
-load("//core/modules:versions.bzl", "RULES_DOTNET_VERSION")
+load("@dx_pins_data//:pins.bzl", "DATA")
 
-RULES_DOTNET_SHA256 = "ce35dad18db31cd68323b568dc09c689cc6d75ec16eba1510ccd128bb5f1264e"
+_ARCHIVES = DATA["dx_dotnet"]["archives"]
 
-RULES_DOTNET_STRIP_PREFIX = "rules_dotnet-" + RULES_DOTNET_VERSION
+RULES_DOTNET_SHA256 = _ARCHIVES["rules_dotnet"]["sha256"]
 
-RULES_DOTNET_URL = "https://github.com/bazel-contrib/rules_dotnet/releases/download/v" + RULES_DOTNET_VERSION + "/rules_dotnet-v" + RULES_DOTNET_VERSION + ".tar.gz"
+RULES_DOTNET_STRIP_PREFIX = _ARCHIVES["rules_dotnet"]["strip_prefix"]
 
-LIBFUZZER_DOTNET_COMMIT = "bd39d4e88d715ab460a929943645be2a186cde52"
+RULES_DOTNET_URL = _ARCHIVES["rules_dotnet"]["urls"][0]
 
-LIBFUZZER_DOTNET_SHA256 = "c7e8281f29072c9a067d703aeeaaf8aa6b7b063cba2d3bd67cb8d85a48fa7c94"
+LIBFUZZER_DOTNET_COMMIT = _ARCHIVES["libfuzzer_dotnet"]["version"]
 
-LIBFUZZER_DOTNET_STRIP_PREFIX = "libfuzzer-dotnet-" + LIBFUZZER_DOTNET_COMMIT
+LIBFUZZER_DOTNET_SHA256 = _ARCHIVES["libfuzzer_dotnet"]["sha256"]
 
-LIBFUZZER_DOTNET_URL = "https://github.com/Metalnem/libfuzzer-dotnet/archive/" + LIBFUZZER_DOTNET_COMMIT + ".tar.gz"
+LIBFUZZER_DOTNET_STRIP_PREFIX = _ARCHIVES["libfuzzer_dotnet"]["strip_prefix"]
+
+LIBFUZZER_DOTNET_URL = _ARCHIVES["libfuzzer_dotnet"]["urls"][0]

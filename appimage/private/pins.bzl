@@ -1,31 +1,23 @@
-"""Pinned AppImage tool and runtime identities."""
+"""Pinned AppImage tool and runtime identities; the archive data is in pins.json."""
 
-TOOL_VERSION = "1.9.1"
+load("@dx_pins_data//:pins.bzl", "DATA")
+
+_ARCHIVES = DATA["dx_appimage"]["archives"]
+
+TOOL_VERSION = _ARCHIVES["appimagetool_x86_64"]["version"]
 
 TOOLS = {
-    "aarch64": {
-        "sha256": "f0837e7448a0c1e4e650a93bb3e85802546e60654ef287576f46c71c126a9158",
-        "url": "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-aarch64.AppImage",
-    },
-    "x86_64": {
-        "sha256": "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0",
-        "url": "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage",
-    },
+    arch: {"sha256": _ARCHIVES["appimagetool_" + arch]["sha256"], "url": _ARCHIVES["appimagetool_" + arch]["urls"][0]}
+    for arch in ["aarch64", "x86_64"]
 }
 
 TOOL_LICENSE = "MIT"
 
-RUNTIME_VERSION = "20251108"
+RUNTIME_VERSION = _ARCHIVES["runtime_x86_64"]["version"]
 
 RUNTIMES = {
-    "aarch64": {
-        "sha256": "00cbdfcf917cc6c0ff6d3347d59e0ca1f7f45a6df1a428a0d6d8a78664d87444",
-        "url": "https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-aarch64",
-    },
-    "x86_64": {
-        "sha256": "2fca8b443c92510f1483a883f60061ad09b46b978b2631c807cd873a47ec260d",
-        "url": "https://github.com/AppImage/type2-runtime/releases/download/20251108/runtime-x86_64",
-    },
+    arch: {"sha256": _ARCHIVES["runtime_" + arch]["sha256"], "url": _ARCHIVES["runtime_" + arch]["urls"][0]}
+    for arch in ["aarch64", "x86_64"]
 }
 
 RUNTIME_LICENSE = "MIT"

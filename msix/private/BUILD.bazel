@@ -8,6 +8,7 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "metadata_tests.bzl",
+    "pins.json",
     "pack.ps1",
     "pins.bzl",
     "repos.bzl",

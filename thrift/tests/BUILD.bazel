@@ -21,7 +21,10 @@ thrift_cc_library(
 cc_test(
     name = "cc_roundtrip_test",
     srcs = ["cc_roundtrip_test.cc"],
-    copts = ["-std=c++17"],
+    copts = select({
+        "@platforms//os:windows": ["/std:c++17"],
+        "//conditions:default": ["-std=c++17"],
+    }),
     linkstatic = True,
     deps = [":shapes_cc"],  # keep
 )

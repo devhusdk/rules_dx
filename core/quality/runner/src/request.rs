@@ -30,6 +30,7 @@ pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("helm", &["kubeconform"]),
     ("trivy_config", &["bicep"]),
     ("pkl_lsp", &["java", "pkl-lsp.jar"]),
+    ("buf", &["diff"]),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -835,7 +836,17 @@ mod tests {
             parse_real_request(&doc("vale", json!([{"name": "rst2html", "binary": ""}]))).is_err()
         );
         assert!(parse_real_request(&doc("vale", json!([ok[0].clone(), ok[0].clone()]))).is_err());
-        assert!(parse_real_request(&doc("chktex", ok)).is_err());
+        assert!(parse_real_request(&doc("chktex", ok.clone())).is_err());
+        let diff = json!([{"name": "diff", "binary": "bin/diff"}]);
+        assert_eq!(
+            parse_real_request(&doc("buf", diff.clone()))
+                .expect("parses")
+                .tools["buf"]
+                .path_tools,
+            [("diff".to_owned(), PathBuf::from("bin/diff"))]
+        );
+        assert!(parse_real_request(&doc("buf", ok)).is_err());
+        assert!(parse_real_request(&doc("vale", diff)).is_err());
     }
 
     #[test]

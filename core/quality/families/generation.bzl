@@ -45,6 +45,10 @@ TOOLS = {
     },
 }
 
+_BUF_FORMAT_ATTRS = {
+    "_buf_diff": attr.label(default = "//core/quality/tools/diff", executable = True, cfg = "exec", doc = "The diff buf format runs from PATH."),
+}
+
 SHARD_SPECS = {
     "real_capnp_lint": {
         "capability": "lint",
@@ -89,6 +93,7 @@ SHARD_SPECS = {
     "real_protobuf_format": {
         "capability": "format",
         "doc": "Additive Protocol Buffers format family aspect (buf format).",
+        "extra_attrs": _BUF_FORMAT_ATTRS,
         "shard": "protobuf",
     },
     "real_protobuf_typecheck": {
@@ -144,9 +149,18 @@ def _closure_hook(tool):
 
     return _hook
 
-def _buf_hook(target, _ctx, _resolved, _capability, _what, _shared):
+def _buf_format_context(ctx, capability):
+    """Returns the inputs and options that put the pinned diff on buf format's PATH."""
+    if capability != "format":
+        return {}
+    return {
+        "inputs": [ctx.executable._buf_diff],
+        "options": {"path_tools": [("diff", ctx.executable._buf_diff)]},
+    }
+
+def _buf_hook(target, ctx, _resolved, capability, _what, _shared):
     if ProtoInfo not in target:
-        return real_context()
+        return real_context(**_buf_format_context(ctx, capability))
     pairs = []
     proto_roots = sorted([r for r in target[ProtoInfo].transitive_proto_path.to_list() if r != "."], key = lambda r: -len(r))
     for f in target[ProtoInfo].transitive_sources.to_list():
@@ -158,7 +172,7 @@ def _buf_hook(target, _ctx, _resolved, _capability, _what, _shared):
         if ".." in ws_path.split("/"):
             continue
         pairs.append((ws_path, f, False))
-    return real_context(resolve_pairs = pairs)
+    return real_context(resolve_pairs = pairs, **_buf_format_context(ctx, capability))
 
 def _proto_sources(target, ctx):
     if ProtoInfo not in target:

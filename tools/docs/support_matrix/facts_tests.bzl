@@ -77,6 +77,12 @@ def _doc_problems(facts):
             problems.append("unknown row " + name)
         elif entry and entry["shard"] not in _SHARD_RULES:
             problems.append(name + " names missing shard " + entry["shard"])
+    for row in facts["rows"]:
+        if row["name"] in DOC_TOOLS:
+            entry = DOC_TOOLS[row["name"]]
+            want = entry["shard"] if entry else ""
+            if row.get("doc_shard") != want:
+                problems.append(row["name"] + " doc_shard " + repr(row.get("doc_shard")) + " is not " + repr(want))
     return problems
 
 def _dependency_problems(facts):

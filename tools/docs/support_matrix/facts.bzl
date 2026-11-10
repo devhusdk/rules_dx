@@ -19,6 +19,12 @@ def _doc(name):
     entry = DOC_TOOLS[name]
     return entry["tool"] if entry else ""
 
+def _doc_shard(name):
+    if name not in DOC_TOOLS:
+        return None
+    entry = DOC_TOOLS[name]
+    return entry["shard"] if entry else ""
+
 def _dead_code(row):
     if row["name"] in DEAD_CODE:
         return DEAD_CODE[row["name"]]
@@ -214,6 +220,7 @@ def support_matrix_facts_dict():
                 "coverage": _coverage(row["name"]),
                 "dead_code": _dead_code(row),
                 "doc": _doc(row["name"]),
+                "doc_shard": _doc_shard(row["name"]),
                 "families": row.get("families", [row["name"]]),
                 "identity": _identity(row),
                 "name": row["name"],

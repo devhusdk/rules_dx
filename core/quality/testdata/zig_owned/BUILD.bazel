@@ -1,5 +1,5 @@
 load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
-load("//zig:defs.bzl", "zig_library")
+load("//zig:defs.bzl", "zig_binary", "zig_library")
 
 package(default_visibility = [
     "//core/quality:__pkg__",
@@ -14,7 +14,7 @@ quality_family(
     ],
     family_id = "zig",
     lint = ["zig_ast_check"],
-    typecheck = [],
+    typecheck = ["zig"],
 )
 
 workspace_policy(
@@ -30,4 +30,14 @@ zig_library(
 zig_library(
     name = "dirty",
     main = "dirty.zig",
+)
+
+zig_binary(
+    name = "clean_bin",
+    main = "clean_main.zig",
+)
+
+zig_binary(
+    name = "dirty_bin",
+    main = "dirty_main.zig",
 )

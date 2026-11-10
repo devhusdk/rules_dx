@@ -620,6 +620,21 @@ sh_test(
     data = [":compile_check_exec.sh"],
 )
 
+sh_test(
+    name = "buildifier_config_test",
+    srcs = ["buildifier_config_test.sh"],
+    args = [
+        "$(rootpath @dx_tools//:buildifier)",
+        "$(rootpath //:.buildifier.json)",
+        "$(rootpath //core/quality/testdata:buildifier_cfg/.buildifier.json)",
+    ],
+    data = [
+        "//core/quality/testdata:buildifier_cfg/.buildifier.json",
+        "//:.buildifier.json",
+        "@dx_tools//:buildifier",
+    ],
+)
+
 test_suite(
     name = "consumer_policy",
     tests = [

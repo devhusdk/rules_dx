@@ -15,7 +15,7 @@ ARTIFACTS = {
         "cpu": "arm64",
         "delivery_class": "standalone",
         "executable": "biome-linux-arm64",
-        "executable_sha256": "4c1c9908e5cfd5d327e4ac3205baa13b1d3dfd24f184ed289a0c0ef1b2e0274f",
+        "executable_sha256": "bd0c5860a6220b68ceb82d7a00b7a4ed97fbaf3904eb41bcb897f9ec74af4148",
         "interpreter": "/lib/ld-linux-aarch64.so.1",
         "licenses": [
             {
@@ -37,11 +37,11 @@ ARTIFACTS = {
         ],
         "os": "linux",
         "runtime_files": [],
-        "sha256": "4c1c9908e5cfd5d327e4ac3205baa13b1d3dfd24f184ed289a0c0ef1b2e0274f",
-        "size": 57998768,
+        "sha256": "bd0c5860a6220b68ceb82d7a00b7a4ed97fbaf3904eb41bcb897f9ec74af4148",
+        "size": 88150672,
         "tool": "biome",
-        "upstream_version": "2.5.12",
-        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-linux-arm64",
+        "upstream_version": "2.6.6",
+        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.6.6/biome-linux-arm64",
     },
     "linux_x86_64": {
         "abi_floor": {
@@ -56,7 +56,7 @@ ARTIFACTS = {
         "cpu": "x86_64",
         "delivery_class": "standalone",
         "executable": "biome-linux-x64",
-        "executable_sha256": "e2475688799c9e78dd25ba5cf676676ffe74caf182a35082b1d22039151fdf63",
+        "executable_sha256": "69ca8e9ff548091b2bfbd178d6f73142b483a5257b07854de702c68fb7f8c06b",
         "interpreter": "/lib64/ld-linux-x86-64.so.2",
         "licenses": [
             {
@@ -78,11 +78,11 @@ ARTIFACTS = {
         ],
         "os": "linux",
         "runtime_files": [],
-        "sha256": "e2475688799c9e78dd25ba5cf676676ffe74caf182a35082b1d22039151fdf63",
-        "size": 63652488,
+        "sha256": "69ca8e9ff548091b2bfbd178d6f73142b483a5257b07854de702c68fb7f8c06b",
+        "size": 96796344,
         "tool": "biome",
-        "upstream_version": "2.5.12",
-        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-linux-x64",
+        "upstream_version": "2.6.6",
+        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.6.6/biome-linux-x64",
     },
     "macos_arm64": {
         "abi_floor": {
@@ -97,7 +97,7 @@ ARTIFACTS = {
         "cpu": "arm64",
         "delivery_class": "standalone",
         "executable": "biome-darwin-arm64",
-        "executable_sha256": "0e8d513eb6c612236b47ccf0e218ac3917d863d41f853c65c38410774daa26ed",
+        "executable_sha256": "dec6124a5e3ea475e8625a7a85b5a2ec939c1077624f95b78cfc1cb96199fab1",
         "interpreter": None,
         "licenses": [
             {
@@ -113,11 +113,11 @@ ARTIFACTS = {
         "needed_shared_libraries": [],
         "os": "macos",
         "runtime_files": [],
-        "sha256": "0e8d513eb6c612236b47ccf0e218ac3917d863d41f853c65c38410774daa26ed",
-        "size": 56017952,
+        "sha256": "dec6124a5e3ea475e8625a7a85b5a2ec939c1077624f95b78cfc1cb96199fab1",
+        "size": 84933216,
         "tool": "biome",
-        "upstream_version": "2.5.12",
-        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-darwin-arm64",
+        "upstream_version": "2.6.6",
+        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.6.6/biome-darwin-arm64",
     },
     "windows_arm64": {
         "abi_floor": {
@@ -132,7 +132,7 @@ ARTIFACTS = {
         "cpu": "arm64",
         "delivery_class": "standalone",
         "executable": "biome-win32-arm64.exe",
-        "executable_sha256": "e0148babfa207b79bc9ed50c22479722e314ae07e989c9bdae9611cd3c6511bf",
+        "executable_sha256": "bafa8941638d2347d8fb9243ca5b7ee7d7e3e6bc96ca8c3de99a24be51274cae",
         "interpreter": None,
         "licenses": [
             {
@@ -148,11 +148,11 @@ ARTIFACTS = {
         "needed_shared_libraries": [],
         "os": "windows",
         "runtime_files": [],
-        "sha256": "e0148babfa207b79bc9ed50c22479722e314ae07e989c9bdae9611cd3c6511bf",
-        "size": 64262656,
+        "sha256": "bafa8941638d2347d8fb9243ca5b7ee7d7e3e6bc96ca8c3de99a24be51274cae",
+        "size": 98599936,
         "tool": "biome",
-        "upstream_version": "2.5.12",
-        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-win32-arm64.exe",
+        "upstream_version": "2.6.6",
+        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.6.6/biome-win32-arm64.exe",
     },
     "windows_x86_64": {
         "abi_floor": {
@@ -167,7 +167,7 @@ ARTIFACTS = {
         "cpu": "x86_64",
         "delivery_class": "standalone",
         "executable": "biome-win32-x64.exe",
-        "executable_sha256": "59f88d04ab25f8634639c337ef70a79927504b6379a1ec3ff4e87f7c15dd5dce",
+        "executable_sha256": "d3aac0b55e1b52ce586892b7c64de6bd2fc3774fe5b71129426af92c8a3c0571",
         "interpreter": None,
         "licenses": [
             {
@@ -183,10 +183,10 @@ ARTIFACTS = {
         "needed_shared_libraries": [],
         "os": "windows",
         "runtime_files": [],
-        "sha256": "59f88d04ab25f8634639c337ef70a79927504b6379a1ec3ff4e87f7c15dd5dce",
-        "size": 74882048,
+        "sha256": "d3aac0b55e1b52ce586892b7c64de6bd2fc3774fe5b71129426af92c8a3c0571",
+        "size": 114568192,
         "tool": "biome",
-        "upstream_version": "2.5.12",
-        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.5.12/biome-win32-x64.exe",
+        "upstream_version": "2.6.6",
+        "url": "https://github.com/biomejs/biome/releases/download/@biomejs/biome@2.6.6/biome-win32-x64.exe",
     },
 }

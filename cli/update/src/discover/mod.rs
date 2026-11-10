@@ -206,8 +206,40 @@ pub(crate) fn release_cmp(a: &str, b: &str) -> std::cmp::Ordering {
         (true, true) => std::cmp::Ordering::Equal,
         (true, false) => std::cmp::Ordering::Greater,
         (false, true) => std::cmp::Ordering::Less,
-        (false, false) => numeric_cmp(&suffix_a, &suffix_b).then_with(|| suffix_a.cmp(&suffix_b)),
+        (false, false) => suffix_runs(&suffix_a)
+            .cmp(&suffix_runs(&suffix_b))
+            .then_with(|| suffix_a.cmp(&suffix_b)),
     })
+}
+
+/// One run of a prerelease suffix; a number sorts below a word.
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum SuffixRun {
+    Number(u64),
+    Word(String),
+}
+
+/// Splits a prerelease suffix such as `rc.10` or `beta2` into its number and word runs.
+fn suffix_runs(suffix: &str) -> Vec<SuffixRun> {
+    let mut runs = Vec::new();
+    let mut rest = suffix;
+    while let Some(first) = rest.chars().next() {
+        let class = |c: char| (c.is_ascii_digit(), c.is_alphabetic());
+        if class(first) == (false, false) {
+            rest = &rest[first.len_utf8()..];
+            continue;
+        }
+        let end = rest
+            .find(|c: char| class(c) != class(first))
+            .unwrap_or(rest.len());
+        let (run, tail) = rest.split_at(end);
+        runs.push(match run.parse() {
+            Ok(number) if first.is_ascii_digit() => SuffixRun::Number(number),
+            _ => SuffixRun::Word(run.to_lowercase()),
+        });
+        rest = tail;
+    }
+    runs
 }
 
 #[cfg(test)]
@@ -271,5 +303,20 @@ mod tests {
         assert_eq!(release_cmp("2.1.0-rc.2", "2.1.0-rc.1"), Ordering::Greater);
         assert_eq!(release_cmp("8.0.0", "8.0.0.rc1"), Ordering::Greater);
         assert_eq!(release_cmp("1.10", "1.9"), Ordering::Greater);
+    }
+
+    #[test]
+    fn release_cmp_orders_suffixes_by_word_then_number() {
+        for (newer, older) in [
+            ("1.0.0-beta.2", "1.0.0-alpha.3"),
+            ("8.0.0.rc10", "8.0.0.rc9"),
+            ("1.0.0-RC1", "1.0.0-beta2"),
+            ("1.0.0-rc.1.1", "1.0.0-rc.1"),
+            ("1.0.0-alpha.beta", "1.0.0-alpha.1"),
+        ] {
+            assert_eq!(release_cmp(newer, older), Ordering::Greater, "{newer}");
+            assert_eq!(release_cmp(older, newer), Ordering::Less, "{older}");
+        }
+        assert_eq!(release_cmp("1.0.0-rc.1", "1.0.0-rc.1"), Ordering::Equal);
     }
 }

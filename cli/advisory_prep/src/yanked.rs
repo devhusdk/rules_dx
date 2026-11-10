@@ -21,10 +21,15 @@ pub fn index_base(options: &PrepareOptions) -> &str {
 pub fn prepare_cargo_yanked(options: &PrepareOptions) -> Result<PreparedSnapshot, PrepError> {
     let base = index_base(options).trim_end_matches('/').to_owned();
     let locked = locked_registry_crates(&options.workspace)?;
-    let urls: Vec<String> = locked
+    let urls = locked
         .keys()
-        .map(|name| format!("{base}/{}", index_path(name)))
-        .collect();
+        .map(|name| match index_path(name) {
+            Ok(path) => Ok(format!("{base}/{path}")),
+            Err(error) => Err(PrepError::Usage {
+                detail: error.message().to_owned(),
+            }),
+        })
+        .collect::<Result<Vec<String>, PrepError>>()?;
     let bodies = fetch_bodies(CARGO_YANKED, &urls, options)?;
     let mut yanked = Vec::new();
     for (((name, versions), url), body) in locked.iter().zip(&urls).zip(&bodies) {

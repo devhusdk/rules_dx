@@ -341,10 +341,10 @@ mod tests {
         fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, DxError> {
             self.calls.set(self.calls.get() + 1);
             Ok(vec![
-                self.lib.clone(),
                 self.lib.join("clangd"),
                 self.lib.join("identity.cc_identity.json"),
                 self.lib.join("identity_exec.cc_identity.json"),
+                self.lib.clone(),
             ])
         }
 

@@ -40,8 +40,8 @@ pub fn outdated(
             package: name.clone(),
             reason,
         };
-        let release = match fetch
-            .get(&format!("{base}/{}", index_path(&name)))
+        let release = match index_path(&name)
+            .and_then(|path| fetch.get(&format!("{base}/{path}")))
             .and_then(|body| newest(&body, prereleases))
         {
             Ok(release) => release,
@@ -82,7 +82,7 @@ pub fn outdated(
 
 /// The newest stable version of crate `name` in the sparse index at `base`.
 pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
-    let body = fetch.get(&format!("{base}/{}", index_path(name)))?;
+    let body = fetch.get(&format!("{base}/{}", index_path(name)?))?;
     newest(&body, false).map(|release| release.version.to_string())
 }
 
@@ -139,14 +139,19 @@ fn requirement(entry: &Item) -> Option<String> {
     table.get("version")?.as_str().map(str::to_owned)
 }
 
-pub fn index_path(name: &str) -> String {
+/// The sparse-index path of crate `name`.
+pub fn index_path(name: &str) -> Result<String, DxError> {
+    let valid = |c: char| c.is_ascii_alphanumeric() || c == '-' || c == '_';
+    if name.is_empty() || !name.chars().all(valid) {
+        return Err(DxError::failure(format!("invalid crate name {name:?}")));
+    }
     let lower = name.to_ascii_lowercase();
-    match lower.len() {
+    Ok(match lower.len() {
         1 => format!("1/{lower}"),
         2 => format!("2/{lower}"),
         3 => format!("3/{}/{lower}", &lower[..1]),
         _ => format!("{}/{}/{lower}", &lower[..2], &lower[2..4]),
-    }
+    })
 }
 
 struct Release {
@@ -351,9 +356,18 @@ wsdep = "1.0"
 
     #[test]
     fn index_paths_follow_the_sparse_layout() {
-        assert_eq!(index_path("a"), "1/a");
-        assert_eq!(index_path("ab"), "2/ab");
-        assert_eq!(index_path("abc"), "3/a/abc");
-        assert_eq!(index_path("Serde"), "se/rd/serde");
+        let path = |name: &str| index_path(name).expect("path");
+        assert_eq!(path("a"), "1/a");
+        assert_eq!(path("ab"), "2/ab");
+        assert_eq!(path("abc"), "3/a/abc");
+        assert_eq!(path("Serde"), "se/rd/serde");
+    }
+
+    #[test]
+    fn index_paths_reject_names_crates_io_cannot_hold() {
+        for name in ["", "\u{e9}a", "a\u{e9}b", "a/b"] {
+            let error = index_path(name).expect_err("invalid");
+            assert_eq!(error.message(), format!("invalid crate name {name:?}"));
+        }
     }
 }

@@ -206,6 +206,19 @@ fn lexer_survives_escapes_and_char_literals() {
 }
 
 #[test]
+fn marker_after_a_rust_lifetime_is_recognized() {
+    let source = file_lines(&[
+        format!(
+            "fn name(&self) -> &'static str {{ // {} - reason: can't happen, issue: 1055.",
+            marker("_LINE")
+        ),
+        "let c = '\\u{2f}'; let d = '\\'';".to_string(),
+    ]);
+    let ignores = find_ignores("t.rs", &source).unwrap();
+    assert_eq!(ignores.singles.keys().copied().collect::<Vec<_>>(), [1]);
+}
+
+#[test]
 fn marker_after_string_state_is_recognized() {
     let source = file_lines(&[
         "let s = \"a\\\"b\";".to_string(),

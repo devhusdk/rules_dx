@@ -1679,6 +1679,18 @@ fn cpanfile_snapshot_lists_distribution_names_and_versions() {
 }
 
 #[test]
+fn cpanfile_snapshot_rejects_a_distribution_without_a_version() {
+    for entry in ["Acme-\u{dc}ber", "Acme-\u{dc}", "-1.0"] {
+        let error = parse_cpanfile_snapshot(&format!("DISTRIBUTIONS\n  {entry}\n"))
+            .expect_err("no version");
+        assert_eq!(
+            error.message(),
+            format!("invalid cpanfile.snapshot distribution: {entry}")
+        );
+    }
+}
+
+#[test]
 fn pubspec_lock_lists_hosted_packages() {
     let text = "packages:\n  async:\n    dependency: \"direct main\"\n    description:\n      name: async\n      url: \"https://pub.dev\"\n    source: hosted\n    version: \"2.11.0\"\n  flutter:\n    dependency: \"direct main\"\n    description: flutter\n    source: sdk\n    version: \"0.0.0\"\n  local:\n    dependency: transitive\n    description:\n      path: ../local\n    source: path\n    version: \"1.0.0\"\nsdks:\n  dart: \">=3.0.0 <4.0.0\"\n";
     let packages = parse_pubspec_lock(text).expect("parses");

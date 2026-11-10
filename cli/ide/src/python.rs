@@ -19,7 +19,10 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let interpreter = ctx
         .outputs
         .iter()
-        .find(|path| path.file_name().is_some_and(|name| name != "typescript"))
+        .find(|path| {
+            path.file_name()
+                .is_some_and(|name| name.to_string_lossy().starts_with("python"))
+        })
         .ok_or_else(|| DxError::failure("the Python interpreter was not built"))?;
     link(ctx.dir, "python", interpreter).map_err(|error| {
         DxError::from_io(format!("linking the Python interpreter: {error}"), &error)
@@ -62,12 +65,14 @@ fn locked_labels(lock: &Path) -> Vec<String> {
             names.extend(name.take());
         } else if let Some(value) = line.strip_prefix("name = \"") {
             name = value.strip_suffix('"').map(normalize);
-        } else if line.starts_with("source = ")
-            && ["editable", "virtual", "directory"]
-                .iter()
-                .any(|kind| line.contains(kind))
-        {
-            name = None;
+        } else if let Some(source) = line.strip_prefix("source = {") {
+            let kind = source.trim_start();
+            if ["editable", "virtual", "directory"].iter().any(|key| {
+                kind.strip_prefix(key)
+                    .is_some_and(|rest| rest.trim_start().starts_with('='))
+            }) {
+                name = None;
+            }
         }
     }
     names.sort();
@@ -116,7 +121,7 @@ mod tests {
         let lock = scratch.path().join("uv.lock");
         std::fs::write(
             &lock,
-            "version = 1\n\n[[package]]\nname = \"app\"\nversion = \"0.1\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"Typing-Extensions\"\nversion = \"4\"\nsource = { registry = \"https://pypi.org/simple\" }\n\n[[package]]\nname = \"requests\"\nversion = \"2\"\nsource = { registry = \"https://pypi.org/simple\" }\n",
+            "version = 1\n\n[[package]]\nname = \"app\"\nversion = \"0.1\"\nsource = { editable = \".\" }\n\n[[package]]\nname = \"Typing-Extensions\"\nversion = \"4\"\nsource = { registry = \"https://pypi.org/simple\" }\n\n[[package]]\nname = \"requests\"\nversion = \"2\"\nsource = { registry = \"https://mirror.example/pypi-virtual/simple\" }\n\n[[package]]\nname = \"lib\"\nversion = \"0.1\"\nsource = { virtual = \"libs/lib\" }\n",
         )
         .expect("lock");
         assert_eq!(

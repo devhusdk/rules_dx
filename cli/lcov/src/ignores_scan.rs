@@ -9,6 +9,13 @@ fn slash_scan() -> Option<&'static Regex> {
     SCAN.as_ref()
 }
 
+fn rust_scan() -> Option<&'static Regex> {
+    static SCAN: LazyLock<Option<Regex>> = LazyLock::new(|| {
+        Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.[^']*|[^'\\])'|(?P<marker>//)"#).ok()
+    });
+    SCAN.as_ref()
+}
+
 fn hash_scan() -> Option<&'static Regex> {
     static SCAN: LazyLock<Option<Regex>> =
         LazyLock::new(|| Regex::new(r#""(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|(?P<marker>#)"#).ok());
@@ -48,6 +55,10 @@ fn slash_comment(line: &str) -> Option<&str> {
     scan_with(line, slash_scan()).map(|end| &line[end..])
 }
 
+fn rust_comment(line: &str) -> Option<&str> {
+    scan_with(line, rust_scan()).map(|end| &line[end..])
+}
+
 fn hash_comment(line: &str) -> Option<&str> {
     scan_with(line, hash_scan()).map(|end| &line[end..])
 }
@@ -66,6 +77,9 @@ fn paren_comment(line: &str) -> Option<&str> {
 
 pub(crate) fn comment_text(path: &str, line: &str) -> String {
     match line_comment_syntax(path) {
+        Some(LineComment::SlashSlash) if path.ends_with(".rs") => {
+            rust_comment(line).unwrap_or_default().to_string()
+        }
         Some(LineComment::SlashSlash) => slash_comment(line).unwrap_or_default().to_string(),
         Some(LineComment::Hash) => hash_comment(line).unwrap_or_default().to_string(),
         Some(LineComment::Percent) => percent_comment(line).unwrap_or_default().to_string(),

@@ -601,6 +601,13 @@ compile_check_unit_tests(name = "compile_check_unit")
 fsc_unit_tests(name = "fsc_unit")
 
 sh_test(
+    name = "unavailable_rows_test",
+    srcs = ["unavailable_rows_test.sh"],
+    args = ["$(location //rust/private/quality/tools:BUILD.bazel)"] + ["$(location %s)" % f for f in glob(["families/*_tools.bzl"])],
+    data = ["//rust/private/quality/tools:BUILD.bazel"] + glob(["families/*_tools.bzl"]),
+)
+
+sh_test(
     name = "compile_check_exec_test",
     srcs = ["compile_check_exec_test.sh"],
     args = ["$(location :compile_check_exec.sh)"],

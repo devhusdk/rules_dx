@@ -6,6 +6,7 @@ load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "BUILD.bazel",
     "Cargo.lock",
     "Cargo.toml",
     "cargo-bazel-lock.json",

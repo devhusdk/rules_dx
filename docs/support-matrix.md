@@ -97,7 +97,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | JavaScript | `biome`, `eslint`, `typos` | `biome` | `tsc` | `typedoc` | `jest` | `eslint no-unused-vars` |
 | Julia | `julialint` (not on `windows_arm64`: Julia ships no windows_arm64 runtime), `typos` | `julia_format` (not on `windows_arm64`: Julia ships no windows_arm64 runtime) | `jet` | `documenter` | `CoverageTools` | none |
 | Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
-| Lua | `selene`, `typos` | `stylua` | `luals` | `ldoc` | `luacov` | `selene unused_variable` |
+| Lua | `selene` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `stylua` | `luals` | `ldoc` | `luacov` | `selene unused_variable` |
 | MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | `jest` | `eslint no-unused-vars` |
 | OCaml | `typos`, `zanuda` (not on `windows_x86_64`: zanuda has no Windows build; `windows_arm64`: zanuda has no Windows build) | `topiary` | `ocaml` | `odoc` | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
 | Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | `pod (perl)` | `DxLcov` | `perlcritic ProhibitUnusedVariables` |
@@ -137,7 +137,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Kubernetes | `kubeconform`, `trivy_config`, `typos` | `yamlfmt` | n/a | n/a | n/a | n/a |
 | LaTeX | `chktex`, `typos` | `latexindent` | n/a | n/a | n/a | n/a |
 | Markdown | `lychee`, `markdown_check`, `typos`, `vale` | `prettier` | n/a | n/a | n/a | n/a |
-| Nix | `deadnix`, `typos` | `nixfmt` (not on `macos_arm64`: nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet; `windows_x86_64`: nixfmt depends on the unix package and does not build on Windows; `windows_arm64`: nixfmt depends on the unix package and does not build on Windows) | n/a | n/a | n/a | `deadnix` |
+| Nix | `deadnix` (not on `windows_arm64`: the dx_quality_crates hub has no windows_arm64 cell), `typos` | `nixfmt` (not on `macos_arm64`: nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet; `windows_x86_64`: nixfmt depends on the unix package and does not build on Windows; `windows_arm64`: nixfmt depends on the unix package and does not build on Windows) | n/a | n/a | n/a | `deadnix` |
 | OCI images | `trivy_image_config` | n/a | `container_structure_test` | n/a | n/a | n/a |
 | Pkl | `pkl_lsp`, `typos` | `pkl` | `pkl` | n/a | n/a | n/a |
 | Rego | `regal`, `typos` | `opa` | `opa` | n/a | n/a | n/a |

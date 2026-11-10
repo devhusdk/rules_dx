@@ -137,9 +137,10 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let pairs = &call.staged.pairs;
             let capability = call.capability;
 
-            let root = std::fs::canonicalize(call.staged.scratch.root()).map_err(|err| {
-                execution(call.tool_id, format!("canonicalize scratch root: {err}"))
-            })?;
+            let root =
+                without_verbatim(std::fs::canonicalize(call.staged.scratch.root()).map_err(
+                    |err| execution(call.tool_id, format!("canonicalize scratch root: {err}")),
+                )?);
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
                 // The run starts at the scratch root and names the file relative to it,
@@ -417,6 +418,42 @@ fn import_path_copy(
         .find(|(path, _)| workspace.ends_with(path.as_str()))
         .or(same.first());
     Ok(chosen.map(|(_, copy)| (*copy).clone()))
+}
+
+/// Drops the `\\?\` prefix from a drive-letter path, which kj rejects; UNC paths stay as they are.
+fn without_verbatim(path: PathBuf) -> PathBuf {
+    let text = path.to_string_lossy().into_owned();
+    let Some(rest) = text.strip_prefix(r"\\?\") else {
+        return path;
+    };
+    let bytes = rest.as_bytes();
+    if bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' {
+        PathBuf::from(rest)
+    } else {
+        path
+    }
+}
+
+#[cfg(test)]
+mod verbatim_tests {
+    use super::without_verbatim;
+    use std::path::PathBuf;
+
+    #[test]
+    fn only_drive_letter_paths_lose_the_prefix() {
+        assert_eq!(
+            without_verbatim(PathBuf::from(r"\\?\D:\a")),
+            PathBuf::from(r"D:\a")
+        );
+        assert_eq!(
+            without_verbatim(PathBuf::from(r"\\?\UNC\h\s")),
+            PathBuf::from(r"\\?\UNC\h\s")
+        );
+        assert_eq!(
+            without_verbatim(PathBuf::from("/tmp/x")),
+            PathBuf::from("/tmp/x")
+        );
+    }
 }
 
 #[cfg(test)]

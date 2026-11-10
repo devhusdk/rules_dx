@@ -1,6 +1,9 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
-exports_files(["pins.bzl"])
+exports_files([
+    "dynamic_cstddef.patch",
+    "pins.bzl",
+])
 
 # Schemas the compiler resolves from /capnp/*.capnp: c++, schema, stream and compat/json,
 # plus java.capnp from capnpc-java, so Java annotations lint and generate alike.

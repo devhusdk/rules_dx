@@ -10,6 +10,8 @@ def _conan_config_impl(ctx):
     if len(recipe_files) == 0:
         fail("conan_deploy " + str(ctx.label) + ": recipe " +
              str(ctx.attr.recipe.label) + " provides no files, want conanfile.py and its sources")
+    if len(ctx.files.conan) == 0:
+        fail("conan_deploy " + str(ctx.label) + ": no pinned conan for this host, want linux, macos or windows on x86_64, or linux or macos on arm64; set conan")
     conan = ctx.files.conan[0]
     runfiles = ctx.runfiles(files = recipe_files + ctx.files.conan_files + [conan])
 

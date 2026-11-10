@@ -1,5 +1,5 @@
 {
-  "checksum": "985d29a04339bee2e7ce9053f21f3ef00039349d314430d58d1fdab833c2615a",
+  "checksum": "5ae8aaaa9229c1d3a7e63809c916710a4de00c8f98b0532e620de28017fb6b61",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -4893,6 +4893,19 @@
         }
       ],
       "version": "0.2.2"
+    },
+    "csharp_roslyn_fixture 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "csharp_roslyn_fixture",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "ctor 1.0.13": {
       "common_attrs": {
@@ -29300,6 +29313,7 @@
     "collect_native 0.0.0": "tools/coverage/collect_native",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
     "coverlet_launcher 0.0.0": "tools/coverage/coverlet_launcher",
+    "csharp_roslyn_fixture 0.0.0": "csharp/tests/fixtures/csharp_roslyn_fixture",
     "d_coverage_launcher 0.0.0": "tools/coverage/d_coverage_launcher",
     "d_extract 0.0.0": "tools/docs/d/d_extract",
     "dart_extract 0.0.0": "tools/docs/dart/dart_extract",

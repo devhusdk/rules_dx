@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//csharp:defs.bzl", "csharp_library")
@@ -27,32 +28,28 @@ csharp_library(
     name = "roslyn",
     testonly = True,
     srcs = ["Sample.cs"],
+    target_frameworks = [
+        "net8.0",
+        "net10.0",
+    ],
 )
 
-csharp_library(
-    name = "roslyn_net8",
-    testonly = True,
-    srcs = ["Sample.cs"],
-    target_frameworks = ["net8.0"],
-)
-
-csharp_library(
-    name = "roslyn_net10",
-    testonly = True,
-    srcs = ["Sample.cs"],
-    target_frameworks = ["net10.0"],
-)
-
-# keep
 rust_test(
     name = "roslyn_aggregation_test",
+    testonly = True,
     srcs = ["roslyn_aggregation_test.rs"],
+    aliases = aliases(
+        package_name = "csharp/tests/fixtures/csharp_roslyn_fixture",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "roslyn_aggregation_test",
+    crate_root = "roslyn_aggregation_test.rs",
     data = [
         ":aggregated.sarif",
         ":net10.sarif",
         ":net8.sarif",
-        ":roslyn_net10",
-        ":roslyn_net8",
+        ":roslyn",
     ],
     env = {
         "DX_AGG_SARIF": "$(rootpath :aggregated.sarif)",
@@ -64,15 +61,9 @@ rust_test(
     deps = ["@rules_dx//tools/testing:dx_testing"],
 )
 
-csharp_library(
-    name = "roslyn_dep",
+real_source_target(
+    name = "corpus_toml",
     testonly = True,
-    srcs = ["Dep.cs"],
-)
-
-csharp_library(
-    name = "roslyn_unused_dep",
-    testonly = True,
-    srcs = ["Sample.cs"],
-    deps = [":roslyn_dep"],
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

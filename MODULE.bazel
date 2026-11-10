@@ -2165,6 +2165,7 @@ crate.from_cargo(
         "//.devcontainer:Cargo.toml",
         "//appimage/private/packer:Cargo.toml",
         "//qt/private/rust:Cargo.toml",
+        "//csharp/tests/fixtures/roslyn:Cargo.toml",
     ],
     supported_platform_triples = [
         "aarch64-apple-darwin",

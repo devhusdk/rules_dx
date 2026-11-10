@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "csharp_roslyn_fixture"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "roslyn_aggregation_test"
+path = "roslyn_aggregation_test.rs"

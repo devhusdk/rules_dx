@@ -13,10 +13,6 @@ name = "path_test"
 path = "path_test.rs"
 
 [[test]]
-name = "probe_script_test"
-path = "probe_script_test.rs"
-
-[[test]]
 name = "simulator_script_test"
 path = "simulator_script_test.rs"
 

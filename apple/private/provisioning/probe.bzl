@@ -99,6 +99,7 @@ def _apple_toolchain_probe_impl(ctx):
 
     report = ctx.actions.declare_file(ctx.label.name + ".txt")
     args = ctx.actions.args()
+    args.add("probe")
     args.add(report)
     args.add_all([
         tooling.route,
@@ -142,8 +143,7 @@ apple_toolchain_probe = rule(
         "_ios": attr.label(default = "@platforms//os:ios"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_probe": attr.label(
-            default = ":probe.sh",
-            allow_single_file = True,
+            default = Label("//apple/private/ops:apple_ops"),
             cfg = "exec",
             executable = True,
         ),

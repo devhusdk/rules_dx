@@ -22,7 +22,7 @@ pub fn short_version(plist: &str) -> Option<&str> {
     Some(value.split_once("</string>")?.0.trim())
 }
 
-fn components(version: &str) -> [u64; 3] {
+pub(crate) fn components(version: &str) -> [u64; 3] {
     let mut found = [0; 3];
     for (slot, part) in found.iter_mut().zip(version.split('.')) {
         let digits: String = part.chars().take_while(char::is_ascii_digit).collect();

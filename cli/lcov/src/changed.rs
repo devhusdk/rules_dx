@@ -218,12 +218,20 @@ pub fn changed_account(
         .iter()
         .map(|document| resolve_dart_uris(document, &owned_keys))
         .collect();
-    let report: BTreeMap<String, FileHits> = merge_lcov_reports(&lcov_documents)
-        .unwrap_or_default()
+    let mut result = ChangedAccount::default();
+    let merged = match merge_lcov_reports(&lcov_documents) {
+        Ok(merged) => merged,
+        Err(error) => {
+            result
+                .errors
+                .push(format!("invalid coverage report: {error}"));
+            BTreeMap::new()
+        }
+    };
+    let report: BTreeMap<String, FileHits> = merged
         .into_iter()
         .map(|(path, hits)| (source_key(&path), hits))
         .collect();
-    let mut result = ChangedAccount::default();
     for (path, disposition) in &account.files {
         if *disposition != Disposition::Eligible {
             continue;

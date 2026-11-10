@@ -311,3 +311,11 @@ fn malformed_ignore_marker_is_an_error() {
     );
     assert_eq!(got.errors.len(), 1, "{:?}", got.errors);
 }
+
+#[test]
+fn unparsable_report_is_an_error() {
+    let report = ["SF:src/a.py\nDA:not-a-number,1\nend_of_record\n".to_string()];
+    let got = gate(OWNS_A, &report, &added(&[("src/a.py", &[1])]), &[]);
+    assert_eq!(got.errors.len(), 1);
+    assert!(got.errors[0].starts_with("invalid coverage report: "));
+}

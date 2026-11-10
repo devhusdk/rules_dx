@@ -4,10 +4,22 @@ load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files([
-    "pyproject.toml",
-    "uv.lock",
-])
+exports_files(
+    [
+        "ansible_lint_main.py",
+        "cfn_lint_main.py",
+        "cmakelint_main.py",
+        "djlint_main.py",
+        "docstrfmt_main.py",
+        "mbake_main.py",
+        "pyproject.toml",
+        "sqlfluff_main.py",
+        "tool_bootstrap.py",
+        "uv.lock",
+        "yamllint_main.py",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 py_binary(
     name = "pydoclint",

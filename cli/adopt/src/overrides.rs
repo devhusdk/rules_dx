@@ -218,9 +218,7 @@ pub const OVERRIDES: &[Override] = &[
             },
             OverridePatch {
                 file: "external_repo_pytest_paths.patch",
-                content: include_str!(
-                    "../../../patches/rules_py/external_repo_pytest_paths.patch"
-                ),
+                content: include_str!("../../../patches/rules_py/external_repo_pytest_paths.patch"),
             },
         ],
     },
@@ -771,11 +769,11 @@ pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
         }
     };
     let observed = match &text {
-        Some(text) => {
-            Some(observe(root, text).map_err(|error| AdoptError::LoadModuleFile {
+        Some(text) => Some(
+            observe(root, text).map_err(|error| AdoptError::LoadModuleFile {
                 detail: error.message().to_owned(),
-            })?)
-        }
+            })?,
+        ),
         None => None,
     };
     if observed.as_ref().is_some_and(|o| o.rules_dx_module) {

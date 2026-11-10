@@ -304,7 +304,8 @@ pub fn load(workspace: &Path) -> Result<Option<Registry>, DependencySetsError> {
         Ok(text) => text,
     };
     discover(&root, &|rel: &str| {
-        std::fs::read_to_string(workspace.join(rel)).map_err(|error| DxError::infra(format!("{rel}: {error}")))
+        std::fs::read_to_string(workspace.join(rel))
+            .map_err(|error| DxError::infra(format!("{rel}: {error}")))
     })
 }
 

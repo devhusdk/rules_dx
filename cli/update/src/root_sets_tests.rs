@@ -81,10 +81,7 @@ fn dx_crates_starts_with_the_manifest_beside_its_cargo_lock() {
     assert_eq!(cargo.manifests[0], "cc/context/Cargo.toml");
     assert_eq!(
         cargo.locks,
-        [
-            "cc/context/Cargo.lock",
-            "cargo-bazel-lock.json"
-        ]
+        ["cc/context/Cargo.lock", "cargo-bazel-lock.json"]
     );
 }
 

@@ -1,3 +1,4 @@
+# gazelle:exclude BenchMain.cs
 load("@rules_dx//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("@rules_dx//core:defs.bzl", "expect_equal")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")

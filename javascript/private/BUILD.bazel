@@ -1,3 +1,6 @@
+# gazelle:exclude *.cjs
+# gazelle:exclude *.mjs
+
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//javascript:defs.bzl", "javascript_library")

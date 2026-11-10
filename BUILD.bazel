@@ -31,6 +31,9 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cuda/private/testing
 # gazelle:exclude cuda/tests
 # gazelle:exclude haskell/tests/fixtures/bench/bench_src
+# gazelle:exclude haskell/private/coverage/src
+# gazelle:exclude tools/testing/hermetic/consumers/proto_bindings
+# gazelle:exclude tools/testing/hermetic/consumers/cpp_rust/apps
 # gazelle:exclude flutter/tests/fixtures/flutter-app/ios/Runner
 # gazelle:exclude core/quality/tiers
 # gazelle:exclude java/private/jmh

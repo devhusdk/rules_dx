@@ -62,7 +62,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | typos | 1.52.1 | Apache-2.0, MIT |
 | typstyle | 0.15.2 | Apache-2.0 |
 | uv | 0.13.7 | Apache-2.0, MIT |
-| vale | 3.20.0 | MIT |
+| vale | 3.26.0 | MIT |
 | wasmtime | 50.0.1 | Apache-2.0 WITH LLVM-exception |
 | write-good (vale style) | 0.4.1 | MIT |
 | xmllint | 2.15.4 | MIT |

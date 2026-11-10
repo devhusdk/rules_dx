@@ -3,7 +3,6 @@ load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@dx_npm_tools//javascript/private/quality:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@redocly/cli/package_json.bzl", redocly_bin = "bin")
-load("@dx_npm_tools//javascript/private/quality:asciidoctor/package_json.bzl", asciidoctor_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:esbuild/package_json.bzl", esbuild_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:typedoc/package_json.bzl", typedoc_bin = "bin")
@@ -143,8 +142,10 @@ js_binary(
     entry_point = "prettier.mjs",
 )
 
-asciidoctor_bin.asciidoctor_binary(
+js_binary(
     name = "asciidoctor_generated",
+    data = ["//javascript/private/quality:node_modules/asciidoctor"],
+    entry_point = "asciidoctor.mjs",
     env = {"BAZEL_BINDIR": "."},
 )
 
@@ -263,7 +264,7 @@ esbuild_bin.esbuild_binary(
 
 js_tool(
     name = "asciidoctor",
-    entry_point = ":asciidoctor_generated__entry_point",
+    entry_point = "asciidoctor.mjs",
     js_binary = ":asciidoctor_generated",
     visibility = ["//visibility:public"],
 )

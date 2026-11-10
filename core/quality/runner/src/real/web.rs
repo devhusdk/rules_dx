@@ -140,8 +140,11 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 None => return Err(missing_tier_base(tool_id)),
             };
             let out = backend.run(tool_id, tool, &invocation, scratch)?;
-            // Vale prints a runtime error envelope on stderr when stdout is empty.
-            let report = if out.stdout.iter().all(u8::is_ascii_whitespace) {
+            // Vale prints a runtime error envelope on stderr when stdout is empty or `{}`.
+            let stdout_empty = out.stdout.iter().all(u8::is_ascii_whitespace)
+                || (out.stdout.trim_ascii() == b"{}"
+                    && !out.stderr.iter().all(u8::is_ascii_whitespace));
+            let report = if stdout_empty {
                 &out.stderr
             } else {
                 &out.stdout

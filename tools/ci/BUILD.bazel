@@ -1258,9 +1258,47 @@ rust_test(
 )
 
 rust_test(
+    name = "test_budget_test",
+    size = "small",
+    srcs = [
+        "test_budget_test.rs",
+        "test_calls.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "test_budget_test",
+    crate_root = "test_budget_test.rs",
+    data = [
+        "test_budget_allowlist.txt",
+        "//tools/testing:nested_smoke.txt",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+        "NESTED_LIST": "$(rlocationpath //tools/testing:nested_smoke.txt)",
+        "TEST_BUDGET_ALLOWLIST": "$(rlocationpath test_budget_allowlist.txt)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
     name = "test_tags_test",
     size = "small",
-    srcs = ["test_tags_test.rs"],
+    srcs = [
+        "test_calls.rs",
+        "test_tags_test.rs",
+    ],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,

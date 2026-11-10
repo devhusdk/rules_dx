@@ -86,6 +86,7 @@ real_source_target(
         "proxy-and-ca.md",
         "design/host-tools.md",
         "design/locks.md",
+        "design/test-budget.md",
         "languages/android.md",
         "languages/ansible.md",
         "languages/api_spec.md",

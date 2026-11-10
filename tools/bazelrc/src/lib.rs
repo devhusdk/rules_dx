@@ -24,7 +24,7 @@ pub const HEADER_MARKER: &str = "# Vendored Bazel execution preset -- GENERATED"
 /// One generated line: the flag and the comment rendered directly above it.
 type Flag = (&'static str, &'static str);
 
-const UPSTREAM_FLAGS: [Flag; 2] = [
+const UPSTREAM_FLAGS: [Flag; 3] = [
     (
         "build --verbose_failures",
         "Print the full command line of a failed action.",
@@ -32,6 +32,10 @@ const UPSTREAM_FLAGS: [Flag; 2] = [
     (
         "test --test_output=errors",
         "Show the log of a failing test in the console.",
+    ),
+    (
+        "test --test_verbose_timeout_warnings",
+        "Warn when a test runs far under or over its declared size.",
     ),
 ];
 
@@ -758,6 +762,7 @@ mod tests {
             [
                 "build --verbose_failures",
                 "test --test_output=errors",
+                "test --test_verbose_timeout_warnings",
                 "common --enable_platform_specific_config",
                 "coverage --test_env=GENERATE_LLVM_LCOV=1",
                 "coverage --combined_report=lcov",
@@ -884,8 +889,8 @@ mod tests {
                 total += 1;
             }
         }
-        assert_eq!(total, 54);
-        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 54);
+        assert_eq!(total, 55);
+        assert_eq!(rendered_flag_lines(&render_all(DEFAULT_REPO)).len(), 55);
         let options = |layer: Layer| -> BTreeSet<String> {
             layer
                 .flags()
@@ -977,7 +982,7 @@ mod tests {
         let flags = rendered_flag_lines(&render_all(DEFAULT_REPO));
         assert!(flags.contains("build:dx_build_dev --compilation_mode=fastbuild"));
         assert!(flags.contains("build --host_compilation_mode=fastbuild"));
-        assert_eq!(flags.len(), 54);
+        assert_eq!(flags.len(), 55);
         assert!(!flags.iter().any(|line| line.starts_with('#')));
         assert!(!flags.iter().any(String::is_empty));
     }

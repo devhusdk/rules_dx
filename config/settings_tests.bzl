@@ -2,7 +2,7 @@
 
 The workspace flag reads rules_dx's own policy because .bazelrc selects it."""
 
-load("//core:defs.bzl", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 
 _CANONICAL_PREFIX = "@@"  # buildifier: disable=canonical-repository
 
@@ -38,6 +38,19 @@ def exec_settings_tests(name):
         expected_observations = EXEC_EXPECTED_OBSERVATIONS,
     )
 
+def tool_flag_scope_tests(name):
+    """Declares a test that every tool label_flag declared before it in the package keeps its value in the exec configuration."""
+    unscoped = sorted([
+        rule_name
+        for rule_name, rule in native.existing_rules().items()
+        if rule["kind"] == "label_flag" and rule_name.startswith("tool_") and rule.get("scope") != "universal"
+    ])
+    starlark_test(
+        name = name,
+        mode = "unit",
+        checks = [expect_equal("tool_flags_without_universal_scope", unscoped, [])],
+    )
+
 EXPECTED_WORKSPACE_POLICY_OBSERVATIONS = """subject //config:workspace_policy_under_test
 field config.ansible_lint=core/quality/tiers/ansible_lint/strict.yaml
 field config.bicep=core/quality/tiers/bicep/strict.bicepconfig.json
@@ -56,8 +69,8 @@ field config.docstrfmt=core/quality/tiers/docstrfmt/strict.toml
 field config.elvis=core/quality/tiers/elvis/strict.config
 field config.errcheck=core/quality/tiers/errcheck/standard.txt
 field config.eslint=core/quality/tiers/eslint/strict.mjs
-field config.ffmt=core/quality/tiers/ffmt/standard.toml
-field config.fortitude=core/quality/tiers/fortitude/standard.toml
+field config.ffmt=core/quality/tiers/ffmt/strict.toml
+field config.fortitude=core/quality/tiers/fortitude/strict.toml
 field config.fsharplint=core/quality/tiers/fsharplint/strict.json
 field config.gersemi=core/quality/tiers/gersemi/strict.yaml
 field config.govet=core/quality/tiers/govet/standard.json
@@ -206,6 +219,10 @@ field disabled.ocaml.audit=True
 field disabled.ocaml.format=False
 field disabled.ocaml.lint=False
 field disabled.ocaml.typecheck=True
+field disabled.oci_image.audit=True
+field disabled.oci_image.format=True
+field disabled.oci_image.lint=False
+field disabled.oci_image.typecheck=False
 field disabled.powershell.audit=True
 field disabled.powershell.format=True
 field disabled.powershell.lint=False
@@ -362,6 +379,10 @@ field family.ocaml.audit=
 field family.ocaml.format=topiary
 field family.ocaml.lint=typos
 field family.ocaml.typecheck=
+field family.oci_image.audit=
+field family.oci_image.format=
+field family.oci_image.lint=trivy_image_config
+field family.oci_image.typecheck=container_structure_test
 field family.powershell.audit=
 field family.powershell.format=
 field family.powershell.lint=typos
@@ -418,7 +439,6 @@ field family.zig.audit=
 field family.zig.format=zig_fmt
 field family.zig.lint=typos,zig_ast_check
 field family.zig.typecheck=
-field tier.fortran=standard
 field tier.go=standard
 field tier.java=standard
 field tier.kotlin=standard
@@ -426,7 +446,7 @@ field tier.python=standard
 field tier.rust=standard
 field tier.yaml=standard
 aspect_field aspect_seen=True
-aspect_field field_count=386
+aspect_field field_count=393
 aspect_field has_subject=True
 aspect_field subject_label=//config:workspace_policy_under_test
 aspect_field transitive_count=0"""

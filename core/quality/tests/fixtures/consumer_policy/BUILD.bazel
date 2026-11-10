@@ -54,8 +54,6 @@ workspace_policy(
         ":biome_json_family",
         ":cloudformation_family",
         ":cmake_family",
-        "//core/quality/testdata/dialyzer:elixir_family",
-        "//core/quality/testdata/dialyzer:erlang_family",
         "//core/quality/testdata/dotnet_owned:csharp_family",
         "//core/quality/testdata/go_owned:go_family",
         "//core/quality/testdata/nvcc_syntax:cuda_family",

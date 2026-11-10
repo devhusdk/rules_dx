@@ -223,7 +223,7 @@ GHC_DROPPED_PATHS = [
 
 NO_HOST_TOOL = "dx-no-host-tool"
 
-BUNDLED_TOOLS = ["Merge objects command", "windres command"]
+BUNDLED_TOOLS = ["Merge objects command", "windres command", "ar command"]
 
 MINGW_ROOT = "$topdir/../mingw/"
 

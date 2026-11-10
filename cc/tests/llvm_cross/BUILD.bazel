@@ -1,0 +1,47 @@
+load("//cc/private/toolchains:select.bzl", "cc_toolchain_files")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+package(default_testonly = True)
+
+platform(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+)
+
+cc_toolchain_files(
+    name = "llvm_arm64",
+    srcs = [
+        "//cc/tests/fixtures/hello:hello",
+        "//go/tests/fixtures/hello:hello",
+        "//rust/tests/fixtures/native_call:native_call_bin",
+        "//zig/tests/fixtures/hello:hello",
+    ],
+    compiler = "llvm",
+    platforms = ["//cc/tests/llvm_cross:linux_arm64"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+rust_test(
+    name = "cross_arm64_test",
+    srcs = ["cross_arm64_test.rs"],
+    data = [":llvm_arm64"],
+    env = {"LLVM_ARM64": "$(rootpaths :llvm_arm64)"},
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

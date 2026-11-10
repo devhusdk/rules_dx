@@ -1,5 +1,9 @@
-use super::{FileFinding, ParseError, as_text, code_name, known_spelled, point, require_findings};
+use super::{
+    FileFinding, ParseError, as_text, code_name, known_relative, known_spelled, point,
+    require_findings,
+};
 use crate::{ColumnEncoding, Finding, ToolSeverity};
+use std::path::Path;
 
 const TOOL: &str = "actionlint";
 
@@ -19,12 +23,13 @@ fn position(value: &serde_json::Value, key: &str) -> Result<u64, ParseError> {
 }
 
 /// Parses `actionlint -format '{{json .}}'`: one JSON array, or `null` when nothing was found.
-/// Exit 1 means findings; 2 and 3 are usage and fatal errors.
+/// Exit 1 means findings; 2 and 3 are usage and fatal errors. Paths are spelled from `cwd`.
 pub fn parse_actionlint(
     stdout: &[u8],
     stderr: &[u8],
     code: Option<i32>,
     files: &[&str],
+    cwd: &Path,
 ) -> Result<Vec<FileFinding>, ParseError> {
     if !matches!(code, Some(0 | 1)) {
         return Err(ParseError::shape(
@@ -45,7 +50,9 @@ pub fn parse_actionlint(
         .unwrap_or_default();
     let mut findings = Vec::with_capacity(entries.len());
     for entry in &entries {
-        let checked = known_spelled(TOOL, files, text(entry, "filepath")?)?;
+        let path = text(entry, "filepath")?;
+        let checked = known_spelled(TOOL, files, path)
+            .or_else(|_| known_relative(TOOL, files, cwd, path))?;
         let message = text(entry, "message")?.trim();
         if message.is_empty() {
             return Err(ParseError::shape(TOOL, "missing message"));
@@ -84,12 +91,12 @@ mod tests {
     #[test]
     fn actionlint_clean_run_is_clean() {
         assert!(
-            parse_actionlint(b"null", b"", Some(0), &[FILE])
+            parse_actionlint(b"null", b"", Some(0), &[FILE], Path::new(""))
                 .expect("parsed")
                 .is_empty()
         );
         assert!(
-            parse_actionlint(b"[]\n", b"", Some(0), &[FILE])
+            parse_actionlint(b"[]\n", b"", Some(0), &[FILE], Path::new(""))
                 .expect("parsed")
                 .is_empty()
         );
@@ -97,7 +104,7 @@ mod tests {
 
     #[test]
     fn actionlint_reports_kind_as_rule() {
-        let findings = parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &[FILE]).expect("parsed");
+        let findings = parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &[FILE], Path::new("")).expect("parsed");
         assert_eq!(findings.len(), 2);
         assert_eq!(findings[0].file, FILE);
         assert_eq!(findings[0].finding.rule_id, "expression");
@@ -109,18 +116,36 @@ mod tests {
 
     #[test]
     fn actionlint_failures_are_errors() {
-        assert!(parse_actionlint(b"", b"bad flag", Some(2), &[FILE]).is_err());
-        assert!(parse_actionlint(b"", b"", Some(3), &[FILE]).is_err());
-        assert!(parse_actionlint(b"null", b"", Some(1), &[FILE]).is_err());
-        assert!(parse_actionlint(b"", b"", Some(0), &[FILE]).is_err());
-        assert!(parse_actionlint(b"{}", b"", Some(1), &[FILE]).is_err());
-        assert!(parse_actionlint(&[0xff], b"", Some(0), &[FILE]).is_err());
+        assert!(parse_actionlint(b"", b"bad flag", Some(2), &[FILE], Path::new("")).is_err());
+        assert!(parse_actionlint(b"", b"", Some(3), &[FILE], Path::new("")).is_err());
+        assert!(parse_actionlint(b"null", b"", Some(1), &[FILE], Path::new("")).is_err());
+        assert!(parse_actionlint(b"", b"", Some(0), &[FILE], Path::new("")).is_err());
+        assert!(parse_actionlint(b"{}", b"", Some(1), &[FILE], Path::new("")).is_err());
+        assert!(parse_actionlint(&[0xff], b"", Some(0), &[FILE], Path::new("")).is_err());
     }
 
     #[test]
     fn actionlint_rejects_unknown_files() {
-        let err = parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &["other.yml"])
+        let err = parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &["other.yml"], Path::new(""))
             .expect_err("unknown file");
         assert!(matches!(err, ParseError::UnknownFile { .. }), "{err}");
+    }
+
+    #[test]
+    fn actionlint_resolves_paths_spelled_from_the_working_directory() {
+        let absolute = "/scratch/.github/workflows/ci.yml";
+        let findings = parse_actionlint(
+            DIRTY.as_bytes(),
+            b"",
+            Some(1),
+            &[absolute],
+            Path::new("/scratch"),
+        )
+        .expect("parsed");
+        assert_eq!(findings[0].file, absolute);
+        assert!(
+            parse_actionlint(DIRTY.as_bytes(), b"", Some(1), &[absolute], Path::new("/other"))
+                .is_err()
+        );
     }
 }

@@ -601,7 +601,13 @@ pub(super) const TOOLS: &[ToolDef] = &[
                 |out, names| {
                     parsed(
                         tool_id,
-                        parsers::parse_actionlint(&out.stdout, &out.stderr, out.code, names),
+                        parsers::parse_actionlint(
+                            &out.stdout,
+                            &out.stderr,
+                            out.code,
+                            names,
+                            scratch.root(),
+                        ),
                     )
                 },
             )

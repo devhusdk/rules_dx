@@ -2614,7 +2614,7 @@ mod tests {
         code: Option<i32>,
         files: &[&str],
     ) -> Result<Vec<super::FileFinding>, ParseError> {
-        super::actionlint::parse_actionlint(input, input, code, files)
+        super::actionlint::parse_actionlint(input, input, code, files, Path::new(""))
     }
 
     fn fuzz_zizmor(

@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_github_workflow_actionlint_run_fail
+capability LINT
+stages 1
+stage actionlint classes=github_workflow sources=matrix/actionlint_run.yml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR actionlint shellcheck matrix/actionlint_run.yml 79 79 fixable=false "shellcheck reported issue in this script: SC2086:info:1:6: Double quote to prevent globbing and word splitting"
+terminal 1
+terminal ERROR actionlint shellcheck matrix/actionlint_run.yml 79 79 fixable=false "shellcheck reported issue in this script: SC2086:info:1:6: Double quote to prevent globbing and word splitting"
+replacements 0

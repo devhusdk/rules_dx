@@ -3885,6 +3885,20 @@ FILE_FAMILY_CASES = [
         "windows_arm64": True,
     },
     {
+        "name": "matrix_github_workflow_actionlint_run_fail",
+        "generated": {
+            "matrix/actionlint_run.yml": "name: ci\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $HOME_DIR\n",
+        },
+        "capability": "lint",
+        "stages": ["actionlint;github_workflow;matrix/actionlint_run.yml"],
+        "tool_names": ["actionlint"],
+        "tool_binaries": ["@dx_tools//:actionlint"],
+        "path_tool_owners": ["actionlint"],
+        "path_tool_names": ["shellcheck"],
+        "path_tool_binaries": ["@dx_tools//:shellcheck"],
+        "expected_file": ":matrix/matrix_github_workflow_actionlint_run_fail.expected.txt",
+    },
+    {
         "name": "matrix_shell_lint_pass",
         "generated": {
             "matrix/shellcheck_clean.sh": "#!/usr/bin/env bash\necho \"hello\"\n",

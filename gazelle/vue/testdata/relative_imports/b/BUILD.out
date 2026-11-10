@@ -1,4 +1,4 @@
-load("@rules_dx//vue/rules:defs.bzl", "vue_library")
+load("@rules_dx//vue:defs.bzl", "vue_library")
 
 vue_library(
     name = "Button",

@@ -255,7 +255,7 @@ Language rules:
 - `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript:defs.bzl`: TypeScript.
-- `@rules_dx//vue/rules:defs.bzl`: Vue.
+- `@rules_dx//vue:defs.bzl`: Vue.
 - `@rules_dx//zig/rules:defs.bzl`: Zig.
 
 ### Rule names
@@ -305,7 +305,7 @@ dx rule that wraps it.
 | `@aspect_rules_ts//ts:defs.bzl` | `ts_project` | `@rules_dx//typescript:defs.bzl` | `typescript_library` |
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
-| `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//vue/rules:defs.bzl` | `vue_library` |
+| `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//vue:defs.bzl` | `vue_library` |
 | `@rules_zig//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` | `@rules_dx//zig/rules:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` |
 |  |  | `@rules_dx//ansible/rules:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec/rules:defs.bzl` | `api_spec_library` |
@@ -629,8 +629,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_test_rejection` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_transpiler` |
 |  |  | `@rules_dx//typescript:defs.bzl` | `typescript_upstream_srcs` |
-|  |  | `@rules_dx//vue/rules:defs.bzl` | `vue_build` |
-|  |  | `@rules_dx//vue/rules:defs.bzl` | `vue_test` |
+|  |  | `@rules_dx//vue:defs.bzl` | `vue_build` |
+|  |  | `@rules_dx//vue:defs.bzl` | `vue_test` |
 |  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_bench` |
 |  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_import_name` |
 

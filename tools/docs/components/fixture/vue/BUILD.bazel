@@ -1,7 +1,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/components:defs.bzl", "vue_doc_shard")
-load("//vue/rules:defs.bzl", "vue_library")
+load("//vue:defs.bzl", "vue_library")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)

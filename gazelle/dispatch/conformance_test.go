@@ -266,7 +266,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"vue": {
 		files: map[string]string{"demo.vue": "<template>\n  <div>hello</div>\n</template>\n\n<script>\nexport default {};\n</script>\n"},
-		kind:  "vue_library", target: "demo", defs: "vue/rules:defs.bzl",
+		kind:  "vue_library", target: "demo", defs: "vue:defs.bzl",
 		symbols: []string{"vue_library"},
 	},
 	"zig": {

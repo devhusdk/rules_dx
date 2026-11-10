@@ -282,7 +282,7 @@ TAXONOMY = {
         classes = ["typst"],
     ),
     "vue": struct(
-        owner = "//vue/rules:defs.bzl",
+        owner = "//vue:defs.bzl",
         classes = ["vue"],
     ),
     "xml": struct(

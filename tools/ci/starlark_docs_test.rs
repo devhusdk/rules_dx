@@ -85,7 +85,7 @@ const PACKAGES: [&str; 72] = [
     "julia/rules",
     "julia/tools",
     "typescript/private",
-    "vue/rules",
+    "vue/private",
     "zig/rules",
     "zig/tools",
 ];

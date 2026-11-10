@@ -111,5 +111,5 @@ tools/docs/typescript:defs.bzl
 tools/docs/zig:defs.bzl
 tools/docs:aspect.bzl
 typescript:defs.bzl
-vue/rules:defs.bzl
+vue:defs.bzl
 zig/rules:defs.bzl

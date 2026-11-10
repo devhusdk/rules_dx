@@ -1079,7 +1079,7 @@ rust_test(
     crate_name = "compiler_evidence_test",
     crate_root = "compiler_evidence_test.rs",
     data = [
-        "compiler_evidence.sh",
+        "//.github:actions",
         "//tools/ci/producers:producers_bin",
     ],
     env = {"DX_PRODUCERS_BIN": "$(rootpath //tools/ci/producers:producers_bin)"},

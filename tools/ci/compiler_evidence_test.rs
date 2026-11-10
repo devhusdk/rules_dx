@@ -5,7 +5,7 @@ use dx_test_scratch::{scratch, write};
 use dx_testing::{read_runfiles, runfiles_root};
 use serde_json::{Value, json};
 
-const SCRIPT: &str = "tools/ci/compiler_evidence.sh";
+const ACTION: &str = ".github/actions/compiler-evidence/action.yml";
 
 fn producers_bin() -> Command {
     let bin = runfiles_root().join(std::env::var("DX_PRODUCERS_BIN").expect("DX_PRODUCERS_BIN"));
@@ -95,20 +95,18 @@ fn evidence_mode_fails_without_the_bazel_version() {
 }
 
 #[test]
-fn the_script_hands_its_arguments_to_producers_bin() {
-    let script = read_runfiles(SCRIPT);
-    let commands: Vec<&str> = script
-        .lines()
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .collect();
-    assert_eq!(
-        commands,
-        [
-            "set -euo pipefail",
-            "export DX_BAZEL_VERSION=\"${DX_BAZEL_VERSION:-$(bazel --version | tr -d '\\r')}\"",
-            "exec \"$DX_PRODUCERS\" --evidence \"$@\"",
-        ]
+fn the_action_sets_the_bazel_version_and_calls_producers_bin() {
+    let action = read_runfiles(ACTION);
+    assert!(
+        action.contains("DX_BAZEL_VERSION=\"$(bazel --version | tr -d '\\r')\""),
+        "{action}"
     );
+    assert!(action.contains("export DX_BAZEL_VERSION"), "{action}");
+    assert!(
+        action.contains("\"$DX_PRODUCERS\" --evidence \"$out\" \"$PLATFORM\" \"$facts\""),
+        "{action}"
+    );
+    assert!(!action.contains("compiler_evidence.sh"), "{action}");
 }
 
 #[test]

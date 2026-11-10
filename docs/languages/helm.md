@@ -46,7 +46,7 @@ Manifests:
 
 Lockfiles:
 
-- `Chart.lock`
+None.
 
 ## Platforms
 

@@ -16,6 +16,19 @@ rust_binary(
     deps = ["//core/quality/adapter:quality_adapter"],
 )
 
+rust_binary(
+    name = "oapi_codegen",
+    srcs = ["oapi_codegen_main.rs"],
+    crate_name = "oapi_codegen",
+    crate_root = "oapi_codegen_main.rs",
+)
+
+rust_test(
+    name = "oapi_codegen_test",
+    size = "small",
+    crate = ":oapi_codegen",
+)
+
 exports_files([
     "openapi_python_client.yaml",
     "redocly.yaml",

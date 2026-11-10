@@ -1,7 +1,6 @@
 .bazelrc exec-requirement 4
 .bazelrc rc-flag 2
 ansible/tests/lock_tests.bzl tmp-path 1
-api_spec/private/codegen.bzl tmp-path 1
 apple/private/provisioning/probe.bzl exec-requirement 1
 cli/adopt/src/init_dir.rs tmp-path 1
 cli/adopt/src/watch.rs tmp-path 15

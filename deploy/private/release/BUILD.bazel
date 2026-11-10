@@ -196,7 +196,6 @@ rust_test(
 rust_test(
     name = "candidate_identity_test",
     srcs = ["candidate_test.rs"],
-    env_inherit = ["PATH"],
     deps = all_crate_deps(
         package_name = "deploy/private/dx_release_tools",
         normal = True,
@@ -204,7 +203,7 @@ rust_test(
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
-        "//cli/process:dx_process",
+        "//cli/test_scratch:dx_test_scratch",
         "//deploy/private:dx_deploy_tools",
     ],
 )

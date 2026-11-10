@@ -97,14 +97,13 @@ def _go_client_impl(ctx):
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".go")
     stamp = _preflight(ctx, info, root)
     sdk = ctx.toolchains["@rules_go//go:toolchain"].sdk
-    # run_shell: The shell turns the Go path into an absolute PATH entry and sets HOME to the execroot.
-    ctx.actions.run_shell(
+    ctx.actions.run(
+        executable = ctx.executable._driver,
         tools = [ctx.executable._oapi_codegen],
         inputs = depset([stamp, sdk.go], transitive = [info.files, sdk.srcs, sdk.libs, sdk.tools, sdk.headers]),
         outputs = [out],
-        env = {"GOCACHE": "/tmp/dx_oapi_gocache", "GOFLAGS": "-mod=mod", "GOPROXY": "off"},
-        command = 'PATH="$PWD/$(dirname "$1"):$PATH" HOME="$PWD" exec "$2" -package "$3" -generate types,client -o "$4" "$5"',
-        arguments = [sdk.go.path, ctx.executable._oapi_codegen.path, ctx.attr.package, out.path, root.path],
+        env = {"GOFLAGS": "-mod=mod", "GOPROXY": "off"},
+        arguments = [sdk.go.path, ctx.executable._oapi_codegen.path, out.path, "-package", ctx.attr.package, "-generate", "types,client", root.path],
         execution_requirements = {"block-network": "1"},
         mnemonic = "OpenapiGoClient",
         progress_message = "oapi-codegen " + root.short_path,
@@ -119,6 +118,7 @@ openapi_go_client = rule(
         "package": attr.string(doc = "Go package name of the generated file.", mandatory = True),
         "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
+        "_driver": attr.label(default = Label("//api_spec/private/codegen:oapi_codegen"), executable = True, cfg = "exec"),
         "_oapi_codegen": attr.label(default = Label("@com_github_oapi_codegen_oapi_codegen_v2//cmd/oapi-codegen"), executable = True, cfg = "exec"),
         "_preflight": attr.label(default = Label("//api_spec/private/codegen:preflight"), executable = True, cfg = "exec"),
     },

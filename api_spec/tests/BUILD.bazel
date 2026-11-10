@@ -2,6 +2,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//rust:defs.bzl", "rust_test")
+load(":codegen_tests.bzl", "go_client_action_test")
 load("//api_spec:defs.bzl", "api_spec_library", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
 load("//core:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
@@ -90,6 +91,18 @@ openapi_go_client(
     out = "petstore.go",
     package = "petstore",
     spec = ":petstore",
+)
+
+go_client_action_test(
+    name = "petstore_go_action_test",
+    size = "small",
+    expected = [
+        "-package",
+        "petstore",
+        "-generate",
+        "types,client",
+    ],
+    target_under_test = ":petstore_go",
 )
 
 openapi_codegen_shard(

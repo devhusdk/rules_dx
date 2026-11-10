@@ -154,11 +154,7 @@ fn upgrade_moves_an_older_pin_to_this_dx() {
         "#!/bin/sh\nprintf '%s ' \"$@\" >> \"$STUB_ARGS\"; echo >> \"$STUB_ARGS\"\ncase \" $* \" in *\" mod \"*) exit 0;; esac\nexit 2\n",
     );
     let stub_args = stub_dir.join("args");
-    let path = format!(
-        "{}:{}",
-        stub_dir.display(),
-        std::env::var("PATH").unwrap_or_default()
-    );
+    let path = stub_dir.display().to_string();
     let stub_args_text = stub_args.display().to_string();
     let env = [
         ("PATH", path.as_str()),

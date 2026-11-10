@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
 
 use dx_release_tools::candidate::{
     Candidate, PINS_PATH, build_source_archive, candidate_module_file, ls_remote_output,
@@ -28,44 +27,8 @@ single_version_override(
 ext = use_extension("//lib:defs.bzl", "ext")
 "#;
 
-fn git_home() -> &'static Path {
-    static HOME: OnceLock<PathBuf> = OnceLock::new();
-    HOME.get_or_init(|| {
-        let home = tempfile::Builder::new()
-            .prefix("dx-candidate-home-")
-            .tempdir()
-            .expect("home")
-            .keep();
-        std::fs::write(home.join(".gitconfig"), "").expect("gitconfig");
-        home
-    })
-}
-
 fn git(dir: &Path, args: &[&str]) -> String {
-    let home = git_home();
-    let out = dx_process::capture::run_checked(
-        dx_process::capture::git(dir)
-            .env("HOME", home)
-            .env("GIT_CONFIG_NOSYSTEM", "1")
-            .env("GIT_CONFIG_GLOBAL", home.join(".gitconfig"))
-            .env("GIT_CEILING_DIRECTORIES", std::env::temp_dir())
-            .args([
-                "-c",
-                "user.name=Candidate Test",
-                "-c",
-                "user.email=candidate@example.invalid",
-                "-c",
-                "commit.gpgsign=false",
-                "-c",
-                "tag.gpgsign=false",
-                "-c",
-                "init.defaultBranch=main",
-            ])
-            .args(args),
-        dx_process::capture::DEFAULT_TIMEOUT,
-    )
-    .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
-    String::from_utf8(out.stdout).expect("utf8")
+    dx_test_scratch::git(dir, &std::env::temp_dir(), args)
 }
 
 fn write(path: &Path, bytes: &[u8]) {

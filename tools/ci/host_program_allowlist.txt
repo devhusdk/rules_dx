@@ -12,7 +12,6 @@ cli/adopt/src/launcher.rs spawn-by-name 2
 cli/adopt/src/status.rs env-path 1
 cli/cli/src/adopt/init.rs env-path 1
 cli/cli/src/exec/stream_probe_tests.rs spawn-by-name 1
-cli/cli/tests/adopt/tests/adopt.rs env-path 1
 cli/cli/tests/agents/tests/dev_launcher.rs spawn-by-name 2
 cli/cli/tests/uv_sets/tests/uv_sets.rs env-path 1
 cli/output/src/clap_errors.rs spawn-by-name 1

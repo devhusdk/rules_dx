@@ -228,6 +228,7 @@ consumer_policy_tests(
         },
         {
             "case": "default_d",
+            "absent_keys": ["format-d", "lint-d", "typecheck-d"],
             "expected_dx_results": [
                 "greet-real-lint-text.pb",
             ],
@@ -266,12 +267,14 @@ consumer_policy_tests(
         },
         {
             "case": "default_powershell",
+            "absent_keys": ["format-powershell", "lint-powershell"],
             "expected_dx_results": [],
             "policy": "//config:default_workspace_policy",
             "subject": "//powershell/tests/fixtures/hello:hello",
         },
         {
             "case": "default_swift",
+            "absent_keys": ["format-swift", "lint-swift"],
             "expected_dx_results": ["greet-real-lint-text.pb"],
             "policy": "//config:default_workspace_policy",
             "subject": "//swift/tests/fixtures/hello:greet",

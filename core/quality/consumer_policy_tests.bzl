@@ -315,9 +315,13 @@ _consumer_policy_test = rule(
     ),
 )
 
-def _result_keys(expected_dx_results):
-    """Returns the sorted aspect keys named by expected result file names."""
+def _result_keys(expected_dx_results, absent_keys):
+    """Returns the sorted aspect keys named by expected results plus the keys that must stay absent."""
     keys = {}
+    for key in absent_keys:
+        if key not in _ASPECTS_BY_RESULT:
+            fail("no real aspect for absent key " + key)
+        keys[key] = True
     for result in expected_dx_results:
         key = result.rsplit("-real-", 1)[1].removesuffix(".pb")
         if key not in _ASPECTS_BY_RESULT:
@@ -469,7 +473,7 @@ def consumer_policy_tests(name, cases, **kwargs):
     """Instantiates one proof per consumer policy selection."""
     kwargs.setdefault("size", "small")
     for case in cases:
-        subjects = {_subject_attr(key): case["subject"] for key in _result_keys(case["expected_dx_results"])}
+        subjects = {_subject_attr(key): case["subject"] for key in _result_keys(case["expected_dx_results"], case.get("absent_keys", []))}
         _consumer_policy_test(
             name = name + "_" + case["case"] + "_test",
             expected_dx_results = case["expected_dx_results"],

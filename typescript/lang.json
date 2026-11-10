@@ -6,6 +6,8 @@
   "ecosystems": [
     "npm"
   ],
+  "depcheck": "ts",
+  "semver": true,
   "manifests": [
     "package.json",
     "tsconfig.json"

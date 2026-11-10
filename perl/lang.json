@@ -6,6 +6,8 @@
   "ecosystems": [
     "cpan"
   ],
+  "depcheck": "perl",
+  "semver": false,
   "manifests": [
     "cpanfile"
   ],

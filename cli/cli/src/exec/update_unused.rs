@@ -43,21 +43,11 @@ impl Via {
 }
 
 fn depcheck_ecosystem(set: &ResolvedSet) -> Option<dx_depcheck::Ecosystem> {
-    match set.ecosystem {
-        Ecosystem::Cargo => Some(dx_depcheck::Ecosystem::Rust),
-        Ecosystem::Npm => Some(dx_depcheck::Ecosystem::Js),
-        Ecosystem::Uv => Some(dx_depcheck::Ecosystem::Python),
-        Ecosystem::Go => Some(dx_depcheck::Ecosystem::Go),
-        Ecosystem::Ruby => Some(dx_depcheck::Ecosystem::Ruby),
-        Ecosystem::Maven => Some(dx_depcheck::Ecosystem::Java),
-        Ecosystem::Nuget => Some(dx_depcheck::Ecosystem::Csharp),
-        Ecosystem::Pub => Some(dx_depcheck::Ecosystem::Dart),
-        Ecosystem::Hex => Some(match hex_backend(set) {
-            Some(HexBackend::Rebar3) => dx_depcheck::Ecosystem::Erlang,
-            _ => dx_depcheck::Ecosystem::Elixir,
-        }),
+    let prefer = match (set.ecosystem, hex_backend(set)) {
+        (Ecosystem::Hex, Some(HexBackend::Rebar3)) => Some("erlang"),
         _ => None,
-    }
+    };
+    dx_depcheck::Ecosystem::of_dependency_ecosystem(set.ecosystem.name(), prefer)
 }
 
 /// Crate name behind a label of a crate_universe hub: `serde-1.0.229` is `serde`, `cc` stays, and

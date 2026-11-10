@@ -184,6 +184,7 @@ rust_test(
         "lang.schema.json",
         "//:MODULE.bazel",
         "//cli/ecosystems:ecosystems.json",
+        "//cli/ecosystems:languages.json",
     ],
     deps = all_crate_deps(
         package_name = "modules_tests",

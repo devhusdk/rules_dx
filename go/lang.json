@@ -6,6 +6,8 @@
   "ecosystems": [
     "go"
   ],
+  "depcheck": "go",
+  "semver": true,
   "manifests": [
     "go.mod"
   ],

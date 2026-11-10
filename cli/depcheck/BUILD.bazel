@@ -51,6 +51,7 @@ rust_library(
         package_name = "cli/dx_depcheck",
         normal = True,
     ) + [
+        "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/path:dx_path",
         "//libs/gomod:dx_gomod",

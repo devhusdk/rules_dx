@@ -6,6 +6,8 @@
   "ecosystems": [
     "nuget"
   ],
+  "depcheck": "csharp",
+  "semver": false,
   "manifests": [
     "paket.dependencies"
   ],

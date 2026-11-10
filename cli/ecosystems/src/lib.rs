@@ -15,6 +15,33 @@ use serde::Deserialize;
 pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, zig, luarocks, ansible, bicep";
 
 const TABLE: &str = include_str!("../ecosystems.json");
+const LANGUAGES: &str = include_str!("../languages.json");
+
+/// A language that depcheck reads, generated from its `lang.json`.
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Language {
+    pub name: String,
+    pub depcheck: String,
+    pub semver: bool,
+    pub ecosystems: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct LanguageTable {
+    languages: Vec<Language>,
+}
+
+/// Lists the depcheck languages in name order.
+pub fn languages() -> &'static [Language] {
+    static LANGUAGES_TABLE: OnceLock<Vec<Language>> = OnceLock::new();
+    LANGUAGES_TABLE.get_or_init(|| {
+        serde_json::from_str::<LanguageTable>(LANGUAGES)
+            .map(|table| table.languages)
+            .unwrap_or_default()
+    })
+}
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]

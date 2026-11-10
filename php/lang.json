@@ -6,6 +6,8 @@
   "ecosystems": [
     "composer"
   ],
+  "depcheck": "php",
+  "semver": false,
   "manifests": [
     "composer.json"
   ],

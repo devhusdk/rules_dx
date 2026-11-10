@@ -71,6 +71,7 @@ fn type_problem(path: &str, value: &Value, schema: &Value) -> Option<String> {
         "string" => value.is_string(),
         "array" => value.is_array(),
         "object" => value.is_object(),
+        "boolean" => value.is_boolean(),
         _ => true,
     };
     (!ok).then(|| format!("{path}: expected {wanted}"))
@@ -220,4 +221,39 @@ fn ecosystems_are_dx_ids_and_every_id_is_used() {
         .filter(|id| id.as_str() != "bazel" && !used.contains(*id))
         .collect();
     assert!(unused.is_empty(), "no lang.json lists {unused:?}");
+}
+
+#[test]
+fn languages_json_lists_every_depcheck_language() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("modules/families.json"))
+        .expect("families.json");
+    let mut rows = Vec::new();
+    for dir in language_dirs(&root, &families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        if manifest["depcheck"].is_null() {
+            continue;
+        }
+        rows.push((
+            manifest["name"].as_str().expect("name").to_owned(),
+            serde_json::json!({
+                "name": manifest["name"],
+                "depcheck": manifest["depcheck"],
+                "semver": manifest["semver"],
+                "ecosystems": manifest["ecosystems"],
+            }),
+        ));
+    }
+    rows.sort_by(|a, b| a.0.cmp(&b.0));
+    let rows: Vec<Value> = rows.into_iter().map(|(_, row)| row).collect();
+    let text = serde_json::to_string_pretty(&serde_json::json!({"languages": rows}))
+        .expect("serializes")
+        + "\n";
+    let scratch = dx_testing::mkscratch("languages_json").expect("scratch");
+    let actual = scratch.join("languages.json");
+    dx_testing::write_text(&actual, &text);
+    let expected = dx_testing::resolve_runfiles("cli/ecosystems/languages.json");
+    dx_testing::snapshot_diff(&expected, &actual, Some("cli/ecosystems/languages.json"))
+        .expect("cli/ecosystems/languages.json is generated from every lang.json");
 }

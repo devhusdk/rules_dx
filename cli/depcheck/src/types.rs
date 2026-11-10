@@ -96,76 +96,72 @@ impl std::str::FromStr for Ecosystem {
 }
 
 impl Ecosystem {
+    const ALL: [Ecosystem; 26] = [
+        Self::Rust,
+        Self::Python,
+        Self::Js,
+        Self::Ts,
+        Self::Go,
+        Self::Java,
+        Self::Kotlin,
+        Self::Scala,
+        Self::Csharp,
+        Self::Fsharp,
+        Self::Cc,
+        Self::Ruby,
+        Self::Perl,
+        Self::Zig,
+        Self::Julia,
+        Self::Dart,
+        Self::Php,
+        Self::Elixir,
+        Self::Erlang,
+        Self::Fortran,
+        Self::D,
+        Self::Haskell,
+        Self::Swift,
+        Self::Powershell,
+        Self::Lua,
+        Self::Ocaml,
+    ];
+
+    fn language(self) -> Option<&'static dx_ecosystems::Language> {
+        let key = format!("{self:?}").to_ascii_lowercase();
+        dx_ecosystems::languages()
+            .iter()
+            .find(|language| language.depcheck == key)
+    }
+
     /// Parses an ecosystem name, returning `None` when it is not one of them.
     pub fn parse(text: &str) -> Option<Self> {
-        match text {
-            "rust" => Some(Self::Rust),
-            "python" => Some(Self::Python),
-            "js" => Some(Self::Js),
-            "ts" => Some(Self::Ts),
-            "go" => Some(Self::Go),
-            "java" => Some(Self::Java),
-            "kotlin" => Some(Self::Kotlin),
-            "scala" => Some(Self::Scala),
-            "csharp" => Some(Self::Csharp),
-            "fsharp" => Some(Self::Fsharp),
-            "cc" => Some(Self::Cc),
-            "ruby" => Some(Self::Ruby),
-            "perl" => Some(Self::Perl),
-            "zig" => Some(Self::Zig),
-            "julia" => Some(Self::Julia),
-            "dart" => Some(Self::Dart),
-            "php" => Some(Self::Php),
-            "elixir" => Some(Self::Elixir),
-            "erlang" => Some(Self::Erlang),
-            "fortran" => Some(Self::Fortran),
-            "d" => Some(Self::D),
-            "haskell" => Some(Self::Haskell),
-            "swift" => Some(Self::Swift),
-            "powershell" => Some(Self::Powershell),
-            "lua" => Some(Self::Lua),
-            "ocaml" => Some(Self::Ocaml),
-            _ => None,
-        }
+        Self::ALL.into_iter().find(|ecosystem| ecosystem.name() == text)
+    }
+
+    /// Picks the language that reads the dependency ecosystem `id`, the one named `prefer` first.
+    pub fn of_dependency_ecosystem(id: &str, prefer: Option<&str>) -> Option<Self> {
+        let languages = dx_ecosystems::languages();
+        let lists = |language: &&dx_ecosystems::Language| {
+            language.ecosystems.iter().any(|listed| listed == id)
+        };
+        let language = prefer
+            .and_then(|name| {
+                languages
+                    .iter()
+                    .filter(lists)
+                    .find(|language| language.depcheck == name)
+            })
+            .or_else(|| languages.iter().find(lists))?;
+        Self::parse(&language.depcheck)
     }
 
     pub fn name(self) -> &'static str {
-        match self {
-            Self::Rust => "rust",
-            Self::Python => "python",
-            Self::Js => "js",
-            Self::Ts => "ts",
-            Self::Go => "go",
-            Self::Java => "java",
-            Self::Kotlin => "kotlin",
-            Self::Scala => "scala",
-            Self::Csharp => "csharp",
-            Self::Fsharp => "fsharp",
-            Self::Cc => "cc",
-            Self::Ruby => "ruby",
-            Self::Perl => "perl",
-            Self::Zig => "zig",
-            Self::Julia => "julia",
-            Self::Dart => "dart",
-            Self::Php => "php",
-            Self::Elixir => "elixir",
-            Self::Erlang => "erlang",
-            Self::Fortran => "fortran",
-            Self::D => "d",
-            Self::Haskell => "haskell",
-            Self::Swift => "swift",
-            Self::Powershell => "powershell",
-            Self::Lua => "lua",
-            Self::Ocaml => "ocaml",
-        }
+        self.language()
+            .map_or("", |language| language.depcheck.as_str())
     }
 
     /// Whether this ecosystem states its requirements in the semver grammar.
     pub fn uses_semver_grammar(self) -> bool {
-        matches!(
-            self,
-            Self::Rust | Self::Js | Self::Ts | Self::Go | Self::Dart
-        )
+        self.language().is_some_and(|language| language.semver)
     }
 }
 

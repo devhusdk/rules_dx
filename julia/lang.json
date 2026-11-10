@@ -6,6 +6,8 @@
   "ecosystems": [
     "julia"
   ],
+  "depcheck": "julia",
+  "semver": false,
   "manifests": [
     "Project.toml"
   ],

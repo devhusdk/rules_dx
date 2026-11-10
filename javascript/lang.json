@@ -6,6 +6,8 @@
   "ecosystems": [
     "npm"
   ],
+  "depcheck": "js",
+  "semver": true,
   "manifests": [
     "package.json"
   ],

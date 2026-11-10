@@ -1,0 +1,212 @@
+{
+  "languages": [
+    {
+      "depcheck": "cc",
+      "ecosystems": [
+        "conan"
+      ],
+      "name": "cc",
+      "semver": false
+    },
+    {
+      "depcheck": "csharp",
+      "ecosystems": [
+        "nuget"
+      ],
+      "name": "csharp",
+      "semver": false
+    },
+    {
+      "depcheck": "d",
+      "ecosystems": [
+        "dub"
+      ],
+      "name": "d",
+      "semver": false
+    },
+    {
+      "depcheck": "dart",
+      "ecosystems": [
+        "pub"
+      ],
+      "name": "dart",
+      "semver": true
+    },
+    {
+      "depcheck": "elixir",
+      "ecosystems": [
+        "hex"
+      ],
+      "name": "elixir",
+      "semver": false
+    },
+    {
+      "depcheck": "erlang",
+      "ecosystems": [
+        "hex"
+      ],
+      "name": "erlang",
+      "semver": false
+    },
+    {
+      "depcheck": "fortran",
+      "ecosystems": [
+        "fpm"
+      ],
+      "name": "fortran",
+      "semver": false
+    },
+    {
+      "depcheck": "fsharp",
+      "ecosystems": [
+        "nuget"
+      ],
+      "name": "fsharp",
+      "semver": false
+    },
+    {
+      "depcheck": "go",
+      "ecosystems": [
+        "go"
+      ],
+      "name": "go",
+      "semver": true
+    },
+    {
+      "depcheck": "haskell",
+      "ecosystems": [
+        "cabal"
+      ],
+      "name": "haskell",
+      "semver": false
+    },
+    {
+      "depcheck": "java",
+      "ecosystems": [
+        "maven"
+      ],
+      "name": "java",
+      "semver": false
+    },
+    {
+      "depcheck": "js",
+      "ecosystems": [
+        "npm"
+      ],
+      "name": "javascript",
+      "semver": true
+    },
+    {
+      "depcheck": "julia",
+      "ecosystems": [
+        "julia"
+      ],
+      "name": "julia",
+      "semver": false
+    },
+    {
+      "depcheck": "kotlin",
+      "ecosystems": [
+        "maven"
+      ],
+      "name": "kotlin",
+      "semver": false
+    },
+    {
+      "depcheck": "lua",
+      "ecosystems": [
+        "luarocks"
+      ],
+      "name": "lua",
+      "semver": false
+    },
+    {
+      "depcheck": "ocaml",
+      "ecosystems": [
+        "opam"
+      ],
+      "name": "ocaml",
+      "semver": false
+    },
+    {
+      "depcheck": "perl",
+      "ecosystems": [
+        "cpan"
+      ],
+      "name": "perl",
+      "semver": false
+    },
+    {
+      "depcheck": "php",
+      "ecosystems": [
+        "composer"
+      ],
+      "name": "php",
+      "semver": false
+    },
+    {
+      "depcheck": "powershell",
+      "ecosystems": [
+        "powershell"
+      ],
+      "name": "powershell",
+      "semver": false
+    },
+    {
+      "depcheck": "python",
+      "ecosystems": [
+        "uv"
+      ],
+      "name": "python",
+      "semver": false
+    },
+    {
+      "depcheck": "ruby",
+      "ecosystems": [
+        "ruby"
+      ],
+      "name": "ruby",
+      "semver": false
+    },
+    {
+      "depcheck": "rust",
+      "ecosystems": [
+        "cargo"
+      ],
+      "name": "rust",
+      "semver": true
+    },
+    {
+      "depcheck": "scala",
+      "ecosystems": [
+        "maven"
+      ],
+      "name": "scala",
+      "semver": false
+    },
+    {
+      "depcheck": "swift",
+      "ecosystems": [
+        "swiftpm"
+      ],
+      "name": "swift",
+      "semver": false
+    },
+    {
+      "depcheck": "ts",
+      "ecosystems": [
+        "npm"
+      ],
+      "name": "typescript",
+      "semver": true
+    },
+    {
+      "depcheck": "zig",
+      "ecosystems": [
+        "zig"
+      ],
+      "name": "zig",
+      "semver": false
+    }
+  ]
+}

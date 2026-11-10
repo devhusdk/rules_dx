@@ -6,6 +6,8 @@
   "ecosystems": [
     "cabal"
   ],
+  "depcheck": "haskell",
+  "semver": false,
   "manifests": [
     "cabal.project"
   ],

@@ -6,6 +6,8 @@
   "ecosystems": [
     "cargo"
   ],
+  "depcheck": "rust",
+  "semver": true,
   "manifests": [
     "Cargo.toml"
   ],

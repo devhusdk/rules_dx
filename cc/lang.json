@@ -6,6 +6,8 @@
   "ecosystems": [
     "conan"
   ],
+  "depcheck": "cc",
+  "semver": false,
   "manifests": [
     "conanfile.txt"
   ],

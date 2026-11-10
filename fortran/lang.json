@@ -6,6 +6,8 @@
   "ecosystems": [
     "fpm"
   ],
+  "depcheck": "fortran",
+  "semver": false,
   "manifests": [
     "fpm.toml"
   ],

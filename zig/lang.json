@@ -6,6 +6,8 @@
   "ecosystems": [
     "zig"
   ],
+  "depcheck": "zig",
+  "semver": false,
   "manifests": [
     "build.zig.zon"
   ],

@@ -6,6 +6,8 @@
   "ecosystems": [
     "swiftpm"
   ],
+  "depcheck": "swift",
+  "semver": false,
   "manifests": [
     "Package.swift"
   ],

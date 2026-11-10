@@ -6,6 +6,8 @@
   "ecosystems": [
     "maven"
   ],
+  "depcheck": "scala",
+  "semver": false,
   "manifests": [
     "MODULE.bazel"
   ],

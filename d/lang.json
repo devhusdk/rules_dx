@@ -6,6 +6,8 @@
   "ecosystems": [
     "dub"
   ],
+  "depcheck": "d",
+  "semver": false,
   "manifests": [
     "dub.json"
   ],

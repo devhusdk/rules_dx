@@ -6,6 +6,8 @@
   "ecosystems": [
     "luarocks"
   ],
+  "depcheck": "lua",
+  "semver": false,
   "manifests": [
     "*.rockspec"
   ],

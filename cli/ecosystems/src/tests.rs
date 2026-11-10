@@ -91,3 +91,14 @@ fn lookups_resolve_rows() {
     );
     assert_eq!(osv_source_of_family("nope"), None);
 }
+
+#[test]
+fn languages_name_known_ecosystems() {
+    assert_eq!(languages().len(), 26);
+    for language in languages() {
+        assert!(!language.depcheck.is_empty(), "{} unnamed", language.name);
+        for id in &language.ecosystems {
+            assert!(Ecosystem::parse(id).is_some(), "{} lists {id}", language.name);
+        }
+    }
+}

@@ -6,6 +6,8 @@
   "ecosystems": [
     "maven"
   ],
+  "depcheck": "kotlin",
+  "semver": false,
   "manifests": [
     "MODULE.bazel"
   ],

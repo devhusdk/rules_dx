@@ -6,6 +6,8 @@
   "ecosystems": [
     "uv"
   ],
+  "depcheck": "python",
+  "semver": false,
   "manifests": [
     "pyproject.toml"
   ],

@@ -6,6 +6,8 @@
   "ecosystems": [
     "ruby"
   ],
+  "depcheck": "ruby",
+  "semver": false,
   "manifests": [
     "Gemfile"
   ],

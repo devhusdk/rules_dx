@@ -15,7 +15,10 @@ rust_library(
         package_name = "cli/dx_ecosystems",
         normal = True,
     ),
-    compile_data = ["ecosystems.json"],
+    compile_data = [
+        "ecosystems.json",
+        "languages.json",
+    ],
     crate_name = "dx_ecosystems",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
@@ -32,7 +35,10 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
-    compile_data = ["ecosystems.json"],
+    compile_data = [
+        "ecosystems.json",
+        "languages.json",
+    ],
     crate = ":dx_ecosystems",
     deps = all_crate_deps(
         package_name = "cli/dx_ecosystems",
@@ -57,6 +63,7 @@ exports_files(
     [
         "Cargo.toml",
         "ecosystems.json",
+        "languages.json",
     ],
     visibility = ["//visibility:public"],
 )

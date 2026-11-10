@@ -6,6 +6,8 @@
   "ecosystems": [
     "hex"
   ],
+  "depcheck": "elixir",
+  "semver": false,
   "manifests": [
     "mix.exs"
   ],

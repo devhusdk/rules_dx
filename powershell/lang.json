@@ -6,6 +6,8 @@
   "ecosystems": [
     "powershell"
   ],
+  "depcheck": "powershell",
+  "semver": false,
   "manifests": [
     "PSGallery.requirements.psd1"
   ],

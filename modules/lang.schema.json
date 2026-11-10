@@ -10,6 +10,8 @@
     "title": {"type": "string", "minLength": 1},
     "family": {"type": "string"},
     "ecosystems": {"$ref": "#/$defs/strings"},
+    "depcheck": {"type": "string", "minLength": 1},
+    "semver": {"type": "boolean"},
     "manifests": {"$ref": "#/$defs/strings"},
     "lockfiles": {"$ref": "#/$defs/strings"},
     "tools": {"$ref": "#/$defs/strings"},

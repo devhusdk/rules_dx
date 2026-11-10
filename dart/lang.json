@@ -6,6 +6,8 @@
   "ecosystems": [
     "pub"
   ],
+  "depcheck": "dart",
+  "semver": true,
   "manifests": [
     "pubspec.yaml"
   ],

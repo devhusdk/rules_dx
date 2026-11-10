@@ -6,6 +6,8 @@
   "ecosystems": [
     "hex"
   ],
+  "depcheck": "erlang",
+  "semver": false,
   "manifests": [
     "mix.exs"
   ],

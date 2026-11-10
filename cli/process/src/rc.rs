@@ -20,6 +20,7 @@ pub const DISK_CACHE_GC_MAX_AGE: &str = "14d";
 
 const GC_MAX_SIZE_FLAG: &str = "--experimental_disk_cache_gc_max_size";
 const GC_MAX_AGE_FLAG: &str = "--experimental_disk_cache_gc_max_age";
+const UPLOAD_FLAG: &str = "--remote_upload_local_results";
 const GC_IDLE_DELAY_FLAG: &str = "--experimental_disk_cache_gc_idle_delay";
 
 /// Bazel's default `--experimental_disk_cache_gc_idle_delay`, in seconds.
@@ -179,6 +180,8 @@ pub struct RcPolicy {
     pub slot_idle_secs: Option<u64>,
     /// Where an rc file sets `--color`, which then wins over `NO_COLOR`.
     pub rc_color: RcColor,
+    /// Whether `DX_REMOTE_CACHE_READ_ONLY` is set, so dx adds `--noremote_upload_local_results`.
+    pub remote_cache_read_only: bool,
 }
 
 static HERMETIC: RcPolicy = RcPolicy {
@@ -192,6 +195,7 @@ static HERMETIC: RcPolicy = RcPolicy {
     gc_idle_delay_secs: None,
     slot_idle_secs: None,
     rc_color: RcColor::NONE,
+    remote_cache_read_only: false,
 };
 
 static CURRENT: OnceLock<RcPolicy> = OnceLock::new();
@@ -353,6 +357,7 @@ impl RcPolicy {
             gc_idle_delay_secs,
             slot_idle_secs,
             rc_color: RcColor::from_lines(&lines),
+            remote_cache_read_only: is_ci_value(env_get("DX_REMOTE_CACHE_READ_ONLY").as_deref()),
         }
     }
 
@@ -393,6 +398,12 @@ impl RcPolicy {
                 options.push(format!("{GC_MAX_SIZE_FLAG}={DISK_CACHE_GC_MAX_SIZE}"));
                 options.push(format!("{GC_MAX_AGE_FLAG}={DISK_CACHE_GC_MAX_AGE}"));
             }
+        }
+        if self.remote_cache_read_only
+            && !user_sets_flag(UPLOAD_FLAG)
+            && !user_sets_flag("--noremote_upload_local_results")
+        {
+            options.push("--noremote_upload_local_results".to_owned());
         }
         if let Some(secs) = self.gc_idle_delay_secs
             && !user_sets_flag(GC_IDLE_DELAY_FLAG)

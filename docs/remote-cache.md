@@ -45,6 +45,8 @@ common:cache-ro --config=cache
 common:cache-ro --noremote_upload_local_results
 ```
 
+Or set `DX_REMOTE_CACHE_READ_ONLY=1`. `dx` then adds `--noremote_upload_local_results` to build, test, coverage and run unless the command line sets an upload flag.
+
 `dx` still adds its shared disk cache locally, so Bazel uses both caches. Under `CI=true`, `dx` adds no disk cache.
 
 ## Backends

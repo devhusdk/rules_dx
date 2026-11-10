@@ -340,6 +340,7 @@ fn local_policy() -> RcPolicy {
         gc_idle_delay_secs: None,
         slot_idle_secs: None,
         rc_color: RcColor::NONE,
+        remote_cache_read_only: false,
     }
 }
 
@@ -1207,4 +1208,21 @@ fn a_slot_idle_adds_a_startup_flag_and_an_idle_delay() {
             .iter()
             .any(|a| a.starts_with("--max_idle_secs"))
     );
+}
+
+#[test]
+fn read_only_remote_cache_turns_uploads_off() {
+    let policy = Machine::local()
+        .env("DX_REMOTE_CACHE_READ_ONLY", "1")
+        .policy();
+    assert!(policy.remote_cache_read_only);
+    let options = policy.verb_options("build", None, &[]);
+    assert!(options.contains(&"--noremote_upload_local_results".to_owned()));
+    let user = ["--remote_upload_local_results".to_owned()];
+    assert!(
+        !policy
+            .verb_options("build", None, &user)
+            .contains(&"--noremote_upload_local_results".to_owned())
+    );
+    assert!(!Machine::local().policy().remote_cache_read_only);
 }

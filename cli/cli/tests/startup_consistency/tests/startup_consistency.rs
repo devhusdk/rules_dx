@@ -22,6 +22,7 @@ fn local() {
         gc_idle_delay_secs: None,
         slot_idle_secs: None,
         rc_color: dx_process::RcColor::NONE,
+        remote_cache_read_only: false,
     });
 }
 

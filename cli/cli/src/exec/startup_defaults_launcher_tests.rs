@@ -273,15 +273,34 @@ fn init_and_completion_run_without_a_workspace() {
     let scratch = dx_test_scratch::scratch("dx-startup-outside-");
     let root = scratch.path();
     let start = root.to_string_lossy();
+    let tools = root.join("fake-bin");
+    std::fs::create_dir_all(&tools).expect("fake bin");
+    let bazel = tools.join("bazel");
+    std::fs::write(&bazel, "#!/bin/sh\nexit 0\n").expect("fake bazel");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&bazel, std::fs::Permissions::from_mode(0o755))
+            .expect("fake bazel mode");
+    }
+    let path = format!(
+        "{}:{}",
+        tools.display(),
+        std::env::var("PATH").unwrap_or_default()
+    );
     let (code, out, err) = run_dx(
         root,
         &["init", "--workspace", start.as_ref(), "--apply", "demo"],
-        &[],
+        &[("PATH", path.as_str())],
     );
     assert_eq!(
         code,
-        Some(0),
-        "init into a new directory works outside a workspace: {err}"
+        Some(1),
+        "init ends with generate, which the fake bazel leaves without a result manifest: {err}"
+    );
+    assert!(
+        err.contains("generate completed without a result manifest"),
+        "{err}"
     );
     assert!(out.contains("wrote demo/MODULE.bazel\n"), "{out}");
     assert!(root.join("demo/MODULE.bazel").is_file());

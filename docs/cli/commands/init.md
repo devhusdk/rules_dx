@@ -110,6 +110,7 @@ that already exists and is kept, it prints `dx: <path> (absent-only, left untouc
 stderr. `--quiet` hides the stdout lines. The stderr lines still print. When a
 write fails, apply still lists the files it already wrote, then the
 `init_failed` error. Closing stdout early does not stop the writes.
+When the writes succeed, `--apply` then runs `dx generate --apply` over the directory, which writes every `BUILD.bazel` and every missing lockfile. Its output and exit code follow `dx generate`. It does not run when a write fails.
 
 Output: `--output text|json`. JSON covers the check only; see Init plan below.
 

@@ -253,11 +253,67 @@ fn dispatch_command(invocation: &Invocation, env: Env<'_>) -> i32 {
     code
 }
 
+/// `dx init --apply`: the scaffold, then `dx generate` over the initialized directory.
+fn init_then_generate(invocation: &Invocation, env: Env<'_>) -> i32 {
+    let Env {
+        workspace,
+        runner,
+        query_runner,
+        temp_dir,
+        pid,
+        nonce,
+        out,
+        err,
+        ci,
+        audit_today,
+        actions,
+        proc_root,
+        edit_commit_json,
+    } = env;
+    let code = crate::adopt::execute_adoption(
+        invocation,
+        crate::adopt::AdoptEnv {
+            workspace,
+            runner,
+            query_runner: Some(query_runner),
+            out: &mut *out,
+            err: &mut *err,
+        },
+    );
+    if code != 0 {
+        return code;
+    }
+    let dir = invocation.targets.first().map_or("", String::as_str);
+    let root = workspace.join(dir);
+    let mut generate = invocation.clone();
+    generate.command = Command::Generate;
+    generate.targets = Vec::new();
+    generate::execute_generate(
+        &generate,
+        Env {
+            workspace: &root,
+            runner,
+            query_runner,
+            temp_dir,
+            pid,
+            nonce,
+            out,
+            err,
+            ci,
+            audit_today,
+            actions,
+            proc_root,
+            edit_commit_json,
+        },
+    )
+}
+
 fn dispatch_inner(invocation: &Invocation, env: Env<'_>) -> i32 {
     if invocation.affected && invocation.command != Command::Watch {
         return affected::execute_affected(invocation, env);
     }
     match invocation.command {
+        Command::Init if invocation.applies() => init_then_generate(invocation, env),
         Command::Init
         | Command::Upgrade
         | Command::Status

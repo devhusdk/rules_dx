@@ -1,4 +1,4 @@
-"""Matrix Markdown cases (split from runner_matrix_cases.bzl)."""
+"""Matrix Markdown cases."""
 
 _VALE_STYLE_FILES = [
     "Cliches.yml",

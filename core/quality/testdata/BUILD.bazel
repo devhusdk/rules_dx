@@ -272,12 +272,10 @@ dx_cc_library(
 )
 
 real_aspect_subject(
-    name = "fixture_wrapped_cc_no_format_upstream_subject",
     target = ":fixture_wrapped_cc_no_format_upstream",
 )
 
 real_aspect_subject(
-    name = "fixture_upstream_rust_subject",
     target = ":fixture_upstream_rust",
 )
 
@@ -292,12 +290,10 @@ real_docs_subject(
 )
 
 real_aspect_subject(
-    name = "fixture_upstream_cc_subject",
     target = ":fixture_upstream_cc",
 )
 
 real_aspect_subject(
-    name = "fixture_upstream_cc_no_context_subject",
     tags = ["manual"],
     target = ":fixture_upstream_cc_no_context",
 )
@@ -509,7 +505,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_foreign_hint_subject",
     target = ":fixture_real_python_foreign_hint",
 )
 
@@ -539,7 +534,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_dup_config_subject",
     tags = ["manual"],
     target = ":fixture_real_python_dup_config",
 )
@@ -567,7 +561,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_malformed_config_subject",
     tags = ["manual"],
     target = ":fixture_real_python_malformed_config",
 )
@@ -579,12 +572,10 @@ failure_test(
 )
 
 real_aspect_subject(
-    name = "fixture_real_delim_python_subject",
     target = ":fixture_real_delim_python",
 )
 
 real_aspect_subject(
-    name = "fixture_real_rust_subject",
     target = ":fixture_real_rust",
 )
 
@@ -597,17 +588,14 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_rust_generated_shape_subject",
     target = ":fixture_real_rust_generated_shape",
 )
 
 real_aspect_subject(
-    name = "fixture_real_starlark_subject",
     target = ":fixture_real_starlark",
 )
 
 real_aspect_subject(
-    name = "fixture_real_toml_subject",
     target = ":fixture_real_toml",
 )
 
@@ -619,7 +607,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_markdown_sibling_subject",
     target = ":fixture_real_markdown_sibling",
 )
 
@@ -630,7 +617,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_markdown_sibling_only_subject",
     tags = ["manual"],
     target = ":fixture_real_markdown_sibling_only",
 )
@@ -642,12 +628,10 @@ failure_test(
 )
 
 real_aspect_subject(
-    name = "fixture_real_markdown_subject",
     target = ":fixture_real_markdown",
 )
 
 real_aspect_subject(
-    name = "fixture_real_asciidoc_no_converter_subject",
     tags = ["manual"],
     target = ":fixture_real_asciidoc_no_converter",
 )
@@ -666,7 +650,6 @@ asciidoc_no_converter_test(
 )
 
 real_aspect_subject(
-    name = "fixture_real_rst_no_converter_subject",
     tags = ["manual"],
     target = ":fixture_real_rst_no_converter",
 )
@@ -685,76 +668,62 @@ rst_no_converter_test(
 )
 
 real_aspect_subject(
-    name = "fixture_real_mixed_subject",
     target = ":fixture_real_mixed",
 )
 
 real_aspect_subject(
-    name = "fixture_real_no_lint_subject",
     target = ":fixture_real_no_lint",
 )
 
 real_aspect_subject(
-    name = "fixture_real_no_format_subject",
     target = ":fixture_real_no_format",
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_subject",
     target = ":fixture_real_python",
 )
 
 real_aspect_subject(
-    name = "fixture_real_cc_subject",
     target = ":fixture_real_cc",
 )
 
 real_aspect_subject(
-    name = "fixture_real_cc_hinted_subject",
     target = ":fixture_real_cc_hinted",
 )
 
 real_aspect_subject(
-    name = "fixture_real_cc_format_dirty_subject",
     tags = ["manual"],
     target = ":fixture_real_cc_format_dirty",
 )
 
 real_aspect_subject(
-    name = "fixture_real_shell_subject",
     target = ":fixture_real_shell",
 )
 
 real_aspect_subject(
-    name = "fixture_real_shell_dirty_subject",
     tags = ["manual"],
     target = ":fixture_real_shell_dirty",
 )
 
 real_aspect_subject(
-    name = "fixture_real_shell_format_dirty_subject",
     tags = ["manual"],
     target = ":fixture_real_shell_format_dirty",
 )
 
 real_aspect_subject(
-    name = "fixture_real_text_subject",
     target = ":fixture_real_text",
 )
 
 real_aspect_subject(
-    name = "fixture_real_text_dirty_subject",
     tags = ["manual"],
     target = ":fixture_real_text_dirty",
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_generated_config_subject",
     target = ":fixture_real_python_generated_config",
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_generated_no_optin_subject",
     tags = ["manual"],
     target = ":fixture_real_python_generated_no_optin",
 )
@@ -766,7 +735,6 @@ failure_test(
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_generated_data_no_optin_subject",
     tags = ["manual"],
     target = ":fixture_real_python_generated_data_no_optin",
 )
@@ -778,7 +746,6 @@ failure_test(
 )
 
 real_aspect_subject(
-    name = "fixture_real_python_hinted_subject",
     target = ":fixture_real_python_hinted",
 )
 
@@ -796,7 +763,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_javascript_bad_config_subject",
     tags = ["manual"],
     target = ":fixture_real_javascript_bad_config",
 )
@@ -808,7 +774,6 @@ failure_test(
 )
 
 real_aspect_subject(
-    name = "fixture_real_javascript_subject",
     target = ":fixture_real_javascript",
 )
 
@@ -837,7 +802,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_json_subject",
     target = ":fixture_real_json",
 )
 
@@ -847,7 +811,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_graphql_subject",
     target = ":fixture_real_graphql",
 )
 
@@ -857,7 +820,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_html_subject",
     target = ":fixture_real_html",
 )
 
@@ -867,7 +829,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_json5_subject",
     target = ":fixture_real_json5",
 )
 
@@ -877,7 +838,6 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_jsonc_subject",
     target = ":fixture_real_jsonc",
 )
 
@@ -900,17 +860,14 @@ real_source_target(
 )
 
 real_aspect_subject(
-    name = "fixture_real_typescript_subject",
     target = ":fixture_real_typescript",
 )
 
 real_aspect_subject(
-    name = "fixture_real_jsx_subject",
     target = ":fixture_real_jsx",
 )
 
 real_aspect_subject(
-    name = "fixture_real_tsx_subject",
     target = ":fixture_real_tsx",
 )
 
@@ -967,34 +924,28 @@ pmd_config(
 )
 
 real_aspect_subject(
-    name = "fixture_real_java_subject",
     tags = ["manual"],
     target = ":fixture_real_java",
 )
 
 real_aspect_subject(
-    name = "fixture_real_java_hinted_subject",
     target = ":fixture_real_java_hinted",
 )
 
 real_aspect_subject(
-    name = "fixture_real_kotlin_subject",
     target = ":fixture_real_kotlin",
 )
 
 real_aspect_subject(
-    name = "fixture_real_scala_subject",
     target = ":fixture_real_scala",
 )
 
 real_aspect_subject(
-    name = "fixture_real_scala_dirty_subject",
     tags = ["manual"],
     target = ":fixture_real_scala_dirty",
 )
 
 real_aspect_subject(
-    name = "fixture_real_scala_no_config_subject",
     target = ":fixture_real_scala_no_config",
 )
 

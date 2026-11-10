@@ -1,13 +1,13 @@
-"""Matrix JS cases (split from runner_matrix_cases.bzl)."""
+"""Matrix JS cases."""
 
-load(":runner_matrix_tests.bzl", "matrix_case")
+load(":runner_matrix_tests.bzl", "BIOME_BINARY", "matrix_case")
 
 JS_CASES = [
     matrix_case(
         name = "matrix_javascript_lint_pass",
         capability = "lint",
         tool = "biome",
-        binary = "@dx_tools//:biome",
+        binary = BIOME_BINARY,
         source_class = "javascript",
         src = ":real_clean.js",
     ),
@@ -15,7 +15,7 @@ JS_CASES = [
         name = "matrix_javascript_lint_fail",
         capability = "lint",
         tool = "biome",
-        binary = "@dx_tools//:biome",
+        binary = BIOME_BINARY,
         source_class = "javascript",
         src = ":real_dirty.js",
         config = ":biome_cfg/biome.json",
@@ -25,7 +25,7 @@ JS_CASES = [
         name = "matrix_javascript_format_pass",
         capability = "format",
         tool = "biome",
-        binary = "@dx_tools//:biome",
+        binary = BIOME_BINARY,
         source_class = "javascript",
         src = ":real_clean.js",
         config = ":biome_cfg/biome.json",
@@ -34,7 +34,7 @@ JS_CASES = [
         name = "matrix_javascript_format_fail",
         capability = "format",
         tool = "biome",
-        binary = "@dx_tools//:biome",
+        binary = BIOME_BINARY,
         source_class = "javascript",
         src = ":real_dirty.js",
         config = ":biome_cfg/biome.json",
@@ -44,7 +44,7 @@ JS_CASES = [
         name = "matrix_javascript_biome_hinted",
         capability = "lint",
         tool = "biome",
-        binary = "@dx_tools//:biome",
+        binary = BIOME_BINARY,
         source_class = "javascript",
         src = ":real_clean.js",
         config = ":biome_cfg/biome.json",
@@ -209,7 +209,7 @@ JS_CASES = [
         name = "matrix_javascript_malformed_fail",
         capability = "lint",
         tool = "biome",
-        binary = "@dx_tools//:biome",
+        binary = BIOME_BINARY,
         source_class = "javascript",
         generated = {"matrix/js_malformed.js": "export function add( {\n"},
         platforms = ["linux_x86_64"],

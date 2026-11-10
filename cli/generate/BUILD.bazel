@@ -11,6 +11,7 @@ exports_files(
     visibility = [
         "//core/quality/adapter:__pkg__",
         "//core/quality/tiers:__pkg__",
+        "//tools/ci:__pkg__",
     ],
 )
 

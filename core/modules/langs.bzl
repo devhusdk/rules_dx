@@ -1476,7 +1476,8 @@ LANGS = json.decode("""{
       "julia_library",
       "julia_binary",
       "julia_test",
-      "julia_standalone_binary"
+      "julia_standalone_binary",
+      "julia_bench"
     ],
     "family": "core",
     "lockfiles": [
@@ -2701,6 +2702,7 @@ LANGS = json.decode("""{
       "linux_arm64",
       "linux_x86_64",
       "macos_arm64",
+      "windows_arm64",
       "windows_x86_64"
     ],
     "quality": {

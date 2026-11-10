@@ -161,18 +161,36 @@ fn runner_tier_base_tools(source: &str) -> Vec<String> {
     json_strings(&source[open..close])
 }
 
+/// Tool ids whose generated config metadata sets `tier_base: true`.
+fn bound_tier_base_tools(generated: &str) -> Vec<String> {
+    let mut id = "";
+    let mut found = Vec::new();
+    for line in generated.lines().map(str::trim) {
+        if let Some(value) = line.strip_prefix("id: \"") {
+            id = value.trim_end_matches("\",");
+        } else if line == "tier_base: true," {
+            found.push(id.to_owned());
+        }
+    }
+    found
+}
+
 #[test]
-fn the_matrix_tier_base_list_matches_the_runner_tier_base_tools() {
+fn bound_tier_base_tools_reads_only_the_tier_base_ids() {
+    let generated = "id: \"ruff\",\ntier_base: true,\nid: \"prettier\",\ntier_base: false,\n";
+    assert_eq!(bound_tier_base_tools(generated), ["ruff"]);
+}
+
+#[test]
+fn every_runner_tier_base_tool_has_a_bound_tier_base() {
     let runner = runner_tier_base_tools(&read_runfiles("core/quality/runner/src/real/staging.rs"));
     assert!(!runner.is_empty(), "no tier base tools parsed");
-    assert_eq!(
-        runner,
-        starlark_list_items(
-            &read_runfiles("core/quality/testdata/runner_matrix_tests.bzl"),
-            "RUNNER_TIER_BASE_TOOLS",
-        ),
-        "RUNNER_TIER_BASE_TOOLS in core/quality/testdata/runner_matrix_tests.bzl no longer \
-         matches TIER_BASE_TOOLS in core/quality/runner/src/real/staging.rs"
+    let bound = bound_tier_base_tools(&read_runfiles("cli/generate/src/tools_gen.rs"));
+    let unbound: Vec<&String> = runner.iter().filter(|tool| !bound.contains(tool)).collect();
+    assert!(
+        unbound.is_empty(),
+        "TIER_BASE_TOOLS in core/quality/runner/src/real/staging.rs names tools without \
+         tier_base in core/quality tool config metadata: {unbound:?}"
     );
 }
 

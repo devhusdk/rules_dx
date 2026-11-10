@@ -4,7 +4,7 @@ module(
     bazel_compatibility = [">=9.3.1"],
 )
 
-# floor: equals tested; patched (#2283, #3736)
+# floor: equals tested; root-only patches, consumer fixes tracked in #11399
 bazel_dep(name = "rules_rust", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust",

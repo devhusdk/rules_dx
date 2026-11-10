@@ -33,8 +33,7 @@ fn referenced(build: &str) -> BTreeSet<String> {
 }
 
 /// Repositories a fragment declares with `bazel_dep`, `use_repo` or a repository rule, or
-/// loads an extension or repository rule from: the family modules a consumer uses are
-/// provided by the harness, and the label of the extension it loads must resolve.
+/// loads an extension or repository rule from.
 fn declared(fragment: &str) -> BTreeSet<String> {
     let module = ModuleFile::parse(fragment).expect("fragment parses");
     let mut names = BTreeSet::new();
@@ -134,12 +133,5 @@ fn an_undeclared_repository_is_found() {
     assert_eq!(
         declared(fragment).into_iter().collect::<Vec<_>>(),
         ["maven", "rules_cc"]
-    );
-    // A family module the harness provides is declared by the extension the fragment loads from it.
-    let family = "js_tools = use_extension(\"@rules_dx_js//:extensions.bzl\", \"js_tools\")\n\
-                  rule = use_repo_rule(\"@@rules_dx_powershell//toolchain:repos.bzl\", \"repo\")\n";
-    assert_eq!(
-        declared(family).into_iter().collect::<Vec<_>>(),
-        ["rules_dx_js", "rules_dx_powershell"]
     );
 }

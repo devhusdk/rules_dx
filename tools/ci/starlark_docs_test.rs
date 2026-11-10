@@ -133,17 +133,6 @@ const PACKAGES: [&str; 112] = [
     "zig/private/tools",
 ];
 
-/// Set by a family workspace to the comma-separated packages it checks; the size floors then do not apply.
-const PACKAGES_ENV: &str = "STARLARK_DOCS_PACKAGES";
-
-/// The packages to check: those the caller names, else the root list.
-fn packages() -> Vec<String> {
-    match std::env::var(PACKAGES_ENV) {
-        Ok(list) => list.split(',').map(str::to_owned).collect(),
-        Err(_) => PACKAGES.iter().map(|pkg| (*pkg).to_owned()).collect(),
-    }
-}
-
 /// Fewer non-test rules and aspects than this means the sweep lost its data.
 const MIN_CALLS: usize = 100;
 
@@ -418,7 +407,7 @@ fn every_rule_aspect_and_attr_has_doc() {
     let mut calls = 0;
     let mut attrs = 0;
     let mut problems = Vec::new();
-    let packages = packages();
+    let packages: Vec<String> = PACKAGES.iter().map(|pkg| (*pkg).to_owned()).collect();
     let mut seen = std::collections::BTreeSet::new();
     for path in bzl_files(&root) {
         if skipped(&path) {
@@ -436,13 +425,11 @@ fn every_rule_aspect_and_attr_has_doc() {
     }
     let missing = missing_packages(&packages, &seen, &root);
     assert!(missing.is_empty(), "no .bzl files from {missing:?}");
-    if std::env::var(PACKAGES_ENV).is_err() {
-        assert!(
-            calls > MIN_CALLS,
-            "only {calls} rules and aspects were checked"
-        );
-        assert!(attrs > MIN_ATTRS, "only {attrs} public attrs were checked");
-    }
+    assert!(
+        calls > MIN_CALLS,
+        "only {calls} rules and aspects were checked"
+    );
+    assert!(attrs > MIN_ATTRS, "only {attrs} public attrs were checked");
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 

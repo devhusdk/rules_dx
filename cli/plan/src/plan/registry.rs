@@ -298,25 +298,15 @@ mod tests {
         for command in Command::value_variants() {
             let entry = spec(*command);
             for label in entry.aspects {
-                let (file, name) = label.rsplit_once('%').expect("label has a name");
+                let (file, _) = label.rsplit_once('%').expect("label has a name");
                 if file.starts_with("tools/docs") {
                     continue;
                 }
-                let family = dx_families::families()
-                    .iter()
-                    .find(|family| family.aspects.iter().any(|aspect| aspect == name));
-                match family {
-                    Some(family) if family.name != "core" => {
-                        let in_quality = format!("core/quality:families/{}.bzl", family.name);
-                        let in_language = format!("javascript/private/quality:{}.bzl", family.name);
-                        assert!(file == in_quality || file == in_language, "{label}");
-                    }
-                    _ => assert!(
-                        file.starts_with("core/quality:families/")
-                            || file.contains("/private/quality:"),
-                        "{label}"
-                    ),
-                }
+                assert!(
+                    file.starts_with("core/quality:families/")
+                        || file.contains("/private/quality:"),
+                    "{label}"
+                );
             }
         }
     }

@@ -161,21 +161,7 @@ struct BuildLoader<'a> {
     computed: &'a BTreeMap<String, Vec<Vec<String>>>,
 }
 
-/// `label` as written in a file of `package`, with a `//` label of a family package given its
-/// family repo, so `//rules:defs.bzl` in `@rules_dx_powershell/tests` reads `@rules_dx_powershell//rules:defs.bzl`.
-fn absolute_label(package: &str, label: &str) -> String {
-    match package
-        .split_once('/')
-        .map(|(repo, _)| repo)
-        .filter(|repo| repo.starts_with('@'))
-    {
-        Some(repo) if label.starts_with("//") => format!("{repo}{label}"),
-        _ => label.to_owned(),
-    }
-}
-
 fn bzl_path(package: &str, label: &str) -> Result<String, String> {
-    let label = absolute_label(package, label);
     let (pkg, file) = if let Some(rest) = label
         .strip_prefix("@rules_dx//")
         .or_else(|| label.strip_prefix("//"))
@@ -186,8 +172,6 @@ fn bzl_path(package: &str, label: &str) -> Result<String, String> {
         (pkg.to_owned(), file)
     } else if let Some(file) = label.strip_prefix(':') {
         (package.to_owned(), file)
-    } else if label.starts_with("@rules_dx_") {
-        split_label(&label)?
     } else {
         return Err(format!("load label {label} is outside the main repository"));
     };
@@ -205,14 +189,11 @@ impl starlark::Loader for BuildLoader<'_> {
     }
 
     fn computed(&self, label: &str, symbol: &str) -> Option<Vec<Vec<String>>> {
-        let absolute = absolute_label(&self.package, label);
-        [absolute.as_str(), label].into_iter().find_map(|label| {
-            let label = label
-                .strip_prefix("@rules_dx")
-                .filter(|rest| rest.starts_with("//"))
-                .unwrap_or(label);
-            self.computed.get(&format!("{label}%{symbol}")).cloned()
-        })
+        let label = label
+            .strip_prefix("@rules_dx")
+            .filter(|rest| rest.starts_with("//"))
+            .unwrap_or(label);
+        self.computed.get(&format!("{label}%{symbol}")).cloned()
     }
 }
 

@@ -30,22 +30,6 @@ pub fn rules_py_override() -> String {
     )
 }
 
-/// Returns the `bazel_dep` and `local_path_override` lines that reach `families/<family>` of `source`.
-pub fn family_modules(families: &[String], source: &Path) -> String {
-    let mut text = String::new();
-    for family in families {
-        let name = format!("rules_dx_{family}");
-        let path = source.join("families").join(family);
-        text.push_str(&format!(
-            "bazel_dep(name = {}, version = \"0.0.0\")\nlocal_path_override(\n    module_name = {},\n    path = {},\n)\n",
-            starlark_string(&name),
-            starlark_string(&name),
-            starlark_string(&path.to_string_lossy()),
-        ));
-    }
-    text
-}
-
 /// Drops the `module()` line and any comment or blank lines before it.
 fn without_module_line(snippet: &str) -> String {
     let mut lines = snippet.lines().peekable();
@@ -106,16 +90,6 @@ mod tests {
     use super::*;
 
     const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
-
-    #[test]
-    fn family_modules_depend_on_and_override_each_family() {
-        let text = family_modules(&["go".to_owned()], Path::new("/src"));
-        assert_eq!(
-            text,
-            "bazel_dep(name = \"rules_dx_go\", version = \"0.0.0\")\nlocal_path_override(\n    module_name = \"rules_dx_go\",\n    path = \"/src/families/go\",\n)\n"
-        );
-        assert_eq!(family_modules(&[], Path::new("/src")), "");
-    }
 
     #[test]
     fn module_renames_rules_dx_and_overrides_it_locally() {

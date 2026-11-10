@@ -16,9 +16,7 @@ pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 /// file with the same destination as a shared file panics.
 ///
 /// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` and `.bazelrc` are appended to
-/// what `dx init` wrote; every other file is written as is. A `families.fixture` file lists family
-/// names, one per line; `MODULE.bazel` then also depends on each `rules_dx_<family>` from
-/// `families/<family>` of the checkout named by `DX_SOURCE_ROOT`. Returns the project root.
+/// what `dx init` wrote; every other file is written as is. Returns the project root.
 pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let output = Command::new(dx_testing::resolve_runfiles(&rel))
@@ -60,23 +58,6 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
             .strip_suffix(".fixture")
             .unwrap_or_else(|| panic!("{file} lacks the .fixture suffix"));
         let source = dx_testing::resolve_runfiles(file);
-        if dest == "families" {
-            let list = std::fs::read_to_string(&source)
-                .unwrap_or_else(|error| panic!("read {source:?}: {error}"));
-            let families: Vec<String> = list.split_whitespace().map(str::to_owned).collect();
-            let checkout = std::env::var("DX_SOURCE_ROOT")
-                .unwrap_or_else(|_| panic!("DX_SOURCE_ROOT must name the checkout for families"));
-            let module = root.join("MODULE.bazel");
-            let mut text = std::fs::read_to_string(&module).unwrap_or_default();
-            text.push('\n');
-            text.push_str(&dx_nested::compose::family_modules(
-                &families,
-                Path::new(&checkout),
-            ));
-            std::fs::write(&module, text)
-                .unwrap_or_else(|error| panic!("write {module:?}: {error}"));
-            continue;
-        }
         let body =
             std::fs::read(&source).unwrap_or_else(|error| panic!("read {source:?}: {error}"));
         let target = root.join(dest);

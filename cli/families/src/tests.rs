@@ -3,32 +3,6 @@ use std::collections::BTreeMap;
 use super::*;
 
 #[test]
-fn shipped_table_parses() {
-    assert!(families().iter().any(|family| family.name == "core"));
-    assert!(parse("{").is_err());
-}
-
-#[test]
-fn every_extension_has_one_family() {
-    let mut owners: BTreeMap<String, &str> = BTreeMap::new();
-    for family in families() {
-        for ext in &family.file_extensions {
-            let seen = owners.insert(ext.to_ascii_lowercase(), &family.name);
-            assert!(seen.is_none(), "{ext} is in {seen:?} and {}", family.name);
-        }
-    }
-}
-
-#[test]
-fn extension_lookup_ignores_case() {
-    assert_eq!(
-        family_for_extension(".SWIFT").map(|family| family.name.as_str()),
-        Some("core")
-    );
-    assert!(family_for_extension(".nope").is_none());
-}
-
-#[test]
 fn quality_entries_merge_by_aspect_file() {
     let merged = parse_quality(&[
         r#"{"quality": {"bzl": "core/quality:families/a.bzl", "file_extensions": [".y"]}}"#,

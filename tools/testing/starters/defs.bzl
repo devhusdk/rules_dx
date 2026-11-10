@@ -21,7 +21,6 @@ def starter_consumer_test(name, *, fixture = None, target_compatible_with = None
             "DX_FIXTURE": fixture,
             "DX_FIXTURE_FILES": "$(rootpaths %s)" % files,
             "DX_BAZEL_DEPS": " ".join(bazel_deps),
-            "DX_SOURCE_ROOT": ".",
         },
         size = "small",
         tags = STARTER_CONSUMER_TAGS,

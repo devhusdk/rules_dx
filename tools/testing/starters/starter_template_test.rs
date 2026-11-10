@@ -21,7 +21,6 @@ fn starter_generates_its_files_and_deps() {
                 .or_else(|| file.strip_prefix(&common)?.split_once('/').map(|split| split.1))?;
             rest.strip_suffix(".fixture")
         })
-        .filter(|path| *path != "families")
         .collect();
     paths.sort_unstable();
     for path in paths {
@@ -40,21 +39,14 @@ fn starter_generates_its_files_and_deps() {
     for path in std::fs::read_dir(&root).into_iter().flatten().flatten().map(|e| e.path()) {
         if path.extension().is_some_and(|ext| ext == "bazel" || ext == "bzl") {
             let text = std::fs::read_to_string(&path).unwrap_or_default();
-            assert!(!text.contains("families/"), "{path:?} refers to families/");
             assert!(
                 !text.contains("/rules:defs.bzl"),
                 "{path:?} loads a /rules:defs.bzl label"
             );
-            for module in text.split("@rules_dx_").skip(1) {
-                let name: String = module
-                    .chars()
-                    .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
-                    .collect();
-                assert!(
-                    want.contains(&format!("rules_dx_{name}").as_str()),
-                    "{path:?} loads @rules_dx_{name}, which is not a declared bazel_dep"
-                );
-            }
+            assert!(
+                !text.contains("@rules_dx_"),
+                "{path:?} loads a @rules_dx_ repository"
+            );
         }
     }
     let _ = std::fs::remove_dir_all(&scratch);

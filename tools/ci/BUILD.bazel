@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
@@ -626,19 +626,6 @@ rust_test(
         "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-    ],
-)
-
-# The same checks without the root data; a family workspace runs it over its own packages.
-# keep: reuses starlark_docs_test.rs under a second name
-rust_test(
-    name = "starlark_docs_family_test",
-    srcs = ["starlark_docs_test.rs"],
-    tags = ["manual"],
-    visibility = VIS_TOOLS_PUBLIC,
-    deps = [
-        "//tools/testing:dx_testing",
-        "@crates//:starlark_syntax",
     ],
 )
 

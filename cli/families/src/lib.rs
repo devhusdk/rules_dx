@@ -1,4 +1,4 @@
-//! The language families of `core/modules/families.json`.
+//! The quality and docs aspect files of the `<lang>/lang.json` manifests.
 
 #![cfg_attr(
     not(test),
@@ -14,49 +14,6 @@ use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 use serde::Deserialize;
-
-const TABLE: &str = include_str!("../../../core/modules/families.json");
-
-#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]
-#[serde(default)]
-pub struct Family {
-    #[serde(skip)]
-    pub name: String,
-    pub bazel_deps: Vec<String>,
-    pub file_extensions: Vec<String>,
-    pub aspects: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct Table {
-    families: std::collections::BTreeMap<String, Family>,
-}
-
-/// Parses a `families.json` text, sorted by family name.
-pub fn parse(text: &str) -> Result<Vec<Family>, serde_json::Error> {
-    let table: Table = serde_json::from_str(text)?;
-    Ok(table
-        .families
-        .into_iter()
-        .map(|(name, family)| Family { name, ..family })
-        .collect())
-}
-
-/// The families of the shipped table.
-pub fn families() -> &'static [Family] {
-    static ALL: OnceLock<Vec<Family>> = OnceLock::new();
-    ALL.get_or_init(|| parse(TABLE).unwrap_or_default())
-}
-
-/// The family that owns `ext` (with its leading dot, like `.py`), ignoring ASCII case.
-pub fn family_for_extension(ext: &str) -> Option<&'static Family> {
-    families().iter().find(|family| {
-        family
-            .file_extensions
-            .iter()
-            .any(|own| own.eq_ignore_ascii_case(ext))
-    })
-}
 
 /// The `quality` entry of one `<lang>/lang.json`.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]

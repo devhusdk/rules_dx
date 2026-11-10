@@ -387,7 +387,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "elixir",
-    families = ["beam"],
     files = {
         "//elixir/tests/fixtures/elixir-app:mix.lock": "elixir/tests/fixtures/elixir-app/mix.lock",
         "//elixir/tests/fixtures/elixir-app/catalog:BUILD.bazel": "elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel",
@@ -413,7 +412,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "perl",
-    families = ["perl"],
     files = {
         "//perl/tests/fixtures/perl-app/cli:BUILD.bazel": "perl/tests/fixtures/perl-app/cli/BUILD.bazel",
         "//perl/tests/fixtures/perl-app/cli:stockctl.pl": "perl/tests/fixtures/perl-app/cli/stockctl.pl",
@@ -479,7 +477,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "julia_fixture",
-    families = ["julia"],
     files = {
         "//tools/testing/starters/fixtures:julia/BUILD.bazel.fixture": "BUILD.bazel",
         "//tools/testing/starters/fixtures:julia/Project.toml.fixture": "Project.toml",
@@ -495,7 +492,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "proto_bindings",
-    families = ["generation"],
     files = {
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
         "consumers/proto_bindings/go.mod": "go.mod",
@@ -520,7 +516,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "lua",
-    families = ["lua"],
     files = {
         "//lua/tests/fixtures/lua-app:BUILD.bazel": "lua/tests/fixtures/lua-app/BUILD.bazel",
         "//lua/tests/fixtures/lua-app:inspect.BUILD.bazel": "lua/tests/fixtures/lua-app/inspect.BUILD.bazel",
@@ -543,7 +538,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "erlang",
-    families = ["beam"],
     files = {
         "//erlang/tests/fixtures/erlang-app/proto:BUILD.bazel": "erlang/tests/fixtures/erlang-app/proto/BUILD.bazel",
         "//erlang/tests/fixtures/erlang-app/proto:src/kv_lexer.xrl": "erlang/tests/fixtures/erlang-app/proto/src/kv_lexer.xrl",
@@ -702,7 +696,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "zig",
-    families = ["zig"],
     files = {
         "consumers/zig/apps/catalog.BUILD.bazel": "zig/tests/fixtures/zig-app/catalog/BUILD.bazel",
         "consumers/zig/apps/digest.BUILD.bazel": "zig/tests/fixtures/zig-app/digest/BUILD.bazel",
@@ -728,7 +721,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "dart",
-    families = ["dart"],
     files = {
         "//dart/tests/fixtures/dart-app:BUILD.bazel": "dart/tests/fixtures/dart-app/BUILD.bazel",
         "//dart/tests/fixtures/dart-app:analysis_options.yaml": "dart/tests/fixtures/dart-app/analysis_options.yaml",
@@ -831,7 +823,6 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "msix",
-    families = ["msix"],
     files = {
         "consumers/msix/apps/app.BUILD.bazel": "msix/tests/fixtures/msix-app/app/BUILD.bazel",
         "consumers/msix/apps/tools_test.sh": "msix/tests/fixtures/msix-app/app/tools_test.sh",

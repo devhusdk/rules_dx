@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::Instant;
 
-use dx_nested::compose::{compose_module, family_modules};
+use dx_nested::compose::compose_module;
 use serde_json::{Value, json};
 
 /// Returns the lowercase hex SHA-256 digest of `data`.
@@ -411,7 +411,6 @@ pub struct Manifest {
     pub generate: bool,
     pub files: Vec<(PathBuf, String)>,
     pub module_fragment: Option<PathBuf>,
-    pub families: Vec<String>,
     pub compiler: Option<(String, String)>,
     pub platform: String,
     pub lint_findings: Vec<(String, u64)>,
@@ -585,11 +584,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
     let failures = parse_failures(&value)?;
     let (coverage, covered) = parse_coverage(&value, &files)?;
     let fragment = value["module_fragment"].as_str().unwrap_or("");
-    let families = if value["families"].is_null() {
-        Vec::new()
-    } else {
-        strings(&value, "families")?
-    };
     let compiler = match value["compiler"]["name"]
         .as_str()
         .filter(|name| !name.is_empty())
@@ -619,7 +613,6 @@ pub fn parse_manifest(text: &str, base: &Path) -> Result<Manifest, String> {
         generate: value["generate"].as_bool().unwrap_or(false),
         files,
         module_fragment,
-        families,
         compiler,
         platform: value["platform"].as_str().unwrap_or("").to_owned(),
         lint_findings: parse_lint_findings(&value)?,
@@ -2216,7 +2209,6 @@ fn materialize_init(manifest: &Manifest, workspace: &Path, source: &Path) -> Res
         &fragment,
         source,
     )?;
-    let module = format!("{module}{}", family_modules(&manifest.families, source));
     // A floor search resolves candidate versions: DX_CONSUMER_OVERRIDES=module=version,...
     let module = match std::env::var(dx_floor::OVERRIDES_ENV) {
         Ok(spec) if !spec.trim().is_empty() => {

@@ -17,7 +17,6 @@ fn manifest_for(label: &str, languages: &[&str]) -> Manifest {
         generate: false,
         files: Vec::new(),
         module_fragment: Some(PathBuf::from("f")),
-        families: Vec::new(),
         compiler: None,
         platform: String::new(),
         lint_findings: Vec::new(),
@@ -150,11 +149,6 @@ fn manifest_parses_and_resolves_against_the_runfiles_base() {
         )]
     );
     assert_eq!(manifest.dx, PathBuf::from("/run/cli/cli/dx"));
-    let mut flagged: Value = serde_json::from_str(&text).unwrap();
-    assert!(manifest.families.is_empty());
-    flagged["families"] = json!(["go"]);
-    let manifest = parse_manifest(&flagged.to_string(), Path::new("/run")).unwrap();
-    assert_eq!(manifest.families, vec!["go".to_owned()]);
 }
 
 #[test]

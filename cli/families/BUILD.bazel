@@ -25,7 +25,6 @@ rust_library(
         normal = True,
     ),
     compile_data = [
-        "//core/modules:families.json",
         "//api_spec:lang.json",
         "//astro:lang.json",
         "//avro:lang.json",
@@ -85,7 +84,6 @@ rust_test(
         normal_dev = True,
     ),
     compile_data = [
-        "//core/modules:families.json",
         "//api_spec:lang.json",
         "//astro:lang.json",
         "//avro:lang.json",

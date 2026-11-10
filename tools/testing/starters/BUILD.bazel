@@ -13,8 +13,6 @@ load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//rust:defs.bzl", "rust_library")
 load(":defs.bzl", "starter_consumer_test")
 
-# gazelle:resolve rust dx_nested //tools/testing/nested:dx_nested
-
 starter_consumer_test(
     name = "astro",
     bazel_deps = ["rules_dx", "aspect_rules_js"],
@@ -201,7 +199,6 @@ rust_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
     ],
 )
 

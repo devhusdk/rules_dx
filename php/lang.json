@@ -14,6 +14,21 @@
   "lockfiles": [
     "composer.lock"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "composer",
+        "manifest": "composer.json",
+        "lock": "composer.lock",
+        "state": null,
+        "extension": "@rules_dx//php:extensions.bzl",
+        "tag": "lock",
+        "hub": "composer",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "phpcs",
     "phpstan",

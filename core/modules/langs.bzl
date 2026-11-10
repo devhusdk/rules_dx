@@ -637,6 +637,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "dub",
+          "extension": "@rules_dx//d:extensions.bzl",
+          "hub": "dub",
+          "imports": "name",
+          "lock": "dub.selections.json",
+          "manifest": "dub.json",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "D",
     "tools": []
   },
@@ -713,8 +728,11 @@ LANGS = json.decode("""{
           "ecosystem": "pub",
           "extension": "@rules_dx//dart:extensions.bzl",
           "hub": "pub_deps",
+          "imports": "name",
           "lock": "pubspec.lock",
           "manifest": "pubspec.yaml",
+          "resolver": null,
+          "state": null,
           "tag": "from_lock"
         }
       ]
@@ -1470,15 +1488,23 @@ LANGS = json.decode("""{
           "ecosystem": "npm",
           "extension": "@rules_dx//javascript:extensions.bzl",
           "hub": "npm",
+          "imports": "name",
           "lock": "pnpm-lock.yaml",
           "manifest": "package.json",
+          "resolver": null,
+          "state": null,
           "tag": "npm_translate_lock"
         },
         {
           "ecosystem": "pnpm",
           "extension": "@rules_dx//javascript:extensions.bzl",
           "hub": "pnpm",
-          "manifest": "package.json"
+          "imports": "name",
+          "lock": null,
+          "manifest": "package.json",
+          "resolver": null,
+          "state": null,
+          "tag": null
         }
       ]
     },
@@ -2028,6 +2054,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "composer",
+          "extension": "@rules_dx//php:extensions.bzl",
+          "hub": "composer",
+          "imports": "name",
+          "lock": "composer.lock",
+          "manifest": "composer.json",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "PHP",
     "tools": [
       "phpcs",
@@ -2226,8 +2267,11 @@ LANGS = json.decode("""{
           "ecosystem": "uv",
           "extension": "@rules_dx//python:extensions.bzl",
           "hub": "pypi",
+          "imports": "name",
           "lock": "uv.lock",
           "manifest": "pyproject.toml",
+          "resolver": null,
+          "state": null,
           "tag": "project"
         }
       ]
@@ -2474,8 +2518,11 @@ LANGS = json.decode("""{
           "ecosystem": "cargo",
           "extension": "@rules_dx//rust:extensions.bzl",
           "hub": "crates",
+          "imports": "name",
           "lock": "Cargo.lock",
           "manifest": "Cargo.toml",
+          "resolver": null,
+          "state": null,
           "tag": "from_cargo"
         }
       ]
@@ -2837,7 +2884,12 @@ LANGS = json.decode("""{
           "ecosystem": "typescript",
           "extension": "@rules_dx//typescript:extensions.bzl",
           "hub": "npm_typescript",
-          "manifest": "tsconfig.json"
+          "imports": "name",
+          "lock": null,
+          "manifest": "tsconfig.json",
+          "resolver": null,
+          "state": null,
+          "tag": null
         }
       ]
     },

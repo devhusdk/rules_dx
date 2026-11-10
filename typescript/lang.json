@@ -20,8 +20,13 @@
       {
         "ecosystem": "typescript",
         "manifest": "tsconfig.json",
+        "lock": null,
+        "state": null,
         "extension": "@rules_dx//typescript:extensions.bzl",
-        "hub": "npm_typescript"
+        "tag": null,
+        "hub": "npm_typescript",
+        "resolver": null,
+        "imports": "name"
       }
     ]
   },

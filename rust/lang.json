@@ -20,9 +20,12 @@
         "ecosystem": "cargo",
         "manifest": "Cargo.toml",
         "lock": "Cargo.lock",
+        "state": null,
         "extension": "@rules_dx//rust:extensions.bzl",
         "tag": "from_cargo",
-        "hub": "crates"
+        "hub": "crates",
+        "resolver": null,
+        "imports": "name"
       }
     ]
   },

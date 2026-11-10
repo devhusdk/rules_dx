@@ -4,8 +4,6 @@ digests-file lua/tests/luarocks/luarocks.digests.json
 digests-file php/tests/fixtures/composer/composer.digests.json
 digests-file zig/tests/fixtures/zig-deps/zig.digests.json
 name ansible/lang.json MODULE.bazel
-name astro/lang.json package.json
-name astro/lang.json pnpm-lock.yaml
 name bicep/lang.json MODULE.bazel
 name cc/lang.json conan.lock
 name cc/lang.json conanfile.txt
@@ -417,8 +415,6 @@ name core/quality/fixtures.bzl go.mod
 name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
 name csharp/lang.json paket.dependencies
 name csharp/lang.json paket.lock
-name d/lang.json dub.json
-name d/lang.json dub.selections.json
 name d/private/dub/extensions.bzl dub.selections.json
 name d/private/dub/lock.bzl dub.json
 name d/private/dub/lock.bzl dub.selections.json
@@ -428,8 +424,6 @@ name d/private/dub/repos.bzl package.json
 name d/private/toolchain/pins.bzl dub.json
 name d/private/toolchain/pins.bzl dub.selections.json
 name d/private/toolchain/pins.bzl package.json
-name dart/lang.json pubspec.lock
-name dart/lang.json pubspec.yaml
 name dart/private/quality/dart.bzl pubspec.yaml
 name deploy/private/crates.bzl Cargo.toml
 name deploy/private/github.bzl go.mod
@@ -462,8 +456,6 @@ name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
 name erlang/lang.json mix.exs
 name erlang/lang.json mix.lock
-name flutter/lang.json pubspec.lock
-name flutter/lang.json pubspec.yaml
 name fortran/lang.json fpm.toml
 name fsharp/lang.json paket.dependencies
 name fsharp/lang.json paket.lock
@@ -475,8 +467,6 @@ name haskell/private/deps_resolve.bzl cabal.project.freeze
 name helm/lang.json Chart.lock
 name java/lang.json MODULE.bazel
 name java/lang.json maven_install.json
-name javascript/lang.json package.json
-name javascript/lang.json pnpm-lock.yaml
 name javascript/private/quality/js_tools.bzl tsconfig.json
 name julia/lang.json Manifest.toml
 name julia/lang.json Project.toml
@@ -489,8 +479,6 @@ name lua/luarocks/defs.bzl luarocks.lock
 name lua/luarocks/extensions.bzl luarocks.lock
 name lua/luarocks/lock.bzl luarocks.lock
 name lua/luarocks/repos.bzl luarocks.lock
-name mdx/lang.json package.json
-name mdx/lang.json pnpm-lock.yaml
 name ocaml/lang.json *.opam
 name ocaml/lang.json dune-project
 name ocaml/private/dune.bzl dune-project
@@ -498,26 +486,18 @@ name ocaml/private/quality/repos.bzl dune-project
 name ocaml/private/toolchain/repos.bzl dune-project
 name perl/lang.json cpanfile
 name perl/lang.json cpanfile.snapshot
-name php/lang.json composer.json
-name php/lang.json composer.lock
 name php/private/composer/extensions.bzl composer.lock
 name php/private/composer/lock.bzl composer.lock
 name php/private/composer/repos.bzl composer.lock
 name php/private/php.bzl composer.lock
 name powershell/lang.json PSGallery.lock.json
 name powershell/lang.json PSGallery.requirements.psd1
-name python/lang.json pyproject.toml
-name python/lang.json uv.lock
 name python/private/sdist_cargo_vendor.bzl Cargo.lock
 name python/private/sdist_cargo_vendor.bzl uv.lock
 name ruby/lang.json Gemfile
 name ruby/lang.json Gemfile.lock
-name rust/lang.json Cargo.lock
-name rust/lang.json Cargo.toml
 name scala/lang.json MODULE.bazel
 name scala/lang.json maven_install.json
-name svelte/lang.json package.json
-name svelte/lang.json pnpm-lock.yaml
 name swift/lang.json Package.resolved
 name swift/lang.json Package.swift
 name terraform/lang.json .terraform.lock.hcl
@@ -531,12 +511,7 @@ name tools/docs/support_matrix/languages.bzl mix.lock
 name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
 name tools/testing/nested_bazel.bzl maven_install.json
-name typescript/lang.json package.json
-name typescript/lang.json pnpm-lock.yaml
-name typescript/lang.json tsconfig.json
 name typescript/private/quality/tsc.bzl tsconfig.json
-name vue/lang.json package.json
-name vue/lang.json pnpm-lock.yaml
 name zig/lang.json build.zig.zon
 name zig/private/deps/extensions.bzl build.zig.zon
 name zig/private/deps/lock.bzl build.zig.zon
@@ -555,25 +530,19 @@ parser zig/private/deps/lock.bzl
 registry ansible
 registry bicep
 registry cabal
-registry cargo
-registry composer
 registry conan
 registry cpan
-registry dub
 registry fpm
 registry go
 registry hex
 registry julia
 registry luarocks
 registry maven
-registry npm
 registry nuget
 registry opam
 registry powershell
-registry pub
 registry ruby
 registry swiftpm
-registry uv
 registry zig
 resolve-doc csharp/README.md 1
 resolve-doc elixir/README.md 1

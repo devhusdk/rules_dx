@@ -217,6 +217,35 @@ fn schema_rejects_a_bad_setup() {
 }
 
 #[test]
+fn schema_rejects_a_hub_missing_any_key() {
+    let schema: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
+            .expect("schema");
+    let full = serde_json::json!({
+        "ecosystem": "cargo",
+        "manifest": "Cargo.toml",
+        "lock": "Cargo.lock",
+        "state": null,
+        "extension": "@rules_dx//rust:extensions.bzl",
+        "tag": "from_cargo",
+        "hub": "crates",
+        "resolver": null,
+        "imports": "name",
+    });
+    let whole = serde_json::json!({"setup": {"hubs": [full.clone()]}});
+    let found = schema_problems(&whole, &schema);
+    assert!(found.iter().all(|problem| !problem.starts_with("setup")), "{found:?}");
+    for key in full.as_object().expect("entry").keys() {
+        let mut entry = full.clone();
+        entry.as_object_mut().expect("entry").remove(key);
+        let bad = serde_json::json!({"setup": {"hubs": [entry]}});
+        let found = schema_problems(&bad, &schema);
+        let want = format!("setup.hubs.{key}: missing");
+        assert!(found.contains(&want), "{want}: {found:?}");
+    }
+}
+
+#[test]
 fn every_hub_names_an_extension_its_own_language_exports() {
     let root = dx_testing::rules_dx_source();
     let families: Value =

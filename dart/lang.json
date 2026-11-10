@@ -20,9 +20,12 @@
         "ecosystem": "pub",
         "manifest": "pubspec.yaml",
         "lock": "pubspec.lock",
+        "state": null,
         "extension": "@rules_dx//dart:extensions.bzl",
         "tag": "from_lock",
-        "hub": "pub_deps"
+        "hub": "pub_deps",
+        "resolver": null,
+        "imports": "name"
       }
     ]
   },

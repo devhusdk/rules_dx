@@ -1,0 +1,92 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("@rules_py//py:defs.bzl", "py_binary")
+load("//cc/toolchains:select.bzl", "cc_toolchain_test")
+load("//python:defs.bzl", "python_test")
+load(":sdist_action_tests.bzl", "sdist_action_tests")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "pyproject.toml",
+    "uv.lock",
+])
+
+python_test(
+    name = "geohash_test",
+    srcs = ["geohash_test.py"],
+    dep_group = "sdist-native",
+    main = "geohash_test.py",
+    runner = "plain",
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:windows": ["@platforms//cpu:x86_64"],
+        "//conditions:default": [
+            "@platforms//os:macos",
+            "@platforms//cpu:aarch64",
+        ],
+    }),
+    deps = ["@dx_pypi_sdist//python_geohash"],
+)
+
+cc_toolchain_test(
+    name = "geohash_msvc_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":geohash_test",
+)
+
+cc_toolchain_test(
+    name = "geohash_gcc_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":geohash_test",
+)
+
+# Mirrors the build_tool of the sdist_build repo for the nodeps hub.
+py_binary(
+    name = "nodeps_build_tool",
+    srcs = ["@rules_py//uv/private/pep517_whl/tools:build_helper.py"],
+    dep_group = "sdist-native-nodeps",
+    main = "@rules_py//uv/private/pep517_whl/tools:build_helper.py",
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@dx_pypi_sdist_nodeps//build"],
+)
+
+python_test(
+    name = "missing_build_dep_test",
+    srcs = ["missing_build_dep_test.py"],
+    data = [":nodeps_build_tool"],
+    env = {"BUILD_TOOL": "$(rootpath :nodeps_build_tool)"},
+    main = "missing_build_dep_test.py",
+    runner = "plain",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+sdist_action_tests(
+    name = "sdist_action_tests",
+    target = "@sdist_build__sdist_native__python_geohash__0_8_5//:whl",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "sdist_action_tests.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["pyproject.toml"],
+)

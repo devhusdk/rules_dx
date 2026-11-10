@@ -321,12 +321,6 @@ local_path_override(
     path = "families/dart",
 )
 
-bazel_dep(name = "rules_dx_python", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_python",
-    path = "families/python",
-)
-
 bazel_dep(name = "rules_dx_rust", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_rust",
@@ -1695,7 +1689,74 @@ uv.project(
     lock = "//gazelle/protobuf/tests/grpc:uv.lock",
     pyproject = "//gazelle/protobuf/tests/grpc:pyproject.toml",
 )
-use_repo(uv, pypi = "dx_pypi")
+uv.declare_hub(hub_name = "dx_pypi_fixtures")
+uv.project(
+    hub_name = "dx_pypi_fixtures",
+    lock = "//python/tests/fixtures/python-service:uv.lock",
+    pyproject = "//python/tests/fixtures/python-service:pyproject.toml",
+)
+uv.project(
+    hub_name = "dx_pypi_fixtures",
+    lock = "//python/tests/fixtures/hello:uv.lock",
+    pyproject = "//python/tests/fixtures/hello:pyproject.toml",
+)
+uv.declare_hub(hub_name = "dx_pypi_rust_sdist")
+uv.project(
+    default_build_dependencies = [
+        "build",
+        "maturin",
+    ],
+    hub_name = "dx_pypi_rust_sdist",
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    pyproject = "//python/tests/fixtures/rust_sdist:pyproject.toml",
+)
+uv.override_package(
+    name = "rpds-py",
+    env = {
+        "CARGO_NET_OFFLINE": "true",
+        "CARGO_HOME": "$(EXECROOT)/$(DX_CARGO_VENDOR)/../.cargo",
+    },
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    toolchains = [
+        "@rules_rust//rust/toolchain:current_rust_toolchain",
+        "@dx_rust_sdist_crates//:layer",
+    ],
+)
+uv.declare_hub(hub_name = "dx_pypi_sdist")
+uv.project(
+    default_build_dependencies = [
+        "build",
+        "setuptools",
+    ],
+    hub_name = "dx_pypi_sdist",
+    lock = "//python/tests/sdist_native:uv.lock",
+    pyproject = "//python/tests/sdist_native:pyproject.toml",
+)
+uv.declare_hub(hub_name = "dx_pypi_sdist_nodeps")
+uv.project(
+    default_build_dependencies = ["build"],
+    hub_name = "dx_pypi_sdist_nodeps",
+    lock = "//python/tests/sdist_native/nodeps:uv.lock",
+    pyproject = "//python/tests/sdist_native/nodeps:pyproject.toml",
+)
+use_repo(
+    uv,
+    "dx_pypi_fixtures",
+    "dx_pypi_sdist",
+    "dx_pypi_sdist_nodeps",
+    "sdist_build__sdist_native__python_geohash__0_8_5",
+    "sdist_build__sdist_native_nodeps__python_geohash__0_8_5",
+    pypi = "dx_pypi",
+    rust_sdist_pypi = "dx_pypi_rust_sdist",
+)
+
+sdist_cargo_vendor = use_extension("//python:extensions.bzl", "sdist_cargo_vendor")
+sdist_cargo_vendor.crates(
+    name = "dx_rust_sdist_crates",
+    lock = "//python/tests/fixtures/rust_sdist:uv.lock",
+    package = "rpds-py",
+)
+use_repo(sdist_cargo_vendor, "dx_rust_sdist_crates")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(

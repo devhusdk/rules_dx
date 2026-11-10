@@ -1,0 +1,60 @@
+# gazelle:ignore
+load("//python:defs.bzl", "python_binary", "python_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":coverage_tests.bzl", "instrumented_sources_test")
+load(":runfiles_tests.bzl", "declared_dep_test", "no_click_runfiles_test", "undeclared_dep_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+python_library(
+    name = "dep",
+    srcs = ["dep.py"],
+    imports = ["."],
+)
+
+python_binary(
+    name = "declared",
+    srcs = ["user.py"],
+    main = "user.py",
+    deps = [":dep"],
+)
+
+python_binary(
+    name = "undeclared",
+    srcs = ["user.py"],
+    main = "user.py",
+)
+
+declared_dep_test(
+    name = "declared_dep_test",
+    target_under_test = ":declared",
+)
+
+undeclared_dep_test(
+    name = "undeclared_dep_test",
+    target_under_test = ":undeclared",
+)
+
+instrumented_sources_test(
+    name = "coverage_instrumented_test",
+    target_under_test = "//python/tests/fixtures/python-service/ledger/core:catalog_test",
+)
+
+no_click_runfiles_test(
+    name = "no_click_runfiles_test",
+    target_under_test = "//python/tests/fixtures/python-service/ledger/cli:broken",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "coverage_tests.bzl",
+        "runfiles_tests.bzl",
+    ],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

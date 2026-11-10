@@ -1,0 +1,21 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+exports_files([
+    "pyproject.toml",
+    "uv.lock",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["pyproject.toml"],
+)

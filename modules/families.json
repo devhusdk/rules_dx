@@ -216,6 +216,12 @@
         "real_protobuf_format_aspect",
         "real_protobuf_lint_aspect",
         "real_protobuf_typecheck_aspect",
+        "real_python_format_aspect",
+        "real_python_format_probe_aspect",
+        "real_python_lint_aspect",
+        "real_python_lint_probe_aspect",
+        "real_python_typecheck_aspect",
+        "real_python_typecheck_probe_aspect",
         "real_rego_format_aspect",
         "real_rego_lint_aspect",
         "real_rego_typecheck_aspect",
@@ -474,6 +480,8 @@
         ".pl",
         ".pm",
         ".proto",
+        ".py",
+        ".pyi",
         ".qml",
         ".rb",
         ".rbs",
@@ -803,47 +811,6 @@
       "toolchains": [],
       "module": "rules_dx_powershell",
       "path": "families/powershell"
-    },
-    "python": {
-      "aspects": [
-        "real_python_format_aspect",
-        "real_python_format_probe_aspect",
-        "real_python_lint_aspect",
-        "real_python_lint_probe_aspect",
-        "real_python_typecheck_aspect",
-        "real_python_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_skylib",
-        "platforms",
-        "rules_cc",
-        "rules_dx",
-        "rules_py",
-        "rules_python",
-        "rules_rust",
-        "rules_shell",
-        "windows_support"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "python",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dx//python:extensions.bzl%sdist_cargo_vendor",
-        "@rules_py//py:extensions.bzl%python_interpreters",
-        "@rules_py//uv:extensions.bzl%uv",
-        "@windows_support//windows:extensions.bzl%msvc_runtime"
-      ],
-      "file_extensions": [
-        ".py",
-        ".pyi"
-      ],
-      "gazelle": [],
-      "repo_rules": [],
-      "toolchains": [],
-      "module": "rules_dx_python",
-      "path": "families/python"
     },
     "rust": {
       "aspects": [

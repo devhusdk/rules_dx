@@ -80,7 +80,7 @@ def python_runtime_unit_tests(name):
         },
         file_checks = {
             "//:MODULE.bazel": "python_version = \"3.12\"",
-            "@rules_dx_python//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
+            "//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
             "//quality/tools/python:pyproject.toml": "requires-python = \">=3.12\"",
         },
     )

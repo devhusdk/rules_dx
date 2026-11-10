@@ -1,0 +1,50 @@
+load("//python:defs.bzl", "python_library", "python_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+python_library(
+    name = "envelopes",
+    testonly = True,
+    srcs = ["envelopes.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = [":handlers"],
+)
+
+python_library(
+    name = "handlers",
+    testonly = True,
+    srcs = ["handlers.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+)
+
+python_test(
+    name = "handlers_test",
+    testonly = True,
+    srcs = ["handlers_test.py"],
+    dep_group = "hello",
+    imports = ["."],
+    deps = [
+        ":envelopes",
+        ":handlers",
+        "@pypi//coverage",  # keep
+        "@pypi//pytest",  # keep
+    ],
+)
+
+python_library(
+    name = "seed_helpers",
+    testonly = True,
+    srcs = ["seed_helpers.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = [":envelopes"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

@@ -1,6 +1,7 @@
-load("@rules_dx//kotlin:defs.bzl", "kotlin_bench")
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//java/private:jmh_tests.bzl", "jmh_compile_flag_test", "jmh_inner_attr_test")
+load("@rules_dx//kotlin:defs.bzl", "kotlin_bench")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -20,9 +21,9 @@ real_source_target(
 
 kotlin_bench(
     name = "sized_bench",
-    srcs = ["Sum.kt"],
     size = "large",
     timeout = "long",
+    srcs = ["Sum.kt"],
 )
 
 dx_runner_attr_test(
@@ -32,4 +33,37 @@ dx_runner_attr_test(
         "timeout": "long",
     },
     runner = "sized_bench",
+)
+
+kotlin_bench(
+    name = "compile_attr_bench",
+    srcs = ["Sum.kt"],
+    module_name = "dx_bench_module",
+)
+
+jmh_compile_flag_test(
+    name = "compile_attr_bench_flag_test",
+    bench = "compile_attr_bench",
+    flag = "dx_bench_module",
+    mnemonic = "KotlinCompile",
+)
+
+kotlin_bench(
+    name = "incompatible_bench",
+    srcs = ["Sum.kt"],
+    tags = ["bench-inner"],
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+jmh_inner_attr_test(
+    name = "incompatible_bench_inner_test",
+    bench = "incompatible_bench",
+    inner = [
+        "_bin",
+        "_bin_upstream",
+        "_jmh_processor",
+        "_jmh_runner",
+    ],
+    tags = ["bench-inner"],
+    target_compatible_with = ["@platforms//:incompatible"],
 )

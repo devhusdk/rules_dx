@@ -26,6 +26,18 @@ kotlin_test(
 
 `kotlin_test` infers `test_class` from the sources and the package path. Set it to override. Other attributes pass through to `kt_jvm_library`, `kt_jvm_binary` and `kt_jvm_test`.
 
+## Internal members
+
+List a `kotlin_library` in `associates` to use its `internal` members. The target joins the Kotlin module of that library.
+
+```python
+kotlin_library(
+    name = "greet_testing",
+    srcs = ["GreetTesting.kt"],
+    associates = [":greet"],
+)
+```
+
 ## Third-party dependencies
 
 List the artifacts in a rules_jvm_external `maven_install.json` and run

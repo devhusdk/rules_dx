@@ -3,13 +3,14 @@
 load("@rules_java//java:defs.bzl", "JavaInfo")
 load("@rules_kotlin//kotlin:core.bzl", "kt_javac_options")
 load("@rules_kotlin//kotlin:jvm.bzl", _kt_jvm_binary = "kt_jvm_binary", _kt_jvm_library = "kt_jvm_library", _kt_jvm_test = "kt_jvm_test")
+load("@rules_kotlin//kotlin/internal:defs.bzl", "KtJvmInfo")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions")
-load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
-load("//java:defs.bzl", "java_jmh_test")
-load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
-load("//java/private:jmh.bzl", "jmh_bench")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_warnings_as_errors", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//java:defs.bzl", "java_jmh_test")
+load("//java/private:coverage.bzl", "DX_JVM_TEST_RUNNER", "dx_jvm_test_coverage")
+load("//java/private:jazzer.bzl", "jazzer_fuzz", "jazzer_target_class")
+load("//java/private:jmh.bzl", "jmh_bench")
 load(":kwargs.bzl", "kotlin_has_own_opts", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_entry_kwargs")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
@@ -25,6 +26,7 @@ def _kotlin_coverage_runfiles(ctx):
 
 _DX_KOTLIN_LIBRARY_PROVIDES = [
     JavaInfo,
+    KtJvmInfo,
     DefaultInfo,
     InstrumentedFilesInfo,
     QualitySourcesInfo,
@@ -34,7 +36,7 @@ _DX_KOTLIN_SOURCE_SPECS = [("kotlin", ["kt", "kts"]), ("java", "java")]
 
 _kotlin_library_forward = dx_library_forward_rule(
     provides = _DX_KOTLIN_LIBRARY_PROVIDES,
-    required_providers = [(JavaInfo, "JavaInfo")],
+    required_providers = [(JavaInfo, "JavaInfo"), (KtJvmInfo, "KtJvmInfo")],
     quality_specs = _DX_KOTLIN_SOURCE_SPECS,
     what = "kotlin_*",
     allow_files = True,

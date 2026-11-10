@@ -58,4 +58,4 @@ java_bench(
 )
 ```
 
-The test is tagged `dx-bench` and `manual` and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. `kotlin_bench` in `@rules_dx//kotlin:defs.bzl` and `scala_bench` in `@rules_dx//scala:defs.bzl` take Kotlin and Scala sources the same way.
+The test is tagged `dx-bench` and `manual` and writes `dx-bench.json` with one row per `@Benchmark` method. It runs one warmup and three measurement iterations of 200 ms in the test JVM, without forking. `kotlin_bench` in `@rules_dx//kotlin:defs.bzl` and `scala_bench` in `@rules_dx//scala:defs.bzl` take Kotlin and Scala sources the same way. `size`, `timeout`, `args`, `env`, `flaky`, `jvm_flags`, `data` and `visibility` go to the test. Other attributes go to the library that compiles `srcs`. `tags` and `target_compatible_with` go to every target.

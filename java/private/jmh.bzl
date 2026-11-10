@@ -1,48 +1,58 @@
 """Private JMH helpers for java_bench, kotlin_bench and scala_bench."""
 
 load("@rules_java//java:defs.bzl", "JavaInfo", "java_import", _java_library = "java_library", _java_plugin = "java_plugin")
-load("//core:fuzz_bench.bzl", "DEFAULT_SIZE", "merge_tags")
+load("//core:fuzz_bench.bzl", "DEFAULT_SIZE", "merge_tags", "split_test_kwargs")
+load("//core:wrapper.bzl", "dx_upstream_tags")
 
 _JMH = [Label("@dx_jmh_core//jar"), Label("@dx_jmh_jopt_simple//jar"), Label("@dx_jmh_commons_math3//jar")]
 _GENERATOR = Label("//java/private/jmh:jmh_generate")
 _PROCESSOR = [Label("@dx_jmh_generator_annprocess//jar")] + _JMH
+_TEST_KWARGS = ("size", "timeout", "args", "env", "flaky", "jvm_flags", "data", "visibility")
+
+def _split(tags, kwargs, library_kwargs):
+    """Returns (library, run, inner): the kwargs of <name>_bin, of the test, and of every private helper target."""
+    library, run = split_test_kwargs(kwargs, _TEST_KWARGS)
+    inner = {"tags": dx_upstream_tags(tags), "testonly": True, "visibility": ["//visibility:private"]}
+    compatible = library.pop("target_compatible_with", None)
+    if compatible != None:
+        inner["target_compatible_with"] = compatible
+        run["target_compatible_with"] = compatible
+    library = dict(library_kwargs) | library | dict(inner, tags = tags)
+    library.setdefault("warnings_as_errors", False)
+    return library, run, inner
 
 def jmh_bench(name, library, test, srcs, deps, tags, kwargs, library_kwargs = {}):
     """Declares the JMH library, the runner and the dx-bench test. library is the java_library or kotlin_library macro, test is java_jmh_test."""
+    library_kwargs, run, inner = _split(tags, kwargs, library_kwargs)
     processor = name + "_jmh_processor"
     _java_plugin(
         name = processor,
         processor_class = "org.openjdk.jmh.generators.BenchmarkProcessor",
         deps = _PROCESSOR,
-        testonly = True,
-        visibility = ["//visibility:private"],
+        **inner
     )
     library(
         name = name + "_bin",
         srcs = srcs,
         deps = deps + _JMH,
-        plugins = [processor],
-        testonly = True,
-        visibility = ["//visibility:private"],
-        warnings_as_errors = False,
+        plugins = [processor] + library_kwargs.pop("plugins", []),
         **library_kwargs
     )
-    _runner_and_test(name, test, [name + "_bin"], tags, kwargs)
+    _runner_and_test(name, test, [name + "_bin"], tags, run, inner)
 
-def _runner_and_test(name, test, runtime_deps, tags, kwargs):
+def _runner_and_test(name, test, runtime_deps, tags, run, inner):
     _java_library(
         name = name + "_jmh_runner",
         srcs = [Label("//java/private/jmh:JmhRunner.java")],
         deps = _JMH,
-        testonly = True,
-        visibility = ["//visibility:private"],
+        **inner
     )
     test(
         name,
         runtime_deps = runtime_deps + [name + "_jmh_runner"],
         tags = merge_tags(tags, "dx-bench", "manual"),
         testonly = True,
-        **dict(kwargs, size = kwargs.get("size", DEFAULT_SIZE))
+        **dict(run, size = run.get("size", DEFAULT_SIZE))
     )
 
 def _jmh_generated_impl(ctx):
@@ -75,13 +85,11 @@ _jmh_generated = rule(
 
 def jmh_bench_generated(name, library, test, srcs, deps, tags, kwargs, library_kwargs = {}):
     """Like jmh_bench for languages whose compiler runs no Java annotation processors. The library compiles without the processor, JmhGenerate runs the JMH bytecode generator over its jar, and javac compiles the generated Java."""
+    library_kwargs, run, inner = _split(tags, kwargs, library_kwargs)
     library(
         name = name + "_bin",
         srcs = srcs,
         deps = deps + _JMH[:1],
-        testonly = True,
-        visibility = ["//visibility:private"],
-        warnings_as_errors = False,
         **library_kwargs
     )
     _jmh_generated(
@@ -89,20 +97,17 @@ def jmh_bench_generated(name, library, test, srcs, deps, tags, kwargs, library_k
         lib = name + "_bin",
         srcjar = name + "_jmh.srcjar",
         resources = name + "_jmh_resources.jar",
-        testonly = True,
-        visibility = ["//visibility:private"],
+        **inner
     )
     _java_library(
         name = name + "_jmh_lib",
         srcs = [name + "_jmh.srcjar"],
         deps = [name + "_bin"] + _JMH,
-        testonly = True,
-        visibility = ["//visibility:private"],
+        **inner
     )
     java_import(
         name = name + "_jmh_resources",
         jars = [name + "_jmh_resources.jar"],
-        testonly = True,
-        visibility = ["//visibility:private"],
+        **inner
     )
-    _runner_and_test(name, test, [name + "_bin", name + "_jmh_lib", name + "_jmh_resources"], tags, kwargs)
+    _runner_and_test(name, test, [name + "_bin", name + "_jmh_lib", name + "_jmh_resources"], tags, run, inner)

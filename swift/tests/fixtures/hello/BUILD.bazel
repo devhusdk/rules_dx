@@ -20,7 +20,6 @@ _POSIX = select({
 _NATIVE = select({
     "@platforms//os:linux": [],
     "@platforms//os:macos": [],
-    "@platforms//os:windows": ["@platforms//cpu:x86_64"],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 

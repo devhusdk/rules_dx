@@ -99,6 +99,9 @@ Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
 license accepted must be configured. Binaries link the Swift runtime
 dynamically; `swift_test` puts the runtime DLLs on `PATH`.
 
+This toolchain is not yet validated: `windows.msi` fails to extract with
+`msiexec /a` exit 1603, and Swift is not in the supported platforms.
+
 ## Toolchain
 
 The sections below describe the Linux toolchain.

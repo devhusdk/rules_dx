@@ -1,5 +1,6 @@
 use super::common::*;
 use super::dep_edit;
+use dx_error::DxError;
 use dx_plan::args::Invocation;
 
 const ADD_VERB: dep_edit::EditVerb = dep_edit::EditVerb {
@@ -54,8 +55,14 @@ pub(super) fn add_missing(
     let manifest = request.target_manifest().to_owned();
     let inserted = match plan_insert(&request, workspace, &manifest) {
         Ok(inserted) => inserted,
-        Err(message) => {
-            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
+        Err(error) => {
+            return report_dx_error(
+                invocation.output,
+                out,
+                err,
+                CODE_UPDATE_WIDEN_FAILED,
+                &error,
+            );
         }
     };
     if !applies {
@@ -98,28 +105,33 @@ fn plan_insert(
     request: &dx_update::edit::AddRequest,
     workspace: &std::path::Path,
     manifest: &str,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let original = dx_path::workspace::resolve_in_workspace(workspace, manifest)
         .and_then(std::fs::read)
         .map_err(|error| {
             if error.kind() == std::io::ErrorKind::InvalidInput {
-                format!(
+                DxError::failure(format!(
                     "failed to add {}: {manifest} leaves the workspace",
                     request.selector
-                )
+                ))
             } else {
-                format!("failed to add {}: cannot read {manifest}", request.selector)
+                DxError::infra(format!(
+                    "failed to add {}: cannot read {manifest}",
+                    request.selector
+                ))
             }
         })?;
     let text = String::from_utf8(original).map_err(|_| {
-        format!(
+        DxError::failure(format!(
             "failed to add {}: {manifest} is not valid UTF-8",
             request.selector
-        )
+        ))
     })?;
     request.plan_insert(&text).map_err(|error| match error {
-        declared @ dx_update::edit::AddError::Declared { .. } => declared.to_string(),
-        other => format!("failed to add {}: {other}", request.selector),
+        declared @ dx_update::edit::AddError::Declared { .. } => {
+            DxError::failure(declared.to_string())
+        }
+        other => DxError::failure(format!("failed to add {}: {other}", request.selector)),
     })
 }
 

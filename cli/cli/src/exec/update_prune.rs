@@ -1,9 +1,10 @@
 use super::update_unused::Unused;
+use dx_error::DxError;
 use std::collections::BTreeMap;
 use std::path::Path;
 
 /// Deletes the one-line declarations of unused dependencies and returns the entries removed.
-pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, String> {
+pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, DxError> {
     let mut by_manifest: BTreeMap<&str, Vec<&Unused>> = BTreeMap::new();
     for item in unused {
         by_manifest.entry(&item.manifest).or_default().push(item);
@@ -11,7 +12,8 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
     let mut removed = Vec::new();
     for (manifest, mut items) in by_manifest {
         let path = workspace.join(manifest);
-        let text = std::fs::read_to_string(&path).map_err(|e| format!("{manifest}: {e}"))?;
+        let text = std::fs::read_to_string(&path)
+            .map_err(|e| DxError::infra(format!("{manifest}: {e}")))?;
         let mut lines: Vec<String> = text.split_inclusive('\n').map(str::to_owned).collect();
         items.sort_by_key(|item| std::cmp::Reverse(item.line));
         let json = manifest.ends_with(".json");
@@ -36,7 +38,8 @@ pub(super) fn prune(workspace: &Path, unused: &[Unused]) -> Result<Vec<Unused>, 
             changed = true;
         }
         if changed {
-            std::fs::write(&path, lines.concat()).map_err(|e| format!("{manifest}: {e}"))?;
+            std::fs::write(&path, lines.concat())
+                .map_err(|e| DxError::infra(format!("{manifest}: {e}")))?;
         }
     }
     removed.sort_by(|a, b| (&a.set, &a.name).cmp(&(&b.set, &b.name)));

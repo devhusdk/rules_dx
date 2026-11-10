@@ -1210,3 +1210,20 @@ fn operational_returns_broken_pipe_on_truncated_stdout() {
     );
     assert_eq!(code, 128 + 13);
 }
+
+#[test]
+fn report_dx_error_exits_by_kind_and_keeps_the_code() {
+    let table = [
+        (dx_error::DxError::usage("bad flag"), 2),
+        (dx_error::DxError::failure("refused"), 1),
+        (dx_error::DxError::infra("disk gone"), 3),
+    ];
+    for (error, exit) in table {
+        let (mut out, mut err) = (Vec::new(), Vec::new());
+        let got = report_dx_error(OutputMode::Json, &mut out, &mut err, "update.test", &error);
+        assert_eq!(got, exit, "{error}");
+        let text = String::from_utf8(out).unwrap();
+        assert!(text.contains("update.test"), "{text}");
+        assert!(text.contains(error.message()), "{text}");
+    }
+}

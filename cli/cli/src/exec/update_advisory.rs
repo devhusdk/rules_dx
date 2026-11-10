@@ -5,6 +5,7 @@ use super::update_outdated::registry_fetch;
 use super::update_pr::{
     ACTIONS_PR_REFUSAL, BOT_EMAIL, BOT_NAME, Tools, WORKFLOW_SKIP, open_update_prs, program, push,
 };
+use dx_error::DxError;
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
 };
@@ -48,8 +49,8 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         edit_commit_json,
     } = env;
     let json = invocation.output == OutputMode::Json;
-    let fail = |out: &mut dyn Write, err: &mut dyn Write, reason: &str| {
-        operational_output(
+    let fail = |out: &mut dyn Write, err: &mut dyn Write, reason: &DxError| {
+        report_dx_error(
             invocation.output,
             out,
             err,
@@ -59,7 +60,13 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     };
     let before = match std::fs::read_to_string(workspace.join(PINS)) {
         Ok(text) => text,
-        Err(error) => return fail(out, err, &format!("cannot read {PINS}: {error}")),
+        Err(error) => {
+            return fail(
+                out,
+                err,
+                &DxError::infra(format!("cannot read {PINS}: {error}")),
+            );
+        }
     };
     let release = match fetch
         .get(advisory::LATEST_RELEASE_URL)
@@ -70,7 +77,10 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
             return fail(
                 out,
                 err,
-                &format!("cannot read the newest release: {reason}"),
+                &DxError::new(
+                    reason.kind(),
+                    format!("cannot read the newest release: {reason}"),
+                ),
             );
         }
     };
@@ -112,14 +122,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     };
 
     let result = if invocation.pr {
-        open_pull_request(
-            workspace,
-            tools,
-            &release,
-            &after,
-            &diff,
-            &mut security,
-        )
+        open_pull_request(workspace, tools, &release, &after, &diff, &mut security)
     } else if invocation.applies() {
         write_pins(workspace, &after).map(|()| {
             if diff.is_empty() {
@@ -189,9 +192,9 @@ fn plan_word(diff: &[String]) -> &'static str {
     }
 }
 
-fn write_pins(workspace: &Path, text: &str) -> Result<(), String> {
+fn write_pins(workspace: &Path, text: &str) -> Result<(), DxError> {
     std::fs::write(workspace.join(PINS), text)
-        .map_err(|error| format!("cannot write {PINS}: {error}"))
+        .map_err(|error| DxError::infra(format!("cannot write {PINS}: {error}")))
 }
 
 /// The vulnerability messages of a `dx security --output=json` stream.
@@ -211,17 +214,21 @@ fn open_pull_request(
     after: &str,
     diff: &[String],
     security: &mut dyn FnMut() -> Vec<String>,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let git = |args: &[&str]| program(&tools.git, root, args);
     let gh = |args: &[&str]| program(&tools.gh, root, args);
     if !git(&["status", "--porcelain"])?.trim().is_empty() {
-        return Err("the working tree has changes; commit or stash them first".to_owned());
+        return Err(DxError::failure(
+            "the working tree has changes; commit or stash them first",
+        ));
     }
     let base = git(&["rev-parse", "--abbrev-ref", "HEAD"])?
         .trim()
         .to_owned();
     if base == "HEAD" {
-        return Err("HEAD is detached; check out a branch first".to_owned());
+        return Err(DxError::failure(
+            "HEAD is detached; check out a branch first",
+        ));
     }
     let sha = git(&["rev-parse", "HEAD"])?.trim().to_owned();
     let existing = open_update_prs(tools, root, &base)?
@@ -273,8 +280,8 @@ fn open_pull_request(
             "pr", "create", "--base", &base, "--head", BRANCH, "--title", &title, "--body", &body,
         ];
         let created = gh(&args).map_err(|error| {
-            if error.contains(ACTIONS_PR_REFUSAL) {
-                format!("{error}\nturn on the repository setting \"Allow GitHub Actions to create and approve pull requests\" (Settings, Actions, General)")
+            if error.message().contains(ACTIONS_PR_REFUSAL) {
+                DxError::new(error.kind(), format!("{error}\nturn on the repository setting \"Allow GitHub Actions to create and approve pull requests\" (Settings, Actions, General)"))
             } else {
                 error
             }

@@ -1,6 +1,7 @@
 use super::common::*;
 use super::dep_edit;
 use super::update_version_add;
+use dx_error::{DxError, ErrorKind};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, notice_event,
 };
@@ -80,7 +81,9 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
         &lazy_fetch,
     ) {
         Ok(request) => request,
-        Err((code, message)) => return operational(invocation, out, err, code, &message),
+        Err((code, error)) => {
+            return report_dx_error(invocation.output, out, err, code, &error);
+        }
     };
     let summary = frozen_summary(
         offline_summary(request.summary(), invocation.offline),
@@ -123,8 +126,14 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
             };
             return update_version_add::add_missing(invocation, io, &request, &message);
         }
-        Err(WidenFailure::Failed(message)) => {
-            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
+        Err(WidenFailure::Failed(error)) => {
+            return report_dx_error(
+                invocation.output,
+                out,
+                err,
+                CODE_UPDATE_WIDEN_FAILED,
+                &error,
+            );
         }
     };
     if planned.iter().all(|(_, _, changed)| !changed) {
@@ -237,8 +246,14 @@ fn check_edit(
             };
             return update_version_add::add_missing(invocation, io, request, &message);
         }
-        Err(WidenFailure::Failed(message)) => {
-            return operational(invocation, out, err, CODE_UPDATE_WIDEN_FAILED, &message);
+        Err(WidenFailure::Failed(error)) => {
+            return report_dx_error(
+                invocation.output,
+                out,
+                err,
+                CODE_UPDATE_WIDEN_FAILED,
+                &error,
+            );
         }
     };
     let mut drifted: Vec<String> = Vec::new();
@@ -308,7 +323,7 @@ fn check_edit(
 fn widen_targets(
     request: &dx_update::edit::UpdateRequest,
     workspace: &std::path::Path,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, DxError> {
     if let Some(manifests) = request.configured_manifests() {
         return Ok(manifests.to_vec());
     }
@@ -316,11 +331,11 @@ fn widen_targets(
         return Ok(vec![request.target_manifest().to_owned()]);
     }
     dx_update::edit::gha::list_workflows(workspace).map_err(|_| {
-        format!(
+        DxError::infra(format!(
             "failed to widen {}: cannot list {}",
             request.selector,
             dx_update::edit::gha::WORKFLOW_DIR
-        )
+        ))
     })
 }
 
@@ -328,12 +343,12 @@ fn widen_targets(
 enum WidenFailure {
     Usage(String),
     Missing(String),
-    Failed(String),
+    Failed(DxError),
 }
 
-impl From<String> for WidenFailure {
-    fn from(message: String) -> Self {
-        WidenFailure::Failed(message)
+impl From<DxError> for WidenFailure {
+    fn from(error: DxError) -> Self {
+        WidenFailure::Failed(error)
     }
 }
 
@@ -349,22 +364,22 @@ fn plan_widens(
             .and_then(std::fs::read)
             .map_err(|error| {
                 if error.kind() == std::io::ErrorKind::InvalidInput {
-                    format!(
+                    DxError::failure(format!(
                         "failed to widen {}: {manifest} leaves the workspace",
                         request.selector
-                    )
+                    ))
                 } else {
-                    format!(
+                    DxError::infra(format!(
                         "failed to widen {}: cannot read {manifest}",
                         request.selector
-                    )
+                    ))
                 }
             })?;
         let text = String::from_utf8(original).map_err(|_| {
-            format!(
+            DxError::failure(format!(
                 "failed to widen {}: {manifest} is not valid UTF-8",
                 request.selector
-            )
+            ))
         })?;
         match request.plan_edit_outcome(&manifest, &text) {
             Ok(dx_update::edit::EditPlanOutcome::Changed(widened)) => {
@@ -387,7 +402,11 @@ fn plan_widens(
                 )));
             }
             Err(error) => {
-                return Err(format!("failed to widen {}: {error}", request.selector).into());
+                return Err(DxError::failure(format!(
+                    "failed to widen {}: {error}",
+                    request.selector
+                ))
+                .into());
             }
         }
     }
@@ -415,34 +434,37 @@ fn resolve_gha_tag_request(
     commit_json: Option<&str>,
     offline: bool,
     fetch: &dyn dx_update::discover::Fetch,
-) -> Result<dx_update::edit::UpdateRequest, (&'static str, String)> {
+) -> Result<dx_update::edit::UpdateRequest, (&'static str, DxError)> {
     let dx_update::edit::WidenVersion::GitTag(tag) = &request.version else {
         return Ok(request.clone());
     };
     if request.set != dx_update::edit::UpdateSet::GithubActions {
         return Ok(request.clone());
     }
-    let failed = |reason: String| {
+    let failed = |kind: ErrorKind, reason: String| {
         (
             CODE_UPDATE_WIDEN_FAILED,
-            format!("failed to widen {}: {reason}", request.selector),
+            DxError::new(
+                kind,
+                format!("failed to widen {}: {reason}", request.selector),
+            ),
         )
     };
     let sha = if let Some(path) = commit_json {
         let text = std::fs::read_to_string(path).map_err(|_| {
-            failed(format!(
+            failed(ErrorKind::Infra, format!(
                 "cannot read {path} (nothing widened; unknown tags fail closed, never invent a SHA)"
             ))
         })?;
         dx_update::edit::gha::resolve_sha_from_commit_response(&text)
-            .map_err(|error| failed(error.to_string()))?
+            .map_err(|error| failed(ErrorKind::Failure, error.to_string()))?
     } else if offline {
         return Err((
             CODE_OFFLINE_REQUIRED,
-            format!(
+            DxError::failure(format!(
                 "failed to widen {}: resolving tag {tag} needs the network; drop --offline or pass a commit SHA",
                 request.selector
-            ),
+            )),
         ));
     } else {
         dx_update::discover::github::commit_sha(
@@ -451,11 +473,11 @@ fn resolve_gha_tag_request(
             dx_update::discover::github::DEFAULT_BASE,
             fetch,
         )
-        .map_err(|reason| failed(format!("{reason} (nothing widened)")))?
+        .map_err(|reason| failed(reason.kind(), format!("{reason} (nothing widened)")))?
     };
     request
         .with_resolved_sha(&sha)
-        .map_err(|error| failed(error.to_string()))
+        .map_err(|error| failed(ErrorKind::Failure, error.to_string()))
 }
 
 fn emit_update_no_change(

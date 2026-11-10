@@ -1,5 +1,6 @@
 use super::update_unused::{self, Missing, Via};
 use dx_adopt::dependency_sets::{Ecosystem, ResolvedTarget, Selection};
+use dx_error::DxError;
 use dx_plan::resolve::QueryRunner;
 use dx_update::discover::{Fetch, cargo, npm, pypi, ruby};
 use dx_update::edit::{AddError, AddRequest, ConfiguredKind, UpdateRequest};
@@ -24,14 +25,14 @@ fn kind_of(ecosystem: Ecosystem) -> Option<ConfiguredKind> {
     }
 }
 
-fn latest(ecosystem: Ecosystem, name: &str, fetch: &dyn Fetch) -> Result<String, String> {
+fn latest(ecosystem: Ecosystem, name: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
     let latest = match ecosystem {
         Ecosystem::Cargo => cargo::latest_stable(name, cargo::DEFAULT_BASE, fetch),
         Ecosystem::Npm => npm::latest_stable(name, npm::DEFAULT_BASE, fetch),
         Ecosystem::Uv => pypi::latest_stable(name, pypi::DEFAULT_BASE, fetch),
         _ => ruby::latest_stable(name, ruby::DEFAULT_BASE, fetch),
     };
-    latest.map_err(|error| error.to_string())
+    latest
 }
 
 /// The manifest of the set whose directory holds `file`, else the first one.
@@ -54,7 +55,7 @@ fn plan(
     workspace: &Path,
     fetch: &dyn Fetch,
     named: bool,
-) -> Result<Option<Added>, String> {
+) -> Result<Option<Added>, DxError> {
     let set = &target.set;
     let near = match &item.via {
         Via::Import { file, .. } => file.as_str(),
@@ -65,11 +66,11 @@ fn plan(
             .unwrap_or_default(),
     };
     let manifest = manifest_for(&set.manifests, near)
-        .ok_or_else(|| "the set has no manifest".to_owned())?
+        .ok_or_else(|| DxError::failure("the set has no manifest"))?
         .clone();
     if !texts.contains_key(&manifest) {
         let text = std::fs::read_to_string(workspace.join(&manifest))
-            .map_err(|error| format!("{manifest}: {error}"))?;
+            .map_err(|error| DxError::infra(format!("{manifest}: {error}")))?;
         texts.insert(manifest.clone(), text);
     }
     let request_for = |version: &str| {
@@ -82,18 +83,18 @@ fn plan(
             version,
         )
         .map(|update| AddRequest::from_request(&update))
-        .map_err(|error| error.to_string())
+        .map_err(|error| DxError::failure(error.to_string()))
     };
     match request_for("0.0.0")?.plan_insert(&texts[&manifest]) {
         Err(AddError::Declared { .. }) => return Ok(None),
         Err(_) if named => return Ok(None),
-        Err(error) => return Err(error.to_string()),
+        Err(error) => return Err(DxError::failure(error.to_string())),
         Ok(_) => {}
     }
     let version = latest(set.ecosystem, &item.name, fetch)?;
     let inserted = request_for(&version)?
         .plan_insert(&texts[&manifest])
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| DxError::failure(error.to_string()))?;
     texts.insert(manifest.clone(), inserted);
     Ok(Some(Added {
         set: set.name.clone(),
@@ -111,7 +112,7 @@ pub(super) fn add_missing(
     fetch: &dyn Fetch,
     query: &dyn QueryRunner,
     startup: &[String],
-) -> Result<Vec<Added>, String> {
+) -> Result<Vec<Added>, DxError> {
     let items = update_unused::find_missing(workspace, resolved, query, startup);
     declare(workspace, resolved, items, fetch, false)
 }
@@ -123,7 +124,7 @@ pub(super) fn add_named(
     workspace: &Path,
     resolved: &[ResolvedTarget],
     fetch: &dyn Fetch,
-) -> Result<Vec<Added>, String> {
+) -> Result<Vec<Added>, DxError> {
     let mut items = Vec::new();
     for target in resolved {
         if let Selection::Packages(names) = &target.request {
@@ -152,7 +153,7 @@ fn declare(
     items: Vec<Missing>,
     fetch: &dyn Fetch,
     named: bool,
-) -> Result<Vec<Added>, String> {
+) -> Result<Vec<Added>, DxError> {
     let mut texts = BTreeMap::new();
     let mut added = Vec::new();
     let mut failures = Vec::new();
@@ -171,15 +172,15 @@ fn declare(
     }
     for manifest in added.iter().map(|done| &done.manifest) {
         std::fs::write(workspace.join(manifest), &texts[manifest])
-            .map_err(|error| format!("{manifest}: {error}"))?;
+            .map_err(|error| DxError::infra(format!("{manifest}: {error}")))?;
     }
     if failures.is_empty() {
         Ok(added)
     } else {
-        Err(format!(
+        Err(DxError::failure(format!(
             "failed to add missing dependencies: {}",
             failures.join(", ")
-        ))
+        )))
     }
 }
 
@@ -363,7 +364,7 @@ mod tests {
             "web/pnpm-lock.yaml",
         )];
         let error = add_missing(root, &resolved, &registry, &NoQuery, &[]).expect_err("zzz fails");
-        assert!(error.contains("npm:zzz"), "{error}");
+        assert!(error.message().contains("npm:zzz"), "{error}");
         let npm = std::fs::read_to_string(root.join("web/package.json")).unwrap();
         assert!(npm.contains("\"left-pad\": \"1.3.0\""), "{npm}");
     }

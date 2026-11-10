@@ -1,6 +1,7 @@
 use super::common::*;
 use super::update_outdated::{Collected, collect, registry_fetch, registry_for, split_builtin};
 use dx_adopt::dependency_sets::{self, Selection};
+use dx_error::DxError;
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     notice_event,
@@ -44,11 +45,11 @@ struct Rules {
     max_prs: usize,
 }
 
-type Step<'a> = dyn FnMut(&[String]) -> Result<(), String> + 'a;
+type Step<'a> = dyn FnMut(&[String]) -> Result<(), DxError> + 'a;
 
 struct Outcome {
     branch: String,
-    result: Result<String, String>,
+    result: Result<String, DxError>,
 }
 
 pub(crate) fn execute_update_pr(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -208,8 +209,9 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         full_sets.push(dx_update::discover::containers::SET.to_owned());
     }
     let scope = Scope::new(full_sets);
-    let mut step = |words: &[String]| -> Result<(), String> {
-        let inner = dx_plan::args::parse(words).map_err(|error| format!("{error:?}"))?;
+    let mut step = |words: &[String]| -> Result<(), DxError> {
+        let inner =
+            dx_plan::args::parse(words).map_err(|error| DxError::failure(format!("{error:?}")))?;
         let mut step_out = Vec::new();
         let mut step_err = Vec::new();
         let code = super::dispatch_inner(
@@ -235,16 +237,16 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
         }
         let mut text = String::from_utf8_lossy(&step_err).into_owned();
         text.push_str(&String::from_utf8_lossy(&step_out));
-        Err(format!(
+        Err(DxError::failure(format!(
             "dx {} exited {code}: {}",
             words.join(" "),
             tail(&text)
-        ))
+        )))
     };
     let outcomes = match publish(workspace, tools, &plans, &scope, &rules, &locks, &mut step) {
         Ok(outcomes) => outcomes,
         Err(reason) => {
-            return operational_output(invocation.output, out, err, CODE_UPDATE_PR_FAILED, &reason);
+            return report_dx_error(invocation.output, out, err, CODE_UPDATE_PR_FAILED, &reason);
         }
     };
     let failed = outcomes.iter().any(|outcome| outcome.result.is_err());
@@ -319,7 +321,7 @@ fn emit(out: &mut dyn Write, outcomes: &[Outcome], json: bool, exit: i32) -> Res
 
 const NETWORK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 
-pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, String> {
+pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<String, DxError> {
     let label = format!("{} {}", program.display(), args.join(" "));
     dx_process::capture::run_checked_with(
         Command::new(program).args(args).current_dir(root),
@@ -332,9 +334,9 @@ pub(super) fn program(program: &Path, root: &Path, args: &[&str]) -> Result<Stri
     .map(|output| output.stdout_text())
     .map_err(|error| match error {
         dx_process::capture::RunError::Failed { stderr, .. } => {
-            format!("{label} failed: {}", tail(&stderr))
+            DxError::failure(format!("{label} failed: {}", tail(&stderr)))
         }
-        other => format!("{label}: {other}"),
+        other => DxError::infra(format!("{label}: {other}")),
     })
 }
 
@@ -344,7 +346,7 @@ pub(super) const ACTIONS_PR_REFUSAL: &str = "not permitted to create or approve 
 const AUTO_MERGE_HINT: &str = "turn on Allow auto-merge or pass --automerge=none";
 
 pub(super) fn enable_auto_merge(
-    gh: &dyn Fn(&[&str]) -> Result<String, String>,
+    gh: &dyn Fn(&[&str]) -> Result<String, DxError>,
     pr: &str,
 ) -> String {
     match gh(&["pr", "merge", pr, "--auto", "--squash"]) {
@@ -358,7 +360,7 @@ fn refused_workflow(stderr: &str) -> bool {
     text.contains("refusing to allow") && text.contains("workflow")
 }
 
-pub(super) fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, String> {
+pub(super) fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, DxError> {
     let args = ["push", "--force-with-lease", "origin", branch];
     let label = format!("{} {}", tools.git.display(), args.join(" "));
     let result = dx_process::capture::run_checked_with(
@@ -375,9 +377,12 @@ pub(super) fn push(tools: &Tools, root: &Path, branch: &str) -> Result<bool, Str
             if refused_workflow(&stderr) {
                 return Ok(false);
             }
-            Err(format!("{label} failed: {}", tail(&stderr)))
+            Err(DxError::failure(format!(
+                "{label} failed: {}",
+                tail(&stderr)
+            )))
         }
-        Err(other) => Err(format!("{label}: {other}")),
+        Err(other) => Err(DxError::infra(format!("{label}: {other}"))),
     }
 }
 
@@ -390,16 +395,20 @@ fn publish(
     rules: &Rules,
     locks: &[String],
     step: &mut Step<'_>,
-) -> Result<Vec<Outcome>, String> {
+) -> Result<Vec<Outcome>, DxError> {
     let git = |args: &[&str]| program(&tools.git, root, args);
     if !git(&["status", "--porcelain"])?.trim().is_empty() {
-        return Err("the working tree has changes; commit or stash them first".to_owned());
+        return Err(DxError::failure(
+            "the working tree has changes; commit or stash them first",
+        ));
     }
     let base = git(&["rev-parse", "--abbrev-ref", "HEAD"])?
         .trim()
         .to_owned();
     if base == "HEAD" {
-        return Err("HEAD is detached; check out a branch first".to_owned());
+        return Err(DxError::failure(
+            "HEAD is detached; check out a branch first",
+        ));
     }
     let sha = git(&["rev-parse", "HEAD"])?.trim().to_owned();
     let mut open = open_update_prs(tools, root, &base)?;
@@ -477,7 +486,7 @@ pub(super) fn open_update_prs(
     tools: &Tools,
     root: &Path,
     base: &str,
-) -> Result<Vec<(u64, String)>, String> {
+) -> Result<Vec<(u64, String)>, DxError> {
     let listed = program(
         &tools.gh,
         root,
@@ -494,7 +503,8 @@ pub(super) fn open_update_prs(
             "number,headRefName,isCrossRepository",
         ],
     )?;
-    let value: serde_json::Value = serde_json::from_str(&listed).map_err(|e| e.to_string())?;
+    let value: serde_json::Value =
+        serde_json::from_str(&listed).map_err(|e| DxError::failure(e.to_string()))?;
     Ok(value
         .as_array()
         .into_iter()
@@ -516,7 +526,7 @@ fn publish_one(
     group: &GroupPlan,
     target: &Target<'_>,
     step: &mut Step<'_>,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let Target {
         base,
         sha,
@@ -626,8 +636,8 @@ fn publish_one(
         &text,
     ];
     let created = gh(&args).map_err(|error| {
-        if error.contains(ACTIONS_PR_REFUSAL) {
-            format!("{error}\nturn on the repository setting \"Allow GitHub Actions to create and approve pull requests\" (Settings, Actions, General)")
+        if error.message().contains(ACTIONS_PR_REFUSAL) {
+            DxError::new(error.kind(), format!("{error}\nturn on the repository setting \"Allow GitHub Actions to create and approve pull requests\" (Settings, Actions, General)"))
         } else {
             error
         }
@@ -774,23 +784,24 @@ mod tests {
     fn editing(
         work: PathBuf,
         fail: Option<&'static str>,
-    ) -> impl FnMut(&[String]) -> Result<(), String> {
+    ) -> impl FnMut(&[String]) -> Result<(), DxError> {
         move |words: &[String]| {
             if fail == Some(words[0].as_str()) {
-                return Err(format!("{} failed", words[0]));
+                return Err(DxError::failure(format!("{} failed", words[0])));
             }
             if words.contains(&"--apply".to_owned()) && words.len() >= 3 {
-                std::fs::write(work.join("Cargo.lock"), "a\nb\n").map_err(|e| e.to_string())?;
+                std::fs::write(work.join("Cargo.lock"), "a\nb\n")
+                    .map_err(|e| DxError::infra(e.to_string()))?;
             }
             Ok(())
         }
     }
 
-    fn editing_version(work: PathBuf) -> impl FnMut(&[String]) -> Result<(), String> {
+    fn editing_version(work: PathBuf) -> impl FnMut(&[String]) -> Result<(), DxError> {
         move |words: &[String]| {
             if words.len() == 4 && words[3] == "--apply" {
                 std::fs::write(work.join("Cargo.lock"), format!("a\n{}\n", words[2]))
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| DxError::infra(e.to_string()))?;
             }
             Ok(())
         }
@@ -912,7 +923,11 @@ mod tests {
         )
         .expect("publish");
         let error = outcomes[0].result.clone().expect_err("error");
-        assert!(error.contains("Allow GitHub Actions to create and approve pull requests"));
+        assert!(
+            error
+                .message()
+                .contains("Allow GitHub Actions to create and approve pull requests")
+        );
     }
 
     #[test]
@@ -1023,7 +1038,8 @@ mod tests {
         let mut step = move |words: &[String]| {
             let applying = words.contains(&"--apply".to_owned()) && words.len() >= 3;
             if applying && words[1].starts_with("github-actions") {
-                std::fs::write(work.join("Cargo.lock"), "a\nb\n").map_err(|e| e.to_string())?;
+                std::fs::write(work.join("Cargo.lock"), "a\nb\n")
+                    .map_err(|e| DxError::infra(e.to_string()))?;
             }
             Ok(())
         };
@@ -1164,7 +1180,7 @@ mod tests {
     fn a_moved_base_rewrites_the_branch() {
         let fx = fixture("[{\"number\":7,\"headRefName\":\"dx-update/cargo\"}]");
         let mut step = editing(fx.work.clone(), None);
-        let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), String>| {
+        let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), DxError>| {
             publish(&fx.work, &fx.tools, &plans(), &scope(), &rules(), &[], step).expect("publish")
         };
         publish_once(&mut step);
@@ -1183,7 +1199,7 @@ mod tests {
     fn a_deleted_remote_branch_does_not_fail_the_lease() {
         let fx = fixture("[]");
         let mut step = editing(fx.work.clone(), None);
-        let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), String>| {
+        let publish_once = |step: &mut dyn FnMut(&[String]) -> Result<(), DxError>| {
             publish(&fx.work, &fx.tools, &plans(), &scope(), &rules(), &[], step).expect("publish")
         };
         publish_once(&mut step);

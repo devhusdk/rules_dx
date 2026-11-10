@@ -116,12 +116,12 @@ fn prune_unused(
             }
             Ok(())
         }
-        Err(message) => Err(operational(
-            invocation,
+        Err(error) => Err(report_dx_error(
+            invocation.output,
             out,
             err,
             CODE_UPDATE_FAILED,
-            &message,
+            &error,
         )),
     }
 }
@@ -175,7 +175,7 @@ fn add_named(
 
 fn report_added(
     invocation: &Invocation,
-    added: Result<Vec<update_add_missing::Added>, String>,
+    added: Result<Vec<update_add_missing::Added>, dx_error::DxError>,
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
 ) -> Result<(), i32> {
@@ -190,12 +190,12 @@ fn report_added(
             }
             Ok(())
         }
-        Err(message) => Err(operational(
-            invocation,
+        Err(error) => Err(report_dx_error(
+            invocation.output,
             out,
             err,
             CODE_UPDATE_FAILED,
-            &message,
+            &error,
         )),
     }
 }
@@ -272,7 +272,13 @@ fn finish_update(finish: FinishUpdate<'_>) -> i32 {
     let report = match dx_update::outcome::aggregate(&selected, &attempted, &depends) {
         Ok(report) => report,
         Err(error) => {
-            return operational(invocation, out, err, CODE_UPDATE_FAILED, &error.to_string());
+            return report_dx_error(
+                invocation.output,
+                out,
+                err,
+                CODE_UPDATE_FAILED,
+                &dx_error::DxError::failure(error.to_string()),
+            );
         }
     };
     let recovery = dx_update::recovery::plan(&report, mode.retry_mode(), &locks);
@@ -722,9 +728,9 @@ mod tests {
         .expect("parse")
     }
 
-    fn assert_runtime_failure(code: i32, out: &[u8], err: &[u8]) {
+    fn assert_runtime_failure(code: i32, expected: i32, out: &[u8], err: &[u8]) {
         let out = String::from_utf8_lossy(out);
-        assert_eq!(code, dx_process::operational_code(), "{out}");
+        assert_eq!(code, expected, "{out}");
         assert!(out.contains("\"code\":\"update_failed\""), "{out}");
         assert!(out.contains("command_finished"), "{out}");
         assert!(!String::from_utf8_lossy(err).contains("usage"));
@@ -749,7 +755,7 @@ mod tests {
             &mut err,
         )
         .expect_err("fails");
-        assert_runtime_failure(code, &out, &err);
+        assert_runtime_failure(code, dx_error::EXIT_FAILURE, &out, &err);
     }
 
     #[cfg(unix)]
@@ -779,6 +785,6 @@ mod tests {
             &mut err,
         )
         .expect_err("fails");
-        assert_runtime_failure(code, &out, &err);
+        assert_runtime_failure(code, dx_error::EXIT_INFRA, &out, &err);
     }
 }

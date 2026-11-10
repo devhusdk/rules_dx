@@ -842,6 +842,22 @@ pub(crate) fn operational(
     operational_output(invocation.output, out, err, code, message)
 }
 
+/// Reports a [`dx_error::DxError`] under `code`, exiting with the code its kind maps to.
+pub(crate) fn report_dx_error(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    code: &str,
+    error: &dx_error::DxError,
+) -> i32 {
+    report_failure(
+        output,
+        out,
+        err,
+        &Failure::new(code, error.message(), error.exit_code()),
+    )
+}
+
 /// Emits the `error` and `command_finished` pair for a failure before the command starts.
 pub fn emit_startup_outcome(
     out: &mut dyn Write,

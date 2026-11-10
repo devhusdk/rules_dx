@@ -1,0 +1,11 @@
+package(default_visibility = ["//core/quality:__pkg__"])
+
+exports_files(["base.binpb"])
+
+filegroup(
+    name = "two_images",
+    srcs = [
+        "BUILD.bazel",
+        "base.binpb",
+    ],
+)

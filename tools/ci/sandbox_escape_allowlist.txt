@@ -12,7 +12,6 @@ cli/audit/src/advisory_prep_tests.rs tmp-path 6
 cli/audit/src/backend.rs tmp-path 13
 cli/bep/src/outputs.rs tmp-path 1
 cli/cli/src/adopt/watch.rs tmp-path 1
-cli/cli/src/exec/breaking_base.rs tmp-path 2
 cli/cli/src/exec/first_run.rs tmp-path 1
 cli/cli/src/exec/test_reports_tests.rs tmp-path 1
 cli/cli/src/exec/umbrella_tests.rs tmp-path 6
@@ -45,7 +44,7 @@ core/quality/adapter/src/parsers/sarif.rs tmp-path 3
 core/quality/adapter/src/parsers/scalafmt.rs tmp-path 5
 core/quality/adapter/src/parsers/terraform.rs tmp-path 10
 core/quality/execution_requirements_tests.bzl exec-requirement 1
-core/quality/real_core.bzl exec-requirement 4
+core/quality/real_core.bzl exec-requirement 1
 core/quality/real_pipeline_tests.bzl tmp-path 2
 core/quality/runner/src/lib_determinism.rs tmp-path 2
 core/quality/runner/src/lib_gates.rs tmp-path 1

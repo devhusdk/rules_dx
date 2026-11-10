@@ -104,9 +104,12 @@ pub(super) const TOOLS: &[ToolDef] = &[
                     .find(|(name, _)| name == "DX_BUF_BREAKING_AGAINST")
                     .map(|(_, image)| image.as_str());
                 if let Some(image) = base.filter(|_| !typecheck) {
+                    let image = std::path::absolute(image).map_err(|err| {
+                        execution(call.tool_id, format!("resolve base image {image}: {err}"))
+                    })?;
                     let invocation = commands::buf_breaking_check(
                         &call.tool.binary,
-                        Path::new(image),
+                        &image,
                         &root,
                         call.config,
                     );

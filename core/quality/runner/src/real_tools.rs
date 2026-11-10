@@ -2118,6 +2118,7 @@ fn buf_breaking_fake(
     let Some(at) = argv.iter().position(|arg| arg == "--against") else {
         return Ok(clean);
     };
+    assert!(Path::new(&argv[at + 1]).is_absolute(), "{argv:?}");
     let base = std::fs::read_to_string(&argv[at + 1])?;
     let head_path = PathBuf::from(argv.last().expect("root")).join("hello/v1/hello.proto");
     let head = std::fs::read_to_string(&head_path)?;

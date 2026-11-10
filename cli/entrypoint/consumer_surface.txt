@@ -9,6 +9,7 @@ capnproto:defs.bzl
 cc/rules:defs.bzl
 cloudformation:defs.bzl
 cmake:defs.bzl
+core:defs.bzl
 csharp:defs.bzl
 d:defs.bzl
 dart:defs.bzl

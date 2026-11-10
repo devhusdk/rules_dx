@@ -422,6 +422,7 @@
         "//dart/private:extensions.bzl%dart_tools",
         "//deploy/private/pins:extensions.bzl%apicompat",
         "//deploy/private/pins:extensions.bzl%japicmp",
+        "//deploy/private/pins:extensions.bzl%opam",
         "//deploy/private/pins:extensions.bzl%semver_checks",
         "//dotnet:rules_dotnet.bzl%dotnet",
         "//dotnet:extensions.bzl%dotnet_tools",

@@ -4,6 +4,4 @@ haskell
 ocaml
 powershell
 qt
-quality
-rust
 swift

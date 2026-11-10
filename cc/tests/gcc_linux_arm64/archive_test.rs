@@ -1,5 +1,5 @@
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{image_machine, mkscratch, resolve_runfiles};
+use dx_testing::{image_machine, resolve_runfiles};
 use std::os::unix::fs::PermissionsExt;
 use std::process::Command;
 
@@ -14,7 +14,8 @@ fn gcc_archive_runs_on_a_clean_environment_without_toolchain_files() {
     names.sort();
     assert_eq!(names, ["IDENTITY.txt", "NOTICE", "hello_gcc"]);
 
-    let scratch = mkscratch("gcc-archive").expect("scratch");
+    let guard = dx_test_scratch::scratch("gcc-archive");
+    let scratch = guard.path();
     let dir = scratch.join("out");
     archive_extract(&archive, &dir).expect("extract archive");
 

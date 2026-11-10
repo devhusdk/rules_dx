@@ -1,4 +1,4 @@
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::{resolve_runfiles};
 use std::process::Command;
 
 fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
@@ -14,7 +14,8 @@ fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
 #[test]
 fn missing_vcruntime_fails_the_import_check() {
     let app = resolve_runfiles(&std::env::var("APP").expect("APP"));
-    let scratch = mkscratch("msvc-imports").expect("scratch");
+    let guard = dx_test_scratch::scratch("msvc-imports");
+    let scratch = guard.path();
     let member = format!("hello_msvc.exe={}", app.display());
     let out = archiver(&scratch, &["--check", "hello_msvc.exe", &member]);
     assert!(!out.status.success(), "unexpected success: {out:?}");

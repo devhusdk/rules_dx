@@ -1,5 +1,5 @@
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::{resolve_runfiles};
 use std::process::Command;
 
 #[test]
@@ -23,7 +23,8 @@ fn dynamic_libstdcxx_app_ships_its_runtime_and_runs_from_the_archive() {
         ]
     );
 
-    let scratch = mkscratch("gcc-libstdcxx-archive").expect("scratch");
+    let guard = dx_test_scratch::scratch("gcc-libstdcxx-archive");
+    let scratch = guard.path();
     let dir = scratch.join("out");
     archive_extract(&archive, &dir).expect("extract archive");
 

@@ -2478,58 +2478,61 @@ _http_archive(
     urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
 )
 
-# flatc is built from source; literals mirror //flatbuffers:pins.bzl.
-_http_archive(
+dx_source_archives = use_extension("//libs/starlark:extensions.bzl", "dx_source_archives")
+dx_source_archives.archive(
     name = "dx_flatbuffers",
-    sha256 = "f81c3162b1046fe8b84b9a0dbdd383e24fdbcf88583b9cb6028f90d04d90696a",
-    strip_prefix = "flatbuffers-25.12.19",
-    urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v25.12.19.tar.gz"],
+    pins = "//flatbuffers:pins.json",
 )
-
-# capnp is built from source; literals mirror //capnproto:pins.bzl. The sed rewrites the
-# BCR-only `@capnp-cpp//` self-references to repo-local labels, and the patch adds the
-# <cstddef> include that dynamic.h needs for std::nullptr_t under libc++.
-_http_archive(
+dx_source_archives.archive(
+    name = "dx_flatbuffers_rust",
+    build_file = "//flatbuffers:rust_runtime.BUILD.bazel",
+    pins = "//flatbuffers:pins.json",
+)
+dx_source_archives.archive(
+    name = "dx_flatbuffers_java",
+    build_file = "//flatbuffers:java_runtime.BUILD.bazel",
+    pins = "//flatbuffers:pins.json",
+)
+dx_source_archives.archive(
+    name = "dx_flatbuffers_bitflags",
+    archive_type = "tar.gz",
+    build_file = "//flatbuffers:bitflags.BUILD.bazel",
+    pins = "//flatbuffers:pins.json",
+)
+dx_source_archives.archive(
     name = "dx_capnproto",
+    patch_args = ["-p1"],
     patch_cmds = [
         "sed -i.bak 's#@capnp-cpp//#//#g' src/capnp/BUILD.bazel src/capnp/cc_capnp_library.bzl src/capnp/compat/BUILD.bazel",
     ],
-    patch_args = ["-p1"],
     patches = ["//capnproto:dynamic_cstddef.patch"],
-    sha256 = "d5ebdf858e9885c33d4b3f765006d68bd66e9b002bf4d607ff4317ef9c1aac6a",
-    strip_prefix = "capnproto-1.5.0/c++",
-    urls = ["https://github.com/capnproto/capnproto/archive/refs/tags/v1.5.0.tar.gz"],
+    pins = "//capnproto:pins.json",
 )
-
-# capnp and capnpc Rust crates; literals mirror //capnproto:pins.bzl.
-_http_archive(
+dx_source_archives.archive(
     name = "dx_capnproto_rust",
     build_file = "//capnproto:rust.BUILD.bazel",
-    sha256 = "5251a6e7d6e52617c33bfaa523a3abd862307720c481779c24c2162d342d63f5",
-    strip_prefix = "capnproto-rust-capnp-v0.27.3",
-    urls = ["https://github.com/capnproto/capnproto-rust/archive/refs/tags/capnp-v0.27.3.tar.gz"],
+    pins = "//capnproto:pins.json",
 )
-
-# capnpc-java (C++ plugin built against @dx_capnproto), the Java runtime and java.capnp.
-_http_archive(
+dx_source_archives.archive(
     name = "dx_capnproto_java",
     build_file = "//capnproto:java.BUILD.bazel",
-    sha256 = "904525c4433fb1779bbc4face11887b016f949f1b019755b1886c5f367f4c091",
-    strip_prefix = "capnproto-java-0.1.16",
-    urls = ["https://github.com/capnproto/capnproto-java/archive/refs/tags/v0.1.16.tar.gz"],
+    pins = "//capnproto:pins.json",
 )
-
-# thrift is built from the Apache release tarball; literals mirror //thrift:pins.bzl.
-_http_archive(
+dx_source_archives.archive(
     name = "dx_thrift",
     build_file = "//thrift:compiler.BUILD.bazel",
-    sha256 = "66da4707214c54c94bac082103dc67adaf9e08925662700f269170a7b534b214",
-    strip_prefix = "thrift-0.25.0",
-    urls = [
-        "https://archive.apache.org/dist/thrift/0.25.0/thrift-0.25.0.tar.gz",
-        "https://dlcdn.apache.org/thrift/0.25.0/thrift-0.25.0.tar.gz",
-        "https://downloads.apache.org/thrift/0.25.0/thrift-0.25.0.tar.gz",
-    ],
+    pins = "//thrift:pins.json",
+)
+use_repo(
+    dx_source_archives,
+    "dx_capnproto",
+    "dx_capnproto_java",
+    "dx_capnproto_rust",
+    "dx_flatbuffers",
+    "dx_flatbuffers_bitflags",
+    "dx_flatbuffers_java",
+    "dx_flatbuffers_rust",
+    "dx_thrift",
 )
 
 _http_jar = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_jar")
@@ -2606,33 +2609,6 @@ _http_jar(
     name = "dx_jmh_asm",
     sha256 = "0df97574914aee92fd349d0cb4e00f3345d45b2c239e0bb50f0a90ead47888e0",
     urls = ["https://repo1.maven.org/maven2/org/ow2/asm/asm/9.0/asm-9.0.jar"],
-)
-
-# Rust runtime from the same archive (same sha256, so one download) and its bitflags dep.
-_http_archive(
-    name = "dx_flatbuffers_rust",
-    build_file = "//flatbuffers:rust_runtime.BUILD.bazel",
-    sha256 = "f81c3162b1046fe8b84b9a0dbdd383e24fdbcf88583b9cb6028f90d04d90696a",
-    strip_prefix = "flatbuffers-25.12.19/rust/flatbuffers",
-    urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v25.12.19.tar.gz"],
-)
-
-# Java runtime from the same archive; Maven flatbuffers-java lags the pinned flatc.
-_http_archive(
-    name = "dx_flatbuffers_java",
-    build_file = "//flatbuffers:java_runtime.BUILD.bazel",
-    sha256 = "f81c3162b1046fe8b84b9a0dbdd383e24fdbcf88583b9cb6028f90d04d90696a",
-    strip_prefix = "flatbuffers-25.12.19/java/src/main/java",
-    urls = ["https://github.com/google/flatbuffers/archive/refs/tags/v25.12.19.tar.gz"],
-)
-
-_http_archive(
-    name = "dx_flatbuffers_bitflags",
-    build_file = "//flatbuffers:bitflags.BUILD.bazel",
-    sha256 = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06",
-    strip_prefix = "bitflags-2.13.2",
-    type = "tar.gz",
-    urls = ["https://static.crates.io/crates/bitflags/bitflags-2.13.2.crate"],
 )
 
 _psgallery_module = use_repo_rule("//powershell/toolchain:gallery.bzl", "psgallery_module")

@@ -2,7 +2,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "dynamic_cstddef.patch",
-    "pins.bzl",
+    "pins.json",
 ])
 
 # Schemas the compiler resolves from /capnp/*.capnp: c++, schema, stream and compat/json,
@@ -33,7 +33,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "pins.bzl",
     ],
     tags = ["corpus"],
 )

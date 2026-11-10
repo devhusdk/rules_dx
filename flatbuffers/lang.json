@@ -17,7 +17,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "pins.bzl"
+    "pins.json"
   ],
   "entry_points": [
     "flatbuffers_library",

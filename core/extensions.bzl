@@ -1,5 +1,6 @@
 """The dx_pins module extension."""
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 load(":repo.bzl", "hub_repo")
 load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "pins_hub")
 
@@ -51,6 +52,42 @@ dx_pins = module_extension(
                 "name": attr.string(mandatory = True, doc = "Hub, or sole, repository name."),
                 "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file of version and cells."),
                 "toolchain_type": attr.label(doc = "Toolchain type the hub registers; unset for a host-selected repository."),
+            },
+        ),
+    },
+)
+
+def _dx_source_archives_impl(mctx):
+    for mod in mctx.modules:
+        for tag in mod.tags.archive:
+            pin = json.decode(mctx.read(tag.pins))[tag.name]
+            http_archive(
+                name = tag.name,
+                build_file = tag.build_file,
+                patch_args = tag.patch_args,
+                patch_cmds = tag.patch_cmds,
+                patches = tag.patches,
+                sha256 = pin["sha256"],
+                strip_prefix = pin["strip_prefix"],
+                type = tag.archive_type,
+                urls = pin["urls"],
+            )
+    return mctx.extension_metadata(reproducible = True)
+
+dx_source_archives = module_extension(
+    implementation = _dx_source_archives_impl,
+    doc = "Creates one http_archive per tag from the entry of the same name in a source pins.json.",
+    tag_classes = {
+        "archive": tag_class(
+            doc = "One http_archive whose sha256, strip_prefix and urls come from the pins.json entry named like the repository.",
+            attrs = {
+                "archive_type": attr.string(doc = "Archive type override for urls without a recognised extension."),
+                "build_file": attr.label(allow_single_file = True, doc = "BUILD file overlaid on the archive."),
+                "name": attr.string(mandatory = True, doc = "Repository name and pins.json key."),
+                "patch_args": attr.string_list(doc = "Arguments to the patch tool."),
+                "patch_cmds": attr.string_list(doc = "Shell commands run after patching."),
+                "patches": attr.label_list(doc = "Patch files applied to the archive."),
+                "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file keyed by repository name."),
             },
         ),
     },

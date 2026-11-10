@@ -9,7 +9,7 @@
   "tools": [],
   "platforms": [],
   "pins": [
-    "pins.bzl"
+    "pins.json"
   ],
   "entry_points": [
     "std_import_path",

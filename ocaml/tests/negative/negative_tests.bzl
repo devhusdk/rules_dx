@@ -17,7 +17,8 @@ def _hermetic_impl(ctx):
         for name in ["CONDA_OCAML_AR", "CONDA_OCAML_AS", "CONDA_OCAML_CC", "CONDA_OCAML_MKEXE"]:
             value = action.env.get(name, "")
             asserts.true(env, value.startswith("external/"), name + "=" + value)
-        asserts.true(env, action.env.get("PATH", "").startswith("external/"), "PATH=" + action.env.get("PATH", ""))
+        path = action.env.get("PATH", "")
+        asserts.true(env, path.startswith("external/") or (path.startswith("bazel-out/") and "/bin/external/" in path), "PATH=" + path)
     return analysistest.end(env)
 
 _hermetic_test = analysistest.make(

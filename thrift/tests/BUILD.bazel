@@ -2,7 +2,6 @@
 # gazelle:resolve cc common_types.h //thrift/tests:shapes_cc
 # gazelle:resolve cc shape_types.h //thrift/tests:shapes_cc
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc:defs.bzl", "cc_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
@@ -141,18 +140,23 @@ codegen_shard_argv_test(
     target_under_test = ":shapes_rs_shard",
 )
 
-sh_test(
+rust_test(
     name = "undeclared_include_test",
     size = "small",
-    srcs = ["undeclared_include_test.sh"],
+    srcs = ["undeclared_include_test.rs"],
     data = [
         "undeclared.thrift",
         "//thrift:thrift_compiler",
     ],
+    env = {
+        "THRIFT_COMPILER": "$(rlocationpath //thrift:thrift_compiler)",
+        "UNDECLARED_THRIFT": "$(rlocationpath undeclared.thrift)",
+    },
     target_compatible_with = select({
         "@platforms//os:windows": ["@platforms//:incompatible"],
         "//conditions:default": [],
     }),
+    deps = ["//cli/path:dx_path"],
 )
 
 real_source_target(

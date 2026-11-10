@@ -710,7 +710,7 @@ SDK and toolchain extensions:
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell:extensions.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:extensions.bzl`: MSIX tools.
-- `@rules_dx//qt/private/sdk:extensions.bzl`: Qt SDK.
+- `@rules_dx//qt:extensions.bzl`: Qt SDK.
 
 API docs:
 

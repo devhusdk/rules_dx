@@ -113,7 +113,7 @@ sh_test(
     name = "warnings_parity",
     srcs = ["warnings_parity_test.sh"],
     data = [
-        "//cc/rules:defs.bzl",
+        "//cc/private:defs.bzl",
         "//csharp/private:kwargs.bzl",
         "//dart/private:defs.bzl",
         "//d/private:kwargs.bzl",
@@ -121,7 +121,7 @@ sh_test(
         "//erlang/private:kwargs.bzl",
         "//fortran/private:kwargs.bzl",
         "//fsharp/private:kwargs.bzl",
-        "//go/rules:defs.bzl",
+        "//go/private:defs.bzl",
         "//haskell/private:kwargs.bzl",
         "//java/private:kwargs.bzl",
         "//kotlin/private:defs.bzl",

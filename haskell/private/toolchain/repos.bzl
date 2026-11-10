@@ -308,7 +308,7 @@ filegroup(
 
 # The bundled mingw clang as a C toolchain. Only the hub's gated toolchain()
 # entries select it. Loads sit at the top of the generated file.
-_MINGW_CC_LOADS = """load("@rules_cc//cc/private/toolchains:cc_toolchain.bzl", "cc_toolchain")
+_MINGW_CC_LOADS = """load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
 load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
 """
 

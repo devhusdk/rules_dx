@@ -21,9 +21,9 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 
 ## Dependency hubs
 
-- For each `lockfiles` entry that sits next to one of the language's `manifests`, `dx init` writes one hub tag and its `use_repo`.
+- For each dependency set of `locks.md`, `dx init` writes one hub tag and its `use_repo`.
 - The hub tag takes the lockfile label. It takes no version, url or `sha256`.
-- `<lang>/extensions.bzl` wraps the upstream hub extension.
+- `<lang>/extensions.bzl` holds the hub extension.
 
 ## Patched dependencies
 
@@ -93,7 +93,7 @@ What a consumer writes beyond its sources:
 ## Manifest
 
 - `setup` is a field of `<lang>/lang.json`. Its keys are `licenses`, `flags` and `hubs`.
-- `hubs` maps a lockfile to the extension, the tag and the hub repo name.
+- `hubs` holds the ecosystem entries that `locks.md` fixes.
 - `dx init` reads `setup`. No Rust file repeats an extension label, a tag name or a rule-set version.
 
 ## Docs

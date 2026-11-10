@@ -388,20 +388,7 @@ pub(super) fn collect(
                     .cloned()
                     .collect();
                 if freezes.is_empty() {
-                    for lock in target
-                        .set
-                        .locks
-                        .iter()
-                        .filter(|l| l.ends_with("stack.yaml.lock"))
-                    {
-                        read_errors.push(dx_update::discover::LookupError {
-                            set: name.to_owned(),
-                            package: lock.clone(),
-                            reason: format!(
-                                "dx does not run stack; resolve {lock} with haskell_deps_resolve(stack_lock = ...) to write cabal.project.freeze"
-                            ),
-                        });
-                    }
+                    read_errors.extend(stack_lock_errors(name, &target.set.locks));
                 }
                 merge(
                     &mut found,
@@ -1034,6 +1021,20 @@ impl Fetch for HttpFetch {
 
 const COMMAND_MODE: &str = "default";
 
+fn stack_lock_errors(set: &str, locks: &[String]) -> Vec<dx_update::discover::LookupError> {
+    locks
+        .iter()
+        .filter(|l| l.ends_with("stack.yaml.lock"))
+        .map(|lock| dx_update::discover::LookupError {
+            set: set.to_owned(),
+            package: lock.clone(),
+            reason: format!(
+                "dx does not run stack; resolve {lock} with haskell_deps_resolve(stack_lock = ...) to write cabal.project.freeze"
+            ),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1049,6 +1050,15 @@ mod tests {
             stream.write_all(response.as_bytes()).unwrap();
         });
         url
+    }
+
+    #[test]
+    fn stack_lock_without_freeze_is_refused() {
+        let locks = vec!["app/stack.yaml.lock".to_owned(), "cabal.project.freeze".to_owned()];
+        let errors = stack_lock_errors("hackage", &locks);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].package, "app/stack.yaml.lock");
+        assert!(errors[0].reason.starts_with("dx does not run stack"));
     }
 
     #[test]

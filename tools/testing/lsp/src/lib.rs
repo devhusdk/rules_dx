@@ -522,9 +522,11 @@ pub fn scoped_env(root: &Path) -> Vec<(String, String)> {
     let home = root.join("home");
     let tmp = root.join("tmp");
     std::fs::create_dir_all(&home).expect("home scratch exists");
+    let bin = root.join("bin");
     std::fs::create_dir_all(&tmp).expect("tmp scratch exists");
+    std::fs::create_dir_all(&bin).expect("bin scratch exists");
     vec![
-        ("PATH".to_owned(), "/usr/bin:/bin".to_owned()),
+        ("PATH".to_owned(), bin.to_string_lossy().into_owned()),
         ("HOME".to_owned(), home.to_string_lossy().into_owned()),
         ("TMPDIR".to_owned(), tmp.to_string_lossy().into_owned()),
     ]

@@ -1,6 +1,6 @@
 """Validators for the linux_package deploy rule."""
 
-load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "charset_error", "only_chars")
 
 LINUX_PACKAGE_FORMATS = ["deb", "rpm", "apk"]
 
@@ -17,13 +17,14 @@ def linux_package_arch_error(os, cpu):
 
 def linux_package_name_error(package):
     """Validates one package name value."""
-    if type(package) != "string" or package == "":
-        return ("linux_package_deploy: invalid package name '" + str(package) +
-                "': want a non-empty name (for example 'demo')")
-    if not only_chars(package, NAME_CHARS):
-        return ("linux_package_deploy: invalid package name '" + package +
-                "': want only [A-Za-z0-9._-]")
-    return ""
+    return charset_error(
+        "linux_package_deploy",
+        "package name",
+        package,
+        NAME_CHARS,
+        "a non-empty name (for example 'demo')",
+        "only [A-Za-z0-9._-]",
+    )
 
 def linux_package_version_error(version):
     """Validates one package version value."""

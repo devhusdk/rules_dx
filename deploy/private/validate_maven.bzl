@@ -1,6 +1,6 @@
 """Validators for the maven deploy rule."""
 
-load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "VERSION_CHARS", "only_chars", "suffix_error")
 
 _VALID_GROUP_CHARS = NAME_CHARS
 
@@ -77,10 +77,11 @@ def maven_javadoc_error(filename):
 
 def maven_pom_error(filename):
     """Validates one pom filename value."""
-    if type(filename) != "string" or filename == "":
-        return ("maven_deploy: invalid pom '" + str(filename) +
-                "': want a non-empty .pom filename")
-    if not filename.endswith(".pom"):
-        return ("maven_deploy: invalid pom '" + filename +
-                "': want a filename ending in .pom")
-    return ""
+    return suffix_error(
+        "maven_deploy",
+        "pom",
+        filename,
+        ".pom",
+        "a non-empty .pom filename",
+        "a filename ending in .pom",
+    )

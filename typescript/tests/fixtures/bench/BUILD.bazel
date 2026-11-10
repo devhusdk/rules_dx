@@ -11,9 +11,19 @@ package(
 typescript_bench(
     name = "sum_bench",
     srcs = ["sum_bench.ts"],
+    declaration = True,
     node_modules = "//:node_modules",
     package_json = "//:package_json",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_bench(
+    name = "sum_mts_bench",
+    srcs = ["sum_mts_bench.mts"],
     declaration = True,
+    main = ":sum_mts_bench.mts",
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
     tsconfig = "tsconfig.json",
 )
 

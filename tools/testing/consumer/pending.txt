@@ -1,9 +1,3 @@
-dev-registration //java/private/toolchains:all
-dev-registration //kotlin/private/toolchain:unused_deps
-dev-registration //scala/private/toolchain:semanticdb
-dev-registration //scala/private/toolchain:semanticdb_scala3
-dev-registration @android_ndk_toolchain//:ndk_cc_toolchain_device
-dev-registration @android_ndk_toolchain//:ndk_cc_toolchain_emulator
 dev-repo cuda_redistrib_json core/modules/versions_tests.bzl
 dev-repo custom_gcc_x86_64 cc/private/toolchains/external/BUILD.bazel
 dev-repo dx_android_ndk_linux_x86_64 android/private/sdk/metadata_tests.bzl
@@ -110,7 +104,6 @@ override single_version_override avro-cpp
 override single_version_override bazel_lib
 override single_version_override bazel_linux_packages
 override single_version_override bazel_skylib
-override single_version_override cgrindel_bazel_starlib
 override single_version_override elfutils
 override single_version_override envoy_api
 override single_version_override fmt

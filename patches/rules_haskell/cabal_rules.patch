@@ -65,7 +65,7 @@ index 9fbe27f..b09270f 100644
      if hs.toolchain.is_darwin:
          env["SDKROOT"] = "macosx"  # See haskell/private/actions/link.bzl
  
-@@ -277,6 +280,12 @@ def _prepare_cabal_inputs(
+@@ -277,6 +280,13 @@ def _prepare_cabal_inputs(
          extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
          extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
  
@@ -74,11 +74,12 @@ index 9fbe27f..b09270f 100644
 +
 +    if hs.toolchain.is_darwin:
 +        extra_args.extend(["--ghc-option=-optc" + flag for flag in cc.compiler_flags])
++        extra_args.extend(["--ghc-option=-optl" + flag for flag in cc.linker_flags])
 +
      ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
      if dynamic_file:
          # See Note [No PIE when linking] in haskell/private/actions/link.bzl
-@@ -334,7 +340,7 @@ def _prepare_cabal_inputs(
+@@ -334,7 +341,7 @@ def _prepare_cabal_inputs(
      if with_profiling:
          extra_args.append("--enable-profiling")
  
@@ -87,7 +88,7 @@ index 9fbe27f..b09270f 100644
  
      # Redundant with _binary_paths() above, but better be explicit when we can.
  
-@@ -489,7 +495,6 @@ def _haskell_cabal_library_impl(ctx):
+@@ -489,7 +496,6 @@ def _haskell_cabal_library_impl(ctx):
              if CcInfo in dep and not HaskellInfo in dep
          ],
      )
@@ -95,7 +96,7 @@ index 9fbe27f..b09270f 100644
      package_name = ctx.attr.package_name if ctx.attr.package_name else hs.label.name
      package_id = "{}-{}{}".format(
          package_name,
-@@ -562,7 +567,6 @@ def _haskell_cabal_library_impl(ctx):
+@@ -562,7 +568,6 @@ def _haskell_cabal_library_impl(ctx):
      c = _prepare_cabal_inputs(
          hs,
          cc,
@@ -103,7 +104,7 @@ index 9fbe27f..b09270f 100644
          ctx.workspace_name,
          dep_info,
          cc_info,
-@@ -605,7 +609,7 @@ def _haskell_cabal_library_impl(ctx):
+@@ -605,7 +610,7 @@ def _haskell_cabal_library_impl(ctx):
      ctx.actions.write(json_args, json.encode(c.args))
  
      # Ensure that dependent tools can be found.
@@ -112,7 +113,7 @@ index 9fbe27f..b09270f 100644
      if "PATH" in c.env:
          paths.append(c.env["PATH"])
      paths.extend([t.executable.dirname for t in attr_tools])
-@@ -614,7 +618,7 @@ def _haskell_cabal_library_impl(ctx):
+@@ -614,7 +619,7 @@ def _haskell_cabal_library_impl(ctx):
      ctx.actions.run(
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
@@ -121,7 +122,7 @@ index 9fbe27f..b09270f 100644
          tools = attr_tools +
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
-@@ -809,7 +813,7 @@ haskell_cabal_library = rule(
+@@ -809,7 +814,7 @@ haskell_cabal_library = rule(
      },
      toolchains = use_cc_toolchain() + [
          "@rules_haskell//haskell:toolchain",
@@ -130,7 +131,7 @@ index 9fbe27f..b09270f 100644
      ],
      fragments = ["cpp"],
      doc = """\
-@@ -874,7 +878,6 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -874,7 +879,6 @@ def _haskell_cabal_binary_impl(ctx):
              if CcInfo in dep and not HaskellInfo in dep
          ],
      )
@@ -138,7 +139,7 @@ index 9fbe27f..b09270f 100644
  
      exe_name = ctx.attr.exe_name if ctx.attr.exe_name else hs.label.name
      user_cabalopts = _expand_make_variables("cabalopts", ctx, ctx.attr.cabalopts)
-@@ -908,7 +911,6 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -908,7 +912,6 @@ def _haskell_cabal_binary_impl(ctx):
      c = _prepare_cabal_inputs(
          hs,
          cc,
@@ -146,7 +147,7 @@ index 9fbe27f..b09270f 100644
          ctx.workspace_name,
          dep_info,
          cc_info,
-@@ -935,10 +937,14 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -935,10 +938,14 @@ def _haskell_cabal_binary_impl(ctx):
      )
      json_args = ctx.actions.declare_file("{}_cabal_wrapper_args.json".format(ctx.label.name))
      ctx.actions.write(json_args, json.encode(c.args))
@@ -162,7 +163,7 @@ index 9fbe27f..b09270f 100644
          outputs = [
              package_database,
              binary,
-@@ -1056,7 +1062,7 @@ haskell_cabal_binary = rule(
+@@ -1056,7 +1063,7 @@ haskell_cabal_binary = rule(
      },
      toolchains = use_cc_toolchain() + [
          "@rules_haskell//haskell:toolchain",
@@ -185,12 +186,11 @@ index 6e2a40e..271609e 100755
  os.environ["RULES_HASKELL_GHC_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PATH", ""))
  os.environ["RULES_HASKELL_GHC_PKG_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PKG_PATH", ""))
  os.environ["RULES_HASKELL_LIBDIR_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_LIBDIR_PATH", ""))
-@@ -295,6 +298,12 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
+@@ -295,6 +298,11 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
      if "RUNFILES_MANIFEST_FILE" in os.environ:
          del os.environ["RUNFILES_MANIFEST_FILE"]
      runghc_args = [arg.replace("./", execroot + "/") for arg in runghc_args]
-+    for _root in ("external/", "bazel-out/"):
-+        extra_args = [a.replace("-optc" + _root, "-optc" + execroot + "/" + _root) for a in extra_args]
++    extra_args = [re.sub(r"^(--ghc-option=-opt[cl](?:-[LBIF]|-isystem|-iframework)?)((?:external|bazel-out)/)", lambda m: m.group(1) + execroot + "/" + m.group(2), a) for a in extra_args]
 +    ghc_cc_args = toolchain_info["ghc_cc_args"]
 +    if "-pgmlm" in ghc_cc_args:
 +        ghc_cc_args = ghc_cc_args[:ghc_cc_args.index("-pgmlm")]

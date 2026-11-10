@@ -496,7 +496,6 @@ parser lua/luarocks/lock.bzl
 parser php/private/composer/lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 parser zig/private/deps/lock.bzl
-registry bicep
 registry cabal
 registry cpan
 registry fpm

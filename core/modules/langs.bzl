@@ -313,6 +313,21 @@ LANGS = json.decode("""{
         ".bicepparam"
       ]
     },
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "bicep",
+          "extension": "@rules_dx//bicep:extensions.bzl",
+          "hub": "bicep_registry",
+          "imports": "name",
+          "lock": null,
+          "manifest": "MODULE.bazel",
+          "resolver": null,
+          "state": null,
+          "tag": null
+        }
+      ]
+    },
     "title": "bicep",
     "tools": [
       "bicep",

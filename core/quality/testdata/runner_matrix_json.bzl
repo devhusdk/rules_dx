@@ -1,4 +1,4 @@
-"""Matrix JSON cases (split from runner_matrix_cases.bzl)."""
+"""Matrix JSON cases."""
 
 JSON_CASES = [
     {

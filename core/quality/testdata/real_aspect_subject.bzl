@@ -310,7 +310,15 @@ def _subject_rule(aspects):
         },
     )
 
-real_aspect_subject = _subject_rule(_REAL_ASPECTS)
+_real_aspect_subject = _subject_rule(_REAL_ASPECTS)
+
+def real_aspect_subject(target, name = None, **kwargs):
+    """Declares the all-aspects subject of target; name defaults to <target name>_subject."""
+    _real_aspect_subject(
+        name = name or native.package_relative_label(target).name + "_subject",
+        target = target,
+        **kwargs
+    )
 
 _CORE_ASPECTS = [real_lint_aspect, real_format_aspect, real_typecheck_aspect]
 
@@ -350,15 +358,15 @@ real_core_aspect_subject = _subject_rule(_CORE_ASPECTS)
 
 REAL_SUBJECT_BY_CLASS = {
     "asciidoc": real_core_aspect_subject,
-    "ansible": real_aspect_subject,
-    "bicep": real_aspect_subject,
-    "cloudformation": real_aspect_subject,
-    "cmake": real_aspect_subject,
-    "dockerfile": real_aspect_subject,
-    "helm": real_aspect_subject,
-    "kubernetes": real_aspect_subject,
-    "make": real_aspect_subject,
-    "terraform": real_aspect_subject,
+    "ansible": _real_aspect_subject,
+    "bicep": _real_aspect_subject,
+    "cloudformation": _real_aspect_subject,
+    "cmake": _real_aspect_subject,
+    "dockerfile": _real_aspect_subject,
+    "helm": _real_aspect_subject,
+    "kubernetes": _real_aspect_subject,
+    "make": _real_aspect_subject,
+    "terraform": _real_aspect_subject,
     "c": real_cc_aspect_subject,
     "csharp": real_dotnet_aspect_subject,
     "d": real_d_aspect_subject,

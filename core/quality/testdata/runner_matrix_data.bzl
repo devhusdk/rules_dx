@@ -1,4 +1,4 @@
-"""Matrix data cases (split from runner_matrix_cases.bzl)."""
+"""Matrix data cases."""
 
 load(":runner_matrix_tests.bzl", "matrix_case")
 

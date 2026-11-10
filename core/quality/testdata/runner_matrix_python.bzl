@@ -1,4 +1,4 @@
-"""Matrix Python cases (split from runner_matrix_cases.bzl)."""
+"""Matrix Python cases."""
 
 PYTHON_CASES = [
     {

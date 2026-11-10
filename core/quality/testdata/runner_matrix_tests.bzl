@@ -386,6 +386,8 @@ _runner_matrix_test = rule(
     },
 )
 
+BIOME_BINARY = "@dx_tools//:biome"
+
 # Non-default platform ids, in `matrix_case_platforms` order; each is also the matrix case flag name.
 PLATFORM_FLAGS = ["linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]
 

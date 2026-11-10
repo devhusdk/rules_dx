@@ -7,7 +7,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use dx_module_bazel::{ModuleError, ModuleFile, Value, compare_module_versions};
+use dx_module_bazel::{ModuleError, ModuleFile, compare_module_versions};
 use std::cmp::Ordering;
 
 /// The environment variable that carries candidate versions into floor runs.
@@ -53,28 +53,6 @@ pub fn parse_table(json: &str) -> Result<Table, String> {
     Ok(table)
 }
 
-/// The modules whose root `single_version_override` carries `patches`.
-///
-/// The `dx init` include pins these in every consumer, so they never resolve at a floor.
-pub fn patched_modules(root_module: &str) -> Result<BTreeSet<String>, ModuleError> {
-    let module = ModuleFile::parse(root_module)?;
-    let mut patched = BTreeSet::new();
-    for call in module.calls_named("single_version_override") {
-        let Some(name) = call.str("module_name") else {
-            return Err(ModuleError::OverrideComputedName { line: call.line });
-        };
-        let has_patches = match call.arg("patches") {
-            Some(Value::List(items)) => !items.is_empty(),
-            Some(_) => true,
-            None => false,
-        };
-        if has_patches {
-            patched.insert(name.to_owned());
-        }
-    }
-    Ok(patched)
-}
-
 fn safe(token: &str) -> bool {
     !token.is_empty()
         && token
@@ -117,7 +95,6 @@ pub fn parse_pairs(spec: &str) -> Result<Overrides, String> {
 pub fn parse_overrides(
     spec: &str,
     table: &Table,
-    patched: &BTreeSet<String>,
 ) -> Result<Overrides, String> {
     let spec = spec.trim();
     if spec.is_empty() {
@@ -126,7 +103,6 @@ pub fn parse_overrides(
     if spec == TESTED_KEYWORD {
         return Ok(table
             .iter()
-            .filter(|(module, _)| !patched.contains(*module))
             .map(|(module, pins)| (module.clone(), pins.tested.clone()))
             .collect());
     }
@@ -147,11 +123,6 @@ pub fn parse_overrides(
         if !table.contains_key(module) {
             return Err(format!(
                 "{OVERRIDES_ENV} names {module:?}, which is not in CONSUMER_BAZEL_DEPS"
-            ));
-        }
-        if patched.contains(module) {
-            return Err(format!(
-                "{OVERRIDES_ENV} names {module:?}, which is patched and pinned by the dx init include"
             ));
         }
         if overrides
@@ -211,13 +182,11 @@ fn collect<'a>(node: &'a serde_json::Value, found: &mut Vec<&'a serde_json::Valu
 /// Every way the `bazel mod graph --output=json --verbose` result `graph` leaves a table
 /// module off its expected version; empty when the consumer resolves as intended.
 ///
-/// The expected version is the override when one is given, else the floor. Patched modules are
-/// skipped. A module that resolves higher is named together with the modules that requested the
+/// The expected version is the override when one is given, else the floor. A module that resolves higher is named together with the modules that requested the
 /// version it resolved to, from the `resolvedRequestedBy` field.
 pub fn check_graph(
     graph: &str,
     table: &Table,
-    patched: &BTreeSet<String>,
     overrides: &Overrides,
 ) -> Vec<String> {
     let root: serde_json::Value = match serde_json::from_str(graph) {
@@ -228,9 +197,6 @@ pub fn check_graph(
     collect(&root, &mut nodes);
     let mut problems = Vec::new();
     for (module, pins) in table {
-        if patched.contains(module) {
-            continue;
-        }
         let expected = overrides.get(module).unwrap_or(&pins.floor);
         let mut resolved = BTreeSet::new();
         let mut requesters = BTreeSet::new();

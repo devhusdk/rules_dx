@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_binary")
+load("//cc:defs.bzl", "cc_binary")
 load("//msix:defs.bzl", "msix_package", "msix_sign")
 load("//msix/private:repos.bzl", "UNACCEPTED")
 load("//msix/private:toolchain.bzl", "msix_toolchain")

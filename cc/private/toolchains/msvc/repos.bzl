@@ -1,6 +1,6 @@
 """MSVC toolchains over the windows_support repositories behind a license acceptance."""
 
-load("//cc/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
+load("//cc/private/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
 load("//core:license.bzl", "accepted", "unaccepted")
 load(":layout.bzl", "SUPPORTED_CELLS")
 

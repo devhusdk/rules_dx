@@ -3,7 +3,7 @@
 load("@rules_android//rules:rules.bzl", _android_library = "android_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library")
+load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_library")
 load("@rules_dx//rust:defs.bzl", "rust_static_library")
 load("@rules_dx//rust/private:edition.bzl", "RUST_EDITION")
 load("@rules_kotlin//kotlin:android.bzl", _kt_android_library = "kt_android_library")

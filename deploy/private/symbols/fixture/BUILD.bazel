@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_binary")
+load("//cc:defs.bzl", "cc_binary")
 load("//deploy/private:debug_info.bzl", "dx_dsym", "dx_pdb", "dx_split_debug_info")
 
 package(default_visibility = ["//deploy/private/symbols:__subpackages__"])

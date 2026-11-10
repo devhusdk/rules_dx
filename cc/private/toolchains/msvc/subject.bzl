@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
-load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
+load("//cc/private/toolchains:bindings.bzl", "cc_compiler_identity")
 load("//core:defs.bzl", "DxSubjectInfo")
 
 _TOOL_ACTIONS = {

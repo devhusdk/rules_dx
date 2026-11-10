@@ -6,7 +6,7 @@ astro:defs.bzl
 avro:defs.bzl
 bicep:defs.bzl
 capnproto:defs.bzl
-cc/rules:defs.bzl
+cc:defs.bzl
 cloudformation:defs.bzl
 cmake:defs.bzl
 core:defs.bzl
@@ -25,7 +25,7 @@ erlang:defs.bzl
 flatbuffers:defs.bzl
 fortran:defs.bzl
 fsharp:defs.bzl
-go/rules:defs.bzl
+go:defs.bzl
 haskell:defs.bzl
 haskell:extensions.bzl
 helm:defs.bzl

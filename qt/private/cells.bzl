@@ -2,8 +2,8 @@
 
 load("//core:cells.bzl", "unsupported_constraint")
 load("//core:platform_support.bzl", "compatible_with")
-load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES")
-load("//qt/sdk:repos.bzl", "PLATFORM_SUPPORT", "qualified_cells")
+load("//qt/private/sdk:pins.bzl", "CELLS", "IDENTITIES")
+load("//qt/private/sdk:repos.bzl", "PLATFORM_SUPPORT", "qualified_cells")
 
 def qt_consumer_identity(cell):
     """Returns the consumer_archive arch, os and min_runtime of one qualified Qt cell."""

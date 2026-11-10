@@ -1,7 +1,7 @@
 # gazelle:dx_rust_corpus false
 # gazelle:ignore
 load("@rules_dx_android//packaging:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_sign", "rust_android_apk")
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx//rust:defs.bzl", "rust_static_library", "rust_test")
 
 package(

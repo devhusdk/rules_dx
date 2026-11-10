@@ -51,7 +51,7 @@ const PACKAGES: [&str; 99] = [
     "flutter/private",
     "fortran/private",
     "fortran/private/tools",
-    "go/rules",
+    "go/private",
     "haskell/private",
     "helm/private",
     "java/private",

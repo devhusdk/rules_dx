@@ -170,7 +170,7 @@ rust_binary(
         "//cli/path:dx_path",
         "//cli/plan:dx_plan",
         "//cli/process:dx_process",
-        "//env/env_shard",
+        "//env/private/env_shard",
         "//cli/codegen_shard",
         "//quality/lsp_check:lsp_check_lib",
         "//quality/markdown:quality_markdown_lib",

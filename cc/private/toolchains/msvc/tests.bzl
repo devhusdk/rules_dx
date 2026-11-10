@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//cc/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
+load("//cc/private/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "VC_REDIST_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":layout.bzl", "msvc_layout")
 load(":subject.bzl", "msvc_toolchain_subject")

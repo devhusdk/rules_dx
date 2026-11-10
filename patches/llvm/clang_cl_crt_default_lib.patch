@@ -6,7 +6,7 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
  
  cc_args(
 +    name = "dynamic_crt_default_lib",
-+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
++    actions = ["@rules_cc//cc/private/toolchains/actions:link_actions"],
 +    args = [
 +        "/clang:-Xlinker",
 +        "/clang:/DEFAULTLIB:msvcrt.lib",
@@ -15,7 +15,7 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
 +
 +cc_args(
 +    name = "static_crt_default_lib",
-+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
++    actions = ["@rules_cc//cc/private/toolchains/actions:link_actions"],
 +    args = [
 +        "/clang:-Xlinker",
 +        "/clang:/DEFAULTLIB:libcmt.lib",
@@ -25,7 +25,7 @@ diff -ruN a/toolchain/args/windows/msvc/BUILD.bazel b/toolchain/args/windows/msv
 +cc_args(
      name = "sdk_library_search_paths",
      actions = [
-         "@rules_cc//cc/toolchains/actions:link_actions",
+         "@rules_cc//cc/private/toolchains/actions:link_actions",
 @@ -279,8 +297,8 @@
          "common_support_library_search_paths",
          "com_support_library_search_paths",

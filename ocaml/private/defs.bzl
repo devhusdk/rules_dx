@@ -22,7 +22,7 @@ load(
     _ocaml_signature = "ocaml_signature",
     _ocamllex = "ocamllex",
 )
-load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
+load("//cc:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//core:fuzz.bzl", "dx_fuzz_runner")
 load("//core:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")

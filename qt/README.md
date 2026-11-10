@@ -57,8 +57,8 @@ qt_sdk.cell(
 Start from a pinned spec:
 
 ```sh
-bazel build @rules_dx//qt/private/sdk:linux_x86_64_cell
-cp bazel-bin/external/rules_dx+/qt/private/sdk/linux_x86_64_cell.json third_party/qt/custom_x86_64.json
+bazel build @rules_dx//qt:linux_x86_64_cell
+cp "$(bazel cquery --output=files @rules_dx//qt:linux_x86_64_cell)" third_party/qt/custom_x86_64.json
 ```
 
 The spec is checked like the pinned cells. Every archive and runtime package
@@ -317,7 +317,7 @@ resource:
 
 ```python
 load("@rules_dx//deploy:defs.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
+load("@rules_dx//qt:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
 
 qt_bundle(
     name = "runtime",

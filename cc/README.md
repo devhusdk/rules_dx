@@ -65,7 +65,7 @@ The flags are driver syntax. A GCC or Clang toolchain takes `-Wall -Werror`. An 
 
 ## GCC
 
-To use your own compiler instead, see [Use your own C/C++ toolchain](../../docs/own-cc-toolchain.md).
+To use your own compiler instead, see [Use your own C/C++ toolchain](../docs/own-cc-toolchain.md).
 
 Select the GCC toolchain in `.bazelrc`:
 
@@ -87,7 +87,7 @@ The `dynamic_libstdcxx` feature links the toolchain's `libstdc++.so.6` and `libg
 bazel test --@rules_dx//cc:compiler=gcc --features=dynamic_libstdcxx //pkg:test
 ```
 
-`cc_test` coverage works with both toolchains. GCC coverage works on Linux x86_64 with the gcov that ships with the toolchain, and collection fails when gcov reports a version, stamp or profile mismatch, corrupt data or a missing notes file. MSVC/Windows coverage is not supported. `//cc/private/toolchains:gcc_coverage_env_test` checks that wiring, and `//tools/coverage/collect:gcov_native_test` runs the collector on a GCC-instrumented binary.
+`cc_test` coverage works with both toolchains. GCC coverage works on Linux x86_64 with the gcov that ships with the toolchain, and collection fails when gcov reports a version, stamp or profile mismatch, corrupt data or a missing notes file. MSVC/Windows coverage is not supported. `//tools/coverage/collect:gcov_native_test` runs the collector on a GCC-instrumented binary.
 
 Sanitizers work under GCC with the `asan` and `ubsan` features. The toolchain links the runtimes statically, so nothing loads from the host. GCC's static libasan still fails its link order check at startup (#5981), so `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` under GCC unless the target's `env` sets `ASAN_OPTIONS`. A `cc_binary` run with `bazel run` still needs it set by hand. The asan command:
 

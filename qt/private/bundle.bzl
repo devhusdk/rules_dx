@@ -1,8 +1,8 @@
 """qt_bundle: the Qt runtime of one binary as a deployable archive."""
 
 load("//deploy/private:native_runtime.bzl", "NativeRuntimeInfo")
-load("//qt/sdk:needs.bzl", "QtNeedsInfo")
-load("//qt/sdk:pins.bzl", "QT_VERSION", "RUNTIME_PLUGINS")
+load("//qt/private/sdk:needs.bzl", "QtNeedsInfo")
+load("//qt/private/sdk:pins.bzl", "QT_VERSION", "RUNTIME_PLUGINS")
 load(":cells.bzl", "QT_BUNDLE_COMPATIBLE_WITH")
 load(":constants.bzl", "QT_REPOSITORY")
 load(":text.bzl", "qt_framework_path", "qt_module_path")

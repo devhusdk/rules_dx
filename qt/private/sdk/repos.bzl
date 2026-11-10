@@ -1,6 +1,6 @@
 """Opt-in hermetic Qt SDK acquisition."""
 
-load("//cc/toolchains:pins.bzl", "VC_REDIST_VERSION")
+load("//cc/private/toolchains:pins.bzl", "VC_REDIST_VERSION")
 load("//core:host.bzl", "host_cell_of")
 load("//core:platform_support.bzl", "cells_support")
 load("//core:seven_zip.bzl", "seven_zip_fetch")

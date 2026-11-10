@@ -60,6 +60,15 @@ struct Described {
     sha256: String,
     products: BTreeMap<String, Vec<String>>,
     targets: BTreeMap<String, Value>,
+    settings: BTreeMap<String, Settings>,
+}
+
+/// The unconditional settings of one target of a dumped package.
+#[derive(Default)]
+struct Settings {
+    defines: Vec<String>,
+    header_paths: Vec<String>,
+    include: String,
 }
 
 fn field<'v>(value: &'v Value, key: &str) -> Result<&'v str, Error> {
@@ -215,7 +224,8 @@ impl<'a> Swift<'a> {
         }
         let described = self.package_json(scratch, &package, "describe", &["--type", "json"]).map_err(failed)?;
         let (products, targets) = library_targets(&described).map_err(failed)?;
-        Ok(Described { pin, sha256, products, targets })
+        let settings = target_settings(&dumped).map_err(failed)?;
+        Ok(Described { pin, sha256, products, targets, settings })
     }
 }
 
@@ -231,56 +241,89 @@ fn elements(value: &Value) -> &[Value] {
     value.as_array().map_or(&[], Vec::as_slice)
 }
 
-/// The library products of a described package and the targets they need, by name.
-///
-/// A product whose targets include one that is not a Swift library, such as a C, macro or executable
-/// target, is left out.
+fn setting_values(setting: &Value, kind: &str) -> Vec<String> {
+    strings(&setting["kind"][kind]["_0"])
+        .into_iter()
+        .chain(setting["kind"][kind]["_0"].as_str().map(str::to_owned))
+        .collect()
+}
+
+/// The defines and header paths that apply to every platform and configuration, by target name.
 ///
 /// # Errors
-/// Fails when a product has more than one target or a target is not described.
-pub fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String>>, BTreeMap<String, Value>), String> {
-    let mut products = BTreeMap::new();
-    for product in described["products"].as_array().into_iter().flatten() {
-        if product["type"].get("library").is_none() {
-            continue;
+/// Fails when a setting applies to some platforms or configurations only.
+fn target_settings(dumped: &Value) -> Result<BTreeMap<String, Settings>, String> {
+    let mut all = BTreeMap::new();
+    for target in elements(&dumped["targets"]) {
+        let name = target["name"].as_str().ok_or("a target has no name")?;
+        let mut settings = Settings {
+            include: target["publicHeadersPath"].as_str().unwrap_or("include").to_owned(),
+            ..Settings::default()
+        };
+        for setting in elements(&target["settings"]) {
+            let tool = setting["tool"].as_str().unwrap_or_default();
+            if !matches!(tool, "swift" | "c") {
+                continue;
+            }
+            let defines = setting_values(setting, "define");
+            let paths = setting_values(setting, "headerSearchPath");
+            if defines.is_empty() && paths.is_empty() {
+                continue;
+            }
+            if !setting["condition"].is_null() {
+                return Err(format!("target {name} has a setting that applies to some platforms only"));
+            }
+            settings.defines.extend(defines.into_iter().map(|define| define.split('=').next().unwrap_or_default().to_owned()));
+            settings.header_paths.extend(paths);
         }
-        let name = product["name"].as_str().ok_or("a product has no name")?;
-        let targets = strings(&product["targets"]);
-        if targets.len() != 1 {
-            return Err(format!("product {name} has {} targets; want 1", targets.len()));
-        }
-        products.insert(name.to_owned(), targets);
+        settings.defines.sort();
+        settings.defines.dedup();
+        all.insert(name.to_owned(), settings);
     }
+    Ok(all)
+}
+
+/// The library products of a described package and the targets they need, by name.
+///
+/// # Errors
+/// Fails when a target is not described or is neither a Swift nor a C library, such as a macro,
+/// plugin or executable target.
+pub fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String>>, BTreeMap<String, Value>), String> {
     let all: BTreeMap<&str, &Value> = described["targets"]
         .as_array()
         .into_iter()
         .flatten()
         .filter_map(|target| Some((target["name"].as_str()?, target)))
         .collect();
-    let mut kept = BTreeMap::new();
+    let mut products = BTreeMap::new();
     let mut targets = BTreeMap::new();
-    for (product, roots) in products {
-        let mut closure = BTreeMap::new();
+    for product in described["products"].as_array().into_iter().flatten() {
+        if product["type"].get("library").is_none() {
+            continue;
+        }
+        let name = product["name"].as_str().ok_or("a product has no name")?;
+        let roots = strings(&product["targets"]);
         let mut pending = roots.clone();
-        let mut supported = true;
-        while let Some(name) = pending.pop() {
-            if closure.contains_key(&name) {
+        let mut seen = BTreeMap::new();
+        while let Some(target_name) = pending.pop() {
+            if seen.contains_key(&target_name) {
                 continue;
             }
-            let target = all.get(name.as_str()).ok_or(format!("target {name} is not described"))?;
-            if target["module_type"] != "SwiftTarget" || target["type"] != "library" {
-                supported = false;
-                break;
+            let target = all.get(target_name.as_str()).ok_or(format!("target {target_name} is not described"))?;
+            let module_type = target["module_type"].as_str().unwrap_or_default();
+            if !matches!(module_type, "SwiftTarget" | "ClangTarget") || target["type"] != "library" {
+                return Err(format!(
+                    "product {name} needs target {target_name}, a {} {module_type}; only Swift and C library targets are supported",
+                    target["type"].as_str().unwrap_or("unknown")
+                ));
             }
             pending.extend(strings(&target["target_dependencies"]));
-            closure.insert(name, (*target).clone());
+            seen.insert(target_name, (*target).clone());
         }
-        if supported {
-            kept.insert(product, roots);
-            targets.extend(closure);
-        }
+        products.insert(name.to_owned(), roots);
+        targets.extend(seen);
     }
-    Ok((kept, targets))
+    Ok((products, targets))
 }
 
 /// The package of `old` that has the name, version and archive URL of `pin`.
@@ -335,6 +378,7 @@ impl Resolver for Swift<'_> {
             let identity = &entry.pin.identity;
             let mut deps = Vec::new();
             let mut targets = Map::new();
+            let entry_settings = &entry.settings;
             for (name, target) in &entry.targets {
                 let mut product_deps = Vec::new();
                 for product in strings(&target["product_dependencies"]) {
@@ -354,16 +398,29 @@ impl Resolver for Swift<'_> {
                 let path = field(target, "path").map_err(|error| Error::new(format!("pin {identity}: {error}")))?;
                 let srcs: Vec<String> =
                     strings(&target["sources"]).iter().map(|source| format!("{path}/{source}")).collect();
-                targets.insert(
-                    name.clone(),
-                    json!({
-                        "deps": strings(&target["target_dependencies"]),
-                        "module": field(target, "c99name").map_err(|error| Error::new(format!("pin {identity}: {error}")))?,
-                        "path": path,
-                        "product_deps": product_deps,
-                        "srcs": srcs,
-                    }),
-                );
+                let mut entry = json!({
+                    "deps": strings(&target["target_dependencies"]),
+                    "module": field(target, "c99name").map_err(|error| Error::new(format!("pin {identity}: {error}")))?,
+                    "path": path,
+                    "product_deps": product_deps,
+                    "srcs": srcs,
+                });
+                if target["module_type"] == "ClangTarget" {
+                    entry["kind"] = json!("clang");
+                }
+                if let Some(settings) = entry_settings.get(name) {
+                    if target["module_type"] == "ClangTarget" {
+                        entry["include"] = json!(format!("{path}/{}", settings.include));
+                    }
+                    if !settings.defines.is_empty() {
+                        entry["defines"] = json!(settings.defines);
+                    }
+                    if !settings.header_paths.is_empty() {
+                        entry["header_paths"] =
+                            json!(settings.header_paths.iter().map(|header| format!("{path}/{header}")).collect::<Vec<_>>());
+                    }
+                }
+                targets.insert(name.clone(), entry);
             }
             let provides = entry
                 .targets

@@ -1,0 +1,76 @@
+{
+  "ecosystem": "swiftpm",
+  "inputs": {
+    "Package.resolved": "abc361e6a0354d7c98851f1696bbff938941e939a139ee257ed73cb39246f1d2",
+    "Package.swift": "a59e3387b17ba2c6276734cd875c8eff9b3f911cd45553f19c41546ffeb49ddb"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "780546315df406fb79e0544210bb5f349355b3696fa571028c2201b7a634d2d1",
+          "strip_prefix": "multi-1111111111111111111111111111111111111111",
+          "urls": [
+            "https://github.com/example/multi/archive/1111111111111111111111111111111111111111.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "swift_products": {
+          "Multi": [
+            "Wrap",
+            "Extra"
+          ]
+        },
+        "swift_targets": {
+          "CCore": {
+            "deps": [],
+            "header_paths": [
+              "Sources/CCore/private"
+            ],
+            "include": "Sources/CCore/include",
+            "kind": "clang",
+            "module": "CCore",
+            "path": "Sources/CCore",
+            "product_deps": [],
+            "srcs": [
+              "Sources/CCore/ccore.c"
+            ]
+          },
+          "Extra": {
+            "deps": [],
+            "module": "Extra",
+            "path": "Sources/Extra",
+            "product_deps": [],
+            "srcs": [
+              "Sources/Extra/Extra.swift"
+            ]
+          },
+          "Wrap": {
+            "defines": [
+              "WRAP"
+            ],
+            "deps": [
+              "CCore"
+            ],
+            "module": "Wrap",
+            "path": "Sources/Wrap",
+            "product_deps": [],
+            "srcs": [
+              "Sources/Wrap/Wrap.swift"
+            ]
+          }
+        }
+      },
+      "name": "multi",
+      "provides": [
+        "CCore",
+        "Extra",
+        "Wrap"
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "schema": 1
+}

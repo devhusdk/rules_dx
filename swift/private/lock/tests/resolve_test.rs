@@ -29,7 +29,8 @@ impl Download for Archives {
         if url == TAG {
             return Ok(format!("{{\"object\": {{\"type\": \"commit\", \"sha\": \"{REVISION}\"}}}}").into_bytes());
         }
-        std::fs::read(dx_testing::env_file("ARCHIVE")).map_err(|error| Error::new(error.to_string()))
+        let name = if url.contains("/multi/") { "ARCHIVE_MULTI" } else { "ARCHIVE" };
+        std::fs::read(dx_testing::env_file(name)).map_err(|error| Error::new(error.to_string()))
     }
 }
 
@@ -41,17 +42,21 @@ impl Fetch for NoFetch {
     }
 }
 
-fn state(location: &str) -> String {
+fn state(identity: &str, location: &str) -> String {
     format!(
-        "{{\n  \"pins\" : [\n    {{\n      \"identity\" : \"mini\",\n      \"kind\" : \"remoteSourceControl\",\n      \"location\" : \"{location}\",\n      \"state\" : {{\n        \"revision\" : \"{REVISION}\",\n        \"version\" : \"1.0.0\"\n      }}\n    }}\n  ],\n  \"version\" : 3\n}}\n"
+        "{{\n  \"pins\" : [\n    {{\n      \"identity\" : \"{identity}\",\n      \"kind\" : \"remoteSourceControl\",\n      \"location\" : \"{location}\",\n      \"state\" : {{\n        \"revision\" : \"{REVISION}\",\n        \"version\" : \"1.0.0\"\n      }}\n    }}\n  ],\n  \"version\" : 3\n}}\n"
     )
 }
 
 fn set(location: &str) -> tempfile::TempDir {
+    set_named("mini", location)
+}
+
+fn set_named(identity: &str, location: &str) -> tempfile::TempDir {
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     let dir = tempfile::tempdir().expect("set directory");
     std::fs::write(dir.path().join(&hub.manifest), MANIFEST).expect("manifest");
-    std::fs::write(dir.path().join(hub.state.as_deref().expect("state")), state(location)).expect("state");
+    std::fs::write(dir.path().join(hub.state.as_deref().expect("state")), state(identity, location)).expect("state");
     dir
 }
 
@@ -166,34 +171,50 @@ fn described(products: &str, targets: &str) -> serde_json::Value {
 }
 
 #[test]
-fn a_product_with_a_c_target_is_left_out() {
+fn a_product_with_a_c_target_and_two_targets_is_kept() {
     let value = described(
-        r#"[{"name": "Swifty", "targets": ["Swifty"], "type": {"library": ["automatic"]}},
-            {"name": "Native", "targets": ["Native"], "type": {"library": ["automatic"]}}]"#,
-        r#"[{"name": "Swifty", "module_type": "SwiftTarget", "type": "library", "target_dependencies": []},
+        r#"[{"name": "Both", "targets": ["Swifty", "Native"], "type": {"library": ["automatic"]}}]"#,
+        r#"[{"name": "Swifty", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Native"]},
             {"name": "Native", "module_type": "ClangTarget", "type": "library", "target_dependencies": []}]"#,
     );
     let (products, targets) = swift_lock::library_targets(&value).expect("targets");
-    assert_eq!(products.keys().collect::<Vec<_>>(), ["Swifty"]);
-    assert_eq!(targets.keys().collect::<Vec<_>>(), ["Swifty"]);
+    assert_eq!(products["Both"], ["Swifty", "Native"]);
+    assert_eq!(targets.keys().collect::<Vec<_>>(), ["Native", "Swifty"]);
 }
 
 #[test]
-fn a_product_depending_on_a_macro_target_is_left_out() {
+fn a_product_depending_on_a_macro_target_fails() {
     let value = described(
         r#"[{"name": "Lib", "targets": ["Lib"], "type": {"library": ["automatic"]}}]"#,
         r#"[{"name": "Lib", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Macros"]},
             {"name": "Macros", "module_type": "SwiftTarget", "type": "macro", "target_dependencies": []}]"#,
     );
-    let (products, targets) = swift_lock::library_targets(&value).expect("targets");
-    assert!(products.is_empty() && targets.is_empty());
+    let error = swift_lock::library_targets(&value).expect_err("refused");
+    assert!(error.contains("Macros"), "{error}");
 }
 
 #[test]
-fn a_product_with_two_targets_fails() {
+fn a_product_depending_on_a_plugin_target_fails() {
     let value = described(
-        r#"[{"name": "Lib", "targets": ["A", "B"], "type": {"library": ["automatic"]}}]"#,
-        "[]",
+        r#"[{"name": "Lib", "targets": ["Lib"], "type": {"library": ["automatic"]}}]"#,
+        r#"[{"name": "Lib", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Gen"]},
+            {"name": "Gen", "module_type": "PluginTarget", "type": "plugin", "target_dependencies": []}]"#,
     );
-    assert!(swift_lock::library_targets(&value).is_err());
+    let error = swift_lock::library_targets(&value).expect_err("refused");
+    assert!(error.contains("Gen"), "{error}");
+}
+
+#[test]
+fn a_c_target_and_a_two_target_product_write_the_golden_lock() {
+    let dir = set_named("multi", "https://github.com/example/multi");
+    let archives = Archives(RefCell::default());
+    assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
+    let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
+    let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
+    dx_testing::snapshot_diff(
+        &dx_testing::env_file("GOLDEN_MULTI"),
+        &actual,
+        Some("swift/private/lock/testdata/multi.lock.json"),
+    )
+    .expect("the lock matches the golden");
 }

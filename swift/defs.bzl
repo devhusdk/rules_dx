@@ -9,6 +9,7 @@ load(
     _swift_fuzz_test = "swift_fuzz_test",
     _swift_interop_hint = "swift_interop_hint",
     _swift_library = "swift_library",
+    _swift_library_group = "swift_library_group",
     _swift_test = "swift_test",
 )
 
@@ -19,4 +20,5 @@ swift_binary = _swift_binary
 swift_fuzz_test = _swift_fuzz_test
 swift_interop_hint = _swift_interop_hint
 swift_library = _swift_library
+swift_library_group = _swift_library_group
 swift_test = _swift_test

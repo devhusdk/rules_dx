@@ -1,4 +1,3 @@
-diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
 --- a/haskell/cabal.bzl
 +++ b/haskell/cabal.bzl
 @@ -142,8 +142,9 @@
@@ -13,7 +12,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          ar = paths.join(paths.dirname(ar), "ar")
  
      return struct(
-@@ -619,7 +619,7 @@
+@@ -625,7 +626,7 @@
      ctx.actions.run(
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
@@ -22,7 +21,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          tools = attr_tools +
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
-@@ -792,6 +792,11 @@
+@@ -798,6 +799,11 @@
              cfg = "exec",
              default = Label("@rules_haskell//haskell:runghc"),
          ),
@@ -34,7 +33,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          "_cc_toolchain": attr.label(
              default = Label("@rules_cc//cc:current_cc_toolchain"),
          ),
-@@ -945,7 +950,7 @@
+@@ -951,7 +957,7 @@
      ctx.actions.run(
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
@@ -43,7 +42,7 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          outputs = [
              package_database,
              binary,
-@@ -1053,6 +1058,11 @@
+@@ -1059,6 +1065,11 @@
              cfg = "exec",
              default = Label("@rules_haskell//haskell:runghc"),
          ),

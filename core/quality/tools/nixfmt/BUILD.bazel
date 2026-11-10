@@ -22,7 +22,6 @@ build_test(
     name = "nixfmt_build_test",
     target_compatible_with = select({
         "//haskell/private/toolchain:cell_linux_arm64": [],
-        "//haskell/private/toolchain:cell_macos_arm64": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     targets = ["@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt"],

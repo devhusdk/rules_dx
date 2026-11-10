@@ -158,14 +158,15 @@ fn scan_image(
         .map_err(|error| error.to_string())?;
     let image = Path::new(&root).join(image);
     let cache =
-        dx_audit::image_scan::trivy_cache(Some(inputs.workspace), inputs.today, inputs.offline)?;
+        dx_audit::image_scan::trivy_cache(Some(inputs.workspace), inputs.today, inputs.offline)
+            .map_err(|e| e.to_string())?;
     let report = inputs.temp_dir.join(format!(
         "audit-trivy-{}-{}-{}.json",
         inputs.pid,
         inputs.nonce,
         config.replace(['/', ':', '@'], "_")
     ));
-    let severities = severity_list("LOW")?;
+    let severities = severity_list("LOW").map_err(|e| e.to_string())?;
     let mut argv = vec![trivy.to_string_lossy().into_owned()];
     argv.extend(
         trivy_args(&image, &severities, cache.as_deref(), Some(&report))
@@ -182,6 +183,7 @@ fn scan_image(
         return Err(format!("trivy exited with {:?}", status.code));
     }
     parse_report(&text.map_err(|error| format!("trivy report: {error}"))?)
+        .map_err(|e| e.to_string())
 }
 
 fn image_severity(trivy: &str, policy: &SecurityPolicy) -> Severity {

@@ -9,11 +9,11 @@ fn no_includes(label: &str) -> Result<String, String> {
     Err(format!("no include {label}"))
 }
 
-fn inputs_of(module: &str, lock_text: &str) -> Result<Vec<BazelInput>, String> {
+fn inputs_of(module: &str, lock_text: &str) -> Result<Vec<BazelInput>, dx_error::DxError> {
     parse_bazel_inputs(module, lock_text, &no_includes).map(|inventory| inventory.inputs)
 }
 
-fn modules_of(module: &str, lock_text: &str) -> Result<Vec<LockedPackage>, String> {
+fn modules_of(module: &str, lock_text: &str) -> Result<Vec<LockedPackage>, dx_error::DxError> {
     Ok(inputs_of(module, lock_text)?
         .iter()
         .map(BazelInput::locked)
@@ -95,7 +95,9 @@ fn a_declared_dep_missing_from_the_lock_fails() {
     let module = "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n";
     let error = inputs_of(module, &lock(&[("platforms", "1.0.0")])).expect_err("fails");
     assert!(
-        error.contains("bazel_dep rules_go is not selected"),
+        error
+            .message()
+            .contains("bazel_dep rules_go is not selected"),
         "{error}"
     );
 }
@@ -104,8 +106,8 @@ fn a_declared_dep_missing_from_the_lock_fails() {
 fn a_declared_version_above_the_selected_version_fails() {
     let module = "bazel_dep(name = \"rules_cc\", version = \"0.3.0\")\n";
     let error = inputs_of(module, &lock(&[("rules_cc", "0.2.1")])).expect_err("fails");
-    assert!(error.contains("declares 0.3.0"), "{error}");
-    assert!(error.contains("selects 0.2.1"), "{error}");
+    assert!(error.message().contains("declares 0.3.0"), "{error}");
+    assert!(error.message().contains("selects 0.2.1"), "{error}");
 }
 
 #[test]
@@ -162,7 +164,10 @@ bazel_dep(name = "rules_bar", version = "0.1.0")
 git_override(module_name = "rules_bar", remote = "https://example.com/rules_bar.git", branch = "main")
 "#;
     let error = inputs_of(module, &lock(&[])).expect_err("fails");
-    assert!(error.contains("not pinned to a commit"), "{error}");
+    assert!(
+        error.message().contains("not pinned to a commit"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -185,7 +190,9 @@ local_path_override(module_name = "rules_foo", path = "../rules_foo")
 "#;
     let error = inputs_of(module, &lock(&[("rules_foo", "1.0.0")])).expect_err("fails");
     assert!(
-        error.contains("overrides it with local_path_override"),
+        error
+            .message()
+            .contains("overrides it with local_path_override"),
         "{error}"
     );
 }
@@ -209,14 +216,17 @@ bazel_dep(name = "rules_foo", version = "1.0.0")
 archive_override(module_name = "rules_foo", urls = ["https://example.com/a.tar.gz"])
 "#;
     let error = inputs_of(module, &lock(&[])).expect_err("fails");
-    assert!(error.contains("no sha256 or integrity"), "{error}");
+    assert!(
+        error.message().contains("no sha256 or integrity"),
+        "{error}"
+    );
 }
 
 #[test]
 fn a_computed_override_module_name_fails() {
     let module = "archive_override(module_name = NAME, urls = [\"https://e/a\"], integrity = \"sha256-A\")\n";
     let error = inputs_of(module, &lock(&[])).expect_err("fails");
-    assert!(error.contains("computed module_name"), "{error}");
+    assert!(error.message().contains("computed module_name"), "{error}");
 }
 
 #[test]
@@ -251,7 +261,10 @@ _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "h
 _http_archive(name = "floating", urls = ["https://example.com/a.tar.gz"])
 "#;
     let error = inputs_of(module, &lock(&[])).expect_err("fails");
-    assert!(error.contains("no sha256 or integrity"), "{error}");
+    assert!(
+        error.message().contains("no sha256 or integrity"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -261,17 +274,26 @@ _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "h
 _http_archive(name = "short", urls = ["https://example.com/a.tar.gz"], sha256 = "abc")
 "#;
     let error = inputs_of(module, &lock(&[])).expect_err("fails");
-    assert!(error.contains("64 lowercase hex"), "{error}");
+    assert!(error.message().contains("64 lowercase hex"), "{error}");
 }
 
 #[test]
 fn a_lock_without_registry_hashes_fails() {
     let error = inputs_of("", "{\"lockFileVersion\": 28}").expect_err("fails");
-    assert!(error.contains("missing registryFileHashes"), "{error}");
+    assert!(
+        error.message().contains("missing registryFileHashes"),
+        "{error}"
+    );
     let error = inputs_of("", "{}").expect_err("fails");
-    assert!(error.contains("missing lockFileVersion"), "{error}");
+    assert!(
+        error.message().contains("missing lockFileVersion"),
+        "{error}"
+    );
     let error = inputs_of("", "not json").expect_err("fails");
-    assert!(error.starts_with("invalid MODULE.bazel.lock"), "{error}");
+    assert!(
+        error.message().starts_with("invalid MODULE.bazel.lock"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -282,7 +304,7 @@ fn a_source_entry_with_a_missing_digest_or_odd_shape_fails() {
     })
     .to_string();
     let error = inputs_of("", &text).expect_err("fails");
-    assert!(error.contains("no sha256 digest"), "{error}");
+    assert!(error.message().contains("no sha256 digest"), "{error}");
     let text = serde_json::json!({
         "lockFileVersion": 28,
         "registryFileHashes": {format!("{REGISTRY}/modules/a/source.json"): DIGEST_A}
@@ -290,7 +312,9 @@ fn a_source_entry_with_a_missing_digest_or_odd_shape_fails() {
     .to_string();
     let error = inputs_of("", &text).expect_err("fails");
     assert!(
-        error.contains("<registry>/modules/<name>/<version>/source.json"),
+        error
+            .message()
+            .contains("<registry>/modules/<name>/<version>/source.json"),
         "{error}"
     );
 }
@@ -298,7 +322,7 @@ fn a_source_entry_with_a_missing_digest_or_odd_shape_fails() {
 #[test]
 fn module_syntax_errors_fail_closed() {
     let error = inputs_of("bazel_dep(", &lock(&[])).expect_err("fails");
-    assert!(error.contains("does not parse"), "{error}");
+    assert!(error.message().contains("does not parse"), "{error}");
 }
 
 #[test]
@@ -375,11 +399,14 @@ fn included_segments_are_read() {
 #[test]
 fn an_unreadable_or_repeated_include_fails() {
     let error = inputs_of("include(\"//:deps.MODULE.bazel\")\n", &lock(&[])).expect_err("fails");
-    assert!(error.contains("no include //:deps.MODULE.bazel"), "{error}");
+    assert!(
+        error.message().contains("no include //:deps.MODULE.bazel"),
+        "{error}"
+    );
     let read = |_: &str| -> Result<String, String> { Ok(String::new()) };
     let twice = "include(\"//:a.MODULE.bazel\")\ninclude(\"//:a.MODULE.bazel\")\n";
     let error = parse_bazel_inputs(twice, &lock(&[]), &read).expect_err("fails");
-    assert!(error.contains("more than once"), "{error}");
+    assert!(error.message().contains("more than once"), "{error}");
 }
 
 #[test]
@@ -388,8 +415,10 @@ fn an_include_of_a_repo_label_is_rejected() {
     let error = parse_bazel_inputs("include(\"@//:deps.MODULE.bazel\")\n", &lock(&[]), &read)
         .expect_err("fails");
     assert!(
-        error.contains("include @//:deps.MODULE.bazel is not a //package:file label")
-            && error.contains("MODULE.bazel line 1"),
+        error
+            .message()
+            .contains("include @//:deps.MODULE.bazel is not a //package:file label")
+            && error.message().contains("MODULE.bazel line 1"),
         "{error}"
     );
 }
@@ -433,7 +462,9 @@ fn spec(attributes: serde_json::Value) -> serde_json::Value {
     serde_json::json!({"repoRuleId": HTTP_FILE, "attributes": attributes})
 }
 
-fn extension_inputs_of(extensions: serde_json::Value) -> Result<Vec<BazelInput>, String> {
+fn extension_inputs_of(
+    extensions: serde_json::Value,
+) -> Result<Vec<BazelInput>, dx_error::DxError> {
     inputs_of("", &lock_with_extensions(extensions))
 }
 
@@ -497,8 +528,11 @@ fn a_malformed_extension_digest_fails() {
             EXT_A: general(serde_json::json!({"bad": spec(attributes)})),
         }))
         .expect_err("fails");
-        assert!(error.contains("invalid MODULE.bazel.lock"), "{error}");
-        assert!(error.contains(&format!("{EXT_A} bad")), "{error}");
+        assert!(
+            error.message().contains("invalid MODULE.bazel.lock"),
+            "{error}"
+        );
+        assert!(error.message().contains(&format!("{EXT_A} bad")), "{error}");
     }
 }
 
@@ -508,7 +542,10 @@ fn an_extension_repo_without_a_rule_fails() {
         EXT_A: general(serde_json::json!({"norule": {"attributes": {"url": "https://example.com/a"}}})),
     }))
     .expect_err("fails");
-    assert!(error.contains("norule has no repo rule"), "{error}");
+    assert!(
+        error.message().contains("norule has no repo rule"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -546,9 +583,9 @@ fn two_extensions_generating_one_repo_from_different_urls_fail() {
         EXT_B: general(serde_json::json!({"tool": spec(serde_json::json!({"url": "https://b.example/t.tgz", "sha256": ARCHIVE_SHA}))})),
     }))
     .expect_err("fails");
-    assert!(error.contains(EXT_A), "{error}");
-    assert!(error.contains(EXT_B), "{error}");
-    assert!(error.contains("tool"), "{error}");
+    assert!(error.message().contains(EXT_A), "{error}");
+    assert!(error.message().contains(EXT_B), "{error}");
+    assert!(error.message().contains("tool"), "{error}");
 }
 
 #[test]
@@ -561,7 +598,9 @@ fn an_extension_repo_matching_a_module_download_fails_as_a_duplicate() {
     }));
     let error = inputs_of(&module, &lock_text).expect_err("fails");
     assert!(
-        error.contains("declared twice across MODULE.bazel and MODULE.bazel.lock"),
+        error
+            .message()
+            .contains("declared twice across MODULE.bazel and MODULE.bazel.lock"),
         "{error}"
     );
 }
@@ -599,7 +638,10 @@ fn patched_and_commit_pinned_extension_repos_keep_those_facts() {
 #[test]
 fn a_non_object_module_extensions_entry_fails() {
     let error = extension_inputs_of(serde_json::json!({EXT_A: []})).expect_err("fails");
-    assert!(error.contains("invalid MODULE.bazel.lock"), "{error}");
+    assert!(
+        error.message().contains("invalid MODULE.bazel.lock"),
+        "{error}"
+    );
 }
 
 fn unrecorded_of(module: &str, extensions: serde_json::Value) -> Vec<String> {

@@ -1,3 +1,4 @@
+use dx_error::DxError;
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -98,11 +99,12 @@ pub fn parse_bazel_inputs(
     module_text: &str,
     lock_text: &str,
     read_include: &dyn Fn(&str) -> Result<String, String>,
-) -> Result<BazelInventory, String> {
-    let modules = dx_module_bazel::load_with_includes(module_text, read_include)?;
+) -> Result<BazelInventory, DxError> {
+    let modules =
+        dx_module_bazel::load_with_includes(module_text, read_include).map_err(DxError::failure)?;
     let calls: Vec<&Call> = modules.iter().flat_map(ModuleFile::calls).collect();
     let lock: serde_json::Value = serde_json::from_str(lock_text)
-        .map_err(|error| format!("invalid MODULE.bazel.lock: {error}"))?;
+        .map_err(|error| DxError::failure(format!("invalid MODULE.bazel.lock: {error}")))?;
     let selected = selected_modules(&lock)?;
     let overrides = module_overrides(&calls)?;
     let deps = declared_deps(&calls)?;
@@ -111,12 +113,12 @@ pub fn parse_bazel_inputs(
         if let Some(over) = overrides.get(&pick.name)
             && over.source != BazelSource::Registry
         {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "MODULE.bazel.lock selects {}@{} from a registry but MODULE.bazel overrides it with {}; refresh the lock with `bazel mod deps`",
                 pick.name,
                 pick.version,
                 over.source.as_str()
-            ));
+            )));
         }
         out.push(BazelInput {
             name: pick.name.clone(),
@@ -157,19 +159,19 @@ pub fn parse_bazel_inputs(
             .iter()
             .max_by(|left, right| bazel_version_cmp(&left.version, &right.version))
         else {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "bazel_dep {name} is not selected in MODULE.bazel.lock; refresh the lock with `bazel mod deps`"
-            ));
+            )));
         };
         let floor = overrides
             .get(name)
             .and_then(|over| over.version.as_deref())
             .unwrap_or(dep_version);
         if !floor.is_empty() && bazel_version_cmp(&best.version, floor) == Ordering::Less {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "bazel_dep {name} declares {floor} but MODULE.bazel.lock selects {}; refresh the lock with `bazel mod deps`",
                 best.version
-            ));
+            )));
         }
     }
     for module in &modules {
@@ -179,10 +181,10 @@ pub fn parse_bazel_inputs(
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     for pair in out.windows(2) {
         if pair[0].name == pair[1].name && pair[0].version == pair[1].version {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "{}@{} is declared twice across MODULE.bazel and MODULE.bazel.lock",
                 pair[0].name, pair[0].version
-            ));
+            )));
         }
     }
     let unrecorded_extensions = unrecorded_extensions(&modules, &lock);
@@ -254,16 +256,20 @@ fn unrecorded_extensions(modules: &[ModuleFile], lock: &serde_json::Value) -> Ve
     out
 }
 
-fn selected_modules(root: &serde_json::Value) -> Result<Vec<Selected>, String> {
+fn selected_modules(root: &serde_json::Value) -> Result<Vec<Selected>, DxError> {
     if root
         .get("lockFileVersion")
         .and_then(|v| v.as_u64())
         .is_none()
     {
-        return Err("invalid MODULE.bazel.lock: missing lockFileVersion".to_owned());
+        return Err(DxError::failure(
+            "invalid MODULE.bazel.lock: missing lockFileVersion",
+        ));
     }
     let Some(hashes) = root.get("registryFileHashes").and_then(|v| v.as_object()) else {
-        return Err("invalid MODULE.bazel.lock: missing registryFileHashes".to_owned());
+        return Err(DxError::failure(
+            "invalid MODULE.bazel.lock: missing registryFileHashes",
+        ));
     };
     let mut out = Vec::new();
     for (url, hash) in hashes {
@@ -271,25 +277,29 @@ fn selected_modules(root: &serde_json::Value) -> Result<Vec<Selected>, String> {
             continue;
         }
         let Some((registry, rest)) = url.split_once("/modules/") else {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "invalid MODULE.bazel.lock: {url} is not a registry module source"
-            ));
+            )));
         };
         let parts: Vec<&str> = rest.split('/').collect();
         let [name, version, "source.json"] = parts.as_slice() else {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "invalid MODULE.bazel.lock: {url} is not <registry>/modules/<name>/<version>/source.json"
-            ));
+            )));
         };
         if name.is_empty() || version.is_empty() {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "invalid MODULE.bazel.lock: {url} has an empty module name or version"
-            ));
+            )));
         }
         let digest = hash
             .as_str()
             .filter(|text| is_sha256_hex(text))
-            .ok_or_else(|| format!("invalid MODULE.bazel.lock: {url} has no sha256 digest"))?;
+            .ok_or_else(|| {
+                DxError::failure(format!(
+                    "invalid MODULE.bazel.lock: {url} has no sha256 digest"
+                ))
+            })?;
         out.push(Selected {
             name: (*name).to_owned(),
             version: (*version).to_owned(),
@@ -309,29 +319,29 @@ struct Override {
     patched: bool,
 }
 
-fn literal<'a>(call: &'a Call, key: &str) -> Result<Option<&'a str>, String> {
+fn literal<'a>(call: &'a Call, key: &str) -> Result<Option<&'a str>, DxError> {
     match call.arg(key) {
         None => Ok(None),
         Some(Value::Str(text)) => Ok(Some(text.value.as_str())),
-        Some(_) => Err(format!(
+        Some(_) => Err(DxError::failure(format!(
             "{} at MODULE.bazel line {} has a computed {key}; write it as a string literal",
             call.name, call.line
-        )),
+        ))),
     }
 }
 
-fn required<'a>(call: &'a Call, key: &str) -> Result<&'a str, String> {
+fn required<'a>(call: &'a Call, key: &str) -> Result<&'a str, DxError> {
     literal(call, key)?
         .filter(|text| !text.is_empty())
         .ok_or_else(|| {
-            format!(
+            DxError::failure(format!(
                 "{} at MODULE.bazel line {} has no {key}",
                 call.name, call.line
-            )
+            ))
         })
 }
 
-fn module_overrides(calls: &[&Call]) -> Result<BTreeMap<String, Override>, String> {
+fn module_overrides(calls: &[&Call]) -> Result<BTreeMap<String, Override>, DxError> {
     let mut out: BTreeMap<String, Override> = BTreeMap::new();
     for call in calls.iter().copied() {
         if !OVERRIDES.contains(&call.name.as_str()) {
@@ -353,10 +363,10 @@ fn module_overrides(calls: &[&Call]) -> Result<BTreeMap<String, Override>, Strin
             "git_override" => {
                 let commit = literal(call, "commit")?.unwrap_or_default();
                 if commit.is_empty() {
-                    return Err(format!(
+                    return Err(DxError::failure(format!(
                         "git_override for {name} at MODULE.bazel line {} is not pinned to a commit",
                         call.line
-                    ));
+                    )));
                 }
                 Override {
                     source: BazelSource::GitOverride,
@@ -388,15 +398,15 @@ fn module_overrides(calls: &[&Call]) -> Result<BTreeMap<String, Override>, Strin
             },
         };
         if out.insert(name.clone(), over).is_some() {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "MODULE.bazel overrides module {name} more than once"
-            ));
+            )));
         }
     }
     Ok(out)
 }
 
-fn declared_deps(calls: &[&Call]) -> Result<BTreeMap<String, String>, String> {
+fn declared_deps(calls: &[&Call]) -> Result<BTreeMap<String, String>, DxError> {
     let mut out = BTreeMap::new();
     for call in calls
         .iter()
@@ -406,13 +416,15 @@ fn declared_deps(calls: &[&Call]) -> Result<BTreeMap<String, String>, String> {
         let name = required(call, "name")?.to_owned();
         let version = literal(call, "version")?.unwrap_or_default().to_owned();
         if out.insert(name.clone(), version).is_some() {
-            return Err(format!("MODULE.bazel declares bazel_dep {name} twice"));
+            return Err(DxError::failure(format!(
+                "MODULE.bazel declares bazel_dep {name} twice"
+            )));
         }
     }
     Ok(out)
 }
 
-fn urls_of(call: &Call) -> Result<Vec<String>, String> {
+fn urls_of(call: &Call) -> Result<Vec<String>, DxError> {
     let mut urls: Vec<String> = Vec::new();
     match call.arg("urls") {
         Some(Value::List(items)) => {
@@ -420,20 +432,20 @@ fn urls_of(call: &Call) -> Result<Vec<String>, String> {
                 match item {
                     Value::Str(text) => urls.push(text.value.clone()),
                     _ => {
-                        return Err(format!(
+                        return Err(DxError::failure(format!(
                             "{} at MODULE.bazel line {} has a computed url",
                             call.name, call.line
-                        ));
+                        )));
                     }
                 }
             }
         }
         Some(Value::Str(text)) => urls.push(text.value.clone()),
         Some(_) => {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "{} at MODULE.bazel line {} has computed urls",
                 call.name, call.line
-            ));
+            )));
         }
         None => {
             if let Some(url) = literal(call, "url")? {
@@ -442,22 +454,22 @@ fn urls_of(call: &Call) -> Result<Vec<String>, String> {
         }
     }
     if urls.is_empty() {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "{} at MODULE.bazel line {} has no urls",
             call.name, call.line
-        ));
+        )));
     }
     Ok(urls)
 }
 
-fn digest_of(call: &Call) -> Result<String, String> {
+fn digest_of(call: &Call) -> Result<String, DxError> {
     let label = format!("{} at MODULE.bazel line {}", call.name, call.line);
     checked_digest(
         literal(call, "sha256")?,
         literal(call, "integrity")?,
         &label,
     )?
-    .ok_or_else(|| format!("{label} has no sha256 or integrity"))
+    .ok_or_else(|| DxError::failure(format!("{label} has no sha256 or integrity")))
 }
 
 /// Validates an integrity or sha256 value and returns it in provenance form.
@@ -465,30 +477,30 @@ fn checked_digest(
     sha256: Option<&str>,
     integrity: Option<&str>,
     label: &str,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, DxError> {
     if let Some(integrity) = integrity.filter(|text| !text.is_empty()) {
         let valid = ["sha256-", "sha384-", "sha512-"]
             .iter()
             .any(|prefix| integrity.starts_with(prefix) && integrity.len() > prefix.len());
         if !valid {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "{label} has an integrity that is not sha256-, sha384-, or sha512-"
-            ));
+            )));
         }
         return Ok(Some(integrity.to_owned()));
     }
     if let Some(sha) = sha256.filter(|text| !text.is_empty()) {
         if !is_sha256_hex(sha) {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "{label} has a sha256 that is not 64 lowercase hex digits"
-            ));
+            )));
         }
         return Ok(Some(format!("sha256:{sha}")));
     }
     Ok(None)
 }
 
-fn download_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, String> {
+fn download_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, DxError> {
     let mut http: BTreeSet<&str> = BTreeSet::new();
     let mut custom: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
     for call in module.calls_named("use_repo_rule") {
@@ -500,10 +512,10 @@ fn download_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, String> {
                 .get(1)
                 .or_else(|| call.arg("repo_rule_name")),
         ) else {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "use_repo_rule at MODULE.bazel line {} has a computed file or rule name",
                 call.line
-            ));
+            )));
         };
         let Some(binding) = call.binding.as_deref() else {
             continue;
@@ -539,7 +551,7 @@ fn download_inputs(module: &ModuleFile) -> Result<Vec<BazelInput>, String> {
     Ok(out)
 }
 
-fn repo_rule_input(call: &Call, file: &str, rule: &str) -> Result<BazelInput, String> {
+fn repo_rule_input(call: &Call, file: &str, rule: &str) -> Result<BazelInput, DxError> {
     let name = required(call, "name")?.to_owned();
     let commit = call.str("commit").filter(|text| !text.is_empty());
     let sha = call.str("sha256").filter(|text| !text.is_empty());
@@ -568,7 +580,7 @@ fn repo_rule_input(call: &Call, file: &str, rule: &str) -> Result<BazelInput, St
 }
 
 /// Lists the downloaded repos that module extensions record in `MODULE.bazel.lock`.
-fn extension_inputs(root: &serde_json::Value) -> Result<Vec<BazelInput>, String> {
+fn extension_inputs(root: &serde_json::Value) -> Result<Vec<BazelInput>, DxError> {
     let Some(extensions) = root.get("moduleExtensions") else {
         return Ok(Vec::new());
     };
@@ -588,10 +600,10 @@ fn extension_inputs(root: &serde_json::Value) -> Result<Vec<BazelInput>, String>
                 match found.get(&key) {
                     Some((_, seen)) if seen.origin == input.origin => {}
                     Some((other, seen)) => {
-                        return Err(format!(
+                        return Err(DxError::failure(format!(
                             "invalid MODULE.bazel.lock: extensions {other} and {extension} both generate repo {repo} at {} from {} and {}",
                             input.version, seen.origin, input.origin
-                        ));
+                        )));
                     }
                     None => {
                         found.insert(key, (extension.clone(), input));
@@ -608,16 +620,16 @@ fn extension_input(
     extension: &str,
     repo: &str,
     spec: &serde_json::Value,
-) -> Result<Option<BazelInput>, String> {
+) -> Result<Option<BazelInput>, DxError> {
     let label = format!("{extension} {repo}");
     let spec = lock_object(spec, &label)?;
     let has_rule = lock_str(spec, "repoRuleId", &label)?.is_some()
         || (lock_str(spec, "bzlFile", &label)?.is_some()
             && lock_str(spec, "ruleClassName", &label)?.is_some());
     if !has_rule {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "invalid MODULE.bazel.lock: {label} has no repo rule"
-        ));
+        )));
     }
     let empty = serde_json::Map::new();
     let attributes = match spec.get("attributes") {
@@ -629,9 +641,9 @@ fn extension_input(
             let mut first = None;
             for item in items {
                 let Some(text) = item.as_str() else {
-                    return Err(format!(
+                    return Err(DxError::failure(format!(
                         "invalid MODULE.bazel.lock: {label} has a url that is not a string"
-                    ));
+                    )));
                 };
                 if first.is_none() && !text.is_empty() {
                     first = Some(text);
@@ -681,10 +693,12 @@ fn extension_input(
 fn lock_object<'a>(
     value: &'a serde_json::Value,
     place: &str,
-) -> Result<&'a serde_json::Map<String, serde_json::Value>, String> {
-    value
-        .as_object()
-        .ok_or_else(|| format!("invalid MODULE.bazel.lock: {place} is not an object"))
+) -> Result<&'a serde_json::Map<String, serde_json::Value>, DxError> {
+    value.as_object().ok_or_else(|| {
+        DxError::failure(format!(
+            "invalid MODULE.bazel.lock: {place} is not an object"
+        ))
+    })
 }
 
 /// Reads an optional non-empty string field, failing on any other JSON type.
@@ -692,13 +706,13 @@ fn lock_str<'a>(
     object: &'a serde_json::Map<String, serde_json::Value>,
     key: &str,
     label: &str,
-) -> Result<Option<&'a str>, String> {
+) -> Result<Option<&'a str>, DxError> {
     match object.get(key) {
         None | Some(serde_json::Value::Null) => Ok(None),
         Some(serde_json::Value::String(text)) => Ok(Some(text.as_str()).filter(|t| !t.is_empty())),
-        Some(_) => Err(format!(
+        Some(_) => Err(DxError::failure(format!(
             "invalid MODULE.bazel.lock: {label} has a {key} that is not a string"
-        )),
+        ))),
     }
 }
 

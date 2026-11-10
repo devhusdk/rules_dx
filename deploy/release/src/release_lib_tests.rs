@@ -1221,8 +1221,11 @@ fn notice_manifest_rejects_unsafe_text_paths() {
             "0".repeat(64)
         ))
         .expect_err(bad);
-        assert!(err.contains("line 2"), "{bad}: got {err}");
-        assert!(err.contains(&format!("text '{bad}'")), "{bad}: got {err}");
+        assert!(err.message().contains("line 2"), "{bad}: got {err}");
+        assert!(
+            err.message().contains(&format!("text '{bad}'")),
+            "{bad}: got {err}"
+        );
     }
     for good in ["LICENSE", "cargo/serde/LICENSE", "a.b/LICENSE-MIT"] {
         parse_notice_manifest(&format!(
@@ -1241,7 +1244,8 @@ fn notice_manifest_rejects_duplicate_identity() {
     ))
     .expect_err("duplicate identity");
     assert!(
-        err.contains("duplicate entry shared@1.0.0 (MIT) [npm]"),
+        err.message()
+            .contains("duplicate entry shared@1.0.0 (MIT) [npm]"),
         "got {err}"
     );
     let entries = parse_notice_manifest(&format!(
@@ -1351,9 +1355,12 @@ fn notice_verify_rejects_drift_after_first_line() {
 fn notice_manifest_requires_six_fields() {
     let err = parse_notice_manifest("demo-lib-a|cargo|1.0.0|MIT|demo-lib-a.txt\n")
         .expect_err("five fields");
-    assert!(err.contains("want 6"), "got {err}");
-    assert!(err.contains("line 1"), "got {err}");
-    assert!(err.contains("5-field manifests predate"), "got {err}");
+    assert!(err.message().contains("want 6"), "got {err}");
+    assert!(err.message().contains("line 1"), "got {err}");
+    assert!(
+        err.message().contains("5-field manifests predate"),
+        "got {err}"
+    );
 }
 
 #[test]
@@ -1362,13 +1369,13 @@ fn notice_manifest_rejects_bad_digest() {
         let err = parse_notice_manifest(&format!("demo-lib-a|cargo|1.0.0|MIT|a.txt|{bad}\n"))
             .expect_err("bad digest");
         assert!(
-            err.contains("line 1") && err.contains("sha256"),
+            err.message().contains("line 1") && err.message().contains("sha256"),
             "got {err}"
         );
     }
     let err = parse_notice_manifest(&format!("demo-lib-a|cargo|1.0.0|MIT||{}\n", "0".repeat(64)))
         .expect_err("digest without text");
-    assert!(err.contains("sha256 must be empty"), "got {err}");
+    assert!(err.message().contains("sha256 must be empty"), "got {err}");
 }
 
 #[test]

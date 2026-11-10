@@ -1,7 +1,8 @@
 use crate::locks::indent_of;
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
-pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut in_distributions = false;
     let mut out = Vec::new();
     for raw in text.lines() {
@@ -13,13 +14,19 @@ pub fn parse_cpanfile_snapshot(text: &str) -> Result<Vec<LockedPackage>, String>
             continue;
         }
         if in_distributions && indent_of(raw) == 2 {
-            let (name, version) = split_distribution(raw.trim())
-                .ok_or_else(|| format!("invalid cpanfile.snapshot distribution: {}", raw.trim()))?;
+            let (name, version) = split_distribution(raw.trim()).ok_or_else(|| {
+                DxError::failure(format!(
+                    "invalid cpanfile.snapshot distribution: {}",
+                    raw.trim()
+                ))
+            })?;
             out.push(LockedPackage::new("cpan", name, version));
         }
     }
     if out.is_empty() {
-        return Err("invalid cpanfile.snapshot: missing DISTRIBUTIONS entries".to_owned());
+        return Err(DxError::failure(
+            "invalid cpanfile.snapshot: missing DISTRIBUTIONS entries",
+        ));
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
     out.dedup_by(|b, a| a.name == b.name && a.version == b.version);

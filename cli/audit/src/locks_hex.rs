@@ -1,4 +1,5 @@
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
 #[derive(Debug, Eq, PartialEq)]
 enum Token {
@@ -10,7 +11,7 @@ enum Token {
 }
 
 /// Splits Elixir or Erlang terms into strings, atoms and brackets; everything else is `Other`.
-fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, String> {
+fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, DxError> {
     let chars: Vec<char> = text.chars().collect();
     let mut tokens = Vec::new();
     let mut depth = 0usize;
@@ -48,9 +49,9 @@ fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, String> {
                 i += 1;
             }
             '}' | ']' => {
-                depth = depth
-                    .checked_sub(1)
-                    .ok_or_else(|| format!("invalid {name}: unbalanced brackets"))?;
+                depth = depth.checked_sub(1).ok_or_else(|| {
+                    DxError::failure(format!("invalid {name}: unbalanced brackets"))
+                })?;
                 tokens.push(Token::Close);
                 i += 1;
             }
@@ -63,12 +64,14 @@ fn tokenize(text: &str, name: &str) -> Result<Vec<Token>, String> {
         }
     }
     if depth != 0 {
-        return Err(format!("invalid {name}: unbalanced brackets"));
+        return Err(DxError::failure(format!(
+            "invalid {name}: unbalanced brackets"
+        )));
     }
     Ok(tokens)
 }
 
-fn read_string(chars: &[char], quote: usize, name: &str) -> Result<(String, usize), String> {
+fn read_string(chars: &[char], quote: usize, name: &str) -> Result<(String, usize), DxError> {
     let mut value = String::new();
     let mut i = quote + 1;
     while i < chars.len() {
@@ -84,14 +87,16 @@ fn read_string(chars: &[char], quote: usize, name: &str) -> Result<(String, usiz
         }
         i += 1;
     }
-    Err(format!("invalid {name}: unterminated string"))
+    Err(DxError::failure(format!(
+        "invalid {name}: unterminated string"
+    )))
 }
 
 /// Reads the `{:hex, :name, "version", ...}` entries of a mix.lock; git and path entries are skipped.
-pub fn parse_mix_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_mix_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let tokens = tokenize(text, "mix.lock")?;
     if !text.trim_start().starts_with("%{") {
-        return Err("invalid mix.lock: expected a map".to_owned());
+        return Err(DxError::failure("invalid mix.lock: expected a map"));
     }
     let mut out = Vec::new();
     for window in tokens.windows(4) {
@@ -115,7 +120,7 @@ pub fn parse_mix_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
 }
 
 /// Reads the `{pkg, <<"name">>, <<"version">>}` entries of a rebar.lock.
-pub fn parse_rebar_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_rebar_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut out = Vec::new();
     let mut rest = text;
     while let Some(at) = rest.find("{pkg,") {
@@ -124,12 +129,12 @@ pub fn parse_rebar_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         let mut cursor = rest;
         while names.len() < 2 {
             let open = cursor.find("<<\"").ok_or_else(|| {
-                "invalid rebar.lock: pkg entry without name and version".to_owned()
+                DxError::failure("invalid rebar.lock: pkg entry without name and version")
             })?;
             let body = &cursor[open + 3..];
             let close = body
                 .find("\">>")
-                .ok_or_else(|| "invalid rebar.lock: unterminated binary".to_owned())?;
+                .ok_or_else(|| DxError::failure("invalid rebar.lock: unterminated binary"))?;
             names.push(body[..close].to_owned());
             cursor = &body[close + 3..];
         }

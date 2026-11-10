@@ -1,6 +1,7 @@
 //! The trivy image scan `oci_deploy` and `dx security` share: arguments, the
 //! pinned database cache, the JSON report and the exception match.
 
+use dx_error::DxError;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -53,11 +54,15 @@ struct ReportVulnerability {
 }
 
 /// The floor and every severity above it, as trivy wants them.
-pub fn severity_list(floor: &str) -> Result<String, String> {
+pub fn severity_list(floor: &str) -> Result<String, DxError> {
     let at = SEVERITIES
         .iter()
         .position(|name| *name == floor)
-        .ok_or_else(|| format!("scan_severity '{floor}': want LOW, MEDIUM, HIGH or CRITICAL"))?;
+        .ok_or_else(|| {
+            DxError::usage(format!(
+                "scan_severity '{floor}': want LOW, MEDIUM, HIGH or CRITICAL"
+            ))
+        })?;
     Ok(SEVERITIES[at..].join(","))
 }
 
@@ -99,9 +104,9 @@ pub fn trivy_args(
     args
 }
 
-pub fn parse_report(json: &str) -> Result<Vec<ImageFinding>, String> {
-    let report: Report =
-        serde_json::from_str(json).map_err(|error| format!("trivy report: {error}"))?;
+pub fn parse_report(json: &str) -> Result<Vec<ImageFinding>, DxError> {
+    let report: Report = serde_json::from_str(json)
+        .map_err(|error| DxError::failure(format!("trivy report: {error}")))?;
     Ok(report
         .results
         .into_iter()
@@ -135,7 +140,7 @@ pub fn trivy_cache(
     workspace: Option<&Path>,
     today: &str,
     offline: bool,
-) -> Result<Option<PathBuf>, String> {
+) -> Result<Option<PathBuf>, DxError> {
     if let Some(cache) = std::env::var_os("DX_TRIVY_CACHE") {
         return Ok(Some(PathBuf::from(cache)));
     }
@@ -163,56 +168,60 @@ pub fn trivy_cache(
 }
 
 /// Downloads the pinned archive, checks its sha256 and unpacks it into `cache`.
-fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(), String> {
+fn fetch_trivy_pin(pin: &AdvisoryPin, cache: &Path, offline: bool) -> Result<(), DxError> {
     let local = crate::advisory::file_url_path(&pin.url);
     if offline && local.is_none() {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "{CODE_ADVISORY_REFRESH_FAILED}: the pinned trivy database is not in {} and --offline forbids fetching it",
             cache.display()
-        ));
+        )));
     }
-    let parent = cache.parent().ok_or("trivy cache has no parent")?;
-    std::fs::create_dir_all(parent).map_err(|error| format!("{}: {error}", parent.display()))?;
+    let parent = cache
+        .parent()
+        .ok_or_else(|| DxError::infra("trivy cache has no parent"))?;
+    std::fs::create_dir_all(parent)
+        .map_err(|error| DxError::infra(format!("{}: {error}", parent.display())))?;
     let id = std::process::id();
     let archive = parent.join(format!("trivy.part{id}.tar.gz"));
     let bytes = match local {
-        Some(path) => {
-            std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?
-        }
+        Some(path) => std::fs::read(&path)
+            .map_err(|error| DxError::infra(format!("{}: {error}", path.display())))?,
         None => {
             let plan = crate::advisory_prep::fetch_many_plan(
                 &[(pin.url.clone(), archive.clone())],
                 crate::advisory_prep::DEFAULT_LIMITS,
                 1,
             )
-            .map_err(|error| error.to_string())?;
+            .map_err(|error| DxError::infra(error.to_string()))?;
             dx_process::capture::run_checked(
                 Command::new(&plan.program).args(&plan.argv),
                 FETCH_TIMEOUT,
             )
-            .map_err(|error| format!("{}: {error}", pin.url))?;
-            let bytes = std::fs::read(&archive).map_err(|error| format!("{}: {error}", pin.url));
+            .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)))?;
+            let bytes = std::fs::read(&archive)
+                .map_err(|error| DxError::infra(format!("{}: {error}", pin.url)));
             let _ = std::fs::remove_file(&archive);
             bytes?
         }
     };
     let actual = dx_digest::sha256_hex(&bytes);
     if actual != pin.sha256 {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "advisory_pin_mismatch: the trivy archive has sha256 {actual}, .dx/pins says {}",
             pin.sha256
-        ));
+        )));
     }
     let partial = parent.join(format!("trivy.part{id}"));
     let _ = std::fs::remove_dir_all(&partial);
     let unpacked = tar::Archive::new(flate2::read::GzDecoder::new(bytes.as_slice()))
         .unpack(&partial)
-        .map_err(|error| format!("unpacking the trivy archive: {error}"));
+        .map_err(|error| DxError::failure(format!("unpacking the trivy archive: {error}")));
     if let Err(error) = unpacked {
         let _ = std::fs::remove_dir_all(&partial);
         return Err(error);
     }
-    std::fs::rename(&partial, cache).map_err(|error| format!("{}: {error}", cache.display()))
+    std::fs::rename(&partial, cache)
+        .map_err(|error| DxError::infra(format!("{}: {error}", cache.display())))
 }
 
 #[cfg(test)]
@@ -328,7 +337,7 @@ mod tests {
     fn a_changed_trivy_sha_is_a_mismatch() {
         let (dir, workspace) = pinned_workspace("mismatch", true);
         let error = trivy_cache(Some(&workspace), "2026-11-06", false).expect_err("mismatch");
-        assert!(error.contains("advisory_pin_mismatch"), "{error}");
+        assert!(error.message().contains("advisory_pin_mismatch"), "{error}");
         assert!(
             !workspace
                 .join(".dx/local/advisory")
@@ -353,7 +362,10 @@ mod tests {
         )
         .expect("pins");
         let error = trivy_cache(Some(&dir), "2026-11-06", true).expect_err("offline");
-        assert!(error.starts_with("advisory_refresh_failed"), "{error}");
+        assert!(
+            error.message().starts_with("advisory_refresh_failed"),
+            "{error}"
+        );
         std::fs::remove_dir_all(&dir).expect("cleanup");
     }
 

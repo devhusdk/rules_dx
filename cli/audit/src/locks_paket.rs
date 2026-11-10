@@ -1,7 +1,8 @@
 use crate::locks::split_paren_spec;
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
-pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_paket_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut out = Vec::new();
     let mut in_nuget = false;
     let mut in_git = false;

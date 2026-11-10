@@ -1,18 +1,21 @@
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
-pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
-    let lockfile: cargo_lock::Lockfile = text
-        .parse()
-        .map_err(|error: cargo_lock::Error| format!("invalid Cargo.lock: {error}"))?;
+pub fn parse_cargo_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let lockfile: cargo_lock::Lockfile = text.parse().map_err(|error: cargo_lock::Error| {
+        DxError::failure(format!("invalid Cargo.lock: {error}"))
+    })?;
     if lockfile.packages.is_empty() {
-        return Err("invalid Cargo.lock: missing [[package]]".to_owned());
+        return Err(DxError::failure("invalid Cargo.lock: missing [[package]]"));
     }
     let mut out = Vec::new();
     for package in &lockfile.packages {
         let name = package.name.as_str().to_owned();
         let version = package.version.to_string();
         if name.trim().is_empty() || version.trim().is_empty() {
-            return Err("invalid Cargo.lock: empty package name or version".to_owned());
+            return Err(DxError::failure(
+                "invalid Cargo.lock: empty package name or version",
+            ));
         }
         let Some(source) = &package.source else {
             continue;
@@ -44,12 +47,12 @@ pub struct CargoLockEntry {
     pub dependencies: Vec<(String, String)>,
 }
 
-pub fn cargo_lock_graph(text: &str) -> Result<Vec<CargoLockEntry>, String> {
-    let lockfile: cargo_lock::Lockfile = text
-        .parse()
-        .map_err(|error: cargo_lock::Error| format!("invalid Cargo.lock: {error}"))?;
+pub fn cargo_lock_graph(text: &str) -> Result<Vec<CargoLockEntry>, DxError> {
+    let lockfile: cargo_lock::Lockfile = text.parse().map_err(|error: cargo_lock::Error| {
+        DxError::failure(format!("invalid Cargo.lock: {error}"))
+    })?;
     if lockfile.packages.is_empty() {
-        return Err("invalid Cargo.lock: missing [[package]]".to_owned());
+        return Err(DxError::failure("invalid Cargo.lock: missing [[package]]"));
     }
     let mut out: Vec<CargoLockEntry> = lockfile
         .packages

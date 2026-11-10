@@ -280,7 +280,7 @@ fn load_pinned(
     let advisories =
         dx_audit::vuln::parse_snapshot(&text).map_err(|detail| AuditError::AdvisoryParse {
             set: label.to_owned(),
-            detail,
+            detail: detail.to_string(),
         })?;
     Ok((advisories, pin))
 }
@@ -401,7 +401,9 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Pub => dx_audit::locks::parse_pubspec_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Hex => match rel.rsplit('/').next() {
                 Some(dx_adopt::dependency_sets::MIX_LOCK) => dx_audit::locks::parse_mix_lock(text),
-                Some(dx_adopt::dependency_sets::REBAR_LOCK) => dx_audit::locks::parse_rebar_lock(text),
+                Some(dx_adopt::dependency_sets::REBAR_LOCK) => {
+                    dx_audit::locks::parse_rebar_lock(text)
+                }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Conan => dx_audit::locks::parse_conan_lock(text),
@@ -474,7 +476,7 @@ fn parse_locked_for_configured(
         }
         .map_err(|detail| AuditError::LockParse {
             rel: rel.clone(),
-            detail,
+            detail: detail.to_string(),
         })?;
         for package in &packages {
             by_package
@@ -556,7 +558,7 @@ pub(super) fn bazel_inputs_for_configured(
     let inventory = dx_audit::locks::parse_bazel_inputs(&module_text, &lock_text, &read_include)
         .map_err(|detail| AuditError::LockParse {
             rel: lock_rel.clone(),
-            detail,
+            detail: detail.to_string(),
         })?;
     Ok((inventory, lock_rel))
 }
@@ -782,7 +784,8 @@ fn scoped_secrets_config(
     } else {
         None
     };
-    let text = scoped_config(user.as_deref(), &patterns, &base.to_string_lossy())?;
+    let text = scoped_config(user.as_deref(), &patterns, &base.to_string_lossy())
+        .map_err(|e| e.to_string())?;
     let path = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.toml"));
     std::fs::write(&path, text)
         .map_err(|error| format!("failed to write secrets scan config: {error}"))?;

@@ -1,4 +1,5 @@
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 use dx_gomod::GoReplacementTarget;
 
 #[path = "locks_bazel.rs"]
@@ -64,10 +65,10 @@ pub use locks_swift::*;
 pub use locks_uv::*;
 
 /// Reads the Go packages a `go.mod` pins, with its `replace` directives applied.
-pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, String> {
-    let file = dx_gomod::parse_mod(text)?;
+pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let file = dx_gomod::parse_mod(text).map_err(DxError::failure)?;
     if file.module.is_empty() {
-        return Err("invalid go.mod: missing module directive".to_owned());
+        return Err(DxError::failure("invalid go.mod: missing module directive"));
     }
     let mut out = Vec::new();
     for requirement in &file.require {
@@ -91,13 +92,13 @@ pub fn go_locked_packages(text: &str) -> Result<Vec<LockedPackage>, String> {
     Ok(out)
 }
 
-pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let value: serde_json::Value = serde_json::from_str(text)
-        .map_err(|error| format!("invalid maven_install.json: {error}"))?;
+        .map_err(|error| DxError::failure(format!("invalid maven_install.json: {error}")))?;
     let artifacts = value
         .get("artifacts")
         .and_then(|value| value.as_object())
-        .ok_or_else(|| "invalid maven_install.json: missing artifacts".to_owned())?;
+        .ok_or_else(|| DxError::failure("invalid maven_install.json: missing artifacts"))?;
     let mut out = Vec::new();
     for (key, detail) in artifacts {
         let version = detail
@@ -114,13 +115,13 @@ pub fn parse_maven_install(text: &str) -> Result<Vec<LockedPackage>, String> {
     Ok(out)
 }
 
-pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let value: serde_json::Value = serde_json::from_str(text)
-        .map_err(|error| format!("invalid PSGallery.lock.json: {error}"))?;
+        .map_err(|error| DxError::failure(format!("invalid PSGallery.lock.json: {error}")))?;
     let modules = value
         .get("modules")
         .and_then(|value| value.as_object())
-        .ok_or_else(|| "invalid PSGallery.lock.json: missing modules".to_owned())?;
+        .ok_or_else(|| DxError::failure("invalid PSGallery.lock.json: missing modules"))?;
     let mut out = Vec::new();
     for (name, detail) in modules {
         let name = name.trim();
@@ -130,7 +131,9 @@ pub fn parse_psgallery_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             .unwrap_or("")
             .trim();
         if name.is_empty() || version.is_empty() {
-            return Err("invalid PSGallery.lock.json: module without a version".to_owned());
+            return Err(DxError::failure(
+                "invalid PSGallery.lock.json: module without a version",
+            ));
         }
         out.push(LockedPackage::new("powershell", name, version));
     }

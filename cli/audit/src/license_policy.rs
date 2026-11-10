@@ -231,7 +231,7 @@ pub fn validate_license_inventory(entry: &LicenseInventory) -> Result<(), Policy
         crate::notice_manifest::notice_text_path_error(text).map_err(|message| {
             PolicyProblem::InventoryText {
                 package: entry.package.clone(),
-                message,
+                message: message.to_string(),
             }
         })?;
     }

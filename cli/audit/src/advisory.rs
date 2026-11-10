@@ -1,3 +1,4 @@
+use dx_error::DxError;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -172,8 +173,9 @@ pub fn identity_rel(family: &str) -> String {
     format!(".dx/local/advisory/{family}.meta.json")
 }
 
-pub fn parse_identity(text: &str) -> Result<AdvisorySnapshot, String> {
-    serde_json::from_str(text).map_err(|error| format!("invalid advisory identity: {error}"))
+pub fn parse_identity(text: &str) -> Result<AdvisorySnapshot, DxError> {
+    serde_json::from_str(text)
+        .map_err(|error| DxError::failure(format!("invalid advisory identity: {error}")))
 }
 
 pub fn identity_matches_bytes(snapshot: &AdvisorySnapshot, bytes: &[u8]) -> bool {

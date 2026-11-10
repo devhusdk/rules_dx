@@ -143,7 +143,7 @@ fn pnpm_unresolvable_keys_fail_closed_and_name_the_key() {
         ),
     ] {
         let error = parse_pnpm_lock(text).expect_err(key);
-        assert!(error.contains(key), "{error}");
+        assert!(error.message().contains(key), "{error}");
     }
     assert!(parse_pnpm_lock("lockfileVersion: abc\npackages:\n  react@1.0.0: {}\n").is_err());
 }
@@ -661,8 +661,8 @@ fn yarn_stanza_that_fails_to_parse_is_an_error_naming_the_header() {
     let text =
         "# yarn lockfile v1\n\nreact@^18.0.0:\n  version \"18.2.0\"\n\n@:\n  version \"1.0.0\"\n";
     let error = parse_yarn_lock(text).expect_err("rejects");
-    assert!(error.contains("invalid yarn.lock"), "{error}");
-    assert!(error.contains("cannot parse entry @:"), "{error}");
+    assert!(error.message().contains("invalid yarn.lock"), "{error}");
+    assert!(error.message().contains("cannot parse entry @:"), "{error}");
 }
 
 #[test]
@@ -1707,7 +1707,7 @@ fn julia_manifest_lists_packages_and_skips_stdlibs() {
 #[test]
 fn julia_manifest_format_one_is_refused() {
     let error = parse_julia_manifest("[[HTTP]]\nversion = \"1.10.4\"\n").unwrap_err();
-    assert!(error.contains("format 1.0"), "{error}");
+    assert!(error.message().contains("format 1.0"), "{error}");
 }
 
 #[test]

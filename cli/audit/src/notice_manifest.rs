@@ -2,6 +2,8 @@
 //! (`dx license`, `release_tool inventory`) and the release verifier.
 //! Depends only on `dx_digest` and `std`.
 
+use dx_error::DxError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NoticeEntry {
     pub package: String,
@@ -12,7 +14,7 @@ pub struct NoticeEntry {
     pub text_sha256: String,
 }
 
-pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
+pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, DxError> {
     let mut entries = Vec::new();
     for (index, raw) in text.lines().enumerate() {
         let line = raw.trim();
@@ -21,11 +23,11 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
         }
         let fields: Vec<&str> = line.split('|').collect();
         if fields.len() != 6 {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "notice manifest line {}: want 6 '|' fields 'package|set|version|license|text|sha256' where text is a per-package relative path (for example 'cargo/serde/LICENSE'), got {} (5-field manifests predate the text sha256 column; regenerate the inventory)",
                 index + 1,
                 fields.len()
-            ));
+            )));
         }
         let entry = NoticeEntry {
             package: fields[0].trim().to_owned(),
@@ -40,30 +42,30 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
             || entry.version.is_empty()
             || entry.license.is_empty()
         {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "notice manifest line {}: package, set, version, and license must be non-empty",
                 index + 1
-            ));
+            )));
         }
         if entry.text_path.is_empty() {
             if !entry.text_sha256.is_empty() {
-                return Err(format!(
+                return Err(DxError::failure(format!(
                     "notice manifest line {}: sha256 must be empty when no text file is named",
                     index + 1
-                ));
+                )));
             }
         } else if let Err(problem) = notice_text_path_error(&entry.text_path) {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "notice manifest line {}: text '{}' {problem}",
                 index + 1,
                 entry.text_path
-            ));
+            )));
         } else if !dx_digest::is_lower_hex(&entry.text_sha256, 32) {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "notice manifest line {}: sha256 for text '{}' must be 64 lowercase hex characters",
                 index + 1,
                 entry.text_path
-            ));
+            )));
         }
         entries.push(entry);
     }
@@ -76,10 +78,10 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
         if (&a.package, &a.set, &a.version, &a.license)
             == (&b.package, &b.set, &b.version, &b.license)
         {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "notice manifest: duplicate entry {}@{} ({}) [{}]",
                 a.package, a.version, a.license, a.set
-            ));
+            )));
         }
     }
     Ok(entries)
@@ -88,16 +90,18 @@ pub fn parse_notice_manifest(text: &str) -> Result<Vec<NoticeEntry>, String> {
 /// Checks that a manifest text path is a safe per-package relative path:
 /// '/'-separated, no leading '/', no '\\', and no empty, '.', or '..'
 /// components. Bare basenames are valid (the shortest suffix).
-pub fn notice_text_path_error(text_path: &str) -> Result<(), String> {
+pub fn notice_text_path_error(text_path: &str) -> Result<(), DxError> {
     if text_path.contains('\\') {
-        return Err("must use '/' separators, not '\\'".to_owned());
+        return Err(DxError::failure("must use '/' separators, not '\\'"));
     }
     if text_path.starts_with('/') {
-        return Err("must be a relative path (no leading '/')".to_owned());
+        return Err(DxError::failure("must be a relative path (no leading '/')"));
     }
     for component in text_path.split('/') {
         if component.is_empty() || component == "." || component == ".." {
-            return Err("must not contain empty, '.', or '..' path components".to_owned());
+            return Err(DxError::failure(
+                "must not contain empty, '.', or '..' path components",
+            ));
         }
     }
     Ok(())

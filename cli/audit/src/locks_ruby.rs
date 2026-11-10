@@ -1,5 +1,6 @@
 use crate::locks::{indent_of, split_paren_spec};
 use crate::vuln::{LockedPackage, split_gem_lock_version};
+use dx_error::DxError;
 
 #[derive(Clone, Copy, Eq, PartialEq)]
 enum Source {
@@ -8,7 +9,7 @@ enum Source {
     Path,
 }
 
-pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut source: Option<Source> = None;
     let mut in_specs = false;
     let mut saw_section = false;
@@ -61,7 +62,9 @@ pub fn parse_gemfile_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         });
     }
     if !saw_section {
-        return Err("invalid Gemfile.lock: missing GEM section".to_owned());
+        return Err(DxError::failure(
+            "invalid Gemfile.lock: missing GEM section",
+        ));
     }
     out.sort_by(|a, b| (&a.name, &a.version, &a.platform).cmp(&(&b.name, &b.version, &b.platform)));
     out.dedup_by(|b, a| a.name == b.name && a.version == b.version && a.platform == b.platform);

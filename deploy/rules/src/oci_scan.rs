@@ -125,8 +125,8 @@ pub fn scan_layout(
     workspace: Option<&Path>,
     run: impl Fn(&[OsString]) -> Result<String, String>,
 ) -> Result<Vec<ImageFinding>, String> {
-    let severities = severity_list(floor)?;
-    let cache = trivy_cache(workspace, &today(), false)?;
+    let severities = severity_list(floor).map_err(|e| e.to_string())?;
+    let cache = trivy_cache(workspace, &today(), false).map_err(|e| e.to_string())?;
     if let Some(cache) = &cache {
         if !cache.join("db").join("metadata.json").is_file() {
             return Err(format!(
@@ -136,7 +136,7 @@ pub fn scan_layout(
         }
     }
     let report = run(&trivy_args(layout, &severities, cache.as_deref(), None))?;
-    let findings = parse_report(&report)?;
+    let findings = parse_report(&report).map_err(|e| e.to_string())?;
     let toml = workspace.and_then(|root| std::fs::read_to_string(root.join("security.toml")).ok());
     apply_exceptions(findings, label, toml.as_deref(), &today())
 }

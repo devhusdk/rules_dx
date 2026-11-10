@@ -1,8 +1,9 @@
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
 /// Reads the `any.<name> ==<version>` entries of a cabal.project.freeze `constraints:` field.
 /// Flag entries and `installed` boot packages carry no version and are skipped.
-pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut constraints = String::new();
     let mut inside = false;
     for line in text.lines() {
@@ -18,7 +19,9 @@ pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, String> {
         constraints.push('\n');
     }
     if !text.lines().any(|line| line.starts_with("constraints:")) {
-        return Err("invalid cabal.project.freeze: missing constraints".to_owned());
+        return Err(DxError::failure(
+            "invalid cabal.project.freeze: missing constraints",
+        ));
     }
     let mut out = Vec::new();
     for entry in constraints.split(',') {
@@ -134,7 +137,7 @@ mod tests {
     #[test]
     fn missing_constraints_is_an_error() {
         let error = parse_cabal_freeze("index-state: x\n").expect_err("error");
-        assert!(error.contains("missing constraints"), "{error}");
+        assert!(error.message().contains("missing constraints"), "{error}");
     }
 
     #[test]

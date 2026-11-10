@@ -1,10 +1,11 @@
 use super::{Advisory, AdvisoryKind, is_version_family};
+use dx_error::DxError;
 
 /// The set opam advisories belong to. The osv crate has no opam ecosystem, so those entries are
 /// read under `GHC`, an ecosystem no snapshot family downloads.
 const OPAM_SET: &str = "opam";
 
-pub fn parse_snapshot(text: &str) -> Result<Vec<Advisory>, String> {
+pub fn parse_snapshot(text: &str) -> Result<Vec<Advisory>, DxError> {
     if let Ok(vulns) = serde_json::from_str::<Vec<osv::schema::Vulnerability>>(text) {
         return Ok(project_osv_snapshot(&vulns));
     }
@@ -13,7 +14,8 @@ pub fn parse_snapshot(text: &str) -> Result<Vec<Advisory>, String> {
     {
         return Ok(project_osv_snapshot(&vulns));
     }
-    serde_json::from_str(text).map_err(|error| format!("invalid advisory snapshot: {error}"))
+    serde_json::from_str(text)
+        .map_err(|error| DxError::failure(format!("invalid advisory snapshot: {error}")))
 }
 
 fn parse_opam_vulnerabilities(text: &str) -> serde_json::Result<Vec<osv::schema::Vulnerability>> {

@@ -1,31 +1,36 @@
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
 const SWIFT_SET: &str = "swifturl";
 
 /// Reads the `pins` of a `Package.resolved` v2 or v3; pins with only a branch or revision have no
 /// version to match and are skipped. Names follow OSV's SwiftURL: host and path, no scheme or `.git`.
-pub fn parse_package_resolved(text: &str) -> Result<Vec<LockedPackage>, String> {
-    let root: serde_json::Value =
-        serde_json::from_str(text).map_err(|error| format!("invalid Package.resolved: {error}"))?;
+pub fn parse_package_resolved(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let root: serde_json::Value = serde_json::from_str(text)
+        .map_err(|error| DxError::failure(format!("invalid Package.resolved: {error}")))?;
     match root.get("version").and_then(serde_json::Value::as_u64) {
         Some(2 | 3) => {}
         Some(other) => {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "unsupported Package.resolved version {other}; resolve with Swift 5.6 or newer (version 2 or 3)"
+            )));
+        }
+        None => {
+            return Err(DxError::failure(
+                "invalid Package.resolved: missing version",
             ));
         }
-        None => return Err("invalid Package.resolved: missing version".to_owned()),
     }
     let pins = root
         .get("pins")
         .and_then(serde_json::Value::as_array)
-        .ok_or("invalid Package.resolved: pins is not a list")?;
+        .ok_or_else(|| DxError::failure("invalid Package.resolved: pins is not a list"))?;
     let mut out = Vec::new();
     for pin in pins {
         let location = pin
             .get("location")
             .and_then(serde_json::Value::as_str)
-            .ok_or("invalid Package.resolved: pin without location")?;
+            .ok_or_else(|| DxError::failure("invalid Package.resolved: pin without location"))?;
         let Some(version) = pin
             .get("state")
             .and_then(|state| state.get("version"))
@@ -100,7 +105,7 @@ mod tests {
     fn v1_is_refused() {
         let error =
             parse_package_resolved(r#"{"object":{"pins":[]},"version":1}"#).expect_err("v1");
-        assert!(error.contains("version 1"), "{error}");
+        assert!(error.message().contains("version 1"), "{error}");
     }
 
     #[test]

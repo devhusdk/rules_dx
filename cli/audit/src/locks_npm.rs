@@ -1,4 +1,5 @@
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
 pub fn is_npm_git_reference(text: &str) -> bool {
     let trimmed = text.trim();
@@ -86,27 +87,32 @@ pub(crate) fn valid_package_name(name: &str) -> bool {
 pub(crate) fn package_lock_identity(
     path: &str,
     detail: &serde_json::Map<String, serde_json::Value>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, DxError> {
     match detail.get("name") {
         None => Ok(package_lock_name(path)),
         Some(value) => {
             let name = value
                 .as_str()
                 .ok_or_else(|| {
-                    format!("invalid package-lock.json: name of {path} is not a string")
+                    DxError::failure(format!(
+                        "invalid package-lock.json: name of {path} is not a string"
+                    ))
                 })?
                 .trim();
             if !valid_package_name(name) {
-                return Err(format!(
+                return Err(DxError::failure(format!(
                     "invalid package-lock.json: invalid package name {name:?} for {path}"
-                ));
+                )));
             }
             Ok(Some(name.to_owned()))
         }
     }
 }
 
-pub(crate) fn legacy_alias_identity(name: &str, version: &str) -> Result<(String, String), String> {
+pub(crate) fn legacy_alias_identity(
+    name: &str,
+    version: &str,
+) -> Result<(String, String), DxError> {
     let Some(spec) = version.strip_prefix("npm:") else {
         return Ok((name.to_owned(), version.to_owned()));
     };
@@ -120,9 +126,9 @@ pub(crate) fn legacy_alias_identity(name: &str, version: &str) -> Result<(String
         None => (spec, ""),
     };
     if !valid_package_name(real) || real_version.is_empty() {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "invalid package-lock.json: invalid npm alias {version:?} for {name}"
-        ));
+        )));
     }
     Ok((real.to_owned(), real_version.to_owned()))
 }
@@ -131,13 +137,17 @@ fn entry_text(
     detail: &serde_json::Map<String, serde_json::Value>,
     key: &str,
     path: &str,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     match detail.get(key) {
         None => Ok(String::new()),
         Some(value) => value
             .as_str()
             .map(|text| text.trim().to_owned())
-            .ok_or_else(|| format!("invalid package-lock.json: {key} of {path} is not a string")),
+            .ok_or_else(|| {
+                DxError::failure(format!(
+                    "invalid package-lock.json: {key} of {path} is not a string"
+                ))
+            }),
     }
 }
 
@@ -147,23 +157,25 @@ fn collect_legacy(
     dependencies: &serde_json::Value,
     depth: usize,
     out: &mut Vec<LockedPackage>,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     if depth >= MAX_LEGACY_DEPTH {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "invalid package-lock.json: dependencies nested deeper than {MAX_LEGACY_DEPTH}"
-        ));
+        )));
     }
-    let dependencies = dependencies
-        .as_object()
-        .ok_or_else(|| "invalid package-lock.json: dependencies is not an object".to_owned())?;
+    let dependencies = dependencies.as_object().ok_or_else(|| {
+        DxError::failure("invalid package-lock.json: dependencies is not an object")
+    })?;
     for (name, detail) in dependencies {
         let name = name.trim();
         if name.is_empty() {
             continue;
         }
-        let detail = detail
-            .as_object()
-            .ok_or_else(|| format!("invalid package-lock.json: entry {name} is not an object"))?;
+        let detail = detail.as_object().ok_or_else(|| {
+            DxError::failure(format!(
+                "invalid package-lock.json: entry {name} is not an object"
+            ))
+        })?;
         if let Some(children) = detail.get("dependencies") {
             collect_legacy(children, depth + 1, out)?;
         }
@@ -209,17 +221,17 @@ fn collect_legacy(
     Ok(())
 }
 
-pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let value: serde_json::Value = serde_json::from_str(text)
-        .map_err(|error| format!("invalid package-lock.json: {error}"))?;
+        .map_err(|error| DxError::failure(format!("invalid package-lock.json: {error}")))?;
     let object = value
         .as_object()
-        .ok_or_else(|| "invalid package-lock.json: expected object".to_owned())?;
+        .ok_or_else(|| DxError::failure("invalid package-lock.json: expected object"))?;
     let mut out = Vec::new();
     if let Some(packages) = object.get("packages") {
-        let packages = packages
-            .as_object()
-            .ok_or_else(|| "invalid package-lock.json: packages is not an object".to_owned())?;
+        let packages = packages.as_object().ok_or_else(|| {
+            DxError::failure("invalid package-lock.json: packages is not an object")
+        })?;
         let linked: std::collections::HashSet<&str> = packages
             .values()
             .filter_map(|detail| detail.as_object())
@@ -236,7 +248,9 @@ pub fn parse_package_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
                 continue;
             }
             let detail = detail.as_object().ok_or_else(|| {
-                format!("invalid package-lock.json: entry {path} is not an object")
+                DxError::failure(format!(
+                    "invalid package-lock.json: entry {path} is not an object"
+                ))
             })?;
             let Some(name) = package_lock_identity(path, detail)? else {
                 continue;

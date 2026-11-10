@@ -428,7 +428,7 @@ fn closure(base: &Nodes, head: &Nodes) -> ChangedCrates {
 
 fn cargo_nodes(text: &str) -> Result<Nodes, dx_error::DxError> {
     let mut nodes = Nodes::new();
-    for entry in dx_audit::locks::cargo_lock_graph(text).map_err(dx_error::DxError::failure)? {
+    for entry in dx_audit::locks::cargo_lock_graph(text)? {
         let content = format!(
             "{:?} {:?} {:?}",
             entry.source, entry.checksum, entry.dependencies
@@ -1130,8 +1130,7 @@ pub(crate) fn gem_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxError>
 /// The Gemfile.lock diff as crate-style name/version changes.
 fn changed_gems(base: &str, head: &str) -> Result<LockChange, dx_error::DxError> {
     let gems = |text: &str| -> Result<BTreeSet<(String, String)>, dx_error::DxError> {
-        Ok(dx_audit::locks::parse_gemfile_lock(text)
-            .map_err(dx_error::DxError::failure)?
+        Ok(dx_audit::locks::parse_gemfile_lock(text)?
             .into_iter()
             .map(|package| {
                 let version = match package.platform {
@@ -1212,8 +1211,7 @@ pub(crate) fn changed_npm_packages(
         ));
     }
     let packages = |text: &str| -> Result<BTreeSet<(String, String)>, dx_error::DxError> {
-        Ok(dx_audit::locks::parse_pnpm_lock(text)
-            .map_err(dx_error::DxError::failure)?
+        Ok(dx_audit::locks::parse_pnpm_lock(text)?
             .into_iter()
             .map(|package| (package.name, package.version))
             .collect())

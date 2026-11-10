@@ -290,10 +290,22 @@ pub fn write_spdx_full(
 /// Reads the packages a lock file pins as SBOM entries; `kind` is npm, go, maven or pip.
 pub fn lock_entries(kind: &str, text: &str) -> Result<Vec<NoticeEntry>, String> {
     let (set, packages) = match kind {
-        "npm" => ("npm", dx_audit::locks::parse_package_lock(text)?),
-        "go" => ("go", dx_audit::locks::go_locked_packages(text)?),
-        "maven" => ("maven", dx_audit::locks::parse_maven_install(text)?),
-        "pip" => ("pip", dx_audit::locks::parse_uv_lock(text)?),
+        "npm" => (
+            "npm",
+            dx_audit::locks::parse_package_lock(text).map_err(|e| e.to_string())?,
+        ),
+        "go" => (
+            "go",
+            dx_audit::locks::go_locked_packages(text).map_err(|e| e.to_string())?,
+        ),
+        "maven" => (
+            "maven",
+            dx_audit::locks::parse_maven_install(text).map_err(|e| e.to_string())?,
+        ),
+        "pip" => (
+            "pip",
+            dx_audit::locks::parse_uv_lock(text).map_err(|e| e.to_string())?,
+        ),
         other => {
             return Err(format!(
                 "unknown lock kind '{other}': want npm, go, maven or pip"
@@ -1280,7 +1292,7 @@ pub(crate) fn join_notice_entries(
     manifest_text: &str,
     text_files: &[std::path::PathBuf],
 ) -> Result<Vec<(NoticeEntry, String)>, String> {
-    let entries = parse_notice_manifest(manifest_text)?;
+    let entries = parse_notice_manifest(manifest_text).map_err(|e| e.to_string())?;
     if entries.is_empty() {
         return Err("notice: manifest lists no packages; refusing empty NOTICE".to_owned());
     }

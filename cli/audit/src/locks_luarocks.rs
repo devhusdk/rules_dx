@@ -1,4 +1,5 @@
 use crate::vuln::LockedPackage;
+use dx_error::DxError;
 
 pub const LUAROCKS_SET: &str = "luarocks";
 
@@ -9,7 +10,7 @@ enum Token {
     Punct(char),
 }
 
-fn tokenize(text: &str) -> Result<Vec<Token>, String> {
+fn tokenize(text: &str) -> Result<Vec<Token>, DxError> {
     let chars: Vec<char> = text.chars().collect();
     let mut tokens = Vec::new();
     let mut at = 0;
@@ -26,9 +27,11 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
             at += 1;
             loop {
                 match chars.get(at) {
-                    None | Some('\n') => return Err("unterminated string".to_owned()),
+                    None | Some('\n') => return Err(DxError::failure("unterminated string")),
                     Some('\\') => {
-                        let next = chars.get(at + 1).ok_or("unterminated string")?;
+                        let next = chars
+                            .get(at + 1)
+                            .ok_or_else(|| DxError::failure("unterminated string"))?;
                         value.push(match next {
                             'n' => '\n',
                             't' => '\t',
@@ -57,16 +60,16 @@ fn tokenize(text: &str) -> Result<Vec<Token>, String> {
             tokens.push(Token::Punct(c));
             at += 1;
         } else {
-            return Err(format!("unexpected character {c:?}"));
+            return Err(DxError::failure(format!("unexpected character {c:?}")));
         }
     }
     Ok(tokens)
 }
 
 /// Reads the `dependencies` table of a luarocks.lock (`return { dependencies = { name = "1.0-1" } }`).
-pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
-    let invalid = |detail: &str| format!("invalid luarocks.lock: {detail}");
-    let tokens = tokenize(text).map_err(|detail| invalid(&detail))?;
+pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
+    let invalid = |detail: &str| DxError::failure(format!("invalid luarocks.lock: {detail}"));
+    let tokens = tokenize(text).map_err(|detail| invalid(&detail.to_string()))?;
     let mut tokens = tokens.iter().peekable();
     if tokens.next() != Some(&Token::Name("return".to_owned()))
         || tokens.next() != Some(&Token::Punct('{'))
@@ -93,7 +96,9 @@ pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
                 }
             }
             Token::Name(key)
-                if depth == 1 && key == "dependencies" && tokens.peek() == Some(&&Token::Punct('=')) =>
+                if depth == 1
+                    && key == "dependencies"
+                    && tokens.peek() == Some(&&Token::Punct('=')) =>
             {
                 tokens.next();
                 if tokens.next() != Some(&Token::Punct('{')) {
@@ -131,8 +136,8 @@ pub fn parse_luarocks_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
 fn entry<'a>(
     name: &str,
     tokens: &mut impl Iterator<Item = &'a Token>,
-) -> Result<LockedPackage, String> {
-    let invalid = |detail: String| format!("invalid luarocks.lock: {detail}");
+) -> Result<LockedPackage, DxError> {
+    let invalid = |detail: String| DxError::failure(format!("invalid luarocks.lock: {detail}"));
     if tokens.next() != Some(&Token::Punct('=')) {
         return Err(invalid(format!("{name} has no version")));
     }

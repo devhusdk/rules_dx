@@ -1,3 +1,4 @@
+use dx_error::DxError;
 use regex::Regex;
 use std::sync::LazyLock;
 
@@ -52,12 +53,16 @@ enum PnpmKeyStyle {
     Modern,
 }
 
-fn pnpm_key_style(value: &yaml_serde::Value) -> Result<PnpmKeyStyle, String> {
+fn pnpm_key_style(value: &yaml_serde::Value) -> Result<PnpmKeyStyle, DxError> {
     let version = match value.get("lockfileVersion") {
         None | Some(yaml_serde::Value::Null) => return Ok(PnpmKeyStyle::Modern),
         Some(version) => version,
     };
-    let invalid = || format!("invalid pnpm-lock.yaml: unsupported lockfileVersion {version:?}");
+    let invalid = || {
+        DxError::failure(format!(
+            "invalid pnpm-lock.yaml: unsupported lockfileVersion {version:?}"
+        ))
+    };
     let major = if let Some(text) = version.as_str() {
         text.trim()
             .split('.')
@@ -83,8 +88,12 @@ fn resolve_pnpm_key(
     key: &str,
     detail: &yaml_serde::Value,
     style: PnpmKeyStyle,
-) -> Result<(String, String), String> {
-    let unresolved = || format!("invalid pnpm-lock.yaml: cannot resolve package key `{key}`");
+) -> Result<(String, String), DxError> {
+    let unresolved = || {
+        DxError::failure(format!(
+            "invalid pnpm-lock.yaml: cannot resolve package key `{key}`"
+        ))
+    };
     let detail_str = |field: &str| {
         detail
             .get(field)
@@ -114,7 +123,7 @@ fn pnpm_packages_from_value(
     value: &yaml_serde::Value,
     style: PnpmKeyStyle,
     out: &mut Vec<LockedPackage>,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let packages = match value.get("packages") {
         None | Some(yaml_serde::Value::Null) => return Ok(()),
         Some(packages) => packages,
@@ -127,9 +136,9 @@ fn pnpm_packages_from_value(
         let key = match key_value.as_str().map(str::trim) {
             Some(key) if !key.is_empty() => key.to_owned(),
             _ => {
-                return Err(format!(
+                return Err(DxError::failure(format!(
                     "invalid pnpm-lock.yaml: unusable package key {key_value:?}"
-                ));
+                )));
             }
         };
         if key.contains("link:") || key.contains("file:") {
@@ -177,7 +186,7 @@ fn split_pnpm_documents(text: &str) -> Vec<String> {
     documents
 }
 
-pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     if text.trim().is_empty() {
         return Ok(Vec::new());
     }
@@ -188,7 +197,7 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             continue;
         }
         let value: yaml_serde::Value = yaml_serde::from_str(&document)
-            .map_err(|error| format!("invalid pnpm-lock.yaml: {error}"))?;
+            .map_err(|error| DxError::failure(format!("invalid pnpm-lock.yaml: {error}")))?;
         if value.is_null() {
             continue;
         }
@@ -197,7 +206,7 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             let style = pnpm_key_style(&value)?;
             pnpm_packages_from_value(&value, style, &mut out)?;
         } else if value.as_mapping().is_none() {
-            return Err("invalid pnpm-lock.yaml: missing packages".to_owned());
+            return Err(DxError::failure("invalid pnpm-lock.yaml: missing packages"));
         }
     }
     if !parsed_any {
@@ -210,7 +219,7 @@ pub fn parse_pnpm_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
             && !packages.is_null()
             && packages.as_mapping().is_none()
         {
-            return Err("invalid pnpm-lock.yaml: missing packages".to_owned());
+            return Err(DxError::failure("invalid pnpm-lock.yaml: missing packages"));
         }
     }
     out.sort_by(|a, b| (&a.name, &a.version, a.is_git).cmp(&(&b.name, &b.version, b.is_git)));
@@ -349,7 +358,7 @@ fn yarn_alias_target(range: &str) -> Option<String> {
     super::locks_npm::valid_package_name(real).then(|| real.to_owned())
 }
 
-pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut out = Vec::new();
     for stanza in yarn_stanzas(text) {
         let head = stanza.lines().next().unwrap_or_default();
@@ -363,10 +372,10 @@ pub fn parse_yarn_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
         }
         let entry_text = yarn_entry_text(&stanza);
         let lock = parse_str(&entry_text).map_err(|error| {
-            format!(
+            DxError::failure(format!(
                 "invalid yarn.lock: cannot parse entry {}: {error}",
                 head.trim()
-            )
+            ))
         })?;
         for entry in &lock.entries {
             if let Some(package) = yarn_entry_package(entry) {

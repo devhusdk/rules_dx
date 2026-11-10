@@ -1,3 +1,5 @@
+use dx_error::DxError;
+
 pub const TOOL_ENV_VAR: &str = "DX_GITLEAKS_BIN";
 
 pub const TOOL_LABEL: &str = "@rules_dx//quality/artifacts:gitleaks";
@@ -75,10 +77,10 @@ pub fn scoped_config(
     user: Option<&str>,
     patterns: &[String],
     base: &str,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     let mut table = match user {
         Some(text) => toml::from_str::<toml::Table>(text)
-            .map_err(|error| format!("invalid {CONFIG_FILE_NAME}: {error}"))?,
+            .map_err(|error| DxError::failure(format!("invalid {CONFIG_FILE_NAME}: {error}")))?,
         None => toml::Table::new(),
     };
     match table.get("extend") {
@@ -86,9 +88,9 @@ pub fn scoped_config(
         Some(toml::Value::Table(extend))
             if extend.get("path").and_then(toml::Value::as_str) == Some(BASE_CONFIG_PATH) => {}
         _ => {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "{CONFIG_FILE_NAME} must start with [extend] path = \"{BASE_CONFIG_PATH}\""
-            ));
+            )));
         }
     }
     let mut extend = match table.remove("extend") {
@@ -100,18 +102,18 @@ pub fn scoped_config(
     let mut allowlists = match table.remove("allowlists") {
         Some(toml::Value::Array(entries)) => entries,
         Some(other) => {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "invalid {CONFIG_FILE_NAME}: allowlists must be an array, got {}",
                 other.type_str()
-            ));
+            )));
         }
         None => match table.remove("allowlist") {
             Some(legacy @ toml::Value::Table(_)) => vec![legacy],
             Some(other) => {
-                return Err(format!(
+                return Err(DxError::failure(format!(
                     "invalid {CONFIG_FILE_NAME}: allowlist must be a table, got {}",
                     other.type_str()
-                ));
+                )));
             }
             None => Vec::new(),
         },
@@ -134,10 +136,11 @@ pub fn scoped_config(
     if !allowlists.is_empty() {
         table.insert("allowlists".to_owned(), toml::Value::Array(allowlists));
     }
-    toml::to_string(&table).map_err(|error| format!("cannot write gitleaks config: {error}"))
+    toml::to_string(&table)
+        .map_err(|error| DxError::failure(format!("cannot write gitleaks config: {error}")))
 }
 
-fn require_descriptions(text: &str, allowlists: &[toml::Value]) -> Result<(), String> {
+fn require_descriptions(text: &str, allowlists: &[toml::Value]) -> Result<(), DxError> {
     let headers: Vec<usize> = text
         .lines()
         .enumerate()
@@ -151,9 +154,9 @@ fn require_descriptions(text: &str, allowlists: &[toml::Value]) -> Result<(), St
             .is_some_and(|description| !description.trim().is_empty());
         if !described {
             let line = headers.get(index).copied().unwrap_or(1);
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "{CONFIG_FILE_NAME}:{line}: every allowlist needs a non-empty description"
-            ));
+            )));
         }
     }
     Ok(())
@@ -166,9 +169,9 @@ pub struct SecretFinding {
     pub path: Option<String>,
 }
 
-pub fn triage_sarif(text: &str) -> Result<Vec<SecretFinding>, String> {
-    let document: serde_sarif::sarif::Sarif =
-        serde_json::from_str(text).map_err(|error| format!("invalid gitleaks SARIF: {error}"))?;
+pub fn triage_sarif(text: &str) -> Result<Vec<SecretFinding>, DxError> {
+    let document: serde_sarif::sarif::Sarif = serde_json::from_str(text)
+        .map_err(|error| DxError::failure(format!("invalid gitleaks SARIF: {error}")))?;
     let mut findings = Vec::new();
     for run in &document.runs {
         let results = run.results.as_ref().cloned().unwrap_or_default();
@@ -359,7 +362,10 @@ paths = ['''vendor/.*''']
     fn scoped_config_requires_the_base_extend() {
         for text in ["title = \"x\"\n", "[extend]\nuseDefault = true\n"] {
             let error = scoped_config(Some(text), &[], BASE).expect_err("no base");
-            assert!(error.contains(".dx/config/gitleaks/base.toml"), "{error}");
+            assert!(
+                error.message().contains(".dx/config/gitleaks/base.toml"),
+                "{error}"
+            );
         }
     }
 
@@ -367,10 +373,10 @@ paths = ['''vendor/.*''']
     fn scoped_config_names_the_line_of_an_allowlist_without_a_description() {
         let user = "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[[allowlists]]\ndescription = \"ok\"\npaths = [\"a\"]\n\n[[allowlists]]\npaths = [\"b\"]\n";
         let error = scoped_config(Some(user), &[], BASE).expect_err("missing description");
-        assert!(error.starts_with(".gitleaks.toml:8:"), "{error}");
+        assert!(error.message().starts_with(".gitleaks.toml:8:"), "{error}");
         let blank = user.replace("paths = [\"b\"]", "description = \" \"");
         let error = scoped_config(Some(&blank), &[], BASE).expect_err("blank description");
-        assert!(error.starts_with(".gitleaks.toml:8:"), "{error}");
+        assert!(error.message().starts_with(".gitleaks.toml:8:"), "{error}");
     }
 
     #[test]

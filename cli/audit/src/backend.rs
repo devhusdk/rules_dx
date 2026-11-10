@@ -31,6 +31,12 @@ pub enum BackendError {
     MissingTempDir,
 }
 
+impl From<BackendError> for dx_error::DxError {
+    fn from(error: BackendError) -> Self {
+        Self::failure(error.to_string())
+    }
+}
+
 pub fn plan_secrets(
     tool: &str,
     report_path: &str,
@@ -224,10 +230,7 @@ mod tests {
 
     #[test]
     fn vuln_locks_pin_per_set_coverage() {
-        assert_eq!(
-            vuln_locks("cargo"),
-            &["cc/context/Cargo.lock"]
-        );
+        assert_eq!(vuln_locks("cargo"), &["cc/context/Cargo.lock"]);
         assert_eq!(
             vuln_locks("npm"),
             &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"]
@@ -328,5 +331,23 @@ mod tests {
         )
         .expect("offline configed");
         assert_eq!(online_configed, offline_configed);
+    }
+
+    #[test]
+    fn backend_errors_map_to_failure() {
+        let errors = [
+            BackendError::MissingReportPath,
+            BackendError::MissingTool,
+            BackendError::NonAbsoluteTool {
+                tool: "gitleaks".to_owned(),
+            },
+            BackendError::MissingTempDir,
+        ];
+        for error in errors {
+            let message = error.to_string();
+            let mapped = dx_error::DxError::from(error);
+            assert_eq!(mapped.kind(), dx_error::ErrorKind::Failure);
+            assert_eq!(mapped.message(), message);
+        }
     }
 }

@@ -76,6 +76,8 @@ pub struct QualityRequest {
     pub origin: Option<UmbrellaOrigin>,
     /// `--unsafe`: fixes include the ones the tool marks unsafe.
     pub unsafe_fixes: bool,
+    /// `--online`: lychee also checks external links, on the host after the build.
+    pub online: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -231,6 +233,7 @@ impl UmbrellaRequest {
             fail_on: self.fail_on,
             origin: Some(self.origin()),
             unsafe_fixes: self.unsafe_fixes,
+            online: false,
         })
     }
 
@@ -273,6 +276,7 @@ pub struct Invocation {
     pub max_findings: Option<u32>,
     /// `--unsafe`: fixes include the ones the tool marks unsafe.
     pub unsafe_fixes: bool,
+    pub online: bool,
     pub min_coverage: Option<u32>,
     /// The `--min-changed-line-coverage` percent gate on lines changed since the merge-base.
     pub min_changed_line_coverage: Option<u32>,
@@ -486,6 +490,7 @@ impl Invocation {
             fail_on: self.fail_on,
             origin: None,
             unsafe_fixes: self.unsafe_fixes,
+            online: self.online,
         })
     }
 
@@ -724,6 +729,7 @@ mod tests {
             include_edits: false,
             max_findings: None,
             unsafe_fixes: false,
+            online: false,
             min_coverage: None,
             min_changed_line_coverage: None,
             targets: targets.iter().map(ToString::to_string).collect(),

@@ -23,7 +23,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `--apply` | Write validated fixes. Text output prints `Applied: <path>` per file, then `Applied N file(s).` |
 | `--unsafe` | With `--apply` or `--diff`, also include the fixes a tool marks unsafe (ruff unsafe fixes, clippy `MaybeIncorrect`). Without either, exit `2`. JSON `command_started` carries `"unsafe_fixes": true`. A tool whose adapter does not map unsafe fixes yet still applies only its safe fixes. |
 | `--breaking-against[=REF]` | `lint` only. Also run `buf breaking` against the merge base of `HEAD` and `REF` (default `origin/HEAD`). `dx` builds the base image with the pinned `buf` and passes it to the lint action as the `//config:buf_breaking_against` label; the action stays sandboxed and cached. |
-| `--online` | `lint` only. Check external links too: `lychee` drops `--offline`. Needs network. |
+| `--online` | `lint` only. Check external links too. After the build, `dx` runs the `lychee` stage of each lint request on the host with `http` and `https` links enabled; the build stays offline and cached. Needs network. |
 | `--diff` | Print a unified patch of the proposed fixes instead of findings. |
 | `--fail-on info\|warning\|error` | Severity that fails the run. Default `warning`. |
 | `--report sarif=<dest>` | Write a SARIF report. Repeatable. `lint` and `typecheck` only; `format` has no report. |

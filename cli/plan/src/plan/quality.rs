@@ -3,8 +3,9 @@ use dx_process::{ProtectedFlag, Scope, describe_scope, operation_summary, redact
 
 use super::{
     BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP,
-    KEEP_GOING_FLAG, OUTPUT_GROUP, SHARD_OUTPUT_GROUP, SKIP_INCOMPATIBLE_FLAG, SKIP_OUTPUT_GROUP,
-    bazel_argv, bep_guards, bep_options, download_flag, download_guards,
+    KEEP_GOING_FLAG, LINK_REQUEST_OUTPUT_GROUP, OUTPUT_GROUP, SHARD_OUTPUT_GROUP,
+    SKIP_INCOMPATIBLE_FLAG, SKIP_OUTPUT_GROUP, bazel_argv, bep_guards, bep_options, download_flag,
+    download_guards,
     registry::{Consumer, aspects_for, probes_for, spec},
     rules_dx_label,
 };
@@ -162,6 +163,8 @@ pub struct Selection<'a> {
     pub consumer: Option<Consumer<'a>>,
     /// `--unsafe`: the aspects also compute the fixes tools mark unsafe.
     pub unsafe_fixes: bool,
+    /// `--online`: the build also publishes the lint requests the host link check replays.
+    pub online: bool,
 }
 
 /// Plans the quality build over the aspects `selection` keeps.
@@ -178,7 +181,11 @@ pub fn plan_build_with(
         None => spec(command).aspects.to_vec(),
     };
     let aspects = joined_labels(select_aspects(aspects, selection.shards));
-    let groups = format!("{OUTPUT_GROUP},{SKIP_OUTPUT_GROUP}");
+    let mut groups = format!("{OUTPUT_GROUP},{SKIP_OUTPUT_GROUP}");
+    if selection.online {
+        groups.push(',');
+        groups.push_str(LINK_REQUEST_OUTPUT_GROUP);
+    }
     let mut required = shaped_options(&aspects, &groups, bazel_options, bep_path);
     if selection.unsafe_fixes {
         required.push("--aspects_parameters=unsafe_fixes=true".to_owned());
@@ -775,12 +782,37 @@ mod tests {
                 shards: Some(&rust),
                 consumer: None,
                 unsafe_fixes: false,
+                online: false,
             },
         )
         .expect("plan");
         assert!(plan.argv.contains(
             &"--aspects=@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect".to_owned()
         ));
+    }
+
+    #[test]
+    fn online_adds_the_link_request_output_group() {
+        let build = |online| {
+            plan_build_with(
+                Command::Lint,
+                &resolved(&["//pkg:lib"]),
+                &[],
+                "/tmp/bep.json",
+                &[],
+                Selection {
+                    online,
+                    ..Selection::default()
+                },
+            )
+            .expect("plan")
+            .argv
+        };
+        assert!(
+            build(true)
+                .contains(&"--output_groups=dx_results,dx_skips,dx_link_requests".to_owned())
+        );
+        assert!(build(false).contains(&"--output_groups=dx_results,dx_skips".to_owned()));
     }
 
     #[test]

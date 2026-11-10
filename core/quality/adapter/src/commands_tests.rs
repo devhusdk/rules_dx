@@ -233,7 +233,7 @@ fn perltidy_reads_only_its_bound_profile() {
 }
 
 #[test]
-fn lychee_check_online_drops_the_offline_flag() {
+fn lychee_check_online_drops_the_offline_flag_and_keeps_external_schemes() {
     let invocation = lychee_check(
         Path::new(BIN),
         &[Path::new(FILE)],
@@ -244,6 +244,12 @@ fn lychee_check_online_drops_the_offline_flag() {
     let argv = argv_strings(&invocation);
     assert!(!argv.iter().any(|arg| arg == "--offline"));
     assert!(argv.iter().any(|arg| arg == "--include-fragments"));
+    let schemes: Vec<&str> = argv
+        .windows(2)
+        .filter(|pair| pair[0] == "--scheme")
+        .map(|pair| pair[1].as_str())
+        .collect();
+    assert_eq!(schemes, ["http", "https"]);
 }
 
 #[test]

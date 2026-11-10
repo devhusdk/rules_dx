@@ -1,6 +1,5 @@
 """The real aspect engine: request building and shard aspects. Families reach it through hooks."""
 
-load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//core:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:execution_requirements.bzl", "dx_stage_execution_requirements")
@@ -159,7 +158,6 @@ _REAL_BASE_ATTRS = {
         default = "//config:workspace",
         providers = [QualityPolicyInfo],
     ),
-    "_online": attr.label(default = "//config:lint_online"),
     "_breaking_against": attr.label(default = "//config:buf_breaking_against", allow_files = True),
     "_runner": attr.label(
         default = "@dx_prebuilt//:quality_runner",
@@ -459,9 +457,6 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
             tool_env_entries.setdefault(tool, []).extend(found.env)
         run_tools = run_tools + found.run_tools
     requirements = dict(dx_stage_execution_requirements(stage_tools, capability))
-    if "lychee" in stage_tools and hasattr(ctx.attr, "_online") and ctx.attr._online[BuildSettingInfo].value:
-        tool_env_entries.setdefault("lychee", []).append(real_request_tool_env("DX_LINT_ONLINE", "1"))
-        requirements["requires-network"] = "1"
     if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
         images = ctx.files._breaking_against
         if len(images) > 1:
@@ -557,7 +552,10 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         toolchain = cfg.toolchain.type if has_toolchain else None,
     )
 
-    return [OutputGroupInfo(dx_results = depset([out]), **skip_groups)]
+    groups = dict(skip_groups)
+    if "lychee" in stage_tools and capability == "lint":
+        groups["dx_link_requests"] = depset([request_file])
+    return [OutputGroupInfo(dx_results = depset([out]), **groups)]
 
 def real_quality_resource_set(cfg, tools):
     """Returns the resource_set callback for the costliest tier among the launched tools."""
@@ -575,9 +573,9 @@ def real_tool_table_error(cfg):
     return ""
 
 def real_merged_output_groups(groups):
-    """Merges the dx_results and dx_skips output groups of several targets."""
+    """Merges the dx_results, dx_skips and dx_link_requests output groups of several targets."""
     merged = {}
-    for name in ["dx_results", "dx_skips"]:
+    for name in ["dx_results", "dx_skips", "dx_link_requests"]:
         parts = [group[name] for group in groups if name in group]
         if len(parts) > 0:
             merged[name] = depset(transitive = parts)

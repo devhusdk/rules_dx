@@ -4,6 +4,7 @@ mod auto_sync;
 mod bazel_hint;
 mod bench;
 mod breaking_base;
+mod link_check;
 mod build_failures;
 mod changed_coverage;
 mod clean;

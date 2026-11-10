@@ -42,7 +42,7 @@ fn checkout_crate_roots(dir: &Path, rel: &str, out: &mut BTreeSet<String>) {
         };
         let kind = entry.file_type().expect("readable file type");
         if kind.is_dir() {
-            if !is_skipped_dir(&child, &name) {
+            if !is_skipped_dir(&child, &name) && !entry.path().join("REPO.bazel").is_file() {
                 checkout_crate_roots(&entry.path(), &child, out);
             }
         } else if kind.is_file() && is_crate_root(&child) {

@@ -97,6 +97,6 @@ def julia_bench(name, *, srcs = None, main = None, deps = None, tags = None, **k
         srcs = srcs,
         main = main,
         deps = (deps or []) + [Label("//julia/private/bench:DxBench")],
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )

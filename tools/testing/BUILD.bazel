@@ -50,8 +50,8 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ) + [
-        "//cli/path:dx_path",
         "//cli/binfmt:dx_binfmt",
+        "//cli/path:dx_path",
         "//tools/bazelrc:dx_preset",
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
@@ -196,8 +196,16 @@ testing_rust_test(
     ],
 )
 
-testing_rust_test(
+rust_test(
     name = "module_srcs_test",
+    srcs = ["module_srcs_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "module_srcs_test",
+    crate_root = "module_srcs_test.rs",
     data = [
         "//android:module_srcs",
         "//apple:module_srcs",
@@ -206,14 +214,30 @@ testing_rust_test(
         "//erlang:module_srcs",
         "//qt:module_srcs",
     ],
-    deps = [":dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_testing"],
 )
 
-testing_rust_test(
+rust_test(
     name = "consumer_maven_lock_test",
+    srcs = ["consumer_maven_lock_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "consumer_maven_lock_test",
+    crate_root = "consumer_maven_lock_test.rs",
     data = CONSUMER_MAVEN_DATA,
     env = CONSUMER_MAVEN_ENV,
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [
         ":dx_testing",
         "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",
@@ -231,10 +255,18 @@ _HARNESS_CONSUMER_DATA = [
 ]
 
 # size: large, nested Bazel consumer build, see #5689
-testing_rust_test(
+rust_test(
     name = "nested_bazel_harness_test",
     size = "large",
     timeout = "moderate",
+    srcs = ["nested_bazel_harness_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "nested_bazel_harness_test",
+    crate_root = "nested_bazel_harness_test.rs",
     data = [
         ":nested_bazel_probe",
         "//:.bazelversion",
@@ -248,7 +280,11 @@ testing_rust_test(
         "RUST_TEST_THREADS": "1",
     },
     tags = NESTED_BAZEL_TAGS,
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing/nested:dx_nested",
@@ -313,16 +349,36 @@ rust_test(
     ) + ["//cli/path:dx_path"],
 )
 
-testing_rust_test(
+rust_test(
     name = "starlark_harness_exit_test",
+    srcs = ["starlark_harness_exit_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "starlark_harness_exit_test",
+    crate_root = "starlark_harness_exit_test.rs",
     data = [":starlark_harness"],
     env = {"STARLARK_HARNESS_BIN": "$(rootpath :starlark_harness)"},
     tags = ["no-remote-exec"],
-    deps = [":dx_testing"],
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_testing"],
 )
 
-testing_rust_test(
+rust_test(
     name = "preflight_smoke_test",
+    srcs = ["preflight_smoke_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "preflight_smoke_test",
+    crate_root = "preflight_smoke_test.rs",
     data = [
         "//cc/tests/fixtures/hello",
         "//cli/cli:dx",
@@ -335,7 +391,11 @@ testing_rust_test(
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",
     ],
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
     ],
@@ -361,6 +421,11 @@ real_source_target(
         "nested_repository_cache.bzl",
         "repos.bzl",
         "extensions.bzl",
+        "action_input.bzl",
+        "stub_target.bzl",
+        "test.bzl",
+        "test_macros.bzl",
+        "web_hello.bzl",
     ],
     tags = ["corpus"],
 )

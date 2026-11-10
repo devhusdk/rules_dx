@@ -52,12 +52,12 @@ def _nif_lint_results_impl(ctx):
     if len(results) != 1:
         fail("expected one lint result for " + str(ctx.attr.target.label) + ", got " + str(len(results)))
     out = ctx.actions.declare_file(ctx.label.name + ".txt")
-    ctx.actions.run_shell(
+    ctx.actions.run(
         inputs = results,
         outputs = [out],
+        executable = ctx.executable._capture,
         tools = [ctx.executable._printer],
-        command = '"$1" "$2" > "$3"',
-        arguments = [ctx.executable._printer.path, results[0].path, out.path],
+        arguments = ["--stdout", out.path, "--", ctx.executable._printer.path, results[0].path],
         mnemonic = "NifLintResult",
     )
     return [DefaultInfo(files = depset([out]))]
@@ -67,6 +67,7 @@ _nif_lint_results = rule(
     doc = "Renders the C lint result of one target as text.",
     attrs = {
         "target": attr.label(doc = "Target to lint.", aspects = [real_cc_lint_aspect], mandatory = True),
+        "_capture": attr.label(default = "//core/quality/capture", executable = True, cfg = "exec"),
         "_printer": attr.label(default = "//core/quality/result:print_result", executable = True, cfg = "exec"),
     },
 )

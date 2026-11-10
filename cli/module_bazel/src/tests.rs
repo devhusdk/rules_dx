@@ -1224,7 +1224,7 @@ fn fpm_locks_follow_the_rules_dx_extension() {
 #[test]
 fn luarocks_locks_follow_the_rules_dx_extension() {
     let file = parse(
-        "luarocks = use_extension(\"@rules_dx//lua/luarocks:extensions.bzl\", \"luarocks\")\nluarocks.lock(name = \"rocks\", lock = \"//lua:luarocks.lock\", digests = \"//lua:luarocks.digests.json\")\nother = use_extension(\"//lua:extensions.bzl\", \"luarocks\")\nother.lock(name = \"x\", lock = \"//x:luarocks.lock\", digests = \"//x:d.json\")\n",
+        "luarocks = use_extension(\"@rules_dx//lua:extensions.bzl\", \"luarocks\")\nluarocks.lock(name = \"rocks\", lock = \"//lua:luarocks.lock\", digests = \"//lua:luarocks.digests.json\")\nother = use_extension(\"//lua:extensions.bzl\", \"luarocks\")\nother.lock(name = \"x\", lock = \"//x:luarocks.lock\", digests = \"//x:d.json\")\n",
     );
     let found: Vec<_> = file
         .luarocks_locks()

@@ -862,7 +862,7 @@
         "hubs": [
           {
             "ecosystem": "luarocks",
-            "extension": "@rules_dx//lua/luarocks:extensions.bzl",
+            "extension": "@rules_dx//lua:extensions.bzl",
             "hub": "luarocks",
             "imports": "name",
             "lock": "luarocks.lock",

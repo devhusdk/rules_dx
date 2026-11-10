@@ -1754,7 +1754,7 @@ LANGS = json.decode("""{
       "hubs": [
         {
           "ecosystem": "luarocks",
-          "extension": "@rules_dx//lua/luarocks:extensions.bzl",
+          "extension": "@rules_dx//lua:extensions.bzl",
           "hub": "luarocks",
           "imports": "name",
           "lock": "luarocks.lock",
@@ -2724,6 +2724,7 @@ LANGS = json.decode("""{
     "entry_points": [
       "swift_interop_hint",
       "swift_library",
+      "swift_library_group",
       "swift_binary",
       "swift_test",
       "swift_fuzz_test",

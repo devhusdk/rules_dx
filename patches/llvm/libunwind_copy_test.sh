@@ -1,8 +1,16 @@
 #!/bin/sh
 # libunwind.a must be a regular file; a symlink dangles once its target leaves a reused output base (#7781).
 set -eu
-if [ -L "$1" ]; then
-    echo "$1 is a symbolic link" >&2
+target=$1
+if [ -L "$target" ]; then
+    link=$(readlink "$target")
+    case $link in
+    /*) target=$link ;;
+    *) target=$(dirname "$target")/$link ;;
+    esac
+fi
+if [ -L "$target" ]; then
+    echo "$1 resolves to a symbolic link" >&2
     exit 1
 fi
-[ -f "$1" ]
+[ -f "$target" ]

@@ -45,7 +45,6 @@ cc/private/bench_run.sh shebang 1
 cc/private/clang_syntax_tests.bzl host-path 3
 cc/private/context/src/lib_tests.rs host-path 19
 cc/private/context/tests/context_clang_tidy.rs host-path 1
-cc/private/toolchains/BUILD.bazel genrule 2
 cc/private/toolchains/msvc/toolchain.bzl host-path 1
 cc/tests/fixtures/bench/BUILD.bazel sh-rule 1
 cc/tests/fixtures/bench/run_test.sh shebang 1
@@ -76,15 +75,10 @@ cli/cli/src/adopt/watch_probe_tests.rs host-path 1
 cli/cli/src/adopt/watch_probe_tests.rs shebang 1
 cli/cli/src/adopt/watch_relaunch_tests.rs host-path 2
 cli/cli/src/adopt/wiring.rs shebang 1
-cli/cli/src/exec/build_failure_launcher_tests.rs host-path 2
 cli/cli/src/exec/build_failure_launcher_tests.rs shebang 2
-cli/cli/src/exec/build_slots_launcher_tests.rs host-path 1
 cli/cli/src/exec/build_slots_launcher_tests.rs shebang 1
-cli/cli/src/exec/error_boundary_launcher_tests.rs host-path 1
 cli/cli/src/exec/error_boundary_launcher_tests.rs shebang 1
-cli/cli/src/exec/stream_probe_tests.rs host-path 1
 cli/cli/src/exec/stream_probe_tests.rs shebang 2
-cli/cli/src/exec/test_case_launcher_tests.rs host-path 1
 cli/cli/src/exec/test_case_launcher_tests.rs shebang 1
 cli/cli/src/exec/update_pr.rs shebang 2
 cli/cli/src/multicall.rs host-path 1
@@ -101,7 +95,7 @@ cli/process/src/runner_tests.rs shebang 1
 cli/process/src/stderr_tail.rs host-path 1
 cli/setup/src/prune/live.rs host-path 1
 cli/shim/tests/e2e.rs shebang 1
-cli/shim/tests/interop.rs host-path 2
+cli/shim/tests/interop.rs host-path 1
 cli/test_scratch/src/lib.rs host-path 2
 cli/worktree/src/host.rs host-path 1
 cli/worktree/src/pool.rs host-path 3
@@ -120,7 +114,6 @@ core/quality/elixirc.bzl host-path 1
 core/quality/elixirc.bzl run-shell 1
 core/quality/elixirc_script_tests.bzl host-path 2
 core/quality/nvcc_syntax_tests.bzl host-path 2
-core/quality/runner/BUILD.bazel genrule 1
 core/quality/runner/src/entry.rs host-path 2
 core/quality/runner/src/lib_determinism.rs host-path 3
 core/quality/runner/src/real.rs host-path 1
@@ -157,7 +150,6 @@ core/quality/tools/dotnet/fsharplint/fsharplint.sh shebang 1
 core/quality/tools/python_bundle/BUILD.bazel sh-rule 1
 core/quality/tools/python_bundle/build_bundle.sh host-path 1
 core/quality/tools/python_bundle/build_bundle.sh shebang 1
-core/tests/BUILD.bazel genrule 1
 core/tests/execution_tests.bzl home 4
 core/tests/wrapper_forward_fixture.bzl env-inherit 1
 core/tests/wrapper_forward_fixture.bzl home 2
@@ -168,7 +160,6 @@ csharp/tests/fixtures/fuzz/BUILD.bazel sh-rule 2
 csharp/tests/fixtures/fuzz/run_test.sh shebang 1
 cuda/tests/fixtures/cuda-app/app/BUILD.bazel sh-rule 1
 cuda/tests/fixtures/cuda-app/app/output_test.sh shebang 1
-d/private/toolchain/repos.bzl shebang 1
 d/tests/fixtures/bench/BUILD.bazel sh-rule 1
 d/tests/fixtures/bench/run_test.sh shebang 1
 d/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
@@ -277,7 +268,6 @@ julia/tests/fixtures/julia-app/data/BUILD.bazel genrule 1
 julia/tests/fixtures/julia-app/diagnostics/BUILD.bazel genrule 1
 kotlin/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel genrule 1
-lua/private/runtime/BUILD.bazel genrule 1
 ocaml/private/BUILD.bazel env-inherit 3
 ocaml/private/BUILD.bazel home 3
 ocaml/private/coverage/BUILD.bazel sh-rule 3
@@ -422,14 +412,12 @@ tools/testing/hermetic/isolation_test.rs host-path 1
 tools/testing/hermetic/src/lib.rs genrule 2
 tools/testing/hermetic/src/lib.rs host-path 13
 tools/testing/hermetic/src/lib.rs shebang 2
-tools/testing/hermetic/src/tests.rs host-path 11
+tools/testing/hermetic/src/tests.rs host-path 10
 tools/testing/hermetic/src/tests.rs shebang 2
 tools/testing/language_skeleton_test.rs sh-rule 1
-tools/testing/nested/src/lib.rs host-path 5
-tools/testing/nested/src/lib.rs shebang 4
+tools/testing/nested/src/lib.rs host-path 2
 tools/testing/src/fatbin.rs shebang 1
 tools/testing/src/lib.rs shebang 2
-typescript/private/quality/tsc.bzl run-shell 1
 typescript/tests/fixtures/declarations/BUILD.bazel genrule 1
 typescript/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 typescript/tests/fixtures/fuzz/run_test.sh shebang 1

@@ -74,7 +74,6 @@ fsharp/tests/fixtures/adopt-fsharp/adopt-fsharp.fsproj unreferenced-fixture 1
 fsharp/tests/fixtures/fantomas/BUILD.bazel orphan-target 1
 fsharp/tests/fixtures/fsharplint/BUILD.bazel orphan-target 3
 go/BUILD.bazel orphan-target 1
-go/tests/fixtures/gofumpt/BUILD.bazel orphan-target 2
 go/tests/fixtures/staticcheck/BUILD.bazel orphan-target 2
 haskell/BUILD.bazel orphan-target 2
 haskell/private/tools/BUILD.bazel orphan-target 1

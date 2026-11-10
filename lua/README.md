@@ -95,7 +95,7 @@ rock and a hub. Only pure-Lua rocks with the `builtin` build type are
 supported.
 
 ```python
-luarocks = use_extension("@rules_dx//lua/luarocks:extensions.bzl", "luarocks")
+luarocks = use_extension("@rules_dx//lua:extensions.bzl", "luarocks")
 luarocks.lock(
     name = "rocks",
     digests = "//third_party/lua:luarocks.digests.json",

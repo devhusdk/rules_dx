@@ -385,23 +385,7 @@ def codegen_bound_shard_providers(ctx, rule_kind, schema_kind, upstream_label, g
 CODEGEN_SHARD_WRITER_LABEL = Label("@dx_prebuilt//:codegen_shard_writer")
 
 def codegen_shard_rule(rule_kind, schema_kind, group, want, languages_doc, doc, generated_doc, codegen_info = None, languages = ()):
-    """Returns the shard rule for one schema family.
-
-    Args:
-      rule_kind: name of the rule, used in messages.
-      schema_kind: schema kind passed to the pairing check.
-      group: output group of the generated target that lists its files.
-      want: text in the parentheses of the missing output group message.
-      languages_doc: doc of the language attribute.
-      doc: doc of the rule.
-      generated_doc: doc of the generated attribute.
-      codegen_info: optional provider with a `language` field; when set, a
-        shard whose `language` differs from the generated target's fails.
-      languages: languages the codegen_info check applies to.
-
-    Returns:
-      The shard rule.
-    """
+    """Returns the shard rule for one schema family."""
 
     def _impl(ctx):
         generated = ctx.attr.generated

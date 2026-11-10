@@ -1,20 +1,18 @@
 """Pinned Ubuntu 22.04 library closure the Chromium headless shell loads on Linux."""
 
-visibility(["//..."])
+load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME")
 
-CLOSURE_MIRROR = "https://launchpad.net/ubuntu/+archive/primary/+files"
+visibility(["//..."])
 
 CLOSURE_DIR = "closure"
 
+_SHARED = ["gcc-12-base", "libgcc-s1", "zlib1g"]
+
+def _shared(platform):
+    return [package for package in JAMMY_RUNTIME[platform] if package.package in _SHARED]
+
 CHROMIUM_CLOSURE = {
-    "linux_arm64": [
-        struct(
-            copyright = "usr/share/doc/gcc-12-base/copyright",
-            deb = "gcc-12-base_12.3.0-1ubuntu1~22.04.3_arm64.deb",
-            libraries = {},
-            package = "gcc-12-base",
-            sha256 = "b2bc566681989941dd059d6391b01c41854857f26d83c53358287d620dfb0fd4",
-        ),
+    "linux_arm64": _shared("linux_arm64") + [
         struct(
             copyright = "usr/share/doc/libasound2/copyright",
             deb = "libasound2_1.2.6.1-1ubuntu1.2_arm64.deb",
@@ -122,15 +120,6 @@ CHROMIUM_CLOSURE = {
             },
             package = "libgbm1",
             sha256 = "3cba5492a75b87677b4a81fe2cee27d35ec9795b43edfd9e2b842c7247392df0",
-        ),
-        struct(
-            copyright = None,
-            deb = "libgcc-s1_12.3.0-1ubuntu1~22.04.3_arm64.deb",
-            libraries = {
-                "libgcc_s.so.1": "lib/aarch64-linux-gnu/libgcc_s.so.1",
-            },
-            package = "libgcc-s1",
-            sha256 = "46626e1af6b159061e055f843654ee1f0f1e65fa280331ed47ee76ba1b1f6045",
         ),
         struct(
             copyright = "usr/share/doc/libgcrypt20/copyright",
@@ -413,24 +402,8 @@ CHROMIUM_CLOSURE = {
             package = "libzstd1",
             sha256 = "0102eb80384c2432c4be819663341a1c4e511d05f13ec1467643696531ec6491",
         ),
-        struct(
-            copyright = "usr/share/doc/zlib1g/copyright",
-            deb = "zlib1g_1.2.11.dfsg-2ubuntu9.2_arm64.deb",
-            libraries = {
-                "libz.so.1": "lib/aarch64-linux-gnu/libz.so.1",
-            },
-            package = "zlib1g",
-            sha256 = "cfd99d1ca41e710fdd3f68bfdc4d36dd24e14377656764f00b215b89cf6976e8",
-        ),
     ],
-    "linux_x86_64": [
-        struct(
-            copyright = "usr/share/doc/gcc-12-base/copyright",
-            deb = "gcc-12-base_12.3.0-1ubuntu1~22.04.3_amd64.deb",
-            libraries = {},
-            package = "gcc-12-base",
-            sha256 = "7f9253b7e0976f0526fc21346c73ee006e185a7b2f2f865048ea78a2af55bc8d",
-        ),
+    "linux_x86_64": _shared("linux_x86_64") + [
         struct(
             copyright = "usr/share/doc/libasound2/copyright",
             deb = "libasound2_1.2.6.1-1ubuntu1.2_amd64.deb",
@@ -538,15 +511,6 @@ CHROMIUM_CLOSURE = {
             },
             package = "libgbm1",
             sha256 = "10d37ffd63f8f98fc9a1ad5b32abc7a9da760f4ed85c806d98f10a61c17f8ef5",
-        ),
-        struct(
-            copyright = None,
-            deb = "libgcc-s1_12.3.0-1ubuntu1~22.04.3_amd64.deb",
-            libraries = {
-                "libgcc_s.so.1": "lib/x86_64-linux-gnu/libgcc_s.so.1",
-            },
-            package = "libgcc-s1",
-            sha256 = "d383e642d83263147f7b4b69fb92cf1036e5246c6be3accf10b77f986684589a",
         ),
         struct(
             copyright = "usr/share/doc/libgcrypt20/copyright",
@@ -828,15 +792,6 @@ CHROMIUM_CLOSURE = {
             },
             package = "libzstd1",
             sha256 = "ae7db00ce8b093e50c994518b90203544e063b4bc574836a048bb142b950b2c9",
-        ),
-        struct(
-            copyright = "usr/share/doc/zlib1g/copyright",
-            deb = "zlib1g_1.2.11.dfsg-2ubuntu9.2_amd64.deb",
-            libraries = {
-                "libz.so.1": "lib/x86_64-linux-gnu/libz.so.1",
-            },
-            package = "zlib1g",
-            sha256 = "9dc17e51a1be2d9ed63b7b84ef0e4e29c5abe6f1bc62cb03e7181483cce8a2f2",
         ),
     ],
 }

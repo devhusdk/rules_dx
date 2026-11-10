@@ -16,6 +16,9 @@ const ALLOWLIST: &str = "tools/ci/zero_compat_allowlist.txt";
 /// This file, which spells every word it bans.
 const SELF: &str = "tools/ci/zero_compat_test.rs";
 
+/// The name of this guard, which is no compat word.
+const OWN_NAME: &str = "zero_compat";
+
 /// The kinds an allowlist line may name.
 const KINDS: [&str; 5] = [
     "alias",
@@ -49,7 +52,7 @@ fn compat_words(text: &str) -> usize {
     let mut count = 0;
     let mut word = String::new();
     let mut previous_lower = false;
-    for letter in text.chars().chain(std::iter::once(' ')) {
+    for letter in text.replace(OWN_NAME, "").chars().chain(std::iter::once(' ')) {
         let breaks = !letter.is_ascii_alphabetic() || (letter.is_ascii_uppercase() && previous_lower);
         if breaks {
             count += usize::from(COMPAT_WORDS.contains(&word.as_str()));
@@ -303,6 +306,7 @@ mod tests {
         assert_eq!(compat_words("legacy_mode LegacyMode isLegacy \"a shim\" // backward compat"), 6);
         assert_eq!(compat_words("target_compatible_with compatibility_level bazel_compatibility"), 0);
         assert_eq!(compat_words("shims backwards legacyx compatible incompat"), 0);
+        assert_eq!(compat_words("zero_compat_test zero_compat_allowlist.txt"), 0);
         let found = hits(&[
             ("a/x.bzl", "X = [\"legacy\"]  # deprecated\n"),
             ("a/x.rs", "fn shim_path() {}\n"),

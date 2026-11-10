@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
@@ -7,10 +8,10 @@ package(default_testonly = True)
 cc_toolchain_files(
     name = "llvm_arm64",
     srcs = [
-        "//cc/tests/fixtures/hello:hello",
-        "//go/tests/fixtures/hello:hello",
+        "//cc/tests/fixtures/hello",
+        "//go/tests/fixtures/hello",
         "//rust/tests/fixtures/native_call:native_call_bin",
-        "//zig/tests/fixtures/hello:hello",
+        "//zig/tests/fixtures/hello",
     ],
     compiler = "llvm",
     platforms = ["//tools/platforms:linux_arm64"],
@@ -22,7 +23,15 @@ cc_toolchain_files(
 
 rust_test(
     name = "cross_arm64_test",
+    testonly = True,
     srcs = ["cross_arm64_test.rs"],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_llvm_cross",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cross_arm64_test",
+    crate_root = "cross_arm64_test.rs",
     data = [":llvm_arm64"],
     env = {"LLVM_ARM64": "$(rootpaths :llvm_arm64)"},
     target_compatible_with = [
@@ -34,12 +43,14 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_toml",
+    testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )

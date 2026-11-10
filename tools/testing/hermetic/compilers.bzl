@@ -96,13 +96,7 @@ compile_log = rule(
 )
 
 def starter_sources(name, language, files):
-    """Declares the starter library, binary and test of a language, and its two probe libraries.
-
-    Args:
-      name: prefix of every target.
-      language: starter fixture directory, c or cpp.
-      files: dict with the starter file names: lib, hdr, main, test, and the probe names: accepted, rejected.
-    """
+    """Declares the starter library, binary and test of a language, and its two probe libraries."""
     for file in [files["lib"], files["hdr"], files["main"], files["test"]]:
         _renamed(
             name = "%s_%s" % (name, file.replace(".", "_")),
@@ -142,15 +136,7 @@ def starter_sources(name, language, files):
     )
 
 def compiler_fixture(name, sources, compiler, rejected, target_compatible_with):
-    """Declares the in-graph fixture of one compiler over one starter_sources.
-
-    Args:
-      name: prefix; the tests are <name>_starter_test and <name>_test.
-      sources: name of the starter_sources.
-      compiler: key of COMPILER_PRODUCERS.
-      rejected: text the compiler prints when it rejects the <sources>_rejected library.
-      target_compatible_with: constraints of the platforms that have this compiler.
-    """
+    """Declares the in-graph fixture of one compiler over one starter_sources."""
     cc_toolchain_test(
         name = name + "_starter_test",
         compiler = compiler,

@@ -423,24 +423,28 @@ _starlark_execution_test = rule(
 
 _starlark_load_binary = rule(
     implementation = _load_test_impl,
+    doc = "Executable that runs a Starlark load test.",
     executable = True,
     attrs = _common_attrs,
 )
 
 _starlark_unit_binary = rule(
     implementation = _unit_test_impl,
+    doc = "Executable that runs a Starlark unit test.",
     executable = True,
     attrs = _common_attrs,
 )
 
 _starlark_analysis_binary = rule(
     implementation = _analysis_test_impl,
+    doc = "Executable that runs a Starlark analysis test.",
     executable = True,
     attrs = _common_attrs,
 )
 
 _starlark_execution_binary = rule(
     implementation = _execution_test_impl,
+    doc = "Executable that runs a Starlark execution test.",
     executable = True,
     attrs = _common_attrs,
 )

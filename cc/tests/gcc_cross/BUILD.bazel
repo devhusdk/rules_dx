@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -13,8 +14,8 @@ cc_binary(
 cc_toolchain_files(
     name = "gcc_arm64",
     srcs = [
-        "//cc/tests/fixtures/hello:hello",
         ":hello_c",
+        "//cc/tests/fixtures/hello",
         "//rust/tests/fixtures/native_call:native_call_bin",
     ],
     compiler = "gcc",
@@ -27,7 +28,15 @@ cc_toolchain_files(
 
 rust_test(
     name = "cross_arm64_test",
+    testonly = True,
     srcs = ["cross_arm64_test.rs"],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_gcc_cross",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cross_arm64_test",
+    crate_root = "cross_arm64_test.rs",
     data = [":gcc_arm64"],
     env = {"GCC_ARM64": "$(rootpaths :gcc_arm64)"},
     target_compatible_with = [
@@ -39,12 +48,14 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_toml",
+    testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )

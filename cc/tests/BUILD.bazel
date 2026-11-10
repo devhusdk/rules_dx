@@ -2,10 +2,13 @@ load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
+# gazelle:lang rust,dx_dispatch
+
 package(default_visibility = ["//:__subpackages__"])
 
 rust_test(
     name = "driver_policy_test",
+    testonly = True,
     srcs = ["driver_policy.rs"],
     aliases = aliases(
         package_name = "cc/cc_tests",
@@ -34,10 +37,12 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
+    deps = [],
 )
 
 rust_test(
     name = "foreign_cmake_log_test",
+    testonly = True,
     srcs = ["foreign_cmake_log.rs"],
     aliases = aliases(
         package_name = "cc/cc_tests",
@@ -61,10 +66,12 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
+    deps = [],
 )
 
 rust_test(
     name = "foreign_cmake_msvc_log_test",
+    testonly = True,
     srcs = ["foreign_cmake_msvc_log.rs"],
     aliases = aliases(
         package_name = "cc/cc_tests",
@@ -80,10 +87,12 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:windows",
     ],
+    deps = [],
 )
 
 rust_test(
     name = "foreign_cmake_cross_test",
+    testonly = True,
     srcs = ["foreign_cmake_cross.rs"],
     aliases = aliases(
         package_name = "cc/cc_tests",
@@ -105,16 +114,19 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
+    deps = [],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_toml",
+    testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )

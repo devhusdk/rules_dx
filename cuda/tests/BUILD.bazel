@@ -1,21 +1,32 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
+load("//core:failure_test.bzl", "failure_test")
+load("//core/modules:cuda.bzl", "CUDA_VERSION")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cuda:defs.bzl", "CUDA_TARGET", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
 load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
 load("//cuda/private/toolchain:repos.bzl", "UNACCEPTED")
-load("//core/modules:cuda.bzl", "CUDA_VERSION")
-load("//core:failure_test.bzl", "failure_test")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
 load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "hermetic_toolchain_test", "with_clang_compiler")
 
+# gazelle:lang rust,dx_dispatch
+
 package(default_visibility = ["//visibility:private"])
 
 rust_test(
     name = "saxpy_device_code_test",
+    testonly = True,
     srcs = ["saxpy_device_code_test.rs"],
+    aliases = aliases(
+        package_name = "cuda/cuda_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "saxpy_device_code_test",
+    crate_root = "saxpy_device_code_test.rs",
     data = [
         "//cuda/tests/fixtures/saxpy",
         "//cuda/tests/fixtures/saxpy:saxpy_app",
@@ -43,7 +54,15 @@ cuda_test(
 
 rust_test(
     name = "rdc_device_code_test",
+    testonly = True,
     srcs = ["rdc_device_code_test.rs"],
+    aliases = aliases(
+        package_name = "cuda/cuda_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "rdc_device_code_test",
+    crate_root = "rdc_device_code_test.rs",
     data = [
         "//cuda/tests/fixtures/rdc:axpy",
         "//cuda/tests/fixtures/rdc:axpy_from_objects",
@@ -119,7 +138,15 @@ cuda_test(
 
 rust_test(
     name = "saxpy_gpu_unavailable_test",
+    testonly = True,
     srcs = ["saxpy_gpu_unavailable_test.rs"],
+    aliases = aliases(
+        package_name = "cuda/cuda_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "saxpy_gpu_unavailable_test",
+    crate_root = "saxpy_gpu_unavailable_test.rs",
     data = [":saxpy_gpu_test"],
     env = cuda_gpu_env("8.9", "13.0") | {
         "DX_GPU_TEST": "$(rootpath :saxpy_gpu_test)",
@@ -145,7 +172,15 @@ failure_test(
 
 rust_test(
     name = "cublas_device_code_test",
+    testonly = True,
     srcs = ["cublas_device_code_test.rs"],
+    aliases = aliases(
+        package_name = "cuda/cuda_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cublas_device_code_test",
+    crate_root = "cublas_device_code_test.rs",
     data = [
         "//cuda/tests/fixtures/cublas",
         "//cuda/tests/fixtures/cublas:cublas_app",

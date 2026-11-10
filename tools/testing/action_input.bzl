@@ -14,21 +14,13 @@ def _impl(ctx):
     return analysistest.end(env)
 
 _action_input_test = analysistest.make(_impl, attrs = {
-    "file": attr.string(),
-    "mnemonic": attr.string(),
-    "present": attr.bool(),
+    "file": attr.string(doc = "Path suffix of the input."),
+    "mnemonic": attr.string(doc = "Mnemonic of the action to inspect."),
+    "present": attr.bool(doc = "Whether the input must be present."),
 })
 
 def action_input_test(name, target, mnemonic, file, present):
-    """Checks whether the one mnemonic action of target reads file.
-
-    Args:
-      name: Test name.
-      target: Target under test.
-      mnemonic: Mnemonic of the action to inspect.
-      file: Path suffix of the input.
-      present: Whether the input must be present.
-    """
+    """Checks whether the one mnemonic action of target reads file."""
     _action_input_test(
         name = name,
         size = "small",
@@ -40,14 +32,7 @@ def action_input_test(name, target, mnemonic, file, present):
     )
 
 def platform_flip_transition(platform):
-    """Returns a transition that builds its target for platform.
-
-    Args:
-      platform: Label string of the platform.
-
-    Returns:
-      A transition.
-    """
+    """Returns a transition that builds its target for platform."""
     return transition(
         implementation = lambda _settings, _attr: {"//command_line_option:platforms": platform},
         inputs = [],

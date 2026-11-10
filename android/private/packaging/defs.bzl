@@ -649,15 +649,7 @@ _check_selection = rule(
 )
 
 def android_check_selection(name, package, platforms = [], resources = [], target_compatible_with = None):
-    """Declares the validation of an android_check without its test, for analysis-failure proofs.
-
-    Args:
-        name: Target name; the rule is declared as name + "_selection".
-        package: The APK or App Bundle to check.
-        platforms: Platforms the bundle must package.
-        resources: type/name resources the bundle must resolve.
-        target_compatible_with: Platform constraints of the target.
-    """
+    """Declares the validation of an android_check without its test, for analysis-failure proofs."""
     _check_selection(
         name = name + "_selection",
         package = package,

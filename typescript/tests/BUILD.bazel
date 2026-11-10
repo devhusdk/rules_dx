@@ -3,19 +3,19 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript:defs.bzl", "javascript_test")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
 load("//typescript/private/playwright:repos.bzl", "CHROMIUM_REVISION", "CHROMIUM_VERSION", "PLAYWRIGHT_VERSION")
-load(":compatibility_tests.bzl", "playwright_compatibility_tests")
+load(":playwright_tests.bzl", "playwright_compatibility_tests")
 
 package(
     default_testonly = True,
     default_visibility = ["//:__subpackages__"],
 )
 
-playwright_compatibility_tests(name = "compatibility_tests")
+playwright_compatibility_tests(name = "playwright_compatibility_tests")
 
 javascript_test(
-    name = "pins_test",
+    name = "playwright_pins_test",
     size = "small",
-    srcs = ["pins_test.cjs"],
+    srcs = ["playwright_pins_test.cjs"],
     data = [
         "//:node_modules",
         "//:package_json",
@@ -30,25 +30,25 @@ javascript_test(
         "DX_PLAYWRIGHT_VERSION": PLAYWRIGHT_VERSION,
         "DX_README": "$(rlocationpath //typescript:README.md)",
     },
-    main = "pins_test.cjs",
+    main = "playwright_pins_test.cjs",
     no_copy_to_bin = ["//typescript:README.md"],
     runner = "node",
 )
 
 javascript_test(
-    name = "chromium_env_test",
+    name = "playwright_chromium_env_test",
     size = "small",
-    srcs = ["chromium_env_test.cjs"],
+    srcs = ["playwright_chromium_env_test.cjs"],
     data = ["//typescript/private/playwright:chromium_env"],
     env = {"DX_PLAYWRIGHT_CHROMIUM_ENV": "$(rlocationpath //typescript/private/playwright:chromium_env)"},
-    main = "chromium_env_test.cjs",
+    main = "playwright_chromium_env_test.cjs",
     runner = "node",
 )
 
 javascript_test(
-    name = "closure_test",
+    name = "playwright_closure_test",
     size = "small",
-    srcs = ["closure_test.cjs"],
+    srcs = ["playwright_closure_test.cjs"],
     data = [
         "@dx_playwright_chromium//:browsers",
         "@dx_playwright_chromium//:closure",
@@ -58,7 +58,7 @@ javascript_test(
         "DX_PLAYWRIGHT_CLOSURE_DIR": CLOSURE_DIR,
         "DX_PLAYWRIGHT_MARKER": "$(rlocationpath @dx_playwright_chromium//:marker)",
     },
-    main = "closure_test.cjs",
+    main = "playwright_closure_test.cjs",
     no_copy_to_bin = [
         "@dx_playwright_chromium//:browsers",
         "@dx_playwright_chromium//:closure",
@@ -73,7 +73,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "compatibility_tests.bzl",
+        "playwright_tests.bzl",
     ],
     tags = ["corpus"],
 )

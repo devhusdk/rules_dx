@@ -49,15 +49,7 @@ nested_repository_cache_set = repository_rule(
 )
 
 def parse_cache_list(text, origin):
-    """Parses a cache list: one `<url> <sha256>` per line, `#` comments.
-
-    Args:
-        text: the list file content.
-        origin: the name used in error messages.
-
-    Returns:
-        A dict of sha256 to URL.
-    """
+    """Parses a cache list: one `<url> <sha256>` per line, `#` comments."""
     entries = {}
     for number, line in enumerate(text.splitlines(), 1):
         line = line.strip()

@@ -22,7 +22,7 @@ def _make(platform):
     return analysistest.make(
         _impl,
         attrs = {"expected": attr.string_list()},
-        config_settings = {"//command_line_option:platforms": [str(Label("//typescript/tests/playwright:" + platform))]},
+        config_settings = {"//command_line_option:platforms": [str(Label("//typescript/tests:" + platform))]},
     )
 
 _linux_arm64_test = _make("linux_arm64")

@@ -257,11 +257,7 @@ def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, in
     )
 
 def coverage_env_tests(impl, attrs = {}):
-    """Returns struct(on, off): two analysis test rules sharing `impl`.
-
-    `on` pins collect_code_coverage True and `off` pins it False. Both rules
-    carry a `coverage` bool attr that defaults to True on `on` and False on `off`.
-    """
+    """Returns struct(on, off): two analysis test rules sharing `impl`."""
     return struct(
         on = analysistest.make(
             impl,

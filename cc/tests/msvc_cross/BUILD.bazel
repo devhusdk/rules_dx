@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:defs.bzl", "cc_shared_library")
 load("//cc:defs.bzl", "cc_binary", "cc_library")
 load("//cc/private/toolchains:action_tests.bzl", "cc_msvc_arm64_action_tests")
@@ -114,10 +115,18 @@ cc_msvc_arm64_action_tests(
 
 rust_test(
     name = "cross_arm64_test",
+    testonly = True,
     srcs = [
         "check.rs",
         "cross_arm64_test.rs",
     ],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_msvc_cross",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cross_arm64_test",
+    crate_root = "cross_arm64_test.rs",
     data = [":arm64"],
     env = {"MSVC_ARM64": "$(rootpaths :arm64)"},
     target_compatible_with = [
@@ -129,10 +138,18 @@ rust_test(
 
 rust_test(
     name = "cross_x64_test",
+    testonly = True,
     srcs = [
         "check.rs",
         "cross_x64_test.rs",
     ],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_msvc_cross",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cross_x64_test",
+    crate_root = "cross_x64_test.rs",
     data = [":x64"],
     env = {"MSVC_X64": "$(rootpaths :x64)"},
     target_compatible_with = [
@@ -144,12 +161,14 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_toml",
+    testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )

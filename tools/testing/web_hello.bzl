@@ -5,12 +5,7 @@ load("//javascript:defs.bzl", "javascript_library")
 load("//rust:defs.bzl", "rust_test")
 
 def dx_web_hello_fixture(component, library_rule):
-    """Declares the hello component library, helper, coverage test and aggregate build test around the :hello_test the package declares.
-
-    Args:
-        component: Component source file name.
-        library_rule: Language library rule.
-    """
+    """Declares the hello component library, helper, coverage test and aggregate build test around the :hello_test the package declares."""
     library_rule(
         name = "hello_lib",
         srcs = [component],

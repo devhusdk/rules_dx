@@ -1,7 +1,8 @@
 """Pinned Chromium headless shell for typescript_playwright_test."""
 
 load("//core:deb_closure.bzl", "deb_closure")
-load(":closure.bzl", "CHROMIUM_CLOSURE", "CLOSURE_DIR", "CLOSURE_MIRROR")
+load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME_MIRROR")
+load(":closure.bzl", "CHROMIUM_CLOSURE", "CLOSURE_DIR")
 
 visibility(["//..."])
 
@@ -69,7 +70,7 @@ def _chromium_impl(rctx):
         type = "zip",
     )
     rctx.file("browsers/chromium_headless_shell-" + CHROMIUM_REVISION + "/INSTALLATION_COMPLETE", "")
-    deb_closure(rctx, CLOSURE_MIRROR, CHROMIUM_CLOSURE.get(rctx.attr.platform, []), CLOSURE_DIR)
+    deb_closure(rctx, JAMMY_RUNTIME_MIRROR, CHROMIUM_CLOSURE.get(rctx.attr.platform, []), CLOSURE_DIR)
     rctx.file("BUILD.bazel", "\n".join([
         "filegroup(",
         '    name = "browsers",',

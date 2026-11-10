@@ -45,7 +45,9 @@ runs:
         targets="$(cat "$RUNNER_TEMP/compiler-targets")"
         DX_EVIDENCE_COMMAND="bazel test --skip_incompatible_explicit_targets $* $targets"
         export DX_EVIDENCE_COMMAND
-        tools/ci/compiler_evidence.sh "$out" "$PLATFORM" "$facts"
+        DX_BAZEL_VERSION="$(bazel --version | tr -d '\r')"
+        export DX_BAZEL_VERSION
+        "$DX_PRODUCERS" --evidence "$out" "$PLATFORM" "$facts"
         {
           echo "#### Compiler evidence"
           echo "| row | version | probe compiler | target | observed producers | ran/total | outcome |"

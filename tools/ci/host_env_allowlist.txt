@@ -363,8 +363,6 @@ tools/ci/advisory_launch_test.rs host-path 1
 tools/ci/advisory_launch_test.rs shebang 1
 tools/ci/blocker_refs.sh host-path 1
 tools/ci/blocker_refs.sh shebang 1
-tools/ci/compiler_evidence.sh host-path 1
-tools/ci/compiler_evidence.sh shebang 1
 tools/ci/compiler_table.sh host-path 1
 tools/ci/compiler_table.sh shebang 1
 tools/ci/docs_scope_test.rs shebang 1

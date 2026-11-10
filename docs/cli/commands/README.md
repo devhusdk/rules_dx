@@ -480,6 +480,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_test` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_test_rejection` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_wasm_bindgen_library` |
+|  |  | `@rules_dx//javascript/private/quality:defs.bzl` | `js_tool` |
+|  |  | `@rules_dx//javascript/private/quality:defs.bzl` | `js_tool_binary` |
 |  |  | `@rules_dx//julia/private:defs.bzl` | `julia_binary` |
 |  |  | `@rules_dx//julia/private:defs.bzl` | `julia_library` |
 |  |  | `@rules_dx//julia/private:defs.bzl` | `julia_standalone_binary` |
@@ -551,8 +553,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_qml_module` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_cc_library` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_runtime` |
-|  |  | `@rules_dx//javascript/private/quality:defs.bzl` | `js_tool` |
-|  |  | `@rules_dx//javascript/private/quality:defs.bzl` | `js_tool_binary` |
 |  |  | `@rules_dx//rego/private:defs.bzl` | `rego_library` |
 |  |  | `@rules_dx//rego/private:defs.bzl` | `rego_test` |
 |  |  | `@rules_dx//rst/rules:defs.bzl` | `rst_library` |

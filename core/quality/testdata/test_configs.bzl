@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 40
+MAX_TEST_CONFIGS = 41
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 

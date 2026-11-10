@@ -69,7 +69,8 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 
 ## Guard
 
-- `//tools/ci:test_tags_test` scans every `BUILD`, `BUILD.bazel` and `.bzl` file.
+- `@dx_test_tags_sources//:sources.json` snapshots every `BUILD`, `BUILD.bazel` and `.bzl` file of the module. Its repository rule watches each directory and file it reads.
+- `//tools/ci:test_tags_test` scans that snapshot as a declared input.
 - It counts the banned tags `manual`, `local`, `no-sandbox`, `no-cache`, `no-remote`, `external`, `requires-network` and `exclusive`.
 - It counts a tag in the `tags` of a test rule or test macro call, in `local = True` on such a call, and in a tags value built outside a call: a tags-named variable, a `"tags"` dict entry, or the arguments of a tags-named function.
 - It counts a loaded tags constant at each test call that uses it.

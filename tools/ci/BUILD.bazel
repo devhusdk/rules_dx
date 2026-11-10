@@ -1162,8 +1162,12 @@ rust_test(
     crate_root = "test_tags_test.rs",
     data = [
         "test_tags_allowlist.txt",
-        "//:module_srcs",
+        "@dx_test_tags_sources//:sources.json",
     ],
+    env = {
+        "TEST_TAGS_ALLOWLIST": "$(rlocationpath test_tags_allowlist.txt)",
+        "TEST_TAGS_SOURCES": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,

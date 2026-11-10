@@ -1,9 +1,7 @@
 //! No test carries a banned tag outside tools/ci/test_tags_allowlist.txt, and the allowlist holds no spare entry.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::path::Path;
 
-use serde_json as _;
 use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstAssignTarget, AstExpr, AstLiteral, AstStmt, BinOp, ExprP, StmtP,
 };
@@ -25,7 +23,7 @@ const BANNED: [&str; 8] = [
 /// Words in a rule or macro name that mark it as a test.
 const TEST_WORDS: [&str; 5] = ["bench", "fuzz", "suite", "test", "tests"];
 
-/// The allowlist, relative to the checkout.
+/// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/test_tags_allowlist.txt";
 
 /// Fewer scanned files than this means the sweep lost the tree.
@@ -403,35 +401,21 @@ fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
     counts
 }
 
-fn is_artifact(name: &str) -> bool {
-    name.starts_with('.') || name.starts_with("bazel-") || name == "node_modules"
+/// Reads one runfile named by an environment variable.
+fn read_input(variable: &str) -> String {
+    let key = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} is set by the test"));
+    let path = dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("{variable}: {error}"));
+    dx_testing::read_text(&path)
 }
 
-fn is_starlark(name: &str) -> bool {
-    name == "BUILD" || name == "BUILD.bazel" || name.ends_with(".bzl")
-}
-
-fn collect(root: &Path, dir: &Path, files: &mut BTreeMap<String, FileScan>) {
-    let entries =
-        std::fs::read_dir(dir).unwrap_or_else(|error| panic!("read_dir {dir:?}: {error}"));
-    for entry in entries {
-        let entry = entry.unwrap_or_else(|error| panic!("{dir:?}: {error}"));
-        let name = entry.file_name().to_string_lossy().into_owned();
-        let path = entry.path();
-        if path.is_dir() {
-            if !is_artifact(&name) {
-                collect(root, &path, files);
-            }
-        } else if is_starlark(&name) {
-            let rel = path
-                .strip_prefix(root)
-                .expect("file under the checkout")
-                .to_string_lossy()
-                .replace('\\', "/");
-            let source = dx_testing::read_text(&path);
-            files.insert(rel.clone(), scan_file(&rel, &source));
-        }
-    }
+/// Scans the snapshot that maps each BUILD and .bzl path to its text.
+fn scan_snapshot(text: &str) -> BTreeMap<String, FileScan> {
+    let sources: BTreeMap<String, String> =
+        serde_json::from_str(text).unwrap_or_else(|error| panic!("sources snapshot: {error}"));
+    sources
+        .iter()
+        .map(|(path, source)| (path.clone(), scan_file(path, source)))
+        .collect()
 }
 
 /// One allowlist line: `<path> <tag> <count>`.
@@ -509,16 +493,14 @@ fn counts(entries: &[(&str, &str, usize)]) -> Counts {
 
 #[test]
 fn the_tree_matches_the_allowlist() {
-    let root = dx_testing::rules_dx_source();
-    let mut files = BTreeMap::new();
-    collect(&root, &root, &mut files);
+    let files = scan_snapshot(&read_input("TEST_TAGS_SOURCES"));
     assert!(
         files.len() >= MIN_FILES,
-        "only {} BUILD and .bzl files under {root:?}",
+        "only {} BUILD and .bzl files in the sources snapshot",
         files.len()
     );
     let found = occurrences(&files);
-    let (allowed, mut problems) = parse_allowlist(&dx_testing::read_text(&root.join(ALLOWLIST)));
+    let (allowed, mut problems) = parse_allowlist(&read_input("TEST_TAGS_ALLOWLIST"));
     problems.extend(differences(&found, &allowed));
     assert!(
         problems.is_empty(),

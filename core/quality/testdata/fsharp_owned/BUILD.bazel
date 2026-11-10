@@ -1,0 +1,37 @@
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//fsharp:defs.bzl", "fsharp_library")
+
+package(default_visibility = [
+    "//core/quality:__pkg__",
+    "//core/quality/testdata:__pkg__",
+])
+
+quality_family(
+    name = "fsharp_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "fsharp",
+    typecheck = ["fsc"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":fsharp_family"],
+)
+
+fsharp_library(
+    name = "clean",
+    testonly = True,
+    srcs = ["Clean.fs"],
+    deps = ["@paket.main//fsharp.core"],
+)
+
+fsharp_library(
+    name = "dirty",
+    testonly = True,
+    srcs = ["Dirty.fs"],
+    deps = ["@paket.main//fsharp.core"],
+)

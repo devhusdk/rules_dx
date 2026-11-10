@@ -322,6 +322,8 @@ real_d_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_d_lint_aspect, real_
 
 real_zig_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_zig_lint_aspect, real_zig_format_aspect, real_zig_typecheck_aspect])
 
+real_ruby_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_ruby_lint_aspect, real_ruby_format_aspect, real_ruby_typecheck_aspect])
+
 real_haskell_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_haskell_lint_aspect, real_haskell_format_aspect, real_haskell_typecheck_aspect])
 
 real_ocaml_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_ocaml_lint_aspect, real_ocaml_format_aspect, real_ocaml_typecheck_aspect])
@@ -363,6 +365,7 @@ REAL_SUBJECT_BY_CLASS = {
     "cuda": real_cc_aspect_subject,
     "elixir": real_beam_aspect_subject,
     "erlang": real_beam_aspect_subject,
+    "fsharp": real_dotnet_aspect_subject,
     "go": real_go_aspect_subject,
     "haskell": real_haskell_aspect_subject,
     "java": real_jvm_aspect_subject,
@@ -371,6 +374,7 @@ REAL_SUBJECT_BY_CLASS = {
     "ocaml": real_ocaml_aspect_subject,
     "python": real_python_aspect_subject,
     "rst": real_core_aspect_subject,
+    "ruby": real_ruby_aspect_subject,
     "rust": real_rust_aspect_subject,
     "scala": real_scala_aspect_subject,
     "sql": real_sql_aspect_subject,

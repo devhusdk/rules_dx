@@ -35,10 +35,9 @@ def _host_env_impl(ctx):
         asserts.equals(env, action.env.get("TARGET_" + name), action.env.get("HOST_" + name), "HOST_{} is not TARGET_{}".format(name, name))
     cxxflags = (action.env.get("CXXFLAGS", "") + " " + action.env.get("HOST_CXXFLAGS", "")).split(" ")
     libcxx = [part for part in cxxflags if "libcxx_headers_include_search_directory" in part]
-    asserts.true(env, len(libcxx) <= 1, "libc++ headers are on the include path twice, which breaks #include_next (#8681): {}".format(libcxx))
+    asserts.true(env, len(libcxx) <= 1, "libc++ headers are on the include path twice, which breaks #include_next: {}".format(libcxx))
     return analysistest.end(env)
 
-# Not cross-compiling, so cc-rs adds HOST_*FLAGS on top of CFLAGS/CXXFLAGS.
 build_script_host_env_test = analysistest.make(_host_env_impl)
 
 _COMPILER = str(Label("@rules_dx//cc:compiler"))
@@ -132,7 +131,6 @@ _msvc_coverage_test = analysistest.make(
     _msvc_coverage_impl,
     config_settings = {
         "//command_line_option:collect_code_coverage": True,
-        # Matches coverage:windows in .bazelrc.
         "//command_line_option:features": ["-coverage", "-gcc_coverage_map_format"],
     },
 )
@@ -359,7 +357,7 @@ def _link_windows_impl(ctx):
             asserts.true(env, d.startswith("external/"), "Windows SDK lib dir is outside the execroot: {}".format(d))
             asserts.true(env, [p for p in inputs if p.startswith(d + "/")] != [], "Windows SDK lib dir is not an action input: {}".format(d))
     default_libs = [arg[len("-DEFAULTLIB:"):].lower() for arg in link_args if arg.startswith("-DEFAULTLIB:")]
-    asserts.true(env, "libc++.lib" in default_libs, "libc++.lib is not a default lib of the Rust link (#8681): {}".format(link_args))
+    asserts.true(env, "libc++.lib" in default_libs, "libc++.lib is not a default lib of the Rust link: {}".format(link_args))
     for crt in ["libcmt.lib", "msvcrt.lib"]:
         asserts.false(env, crt in default_libs, "the cc toolchain CRT reached the Rust link, rustc picks it: {}".format(link_args))
     for part in action.argv:
@@ -369,7 +367,6 @@ def _link_windows_impl(ctx):
 _link_gcc_test = analysistest.make(_link_gcc_impl, config_settings = {_COMPILER: "gcc"}, attrs = _GCC_ATTRS)
 _link_llvm_test = analysistest.make(_link_llvm_impl, config_settings = {_COMPILER: "llvm"})
 
-# The forwarder's static CRT settings, so the crate under test and the upstream share one build script config.
 _link_windows_test = analysistest.make(_link_windows_impl, config_settings = {
     _COMPILER: "llvm",
     _LINKER_PREFERENCE: "rust",

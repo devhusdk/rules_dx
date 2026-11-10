@@ -4,7 +4,7 @@ module(
     bazel_compatibility = [">=9.3.1"],
 )
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
+# floor: equals tested; patched (#2283, #3736)
 bazel_dep(name = "rules_rust", version = "0.75.0")
 single_version_override(
     module_name = "rules_rust",
@@ -51,7 +51,7 @@ single_version_override(
     version = "12.2.0.bcr.1",
 )
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#5905)
+# floor: equals tested; patched (#5905)
 bazel_dep(name = "gcc_toolchain", version = "0.13.0")
 single_version_override(
     module_name = "gcc_toolchain",
@@ -1128,7 +1128,7 @@ pub_tools.from_lock(
 )
 use_repo(pub_tools, "dart_apitool_deps", "dx_dart_bench_deps")
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#5006)
+# floor: equals tested; patched (#5006)
 bazel_dep(name = "rules_julia", version = "0.8.0")
 single_version_override(
     module_name = "rules_julia",
@@ -1596,7 +1596,7 @@ use_repo(
     "dotnet_runtime_linux_arm64",
 )
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#7035)
+# floor: equals tested; patched (#7035)
 bazel_dep(name = "hermetic_launcher", version = "0.0.17")
 single_version_override(
     module_name = "hermetic_launcher",
@@ -1605,7 +1605,7 @@ single_version_override(
     version = "0.0.17",
 )
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
+# floor: equals tested; patched (#2283, #3736)
 bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 archive_override(
     module_name = "rules_py",
@@ -1631,7 +1631,7 @@ single_version_override(
     version = "3.6.0",
 )
 
-# floor: equals tested; patched, consumers are pinned by the dx include (#2283, #3736)
+# floor: equals tested; patched (#2283, #3736)
 bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
 single_version_override(
     module_name = "aspect_rules_ts",

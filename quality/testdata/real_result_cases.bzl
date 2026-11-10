@@ -155,6 +155,8 @@ REAL_RESULT_CASES = [
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
     {
         "name": "real_result_zanuda_clean",
+        "linux_arm64": True,
+        "macos_arm64": True,
         "target": "//quality/testdata/zanuda_owned:clean",
         "policy": _ZANUDA_POLICY,
         "tool": "zanuda",
@@ -165,6 +167,8 @@ REAL_RESULT_CASES = [
     },
     {
         "name": "real_result_zanuda_dirty",
+        "linux_arm64": True,
+        "macos_arm64": True,
         "target": "//quality/testdata/zanuda_owned:dirty",
         "policy": _ZANUDA_POLICY,
         "tool": "zanuda",

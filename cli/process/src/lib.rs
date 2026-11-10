@@ -8,6 +8,7 @@
     )
 )]
 
+use dx_error::DxError;
 use std::ffi::{OsStr, OsString};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -472,29 +473,54 @@ pub struct ProtectedFlag {
 /// Tells the user where to report a dx bug.
 pub const BUG_REPORT_HINT: &str = "this is a dx bug; report it at https://github.com/devhusdk/rules_dx/issues/new?template=bug_report.md with the output of dx version";
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
-pub enum ForwardError {
-    #[error("conflicting_option: --{flag} conflicts with required workflow policy")]
-    ConflictingOption { flag: String },
-    #[error("invalid_usage: --{flag} is a startup option; use native bazel")]
-    StartupOption { flag: String },
-    #[error("invalid_usage: --{flag} targets the test binary; use native bazel")]
-    TestBinaryArgs { flag: String },
-    #[error(
-        "internal_error: required workflow option --{flag} is missing; {}",
-        BUG_REPORT_HINT
-    )]
-    InvalidRequiredOption { flag: String },
-    #[error(
-        "internal_error: malformed required setting {option}; expected --name=value; {}",
-        BUG_REPORT_HINT
-    )]
-    InvalidSetting { option: String },
-    #[error(
-        "internal_error: {command} does not support this plan; {}",
-        BUG_REPORT_HINT
-    )]
-    UnsupportedCommand { command: String },
+fn forward_usage(code: &str, flag: &str, rest: &str) -> DxError {
+    DxError::usage(format!("{code}: --{flag} {rest}"))
+}
+
+fn forward_internal(detail: &str) -> DxError {
+    DxError::failure(format!("internal_error: {detail}; {BUG_REPORT_HINT}"))
+}
+
+pub fn conflicting_option(flag: impl AsRef<str>) -> DxError {
+    forward_usage(
+        "conflicting_option",
+        flag.as_ref(),
+        "conflicts with required workflow policy",
+    )
+}
+
+pub fn startup_option(flag: impl AsRef<str>) -> DxError {
+    forward_usage(
+        "invalid_usage",
+        flag.as_ref(),
+        "is a startup option; use native bazel",
+    )
+}
+
+pub fn test_binary_args(flag: impl AsRef<str>) -> DxError {
+    forward_usage(
+        "invalid_usage",
+        flag.as_ref(),
+        "targets the test binary; use native bazel",
+    )
+}
+
+pub fn invalid_required_option(flag: impl AsRef<str>) -> DxError {
+    forward_internal(&format!(
+        "required workflow option --{} is missing",
+        flag.as_ref()
+    ))
+}
+
+pub fn invalid_setting(option: impl AsRef<str>) -> DxError {
+    forward_internal(&format!(
+        "malformed required setting {}; expected --name=value",
+        option.as_ref()
+    ))
+}
+
+pub fn unsupported_command(command: impl AsRef<str>) -> DxError {
+    forward_internal(&format!("{} does not support this plan", command.as_ref()))
 }
 
 /// Returns the option name of a `--name` or `--name=value` token.
@@ -543,7 +569,7 @@ fn accepts_test_binary_arg(bazel_command: &str) -> bool {
 pub fn check_protected(
     user_args: &[String],
     protected: &[ProtectedFlag],
-) -> Result<Vec<String>, ForwardError> {
+) -> Result<Vec<String>, DxError> {
     let mut kept = Vec::with_capacity(user_args.len());
     for arg in user_args {
         let name = flag_name(arg);
@@ -556,9 +582,7 @@ pub fn check_protected(
                 Some(required) if arg == required => kept.push(required.clone()),
                 _ if guard.allowed.iter().any(|allowed| allowed == arg) => kept.push(arg.clone()),
                 Some(_) | None => {
-                    return Err(ForwardError::ConflictingOption {
-                        flag: guard.name.clone(),
-                    });
+                    return Err(conflicting_option(&guard.name));
                 }
             },
             (None, _) => kept.push(arg.clone()),
@@ -583,7 +607,7 @@ pub fn build_workflow_argv(
     protected: &[ProtectedFlag],
     labels: &[String],
     startup_options: &[String],
-) -> Result<Vec<String>, ForwardError> {
+) -> Result<Vec<String>, DxError> {
     let share = rc::share();
     build_workflow_argv_with(
         ArgvPolicy {
@@ -608,15 +632,15 @@ pub fn build_workflow_argv_with(
     protected: &[ProtectedFlag],
     labels: &[String],
     startup_options: &[String],
-) -> Result<Vec<String>, ForwardError> {
+) -> Result<Vec<String>, DxError> {
     for arg in user_options {
         if is_startup_option(arg) {
             let flag = flag_name(arg).unwrap_or_default();
-            return Err(ForwardError::StartupOption { flag });
+            return Err(startup_option(flag));
         }
         if is_test_binary_arg(arg) && !accepts_test_binary_arg(bazel_command) {
             let flag = flag_name(arg).unwrap_or_default();
-            return Err(ForwardError::TestBinaryArgs { flag });
+            return Err(test_binary_args(flag));
         }
     }
     let canonical = check_protected(user_options, protected)?;

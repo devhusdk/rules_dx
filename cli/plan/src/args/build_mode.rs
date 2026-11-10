@@ -65,7 +65,7 @@ fn is_dx_build_mode_config(value: &str) -> bool {
 pub(crate) fn filter_build_mode_configs(
     options: &[String],
     build_mode: Option<BuildMode>,
-) -> Result<Vec<String>, dx_process::ForwardError> {
+) -> Result<Vec<String>, dx_error::DxError> {
     let Some(build_mode) = build_mode else {
         return Ok(options.to_vec());
     };
@@ -97,9 +97,7 @@ pub(crate) fn filter_build_mode_configs(
         if let Some(value) = value
             && is_dx_build_mode_config(&value)
         {
-            return Err(dx_process::ForwardError::ConflictingOption {
-                flag: "config".to_owned(),
-            });
+            return Err(dx_process::conflicting_option("config".to_owned()));
         }
         for offset in 0..consumed {
             kept.push(options[index + offset].clone());

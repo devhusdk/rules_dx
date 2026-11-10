@@ -1,4 +1,5 @@
-use dx_process::{ForwardError, ProtectedFlag, describe_scope};
+use dx_error::DxError;
+use dx_process::{ProtectedFlag, describe_scope};
 
 use super::{
     BuildPlan, SKIP_INCOMPATIBLE_FLAG, bazel_argv, bep_guards, bep_options, build_mode_options,
@@ -109,7 +110,7 @@ pub fn plan_workflow(
     bep_path: Option<&str>,
     build_mode: Option<crate::args::BuildMode>,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let required = workflow_options(verb, bazel_options, bep_path);
     let protected = workflow_protected(verb);
     let mut options: Vec<String> = workflow_defaults(verb)
@@ -245,7 +246,7 @@ mod tests {
             )
             .expect_err("conflicting setting must fail");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
+                err.message().starts_with("conflicting_option: --"),
                 "{conflicting} produced {err:?}"
             );
         }
@@ -278,7 +279,7 @@ mod tests {
             )
             .expect_err("path conversion must fail");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
+                err.message().starts_with("conflicting_option: --"),
                 "{conflicting} produced {err:?}"
             );
         }
@@ -375,7 +376,7 @@ mod tests {
         )
         .expect_err("build still rejects test args");
         assert!(
-            matches!(err, ForwardError::TestBinaryArgs { .. }),
+            err.message().starts_with("invalid_usage: --"),
             "got {err:?}"
         );
     }
@@ -443,7 +444,7 @@ mod tests {
             )
             .expect_err("conflicting dx build_mode must fail");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
+                err.message().starts_with("conflicting_option: --"),
                 "got {err:?}"
             );
         }
@@ -456,7 +457,7 @@ mod tests {
             &[],
         )
         .expect_err("test keeps the build_mode conflict");
-        assert!(matches!(err, ForwardError::ConflictingOption { .. }));
+        assert!(err.message().starts_with("conflicting_option: --"));
     }
 
     #[test]
@@ -557,7 +558,7 @@ mod tests {
         )
         .expect_err("conflicting combined_report must fail");
         assert!(
-            matches!(err, ForwardError::ConflictingOption { .. }),
+            err.message().starts_with("conflicting_option: --"),
             "got {err:?}"
         );
         let err = plan_workflow(
@@ -570,7 +571,7 @@ mod tests {
         )
         .expect_err("BEP override must fail");
         assert!(
-            matches!(err, ForwardError::ConflictingOption { .. }),
+            err.message().starts_with("conflicting_option: --"),
             "got {err:?}"
         );
     }
@@ -656,7 +657,7 @@ mod tests {
             )
             .expect_err("build_tests_only hides sources");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { ref flag } if flag == "build_tests_only"),
+                err.message() == dx_process::conflicting_option("build_tests_only").message(),
                 "{flag}: {err:?}"
             );
         }
@@ -745,9 +746,7 @@ mod tests {
                     .expect_err("download override must fail");
                 assert_eq!(
                     err,
-                    ForwardError::ConflictingOption {
-                        flag: flag.to_owned()
-                    },
+                    dx_process::conflicting_option(flag.to_owned()),
                     "{verb:?} {option}"
                 );
             }
@@ -876,7 +875,7 @@ mod tests {
         )
         .expect_err("conflicting config must fail");
         assert!(
-            matches!(err, ForwardError::ConflictingOption { .. }),
+            err.message().starts_with("conflicting_option: --"),
             "got {err:?}"
         );
     }

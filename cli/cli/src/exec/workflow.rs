@@ -13,7 +13,6 @@ use dx_plan::args::{Command, Invocation};
 use dx_plan::plan::{WorkflowVerb, bep_path, plan_workflow, results_path, run_id};
 use dx_plan::reports::{Destination, PlannedReport, StandardFormat, plan_reports};
 use dx_plan::resolve::{SelectionContext, resolve, resolve_for_test_with_selection};
-use dx_process::ForwardError;
 use std::io::Write;
 
 pub(crate) fn execute_workflow(invocation: &Invocation, env: Env<'_>) -> i32 {
@@ -135,10 +134,7 @@ fn execute_checked(
                 invocation.output,
                 out,
                 err,
-                &ForwardError::UnsupportedCommand {
-                    command: invocation.command.name().to_owned(),
-                }
-                .to_string(),
+                &dx_process::unsupported_command(invocation.command.name().to_owned()).to_string(),
             );
         }
     };
@@ -151,10 +147,7 @@ fn execute_checked(
             invocation.output,
             out,
             err,
-            &ForwardError::UnsupportedCommand {
-                command: invocation.command.name().to_owned(),
-            }
-            .to_string(),
+            &dx_process::unsupported_command(invocation.command.name().to_owned()).to_string(),
         );
     };
     let bep = bep_path(temp_dir, pid, nonce);

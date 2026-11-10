@@ -7,7 +7,6 @@ use dx_output::{
 use dx_plan::args::Invocation;
 use dx_plan::plan::{bep_path, plan_managed, plan_managed_with_roots};
 use dx_plan::resolve::expand_codegen_roots;
-use dx_process::ForwardError;
 
 pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     debug_assert!(
@@ -32,10 +31,7 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
             invocation.output,
             out,
             err,
-            &ForwardError::UnsupportedCommand {
-                command: invocation.command.name().to_owned(),
-            }
-            .to_string(),
+            &dx_process::unsupported_command(invocation.command.name().to_owned()).to_string(),
         );
     }
     let scope = match dx_setup::resolve_scope(&invocation.targets) {

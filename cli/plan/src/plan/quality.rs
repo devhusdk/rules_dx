@@ -1,6 +1,5 @@
-use dx_process::{
-    ForwardError, ProtectedFlag, Scope, describe_scope, operation_summary, redact_url_credentials,
-};
+use dx_error::DxError;
+use dx_process::{ProtectedFlag, Scope, describe_scope, operation_summary, redact_url_credentials};
 
 use super::{
     BuildPlan, DOCS_SHARD_OUTPUT_GROUP, DOCS_SITE_OUTPUT_GROUP, DOCS_TOOLS_OUTPUT_GROUP,
@@ -75,29 +74,23 @@ pub fn select_aspects(
         .collect()
 }
 
-pub(crate) fn setting_name(option: &str) -> Result<String, ForwardError> {
+pub(crate) fn setting_name(option: &str) -> Result<String, DxError> {
     let bare = option
         .strip_prefix("--")
-        .ok_or_else(|| ForwardError::InvalidSetting {
-            option: option.to_owned(),
-        })?;
+        .ok_or_else(|| dx_process::invalid_setting(option.to_owned()))?;
     let name = bare.split('=').next().unwrap_or("");
     if name.is_empty() {
-        return Err(ForwardError::InvalidSetting {
-            option: option.to_owned(),
-        });
+        return Err(dx_process::invalid_setting(option.to_owned()));
     }
     Ok(name.to_owned())
 }
 
-pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, ForwardError> {
+pub fn protected_flags(required: &[String]) -> Result<Vec<ProtectedFlag>, DxError> {
     let keep_going = required
         .iter()
         .find(|option| option.as_str() == KEEP_GOING_FLAG)
         .cloned()
-        .ok_or_else(|| ForwardError::InvalidRequiredOption {
-            flag: "keep_going".to_owned(),
-        })?;
+        .ok_or_else(|| dx_process::invalid_required_option("keep_going".to_owned()))?;
     let mut protected = vec![
         ProtectedFlag {
             name: "aspects".to_owned(),
@@ -149,7 +142,7 @@ pub fn plan_build(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     plan_build_with(
         command,
         resolved,
@@ -179,7 +172,7 @@ pub fn plan_build_with(
     bep_path: &str,
     startup_options: &[String],
     selection: Selection,
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let aspects = match selection.consumer {
         Some(consumer) => aspects_for(command, consumer),
         None => spec(command).aspects.to_vec(),
@@ -199,7 +192,7 @@ pub fn plan_docs(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let aspects = joined_labels(spec(Command::Docs).aspects.iter().copied());
     let groups = format!(
         "{OUTPUT_GROUP},{DOCS_SITE_OUTPUT_GROUP},{DOCS_SHARD_OUTPUT_GROUP},{DOCS_TOOLS_OUTPUT_GROUP},dx_docs_tool_files"
@@ -225,7 +218,7 @@ pub fn plan_probe(
     bep_path: &str,
     startup_options: &[String],
     consumer: Option<Consumer>,
-) -> Result<Option<BuildPlan>, ForwardError> {
+) -> Result<Option<BuildPlan>, DxError> {
     let probes = match consumer {
         Some(consumer) => probes_for(command, consumer),
         None => spec(command).probes.to_vec(),
@@ -254,7 +247,7 @@ fn shaped_plan(
     bazel_options: &[String],
     startup_options: &[String],
     required: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let protected = protected_flags(required)?;
     let (scope, labels) = workflow_bazel_labels(resolved);
     let mut options = vec![SKIP_INCOMPATIBLE_FLAG.to_owned()];
@@ -850,12 +843,12 @@ mod tests {
         required.retain(|option| option.as_str() != KEEP_GOING_FLAG);
         let err = protected_flags(&required).expect_err("missing keep_going");
         assert!(
-            matches!(err, ForwardError::InvalidRequiredOption { .. }),
+            err.message().starts_with("internal_error: required"),
             "missing keep_going produced {err:?}"
         );
         let err = setting_name("clippy_output_diagnostics=true").expect_err("malformed setting");
         assert!(
-            matches!(err, ForwardError::InvalidSetting { .. }),
+            err.message().starts_with("internal_error: malformed"),
             "malformed setting produced {err:?}"
         );
     }
@@ -1089,7 +1082,7 @@ mod tests {
         )
         .expect_err("a second output group must fail");
         assert!(
-            matches!(err, ForwardError::ConflictingOption { .. }),
+            err.message().starts_with("conflicting_option: --"),
             "{err:?}"
         );
     }
@@ -1119,7 +1112,7 @@ mod tests {
             )
             .expect_err("conflict must fail");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
+                err.message().starts_with("conflicting_option: --"),
                 "{conflicting} produced {err:?}"
             );
         }
@@ -1138,7 +1131,7 @@ mod tests {
             )
             .expect_err("conflict must fail");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
+                err.message().starts_with("conflicting_option: --"),
                 "{conflicting} produced {err:?}"
             );
         }
@@ -1242,7 +1235,7 @@ mod tests {
             &[],
         )
         .expect_err("startup option must fail");
-        assert!(matches!(err, ForwardError::StartupOption { .. }));
+        assert!(err.message().starts_with("invalid_usage: --"));
     }
 
     #[test]

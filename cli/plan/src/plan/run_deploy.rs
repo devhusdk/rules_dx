@@ -1,6 +1,5 @@
-use dx_process::ForwardError;
-
 use super::BuildPlan;
+use dx_error::DxError;
 
 pub fn plan_run_targets(
     targets: &[String],
@@ -8,7 +7,7 @@ pub fn plan_run_targets(
     app_args: &[String],
     build_mode: crate::args::BuildMode,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let mut argv = super::bazel_argv(
         "run",
         &super::build_mode_options(
@@ -34,7 +33,7 @@ pub fn plan_run_build(
     bazel_options: &[String],
     build_mode: crate::args::BuildMode,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let argv = super::bazel_argv(
         "build",
         &super::build_mode_options(
@@ -56,7 +55,7 @@ pub fn plan_run(
     app_args: &[String],
     build_mode: crate::args::BuildMode,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     plan_run_targets(
         &[target.to_owned()],
         bazel_options,
@@ -92,7 +91,7 @@ pub fn plan_deploy_build(
     label: &str,
     build_mode: crate::args::BuildMode,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let plan = plan_run_build(&[label.to_owned()], &[], build_mode, startup_options)?;
     let summary = format!("Running deploy build for {label}");
     Ok(BuildPlan {
@@ -106,7 +105,7 @@ pub fn plan_deploy_run(
     app_args: &[String],
     build_mode: crate::args::BuildMode,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let plan = plan_run(label, &[], app_args, build_mode, startup_options)?;
     let summary = format!("Running deploy run for {label}");
     Ok(BuildPlan {
@@ -277,16 +276,12 @@ mod tests {
         let conflicting = strings(&["--config=dx_build_release"]);
         assert_eq!(
             plan_run("//app:bin", &conflicting, &[], BuildMode::Dev, &[]).expect_err("conflict"),
-            ForwardError::ConflictingOption {
-                flag: "config".to_owned(),
-            }
+            dx_process::conflicting_option("config".to_owned())
         );
         assert_eq!(
             plan_run_build(&strings(&["//app:bin"]), &conflicting, BuildMode::Dev, &[])
                 .expect_err("conflict"),
-            ForwardError::ConflictingOption {
-                flag: "config".to_owned(),
-            }
+            dx_process::conflicting_option("config".to_owned())
         );
         let options = strings(&["--noshow_progress", "--config=dx_build_dev", "--jobs=4"]);
         let run = plan_run("//app:bin", &options, &[], BuildMode::Dev, &[]).expect("plan");
@@ -353,12 +348,12 @@ mod tests {
         let user = strings(&["--@rules_rust//rust/settings:rustc_output_diagnostics=false"]);
         let run = plan_run("//app:bin", &user, &[], BuildMode::Dev, &[]);
         assert!(
-            matches!(run, Err(ForwardError::ConflictingOption { .. })),
+            matches!(run, Err(ref e) if e.message().starts_with("conflicting_option: --")),
             "{run:?}"
         );
         let build = plan_run_build(&strings(&["//app:bin"]), &user, BuildMode::Dev, &[]);
         assert!(
-            matches!(build, Err(ForwardError::ConflictingOption { .. })),
+            matches!(build, Err(ref e) if e.message().starts_with("conflicting_option: --")),
             "{build:?}"
         );
     }

@@ -1,6 +1,5 @@
+use dx_error::DxError;
 use std::path::Path;
-
-use dx_process::ForwardError;
 
 use crate::args::BuildMode;
 
@@ -139,7 +138,7 @@ impl SelectionContext {
         }
     }
 
-    pub fn filtered_options(&self) -> Result<Vec<String>, ForwardError> {
+    pub fn filtered_options(&self) -> Result<Vec<String>, DxError> {
         crate::args::filter_build_mode_configs(&self.options, self.build_mode)
     }
 
@@ -148,7 +147,7 @@ impl SelectionContext {
         &self.startup
     }
 
-    fn verb_argv(&self, verb: &str, required: &[String]) -> Result<Vec<String>, ForwardError> {
+    fn verb_argv(&self, verb: &str, required: &[String]) -> Result<Vec<String>, DxError> {
         let filtered = self.filtered_options()?;
         let options = if verb == "query" {
             query_options(&filtered)
@@ -163,7 +162,7 @@ impl SelectionContext {
         verb: &str,
         required: &[String],
         expr: &str,
-    ) -> Result<Vec<String>, ForwardError> {
+    ) -> Result<Vec<String>, DxError> {
         let mut argv = self.verb_argv(verb, required)?;
         argv.push("--".to_owned());
         argv.push(expr.to_owned());
@@ -175,7 +174,7 @@ impl SelectionContext {
         verb: &str,
         required: &[String],
         query_file: &Path,
-    ) -> Result<Vec<String>, ForwardError> {
+    ) -> Result<Vec<String>, DxError> {
         let mut argv = self.verb_argv(verb, required)?;
         argv.push(format!("--query_file={}", query_file.display()));
         Ok(argv)
@@ -359,7 +358,7 @@ mod tests {
         let error = selection
             .selection_argv("cquery", &[], "tests(//...)")
             .expect_err("conflict");
-        assert!(matches!(error, ForwardError::ConflictingOption { .. }));
+        assert!(error.message().starts_with("conflicting_option: --"));
     }
 
     #[test]
@@ -502,7 +501,7 @@ mod tests {
         let error = selection
             .selection_argv("query", &[], "tests(//...)")
             .expect_err("conflict");
-        assert!(matches!(error, ForwardError::ConflictingOption { .. }));
+        assert!(error.message().starts_with("conflicting_option: --"));
     }
 
     #[test]

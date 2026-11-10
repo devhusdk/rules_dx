@@ -1,4 +1,5 @@
-use dx_process::{ForwardError, describe_scope};
+use dx_error::DxError;
+use dx_process::describe_scope;
 
 use super::{BuildPlan, bazel_argv, rules_dx_label, workflow_scope_labels};
 use crate::resolve::ResolvedScope;
@@ -138,7 +139,7 @@ pub fn plan_generate(
     check: bool,
     startup_options: &[String],
     patch: Option<&str>,
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let mut argv = bazel_argv(
         "run",
         bazel_options,
@@ -289,7 +290,7 @@ mod tests {
     fn generate_plan_rejects_startup_options() {
         let err = plan_generate(&resolved(&[]), &strings(&["--home_rc"]), false, &[], None)
             .expect_err("startup option must fail");
-        assert!(matches!(err, ForwardError::StartupOption { .. }));
+        assert!(err.message().starts_with("invalid_usage: --"));
     }
 
     #[test]

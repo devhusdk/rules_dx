@@ -1,4 +1,5 @@
-use dx_process::{ForwardError, ProtectedFlag};
+use dx_error::DxError;
+use dx_process::ProtectedFlag;
 
 use super::{BuildPlan, bep_guards, bep_options};
 use crate::args::Command;
@@ -9,10 +10,8 @@ pub fn plan_managed(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
-    let unsupported = || ForwardError::UnsupportedCommand {
-        command: command.name().to_owned(),
-    };
+) -> Result<BuildPlan, DxError> {
+    let unsupported = || dx_process::unsupported_command(command.name().to_owned());
     if !command.is_managed() {
         return Err(unsupported());
     }
@@ -44,7 +43,7 @@ pub fn plan_managed_with_roots(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-) -> Result<BuildPlan, ForwardError> {
+) -> Result<BuildPlan, DxError> {
     let argv = managed_argv(command, roots, bazel_options, bep_path, startup_options)?;
     let summary = format!("Running {} for {}", command.name(), roots.join(" "));
     Ok(BuildPlan { argv, summary })
@@ -56,10 +55,8 @@ fn managed_argv(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
-) -> Result<Vec<String>, ForwardError> {
-    let unsupported = || ForwardError::UnsupportedCommand {
-        command: command.name().to_owned(),
-    };
+) -> Result<Vec<String>, DxError> {
+    let unsupported = || dx_process::unsupported_command(command.name().to_owned());
     if !command.is_managed() {
         return Err(unsupported());
     }
@@ -177,7 +174,7 @@ mod tests {
             let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json", &[])
                 .expect_err("unmanaged must fail");
             assert!(
-                matches!(err, ForwardError::UnsupportedCommand { .. }),
+                err.message().starts_with("internal_error: "),
                 "{command:?} produced {err:?}"
             );
         }
@@ -306,7 +303,7 @@ mod tests {
             )
             .expect_err("conflict must fail");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
+                err.message().starts_with("conflicting_option: --"),
                 "{conflicting} produced {err:?}"
             );
         }
@@ -318,7 +315,7 @@ mod tests {
             &[],
         )
         .expect_err("startup option must fail");
-        assert!(matches!(err, ForwardError::StartupOption { .. }));
+        assert!(err.message().starts_with("invalid_usage: --"));
     }
 
     #[test]
@@ -329,7 +326,7 @@ mod tests {
             let err = plan_managed(command, &SetupScope::Repository, &[], "/tmp/bep.json", &[])
                 .expect_err("unmanaged command must fail");
             assert!(
-                matches!(err, ForwardError::UnsupportedCommand { .. }),
+                err.message().starts_with("internal_error: "),
                 "{command:?} produced {err:?}"
             );
         }

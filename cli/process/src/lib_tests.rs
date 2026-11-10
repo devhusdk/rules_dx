@@ -252,12 +252,7 @@ fn protected_check_rejects_conflict_without_echoing_values() {
     }];
     let err =
         check_protected(&["--keep_going=false".to_owned()], &protected).expect_err("conflict");
-    assert_eq!(
-        err,
-        ForwardError::ConflictingOption {
-            flag: "keep_going".to_owned(),
-        }
-    );
+    assert_eq!(err, conflicting_option("keep_going".to_owned()));
     assert!(!err.to_string().contains("false"));
     assert!(err.to_string().contains("--keep_going"));
 }
@@ -270,12 +265,7 @@ fn protected_check_rejects_bare_name_against_valued_requirement() {
         allowed: Vec::new(),
     }];
     let err = check_protected(&["--config=other".to_owned()], &protected).expect_err("conflict");
-    assert_eq!(
-        err,
-        ForwardError::ConflictingOption {
-            flag: "config".to_owned(),
-        }
-    );
+    assert_eq!(err, conflicting_option("config".to_owned()));
     assert!(!err.to_string().contains("other"));
     assert!(!err.to_string().contains("dx"));
     assert!(err.to_string().contains("--config"));
@@ -298,12 +288,7 @@ fn protected_check_accepts_allowed_extras_beside_required() {
         vec!["--config=ci".to_owned(), "--config=dx".to_owned()]
     );
     let err = check_protected(&["--config=other".to_owned()], &protected).expect_err("conflict");
-    assert_eq!(
-        err,
-        ForwardError::ConflictingOption {
-            flag: "config".to_owned(),
-        }
-    );
+    assert_eq!(err, conflicting_option("config".to_owned()));
 }
 
 #[test]
@@ -318,12 +303,7 @@ fn protected_check_rejects_unconditional_flag() {
         &protected,
     )
     .expect_err("conflict");
-    assert_eq!(
-        err,
-        ForwardError::ConflictingOption {
-            flag: "build_event_json_file".to_owned(),
-        }
-    );
+    assert_eq!(err, conflicting_option("build_event_json_file".to_owned()));
     assert!(!err.to_string().contains("/tmp/bep.json"));
 }
 
@@ -374,17 +354,11 @@ fn startup_and_binary_args_are_detected() {
 
 #[test]
 fn internal_errors_render_without_echoing_values() {
-    let err = ForwardError::InvalidRequiredOption {
-        flag: "keep_going".to_owned(),
-    };
+    let err = invalid_required_option("keep_going".to_owned());
     assert!(err.to_string().contains("--keep_going"));
-    let err = ForwardError::InvalidSetting {
-        option: "clippy_output_diagnostics=true".to_owned(),
-    };
+    let err = invalid_setting("clippy_output_diagnostics=true".to_owned());
     assert!(err.to_string().contains("malformed required setting"));
-    let err = ForwardError::UnsupportedCommand {
-        command: "lint".to_owned(),
-    };
+    let err = unsupported_command("lint".to_owned());
     assert!(err.to_string().contains("lint"));
     assert!(err.to_string().ends_with(BUG_REPORT_HINT));
 }
@@ -463,12 +437,7 @@ fn workflow_argv_rejects_startup_options() {
         &[],
     )
     .expect_err("startup");
-    assert_eq!(
-        err,
-        ForwardError::StartupOption {
-            flag: "output_base".to_owned(),
-        }
-    );
+    assert_eq!(err, startup_option("output_base".to_owned()));
     assert!(err.to_string().contains("native bazel"));
     assert!(!err.to_string().contains("/tmp/x"));
 }
@@ -485,13 +454,7 @@ fn workflow_argv_rejects_test_binary_args_outside_test_commands() {
             &[],
         )
         .expect_err("binary args");
-        assert_eq!(
-            err,
-            ForwardError::TestBinaryArgs {
-                flag: "test_arg".to_owned(),
-            },
-            "{command}"
-        );
+        assert_eq!(err, test_binary_args("test_arg".to_owned()), "{command}");
         assert!(err.to_string().contains("native bazel"), "{command}: {err}");
     }
 }
@@ -601,12 +564,7 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
     )
     .expect_err("protected capture option");
-    assert_eq!(
-        err,
-        ForwardError::ConflictingOption {
-            flag: "build_event_json_file".to_owned(),
-        }
-    );
+    assert_eq!(err, conflicting_option("build_event_json_file".to_owned()));
     let err = build_workflow_argv(
         "test",
         &["--output_base=/tmp/x".to_owned()],
@@ -616,7 +574,7 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
     )
     .expect_err("startup option");
-    assert!(matches!(err, ForwardError::StartupOption { .. }));
+    assert!(err.message().starts_with("invalid_usage: --"));
 }
 
 #[test]
@@ -778,7 +736,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
         )
         .expect_err("startup must fail");
         assert!(
-            matches!(err, ForwardError::StartupOption { .. }),
+            err.message().starts_with("invalid_usage: --"),
             "{startup} produced {err:?}"
         );
         assert!(err.to_string().contains("native bazel"), "{startup}: {err}");
@@ -798,7 +756,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
         )
         .expect_err("test-binary must fail outside test commands");
         assert!(
-            matches!(err, ForwardError::TestBinaryArgs { .. }),
+            err.message().starts_with("invalid_usage: --"),
             "{binary} produced {err:?}"
         );
     }
@@ -827,12 +785,7 @@ fn quality_workflows_reject_nokeep_going() {
         &[],
     )
     .expect_err("nokeep_going");
-    assert_eq!(
-        err,
-        ForwardError::ConflictingOption {
-            flag: "nokeep_going".to_owned(),
-        }
-    );
+    assert_eq!(err, conflicting_option("nokeep_going".to_owned()));
 }
 
 #[test]
@@ -851,7 +804,7 @@ fn workflow_argv_rejects_protected_conflicts() {
         &[],
     )
     .expect_err("conflict");
-    assert!(matches!(err, ForwardError::ConflictingOption { .. }));
+    assert!(err.message().starts_with("conflicting_option: --"));
     assert!(!err.to_string().contains("/tmp/bep.json"));
     assert!(!err.to_string().contains("/tmp/required.json"));
 }

@@ -7,10 +7,11 @@ pub mod run_deploy;
 pub mod run_temp;
 pub mod workflow;
 
+use dx_error::DxError;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use dx_process::{ForwardError, ProtectedFlag};
+use dx_process::ProtectedFlag;
 
 pub use generate::{
     GENERATE_ENV_INTENDED, GENERATE_ENV_MODE, GENERATE_ENV_SCOPE, generate_package_scope,
@@ -131,7 +132,7 @@ pub fn bazel_argv(
     protected: &[ProtectedFlag],
     labels: &[String],
     startup_options: &[String],
-) -> Result<Vec<String>, ForwardError> {
+) -> Result<Vec<String>, DxError> {
     bazel_argv_in(
         rules_dx_repo(),
         bazel_command,
@@ -156,7 +157,7 @@ fn bazel_argv_in(
     labels: &[String],
     startup_options: &[String],
     layered: bool,
-) -> Result<Vec<String>, ForwardError> {
+) -> Result<Vec<String>, DxError> {
     let settings = if dx_process::takes_shared_settings(bazel_command) {
         head_settings(repo)
     } else {
@@ -295,7 +296,6 @@ mod tests {
         BAZEL_SETTINGS, bazel_argv_in, correctness_layer_imported, rules_dx_label,
         rules_dx_repo_of, settings_for,
     };
-    use dx_process::ForwardError;
 
     fn workspace(rc: &str, layer: Option<&str>) -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
@@ -325,7 +325,7 @@ mod tests {
         let conflicting = vec!["--@rules_dx//config:clippy_output_diagnostics=false".to_owned()];
         let error = bazel_argv_in("rules_dx", "build", &conflicting, &[], &[], &[], &[], true)
             .expect_err("conflict");
-        assert!(matches!(error, ForwardError::ConflictingOption { .. }));
+        assert!(error.message().starts_with("conflicting_option: --"));
     }
 
     #[test]
@@ -421,7 +421,7 @@ mod tests {
         ] {
             let err = plan(&[conflicting.to_owned()]).expect_err("conflicting setting must fail");
             assert!(
-                matches!(err, ForwardError::ConflictingOption { .. }),
+                err.message().starts_with("conflicting_option: --"),
                 "{conflicting} produced {err:?}"
             );
         }

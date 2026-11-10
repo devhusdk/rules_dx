@@ -60,7 +60,7 @@ Thin wrapper over the rules_erlang test_erlang_app macro.
 erlang_bytecode(name, srcs, visibility = None, **kwargs)
 ```
 
-Thin wrapper over rules_erlang erlang_bytecode.
+Thin wrapper over rules_erlang erlang_bytecode. Adds -Werror to erlc_opts following warnings_as_errors.
 
 ### `erlang_escript_archive`
 

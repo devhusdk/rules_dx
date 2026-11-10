@@ -49,7 +49,7 @@ erlang_escript_archive(
 | `erlang_release` | Release tree with `lib/<app>/ebin` and `lib/<app>/priv`, NIF libraries included |
 | `erlang_nif` | NIF shared library from declared C or C++ `srcs` and `hdrs`, other `cc_library` attributes pass through, placed at `priv/<name>.so` (`.dll` on Windows) |
 
-`erlang_app`, `erlang_test_app`, `erlang_bytecode` and `erlang_ct_suite_test` compile with `-Werror`. Set `warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. An `erlang_app` that lists `srcs`, `hdrs` or `beam_files` takes its flags from the `erlang_bytecode` that compiles them.
+`erlang_app`, `erlang_test_app`, `erlang_bytecode` and `erlang_ct_suite_test` compile with `-Werror`. Set `warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. An `erlang_app` that lists `srcs`, `hdrs`, `beam_files`, `priv` or `license_files` takes its flags from the `erlang_bytecode` that compiles them.
 
 ```python
 erlang_nif(

@@ -13,3 +13,45 @@ diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
          ar = paths.join(paths.dirname(ar), "ar")
  
      return struct(
+@@ -619,7 +619,7 @@
+     ctx.actions.run(
+         executable = c.cabal_wrapper,
+         arguments = [json_args.path],
+-        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files, depset(ctx.files._llvm_ar) if hs.toolchain.is_darwin else depset()]),
+         tools = attr_tools +
+                 [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
+                 hs.tools_config.tools_for_ghc,
+@@ -792,6 +792,11 @@
+             cfg = "exec",
+             default = Label("@rules_haskell//haskell:runghc"),
+         ),
++        "_llvm_ar": attr.label(
++            cfg = "exec",
++            allow_files = True,
++            default = Label("@llvm//tools:llvm-ar"),
++        ),
+         "_cc_toolchain": attr.label(
+             default = Label("@rules_cc//cc:current_cc_toolchain"),
+         ),
+@@ -945,7 +950,7 @@
+     ctx.actions.run(
+         executable = c.cabal_wrapper,
+         arguments = [json_args.path],
+-        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files, depset(ctx.files._llvm_ar) if hs.toolchain.is_darwin else depset()]),
+         outputs = [
+             package_database,
+             binary,
+@@ -1053,6 +1058,11 @@
+             cfg = "exec",
+             default = Label("@rules_haskell//haskell:runghc"),
+         ),
++        "_llvm_ar": attr.label(
++            cfg = "exec",
++            allow_files = True,
++            default = Label("@llvm//tools:llvm-ar"),
++        ),
+         "_cc_toolchain": attr.label(
+             default = Label("@rules_cc//cc:current_cc_toolchain"),
+         ),

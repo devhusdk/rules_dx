@@ -325,8 +325,8 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
-        "//tools/ci/ci_workflow",
         "//tools/bazelrc:dx_preset",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -593,7 +593,6 @@ rust_test(
     crate_name = "config_consistency_test",
     crate_root = "config_consistency_test.rs",
     data = [
-        "//.github:workflows/release-consumer.yml",
         "//:.bazelignore",
         "//:.bazelrc",
         "//:.bazelversion",
@@ -609,6 +608,7 @@ rust_test(
         "//:README.md",
         "//:biome.json",
         "//.github:workflows",
+        "//.github:workflows/release-consumer.yml",
         "//:license.toml",
         "//:pnpm-workspace.yaml",
         "//:ruff.toml",
@@ -1147,4 +1147,34 @@ rust_test(
     crate_root = "git_spawn_policy_test.rs",
     data = ["//:module_srcs"],
     deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "test_tags_test",
+    size = "small",
+    srcs = ["test_tags_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "test_tags_test",
+    crate_root = "test_tags_test.rs",
+    data = [
+        "test_tags_allowlist.txt",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "TEST_TAGS_ALLOWLIST": "$(rlocationpath test_tags_allowlist.txt)",
+        "TEST_TAGS_SOURCES": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
 )

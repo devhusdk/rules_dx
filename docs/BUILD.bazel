@@ -72,6 +72,7 @@ real_source_target(
         "design/nested-tests.md",
         "design/quality-config.md",
         "design/quality-test-configs.md",
+        "design/tests.md",
         "design/tool-prebuilts.md",
         "editors.md",
         "github-ci.md",

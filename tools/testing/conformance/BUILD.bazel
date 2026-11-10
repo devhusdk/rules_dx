@@ -1,4 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("//rust:defs.bzl", "rust_test")
+load(":defs.bzl", "dx_conformance_manifest", "pending_langs", "suite_langs")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -38,3 +40,28 @@ config_setting(
 )
 
 exports_files(["runner_test.rs"])
+
+dx_conformance_manifest(
+    name = "manifest",
+    manifests = ["//%s/tests/conformance:manifest" % lang for lang in suite_langs()],
+    pending_langs = pending_langs(),
+    testonly = True,
+)
+
+rust_test(
+    name = "pending_test",
+    srcs = ["pending_test.rs"],
+    data = [
+        "pending.bzl",
+        ":manifest",
+    ],
+    env = {
+        "DX_CONFORMANCE_MANIFEST": "$(rlocationpath :manifest)",
+        "DX_CONFORMANCE_PENDING": "$(rlocationpath pending.bzl)",
+    },
+    size = "small",
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)

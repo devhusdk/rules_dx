@@ -100,7 +100,7 @@ A test is the first of four kinds that can prove the behaviour.
 - A suite test is an in-graph fixture test with `size = "small"`. It runs a subject from runfiles with Bazel's test environment.
 - `lang.json` `platforms` is never empty. A suite test runs on each of them and is incompatible on any other.
 - The suite's `not_applicable` maps a test, or a test and platform, to a reason. Nothing else omits a suite test.
-- `tools/testing/conformance/pending.txt` holds a `<lang> <test> <platform>` line per suite test that does not pass yet. Such a test is incompatible on that platform. The list only shrinks.
+- `tools/testing/conformance/pending.bzl` holds a `<lang> <test> <platform>` line per suite test that does not pass yet; `*` is every `lang.json` platform. Such a test is incompatible on that platform. The list only shrinks.
 - The suite declares `:manifest`, compatible on every platform, with no dependency on a suite test. It records the label, the reason or `pending` of each test on each platform.
 - `//tools/testing/conformance:manifest` depends on the `:manifest` of every language in `core/modules/langs.bzl`. A language without a suite fails its build.
 - `docs/support-matrix.md` takes each suite test cell from the manifest. No hand-written table states one.

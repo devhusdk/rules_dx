@@ -394,6 +394,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_lua-real-format-lua.pb",
                 "clean_lua-real-lint-lua.pb",
+                "clean_lua-real-typecheck-lua.pb",
             ],
             "config": "shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_lua",

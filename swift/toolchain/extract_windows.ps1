@@ -118,7 +118,9 @@ $msis = Get-ChildItem -LiteralPath $packages -Recurse -Filter "*.msi" | Sort-Obj
 if (-not $msis) { Fail "the bundle holds no MSI packages" }
 $trees = Join-Path $Work "trees"
 $index = 0
+$failed = @()
 foreach ($msi in $msis) {
+    if ($msi.BaseName -match "android") { continue }
     $index++
     $target = Join-Path $trees ("{0:D2}" -f $index)
     New-Item -ItemType Directory -Force -Path $target | Out-Null
@@ -134,16 +136,19 @@ foreach ($msi in $msis) {
     }
     if ($code -ne 0 -and $code -ne 3010) {
         if (Test-Path -LiteralPath $log) { Get-Content -LiteralPath $log -Tail 40 | ForEach-Object { [Console]::Error.WriteLine($_) } }
-        Fail "msiexec /a $($msi.Name) exited with $code"
+        $failed += "$($msi.Name) ($code)"
+        continue
     }
     Remove-Item -LiteralPath $msi.FullName -Force
     $cab = Join-Path $msi.DirectoryName ($msi.BaseName + "*.cab")
     Remove-Item -Path $cab -Force -ErrorAction SilentlyContinue
 }
 
+if ($failed.Count -gt 0) { [Console]::Error.WriteLine("extract_windows: msiexec /a failed for: $($failed -join ', ')") }
+
 $swiftc = Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftc.exe" |
     Where-Object { $_.Directory.Name -eq "bin" -and $_.Directory.Parent.Name -eq "usr" } | Select-Object -First 1
-if (-not $swiftc) { Fail "no usr\bin\swiftc.exe in the extracted packages" }
+if (-not $swiftc) { Fail "no usr\bin\swiftc.exe in the extracted packages; msiexec failures: $($failed -join ', ')" }
 $runtime = Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftCore.dll" |
     Where-Object { $_.FullName -match "Runtimes" } | Select-Object -First 1
 if (-not $runtime) { $runtime = Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftCore.dll" | Select-Object -First 1 }

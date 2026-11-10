@@ -1,13 +1,18 @@
 """Unit tests for source-fixture shape."""
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load(":fixtures.bzl", "converter_attrs", "markdown_sibling_error")
+load(":fixtures.bzl", "converter_attrs", "fixture_class_error", "markdown_sibling_error")
 
 def fixtures_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "every taxonomy file class has a fixture attribute or an exemption",
+                fixture_class_error(),
+                "",
+            ),
             expect_equal(
                 "markdown_sibling_error rejects siblings without markdown sources",
                 markdown_sibling_error(

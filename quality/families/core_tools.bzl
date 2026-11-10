@@ -1,79 +1,17 @@
 """Quality tool rows for the core family."""
 
+load("//quality:taxonomy.bzl", "TAXONOMY")
 load("//quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
-# Source and docs classes typos spell checks, by owning family.
+# Families and classes typos does not spell check; every other taxonomy class is checked.
+_TYPOS_EXCLUDED_FAMILIES = ["core", "cue", "json", "jupyter"]
+
+_TYPOS_EXCLUDED_CLASSES = ["api_spec_ref"]
+
 _TYPOS_FAMILY_CLASSES = {
-    "ansible": ["ansible"],
-    "api_spec": ["api_spec"],
-    "asciidoc": ["asciidoc"],
-    "astro": ["astro"],
-    "avro": ["avro"],
-    "bicep": ["bicep"],
-    "capnp": ["capnp"],
-    "cc": ["c", "cpp"],
-    "cloudformation": ["cloudformation"],
-    "cmake": ["cmake"],
-    "csharp": ["csharp"],
-    "css": ["css", "less", "scss"],
-    "cuda": ["cuda"],
-    "d": ["d"],
-    "dart": ["dart"],
-    "dockerfile": ["dockerfile"],
-    "elixir": ["elixir"],
-    "erlang": ["erlang"],
-    "flatbuffers": ["flatbuffers"],
-    "fortran": ["fortran"],
-    "fsharp": ["fsharp"],
-    "gherkin": ["gherkin"],
-    "go": ["go"],
-    "go_module": ["go_module"],
-    "graphql": ["graphql"],
-    "haskell": ["haskell"],
-    "helm": ["helm"],
-    "html": ["html"],
-    "html_template": ["html_template"],
-    "java": ["java"],
-    "javascript": ["javascript", "jsx"],
-    "jsonnet": ["jsonnet"],
-    "julia": ["julia"],
-    "kotlin": ["kotlin"],
-    "kubernetes": ["kubernetes"],
-    "latex": ["latex"],
-    "lua": ["lua"],
-    "make": ["make"],
-    "markdown": ["markdown"],
-    "mdx": ["mdx"],
-    "nix": ["nix"],
-    "objc": ["objc", "objcpp"],
-    "ocaml": ["ocaml"],
-    "perl": ["perl"],
-    "php": ["php"],
-    "pkl": ["pkl"],
-    "powershell": ["powershell"],
-    "protobuf": ["protobuf"],
-    "python": ["python", "python_stub"],
-    "qml": ["qml"],
-    "rego": ["rego"],
-    "rst": ["rst"],
-    "ruby": ["ruby"],
-    "rust": ["rust"],
-    "scala": ["scala"],
-    "shell": ["shell"],
-    "sql": ["sql"],
-    "starlark": ["starlark"],
-    "svelte": ["svelte"],
-    "swift": ["swift"],
-    "terraform": ["terraform"],
-    "text": ["text"],
-    "thrift": ["thrift"],
-    "toml": ["toml"],
-    "typescript": ["tsx", "typescript"],
-    "typst": ["typst"],
-    "vue": ["vue"],
-    "xml": ["xml"],
-    "yaml": ["yaml"],
-    "zig": ["zig"],
+    family: [class_id for class_id in entry.classes if class_id not in _TYPOS_EXCLUDED_CLASSES]
+    for family, entry in TAXONOMY.items()
+    if family not in _TYPOS_EXCLUDED_FAMILIES
 }
 
 TOOLS = [

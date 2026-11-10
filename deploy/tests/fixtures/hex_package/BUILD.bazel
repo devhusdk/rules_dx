@@ -1,4 +1,4 @@
-package(default_visibility = ["//deploy/rules:__pkg__"])
+package(default_visibility = ["//deploy/private:__pkg__"])
 
 filegroup(
     name = "hex_package",

@@ -224,8 +224,8 @@ Language rules:
 - `@rules_dx//csharp:defs.bzl`: C#.
 - `@rules_dx_cuda//rules:defs.bzl`: CUDA.
 - `@rules_dx//dockerfile:defs.bzl`: Dockerfiles.
-- `@rules_dx//make/rules:defs.bzl`: Makefiles.
-- `@rules_dx//cmake/rules:defs.bzl`: CMake files.
+- `@rules_dx//make:defs.bzl`: Makefiles.
+- `@rules_dx//cmake:defs.bzl`: CMake files.
 - `@rules_dx//d:defs.bzl`: D.
 - `@rules_dx//elixir:defs.bzl`: Elixir.
 - `@rules_dx//erlang:defs.bzl`: Erlang.
@@ -252,7 +252,7 @@ Language rules:
 - `@rules_dx//ruby:defs.bzl`: Ruby.
 - `@rules_dx//rust:defs.bzl`: Rust.
 - `@rules_dx//scala:defs.bzl`: Scala.
-- `@rules_dx//sql/rules:defs.bzl`: SQL.
+- `@rules_dx//sql:defs.bzl`: SQL.
 - `@rules_dx//terraform:defs.bzl`: Terraform.
 - `@rules_dx//typescript:defs.bzl`: TypeScript.
 - `@rules_dx//vue:defs.bzl`: Vue.
@@ -310,7 +310,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ansible/private:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec/private:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
-|  |  | `@rules_dx//asciidoc/rules:defs.bzl` | `asciidoc_library` |
+|  |  | `@rules_dx//asciidoc:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_build` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_test` |
@@ -328,7 +328,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
 |  |  | `@rules_dx//cloudformation/private:defs.bzl` | `cloudformation_library` |
-|  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
+|  |  | `@rules_dx//cmake/private:defs.bzl` | `cmake_library` |
 |  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_bench` |
 |  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_binary` |
 |  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_fuzz_test` |
@@ -508,7 +508,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//lua/private:defs.bzl` | `lua_binary` |
 |  |  | `@rules_dx//lua/private:defs.bzl` | `lua_library` |
 |  |  | `@rules_dx//lua/private:defs.bzl` | `lua_test` |
-|  |  | `@rules_dx//make/rules:defs.bzl` | `make_library` |
+|  |  | `@rules_dx//make/private:defs.bzl` | `make_library` |
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_build` |
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_library` |
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_test` |
@@ -556,7 +556,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_runtime` |
 |  |  | `@rules_dx//rego/private:defs.bzl` | `rego_library` |
 |  |  | `@rules_dx//rego/private:defs.bzl` | `rego_test` |
-|  |  | `@rules_dx//rst/rules:defs.bzl` | `rst_library` |
+|  |  | `@rules_dx//rst/private:defs.bzl` | `rst_library` |
 |  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_bench` |
 |  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_binary` |
 |  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_coverage_lib_dirs` |
@@ -575,7 +575,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_fuzz_test` |
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_library` |
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_test` |
-|  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
+|  |  | `@rules_dx//sql:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_build` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_library` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_test` |
@@ -699,18 +699,7 @@ Packaging and deploy:
 - `@rules_dx_apple//provisioning:defs.bzl`: Apple provisioning.
 - `@rules_dx_apple//provisioning:probe.bzl`: Apple toolchain probe.
 - `@rules_dx_apple//signing:defs.bzl`: macOS app signing and notarization.
-- `@rules_dx//deploy/offline:offline.bzl`: offline bundles.
-- `@rules_dx//deploy/rules:archive.bzl`: release archives.
-- `@rules_dx//deploy/rules:cloudflare.bzl`: Cloudflare deploys.
-- `@rules_dx//deploy/rules:crates.bzl`: crates.io publish.
-- `@rules_dx//deploy/rules:github.bzl`: GitHub releases.
-- `@rules_dx//deploy/rules:maven.bzl`: Maven publish.
-- `@rules_dx//deploy/rules:npm.bzl`: npm publish.
-- `@rules_dx//deploy/rules:nuget.bzl`: NuGet publish.
-- `@rules_dx//deploy/rules:oci.bzl`: OCI images.
-- `@rules_dx//deploy/rules:octopus.bzl`: Octopus Deploy.
-- `@rules_dx//deploy/rules:pub.bzl`: pub.dev publish.
-- `@rules_dx//deploy/rules:pypi.bzl`: PyPI publish.
+- `@rules_dx//deploy:defs.bzl`: deploy rules, release archives and offline bundles.
 - `@rules_dx//msix:defs.bzl`: MSIX packages.
 
 SDK and toolchain extensions:

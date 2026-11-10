@@ -1,6 +1,6 @@
-load("//deploy/rules:linux_package.bzl", "linux_package_deploy")
+load("//deploy/private:linux_package.bzl", "linux_package_deploy")
 
-package(default_visibility = ["//deploy/rules:__pkg__"])
+package(default_visibility = ["//deploy/private:__pkg__"])
 
 genrule(
     name = "demo_bin",
@@ -26,6 +26,6 @@ linux_package_deploy(
         "apk",
     ],
     maintainer = "Demo <demo@example.com>",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     version = "1.2.3",
 )

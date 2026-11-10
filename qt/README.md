@@ -316,7 +316,7 @@ plugins need. Pass it to `consumer_archive` as a
 resource:
 
 ```python
-load("@rules_dx//deploy/rules:archive.bzl", "consumer_archive")
+load("@rules_dx//deploy:defs.bzl", "consumer_archive")
 load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
 
 qt_bundle(

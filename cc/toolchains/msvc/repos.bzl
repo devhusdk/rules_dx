@@ -54,7 +54,7 @@ def hub_build(accepted, vc_repo = "", sdk_repo = "", msvc_version = MSVC_TOOLSET
     Returns:
         The BUILD file text with one target per supported (host, target) cell.
     """
-    text = 'load("{}", "dx_native_runtime")\n\npackage(default_visibility = ["//visibility:public"])\n\n'.format(str(Label("//deploy/rules:native_runtime.bzl")))
+    text = 'load("{}", "dx_native_runtime")\n\npackage(default_visibility = ["//visibility:public"])\n\n'.format(str(Label("//deploy/private:native_runtime.bzl")))
     if accepted:
         text = 'load("{}", "msvc_cc_toolchain")\n'.format(str(Label(":toolchain.bzl"))) + text
     else:

@@ -1,0 +1,768 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load(":bcr.bzl", "bcr_check")
+load(":bcr_tests.bzl", "bcr_unit_tests")
+load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
+load(":inventory_tests.bzl", "inventory_file_tests", "inventory_runtime_file_tests", "inventory_unit_tests")
+load(":matrix.bzl", "release_cells", "release_matrix_cell", "release_matrix_file")
+load(":matrix_tests.bzl", "matrix_unit_tests")
+load(":notice.bzl", "notice_bundle")
+load(":notice_tests.bzl", "notice_file_tests", "notice_unit_tests")
+load(":sbom.bzl", "sbom_release")
+load(":sbom_tests.bzl", "sbom_file_tests", "sbom_unit_tests")
+load(":signing.bzl", "cosign_binary", "signed_release")
+load(":signing_tests.bzl", "signing_unit_tests")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "bcr.bzl",
+    "bcr_tests.bzl",
+    "cosign_pins.bzl",
+    "inventory.bzl",
+    "inventory_tests.bzl",
+    "matrix.bzl",
+    "matrix_tests.bzl",
+    "notice.bzl",
+    "notice_demo_a.txt",
+    "notice_demo_b.txt",
+    "notice_demo_inventory.txt",
+    "notice_shared/cargo/shared/LICENSE",
+    "notice_shared/npm/shared/LICENSE",
+    "notice_shared_inventory.txt",
+    "notice_tests.bzl",
+    "repos.bzl",
+    "extensions.bzl",
+    "sbom.bzl",
+    "sbom_tests.bzl",
+    "signing.bzl",
+    "signing_tests.bzl",
+    "src/bin_bcr_ledger.rs",
+    "src/bin_bump_version.rs",
+    "src/bin_publish_dry_run_check.rs",
+    "src/bin_release_cell.rs",
+    "src/bin_release_deploy_tool.rs",
+    "src/bin_release_driver.rs",
+    "src/bin_release_tool.rs",
+    "src/bin_source_archive.rs",
+])
+
+rust_library(
+    name = "dx_release_tools",
+    srcs = [
+        "src/candidate.rs",
+        "src/cell.rs",
+        "src/deploy.rs",
+        "src/inventory.rs",
+        "src/ledger.rs",
+        "src/lib.rs",
+        "src/modules.rs",
+        "src/provenance.rs",
+        "src/publish.rs",
+        "src/runtimes.rs",
+        "src/spdx.rs",
+        "src/tool.rs",
+    ],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "dx_release_tools",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [
+        "//cli/audit:dx_audit",
+        "//cli/digest:dx_digest",
+        "//cli/fingerprint:dx_fingerprint",
+        "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
+        "//deploy/private:dx_deploy_tools",
+        "//cli/binfmt:dx_binfmt",
+        "@crates//:serde",
+    ],
+)
+
+rust_binary(
+    name = "release_tool",
+    srcs = ["src/bin_release_tool.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_tool",
+    crate_root = "src/bin_release_tool.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "dx_release_tools_test",
+    srcs = [
+        "src/candidate.rs",
+        "src/cell.rs",
+        "src/cell_tests.rs",
+        "src/deploy.rs",
+        "src/inventory.rs",
+        "src/ledger.rs",
+        "src/lib.rs",
+        "src/modules.rs",
+        "src/provenance.rs",
+        "src/publish.rs",
+        "src/release_lib_tests.rs",
+        "src/runtimes.rs",
+        "src/spdx.rs",
+        "src/tool.rs",
+    ],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    coverage_lib = ":dx_release_tools",
+    crate_name = "dx_release_tools",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/audit:dx_audit",
+        "//cli/digest:dx_digest",
+        "//cli/fingerprint:dx_fingerprint",
+        "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
+        "//cli/sbom/schema:dx_sbom_schema",
+        "//deploy/private:dx_deploy_tools",
+        "//cli/binfmt:dx_binfmt",
+        "//tools/testing:dx_testing",
+        "@crates//:serde",
+    ],
+)
+
+rust_test(
+    name = "release_artifacts_verify",
+    srcs = ["verify_test.rs"],
+    data = [
+        ":notice_demo_a.txt",
+        ":notice_demo_b.txt",
+        ":notice_demo_inventory.txt",
+        ":notice_demo_notice",
+        ":sbom_demo_provenance",
+        ":sbom_demo_spdx",
+        "//deploy/private:release_demo_archive",
+    ],
+    env = {
+        "DX_NOTICE": "$(rootpath :notice_demo_notice)",
+        "DX_NOTICE_MANIFEST": "$(rootpath :notice_demo_inventory.txt)",
+        "DX_NOTICE_TEXT_A": "$(rootpath :notice_demo_a.txt)",
+        "DX_NOTICE_TEXT_B": "$(rootpath :notice_demo_b.txt)",
+        "DX_SBOM_ARTIFACT": "$(rootpath //deploy/private:release_demo_archive)",
+        "DX_SBOM_PROVENANCE": "$(rootpath :sbom_demo_provenance)",
+        "DX_SBOM_SPDX": "$(rootpath :sbom_demo_spdx)",
+    },
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "bcr_templates_test",
+    srcs = ["bcr_templates_test.rs"],
+    data = [
+        "//.bcr:family_templates",
+        "//.bcr:templates",
+    ],
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [
+        ":dx_release_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# keep: Gazelle names this test after candidate_test.rs
+rust_test(
+    name = "candidate_identity_test",
+    srcs = ["candidate_test.rs"],
+    env_inherit = ["PATH"],
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
+        "//deploy/private:dx_deploy_tools",
+    ],
+)
+
+rust_test(
+    name = "release_host_cell_test",
+    srcs = ["host_cell_test.rs"],
+    data = [
+        "consumer/consumer.BUILD.bazel",
+        ":consumer_template",
+        ":dx_host_cell",
+        ":release_matrix",
+        "//gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.in",
+        "//gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.out",
+        "//gazelle/rust:testdata/source_only/crates/dx_release_consumer/src/lib.rs",
+    ] + select({
+        "@platforms//os:windows": [":dx_host_cell_pdb"],
+        "//conditions:default": [],
+    }),
+    env = {
+        "DX_CONSUMER_TEMPLATE": "$(rootpath consumer/consumer.BUILD.bazel)",
+        "DX_CONSUMER_FIXTURE_BUILD_IN": "$(rootpath //gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.in)",
+        "DX_CONSUMER_FIXTURE_BUILD_OUT": "$(rootpath //gazelle/rust:testdata/source_only/crates/dx_release_consumer/BUILD.out)",
+        "DX_CONSUMER_FIXTURE_LIB": "$(rootpath //gazelle/rust:testdata/source_only/crates/dx_release_consumer/src/lib.rs)",
+        "DX_HOST_CELL": "$(rootpath :dx_host_cell)",
+        "DX_RELEASE_MATRIX": "$(rootpath :release_matrix)",
+    } | select({
+        "@platforms//os:windows": {"DX_HOST_SYMBOLS": "$(rootpath :dx_host_cell_pdb)"},
+        "//conditions:default": {},
+    }),
+    deps = [
+        ":dx_release_tools",
+        "//deploy/private:dx_deploy_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+# Release binaries that have a bin_test.
+_TESTED_RELEASE_BINS = [
+    "bcr_ledger",
+    "bump_version",
+    "publish_dry_run_check",
+    "release_cell",
+    "release_driver",
+    "source_archive",
+]
+
+_RELEASE_BINS = [
+    "release_tool",
+    "release_deploy_tool",
+] + _TESTED_RELEASE_BINS
+
+rust_binary(
+    name = "publish_dry_run_check",
+    srcs = ["src/bin_publish_dry_run_check.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "publish_dry_run_check",
+    crate_root = "src/bin_publish_dry_run_check.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_binary(
+    name = "release_cell",
+    srcs = ["src/bin_release_cell.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_cell",
+    crate_root = "src/bin_release_cell.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/process:dx_process",
+    ],
+)
+
+rust_binary(
+    name = "bcr_ledger",
+    srcs = ["src/bin_bcr_ledger.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "bcr_ledger",
+    crate_root = "src/bin_bcr_ledger.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_binary(
+    name = "release_driver",
+    srcs = ["src/bin_release_driver.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_driver",
+    crate_root = "src/bin_release_driver.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
+    ],
+)
+
+rust_binary(
+    name = "source_archive",
+    srcs = ["src/bin_source_archive.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "source_archive",
+    crate_root = "src/bin_source_archive.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_binary(
+    name = "bump_version",
+    srcs = ["src/bin_bump_version.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "bump_version",
+    crate_root = "src/bin_bump_version.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
+    ],
+)
+
+rust_test(
+    name = "publish_dry_run_check_bin_test",
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":publish_dry_run_check",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "release_cell_bin_test",
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":release_cell",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/process:dx_process",
+    ],
+)
+
+rust_test(
+    name = "bcr_ledger_bin_test",
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":bcr_ledger",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "release_driver_bin_test",
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":release_driver",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "source_archive_bin_test",
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":source_archive",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_release_tools"],
+)
+
+rust_test(
+    name = "bump_version_bin_test",
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":bump_version",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_release_tools",
+        "//cli/digest:dx_digest",
+    ],
+)
+
+exports_files(["Cargo.toml"])
+
+matrix_unit_tests(name = "matrix_unit")
+
+inventory_unit_tests(name = "inventory_unit")
+
+inventory_file_tests(
+    name = "dx_archive_inventory_test",
+    absent = [],
+    app = "//cli/archive:dx_archive",
+    present = [
+        "flate2",
+        "libz-sys",
+    ],
+    texts_contain = ["Jean-loup Gailly"],
+)
+
+inventory_file_tests(
+    name = "release_tool_inventory_test",
+    absent = [
+        "dx_audit",
+        "dx_release_tools",
+        "serde_derive",
+    ],
+    app = ":release_tool",
+    present = [
+        "serde",
+        "serde_json",
+    ],
+)
+
+inventory_runtime_file_tests(
+    name = "runtime_inventory_test",
+    app = ":release_tool",
+)
+
+release_cells(name = "dx_host_cell")
+
+release_cells(
+    name = "runtime_cell_demo",
+    app = ":release_tool",
+    cells = [dict(
+        release_matrix_cell("dx-linux-x86_64"),
+        name = "runtime-demo-linux-x86_64",
+        runtime = [":runtime_inventory_test_runtime"],
+    )],
+)
+
+filegroup(
+    name = "consumer_template",
+    srcs = glob(["consumer/**"]),
+)
+
+release_matrix_file(name = "release_matrix")
+
+sbom_unit_tests(name = "sbom_unit")
+
+notice_unit_tests(name = "notice_unit")
+
+signing_unit_tests(name = "signing_unit")
+
+bcr_unit_tests(name = "bcr_unit")
+
+sbom_release(
+    name = "sbom_demo",
+    artifact = "//deploy/private:release_demo_archive",
+)
+
+sbom_release(
+    name = "sbom_quoting_demo",
+    artifact = "//deploy/private:release_demo_archive",
+    supplier = "Acme \"Labs\" $HOME `id` O'Neil",
+)
+
+sbom_file_tests(
+    name = "sbom_quoting_demo_contains_supplier",
+    spdx = ":sbom_quoting_demo_spdx",
+    want = "Organization: Acme \\\"Labs\\\" $HOME `id` O'Neil",
+)
+
+sbom_file_tests(
+    name = "dx_host_cell_sbom_names_archive",
+    spdx = ":dx_host_cell_sbom",
+    want = "dx-",
+)
+
+sbom_release(
+    name = "runtime_sbom_demo",
+    artifact = "//deploy/private:release_demo_archive",
+    runtimes = ":runtime_inventory_test_inventory_runtimes",
+)
+
+sbom_file_tests(
+    name = "runtime_sbom_demo_lists_runtime",
+    spdx = ":runtime_sbom_demo_spdx",
+    want = "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+)
+
+notice_bundle(
+    name = "notice_demo",
+    inventory = ":notice_demo_inventory.txt",
+    root = "//deploy/private/release:notice_demo",
+    texts = [
+        ":notice_demo_a.txt",
+        ":notice_demo_b.txt",
+    ],
+)
+
+notice_bundle(
+    name = "notice_runtime_demo",
+    inventory = ":notice_demo_inventory.txt",
+    root = "//deploy/private/release:notice_runtime_demo",
+    runtimes = ":runtime_inventory_test_inventory_runtimes",
+    texts = [
+        ":notice_demo_a.txt",
+        ":notice_demo_b.txt",
+    ],
+)
+
+notice_bundle(
+    name = "notice_shared_demo",
+    inventory = ":notice_shared_inventory.txt",
+    root = "//deploy/private/release:notice_shared_demo",
+    texts = [
+        ":notice_shared/cargo/shared/LICENSE",
+        ":notice_shared/npm/shared/LICENSE",
+    ],
+)
+
+[
+    config_setting(
+        name = "cosign_" + key,
+        constraint_values = [
+            "@platforms//os:" + pin["os"],
+            "@platforms//cpu:" + pin["cpu"],
+        ],
+    )
+    for key, pin in COSIGN_PLATFORMS.items()
+]
+
+[
+    cosign_binary(
+        name = "cosign_" + key + "_bin",
+        binary = "@cosign_" + key + "//file",
+        sha256 = pin["sha256"],
+        visibility = ["//visibility:public"],
+    )
+    for key, pin in COSIGN_PLATFORMS.items()
+]
+
+filegroup(
+    name = "cosign_unsupported",
+    target_compatible_with = ["@platforms//:incompatible"],
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "cosign",
+    actual = select({
+        ":cosign_linux_arm64": ":cosign_linux_arm64_bin",
+        ":cosign_linux_x86_64": ":cosign_linux_x86_64_bin",
+        ":cosign_macos_arm64": ":cosign_macos_arm64_bin",
+        ":cosign_windows_x86_64": ":cosign_windows_x86_64_bin",
+        "//conditions:default": ":cosign_unsupported",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+signed_release(
+    name = "signing_demo",
+    artifacts = [
+        ":sbom_demo_spdx",
+        ":sbom_demo_provenance",
+        ":notice_demo_notice",
+    ],
+    identity = "https://github.com/devhusdk/rules_dx/.github/workflows/release.yml@refs/tags/v0.0.0-dryrun",
+)
+
+filegroup(
+    name = "release_artifacts",
+    srcs = [
+        ":dx_host_cell",
+        ":notice_demo",
+        ":sbom_demo",
+        "//:audit_curator",
+        "//cli/cli:man_pages",
+    ],
+)
+
+bcr_check(
+    name = "bcr_demo",
+    inputs = [":sbom_demo_spdx"],
+    module_name = "rules_dx",
+    version = "0.0.0",
+)
+
+[
+    bcr_check(
+        name = "bcr_demo_" + family,
+        inputs = [":sbom_demo_spdx"],
+        module_name = "rules_dx_" + family,
+        version = "0.0.0",
+    )
+    for family in [
+        "android",
+        "apple",
+    ]
+]
+
+notice_file_tests(
+    name = "notice_demo_contains_words",
+    notice = ":notice_demo_notice",
+)
+
+notice_file_tests(
+    name = "notice_runtime_demo_lists_runtime",
+    notice = ":notice_runtime_demo_notice",
+    want = "=== native runtimes ===\n=== runtime_inventory_test_runtime 1.2 (app_local) [runtime] ===\nruntime notice words",
+)
+
+notice_file_tests(
+    name = "runtime_cell_notice_lists_runtime",
+    notice = ":runtime-demo-linux-x86_64_notice_notice",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    want = "=== native runtimes ===\n=== runtime_inventory_test_runtime 1.2 (app_local) [runtime] ===\nruntime notice words",
+)
+
+notice_file_tests(
+    name = "notice_shared_demo_contains_words",
+    notice = ":notice_shared_demo_notice",
+    want = "=== shared 1.0.0 (MIT) [cargo] ===\nFixture license words for shared (cargo).\n=== shared 1.0.0 (MIT) [npm] ===\nFixture license words for shared (npm).",
+)
+
+test_suite(
+    name = "all",
+    tests = [
+        ":bcr_templates_test",
+        ":bcr_unit",
+        ":candidate_identity_test",
+        ":dx_archive_inventory_test",
+        ":dx_release_tools_test",
+        ":inventory_unit",
+        ":matrix_unit",
+        ":notice_demo_contains_words",
+        ":notice_runtime_demo_lists_runtime",
+        ":notice_shared_demo_contains_words",
+        ":notice_unit",
+        ":release_artifacts_verify",
+        ":release_host_cell_test",
+        ":release_tool_inventory_test",
+        ":runtime_cell_notice_lists_runtime",
+        ":runtime_inventory_test",
+        ":runtime_sbom_demo_lists_runtime",
+        ":sbom_quoting_demo_contains_supplier",
+        ":sbom_unit",
+        ":signing_unit",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "bcr.bzl",
+        "bcr_tests.bzl",
+        "inventory.bzl",
+        "inventory_tests.bzl",
+        "matrix.bzl",
+        "matrix_tests.bzl",
+        "notice.bzl",
+        "notice_tests.bzl",
+        "sbom.bzl",
+        "sbom_tests.bzl",
+        "signing.bzl",
+        "signing_tests.bzl",
+        "cosign_pins.bzl",
+        "repos.bzl",
+        "extensions.bzl",
+        "tool.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+rust_binary(
+    name = "release_deploy_tool",
+    srcs = ["src/bin_release_deploy_tool.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ),
+    crate_name = "release_deploy_tool",
+    crate_root = "src/bin_release_deploy_tool.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_release_tools",
+        normal = True,
+    ) + [":dx_release_tools"],
+)

@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//core:failure_test.bzl", "failure_test")
-load("//make/rules:defs.bzl", "make_library")
+load("//make:defs.bzl", "make_library")
 load(":library_tests.bzl", "owns_make_class_test")
 
 make_library(

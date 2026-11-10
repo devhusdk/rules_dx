@@ -1,0 +1,160 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@rules_dotnet//dotnet:defs.bzl", "csharp_binary")
+load("//cc/rules:defs.bzl", "cc_binary")
+load("//deploy/private:image.bzl", "oci_image_from_binary")
+load("//deploy/private:oci.bzl", "oci_deploy")
+load("//go/rules:defs.bzl", "go_binary")
+load("//java:defs.bzl", "java_binary")
+load("//python:defs.bzl", "python_binary")
+load("//rust:defs.bzl", "rust_binary")
+load("//zig:defs.bzl", "zig_binary")
+
+rust_binary(
+    name = "hello",
+    srcs = ["hello.rs"],
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image",
+    binary = ":hello",
+)
+
+oci_deploy(
+    name = "publish",
+    image_tar = ":image",
+    platform = "//deploy:linux_amd64",
+)
+
+oci_image_from_binary(
+    name = "image_multi",
+    binary = ":hello",
+    platforms = [
+        "//deploy:linux_amd64",
+        "//deploy:linux_arm64",
+    ],
+)
+
+go_binary(
+    name = "hello_go",
+    srcs = ["hello.go"],
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_go",
+    binary = ":hello_go",
+)
+
+cc_binary(
+    name = "hello_cc",
+    srcs = ["hello.c"],
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_cc",
+    base = "cc",
+    binary = ":hello_cc",
+    tags = ["manual"],
+)
+
+zig_binary(
+    name = "hello_zig",
+    srcs = ["hello.zig"],
+    main = "hello.zig",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_zig",
+    binary = ":hello_zig",
+)
+
+python_binary(
+    name = "hello_py",
+    srcs = ["hello.py"],
+    main = "hello.py",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_py",
+    base = "python",
+    binary = ":hello_py",
+    main = "deploy/private/image_demo/hello.py",
+)
+
+java_binary(
+    name = "hello_java",
+    srcs = ["Hello.java"],
+    main_class = "Hello",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_java",
+    base = "java",
+    binary = ":hello_java",
+)
+
+js_binary(
+    name = "hello_node",
+    entry_point = "hello.js",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_node",
+    base = "node",
+    binary = ":hello_node",
+    main = "deploy/private/image_demo/hello.js",
+)
+
+csharp_binary(
+    name = "hello_dotnet",
+    srcs = ["Hello.cs"],
+    tags = ["manual"],
+    target_frameworks = ["net10.0"],
+)
+
+oci_image_from_binary(
+    name = "image_dotnet",
+    base = "dotnet",
+    binary = ":hello_dotnet",
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_py_runtime",
+    base = "python",
+    binary = ":hello_py",
+    main = "deploy/private/image_demo/hello.py",
+    runtime = True,
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_java_runtime",
+    base = "java",
+    binary = ":hello_java",
+    runtime = True,
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_node_runtime",
+    base = "node",
+    binary = ":hello_node",
+    main = "deploy/private/image_demo/hello.js",
+    runtime = True,
+    tags = ["manual"],
+)
+
+oci_image_from_binary(
+    name = "image_dotnet_runtime",
+    base = "dotnet",
+    binary = ":hello_dotnet",
+    runtime = True,
+    tags = ["manual"],
+)

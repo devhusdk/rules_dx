@@ -544,7 +544,7 @@ qt_cc_test(
         } | ({"DX_QT_TASKS_RECORD": "runtime_runtime 6.11.3 os_supplied"} if os == "macos" else {}),
         target_compatible_with = ["@platforms//os:" + os, "@platforms//cpu:" + cpu],
         deps = [
-            "//deploy/rules:dx_deploy_tools",
+            "//deploy/private:dx_deploy_tools",
             "//tools/testing:dx_testing",
         ],
     )

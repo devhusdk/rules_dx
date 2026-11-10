@@ -308,7 +308,7 @@ jobs:
           # shellcheck disable=SC2046
           bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "--test_env=DX_HERMETIC_BAZELISK=$(command -v bazel)" "$@" //tools/testing/hermetic:isolation_windows_probe_test $(cat "$RUNNER_TEMP/hermetic-targets")
           if [ "$PLATFORM" = windows_x86_64 ]; then
-            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc/toolchains:compiler=msvc //deploy/rules:pypi_native_msvc_verify
+            bazel test --noshow_progress --nozip_undeclared_test_outputs --test_output=errors --test_timeout=3000 "$@" --//cc/toolchains:compiler=msvc //deploy/private:pypi_native_msvc_verify
           fi
       - uses: ./.github/actions/hermetic-evidence
         if: always()
@@ -709,7 +709,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //deploy/rules:pypi_probe_verify
+          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //deploy/private:pypi_probe_verify
       - name: Analyze the gRPC C++ targets (#7989)
         run: |
           # shellcheck disable=SC2086

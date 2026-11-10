@@ -76,7 +76,7 @@ jobs:
         if: ${{ !inputs.dry_run }}
         run: |
           set -euo pipefail
-          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT"
+          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/private/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: release-cell-*
@@ -134,7 +134,7 @@ jobs:
           pins="$RUNNER_TEMP/pins.bzl"
           cp cli/prebuilt/pins.bzl "$pins"
           bazel run //tools/ci/fill_pins:fill_pins_bin -- "$RELEASE_TAG" --manifest "$PWD/out/dx-sha256sums.txt" --gazelle-manifest "$PWD/out/dx-gazelle-sha256sums.txt" --pins "$pins" --repo "$GITHUB_REPOSITORY"
-          bazel run //deploy/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
+          bazel run //deploy/private/release:source_archive -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "$SOURCE_DIR" --pins "$pins"
           for file in dx-sha256sums.txt dx-gazelle-sha256sums.txt files.list dx-*.sha256 dx-linux-x86_64 dx-linux-arm64 dx-macos-arm64 dx-windows-x86_64 dx-windows-arm64 dx-gazelle-linux-x86_64 dx-gazelle-linux-arm64 dx-gazelle-macos-arm64 dx-gazelle-windows-x86_64 dx-gazelle-windows-arm64; do
             case "$file" in *.tar.gz.sha256|*.zip.sha256) continue ;; esac
             cp "out/$file" "$SOURCE_DIR/"
@@ -166,7 +166,7 @@ jobs:
           name: release-cells
           path: ${{ runner.temp }}/release-cells
       - name: Build the host release unit
-        run: bazel build //cli/cli:dx //deploy/release:all //deploy/release:release_artifacts
+        run: bazel build //cli/cli:dx //deploy/private/release:all //deploy/private/release:release_artifacts
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         continue-on-error: true
         with:
@@ -204,38 +204,38 @@ jobs:
           tar -xzf "$cells/dx-linux-x86_64.tar.gz" -C "$stage" dx \
             || cp "$(bazel cquery --output=files //cli/cli:dx)" "$stage/dx" \
             || { echo "::error::fetch_dx failed"; failed="$failed fetch_dx"; }
-          matrix="$(bazel cquery --output=files //deploy/release:release_matrix)" || failed="$failed matrix"
-          run build_release_matrix bazel build //deploy/release:release_matrix --noshow_progress
-          run build_release_artifacts bazel build //deploy/release:release_artifacts --noshow_progress
-          bazel cquery --output=files //deploy/release:release_artifacts > "$stage/release-artifacts.txt" || failed="$failed release_artifacts_list"
-          spdx="$(bazel cquery --output=files //deploy/release:sbom_demo_spdx)" || failed="$failed spdx"
-          prov="$(bazel cquery --output=files //deploy/release:sbom_demo_provenance)" || failed="$failed provenance"
-          notice="$(bazel cquery --output=files //deploy/release:notice_demo_notice)" || failed="$failed notice"
+          matrix="$(bazel cquery --output=files //deploy/private/release:release_matrix)" || failed="$failed matrix"
+          run build_release_matrix bazel build //deploy/private/release:release_matrix --noshow_progress
+          run build_release_artifacts bazel build //deploy/private/release:release_artifacts --noshow_progress
+          bazel cquery --output=files //deploy/private/release:release_artifacts > "$stage/release-artifacts.txt" || failed="$failed release_artifacts_list"
+          spdx="$(bazel cquery --output=files //deploy/private/release:sbom_demo_spdx)" || failed="$failed spdx"
+          prov="$(bazel cquery --output=files //deploy/private/release:sbom_demo_provenance)" || failed="$failed provenance"
+          notice="$(bazel cquery --output=files //deploy/private/release:notice_demo_notice)" || failed="$failed notice"
           run copy_spdx cp "$spdx" "$stage/sbom_demo.spdx.json"
           run copy_provenance cp "$prov" "$stage/sbom_demo.provenance.json"
           run copy_notice cp "$notice" "$stage/notice_demo.NOTICE"
-          demo_archive="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/rules:release_demo_archive)" || failed="$failed demo_archive"
-          notice_manifest="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_inventory.txt)" || failed="$failed notice_manifest"
-          notice_a="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_a.txt)" || failed="$failed notice_a"
-          notice_b="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/release:notice_demo_b.txt)" || failed="$failed notice_b"
+          demo_archive="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/private:release_demo_archive)" || failed="$failed demo_archive"
+          notice_manifest="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/private/release:notice_demo_inventory.txt)" || failed="$failed notice_manifest"
+          notice_a="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/private/release:notice_demo_a.txt)" || failed="$failed notice_a"
+          notice_b="$GITHUB_WORKSPACE/$(bazel cquery --output=files //deploy/private/release:notice_demo_b.txt)" || failed="$failed notice_b"
           run draft_dry_run bazel run //cli/cli:github_draft > "$stage/draft-dry-run.log" 2>&1
-          run release_tests bazel test //deploy/release:all --noshow_progress > "$stage/release-tests.log" 2>&1
-          RELEASE_SIGN_DRY_RUN=1 run signing_demo bazel run //deploy/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
-          BCR_DRY_RUN=1 run bcr_demo bazel run //deploy/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
+          run release_tests bazel test //deploy/private/release:all --noshow_progress > "$stage/release-tests.log" 2>&1
+          RELEASE_SIGN_DRY_RUN=1 run signing_demo bazel run //deploy/private/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
+          BCR_DRY_RUN=1 run bcr_demo bazel run //deploy/private/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
           bcr_logs="$stage/bcr-dry-run.log"
           for family in android apple; do
-            BCR_DRY_RUN=1 run "bcr_demo_$family" bazel run "//deploy/release:bcr_demo_$family" > "$stage/bcr-dry-run-$family.log" 2>&1
+            BCR_DRY_RUN=1 run "bcr_demo_$family" bazel run "//deploy/private/release:bcr_demo_$family" > "$stage/bcr-dry-run-$family.log" 2>&1
             bcr_logs="$bcr_logs:$stage/bcr-dry-run-$family.log"
           done
-          run release_driver bazel run //deploy/release:release_driver -- v0.0.0-dryrun > "$stage/human-run-dry-run.log" 2>&1
+          run release_driver bazel run //deploy/private/release:release_driver -- v0.0.0-dryrun > "$stage/human-run-dry-run.log" 2>&1
           echo "install verifier refusal proof (no network, publishes nothing):"
-          run verify_help bazel run //deploy/install:dx_verify -- --help > "$stage/verify-help.txt"
-          if bazel run //deploy/install:dx_verify -- --binary "$stage/dx" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
+          run verify_help bazel run //deploy/private/install:dx_verify -- --help > "$stage/verify-help.txt"
+          if bazel run //deploy/private/install:dx_verify -- --binary "$stage/dx" --sha256 deadbeef > "$stage/verify-refusal.log" 2>&1; then
             echo "::error::expected checksum-only refusal failed"
             failed="$failed verify_refusal"
           fi
           status=0
-          bazel run //deploy/release:publish_dry_run_check -- \
+          bazel run //deploy/private/release:publish_dry_run_check -- \
             --matrix "$GITHUB_WORKSPACE/$matrix" \
             --records "$cells" \
             --archives "$cells" \
@@ -267,11 +267,11 @@ jobs:
             cat "$stage/verification.txt"
             echo '```'
             echo "- draft dry-run: \`//cli/cli:github_draft\` ok (placeholder \`v0.0.0-dryrun\`, draft-only flags, staged locally, publishes nothing)"
-            echo "- packaging: \`//deploy/release:release_artifacts\` ok (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)"
-            echo "- SBOM: \`//deploy/release:sbom_demo\` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing"
-            echo "- NOTICE: \`//deploy/release:notice_demo\` ok (hermetic bundle, signed alongside SBOM pair, publishes nothing)"
-            echo "- signing dry-run: \`//deploy/release:signing_demo\` \`RELEASE_SIGN_DRY_RUN=1\` ok (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)"
-            echo "- BCR shape: \`rules_dx\` and \`rules_dx_<family>\` at \`0.0.0\` via \`//deploy/release:bcr_demo\` and \`//deploy/release:bcr_demo_<family>\` checked, not submitted"
+            echo "- packaging: \`//deploy/private/release:release_artifacts\` ok (audit curator plus binary plus man page plus NOTICE plus SBOM/provenance, publishes nothing)"
+            echo "- SBOM: \`//deploy/private/release:sbom_demo\` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing"
+            echo "- NOTICE: \`//deploy/private/release:notice_demo\` ok (hermetic bundle, signed alongside SBOM pair, publishes nothing)"
+            echo "- signing dry-run: \`//deploy/private/release:signing_demo\` \`RELEASE_SIGN_DRY_RUN=1\` ok (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)"
+            echo "- BCR shape: \`rules_dx\` and \`rules_dx_<family>\` at \`0.0.0\` via \`//deploy/private/release:bcr_demo\` and \`//deploy/private/release:bcr_demo_<family>\` checked, not submitted"
             echo "- verifier: checksum-only refused, TUF trust root, nothing installed"
             echo "- operations (all \`not-authorized\`, none executed):"
             echo '```'
@@ -442,7 +442,7 @@ jobs:
           set -euo pipefail
           mapfile -t paths < "$RUNNER_TEMP/paths.txt"
           status=0
-          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" > "$RUNNER_TEMP/ledger.json" || status=$?
+          RELEASE_DRY_RUN=0 RELEASE_APPROVE=1 bazel run //deploy/private/release:release_driver -- "$RELEASE_TAG" "$CANDIDATE_COMMIT" "${paths[@]}" > "$RUNNER_TEMP/ledger.json" || status=$?
           { echo '```json'; cat "$RUNNER_TEMP/ledger.json"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           exit "$status"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

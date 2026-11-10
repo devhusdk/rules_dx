@@ -4,7 +4,7 @@ Run these steps in order. Replace `X.Y.Z` with the version.
 
 ## 1. Bump the version
 
-Set `X.Y.Z` by hand in these places and merge to `main`. `bazel run //deploy/release:bump_version -- X.Y.Z` edits them all:
+Set `X.Y.Z` by hand in these places and merge to `main`. `bazel run //deploy/private/release:bump_version -- X.Y.Z` edits them all:
 
 - `MODULE.bazel`: `module(version = ...)`
 - `cli/prebuilt/pins.bzl`: `DX_VERSION`
@@ -66,7 +66,7 @@ The pull request opens as a draft. The owner reviews it, waits for BCR CI, and m
 If the job is skipped or fails, check the entry by hand and open the pull request yourself:
 
 ```sh
-BCR_DRY_RUN=1 bazel run //deploy/release:bcr_demo
+BCR_DRY_RUN=1 bazel run //deploy/private/release:bcr_demo
 ```
 
 It prints the pull request it would open and submits nothing. A failure names the field that is missing or does not match the module. Run it for `rules_dx` and for each `rules_dx_<family>`. Open one BCR pull request that adds every module at `X.Y.Z`, because each family depends on `rules_dx` at the same version. Each module takes its own source file from the release, and each family also needs its `.bcr/families/<f>/` templates.

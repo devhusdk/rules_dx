@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
-load("//sql/rules:defs.bzl", "sql_library")
+load("//sql:defs.bzl", "sql_library")
 
 package(default_visibility = ["//quality/testdata:__pkg__"])
 

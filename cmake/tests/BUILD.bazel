@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//cmake/rules:defs.bzl", "cmake_library")
+load("//cmake:defs.bzl", "cmake_library")
 load("//core:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "owns_cmake_class_test")
 

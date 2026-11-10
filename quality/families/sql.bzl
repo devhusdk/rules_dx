@@ -1,7 +1,7 @@
 """SQL real quality aspects."""
 
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
-load("//sql/rules:providers.bzl", "SqlDialectInfo")
+load("//sql/private:providers.bzl", "SqlDialectInfo")
 
 TOOLS = {
     "sqlfluff": {

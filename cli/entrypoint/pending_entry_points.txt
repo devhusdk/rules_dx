@@ -1,15 +1,9 @@
-asciidoc
 cc
-cmake
-deploy
 go
 haskell
-make
 ocaml
 powershell
 qt
 quality
-rst
 rust
-sql
 swift

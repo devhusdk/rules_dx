@@ -1,7 +1,7 @@
 """Relocatable browser applications with a managed development server."""
 
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
-load("//deploy/rules:validate_resources.bzl", "resource_mapping_error", "resource_path_error")
+load("//deploy/private:validate_resources.bzl", "resource_mapping_error", "resource_path_error")
 load("//core:defs.bzl", "display_label")
 load("//core:resources.bzl", "dx_bundler_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")

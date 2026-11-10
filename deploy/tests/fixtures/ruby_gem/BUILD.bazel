@@ -4,5 +4,5 @@ filegroup(
         "lib/rubygems_demo.rb",
         "rubygems_demo.gemspec",
     ],
-    visibility = ["//deploy/rules:__pkg__"],
+    visibility = ["//deploy/private:__pkg__"],
 )

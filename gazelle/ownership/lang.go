@@ -23,9 +23,9 @@ type family struct {
 
 var families = []family{
 	{"dockerfile_library", "dockerfile", "dockerfile:defs.bzl", isDockerfile},
-	{"cmake_library", "cmake", "cmake/rules:defs.bzl", isCMake},
+	{"cmake_library", "cmake", "cmake:defs.bzl", isCMake},
 	{"bicep_library", "bicep", "bicep:defs.bzl", isBicep},
-	{"asciidoc_library", "asciidoc", "asciidoc/rules:defs.bzl", isAsciiDoc},
+	{"asciidoc_library", "asciidoc", "asciidoc:defs.bzl", isAsciiDoc},
 }
 
 func isDockerfile(name string) bool {

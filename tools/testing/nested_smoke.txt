@@ -1,7 +1,7 @@
 # Tests that run a nested Bazel. At most 8; the cap in nested_smoke_guard.sh may only go down.
 //cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test
-//deploy/release/tests:release_candidate_smoke_test
-//deploy/release/tests:readme_quickstart_smoke_test
+//deploy/private/release/tests:release_candidate_smoke_test
+//deploy/private/release/tests:readme_quickstart_smoke_test
 //quality/tests:quality_check_smoke_test
 //tools/testing/hermetic:cpp_rust
 //tools/testing/hermetic:cuda_gpu_nested_test

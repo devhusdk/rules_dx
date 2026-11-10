@@ -6,11 +6,11 @@ load(":platform_subject.bzl", "platform_subject")
 def platform_probe_tests(name):
     platform_subject(
         name = name + "_arm64_subject",
-        platform = "//deploy/rules/platforms:linux_arm64",
+        platform = "//deploy:linux_arm64",
     )
     platform_subject(
         name = name + "_amd64_subject",
-        platform = "//deploy/rules/platforms:linux_amd64",
+        platform = "//deploy:linux_amd64",
     )
     starlark_test(
         name = name,

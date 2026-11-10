@@ -1,4 +1,4 @@
-load("//deploy/rules:helm.bzl", "helm_chart_deploy")
+load("//deploy/private:helm.bzl", "helm_chart_deploy")
 load("//helm:defs.bzl", "helm_chart")
 
 package(default_visibility = ["//visibility:public"])

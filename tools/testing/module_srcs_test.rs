@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 const DECLARED: &[&str] = &[
     "config/BUILD.bazel",
-    "deploy/rules/archive.bzl",
+    "deploy/private/archive.bzl",
     "erlang/private/defs.bzl",
     "erlang/private/toolchain/extensions.bzl",
     "core/wrapper.bzl",
@@ -14,9 +14,9 @@ const DECLARED: &[&str] = &[
 
 /// The `.bzl` files that nested consumers of each area load first.
 const ENTRY_POINTS: &[&str] = &[
-    "//deploy/rules:archive.bzl",
-    "//deploy/rules:defs.bzl",
-    "//deploy/rules:deployment.bzl",
+    "//deploy/private:archive.bzl",
+    "//deploy/private:defs.bzl",
+    "//deploy/private:deployment.bzl",
     "//erlang:defs.bzl",
     "//erlang:extensions.bzl",
     "//qt/rules:defs.bzl",

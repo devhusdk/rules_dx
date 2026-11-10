@@ -6,7 +6,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 
 # gazelle:dx_fixture_testonly true
-# gazelle:resolve rust dx_deploy_tools //deploy/rules:dx_deploy_tools
+# gazelle:resolve rust dx_deploy_tools //deploy/private:dx_deploy_tools
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir/proto:doc_ir_proto_rs
 # gazelle:resolve rust marker_proto //env/proto:marker_proto_rs
 # gazelle:resolve rust proto //quality/result/proto:result_proto_rs
@@ -43,7 +43,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude quality/testdata
 # gazelle:exclude tools/coverage
 # gazelle:exclude tools/testing/starters/fixtures
-# gazelle:exclude deploy/release/consumer
+# gazelle:exclude deploy/private/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
 # gazelle:exclude tools/platforms/no_winsdk
 # gazelle:exclude tools/docs/jvm/dokka
@@ -92,7 +92,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude appimage/tests/fixtures
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
-# gazelle:exclude deploy/symbols/fixture
+# gazelle:exclude deploy/private/symbols/fixture
 # gazelle:exclude lua/private/runtime
 # gazelle:exclude avro/private/testdata
 # gazelle:exclude capnproto/private/testdata
@@ -124,7 +124,19 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude go/tests/fixtures/hello
 # gazelle:exclude go/tests/fixtures/no_srcs
 # gazelle:exclude javascript/tests/fixtures/web_app
-# gazelle:exclude deploy/rules
+# gazelle:exclude deploy/private/*.rs
+# gazelle:exclude deploy/private/cloudflare_demo
+# gazelle:exclude deploy/private/image_demo
+# gazelle:exclude deploy/private/native_probe
+# gazelle:exclude deploy/private/npm_demo
+# gazelle:exclude deploy/private/pins
+# gazelle:exclude deploy/private/pypi_probe
+# gazelle:exclude deploy/private/resources_demo
+# gazelle:exclude deploy/private/sbom_demo
+# gazelle:exclude deploy/private/src
+# gazelle:exclude deploy/private/testdata
+# gazelle:exclude deploy/private/typed_probe
+# gazelle:exclude deploy/private/web_demo
 # gazelle:exclude deploy/tests/fixtures
 # gazelle:exclude deploy/tests/cross/cross_app.c
 # gazelle:exclude quality/artifacts

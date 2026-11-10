@@ -188,8 +188,8 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//cli/cli/tests/fixtures/help_goldens:goldens",
-        "//deploy/offline:offline.bzl",
-        "//deploy/offline/bootstrap:src/lib.rs",
+        "//deploy/private/offline:offline.bzl",
+        "//deploy/private/offline/bootstrap:src/lib.rs",
         "//gazelle/common:testdata/intended_manifest.json",
         "//gazelle/common:testdata/intended_manifest_failed.json",
         "//modules:versions.bzl",

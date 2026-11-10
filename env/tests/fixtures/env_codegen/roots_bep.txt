@@ -34,9 +34,9 @@ host plus unsupported_platform refusal plus per-cell coverage with no
 cross-cell union; consumer via rust/tests/fixtures/adopt-rust plus
 python/tests/fixtures/adopt-python plus javascript/tests/fixtures/adopt-js-ts plus
 .github/workflows/reusable-consumer.yml plus
-examples/consumer-ci/caller.yml; release via //deploy/release:sbom_demo
-plus //deploy/release:signing_demo plus //deploy/release:bcr_demo plus
-//deploy/release:release_driver plus //deploy/install:dx_verify plus
+examples/consumer-ci/caller.yml; release via //deploy/private/release:sbom_demo
+plus //deploy/private/release:signing_demo plus //deploy/private/release:bcr_demo plus
+//deploy/private/release:release_driver plus //deploy/private/install:dx_verify plus
 docs/product/promotion-checklist.md plus
 bazel run //tools/ci:supported_evidence_gate; bare-schema expansion
 stays open under #751 plus collision replacement contract stays open

@@ -1,7 +1,7 @@
 load("//cc/rules:defs.bzl", "cc_library")
-load("//deploy/rules:archive.bzl", "consumer_archive")
-load("//deploy/rules:native_runtime.bzl", "dx_native_runtime")
-load("//deploy/rules:resources.bzl", "dx_resources")
+load("//deploy/private:archive.bzl", "consumer_archive")
+load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
+load("//deploy/private:resources.bzl", "dx_resources")
 load("//core:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -97,7 +97,7 @@ rust_test(
     },
     deps = [
         "//cli/digest:dx_digest",
-        "//deploy/rules:dx_deploy_tools",
+        "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
 )
@@ -128,7 +128,7 @@ rust_test(
     },
     deps = [
         "//cli/digest:dx_digest",
-        "//deploy/rules:dx_deploy_tools",
+        "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
 )
@@ -215,7 +215,7 @@ rust_test(
     },
     deps = [
         "//cli/digest:dx_digest",
-        "//deploy/rules:dx_deploy_tools",
+        "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
 )
@@ -292,7 +292,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     resources = [":stray_files"],
     tags = ["manual"],
 )
@@ -311,7 +311,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":two_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     tags = ["manual"],
 )
 
@@ -355,7 +355,7 @@ consumer_archive(
     linkage = "shared",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     tags = ["manual"],
 )
 
@@ -365,7 +365,7 @@ consumer_archive(
     format = "rar",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     tags = ["manual"],
 )
 
@@ -374,7 +374,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     runtime = [":consumer_app"],
     tags = ["manual"],
 )
@@ -383,7 +383,7 @@ consumer_archive(
     name = "consumer_no_notice",
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     tags = ["manual"],
 )
 
@@ -392,7 +392,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     resources = [":consumer_empty_files"],
     tags = ["manual"],
 )
@@ -402,7 +402,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     runtime = [":demo_build_runtime"],
     tags = ["manual"],
 )
@@ -412,7 +412,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     runtime = [":demo_runtime_no_notice"],
     tags = ["manual"],
 )
@@ -422,7 +422,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     runtime = [":demo_os_runtime_files"],
     tags = ["manual"],
 )
@@ -432,7 +432,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     runtime = [":demo_runtime_no_version"],
     tags = ["manual"],
 )
@@ -514,7 +514,7 @@ consumer_archive(
     app = ":consumer_app",
     min_runtime = "glibc-2.17",
     notice = ":consumer_notice_files",
-    platform = "//deploy/rules/platforms:linux_amd64",
+    platform = "//deploy:linux_amd64",
     runtime = ["libplain.so"],
     tags = ["manual"],
 )

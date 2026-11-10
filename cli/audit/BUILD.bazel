@@ -85,8 +85,8 @@ rust_library(
     crate_name = "dx_audit",
     crate_root = "src/lib.rs",
     visibility = VIS_CLI + [
-        "//deploy/release:__pkg__",
-        "//deploy/rules:__pkg__",
+        "//deploy/private/release:__pkg__",
+        "//deploy/private:__pkg__",
     ],
     deps = all_crate_deps(
         package_name = "cli/dx_audit",
@@ -184,8 +184,8 @@ rust_test(
     crate_name = "dx_audit",
     crate_root = "src/lib.rs",
     visibility = VIS_CLI + [
-        "//deploy/release:__pkg__",
-        "//deploy/rules:__pkg__",
+        "//deploy/private/release:__pkg__",
+        "//deploy/private:__pkg__",
     ],
     deps = all_crate_deps(
         package_name = "cli/dx_audit",

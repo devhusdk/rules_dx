@@ -20,5 +20,5 @@ real_source_target(
 filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
-    visibility = ["//deploy/rules:__pkg__"],
+    visibility = ["//deploy/private:__pkg__"],
 )

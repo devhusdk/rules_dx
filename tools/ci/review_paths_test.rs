@@ -38,7 +38,7 @@ fn list_holds_the_review_prefixes() {
             "cli/worktree/",
             "cli/plan/src/slots",
             "cli/atomic_fs/",
-            "deploy/release/",
+            "deploy/private/release/",
             ".github/workflows/release",
             "core/",
             "MODULE.bazel",

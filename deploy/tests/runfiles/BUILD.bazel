@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases")
-load("//deploy/rules:github.bzl", "github_deploy")
+load("//deploy/private:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:child_runfiles.bzl", "child_runfiles")
@@ -19,13 +19,13 @@ github_deploy(
     testonly = True,
     artifacts = [
         ":external_notice",
-        "//deploy/rules:release_demo_archive",
+        "//deploy/private:release_demo_archive",
     ],
 )
 
 child_runfiles(
     name = "archive_child",
-    binary = "//deploy/rules:release_demo",
+    binary = "//deploy/private:release_demo",
 )
 
 child_runfiles(
@@ -49,22 +49,22 @@ rust_test(
         ":github_child",
         ":identity_github",
         ":identity_github_config",
-        "//deploy/rules:release_demo",
-        "//deploy/rules:release_demo_app_name",
-        "//deploy/rules:release_demo_archive",
-        "//deploy/rules:release_demo_checksum",
-        "//deploy/rules:release_demo_config",
+        "//deploy/private:release_demo",
+        "//deploy/private:release_demo_app_name",
+        "//deploy/private:release_demo_archive",
+        "//deploy/private:release_demo_checksum",
+        "//deploy/private:release_demo_config",
         "@consumer_archive_repo//:NOTICE.txt",
     ],
     env = {
-        "DX_APP": "$(rootpath //deploy/rules:release_demo_app_name)",
-        "DX_ARCHIVE_CONFIG": "$(rootpath //deploy/rules:release_demo_config)",
-        "DX_ARCHIVE_PROGRAM": "$(rootpath //deploy/rules:release_demo)",
-        "DX_CHECKSUM": "$(rootpath //deploy/rules:release_demo_checksum)",
+        "DX_APP": "$(rootpath //deploy/private:release_demo_app_name)",
+        "DX_ARCHIVE_CONFIG": "$(rootpath //deploy/private:release_demo_config)",
+        "DX_ARCHIVE_PROGRAM": "$(rootpath //deploy/private:release_demo)",
+        "DX_CHECKSUM": "$(rootpath //deploy/private:release_demo_checksum)",
         "DX_GITHUB_CONFIG": "$(rootpath :identity_github_config)",
         "DX_GITHUB_PROGRAM": "$(rootpath :identity_github)",
         "DX_NOTICE": "$(rootpath @consumer_archive_repo//:NOTICE.txt)",
-        "DX_TARBALL": "$(rootpath //deploy/rules:release_demo_archive)",
+        "DX_TARBALL": "$(rootpath //deploy/private:release_demo_archive)",
     },
     tags = ["no-remote-exec"],
     deps = [

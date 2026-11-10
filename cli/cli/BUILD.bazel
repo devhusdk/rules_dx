@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//deploy/rules:github.bzl", "github_deploy")
+load("//deploy:defs.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//rust/private:wrapper_tests.bzl", "dx_msvc_opt_pdb_tests")

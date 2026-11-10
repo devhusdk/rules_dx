@@ -10,7 +10,7 @@ TAXONOMY = {
         classes = ["api_spec", "api_spec_ref"],
     ),
     "asciidoc": struct(
-        owner = "//asciidoc/rules:defs.bzl",
+        owner = "//asciidoc:defs.bzl",
         classes = ["asciidoc"],
     ),
     "astro": struct(
@@ -38,7 +38,7 @@ TAXONOMY = {
         classes = ["cloudformation"],
     ),
     "cmake": struct(
-        owner = "//cmake/rules:defs.bzl",
+        owner = "//cmake:defs.bzl",
         classes = ["cmake"],
     ),
     "core": struct(
@@ -166,7 +166,7 @@ TAXONOMY = {
         classes = ["lua"],
     ),
     "make": struct(
-        owner = "//make/rules:defs.bzl",
+        owner = "//make:defs.bzl",
         classes = ["make"],
     ),
     "markdown": struct(
@@ -222,7 +222,7 @@ TAXONOMY = {
         classes = ["rego"],
     ),
     "rst": struct(
-        owner = "//rst/rules:defs.bzl",
+        owner = "//rst:defs.bzl",
         classes = ["rst"],
     ),
     "ruby": struct(
@@ -242,7 +242,7 @@ TAXONOMY = {
         classes = ["shell"],
     ),
     "sql": struct(
-        owner = "//sql/rules:defs.bzl",
+        owner = "//sql:defs.bzl",
         classes = ["sql"],
     ),
     "starlark": struct(

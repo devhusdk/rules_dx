@@ -1,6 +1,6 @@
 """Layer-2 full-matrix runner tests (snapshot workflow)."""
 
-load("//deploy/rules:config.bzl", "rlocation_path")
+load("//deploy/private:config.bzl", "rlocation_path")
 load("//core:canonical.bzl", "is_canonical", "strip_canonical")
 load("//quality:pipeline.bzl", "real_request_stage")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")

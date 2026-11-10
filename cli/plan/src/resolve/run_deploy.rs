@@ -267,7 +267,7 @@ pub struct DeployInfo {
 }
 
 fn deploy_starlark_expr() -> String {
-    const PROVIDER: &str = "//deploy/rules:deployment.bzl%DxDeployInfo";
+    const PROVIDER: &str = "//deploy/private:deployment.bzl%DxDeployInfo";
     format!(
         "(str(providers(target).get('{PROVIDER}', None) != None)) + '|' + \
          ((str(providers(target).get('{PROVIDER}', None).build_mode) if providers(target).get('{PROVIDER}', None) != None else 'NONE')) + '|' + \

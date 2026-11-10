@@ -1,0 +1,61 @@
+load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS")
+load("//deploy/private:go_sdk.bzl", "dx_go_binary_file")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "apicompat_pins.bzl",
+    "japicmp_pins.bzl",
+    "repos.bzl",
+    "extensions.bzl",
+    "semver_checks_pins.bzl",
+])
+
+[
+    config_setting(
+        name = "semver_checks_" + key,
+        constraint_values = [
+            "@platforms//os:" + pin["os"],
+            "@platforms//cpu:" + pin["cpu"],
+        ],
+    )
+    for key, pin in SEMVER_CHECKS_PLATFORMS.items()
+]
+
+[
+    alias(
+        name = "semver_checks_" + key + "_bin",
+        actual = "@cargo_semver_checks_" + key + "//:" + pin["exe"],
+    )
+    for key, pin in SEMVER_CHECKS_PLATFORMS.items()
+]
+
+filegroup(
+    name = "semver_checks_none",
+    srcs = [],
+)
+
+alias(
+    name = "cargo_semver_checks",
+    actual = select({
+        ":semver_checks_" + key: ":semver_checks_" + key + "_bin"
+        for key in SEMVER_CHECKS_PLATFORMS
+    } | {"//conditions:default": ":semver_checks_none"}),
+)
+
+alias(
+    name = "apicompat",
+    actual = "@apicompat_tool//:files",
+)
+
+alias(
+    name = "japicmp",
+    actual = "@japicmp_jar//file",
+)
+
+alias(
+    name = "apidiff",
+    actual = "@org_golang_x_exp//cmd/apidiff",
+)
+
+dx_go_binary_file(name = "go")

@@ -269,7 +269,7 @@ py_binary(
     dep_group = "dx-python-tools",
     imports = ["."],
     main = "griffe_check.py",
-    visibility = ["//deploy/rules:__pkg__"],
+    visibility = ["//deploy/private:__pkg__"],
     deps = ["@pypi//griffelib"],
 )
 

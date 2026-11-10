@@ -100,8 +100,8 @@ SHARD_SPECS = {
 }
 
 _VALE_CONVERTERS = {
-    "asciidoc": ("asciidoctor", "asciidoc_library", "@rules_dx//asciidoc/rules:defs.bzl"),
-    "rst": ("rst2html", "rst_library", "@rules_dx//rst/rules:defs.bzl"),
+    "asciidoc": ("asciidoctor", "asciidoc_library", "@rules_dx//asciidoc:defs.bzl"),
+    "rst": ("rst2html", "rst_library", "@rules_dx//rst:defs.bzl"),
 }
 
 def _vale_converters(target, stage_classes, what):

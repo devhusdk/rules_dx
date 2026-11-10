@@ -2002,15 +2002,15 @@ crate.from_cargo(
         "//cli/plan:Cargo.toml",
         "//cli/worktree:Cargo.toml",
         "//cli/shim:Cargo.toml",
-        "//deploy/rules:Cargo.toml",
-        "//deploy/symbols:Cargo.toml",
-        "//deploy/offline/bootstrap:Cargo.toml",
-        "//deploy/offline:Cargo.toml",
-        "//deploy/release/tests:Cargo.toml",
+        "//deploy/private:Cargo.toml",
+        "//deploy/private/symbols:Cargo.toml",
+        "//deploy/private/offline/bootstrap:Cargo.toml",
+        "//deploy/private/offline:Cargo.toml",
+        "//deploy/private/release/tests:Cargo.toml",
         "//deploy/tests/cross:Cargo.toml",
         "//deploy/tests/runfiles:Cargo.toml",
-        "//deploy/release:Cargo.toml",
-        "//deploy/install:Cargo.toml",
+        "//deploy/private/release:Cargo.toml",
+        "//deploy/private/install:Cargo.toml",
         "//env/env_shard:Cargo.toml",
         "//env/stubs:Cargo.toml",
         "//cli/codegen_shard:Cargo.toml",
@@ -2323,16 +2323,16 @@ _web_consumer_repo(
 
 _http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
-semver_checks = use_extension("//deploy/rules/pins:extensions.bzl", "semver_checks")
+semver_checks = use_extension("//deploy/private/pins:extensions.bzl", "semver_checks")
 use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_linux_x86_64", "cargo_semver_checks_macos_arm64", "cargo_semver_checks_windows_x86_64")
 
-japicmp = use_extension("//deploy/rules/pins:extensions.bzl", "japicmp")
+japicmp = use_extension("//deploy/private/pins:extensions.bzl", "japicmp")
 use_repo(japicmp, "japicmp_jar")
 
-apicompat = use_extension("//deploy/rules/pins:extensions.bzl", "apicompat")
+apicompat = use_extension("//deploy/private/pins:extensions.bzl", "apicompat")
 use_repo(apicompat, "apicompat_tool")
 
-cosign = use_extension("//deploy/release:extensions.bzl", "cosign", dev_dependency = True)
+cosign = use_extension("//deploy/private/release:extensions.bzl", "cosign", dev_dependency = True)
 use_repo(cosign, "cosign_linux_arm64", "cosign_linux_x86_64", "cosign_macos_arm64", "cosign_windows_x86_64")
 
 bazel_version = use_extension("//tools/bazelrc:extensions.bzl", "bazel_version")

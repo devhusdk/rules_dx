@@ -3,7 +3,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
-package(default_visibility = VIS_CLI + ["//deploy/rules:__pkg__"])
+package(default_visibility = VIS_CLI + ["//deploy/private:__pkg__"])
 
 exports_files([
     "src/lib.rs",

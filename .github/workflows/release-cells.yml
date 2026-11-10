@@ -124,11 +124,11 @@ jobs:
             echo "job.workflow_ref is empty" >&2
             exit 1
           fi
-          bazel build --config=dx_build_release //cli/cli:dx //deploy/release:release_cell //deploy/release:release_matrix
+          bazel build --config=dx_build_release //cli/cli:dx //deploy/private/release:release_cell //deploy/private/release:release_matrix
           root="$(bazel info --config=dx_build_release execution_root)"
           dx="$root/$(bazel cquery --config=dx_build_release --output=files //cli/cli:dx)"
-          tool="$root/$(bazel cquery --config=dx_build_release --output=files //deploy/release:release_cell)"
-          matrix="$root/$(bazel cquery --config=dx_build_release --output=files //deploy/release:release_matrix)"
+          tool="$root/$(bazel cquery --config=dx_build_release --output=files //deploy/private/release:release_cell)"
+          matrix="$root/$(bazel cquery --config=dx_build_release --output=files //deploy/private/release:release_matrix)"
           mkdir -p release-cells
           version="$("$tool" version --exe "$dx")"
           {

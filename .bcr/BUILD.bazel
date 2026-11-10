@@ -6,7 +6,7 @@ package(default_visibility = ["//:__subpackages__"])
 
 exports_files(
     ["presubmit.yml"],
-    visibility = ["//deploy/release/tests:__pkg__"],
+    visibility = ["//deploy/private/release/tests:__pkg__"],
 )
 
 filegroup(

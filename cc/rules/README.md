@@ -28,7 +28,7 @@ cc_test(
 
 ## CMake dependencies
 
-`cmake_library` from `@rules_dx//cmake/rules:defs.bzl` only formats and lints CMake files. It never builds them.
+`cmake_library` from `@rules_dx//cmake:defs.bzl` only formats and lints CMake files. It never builds them.
 
 To build a CMake project, use the rules_foreign_cc `cmake` rule and register `tools.explicit()` with a pinned cmake and ninja, so no host cmake is used.
 

@@ -1,0 +1,116 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//deploy/private/release:cosign_pins.bzl", "COSIGN_VERSION")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+rust_library(
+    name = "dx_install_tools",
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_install_tools",
+        normal = True,
+    ),
+    crate_name = "dx_install_tools",
+    crate_root = "src/lib.rs",
+    deps = [
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//deploy/private/release:dx_release_tools",
+    ],
+)
+
+rust_binary(
+    name = "dx_verify",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_install_tools",
+        normal = True,
+    ),
+    crate_name = "dx_verify",
+    crate_root = "src/main.rs",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_install_tools",
+        normal = True,
+    ) + [":dx_install_tools"],
+)
+
+rust_test(
+    name = "dx_install_tools_test",
+    aliases = aliases(
+        package_name = "deploy/private/dx_install_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_install_tools",
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_install_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+rust_test(
+    name = "cosign_real_test",
+    srcs = ["tests/cosign_real.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/dx_install_tools",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "cosign_real_test",
+    crate_root = "tests/cosign_real.rs",
+    data = [
+        "tests/fixtures/artifact.bin",
+        "tests/fixtures/artifact.bundle",
+        "tests/fixtures/ca.pem",
+        ":dx_verify",
+        "//deploy/private/release:cosign",
+    ],
+    env = {
+        "DX_COSIGN_BIN": "$(rootpath //deploy/private/release:cosign)",
+        "DX_COSIGN_VERSION": COSIGN_VERSION,
+        "DX_VERIFY_BIN": "$(rootpath :dx_verify)",
+        "DX_COSIGN_FIXTURES": "$(rootpath tests/fixtures/ca.pem)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
+    deps = all_crate_deps(
+        package_name = "deploy/private/dx_install_tools",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_install_tools",
+        "//deploy/private/release:dx_release_tools",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+exports_files(["Cargo.toml"])
+
+test_suite(
+    name = "all",
+    tests = [
+        ":cosign_real_test",
+        ":dx_install_tools_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

@@ -1,9 +1,9 @@
 use dx_testing::read_runfiles;
 
-const SIGNING_BZL: &str = "deploy/release/signing.bzl";
-const COSIGN_PINS: &str = "deploy/release/cosign_pins.bzl";
+const SIGNING_BZL: &str = "deploy/private/release/signing.bzl";
+const COSIGN_PINS: &str = "deploy/private/release/cosign_pins.bzl";
 const MODULE: &str = "MODULE.bazel";
-const RELEASE_LIB: &str = "deploy/release/src/lib.rs";
+const RELEASE_LIB: &str = "deploy/private/release/src/lib.rs";
 
 #[test]
 fn the_cosign_pin_lives_only_in_cosign_pins_bzl() {
@@ -44,6 +44,6 @@ fn the_cosign_pin_lives_only_in_cosign_pins_bzl() {
     }
     assert!(
         !read_runfiles(MODULE).contains("sigstore/cosign/releases"),
-        "{MODULE} fetches cosign outside deploy/release/repos.bzl"
+        "{MODULE} fetches cosign outside deploy/private/release/repos.bzl"
     );
 }

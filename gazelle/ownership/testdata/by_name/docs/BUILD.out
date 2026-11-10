@@ -1,4 +1,4 @@
-load("@rules_dx//asciidoc/rules:defs.bzl", "asciidoc_library")
+load("@rules_dx//asciidoc:defs.bzl", "asciidoc_library")
 
 asciidoc_library(
     name = "asciidoc",

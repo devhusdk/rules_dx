@@ -1,6 +1,6 @@
-load("@rules_dx//asciidoc/rules:defs.bzl", "asciidoc_library")
+load("@rules_dx//asciidoc:defs.bzl", "asciidoc_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rst/rules:defs.bzl", "rst_library")
+load("@rules_dx//rst:defs.bzl", "rst_library")
 
 _PUBLIC = ["//visibility:public"]
 

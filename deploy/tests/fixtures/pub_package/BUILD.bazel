@@ -1,5 +1,5 @@
-load("//deploy/rules:deploy_tests.bzl", "deploy_analysis_test")
-load("//deploy/rules:pub.bzl", "pub_deploy")
+load("//deploy/private:deploy_tests.bzl", "deploy_analysis_test")
+load("//deploy/private:pub.bzl", "pub_deploy")
 
 filegroup(
     name = "package",

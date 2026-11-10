@@ -1,6 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_binary")
 load("//cc/toolchains:select.bzl", "cc_toolchain_binary")
-load("//deploy/rules:archive.bzl", "consumer_archive")
+load("//deploy:defs.bzl", "consumer_archive")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
@@ -79,7 +79,7 @@ rust_test(
         "@platforms//cpu:arm64",
     ],
     deps = [
-        "//deploy/rules:dx_deploy_tools",
+        "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
 )
@@ -94,7 +94,7 @@ rust_test(
         "@platforms//cpu:arm64",
     ],
     deps = [
-        "//deploy/rules:dx_deploy_tools",
+        "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
 )

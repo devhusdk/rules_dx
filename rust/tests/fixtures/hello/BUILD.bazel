@@ -1,6 +1,6 @@
 load("@dx_rust_fixture_crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_rust//rust:defs.bzl", "rust_lint_config")
-load("@rules_dx//deploy/rules:archive.bzl", "archive_deploy")
+load("@rules_dx//deploy:defs.bzl", "archive_deploy")
 load("@rules_dx//core/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_bench", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
@@ -266,7 +266,7 @@ archive_deploy(
 # keep
 rust_test(
     name = "release_verify",
-    srcs = ["@rules_dx//deploy/rules:verify_test.rs"],
+    srcs = ["@rules_dx//deploy/private:verify_test.rs"],
     data = [
         ":release_archive",
         ":release_checksum",

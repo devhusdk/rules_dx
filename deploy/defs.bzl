@@ -1,0 +1,74 @@
+"""Public deploy API."""
+
+load(
+    "//deploy/private:defs.bzl",
+    _DxDeployInfo = "DxDeployInfo",
+    _NativeRuntimeInfo = "NativeRuntimeInfo",
+    _VALID_DEPLOY_BUILD_MODES = "VALID_DEPLOY_BUILD_MODES",
+    _archive_deploy = "archive_deploy",
+    _cloudflare_pages_deploy = "cloudflare_pages_deploy",
+    _conan_deploy = "conan_deploy",
+    _consumer_archive = "consumer_archive",
+    _cpan_deploy = "cpan_deploy",
+    _crates_deploy = "crates_deploy",
+    _dx_deployment = "dx_deployment",
+    _dx_dsym = "dx_dsym",
+    _dx_native_runtime = "dx_native_runtime",
+    _dx_pdb = "dx_pdb",
+    _dx_resources = "dx_resources",
+    _dx_sbom = "dx_sbom",
+    _dx_split_debug_info = "dx_split_debug_info",
+    _github_deploy = "github_deploy",
+    _hackage_deploy = "hackage_deploy",
+    _helm_chart_deploy = "helm_chart_deploy",
+    _hex_deploy = "hex_deploy",
+    _homebrew_tap_deploy = "homebrew_tap_deploy",
+    _linux_package_deploy = "linux_package_deploy",
+    _luarocks_deploy = "luarocks_deploy",
+    _maven_deploy = "maven_deploy",
+    _npm_deploy = "npm_deploy",
+    _nuget_deploy = "nuget_deploy",
+    _oci_deploy = "oci_deploy",
+    _oci_image_from_binary = "oci_image_from_binary",
+    _octopus_deploy = "octopus_deploy",
+    _packagist_deploy = "packagist_deploy",
+    _pub_deploy = "pub_deploy",
+    _pypi_deploy = "pypi_deploy",
+    _rubygems_deploy = "rubygems_deploy",
+)
+load("//deploy/private/offline:offline.bzl", _offline_bundle = "offline_bundle")
+
+DxDeployInfo = _DxDeployInfo
+NativeRuntimeInfo = _NativeRuntimeInfo
+VALID_DEPLOY_BUILD_MODES = _VALID_DEPLOY_BUILD_MODES
+archive_deploy = _archive_deploy
+cloudflare_pages_deploy = _cloudflare_pages_deploy
+conan_deploy = _conan_deploy
+consumer_archive = _consumer_archive
+cpan_deploy = _cpan_deploy
+crates_deploy = _crates_deploy
+dx_deployment = _dx_deployment
+dx_dsym = _dx_dsym
+dx_native_runtime = _dx_native_runtime
+dx_pdb = _dx_pdb
+dx_resources = _dx_resources
+dx_sbom = _dx_sbom
+dx_split_debug_info = _dx_split_debug_info
+github_deploy = _github_deploy
+hackage_deploy = _hackage_deploy
+helm_chart_deploy = _helm_chart_deploy
+hex_deploy = _hex_deploy
+homebrew_tap_deploy = _homebrew_tap_deploy
+linux_package_deploy = _linux_package_deploy
+luarocks_deploy = _luarocks_deploy
+maven_deploy = _maven_deploy
+npm_deploy = _npm_deploy
+nuget_deploy = _nuget_deploy
+oci_deploy = _oci_deploy
+oci_image_from_binary = _oci_image_from_binary
+octopus_deploy = _octopus_deploy
+offline_bundle = _offline_bundle
+packagist_deploy = _packagist_deploy
+pub_deploy = _pub_deploy
+pypi_deploy = _pypi_deploy
+rubygems_deploy = _rubygems_deploy

@@ -5,12 +5,12 @@ use dx_testing::{read_runfiles, resolve_runfiles};
 
 const WORKFLOW: &str = ".github/workflows/reusable-release.yml";
 
-/// Returns every gate env var name of one `OwnerGate` field (`approved`) in deploy/rules/src.
+/// Returns every gate env var name of one `OwnerGate` field (`approved`) in deploy/private/src.
 fn gate_names(field: &str) -> Vec<String> {
-    let run = resolve_runfiles("deploy/rules/src/run.rs");
+    let run = resolve_runfiles("deploy/private/src/run.rs");
     let dir = run.parent().expect("run.rs has a directory");
     let mut names = Vec::new();
-    for entry in std::fs::read_dir(dir).expect("read deploy/rules/src") {
+    for entry in std::fs::read_dir(dir).expect("read deploy/private/src") {
         let path = entry.expect("dir entry").path();
         if path.extension().is_some_and(|ext| ext == "rs") {
             names.extend(declared(&path, field));

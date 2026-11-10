@@ -1,4 +1,4 @@
-load("@rules_dx//cmake/rules:defs.bzl", "cmake_library")
+load("@rules_dx//cmake:defs.bzl", "cmake_library")
 
 cmake_library(
     name = "cmake",

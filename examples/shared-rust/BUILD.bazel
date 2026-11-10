@@ -1,6 +1,6 @@
 load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "rust_android_apk")
 load("//cc/rules:defs.bzl", "cc_library", "cc_test")
-load("//deploy/rules:archive.bzl", "archive_deploy")
+load("//deploy:defs.bzl", "archive_deploy")
 load("//javascript:defs.bzl", "javascript_web_app")
 load("//core:failure_test.bzl", "failure_test")
 load("//libs/web_server:server.bzl", "javascript_web_server")
@@ -231,7 +231,7 @@ archive_deploy(
 
 rust_test(
     name = "tasks_deploy_verify",
-    srcs = ["//deploy/rules:verify_test.rs"],
+    srcs = ["//deploy/private:verify_test.rs"],
     data = [
         ":tasks_deploy_archive",
         ":tasks_deploy_checksum",
@@ -371,7 +371,7 @@ failure_test(
 
 real_source_target(
     name = "corpus_markdown",
-    markdown_siblings = ["//deploy/rules:README.md"],
+    markdown_siblings = ["//deploy:README.md"],
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

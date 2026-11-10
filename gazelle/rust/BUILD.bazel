@@ -53,7 +53,7 @@ exports_files(
         "testdata/source_only/crates/dx_release_consumer/BUILD.out",
         "testdata/source_only/crates/dx_release_consumer/src/lib.rs",
     ],
-    visibility = ["//deploy/release:__pkg__"],
+    visibility = ["//deploy/private/release:__pkg__"],
 )
 
 gazelle_generation_test(

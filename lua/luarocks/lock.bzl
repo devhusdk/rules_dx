@@ -124,12 +124,7 @@ def _cycle(deps):
     return sorted(remaining.keys())
 
 def analyze(hub, lock_text, sidecar_text):
-    """Validates one lock and sidecar.
-
-    Returns a struct with `errors` (list of strings; empty when usable) and `packages`,
-    a dict keyed by rock name with: name, version, spoke, urls, strip_prefix, sha256,
-    unpinned (problem text or ""), modules (module to source path) and deps (sorted rock names).
-    """
+    """Validates one lock and sidecar, returning errors and per-rock package records."""
     errors = []
     locked, lock_errors = parse_lock(lock_text)
     errors += lock_errors

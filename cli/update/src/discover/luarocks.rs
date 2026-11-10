@@ -1,5 +1,6 @@
 //! Lists LuaRocks pins whose newest version in the luarocks.org manifest is newer than the locked one.
 
+use dx_error::DxError;
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
 use std::cmp::Ordering;
 
@@ -22,7 +23,7 @@ pub fn outdated(
         return found;
     }
     let manifest = fetch.get(&format!("{base}/{MANIFEST}")).and_then(|body| {
-        serde_json::from_str::<serde_json::Value>(&body).map_err(|e| e.to_string())
+        serde_json::from_str::<serde_json::Value>(&body).map_err(|e| DxError::failure(e.to_string()))
     });
     let manifest = match manifest {
         Ok(manifest) => manifest,
@@ -30,7 +31,7 @@ pub fn outdated(
             found.errors.push(LookupError {
                 set: set.to_owned(),
                 package: MANIFEST.to_owned(),
-                reason,
+                reason: reason.to_string(),
             });
             return found;
         }
@@ -154,11 +155,11 @@ mod tests {
         "penlight":{"1.13.1-1":[{"arch":"rockspec"}],"1.14.0-1":[{"arch":"rockspec"}],"1.15.0beta1-1":[{"arch":"rockspec"}],"scm-1":[{"arch":"rockspec"}]},
         "current":{"1.0-1":[{"arch":"rockspec"}]}}}"#;
 
-    fn registry(url: &str) -> Result<String, String> {
+    fn registry(url: &str) -> Result<String, DxError> {
         if url == "https://luarocks.org/manifest-5.4.json" {
             Ok(MANIFEST_JSON.to_owned())
         } else {
-            Err(format!("unexpected lookup {url}"))
+            Err(DxError::failure(format!("unexpected lookup {url}")))
         }
     }
 

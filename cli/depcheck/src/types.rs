@@ -190,8 +190,8 @@ impl From<DepcheckError> for dx_error::DxError {
     fn from(error: DepcheckError) -> Self {
         match error {
             DepcheckError::UnknownEcosystem(_) => Self::usage(error.to_string()),
-            DepcheckError::ManifestIo(_) | DepcheckError::LockIo(_) => {
-                Self::infra(error.to_string())
+            DepcheckError::ManifestIo(ref source) | DepcheckError::LockIo(ref source) => {
+                Self::from_io(error.to_string(), source)
             }
             _ => Self::failure(error.to_string()),
         }

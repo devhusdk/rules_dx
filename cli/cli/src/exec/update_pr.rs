@@ -791,7 +791,7 @@ mod tests {
             }
             if words.contains(&"--apply".to_owned()) && words.len() >= 3 {
                 std::fs::write(work.join("Cargo.lock"), "a\nb\n")
-                    .map_err(|e| DxError::infra(e.to_string()))?;
+                    .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
         }
@@ -801,7 +801,7 @@ mod tests {
         move |words: &[String]| {
             if words.len() == 4 && words[3] == "--apply" {
                 std::fs::write(work.join("Cargo.lock"), format!("a\n{}\n", words[2]))
-                    .map_err(|e| DxError::infra(e.to_string()))?;
+                    .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
         }
@@ -1039,7 +1039,7 @@ mod tests {
             let applying = words.contains(&"--apply".to_owned()) && words.len() >= 3;
             if applying && words[1].starts_with("github-actions") {
                 std::fs::write(work.join("Cargo.lock"), "a\nb\n")
-                    .map_err(|e| DxError::infra(e.to_string()))?;
+                    .map_err(|e| DxError::from_io(e.to_string(), &e))?;
             }
             Ok(())
         };

@@ -55,11 +55,9 @@ fn identity_records_the_os_supplied_runtime() {
     }
 }
 
+#[cfg(not(windows))]
 #[test]
 fn ledger_runs_from_the_extracted_archive() {
-    if std::env::var_os("DX_QT_RUN_LEDGER").is_none() {
-        return;
-    }
     let archive = archives()
         .into_iter()
         .find(|path| path.to_string_lossy().contains("ledger_release"))

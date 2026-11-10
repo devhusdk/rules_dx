@@ -2,7 +2,6 @@
 
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 
-# Mirrors the non-DYLD entries of host_routes in launcher.c.
 QT_TOOL_UNSET = [
     "QML2_IMPORT_PATH",
     "QML_IMPORT_PATH",

@@ -57,7 +57,6 @@ dx_wrapper_contract_tests(
     file_classes = [file_class for file_class, _ in QT_SOURCE_SPECS],
 )
 
-# The system libraries a Qt app imports that qt_bundle does not ship, per Linux cell.
 [
     dx_native_runtime(
         name = "os_runtime_" + cell,

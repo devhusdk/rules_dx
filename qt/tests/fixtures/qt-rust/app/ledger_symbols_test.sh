@@ -11,12 +11,15 @@ done < <(find -L "${TEST_SRCDIR:-$root}" \( -name '*.dylib' -o -name '*.so' -o -
 
 defined="${TEST_TMPDIR:-/tmp}/defined.txt"
 undefined="${TEST_TMPDIR:-/tmp}/undefined.txt"
+listing="${TEST_TMPDIR:-/tmp}/listing.txt"
 : >"$defined"
 : >"$undefined"
 for image in "${images[@]}"; do
     echo "== $image"
-    "$nm" --defined-only "$image" | grep 'cxxbridge1\$' | tee -a "$defined" || true
-    "$nm" --undefined-only "$image" | grep 'cxxbridge1\$' | tee -a "$undefined" || true
+    "$nm" --defined-only "$image" >"$listing" || exit 1
+    { grep 'cxxbridge1\$' "$listing" || true; } | tee -a "$defined"
+    "$nm" --undefined-only "$image" >"$listing" || exit 1
+    { grep 'cxxbridge1\$' "$listing" || true; } | tee -a "$undefined"
 done
 
 missing=0

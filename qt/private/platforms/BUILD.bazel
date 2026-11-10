@@ -6,9 +6,6 @@ load(":libc.bzl", "glibc_at_least")
 
 package(default_visibility = ["//visibility:public"])
 
-# One setting per qualified Qt cell. QT_COMPATIBLE_WITH and the consumer
-# identity selects in //qt:defs.bzl key on these. A Linux cell matches
-# only glibc at or above the SDK floor; musl and older glibc do not match.
 [
     config_setting(
         name = "cell_" + cell,

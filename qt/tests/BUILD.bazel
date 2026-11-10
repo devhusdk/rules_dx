@@ -3,6 +3,7 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
+load("//qt/private/sdk:pins.bzl", "QT_VERSION")
 load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
@@ -43,6 +44,7 @@ qt_frameworks(
 cc_binary(
     name = "probe",
     srcs = ["probe.cc"],
+    local_defines = ["DX_QT_PINNED_VERSION=\"" + QT_VERSION + "\""],
     copts = select({
         "@platforms//os:windows": [],
         "//conditions:default": ["-fPIC"],
@@ -80,7 +82,6 @@ platform_transition_binary(
     target_platform = "//qt:macos_arm64",
 )
 
-# Qt's msvc2022 DLLs export Microsoft STL types, so Windows builds with cl.exe.
 cc_toolchain_binary(
     name = "probe_windows_x86_64",
     binary = ":probe",
@@ -111,7 +112,6 @@ alias(
     tags = ["manual"],
 )
 
-# The windows_x86_64 cell publishes no needs tables; its qt_test skips the table check.
 alias(
     name = "needs_native",
     actual = select({
@@ -121,7 +121,6 @@ alias(
     tags = ["manual"],
 )
 
-# A tool run as a data dependency has no runfiles of its own on Windows, so each one carries its manifest.
 _WINDOWS_CHILD_TOOLS = [
     "moc",
     "qmlformat",
@@ -154,6 +153,7 @@ _VCRUNTIME = select({
 })
 
 _QT_TEST_ENV = {
+    "DX_QT_VERSION": QT_VERSION,
     "DX_MOC": "$(rootpath @dx_qt//:moc)",
     "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
     "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
@@ -221,7 +221,6 @@ rust_test(
         "block-network",
         "no-remote-exec",
     ],
-    # Windows is data only here: the C++ probes are built with cl.exe by cc_toolchain_binary.
     target_compatible_with = select({
         "@dx_qt//:linux_arm64": [],
         "@dx_qt//:linux_x86_64": [],
@@ -538,9 +537,9 @@ qt_cc_test(
         env = {
             "DX_QT_ARCHIVES": "$(rootpaths :consumer_archives_" + cell + ")",
             "DX_QT_CORE_MEMBER": core,
-        } | ({"DX_QT_RUN_LEDGER": "1"} if os != "windows" else {}) | {
+        } | {
             "DX_QT_RUNTIME_RECORD": "msvc_vcruntime * app_local" if os == "windows" else ("os_runtime_" + cell + " " + glibc + " os_supplied" if glibc else ""),
-        } | ({"DX_QT_TASKS_RECORD": "runtime_runtime 6.11.3 os_supplied"} if os != "windows" else {}),
+        } | ({"DX_QT_TASKS_RECORD": "runtime_runtime " + QT_VERSION + " os_supplied"} if os != "windows" else {}),
         target_compatible_with = ["@platforms//os:" + os, "@platforms//cpu:" + cpu],
         deps = [
             "//deploy/private:dx_deploy_tools",

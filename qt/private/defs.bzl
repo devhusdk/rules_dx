@@ -261,14 +261,12 @@ def _bundle_runpath():
     })
 
 def _no_object_linkopts():
-    # Executables that only wrap an alwayslink library link no object files of their own.
     return select({
         "@platforms//os:windows": ["/IGNORE:4001"],
         "//conditions:default": [],
     })
 
 def _link_static(static):
-    # Windows DLLs cannot carry an executable's main and macOS dylibs cannot resolve their deps' symbols, so the library goes into the binary.
     return True if static else select({
         "@platforms//os:macos": True,
         "@platforms//os:windows": True,
@@ -432,7 +430,6 @@ _GUI_MODULES = ["gui", "quick", "widgets"]
 _WINDOWS_TEST_CONSOLE = Label("//qt/private:windows_test_console")
 
 def _windows_console(test, modules):
-    # Qt opens a blocking MessageBox for a failed platform plugin when the process has no console window.
     if not test or len([module for module in modules if module in _GUI_MODULES]) == 0:
         return []
     return select({
@@ -453,7 +450,6 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
     tags = upstream_kwargs.pop("tags", None)
     upstream_kwargs.pop("visibility", None)
     _generate(name, qt, effective_deps, hdrs, moc_hdrs, forms, copts + _include_copts(name), kwargs.get("defines", []) + kwargs.get("local_defines", []), resources, resource_prefix, translations, [], None, [], "1.0", tags, True if test else kwargs.get("testonly", None), kwargs.get("target_compatible_with", None))
-    # Windows has no executable-to-DLL main lookup: a source-less test links its library's main from the static archive.
     upstream_kwargs.setdefault("linkstatic", select({"@platforms//os:windows": True, "//conditions:default": False}))
     upstream_kwargs["linkopts"] = upstream_kwargs.get("linkopts", []) + _no_object_linkopts()
     if not test:

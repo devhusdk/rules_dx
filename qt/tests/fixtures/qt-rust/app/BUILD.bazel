@@ -5,13 +5,11 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# The QML plugin imports QtQmlMeta; linking Quick stages it with the binary.
 _QML_META = select({
     "@platforms//os:linux": [],
     "//conditions:default": ["@dx_qt//:quick"],
 })
 
-# Rust std on Windows imports ntdll.
 _NTDLL = select({
     "@platforms//os:windows": ["ntdll.lib"],
     "//conditions:default": [],

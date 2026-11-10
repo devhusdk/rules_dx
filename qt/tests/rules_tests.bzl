@@ -195,7 +195,6 @@ def _unit_checks():
                 ("lib/libapp_Sui_Slibui_Uupstream.dylib", "app/_solib_darwin_arm64/libapp_Sui_Slibui_Uupstream.dylib"),
             ],
         ),
-        # The linked rule (a DLL not under ../) is confirmed on a Windows host by #6520.
         expect_equal(
             "bundle stages windows dlls",
             qt_bundle_members(

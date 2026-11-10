@@ -3,7 +3,9 @@ use std::path::{Path, PathBuf};
 
 use dx_testing::serde_json::Value;
 
-const VERSION: &str = "6.11.3";
+fn version() -> String {
+    std::env::var("DX_QT_VERSION").expect("DX_QT_VERSION")
+}
 
 const LIBRARY_LICENSE: &str =
     "LicenseRef-Qt-Commercial OR LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only";
@@ -324,7 +326,7 @@ fn probe_evaluates_qml_against_only_pinned_libraries() {
     assert!(run.status.success(), "probe failed:\n{}", run.combined());
     assert!(
         run.stdout
-            .starts_with(&format!("Qt {VERSION} evaluated QML with ")),
+            .starts_with(&format!("Qt {} evaluated QML with ", version())),
         "probe output:\n{}",
         run.stdout
     );
@@ -468,14 +470,10 @@ fn gui_refuses_a_platform_plugin_it_does_not_pin() {
     );
 }
 
-/// Bazel gives a Windows test no console window, so Qt must report the error instead of waiting on a message box.
-#[cfg(windows)]
+#[cfg(all(windows, target_arch = "x86_64"))]
 #[test]
 fn qt_cc_test_without_a_console_exits_on_a_missing_platform_plugin() {
     use std::os::windows::process::CommandExt;
-    if std::env::var_os("DX_QT_CONSOLE_FIXTURE").is_none() {
-        return;
-    }
     let platforms = directory_of("DX_QT_PLATFORMS", OFFSCREEN);
     let path = runtime_path();
     let envs = [
@@ -511,7 +509,7 @@ fn tools_report_the_pinned_version() {
         assert!(run.status.success(), "{name} failed:\n{}", run.combined());
         assert_eq!(
             run.stdout.replace("\r\n", "\n"),
-            format!("{name} {VERSION}\n")
+            format!("{name} {}\n", version())
         );
     }
 }
@@ -690,9 +688,9 @@ fn sbom_declares_the_pinned_licenses() {
         let document = dx_testing::read_json(&dx_testing::resolve_runfiles(rel)).expect("SBOM");
         documents.insert(file_name(rel).to_owned(), document);
     }
-    let base = &documents[&format!("qtbase-{VERSION}.spdx.json")];
-    let declarative = &documents[&format!("qtdeclarative-{VERSION}.spdx.json")];
-    let tools = &documents[&format!("qttools-{VERSION}.spdx.json")];
+    let base = &documents[&format!("qtbase-{}.spdx.json", version())];
+    let declarative = &documents[&format!("qtdeclarative-{}.spdx.json", version())];
+    let tools = &documents[&format!("qttools-{}.spdx.json", version())];
     for (document, name, license) in [
         (base, "Core", LIBRARY_LICENSE),
         (declarative, "Qml", LIBRARY_LICENSE),
@@ -701,7 +699,7 @@ fn sbom_declares_the_pinned_licenses() {
         (tools, "lrelease", TOOL_LICENSE),
     ] {
         let package = spdx_package(document, name);
-        assert_eq!(package["versionInfo"], VERSION, "{name}");
+        assert_eq!(package["versionInfo"], version(), "{name}");
         assert_eq!(package["licenseDeclared"], license, "{name}");
     }
 }

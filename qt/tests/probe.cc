@@ -28,7 +28,7 @@
 
 namespace {
 
-constexpr const char *kPinnedVersion = "6.11.3";
+constexpr const char *kPinnedVersion = DX_QT_PINNED_VERSION;
 
 const std::vector<std::string> kHostGlibc = {
     "ld-linux-aarch64.so.1",

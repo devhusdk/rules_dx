@@ -72,7 +72,6 @@ This page fixes how tests under `core/quality` choose build settings. The test m
 
 - No target is named `all`. `:all` is always the package wildcard.
 - Every test in `core/quality` and `core/quality/testdata` belongs to exactly one named `test_suite` of its package. A unit test enforces it.
-- A test is tagged `manual` only when a `manual` suite lists it and `CONTRIBUTING.md` names that suite.
 - A suite groups tests that share entries, so one suite can be analyzed alone.
 
 ## Measuring

@@ -44,6 +44,7 @@ A test is the first of four kinds that can prove the behaviour.
 - A test that only checks rule behaviour is an analysis test or an in-graph fixture test.
 - A fixture target that must fail to build is the subject of an analysis failure test, not a test target.
 - A fixture is a library, binary or file target, or a conformance subject.
+- A fixture whose test proves a property of a test rule is a test target. It passes in the default set.
 
 ## Nested Bazel
 

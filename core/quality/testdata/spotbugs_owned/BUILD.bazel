@@ -42,7 +42,6 @@ java_library(
 java_test(
     name = "app_test",
     srcs = ["CleanTest.java"],
-    tags = ["manual"],
     test_class = "spotbugs_owned.CleanTest",
     deps = [
         ":app",
@@ -53,7 +52,6 @@ java_test(
 java_test(
     name = "implicit_test",
     srcs = ["ImplicitTest.java"],
-    tags = ["manual"],
     test_class = "spotbugs_owned.ImplicitTest",
     deps = [":app"],
 )

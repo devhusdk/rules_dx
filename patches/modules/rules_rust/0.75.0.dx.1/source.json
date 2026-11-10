@@ -1,0 +1,17 @@
+{
+    "integrity": "sha256-EJ6mMpL5LrHSeBY8p3qAr+VT6JqaZdHfKCoaSlnprV4=",
+    "strip_prefix": "",
+    "url": "https://github.com/bazelbuild/rules_rust/releases/download/0.75.0/rules_rust-0.75.0.tar.gz",
+    "patches": {
+        "clippy_metadata_inputs.patch": "sha256-dmN6mVoBhr3drEHDMsC4Kjm/pY3VopmpPHRvMfAr4g8=",
+        "pipelined_rmeta_path.patch": "sha256-IuSe2+h6uU1n7jM/zYr19jbkqI/rhOe9lyT2YnO+2DA=",
+        "crate_universe_root_lookup.patch": "sha256-SKWSS3MZS4D6u5d/EiVLDP5UrAib4HTCNY2Wun88NhA=",
+        "exec_cc_toolchain_env.patch": "sha256-JwU4/XzDxeoXmlUsxDkw6x8maYVMH5UJd7/KSgibv2k=",
+        "msvc_pdb_output.patch": "sha256-jXMECUsoM5wsEphRFQs3uN4SzBWA9Sh1NVuFNktdh7o=",
+        "rust_lld_msvc_libpath.patch": "sha256-mAkAykABRIDKzjrBpiIoyHDlt6n215pmFMsJ6YASLHQ=",
+        "crate_universe_lazy_host_tools.patch": "sha256-n5g9gCD0CkO/nb3W8QdOXInOqW3U7hFIdb32h3qPsAY=",
+        "cargo_toml_env_vars_flag.patch": "sha256-JI67z86jGa8ixq/04zPiHCg10NnnTDNq4tKkuVfUjc4=",
+        "exec_scope_universal.patch": "sha256-i3/eqxn3PH5dGoubaVQ+LWvEbUFTeH5P0Y8r47H8bb8="
+    },
+    "patch_strip": 1
+}

@@ -8,7 +8,7 @@ use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 /// rules_dx's own non-dev `bazel_dep` versions, the floors an override must meet.
 /// The drift test keeps this equal to `//:MODULE.bazel`.
 pub const RULES_DX_DEPS: &[(&str, &str)] = &[
-    ("rules_rust", "0.75.0"),
+    ("rules_rust", "0.75.0.dx.1"),
     ("rules_rust_wasm_bindgen", "0.75.0"),
     ("rules_cc", "0.2.28"),
     ("gcc_toolchain", "0.13.0"),

@@ -15,6 +15,10 @@ quality_family(
 
 workspace_policy(
     name = "policy",
+    bases = select({
+        "//config:config_profile_strict": ["//quality/tiers/roslyn:strict"],
+        "//conditions:default": ["//quality/tiers/roslyn:standard"],
+    }),
     families = [":csharp_family"],
 )
 

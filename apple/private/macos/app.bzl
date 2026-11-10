@@ -7,6 +7,7 @@ load("@rules_apple//apple:versioning.bzl", "apple_bundle_version")
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:rlocation.bzl", "rlocation_path")
@@ -235,8 +236,11 @@ def _macos_app_check_impl(ctx):
         resource_set = dx_heavy_resources,
         progress_message = "Checking the macOS app bundle of %{label}",
     )
-    launcher = ctx.actions.declare_file(ctx.label.name + "_run.sh")
-    ctx.actions.symlink(output = launcher, target_file = ctx.file._run, is_executable = True)
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, "\n".join([
+        "program=" + rlocation_path(ctx, ctx.executable._ops),
+        "arg=run-macos-app",
+        "path=" + rlocation_path(ctx, zipped),
+    ]) + "\n")
     groups = {}
     validation = [identity]
     if OutputGroupInfo in bundle:
@@ -249,9 +253,11 @@ def _macos_app_check_impl(ctx):
         DefaultInfo(
             files = depset([zipped, identity]),
             executable = launcher,
-            runfiles = ctx.runfiles(files = [zipped]),
+            runfiles = launcher_runfiles.merge_all([
+                ctx.runfiles(files = [zipped]),
+                ctx.attr._ops[DefaultInfo].default_runfiles,
+            ]),
         ),
-        RunEnvironmentInfo(environment = {"DX_MACOS_APP_ZIP": rlocation_path(ctx, zipped)}),
         info,
         OutputGroupInfo(**groups),
     ]
@@ -281,14 +287,18 @@ _macos_app_check = rule(
             cfg = "exec",
             executable = True,
         ),
-        "_run": attr.label(default = ":run_app.sh", allow_single_file = True),
+        "_ops": attr.label(
+            default = Label("//apple/private/ops:apple_ops"),
+            executable = True,
+            cfg = "target",
+        ),
         "_xcode_config": attr.label(
             default = configuration_field(
                 name = "xcode_config_label",
                 fragment = "apple",
             ),
         ),
-    } | PLATFORM_ATTRS,
+    } | PLATFORM_ATTRS | NATIVE_LAUNCHER_ATTRS,
     executable = True,
     fragments = ["apple"],
 )

@@ -70,15 +70,9 @@ rust_test(
     crate_root = "simulator_script_test.rs",
     data = [
         "//apple/private/bundle:library_check.sh",
-        "//apple/private/ios:create_test_simulator.sh",
-        "//apple/private/ios:delete_test_simulator.sh",
-        "//apple/private/ios:simctl_ops.sh",
     ],
     env = {
-        "DX_CREATE_TEST_SIMULATOR": "$(rootpath //apple/private/ios:create_test_simulator.sh)",
-        "DX_DELETE_TEST_SIMULATOR": "$(rootpath //apple/private/ios:delete_test_simulator.sh)",
         "DX_LIBRARY_CHECK": "$(rootpath //apple/private/bundle:library_check.sh)",
-        "DX_SIMCTL_OPS": "$(rootpath //apple/private/ios:simctl_ops.sh)",
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
@@ -137,11 +131,9 @@ rust_test(
     crate_root = "macos_app_script_test.rs",
     data = [
         "//apple/private/macos:app_check.sh",
-        "//apple/private/macos:run_app.sh",
     ],
     env = {
         "DX_MACOS_APP_CHECK": "$(rootpath //apple/private/macos:app_check.sh)",
-        "DX_MACOS_RUN_APP": "$(rootpath //apple/private/macos:run_app.sh)",
     },
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],

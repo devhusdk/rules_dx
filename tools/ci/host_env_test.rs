@@ -22,6 +22,18 @@ const KINDS: [&str; 9] = [
 /// Text that names a host directory wherever it stands.
 const HOST_DIRS: [&str; 4] = ["/usr/bin", "/usr/local/bin", "$PATH", "${PATH}"];
 
+/// The one file that names the Xcode tools by absolute path.
+const XCODE_FILE: &str = "apple/private/ops/src/xcode.rs";
+
+/// The strings that file may hold, whole.
+const XCODE_TOOLS: [&str; 5] = [
+    "/usr/bin/xcrun",
+    "/usr/bin/codesign",
+    "/usr/bin/security",
+    "/usr/bin/plutil",
+    "/usr/bin/ditto",
+];
+
 /// Shells a `#!` line may name.
 const SHELLS: [&str; 5] = ["sh", "bash", "zsh", "dash", "ksh"];
 
@@ -128,6 +140,9 @@ fn scan_rust(path: &str, source: &str, counts: &mut Counts) {
         let Token::Text(text) = token else {
             continue;
         };
+        if path == XCODE_FILE && XCODE_TOOLS.contains(&text.as_str()) {
+            continue;
+        }
         text_kinds(&text, |kind| hit(counts, path, kind));
         if shebang(&text) {
             hit(counts, path, "shebang");
@@ -213,6 +228,27 @@ def _impl(ctx):
     assert_eq!(
         scan_all(&[("pkg/defs.bzl", bzl)]),
         lines(&[("pkg/defs.bzl", "host-path", 5)]),
+    );
+}
+
+#[test]
+fn the_xcode_tools_are_free_only_whole_and_only_in_the_xcode_file() {
+    let rust = r#"
+pub const XCRUN: &str = "/usr/bin/xcrun";
+pub const CODESIGN: &str = "/usr/bin/codesign";
+pub const SECURITY: &str = "/usr/bin/security";
+pub const PLUTIL: &str = "/usr/bin/plutil";
+pub const DITTO: &str = "/usr/bin/ditto";
+"#;
+    assert_eq!(scan_all(&[(XCODE_FILE, rust)]), lines(&[]));
+    assert_eq!(
+        scan_all(&[("apple/private/ops/src/other.rs", rust)]),
+        lines(&[("apple/private/ops/src/other.rs", "host-path", 5)]),
+    );
+    let near = "const A: &str = \"/usr/bin/xcrunx\";\nconst B: &str = \"/usr/bin/xcrun --x\";\nconst C: &str = \"/usr/bin/lipo\";\n";
+    assert_eq!(
+        scan_all(&[(XCODE_FILE, near)]),
+        lines(&[(XCODE_FILE, "host-path", 3)]),
     );
 }
 

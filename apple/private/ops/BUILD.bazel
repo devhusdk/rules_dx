@@ -1,0 +1,72 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//apple:__subpackages__"])
+
+rust_library(
+    name = "ops",
+    srcs = [
+        "src/lib.rs",
+        "src/run_macos.rs",
+        "src/simctl.rs",
+        "src/test_sim.rs",
+        "src/util.rs",
+        "src/xcode.rs",
+    ],
+    crate_name = "dx_apple_ops",
+    crate_root = "src/lib.rs",
+    deps = [
+        "@crates//:libc",
+        "@crates//:zip",
+    ],
+)
+
+rust_binary(
+    name = "apple_ops",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    deps = [":ops"],
+)
+
+rust_binary(
+    name = "create_test_simulator",
+    srcs = ["src/create_test_simulator.rs"],
+    crate_root = "src/create_test_simulator.rs",
+    deps = [":ops"],
+)
+
+rust_binary(
+    name = "delete_test_simulator",
+    srcs = ["src/delete_test_simulator.rs"],
+    crate_root = "src/delete_test_simulator.rs",
+    deps = [":ops"],
+)
+
+[
+    rust_test(
+        name = name + "_test",
+        size = "small",
+        srcs = [
+            "tests/" + name + "_test.rs",
+            "tests/fake.rs",
+        ],
+        crate_root = "tests/" + name + "_test.rs",
+        deps = [
+            ":ops",
+            "//cli/test_scratch:dx_test_scratch",
+            "@crates//:zip",
+        ],
+    )
+    for name in [
+        "run_macos",
+        "simctl",
+        "test_sim",
+        "xcode",
+    ]
+]
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

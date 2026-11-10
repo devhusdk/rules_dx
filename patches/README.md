@@ -28,7 +28,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `rules_py` | 2.0.0-alpha.11 | `host_interpreter_windows_arm64.patch` | rules_py can see its `python_3_13_aarch64_pc_windows_msvc` interpreter, so sdist builds load on Windows ARM64 hosts (aspect-build/rules_py#1676) |
 | `rules_py` | 2.0.0-alpha.11 | `external_repo_pytest_paths.patch` | `py_pytest_main` finds `.pytest_paths` for targets in an external repository under `../<repo>/<package>` |
 | `hermetic_launcher` | 0.0.17 | `windows_arm64_toolchains.patch` | Registers template and finalizer toolchains for the prebuilt aarch64 Windows stubs (hermeticbuild/hermetic-launcher#94) |
-| `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir (aspect-build/rules_ts#1001) |
+| `aspect_rules_ts` | 3.10.1.dx.1 | `module_dot_bazel_version.patch`, `typecheck_root_dir.patch` | TypeScript typecheck root dir (aspect-build/rules_ts#1001) |
 | `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes (`<iterator>`, `<memory>`, `<vector>`) with libc++, added to the headers that use them; `Exception.hh` includes `fmt/format.h` for fmt 12 |
 | `fmt` | 12.2.0.bcr.1 | none | Raises avro-cpp's fmt to a release with the libc++ include fix |
 | `lua` | 5.5.0 | `overlay.patch` | Builds Lua 5.5.0 from the lua.org tarball with a BUILD overlay: `lua` library, `lua` and `luac` binaries, per-platform `LUA_USE_*` defines (#1375, #10826) |

@@ -83,7 +83,7 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             .calls_named("archive_override")
             .any(|call| call.str("module_name") == Some(name.as_str()));
         match module.override_version(name) {
-            Err(_) if archived => {}
+            Err(_) if archived || is_registry_patched(floor) => {}
             Ok(version) if &version.value == tested => {}
             Ok(version) => problems.push(format!(
                 "single_version_override {name:?} is {} but its tested version is {tested}",
@@ -118,6 +118,13 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
         }
     }
     problems
+}
+
+/// A version ending in `.dx.<digits>` is served by the rules_dx registry and needs no override.
+fn is_registry_patched(version: &str) -> bool {
+    version.rsplit_once(".dx.").is_some_and(|(_, build)| {
+        !build.is_empty() && build.bytes().all(|byte| byte.is_ascii_digit())
+    })
 }
 
 /// Every `bazel_dep` in `source` on a table module that is not at its floor.
@@ -312,6 +319,17 @@ fn a_matching_fixture_passes() {
         ),
         Vec::<String>::new()
     );
+}
+
+#[test]
+fn a_registry_patched_floor_needs_no_override() {
+    let source = "# floor: equals tested\nbazel_dep(name = \"demo\", version = \"1.2.0.dx.1\")\n";
+    let table = fixture_table(&[("demo", "1.2.0.dx.1", "1.2.0.dx.1")]);
+    assert_eq!(violations(source, &table), Vec::<String>::new());
+    assert!(is_registry_patched("1.2.0.dx.12"));
+    assert!(!is_registry_patched("1.2.0.dx."));
+    assert!(!is_registry_patched("1.2.0.dx.a"));
+    assert!(!is_registry_patched("1.2.0"));
 }
 
 #[test]

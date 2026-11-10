@@ -10,6 +10,33 @@ py_binary(
     main = "render.py",
 )
 
+py_binary(
+    name = "update",
+    srcs = ["registry.py"],
+    main = "registry.py",
+)
+
+py_unittest_test(
+    name = "registry_test",
+    srcs = [
+        "registry.py",
+        "registry_test.py",
+    ],
+    data = glob([
+        "bazel_registry.json",
+        "modules/**",
+    ]),
+)
+
+filegroup(
+    name = "registry",
+    srcs = glob([
+        "bazel_registry.json",
+        "modules/**",
+    ]),
+    visibility = ["//:__pkg__"],
+)
+
 py_unittest_test(
     name = "render_unit_test",
     srcs = [
@@ -18,14 +45,16 @@ py_unittest_test(
     ],
 )
 
+_SOURCES = glob(["modules/*/*/source.json"])
+
 genrule(
     name = "readme_generated",
     srcs = [
         "README.md",
         "//:MODULE.bazel",
-    ],
+    ] + _SOURCES,
     outs = ["README.generated.md"],
-    cmd = "$(execpath :render) $(execpath //:MODULE.bazel) $(execpath README.md) > $@",
+    cmd = "$(execpath :render) $(execpath //:MODULE.bazel) $(execpath README.md) %s > $@" % " ".join(["$(execpath %s)" % source for source in _SOURCES]),
     tools = [":render"],
 )
 

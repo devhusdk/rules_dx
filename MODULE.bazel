@@ -1645,15 +1645,7 @@ single_version_override(
 )
 
 # floor: equals tested; patched (#2283, #3736)
-bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
-single_version_override(
-    module_name = "aspect_rules_ts",
-    patch_strip = 1,
-    patches = [
-        "//patches/aspect_rules_ts:typecheck_root_dir.patch",
-    ],
-    version = "3.10.1",
-)
+bazel_dep(name = "aspect_rules_ts", version = "3.10.1.dx.1")
 
 # floor: equals tested
 bazel_dep(name = "aspect_rules_jest", version = "0.26.0")

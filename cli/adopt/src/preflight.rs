@@ -52,7 +52,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("hermetic_launcher", "0.0.17"),
     ("rules_py", "2.0.0-alpha.11"),
     ("aspect_rules_js", "3.6.0"),
-    ("aspect_rules_ts", "3.10.1"),
+    ("aspect_rules_ts", "3.10.1.dx.1"),
     ("aspect_rules_jest", "0.26.0"),
 ];
 

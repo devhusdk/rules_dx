@@ -1,3 +1,6 @@
+import json
+import os
+import tempfile
 import unittest
 
 import render
@@ -32,6 +35,16 @@ class RenderTest(unittest.TestCase):
     def test_unlisted_patch(self):
         with self.assertRaises(SystemExit):
             render.render(MODULE.replace('["//patches/foo:a.patch"]', '["//patches/foo:a.patch", "//patches/foo:b.patch"]'), README)
+
+    def test_registry_source(self):
+        with tempfile.TemporaryDirectory() as root:
+            directory = os.path.join(root, "modules", "bar", "3.0.dx.1")
+            os.makedirs(directory)
+            source = os.path.join(directory, "source.json")
+            with open(source, "w", encoding="utf-8") as handle:
+                json.dump({"patches": {"a.patch": "sha256-x"}}, handle)
+            readme = README.replace("foo", "bar")
+            self.assertIn("| `bar` | 3.0.dx.1 | `a.patch` | Because |", render.render("", readme, [source]))
 
     def test_unlisted_module(self):
         module = MODULE + MODULE.replace("foo", "bar")

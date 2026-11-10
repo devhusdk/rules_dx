@@ -4,10 +4,12 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"sort"
 	"testing"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazel-contrib/bazel-gazelle/v2/rule"
 )
 
 func TestGenerateLibrary(t *testing.T) {
@@ -55,5 +57,31 @@ func TestMainModuleFails(t *testing.T) {
 	})
 	if !lang.(*haskellLang).Failed() {
 		t.Fatal("expected failure for a Main module")
+	}
+}
+
+func TestImportsUseDeclaredModule(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "Lib"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range map[string]string{
+		"Lib/Utils.hs": "module Lib.Utils where\n",
+		"Lib/Bare.hs":  "x = 1\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	f := rule.EmptyFile(filepath.Join(dir, "BUILD.bazel"), "")
+	r := rule.NewRule(LibraryKind, "lib")
+	r.SetAttr("srcs", []string{"Lib/Utils.hs", "Lib/Bare.hs"})
+	var got []string
+	for _, spec := range NewLanguage().Imports(nil, r, f) {
+		got = append(got, spec.Imp)
+	}
+	sort.Strings(got)
+	if want := []string{"Bare", "Lib.Utils"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("imports = %v, want %v", got, want)
 	}
 }

@@ -8,6 +8,7 @@ import (
 
 var (
 	importRe = regexp.MustCompile(`^import\s+(?:safe\s+)?(?:qualified\s+)?(?:"[^"]*"\s+)?(?:qualified\s+)?([A-Z][A-Za-z0-9_']*(?:\.[A-Z][A-Za-z0-9_']*)*)`)
+	moduleRe = regexp.MustCompile(`^module\s+([A-Z][A-Za-z0-9_']*(?:\.[A-Z][A-Za-z0-9_']*)*)`)
 	mainRe   = regexp.MustCompile(`^module\s+Main\b`)
 	mainSig  = regexp.MustCompile(`^main\s*(?:::|=)`)
 )
@@ -65,4 +66,15 @@ func DefinesMain(content []byte) bool {
 		}
 	}
 	return false
+}
+
+// ParseModule returns the module name declared in the header of content, or
+// "" when there is none.
+func ParseModule(content []byte) string {
+	for _, line := range codeLines(content) {
+		if m := moduleRe.FindStringSubmatch(line); m != nil {
+			return m[1]
+		}
+	}
+	return ""
 }

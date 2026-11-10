@@ -1,6 +1,10 @@
 package haskell
 
-import "github.com/devhusdk/rules_dx/gazelle/common"
+import (
+	"path/filepath"
+
+	"github.com/devhusdk/rules_dx/gazelle/common"
+)
 
 // SupportedExts lists the Haskell source extensions the generator owns.
 var SupportedExts = []string{".hs"}
@@ -23,6 +27,17 @@ func DirTargetName(dir string) (string, error) { return common.DirTargetName(dir
 
 // Identity maps a source file to the module name it is indexed under.
 func Identity(name string) string { return common.Stem(name, SupportedExts) }
+
+// declaredModule returns the module name in the header of the file at path,
+// falling back to its stem.
+func declaredModule(path string) []string {
+	if content, err := common.ReadSource(path); err == nil {
+		if m := ParseModule(content); m != "" {
+			return []string{m}
+		}
+	}
+	return []string{Identity(filepath.Base(path))}
+}
 
 var stdlibPrefixes = []string{
 	"Control", "Data", "Debug", "Foreign", "GHC", "Numeric", "System", "Text", "Type", "Unsafe",

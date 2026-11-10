@@ -1,3 +1,4 @@
+load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -22,6 +23,19 @@ go_library(
     ],
 )
 
+filegroup(
+    name = "generation_testdata",
+    srcs = glob(["testdata/**"]),
+)
+
+gazelle_generation_test(
+    name = "generation_test",
+    gazelle_binary = "@dx_gazelle//:gazelle",
+    pure = "on",
+    tags = ["no-coverage"],
+    test_data = [":generation_testdata"],
+)
+
 go_test(
     name = "haskell_test",
     srcs = [
@@ -33,5 +47,6 @@ go_test(
     deps = [
         "@gazelle//config",
         "@gazelle//language",
+        "@gazelle//v2/rule",
     ],
 )

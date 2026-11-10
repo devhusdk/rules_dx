@@ -1,0 +1,7 @@
+load("@rules_dx//haskell:defs.bzl", "haskell_library")
+
+haskell_library(
+    name = "Lib",
+    srcs = ["Utils.hs"],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,11 @@
+.{
+    .name = .zig_deps_fixture,
+    .version = "0.0.0",
+    .paths = .{""},
+    .dependencies = .{
+        .clap = .{
+            .url = "https://github.com/Hejsil/zig-clap/archive/05faf3905e8548f5cc269a8836e154065e70128d.tar.gz",
+            .hash = "clap-05faf39",
+        },
+    },
+}

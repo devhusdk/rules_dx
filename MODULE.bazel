@@ -1305,6 +1305,14 @@ register_toolchains("@dx_fortran_toolchains//:all")
 zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
 zig.toolchain(zig_version = "0.17.0")
 
+zig_deps = use_extension("//zig:extensions.bzl", "zig_deps", dev_dependency = True)
+zig_deps.lock(
+    name = "zig_deps_fixture",
+    digests = "//zig/tests/fixtures/zig-deps:zig.digests.json",
+    lock = "//zig/tests/fixtures/zig-deps:build.zig.zon",
+)
+use_repo(zig_deps, "zig_deps_fixture")
+
 _zig_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 _zig_http_archive(

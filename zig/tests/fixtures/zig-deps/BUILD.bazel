@@ -1,0 +1,15 @@
+load("@rules_dx//zig:defs.bzl", "zig_test")
+
+exports_files(
+    [
+        "build.zig.zon",
+        "zig.digests.json",
+    ],
+    visibility = ["//:__pkg__"],
+)
+
+zig_test(
+    name = "clap_test",
+    main = "clap_test.zig",
+    deps = ["@zig_deps_fixture//clap"],
+)

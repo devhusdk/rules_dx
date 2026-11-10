@@ -31,6 +31,7 @@ pub const PATH_TOOL_ALLOWLIST: &[(&str, &[&str])] = &[
     ("trivy_config", &["bicep"]),
     ("pkl_lsp", &["java", "pkl-lsp.jar"]),
     ("buf", &["diff"]),
+    ("actionlint", &["shellcheck"]),
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -847,6 +848,19 @@ mod tests {
         );
         assert!(parse_real_request(&doc("buf", ok)).is_err());
         assert!(parse_real_request(&doc("vale", diff)).is_err());
+        let shellcheck = json!([{"name": "shellcheck", "binary": "bin/shellcheck"}]);
+        assert_eq!(
+            parse_real_request(&doc("actionlint", shellcheck.clone()))
+                .expect("parses")
+                .tools["actionlint"]
+                .path_tools,
+            [("shellcheck".to_owned(), PathBuf::from("bin/shellcheck"))]
+        );
+        assert!(
+            parse_real_request(&doc("actionlint", json!([{"name": "diff", "binary": "bin/diff"}])))
+                .is_err()
+        );
+        assert!(parse_real_request(&doc("vale", shellcheck)).is_err());
     }
 
     #[test]

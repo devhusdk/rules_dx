@@ -107,7 +107,6 @@ upgrade.md undocumented-flag --color
 upgrade.md undocumented-flag --quiet
 upgrade.md undocumented-flag --verbose
 upgrade.md undocumented-flag --workspace
-watch.md missing-exit-code 1
 windows.md unknown-flag --global
 windows.md unknown-flag --id
 windows.md unknown-flag --shutdown

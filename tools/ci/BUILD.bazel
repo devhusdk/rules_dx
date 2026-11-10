@@ -854,6 +854,7 @@ rust_test(
     data = [
         "//:MODULE.bazel",
         "//deploy/private/release:cosign_pins.bzl",
+        "//deploy/private/release:pins.json",
         "//deploy/private/release:signing.bzl",
         "//deploy/private/release:src/lib.rs",
     ],

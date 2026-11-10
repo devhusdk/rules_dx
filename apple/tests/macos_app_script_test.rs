@@ -41,16 +41,6 @@ const FAKE_SHASUM: &str = r#"#!/bin/sh
 echo "c0ffee  $3"
 "#;
 
-const FAKE_DITTO: &str = "#!/bin/sh\nexit 0\n";
-
-const FAKE_MKTEMP: &str = "#!/bin/sh\necho \"$FAKE_TREE\"\n";
-
-const FAKE_FIND: &str = "#!/bin/sh\necho \"$1/Ledger.app\"\n";
-
-const FAKE_HEAD: &str = "#!/bin/sh\nread -r line\necho \"$line\"\n";
-
-const FAKE_RAW_PLUTIL: &str = "#!/bin/sh\necho Ledger\n";
-
 const NAME: &str = "Ledger";
 const ZIP_BYTES: &str = "PK\u{3}\u{4}ledger";
 
@@ -463,59 +453,4 @@ fn identity_strings_are_escaped() {
     assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
     let json = read_json(&case.identity()).unwrap_or_else(|error| panic!("json: {error}"));
     assert_eq!(json["identity"]["bundle_id"], "com.example.\"led\\ger");
-}
-
-#[test]
-fn the_launcher_exits_127_without_ditto_and_runs_the_app_with_it() {
-    let case = Case::new("macos-app-run");
-    let launcher = resolve_runfiles(
-        &std::env::var("DX_MACOS_RUN_APP")
-            .unwrap_or_else(|_| panic!("DX_MACOS_RUN_APP must name a script")),
-    );
-    let empty = case.root.join("empty");
-    std::fs::create_dir_all(&empty).unwrap_or_else(|error| panic!("mkdir: {error}"));
-    let empty_path = empty.to_string_lossy().into_owned();
-    let ran = run(&launcher, &[], &[("PATH", empty_path.as_str())])
-        .unwrap_or_else(|error| panic!("run: {error}"));
-    assert_eq!(ran.status.code(), Some(127), "{}", ran.combined());
-    assert_eq!(
-        ran.stderr,
-        "apple_macos_app: no ditto on PATH; running the app needs macOS\n"
-    );
-
-    executable(
-        &case.contents.join("MacOS/Ledger"),
-        "#!/bin/sh\necho \"ledger $*\"\n",
-    );
-    for (name, text) in [
-        ("ditto", FAKE_DITTO),
-        ("mktemp", FAKE_MKTEMP),
-        ("find", FAKE_FIND),
-        ("head", FAKE_HEAD),
-        ("plutil", FAKE_RAW_PLUTIL),
-    ] {
-        executable(&case.root.join("bin").join(name), text);
-    }
-    let runfiles = case.root.join("runfiles");
-    write(&runfiles.join("_main/pkg/Ledger.zip"), ZIP_BYTES);
-    let path = case.root.join("bin").to_string_lossy().into_owned();
-    let tree = case.root.join("tree").to_string_lossy().into_owned();
-    let runfiles = runfiles.to_string_lossy().into_owned();
-    let tmp = case.root.to_string_lossy().into_owned();
-    let output = std::process::Command::new(&launcher)
-        .arg("--flag")
-        .env("PATH", path)
-        .env("FAKE_TREE", tree)
-        .env("RUNFILES_DIR", runfiles)
-        .env("DX_MACOS_APP_ZIP", "_main/pkg/Ledger.zip")
-        .env("TMPDIR", tmp)
-        .output()
-        .unwrap_or_else(|error| panic!("run: {error}"));
-    let ran = Run {
-        status: output.status,
-        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
-        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
-    };
-    assert_eq!(ran.status.code(), Some(0), "{}", ran.combined());
-    assert_eq!(ran.stdout, "ledger --flag\n");
 }

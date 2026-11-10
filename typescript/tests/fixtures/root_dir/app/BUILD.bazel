@@ -1,0 +1,30 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//typescript:defs.bzl", "typescript_binary")
+load("//typescript/tests/typecheck_gate:gate_tests.bzl", "typecheck_gate_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_binary(
+    name = "app",
+    testonly = True,
+    srcs = ["main.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = ["//typescript/tests/fixtures/root_dir/lib"],
+)
+
+typecheck_gate_test(
+    name = "app_gate",
+    target = "app",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

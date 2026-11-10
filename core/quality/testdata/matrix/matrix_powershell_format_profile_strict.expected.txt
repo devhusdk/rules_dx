@@ -8,4 +8,4 @@ initial 1
 initial WARNING psscriptanalyzer - matrix/psscriptanalyzer_profile_strict_format.ps1 0 0 fixable=true "file is not formatted"
 terminal 0
 replacements 1
-replacement matrix/psscriptanalyzer_profile_strict_format.ps1 2 3 " = "
+replacement matrix/psscriptanalyzer_profile_strict_format.ps1 19 19 "  "

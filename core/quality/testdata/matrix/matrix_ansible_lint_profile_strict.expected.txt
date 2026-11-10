@@ -5,7 +5,7 @@ stage ansible_lint classes=ansible sources=matrix/ansible_profile_strict/playboo
 completed_rounds 2
 convergence STABLE
 initial 1
-initial WARNING ansible_lint fqcn[action-core] matrix/ansible_profile_strict/playbooks/site.yml 104 104 fixable=true "Use `ansible.builtin.debug` or `ansible.legacy.debug` instead."
+initial WARNING ansible_lint key-order[task] matrix/ansible_profile_strict/playbooks/site.yml 69 69 fixable=true "Task/Handler: Report readiness"
 terminal 0
 replacements 1
-replacement matrix/ansible_profile_strict/playbooks/site.yml 104 104 "ansible.builtin."
+replacement matrix/ansible_profile_strict/playbooks/site.yml 75 145 "name: Report readiness\n      ansible.builtin.debug:\n        msg: ready"

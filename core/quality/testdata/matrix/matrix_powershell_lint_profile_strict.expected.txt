@@ -5,7 +5,7 @@ stage psscriptanalyzer classes=powershell sources=matrix/psscriptanalyzer_profil
 completed_rounds 1
 convergence STABLE
 initial 1
-initial WARNING psscriptanalyzer PSUseConsistentWhitespace matrix/psscriptanalyzer_profile_strict_lint.ps1 2 2 fixable=false "Use space before and after binary and assignment operators."
+initial WARNING psscriptanalyzer PSAvoidUsingWriteHost matrix/psscriptanalyzer_profile_strict_lint.ps1 21 21 fixable=false "File 'psscriptanalyzer_profile_strict_lint.ps1' uses Write-Host. Avoid using Write-Host because it might not work in all hosts, does not work when there is no host, and (prior to PS 5.0) cannot be suppressed, captured, or redirected. Instead, use Write-Output, Write-Verbose, or Write-Information."
 terminal 1
-terminal WARNING psscriptanalyzer PSUseConsistentWhitespace matrix/psscriptanalyzer_profile_strict_lint.ps1 2 2 fixable=false "Use space before and after binary and assignment operators."
+terminal WARNING psscriptanalyzer PSAvoidUsingWriteHost matrix/psscriptanalyzer_profile_strict_lint.ps1 21 21 fixable=false "File 'psscriptanalyzer_profile_strict_lint.ps1' uses Write-Host. Avoid using Write-Host because it might not work in all hosts, does not work when there is no host, and (prior to PS 5.0) cannot be suppressed, captured, or redirected. Instead, use Write-Output, Write-Verbose, or Write-Information."
 replacements 0

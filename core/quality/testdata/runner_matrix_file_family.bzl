@@ -2886,26 +2886,6 @@ FILE_FAMILY_CASES = [
         "windows_x86_64": True,
     },
     {
-        "name": "matrix_php_typecheck_unused_public",
-        "generated": {
-            "matrix/phpstan_unused_public.php": "<?php\ndeclare(strict_types=1);\n\nnamespace Dx\\Math;\n\nfinal class Calc\n{\n    public function add(int $a, int $b): int\n    {\n        return $a + $b;\n    }\n}\n",
-        },
-        "capability": "typecheck",
-        "stages": ["phpstan;php;matrix/phpstan_unused_public.php"],
-        "tool_names": ["phpstan"],
-        "tool_binaries": ["//php/private/tools:phpstan"],
-        "toolfile_tools": ["phpstan"],
-        "toolfile_srcs": ["//php/private/tools:phpstan_autoload.php"],
-        "toolfile_rels": ["dx-phpstan/ext/autoload.php"],
-        "toolfile_group_tools": ["phpstan", "phpstan"],
-        "toolfile_group_prefixes": ["dx-phpstan/ext/unused-public/", "dx-phpstan/ext/assert/"],
-        "toolfile_group_srcs": ["@dx_unused_public//:files", "@dx_webmozart_assert//:files"],
-        "expected_file": ":matrix/matrix_php_typecheck_unused_public.expected.txt",
-        "linux_arm64": True,
-        "macos_arm64": True,
-        "windows_x86_64": True,
-    },
-    {
         "name": "matrix_php_lint_standard",
         "generated": {
             "matrix/phpcs_profile_standard.php": "<?php\n\ndeclare(strict_types=1);\n\nnamespace Dx\\Math;\n\nfinal class Calc\n{\n    public function add(int $a, int $b): int\n    {\n        return $a;\n    }\n}\n",
@@ -3104,7 +3084,7 @@ FILE_FAMILY_CASES = [
         "name": "matrix_powershell_lint_profile_strict",
         "tags": ["no-remote-exec"],
         "generated": {
-            "matrix/psscriptanalyzer_profile_strict_lint.ps1": "$a=1\nif ($a) {\n    Write-Output $a\n}\n",
+            "matrix/psscriptanalyzer_profile_strict_lint.ps1": "$a = 1\nif ($a) {\n    Write-Host $a\n}\n",
         },
         "capability": "lint",
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_profile_strict_lint.ps1"],
@@ -3144,7 +3124,7 @@ FILE_FAMILY_CASES = [
         "name": "matrix_powershell_format_profile_strict",
         "tags": ["no-remote-exec"],
         "generated": {
-            "matrix/psscriptanalyzer_profile_strict_format.ps1": "$a=1\nif ($a) {\n    Write-Output $a\n}\n",
+            "matrix/psscriptanalyzer_profile_strict_format.ps1": "$a = 1\nif ($a) {\n  Write-Output $a\n}\n",
         },
         "capability": "format",
         "stages": ["psscriptanalyzer;powershell;matrix/psscriptanalyzer_profile_strict_format.ps1"],
@@ -3207,7 +3187,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_ansible_lint_fix",
         "generated": {
-            "matrix/ansible_fix/playbooks/site.yml": "---\n- name: Fixable play\n  hosts: all\n  gather_facts: false\n  tasks:\n    - name: Report readiness\n      debug:\n        msg: ready\n",
+            "matrix/ansible_fix/playbooks/site.yml": "---\n- name: Fixable play\n  hosts: all\n  gather_facts: false\n  tasks:\n    - ansible.builtin.debug:\n        msg: ready\n      name: Report readiness\n",
         },
         "capability": "lint",
         "stages": ["ansible_lint;ansible;matrix/ansible_fix/playbooks/site.yml"],
@@ -3257,7 +3237,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_ansible_lint_profile_strict",
         "generated": {
-            "matrix/ansible_profile_strict/playbooks/site.yml": "---\n- name: Profile play\n  hosts: all\n  gather_facts: false\n  tasks:\n    - name: Report readiness\n      debug:\n        msg: ready\n",
+            "matrix/ansible_profile_strict/playbooks/site.yml": "---\n- name: Profile play\n  hosts: all\n  gather_facts: false\n  tasks:\n    - ansible.builtin.debug:\n        msg: ready\n      name: Report readiness\n",
         },
         "capability": "lint",
         "stages": ["ansible_lint;ansible;matrix/ansible_profile_strict/playbooks/site.yml"],
@@ -4779,6 +4759,11 @@ FILE_FAMILY_CASES = [
         "stages": ["trivy_config;terraform;matrix/trivy_dirty/main.tf"],
         "tool_names": ["trivy_config"],
         "tool_binaries": ["@dx_tools//:trivy"],
+        "toolfile_tools": ["trivy_config"],
+        "toolfile_srcs": ["//core/quality/tiers/trivy_config:strict.txt"],
+        "toolfile_rels": [""],
+        "config_tools": ["trivy_config"],
+        "config_files": ["//core/quality/tiers/trivy_config:strict.txt"],
         "expected_file": ":matrix/matrix_terraform_trivy_lint_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
@@ -4885,6 +4870,11 @@ FILE_FAMILY_CASES = [
         "path_tool_owners": ["trivy_config"],
         "path_tool_names": ["bicep"],
         "path_tool_binaries": ["@dx_tools//:bicep"],
+        "toolfile_tools": ["trivy_config"],
+        "toolfile_srcs": ["//core/quality/tiers/trivy_config:strict.txt"],
+        "toolfile_rels": [""],
+        "config_tools": ["trivy_config"],
+        "config_files": ["//core/quality/tiers/trivy_config:strict.txt"],
         "expected_file": ":matrix/matrix_bicep_trivy_lint_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,

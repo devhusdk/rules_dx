@@ -2,8 +2,8 @@
 
 use crate::archive::basename;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    pages_redact, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io::{self, Read};
@@ -101,6 +101,16 @@ pub fn hackage_check_identity(
     Ok(())
 }
 
+/// Builds the `cabal upload --publish` launch.
+fn hackage_upload_command(cabal: &Path, sdist: &Path, token: &str) -> std::process::Command {
+    let mut cmd = scrubbed_command(cabal, &[PUBLISH_CHILD_ENV_KEEP, CABAL_CHILD_ENV_EXTRA], &[]);
+    cmd.arg("upload")
+        .arg("--publish")
+        .arg(format!("--token={token}"))
+        .arg(sdist);
+    cmd
+}
+
 /// Uploads the sdist and publishes it with `cabal upload --publish`.
 fn hackage_live_upload(
     cabal: &Path,
@@ -109,11 +119,7 @@ fn hackage_live_upload(
     package: &str,
     version: &str,
 ) -> i32 {
-    let mut cmd = scrubbed_command(cabal, &[PUBLISH_CHILD_ENV_KEEP, CABAL_CHILD_ENV_EXTRA], &[]);
-    cmd.arg("upload")
-        .arg("--publish")
-        .arg(format!("--token={token}"))
-        .arg(sdist);
+    let mut cmd = hackage_upload_command(cabal, sdist, token);
     match run_publish(&mut cmd) {
         Ok(out) if out.success() => {
             print_redacted(&out, token);
@@ -126,7 +132,10 @@ fn hackage_live_upload(
             1
         }
         Err(error) => {
-            eprintln!("hackage_deploy: {error}");
+            eprintln!(
+                "hackage_deploy: {}",
+                pages_redact(&error.to_string(), token)
+            );
             1
         }
     }
@@ -215,6 +224,20 @@ fn report_staged(staged: io::Result<std::path::PathBuf>, package: &str, version:
 mod tests {
     use super::*;
     use crate::test_support::*;
+
+    #[test]
+    fn upload_launch_failure_never_shows_the_token() {
+        let token = "fake-hackage-token-7731";
+        let dir = tempfile::tempdir().unwrap();
+        let mut cmd = hackage_upload_command(
+            &dir.path().join("no-such-cabal"),
+            Path::new("p.tar.gz"),
+            token,
+        );
+        let error = run_publish(&mut cmd).unwrap_err();
+        assert!(error.to_string().contains(token));
+        assert!(!pages_redact(&error.to_string(), token).contains(token));
+    }
 
     fn write_sdist(dir: &Path, file_name: &str, entry: &str, cabal: &str) -> std::path::PathBuf {
         let mut builder = tar::Builder::new(Vec::new());

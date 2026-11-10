@@ -2,8 +2,8 @@
 
 use crate::archive::basename;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    pages_redact, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::path::Path;
@@ -92,14 +92,8 @@ pub fn luarocks_check_identity(
     Ok(())
 }
 
-/// Packs and uploads the rockspec with `luarocks upload`.
-fn luarocks_live_upload(
-    luarocks: &Path,
-    rockspec: &Path,
-    key: &str,
-    package: &str,
-    version: &str,
-) -> i32 {
+/// Builds the `luarocks upload` launch.
+fn luarocks_upload_command(luarocks: &Path, rockspec: &Path, key: &str) -> std::process::Command {
     let mut cmd = scrubbed_command(
         luarocks,
         &[PUBLISH_CHILD_ENV_KEEP, LUAROCKS_CHILD_ENV_EXTRA],
@@ -108,6 +102,18 @@ fn luarocks_live_upload(
     cmd.arg("upload")
         .arg(rockspec)
         .arg(format!("--api-key={key}"));
+    cmd
+}
+
+/// Packs and uploads the rockspec with `luarocks upload`.
+fn luarocks_live_upload(
+    luarocks: &Path,
+    rockspec: &Path,
+    key: &str,
+    package: &str,
+    version: &str,
+) -> i32 {
+    let mut cmd = luarocks_upload_command(luarocks, rockspec, key);
     match run_publish(&mut cmd) {
         Ok(out) if out.success() => {
             print_redacted(&out, key);
@@ -120,7 +126,7 @@ fn luarocks_live_upload(
             1
         }
         Err(error) => {
-            eprintln!("luarocks_deploy: {error}");
+            eprintln!("luarocks_deploy: {}", pages_redact(&error.to_string(), key));
             1
         }
     }
@@ -206,6 +212,20 @@ pub fn luarocks_main(
 mod tests {
     use super::*;
     use crate::test_support::*;
+
+    #[test]
+    fn upload_launch_failure_never_shows_the_key() {
+        let key = "fake-luarocks-key-5519";
+        let dir = tempfile::tempdir().unwrap();
+        let mut cmd = luarocks_upload_command(
+            &dir.path().join("no-such-luarocks"),
+            Path::new("r.rockspec"),
+            key,
+        );
+        let error = run_publish(&mut cmd).unwrap_err();
+        assert!(error.to_string().contains(key));
+        assert!(!pages_redact(&error.to_string(), key).contains(key));
+    }
 
     const ROCKSPEC: &str = "package = \"demo\"\nversion = \"1.2.0-1\"\nsource = {\n  url = \"x\",\n}\ndescription = {\n  version = \"9\",\n}\n";
 

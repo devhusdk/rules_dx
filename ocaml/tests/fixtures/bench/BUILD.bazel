@@ -12,7 +12,6 @@ package(
 
 ocaml_bench(
     name = "sum_bench",
-    main = "sum_bench.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
 )
 

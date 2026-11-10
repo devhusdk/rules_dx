@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 45
+MAX_TEST_CONFIGS = 38
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -77,16 +77,13 @@ def _config(policy, compiler = "llvm", profile = "strict", clippy_flags = [], to
 _CC_SYNTAX = "//core/quality/testdata/clang_syntax:cc_syntax_policy"
 _CC_TIDY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
 _D = "//core/quality/testdata/d_owned:policy"
-_DOTNET = "//core/quality/testdata/dotnet_owned:policy"
 _FSHARP = "//core/quality/testdata/fsharp_owned:policy"
-_GO = "//core/quality/testdata/go_owned:policy"
 _HASKELL = "//core/quality/testdata/haskell_owned:policy"
 _OCAML = "//core/quality/testdata/ocaml_owned:policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
 _TOOL_OVERRIDE_POLICY = "//core/quality/testdata:tool_override_policy"
 _ZIG = "//core/quality/testdata/zig_owned:policy"
 _RUBY = "//core/quality/testdata/ruby_owned:policy"
-_RUST = "//core/quality/testdata/rust_owned:policy"
 
 TEST_CONFIGS = {
     "cc_syntax": _config(_CC_SYNTAX),
@@ -105,18 +102,13 @@ TEST_CONFIGS = {
     "fsharp_owned": _config(_FSHARP),
     "ruby_owned": _config(_RUBY),
     "dialyzer": _config("//core/quality/testdata/dialyzer:policy"),
-    "dotnet_owned": _config(_DOTNET),
-    "dotnet_owned_standard": _config(_DOTNET, profile = "standard"),
     "eslint_typed_standard": _config("//core/quality/testdata/eslint_typed_owned/standard:ts_policy"),
     "eslint_typed_strict": _config("//core/quality/testdata/eslint_typed_owned/strict:ts_policy"),
     "generated": _config("//core/quality/tests/fixtures/generated_policy:policy"),
-    "go_owned": _config(_GO),
-    "go_owned_standard": _config(_GO, profile = "standard"),
     "haskell_owned": _config(_HASKELL),
     "haskell_owned_standard": _config(_HASKELL, profile = "standard"),
     "iac_tiers": _config("//core/quality/testdata/iac_tiers:policy"),
     "jvm_owned": _config("//core/quality/testdata/jvm_owned:policy"),
-    "nvcc_syntax": _config("//core/quality/testdata/nvcc_syntax:policy"),
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),
     "ocaml_owned": _config(_OCAML),
     "ocaml_owned_standard": _config(_OCAML, profile = "standard"),
@@ -126,10 +118,8 @@ TEST_CONFIGS = {
     "ruff_empty": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:no_ruff"}),
     "ruff_pair": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:two_ruffs"}),
     "ruff_policy": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality:fixture_policy"}),
-    "rust_owned": _config(_RUST),
-    "rust_owned_clippy_standard": _config(_RUST, clippy_flags = _CLIPPY_STANDARD),
-    "rust_owned_clippy_strict": _config(_RUST, clippy_flags = _CLIPPY_STRICT),
-    "scalafix_aux": _config("//core/quality/testdata/scalafix_aux:policy"),
+    "shared_clippy_standard": _config(_SHARED, clippy_flags = _CLIPPY_STANDARD),
+    "shared_clippy_strict": _config(_SHARED, clippy_flags = _CLIPPY_STRICT),
     "tool_defaults": _config(_TOOL_OVERRIDE_POLICY),
     "tool_overrides": _config(_TOOL_OVERRIDE_POLICY, tools = _TOOL_OVERRIDES),
     "workspace": _config("//.dx:policy"),

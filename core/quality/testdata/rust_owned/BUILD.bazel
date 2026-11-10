@@ -1,7 +1,10 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality:policy.bzl", "quality_family")
 
-package(default_visibility = ["//core/quality/testdata:__pkg__"])
+package(default_visibility = [
+    "//core/quality/testdata:__pkg__",
+    "//core/quality/tests/fixtures/consumer_policy:__pkg__",
+])
 
 quality_family(
     name = "rust_family",
@@ -12,11 +15,6 @@ quality_family(
     family_id = "rust",
     lint = ["clippy"],
     typecheck = ["rustc"],
-)
-
-workspace_policy(
-    name = "policy",
-    families = [":rust_family"],
 )
 
 rust_library(

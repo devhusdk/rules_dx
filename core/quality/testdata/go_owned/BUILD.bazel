@@ -1,6 +1,9 @@
-load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality:policy.bzl", "quality_family")
 
-package(default_visibility = ["//core/quality/testdata:__pkg__"])
+package(default_visibility = [
+    "//core/quality/testdata:__pkg__",
+    "//core/quality/tests/fixtures/consumer_policy:__pkg__",
+])
 
 quality_family(
     name = "go_family",
@@ -15,9 +18,4 @@ quality_family(
         "staticcheck",
     ],
     typecheck = ["gotype"],
-)
-
-workspace_policy(
-    name = "policy",
-    families = [":go_family"],
 )

@@ -1,12 +1,13 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//java:defs.bzl", "java_library")
 load("//core/quality:native_config.bzl", "scalafix_config")
-load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality:policy.bzl", "quality_family")
 load("//scala:defs.bzl", "scala_library", "scala_test")
 load(":results.bzl", "scalafix_results")
 
 quality_family(
     name = "scala_family",
+    visibility = ["//core/quality/tests/fixtures/consumer_policy:__pkg__"],
     disabled = [
         "audit",
         "format",
@@ -14,11 +15,6 @@ quality_family(
     ],
     family_id = "scala",
     lint = ["scalafix"],
-)
-
-workspace_policy(
-    name = "policy",
-    families = [":scala_family"],
 )
 
 scalafix_config(

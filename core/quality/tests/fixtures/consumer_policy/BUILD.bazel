@@ -31,6 +31,10 @@ workspace_policy(
             "//conditions:default": ["//core/quality/tiers/pmd:standard"],
         }) +
         select({
+            "//config:config_profile_strict": ["//core/quality/tiers/roslyn:strict"],
+            "//conditions:default": ["//core/quality/tiers/roslyn:standard"],
+        }) +
+        select({
             "//config:config_profile_strict": ["//core/quality/tiers/sqlfluff:strict"],
             "//conditions:default": ["//core/quality/tiers/sqlfluff:standard"],
         }) +
@@ -46,6 +50,11 @@ workspace_policy(
         ":biome_json_family",
         ":cloudformation_family",
         ":cmake_family",
+        "//core/quality/testdata/dotnet_owned:csharp_family",
+        "//core/quality/testdata/go_owned:go_family",
+        "//core/quality/testdata/nvcc_syntax:cuda_family",
+        "//core/quality/testdata/rust_owned:rust_family",
+        "//core/quality/testdata/scalafix_aux:scala_family",
         ":cue_family",
         ":eslint_js_family",
         ":eslint_ts_family",

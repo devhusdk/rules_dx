@@ -1833,7 +1833,6 @@ test_suite(
     tests = [
         ":ambiguous_node_test",
         ":fake_format_test",
-        ":fake_format_test_upstream",
         ":fixture_real_asciidoc_no_converter_test",
         ":fixture_real_javascript_bad_config_test",
         ":fixture_real_markdown_sibling_only_test",

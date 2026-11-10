@@ -1,0 +1,15 @@
+diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
+--- a/haskell/cabal.bzl
++++ b/haskell/cabal.bzl
+@@ -142,8 +142,9 @@
+     # TODO: remove this if Bazel fixes its behavior.
+     # Upstream ticket: https://github.com/bazelbuild/bazel/issues/5127.
+     ar = cc.tools.ar
+-    if paths.basename(ar) == "libtool":
+-        # assume `ar` is available at the same place
++    if paths.basename(ar) == "llvm-libtool-darwin":
++        ar = paths.join(paths.dirname(ar), "llvm-ar")
++    elif paths.basename(ar) == "libtool":
+         ar = paths.join(paths.dirname(ar), "ar")
+ 
+     return struct(

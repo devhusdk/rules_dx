@@ -7,6 +7,8 @@ exports_files([
     "cc_toolchain_config_info.patch",
     "coverage_wrapper_no_report.patch",
     "hermetic_haskell.patch",
+    "cabal_llvm_ar.patch",
+    "cc_wrapper_darwin_ffi.patch",
 ])
 
 real_source_target(

@@ -26,9 +26,8 @@ TOOLS = [
                 classes = ["nix"],
                 family = "nix",
                 fix = "supported",
-                platforms = ["linux_arm64", "linux_x86_64"],
+                platforms = ["linux_arm64", "linux_x86_64", "macos_arm64"],
                 unsupported = {
-                    "macos_arm64": "nixfmt builds from source with the managed GHC, which has no hermetic macOS cabal path yet",
                     "windows_arm64": "nixfmt depends on the unix package and does not build on Windows",
                     "windows_x86_64": "nixfmt depends on the unix package and does not build on Windows",
                 },

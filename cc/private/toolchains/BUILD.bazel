@@ -224,6 +224,30 @@ cc_toolchain_test(
 )
 
 cc_toolchain_test(
+    name = "llvm_asan_test",
+    compiler = "llvm",
+    llvm_sanitizers = ["asan"],
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = "//cc/tests/fixtures/gcc_sanitize:asan_test",
+)
+
+cc_toolchain_test(
+    name = "llvm_ubsan_test",
+    compiler = "llvm",
+    llvm_sanitizers = ["ubsan"],
+    tags = ["no-coverage"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = "//cc/tests/fixtures/gcc_sanitize:ubsan_test",
+)
+
+cc_toolchain_test(
     name = "gcc_arm64_hello_test",
     compiler = "gcc",
     target_compatible_with = [
@@ -479,6 +503,8 @@ test_suite(
         ":identity_gcc_arm64",
         ":identity_gcc_arm64_native",
         ":identity_msvc",
+        ":llvm_asan_test",
+        ":llvm_ubsan_test",
         ":msvc_arm64_c_test",
         ":msvc_arm64_hello_c_test",
         ":msvc_arm64_hello_test",

@@ -13,6 +13,11 @@ _EXTRA_TOOLCHAINS = "//command_line_option:extra_toolchains"
 _PLATFORMS = "//command_line_option:platforms"
 _MODE = "//command_line_option:compilation_mode"
 
+_LLVM_SANITIZERS = {
+    "asan": str(Label("@llvm//config:asan")),
+    "ubsan": str(Label("@llvm//config:ubsan")),
+}
+
 def _features(inherited, extra):
     features = list(inherited)
     for f in extra:
@@ -26,18 +31,21 @@ def _impl(settings, attr):
     for t in settings[_EXTRA_TOOLCHAINS]:
         if t not in extra_toolchains:
             extra_toolchains.append(t)
-    return {
+    out = {
         _COMPILER: attr.compiler or settings[_COMPILER],
         _EXTRA_TOOLCHAINS: extra_toolchains,
         _FEATURES: features,
         _PLATFORMS: getattr(attr, "platforms", []) or settings[_PLATFORMS],
         _MODE: getattr(attr, "compilation_mode", "") or settings[_MODE],
     }
+    for name, label in _LLVM_SANITIZERS.items():
+        out[label] = settings[label] or name in getattr(attr, "llvm_sanitizers", [])
+    return out
 
 toolchain_transition = transition(
     implementation = _impl,
-    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS],
-    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS],
+    inputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS] + _LLVM_SANITIZERS.values(),
+    outputs = [_COMPILER, _EXTRA_TOOLCHAINS, _FEATURES, _MODE, _PLATFORMS] + _LLVM_SANITIZERS.values(),
 )
 
 def _test_impl(ctx):
@@ -75,6 +83,7 @@ cc_toolchain_test = rule(
         "extra_toolchains": attr.string_list(doc = "Toolchain labels to register ahead of the registered ones.", default = []),
         "compilation_mode": attr.string(doc = "Compilation mode to build with, or empty to keep the command line value.", values = ["", "dbg", "fastbuild", "opt"]),
         "extra_features": attr.string_list(doc = "Features to enable on top of the command line features, such as asan.", default = []),
+        "llvm_sanitizers": attr.string_list(doc = "Sanitizers to enable in the llvm toolchain: asan or ubsan.", default = [], allow_empty = True),
         "test": attr.label(doc = "Test to rebuild.", executable = True, cfg = toolchain_transition, mandatory = True),
     } | dx_lcov_merger_attr(),
     test = True,

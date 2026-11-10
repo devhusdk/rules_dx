@@ -1,6 +1,7 @@
 """Module extension for deploy/private/pins."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
+load(":conan_pins.bzl", "CONAN_PLATFORMS", "CONAN_VERSION")
 load(":apicompat_pins.bzl", "APICOMPAT_SHA256", "APICOMPAT_VERSION")
 load(":japicmp_pins.bzl", "JAPICMP_SHA256", "JAPICMP_VERSION")
 load(":opam_pins.bzl", "OPAM_PLATFORMS", "OPAM_VERSION")
@@ -76,4 +77,22 @@ def _opam_impl(mctx):
 opam = module_extension(
     implementation = _opam_impl,
     doc = "Creates the pinned opam executable for each supported platform.",
+)
+
+
+def _conan_impl(mctx):
+    """Declares one pinned conan distribution per supported platform."""
+    for key, pin in CONAN_PLATFORMS.items():
+        http_archive(
+            name = "conan_" + key,
+            build_file_content = 'exports_files(["%s"])\nfilegroup(name = "files", srcs = glob(["**"]), visibility = ["//visibility:public"])\n' % pin["exe"],
+            sha256 = pin["sha256"],
+            urls = ["https://github.com/conan-io/conan/releases/download/%s/conan-%s-%s" % (CONAN_VERSION, CONAN_VERSION, pin["asset"])],
+        )
+    return mctx.extension_metadata(reproducible = True)
+
+
+conan = module_extension(
+    implementation = _conan_impl,
+    doc = "Creates the pinned conan distribution for each supported platform.",
 )

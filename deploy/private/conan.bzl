@@ -33,9 +33,10 @@ _conan_config = rule(
     doc = "Writes the deploy config for one Conan deployment.",
     attrs = {
         "conan": attr.label(
-            doc = "Pinned conan executable. Empty takes conan from PATH.",
+            doc = "Pinned conan executable.",
             allow_single_file = True,
             cfg = "exec",
+            mandatory = True,
         ),
         "conan_files": attr.label(
             doc = "Files the pinned conan needs at run time.",
@@ -67,8 +68,8 @@ def conan_deploy(name, recipe, remote, remote_url, package = "", version = "", c
     config_target = name + "_config"
     _conan_config(
         name = config_target,
-        conan = conan,
-        conan_files = conan_files,
+        conan = conan or str(Label("//deploy/private/pins:conan")),
+        conan_files = conan_files or str(Label("//deploy/private/pins:conan_files")),
         deploy_name = name,
         package = pkg,
         recipe = recipe,

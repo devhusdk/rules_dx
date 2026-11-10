@@ -1,3 +1,4 @@
+load(":conan_pins.bzl", "CONAN_PLATFORMS")
 load(":opam_pins.bzl", "OPAM_PLATFORMS")
 load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS")
 load("//deploy/private:go_sdk.bzl", "dx_go_binary_file")
@@ -5,6 +6,7 @@ load("//deploy/private:go_sdk.bzl", "dx_go_binary_file")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "conan_pins.bzl",
     "apicompat_pins.bzl",
     "japicmp_pins.bzl",
     "opam_pins.bzl",
@@ -67,6 +69,38 @@ alias(
         ":opam_" + key: "@opam_" + key + "//file"
         for key in OPAM_PLATFORMS
     } | {"//conditions:default": ":opam_none"}),
+)
+
+[
+    config_setting(
+        name = "conan_" + key,
+        constraint_values = [
+            "@platforms//os:" + pin["os"],
+            "@platforms//cpu:" + pin["cpu"],
+        ],
+    )
+    for key, pin in CONAN_PLATFORMS.items()
+]
+
+filegroup(
+    name = "conan_none",
+    srcs = [],
+)
+
+alias(
+    name = "conan",
+    actual = select({
+        ":conan_" + key: "@conan_" + key + "//:" + pin["exe"]
+        for key, pin in CONAN_PLATFORMS.items()
+    } | {"//conditions:default": ":conan_none"}),
+)
+
+alias(
+    name = "conan_files",
+    actual = select({
+        ":conan_" + key: "@conan_" + key + "//:files"
+        for key in CONAN_PLATFORMS
+    } | {"//conditions:default": ":conan_none"}),
 )
 
 alias(

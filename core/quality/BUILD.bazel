@@ -1058,6 +1058,8 @@ filegroup(
 dx_sh_toolchain(
     name = "busybox_sh",
     executable = "@dx_busybox_sh//file",
+    launcher = "@bazel_tools//tools/launcher:launcher",
+    launcher_maker = "@bazel_tools//tools/launcher:launcher_maker",
 )
 
 toolchain(

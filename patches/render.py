@@ -43,9 +43,9 @@ def render(module_text, readme_text):
             cells[1] = version
             line = " | ".join(cells)
         out.append(line)
-    for module, seen in listed.items():
-        for patch in known[module][1]:
-            if patch not in seen:
+    for module, (_, patches) in known.items():
+        for patch in patches:
+            if patch not in listed.get(module, ()):
                 raise SystemExit("patches/README.md: %s does not list %s, which MODULE.bazel applies" % (module, patch))
     return "\n".join(out)
 

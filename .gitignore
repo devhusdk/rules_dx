@@ -1,6 +1,5 @@
 # Bazel outputs and local configuration
 /bazel-*
-/families/*/bazel-*
 user.bazelrc
 **/user.bazelrc
 
@@ -14,8 +13,6 @@ AGENTS.local.md
 
 # dx managed state.
 **/.dx/local/
-
-# dx local-only preferences.
 
 # Release outputs.
 /dist/

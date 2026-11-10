@@ -24,7 +24,7 @@ regexTarget = "match"
 [[allowlists]]
 description = "Signing scripts read a throwaway keychain password from a generated file at runtime; the line holds a command substitution, not a secret"
 condition = "AND"
-paths = ["apple/ios/export_ops\\.sh$", "apple/signing/codesign_app\\.sh$"]
+paths = ["apple/private/ios/export_ops\\.sh$", "apple/private/signing/codesign_app\\.sh$"]
 regexes = ["^\\s*keychain_pass=\"\\$\\(cat \"\\$work/keychain\\.pass\"\\)\"$"]
 regexTarget = "line"
 expires = "2027-01-28"

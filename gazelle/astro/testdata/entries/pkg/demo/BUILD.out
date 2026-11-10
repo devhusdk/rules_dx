@@ -1,4 +1,4 @@
-load("@rules_dx//astro/rules:defs.bzl", "astro_library")
+load("@rules_dx//astro:defs.bzl", "astro_library")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(

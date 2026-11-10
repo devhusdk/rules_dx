@@ -17,7 +17,7 @@ const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_par
 /// Packages whose :corpus_starlark is in the test data.
 const PACKAGES: [&str; 72] = [
     "appimage",
-    "astro/rules",
+    "astro/private",
     "bicep/rules",
     "cc/rules",
     "cc/toolchains",

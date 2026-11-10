@@ -1,4 +1,4 @@
-load("@rules_dx//astro/rules:defs.bzl", "astro_library")
+load("@rules_dx//astro:defs.bzl", "astro_library")
 load("@rules_dx//javascript:defs.bzl", "javascript_library")
 load("@rules_dx//typescript:defs.bzl", "typescript_library")
 

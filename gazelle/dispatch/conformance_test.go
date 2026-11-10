@@ -36,7 +36,7 @@ const webScript = "export const x = 1;\n"
 var conformanceRows = map[string]conformanceRow{
 	"astro": {
 		files: map[string]string{"demo.astro": "---\nconst title = \"hello\";\n---\n\n<script>\n" + webScript + "</script>\n\n<div class=\"hello\">hello</div>\n"},
-		kind:  "astro_library", target: "demo", defs: "astro/rules:defs.bzl",
+		kind:  "astro_library", target: "demo", defs: "astro:defs.bzl",
 		symbols: []string{"astro_library"},
 	},
 	"cc": {

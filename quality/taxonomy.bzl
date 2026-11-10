@@ -14,7 +14,7 @@ TAXONOMY = {
         classes = ["asciidoc"],
     ),
     "astro": struct(
-        owner = "//astro/rules:defs.bzl",
+        owner = "//astro:defs.bzl",
         classes = ["astro"],
     ),
     "avro": struct(

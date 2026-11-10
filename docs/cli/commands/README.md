@@ -311,9 +311,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//api_spec/rules:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
 |  |  | `@rules_dx//asciidoc/rules:defs.bzl` | `asciidoc_library` |
-|  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_build` |
-|  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_library` |
-|  |  | `@rules_dx//astro/rules:defs.bzl` | `astro_test` |
+|  |  | `@rules_dx//astro:defs.bzl` | `astro_build` |
+|  |  | `@rules_dx//astro:defs.bzl` | `astro_library` |
+|  |  | `@rules_dx//astro:defs.bzl` | `astro_test` |
 |  |  | `@rules_dx//avro/rules:defs.bzl` | `avro_library` |
 |  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_library` |
 |  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_registry_module` |

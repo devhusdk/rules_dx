@@ -4,6 +4,7 @@ load("//rust:defs.bzl", "rust_test")
 
 CONSUMER_FIXTURES = [
     "d",
+    "elixir",
     "erlang",
     "go",
     "julia",

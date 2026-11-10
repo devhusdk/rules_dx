@@ -59,6 +59,7 @@ rust_binary(
     ),
     crate_name = "print_result",
     crate_root = "src/print.rs",
+    visibility = VIS_QUALITY_CLI + ["//erlang/tests/negative:__pkg__"],
     deps = all_crate_deps(
         package_name = "core/quality/quality_result",
         normal = True,

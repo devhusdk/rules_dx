@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//javascript:defs.bzl`:
 
 ```python
-load("@rules_dx//javascript:defs.bzl", "javascript_binary_upstream_data", "javascript_library", "javascript_wasm_bindgen_library")
+load("@rules_dx//javascript:defs.bzl", "javascript_library", "javascript_wasm_bindgen_library", "javascript_binary")
 ```
 
 ## Rules
-
-### `javascript_binary_upstream_data`
-
-```python
-javascript_binary_upstream_data(srcs, data)
-```
-
-Computes the upstream data inputs for one javascript_binary.
 
 ### `javascript_library`
 
@@ -49,14 +41,6 @@ javascript_binary(name, *, srcs = None, main = None, visibility = None, **kwargs
 ```
 
 Minimal wrapper over js_binary. main is the entry file; srcs are added to data.
-
-### `javascript_test_rejection`
-
-```python
-javascript_test_rejection(runner, node_modules, main, kwargs)
-```
-
-Returns the rejection for bad javascript_test arguments, or None.
 
 ### `javascript_test`
 

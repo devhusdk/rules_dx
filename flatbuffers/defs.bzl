@@ -4,7 +4,6 @@ load(
     "//flatbuffers/private:defs.bzl",
     _FlatBuffersInfo = "FlatBuffersInfo",
     _flatbuffers_library = "flatbuffers_library",
-    _resolve_root = "resolve_root",
 )
 load(
     "//flatbuffers/private:codegen.bzl",
@@ -25,4 +24,3 @@ flatbuffers_conform_test = _flatbuffers_conform_test
 flatbuffers_java_library = _flatbuffers_java_library
 flatbuffers_library = _flatbuffers_library
 flatbuffers_rust_library = _flatbuffers_rust_library
-resolve_root = _resolve_root

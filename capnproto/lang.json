@@ -18,7 +18,6 @@
     "pins.json"
   ],
   "entry_points": [
-    "std_import_path",
     "capnp_library"
   ],
   "quality": {

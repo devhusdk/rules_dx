@@ -30,12 +30,7 @@
     "private/toolchains/pins.bzl"
   ],
   "entry_points": [
-    "cc_coverage_features",
     "cc_coverage_settings",
-    "cc_coverage_unsupported",
-    "cc_coverage_mismatch",
-    "cc_coverage_probe",
-    "cc_param_file_features",
     "cc_library",
     "objc_library",
     "cc_binary",

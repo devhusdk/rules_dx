@@ -4,7 +4,6 @@ load(
     "//deploy/private:defs.bzl",
     _DxDeployInfo = "DxDeployInfo",
     _NativeRuntimeInfo = "NativeRuntimeInfo",
-    _VALID_DEPLOY_BUILD_MODES = "VALID_DEPLOY_BUILD_MODES",
     _archive_deploy = "archive_deploy",
     _cloudflare_pages_deploy = "cloudflare_pages_deploy",
     _conan_deploy = "conan_deploy",
@@ -41,7 +40,6 @@ load("//deploy/private/offline:offline.bzl", _offline_bundle = "offline_bundle")
 
 DxDeployInfo = _DxDeployInfo
 NativeRuntimeInfo = _NativeRuntimeInfo
-VALID_DEPLOY_BUILD_MODES = _VALID_DEPLOY_BUILD_MODES
 archive_deploy = _archive_deploy
 cloudflare_pages_deploy = _cloudflare_pages_deploy
 conan_deploy = _conan_deploy

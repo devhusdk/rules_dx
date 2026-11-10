@@ -23,7 +23,6 @@
     "private/toolchain/pins.json"
   ],
   "entry_points": [
-    "library_name",
     "fortran_library",
     "fortran_binary",
     "fortran_test"

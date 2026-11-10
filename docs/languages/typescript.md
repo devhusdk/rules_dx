@@ -13,90 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//typescript:defs.bzl`:
 
 ```python
-load("@rules_dx//typescript:defs.bzl", "typescript_srcs_rejection", "typescript_declaration_srcs_rejection", "typescript_upstream_srcs")
+load("@rules_dx//typescript:defs.bzl", "typescript_library", "typescript_proto_library", "typescript_binary")
 ```
 
 ## Rules
-
-### `typescript_srcs_rejection`
-
-```python
-typescript_srcs_rejection(srcs, rule = "typescript_library")
-```
-
-Returns the rejection for forbidden srcs of the named rule, or None.
-
-### `typescript_declaration_srcs_rejection`
-
-```python
-typescript_declaration_srcs_rejection(declaration_srcs)
-```
-
-Returns the rejection for non-declaration declaration inputs, or None.
-
-### `typescript_upstream_srcs`
-
-```python
-typescript_upstream_srcs(srcs, declaration_srcs)
-```
-
-Returns the combined upstream sources for real plus declaration inputs.
-
-### `typescript_empty_library_rejection`
-
-```python
-typescript_empty_library_rejection(srcs, declaration_srcs)
-```
-
-Returns the rejection for a project with neither srcs nor declaration_srcs, or None.
-
-### `typescript_transpiler`
-
-```python
-typescript_transpiler(transpiler)
-```
-
-Returns tsc when no transpiler is set, else the value unchanged.
-
-### `dx_tsconfig_is_source`
-
-```python
-dx_tsconfig_is_source(basename)
-```
-
-Returns whether a basename is listed in a scoped tsconfig files array.
-
-### `dx_tsconfig_relpath`
-
-```python
-dx_tsconfig_relpath(from_path, to_path)
-```
-
-Returns the relative path from one file to another file.
-
-### `dx_tsconfig_content`
-
-```python
-dx_tsconfig_content(extends_path, files, declaration)
-```
-
-Returns the scoped tsconfig object; declaration mirrors the ts_project attribute.
-
-### `typescript_scoped_tsconfig_rejection`
-
-```python
-typescript_scoped_tsconfig_rejection(kwargs)
-```
-
-Returns the rejection for unsupported scoped-tsconfig kwargs, or None.
-
-### `dx_scoped_tsconfig_out`
-
-```python
-dx_scoped_tsconfig_out(name, kwargs)
-```
-
-Returns scoped-tsconfig kwargs with the documented typecheck default.
 
 ### `typescript_library`
 
@@ -114,54 +34,6 @@ typescript_proto_library(name, proto, deps = None, visibility = None, **kwargs)
 
 Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @bufbuild/protobuf; proto must sit in the proto_library's package.
 
-### `typescript_binary_main`
-
-```python
-typescript_binary_main(srcs, main)
-```
-
-Returns the entry source of a typescript_binary: main, or the only src.
-
-### `typescript_binary_rejection`
-
-```python
-typescript_binary_rejection(srcs, main)
-```
-
-Returns the rejection for bad typescript_binary srcs or main, or None.
-
-### `typescript_binary_kwargs_rejection`
-
-```python
-typescript_binary_kwargs_rejection(kwargs)
-```
-
-Returns the rejection for a user entry_point on typescript_binary, or None.
-
-### `typescript_compiled_entry`
-
-```python
-typescript_compiled_entry(main)
-```
-
-Maps a .ts, .mts or .cts entry to its compiled .js, .mjs or .cjs path, or None.
-
-### `typescript_binary_upstream_kwargs`
-
-```python
-typescript_binary_upstream_kwargs(name, entry, deps, data, kwargs)
-```
-
-Returns the private js_binary kwargs: args and data forwarded, env held back for the forwarder.
-
-### `typescript_binary_forward_kwargs`
-
-```python
-typescript_binary_forward_kwargs(data, kwargs)
-```
-
-Returns the forwarder kwargs: args, env and env_inherit, with data so runfiles expansion resolves.
-
 ### `typescript_binary`
 
 ```python
@@ -169,14 +41,6 @@ typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, t
 ```
 
 Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src.
-
-### `typescript_test_rejection`
-
-```python
-typescript_test_rejection(runner, node_modules, main, kwargs)
-```
-
-Returns the rejection for bad typescript_test arguments, or None.
 
 ### `typescript_test`
 

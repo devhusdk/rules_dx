@@ -28,7 +28,6 @@
     "private/toolchain/pins.json"
   ],
   "entry_points": [
-    "ruby_coverage_lib_dirs",
     "ruby_library",
     "ruby_binary",
     "ruby_test",

@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//zig:defs.bzl`:
 
 ```python
-load("@rules_dx//zig:defs.bzl", "zig_import_name", "zig_library", "zig_binary")
+load("@rules_dx//zig:defs.bzl", "zig_library", "zig_binary", "zig_test")
 ```
 
 ## Rules
-
-### `zig_import_name`
-
-```python
-zig_import_name(name, import_name)
-```
-
-Returns the module import name, defaulting to the public target name.
 
 ### `zig_library`
 

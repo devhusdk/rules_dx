@@ -27,11 +27,9 @@
   ],
   "pins": [],
   "entry_points": [
-    "javascript_binary_upstream_data",
     "javascript_library",
     "javascript_wasm_bindgen_library",
     "javascript_binary",
-    "javascript_test_rejection",
     "javascript_test",
     "javascript_bench",
     "javascript_fuzz_test"

@@ -20,8 +20,7 @@
     "pins.json"
   ],
   "entry_points": [
-    "flatbuffers_library",
-    "resolve_root"
+    "flatbuffers_library"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

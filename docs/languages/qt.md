@@ -13,74 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//qt:defs.bzl`:
 
 ```python
-load("@rules_dx//qt:defs.bzl", "qt_identifier", "qt_module_path", "qt_version_parts")
+load("@rules_dx//qt:defs.bzl", "qt_frameworks", "qt_cc_library", "qt_qml_module")
 ```
 
 ## Rules
-
-### `qt_identifier`
-
-```python
-qt_identifier(label)
-```
-
-Returns the C identifier rcc and qmltyperegistrar use for one label.
-
-### `qt_module_path`
-
-```python
-qt_module_path(uri)
-```
-
-Returns the directory a QML module URI lives in below an import root.
-
-### `qt_version_parts`
-
-```python
-qt_version_parts(version)
-```
-
-Returns the major and minor version of one QML module version string.
-
-### `qt_qmldir`
-
-```python
-qt_qmldir(uri, typeinfo, types, depends = [])
-```
-
-Returns the qmldir text for one module, its (name, version, path) types and dependencies.
-
-### `qt_qrc`
-
-```python
-qt_qrc(prefix, entries)
-```
-
-Returns the .qrc text mapping (alias, path) entries under one prefix.
-
-### `qt_package_path`
-
-```python
-qt_package_path(short_path, package)
-```
-
-Returns a short path relative to its package, or None outside it.
-
-### `qt_library_stem`
-
-```python
-qt_library_stem(basename)
-```
-
-Returns the library name without lib prefix and shared-library suffix, or None.
-
-### `qt_framework_path`
-
-```python
-qt_framework_path(short_path)
-```
-
-Returns the path of one Qt framework binary below its framework directory, or None.
 
 ### `qt_frameworks`
 
@@ -122,14 +58,6 @@ qt_cc_test(name, *, srcs = None, hdrs = [], moc_hdrs = [], forms = [], resources
 
 Declares a QtTest executable over cc_test.
 
-### `qt_rust_runtime`
-
-```python
-qt_rust_runtime(name, core, **kwargs)
-```
-
-Declares the CXX-Qt runtime library over one QtCore target.
-
 ### `qt_rust_cc_library`
 
 ```python
@@ -137,38 +65,6 @@ qt_rust_cc_library(name, bridges, rust, cc_deps = [], generator = None, uri = No
 ```
 
 Declares the Qt C++ library generated from CXX-Qt bridges of one Rust crate.
-
-### `qt_consumer_identity`
-
-```python
-qt_consumer_identity(cell)
-```
-
-Returns the consumer_archive arch, os and min_runtime of one qualified Qt cell.
-
-### `qt_os_supplied_libraries`
-
-```python
-qt_os_supplied_libraries(library)
-```
-
-Returns the sorted system libraries a Qt library table needs, which the bundle leaves to the OS.
-
-### `qt_runtime_members`
-
-```python
-qt_runtime_members(members)
-```
-
-Returns the bundle members that sit next to the executable: the Windows DLLs.
-
-### `qt_bundle_members`
-
-```python
-qt_bundle_members(runfiles, licenses, modules, needs)
-```
-
-Returns the sorted (member, short path) pairs one bundle stages.
 
 ### `qt_bundle`
 

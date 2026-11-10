@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//d:defs.bzl`:
 
 ```python
-load("@rules_dx//d:defs.bzl", "d_quality_srcs", "d_library", "d_binary")
+load("@rules_dx//d:defs.bzl", "d_library", "d_binary", "d_test")
 ```
 
 ## Rules
-
-### `d_quality_srcs`
-
-```python
-d_quality_srcs(srcs, string_srcs = None)
-```
-
-Returns the hand-written D sources a target owns: srcs without any string import file.
 
 ### `d_library`
 

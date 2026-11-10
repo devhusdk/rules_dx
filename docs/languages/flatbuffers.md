@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//flatbuffers:defs.bzl`:
 
 ```python
-load("@rules_dx//flatbuffers:defs.bzl", "flatbuffers_library", "resolve_root")
+load("@rules_dx//flatbuffers:defs.bzl", "flatbuffers_library")
 ```
 
 ## Rules
@@ -26,23 +26,6 @@ Owns FlatBuffers schemas for dx lint. Includes resolve only from deps or the inc
 | --- | --- | --- | --- |
 | `srcs` | `label_list` | no | FlatBuffers schema files of this package. |
 | `deps` | `label_list` | no | flatbuffers_library targets whose schemas these include. |
-
-### `resolve_root`
-
-```python
-resolve_root(rule_kind, label, library_target, root_file)
-```
-
-Picks the root schema of a flatbuffers_library.
-
-Args:
-  rule_kind: Rule name for error text.
-  label: Label of the calling target.
-  library_target: The flatbuffers_library Target.
-  root_file: Explicit root File or None.
-
-Returns:
-  The root schema File: root_file, or the only schema the library owns.
 
 ## Tools
 

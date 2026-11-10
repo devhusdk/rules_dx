@@ -28,11 +28,8 @@
   ],
   "pins": [],
   "entry_points": [
-    "python_main",
-    "python_main_rejection",
     "python_library",
     "python_binary",
-    "python_test_rejection",
     "python_test",
     "python_fuzz_test",
     "python_bench",

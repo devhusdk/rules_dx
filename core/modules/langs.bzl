@@ -306,7 +306,6 @@ LANGS = json.decode("""{
   "capnproto": {
     "ecosystems": [],
     "entry_points": [
-      "std_import_path",
       "capnp_library"
     ],
     "family": "generation",
@@ -366,12 +365,7 @@ LANGS = json.decode("""{
       "conan"
     ],
     "entry_points": [
-      "cc_coverage_features",
       "cc_coverage_settings",
-      "cc_coverage_unsupported",
-      "cc_coverage_mismatch",
-      "cc_coverage_probe",
-      "cc_param_file_features",
       "cc_library",
       "objc_library",
       "cc_binary",
@@ -593,7 +587,6 @@ LANGS = json.decode("""{
       "dub"
     ],
     "entry_points": [
-      "d_quality_srcs",
       "d_library",
       "d_binary",
       "d_test",
@@ -660,7 +653,6 @@ LANGS = json.decode("""{
     ],
     "entry_points": [
       "dart_codegen",
-      "dart_root_package_name",
       "dart_library",
       "dart_binary",
       "dart_js_binary",
@@ -960,8 +952,7 @@ LANGS = json.decode("""{
   "flatbuffers": {
     "ecosystems": [],
     "entry_points": [
-      "flatbuffers_library",
-      "resolve_root"
+      "flatbuffers_library"
     ],
     "family": "generation",
     "lockfiles": [],
@@ -1042,7 +1033,6 @@ LANGS = json.decode("""{
       "fpm"
     ],
     "entry_points": [
-      "library_name",
       "fortran_library",
       "fortran_binary",
       "fortran_test"
@@ -1403,11 +1393,9 @@ LANGS = json.decode("""{
       "npm"
     ],
     "entry_points": [
-      "javascript_binary_upstream_data",
       "javascript_library",
       "javascript_wasm_bindgen_library",
       "javascript_binary",
-      "javascript_test_rejection",
       "javascript_test",
       "javascript_bench",
       "javascript_fuzz_test"
@@ -2142,11 +2130,8 @@ LANGS = json.decode("""{
       "uv"
     ],
     "entry_points": [
-      "python_main",
-      "python_main_rejection",
       "python_library",
       "python_binary",
-      "python_test_rejection",
       "python_test",
       "python_fuzz_test",
       "python_bench",
@@ -2208,25 +2193,12 @@ LANGS = json.decode("""{
   "qt": {
     "ecosystems": [],
     "entry_points": [
-      "qt_identifier",
-      "qt_module_path",
-      "qt_version_parts",
-      "qt_qmldir",
-      "qt_qrc",
-      "qt_package_path",
-      "qt_library_stem",
-      "qt_framework_path",
       "qt_frameworks",
       "qt_cc_library",
       "qt_qml_module",
       "qt_cc_binary",
       "qt_cc_test",
-      "qt_rust_runtime",
       "qt_rust_cc_library",
-      "qt_consumer_identity",
-      "qt_os_supplied_libraries",
-      "qt_runtime_members",
-      "qt_bundle_members",
       "qt_bundle"
     ],
     "family": "core",
@@ -2320,7 +2292,6 @@ LANGS = json.decode("""{
       "ruby"
     ],
     "entry_points": [
-      "ruby_coverage_lib_dirs",
       "ruby_library",
       "ruby_binary",
       "ruby_test",
@@ -2665,7 +2636,6 @@ LANGS = json.decode("""{
   "terraform": {
     "ecosystems": [],
     "entry_points": [
-      "collect_providers",
       "terraform_library"
     ],
     "family": "core",
@@ -2764,26 +2734,9 @@ LANGS = json.decode("""{
       "npm"
     ],
     "entry_points": [
-      "typescript_srcs_rejection",
-      "typescript_declaration_srcs_rejection",
-      "typescript_upstream_srcs",
-      "typescript_empty_library_rejection",
-      "typescript_transpiler",
-      "dx_tsconfig_is_source",
-      "dx_tsconfig_relpath",
-      "dx_tsconfig_content",
-      "typescript_scoped_tsconfig_rejection",
-      "dx_scoped_tsconfig_out",
       "typescript_library",
       "typescript_proto_library",
-      "typescript_binary_main",
-      "typescript_binary_rejection",
-      "typescript_binary_kwargs_rejection",
-      "typescript_compiled_entry",
-      "typescript_binary_upstream_kwargs",
-      "typescript_binary_forward_kwargs",
       "typescript_binary",
-      "typescript_test_rejection",
       "typescript_test",
       "typescript_bench",
       "typescript_fuzz_test",
@@ -2894,7 +2847,6 @@ LANGS = json.decode("""{
       "zig"
     ],
     "entry_points": [
-      "zig_import_name",
       "zig_library",
       "zig_binary",
       "zig_test",

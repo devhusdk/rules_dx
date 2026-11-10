@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//ruby:defs.bzl`:
 
 ```python
-load("@rules_dx//ruby:defs.bzl", "ruby_coverage_lib_dirs", "ruby_library", "ruby_binary")
+load("@rules_dx//ruby:defs.bzl", "ruby_library", "ruby_binary", "ruby_test")
 ```
 
 ## Rules
-
-### `ruby_coverage_lib_dirs`
-
-```python
-ruby_coverage_lib_dirs(short_paths)
-```
-
-Returns the runfiles-relative lib dir of each pinned SimpleCov gem, in pin order.
 
 ### `ruby_library`
 

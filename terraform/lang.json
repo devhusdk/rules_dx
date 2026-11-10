@@ -24,7 +24,6 @@
   ],
   "pins": [],
   "entry_points": [
-    "collect_providers",
     "terraform_library"
   ],
   "quality": {

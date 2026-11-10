@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//terraform:defs.bzl`:
 
 ```python
-load("@rules_dx//terraform:defs.bzl", "collect_providers", "terraform_library")
+load("@rules_dx//terraform:defs.bzl", "terraform_library")
 ```
 
 ## Rules
-
-### `collect_providers`
-
-```python
-collect_providers(label, own, deps)
-```
-
-Merges providers and fails when one source appears at two versions.
 
 ### `terraform_library`
 

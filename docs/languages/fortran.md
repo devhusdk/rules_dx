@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//fortran:defs.bzl`:
 
 ```python
-load("@rules_dx//fortran:defs.bzl", "library_name", "fortran_library", "fortran_binary")
+load("@rules_dx//fortran:defs.bzl", "fortran_library", "fortran_binary", "fortran_test")
 ```
 
 ## Rules
-
-### `library_name`
-
-```python
-library_name(name)
-```
-
-Returns the name of the private Fortran library behind one executable.
 
 ### `fortran_library`
 

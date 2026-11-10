@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//cc:defs.bzl`:
 
 ```python
-load("@rules_dx//cc:defs.bzl", "cc_coverage_features", "cc_coverage_settings", "cc_coverage_unsupported")
+load("@rules_dx//cc:defs.bzl", "cc_coverage_settings", "cc_library", "objc_library")
 ```
 
 ## Rules
-
-### `cc_coverage_features`
-
-```python
-cc_coverage_features(features, collect_code_coverage, compiler = "")
-```
-
-Returns the features a cc_test builds with: LLVM coverage maps only under coverage and an LLVM or unset compiler.
 
 ### `cc_coverage_settings`
 
@@ -33,34 +25,6 @@ cc_coverage_settings(settings)
 ```
 
 Returns the features setting a transition over CC_COVERAGE_INPUTS gives C and C++ code built for coverage.
-
-### `cc_coverage_unsupported`
-
-```python
-cc_coverage_unsupported(compiler)
-```
-
-Returns why native coverage cannot run on a known non-LLVM compiler, or an empty string.
-
-### `cc_coverage_mismatch`
-
-```python
-cc_coverage_mismatch(compiler, llvm_maps)
-```
-
-Returns why a known non-LLVM compiler cannot use the LLVM coverage features the transition added, or an empty string.
-
-### `cc_coverage_probe`
-
-No documentation.
-
-### `cc_param_file_features`
-
-```python
-cc_param_file_features(kwargs, srcs, hdrs)
-```
-
-Returns ["-compiler_param_file"] when the target's own sources or flags hold a space, quote or tab, else [].
 
 ### `cc_library`
 

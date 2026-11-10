@@ -20,7 +20,6 @@
     "private/toolchain/pins.json"
   ],
   "entry_points": [
-    "d_quality_srcs",
     "d_library",
     "d_binary",
     "d_test",

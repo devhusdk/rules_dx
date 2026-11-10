@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//env:defs.bzl`:
 
 ```python
-load("@rules_dx//env:defs.bzl", "EnvironmentInfo", "env_host_filename", "env_tool_record")
+load("@rules_dx//env:defs.bzl", "EnvironmentInfo", "environment_config", "environment_metadata")
 ```
 
 ## Rules
@@ -21,30 +21,6 @@ load("@rules_dx//env:defs.bzl", "EnvironmentInfo", "env_host_filename", "env_too
 ### `EnvironmentInfo`
 
 No documentation.
-
-### `env_host_filename`
-
-```python
-env_host_filename(name, is_windows)
-```
-
-Maps one logical tool name to its host-native filename.
-
-### `env_tool_record`
-
-```python
-env_tool_record(owner, bin_name, aliases)
-```
-
-Builds one tool-record struct for collision analysis.
-
-### `env_tree_metadata`
-
-```python
-env_tree_metadata(records, is_windows)
-```
-
-Renders the staged tree management metadata as a JSON string.
 
 ### `environment_config`
 

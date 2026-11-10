@@ -13,26 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//python:defs.bzl`:
 
 ```python
-load("@rules_dx//python:defs.bzl", "python_main", "python_main_rejection", "python_library")
+load("@rules_dx//python:defs.bzl", "python_library", "python_binary", "python_test")
 ```
 
 ## Rules
-
-### `python_main`
-
-```python
-python_main(name, srcs)
-```
-
-Returns the src py_binary picks as main for the wrapper name, or None.
-
-### `python_main_rejection`
-
-```python
-python_main_rejection(name, srcs)
-```
-
-Returns the rejection for multiple srcs without one main match, or None.
 
 ### `python_library`
 
@@ -49,14 +33,6 @@ python_binary(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Minimal wrapper over py_binary. main is name.py, else the single src; several srcs need a name.py match. main is linted unless it is an external label.
-
-### `python_test_rejection`
-
-```python
-python_test_rejection(runner, kwargs)
-```
-
-Returns the rejection for a bad python_test runner or kwargs, or None.
 
 ### `python_test`
 

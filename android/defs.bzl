@@ -2,8 +2,6 @@
 
 load(
     "//android/private/packaging:defs.bzl",
-    _abi_transition_settings = "abi_transition_settings",
-    _abis_for_platforms = "abis_for_platforms",
     _android_adb_install = "android_adb_install",
     _android_adb_log = "android_adb_log",
     _android_adb_start = "android_adb_start",
@@ -19,8 +17,6 @@ load(
     _kotlin_android_library = "kotlin_android_library",
 )
 
-abi_transition_settings = _abi_transition_settings
-abis_for_platforms = _abis_for_platforms
 android_adb_install = _android_adb_install
 android_adb_log = _android_adb_log
 android_adb_start = _android_adb_start

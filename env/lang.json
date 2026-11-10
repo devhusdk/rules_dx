@@ -11,9 +11,6 @@
   "pins": [],
   "entry_points": [
     "EnvironmentInfo",
-    "env_host_filename",
-    "env_tool_record",
-    "env_tree_metadata",
     "environment_config",
     "environment_metadata",
     "environment_tool",

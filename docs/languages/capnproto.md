@@ -13,24 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//capnproto:defs.bzl`:
 
 ```python
-load("@rules_dx//capnproto:defs.bzl", "std_import_path", "capnp_library")
+load("@rules_dx//capnproto:defs.bzl", "capnp_library")
 ```
 
 ## Rules
-
-### `std_import_path`
-
-```python
-std_import_path(short_path)
-```
-
-Maps a bundled schema's short_path to its import path under /capnp/.
-
-Args:
-  short_path: short_path of a file from the capnp archive (`../<repo>/src/capnp/...` or `../<repo>/.../schema/capnp/...`).
-
-Returns:
-  The path from the import root, for example `capnp/c++.capnp`.
 
 ### `capnp_library`
 

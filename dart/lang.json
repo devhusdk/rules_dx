@@ -26,7 +26,6 @@
   "pins": [],
   "entry_points": [
     "dart_codegen",
-    "dart_root_package_name",
     "dart_library",
     "dart_binary",
     "dart_js_binary",

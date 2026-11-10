@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//dart:defs.bzl`:
 
 ```python
-load("@rules_dx//dart:defs.bzl", "dart_codegen", "dart_root_package_name", "dart_library")
+load("@rules_dx//dart:defs.bzl", "dart_codegen", "dart_library", "dart_binary")
 ```
 
 ## Rules
@@ -21,14 +21,6 @@ load("@rules_dx//dart:defs.bzl", "dart_codegen", "dart_root_package_name", "dart
 ### `dart_codegen`
 
 No documentation.
-
-### `dart_root_package_name`
-
-```python
-dart_root_package_name(package, name, kwargs)
-```
-
-Returns the package name a root-package library needs, or None.
 
 ### `dart_library`
 

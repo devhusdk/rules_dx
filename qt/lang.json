@@ -12,25 +12,12 @@
     "private/sdk/pins.bzl"
   ],
   "entry_points": [
-    "qt_identifier",
-    "qt_module_path",
-    "qt_version_parts",
-    "qt_qmldir",
-    "qt_qrc",
-    "qt_package_path",
-    "qt_library_stem",
-    "qt_framework_path",
     "qt_frameworks",
     "qt_cc_library",
     "qt_qml_module",
     "qt_cc_binary",
     "qt_cc_test",
-    "qt_rust_runtime",
     "qt_rust_cc_library",
-    "qt_consumer_identity",
-    "qt_os_supplied_libraries",
-    "qt_runtime_members",
-    "qt_bundle_members",
     "qt_bundle"
   ],
   "quality": {

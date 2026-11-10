@@ -24,7 +24,6 @@
   ],
   "pins": [],
   "entry_points": [
-    "zig_import_name",
     "zig_library",
     "zig_binary",
     "zig_test",

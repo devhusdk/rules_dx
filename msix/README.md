@@ -7,7 +7,7 @@ Cells: `windows_x86_64` and `windows_arm64` targets. Packaging runs on a
 Windows x64 or arm64 host. `msix_package` and `msix_sign` add
 `@platforms//os:windows` to `target_compatible_with`; `bazel build //...`
 skips them on Linux and macOS. A Windows target with another CPU fails
-analysis with `target cell this platform is unsupported`. A build with no
+analysis with `target platform is unsupported`. A build with no
 Windows execution platform fails analysis with
 `packaging needs a windows_x86_64 or windows_arm64 execution platform`.
 

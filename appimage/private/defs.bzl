@@ -29,7 +29,7 @@ def _appimage_impl(ctx):
     identity = platform_identity(ctx)
     arch = identity.cpu if identity.os == "linux" else ""
     if not arch:
-        fail("appimage_package " + str(ctx.label) + ": target cell this platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
+        fail("appimage_package " + str(ctx.label) + ": target platform is unsupported: only linux_x86_64 and linux_arm64 are pinned")
     name = ctx.attr.app_name or ctx.label.name
     errors = appimage_name_errors(name, ctx.file.desktop.basename, ctx.file.icon.basename)
     if errors:

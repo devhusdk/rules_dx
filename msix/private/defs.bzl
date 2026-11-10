@@ -57,7 +57,7 @@ def _msix_impl(ctx):
     identity = platform_identity(ctx)
     arch = {"aarch64": "arm64", "x86_64": "x64"}.get(identity.cpu, "") if identity.os == "windows" else ""
     if not arch:
-        fail("msix_package " + str(ctx.label) + ": target cell this platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
+        fail("msix_package " + str(ctx.label) + ": target platform is unsupported: only windows_x86_64 and windows_arm64 are pinned")
     errors = (
         msix_identity_errors(ctx.attr.identity_name) +
         msix_publisher_errors(ctx.attr.publisher) +

@@ -6,7 +6,7 @@ step is a pinned Rust binary run with an empty `PATH`. It uses no tool from
 `/bin` or `/usr/bin`.
 
 Cells: `linux_x86_64` and `linux_arm64`. Any other target fails analysis with
-`target cell this platform is unsupported`.
+`target platform is unsupported`.
 
 ## Pins
 

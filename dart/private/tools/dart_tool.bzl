@@ -8,10 +8,7 @@ def _dart_tool_impl(ctx):
     aot_runtime = False
     core_lib = False
     for f in sdk.tool_files.to_list():
-        # dart finds its snapshots beside its resolved path, and a remote executor
-        # materializes a symlinked executable away from the files around it. So the
-        # executable, its snapshots, `dartaotruntime` and `lib/` (which `dart analyze`
-        # needs to resolve dart:core) are mirrored together under one tree.
+        # dart resolves its snapshots, dartaotruntime and lib/ beside its own path.
         if not f.path.startswith(root):
             continue
         rel = f.path[len(root):]

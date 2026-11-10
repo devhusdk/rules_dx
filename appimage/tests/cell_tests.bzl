@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 
 def _unsupported_impl(ctx):
     env = analysistest.begin(ctx)
-    asserts.expect_failure(env, "target cell this platform is unsupported")
+    asserts.expect_failure(env, "target platform is unsupported")
     return analysistest.end(env)
 
 def _action_impl(ctx):

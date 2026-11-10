@@ -267,7 +267,7 @@ msix_package(
 
 unsupported_cell_test(
     name = "x86_cell_fails",
-    expected = "target cell this platform is unsupported",
+    expected = "target platform is unsupported",
     target_under_test = ":cell",
 )
 

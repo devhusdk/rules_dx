@@ -801,6 +801,10 @@ dx_pins.data(
     pins = "//lua/private/coverage:pins.json",
 )
 dx_pins.data(
+    name = "dx_qt_sdk",
+    pins = "//qt/sdk:pins.json",
+)
+dx_pins.data(
     name = "dx_ruby_coverage",
     pins = "//ruby/private/coverage:pins.json",
 )

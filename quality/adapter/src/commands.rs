@@ -2854,8 +2854,7 @@ pub fn trivy_config_check(
     assemble(binary, head, &[file], "")
 }
 
-/// Scans the image config of one OCI layout directory with the embedded checks, never touching the
-/// network or a vulnerability database; `--cache-dir <cache>` keeps trivy out of the home directory.
+/// Scans the image config of one OCI layout directory with the embedded checks.
 pub fn trivy_image_config_check(binary: &Path, layout: &Path, cache_dir: &Path) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
     head.extend(TRIVY_IMAGE_CONFIG_PREFIX.iter().map(OsString::from));

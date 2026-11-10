@@ -719,11 +719,9 @@ fn tier_lines(
 
 const ARM_DIR_REL: &str = "dx-bicep-arm";
 
-/// Trivy does not read Bicep, so each file is built to ARM JSON and the staged templates are
-/// scanned together. ARM lines do not map to Bicep lines, so findings land on line 1.
 const OCI_LAYOUT_DIR_REL: &str = "dx-oci-layout";
 
-/// Copies the layout with its symlinked blobs resolved to regular files; trivy refuses symlinks.
+/// Copies the layout with its symlinked blobs resolved to regular files.
 fn copy_layout(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(to)?;
     for entry in std::fs::read_dir(from)? {
@@ -738,6 +736,8 @@ fn copy_layout(from: &Path, to: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Trivy does not read Bicep, so each file is built to ARM JSON and the staged templates are
+/// scanned together. ARM lines do not map to Bicep lines, so findings land on line 1.
 fn scan_bicep(
     backend: &RealBackend,
     call: &super::check::CheckCall,

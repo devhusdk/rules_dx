@@ -14,6 +14,21 @@
   "lockfiles": [
     "Package.resolved"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "swiftpm",
+        "manifest": "Package.swift",
+        "lock": "swiftpm.lock.json",
+        "state": "Package.resolved",
+        "extension": "@rules_dx//swift:extensions.bzl",
+        "tag": "lock",
+        "hub": "swiftpkg",
+        "resolver": "@rules_dx//swift:lock",
+        "imports": "provides"
+      }
+    ]
+  },
   "tools": [
     "swift_format",
     "swift_lint"

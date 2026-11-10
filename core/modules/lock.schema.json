@@ -20,6 +20,11 @@
   },
   "$defs": {
     "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "strings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
     "names": {
       "type": "array",
       "uniqueItems": true,
@@ -70,7 +75,32 @@
       "type": "object",
       "minProperties": 1,
       "additionalProperties": false,
-      "properties": {}
+      "properties": {
+        "swift_products": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string", "minLength": 1}
+          }
+        },
+        "swift_targets": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["deps", "module", "path", "product_deps", "srcs"],
+            "properties": {
+              "deps": {"$ref": "#/$defs/strings"},
+              "module": {"type": "string", "minLength": 1},
+              "path": {"type": "string", "minLength": 1},
+              "product_deps": {"$ref": "#/$defs/strings"},
+              "srcs": {"$ref": "#/$defs/strings"}
+            }
+          }
+        }
+      }
     }
   }
 }

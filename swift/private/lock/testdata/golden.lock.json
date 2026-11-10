@@ -1,0 +1,45 @@
+{
+  "ecosystem": "swiftpm",
+  "inputs": {
+    "Package.resolved": "85c5ecb6d51b26548b32df71b7717bb083e1a6626e8f4860764adedaa8e296e0",
+    "Package.swift": "a59e3387b17ba2c6276734cd875c8eff9b3f911cd45553f19c41546ffeb49ddb"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "d2419743071936072f41831f1679efbfabe4398e3b033913bbfee92b9599c28e",
+          "strip_prefix": "mini-1111111111111111111111111111111111111111",
+          "urls": [
+            "https://github.com/example/mini/archive/1111111111111111111111111111111111111111.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "swift_products": {
+          "Mini": [
+            "Mini"
+          ]
+        },
+        "swift_targets": {
+          "Mini": {
+            "deps": [],
+            "module": "Mini",
+            "path": "Sources/Mini",
+            "product_deps": [],
+            "srcs": [
+              "Sources/Mini/Mini.swift"
+            ]
+          }
+        }
+      },
+      "name": "mini",
+      "provides": [
+        "Mini"
+      ],
+      "version": "1.0.0"
+    }
+  ],
+  "schema": 1
+}

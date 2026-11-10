@@ -1,0 +1,108 @@
+{
+  "ecosystem": "swiftpm",
+  "inputs": {
+    "Package.resolved": "9785c61a243351f842246dfe0b17ed51bd801da10959f45fa69f393c0ab5de08",
+    "Package.swift": "b44efd1965115467dac36c7bd32074215fc3625e3b1d2ba4cb8f7cb36d855a32"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "23ab82e8be3b82b199a008e0044229ae327a8824734d917b78bcdde64ce81ec1",
+          "strip_prefix": "swift-argument-parser-6a52f3251125d74daf04fcbd5e6f08a75d074382",
+          "urls": [
+            "https://github.com/apple/swift-argument-parser/archive/6a52f3251125d74daf04fcbd5e6f08a75d074382.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "swift_products": {
+          "ArgumentParser": [
+            "ArgumentParser"
+          ]
+        },
+        "swift_targets": {
+          "ArgumentParser": {
+            "deps": [
+              "ArgumentParserToolInfo"
+            ],
+            "module": "ArgumentParser",
+            "path": "Sources/ArgumentParser",
+            "product_deps": [],
+            "srcs": [
+              "Sources/ArgumentParser/Completions/BashCompletionsGenerator.swift",
+              "Sources/ArgumentParser/Completions/CompletionsGenerator.swift",
+              "Sources/ArgumentParser/Completions/FishCompletionsGenerator.swift",
+              "Sources/ArgumentParser/Completions/ZshCompletionsGenerator.swift",
+              "Sources/ArgumentParser/Parsable Properties/Argument.swift",
+              "Sources/ArgumentParser/Parsable Properties/ArgumentDiscussion.swift",
+              "Sources/ArgumentParser/Parsable Properties/ArgumentHelp.swift",
+              "Sources/ArgumentParser/Parsable Properties/ArgumentVisibility.swift",
+              "Sources/ArgumentParser/Parsable Properties/CompletionKind.swift",
+              "Sources/ArgumentParser/Parsable Properties/Errors.swift",
+              "Sources/ArgumentParser/Parsable Properties/Flag.swift",
+              "Sources/ArgumentParser/Parsable Properties/NameSpecification.swift",
+              "Sources/ArgumentParser/Parsable Properties/Option.swift",
+              "Sources/ArgumentParser/Parsable Properties/OptionGroup.swift",
+              "Sources/ArgumentParser/Parsable Properties/ParentCommand.swift",
+              "Sources/ArgumentParser/Parsable Types/AsyncParsableCommand.swift",
+              "Sources/ArgumentParser/Parsable Types/CommandConfiguration.swift",
+              "Sources/ArgumentParser/Parsable Types/CommandGroup.swift",
+              "Sources/ArgumentParser/Parsable Types/EnumerableFlag.swift",
+              "Sources/ArgumentParser/Parsable Types/ExpressibleByArgument.swift",
+              "Sources/ArgumentParser/Parsable Types/ParsableArguments.swift",
+              "Sources/ArgumentParser/Parsable Types/ParsableCommand.swift",
+              "Sources/ArgumentParser/Parsing/ArgumentDecoder.swift",
+              "Sources/ArgumentParser/Parsing/ArgumentDefinition.swift",
+              "Sources/ArgumentParser/Parsing/ArgumentSet.swift",
+              "Sources/ArgumentParser/Parsing/CommandParser.swift",
+              "Sources/ArgumentParser/Parsing/InputKey.swift",
+              "Sources/ArgumentParser/Parsing/InputOrigin.swift",
+              "Sources/ArgumentParser/Parsing/Name.swift",
+              "Sources/ArgumentParser/Parsing/Parsed.swift",
+              "Sources/ArgumentParser/Parsing/ParsedValues.swift",
+              "Sources/ArgumentParser/Parsing/ParserError.swift",
+              "Sources/ArgumentParser/Parsing/SplitArguments.swift",
+              "Sources/ArgumentParser/Usage/DumpHelpGenerator.swift",
+              "Sources/ArgumentParser/Usage/HelpCommand.swift",
+              "Sources/ArgumentParser/Usage/HelpGenerator.swift",
+              "Sources/ArgumentParser/Usage/MessageInfo.swift",
+              "Sources/ArgumentParser/Usage/UsageGenerator.swift",
+              "Sources/ArgumentParser/Utilities/CollectionExtensions.swift",
+              "Sources/ArgumentParser/Utilities/Foundation.swift",
+              "Sources/ArgumentParser/Utilities/Mutex.swift",
+              "Sources/ArgumentParser/Utilities/Platform.swift",
+              "Sources/ArgumentParser/Utilities/SequenceExtensions.swift",
+              "Sources/ArgumentParser/Utilities/StringExtensions.swift",
+              "Sources/ArgumentParser/Utilities/SwiftExtensions.swift",
+              "Sources/ArgumentParser/Utilities/Tree.swift",
+              "Sources/ArgumentParser/Validators/AsyncCompletionsValidator.swift",
+              "Sources/ArgumentParser/Validators/CodingKeyValidator.swift",
+              "Sources/ArgumentParser/Validators/NonsenseFlagsValidator.swift",
+              "Sources/ArgumentParser/Validators/ParsableArgumentsValidation.swift",
+              "Sources/ArgumentParser/Validators/PositionalArgumentsValidator.swift",
+              "Sources/ArgumentParser/Validators/UniqueNamesValidator.swift"
+            ]
+          },
+          "ArgumentParserToolInfo": {
+            "deps": [],
+            "module": "ArgumentParserToolInfo",
+            "path": "Sources/ArgumentParserToolInfo",
+            "product_deps": [],
+            "srcs": [
+              "Sources/ArgumentParserToolInfo/ToolInfo.swift"
+            ]
+          }
+        }
+      },
+      "name": "swift-argument-parser",
+      "provides": [
+        "ArgumentParser",
+        "ArgumentParserToolInfo"
+      ],
+      "version": "1.8.2"
+    }
+  ],
+  "schema": 1
+}

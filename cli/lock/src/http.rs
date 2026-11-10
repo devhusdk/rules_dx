@@ -37,14 +37,29 @@ impl Default for HttpFetch {
     }
 }
 
-impl Fetch for HttpFetch {
-    fn sha256(&self, url: &str) -> Result<String, Error> {
+impl HttpFetch {
+    /// Downloads `url` and returns its bytes.
+    ///
+    /// # Errors
+    /// Fails when the request fails or the status is not 200.
+    pub fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         let mut response = self.0.get(url).call().map_err(|error| Error::new(error.to_string()))?;
         let status = response.status().as_u16();
         if status != 200 {
             return Err(Error::new(format!("HTTP {status}")));
         }
-        dx_digest::sha256_reader_hex(response.body_mut().as_reader()).map_err(|error| Error::new(error.to_string()))
+        response
+            .body_mut()
+            .with_config()
+            .limit(1 << 30)
+            .read_to_vec()
+            .map_err(|error| Error::new(error.to_string()))
+    }
+}
+
+impl Fetch for HttpFetch {
+    fn sha256(&self, url: &str) -> Result<String, Error> {
+        self.bytes(url).map(|bytes| dx_digest::sha256_hex(&bytes))
     }
 }
 
@@ -77,6 +92,12 @@ mod tests {
     fn a_download_returns_the_sha256_of_its_bytes() {
         let url = serve("200 OK", "alpha");
         assert_eq!(HttpFetch(agent(false)).sha256(&url), Ok(dx_digest::sha256_hex(b"alpha")));
+    }
+
+    #[test]
+    fn a_download_returns_its_bytes() {
+        let url = serve("200 OK", "alpha");
+        assert_eq!(HttpFetch(agent(false)).bytes(&url), Ok(b"alpha".to_vec()));
     }
 
     #[test]

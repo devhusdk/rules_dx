@@ -330,7 +330,7 @@ fn the_golden_lock_matches_the_schema() {
 #[test]
 fn the_schema_rejects_what_the_design_bans() {
     let golden: serde_json::Value = serde_json::from_str(&text(&runfile("GOLDEN"))).expect("golden is JSON");
-    let edits: [(&str, fn(&mut serde_json::Value)); 9] = [
+    let edits: [(&str, fn(&mut serde_json::Value)); 11] = [
         ("no digest", |lock| {
             lock["packages"][0]["archives"][0].as_object_mut().expect("archive").remove("sha256");
         }),
@@ -340,6 +340,12 @@ fn the_schema_rejects_what_the_design_bans() {
         ("unknown platform", |lock| lock["packages"][0]["archives"][0]["platform"] = "plan9".into()),
         ("unknown package key", |lock| lock["packages"][0]["integrity"] = "sha512-x".into()),
         ("unlisted extra key", |lock| lock["packages"][0]["extra"] = serde_json::json!({"main": "a"})),
+        ("swift target without a module", |lock| {
+            lock["packages"][0]["extra"] = serde_json::json!({"swift_targets": {"A": {"deps": [], "path": "p", "product_deps": [], "srcs": []}}});
+        }),
+        ("swift target with an unknown key", |lock| {
+            lock["packages"][0]["extra"] = serde_json::json!({"swift_targets": {"A": {"deps": [], "flags": [], "module": "A", "path": "p", "product_deps": [], "srcs": []}}});
+        }),
         ("no inputs", |lock| lock["inputs"] = serde_json::json!({})),
         ("another schema", |lock| lock["schema"] = 2.into()),
     ];
@@ -348,4 +354,14 @@ fn the_schema_rejects_what_the_design_bans() {
         edit(&mut lock);
         assert!(!schema_errors(&lock).is_empty(), "the schema accepts a lock with {name}");
     }
+}
+
+#[test]
+fn the_schema_accepts_swift_extra() {
+    let mut lock: serde_json::Value = serde_json::from_str(&text(&runfile("GOLDEN"))).expect("golden is JSON");
+    lock["packages"][0]["extra"] = serde_json::json!({
+        "swift_products": {"A": ["A"]},
+        "swift_targets": {"A": {"deps": [], "module": "A", "path": "Sources/A", "product_deps": ["b:B"], "srcs": ["Sources/A/a.swift"]}},
+    });
+    assert_eq!(schema_errors(&lock), Vec::<String>::new());
 }

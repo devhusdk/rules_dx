@@ -5601,6 +5601,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "swift_lock"
+version = "0.0.0"
+dependencies = [
+ "flate2",
+ "serde_json",
+ "tar",
+ "tempfile",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"

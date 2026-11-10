@@ -1,0 +1,35 @@
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
+
+package(default_visibility = [
+    "//core/quality:__pkg__",
+    "//core/quality/testdata:__pkg__",
+])
+
+quality_family(
+    name = "d_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "d",
+    typecheck = ["ldc"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":d_family"],
+)
+
+d_library(
+    name = "clean",
+    srcs = ["clean.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)
+
+d_library(
+    name = "dirty",
+    srcs = ["dirty.d"],
+    target_compatible_with = D_COMPATIBLE_WITH,
+)

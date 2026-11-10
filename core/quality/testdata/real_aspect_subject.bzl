@@ -318,6 +318,10 @@ real_rust_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_rust_lint_aspect,
 
 real_go_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_go_lint_aspect, real_go_format_aspect, real_go_typecheck_aspect])
 
+real_d_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_d_lint_aspect, real_d_format_aspect, real_d_typecheck_aspect])
+
+real_zig_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_zig_lint_aspect, real_zig_format_aspect, real_zig_typecheck_aspect])
+
 real_haskell_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_haskell_lint_aspect, real_haskell_format_aspect, real_haskell_typecheck_aspect])
 
 real_ocaml_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_ocaml_lint_aspect, real_ocaml_format_aspect, real_ocaml_typecheck_aspect])
@@ -346,6 +350,7 @@ REAL_SUBJECT_BY_CLASS = {
     "asciidoc": real_core_aspect_subject,
     "c": real_cc_aspect_subject,
     "csharp": real_dotnet_aspect_subject,
+    "d": real_d_aspect_subject,
     "cuda": real_cc_aspect_subject,
     "elixir": real_beam_aspect_subject,
     "erlang": real_beam_aspect_subject,
@@ -363,6 +368,7 @@ REAL_SUBJECT_BY_CLASS = {
     "starlark": real_core_aspect_subject,
     "typescript": real_js_aspect_subject,
     "yaml": real_yaml_aspect_subject,
+    "zig": real_zig_aspect_subject,
 }
 
 def _probe_shards_of(target):

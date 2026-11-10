@@ -1,0 +1,33 @@
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//zig:defs.bzl", "zig_library")
+
+package(default_visibility = [
+    "//core/quality:__pkg__",
+    "//core/quality/testdata:__pkg__",
+])
+
+quality_family(
+    name = "zig_family",
+    disabled = [
+        "audit",
+        "format",
+    ],
+    family_id = "zig",
+    lint = ["zig_ast_check"],
+    typecheck = [],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":zig_family"],
+)
+
+zig_library(
+    name = "clean",
+    main = "clean.zig",
+)
+
+zig_library(
+    name = "dirty",
+    main = "dirty.zig",
+)

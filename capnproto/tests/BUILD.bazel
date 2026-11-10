@@ -2,6 +2,7 @@ load("//capnproto:defs.bzl", "capnp_cc_library", "capnp_codegen_shard", "capnp_j
 load("//cc:defs.bzl", "cc_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
+load("//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":failure_tests.bzl", "capnp_codegen_failure_test")
 
@@ -294,4 +295,14 @@ real_source_target(
     ],
     tags = ["corpus"],
     visibility = ["//:__pkg__"],
+)
+
+rust_test(
+    name = "rust_roundtrip_test",
+    srcs = ["rs_roundtrip_test.rs"],
+    deps = [
+        ":api_rs",
+        ":base_rs",
+        "//capnproto:runtime_rust",
+    ],
 )

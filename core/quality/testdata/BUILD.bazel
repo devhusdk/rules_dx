@@ -24,6 +24,7 @@ load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "crate_no_pipelin
 load(":config_subject.bzl", "config_subject")
 load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
+load("//core/quality:suite_membership.bzl", "suite_membership_test")
 load(":test_configs_test.bzl", "test_configs_test")
 load(
     ":tool_override_tests.bzl",
@@ -1851,6 +1852,7 @@ test_suite(
     tests = [
         ":ambiguous_node_test",
         ":fake_format_test",
+        ":fake_format_test_upstream",
         ":fixture_real_asciidoc_no_converter_test",
         ":fixture_real_javascript_bad_config_test",
         ":fixture_real_markdown_sibling_only_test",
@@ -1872,5 +1874,24 @@ test_suite(
         ":scalafmt_errors_test",
         ":upstream_cc_no_context_test",
         ":upstream_ownership_presence",
+    ],
+)
+
+test_suite(
+    name = "structure",
+    tests = [
+        ":suite_membership_test",
+        ":test_configs_test",
+    ],
+)
+
+suite_membership_test(
+    name = "suite_membership_test",
+    views = [
+        "runner_matrix",
+        "runner_matrix_linux_arm64",
+        "runner_matrix_macos_arm64",
+        "runner_matrix_windows_arm64",
+        "runner_matrix_windows_x86_64",
     ],
 )

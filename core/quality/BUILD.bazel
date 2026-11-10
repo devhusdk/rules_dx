@@ -7,6 +7,7 @@ load("//rust:defs.bzl", "rust_test")
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
+load(":suite_membership.bzl", "suite_membership_test")
 load(":sh_toolchain.bzl", "dx_sh_toolchain")
 load(":fsc_tests.bzl", "fsc_unit_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
@@ -39,6 +40,7 @@ exports_files([
     "adapters.bzl",
     "applicability.bzl",
     "compile_check_exec.sh",
+    "suite_membership_test.sh",
     "coverage_sources.bzl",
     "dart_context.bzl",
     "execution_requirements.bzl",
@@ -617,44 +619,92 @@ sh_test(
 )
 
 test_suite(
-    name = "all",
+    name = "consumer_policy",
     tests = [
         ":consumer_policy_ansible_linted_test",
         ":consumer_policy_api_spec_checked_test",
-        ":compile_check_exec_test",
-        ":consumer_policy_cc_clang_tidy_test",
+        ":consumer_policy_asciidoc_vale_test",
         ":consumer_policy_bicep_checked_test",
+        ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_cloudformation_linted_test",
+        ":consumer_policy_cmake_checked_test",
+        ":consumer_policy_cue_formatted_test",
+        ":consumer_policy_default_d_test",
+        ":consumer_policy_default_dart_test",
+        ":consumer_policy_default_fortran_test",
+        ":consumer_policy_default_haskell_test",
+        ":consumer_policy_default_nix_test",
+        ":consumer_policy_default_ocaml_test",
+        ":consumer_policy_default_powershell_test",
+        ":consumer_policy_default_swift_test",
+        ":consumer_policy_default_zig_test",
+        ":consumer_policy_generated_no_dx_toml_test",
+        ":consumer_policy_haskell_formatted_test",
+        ":consumer_policy_helm_linted_test",
         ":consumer_policy_html_template_formatted_test",
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_js_eslint_typed_test",
         ":consumer_policy_json_biome_test",
+        ":consumer_policy_jsonnet_formatted_test",
         ":consumer_policy_jupyter_checked_test",
         ":consumer_policy_kubernetes_linted_test",
-        ":consumer_policy_helm_linted_test",
-        ":consumer_policy_cmake_checked_test",
-        ":consumer_policy_make_checked_test",
         ":consumer_policy_latex_checked_test",
+        ":consumer_policy_lua_formatted_test",
+        ":consumer_policy_make_checked_test",
         ":consumer_policy_nix_linted_test",
-        ":consumer_policy_asciidoc_vale_test",
+        ":consumer_policy_pkl_formatted_test",
+        ":consumer_policy_rego_checked_test",
         ":consumer_policy_rst_vale_test",
+        ":consumer_policy_terraform_formatted_test",
         ":consumer_policy_toml_format_off_test",
         ":consumer_policy_toml_formatted_test",
         ":consumer_policy_typst_formatted_test",
         ":consumer_policy_yaml_formatted_test",
+    ],
+)
+
+test_suite(
+    name = "rust_policy",
+    tests = [
+        ":clippy_policy_test",
+        ":clippy_policy_test_upstream",
+        ":core_load_graph_test",
+        ":core_load_graph_test_upstream",
+        ":jvm_classpath_policy_test",
+        ":jvm_classpath_policy_test_upstream",
+        ":preset_settings_test",
+        ":preset_settings_test_upstream",
+    ],
+)
+
+test_suite(
+    name = "scripts",
+    tests = [
+        ":compile_check_exec_test",
+        ":suite_membership_test",
+        ":unavailable_rows_test",
+    ],
+)
+
+test_suite(
+    name = "starlark_units",
+    tests = [
+        ":compile_check_unit",
         ":curated_defaults_unit",
+        ":dart_context_unit",
         ":execution_requirements_unit",
         ":fixture_real_rust_converters_test",
         ":fixtures_unit",
+        ":fsc_unit",
         ":native_config_unit",
+        ":nvcc_syntax_unit",
         ":overlap_tests",
         ":parity_unit",
         ":pipeline_unit",
         ":policy_analysis",
+        ":policy_profile_analysis",
         ":policy_unit",
         ":real_pipeline_unit",
-        ":rustc_request_analysis",
-        ":unsupported_platform_analysis",
         ":registry_unit",
         ":sources_registry",
         ":support_unit",
@@ -999,3 +1049,5 @@ toolchain(
     toolchain = ":busybox_sh",
     toolchain_type = "@bazel_tools//tools/sh:toolchain_type",
 )
+
+suite_membership_test(name = "suite_membership_test")

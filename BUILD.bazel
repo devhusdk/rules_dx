@@ -198,6 +198,7 @@ js_library(
 npm_link_all_packages(name = "node_modules")
 
 exports_files([
+    "CONTRIBUTING.md",
     "LICENSE",
     "RELEASING.md",
     ".bazelignore",

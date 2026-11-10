@@ -50,6 +50,30 @@ perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs
 
 A perl_test run by dx bench: scripts call DxBench::run_benchmarks, which times them with core Benchmark and writes dx-bench.json.
 
+## API docs
+
+Tool: `pod (perl)`.
+
+```python
+load("@rules_dx//tools/docs/perl:defs.bzl", "perl_doc_shard")
+```
+
+### `perl_doc_shard`
+
+```python
+perl_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Perl library.
+
+Args:
+  name: Name of the shard target.
+  lib: The documented perl_library.
+  package: Package segment of every symbol id; defaults to the name of lib.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `perlcritic`

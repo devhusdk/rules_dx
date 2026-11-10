@@ -42,6 +42,30 @@ astro_test(name, *, srcs, node_modules, data = None, **kwargs)
 
 Runs jest over Astro components, compiled by the linked @astrojs/compiler-rs. Coverage maps back to the .astro sources.
 
+## API docs
+
+Tool: `astro-compiler`.
+
+```python
+load("@rules_dx//tools/docs/components:defs.bzl", "astro_doc_shard")
+```
+
+### `astro_doc_shard`
+
+```python
+astro_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs)
+```
+
+Declares a component metadata run over one Astro project and its DocIr shard.
+
+The metadata comes from the pinned `@astrojs/compiler` and the TypeScript checker,
+run through an isolated launcher: `astro.config.*` and other consumer JavaScript never
+run. Only the consumer's `astro` package is read from `node_modules`, for its type
+declarations. Entry points are `.astro` files. Symbol ids are
+`astro:<package>:<Component>` plus `.prop_` and `.slot_` members.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `eslint`

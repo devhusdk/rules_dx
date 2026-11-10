@@ -27,6 +27,30 @@ Owns Apache Avro schemas for dx lint.
 | `srcs` | `label_list` | no | Avro schema files of this package. |
 | `deps` | `label_list` | no | avro_library targets whose schemas these import. |
 
+## API docs
+
+Tool: `avro-tools`.
+
+```python
+load("@rules_dx//tools/docs/avro:defs.bzl", "avro_doc_shard")
+```
+
+### `avro_doc_shard`
+
+```python
+avro_doc_shard(name, avro, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one avro_library.
+
+Args:
+  name: Name of the shard target.
+  avro: The documented avro_library.
+  package: Package segment of every symbol id; defaults to the name of avro.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `avro_tools`

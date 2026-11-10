@@ -66,6 +66,27 @@ d_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
 
 A d_binary run by `dx bench`; it writes dx-bench.json to TEST_UNDECLARED_OUTPUTS_DIR.
 
+## API docs
+
+Tool: `ldc ddoc`.
+
+```python
+load("@rules_dx//tools/docs/d:defs.bzl", "d_doc_shard")
+```
+
+### `d_doc_shard`
+
+Converts one D library's public API into a DocIr shard with the pinned LDC's ddoc JSON.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The d_library to document. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
+| `_extract` | `label` | no |  |
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 None.

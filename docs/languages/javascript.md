@@ -82,6 +82,24 @@ javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, visi
 
 A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core.
 
+## API docs
+
+Tool: `typedoc`.
+
+```python
+load("@rules_dx//tools/docs/javascript:defs.bzl", "javascript_doc_shard")
+```
+
+### `javascript_doc_shard`
+
+```python
+javascript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
+```
+
+Declares a TypeDoc JSON run over one JavaScript project (tsconfig sets allowJs) and its DocIr shard.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `biome`

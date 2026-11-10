@@ -42,6 +42,30 @@ svelte_test(name, *, srcs, node_modules, data = None, **kwargs)
 
 Runs jest over Svelte components, compiled by the linked svelte. Coverage maps back to the .svelte sources.
 
+## API docs
+
+Tool: `svelte2tsx`.
+
+```python
+load("@rules_dx//tools/docs/components:defs.bzl", "svelte_doc_shard")
+```
+
+### `svelte_doc_shard`
+
+```python
+svelte_doc_shard(name, srcs, tsconfig, entry_points, package, node_modules, package_json = None, deps = [], **kwargs)
+```
+
+Declares a component metadata run over one Svelte project and its DocIr shard.
+
+The metadata comes from the pinned `svelte2tsx` and the TypeScript checker, run
+through an isolated launcher: `svelte.config.js` and other consumer JavaScript never
+run. Only the consumer's `svelte` package is read from `node_modules`, for its type
+declarations. Entry points are `.svelte` files using `$props()`. Symbol ids are
+`svelte:<package>:<Component>` plus `.prop_` and `.slot_` members.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `eslint`

@@ -190,6 +190,10 @@ erlang_bench(name, *, suite_name = "", tags = None, runtime_deps = None, **kwarg
 
 ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-bench.json.
 
+## API docs
+
+No API doc tool yet.
+
 ## Tools
 
 - `dialyzer`

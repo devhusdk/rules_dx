@@ -34,6 +34,39 @@ def languages(root):
     return found
 
 
+def rlocation(path):
+    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
+    if manifest and os.path.isfile(manifest):
+        with open(manifest, encoding="utf-8") as handle:
+            for line in handle:
+                key, _, value = line.rstrip("\n").partition(" ")
+                if key == path:
+                    return value
+    for base in [os.environ.get("RUNFILES_DIR"), sys.argv[0] + ".runfiles"]:
+        if base and os.path.exists(os.path.join(base, path)):
+            return os.path.join(base, path)
+    raise SystemExit("languages: cannot find runfile " + path)
+
+
+def facts(root):
+    """Returns the support matrix rows keyed by name."""
+    local = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "support_matrix", "facts.json")
+    path = local if os.path.isfile(local) else rlocation("_main/tools/docs/support_matrix/facts.json")
+    with open(path, encoding="utf-8") as f:
+        return {row["name"]: row for row in json.load(f)["rows"]}
+
+
+def shard_bzl(root, shard):
+    pattern = re.compile(r"^(%s\s*=|def %s\()" % (re.escape(shard), re.escape(shard)), re.M)
+    base = os.path.join(root, "tools/docs")
+    for name in sorted(os.listdir(base)):
+        path = "tools/docs/%s/defs.bzl" % name
+        text = read(root, path)
+        if text is not None and pattern.search(text):
+            return name, path
+    raise SystemExit("languages: no defs.bzl defines %s" % shard)
+
+
 def read(root, path):
     try:
         with open(os.path.join(root, path), encoding="utf-8") as f:
@@ -169,7 +202,45 @@ def bullets(items, fmt="`%s`"):
     return "\n".join("- " + fmt % item for item in items) + "\n" if items else "None.\n"
 
 
-def page(root, lang):
+def render(name, info):
+    out = []
+    if info is None:
+        out.append("No documentation.\n")
+        return out
+    kind, signature, doc, attrs = info
+    if signature:
+        out.append("```python\n%s(%s)\n```\n" % (name, signature))
+    if doc:
+        out.append(doc + "\n")
+    if attrs:
+        out.append("| Attribute | Type | Required | Description |\n| --- | --- | --- | --- |")
+        for attr_name, attr_type, mandatory, text in attrs:
+            out.append("| `%s` | `%s` | %s | %s |" % (attr_name, attr_type, "yes" if mandatory else "no", text.replace("|", "\\|")))
+        out.append("")
+    if not (signature or doc or attrs):
+        out.append("No documentation.\n")
+    return out
+
+
+def api_docs(root, lang, rows):
+    row = rows.get(lang)
+    if row is None or row.get("doc_shard") is None:
+        return []
+    out = ["## API docs\n"]
+    shard = row["doc_shard"]
+    if not shard:
+        out.append("No API doc tool yet.\n")
+        return out
+    package, path = shard_bzl(root, shard)
+    out.append("Tool: `%s`.\n" % row["doc"])
+    out.append("```python\nload(\"@rules_dx//tools/docs/%s:defs.bzl\", \"%s\")\n```\n" % (package, shard))
+    out.append("### `%s`\n" % shard)
+    out.extend(render(shard, describe(root, path, shard)))
+    out.append("Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).\n")
+    return out
+
+
+def page(root, lang, rows):
     meta = json.loads(read(root, "%s/lang.json" % lang))
     defs = "%s/defs.bzl" % lang
     names = meta["entry_points"]
@@ -185,23 +256,9 @@ def page(root, lang):
     if not names:
         out.append("None.\n")
     for name in names:
-        info = describe(root, defs, name)
         out.append("### `%s`\n" % name)
-        if info is None:
-            out.append("No documentation.\n")
-            continue
-        kind, signature, doc, attrs = info
-        if signature:
-            out.append("```python\n%s(%s)\n```\n" % (name, signature))
-        if doc:
-            out.append(doc + "\n")
-        if attrs:
-            out.append("| Attribute | Type | Required | Description |\n| --- | --- | --- | --- |")
-            for attr_name, attr_type, mandatory, text in attrs:
-                out.append("| `%s` | `%s` | %s | %s |" % (attr_name, attr_type, "yes" if mandatory else "no", text.replace("|", "\\|")))
-            out.append("")
-        if not (signature or doc or attrs):
-            out.append("No documentation.\n")
+        out.extend(render(name, describe(root, defs, name)))
+    out.extend(api_docs(root, lang, rows))
     out.append("## Tools\n")
     out.append(bullets(meta["tools"]))
     out.append("## Ecosystems\n")
@@ -216,7 +273,8 @@ def page(root, lang):
 
 
 def pages(root):
-    return {"%s/%s.md" % (OUT, lang): page(root, lang) for lang in languages(root)}
+    rows = facts(root)
+    return {"%s/%s.md" % (OUT, lang): page(root, lang, rows) for lang in languages(root)}
 
 
 def find_root():

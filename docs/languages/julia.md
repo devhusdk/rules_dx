@@ -50,6 +50,31 @@ julia_standalone_binary(name, **kwargs)
 
 Standalone binary from a dx julia_library that defines julia_main()::Cint.
 
+## API docs
+
+Tool: `documenter`.
+
+```python
+load("@rules_dx//tools/docs/julia:defs.bzl", "julia_doc_shard")
+```
+
+### `julia_doc_shard`
+
+```python
+julia_doc_shard(name, lib, module = "", package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Julia library.
+
+Args:
+  name: Name of the shard target.
+  lib: The documented julia_library, named after its root module.
+  module: Name of the root module; defaults to the name of lib.
+  package: Package segment of every symbol id; defaults to the module name.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `julia_format`

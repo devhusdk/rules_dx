@@ -4,6 +4,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 python_binary(
     name = "languages_bin",
     srcs = ["languages.py"],
+    data = ["//tools/docs/support_matrix:facts"],
     main = "languages.py",
     visibility = ["//visibility:public"],
 )
@@ -11,7 +12,10 @@ python_binary(
 python_test(
     name = "languages_test",
     srcs = ["languages.py"],
-    data = ["//docs:language_pages"],
+    data = [
+        "//docs:language_pages",
+        "//tools/docs/support_matrix:facts",
+    ],
     main = "languages.py",
     runner = "plain",
     tags = [

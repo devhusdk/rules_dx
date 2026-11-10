@@ -210,6 +210,24 @@ typescript_playwright_test(name, *, srcs, config, node_modules, app = None, data
 
 Runs Playwright tests in a pinned headless Chromium; app is started by the config's webServer from DX_PLAYWRIGHT_APP on DX_PLAYWRIGHT_PORT.
 
+## API docs
+
+Tool: `typedoc`.
+
+```python
+load("@rules_dx//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
+```
+
+### `typescript_doc_shard`
+
+```python
+typescript_doc_shard(name, srcs, tsconfig, entry_points, package, deps = [], options = [], **kwargs)
+```
+
+Declares a TypeDoc JSON run over one TypeScript project and its DocIr shard.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `biome`

@@ -66,6 +66,24 @@ csharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **k
 
 A SharpFuzz harness plus a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux only.
 
+## API docs
+
+Tool: `csharp doc driver`.
+
+```python
+load("@rules_dx//tools/docs/dotnet:defs.bzl", "csharp_doc_shard")
+```
+
+### `csharp_doc_shard`
+
+```python
+csharp_doc_shard(name, library, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one C# library.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `csc`

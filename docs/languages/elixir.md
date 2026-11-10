@@ -86,6 +86,10 @@ elixir_bench(name, *, srcs, tags = None, deps = None, **kwargs)
 
 elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-bench.json.
 
+## API docs
+
+No API doc tool yet.
+
 ## Tools
 
 - `credo`

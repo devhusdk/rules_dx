@@ -62,6 +62,31 @@ kotlin_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visibil
 
 A Jazzer fuzz target plus a `<name>_run` runner for `dx fuzz`. target_class is inferred from the name or the single src when unset.
 
+## API docs
+
+Tool: `dokka`.
+
+```python
+load("@rules_dx//tools/docs/jvm:defs.bzl", "kotlin_doc_shard")
+```
+
+### `kotlin_doc_shard`
+
+```python
+kotlin_doc_shard(name, lib, package = "", deps = [], **kwargs)
+```
+
+Declares the DocIr shard of one Kotlin library.
+
+Args:
+  name: Name of the shard target.
+  lib: The documented kotlin_library; its srcs must all be .kt files.
+  package: Package segment of every symbol id; defaults to the name of lib.
+  deps: Doc shard targets of libraries whose types this one extends or links to.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `detekt`

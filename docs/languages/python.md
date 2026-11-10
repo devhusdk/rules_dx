@@ -90,6 +90,24 @@ python_grpc_library(name, proto, py_proto, grpc_tools = "@pypi//grpcio_tools", g
 
 Compiles the services of proto into <name>_pb2_grpc.py.
 
+## API docs
+
+Tool: `griffe`.
+
+```python
+load("@rules_dx//tools/docs/python:defs.bzl", "python_doc_shard")
+```
+
+### `python_doc_shard`
+
+```python
+python_doc_shard(name, library, package = "", docstyle = "google", **kwargs)
+```
+
+Declares the DocIr shard of one Python library.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `pydoclint`

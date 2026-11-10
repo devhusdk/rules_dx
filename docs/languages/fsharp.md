@@ -58,6 +58,24 @@ fsharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **k
 
 A SharpFuzz harness and a `<name>_run` runner for `dx fuzz`; the libraries in deps are instrumented. Linux only.
 
+## API docs
+
+Tool: `fsharp doc driver`.
+
+```python
+load("@rules_dx//tools/docs/dotnet:defs.bzl", "fsharp_doc_shard")
+```
+
+### `fsharp_doc_shard`
+
+```python
+fsharp_doc_shard(name, library, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one F# library.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `fantomas`

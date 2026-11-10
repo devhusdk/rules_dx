@@ -66,6 +66,31 @@ java_bench(name, *, srcs, deps = None, tags = None, **kwargs)
 
 Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench.
 
+## API docs
+
+Tool: `javadoc`.
+
+```python
+load("@rules_dx//tools/docs/jvm:defs.bzl", "java_doc_shard")
+```
+
+### `java_doc_shard`
+
+```python
+java_doc_shard(name, lib, package = "", deps = [], **kwargs)
+```
+
+Declares the DocIr shard of one Java library.
+
+Args:
+  name: Name of the shard target.
+  lib: The documented java_library.
+  package: Package segment of every symbol id; defaults to the name of lib.
+  deps: java_doc_shard targets of libraries whose types this one extends or links to.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `google_java_format`

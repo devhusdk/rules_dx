@@ -58,6 +58,28 @@ zig_bench(name, *, main = None, srcs = None, visibility = None, tags = None, **k
 
 A ReleaseFast zig_binary plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
+## API docs
+
+Tool: `zig std.zig.Ast`.
+
+```python
+load("@rules_dx//tools/docs/zig:defs.bzl", "zig_doc_shard")
+```
+
+### `zig_doc_shard`
+
+Converts one Zig library's public API into a DocIr shard with the pinned Zig's std.zig.Ast.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `config` | `string` | no | Extra configuration identity recorded on every symbol. |
+| `lib` | `label` | yes | The zig_library to document. |
+| `package` | `string` | no | Package segment of the symbol ids. Defaults to the lib name. |
+| `_dump` | `label` | no |  |
+| `_extract` | `label` | no |  |
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `zig_fmt`

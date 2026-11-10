@@ -42,6 +42,30 @@ lua_test(name, *, srcs = None, visibility = None, **kwargs)
 
 A Lua test; it passes when main returns or calls os.exit(0).
 
+## API docs
+
+Tool: `ldoc`.
+
+```python
+load("@rules_dx//tools/docs/lua:defs.bzl", "lua_doc_shard")
+```
+
+### `lua_doc_shard`
+
+```python
+lua_doc_shard(name, lib, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Lua library.
+
+Args:
+  name: Name of the shard target.
+  lib: The documented lua_library.
+  package: Package segment of every symbol id; defaults to the name of lib.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
+
 ## Tools
 
 - `selene`

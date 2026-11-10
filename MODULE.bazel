@@ -697,6 +697,7 @@ register_toolchains("//tools/platforms:protoc_windows_arm64")
 
 register_toolchains("@dx_powershell_toolchains//:all")
 
+# needed: @rules_ruby (dx_pins extension) loads @bazel_features
 bazel_dep(name = "bazel_features", version = "1.54.1")
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).

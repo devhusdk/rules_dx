@@ -1,5 +1,6 @@
 """Hermetic Erlang/OTP acquisition and toolchain registration."""
 
+load("//elixir/private:hex.bzl", "hex_extract")
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:toolchain.bzl", "toolchain_target")
 load(
@@ -352,10 +353,55 @@ def hub_build():
     ))
     return "\n".join(content)
 
-def rebar_build(package, packages, prefix):
-    """Returns the BUILD file of one rebar.lock package: it links every package locked deeper."""
-    deps = ["@{}_{}//:erlang_app".format(prefix, other["package"]) for other in packages if other["level"] > package["level"]]
-    return HEX_BUILD.format(app = package["package"], version = package["version"], deps = repr(deps))
+def rebar_requirements(metadata):
+    """Returns the requirements of a Hex metadata.config as dicts with name and optional."""
+    start = metadata.find('{<<"requirements">>,')
+    if start < 0:
+        return []
+    section = metadata[start:]
+    end = section.find('\n{<<"', 1)
+    if end >= 0:
+        section = section[:end]
+    requirements = []
+    for chunk in section.split("[{<<\"app\">>,")[1:]:
+        name = chunk.split('{<<"name">>,<<"', 1)[1].split('"', 1)[0]
+        requirements.append({"name": name, "optional": "{<<\"optional\">>,true}" in chunk})
+    return requirements
+
+def rebar_build(package, version, requirements, locked, prefix):
+    """Returns the BUILD file of one rebar.lock package: it links the locked packages its metadata requires."""
+    deps = []
+    for requirement in requirements:
+        name = requirement["name"]
+        if name in locked:
+            deps.append("@{}_{}//:erlang_app".format(prefix, name))
+        elif not requirement["optional"]:
+            fail("hex package {} {} requires {}, which rebar.lock does not lock".format(package, version, name))
+    return HEX_BUILD.format(app = package, version = version, deps = repr(deps))
+
+def _rebar_package_impl(rctx):
+    metadata = hex_extract(rctx, rctx.attr.package, rctx.attr.version, rctx.attr.sha256)
+    rctx.file("REPO.bazel", "")
+    rctx.file("BUILD.bazel", rebar_build(
+        rctx.attr.package,
+        rctx.attr.version,
+        rebar_requirements(metadata),
+        rctx.attr.locked,
+        rctx.attr.prefix,
+    ))
+    return rctx.repo_metadata(reproducible = True)
+
+rebar_package = repository_rule(
+    implementation = _rebar_package_impl,
+    doc = "Fetches one rebar.lock package and links the locked packages its Hex metadata requires.",
+    attrs = {
+        "locked": attr.string_list(mandatory = True, doc = "Package names in the rebar.lock."),
+        "package": attr.string(mandatory = True, doc = "Hex package name."),
+        "prefix": attr.string(mandatory = True, doc = "Name of the erlang.rebar hub."),
+        "sha256": attr.string(mandatory = True, doc = "Digest of the release tarball."),
+        "version": attr.string(mandatory = True, doc = "Exact release version."),
+    },
+)
 
 def rebar_hub_build(packages, prefix):
     """Returns the hub BUILD file with one erlang_app alias per rebar.lock package."""

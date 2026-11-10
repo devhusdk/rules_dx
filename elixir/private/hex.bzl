@@ -11,7 +11,7 @@ def hex_metadata_entry(key, value):
     return '{<<"' + key + '">>,<<"' + value + '">>}.'
 
 def hex_extract(rctx, package, version, sha256, output = "."):
-    """Downloads one pinned Hex release, checks its metadata and extracts the sources."""
+    """Downloads one pinned Hex release, checks its metadata, extracts the sources and returns the metadata text."""
     scratch = "_hex_" + package
     rctx.download_and_extract(
         url = hex_tarball_url(package, version),
@@ -25,6 +25,7 @@ def hex_extract(rctx, package, version, sha256, output = "."):
             fail("hex package {} {} does not declare {} {}".format(package, version, key, value))
     rctx.extract(scratch + "/contents.tar.gz", output = output)
     rctx.delete(scratch)
+    return metadata
 
 def _hex_package_impl(rctx):
     if (rctx.attr.build_file == None) == (rctx.attr.build_file_content == ""):

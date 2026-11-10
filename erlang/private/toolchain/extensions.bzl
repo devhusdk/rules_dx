@@ -4,7 +4,7 @@ load("//elixir/private:hex.bzl", "hex_package")
 load("//erlang/private:rebar_lock.bzl", "rebar_lock_packages")
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "CELLS", "HEX_SOURCES", "RULES_ERLANG_COMMIT", "RULES_ERLANG_SHA256", "RULES_ERLANG_URLS", "TOOL_SOURCES")
-load(":repos.bzl", "HEX_BUILD", "HUB_NAME", "PRIVATE_BUILD", "ROOT_BUILD", "TOOL_BUILDS", "cell_repository_name", "hub_build", "otp_repo", "rebar_build", "rebar_hub_build")
+load(":repos.bzl", "HEX_BUILD", "HUB_NAME", "PRIVATE_BUILD", "ROOT_BUILD", "TOOL_BUILDS", "cell_repository_name", "hub_build", "otp_repo", "rebar_hub_build", "rebar_package")
 
 
 HEX_DEPS = {"dx_erlperf": ["@dx_erlang_argparse//:erlang_app"]}
@@ -13,10 +13,11 @@ HEX_DEPS = {"dx_erlperf": ["@dx_erlang_argparse//:erlang_app"]}
 def _declare_rebar(mctx, tag):
     packages = rebar_lock_packages(mctx.read(tag.lock))
     for package in packages:
-        hex_package(
+        rebar_package(
             name = tag.name + "_" + package["package"],
-            build_file_content = rebar_build(package, packages, tag.name),
+            locked = [p["package"] for p in packages],
             package = package["package"],
+            prefix = tag.name,
             sha256 = package["sha256"],
             version = package["version"],
         )
@@ -74,7 +75,7 @@ erlang = module_extension(
     doc = "Creates rules_erlang, the pinned OTP trees, the toolchain hub and the erlfmt and elvis sources.",
     tag_classes = {
         "rebar": tag_class(
-            doc = "Declares a hex_package per entry of a rebar.lock and a hub repo with one erlang_app alias per package.",
+            doc = "Declares a package repo per entry of a rebar.lock and a hub repo with one erlang_app alias per package.",
             attrs = {
                 "lock": attr.label(mandatory = True, allow_single_file = True, doc = "The rebar.lock to read."),
                 "name": attr.string(mandatory = True, doc = "Hub repository name; package repos are named <name>_<package>."),

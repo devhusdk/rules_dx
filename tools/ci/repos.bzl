@@ -76,7 +76,7 @@ def _rust(path, name):
     return not any([part in _TEST_DIRS for part in path.split("/")])
 
 def _test_tags_sources_impl(rctx):
-    """Writes sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, and rust.json, the same for the non-test .rs files."""
+    """Writes sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):
@@ -87,6 +87,46 @@ def _test_tags_sources_impl(rctx):
     ignored = ignored_paths(rctx.read(root.get_child(".bazelignore"), watch = "yes"))
     sources = {}
     files = {}
+    rust = {}
+    paths = walk(ignored, readdir).files
+    for path in paths:
+        name = path.rpartition("/")[2]
+        if _starlark(name):
+            sources[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+        elif _data(path, name):
+            files[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+        elif _rust(path, name):
+            rust[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+    langs = {
+        path.removesuffix("/lang.json"): True
+        for path in files
+        if path.count("/") == 1 and path.endswith("/lang.json")
+    }
+    for lang in langs:
+        readme = root.get_child(lang, "README.md")
+        if readme.exists:
+            files[lang + "/README.md"] = rctx.read(readme, watch = "yes")
+    rctx.file("sources.json", json.encode(sources))
+    rctx.file("files.json", json.encode(files))
+    rctx.file("rust.json", json.encode(rust))
+    rctx.file("paths.json", json.encode(sorted([path for path in paths if path.split("/")[0] in langs])))
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "paths.json"])\n')
+
+test_tags_sources = repository_rule(
+    implementation = _test_tags_sources_impl,
+    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, language README, repository BUILD and language page files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
+)
+    root = rctx.path(Label("//:MODULE.bazel")).dirname
+
+    def readdir(path):
+        directory = root.get_child(*path.split("/")) if path else root
+        parent = str(directory.realpath)
+        return [_entry(parent, entry) for entry in directory.readdir(watch = "yes")]
+
+    ignored = ignored_paths(rctx.read(root.get_child(".bazelignore"), watch = "yes"))
+    sources = {}
+    files = {}
+<<<<<<< HEAD
     rust = {}
     for path in walk(ignored, readdir).files:
         name = path.rpartition("/")[2]
@@ -104,4 +144,43 @@ def _test_tags_sources_impl(rctx):
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,
     doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, repository BUILD and language page files, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
+=======
+    paths = []
+    pending = [root]
+    for _ in range(_MAX_DIRS):
+        if not pending:
+            break
+        directory = pending.pop()
+        for entry in directory.readdir(watch = "yes"):
+            if _skipped(entry.basename):
+                continue
+            if entry.is_dir:
+                pending.append(entry)
+            else:
+                path = str(entry).removeprefix(prefix)
+                paths.append(path)
+                if _starlark(entry.basename):
+                    sources[path] = rctx.read(entry, watch = "yes")
+                elif _data(path, entry.basename):
+                    files[path] = rctx.read(entry, watch = "yes")
+    if pending:
+        fail("more than {} directories under {}".format(_MAX_DIRS, root))
+    langs = {
+        path.removesuffix("/lang.json"): True
+        for path in files
+        if path.count("/") == 1 and path.endswith("/lang.json")
+    }
+    for lang in langs:
+        readme = root.get_child(lang, "README.md")
+        if readme.exists:
+            files[lang + "/README.md"] = rctx.read(readme, watch = "yes")
+    rctx.file("sources.json", json.encode(sources))
+    rctx.file("files.json", json.encode(files))
+    rctx.file("paths.json", json.encode(sorted([path for path in paths if path.split("/")[0] in langs])))
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "paths.json"])\n')
+
+test_tags_sources = repository_rule(
+    implementation = _test_tags_sources_impl,
+    doc = "Snapshots every BUILD and .bzl file of the root module, its MODULE.bazel, lang.json, language README, repository BUILD and language page files, and the paths under its language directories, watching each directory and file it reads.",
+>>>>>>> a41fdd3c9 (skeleton lint: language_skeleton_test with a shrinking allowlist (closes #11163))
 )

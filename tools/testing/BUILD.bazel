@@ -178,6 +178,27 @@ testing_rust_test(
 )
 
 testing_rust_test(
+    name = "language_skeleton_test",
+    size = "small",
+    data = [
+        "language_skeleton_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:paths.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:paths.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+        "LANGUAGE_SKELETON_ALLOWLIST": "$(rlocationpath language_skeleton_allowlist.txt)",
+    },
+    deps = [
+        ":dx_testing",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+testing_rust_test(
     name = "host_path_scan_test",
     data = [
         "host_path_allowlist.txt",

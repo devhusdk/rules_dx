@@ -625,7 +625,7 @@ def apple_ios_app_test(
         runner = ":" + name + "_runner",
         test_host = app,
         deps = test_deps,
-        tags = sorted(set(tags + ["no-sandbox"])),
+        tags = tags,
         target_compatible_with = APPLE_HOSTS,
         visibility = visibility,
         **kwargs

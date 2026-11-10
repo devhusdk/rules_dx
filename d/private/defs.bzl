@@ -106,7 +106,7 @@ def _cover(kwargs):
         "//conditions:default": [],
     }))
 
-def d_library(name, srcs, visibility = None, **kwargs):
+def d_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_d d_library rule."""
     kwargs = d_kwargs(kwargs)
     kwargs = _cover(kwargs)
@@ -115,9 +115,7 @@ def d_library(name, srcs, visibility = None, **kwargs):
     dx_wrap(name, _d_library, _d_library_forward, srcs, visibility = visibility, quality_srcs = quality_srcs, **kwargs)
 
 def d_binary(name, *, srcs = None, visibility = None, **kwargs):
-    """Thin wrapper over the rules_d d_binary rule. srcs is required."""
-    if srcs == None:
-        fail("d_binary //" + native.package_name() + ":" + name + " needs srcs")
+    """Thin wrapper over the rules_d d_binary rule."""
     kwargs = d_kwargs(kwargs)
     quality_srcs = d_quality_srcs(srcs, kwargs.get("string_srcs"))
     kwargs = _string_srcs(name, kwargs)

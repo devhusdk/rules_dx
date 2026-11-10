@@ -45,7 +45,7 @@ csharp_test(
 
 | Rule | What it makes |
 | --- | --- |
-| `csharp_library` | Assembly from `srcs` |
+| `csharp_library` | Assembly from `srcs`, which is optional |
 | `csharp_binary` | Executable run with `bazel run`. `srcs` is optional |
 | `csharp_test` | Test executable run with `bazel test` |
 | `csharp_bench` | `csharp_test` that runs `[Benchmark]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; BenchmarkDotNet comes with rules_dx, so `paket.dependencies` needs no entry |

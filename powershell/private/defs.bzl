@@ -85,7 +85,7 @@ _pwsh_forward_test = dx_executable_forward_rule(
     coverage_providers = _pwsh_test_coverage,
 )
 
-def powershell_library(name, srcs, visibility = None, **kwargs):
+def powershell_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over pwsh_library; srcs are .ps1, .psm1 or .psd1 files."""
     dx_wrap(name, _pwsh_library, _pwsh_library_forward, srcs, visibility = visibility, **kwargs)
 

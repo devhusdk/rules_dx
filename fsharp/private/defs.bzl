@@ -78,7 +78,7 @@ def _fsharp_context(kwargs):
         "target_frameworks": fsharp_tfm_with_defaults(kwargs)["target_frameworks"],
     }
 
-def fsharp_library(name, srcs, visibility = None, **kwargs):
+def fsharp_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over fsharp_library; srcs compile in list order, target_frameworks defaults to net10.0 and warnings are errors."""
     dx_wrap(name, _fsharp_library, _fsharp_library_forward, srcs, visibility = visibility, upstream_kwargs = fsharp_tfm_with_defaults(kwargs), extra_forward_kwargs = _fsharp_context(kwargs), **kwargs)
 

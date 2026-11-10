@@ -95,7 +95,7 @@ _ruby_forward_test = dx_executable_forward_rule(
     coverage_providers = _ruby_test_coverage,
 )
 
-def ruby_library(name, srcs, visibility = None, **kwargs):
+def ruby_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over rb_library; takes .rb srcs."""
     dx_wrap(name, _rb_library, _ruby_library_forward, srcs, visibility = visibility, **kwargs)
 

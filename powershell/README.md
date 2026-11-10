@@ -51,7 +51,7 @@ powershell_test(
 
 | Rule | What it makes |
 | --- | --- |
-| `powershell_library` | Module from `.ps1`, `.psm1` and `.psd1` files |
+| `powershell_library` | Module from `.ps1`, `.psm1` and `.psd1` files. `srcs` is optional |
 | `powershell_binary` | Script run with `bazel run`. `srcs` takes `.ps1` files and is optional |
 | `powershell_test` | Script run with `bazel test`. `srcs` takes `.ps1` files |
 

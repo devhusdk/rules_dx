@@ -43,7 +43,7 @@ fsharp_test(
 
 | Rule | What it makes |
 | --- | --- |
-| `fsharp_library` | Assembly from `srcs` |
+| `fsharp_library` | Assembly from `srcs`, which is optional |
 | `fsharp_binary` | Executable run with `bazel run`. `srcs` is optional |
 | `fsharp_test` | Test executable run with `bazel test` |
 | `fsharp_bench` | `fsharp_test` that runs `[<Benchmark>]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; add `nuget BenchmarkDotNet` to your `paket.dependencies` |

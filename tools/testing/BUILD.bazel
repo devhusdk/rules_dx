@@ -207,6 +207,28 @@ rust_test(
 )
 
 rust_test(
+    name = "dx_generated_fresh_test",
+    srcs = ["dx_generated_fresh_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "dx_generated_fresh_test",
+    crate_root = "dx_generated_fresh_test.rs",
+    data = ["//:module_srcs"],
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_testing",
+        "//cli/adopt:dx_adopt",
+        "//cli/generate:dx_generate",
+    ],
+)
+
+rust_test(
     name = "module_srcs_test",
     srcs = ["module_srcs_test.rs"],
     aliases = aliases(

@@ -35,6 +35,7 @@ rust_library(
     compile_data = ["//core/quality/tiers:all"],
     crate_name = "dx_generate",
     crate_root = "src/lib.rs",
+    visibility = VIS_CLI + ["//tools/testing:__pkg__"],
     deps = all_crate_deps(
         package_name = "cli/dx_generate",
         normal = True,

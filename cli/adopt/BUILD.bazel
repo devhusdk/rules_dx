@@ -50,6 +50,7 @@ rust_library(
         "//core/quality:__pkg__",
         "//tools/ci/fill_pins:__pkg__",
         "//tools/docs/support_matrix:__pkg__",
+        "//tools/testing:__pkg__",
     ],
     deps = all_crate_deps(
         package_name = "cli/dx_adopt",

@@ -370,9 +370,12 @@ fn declared_input_escape(
     root: &Path,
     dependencies: &[String],
 ) -> Result<(), RunnerError> {
+    let root = without_verbatim(root.to_path_buf());
     for dependency in dependencies {
         let normal = lexical_normal(Path::new(dependency));
-        let inside = std::fs::canonicalize(&normal).is_ok_and(|real| real.starts_with(root));
+        let inside = std::fs::canonicalize(&normal)
+            .map(without_verbatim)
+            .is_ok_and(|real| real.starts_with(&root));
         if !inside {
             return Err(execution(
                 tool_id,

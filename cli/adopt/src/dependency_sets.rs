@@ -1885,18 +1885,6 @@ fn check_go_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependency
     }
     let root = std::fs::read_to_string(workspace.join(MODULE_BAZEL))
         .map_err(|error| unsupported(format!("cannot read {MODULE_BAZEL}: {error}")))?;
-    let module = dx_module_bazel::ModuleFile::parse(&root)
-        .map_err(|error| unsupported(format!("cannot parse {MODULE_BAZEL}: {error}")))?;
-    let dep = module.bazel_dep("rules_go").map_err(|_| {
-        unsupported(format!(
-            "{MODULE_BAZEL} needs bazel_dep(name = \"rules_go\")"
-        ))
-    })?;
-    if dep.arg("repo_name").is_some() {
-        return Err(unsupported(
-            "the rules_go bazel_dep must not set repo_name".to_owned(),
-        ));
-    }
     if root.lines().any(|line| {
         let code = line.split('#').next().unwrap_or("");
         code.contains("go_env")

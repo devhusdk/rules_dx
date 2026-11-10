@@ -2177,7 +2177,7 @@ fn configured_go_stages_go_mod_download_with_forced_env() {
                 ..head.clone()
             }
             .argv("run"),
-            strings(&["@rules_go//go", "--"]),
+            strings(&["@rules_dx//go/private/tools:go", "--"]),
         ]
         .concat(),
         env: Vec::new(),
@@ -2205,11 +2205,13 @@ fn configured_go_stages_go_mod_download_with_forced_env() {
             set: "gomods".to_owned()
         })
     );
-    assert!(
-        !expected
+    assert_eq!(
+        expected
             .argv_head
             .iter()
-            .any(|arg| arg.contains("rules_dx"))
+            .filter(|arg| arg.contains("rules_dx"))
+            .count(),
+        1
     );
     let scratch = Path::new("/scratch/1");
     let argv = expected.argv(scratch);

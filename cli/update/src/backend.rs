@@ -799,7 +799,7 @@ fn go_staged(
     inputs.push(sum.clone());
     Ok(StagedRun {
         tool: StagedTool::GoModDownload,
-        argv_head: bazel(&pin_head, "run", &["@rules_go//go", "--"]),
+        argv_head: bazel(&pin_head, "run", &["@rules_dx//go/private/tools:go", "--"]),
         env: Vec::new(),
         inputs,
         outputs: vec![sum],

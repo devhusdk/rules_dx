@@ -312,7 +312,7 @@ fn configured_go_set_add_check_names_its_go_mod() {
     harness.write_source("third_party/go/go.mod", go_mod);
     harness.write_source(
         "MODULE.bazel",
-        "bazel_dep(name = \"rules_go\", version = \"0.50.1\")\ngo_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n",
+        "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//third_party/go:go.mod\")\n",
     );
     let (code, _, err) = harness.run(&["update", "go:github.com/pkg/errors", "0.9.1"]);
     assert_eq!(code, 1, "{err}");

@@ -123,7 +123,7 @@ Text prints these lines:
   With `--apply`: `dx worktree: pruned <size>` or `dx worktree: nothing to prune`.
 
 When the disk is low, `add`, `release` and `hook create` drop orphaned output
-bases, old downloads, nested-Bazel test cases and free slots' output bases, then
+bases, old downloads and free slots' output bases, then
 print `dx worktree: low disk at <path>: <free> free; removed <what>; <free> free now`.
 If the disk stays full, `add` refuses with `disk_full`. Run
 `dx worktree prune --apply --bases`.
@@ -136,7 +136,7 @@ If the disk stays full, `add` refuses with `disk_full`. Run
 `prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and
 optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`,
 `busy` and `prunable`. `state` is `held`, `free`, `reclaimable`, `external`, `removed`,
-`kept`, `orphaned`, `nested`, `skipped` or `stale`. `summary` fields: `slots`,
+`kept`, `orphaned`, `skipped` or `stale`. `summary` fields: `slots`,
 `servers`, `servers_rss_bytes`, `disk_cache_bytes` and, with `--disk`,
 `disk_bytes`.
 
@@ -146,13 +146,6 @@ optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`,
 | `1` | Operational failure: branch checked out elsewhere, dirty or unpushed slot on `release`, `slot_busy`, `lease_changed`, `no_home`, `disk_full`, `path` finds no checkout, `prune` found work without `--apply`, or a `hook` failure. |
 | `2` | Usage error: unknown subcommand or hook, wrong arguments, `invalid_branch`, `not_a_slot`, a flag on the wrong subcommand, an unknown `--create` ref, `release` of another holder's slot without `--force`, or any other `dx` command in a slot leased to another session. |
 | `128` plus signal | Ctrl-C, `SIGTERM` or `SIGHUP` stopped `list --disk` or `prune`. |
-
-## Nested-Bazel tests
-
-Tests that run Bazel inside Bazel keep their servers under
-`DX_NESTED_BAZEL_ROOT`, else `/tmp/dxnb-<uid>`. On Windows the root is
-`%USERPROFILE%\.dxnb`. `prune` lists test cases unused for 30 days, or all of
-them with `--bases`, as `output base of nested Bazel test <case>, <size>: <dir>`.
 
 ## Shared disk cache
 

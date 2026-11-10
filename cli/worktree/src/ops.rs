@@ -2,14 +2,12 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use dx_path::nested_bazel;
-
 use super::WorktreeError;
 use super::cache;
 use super::git;
 use super::host::{
-    DiskSpace, Download, Host, OutputBase, Server, download_used, resolved, same_path,
-    scan_downloads, scan_output_bases,
+    DiskSpace, Download, Host, OutputBase, Server, download_used, same_path, scan_downloads,
+    scan_output_bases,
 };
 use super::pool::{Pool, Record, Who};
 
@@ -133,8 +131,6 @@ pub enum BaseOwner {
     Orphan,
     /// A free slot of the pool.
     Slot(u32),
-    /// A test case in a free nested-Bazel slot; `slot` is the slot directory and `case` the workspace name.
-    Nested { slot: PathBuf, case: String },
 }
 
 impl BaseOwner {
@@ -147,7 +143,7 @@ impl BaseOwner {
     }
 }
 
-/// One output base whose workspace is gone, of a free slot when its disk is low, or of a nested-Bazel test.
+/// One output base whose workspace is gone, of a free slot when its disk is low.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PruneBase {
     pub dir: PathBuf,
@@ -1718,7 +1714,6 @@ pub(crate) fn prune_plan(
     let servers = host.servers();
     let roots = host.output_roots(&servers);
     let bases = scan_output_bases(&roots);
-    let nested_root = host.nested_root().map(|root| resolved(&root));
     let mut plan = PrunePlan::default();
     for record in pool.records() {
         let idle = now.saturating_sub(record.last_used);
@@ -1769,7 +1764,7 @@ pub(crate) fn prune_plan(
         });
     }
     for base in &bases {
-        if base.workspace.exists() || under(nested_root.as_deref(), &base.dir) {
+        if base.workspace.exists() {
             continue;
         }
         if base_in_use(&servers, base) {
@@ -1820,180 +1815,7 @@ pub(crate) fn prune_plan(
             });
         }
     }
-    plan_nested(host, &servers, trigger, now, &mut plan)?;
     Ok(plan)
-}
-
-/// One test case of a nested-Bazel slot: its output base under `u` and the workspace it was made for.
-struct NestedCase {
-    slot: PathBuf,
-    base: OutputBase,
-    /// When the case's workspace last changed, or `None` when the workspace is gone.
-    used: Option<u64>,
-}
-
-impl NestedCase {
-    fn owner(&self) -> BaseOwner {
-        BaseOwner::Nested {
-            slot: self.slot.clone(),
-            case: self
-                .base
-                .workspace
-                .file_name()
-                .map(|name| name.to_string_lossy().into_owned())
-                .unwrap_or_default(),
-        }
-    }
-
-    /// The case's workspace when it lies in its slot's `w`.
-    fn own_workspace(&self) -> Option<&Path> {
-        let workspaces = resolved(&self.slot.join(nested_bazel::WORKSPACES));
-        let workspace = resolved(&self.base.workspace);
-        (workspace != workspaces && workspace.starts_with(&workspaces))
-            .then_some(self.base.workspace.as_path())
-    }
-
-    fn in_use(&self, servers: &[Server]) -> bool {
-        base_in_use(servers, &self.base) || server_in(servers, &self.base.workspace)
-    }
-}
-
-/// Whether `path` lies under `root`.
-fn under(root: Option<&Path>, path: &Path) -> bool {
-    root.is_some_and(|root| resolved(path).starts_with(root))
-}
-
-/// The test cases of every nested-Bazel slot, least recently used first.
-fn nested_cases(host: &dyn Host) -> Vec<NestedCase> {
-    let Some(root) = host.nested_root() else {
-        return Vec::new();
-    };
-    let Ok(entries) = std::fs::read_dir(&root) else {
-        return Vec::new();
-    };
-    let mut slots: Vec<PathBuf> = entries
-        .flatten()
-        .filter(|entry| entry.file_name().to_string_lossy().parse::<u32>().is_ok())
-        .map(|entry| entry.path())
-        .filter(|path| path.is_dir())
-        .collect();
-    slots.sort();
-    let mut cases = Vec::new();
-    for slot in slots {
-        for base in scan_output_bases(&[slot.join(nested_bazel::USER_ROOT)]) {
-            let used = std::fs::metadata(&base.workspace)
-                .and_then(|meta| meta.modified())
-                .ok()
-                .map(|modified| {
-                    modified
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .map(|elapsed| elapsed.as_secs())
-                        .unwrap_or(0)
-                });
-            cases.push(NestedCase {
-                slot: slot.clone(),
-                base,
-                used,
-            });
-        }
-    }
-    cases.sort_by(|left, right| (left.used, &left.base.dir).cmp(&(right.used, &right.base.dir)));
-    cases
-}
-
-/// Locks a nested-Bazel slot without waiting or creating the file; `None` when busy or missing.
-fn try_nested_lock(slot: &Path) -> Option<std::fs::File> {
-    let file = std::fs::File::options()
-        .write(true)
-        .open(slot.join(nested_bazel::LOCK))
-        .ok()?;
-    file.try_lock().ok()?;
-    Some(file)
-}
-
-/// Whether a nested-Bazel slot is free right now; the probe lock is released before this returns.
-fn nested_slot_free(slot: &Path) -> bool {
-    try_nested_lock(slot).is_some()
-}
-
-/// Lists the test cases of free nested-Bazel slots: those idle for 30 days, and with `--bases` or on a low
-/// disk every one, least recently used first.
-fn plan_nested(
-    host: &dyn Host,
-    servers: &[Server],
-    trigger: Trigger,
-    now: u64,
-    plan: &mut PrunePlan,
-) -> Result<(), WorktreeError> {
-    let mut free: Vec<(PathBuf, bool)> = Vec::new();
-    for case in nested_cases(host) {
-        stop_check(host)?;
-        let is_free = match free.iter().find(|(slot, _)| *slot == case.slot) {
-            Some((_, is_free)) => *is_free,
-            None => {
-                let is_free = nested_slot_free(&case.slot);
-                free.push((case.slot.clone(), is_free));
-                is_free
-            }
-        };
-        if !is_free {
-            continue;
-        }
-        let stale = case
-            .used
-            .is_none_or(|used| now.saturating_sub(used) >= STALE_AFTER_SECS);
-        if !(stale || trigger == Trigger::OnDemand || disk_low(host, &case.base.dir)) {
-            continue;
-        }
-        if case.in_use(servers) {
-            plan.kept_bases.push(PruneKeptBase {
-                dir: case.base.dir.clone(),
-                workspace: case.base.workspace.clone(),
-                owner: case.owner(),
-                reason: "server",
-            });
-            continue;
-        }
-        let mut bytes = measure(host, &case.base.dir)?;
-        if let Some(workspace) = case.own_workspace().filter(|path| path.exists()) {
-            bytes += measure(host, workspace)?;
-        }
-        plan.bases.push(PruneBase {
-            dir: case.base.dir.clone(),
-            workspace: case.base.workspace.clone(),
-            bytes,
-            owner: case.owner(),
-        });
-    }
-    Ok(())
-}
-
-/// Deletes one nested-Bazel test case: its output base and its workspace in the slot.
-fn drop_nested(host: &dyn Host, case: &NestedCase) -> bool {
-    let mut gone = host.remove_tree(&case.base.dir);
-    if let Some(workspace) = case.own_workspace() {
-        gone &= host.remove_tree(workspace);
-    }
-    gone
-}
-
-/// The nested-Bazel slot locks one apply or reclaim holds, taken once per slot.
-#[derive(Default)]
-struct NestedLocks {
-    held: Vec<(PathBuf, Option<std::fs::File>)>,
-}
-
-impl NestedLocks {
-    /// Whether this holds the slot's lock, taking it on first use.
-    fn hold(&mut self, slot: &Path) -> bool {
-        if let Some((_, lock)) = self.held.iter().find(|(held, _)| held == slot) {
-            return lock.is_some();
-        }
-        let lock = try_nested_lock(slot);
-        let taken = lock.is_some();
-        self.held.push((slot.to_path_buf(), lock));
-        taken
-    }
 }
 
 fn base_in_use(servers: &[Server], base: &OutputBase) -> bool {
@@ -2065,7 +1887,6 @@ pub(crate) fn prune_apply(
             });
         }
     }
-    let mut nested = NestedLocks::default();
     for base in &plan.bases {
         stop_check(host)?;
         let skip = |reason| PruneKeptBase {
@@ -2074,28 +1895,6 @@ pub(crate) fn prune_apply(
             owner: base.owner.clone(),
             reason,
         };
-        if let BaseOwner::Nested { slot, .. } = &base.owner {
-            if !nested.hold(slot) {
-                skipped.push(skip("busy"));
-                continue;
-            }
-            let case = NestedCase {
-                slot: slot.clone(),
-                base: OutputBase {
-                    dir: base.dir.clone(),
-                    workspace: base.workspace.clone(),
-                },
-                used: None,
-            };
-            if case.in_use(&host.servers()) {
-                skipped.push(skip("server"));
-                continue;
-            }
-            if !drop_nested(host, &case) {
-                skipped.push(skip("busy"));
-            }
-            continue;
-        }
         if let Some(slot) = base.owner.slot() {
             if !pool.record(slot).is_some_and(|record| !record.held) {
                 skipped.push(skip("held"));
@@ -2202,7 +2001,7 @@ pub(crate) fn disk_low(host: &dyn Host, path: &Path) -> bool {
     host.disk_space(path).is_some_and(is_low)
 }
 
-/// The low disk holding `base`, or else the low Bazel output root or nested-Bazel root with the least free
+/// The low disk holding `base`, or else the low Bazel output root with the least free
 /// space.
 pub(crate) fn low_disk(host: &dyn Host, base: &Path) -> Option<(PathBuf, DiskSpace)> {
     low_disk_reading(host, base).1
@@ -2219,7 +2018,6 @@ fn low_disk_reading(
     if is_low(space) {
         return (Some(space), Some((base.to_path_buf(), space)));
     }
-    let nested = host.nested_root().filter(|root| root.is_dir());
     let lowest = |roots: Vec<PathBuf>| {
         roots
             .into_iter()
@@ -2231,14 +2029,10 @@ fn low_disk_reading(
             })
             .min_by_key(|(_, space)| space.free)
     };
-    let mut config = host.config_output_roots();
-    config.extend(nested.clone());
-    if lowest(config).is_none() {
+    if lowest(host.config_output_roots()).is_none() {
         return (Some(space), None);
     }
-    let mut all = host.output_roots(&host.servers());
-    all.extend(nested);
-    (Some(space), lowest(all))
+    (Some(space), lowest(host.output_roots(&host.servers())))
 }
 
 /// Deletes the output bases and reports whether all of them are gone.
@@ -2270,8 +2064,7 @@ pub(crate) fn reclaim_failed(error: &WorktreeError) -> Warning {
     }
 }
 
-/// Drops orphaned output bases, then repository cache downloads no build used for 30 days, then the test
-/// cases of free nested-Bazel slots, then free slots' output bases, each oldest first, while the disk each one
+/// Drops orphaned output bases, then repository cache downloads no build used for 30 days, then free slots' output bases, each oldest first, while the disk each one
 /// is on is low.
 pub(crate) fn reclaim_if_low(
     pool: &Pool,
@@ -2297,9 +2090,8 @@ fn reclaim_locked(
     reclaim_host_wide(Some((pool, keep)), host, low)
 }
 
-/// Reclaims on the low disk `low` for a workspace without a pool: orphaned output bases, stale downloads and
-/// nested test cases belong to the host, not a repository, so they need no pool and no lock; there are no free
-/// slots to drop.
+/// Reclaims on the low disk `low` for a workspace without a pool: orphaned output bases, stale downloads belong to the
+/// host, not a repository, so they need no pool and no lock; there are no free slots to drop.
 pub(crate) fn reclaim_unpooled(host: &dyn Host, low: (PathBuf, DiskSpace)) -> Reclaim {
     reclaim_host_wide(None, host, low)
 }
@@ -2313,15 +2105,13 @@ fn reclaim_host_wide(
     let servers = host.servers();
     let roots = host.output_roots(&servers);
     let bases = scan_output_bases(&roots);
-    let nested_root = host.nested_root().map(|root| resolved(&root));
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();
     let mut kept: Vec<u32> = Vec::new();
-    for base in bases.iter().filter(|base| {
-        !base.workspace.exists()
-            && !under(nested_root.as_deref(), &base.dir)
-            && !base_in_use(&servers, base)
-    }) {
+    for base in bases
+        .iter()
+        .filter(|base| !base.workspace.exists() && !base_in_use(&servers, base))
+    {
         if !disk_low(host, &base.dir) {
             continue;
         }
@@ -2344,20 +2134,6 @@ fn reclaim_host_wide(
             downloads += 1;
         }
     }
-    let mut nested = 0usize;
-    let mut locks = NestedLocks::default();
-    for case in nested_cases(host) {
-        if host.interrupted().is_some() || !disk_low(host, &case.base.dir) {
-            continue;
-        }
-        if !locks.hold(&case.slot) || case.in_use(&host.servers()) {
-            continue;
-        }
-        if drop_nested(host, &case) {
-            nested += 1;
-        }
-    }
-    drop(locks);
     if let Some((pool, keep)) = slots_of {
         let picked = free_slot_bases(pool, host, &bases, Trigger::LowDisk, |record| {
             Some(record.slot) == keep || pool.busy(record.slot)
@@ -2381,9 +2157,6 @@ fn reclaim_host_wide(
     }
     if downloads > 0 {
         removed.push(format!("{downloads} repository cache download(s)"));
-    }
-    if nested > 0 {
-        removed.push(format!("{nested} nested Bazel output base(s)"));
     }
     if !slots.is_empty() {
         let numbers: Vec<String> = slots.iter().map(u32::to_string).collect();

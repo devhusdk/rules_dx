@@ -41,7 +41,7 @@ fn reclaim_for_build_with(
 ) -> Option<String> {
     let low = ops::low_disk(host, cache_base)?;
     let Some(pool) = pool::Pool::find(workspace, cache_base) else {
-        // No pool: only host-wide leftovers (orphans, downloads, nested cases) can go; nothing is created.
+        // No pool: only host-wide leftovers (orphans, downloads) can go; nothing is created.
         let reclaimed = ops::reclaim_unpooled(host, low);
         return (reclaimed.removed || reclaimed.skipped).then_some(reclaimed.warning.message);
     };

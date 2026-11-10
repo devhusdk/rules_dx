@@ -106,6 +106,25 @@ const CARGO_CHILD_ENV_EXTRA: &[&str] = &["CARGO_HOME", "RUSTUP_HOME"];
 /// Most cargo stderr lines shown when a publish fails.
 const CARGO_FAILURE_LINES: usize = 40;
 
+fn crates_publish_staged(
+    program: &Path,
+    files: &[std::path::PathBuf],
+    staging: &Path,
+    crate_name: &str,
+    version: &str,
+    token: &str,
+) -> Result<(), String> {
+    let mapped = crates_package_paths(files).map_err(|error| format!("crates_deploy: {error}"))?;
+    crates_stage(&mapped, staging).map_err(|error| format!("crates_deploy: {error}"))?;
+    let manifest = staging.join("Cargo.toml");
+    if !manifest.is_file() {
+        return Err("crates_deploy: staged crate is missing Cargo.toml; refusing".to_owned());
+    }
+    let text = std::fs::read_to_string(&manifest).unwrap_or_default();
+    manifest_version(&text, crate_name, version)?;
+    cargo_publish(program, &manifest, token)
+}
+
 /// Runs `cargo publish`; a failure carries cargo's last stderr lines.
 fn cargo_publish(program: &Path, manifest: &Path, token: &str) -> Result<(), String> {
     let mut cmd = scrubbed_command(
@@ -483,31 +502,12 @@ pub fn crates_main_checked(
                 return 1;
             }
         };
-        let mapped = match crates_package_paths(&files) {
-            Ok(mapped) => mapped,
-            Err(error) => {
-                eprintln!("crates_deploy: {error}");
-                return 1;
-            }
-        };
-        if let Err(error) = crates_stage(&mapped, &staging) {
-            eprintln!("crates_deploy: {error}");
-            return 1;
-        }
-        let manifest = staging.join("Cargo.toml");
-        if !manifest.is_file() {
-            eprintln!("crates_deploy: staged crate is missing Cargo.toml; refusing");
-            return 1;
-        }
-        let text = std::fs::read_to_string(&manifest).unwrap_or_default();
-        if let Err(error) = manifest_version(&text, crate_name, version) {
-            let _ = std::fs::remove_dir_all(&staging);
-            eprintln!("{error}");
-            return 1;
-        }
-        let published = cargo_publish(
+        let published = crates_publish_staged(
             Path::new("cargo"),
-            &manifest,
+            &files,
+            &staging,
+            crate_name,
+            version,
             secrets.get("CRATES_API_TOKEN"),
         );
         let _ = std::fs::remove_dir_all(&staging);
@@ -673,6 +673,23 @@ mod tests {
         }
         let missing = vec![(scratch.path().join("missing.rs"), "missing.rs".to_owned())];
         assert!(crates_stage(&missing, &staging).is_err());
+    }
+
+    #[test]
+    fn crates_publish_staged_failure_is_reported_for_caller_cleanup() {
+        let scratch = scratch_dir();
+        let staging = scratch.path().join("crates-publish-x");
+        let missing = vec![scratch.path().join("missing/Cargo.toml")];
+        let error = crates_publish_staged(
+            Path::new("cargo"),
+            &missing,
+            &staging,
+            "crates_demo",
+            "0.0.0",
+            "t",
+        )
+        .expect_err("stage fails");
+        assert!(error.starts_with("crates_deploy:"));
     }
 
     fn nested_crate(root: &Path) -> Vec<std::path::PathBuf> {

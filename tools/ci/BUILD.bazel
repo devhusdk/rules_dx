@@ -1083,7 +1083,6 @@ rust_test(
         "//tools/ci/producers:producers_bin",
     ],
     env = {"DX_PRODUCERS_BIN": "$(rootpath //tools/ci/producers:producers_bin)"},
-    tags = ["no-remote"],
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,

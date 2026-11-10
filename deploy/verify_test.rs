@@ -245,7 +245,9 @@ fn cloudflare_case() {
     .expect("missing token run must execute");
     assert!(!missing.status.success());
     assert!(
-        missing.stderr.contains("live upload needs CLOUDFLARE_API_TOKEN"),
+        missing
+            .stderr
+            .contains("live upload needs CLOUDFLARE_API_TOKEN"),
         "{}",
         missing.stderr
     );
@@ -305,18 +307,15 @@ fn cloudflare_case() {
     );
     assert!(unapproved.stdout.is_empty(), "{}", unapproved.combined());
 
-    for removed in [
-        run_deploy(&prog, "DX_CLOUDFLARE_CONFIG", &["--dry-run"], &env)
-            .expect("removed flag must execute"),
-    ] {
-        assert!(!removed.status.success(), "{}", removed.combined());
-        assert!(removed.stdout.is_empty(), "{}", removed.combined());
-        assert!(
-            removed.stderr.contains("takes no arguments"),
-            "{}",
-            removed.stderr
-        );
-    }
+    let extra = run_deploy(&prog, "DX_CLOUDFLARE_CONFIG", &["--no-such-flag"], &env)
+        .expect("a run with an argument must execute");
+    assert!(!extra.status.success(), "{}", extra.combined());
+    assert!(extra.stdout.is_empty(), "{}", extra.combined());
+    assert!(
+        extra.stderr.contains("takes no arguments"),
+        "{}",
+        extra.stderr
+    );
 }
 
 fn resources_case() {
@@ -956,7 +955,9 @@ fn pypi_native_msvc_case() {
     }
     for dll in ["vcruntime140.dll", "msvcp140.dll"] {
         assert!(
-            members.iter().any(|(name, _)| name.eq_ignore_ascii_case(dll)),
+            members
+                .iter()
+                .any(|(name, _)| name.eq_ignore_ascii_case(dll)),
             "{dll} missing from {members:?}"
         );
     }

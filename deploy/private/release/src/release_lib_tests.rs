@@ -1322,10 +1322,7 @@ fn notice_manifest_requires_six_fields() {
         .expect_err("five fields");
     assert!(err.message().contains("want 6"), "got {err}");
     assert!(err.message().contains("line 1"), "got {err}");
-    assert!(
-        err.message().contains("5-field manifests predate"),
-        "got {err}"
-    );
+    assert!(err.message().ends_with("got 5"), "got {err}");
 }
 
 #[test]

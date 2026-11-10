@@ -1295,7 +1295,7 @@
         "tier": {
           "anyOf": [
             {
-              "$ref": "#/definitions/Profile"
+              "$ref": "#/definitions/Tier"
             },
             {
               "type": "null"
@@ -1738,13 +1738,6 @@
       },
       "type": "object"
     },
-    "Profile": {
-      "enum": [
-        "standard",
-        "strict"
-      ],
-      "type": "string"
-    },
     "Scope": {
       "additionalProperties": false,
       "properties": {
@@ -1758,6 +1751,13 @@
         }
       },
       "type": "object"
+    },
+    "Tier": {
+      "enum": [
+        "standard",
+        "strict"
+      ],
+      "type": "string"
     }
   },
   "description": "The optional root file for tier, tool selection and scope.",
@@ -2007,7 +2007,7 @@
     "tier": {
       "anyOf": [
         {
-          "$ref": "#/definitions/Profile"
+          "$ref": "#/definitions/Tier"
         },
         {
           "type": "null"

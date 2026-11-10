@@ -8,17 +8,17 @@ use crate::conventions::{self, ConventionProblem};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
-pub enum Profile {
+pub enum Tier {
     #[default]
     Standard,
     Strict,
 }
 
-impl Profile {
+impl Tier {
     pub fn as_str(self) -> &'static str {
         match self {
-            Profile::Standard => "standard",
-            Profile::Strict => "strict",
+            Tier::Standard => "standard",
+            Tier::Strict => "strict",
         }
     }
 }
@@ -29,8 +29,8 @@ impl Profile {
 pub struct DxConfig {
     pub schema_version: u32,
     /// The tier for every family that does not set its own.
-    #[serde(default, rename = "tier")]
-    pub profile: Option<Profile>,
+    #[serde(default)]
+    pub tier: Option<Tier>,
     /// Tools dropped from every family, for example `["typos"]`.
     #[serde(default)]
     pub skip_tools: Vec<String>,
@@ -76,8 +76,8 @@ pub enum CommitsPolicy {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FamilyConfig {
-    #[serde(default, rename = "tier")]
-    pub profile: Option<Profile>,
+    #[serde(default)]
+    pub tier: Option<Tier>,
     #[serde(default)]
     pub lint: Option<Vec<String>>,
     #[serde(default)]
@@ -136,7 +136,11 @@ fn located(text: &str, error: &toml::de::Error, message: String) -> String {
     };
     let before = &text[..span.start.min(text.len())];
     let line = before.matches('\n').count() + 1;
-    let column = before.rsplit('\n').next().map_or(0, |last| last.chars().count()) + 1;
+    let column = before
+        .rsplit('\n')
+        .next()
+        .map_or(0, |last| last.chars().count())
+        + 1;
     format!("dx.toml:{line}:{column}: {message}")
 }
 
@@ -153,7 +157,7 @@ pub fn parse(text: &str) -> Result<DxConfig, LoadProblem> {
     conventions::check_schema_version(table.get("schema_version"))?;
     let config: DxConfig =
         toml::from_str(text).map_err(|error: toml::de::Error| LoadProblem::Invalid {
-            message: located(text, &error, conventions::explain_unknown_key(error.message())),
+            message: located(text, &error, error.message().to_owned()),
         })?;
     for pattern in &config.scope.exclude {
         if !conventions::is_valid_pattern(pattern) {

@@ -1663,7 +1663,6 @@ mod tests {
             )),
             "{caller}"
         );
-        assert!(!caller.contains("rules_dx_version"), "{caller}");
         for required in [
             "merge_group:\n    types: [checks_requested]",
             "secrets:\n      BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}",
@@ -1682,16 +1681,6 @@ mod tests {
             "caller grants checks: {caller}"
         );
         assert!(!caller.contains("<reviewed-commit>"), "{caller}");
-        for removed in [
-            "scheduling_mode",
-            "code_scanning_opt_in",
-            "secrets: inherit",
-        ] {
-            assert!(
-                !caller.contains(removed),
-                "caller passes {removed}: {caller}"
-            );
-        }
     }
 
     fn all_families() -> std::collections::BTreeSet<String> {

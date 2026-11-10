@@ -6,9 +6,6 @@ use chrono::{Datelike, NaiveDate};
 /// The schema version this dx writes and reads.
 pub const CURRENT_SCHEMA_VERSION: u32 = 1;
 
-/// Keys that exist only in a newer schema, with the first dx that reads them.
-pub const NEWER_KEYS: &[(&str, &str)] = &[];
-
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ConventionProblem {
     #[error("schema_version is missing; add `schema_version = {CURRENT_SCHEMA_VERSION}`")]
@@ -16,15 +13,9 @@ pub enum ConventionProblem {
     #[error("schema_version must be a whole number, found {found}")]
     BadSchemaVersion { found: String },
     #[error(
-        "schema_version {found} is newer than this dx reads ({CURRENT_SCHEMA_VERSION}); upgrade dx"
+        "schema_version {found} is not accepted; the only accepted value is {CURRENT_SCHEMA_VERSION}"
     )]
-    NewerSchemaVersion { found: i64 },
-    #[error(
-        "schema_version {found} is no longer read; migrate the file to {CURRENT_SCHEMA_VERSION}"
-    )]
-    OldSchemaVersion { found: i64 },
-    #[error("`{key}` needs dx >= {since}")]
-    NeedsNewerDx { key: String, since: String },
+    UnsupportedSchemaVersion { found: i64 },
     #[error("{field} must not be empty")]
     EmptyField { field: &'static str },
     #[error("invalid date {value:?}; want YYYY-MM-DD")]
@@ -35,9 +26,8 @@ pub enum ConventionProblem {
     BadPattern { value: String },
 }
 
-/// Checks the `schema_version` value of a parsed file. The current version and the one
-/// before it are accepted.
-pub fn check_schema_version(value: Option<&toml::Value>) -> Result<u32, ConventionProblem> {
+/// Checks the `schema_version` value of a parsed file. Only the current version is accepted.
+pub fn check_schema_version(value: Option<&toml::Value>) -> Result<(), ConventionProblem> {
     let Some(value) = value else {
         return Err(ConventionProblem::MissingSchemaVersion);
     };
@@ -46,34 +36,10 @@ pub fn check_schema_version(value: Option<&toml::Value>) -> Result<u32, Conventi
             found: value.to_string(),
         });
     };
-    let current = i64::from(CURRENT_SCHEMA_VERSION);
-    if found > current {
-        return Err(ConventionProblem::NewerSchemaVersion { found });
+    if found != i64::from(CURRENT_SCHEMA_VERSION) {
+        return Err(ConventionProblem::UnsupportedSchemaVersion { found });
     }
-    if found < current - 1 || found < 1 {
-        return Err(ConventionProblem::OldSchemaVersion { found });
-    }
-    Ok(found as u32)
-}
-
-/// Rewrites a serde "unknown field" message to name the dx that reads the key, when a
-/// newer schema has it.
-pub fn explain_unknown_key(message: &str) -> String {
-    let Some(key) = message
-        .strip_prefix("unknown field `")
-        .and_then(|rest| rest.split_once('`'))
-        .map(|(key, _)| key)
-    else {
-        return message.to_owned();
-    };
-    match NEWER_KEYS.iter().find(|(name, _)| *name == key) {
-        Some((_, since)) => ConventionProblem::NeedsNewerDx {
-            key: key.to_owned(),
-            since: (*since).to_owned(),
-        }
-        .to_string(),
-        None => message.to_owned(),
-    }
+    Ok(())
 }
 
 /// Parses `YYYY-MM-DD`.

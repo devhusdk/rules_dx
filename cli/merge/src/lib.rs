@@ -27,7 +27,4 @@ pub enum Error {
     /// The JSONC value on the path is not an object or array as needed.
     #[error("`{0}` has the wrong type")]
     WrongType(String),
-    /// The key is not in the YAML text.
-    #[error("no `{0}:` line found")]
-    MissingKey(String),
 }

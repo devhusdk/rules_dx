@@ -884,7 +884,7 @@ pub(super) fn audit_live_invalid_security_toml_fails_without_assessing() {
     for (text, detail) in [
         (
             "schema_version = 99\n",
-            "schema_version 99 is newer than this dx reads",
+            "schema_version 99 is not accepted; the only accepted value is 1",
         ),
         (
             &go_exception(">=v0.6.0", "2999-01-01"),
@@ -1331,8 +1331,8 @@ fn real_secret_paths(harness: &Harness) -> (Vec<String>, Option<String>) {
 fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files() {
     let token = format!("{}{}", "ghp_", "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8");
     let line = format!("token = \"{token}\"\n");
-    for legacy_config in [false, true] {
-        let harness = Harness::new(&format!("audit-real-gitleaks-{legacy_config}"));
+    for own_config in [false, true] {
+        let harness = Harness::new(&format!("audit-real-gitleaks-{own_config}"));
         let root = harness.workspace.as_path();
         dx_test_scratch::git(root, root, &["init", "-q"]);
         harness.write_source(".gitignore", "ign/\nlocal.env\n");
@@ -1340,7 +1340,7 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
         harness.write_source("ign/kept.txt", &line);
         harness.write_source("local.env", &line);
         harness.write_source("untracked.txt", &line);
-        if legacy_config {
+        if own_config {
             harness.write_source(
                 ".gitleaks.toml",
                 "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
@@ -1349,11 +1349,11 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
         dx_test_scratch::git(root, root, &["add", ".gitignore"]);
         dx_test_scratch::git(root, root, &["add", "-f", "ign/kept.txt"]);
         let (paths, incomplete) = real_secret_paths(&harness);
-        assert_eq!(incomplete, None, "legacy={legacy_config}");
+        assert_eq!(incomplete, None, "own_config={own_config}");
         assert_eq!(
             paths,
             vec!["ign/kept.txt".to_owned(), "untracked.txt".to_owned()],
-            "legacy={legacy_config}"
+            "own_config={own_config}"
         );
     }
 }

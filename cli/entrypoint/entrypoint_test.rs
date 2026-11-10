@@ -329,20 +329,6 @@ fn consumer_init_creates_a_new_directory() {
 }
 
 #[test]
-fn consumer_new_is_removed_and_points_at_init() {
-    let removed = read("DX_NEW_REMOVED");
-    assert!(
-        removed.contains("unrecognized subcommand 'new'"),
-        "dx new is not a command: {removed}"
-    );
-    assert!(removed.contains("exit=2"), "usage errors exit 2: {removed}");
-    assert!(
-        !removed.contains("wrote "),
-        "dx new writes nothing: {removed}"
-    );
-}
-
-#[test]
 fn consumer_init_applies_and_rechecks_a_foreign_tree() {
     let apply = read("DX_INIT_APPLY");
     for file in [

@@ -1041,18 +1041,6 @@ mod tests {
         assert_eq!(args.sbom_bundle, "/sb");
         assert_eq!(args.notice_manifest, "/nm");
         assert_eq!(args.notice_bundle, "/nb");
-        let removed = parse_args(&[
-            "dx_verify".to_owned(),
-            "--install-dir".to_owned(),
-            "/d".to_owned(),
-        ])
-        .expect_err("install moved to dx install");
-        assert!(
-            removed
-                .to_string()
-                .contains("unknown argument '--install-dir'"),
-            "got {removed}"
-        );
         let help = parse_args(&["dx_verify".to_owned(), "--help".to_owned()]).expect_err("help");
         assert!(help.to_string().contains("usage: dx_verify --binary PATH"));
         let unknown =

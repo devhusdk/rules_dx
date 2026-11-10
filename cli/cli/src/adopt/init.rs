@@ -641,12 +641,12 @@ mod tests {
             root.join("tools/dx"),
             "#!/bin/sh\nset -eu\nDX_PINS=.dx/pins\n",
         )
-        .expect("legacy sh");
+        .expect("sh launcher");
         std::fs::write(
             root.join("tools/dx.cmd"),
             "@echo off\r\nsetlocal\r\nset \"DX_PINS=.dx\\pins\"\r\n",
         )
-        .expect("legacy cmd");
+        .expect("cmd launcher");
         let (code, _out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 1);
         assert!(

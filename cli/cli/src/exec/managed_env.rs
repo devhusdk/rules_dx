@@ -283,13 +283,6 @@ mod tests {
             .expect_err("artifacts creation")
             .to_string();
         assert!(message.contains("cannot create"), "{message}");
-        let staging_id = dx_setup::GenerationId::new(&"6".repeat(64)).expect("fixture id");
-        let (staging_dir, _staged) =
-            ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, staging_id.as_str())
-                .expect("gen dir");
-        std::fs::create_dir_all(staging_dir.join("values.json.next")).expect("blocking dir");
-        stage_env_generation(&workspace, &staging_id, &[env_entry("k", "v", &first)])
-            .expect("legacy staging leftover ignored");
         let publish_id = dx_setup::GenerationId::new(&"7".repeat(64)).expect("fixture id");
         let (publish_dir, _published) =
             ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, publish_id.as_str())

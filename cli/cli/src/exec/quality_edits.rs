@@ -210,20 +210,6 @@ fn non_utf8_source_is_invalid_in_apply_mode() {
 }
 
 #[test]
-fn legacy_staging_dir_does_not_block_atomic_write() {
-    let harness = umbrella_findings("staging-blocked");
-    std::fs::create_dir_all(harness.workspace.join("src/.a.py.dx-apply-tmp")).expect("staging dir");
-    let (code, out, err) = harness.run(&["lint", "--apply", "--output=text"]);
-    assert_eq!(code, 0);
-    assert_eq!(
-        std::fs::read(harness.workspace.join("src/a.py")).expect("source"),
-        b"y = 1\n"
-    );
-    assert!(out.contains("Applied 1 file(s)."));
-    assert!(!err.contains("Not applied: src/a.py"));
-}
-
-#[test]
 fn text_apply_names_each_written_file_in_path_order() {
     let harness = two_file_replacements("text-apply-names");
     let (code, out, _) = harness.run(&["lint", "--apply", "--output=text"]);

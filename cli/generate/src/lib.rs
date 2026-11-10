@@ -17,7 +17,7 @@ pub mod tools_gen;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use dx_config::{CROSS_FAMILY_TOOLS, DxConfig, Profile, SelectionProblem};
+use dx_config::{CROSS_FAMILY_TOOLS, DxConfig, SelectionProblem, Tier};
 use dx_preset::Layer;
 
 pub use crate::references::dx_paths;
@@ -102,10 +102,10 @@ pub fn tier_dir(config: &ToolConfig) -> &str {
     }
 }
 
-/// One selected tool and the tier profile it runs on.
+/// One selected tool and the tier it runs on.
 struct Tool {
     config: &'static ToolConfig,
-    profile: Profile,
+    tier: Tier,
 }
 
 impl Tool {
@@ -114,9 +114,9 @@ impl Tool {
     }
 
     fn tier(&self) -> &'static str {
-        match self.profile {
-            Profile::Standard => self.config.standard,
-            Profile::Strict => self.config.strict,
+        match self.tier {
+            Tier::Standard => self.config.standard,
+            Tier::Strict => self.config.strict,
         }
     }
 
@@ -148,10 +148,10 @@ pub fn selected_configs(
 ) -> Result<Vec<&'static ToolConfig>, GenerateError> {
     let selection = dx_config::effective(config)?;
     let families = &with_named(config, families);
-    let profiles = selected_profiles(&selection, families);
+    let tiers = selected_tiers(&selection, families);
     Ok(TOOL_CONFIGS
         .iter()
-        .filter(|config| profiles.contains_key(config.id))
+        .filter(|config| tiers.contains_key(config.id))
         .collect())
 }
 
@@ -167,11 +167,11 @@ fn with_named(config: Option<&DxConfig>, families: &BTreeSet<String>) -> BTreeSe
 }
 
 /// The tier of every tool selected for a detected family.
-fn selected_profiles<'a>(
+fn selected_tiers<'a>(
     selection: &'a dx_config::Selection,
     families: &BTreeSet<String>,
-) -> BTreeMap<&'a str, Profile> {
-    let mut profiles = BTreeMap::new();
+) -> BTreeMap<&'a str, Tier> {
+    let mut tiers = BTreeMap::new();
     for (id, family) in &selection.families {
         if !families.contains(id) {
             continue;
@@ -183,15 +183,15 @@ fn selected_profiles<'a>(
             .chain(&family.typecheck)
             .chain(&family.audit)
         {
-            let profile = if CROSS_FAMILY_TOOLS.contains(&tool.as_str()) {
-                selection.profile
+            let tier = if CROSS_FAMILY_TOOLS.contains(&tool.as_str()) {
+                selection.tier
             } else {
-                family.profile
+                family.tier
             };
-            profiles.insert(tool.as_str(), profile);
+            tiers.insert(tool.as_str(), tier);
         }
     }
-    profiles
+    tiers
 }
 
 /// The root tool config each selected tool of a detected family binds, as (tool, file).
@@ -202,14 +202,14 @@ pub fn bound_configs(
 ) -> Result<Vec<(&'static str, String)>, GenerateError> {
     let selection = dx_config::effective(config)?;
     let families = &with_named(config, families);
-    let profiles = selected_profiles(&selection, families);
+    let tiers = selected_tiers(&selection, families);
     let mut bound: Vec<(&'static str, String)> = TOOL_CONFIGS
         .iter()
         .filter(|config| !config.suffixes.is_empty())
         .filter_map(|config| {
             let tool = Tool {
                 config,
-                profile: *profiles.get(config.id)?,
+                tier: *tiers.get(config.id)?,
             };
             Some((config.id, tool.root_file(root_files)?.to_owned()))
         })
@@ -221,9 +221,9 @@ pub fn bound_configs(
 /// Every file dx owns, keyed by workspace-relative path.
 pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateError> {
     let selection = dx_config::effective(inputs.config.as_ref())?;
-    let root = selection.profile;
+    let root = selection.tier;
     let detected = with_named(inputs.config.as_ref(), &inputs.families);
-    let profiles = selected_profiles(&selection, &detected);
+    let tiers = selected_tiers(&selection, &detected);
     let families: BTreeMap<&str, &dx_config::FamilySelection> = selection
         .families
         .iter()
@@ -233,9 +233,9 @@ pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateErro
     let mut tools: Vec<Tool> = TOOL_CONFIGS
         .iter()
         .filter_map(|config| {
-            profiles.get(config.id).map(|profile| Tool {
+            tiers.get(config.id).map(|tier| Tool {
                 config,
-                profile: *profile,
+                tier: *tier,
             })
         })
         .collect();
@@ -250,8 +250,8 @@ pub fn render(inputs: &Inputs) -> Result<BTreeMap<String, Vec<u8>>, GenerateErro
     out.insert(
         GITLEAKS_BASE_PATH.to_owned(),
         match root {
-            Profile::Standard => GITLEAKS_STANDARD,
-            Profile::Strict => GITLEAKS_STRICT,
+            Tier::Standard => GITLEAKS_STANDARD,
+            Tier::Strict => GITLEAKS_STRICT,
         }
         .as_bytes()
         .to_vec(),
@@ -319,7 +319,7 @@ fn list(items: &[String], indent: usize) -> String {
 
 fn dx_build(
     repo: &str,
-    root: Profile,
+    root: Tier,
     families: &BTreeMap<&str, &dx_config::FamilySelection>,
     disabled: &BTreeSet<String>,
     tools: &[Tool],
@@ -364,13 +364,13 @@ fn dx_build(
     text.push_str("\ndx_generated_policy(\n    name = \"policy\",\n");
     let bases: Vec<String> = tools
         .iter()
-        .filter(|tool| tool.config.tier_base && tool.profile != root)
+        .filter(|tool| tool.config.tier_base && tool.tier != root)
         .map(|tool| {
             format!(
                 "        \"{}\": \"@{repo}//core/quality/tiers/{}:{}\",\n",
                 tool.config.id,
                 tool.dir(),
-                tool.profile.as_str()
+                tool.tier.as_str()
             )
         })
         .collect();
@@ -417,10 +417,10 @@ fn dx_build(
                     list(&disabled, 12)
                 ));
             }
-            if family.profile != root {
+            if family.tier != root {
                 fields.push(format!(
                     "            \"tier\": \"{}\",\n",
-                    family.profile.as_str()
+                    family.tier.as_str()
                 ));
             }
             fields.sort();
@@ -540,8 +540,8 @@ impl Literal<'_> {
     }
 }
 
-fn bazelrc(layer: Layer, repo: &str, root: Profile, tools: &[Tool]) -> String {
-    let mut text = dx_preset::render_layer_with(layer, repo, Some(root == Profile::Strict));
+fn bazelrc(layer: Layer, repo: &str, root: Tier, tools: &[Tool]) -> String {
+    let mut text = dx_preset::render_layer_with(layer, repo, Some(root == Tier::Strict));
     if layer != Layer::Correctness {
         return text;
     }

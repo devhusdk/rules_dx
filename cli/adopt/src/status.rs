@@ -593,9 +593,7 @@ pub fn observed_status_checks(
     pinned: Result<String, AdoptError>,
     tools: StatusCheck,
 ) -> Vec<StatusCheck> {
-    let mut checks = vec![
-        toolchain_check(root),
-    ];
+    let mut checks = vec![toolchain_check(root)];
     checks.extend(language_toolchain_checks(root));
     checks.extend([
         bazel_check(root, std::env::var_os("PATH")),
@@ -655,7 +653,7 @@ mod tests {
         let dir = scratch.path();
         std::fs::write(
             dir.join("MODULE.bazel"),
-            crate::preflight::legacy_consumer_setup(),
+            crate::preflight::full_consumer_setup(),
         )
         .expect("module");
         let checks = vec![
@@ -731,7 +729,7 @@ node.toolchain(node_version = pinned)
         let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n");
         assert_eq!(none.status, "warn");
         assert!(none.detail.starts_with("unknown:"), "{}", none.detail);
-        let setup = crate::preflight::legacy_consumer_setup();
+        let setup = crate::preflight::full_consumer_setup();
         let ok = run(&setup);
         assert_eq!(ok.status, "ok", "{}", ok.detail);
         assert_eq!(
@@ -1065,7 +1063,7 @@ node.toolchain(node_version = pinned)
         assert!(none.status == "ok" && none.detail.starts_with("not applicable"));
         let adopted = run(Some(&format!(
             "module(name = \"app\")\n{}",
-            crate::preflight::legacy_consumer_setup()
+            crate::preflight::full_consumer_setup()
         )));
         assert!(
             adopted.status == "ok" && adopted.detail.starts_with("none"),

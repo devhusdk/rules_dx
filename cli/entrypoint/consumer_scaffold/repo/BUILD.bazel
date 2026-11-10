@@ -1,7 +1,6 @@
 genrule(
     name = "consumer_scaffold_probe",
     outs = [
-        "new_removed.txt",
         "init_dir_apply.txt",
         "init_dir_reapply.txt",
         "init_apply.txt",
@@ -27,14 +26,6 @@ mkdir -p "$$fortree/src"
 echo "keep" > "$$fortree/src/keep.txt"
 echo 'module(name = "mine")' > "$$fortree/MODULE.bazel"
 echo "keep" > "$$checktree/README.md"
-if "$$public" new --apply cpp bad --workspace "$$foreign" > "$(location new_removed.txt)" 2>&1; then
-  echo "dx new still runs" >&2
-  exit 1
-else
-  echo "exit=$$?" >> "$(location new_removed.txt)"
-fi
-grep -q "unrecognized subcommand 'new'" "$(location new_removed.txt)"
-test ! -e "$$foreign/bad"
 "$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
 echo "exit=0" >> "$(location init_dir_apply.txt)"
 grep -q "wrote myproj/.dx/pins" "$(location init_dir_apply.txt)"

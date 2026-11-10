@@ -184,11 +184,10 @@ def _select(entries, default):
 def consumer_build(assets):
     """Returns the hub BUILD text that selects a prebuilt dx by os and cpu.
 
-    A platform whose asset has no pinned sha256 builds dx from source, as
-    before prebuilt dx existed: nothing unverified is ever downloaded, and a
-    release with no pins (every version until #1388) keeps working. With no
-    pinned asset at all, every platform builds from source, exactly as
-    before; unsupported platforms fail only once some asset is pinned.
+    A platform whose asset has no pinned sha256 builds dx from source:
+    nothing unverified is ever downloaded. With no pinned asset at all,
+    every platform builds from source; unsupported platforms fail only
+    once some asset is pinned.
     The quality tools follow dx: they run the same prebuilt file under
     their own names, and build from source where dx does.
 

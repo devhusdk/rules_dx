@@ -477,14 +477,14 @@ mod tests {
     }
 
     #[test]
-    fn removed_dry_run_flag_launches_nothing() {
+    fn an_unknown_flag_launches_nothing() {
         for argv in [
-            vec!["build", "--dry-run", "//a:one"],
-            vec!["security", "--dry-run"],
-            vec!["license", "--dry-run=false"],
-            vec!["update", "--dry-run"],
-            vec!["update", "cargo:anyhow", "1.2.3", "--dry-run"],
-            vec!["upgrade", "--to=2.0.0", "--dry-run"],
+            vec!["build", "--no-such-flag", "//a:one"],
+            vec!["security", "--no-such-flag"],
+            vec!["license", "--no-such-flag=false"],
+            vec!["update", "--no-such-flag"],
+            vec!["update", "cargo:anyhow", "1.2.3", "--no-such-flag"],
+            vec!["upgrade", "--to=2.0.0", "--no-such-flag"],
         ] {
             let name = format!(
                 "exec-dispatch-{}-{}",
@@ -494,7 +494,7 @@ mod tests {
             let harness = Harness::new(&name);
             let (code, _out, err) = harness.run(&argv);
             assert_ne!(code, 0, "{argv:?}");
-            assert!(err.contains("--dry-run"), "{argv:?}: {err}");
+            assert!(err.contains("--no-such-flag"), "{argv:?}: {err}");
             assert!(
                 harness.seen_env.borrow().is_empty(),
                 "{argv:?} launches nothing"

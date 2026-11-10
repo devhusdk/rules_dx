@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_test")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_test")
 load("@dx_npm_tools//javascript/private/quality:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@microsoft/api-extractor/package_json.bzl", api_extractor_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:@redocly/cli/package_json.bzl", redocly_bin = "bin")
@@ -114,11 +114,16 @@ js_test(
     entry_point = "mdx_tsc_test.mjs",
 )
 
+js_library(
+    name = "standard_json",
+    srcs = ["//core/quality/tiers/prettier:standard.json"],
+)
+
 js_binary(
     name = "prettier_generated",
     data = [
         "prettier_ignore",
-        "//core/quality/tiers/prettier:standard_json",
+        ":standard_json",
         "//javascript/private/quality:node_modules/@prettier/plugin-php",
         "//javascript/private/quality:node_modules/@prettier/plugin-xml",
         "//javascript/private/quality:node_modules/prettier",

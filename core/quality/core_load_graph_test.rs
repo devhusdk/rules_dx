@@ -43,7 +43,6 @@ const PENDING_TOOL_PACKAGES: &[&str] = &[
 /// Tier packages that load a language rule set; this list only shrinks.
 const PENDING_TIER_PACKAGES: &[&str] = &[
     "core/quality/tiers/gopls",    // #10622
-    "core/quality/tiers/prettier", // #10622
 ];
 
 /// Top-level packages `core/` may load from or point labels into.

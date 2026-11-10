@@ -20,28 +20,6 @@ filegroup(
 )
 
 rust_test(
-    name = "aggregate_scripts_test",
-    srcs = ["aggregate_scripts_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "aggregate_scripts_test",
-    crate_root = "aggregate_scripts_test.rs",
-    data = [":compiler_table.sh"],
-    tags = ["no-remote"],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
     name = "input_validation_test",
     srcs = ["input_validation_test.rs"],
     aliases = aliases(

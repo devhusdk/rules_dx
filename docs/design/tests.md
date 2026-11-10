@@ -120,6 +120,8 @@ A test is the first of four kinds that can prove the behaviour.
 - No bench or fuzz macro adds `manual` to a target it declares.
 - A bench or fuzz target for only some platforms says so with `target_compatible_with`.
 
+- A workflow `run:` script holds no logic a test must run; gate logic is a GitHub expression or a Rust binary.
+
 ## Duplicates
 
 - A test that proves what another test already proves is deleted.

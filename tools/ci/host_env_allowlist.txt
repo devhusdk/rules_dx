@@ -291,7 +291,6 @@ tools/BUILD.bazel genrule 1
 tools/bazelisk/wrapper/bazel.ps1 host-path 1
 tools/bazelisk/wrapper_test.rs host-path 2
 tools/buildbuddy-credential-helper.sh shebang 1
-tools/ci/compiler_table.sh shebang 1
 tools/ci/docs_scope_test.rs shebang 1
 tools/ci/evidence_inputs.sh shebang 1
 tools/ci/pr_check.sh shebang 1

@@ -153,6 +153,8 @@ jobs:
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
           bazel build --noshow_progress "$@" //tools/docs/support_matrix:facts //tools/ci/producers:producers_bin
+          mkdir -p "$RUNNER_TEMP/ci-producers-bin"
+          cp "$(bazel info "$@" bazel-bin)/tools/ci/producers/producers_bin" "$RUNNER_TEMP/ci-producers-bin/producers_bin"
           facts="$(bazel info "$@" bazel-bin)/tools/docs/support_matrix/facts.json"
           jq -r --slurpfile labels tools/docs/support_matrix/row_labels.json '.rows[] | select(.section == "compilers") | .identity.probe, ($labels[0][.name] // [])[]' "$facts" | tr -d '\r' | sort -u | grep . | tr '\n' ' ' > "$RUNNER_TEMP/compiler-targets"
           targets="$(cat "$RUNNER_TEMP/compiler-targets")"
@@ -170,6 +172,13 @@ jobs:
           platform: linux_x86_64
           name: linux_x86_64
           bin-from-bazel-info: "true"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: ci-producers-bin
+          path: ${{ runner.temp }}/ci-producers-bin/producers_bin
+          if-no-files-found: ignore
+          retention-days: 3
       - name: Write job summary
         if: always()
         env:
@@ -873,7 +882,6 @@ jobs:
         if: always()
         with:
           sparse-checkout: |
-            tools/ci/compiler_table.sh
             .github/actions/assert-no-secret
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -882,13 +890,24 @@ jobs:
           pattern: compiler-evidence-*
           merge-multiple: true
           path: ${{ runner.temp }}/compiler-evidence
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: always()
+        continue-on-error: true
+        with:
+          name: ci-producers-bin
+          path: ${{ runner.temp }}/ci-producers-bin
       - name: Merge compiler evidence
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/compiler-evidence"
+          if [ ! -f "$RUNNER_TEMP/ci-producers-bin/producers_bin" ]; then
+            echo "::notice::ci-producers-bin is absent; the compiler evidence table is skipped."
+            exit 0
+          fi
+          chmod +x "$RUNNER_TEMP/ci-producers-bin/producers_bin"
           {
             echo "### Compiler evidence (row x platform)"
-            tools/ci/compiler_table.sh "$RUNNER_TEMP/compiler-evidence" "$RUNNER_TEMP/compiler-evidence-all.jsonl" linux_x86_64 linux_arm64 macos_arm64 windows_x86_64 windows_arm64
+            "$RUNNER_TEMP/ci-producers-bin/producers_bin" --table "$RUNNER_TEMP/compiler-evidence" "$RUNNER_TEMP/compiler-evidence-all.jsonl" linux_x86_64 linux_arm64 macos_arm64 windows_x86_64 windows_arm64
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Check the upload holds no secret
         id: scan-compiler-evidence

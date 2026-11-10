@@ -9,7 +9,7 @@ RUST_EDITION = "2024"
 
 RULES_CC_VERSION = "0.2.28"
 GOOGLETEST_VERSION = "1.18.0.bcr.1"
-LLVM_VERSION = "0.8.26"
+LLVM_VERSION = "0.8.26.dx.1"
 RULES_CUDA_VERSION = "0.4.0-beta1"
 CUDA_VERSION = "13.4"
 CUDA_REDIST_VERSION = "13.4.2"
@@ -115,8 +115,8 @@ CONSUMER_BAZEL_DEPS = {
     "aspect_rules_ts": struct(floor = ASPECT_RULES_TS_VERSION, tested = ASPECT_RULES_TS_VERSION),
     "aspect_rules_jest": struct(floor = ASPECT_RULES_JEST_VERSION, tested = ASPECT_RULES_JEST_VERSION),
     "hermetic_launcher": struct(floor = "0.0.17", tested = "0.0.17"),
-    "gcc_toolchain": struct(floor = "0.13.0", tested = "0.13.0"),
-    "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
+    "gcc_toolchain": struct(floor = "0.13.0.dx.1", tested = "0.13.0.dx.1"),
+    "windows_support": struct(floor = "0.4.1.dx.1", tested = "0.4.1.dx.1"),
     "google_benchmark": struct(floor = "1.10.0", tested = "1.10.0"),
     "elfutils": struct(floor = "0.195", tested = "0.195"),
     "zlib": struct(floor = "1.3.2.bcr.3", tested = "1.3.2.bcr.3"),

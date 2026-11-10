@@ -1,0 +1,15 @@
+{
+    "integrity": "sha256-mPpYLkzOEVCcePdg6Kx0q/dVhys7qQ3SVCcCTS5TqJA=",
+    "strip_prefix": "windows_support-0.4.1",
+    "docs_url": "https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.docs.tar.gz",
+    "url": "https://github.com/hermeticbuild/windows_support/releases/download/v0.4.1/windows_support-v0.4.1.tar.gz",
+    "patches": {
+        "module_dot_bazel_version.patch": "sha256-8Wr3muk5jXq6hBdeRf5CTfwCMS1eywgD6kT5rv09q/Q=",
+        "host_tools.patch": "sha256-QROLuWCKez9d2zBrUHZCUvbnPmnept6Zr0xKqsI0910=",
+        "rules_dx_hosts.patch": "sha256-Q88q8gFp8oiwusRidw5RI2uVjBxWXiHNy6duNqF/l80=",
+        "hostarm64_packages.patch": "sha256-N53V9bm6mAy+OGmUim5iaYZF59peIcYaGZk5yGthAqQ=",
+        "dx_msvc_layout.patch": "sha256-JUp9WSwg8Xr8QDIswFsPX6zrnbrcZFTwarVyGXZY/Lg=",
+        "source_directory_headers.patch": "sha256-64WsU1y19MQYq3w3kHIpMTOILk5Fyy6K9ZmWGhJOZ/w="
+    },
+    "patch_strip": 1
+}

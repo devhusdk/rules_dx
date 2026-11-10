@@ -1,0 +1,15 @@
+{
+    "integrity": "sha256-S7o8ZjnFddVlKfa//TCqPJwz5njwZRTmS7NsF5B5AgM=",
+    "strip_prefix": "gcc-toolchain-0.13.0",
+    "url": "https://github.com/f0rmiga/gcc-toolchain/releases/download/0.13.0/gcc-toolchain-0.13.0.tar.gz",
+    "patches": {
+        "module_dot_bazel_version.patch": "sha256-sUzKMLxhcgq7paMxJYmaqs3nqLKc3CEJPIxb/98L67o=",
+        "sanitizer_spec.patch": "sha256-V/tp56IuXqq+soTHzY3xlIX1cFhrjTnA2kpPcD9ayTg=",
+        "runtime_libs.patch": "sha256-oJFMtKGAY/bheFrafH2RPIQ5LQfQfJWr/hpDTU4bZ5c=",
+        "target_identity_config.patch": "sha256-ef3ywXqyDOPHcR4SwVp9IH3liyqjmMhFXIY7DkWcuD0=",
+        "target_identity_defs.patch": "sha256-mzcr+XkHAfhQ9Cb/qo6G8Lz4v4SN/GZJewZ+HhXhdh4=",
+        "target_identity_extension.patch": "sha256-cLZv3A4e9A2vngl3YdeVSkBdlFEo4xYo1o1ElGoYdn8=",
+        "native_include_layout.patch": "sha256-pJYp+71YTLhUKRxukXStpuqIVaJp4araUw2D1Vv9G4U="
+    },
+    "patch_strip": 1
+}

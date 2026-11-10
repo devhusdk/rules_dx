@@ -2,17 +2,6 @@ load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-exports_files([
-    "libunwind_copy.patch",
-    "clang_cl_crt_default_lib.patch",
-    "unwatched_overlay_inputs.patch",
-    "msvc_source_directories.patch",
-    "lse_atomic_sources.patch",
-    "stage0_runtime_features.patch",
-    "aarch64_outline_atomics.patch",
-    "macos_sdk_resolve_symlinks.patch",
-])
-
 sh_test(
     name = "libunwind_copy_test",
     size = "small",

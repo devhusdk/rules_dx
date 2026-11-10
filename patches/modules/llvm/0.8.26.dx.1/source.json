@@ -1,0 +1,18 @@
+{
+    "integrity": "sha256-sA289/36ER7p6nY7drd15idpbCe8VSz2PnTg6o4t37c=",
+    "strip_prefix": "hermetic-llvm-0.8.26",
+    "url": "https://github.com/hermeticbuild/hermetic-llvm/releases/download/v0.8.26/hermetic-llvm-v0.8.26.tar.gz",
+    "docs_url": "https://github.com/{OWNER}/{REPO}/releases/download/{TAG}/{REPO}-{TAG}.docs.tar.gz",
+    "patches": {
+        "module_dot_bazel_version.patch": "sha256-4x+atoQEW+wEUeBRzg6PfCS5Fg3BOjdqItsZfJXuzOE=",
+        "libunwind_copy.patch": "sha256-Uil6gSOlU6MTUTjLXcW19TaS3pwcNgh+6fNwr/FOX/c=",
+        "clang_cl_crt_default_lib.patch": "sha256-nYh7XvngNaqy5NVdTRCrkEG7vlousIcFtLLBNkRdEZ4=",
+        "unwatched_overlay_inputs.patch": "sha256-uGh/aJNJMBXHXcpIOM6SLm2FwCgOZLl+5c35YhF0p8U=",
+        "msvc_source_directories.patch": "sha256-6eICIUhPP7xVwFR7+YC7pNAu0mqw+Z3NcHLwkRrlblk=",
+        "lse_atomic_sources.patch": "sha256-DVehaX83MEsSBnDx2HmWu1OVEPGuC3Mos0bgcOpDthc=",
+        "stage0_runtime_features.patch": "sha256-lDCX0hn7D/UNWHMViqMx4+y5sFC+P2MzjZQRcSMB46M=",
+        "aarch64_outline_atomics.patch": "sha256-9jibdr/fDNP25fJlP6ZqwBAB2VD28KVP4q69T/vC1E8=",
+        "macos_sdk_resolve_symlinks.patch": "sha256-mVn8BFBj0Iys76HnfbPm++q3/OhV67zSA3myl9/pog4="
+    },
+    "patch_strip": 1
+}

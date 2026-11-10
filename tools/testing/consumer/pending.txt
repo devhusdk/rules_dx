@@ -113,11 +113,9 @@ override single_version_override elfutils
 override single_version_override envoy_api
 override single_version_override fmt
 override single_version_override gazelle
-override single_version_override gcc_toolchain
 override single_version_override google_benchmark
 override single_version_override grpc-java
 override single_version_override hermetic_launcher
-override single_version_override llvm
 override single_version_override platforms
 override single_version_override protobuf
 override single_version_override rules_android
@@ -145,5 +143,4 @@ override single_version_override rules_shell
 override single_version_override rules_swift
 override single_version_override rules_swift_package_manager
 override single_version_override rules_zig
-override single_version_override windows_support
 override single_version_override zlib

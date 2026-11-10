@@ -2,6 +2,7 @@
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load(":defs.bzl", "javascript_test")
 load("//core:wrapper.bzl", "dx_library_forward_rule", "dx_wrap")
 load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
@@ -23,6 +24,19 @@ def dx_framework_forward_rule(language, ext):
 def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = None, **kwargs):
     """Instantiates one JS-framework library."""
     dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = visibility, **kwargs)
+
+def dx_framework_jest_files(transform):
+    """Declares jest_config and jest_transform for one framework."""
+    copy_to_bin(
+        name = "jest_config",
+        visibility = ["//visibility:public"],
+        srcs = ["jest.config.cjs"],
+    )
+    copy_to_bin(
+        name = "jest_transform",
+        visibility = ["//visibility:public"],
+        srcs = [transform],
+    )
 
 def dx_framework_test(name, srcs, config, transform, packages, node_modules, data = None, **kwargs):
     """Runs jest over framework components. `transform` compiles them, `config` builds the jest config from the shared helper, and `packages` are the node_modules packages (the compiler) the transform needs."""

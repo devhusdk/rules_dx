@@ -1,7 +1,5 @@
-load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//javascript:defs.bzl", "javascript_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//typescript/private/quality:tsc_report.bzl", "tsc_report")
+load("//typescript/private/quality:tsc_report.bzl", "tsc_framework_cases")
 load("//vue:defs.bzl", "vue_library")
 
 package(
@@ -9,48 +7,11 @@ package(
     default_visibility = ["//visibility:private"],
 )
 
-javascript_library(
-    name = "lib",
-    srcs = ["lib.js"],
+tsc_framework_cases(
+    library_rule = vue_library,
+    ext = "vue",
+    deps = ["//:node_modules/vue"],
 )
-
-vue_library(
-    name = "bad",
-    srcs = ["bad.vue"],
-    deps = [":lib", "//:node_modules/vue"],
-)
-
-vue_library(
-    name = "broken",
-    srcs = ["broken.vue"],
-    deps = [":lib", "//:node_modules/vue"],
-)
-
-vue_library(
-    name = "clean",
-    srcs = ["clean.vue"],
-    deps = [":lib", "//:node_modules/vue"],
-)
-
-[
-    tsc_report(
-        name = "%s_%s_report" % (case, kind),
-        kind = kind,
-        target = ":" + case,
-    )
-    for case in ["bad", "broken", "clean"]
-    for kind in ["stdout", "exit"]
-]
-
-[
-    diff_test(
-        name = "%s_%s_test" % (case, kind),
-        file1 = "%s.%s.expected" % (case, kind),
-        file2 = ":%s_%s_report" % (case, kind),
-    )
-    for case in ["bad", "broken", "clean"]
-    for kind in ["stdout", "exit"]
-]
 
 real_source_target(
     name = "corpus_starlark",

@@ -1,56 +1,17 @@
-load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//javascript:defs.bzl", "javascript_library")
-load("//mdx:defs.bzl", "mdx_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//typescript/private/quality:tsc_report.bzl", "tsc_report")
+load("//typescript/private/quality:tsc_report.bzl", "tsc_framework_cases")
+load("//mdx:defs.bzl", "mdx_library")
 
 package(
     default_testonly = True,
     default_visibility = ["//visibility:private"],
 )
 
-javascript_library(
-    name = "lib",
-    srcs = ["lib.js"],
+tsc_framework_cases(
+    library_rule = mdx_library,
+    ext = "mdx",
+    deps = [],
 )
-
-mdx_library(
-    name = "bad",
-    srcs = ["bad.mdx"],
-    deps = [":lib"],
-)
-
-mdx_library(
-    name = "broken",
-    srcs = ["broken.mdx"],
-    deps = [":lib"],
-)
-
-mdx_library(
-    name = "clean",
-    srcs = ["clean.mdx"],
-    deps = [":lib"],
-)
-
-[
-    tsc_report(
-        name = "%s_%s_report" % (case, kind),
-        kind = kind,
-        target = ":" + case,
-    )
-    for case in ["bad", "broken", "clean"]
-    for kind in ["stdout", "exit"]
-]
-
-[
-    diff_test(
-        name = "%s_%s_test" % (case, kind),
-        file1 = "%s.%s.expected" % (case, kind),
-        file2 = ":%s_%s_report" % (case, kind),
-    )
-    for case in ["bad", "broken", "clean"]
-    for kind in ["stdout", "exit"]
-]
 
 real_source_target(
     name = "corpus_starlark",

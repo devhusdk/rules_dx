@@ -1,5 +1,5 @@
 # gazelle:ignore
-load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("//javascript/private:frameworks.bzl", "dx_framework_jest_files")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//svelte:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
@@ -10,17 +10,7 @@ exports_files([
     "jest_transform.cjs",
 ])
 
-copy_to_bin(
-    name = "jest_config",
-    visibility = ["//visibility:public"],
-    srcs = ["jest.config.cjs"],
-)
-
-copy_to_bin(
-    name = "jest_transform",
-    visibility = ["//visibility:public"],
-    srcs = ["jest_transform.cjs"],
-)
+dx_framework_jest_files("jest_transform.cjs")
 
 real_source_target(
     name = "corpus_starlark",

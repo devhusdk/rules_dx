@@ -1,7 +1,7 @@
 """Module extension for deploy/private/release."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load(":cosign_pins.bzl", "COSIGN_PLATFORMS", "COSIGN_VERSION")
+load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
 
 
 def _cosign_impl(mctx):
@@ -12,7 +12,7 @@ def _cosign_impl(mctx):
             downloaded_file_path = pin["exe"],
             executable = True,
             sha256 = pin["sha256"],
-            urls = ["https://github.com/sigstore/cosign/releases/download/" + COSIGN_VERSION + "/" + pin["asset"]],
+            urls = pin["urls"],
         )
     return mctx.extension_metadata(reproducible = True)
 

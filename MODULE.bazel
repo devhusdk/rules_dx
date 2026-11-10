@@ -793,6 +793,10 @@ dx_pins.data(
     pins = "//dart/private:pins.json",
 )
 dx_pins.data(
+    name = "dx_cosign",
+    pins = "//deploy/private/release:pins.json",
+)
+dx_pins.data(
     name = "dx_cuda",
     pins = "//cuda/private/toolchain:pins.json",
 )

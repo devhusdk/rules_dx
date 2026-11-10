@@ -32,6 +32,7 @@ exports_files([
     "notice_shared/npm/shared/LICENSE",
     "notice_shared_inventory.txt",
     "notice_tests.bzl",
+    "pins.json",
     "repos.bzl",
     "extensions.bzl",
     "sbom.bzl",

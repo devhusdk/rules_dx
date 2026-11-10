@@ -87,8 +87,6 @@ rust/private/defs.bzl manual 2
 rust/tests/fixtures/hello/BUILD.bazel manual 1
 rust/tests/fixtures/native_call/BUILD.bazel manual 2
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel manual 2
-swift/private/toolchain/toolchain.bzl manual 1
-swift/private/toolchain/windows.bzl manual 1
 swift/tests/fixtures/fuzz/BUILD.bazel manual 1
 tools/ci/BUILD.bazel no-remote 2
 tools/docs/languages/BUILD.bazel external 1

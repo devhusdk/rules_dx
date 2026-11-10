@@ -33,13 +33,10 @@ apple/private/ios/xcframework_check.sh host-path 1
 apple/private/ios/xcframework_check.sh shebang 1
 apple/private/macos/app_check.sh host-path 1
 apple/private/macos/app_check.sh shebang 1
-apple/private/provisioning/probe.sh host-path 1
-apple/private/provisioning/probe.sh shebang 1
 apple/tests/fixtures/swift_app/BUILD.bazel sh-rule 1
 apple/tests/fixtures/swift_app/check_ipa.sh shebang 1
 apple/tests/macos_app_script_test.rs shebang 5
 apple/tests/path_test.rs host-path 3
-apple/tests/probe_script_test.rs host-path 1
 apple/tests/simulator_script_test.rs shebang 1
 apple/tests/xcframework_script_test.rs shebang 3
 bcr_test_module/BUILD.bazel sh-rule 1

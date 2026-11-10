@@ -13,12 +13,15 @@
 pub mod codesign;
 pub mod export;
 pub mod notarize;
+pub mod probe;
 pub mod run_macos;
 pub mod signing;
 pub mod simctl;
 pub mod test_sim;
 pub mod util;
 pub mod xcode;
+
+use std::path::PathBuf;
 
 use util::{Failure, Outcome, System, process_env};
 use xcode::Tools;
@@ -75,9 +78,16 @@ pub fn run(args: &[String]) -> u8 {
             };
             report(run_macos::PREFIX, run_macos::run(&tools, rest, &process_env))
         }
+        "probe" => {
+            let tools = Tools {
+                developer_dir: process_env("DEVELOPER_DIR").map(PathBuf::from),
+                runner: &System,
+            };
+            report(probe::PREFIX, probe::run(&tools, &probe::executor(), rest, &process_env))
+        }
         _ => report(
             "dx-apple-ops",
-            Err(util::usage("usage: apple_ops <simctl|run-macos-app|export|codesign|notarize> ...")),
+            Err(util::usage("usage: apple_ops <simctl|run-macos-app|export|codesign|notarize|probe> ...")),
         ),
     }
 }

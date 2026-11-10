@@ -24,23 +24,6 @@ rust_test(
 )
 
 rust_test(
-    name = "probe_script_test",
-    testonly = True,
-    srcs = ["probe_script_test.rs"],
-    aliases = aliases(
-        package_name = "apple/apple_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "probe_script_test",
-    crate_root = "probe_script_test.rs",
-    data = ["//apple/private/provisioning:probe.sh"],
-    env = {"DX_APPLE_PROBE": "$(rootpath //apple/private/provisioning:probe.sh)"},
-    target_compatible_with = ["@platforms//os:linux"],
-    deps = ["//tools/testing:dx_testing"],
-)
-
-rust_test(
     name = "simulator_script_test",
     testonly = True,
     srcs = ["simulator_script_test.rs"],

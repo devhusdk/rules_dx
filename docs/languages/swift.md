@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//swift:defs.bzl`:
 
 ```python
-load("@rules_dx//swift:defs.bzl", "swift_interop_hint", "swift_library", "swift_binary")
+load("@rules_dx//swift:defs.bzl", "swift_interop_hint", "swift_library", "swift_library_group", "swift_binary")
 ```
 
 ## Rules
@@ -29,6 +29,10 @@ swift_library(name, srcs = None, visibility = None, platforms = None, **kwargs)
 ```
 
 Wraps swift_library and builds it for Linux, or with Xcode on macOS.
+
+### `swift_library_group`
+
+No documentation.
 
 ### `swift_binary`
 

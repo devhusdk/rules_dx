@@ -62,11 +62,15 @@ rust_test(
     data = [
         "testdata/golden.lock.json",
         "testdata/mini.tar.gz",
+        "testdata/multi.lock.json",
+        "testdata/multi.tar.gz",
         "@dx_swift_host//:swift",
     ],
     env = {
         "ARCHIVE": "$(rootpath testdata/mini.tar.gz)",
+        "ARCHIVE_MULTI": "$(rootpath testdata/multi.tar.gz)",
         "GOLDEN": "$(rootpath testdata/golden.lock.json)",
+        "GOLDEN_MULTI": "$(rootpath testdata/multi.lock.json)",
         "SWIFT": "$(rootpath @dx_swift_host//:swift)",
     },
     tags = ["block-network"],

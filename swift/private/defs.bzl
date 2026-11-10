@@ -5,6 +5,7 @@ load("@rules_swift//swift:providers.bzl", "SwiftInfo", "SwiftSymbolGraphInfo")
 load("@rules_swift//swift:swift_binary.bzl", _swift_binary = "swift_binary")
 load("@rules_swift//swift:swift_interop_hint.bzl", _swift_interop_hint = "swift_interop_hint")
 load("@rules_swift//swift:swift_library.bzl", _swift_library = "swift_library")
+load("@rules_swift//swift:swift_library_group.bzl", _swift_library_group = "swift_library_group")
 load("@rules_swift//swift:swift_symbol_graph_aspect.bzl", "swift_symbol_graph_aspect")
 load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
@@ -16,8 +17,9 @@ load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/private/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
 load("//swift/private:providers.bzl", "SwiftDocsInfo")
 
-# Re-exported unchanged: BUILD files need it to expose C modules to Swift.
+# Re-exported unchanged: BUILD files use them to expose C modules to Swift and to group libraries.
 swift_interop_hint = _swift_interop_hint
+swift_library_group = _swift_library_group
 
 _PLATFORM_ATTR = {
     "platforms": attr.label_list(

@@ -42,6 +42,7 @@
   "entry_points": [
     "swift_interop_hint",
     "swift_library",
+    "swift_library_group",
     "swift_binary",
     "swift_test",
     "swift_fuzz_test",

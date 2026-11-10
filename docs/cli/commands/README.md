@@ -457,6 +457,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_fuzz_test` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_interop_hint` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_library` |
+|  |  | `@rules_dx//swift:defs.bzl` | `swift_library_group` |
 |  |  | `@rules_dx//swift:defs.bzl` | `swift_test` |
 |  |  | `@rules_dx//terraform:defs.bzl` | `terraform_library` |
 |  |  | `@rules_dx//thrift:defs.bzl` | `thrift_library` |

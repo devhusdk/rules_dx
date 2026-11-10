@@ -2,23 +2,23 @@
 
 visibility(["//..."])
 
-CHROMIUM_REVISION = "1248"
+CHROMIUM_REVISION = "1254"
 
 ARTIFACTS = {
     "linux_arm64": struct(
         constraints = ["@platforms//os:linux", "@platforms//cpu:arm64"],
         path = "linux-arm64/chrome-headless-shell-linux-arm64.zip",
-        sha256 = "81ab9d4d3c301dc5fdfb6c541b9e6632b16fc819a6a854460f40a76fe2b2c476",
+        sha256 = "b136462898353d94c7fab50f9cdaa6d8f0d4c190153916936aa0a03353a26bf2",
     ),
     "linux_x86_64": struct(
         constraints = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
         path = "linux64/chrome-headless-shell-linux64.zip",
-        sha256 = "c3e50596aef52c58f8fda3c6b3411c33d34c88b177b3ed1c2243359fd3b8ba20",
+        sha256 = "18352d22cb0cdf520cbff2ad8c41391f0e02a72886cb53b0fde4bdfc4bd075d6",
     ),
     "macos_arm64": struct(
         constraints = ["@platforms//os:macos", "@platforms//cpu:arm64"],
         path = "mac-arm64/chrome-headless-shell-mac-arm64.zip",
-        sha256 = "94e4337b70cbc5638f0935fbc46b9f242bc7416f657e3fbe924baf348404b53d",
+        sha256 = "f34261d2aad94fb71b336597acabf20166ee5a2f14926c731f33d04c5da6cd3f",
     ),
 }
 

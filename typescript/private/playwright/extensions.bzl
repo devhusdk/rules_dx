@@ -5,7 +5,7 @@ load(":repos.bzl", "ARTIFACTS", "chromium_repo", "hub_build", "repository_name")
 
 visibility(["//..."])
 
-CHROMIUM_VERSION = "156.0.8078.4"
+CHROMIUM_VERSION = "158.0.8127.18"
 
 
 _BASE_URL = "https://storage.googleapis.com/chrome-for-testing-public/" + CHROMIUM_VERSION

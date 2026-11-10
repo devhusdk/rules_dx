@@ -35,10 +35,18 @@ var families = []family{
 	{"asciidoc_library", "asciidoc", "asciidoc:defs.bzl", isAsciiDoc},
 }
 
+// isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.
 func isDockerfile(name string) bool {
-	lower := strings.ToLower(name)
-	for _, base := range []string{"dockerfile", "containerfile"} {
-		if lower == base || strings.HasPrefix(lower, base+".") || strings.HasSuffix(lower, "."+base) {
+	if strings.HasSuffix(name, ".dockerignore") {
+		return false
+	}
+	for _, stem := range []string{"Dockerfile", "Containerfile"} {
+		if name == stem || (strings.HasPrefix(name, stem+".") && len(name) > len(stem)+1) {
+			return true
+		}
+	}
+	for _, suffix := range []string{".Dockerfile", ".dockerfile", ".Containerfile", ".containerfile"} {
+		if strings.HasSuffix(name, suffix) && len(name) > len(suffix) {
 			return true
 		}
 	}

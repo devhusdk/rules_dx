@@ -33,7 +33,10 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude haskell/tests/fixtures/bench/bench_src
 # gazelle:exclude haskell/private/coverage/src
 # gazelle:exclude tools/testing/hermetic/consumers/proto_bindings
-# gazelle:exclude tools/testing/hermetic/consumers/cpp_rust/apps
+# gazelle:exclude tools/testing/hermetic/consumers/cc_fixture
+# gazelle:exclude tools/testing/hermetic/consumers/cpp_rust
+# gazelle:exclude tools/testing/hermetic/consumers/python
+# gazelle:exclude tools/testing/hermetic/consumers/scala_scalafix
 # gazelle:exclude flutter/tests/fixtures/flutter-app/ios/Runner
 # gazelle:exclude java/private/jmh
 # gazelle:exclude go/tests/fixtures
@@ -400,6 +403,7 @@ real_source_target(
         "license.toml",
         "security.toml",
         "dx.toml",
+        "typos.toml",
     ],
 )
 
@@ -414,4 +418,11 @@ real_source_target(
     toml_srcs = [".gitleaks.toml"],
 )
 
-exports_files(glob(["*/lang.json"]))
+exports_files(["pkl/lang.json"])
+
+# dx:begin exports
+exports_files(
+    ["typos.toml"],
+    visibility = ["//.dx:__pkg__"],
+)
+# dx:end exports

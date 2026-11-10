@@ -1,0 +1,10 @@
+[default]
+locale = "en"
+
+[default.extend-words]
+PAKET = "PAKET"
+paket = "paket"
+Paket = "Paket"
+
+[files]
+extend-exclude = ["*.lock", "*.min.js", "*.svg"]

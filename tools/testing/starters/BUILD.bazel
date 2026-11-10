@@ -4,16 +4,28 @@ load("//rust:defs.bzl", "rust_library")
 load(":defs.bzl", "starter_consumer_test")
 
 STARTER_BAZEL_DEPS = {
-    "astro": ["rules_dx", "aspect_rules_js"],
+    "astro": [
+        "rules_dx",
+        "aspect_rules_js",
+    ],
     "c": ["rules_dx"],
     "cpp": ["rules_dx"],
     "csharp": ["rules_dx"],
-    "cuda": ["rules_dx", "rules_cuda"],
+    "cuda": [
+        "rules_dx",
+        "rules_cuda",
+    ],
     "d": ["rules_dx"],
-    "dart": ["rules_dx", "rules_dart"],
+    "dart": [
+        "rules_dx",
+        "rules_dart",
+    ],
     "elixir": ["rules_dx"],
     "erlang": ["rules_dx"],
-    "flutter": ["rules_dx", "rules_flutter"],
+    "flutter": [
+        "rules_dx",
+        "rules_flutter",
+    ],
     "fortran": ["rules_dx"],
     "fsharp": ["rules_dx"],
     "go": ["rules_dx"],
@@ -23,20 +35,40 @@ STARTER_BAZEL_DEPS = {
     "julia": ["rules_dx"],
     "kotlin": ["rules_dx"],
     "lua": ["rules_dx"],
-    "mdx": ["rules_dx", "aspect_rules_js"],
+    "mdx": [
+        "rules_dx",
+        "aspect_rules_js",
+    ],
     "ocaml": ["rules_dx"],
     "perl": ["rules_dx"],
     "php": ["rules_dx"],
-    "powershell": ["rules_dx", "platforms"],
+    "powershell": [
+        "rules_dx",
+        "platforms",
+    ],
     "python": ["rules_dx"],
-    "ruby": ["rules_dx", "rules_ruby"],
+    "ruby": [
+        "rules_dx",
+        "rules_ruby",
+    ],
     "rust": ["rules_dx"],
-    "rust-android": ["rules_dx", "platforms", "rules_rust", "rules_android"],
+    "rust-android": [
+        "rules_dx",
+        "platforms",
+        "rules_rust",
+        "rules_android",
+    ],
     "scala": ["rules_dx"],
-    "svelte": ["rules_dx", "aspect_rules_js"],
+    "svelte": [
+        "rules_dx",
+        "aspect_rules_js",
+    ],
     "swift": ["rules_dx"],
     "typescript": ["rules_dx"],
-    "vue": ["rules_dx", "aspect_rules_js"],
+    "vue": [
+        "rules_dx",
+        "aspect_rules_js",
+    ],
     "zig": ["rules_dx"],
 }
 
@@ -56,9 +88,7 @@ rust_library(
     crate_name = "starter_scaffold",
     crate_root = "scaffold.rs",
     visibility = ["//visibility:public"],
-    deps = [
-        "//tools/testing:dx_testing",
-    ],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 exports_files(

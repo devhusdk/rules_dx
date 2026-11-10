@@ -20,14 +20,6 @@ path = "appcontainer/main.rs"
 name = "isolation_windows_probe"
 path = "isolation_windows_probe.rs"
 
-[[bin]]
-name = "compile_capture"
-path = "compile_capture.rs"
-
-[[bin]]
-name = "maven_pin"
-path = "maven_pin.rs"
-
 [[test]]
 name = "consumer_repos_test"
 path = "consumer_repos_test.rs"
@@ -43,10 +35,6 @@ path = "isolation_windows_test.rs"
 [[test]]
 name = "cuda_gpu_facts_test"
 path = "cuda_gpu_test.rs"
-
-[[test]]
-name = "compiler_fixture_test"
-path = "compiler_fixture_test.rs"
 
 [dependencies]
 serde_json = "1"

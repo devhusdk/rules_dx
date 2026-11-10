@@ -25,8 +25,8 @@ typescript_library(
     tsconfig = "tsconfig.json",
     visibility = _PUBLIC,
     deps = [
-        "//javascript/tests/fixtures/node-app:node_modules/@types/semver",
         ":node_modules/semver",
+        "//javascript/tests/fixtures/node-app:node_modules/@types/semver",
     ],
 )
 

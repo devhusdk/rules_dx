@@ -22,6 +22,10 @@ cc_binary(
     srcs = ["@dx_libfuzzer_dotnet//:libfuzzer-dotnet.cc"],
     copts = ["-fsanitize=fuzzer"],
     linkopts = ["-fsanitize=fuzzer"],
+    linkstatic = select({
+        "@platforms//os:macos": False,
+        "//conditions:default": True,
+    }),
     target_compatible_with = _SUPPORTED,
     testonly = True,
     visibility = ["//visibility:private"],

@@ -3,15 +3,9 @@
 load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
+load("//tools/testing:action_input.bzl", "platform_flip_transition")
 
-def _arm64_impl(_settings, _attr):
-    return {"//command_line_option:platforms": str(Label("//appimage:linux_arm64"))}
-
-_arm64 = transition(
-    implementation = _arm64_impl,
-    inputs = [],
-    outputs = ["//command_line_option:platforms"],
-)
+_arm64 = platform_flip_transition(str(Label("//appimage:linux_arm64")))
 
 def _files_impl(ctx):
     files = []

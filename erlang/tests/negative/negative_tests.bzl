@@ -4,8 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:defs.bzl", "starlark_test")
 load("//core/quality:families/cc.bzl", "real_cc_lint_aspect")
-
-_LINUX = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+load("//tools/testing:action_input.bzl", "LINUX_X86_64", "action_input_test")
 
 def _inputs(env, mnemonic):
     actions = [a for a in analysistest.target_actions(env) if a.mnemonic == mnemonic]
@@ -16,13 +15,6 @@ def _warnings_as_errors_impl(ctx):
     env = analysistest.begin(ctx)
     action, _ = _inputs(env, "ERLC")
     asserts.equals(env, ctx.attr.expected, "-Werror" in " ".join(action.argv), "ERLC -Werror")
-    return analysistest.end(env)
-
-def _has_impl(ctx):
-    env = analysistest.begin(ctx)
-    _, inputs = _inputs(env, "ERLC")
-    found = [p for p in inputs if p.endswith("/" + ctx.attr.file)]
-    asserts.equals(env, ctx.attr.present, len(found) > 0, "ERLC inputs: " + str(inputs))
     return analysistest.end(env)
 
 def _header_impl(ctx):
@@ -53,7 +45,6 @@ _has_attrs = {
     "file": attr.string(),
     "present": attr.bool(),
 }
-_has_test = analysistest.make(_has_impl, attrs = _has_attrs)
 _header_test = analysistest.make(_header_impl, attrs = _has_attrs)
 
 def _nif_lint_results_impl(ctx):
@@ -81,26 +72,26 @@ _nif_lint_results = rule(
 )
 
 def erlc_warnings_as_errors_test(name, target, expected = True):
-    _warnings_as_errors_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = _LINUX)
+    _warnings_as_errors_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = LINUX_X86_64)
 
 def erlc_warnings_flag_off_test(name, target, expected = False):
-    _warnings_flag_off_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = _LINUX)
+    _warnings_flag_off_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = LINUX_X86_64)
 
 def erlc_input_test(name, target, file, present):
-    _has_test(name = name, size = "small", target_under_test = target, file = file, present = present, target_compatible_with = _LINUX)
+    action_input_test(name, target, "ERLC", file, present)
 
 def nif_header_test(name, target, file, present):
-    _header_test(name = name, size = "small", target_under_test = target, file = file, present = present, target_compatible_with = _LINUX)
+    _header_test(name = name, size = "small", target_under_test = target, file = file, present = present, target_compatible_with = LINUX_X86_64)
 
 def nif_define_test(name, target, define):
-    _define_test(name = name, size = "small", target_under_test = target, define = define, target_compatible_with = _LINUX)
+    _define_test(name = name, size = "small", target_under_test = target, define = define, target_compatible_with = LINUX_X86_64)
 
 def nif_lint_test(name, target):
-    _nif_lint_results(name = name + "_results", testonly = True, target = target, tags = ["manual"], target_compatible_with = _LINUX)
+    _nif_lint_results(name = name + "_results", testonly = True, target = target, tags = ["manual"], target_compatible_with = LINUX_X86_64)
     starlark_test(
         name = name,
         size = "small",
         mode = "execution",
         file_checks = {name + "_results": "terminal 0"},
-        target_compatible_with = _LINUX,
+        target_compatible_with = LINUX_X86_64,
     )

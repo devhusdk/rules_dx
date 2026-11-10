@@ -1,13 +1,8 @@
 """Builds targets for the linux_arm64 cell from any host."""
 
-def _arm64_impl(_settings, _attr):
-    return {"//command_line_option:platforms": str(Label("//appimage:linux_arm64"))}
+load("//tools/testing:action_input.bzl", "platform_flip_transition")
 
-_arm64 = transition(
-    implementation = _arm64_impl,
-    inputs = [],
-    outputs = ["//command_line_option:platforms"],
-)
+_arm64 = platform_flip_transition(str(Label("//appimage:linux_arm64")))
 
 def _files_impl(ctx):
     files = []

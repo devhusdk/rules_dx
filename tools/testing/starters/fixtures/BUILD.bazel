@@ -27,7 +27,7 @@ starter_fixture(
 
 starter_fixture(
     name = "csharp",
-    layers = ["readme", "dotnet"],
+    layers = ["readme"],
 )
 
 starter_fixture(
@@ -67,7 +67,7 @@ starter_fixture(
 
 starter_fixture(
     name = "fsharp",
-    layers = ["readme", "dotnet"],
+    layers = ["readme"],
 )
 
 starter_fixture(

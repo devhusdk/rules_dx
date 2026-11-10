@@ -401,7 +401,8 @@ LANGUAGES = [
         deps = "none: the CUDA toolkit is a pinned download",
         doc = struct(tool = "doxygen", shard = "cuda_doc_shard"),
         dead_code = ["none"],
-        no_coverage = "cuda_test has no dx coverage wiring",
+        coverage = ["llvm-cov"],
+        coverage_note = "host code only; device code is not covered",
         not_applicable = {
             "macos_arm64": "NVIDIA ships no CUDA toolkit for macOS"
         },

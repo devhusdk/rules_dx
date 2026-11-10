@@ -1,0 +1,35 @@
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("//rust:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "gen",
+    srcs = ["//core/quality/tiers/gopls:gen.rs"],
+    crate_name = "gopls_gen",
+    crate_root = "//core/quality/tiers/gopls:gen.rs",
+)
+
+[
+    genrule(
+        name = "gen_" + tier,
+        srcs = [
+            "//core/quality/tiers/govet:standard.json",
+            "//core/quality/tiers/govet:strict.json",
+            "//core/quality/tiers/staticcheck:standard.conf",
+            "//core/quality/tiers/staticcheck:strict.conf",
+        ],
+        outs = ["gen_%s.json" % tier],
+        cmd = "$(execpath :gen) $(execpath //core/quality/tiers/govet:%s.json) $(execpath //core/quality/tiers/staticcheck:%s.conf) $(execpath //core/quality/tiers/govet:strict.json) $(execpath //core/quality/tiers/staticcheck:strict.conf) > $@" % (tier, tier),
+        tools = [":gen"],
+    )
+    for tier in ["standard", "strict"]
+]
+
+[
+    diff_test(
+        name = "gopls_%s_current_test" % tier,
+        failure_message = "gopls_%s.json is stale: run bazel build //go/private/quality/gopls_tier:gen_%s and copy bazel-bin/go/private/quality/gopls_tier/gen_%s.json over it" % (tier, tier, tier),
+        file1 = "//core/quality/tiers/gopls:gopls_%s.json" % tier,
+        file2 = ":gen_%s" % tier,
+    )
+    for tier in ["standard", "strict"]
+]

@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "flutter",
   "title": "Flutter",
-  "family": "dart",
+  "family": "core",
   "ecosystems": [
     "pub"
   ],

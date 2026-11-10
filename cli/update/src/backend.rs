@@ -1876,7 +1876,7 @@ fn pub_argv(
         return Ok(argv);
     }
     let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
-    let mut argv = bazel(head, "run", &[&under, "@rules_dx//dart/tools:dart", "--"]);
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//dart/private/tools:dart", "--"]);
     argv.extend(strings(command));
     Ok(argv)
 }

@@ -7,6 +7,8 @@ cc/rules:defs.bzl
 cloudformation:defs.bzl
 cmake/rules:defs.bzl
 d:defs.bzl
+dart:defs.bzl
+dart:extensions.bzl
 deploy/offline:offline.bzl
 deploy/rules:archive.bzl
 deploy/rules:cloudflare.bzl
@@ -23,6 +25,7 @@ elixir:defs.bzl
 dotnet:defs.bzl
 elixir:extensions.bzl
 env:defs.bzl
+flutter:defs.bzl
 erlang:defs.bzl
 go/rules:defs.bzl
 haskell/rules:defs.bzl

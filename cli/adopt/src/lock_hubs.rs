@@ -68,7 +68,7 @@ const TYPESCRIPT: Ecosystem = Ecosystem {
 const PUB: Ecosystem = Ecosystem {
     dep: "rules_dart",
     version: dx_versions::RULES_DART_VERSION,
-    bzl: "@rules_dx//dart:pub.bzl",
+    bzl: "@rules_dx//dart:extensions.bzl",
     ext: "pub",
     binding: "pub",
     hub: "pub_deps",

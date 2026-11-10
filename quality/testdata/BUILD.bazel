@@ -3,7 +3,7 @@ load("@rules_rust//rust:defs.bzl", upstream_rust_binary = "rust_binary", upstrea
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", dx_cc_library = "cc_library")
-load("//dart/rules:defs.bzl", "dart_config")
+load("//dart:defs.bzl", "dart_config")
 load("//java:defs.bzl", "java_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -1655,7 +1655,7 @@ workspace_policy(
 dart_subject(
     name = "dart_subject",
     testonly = True,
-    target = "@rules_dx_dart//dart/tests/runtime:greet",
+    target = "//dart/tests/runtime:greet",
 )
 
 dart_format_flag_tests(

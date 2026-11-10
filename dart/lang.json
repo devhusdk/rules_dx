@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "dart",
   "title": "Dart",
-  "family": "dart",
+  "family": "core",
   "ecosystems": [
     "pub"
   ],
@@ -22,7 +22,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "pins.bzl"
+    "private/pins.bzl"
   ],
   "entry_points": [
     "dart_codegen",

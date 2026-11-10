@@ -1,0 +1,140 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//libs/starlark:cells.bzl", "unsupported_value")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_main_candidates")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "DART_SOURCE_SPECS", "dart_root_package_name")
+load(":platforms.bzl", "DART_PLATFORMS")
+
+package(default_visibility = ["//visibility:public"])
+
+unsupported_value("unsupported")
+
+exports_files([
+    "dart_config.bzl",
+    "defs.bzl",
+    "platforms.bzl",
+    "providers.bzl",
+])
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "dart rules own dart sources",
+            DART_SOURCE_SPECS,
+            [("dart", "dart")],
+        ),
+        expect_equal(
+            "entrypoint comes first",
+            dx_entry_quality_srcs(
+                "bin/main.dart",
+                ["bin/flags.dart"],
+            ),
+            [
+                "bin/main.dart",
+                "bin/flags.dart",
+            ],
+        ),
+        expect_equal(
+            "binary main candidates",
+            dx_main_candidates("tool", ".dart", ["bin"]),
+            [
+                "tool.dart",
+                "bin/tool.dart",
+            ],
+        ),
+        expect_equal(
+            "test main candidates",
+            dx_main_candidates("x/greet_test", ".dart", ["test"]),
+            [
+                "greet_test.dart",
+                "test/greet_test.dart",
+            ],
+        ),
+        expect_equal(
+            "missing srcs keep the entrypoint",
+            dx_entry_quality_srcs("bin/main.dart", None),
+            ["bin/main.dart"],
+        ),
+        expect_equal(
+            "entrypoint listed twice is owned once",
+            dx_entry_quality_srcs(
+                "bin/main.dart",
+                ["bin/main.dart"],
+            ),
+            ["bin/main.dart"],
+        ),
+        expect_equal(
+            "no rules_dart sdk for windows arm64",
+            "windows_arm64" in DART_PLATFORMS,
+            False,
+        ),
+        expect_equal(
+            "root library takes its own name",
+            dart_root_package_name("", "tally", {}),
+            "tally",
+        ),
+        expect_equal(
+            "nested library keeps the directory name",
+            dart_root_package_name("pkgs/tally", "lib", {}),
+            None,
+        ),
+        expect_equal(
+            "explicit root package name wins",
+            dart_root_package_name(
+                "",
+                "lib",
+                {"package_name": "tally"},
+            ),
+            None,
+        ),
+        expect_equal(
+            "root package metadata wins",
+            dart_root_package_name(
+                "",
+                "lib",
+                {"package": ":meta"},
+            ),
+            None,
+        ),
+    ],
+    file_classes = [file_class for file_class, _ in DART_SOURCE_SPECS],
+)
+
+[
+    config_setting(
+        name = name,
+        constraint_values = [
+            "@platforms//os:" + os,
+            "@platforms//cpu:" + cpu,
+        ],
+    )
+    for name, (os, cpu) in DART_PLATFORMS.items()
+]
+
+selects.config_setting_group(
+    name = "rules_dart_platform",
+    match_any = [":" + name for name in DART_PLATFORMS],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+        "pins.bzl",
+        "platforms.bzl",
+        "providers.bzl",
+        "pub.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

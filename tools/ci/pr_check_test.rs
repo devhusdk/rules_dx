@@ -83,7 +83,7 @@ fn windows_arm64_set_targets_the_platform() {
     let body = &body[..body.find("\n}\n").expect("end of set")];
     assert!(body.contains("--platforms=@llvm//platforms:windows_aarch64"));
     assert!(body.contains("--skip_incompatible_explicit_targets"));
-    assert!(body.contains("//dart/tools:all"));
+    assert!(body.contains("//dart/private/tools:all"));
 }
 
 #[test]

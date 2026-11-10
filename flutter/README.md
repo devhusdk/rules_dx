@@ -17,7 +17,7 @@ bazel build //flutter/tests/fixtures/flutter-app/android:apk
 
 `flutter_android_app` wraps the upstream rule and uses `android_binary`, so no Gradle runs. Set `android_abi` to `arm64` (default) or `x64`. Device and emulator runs are not covered yet. Consumers need `use_repo` of `flutter_android_engine_arm64` and `flutter_android_engine_x64` and the managed `androidsdk` override from rules_dx_android.
 
-Consumers load the rules from `@rules_dx//flutter/rules:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
+Consumers load the rules from `@rules_dx//flutter:defs.bzl`. rules_dx depends on rules_flutter and registers its toolchains.
 
 Start a project:
 

@@ -1,4 +1,4 @@
-load("@rules_dx//flutter/rules:defs.bzl", "flutter_android_app", "flutter_application", "flutter_library")
+load("@rules_dx//flutter:defs.bzl", "flutter_android_app", "flutter_application", "flutter_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])

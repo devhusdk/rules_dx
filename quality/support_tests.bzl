@@ -1,6 +1,6 @@
 """Unit tests for explicit tool support records."""
 
-load("//dart/rules:platforms.bzl", "DART_PLATFORMS")
+load("//dart/private:platforms.bzl", "DART_PLATFORMS")
 load("//elixir/private/toolchain:pins.bzl", "ELIXIR_CELLS")
 load("//erlang/private/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")

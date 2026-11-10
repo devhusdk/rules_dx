@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start")
-load("@rules_dx//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH", "flutter_android_app")
+load("@rules_dx//flutter:defs.bzl", "FLUTTER_COMPATIBLE_WITH", "flutter_android_app")
 load("//quality:fixtures.bzl", "real_source_target")
 
 exports_files(

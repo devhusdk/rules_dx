@@ -8,11 +8,11 @@ version pin in `MODULE.bazel`.
 
 ## Rules
 
-Load the rules from `@rules_dx//dart/rules:defs.bzl`. They wrap rules_dart and
+Load the rules from `@rules_dx//dart:defs.bzl`. They wrap rules_dart and
 take the same attributes.
 
 ```python
-load("@rules_dx//dart/rules:defs.bzl", "dart_binary", "dart_library", "dart_test")
+load("@rules_dx//dart:defs.bzl", "dart_binary", "dart_library", "dart_test")
 
 dart_library(
     name = "greet",
@@ -111,14 +111,14 @@ Add a `pubspec.lock` and run `dx generate --apply`: it adds `rules_dart` and a `
 
 ## Pub dependencies
 
-Declare a hub with the `pub` extension from `@rules_dx//dart:pub.bzl`. The lock pins each package
+Declare a hub with the `pub` extension from `@rules_dx//dart:extensions.bzl`. The lock pins each package
 to a sha256. Make the lock with `dart pub get` on a developer machine, never
 inside an action.
 
 ```python
 bazel_dep(name = "rules_dart", version = "0.8.1")
 
-pub = use_extension("@rules_dx//dart:pub.bzl", "pub")
+pub = use_extension("@rules_dx//dart:extensions.bzl", "pub")
 pub.from_lock(
     name = "my_pub_deps",
     lock = "//third_party/dart:pubspec.lock",
@@ -138,7 +138,7 @@ real formatter: it runs the `dart` binary of the resolved SDK (nothing is
 fetched until a Dart target is analysed), formats each file at the language
 version of its package, and `dx format` fixes what it reports. Formatter options
 come from a `dart_config` (an `analysis_options.yaml`) bound with
-`aspect_hints`, from `@rules_dx//dart/rules:defs.bzl`.
+`aspect_hints`, from `@rules_dx//dart:defs.bzl`.
 
 `dx lint` and `dx typecheck` run one `dart analyze --format=json` per capability over the
 target's sources, with its transitive Dart sources and external packages staged for resolution.
@@ -150,7 +150,7 @@ only the analyzer's default warnings are reported and no lint rules are on. An
 `include: package:...` needs the package in the config's `deps`:
 
 ```starlark
-load("@rules_dx//dart/rules:defs.bzl", "dart_config")
+load("@rules_dx//dart:defs.bzl", "dart_config")
 
 dart_config(
     name = "analysis_options",

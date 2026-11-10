@@ -569,7 +569,7 @@ fn erlang_rebar_tags_become_rebar_hex_sets() {
 
 #[test]
 fn the_repos_own_dart_hub_becomes_a_pub_set() {
-    let module = "pub = use_extension(\"//dart:pub.bzl\", \"pub\", dev_dependency = True)\npub.from_lock(name = \"dx_dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
+    let module = "pub = use_extension(\"//dart:extensions.bzl\", \"pub\", dev_dependency = True)\npub.from_lock(name = \"dx_dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");

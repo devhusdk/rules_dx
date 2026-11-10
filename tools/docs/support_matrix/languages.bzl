@@ -3,11 +3,11 @@
 load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//d:defs.bzl", "D_CELLS")
 load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
-load("//dart/rules:platforms.bzl", "DART_PLATFORMS")
+load("//dart/private:platforms.bzl", "DART_PLATFORMS")
 load("//elixir:defs.bzl", "ELIXIR_CELLS")
 load("//erlang:defs.bzl", "ERLANG_CELLS")
 load("//erlang/private/toolchain:pins.bzl", OTP_CELLS = "CELLS")
-load("//flutter/rules:platforms.bzl", "FLUTTER_PLATFORMS")
+load("//flutter/private:platforms.bzl", "FLUTTER_PLATFORMS")
 load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
 load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
@@ -40,10 +40,10 @@ COMPUTED_CONSTRAINTS = {
     "@rules_dx_apple//ios:cell.bzl%APPLE_HOSTS": [["@platforms//os:ios"], ["@platforms//os:macos"]],
     "@rules_dx_cuda//rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
     "//d:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
-    "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(DART_PLATFORMS),
+    "//dart:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(DART_PLATFORMS),
     "//elixir:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
     "//erlang:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
-    "//flutter/rules:defs.bzl%FLUTTER_COMPATIBLE_WITH": _os_cpu_pairs(FLUTTER_PLATFORMS),
+    "//flutter:defs.bzl%FLUTTER_COMPATIBLE_WITH": _os_cpu_pairs(FLUTTER_PLATFORMS),
     "//fortran:defs.bzl%FORTRAN_COMPATIBLE_WITH": [FORTRAN_CELLS[cell].constraints for cell in sorted(FORTRAN_CELLS.keys())],
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
     # Mirrors HERMETIC_COMPATIBLE_WITH in //tools/testing/hermetic:defs.bzl.
@@ -159,7 +159,7 @@ ROWS = [
         "title": "CUDA",
     },
     {"ci_tests": ["//d/tests/fixtures/hello:greet_test", "//d/tests/fixtures/d-app/diagnostics:diagnostics_test", "//d/tests/fixtures/d-app/source:app_output_test", "//d/tests/fixtures/d-app/source/base:base_test", "//d/tests/fixtures/d-app/source/cli:cli_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": "D"},
-    {"ci_tests": ["@rules_dx_dart//dart/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:dart"] + _starter_consumers("dart"), "name": "dart", "section": "languages", "title": "Dart"},
+    {"ci_tests": ["//dart/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:dart"] + _starter_consumers("dart"), "name": "dart", "section": "languages", "title": "Dart"},
     {
         "ci_tests": ["//elixir/tests/runtime:probe_test"],
         "consumer_tests": _starter_consumers("elixir"),
@@ -433,7 +433,7 @@ LANGUAGES = [
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
         coverage = ["package:test"],
-        unsupported = "//dart/rules:unsupported",
+        unsupported = "//dart/private:unsupported",
         not_applicable = {
             "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
         },
@@ -460,7 +460,7 @@ LANGUAGES = [
         doc = struct(tool = "dart doc", shard = "dart_doc_shard"),
         dead_code = ["dart unused_element"],
         coverage = ["flutter_tester"],
-        unsupported = "//flutter/rules:unsupported",
+        unsupported = "//flutter/private:unsupported",
         not_applicable = {
             "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
         },
@@ -778,7 +778,7 @@ def support_matrix_inputs():
             files[_build_file(label)] = True
         for workflow in row.get("workflows", []):
             files["//.github:workflows/" + workflow] = True
-    files["//flutter/rules:defs.bzl"] = True
+    files["//flutter:defs.bzl"] = True
     files["//tools/testing:nested_bazel.bzl"] = True
     files["//tools/testing/hermetic:defs.bzl"] = True
     return sorted(files.keys())

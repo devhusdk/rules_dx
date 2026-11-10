@@ -18,7 +18,7 @@ _REAL_TOOLCHAIN_FILES = ["clippy_driver", "rustc", "rustfmt"]
 
 # Where each wrapper-carried tool comes from: (wrappers, defs.bzl, tool label).
 _TARGET_TOOL_OWNERS = {
-    "dart": ("dart_library, dart_binary or dart_test", "@rules_dx//dart/rules:defs.bzl", "@rules_dx//dart/tools:dart"),
+    "dart": ("dart_library, dart_binary or dart_test", "@rules_dx//dart:defs.bzl", "@rules_dx//dart/private/tools:dart"),
     "swift_format": ("swift_library, swift_binary or swift_test", "@rules_dx//swift/rules:defs.bzl", "@rules_dx//swift/tools:swift_format"),
     "swift_lint": ("swift_library, swift_binary or swift_test", "@rules_dx//swift/rules:defs.bzl", "@rules_dx//swift/tools:swift_format"),
     "zig_ast_check": ("zig_library, zig_binary or zig_test", "@rules_dx//zig:defs.bzl", "@rules_dx//zig/private/tools:zig"),

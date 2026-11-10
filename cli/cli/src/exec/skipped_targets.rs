@@ -231,7 +231,7 @@ mod tests {
 
     const JSON: &str = r#"{
         "//php/private/toolchain:unsupported": {"title": "PHP", "platforms": {"windows_arm64": "no PHP build"}},
-        "//dart/rules:unsupported": {"title": "Dart", "platforms": {"a": "x", "b": "y"}}
+        "//dart/private:unsupported": {"title": "Dart", "platforms": {"a": "x", "b": "y"}}
     }"#;
 
     fn fake_query(constraint: &str, _labels: &[String]) -> Option<Vec<String>> {

@@ -208,7 +208,7 @@ filegroup(
         "//cc/toolchains:module_srcs",
         "//cli/prebuilt:module_srcs",
         "//config:module_srcs",
-        "//dart/rules:module_srcs",
+        "//dart/private:module_srcs",
         "//elixir/private:module_srcs",
         "//libs/fuzz_run:module_srcs",
         "//libs/launcher:module_srcs",
@@ -266,7 +266,7 @@ real_source_target(
         "CLAUDE.md",
         "RELEASING.md",
         "containers/README.md",
-        "flutter/README.md",
+        "//flutter:README.md",
     ],
     tags = ["corpus"],
 )

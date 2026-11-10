@@ -1161,7 +1161,7 @@ fn bundle_fetches_follow_the_rules_ruby_extension() {
 #[test]
 fn pub_locks_follow_the_rules_dart_rules_flutter_and_own_extensions() {
     let file = parse(
-        "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"deps\", lock = \"//dart:pubspec.lock\")\nflutter = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"flutter\")\nflutter.pub(name = \"app\", lock = \"//app:pubspec.lock\")\nflutter.toolchain(flutter_version = \"3\")\nother = use_extension(\"//dart:pub.bzl\", \"pub\")\nother.from_lock(name = \"x\", lock = \"//x:pubspec.lock\")\n",
+        "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"deps\", lock = \"//dart:pubspec.lock\")\nflutter = use_extension(\"@rules_flutter//flutter:extensions.bzl\", \"flutter\")\nflutter.pub(name = \"app\", lock = \"//app:pubspec.lock\")\nflutter.toolchain(flutter_version = \"3\")\nother = use_extension(\"//dart:extensions.bzl\", \"pub\")\nother.from_lock(name = \"x\", lock = \"//x:pubspec.lock\")\n",
     );
     let found: Vec<_> = file
         .pub_locks()

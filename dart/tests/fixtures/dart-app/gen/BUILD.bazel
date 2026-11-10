@@ -1,0 +1,26 @@
+load("@rules_dx//dart:defs.bzl", "dart_binary")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = ["//dart/tests/fixtures/dart-app:__subpackages__"])
+
+exports_files(
+    glob([
+        "bin/**",
+    ]) + ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/testing/hermetic:__pkg__"],
+)
+
+dart_binary(
+    name = "gen_schema",
+    aspect_hints = ["//dart/tests/fixtures/dart-app:dart_config"],
+    main = "bin/gen_schema.dart",
+    visibility = _PUBLIC,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],    visibility = ["//:__pkg__"],
+)

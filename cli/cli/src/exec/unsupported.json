@@ -1,11 +1,11 @@
 {
-  "//dart/rules:unsupported": {
+  "//dart/private:unsupported": {
     "platforms": {
       "windows_arm64": "rules_dart 0.8.1 ships no Windows arm64 SDK"
     },
     "title": "Dart"
   },
-  "//flutter/rules:unsupported": {
+  "//flutter/private:unsupported": {
     "platforms": {
       "windows_arm64": "rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS)"
     },

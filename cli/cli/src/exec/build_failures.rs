@@ -669,7 +669,7 @@ mod tests {
     fn an_explicit_incompatible_target_gets_the_language_reason() {
         let mut event = to_failure_event_for_test();
         event.message = Some(
-            "Target //a:x is incompatible and cannot be built, but was explicitly requested.\n  @@rules_dx+//dart/rules:unsupported"
+            "Target //a:x is incompatible and cannot be built, but was explicitly requested.\n  @@rules_dx+//dart/private:unsupported"
                 .to_owned(),
         );
         super::add_skip_reason(&mut event);

@@ -135,6 +135,12 @@
         "real_d_lint_probe_aspect",
         "real_d_typecheck_aspect",
         "real_d_typecheck_probe_aspect",
+        "real_dart_format_aspect",
+        "real_dart_format_probe_aspect",
+        "real_dart_lint_aspect",
+        "real_dart_lint_probe_aspect",
+        "real_dart_typecheck_aspect",
+        "real_dart_typecheck_probe_aspect",
         "real_dockerfile_lint_aspect",
         "real_docs_aspect",
         "real_dotnet_format_aspect",
@@ -381,8 +387,8 @@
         "//cc/toolchains/msvc:extensions.bzl%msvc",
         "//cc/toolchains:extensions.bzl%gcc",
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
-        "//dart:pub.bzl%pub",
-        "//dart:extensions.bzl%dart_tools",
+        "//dart:extensions.bzl%pub",
+        "//dart/private:extensions.bzl%dart_tools",
         "//deploy/rules/pins:extensions.bzl%apicompat",
         "//deploy/rules/pins:extensions.bzl%japicmp",
         "//deploy/rules/pins:extensions.bzl%semver_checks",
@@ -456,6 +462,7 @@
         ".cs",
         ".csproj",
         ".d",
+        ".dart",
         ".erl",
         ".ex",
         ".exs",
@@ -603,44 +610,6 @@
       "path": "families/cuda",
       "repo_rules": [],
       "toolchains": []
-    },
-    "dart": {
-      "aspects": [
-        "real_dart_format_aspect",
-        "real_dart_format_probe_aspect",
-        "real_dart_lint_aspect",
-        "real_dart_lint_probe_aspect",
-        "real_dart_typecheck_aspect",
-        "real_dart_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_lib",
-        "bazel_skylib",
-        "platforms",
-        "rules_dart",
-        "rules_dx",
-        "rules_flutter",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "dart",
-        "flutter",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dart//dart:extensions.bzl%dart",
-        "@rules_dx//dart:pub.bzl%pub",
-        "@rules_flutter//flutter:extensions.bzl%flutter"
-      ],
-      "file_extensions": [
-        ".dart"
-      ],
-      "gazelle": [],
-      "repo_rules": [],
-      "toolchains": [],
-      "module": "rules_dx_dart",
-      "path": "families/dart"
     },
     "haskell": {
       "aspects": [

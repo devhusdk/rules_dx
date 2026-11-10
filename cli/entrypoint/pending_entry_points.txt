@@ -1,9 +1,7 @@
 asciidoc
 cc
 cmake
-dart
 deploy
-flutter
 go
 haskell
 make

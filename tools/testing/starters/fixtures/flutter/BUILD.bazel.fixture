@@ -1,4 +1,4 @@
-load("@rules_dx//flutter/rules:defs.bzl", "flutter_library", "flutter_test")
+load("@rules_dx//flutter:defs.bzl", "flutter_library", "flutter_test")
 
 flutter_library(
     name = "demo-app",

@@ -1,4 +1,4 @@
-load("@rules_dx//dart/rules:defs.bzl", "dart_binary")
+load("@rules_dx//dart:defs.bzl", "dart_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]

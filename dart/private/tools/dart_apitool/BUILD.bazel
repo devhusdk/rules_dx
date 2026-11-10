@@ -1,0 +1,30 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//dart:defs.bzl", "dart_binary")
+
+# gazelle:dx_external pub dart/private/tools/dart_apitool/pubspec.lock dart_apitool_deps
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "pubspec.lock",
+    "pubspec.yaml",
+])
+
+# Kernel, not exe: dart_apitool runs `dart pub get` through its own executable.
+dart_binary(
+    name = "dart_apitool",
+    compile_mode = "kernel",
+    main = "bin/dart_apitool.dart",
+    deps = [
+        "@dart_apitool_deps//:args",
+        "@dart_apitool_deps//:colorize_lumberdash",
+        "@dart_apitool_deps//:dart_apitool",
+        "@dart_apitool_deps//:lumberdash",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

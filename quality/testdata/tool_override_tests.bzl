@@ -4,7 +4,7 @@ load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:canonical.bzl", "strip_canonical")
 load("//libs/starlark:defs.bzl", "DxSubjectInfo")
 load("//perl:defs.bzl", "PERL_COMPATIBLE_WITH")
-load("//dart/rules:dart_config.bzl", "DxDartConfigInfo")
+load("//dart/private:dart_config.bzl", "DxDartConfigInfo")
 load(
     "//quality/testdata:all_languages.bzl",
     "real_cc_format_aspect",
@@ -53,7 +53,7 @@ _PERLCRITIC_TOOL = _CANONICAL + "//perl/private/tools:perlcritic"
 _PERL_LINT_POLICY = _CANONICAL + "//quality/testdata:perl_lint_policy"
 _DART_POLICY = _CANONICAL + "//quality/testdata:dart_policy"
 _DART_SETTING = _CANONICAL + "//config:tool_dart"
-_DART_TOOL = _CANONICAL + "//dart/tools:dart"
+_DART_TOOL = _CANONICAL + "//dart/private/tools:dart"
 _JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
 _JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
 _JULIA_FORMAT_TOOL = _CANONICAL + "//julia/private/tools:julia_format"

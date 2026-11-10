@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//d:defs.bzl", "D_COMPATIBLE_WITH")
-load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
+load("//dart:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH")

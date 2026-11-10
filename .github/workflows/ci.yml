@@ -703,7 +703,7 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           # shellcheck disable=SC2086
-          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test @rules_dx_powershell//tests/fixtures/hello:hello_test //zig/tests/fixtures/zig-app/... @rules_dx_dart//dart/tests/fixtures/dart-app/... @rules_dx_dart//dart/tests/runtime:all //dart/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia-app/... //julia/private/tools/... $QUALITY_TARGETS
+          bazel test --noshow_progress --nocache_test_results --test_output=all "$@" //tools/testing:preflight_smoke_test //cli/env:bootstrap_test //cc/tests/fixtures/hello:hello_test @rules_dx_powershell//tests/fixtures/hello:hello_test //zig/tests/fixtures/zig-app/... //dart/tests/fixtures/dart-app/... //dart/tests/runtime:all //dart/private/tools:all //zig/tests/fixtures/hello:all //julia/tests/fixtures/hello:all //julia/tests/fixtures/julia-app/... //julia/private/tools/... $QUALITY_TARGETS
       - name: Run the PyPI probe verification
         run: |
           # shellcheck disable=SC2086

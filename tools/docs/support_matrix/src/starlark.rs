@@ -605,7 +605,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     (
         "dart_test",
-        Constraint::Appended("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH"),
+        Constraint::Appended("//dart:defs.bzl", "DART_COMPATIBLE_WITH"),
     ),
     (
         "elixir_test",
@@ -618,7 +618,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("failure_test", Constraint::AsWritten),
     (
         "flutter_test",
-        Constraint::Appended("//flutter/rules:defs.bzl", "FLUTTER_COMPATIBLE_WITH"),
+        Constraint::Appended("//flutter:defs.bzl", "FLUTTER_COMPATIBLE_WITH"),
     ),
     ("fsharp_test", Constraint::AsWritten),
     ("go_test", Constraint::AsWritten),

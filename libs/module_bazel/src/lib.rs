@@ -903,7 +903,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `pub.from_lock` tag of rules_dart or this repository's `//dart:pub.bzl` and
+    /// Every `pub.from_lock` tag of rules_dart or this repository's `//dart:extensions.bzl` and
     /// `flutter.pub` tag of rules_flutter, in source order within each extension.
     pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
         let dart = self
@@ -913,7 +913,7 @@ impl ModuleFile {
             .tags(FLUTTER_MODULE, "flutter:extensions.bzl", "flutter", "pub")
             .map(|call| ("flutter.pub", call));
         let own = self
-            .tags_of("//dart:pub.bzl".to_owned(), "pub", "from_lock")
+            .tags_of("//dart:extensions.bzl".to_owned(), "pub", "from_lock")
             .map(|call| ("pub.from_lock", call));
         dart.chain(flutter)
             .chain(own)

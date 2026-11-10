@@ -58,6 +58,6 @@ Perl: `perl_bench` from `//perl:defs.bzl` is a `perl_test` whose script calls `D
 
 Ruby: `ruby_bench` from `//ruby:defs.bzl` takes `main`, a script (name.rb, else the single src) that calls `DxBench.run { |x| x.report("name") { ... } }` with the benchmark-ips API. The pinned benchmark-ips gem comes with rules_dx, so no Gemfile entry is needed. Results are in seconds per call.
 
-Dart: `dart_bench` from `//dart/rules:defs.bzl` takes `main`, a program that calls `runBenchmarks([...])` from `package:dx_bench` with benchmark_harness `BenchmarkBase` objects. The pinned benchmark_harness comes from the `@dx_dart_bench_deps` hub of rules_dx. Results are in seconds per run.
+Dart: `dart_bench` from `//dart:defs.bzl` takes `main`, a program that calls `runBenchmarks([...])` from `package:dx_bench` with benchmark_harness `BenchmarkBase` objects. The pinned benchmark_harness comes from the `@dx_dart_bench_deps` hub of rules_dx. Results are in seconds per run.
 
 PHP: `php_bench` from `//php:defs.bzl` takes `srcs`, phpbench files with one class per file named like the file, with `#[Revs]` and `#[Iterations]` attributes. The pinned phpbench phar comes with rules_dx and runs on the pinned PHP. Results are in seconds per revolution.

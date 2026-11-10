@@ -74,12 +74,12 @@ _pub_config = rule(
             allow_single_file = True,
         ),
         "_dart": attr.label(
-            default = Label("//dart/tools:dart"),
+            default = Label("//dart/private/tools:dart"),
             cfg = "exec",
             executable = True,
         ),
         "_dart_apitool": attr.label(
-            default = Label("//dart/tools/dart_apitool"),
+            default = Label("//dart/private/tools/dart_apitool"),
             cfg = "exec",
         ),
         "registry_url": attr.string(

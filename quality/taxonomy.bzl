@@ -66,7 +66,7 @@ TAXONOMY = {
         classes = ["d"],
     ),
     "dart": struct(
-        owner = "//dart/rules:defs.bzl",
+        owner = "//dart:defs.bzl",
         classes = ["dart"],
     ),
     "dockerfile": struct(

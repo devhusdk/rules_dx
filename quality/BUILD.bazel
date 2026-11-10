@@ -256,7 +256,7 @@ consumer_policy_tests(
                 "inventory_cli-real-typecheck-dart.pb",
             ],
             "policy": "//config:default_workspace_policy",
-            "subject": "@rules_dx_dart//dart/tests/fixtures/dart-app/cli:inventory_cli",
+            "subject": "//dart/tests/fixtures/dart-app/cli:inventory_cli",
         },
         {
             "case": "default_ocaml",

@@ -1,4 +1,4 @@
-load("@rules_dx//dart/rules:defs.bzl", "dart_library")
+load("@rules_dx//dart:defs.bzl", "dart_library")
 
 dart_library(
     name = "a",

@@ -118,7 +118,7 @@ def _lint_cases(tier):
             _DART_CLEAN,
             "dart;dart;matrix/dart_tier/main.dart",
             "dart",
-            "//dart/tools:dart",
+            "//dart/private/tools:dart",
             "//quality/tiers/dart:%s.yaml" % tier,
             toolfile_tools = ["dart", "dart"],
             toolfile_srcs = ["//quality/tiers/dart:%s.yaml" % tier, ":dart_cfg/package_config.json"],

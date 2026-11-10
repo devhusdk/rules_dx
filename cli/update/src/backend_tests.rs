@@ -1190,7 +1190,7 @@ fn pub_update_runs_dart_pub_upgrade() {
         panic!("expected a run");
     };
     assert_eq!(argv[argv.len() - 4..], ["--", "pub", "upgrade", "http"]);
-    assert!(argv.contains(&"@rules_dx//dart/tools:dart".to_owned()));
+    assert!(argv.contains(&"@rules_dx//dart/private/tools:dart".to_owned()));
     assert_eq!(env[0].0, "PUB_CACHE");
     let BackendPlan::Run { argv, .. } =
         pub_plan(dir.path(), &Selection::Full, false, false).expect("plan")

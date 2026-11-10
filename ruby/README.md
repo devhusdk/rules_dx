@@ -94,7 +94,7 @@ bazel run @rules_dx//:dx -- lint //app/...
 
 ## Type checking with Sorbet
 
-`dx typecheck` runs the pinned Sorbet 0.6.13599 (the `sorbet-static` gem, no Ruby
+`dx typecheck` runs the pinned Sorbet 0.6.13650 (the `sorbet-static` gem, no Ruby
 needed) over `ruby_library`, `ruby_binary` and `ruby_test` sources. Select
 `sorbet` in a `ruby` family. `--@rules_dx//config:tool_sorbet` overrides the pinned binary.
 

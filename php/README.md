@@ -172,7 +172,7 @@ Select `phpcs` in a `php` family. The tool flag overrides the pinned binary:
 dx lint -- --@rules_dx//config:tool_phpcs=@rules_dx//php/private/tools:phpcs
 ```
 
-PHPStan 2.3.3 type checks `php` targets. Select `phpstan` in a `php` family.
+PHPStan 2.3.5 type checks `php` targets. Select `phpstan` in a `php` family.
 The tool flag overrides the pinned binary:
 
 ```sh

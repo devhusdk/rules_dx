@@ -2,34 +2,34 @@
   "cells": {
     "linux_arm64": {
       "binary": "libexec/sorbet",
-      "sha256": "797fb456360f91dd40c5eb1eaecee630742c2de112a76e3787506040fb750864",
+      "sha256": "c11209b61e1637483a0f8c8c77aa743cde464e78b82765e4b4b99177dced70c1",
       "type": "gem",
       "urls": [
-        "https://rubygems.org/downloads/sorbet-static-0.6.13599-aarch64-linux.gem"
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-aarch64-linux.gem"
       ]
     },
     "linux_x86_64": {
       "binary": "libexec/sorbet",
-      "sha256": "6fbb673e4d69b344bf5b6bec916820f87be08a351b2e4ff33df126345b1e8a70",
+      "sha256": "5ca09d834d0c6cc916a92f65c22013e58e0d6ec56b3d68381f60e3dea30958ea",
       "type": "gem",
       "urls": [
-        "https://rubygems.org/downloads/sorbet-static-0.6.13599-x86_64-linux.gem"
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-x86_64-linux.gem"
       ]
     },
     "macos_arm64": {
       "binary": "libexec/sorbet",
-      "sha256": "c023f9bdc8b974640b9eb3960295ec8f41dcfa385c89a699ceec8c6ed328eea6",
+      "sha256": "bd0d9e60f4acf2fd3c919d3129e6ef4a5da33eb05c84c2388f965f925d90b621",
       "type": "gem",
       "urls": [
-        "https://rubygems.org/downloads/sorbet-static-0.6.13599-universal-darwin.gem"
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-universal-darwin.gem"
       ]
     },
     "macos_x86_64": {
       "binary": "libexec/sorbet",
-      "sha256": "c023f9bdc8b974640b9eb3960295ec8f41dcfa385c89a699ceec8c6ed328eea6",
+      "sha256": "bd0d9e60f4acf2fd3c919d3129e6ef4a5da33eb05c84c2388f965f925d90b621",
       "type": "gem",
       "urls": [
-        "https://rubygems.org/downloads/sorbet-static-0.6.13599-universal-darwin.gem"
+        "https://rubygems.org/downloads/sorbet-static-0.6.13650-universal-darwin.gem"
       ]
     },
     "windows_x86_64": {
@@ -37,5 +37,5 @@
       "stub": "#!/bin/sh\necho \"sorbet has no Windows build: the Ruby type check is not available on Windows\" >&2\nexit 2\n"
     }
   },
-  "version": "0.6.13599"
+  "version": "0.6.13650"
 }

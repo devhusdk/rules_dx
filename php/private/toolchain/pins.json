@@ -61,11 +61,11 @@
   },
   "tools": {
     "composer": {
-      "sha256": "7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6",
+      "sha256": "dd158c0afd41d15fac89e1b4e47b5d42911fe316c3687cd5edac98319b25d028",
       "urls": [
-        "https://getcomposer.org/download/2.10.3/composer.phar"
+        "https://getcomposer.org/download/2.11.2/composer.phar"
       ],
-      "version": "2.10.3"
+      "version": "2.11.2"
     },
     "phpbench": {
       "sha256": "68563bfbef7eb3af8ebf6b62ce80c9646ab61c9b1ce0011b57fb947f73ac3b37",
@@ -89,11 +89,11 @@
       "version": "3.10.0"
     },
     "phpstan": {
-      "sha256": "aa5cc7543f0de0ae7997deb24f654a3b2454b6ba4ba2c4552957a175886b60b1",
+      "sha256": "4b3ed7850a20b092331bd1040e4f54a1d3c0559b4cf006431073997ebcb4324b",
       "urls": [
-        "https://github.com/phpstan/phpstan/releases/download/2.3.3/phpstan.phar"
+        "https://github.com/phpstan/phpstan/releases/download/2.3.5/phpstan.phar"
       ],
-      "version": "2.3.3"
+      "version": "2.3.5"
     },
     "phpstan_strict_rules": {
       "sha256": "26262cc118f6b4fefdeb8f0f8dc972d47285a09e2c7818c379f78c51cd0f8d5b",
@@ -104,11 +104,11 @@
       "version": "2.1.1"
     },
     "phpunit": {
-      "sha256": "f9f8f986f2b6e862187a04619eb01b5960cea77bb39bd1e38d3e396a99eae516",
+      "sha256": "f7301b5c8c7e36c520e60ad5d698a5c7bb56a4e0090acdbc877e64d2e91dd820",
       "urls": [
-        "https://phar.phpunit.de/phpunit-13.4.3.phar"
+        "https://phar.phpunit.de/phpunit-13.4.6.phar"
       ],
-      "version": "13.4.3"
+      "version": "13.4.6"
     },
     "unused_public": {
       "sha256": "12b24273cc1745c2ab8ba1f49dbb7f5984296bb41fd1fac0de8cb30cfde72543",

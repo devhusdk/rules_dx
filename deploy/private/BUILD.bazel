@@ -429,6 +429,7 @@ rust_test(
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
+        "//cli/test_scratch:dx_test_scratch",
         "//cli/update:dx_update",
         "//tools/testing:dx_testing",
         "@crates//:serde",

@@ -462,16 +462,6 @@ mod tests {
         );
     }
 
-    fn git_in(dir: &std::path::Path, args: &[&str]) {
-        dx_process::capture::run_checked(
-            dx_process::capture::git(dir)
-                .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
-                .args(args),
-            dx_process::capture::DEFAULT_TIMEOUT,
-        )
-        .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
-    }
-
     #[test]
     fn export_git_dir_writes_only_the_directory() {
         let root = std::env::temp_dir().join(format!("export-git-dir-{}", std::process::id()));
@@ -483,10 +473,10 @@ mod tests {
         std::fs::write(repo.join("pkg/src/lib.rs"), "pub fn a() {}\n").expect("write");
         std::fs::write(repo.join("other/x.txt"), "x").expect("write");
         std::fs::write(repo.join("other/pubspec.yaml"), "name: x\n").expect("write");
-        git_in(&repo, &["init", "-q"]);
-        git_in(&repo, &["add", "."]);
-        git_in(&repo, &["commit", "-q", "-m", "x"]);
-        git_in(&repo, &["tag", "v1.0.0"]);
+        dx_test_scratch::git(&repo, &repo, &["init", "-q"]);
+        dx_test_scratch::git(&repo, &repo, &["add", "."]);
+        dx_test_scratch::git(&repo, &repo, &["commit", "-q", "-m", "x"]);
+        dx_test_scratch::git(&repo, &repo, &["tag", "v1.0.0"]);
         let dest = root.join("dest");
         assert_eq!(
             export_git_dir(&repo, "pkg", "v1.0.0", &dest, "Cargo.toml"),

@@ -313,25 +313,12 @@ mod tests {
         write_crate_file(&repo, "lib/go.mod", "module example.com/lib\n\ngo 1.22\n");
         write_crate_file(&repo, "lib/lib.go", "package lib\n\nfunc Hello() {}\n");
         for args in [
-            vec!["init", "-q"],
-            vec!["add", "."],
-            vec![
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@example.com",
-                "commit",
-                "-q",
-                "-m",
-                "x",
-            ],
-            vec!["tag", "v1.2.0"],
+            &["init", "-q"][..],
+            &["add", "."],
+            &["commit", "-q", "-m", "x"],
+            &["tag", "v1.2.0"],
         ] {
-            dx_process::capture::run_checked(
-                dx_process::capture::git(&repo).args(&args),
-                dx_process::capture::DEFAULT_TIMEOUT,
-            )
-            .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
+            dx_test_scratch::git(&repo, &repo, args);
         }
         repo
     }

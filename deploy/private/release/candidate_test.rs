@@ -27,10 +27,6 @@ single_version_override(
 ext = use_extension("//lib:defs.bzl", "ext")
 "#;
 
-fn git(dir: &Path, args: &[&str]) -> String {
-    dx_test_scratch::git(dir, &std::env::temp_dir(), args)
-}
-
 fn write(path: &Path, bytes: &[u8]) {
     std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
     std::fs::write(path, bytes).expect("write");
@@ -52,7 +48,7 @@ impl Fixture {
             .expect("scratch");
         let repo = dir.path().join("repo");
         std::fs::create_dir_all(&repo).expect("repo");
-        git(&repo, &["init", "-q"]);
+        dx_test_scratch::git(&repo, &repo, &["init", "-q"]);
         write(&repo.join("MODULE.bazel"), MODULE.as_bytes());
         write(
             &repo.join("patches/BUILD.bazel"),
@@ -81,14 +77,15 @@ impl Fixture {
             b"def hello():\n    return \"hello\"\n",
         );
         write(&repo.join(PINS_PATH), b"SHA256 = {\"dx\": \"\"}\n");
-        git(&repo, &["add", "-A"]);
-        git(&repo, &["update-index", "--chmod=+x", "tool.sh"]);
-        git(&repo, &["commit", "-q", "-m", "candidate"]);
-        let head = git(&repo, &["rev-parse", "HEAD"]).trim().to_owned();
+        dx_test_scratch::git(&repo, &repo, &["add", "-A"]);
+        dx_test_scratch::git(&repo, &repo, &["update-index", "--chmod=+x", "tool.sh"]);
+        dx_test_scratch::git(&repo, &repo, &["commit", "-q", "-m", "candidate"]);
+        let head = dx_test_scratch::git(&repo, &repo, &["rev-parse", "HEAD"]);
         let canonical = dir.path().join("canonical.git");
         let foreign = dir.path().join("foreign.git");
         for remote in [&canonical, &foreign] {
-            git(
+            dx_test_scratch::git(
+                dir.path(),
                 dir.path(),
                 &["init", "-q", "--bare", remote.to_str().expect("utf8")],
             );
@@ -112,11 +109,13 @@ impl Fixture {
 
     fn refs(&self) -> (String, String) {
         (
-            git(
+            dx_test_scratch::git(
+                &self.repo,
                 &self.repo,
                 &["ls-remote", self.canonical.to_str().expect("utf8")],
             ),
-            git(
+            dx_test_scratch::git(
+                &self.repo,
                 &self.repo,
                 &["ls-remote", self.foreign.to_str().expect("utf8")],
             ),
@@ -132,7 +131,8 @@ impl Fixture {
     }
 
     fn push_tag(&self, remote: &Path) {
-        git(
+        dx_test_scratch::git(
+            &self.repo,
             &self.repo,
             &[
                 "push",
@@ -145,9 +145,9 @@ impl Fixture {
 
     fn advance(&self) -> String {
         write(&self.repo.join("later.txt"), b"later\n");
-        git(&self.repo, &["add", "later.txt"]);
-        git(&self.repo, &["commit", "-q", "-m", "later"]);
-        git(&self.repo, &["rev-parse", "HEAD"]).trim().to_owned()
+        dx_test_scratch::git(&self.repo, &self.repo, &["add", "later.txt"]);
+        dx_test_scratch::git(&self.repo, &self.repo, &["commit", "-q", "-m", "later"]);
+        dx_test_scratch::git(&self.repo, &self.repo, &["rev-parse", "HEAD"])
     }
 
     fn archive(&self, name: &str) -> PathBuf {
@@ -223,7 +223,8 @@ fn archive_members_equal_the_commit_tree() {
     let fixture = Fixture::new();
     std::fs::remove_file(fixture.repo.join(".gitattributes")).expect("attributes");
     let archive = fixture.archive("tree.tar.gz");
-    let tree = git(
+    let tree = dx_test_scratch::git(
+        &fixture.repo,
         &fixture.repo,
         &["ls-tree", "-r", "--name-only", &fixture.head],
     );
@@ -331,9 +332,13 @@ fn archive_check_with_pins_still_rejects_other_changes() {
 #[test]
 fn pins_need_a_pins_file_in_the_commit() {
     let fixture = Fixture::new();
-    git(&fixture.repo, &["rm", "-q", PINS_PATH]);
-    git(&fixture.repo, &["commit", "-q", "-m", "no pins"]);
-    let head = git(&fixture.repo, &["rev-parse", "HEAD"]).trim().to_owned();
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rm", "-q", PINS_PATH]);
+    dx_test_scratch::git(
+        &fixture.repo,
+        &fixture.repo,
+        &["commit", "-q", "-m", "no pins"],
+    );
+    let head = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD"]);
     let candidate = Candidate::new(VERSION, &head).expect("candidate");
     let dst = fixture.path("none.tar.gz");
     let want = Err(format!("candidate: commit has no {PINS_PATH}"));
@@ -460,11 +465,11 @@ fn archive_rejects_a_foreign_sha() {
     let fixture = Fixture::new();
     let other = fixture.path("other");
     std::fs::create_dir_all(&other).expect("other");
-    git(&other, &["init", "-q"]);
+    dx_test_scratch::git(&other, &other, &["init", "-q"]);
     write(&other.join("x.txt"), b"x\n");
-    git(&other, &["add", "-A"]);
-    git(&other, &["commit", "-q", "-m", "foreign"]);
-    let foreign = git(&other, &["rev-parse", "HEAD"]).trim().to_owned();
+    dx_test_scratch::git(&other, &other, &["add", "-A"]);
+    dx_test_scratch::git(&other, &other, &["commit", "-q", "-m", "foreign"]);
+    let foreign = dx_test_scratch::git(&other, &other, &["rev-parse", "HEAD"]);
     let candidate = Candidate::new(VERSION, &foreign).expect("candidate");
     let dst = fixture.path("foreign.tar.gz");
     let error =
@@ -484,9 +489,13 @@ fn archive_rejects_a_foreign_sha() {
 fn archive_rejects_symlinks() {
     let fixture = Fixture::new();
     std::os::unix::fs::symlink("MODULE.bazel", fixture.repo.join("link")).expect("symlink");
-    git(&fixture.repo, &["add", "link"]);
-    git(&fixture.repo, &["commit", "-q", "-m", "link"]);
-    let head = git(&fixture.repo, &["rev-parse", "HEAD"]).trim().to_owned();
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["add", "link"]);
+    dx_test_scratch::git(
+        &fixture.repo,
+        &fixture.repo,
+        &["commit", "-q", "-m", "link"],
+    );
+    let head = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD"]);
     let candidate = Candidate::new(VERSION, &head).expect("candidate");
     let error = build_source_archive(
         &fixture.repo,
@@ -570,7 +579,7 @@ fn registry_source_rejects_wrong_version_prefix_and_integrity() {
 #[test]
 fn tag_lightweight_is_peeled_through_ls_remote() {
     let fixture = Fixture::new();
-    git(&fixture.repo, &["tag", TAG]);
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["tag", TAG]);
     fixture.push_tag(&fixture.canonical);
     let before = fixture.refs();
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
@@ -591,10 +600,14 @@ fn tag_lightweight_is_peeled_through_ls_remote() {
 #[test]
 fn tag_annotated_is_peeled_through_ls_remote() {
     let fixture = Fixture::new();
-    git(&fixture.repo, &["tag", "-a", "-m", "candidate", TAG]);
+    dx_test_scratch::git(
+        &fixture.repo,
+        &fixture.repo,
+        &["tag", "-a", "-m", "candidate", TAG],
+    );
     fixture.push_tag(&fixture.canonical);
     let before = fixture.refs();
-    let object = git(&fixture.repo, &["rev-parse", TAG]).trim().to_owned();
+    let object = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", TAG]);
     assert_ne!(object, fixture.head);
     let output = fixture.ls_remote(&fixture.canonical).expect("ls-remote");
     assert!(
@@ -618,7 +631,11 @@ fn tag_annotated_is_peeled_through_ls_remote() {
 #[test]
 fn tag_moved_to_another_commit_points_elsewhere() {
     let fixture = Fixture::new();
-    git(&fixture.repo, &["tag", "-a", "-m", "old", TAG]);
+    dx_test_scratch::git(
+        &fixture.repo,
+        &fixture.repo,
+        &["tag", "-a", "-m", "old", TAG],
+    );
     fixture.push_tag(&fixture.canonical);
     let newer = fixture.advance();
     let before = fixture.refs();
@@ -644,7 +661,7 @@ fn tag_moved_to_another_commit_points_elsewhere() {
 #[test]
 fn tag_stale_sha_fails_when_head_moved_on() {
     let fixture = Fixture::new();
-    git(&fixture.repo, &["tag", TAG]);
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["tag", TAG]);
     let newer = fixture.advance();
     let before = fixture.refs();
     assert_eq!(
@@ -673,7 +690,7 @@ fn tag_missing_locally_fails() {
 #[test]
 fn remote_tag_only_in_the_foreign_remote_fails() {
     let fixture = Fixture::new();
-    git(&fixture.repo, &["tag", TAG]);
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["tag", TAG]);
     fixture.push_tag(&fixture.foreign);
     let before = fixture.refs();
     assert!(before.1.contains(TAG));
@@ -709,7 +726,7 @@ fn remote_nonexistent_path_surfaces_the_git_error() {
 #[test]
 fn tag_dirty_tree_and_non_repo_fail_closed() {
     let fixture = Fixture::new();
-    git(&fixture.repo, &["tag", TAG]);
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["tag", TAG]);
     let before = fixture.refs();
     write(
         &fixture.repo.join("MODULE.bazel"),

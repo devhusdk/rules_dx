@@ -9,7 +9,6 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "extensions.bzl",
-    "libtool_ar.sh",
     "metadata_tests.bzl",
     "ocaml.bzl",
     "pins.bzl",

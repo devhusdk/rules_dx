@@ -76,11 +76,6 @@ def _checks():
                 "PATH": "bin/tc_cc",
             },
         ),
-        expect_equal(
-            "a macOS archive wrapper replaces the archiver",
-            native_cc_env("clang", "as-clang", "ld-clang", "x/libtool", "p", macos = True, ar_wrapper = "w/libtool_ar.sh")["CONDA_OCAML_AR"],
-            "w/libtool_ar.sh",
-        ),
         expect_equal("the driver is linked under every tool name", NATIVE_CC_TOOLS, ["ar", "as", "cc", "ld", "mkdll", "mkexe", "ranlib"]),
         expect_equal("conda stem", conda_stem("https://x/linux-64/zstd-1.5.7-h_7.conda"), "zstd-1.5.7-h_7"),
         expect_equal("root files keep a dot prefix", relative_prefix("ld.conf"), "."),

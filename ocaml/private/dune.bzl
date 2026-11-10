@@ -4,7 +4,7 @@
 builds one executable of a dune workspace and `dx_dune_library` builds one
 library package as OCaml providers that `ocaml_module` and `ocaml_test` take in
 `deps`. The actions use only the pinned conda OCaml tree, the resolved C
-toolchain, and /usr/bin and /bin as the host baseline; dune's cache and the
+toolchain and the pinned coreutils; dune's cache and the
 network are off.
 """
 
@@ -15,100 +15,11 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_ocaml//build:providers.bzl", "OCamlArchiveProvider", "OCamlCcInfo", "OCamlDepsProvider", "OCamlImportProvider")
 load("//core:wrapper.bzl", "dx_language_kwargs")
-load("//ocaml/private/toolchain:ocaml.bzl", "native_cc_env")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
+load("//ocaml/private/toolchain:ocaml.bzl", "cc_drivers", "native_cc_env")
 load(":defs.bzl", "OCAML_COMPATIBLE_WITH")
 
 DEPSET_ORDER = "postorder"
-
-_PRELUDE = """set -euo pipefail
-ROOT="$PWD"
-SCRATCH="$(mktemp -d)"
-trap 'chmod -R u+w "$SCRATCH" 2>/dev/null || true; rm -rf "$SCRATCH"' EXIT
-{env}
-if [ "$(uname -s)" = Darwin ]; then export SDKROOT="$(/usr/bin/xcrun --show-sdk-path)"; fi
-# ocamlopt hands the assembler GNU's --debug-prefix-map; clang spells it differently, so drop it.
-mkdir -p "$SCRATCH/bin"
-export REAL_AS="$CONDA_OCAML_AS"
-cat > "$SCRATCH/bin/as" <<'ASM'
-#!/bin/bash
-args=()
-skip=0
-for arg in "$@"; do
-  if [ "$skip" = 1 ]; then skip=0; continue; fi
-  if [ "$arg" = --debug-prefix-map ]; then skip=1; continue; fi
-  args+=("$arg")
-done
-exec $REAL_AS "${{args[@]}}"
-ASM
-chmod +x "$SCRATCH/bin/as"
-export CONDA_OCAML_AS="$SCRATCH/bin/as"
-# The conda zstd dylib is loaded through an rpath the executables lack, so link libzstd.a from the zstd-static pin instead.
-# ld prefers a dylib found in any -L directory, so search the directories in order and put ours first.
-if [ "$(uname -s)" = Darwin ] && [ -f "${{PATH%%:*}}/../lib/libzstd.a" ]; then
-  mkdir -p "$SCRATCH/static"
-  ln -s "$(cd "${{PATH%%:*}}/../lib" && pwd)/libzstd.a" "$SCRATCH/static/libzstd.a"
-  export CONDA_OCAML_MKEXE="$CONDA_OCAML_MKEXE -Wl,-search_paths_first -L$SCRATCH/static"
-fi
-# Fallback for dylib links: executables built and run inside one action find libzstd through the tree's lib directory.
-if [ "$(uname -s)" = Darwin ]; then
-  export CONDA_OCAML_MKEXE="$CONDA_OCAML_MKEXE -Wl,-rpath,$(cd "${{PATH%%:*}}/../lib" && pwd)"
-fi
-export DUNE_CACHE=disabled
-export HOME="$SCRATCH/home" XDG_CACHE_HOME="$SCRATCH/home/.cache" XDG_CONFIG_HOME="$SCRATCH/home/.config" XDG_DATA_HOME="$SCRATCH/home/.local"
-export TMPDIR="$SCRATCH/tmp"
-mkdir -p "$HOME" "$TMPDIR"
-"""
-
-_BOOTSTRAP = """cp -rL "$ROOT/{dune_root}/." "$SCRATCH/dune"
-chmod -R u+w "$SCRATCH/dune"
-cd "$SCRATCH/dune"
-ocaml boot/bootstrap.ml -j {jobs}
-cp _boot/dune.exe "$ROOT/{output}"
-"""
-
-_BUILD = """mkdir "$SCRATCH/ws"
-cp -rL "$ROOT/{root}/." "$SCRATCH/ws"
-chmod -R u+w "$SCRATCH/ws"
-cd "$SCRATCH/ws"
-"$ROOT/{dune}" build --release --display=quiet -j {jobs} ./{target}
-cp "_build/default/{target}" "$ROOT/{output}"
-"""
-
-_LIBRARY = """mkdir "$SCRATCH/ws"
-cp -rL "$ROOT/{root}/." "$SCRATCH/ws"
-chmod -R u+w "$SCRATCH/ws"
-cd "$SCRATCH/ws"
-{ocamlpath}
-if [ -f dune ] && grep -q '^(vendored_dirs' dune; then
-  sed -i '/^(vendored_dirs/d' dune
-  "$ROOT/{dune}" build --display=quiet -j {jobs} @{package}/install
-else
-  "$ROOT/{dune}" build --display=quiet -j {jobs} -p {package} @install
-fi
-LIB="_build/install/default/lib/{package}"
-STUBS="$LIB/lib{library}_stubs.a"
-if [ -f "$STUBS" ] && [ -z "{stubs}" ]; then
-  echo "dx_dune_library: $STUBS holds C stubs; set stubs = True to link them" >&2
-  exit 1
-fi
-if [ -n "{stubs}" ]; then
-  if [ ! -f "$STUBS" ]; then
-    echo "dx_dune_library: stubs = True but $STUBS was not built" >&2
-    exit 1
-  fi
-  cp "$STUBS" "$ROOT/{stubs}"
-fi
-for archive in {archives}; do
-  if [ ! -f "$LIB/$archive" ]; then
-    echo "dx_dune_library: $LIB/$archive was not built; set library = to the dune (name) of the library" >&2
-    exit 1
-  fi
-done
-cp -RL "$LIB/." "$ROOT/{tree}"
-for archive in {archives}; do
-  cp "$LIB/$archive" "$ROOT/{archive_dir}/$archive"
-done
-"""
 
 def _abs(path):
     return path if path.startswith("/") else "$ROOT/" + path
@@ -137,44 +48,53 @@ def _env(ctx, tree):
             variables = cc_common.empty_variables(),
         ).items()
     }
+    drivers = cc_drivers(ctx)
+    macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo])
+    applets = coreutils(ctx)
     env = native_cc_env(
         cc = tool(ACTION_NAMES.c_compile),
         assembler = tool(ACTION_NAMES.assemble),
         linker = tool(ACTION_NAMES.cpp_link_executable),
         archiver = tool(ACTION_NAMES.cpp_link_static_library),
-        path = _abs(compiler.dirname) + ":/usr/bin:/bin",
-        macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo]),
-        ar_wrapper = _abs(ctx.file._libtool_ar.path),
+        path = ":".join([_abs(drivers[0].dirname), _abs(compiler.dirname), _abs(applets.path)]),
+        macos = macos,
         link_env = link_env,
     )
-    return env, cc.all_files
-
-def _shell_env(env):
-    return "\n".join(["export {}=\"{}\"".format(key, env[key]) for key in sorted(env)])
+    env["DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP"] = "1"
+    if not macos:
+        env["CONDA_OCAML_MKEXE"] += " -fuse-ld=lld"
+        env["CONDA_OCAML_MKDLL"] += " -fuse-ld=lld"
+    return struct(
+        env = env,
+        inputs = depset(tree + drivers + [ctx.executable._cc_driver], transitive = [cc.all_files, applets.files]),
+        ocaml_bin = compiler.dirname,
+    )
 
 def _context(ctx):
     tree = ctx.attr._tree[DefaultInfo].files.to_list()
-    env, cc_files = _env(ctx, tree)
-    return _PRELUDE.format(env = _shell_env(env)), depset(tree + [ctx.file._libtool_ar], transitive = [cc_files])
+    return _env(ctx, tree)
+
+def _args(ctx, context, mode):
+    args = ctx.actions.args()
+    args.add_all(["dune", mode, "--jobs", str(ctx.attr.jobs), "--ocaml-bin", context.ocaml_bin])
+    return args
 
 def _dune_bootstrap_impl(ctx):
-    prelude, inputs = _context(ctx)
+    context = _context(ctx)
     scripts = [f for f in ctx.files.srcs if f.path.endswith("/boot/bootstrap.ml")]
     if len(scripts) != 1:
         fail("srcs must hold exactly one boot/bootstrap.ml, found {}".format(len(scripts)))
     out = ctx.actions.declare_file(ctx.label.name + ".exe")
-    # run_shell: The script exports the toolchain environment and runs several commands in one action.
-    ctx.actions.run_shell(
+    args = _args(ctx, context, "bootstrap")
+    args.add_all(["--source", scripts[0].dirname.removesuffix("/boot"), "--output", out])
+    ctx.actions.run(
+        executable = ctx.executable._cc_driver,
+        arguments = [args],
+        env = context.env,
         outputs = [out],
-        inputs = depset(ctx.files.srcs, transitive = [inputs]),
-        command = prelude + _BOOTSTRAP.format(
-            dune_root = scripts[0].dirname.removesuffix("/boot"),
-            jobs = ctx.attr.jobs,
-            output = out.path,
-        ),
+        inputs = depset(ctx.files.srcs, transitive = [context.inputs]),
         mnemonic = "DxDuneBootstrap",
         progress_message = "Bootstrapping dune %{label}",
-        use_default_shell_env = False,
     )
     return [DefaultInfo(files = depset([out]), executable = out)]
 
@@ -184,33 +104,29 @@ dx_dune_bootstrap = rule(
     attrs = {
         "jobs": attr.int(default = 4, doc = "Bootstrap parallelism."),
         "srcs": attr.label_list(allow_files = True, mandatory = True, doc = "Dune's source tree, including boot/bootstrap.ml."),
-        "_libtool_ar": attr.label(default = "//ocaml/private/toolchain:libtool_ar.sh", allow_single_file = True),
+        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
     executable = True,
-    toolchains = use_cc_toolchain(),
+    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE],
     fragments = ["cpp"],
 )
 
 def _dune_build_impl(ctx):
-    prelude, inputs = _context(ctx)
+    context = _context(ctx)
     dune = ctx.executable.dune
     out = ctx.actions.declare_file(ctx.label.name)
-    # run_shell: The script exports the toolchain environment and runs several commands in one action.
-    ctx.actions.run_shell(
+    args = _args(ctx, context, "build")
+    args.add_all(["--workspace", ctx.file.workspace.dirname, "--dune", dune, "--target", ctx.attr.target, "--output", out])
+    ctx.actions.run(
+        executable = ctx.executable._cc_driver,
+        arguments = [args],
+        env = context.env,
         outputs = [out],
-        inputs = depset(ctx.files.srcs + [dune], transitive = [inputs]),
-        command = prelude + _BUILD.format(
-            root = ctx.file.workspace.dirname,
-            dune = dune.path,
-            jobs = ctx.attr.jobs,
-            target = ctx.attr.target,
-            output = out.path,
-        ),
+        inputs = depset(ctx.files.srcs + [dune], transitive = [context.inputs]),
         mnemonic = "DxDuneBuild",
         progress_message = "Building %{label} with dune",
-        use_default_shell_env = False,
     )
     return [DefaultInfo(
         files = depset([out]),
@@ -228,17 +144,17 @@ dx_dune_build = rule(
         "target": attr.string(mandatory = True, doc = "The executable, relative to the workspace root, for example zanuda/src/main.exe."),
         "workspace": attr.label(allow_single_file = True, mandatory = True, doc = "The workspace's root dune-project file."),
         "_stdlib": attr.label(default = "@dx_ocaml_toolchains//:stdlib", cfg = "exec", allow_files = True, doc = "The OCaml standard library the built tool reads .cmi files from at run time; zanuda finds it through OCAMLLIB."),
-        "_libtool_ar": attr.label(default = "//ocaml/private/toolchain:libtool_ar.sh", allow_single_file = True),
+        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
     executable = True,
-    toolchains = use_cc_toolchain(),
+    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE],
     fragments = ["cpp"],
 )
 
 def _dune_library_impl(ctx):
-    prelude, inputs = _context(ctx)
+    context = _context(ctx)
     dune = ctx.executable.dune
     package = ctx.attr.package
     library = ctx.attr.library or package
@@ -250,28 +166,26 @@ def _dune_library_impl(ctx):
     dep_dirs = {}
     for path in depset(transitive = [d.paths for d in dep_info]).to_list():
         dep_dirs[_abs(path.rpartition("/")[0])] = True
-    ocamlpath = 'export OCAMLPATH="{}"'.format(":".join(sorted(dep_dirs))) if dep_dirs else ""
+    env = dict(context.env)
+    if dep_dirs:
+        env["OCAMLPATH"] = ":".join(sorted(dep_dirs))
     stubs = ctx.actions.declare_file("{}_archive/lib{}_stubs.a".format(ctx.label.name, library)) if ctx.attr.stubs else None
     archives = [ctx.actions.declare_file("{}_archive/{}".format(ctx.label.name, n)) for n in names]
-    # run_shell: The script exports the toolchain environment and runs several commands in one action.
-    ctx.actions.run_shell(
+    args = _args(ctx, context, "library")
+    args.add_all(["--workspace", ctx.file.workspace.dirname, "--dune", dune, "--package", package, "--stubs-name", "lib{}_stubs.a".format(library), "--tree", tree.path])
+    if stubs:
+        args.add_all(["--stubs", stubs])
+    for name, archive in zip(names, archives):
+        args.add("--archive")
+        args.add(name + "=" + archive.path)
+    ctx.actions.run(
+        executable = ctx.executable._cc_driver,
+        arguments = [args],
+        env = env,
         outputs = [tree] + archives + ([stubs] if stubs else []),
-        inputs = depset(ctx.files.srcs + [dune], transitive = [inputs, dep_trees]),
-        command = prelude + _LIBRARY.format(
-            library = library,
-            ocamlpath = ocamlpath,
-            stubs = stubs.path if stubs else "",
-            root = ctx.file.workspace.dirname,
-            dune = dune.path,
-            jobs = ctx.attr.jobs,
-            package = package,
-            archives = " ".join(names),
-            tree = tree.path,
-            archive_dir = archives[0].dirname,
-        ),
+        inputs = depset(ctx.files.srcs + [dune], transitive = [context.inputs, dep_trees]),
         mnemonic = "DxDuneLibrary",
         progress_message = "Building %{label} with dune",
-        use_default_shell_env = False,
     )
     archive = archives[0]
     afiles = archives[1:]
@@ -327,11 +241,11 @@ _dx_dune_library = rule(
         "stubs": attr.bool(doc = "Link lib<library>_stubs.a, the package's C stubs, into native links."),
         "workspace": attr.label(allow_single_file = True, mandatory = True, doc = "The workspace's root dune-project file."),
         "_emitter": attr.label(default = "//ocaml/private/toolchain:emitter"),
-        "_libtool_ar": attr.label(default = "//ocaml/private/toolchain:libtool_ar.sh", allow_single_file = True),
+        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_tree": attr.label(default = "@dx_ocaml_toolchains//:tree", cfg = "exec", allow_files = True),
     },
-    toolchains = use_cc_toolchain(),
+    toolchains = use_cc_toolchain() + [COREUTILS_TOOLCHAIN_TYPE],
     fragments = ["cpp"],
 )
 

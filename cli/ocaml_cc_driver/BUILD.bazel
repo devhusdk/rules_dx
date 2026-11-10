@@ -7,6 +7,7 @@ rust_binary(
     name = "ocaml_cc_driver",
     srcs = [
         "src/driver.rs",
+        "src/dune.rs",
         "src/main.rs",
     ],
     crate_root = "src/main.rs",
@@ -17,6 +18,8 @@ rust_test(
     srcs = [
         "src/driver.rs",
         "src/driver_tests.rs",
+        "src/dune.rs",
+        "src/dune_tests.rs",
         "src/main.rs",
     ],
     crate_name = "ocaml_cc_driver",

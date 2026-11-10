@@ -42,7 +42,7 @@ def toolchain_fields(info, extra):
 
 NATIVE_CC_TOOLS = ["ar", "as", "cc", "ld", "mkdll", "mkexe", "ranlib"]
 
-def native_cc_env(cc, assembler, linker, archiver, path, macos = False, ar_wrapper = None, lib = None, link_env = {}):
+def native_cc_env(cc, assembler, linker, archiver, path, macos = False, lib = None, link_env = {}):
     """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools, and its PATH."""
     env = dict(link_env)
     env.update({
@@ -59,11 +59,9 @@ def native_cc_env(cc, assembler, linker, archiver, path, macos = False, ar_wrapp
         env["CONDA_OCAML_MKDLL"] = linker + " -shared -undefined dynamic_lookup"
         if "libtool" in archiver:
             env["DX_OCAML_LIBTOOL"] = archiver
-            if ar_wrapper:
-                env["CONDA_OCAML_AR"] = ar_wrapper
     return env
 
-def _cc_drivers(ctx):
+def cc_drivers(ctx):
     """Links the C tool driver under every program name ocamlopt calls and returns the links."""
     links = []
     for tool in NATIVE_CC_TOOLS:
@@ -81,7 +79,7 @@ def _native_fields(ctx):
         unsupported_features = ctx.disabled_features,
     )
     tool = lambda action: cc_common.get_tool_for_action(feature_configuration = features, action_name = action)
-    drivers = _cc_drivers(ctx)
+    drivers = cc_drivers(ctx)
     return {
         "cc_files": depset(drivers + [ctx.executable._cc_driver], transitive = [cc.all_files]),
         "cc_link_env_vars": native_cc_env(

@@ -24,7 +24,11 @@ fn names_every_tool_by_file_stem() {
 
 #[test]
 fn rejects_other_names() {
-    assert!(tool_of("conda-ocaml-strip").unwrap_err().contains("is not one of"));
+    assert!(
+        tool_of("conda-ocaml-strip")
+            .unwrap_err()
+            .contains("is not one of")
+    );
     assert!(tool_of("ocaml_cc_driver").is_err());
     assert!(tool_of("").is_err());
 }
@@ -91,9 +95,44 @@ fn archiver_uses_its_variable() {
 
 #[test]
 fn archiver_translates_to_libtool() {
-    let both = env(&[("CONDA_OCAML_AR", "x/ar"), ("DX_OCAML_LIBTOOL", "x/libtool")]);
+    let both = env(&[
+        ("CONDA_OCAML_AR", "x/ar"),
+        ("DX_OCAML_LIBTOOL", "x/libtool"),
+    ]);
     let planned = plan("ar", &both, words(&["rc", "lib.a", "a.o", "b.o"])).unwrap();
     assert_eq!(planned.program, "x/libtool");
-    assert_eq!(planned.args, words(&["-static", "-o", "lib.a", "a.o", "b.o"]));
-    assert!(plan("ar", &both, words(&["rc"])).unwrap_err().contains("want MODE OUT"));
+    assert_eq!(
+        planned.args,
+        words(&["-static", "-o", "lib.a", "a.o", "b.o"])
+    );
+    assert!(
+        plan("ar", &both, words(&["rc"]))
+            .unwrap_err()
+            .contains("want MODE OUT")
+    );
+}
+
+#[test]
+fn as_drops_the_debug_prefix_map_pair_when_asked() {
+    let planned = plan(
+        "as",
+        &env(&[
+            ("CONDA_OCAML_AS", "clang -c"),
+            ("DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP", "1"),
+        ]),
+        words(&["--debug-prefix-map", "a=b", "-o", "x.o"]),
+    )
+    .unwrap();
+    assert_eq!(planned.args, words(&["-c", "-o", "x.o"]));
+}
+
+#[test]
+fn as_keeps_the_debug_prefix_map_otherwise() {
+    let planned = plan(
+        "as",
+        &env(&[("CONDA_OCAML_AS", "as")]),
+        words(&["--debug-prefix-map", "a=b"]),
+    )
+    .unwrap();
+    assert_eq!(planned.args, words(&["--debug-prefix-map", "a=b"]));
 }

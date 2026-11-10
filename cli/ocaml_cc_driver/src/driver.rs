@@ -3,6 +3,7 @@
 //! `CONDA_OCAML_<TOOL>` holds the program and its leading flags, split on whitespace.
 //! `DX_OCAML_LIB` adds a library search directory to the compiler and linker tools.
 //! `DX_OCAML_LIBTOOL` makes `ar` archive with libtool.
+//! `DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP` removes `--debug-prefix-map MAP` from the `as` arguments.
 
 use std::ffi::OsString;
 use std::path::Path;
@@ -32,12 +33,7 @@ pub fn tool_of(program: &str) -> Result<&'static str, String> {
     stem.strip_prefix(PREFIX)
         .and_then(|name| TOOLS.iter().find(|tool| **tool == name))
         .copied()
-        .ok_or_else(|| {
-            format!(
-                "'{program}' is not one of {PREFIX}{{{}}}",
-                TOOLS.join(",")
-            )
-        })
+        .ok_or_else(|| format!("'{program}' is not one of {PREFIX}{{{}}}", TOOLS.join(",")))
 }
 
 fn set(env: &dyn Fn(&str) -> Option<String>, name: &str) -> Option<String> {
@@ -75,7 +71,18 @@ pub fn plan(
             planned.push(OsString::from(format!("-L{lib}")));
         }
     }
-    planned.extend(args);
+    if tool == "as" && set(env, "DX_OCAML_AS_DROP_DEBUG_PREFIX_MAP").is_some() {
+        let mut args = args.into_iter();
+        while let Some(arg) = args.next() {
+            if arg == "--debug-prefix-map" {
+                args.next();
+            } else {
+                planned.push(arg);
+            }
+        }
+    } else {
+        planned.extend(args);
+    }
     Ok(Plan {
         program: program.to_string_lossy().into_owned(),
         args: planned,

@@ -52,5 +52,12 @@
     "ct_run_args",
     "erlang_ct_suite_test",
     "erlang_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/beam.bzl",
+    "file_extensions": [
+      ".erl",
+      ".hrl"
+    ]
+  }
 }

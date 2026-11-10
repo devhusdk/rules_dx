@@ -155,90 +155,6 @@ pub struct Consumer<'a> {
     pub extensions: &'a BTreeSet<String>,
 }
 
-/// The aspect files that load no language rule set, so every consumer gets them.
-const CORE_FILES: &[&str] = &[
-    "quality:families/ansible.bzl",
-    "quality:families/bicep.bzl",
-    "quality:families/cloudformation.bzl",
-    "quality:families/cmake.bzl",
-    "quality:families/core.bzl",
-    "quality:families/core_probe.bzl",
-    "quality:families/cue.bzl",
-    "quality:families/dockerfile.bzl",
-    "quality:families/html_template.bzl",
-    "quality:families/jsonnet.bzl",
-    "quality:families/kubernetes.bzl",
-    "quality:families/latex.bzl",
-    "quality:families/make.bzl",
-    "quality:families/nix.bzl",
-    "quality:families/rego.bzl",
-    "quality:families/shell.bzl",
-    "quality:families/sql.bzl",
-    "quality:families/terraform.bzl",
-    "quality:families/text.bzl",
-    "quality:families/typst.bzl",
-    "quality:families/xml.bzl",
-    "quality:families/yaml.bzl",
-];
-
-/// The aspect files that load a language rule set, with the file extensions that make a workspace
-/// need them. Moves to lang.json (#10079).
-const LANGUAGES: &[(&str, &[&str])] = &[
-    (
-        "quality:families/beam.bzl",
-        &[".erl", ".ex", ".exs", ".hrl"],
-    ),
-    (
-        "quality:families/cc.bzl",
-        &[
-            ".c", ".cc", ".cpp", ".cu", ".cuh", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl",
-            ".ipp", ".m", ".mm", ".qml",
-        ],
-    ),
-    ("quality:families/d.bzl", &[".d"]),
-    ("quality:families/dart.bzl", &[".dart"]),
-    (
-        "quality:families/dotnet.bzl",
-        &[".cs", ".csproj", ".fs", ".fsproj", ".fsx"],
-    ),
-    (
-        "quality:families/fortran.bzl",
-        &[".f", ".f03", ".f08", ".f90", ".f95"],
-    ),
-    (
-        "quality:families/generation.bzl",
-        &[".avsc", ".capnp", ".fbs", ".proto", ".thrift"],
-    ),
-    ("quality:families/go.bzl", &[".go"]),
-    ("quality:families/haskell.bzl", &[".hs"]),
-    (
-        "quality:families/js.bzl",
-        &[
-            ".astro", ".cjs", ".cts", ".js", ".jsx", ".mdx", ".mjs", ".mts", ".svelte", ".ts",
-            ".tsx", ".vue",
-        ],
-    ),
-    ("quality:families/julia.bzl", &[".jl"]),
-    (
-        "quality:families/jvm.bzl",
-        &[".java", ".kt", ".kts", ".sc", ".scala"],
-    ),
-    ("quality:families/lua.bzl", &[".lua"]),
-    ("quality:families/ocaml.bzl", &[".ml", ".mli"]),
-    ("quality:families/perl.bzl", &[".pl", ".pm"]),
-    ("quality:families/php.bzl", &[".php"]),
-    ("quality:families/pkl.bzl", &[".pkl"]),
-    (
-        "quality:families/powershell.bzl",
-        &[".ps1", ".psd1", ".psm1"],
-    ),
-    ("quality:families/python.bzl", &[".py", ".pyi"]),
-    ("quality:families/ruby.bzl", &[".rb", ".rbs"]),
-    ("quality:families/rust.bzl", &[".rs"]),
-    ("quality:families/swift.bzl", &[".swift"]),
-    ("quality:families/zig.bzl", &[".zig"]),
-];
-
 /// The aspects of `command` that fit the consumer: those of core files and of the languages whose
 /// files it has, when their family module is installed. A family without a `module` is always kept.
 pub fn aspects_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
@@ -279,15 +195,17 @@ fn probes_for_families(
         .collect()
 }
 
-/// Whether the file that defines `label` is a core file or one of a language the consumer has.
+/// Whether the file that defines `label` loads no language rule set or loads one the consumer has.
 fn wanted(label: &str, consumer: Consumer) -> bool {
     let file = label.split_once('%').map_or(label, |(file, _)| file);
-    CORE_FILES.contains(&file)
-        || LANGUAGES.iter().any(|(bzl, extensions)| {
-            *bzl == file
-                && extensions
-                    .iter()
-                    .any(|extension| consumer.extensions.contains(*extension))
+    dx_families::quality_languages()
+        .iter()
+        .find(|language| language.bzl == file)
+        .is_none_or(|language| {
+            language
+                .file_extensions
+                .iter()
+                .any(|extension| consumer.extensions.contains(extension))
         })
 }
 
@@ -513,10 +431,10 @@ mod tests {
                     continue;
                 }
                 assert!(
-                    LANGUAGES
+                    dx_families::quality_languages()
                         .iter()
-                        .any(|(_, row)| row.contains(&extension.as_str())),
-                    "{} extension {extension} is in no LANGUAGES row",
+                        .any(|row| row.file_extensions.contains(extension)),
+                    "{} extension {extension} is in no lang.json quality entry",
                     family.name
                 );
             }
@@ -524,23 +442,16 @@ mod tests {
     }
 
     #[test]
-    fn every_non_core_aspect_file_has_a_language_row() {
+    fn every_language_file_has_aspects() {
         use clap::ValueEnum;
-        for command in Command::value_variants() {
-            if *command == Command::Docs {
-                // #10116
-                continue;
-            }
-            let entry = spec(*command);
-            for label in entry.aspects.iter().chain(entry.probes) {
-                let file = label.split_once('%').map_or(*label, |(file, _)| file);
-                let core = CORE_FILES.contains(&file);
-                let language = LANGUAGES.iter().any(|(bzl, _)| *bzl == file);
-                assert!(
-                    core != language,
-                    "{label}: core {core}, language row {language}"
-                );
-            }
+        for language in dx_families::quality_languages() {
+            let used = Command::value_variants().iter().any(|command| {
+                let entry = spec(*command);
+                entry.aspects.iter().chain(entry.probes).any(|label| {
+                    label.split_once('%').map(|(file, _)| file) == Some(language.bzl.as_str())
+                })
+            });
+            assert!(used, "{} names no aspect", language.bzl);
         }
     }
 
@@ -560,7 +471,11 @@ mod tests {
                 else {
                     continue;
                 };
-                if CORE_FILES.contains(&format!("quality:families/{file}.bzl").as_str()) {
+                let bzl = format!("quality:families/{file}.bzl");
+                if !dx_families::quality_languages()
+                    .iter()
+                    .any(|language| language.bzl == bzl)
+                {
                     continue;
                 }
                 let probe =

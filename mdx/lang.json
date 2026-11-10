@@ -29,5 +29,11 @@
     "mdx_library",
     "mdx_build",
     "mdx_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/js.bzl",
+    "file_extensions": [
+      ".mdx"
+    ]
+  }
 }

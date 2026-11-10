@@ -33,5 +33,11 @@
     "java_jmh_test",
     "java_fuzz_test",
     "java_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/jvm.bzl",
+    "file_extensions": [
+      ".java"
+    ]
+  }
 }

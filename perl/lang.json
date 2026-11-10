@@ -29,5 +29,12 @@
     "perl_binary",
     "perl_test",
     "perl_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/perl.bzl",
+    "file_extensions": [
+      ".pl",
+      ".pm"
+    ]
+  }
 }

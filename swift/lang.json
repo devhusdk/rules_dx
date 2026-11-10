@@ -29,5 +29,11 @@
     "swift_test",
     "swift_fuzz_test",
     "swift_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/swift.bzl",
+    "file_extensions": [
+      ".swift"
+    ]
+  }
 }

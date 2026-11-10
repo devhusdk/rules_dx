@@ -28,5 +28,11 @@
     "lua_library",
     "lua_binary",
     "lua_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/lua.bzl",
+    "file_extensions": [
+      ".lua"
+    ]
+  }
 }

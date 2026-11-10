@@ -42,3 +42,34 @@ fn module_field_parses() {
     assert_eq!(all[0].module, None);
     assert_eq!(all[1].module.as_deref(), Some("rules_dx_go"));
 }
+
+#[test]
+fn quality_entries_merge_by_aspect_file() {
+    let merged = parse_quality(&[
+        r#"{"quality": {"bzl": "quality:families/a.bzl", "file_extensions": [".y"]}}"#,
+        r#"{"quality": {"bzl": "quality:families/a.bzl", "file_extensions": [".x"]}}"#,
+        r#"{"name": "no quality"}"#,
+    ])
+    .expect("parse");
+    assert_eq!(
+        merged,
+        vec![QualityFiles {
+            bzl: "quality:families/a.bzl".to_owned(),
+            file_extensions: vec![".x".to_owned(), ".y".to_owned()],
+        }]
+    );
+    assert!(parse_quality(&["{"]).is_err());
+}
+
+#[test]
+fn every_quality_extension_has_one_aspect_file() {
+    let mut owners: BTreeMap<&str, &str> = BTreeMap::new();
+    for language in quality_languages() {
+        assert!(!language.file_extensions.is_empty(), "{}", language.bzl);
+        for ext in &language.file_extensions {
+            let seen = owners.insert(ext, &language.bzl);
+            assert!(seen.is_none(), "{ext} is in {seen:?} and {}", language.bzl);
+        }
+    }
+    assert!(quality_languages().len() > 20);
+}

@@ -36,5 +36,24 @@
     "cc_test",
     "cc_fuzz_test",
     "cc_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/cc.bzl",
+    "file_extensions": [
+      ".c",
+      ".cc",
+      ".cpp",
+      ".cu",
+      ".cuh",
+      ".cxx",
+      ".h",
+      ".hh",
+      ".hpp",
+      ".hxx",
+      ".inl",
+      ".ipp",
+      ".m",
+      ".mm"
+    ]
+  }
 }

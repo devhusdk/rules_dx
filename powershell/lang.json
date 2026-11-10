@@ -27,5 +27,13 @@
     "powershell_library",
     "powershell_binary",
     "powershell_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/powershell.bzl",
+    "file_extensions": [
+      ".ps1",
+      ".psd1",
+      ".psm1"
+    ]
+  }
 }

@@ -1,0 +1,26 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "pkl",
+  "title": "pkl",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [
+    "pkl"
+  ],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [],
+  "entry_points": [],
+  "quality": {
+    "bzl": "quality:families/pkl.bzl",
+    "file_extensions": [
+      ".pkl"
+    ]
+  }
+}

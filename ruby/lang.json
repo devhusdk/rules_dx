@@ -32,5 +32,12 @@
     "ruby_binary",
     "ruby_test",
     "ruby_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/ruby.bzl",
+    "file_extensions": [
+      ".rb",
+      ".rbs"
+    ]
+  }
 }

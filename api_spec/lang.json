@@ -20,5 +20,11 @@
   "pins": [],
   "entry_points": [
     "api_spec_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/generation.bzl",
+    "file_extensions": [
+      ".proto"
+    ]
+  }
 }

@@ -342,3 +342,5 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = [".gitleaks.toml"],
 )
+
+exports_files(glob(["*/lang.json"]))

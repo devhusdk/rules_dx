@@ -32,5 +32,11 @@
     "qt_runtime_members",
     "qt_bundle_members",
     "qt_bundle"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/cc.bzl",
+    "file_extensions": [
+      ".qml"
+    ]
+  }
 }

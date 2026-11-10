@@ -19,7 +19,16 @@
       "items": {"enum": ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]}
     },
     "pins": {"$ref": "#/$defs/strings"},
-    "entry_points": {"$ref": "#/$defs/strings"}
+    "entry_points": {"$ref": "#/$defs/strings"},
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bzl", "file_extensions"],
+      "properties": {
+        "bzl": {"type": "string", "minLength": 1},
+        "file_extensions": {"$ref": "#/$defs/strings"}
+      }
+    }
   },
   "$defs": {
     "strings": {

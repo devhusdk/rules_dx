@@ -37,5 +37,12 @@
     "ocaml_binary",
     "ocaml_test",
     "ocaml_fuzz_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/ocaml.bzl",
+    "file_extensions": [
+      ".ml",
+      ".mli"
+    ]
+  }
 }

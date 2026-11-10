@@ -33,5 +33,14 @@
     "javascript_test",
     "javascript_bench",
     "javascript_fuzz_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/js.bzl",
+    "file_extensions": [
+      ".cjs",
+      ".js",
+      ".jsx",
+      ".mjs"
+    ]
+  }
 }

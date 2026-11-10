@@ -27,5 +27,11 @@
     "zig_binary",
     "zig_test",
     "zig_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/zig.bzl",
+    "file_extensions": [
+      ".zig"
+    ]
+  }
 }

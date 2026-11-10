@@ -23,5 +23,15 @@
     "fortran_library",
     "fortran_binary",
     "fortran_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/fortran.bzl",
+    "file_extensions": [
+      ".f",
+      ".f03",
+      ".f08",
+      ".f90",
+      ".f95"
+    ]
+  }
 }

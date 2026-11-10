@@ -32,5 +32,12 @@
     "kotlin_test",
     "kotlin_bench",
     "kotlin_fuzz_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/jvm.bzl",
+    "file_extensions": [
+      ".kt",
+      ".kts"
+    ]
+  }
 }

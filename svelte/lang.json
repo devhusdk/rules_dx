@@ -27,5 +27,11 @@
     "svelte_library",
     "svelte_build",
     "svelte_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/js.bzl",
+    "file_extensions": [
+      ".svelte"
+    ]
+  }
 }

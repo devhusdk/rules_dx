@@ -36,5 +36,12 @@
     "python_fuzz_test",
     "python_bench",
     "python_grpc_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/python.bzl",
+    "file_extensions": [
+      ".py",
+      ".pyi"
+    ]
+  }
 }

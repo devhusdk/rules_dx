@@ -27,5 +27,11 @@
     "vue_library",
     "vue_build",
     "vue_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/js.bzl",
+    "file_extensions": [
+      ".vue"
+    ]
+  }
 }

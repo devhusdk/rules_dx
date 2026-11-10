@@ -50,5 +50,14 @@
     "typescript_bench",
     "typescript_fuzz_test",
     "typescript_playwright_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/js.bzl",
+    "file_extensions": [
+      ".cts",
+      ".mts",
+      ".ts",
+      ".tsx"
+    ]
+  }
 }

@@ -31,5 +31,12 @@
     "scala_test",
     "scala_fuzz_test",
     "scala_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/jvm.bzl",
+    "file_extensions": [
+      ".sc",
+      ".scala"
+    ]
+  }
 }

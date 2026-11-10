@@ -23,5 +23,11 @@
     "d_test",
     "d_fuzz_test",
     "d_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/d.bzl",
+    "file_extensions": [
+      ".d"
+    ]
+  }
 }

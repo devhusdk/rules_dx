@@ -34,5 +34,11 @@
     "rust_shared_library",
     "rust_static_library",
     "rust_fuzz_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/rust.bzl",
+    "file_extensions": [
+      ".rs"
+    ]
+  }
 }

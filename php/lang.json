@@ -32,5 +32,11 @@
     "php_binary",
     "php_test",
     "php_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/php.bzl",
+    "file_extensions": [
+      ".php"
+    ]
+  }
 }

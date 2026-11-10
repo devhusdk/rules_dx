@@ -34,5 +34,11 @@
     "go_test",
     "go_fuzz_test",
     "go_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/go.bzl",
+    "file_extensions": [
+      ".go"
+    ]
+  }
 }

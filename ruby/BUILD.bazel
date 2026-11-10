@@ -21,3 +21,5 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+exports_files(["lang.json"])

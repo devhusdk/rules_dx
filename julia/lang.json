@@ -28,5 +28,11 @@
     "julia_binary",
     "julia_test",
     "julia_standalone_binary"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/julia.bzl",
+    "file_extensions": [
+      ".jl"
+    ]
+  }
 }

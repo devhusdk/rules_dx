@@ -14,5 +14,11 @@
   "entry_points": [
     "std_import_path",
     "capnp_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/generation.bzl",
+    "file_extensions": [
+      ".capnp"
+    ]
+  }
 }

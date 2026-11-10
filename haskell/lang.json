@@ -32,5 +32,11 @@
     "haskell_binary",
     "haskell_test",
     "haskell_bench"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/haskell.bzl",
+    "file_extensions": [
+      ".hs"
+    ]
+  }
 }

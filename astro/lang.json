@@ -27,5 +27,11 @@
     "astro_library",
     "astro_build",
     "astro_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/js.bzl",
+    "file_extensions": [
+      ".astro"
+    ]
+  }
 }

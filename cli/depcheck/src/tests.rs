@@ -995,8 +995,8 @@ fn write_workspace_locks(dir: &Path, stale_cargo: bool) {
         "github.com/google/go-cmp v0.5.0 h1:abc=\ngithub.com/google/go-cmp v0.5.0/go.mod h1:def=\n",
     );
     write_file(
-        &dir.join("pins.bzl"),
-        "MAVEN_ARTIFACTS = [\n    \"junit:junit:4.13.2\",\n]\n",
+        &dir.join("MODULE.bazel"),
+        MODULE_JUNIT,
     );
     write_file(
         &dir.join("maven_install.json"),
@@ -1031,7 +1031,7 @@ fn locks_case(dir: &Path, stale_cargo: bool) -> (Vec<PathBuf>, i32) {
         dir.join("pnpm-lock.yaml"),
         dir.join("go.mod"),
         dir.join("go.sum"),
-        dir.join("pins.bzl"),
+        dir.join("MODULE.bazel"),
         dir.join("maven_install.json"),
         dir.join("paket.dependencies"),
         dir.join("paket.lock"),
@@ -1062,14 +1062,17 @@ fn locks_case(dir: &Path, stale_cargo: bool) -> (Vec<PathBuf>, i32) {
     (owned, code)
 }
 
+const MODULE_JUNIT: &str = "maven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n    ],\n    lock_file = \"//third_party/jvm:maven_install.json\",\n)\n";
+const MODULE_EMPTY: &str = "maven.install(\n    artifacts = [],\n    lock_file = \"//third_party/jvm:maven_install.json\",\n)\n";
+
 #[test]
 fn maven_artifacts_list_parses_coordinates() {
     let dir = tempfile::tempdir().expect("scratch");
     write_file(
-        &dir.path().join("pins.bzl"),
-        "RULES_JVM_EXTERNAL_VERSION = \"7.1\"\nMAVEN_LOCK_FILE = \"//third_party/jvm:maven_install.json\"\nMAVEN_REPIN = \"REPIN=1 bazel run @maven//:pin\"\nMAVEN_ARTIFACTS = [\n    \"junit:junit:4.13.2\",\n    \"org.junit.jupiter:junit-jupiter-api:6.1.3\",\n]\n",
+        &dir.path().join("MODULE.bazel"),
+        "bazel_dep(name = \"a:b:c\")\nmaven.install(\n    name = \"other\",\n    artifacts = [\"x:y:1\"],\n    lock_file = \"//other:lock.json\",\n)\nmaven.install(\n    artifacts = [\n        \"junit:junit:4.13.2\",\n        \"org.junit.jupiter:junit-jupiter-api:6.1.3\",\n    ],\n    lock_file = \"//third_party/jvm:maven_install.json\",\n    repositories = [\"https://r.example/maven2\"],\n)\n",
     );
-    let deps = parse_maven_artifacts_list(&dir.path().join("pins.bzl")).expect("coords");
+    let deps = parse_maven_artifacts_list(&dir.path().join("MODULE.bazel")).expect("coords");
     assert_eq!(deps.len(), 2);
     assert_eq!(deps["junit:junit"].spec, "4.13.2");
     assert_eq!(deps["org.junit.jupiter:junit-jupiter-api"].spec, "6.1.3");
@@ -1078,8 +1081,15 @@ fn maven_artifacts_list_parses_coordinates() {
 #[test]
 fn maven_artifacts_list_rejects_empty() {
     let dir = tempfile::tempdir().expect("scratch");
-    write_file(&dir.path().join("pins.bzl"), "MAVEN_ARTIFACTS = []\n");
-    assert!(parse_maven_artifacts_list(&dir.path().join("pins.bzl")).is_err());
+    write_file(&dir.path().join("MODULE.bazel"), MODULE_EMPTY);
+    assert!(parse_maven_artifacts_list(&dir.path().join("MODULE.bazel")).is_err());
+}
+
+#[test]
+fn maven_artifacts_list_rejects_missing_install() {
+    let dir = tempfile::tempdir().expect("scratch");
+    write_file(&dir.path().join("MODULE.bazel"), "bazel_dep(name = \"x\")\n");
+    assert!(parse_maven_artifacts_list(&dir.path().join("MODULE.bazel")).is_err());
 }
 
 #[test]
@@ -1107,7 +1117,7 @@ fn locks_missing_file_is_actionable() {
     let pnpm_lock = dir.path().join("pnpm-lock.yaml");
     let go_manifest = dir.path().join("go.mod");
     let go_lock = dir.path().join("go.sum");
-    let maven_artifacts = dir.path().join("pins.bzl");
+    let maven_artifacts = dir.path().join("MODULE.bazel");
     let maven_lock = dir.path().join("maven_install.json");
     let paket_manifest = dir.path().join("paket.dependencies");
     let paket_lock = dir.path().join("paket.lock");
@@ -1985,7 +1995,7 @@ fn workspace_paths(dir: &Path) -> [PathBuf; 14] {
         dir.join("pnpm-lock.yaml"),
         dir.join("go.mod"),
         dir.join("go.sum"),
-        dir.join("pins.bzl"),
+        dir.join("MODULE.bazel"),
         dir.join("maven_install.json"),
         dir.join("paket.dependencies"),
         dir.join("paket.lock"),
@@ -2031,9 +2041,9 @@ fn locks_cmd_error_paths() {
             "cargo_manifest_missing" => paths[0] = dir.path().join("MISSING.toml"),
             "cargo_manifest_bad" => write_file(&paths[0], "not = [valid"),
             "cargo_lock_bad" => write_file(&paths[1], "[[package]"),
-            "maven_artifacts_missing" => paths[8] = dir.path().join("MISSING.bzl"),
+            "maven_artifacts_missing" => paths[8] = dir.path().join("MISSING.bazel"),
             "maven_lock_missing" => paths[9] = dir.path().join("MISSING.json"),
-            "maven_artifacts_empty" => write_file(&paths[8], "MAVEN_ARTIFACTS = []\n"),
+            "maven_artifacts_empty" => write_file(&paths[8], MODULE_EMPTY),
             "maven_lock_bad" => write_file(&paths[9], "{not json"),
             _ => {}
         }

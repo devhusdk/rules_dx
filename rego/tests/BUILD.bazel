@@ -62,6 +62,18 @@ rego_exec(
     srcs = ["fixtures/empty_test.rego"],
 )
 
+rego_exec(
+    name = "bad_test_src",
+    testonly = True,
+    srcs = ["fixtures/notes.txt"],
+)
+
+failure_test(
+    name = "bad_test_src_fails",
+    expected_failure_substring = "notes.txt",
+    target = ":bad_test_src",
+)
+
 test_sources_test(
     name = "test_sources_test",
     size = "small",

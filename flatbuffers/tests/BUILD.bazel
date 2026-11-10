@@ -373,3 +373,18 @@ rust_test(
         "//flatbuffers:runtime_rust",
     ],
 )
+
+rust_test(
+    name = "conform_deleted_field_test",
+    srcs = ["conform_deleted_field_test.rs"],
+    data = [
+        "//flatbuffers/tests/conform/bad:shape.fbs",
+        "//flatbuffers/tests/conform/v2:shape.fbs",
+        "@dx_flatbuffers//:flatc",
+    ],
+    env = {
+        "BASELINE": "$(rootpath //flatbuffers/tests/conform/v2:shape.fbs)",
+        "FLATC": "$(rootpath @dx_flatbuffers//:flatc)",
+        "LIBRARY": "$(rootpath //flatbuffers/tests/conform/bad:shape.fbs)",
+    },
+)

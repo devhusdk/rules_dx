@@ -50,6 +50,9 @@ struct Row {
     manifest: String,
     alt_manifests: Vec<String>,
     shared_manifest: bool,
+    plan_backend: String,
+    check_backend: String,
+    graph_only: bool,
     check: bool,
     update: bool,
     audit: bool,
@@ -248,6 +251,21 @@ impl Ecosystem {
     /// Tells whether this ecosystem's manifest is a file other ecosystems write too.
     pub fn shared_manifest(self) -> bool {
         self.row().is_some_and(|row| row.shared_manifest)
+    }
+
+    /// Names the backend module that plans updates of this ecosystem, or `pinned`.
+    pub fn plan_backend(self) -> &'static str {
+        self.row().map_or("pinned", |row| row.plan_backend.as_str())
+    }
+
+    /// Names the backend module that checks this ecosystem, or `pinned`.
+    pub fn check_backend(self) -> &'static str {
+        self.row().map_or("pinned", |row| row.check_backend.as_str())
+    }
+
+    /// Tells whether only the Bazel graph can say which packages of this ecosystem are used.
+    pub fn graph_only(self) -> bool {
+        self.row().is_some_and(|row| row.graph_only)
     }
 
     /// Tells whether records of this ecosystem name the Bazel repository dx resolves through.

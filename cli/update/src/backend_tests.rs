@@ -2702,7 +2702,7 @@ fn configured_cargo_package_update_repins_one_crate() {
 #[test]
 fn every_ecosystem_row_has_a_backend() {
     for ecosystem in Ecosystem::ALL {
-        let module = backend_module(ecosystem);
+        let module = ecosystem.plan_backend();
         let expected = if ecosystem == Ecosystem::Pub {
             "pub_dev"
         } else {

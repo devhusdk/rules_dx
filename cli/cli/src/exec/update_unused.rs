@@ -76,7 +76,7 @@ fn crate_name(label: &str) -> Option<String> {
 
 /// Maven and nuget packages are not imported by name, so only the Bazel graph can tell.
 fn graph_only(ecosystem: Ecosystem) -> bool {
-    matches!(ecosystem, Ecosystem::Maven | Ecosystem::Nuget)
+    ecosystem.graph_only()
 }
 
 /// The hub of the `uv.project` whose pyproject is `manifest`.

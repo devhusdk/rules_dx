@@ -119,3 +119,18 @@ fn manifest_columns_resolve() {
     assert!(Ecosystem::Bicep.shared_manifest());
     assert!(!Ecosystem::Cargo.shared_manifest());
 }
+
+#[test]
+fn backend_columns_name_a_module_or_pinned() {
+    for row in rows() {
+        for backend in [&row.plan_backend, &row.check_backend] {
+            assert!(
+                backend == "pinned" || backend == &row.name || (row.name == "pub" && backend == "pub_dev"),
+                "{} names backend {backend}",
+                row.name
+            );
+        }
+    }
+    assert!(Ecosystem::Maven.graph_only() && Ecosystem::Nuget.graph_only());
+    assert!(!Ecosystem::Cargo.graph_only());
+}

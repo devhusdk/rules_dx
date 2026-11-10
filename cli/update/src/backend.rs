@@ -674,39 +674,27 @@ pub fn plan_configured(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match set.ecosystem {
-        Ecosystem::Uv => uv::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Npm => npm::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Bazel => bazel::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Cargo => cargo::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Maven => maven::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Nuget => nuget::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Go => go::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Cpan => cpan::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Pub => pub_dev::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Julia => julia::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Hex => hex::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::Composer => {
-            composer::plan(workspace, set, request, offline, frozen, head, closure)
-        }
-        Ecosystem::Opam => opam::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::SwiftPm => {
-            swiftpm::plan(workspace, set, request, offline, frozen, head, closure)
-        }
-        Ecosystem::Cabal => cabal::plan(workspace, set, request, offline, frozen, head, closure),
-        Ecosystem::LuaRocks => {
-            luarocks::plan(workspace, set, request, offline, frozen, head, closure)
-        }
-        Ecosystem::Ansible => {
-            ansible::plan(workspace, set, request, offline, frozen, head, closure)
-        }
-        Ecosystem::Ruby
-        | Ecosystem::PowerShell
-        | Ecosystem::Conan
-        | Ecosystem::Dub
-        | Ecosystem::Bicep => pinned::plan(set, request),
-        Ecosystem::Fpm => fpm::plan(workspace, set, request, offline, frozen, head),
-        Ecosystem::Zig => zig::plan(workspace, set, request, offline, frozen, head),
+    match set.ecosystem.plan_backend() {
+        "uv" => uv::plan(workspace, set, request, offline, frozen, head, closure),
+        "npm" => npm::plan(workspace, set, request, offline, frozen, head, closure),
+        "bazel" => bazel::plan(workspace, set, request, offline, frozen, head, closure),
+        "cargo" => cargo::plan(workspace, set, request, offline, frozen, head, closure),
+        "maven" => maven::plan(workspace, set, request, offline, frozen, head, closure),
+        "nuget" => nuget::plan(workspace, set, request, offline, frozen, head, closure),
+        "go" => go::plan(workspace, set, request, offline, frozen, head, closure),
+        "cpan" => cpan::plan(workspace, set, request, offline, frozen, head, closure),
+        "pub_dev" => pub_dev::plan(workspace, set, request, offline, frozen, head, closure),
+        "julia" => julia::plan(workspace, set, request, offline, frozen, head, closure),
+        "hex" => hex::plan(workspace, set, request, offline, frozen, head, closure),
+        "composer" => composer::plan(workspace, set, request, offline, frozen, head, closure),
+        "opam" => opam::plan(workspace, set, request, offline, frozen, head, closure),
+        "swiftpm" => swiftpm::plan(workspace, set, request, offline, frozen, head, closure),
+        "cabal" => cabal::plan(workspace, set, request, offline, frozen, head, closure),
+        "luarocks" => luarocks::plan(workspace, set, request, offline, frozen, head, closure),
+        "ansible" => ansible::plan(workspace, set, request, offline, frozen, head, closure),
+        "fpm" => fpm::plan(workspace, set, request, offline, frozen, head),
+        "zig" => zig::plan(workspace, set, request, offline, frozen, head),
+        _ => pinned::plan(set, request),
     }
 }
 
@@ -719,31 +707,23 @@ pub fn check_configured(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
-    match set.ecosystem {
-        Ecosystem::Uv => uv::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Npm => npm::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Bazel => bazel::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Cargo => cargo::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Maven => maven::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Nuget => nuget::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Go => go::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Cpan => cpan::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Pub => pub_dev::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Julia => julia::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Hex => hex::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Composer => composer::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Opam => opam::check(workspace, set, request, offline, head, closure),
-        Ecosystem::SwiftPm => swiftpm::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Cabal => cabal::check(workspace, set, request, offline, head, closure),
-        Ecosystem::Ruby
-        | Ecosystem::PowerShell
-        | Ecosystem::Conan
-        | Ecosystem::Dub
-        | Ecosystem::Fpm
-        | Ecosystem::Zig
-        | Ecosystem::Bicep
-        | Ecosystem::LuaRocks
-        | Ecosystem::Ansible => pinned::check(set, request),
+    match set.ecosystem.check_backend() {
+        "uv" => uv::check(workspace, set, request, offline, head, closure),
+        "npm" => npm::check(workspace, set, request, offline, head, closure),
+        "bazel" => bazel::check(workspace, set, request, offline, head, closure),
+        "cargo" => cargo::check(workspace, set, request, offline, head, closure),
+        "maven" => maven::check(workspace, set, request, offline, head, closure),
+        "nuget" => nuget::check(workspace, set, request, offline, head, closure),
+        "go" => go::check(workspace, set, request, offline, head, closure),
+        "cpan" => cpan::check(workspace, set, request, offline, head, closure),
+        "pub_dev" => pub_dev::check(workspace, set, request, offline, head, closure),
+        "julia" => julia::check(workspace, set, request, offline, head, closure),
+        "hex" => hex::check(workspace, set, request, offline, head, closure),
+        "composer" => composer::check(workspace, set, request, offline, head, closure),
+        "opam" => opam::check(workspace, set, request, offline, head, closure),
+        "swiftpm" => swiftpm::check(workspace, set, request, offline, head, closure),
+        "cabal" => cabal::check(workspace, set, request, offline, head, closure),
+        _ => pinned::check(set, request),
     }
 }
 
@@ -1157,36 +1137,6 @@ fn bazel(head: &dx_process::BazelHead, verb: &str, args: &[&str]) -> Vec<String>
     let mut argv = head.argv(verb);
     argv.extend(strings(args));
     argv
-}
-
-#[cfg(test)]
-fn backend_module(ecosystem: Ecosystem) -> &'static str {
-    match ecosystem {
-        Ecosystem::Ruby
-        | Ecosystem::PowerShell
-        | Ecosystem::Conan
-        | Ecosystem::Dub
-        | Ecosystem::Bicep => "pinned",
-        Ecosystem::Fpm => "fpm",
-        Ecosystem::Zig => "zig",
-        Ecosystem::Uv => "uv",
-        Ecosystem::Npm => "npm",
-        Ecosystem::Bazel => "bazel",
-        Ecosystem::Cargo => "cargo",
-        Ecosystem::Maven => "maven",
-        Ecosystem::Nuget => "nuget",
-        Ecosystem::Go => "go",
-        Ecosystem::Cpan => "cpan",
-        Ecosystem::Pub => "pub_dev",
-        Ecosystem::Julia => "julia",
-        Ecosystem::Hex => "hex",
-        Ecosystem::Composer => "composer",
-        Ecosystem::Opam => "opam",
-        Ecosystem::SwiftPm => "swiftpm",
-        Ecosystem::Cabal => "cabal",
-        Ecosystem::LuaRocks => "luarocks",
-        Ecosystem::Ansible => "ansible",
-    }
 }
 
 #[cfg(test)]

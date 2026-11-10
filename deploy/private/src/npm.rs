@@ -666,7 +666,7 @@ pub fn npm_deploy_main_checked(
             return 1;
         }
     };
-    if !NPM_GATE.requested(env_or_empty) && mode != ApiCompatMode::Off {
+    if mode != ApiCompatMode::Off {
         let checked = if api_extractor_rloc.is_empty() {
             let outcome = Outcome::Skipped("api-extractor is not available".to_owned());
             conclude("npm_deploy", mode, "", outcome)

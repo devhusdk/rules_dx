@@ -602,23 +602,6 @@ pub fn pypi_main_checked(
     let Some(sdist) = run.resolve_optional(sdist_rloc) else {
         return 1;
     };
-    if PYPI_GATE.requested(env_or_empty) {
-        let secrets = match PYPI_GATE.authorize(env_or_empty) {
-            Ok(secrets) => secrets,
-            Err(error) => {
-                eprintln!("{error}");
-                return 1;
-            }
-        };
-        return pypi_upload(
-            Path::new("twine"),
-            &wheel,
-            sdist.as_deref(),
-            &outdir.join(dist_name.to_owned() + "-upload"),
-            registry_url,
-            secrets.get("PYPI_API_TOKEN"),
-        );
-    }
     let Some(mode) = ApiCompatMode::parse(api.mode) else {
         eprintln!("pypi_deploy: invalid api_compat '{}'", api.mode);
         return 1;
@@ -645,6 +628,23 @@ pub fn pypi_main_checked(
     if let Err(message) = checked {
         eprintln!("{message}");
         return 1;
+    }
+    if PYPI_GATE.requested(env_or_empty) {
+        let secrets = match PYPI_GATE.authorize(env_or_empty) {
+            Ok(secrets) => secrets,
+            Err(error) => {
+                eprintln!("{error}");
+                return 1;
+            }
+        };
+        return pypi_upload(
+            Path::new("twine"),
+            &wheel,
+            sdist.as_deref(),
+            &outdir.join(dist_name.to_owned() + "-upload"),
+            registry_url,
+            secrets.get("PYPI_API_TOKEN"),
+        );
     }
     match pypi_build_wheelhouse(&wheel, sdist.as_deref(), outdir, dist_name) {
         Ok(house) => {

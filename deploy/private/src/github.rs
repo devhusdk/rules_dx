@@ -368,6 +368,49 @@ pub fn github_main_checked(
             None => return 1,
         },
     };
+    let mode = ApiCompatMode::parse(go_api.mode);
+    let (Some(mode), Some(baseline)) = (mode, Baseline::parse(go_api.baseline)) else {
+        eprintln!(
+            "github_deploy: invalid api_compat '{}' or api_baseline '{}'",
+            go_api.mode, go_api.baseline
+        );
+        return 1;
+    };
+    if mode != ApiCompatMode::Off {
+        let root = workspace
+            .clone()
+            .map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);
+        let outcomes = if go_api.apidiff_rloc.is_empty() || go_api.go_rloc.is_empty() {
+            Ok(vec![Outcome::Skipped(
+                "apidiff or go is not available".to_owned(),
+            )])
+        } else {
+            let (Some(apidiff), Some(go)) = (
+                run.resolve(go_api.apidiff_rloc),
+                run.resolve(go_api.go_rloc),
+            ) else {
+                return 1;
+            };
+            crate::go_api::go_api_check(
+                (&apidiff, Some(&go)),
+                &root,
+                go_api.modules,
+                tag_text,
+                baseline,
+            )
+        };
+        let concluded = outcomes.and_then(|outcomes| {
+            let results: Vec<_> = outcomes
+                .into_iter()
+                .map(|outcome| conclude("github_deploy", mode, tag_text, outcome))
+                .collect();
+            results.into_iter().collect::<Result<(), String>>()
+        });
+        if let Err(message) = concluded {
+            eprintln!("{message}");
+            return 1;
+        }
+    }
     if live {
         let tag = tag_text;
         let notes_text = match notes_text {
@@ -446,49 +489,6 @@ pub fn github_main_checked(
                 eprintln!("github_deploy: {error}");
                 return 1;
             }
-        }
-    }
-    let mode = ApiCompatMode::parse(go_api.mode);
-    let (Some(mode), Some(baseline)) = (mode, Baseline::parse(go_api.baseline)) else {
-        eprintln!(
-            "github_deploy: invalid api_compat '{}' or api_baseline '{}'",
-            go_api.mode, go_api.baseline
-        );
-        return 1;
-    };
-    if mode != ApiCompatMode::Off {
-        let root = workspace
-            .clone()
-            .map_or_else(|| std::path::PathBuf::from("."), std::path::PathBuf::from);
-        let outcomes = if go_api.apidiff_rloc.is_empty() || go_api.go_rloc.is_empty() {
-            Ok(vec![Outcome::Skipped(
-                "apidiff or go is not available".to_owned(),
-            )])
-        } else {
-            let (Some(apidiff), Some(go)) = (
-                run.resolve(go_api.apidiff_rloc),
-                run.resolve(go_api.go_rloc),
-            ) else {
-                return 1;
-            };
-            crate::go_api::go_api_check(
-                (&apidiff, Some(&go)),
-                &root,
-                go_api.modules,
-                tag_text,
-                baseline,
-            )
-        };
-        let concluded = outcomes.and_then(|outcomes| {
-            let results: Vec<_> = outcomes
-                .into_iter()
-                .map(|outcome| conclude("github_deploy", mode, tag_text, outcome))
-                .collect();
-            results.into_iter().collect::<Result<(), String>>()
-        });
-        if let Err(message) = concluded {
-            eprintln!("{message}");
-            return 1;
         }
     }
     let attached = notes_text.as_ref().ok().and_then(|text| text.as_deref());

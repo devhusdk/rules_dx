@@ -474,6 +474,108 @@ mod tests {
         std::fs::remove_dir_all(&outdir).expect("cleanup");
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn breaking_api_change_stops_a_live_publish_before_the_gate() {
+        if env_test_in_child("tests::breaking_api_change_stops_a_live_publish_before_the_gate") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let repo = scratch.path().join("repo");
+        let runfiles = scratch.path().join("runfiles");
+        write_crate_file(&repo, "Cargo.toml", "[package]\nname = \"demo\"\nversion = \"1.2.0\"\n");
+        std::fs::create_dir_all(&runfiles).expect("runfiles");
+        for args in [
+            vec!["init", "-q"],
+            vec!["add", "."],
+            vec![
+                "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "x",
+            ],
+            vec!["tag", "v1.2.0"],
+        ] {
+            dx_process::capture::run_checked(
+                dx_process::capture::git(&repo).args(&args),
+                dx_process::capture::DEFAULT_TIMEOUT,
+            )
+            .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
+        }
+        let wheel = zip_archive(&[("demo-1.3.0.dist-info/RECORD", &b""[..], 0o644)]).expect("wheel");
+        std::fs::write(runfiles.join("demo-1.3.0-py3-none-any.whl"), wheel).expect("wheel");
+        std::fs::write(
+            runfiles.join("Cargo.toml"),
+            "[package]\nname = \"demo\"\nversion = \"1.3.0\"\n",
+        )
+        .expect("manifest");
+        std::fs::write(runfiles.join("lib.rs"), "\n").expect("lib");
+        let marker = |name: &str| scratch.path().join(name);
+        for (tool, output) in [
+            ("griffe", "src/pkg/__init__.py:1: pkg.hello: Public object was removed"),
+            ("semver", "--- failure pub_fn_missing: pub fn removed ---"),
+        ] {
+            let fake = runfiles.join(tool);
+            std::fs::write(
+                &fake,
+                format!(
+                    "#!/bin/sh\ntouch {}\necho '{output}'\nexit 1\n",
+                    marker(tool).display()
+                ),
+            )
+            .expect("fake tool");
+            set_mode(&fake, 0o755);
+        }
+        let outdir = tempfile_stage_dir("dx-deploy-api-").expect("outdir");
+        let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
+        let repo_dir = repo.display().to_string();
+        with_env(
+            &[
+                ("RUNFILES_DIR", Some(runfiles.to_string_lossy().as_ref())),
+                ("RUNFILES_MANIFEST_FILE", None),
+                ("BUILD_WORKSPACE_DIRECTORY", Some(repo_dir.as_str())),
+                ("DX_DEPLOY_LIVE", Some("1")),
+                ("PYPI_API_TOKEN", None),
+                ("CRATES_API_TOKEN", None),
+            ],
+            || {
+                let pypi = PypiApiCheck {
+                    mode: "fail",
+                    baseline: "git",
+                    package: "pkg",
+                    src: "src",
+                    griffe_rloc: "griffe",
+                };
+                assert_eq!(
+                    pypi_main_checked(
+                        "demo-1.3.0-py3-none-any.whl",
+                        "",
+                        "demo",
+                        "https://pypi.invalid",
+                        &pypi,
+                        &argv
+                    ),
+                    1
+                );
+                assert!(marker("griffe").exists(), "pypi live run skipped the check");
+                let crates = CratesApiCheck {
+                    api_compat: "fail",
+                    api_baseline: "git",
+                    semver_checks_rloc: "semver",
+                    crate_dir: "",
+                };
+                assert_eq!(
+                    crates_main_checked(
+                        &["Cargo.toml".to_owned(), "lib.rs".to_owned()],
+                        "demo",
+                        "1.3.0",
+                        &crates,
+                        &argv
+                    ),
+                    1
+                );
+                assert!(marker("semver").exists(), "crates live run skipped the check");
+            },
+        );
+    }
+
     #[test]
     fn archive_launcher_stages_locally() {
         if env_test_in_child("tests::archive_launcher_stages_locally") {

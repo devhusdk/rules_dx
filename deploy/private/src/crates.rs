@@ -458,7 +458,41 @@ pub fn crates_main_checked(
         }
     };
     let version = version.as_str();
-    if CRATES_GATE.requested(env_or_empty) {
+    let (Some(mode), Some(baseline)) = (
+        ApiCompatMode::parse(api_compat),
+        Baseline::parse(api_baseline),
+    ) else {
+        eprintln!(
+            "crates_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'"
+        );
+        return 1;
+    };
+    let semver_checks = if semver_checks_rloc.is_empty() {
+        None
+    } else {
+        run.resolve(semver_checks_rloc)
+    };
+    let live = CRATES_GATE.requested(env_or_empty);
+    let checked = crates_package_paths(&files)
+        .map_err(|error| format!("crates_deploy: {error}"))
+        .and_then(|mapped| {
+            crates_api_report(
+                semver_checks.as_deref(),
+                &mapped,
+                (crate_name, version),
+                (mode, baseline),
+                crate_dir,
+            )?;
+            if live {
+                return Ok(());
+            }
+            crates_package_check(which_on_path("cargo").as_deref(), &mapped)
+        });
+    if let Err(message) = checked {
+        eprintln!("{message}");
+        return 1;
+    }
+    if live {
         if std::env::var("CRATES_ALLOW_DIRTY").unwrap_or_default() == "1" {
             eprintln!(
                 "crates_deploy: --allow-dirty rejected by default; publish from a clean tree instead"
@@ -521,36 +555,6 @@ pub fn crates_main_checked(
                 return 1;
             }
         }
-    }
-    let (Some(mode), Some(baseline)) = (
-        ApiCompatMode::parse(api_compat),
-        Baseline::parse(api_baseline),
-    ) else {
-        eprintln!(
-            "crates_deploy: invalid api_compat '{api_compat}' or api_baseline '{api_baseline}'"
-        );
-        return 1;
-    };
-    let semver_checks = if semver_checks_rloc.is_empty() {
-        None
-    } else {
-        run.resolve(semver_checks_rloc)
-    };
-    let checked = crates_package_paths(&files)
-        .map_err(|error| format!("crates_deploy: {error}"))
-        .and_then(|mapped| {
-            crates_package_check(which_on_path("cargo").as_deref(), &mapped)?;
-            crates_api_report(
-                semver_checks.as_deref(),
-                &mapped,
-                (crate_name, version),
-                (mode, baseline),
-                crate_dir,
-            )
-        });
-    if let Err(message) = checked {
-        eprintln!("{message}");
-        return 1;
     }
     match crates_build_vendor(&files, outdir, crate_name, version) {
         Ok(house) => {

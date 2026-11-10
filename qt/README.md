@@ -22,7 +22,9 @@ use_repo(qt_sdk, "dx_qt")
 - `runtime_mirror`: an https mirror of `vault.almalinux.org`, with its
   `9.6/` and `10.1/` `BaseOS/` and `AppStream/` trees.
 
-Call `configure` once.
+`configure` is optional. Tags from several modules add their `modules`; a
+`mirror` or `runtime_mirror` is set by one tag only. Without a tag the
+default modules are fetched.
 
 ## Your own cell
 

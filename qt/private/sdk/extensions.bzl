@@ -2,7 +2,32 @@
 
 load("//core:repo.bzl", "hub_repo")
 load(":pins.bzl", "DEFAULT_MODULES", "QT_VERSION")
-load(":repos.bzl", "HUB_NAME", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
+load(":repos.bzl", "HUB_NAME", "default_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
+
+def _merge(requests):
+    """Returns the one request the configure tags of every module add up to."""
+    request = default_request()
+    if len(requests) == 0:
+        return request
+    modules = []
+    fields = {"mirror": "", "runtime_mirror": "", "version": request.version}
+    for tag in requests:
+        for module in tag.modules:
+            if module not in modules:
+                modules.append(module)
+        for field in fields:
+            value = getattr(tag, field)
+            if value == "" or value == getattr(request, field):
+                continue
+            if fields[field] not in ["", getattr(request, field), value]:
+                fail("qt_sdk: configure tags set " + field + " to both '" + fields[field] + "' and '" + value + "'")
+            fields[field] = value
+    return struct(
+        mirror = fields["mirror"],
+        modules = modules,
+        runtime_mirror = fields["runtime_mirror"],
+        version = fields["version"],
+    )
 
 def _qt_sdk_impl(module_ctx):
     requests = []
@@ -26,9 +51,7 @@ def _qt_sdk_impl(module_ctx):
                 runtime_mirror = tag.runtime_mirror,
                 version = tag.version,
             ))
-    if len(requests) != 1:
-        fail("qt_sdk: call qt_sdk.configure() exactly once")
-    request = requests[0]
+    request = _merge(requests)
     failures = request_errors(request)
     if len(failures) > 0:
         fail("; ".join(failures))

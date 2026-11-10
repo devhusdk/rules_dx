@@ -298,6 +298,17 @@ def default_request():
         mirror = "",
     )
 
+def license_errors(request):
+    """Returns the error for each required license the request leaves unaccepted."""
+    missing = [name for name in REQUIRED_LICENSES if name not in request.accept_licenses]
+    if len(missing) == 0:
+        return []
+    quoted = ['"' + name + '"' for name in missing]
+    return [
+        "android_sdk: accept " + ", ".join(missing) + " before acquisition; " +
+        "add android_sdk.license(accept = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
+    ]
+
 def request_errors(request):
     """Returns one error string per rejected field of one acquisition request."""
     errors = []
@@ -315,13 +326,7 @@ def request_errors(request):
         elif package in seen:
             errors.append("android_sdk: extra package '" + package + "' is listed twice")
         seen.append(package)
-    missing = [name for name in REQUIRED_LICENSES if name not in request.accept_licenses]
-    if len(missing) > 0:
-        quoted = ['"' + name + '"' for name in missing]
-        errors.append(
-            "android_sdk: accept " + ", ".join(missing) + " before acquisition; " +
-            "add android_sdk.license(accept = [" + ", ".join(quoted) + "]) to the root MODULE.bazel",
-        )
+    errors.extend(license_errors(request))
     if request.mirror != "" and not request.mirror.startswith("https://"):
         errors.append("android_sdk: mirror '" + request.mirror + "' must use https")
     return errors
@@ -675,6 +680,8 @@ def emulator_build(anchor):
 
 def _acquire(ctx, errors, build):
     """Downloads, verifies, and extracts one pinned archive."""
+    if ctx.attr.license_error != "":
+        fail(ctx.attr.license_error)
     if len(errors) > 0:
         fail("android_sdk: " + "; ".join(errors))
     ctx.download_and_extract(
@@ -726,6 +733,7 @@ NDK_REPOSITORY_ATTRS = {
         doc = "Top-level directory stripped when extracting the archive.",
         mandatory = True,
     ),
+    "license_error": attr.string(doc = "Failure raised when the archive is fetched without its license accepted."),
     "sha256": attr.string(doc = "Expected SHA-256 of the downloaded archive.", mandatory = True),
     "url": attr.string(doc = "Download URL of the archive.", mandatory = True),
 }
@@ -760,6 +768,8 @@ def _android_app_sdk_repo_impl(ctx):
     if len(ctx.attr.dirs) == 0 or not linux_x86_64:
         ctx.template("BUILD.bazel", Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
         return ctx.repo_metadata(reproducible = True)
+    if ctx.attr.license_error != "":
+        fail(ctx.attr.license_error)
     for dest, fields in ctx.attr.dirs.items():
         ctx.download_and_extract(
             url = fields[0],
@@ -780,6 +790,7 @@ android_app_sdk_repo = repository_rule(
         "dirs": attr.string_list_dict(
             doc = "Directory under the SDK root to [url, sha256, canonical_id, strip_prefix].",
         ),
+        "license_error": attr.string(doc = "Failure raised when the SDK is fetched without its license accepted."),
         "substitutions": attr.string_dict(doc = "Keys rules_android's SDK BUILD template takes."),
     },
 )

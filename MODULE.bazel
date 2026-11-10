@@ -433,7 +433,6 @@ register_toolchains(
     "//kotlin/private/toolchain:unused_deps",
     "//scala/private/toolchain:semanticdb",
     "//scala/private/toolchain:semanticdb_scala3",
-    dev_dependency = True,
 )
 
 ansible = use_extension("//ansible:extensions.bzl", "ansible", dev_dependency = True)
@@ -651,6 +650,8 @@ register_toolchains("//cc/private/toolchains:msvc_unsupported")
 # Swift on macOS selects this toolchain through its wrapper transition.
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
 use_repo(apple_cc_configure, "local_config_apple_cc_toolchains")
+
+register_toolchains("@local_config_apple_cc_toolchains//:all")
 
 register_toolchains("@llvm//toolchain:all")
 
@@ -1253,8 +1254,7 @@ use_repo(cpan, perl_cpan = "perl_app_cpan")
 cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 use_repo(cuda, "cuda")
 
-cuda_dev = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain", dev_dependency = True)
-cuda_dev.redist_json(
+cuda.redist_json(
     name = "cuda_redist",
     components = [
         "cccl",
@@ -1275,7 +1275,7 @@ cuda_dev.redist_json(
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     version = "13.4.2",
 )
-cuda_dev.toolkit(
+cuda.toolkit(
     name = "cuda",
     nvcc_version = "13.4",
 )
@@ -2385,13 +2385,11 @@ _android_ndk_toolchain_repo(
     name = "android_ndk_toolchain",
     api_level = 31,
     cxx_runtime = "static",
-    dev_dependency = True,
 )
 
 register_toolchains(
     "@android_ndk_toolchain//:ndk_cc_toolchain_device",
     "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
-    dev_dependency = True,
 )
 
 avro_cc = use_extension("//avro:extensions.bzl", "avro_cc")
@@ -2401,7 +2399,7 @@ override_repo(avro_cc, dx_avro_cpp = "avro-cpp")
 _android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
 
 android_sdk = use_extension("//android:extensions.bzl", "android_sdk")
-use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
+use_repo(android_sdk, "dx_android_ndk_linux_x86_64", "dx_android_sdk", "dx_androidsdk")
 
 override_repo(
     _android_sdk_extension,
@@ -2418,8 +2416,6 @@ use_repo(
 
 android_sdk_dev = use_extension("//android:extensions.bzl", "android_sdk", dev_dependency = True)
 android_sdk_dev.license(accept = ["android-sdk-license"])
-android_sdk_dev.configure()
-use_repo(android_sdk_dev, "dx_android_ndk_linux_x86_64")
 
 _fixture_repo(
     name = "web_consumer",
@@ -3050,7 +3046,7 @@ use_repo(cuda_license, "dx_cuda_license")
 cuda_license_dev = use_extension("//cuda:extensions.bzl", "cuda_license", dev_dependency = True)
 cuda_license_dev.license(accept = ["cuda-eula"])
 
-qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk", dev_dependency = True)
+qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk")
 qt_sdk.configure(modules = [
     "qtdeclarative",
     "qttools",

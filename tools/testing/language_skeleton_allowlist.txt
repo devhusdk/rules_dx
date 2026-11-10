@@ -1,7 +1,5 @@
-dev-proxy-tags android/extensions.bzl
 dev-proxy-tags dart/extensions.bzl
 dev-proxy-tags python/extensions.bzl
-dev-proxy-tags qt/extensions.bzl
 entries android/platforms
 entries android/repos.bzl
 entries apple/platforms
@@ -555,7 +553,6 @@ readme-headings scala/README.md
 readme-headings swift/README.md
 readme-headings typescript/README.md
 readme-headings zig/README.md
-register-dev MODULE.bazel
 register-label cc/private/toolchains
 register-label core/quality
 register-label java/private/toolchains

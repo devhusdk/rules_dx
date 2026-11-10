@@ -1,9 +1,25 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load(":toolchain.bzl", "resolved_cc_toolchain")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 sh_test(
     name = "hello_test",
     srcs = ["hello_test.sh"],
+)
+
+resolved_cc_toolchain(
+    name = "android_device_cc",
+    platform = "@rules_dx//android/platforms:android_device",
+)
+
+sh_test(
+    name = "android_ndk_toolchain_test",
+    srcs = ["toolchain_test.sh"],
+    args = [
+        "$(rootpath :android_device_cc)",
+        "ndk-device-android",
+    ],
+    data = [":android_device_cc"],
 )
 
 filegroup(
@@ -13,6 +29,8 @@ filegroup(
         "BUILD.bazel",
         "MODULE.bazel",
         "hello_test.sh",
+        "toolchain.bzl",
+        "toolchain_test.sh",
     ],
     visibility = ["//deploy/private/release/tests:__pkg__"],
 )
@@ -22,6 +40,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "MODULE.bazel",
+        "toolchain.bzl",
     ],
     tags = ["corpus"],
 )

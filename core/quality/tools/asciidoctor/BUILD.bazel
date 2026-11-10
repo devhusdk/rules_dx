@@ -1,0 +1,5 @@
+alias(
+    name = "asciidoctor",
+    actual = "//javascript/private/quality/bin:asciidoctor",
+    visibility = ["//visibility:public"],
+)

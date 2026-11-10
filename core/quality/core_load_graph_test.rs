@@ -40,19 +40,12 @@ const PENDING_TOOL_PACKAGES: &[&str] = &[
     "rust/private/quality/tools",    // #10567
 ];
 
-/// Tier packages that load a language rule set; this list only shrinks.
-const PENDING_TIER_PACKAGES: &[&str] = &[
-    "core/quality/tiers/gopls",    // #10622
-];
-
 /// Top-level packages `core/` may load from or point labels into.
 const CORE_PACKAGES: &[&str] = &["cli", "config", "core", "tools"];
 
 /// Files whose `//` loads and labels may still reach a language package; this list only shrinks.
 const PENDING_LANGUAGE_REACH: &[&str] = &[
     "core/quality/families/core_probe.bzl",
-    "core/quality/fixtures.bzl",
-    "core/quality/tiers/gopls/BUILD.bazel",
     "core/quality/tools.bzl",
 ];
 
@@ -157,7 +150,6 @@ fn tier_packages(source: &Path) -> Vec<String> {
         .filter(|entry| entry.path().join("BUILD.bazel").is_file())
         .filter_map(|entry| entry.file_name().into_string().ok())
         .map(|name| format!("core/quality/tiers/{name}"))
-        .filter(|package| !PENDING_TIER_PACKAGES.contains(&package.as_str()))
         .map(|package| format!("{package}/BUILD.bazel"))
         .collect();
     found.sort();
@@ -320,12 +312,7 @@ fn pending_tool_packages_still_offend() {
 fn core_reaches_no_language_package() {
     let source = dx_testing::rules_dx_source();
     let mut offenders: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    let mut paths = roots(&source);
-    paths.extend(
-        PENDING_TIER_PACKAGES
-            .iter()
-            .map(|package| format!("{package}/BUILD.bazel")),
-    );
+    let paths = roots(&source);
     for path in paths {
         let bad: Vec<String> = loaded_labels(&dx_testing::read_text(&source.join(&path)))
             .into_iter()
@@ -349,22 +336,6 @@ fn pending_language_reach_still_offends() {
         assert!(
             found.iter().any(|label| reaches_language(label)),
             "{path} reaches no language package; drop it from PENDING_LANGUAGE_REACH"
-        );
-    }
-}
-
-#[test]
-fn pending_tier_packages_still_offend() {
-    let source = dx_testing::rules_dx_source();
-    for package in PENDING_TIER_PACKAGES {
-        let root = format!("{package}/BUILD.bazel");
-        let found = dx_adopt::external_repos(&source, &[root]).expect("load graph");
-        assert!(
-            found
-                .values()
-                .flatten()
-                .any(|repo| !ALLOWED_REPOS.contains(&repo.as_str())),
-            "{package} reaches no language rule set; drop it from PENDING_TIER_PACKAGES"
         );
     }
 }

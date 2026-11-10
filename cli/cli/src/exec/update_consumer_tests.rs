@@ -1647,7 +1647,7 @@ fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
 }
 
 #[test]
-fn consumer_mixed_mix_and_rebar_run_checks_both_sets_and_apply_writes_both_locks() {
+fn consumer_mixed_mix_and_rebar_run_checks_both_sets() {
     let module = format!(
         "{HEX_MODULE}erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
     );
@@ -1656,12 +1656,8 @@ fn consumer_mixed_mix_and_rebar_run_checks_both_sets_and_apply_writes_both_locks
     harness.write_source("third_party/elixir/mix.lock", "%{}\n");
     harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
     harness.write_source("third_party/erlang/rebar.lock", "[].\n");
-    let files = [
-        ("mix.lock", "%{\"jason\" => 1}\n"),
-        ("rebar.lock", "[{<<\"jsx\">>,1}].\n"),
-    ];
     let runner = ScriptRunner::new(&[]);
-    stage(&runner, &files);
+    stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
     let (code, out, err) = run_with(&["update"], &runner, &harness);
     assert_ne!(code, 0, "{out}{err}");
     {
@@ -1681,9 +1677,16 @@ fn consumer_mixed_mix_and_rebar_run_checks_both_sets_and_apply_writes_both_locks
         read_bytes(&harness, "third_party/erlang/rebar.lock"),
         b"[].\n"
     );
+}
 
+#[test]
+fn consumer_rebar_apply_writes_the_lock_through_rebar3_upgrade() {
+    let module = "erlang = use_extension(\"//erlang/toolchain:repos.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n";
+    let harness = consumer_harness("rebar-apply", module, false);
+    harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
+    harness.write_source("third_party/erlang/rebar.lock", "[].\n");
     let runner = ScriptRunner::new(&[]);
-    stage(&runner, &files);
+    stage(&runner, &[("rebar.lock", "[{<<\"jsx\">>,1}].\n")]);
     let (code, out, err) = run_with(&["update", "--apply"], &runner, &harness);
     assert_eq!(code, 0, "{out}{err}");
     assert_eq!(

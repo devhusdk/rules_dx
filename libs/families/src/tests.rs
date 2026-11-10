@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn shipped_table_parses() {
-    assert!(families().iter().any(|family| family.name == "python"));
+    assert!(families().iter().any(|family| family.name == "rust"));
     assert!(parse("{").is_err());
 }
 
@@ -22,8 +22,8 @@ fn every_extension_has_one_family() {
 #[test]
 fn extension_lookup_ignores_case() {
     assert_eq!(
-        family_for_extension(".PY").map(|family| family.name.as_str()),
-        Some("python")
+        family_for_extension(".RS").map(|family| family.name.as_str()),
+        Some("rust")
     );
     assert!(family_for_extension(".nope").is_none());
 }

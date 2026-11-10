@@ -3,7 +3,6 @@
 load(
     "//flutter/private:defs.bzl",
     _FLUTTER_COMPATIBLE_WITH = "FLUTTER_COMPATIBLE_WITH",
-    _FLUTTER_DEFERRED_SKIP_TAGS = "FLUTTER_DEFERRED_SKIP_TAGS",
     _flutter_android_app = "flutter_android_app",
     _flutter_application = "flutter_application",
     _flutter_gen_l10n = "flutter_gen_l10n",
@@ -15,7 +14,6 @@ load(
 )
 
 FLUTTER_COMPATIBLE_WITH = _FLUTTER_COMPATIBLE_WITH
-FLUTTER_DEFERRED_SKIP_TAGS = _FLUTTER_DEFERRED_SKIP_TAGS
 flutter_android_app = _flutter_android_app
 flutter_application = _flutter_application
 flutter_gen_l10n = _flutter_gen_l10n

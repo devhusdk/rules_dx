@@ -142,6 +142,21 @@ failure_test(
     target = ":duplicate_file",
 )
 
+helm_chart(
+    name = "foreign_src",
+    srcs = [
+        "Chart.yaml",
+        "//helm:lang.json",
+    ],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "foreign_src_fails",
+    expected_failure_substring = "src 'helm/lang.json' must be under the chart package 'helm/tests'",
+    target = ":foreign_src",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

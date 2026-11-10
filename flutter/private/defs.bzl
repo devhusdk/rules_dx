@@ -18,8 +18,6 @@ flutter_gen_l10n = _flutter_gen_l10n
 
 FLUTTER_SOURCE_EXTS = [".dart"]
 
-FLUTTER_DEFERRED_SKIP_TAGS = []
-
 FLUTTER_COMPATIBLE_WITH = compatible_with(FLUTTER_SUPPORT)
 
 FLUTTER_ANDROID_ABIS = ["arm64", "x64"]
@@ -91,21 +89,25 @@ _flutter_application_forward = dx_library_forward_rule(
     runtime = "besteffort",
 )
 
-def _missing_font_impl(ctx):
-    out = ctx.actions.declare_file(ctx.label.name + ".missing_font")
+def _invalid_impl(ctx):
+    fail(ctx.attr.message)
 
-    # run_shell: The action only prints the error to stderr and fails.
-    ctx.actions.run_shell(
-        outputs = [out],
-        command = "echo 'flutter_library {}: fonts_json names font asset \"{}\" but font_files does not provide it' >&2; exit 1".format(ctx.label.name, ctx.attr.asset),
-    )
-    return [DefaultInfo(files = depset([out]))]
-
-_missing_font = rule(
-    implementation = _missing_font_impl,
-    doc = "Fails the build because a font asset named in fonts_json has no file.",
-    attrs = {"asset": attr.string(doc = "Font asset path that has no file.")},
+_invalid = rule(
+    implementation = _invalid_impl,
+    doc = "Fails analysis with the given message.",
+    attrs = {"message": attr.string(doc = "Failure message.", mandatory = True)},
 )
+
+def _declare_invalid(name, message, kwargs, visibility):
+    checked = dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
+    _invalid(
+        name = name,
+        message = message,
+        tags = checked.get("tags", []),
+        testonly = checked.get("testonly"),
+        target_compatible_with = checked["target_compatible_with"],
+        visibility = visibility,
+    )
 
 def _missing_font_asset(font_files, fonts_json):
     if type(fonts_json) != "string":
@@ -121,20 +123,20 @@ def flutter_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_library; fonts_json assets must come from font_files."""
     missing = _missing_font_asset(kwargs.get("font_files"), kwargs.get("fonts_json"))
     if missing:
-        _missing_font(name = name, asset = missing, tags = kwargs.get("tags", []), visibility = visibility)
+        _declare_invalid(name, "flutter_library: fonts_json names font asset '{}' but font_files does not provide it".format(missing), kwargs, visibility)
         return
-    dx_wrap(name, _flutter_library, _flutter_library_forward, srcs or [], visibility = visibility, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
+    dx_wrap(name, _flutter_library, _flutter_library_forward, srcs or [], visibility = visibility, **dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH))
 
 def flutter_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_test. main is name.dart, then test/name.dart, else the single src."""
     main = dx_infer_main("flutter_test", name, main, srcs, dx_main_candidates(name, ".dart", ["test"]))
-    kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    kwargs = dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
     dx_wrap_test(name, _flutter_test, _flutter_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def flutter_application(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_application. main is name.dart, then lib/main.dart, else the single src."""
     main = dx_infer_main("flutter_application", name, main, srcs, dx_main_candidates(name, ".dart") + ["lib/main.dart"])
-    kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    kwargs = dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
     dx_wrap(
         name,
         _flutter_application,
@@ -154,24 +156,15 @@ def flutter_application(name, *, srcs = None, main = None, visibility = None, **
 def flutter_web_app(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Thin wrapper over flutter_web_app. main is name.dart, then lib/main.dart, else the single src."""
     main = dx_infer_main("flutter_web_app", name, main, srcs, dx_main_candidates(name, ".dart") + ["lib/main.dart"])
-    kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    kwargs = dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
     dx_wrap_binary(name, _flutter_web_app, _flutter_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def flutter_web_bundle(name, **kwargs):
     """Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds."""
-    _flutter_web_bundle(name = name, **dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH))
-
-def _bad_abi_impl(ctx):
-    fail(ctx.attr.message)
-
-_bad_abi = rule(
-    implementation = _bad_abi_impl,
-    doc = "Fails the build with the given ABI message.",
-    attrs = {"message": attr.string(doc = "Failure message.", mandatory = True)},
-)
+    _flutter_web_bundle(name = name, **dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH))
 
 def _flutter_app_kwargs(kwargs):
-    app_kwargs = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
+    app_kwargs = dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
     if not app_kwargs.get("tags"):
         app_kwargs["tags"] = ["manual"]
     return app_kwargs
@@ -179,14 +172,7 @@ def _flutter_app_kwargs(kwargs):
 def flutter_android_app(name, application, package_name, android_abi = "arm64", visibility = None, **kwargs):
     """Thin wrapper over flutter_android_app. An unknown android_abi fails when the target is analyzed."""
     if android_abi not in FLUTTER_ANDROID_ABIS:
-        checked = dx_language_kwargs(kwargs, FLUTTER_DEFERRED_SKIP_TAGS, FLUTTER_COMPATIBLE_WITH)
-        _bad_abi(
-            name = name,
-            message = "flutter_android_app: android_abi '{}' is unknown: want {}".format(android_abi, ", ".join(FLUTTER_ANDROID_ABIS)),
-            tags = checked.get("tags", []),
-            target_compatible_with = checked["target_compatible_with"],
-            visibility = visibility,
-        )
+        _declare_invalid(name, "flutter_android_app: android_abi '{}' is unknown: want {}".format(android_abi, ", ".join(FLUTTER_ANDROID_ABIS)), kwargs, visibility)
         return
     app_kwargs = _flutter_app_kwargs(kwargs)
     _flutter_android_app(

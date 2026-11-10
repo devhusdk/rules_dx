@@ -43,6 +43,7 @@ flutter_library(
         "fonts": [{"asset": "assets/fonts/Missing.ttf"}],
     }]),
     tags = ["manual"],
+    visibility = ["//flutter/tests/negative:__pkg__"],
 )
 
 flutter_android_app(

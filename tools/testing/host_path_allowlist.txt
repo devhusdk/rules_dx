@@ -91,7 +91,6 @@ deploy/private/src/cloudflare.rs
 d/tests/fixtures/bench/run_test.sh
 d/tests/fixtures/fuzz/run_test.sh
 examples/adopt-polyglot/consumer_test.rs
-flutter/private/defs.bzl
 flutter/tests/fixtures/flutter-app/android/inspect_apk.sh
 flutter/tests/fixtures/flutter-app/android/interaction.sh
 flutter/tests/fixtures/flutter-app/ios/simulator_smoke.sh

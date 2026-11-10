@@ -20,6 +20,12 @@ failure_test(
     target = "//flutter/tests/fixtures/flutter-app/failures:bad_abi",
 )
 
+failure_test(
+    name = "missing_font_fails_test",
+    expected_failure_substring = "fonts_json names font asset 'assets/fonts/Missing.ttf' but font_files does not provide it",
+    target = "//flutter/tests/fixtures/flutter-app/failures:missing_font",
+)
+
 dx_generated_policy(
     name = "policy",
     defaults = False,

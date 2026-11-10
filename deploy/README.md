@@ -762,8 +762,10 @@ HACKAGE_PUBLISH_APPROVED=1 HACKAGE_API_TOKEN=... \
 dx deploy --apply //pkg:hackage-demo
 ```
 
-This runs `cabal upload --publish --token=...`, so the token is visible in the
-`cabal` command line while it runs. A live run refuses version `0.0.0`.
+This runs `cabal upload --publish <sdist>` with `CABAL_CONFIG` naming a mode
+0600 config in a private temp directory that holds the token. The upload
+ignores your own cabal config. The token must not contain whitespace or control
+characters. A live run refuses version `0.0.0`.
 
 # luarocks_deploy
 
@@ -795,9 +797,12 @@ LUAROCKS_PUBLISH_APPROVED=1 LUAROCKS_API_TOKEN=... \
 dx deploy --apply //pkg:luarocks_demo
 ```
 
-This runs `luarocks upload <rockspec> --api-key=...`, which packs the source
-rock and uploads it, so the key is visible in the `luarocks` command line while
-it runs. A live run refuses upstream version `0.0.0`.
+This runs `luarocks upload <rockspec>`, which packs the source rock and uploads
+it. `LUAROCKS_CONFIG` names an empty config in a private temp directory whose
+mode 0600 `upload_config.lua` holds the key, so nothing is saved to your home
+config. The upload ignores your own LuaRocks config. The key must not contain
+whitespace, control characters, `"` or `\`. A live run refuses upstream version
+`0.0.0`.
 
 # oci_image_from_binary
 
@@ -1280,7 +1285,7 @@ codes: `0` staged or published, `1` any failure or refusal.
 Every deploy target, `npm_deploy` included, rejects arguments beyond that output
 directory. Deploy targets run through `bazel run` or `dx deploy`, which set
 `DX_DEPLOY_CONFIG`. Publisher tools (`twine`, `dotnet`, `cargo`, `gh`, `octo`,
-`npm`) run with a cleared environment plus a per-tool keep-list. Secrets reach
+`npm`, `cabal`, `luarocks`) run with a cleared environment plus a per-tool keep-list. Secrets reach
 them only through that environment, stdin or a temp file, never
 argv. On Unix the temp file is mode 0600. On Windows it relies on the user
 temp directory's access list. The exception is `wrangler`,

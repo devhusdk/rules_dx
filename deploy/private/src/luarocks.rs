@@ -92,17 +92,26 @@ pub fn luarocks_check_identity(
     Ok(())
 }
 
-/// Builds the `luarocks upload` launch.
-fn luarocks_upload_command(luarocks: &Path, rockspec: &Path, key: &str) -> std::process::Command {
+/// Builds the `luarocks upload` launch reading its key from beside `config`.
+fn luarocks_upload_command(
+    luarocks: &Path,
+    rockspec: &Path,
+    config: &Path,
+) -> std::process::Command {
+    let config = config.to_string_lossy();
     let mut cmd = scrubbed_command(
         luarocks,
         &[PUBLISH_CHILD_ENV_KEEP, LUAROCKS_CHILD_ENV_EXTRA],
-        &[],
+        &[("LUAROCKS_CONFIG", config.as_ref())],
     );
-    cmd.arg("upload")
-        .arg(rockspec)
-        .arg(format!("--api-key={key}"));
+    cmd.arg("upload").arg(rockspec);
     cmd
+}
+
+/// Writes the private user config and upload config that carry the key.
+fn write_luarocks_config(dir: &PrivateConfigDir, key: &str) -> std::io::Result<std::path::PathBuf> {
+    dir.write("upload_config.lua", &format!("key = \"{key}\"\n"))?;
+    dir.write("config.lua", "-- dx_deploy private config\n")
 }
 
 /// Packs and uploads the rockspec with `luarocks upload`.
@@ -113,7 +122,25 @@ fn luarocks_live_upload(
     package: &str,
     version: &str,
 ) -> i32 {
-    let mut cmd = luarocks_upload_command(luarocks, rockspec, key);
+    if let Some(refusal) = plain_token_refusal("luarocks_deploy", key, &['"', '\\']) {
+        eprintln!("{refusal}");
+        return 1;
+    }
+    let dir = match PrivateConfigDir::create("dx-luarocks-") {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("luarocks_deploy: cannot create the private config dir: {error}");
+            return 1;
+        }
+    };
+    let config = match write_luarocks_config(&dir, key) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("luarocks_deploy: cannot write the private config: {error}");
+            return 1;
+        }
+    };
+    let mut cmd = luarocks_upload_command(luarocks, rockspec, &config);
     match run_publish(&mut cmd) {
         Ok(out) if out.success() => {
             print_redacted(&out, key);
@@ -214,17 +241,69 @@ mod tests {
     use crate::test_support::*;
 
     #[test]
-    fn upload_launch_failure_never_shows_the_key() {
+    fn upload_keeps_the_key_off_argv_and_errors() {
         let key = "fake-luarocks-key-5519";
         let dir = tempfile::tempdir().unwrap();
+        let private = PrivateConfigDir::create("dx-luarocks-test-").unwrap();
+        let config = write_luarocks_config(&private, key).unwrap();
         let mut cmd = luarocks_upload_command(
             &dir.path().join("no-such-luarocks"),
             Path::new("r.rockspec"),
-            key,
+            &config,
         );
+        assert!(
+            cmd.get_args()
+                .all(|arg| !arg.to_string_lossy().contains(key))
+        );
+        let env = cmd
+            .get_envs()
+            .find(|(name, _)| *name == "LUAROCKS_CONFIG")
+            .and_then(|(_, value)| value)
+            .unwrap();
+        assert_eq!(Path::new(env), config);
+        let upload = std::fs::read_to_string(private.path().join("upload_config.lua")).unwrap();
+        assert!(upload.contains(key));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(private.path().join("upload_config.lua"))
+                .unwrap()
+                .permissions()
+                .mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
         let error = run_publish(&mut cmd).unwrap_err();
-        assert!(error.to_string().contains(key));
-        assert!(!pages_redact(&error.to_string(), key).contains(key));
+        assert!(!error.to_string().contains(key));
+    }
+
+    #[test]
+    fn upload_refuses_keys_a_lua_string_cannot_carry() {
+        for bad in ["a\"b", "a\\b", "a\nb"] {
+            assert!(plain_token_refusal("luarocks_deploy", bad, &['"', '\\']).is_some());
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stub_luarocks_output_never_holds_the_key() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let key = "fake-luarocks-key-8841";
+        let dir = tempfile::tempdir().unwrap();
+        let stub = dir.path().join("luarocks");
+        std::fs::write(&stub, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n").unwrap();
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let private = PrivateConfigDir::create("dx-luarocks-test-").unwrap();
+        let config = write_luarocks_config(&private, key).unwrap();
+        let mut cmd = luarocks_upload_command(&stub, Path::new("r.rockspec"), &config);
+        let out = run_publish(&mut cmd).unwrap();
+        assert!(out.success());
+        let shown = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(shown.contains("upload"));
+        assert!(!shown.contains(key));
     }
 
     const ROCKSPEC: &str = "package = \"demo\"\nversion = \"1.2.0-1\"\nsource = {\n  url = \"x\",\n}\ndescription = {\n  version = \"9\",\n}\n";

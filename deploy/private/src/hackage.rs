@@ -101,14 +101,26 @@ pub fn hackage_check_identity(
     Ok(())
 }
 
-/// Builds the `cabal upload --publish` launch.
-fn hackage_upload_command(cabal: &Path, sdist: &Path, token: &str) -> std::process::Command {
-    let mut cmd = scrubbed_command(cabal, &[PUBLISH_CHILD_ENV_KEEP, CABAL_CHILD_ENV_EXTRA], &[]);
-    cmd.arg("upload")
-        .arg("--publish")
-        .arg(format!("--token={token}"))
-        .arg(sdist);
+/// Builds the `cabal upload --publish` launch reading its token from `config`.
+fn hackage_upload_command(cabal: &Path, sdist: &Path, config: &Path) -> std::process::Command {
+    let config = config.to_string_lossy();
+    let mut cmd = scrubbed_command(
+        cabal,
+        &[PUBLISH_CHILD_ENV_KEEP, CABAL_CHILD_ENV_EXTRA],
+        &[("CABAL_CONFIG", config.as_ref())],
+    );
+    cmd.arg("upload").arg("--publish").arg(sdist);
     cmd
+}
+
+/// Writes the private cabal config that carries the token.
+fn write_cabal_config(dir: &PrivateConfigDir, token: &str) -> io::Result<std::path::PathBuf> {
+    dir.write(
+        "config",
+        &format!(
+            "hackage-token: {token}\nrepository hackage.haskell.org\n  url: http://hackage.haskell.org/\n"
+        ),
+    )
 }
 
 /// Uploads the sdist and publishes it with `cabal upload --publish`.
@@ -119,7 +131,25 @@ fn hackage_live_upload(
     package: &str,
     version: &str,
 ) -> i32 {
-    let mut cmd = hackage_upload_command(cabal, sdist, token);
+    if let Some(refusal) = plain_token_refusal("hackage_deploy", token, &[]) {
+        eprintln!("{refusal}");
+        return 1;
+    }
+    let dir = match PrivateConfigDir::create("dx-hackage-") {
+        Ok(dir) => dir,
+        Err(error) => {
+            eprintln!("hackage_deploy: cannot create the private config dir: {error}");
+            return 1;
+        }
+    };
+    let config = match write_cabal_config(&dir, token) {
+        Ok(config) => config,
+        Err(error) => {
+            eprintln!("hackage_deploy: cannot write the private config: {error}");
+            return 1;
+        }
+    };
+    let mut cmd = hackage_upload_command(cabal, sdist, &config);
     match run_publish(&mut cmd) {
         Ok(out) if out.success() => {
             print_redacted(&out, token);
@@ -226,17 +256,66 @@ mod tests {
     use crate::test_support::*;
 
     #[test]
-    fn upload_launch_failure_never_shows_the_token() {
+    fn upload_keeps_the_token_off_argv_and_errors() {
         let token = "fake-hackage-token-7731";
         let dir = tempfile::tempdir().unwrap();
+        let private = PrivateConfigDir::create("dx-hackage-test-").unwrap();
+        let config = write_cabal_config(&private, token).unwrap();
         let mut cmd = hackage_upload_command(
             &dir.path().join("no-such-cabal"),
             Path::new("p.tar.gz"),
-            token,
+            &config,
         );
+        assert!(
+            cmd.get_args()
+                .all(|arg| !arg.to_string_lossy().contains(token))
+        );
+        let env = cmd
+            .get_envs()
+            .find(|(name, _)| *name == "CABAL_CONFIG")
+            .and_then(|(_, value)| value)
+            .unwrap();
+        assert_eq!(Path::new(env), config);
+        let text = std::fs::read_to_string(&config).unwrap();
+        assert!(text.contains(token));
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            let mode = std::fs::metadata(&config).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600);
+        }
         let error = run_publish(&mut cmd).unwrap_err();
-        assert!(error.to_string().contains(token));
-        assert!(!pages_redact(&error.to_string(), token).contains(token));
+        assert!(!error.to_string().contains(token));
+    }
+
+    #[test]
+    fn upload_refuses_whitespace_tokens() {
+        assert!(plain_token_refusal("hackage_deploy", "a b", &[]).is_some());
+        assert!(plain_token_refusal("hackage_deploy", "a\nb", &[]).is_some());
+        assert!(plain_token_refusal("hackage_deploy", "abc", &[]).is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stub_cabal_output_never_holds_the_token() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let token = "fake-hackage-token-4402";
+        let dir = tempfile::tempdir().unwrap();
+        let stub = dir.path().join("cabal");
+        std::fs::write(&stub, "#!/bin/sh\nprintf '%s\\n' \"$@\"\n").unwrap();
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let private = PrivateConfigDir::create("dx-hackage-test-").unwrap();
+        let config = write_cabal_config(&private, token).unwrap();
+        let mut cmd = hackage_upload_command(&stub, Path::new("p.tar.gz"), &config);
+        let out = run_publish(&mut cmd).unwrap();
+        assert!(out.success());
+        let shown = format!(
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        assert!(shown.contains("upload"));
+        assert!(!shown.contains(token));
     }
 
     fn write_sdist(dir: &Path, file_name: &str, entry: &str, cabal: &str) -> std::path::PathBuf {

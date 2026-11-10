@@ -227,6 +227,42 @@ pub(crate) fn tempfile_stage_dir(prefix: &str) -> io::Result<std::path::PathBuf>
     ))
 }
 
+/// An owner-only temp directory that is removed on drop.
+pub(crate) struct PrivateConfigDir {
+    path: std::path::PathBuf,
+}
+
+impl PrivateConfigDir {
+    pub(crate) fn create(prefix: &str) -> io::Result<Self> {
+        Ok(Self {
+            path: tempfile_stage_dir(prefix)?,
+        })
+    }
+
+    pub(crate) fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Writes one owner-only file and returns its path.
+    pub(crate) fn write(&self, name: &str, content: &str) -> io::Result<std::path::PathBuf> {
+        write_secure_file(&self.path, name, content)
+    }
+}
+
+impl Drop for PrivateConfigDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
+    }
+}
+
+/// Refuses a token that cannot sit inside a one-line config value.
+pub(crate) fn plain_token_refusal(tool: &str, token: &str, forbidden: &[char]) -> Option<String> {
+    (token
+        .chars()
+        .any(|c| c.is_control() || c.is_whitespace() || forbidden.contains(&c)))
+    .then(|| format!("{tool}: the registry token holds characters a config file cannot carry"))
+}
+
 pub(crate) fn which_on_path(tool: &str) -> Option<std::path::PathBuf> {
     let path = std::env::var("PATH").unwrap_or_default();
     #[cfg(windows)]
@@ -254,6 +290,28 @@ pub(crate) fn which_on_path(tool: &str) -> Option<std::path::PathBuf> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn private_config_dir_is_owner_only_and_removed_on_drop() {
+        let dir = PrivateConfigDir::create("dx-private-test-").unwrap();
+        let root = dir.path().to_path_buf();
+        let file = dir.write("secret", "x").unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt as _;
+            assert_eq!(
+                std::fs::metadata(&root).unwrap().permissions().mode() & 0o777,
+                0o700
+            );
+            assert_eq!(
+                std::fs::metadata(&file).unwrap().permissions().mode() & 0o777,
+                0o600
+            );
+        }
+        drop(dir);
+        assert!(!root.exists());
+        assert!(!file.exists());
+    }
+
     use super::*;
     use crate::test_support::*;
 

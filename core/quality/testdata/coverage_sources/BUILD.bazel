@@ -166,8 +166,8 @@ ocaml_test(
 
 dx_rust_library(
     name = "self_contained",
-    srcs = ["lib.rs"],
-    crate_root = "lib.rs",
+    srcs = ["self_contained.rs"],
+    crate_root = "self_contained.rs",
     visibility = ["//core/quality:__pkg__"],
 )
 
@@ -175,10 +175,10 @@ dx_rust_test(
     name = "self_contained_test",
     size = "small",
     srcs = [
-        "lib.rs",
+        "self_contained.rs",
         "unit.rs",
     ],
     coverage_lib = ":self_contained",
-    crate_root = "lib.rs",
+    crate_root = "self_contained.rs",
     visibility = ["//core/quality:__pkg__"],
 )

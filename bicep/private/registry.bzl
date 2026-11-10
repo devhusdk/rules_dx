@@ -1,9 +1,10 @@
-"""Repository rule that restores one Bicep registry module and pins it by digest."""
-
-load("//core:host.bzl", "host_cell")
-load("//core/quality/artifacts:bicep.bzl", "ARTIFACTS")
+"""Repository rule that downloads one Bicep registry module pinned by digest."""
 
 _HEX = "0123456789abcdef"
+
+_MANIFEST = "application/vnd.oci.image.manifest.v1+json"
+
+_LAYER = "application/vnd.ms.bicep.module.layer.v1+json"
 
 def registry_errors(ref, digest):
     """Returns the errors in a registry module declaration, ref and digest."""
@@ -12,65 +13,82 @@ def registry_errors(ref, digest):
         errors.append("ref %r must start with br:" % ref)
     elif ":" not in ref.rpartition("/")[2] or ref.endswith(":"):
         errors.append("ref %r must end in :<tag>" % ref)
-    hex = digest[len("sha256:"):]
-    if not digest.startswith("sha256:") or len(hex) != 64 or any([c not in _HEX for c in hex.elems()]):
+    if not is_digest(digest):
         errors.append("digest %r must be sha256: plus 64 lowercase hex characters" % digest)
     return errors
 
-def digest_mismatch(ref, expected, actual):
-    """Returns the error for a restored manifest digest, empty when it matches."""
-    if actual == expected:
-        return ""
-    return "bicep registry module %s: manifest digest mismatch\n  expected %s\n  actual   %s" % (ref, expected, actual)
+def is_digest(digest):
+    """Returns whether a value is sha256: plus 64 lowercase hex characters."""
+    hex = digest[len("sha256:"):]
+    return digest.startswith("sha256:") and len(hex) == 64 and not hex.lstrip(_HEX)
 
-def _sha256(rctx, path):
-    copy = "manifest.sha"
-    sha = rctx.download(url = "file://" + str(path), output = copy).sha256
-    rctx.delete(copy)
-    return sha
+def _tag_directory(tag):
+    low = 0
+    high = 0
+    for index, char in enumerate(tag.elems()):
+        if char.isupper():
+            if index < 64:
+                low |= 1 << index
+            else:
+                high |= 1 << (index - 64)
+    if high:
+        return "%s$%x%s" % (tag, high, ("0" * 16 + "%x" % low)[-16:])
+    return "%s$%s" % (tag, "%x" % low if low else "")
 
-def _find_manifests(root):
-    found = []
-    pending = [root] if root.exists else []
-    for _ in range(1000):
-        if not pending:
-            break
-        for child in pending.pop().readdir():
-            if child.is_dir:
-                pending.append(child)
-            elif child.basename == "manifest":
-                found.append(child)
-    return found
+def _split(ref):
+    name, _, tag = ref[len("br:"):].rpartition(":")
+    registry, _, repository = name.partition("/")
+    return registry, repository, tag
+
+def cache_directory(ref):
+    """Returns the directory under the cache root where the Bicep CLI reads a module."""
+    registry, repository, tag = _split(ref)
+    return "br/%s/%s/%s" % (registry.lower().replace(":", "$"), repository.replace("/", "$"), _tag_directory(tag))
+
+def manifest_url(ref, digest):
+    """Returns the registry URL of a module manifest."""
+    registry, repository, _ = _split(ref)
+    return "https://%s/v2/%s/manifests/%s" % (registry, repository, digest)
+
+def blob_url(ref, digest):
+    """Returns the registry URL of a module blob."""
+    registry, repository, _ = _split(ref)
+    return "https://%s/v2/%s/blobs/%s" % (registry, repository, digest)
+
+def module_layer(ref, manifest):
+    """Returns the digest of the compiled template layer of a manifest and an error, one of them empty."""
+    decoded = json.decode(manifest, default = None)
+    if type(decoded) != "dict" or type(decoded.get("layers")) != "list":
+        return "", "bicep registry module %s: manifest is not an OCI image manifest with layers" % ref
+    layers = [layer for layer in decoded["layers"] if type(layer) == "dict" and layer.get("mediaType") == _LAYER]
+    if len(layers) != 1:
+        return "", "bicep registry module %s: manifest has %d layers of type %s, expected 1" % (ref, len(layers), _LAYER)
+    digest = layers[0].get("digest", "")
+    if type(digest) != "string" or not is_digest(digest):
+        return "", "bicep registry module %s: layer %s has digest %r, expected sha256: plus 64 lowercase hex characters" % (ref, _LAYER, digest)
+    return digest, ""
+
+def fetch_failure(ref, what, digest, url):
+    """Returns the error for a manifest or layer that was not fetched with its pinned digest."""
+    return "bicep registry module %s: %s %s was not fetched from %s with that sha256" % (ref, what, digest, url)
+
+def _fetch(rctx, what, digest, url, output, headers):
+    result = rctx.download(url = [url], output = output, sha256 = digest[len("sha256:"):], headers = headers, allow_fail = True)
+    if not result.success:
+        fail(fetch_failure(rctx.attr.ref, what, digest, url))
 
 def _impl(rctx):
-    errors = registry_errors(rctx.attr.ref, rctx.attr.digest)
+    ref = rctx.attr.ref
+    errors = registry_errors(ref, rctx.attr.digest)
     if errors:
         fail("bicep registry module: " + "; ".join(errors))
-    key = host_cell(rctx)
-    if key not in ARTIFACTS:
-        fail("bicep registry module: no Bicep CLI for host %s" % key)
-    exe = rctx.path(rctx.attr.clis[key])
-    rctx.file("restore.bicep", "module m '%s' = {\n  name: 'm'\n}\n" % rctx.attr.ref)
-    home = str(rctx.path("home"))
-    rctx.file("bicepconfig.json", json.encode({"cacheRootDirectory": home + "/.bicep"}) + "\n")
-    result = rctx.execute(
-        [str(exe), "restore", "restore.bicep"],
-        environment = {
-            "DOTNET_BUNDLE_EXTRACT_BASE_DIR": home + "/dotnet",
-            "HOME": home,
-            "USERPROFILE": home,
-        },
-    )
-    if result.return_code != 0:
-        fail("bicep restore %s failed:\n%s%s" % (rctx.attr.ref, result.stdout, result.stderr))
-    paths = _find_manifests(rctx.path("home/.bicep/br"))
-    if len(paths) != 1:
-        fail("bicep restore %s: expected one cached manifest, found %d" % (rctx.attr.ref, len(paths)))
-    actual = "sha256:" + _sha256(rctx, paths[0])
-    mismatch = digest_mismatch(rctx.attr.ref, rctx.attr.digest, actual)
-    if mismatch:
-        fail(mismatch)
-    rctx.delete("home/dotnet")
+    directory = "home/.bicep/" + cache_directory(ref)
+    _fetch(rctx, "manifest", rctx.attr.digest, manifest_url(ref, rctx.attr.digest), directory + "/manifest", {"Accept": _MANIFEST})
+    layer, error = module_layer(ref, rctx.read(directory + "/manifest"))
+    if error:
+        fail(error)
+    _fetch(rctx, "layer", layer, blob_url(ref, layer), directory + "/main.json", {})
+    rctx.file(directory + "/metadata", json.encode_indent({"manifestDigest": rctx.attr.digest}, indent = "  "))
     rctx.file("BUILD.bazel", """load("@rules_dx//bicep:defs.bzl", "bicep_registry_module")
 
 bicep_registry_module(
@@ -86,10 +104,9 @@ bicep_registry_module(
 
 bicep_registry_repo = repository_rule(
     implementation = _impl,
-    doc = "Restores one Bicep registry module and checks its manifest digest.",
+    doc = "Downloads one Bicep registry module by its manifest digest into the cache layout of the Bicep CLI.",
     attrs = {
-        "clis": attr.string_keyed_label_dict(mandatory = True, doc = "Host key to the Bicep CLI repository file."),
-        "digest": attr.string(mandatory = True, doc = "Expected sha256 of the restored manifest."),
+        "digest": attr.string(mandatory = True, doc = "sha256: and 64 hex characters of the module manifest."),
         "ref": attr.string(mandatory = True, doc = "Module reference, br:HOST/PATH:TAG."),
     },
 )

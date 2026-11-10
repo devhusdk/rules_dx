@@ -80,7 +80,7 @@ rust_library(
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//deploy/rules:dx_deploy_tools",
-        "//libs/binfmt:dx_binfmt",
+        "//cli/binfmt:dx_binfmt",
         "@crates//:serde",
     ],
 )
@@ -138,7 +138,7 @@ rust_test(
         "//cli/sbom:dx_sbom",
         "//cli/sbom/schema:dx_sbom_schema",
         "//deploy/rules:dx_deploy_tools",
-        "//libs/binfmt:dx_binfmt",
+        "//cli/binfmt:dx_binfmt",
         "//tools/testing:dx_testing",
         "@crates//:serde",
     ],
@@ -468,7 +468,7 @@ inventory_unit_tests(name = "inventory_unit")
 inventory_file_tests(
     name = "dx_archive_inventory_test",
     absent = [],
-    app = "//libs/archive:dx_archive",
+    app = "//cli/archive:dx_archive",
     present = [
         "flate2",
         "libz-sys",

@@ -88,7 +88,7 @@ rust_test(
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,
     deps = [
-        "//libs/binfmt:dx_binfmt",
+        "//cli/binfmt:dx_binfmt",
         "//tools/testing:dx_testing",
     ],
 )

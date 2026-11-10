@@ -5,7 +5,7 @@ VIS_PUBLIC = ["//visibility:public"]
 VIS_CLI = [
     "//cli:__pkg__",
     "//cli:__subpackages__",
-    "//libs/shard_writer:__pkg__",
+    "//cli/shard_writer:__pkg__",
 ]
 
 VIS_CLI_DEPLOY_QUALITY = VIS_CLI + [

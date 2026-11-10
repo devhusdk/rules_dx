@@ -25,14 +25,14 @@ rust_library(
     name = "dx_binfmt",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "libs/dx_binfmt",
+        package_name = "cli/dx_binfmt",
         normal = True,
     ),
     crate_name = "dx_binfmt",
     crate_root = "src/lib.rs",
     visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS + ["//cc/tests/msvc_x86_64:__pkg__"],
     deps = all_crate_deps(
-        package_name = "libs/dx_binfmt",
+        package_name = "cli/dx_binfmt",
         normal = True,
     ),
 )
@@ -45,7 +45,7 @@ rust_test(
         "src/tests.rs",
     ],
     aliases = aliases(
-        package_name = "libs/dx_binfmt",
+        package_name = "cli/dx_binfmt",
         normal = True,
         normal_dev = True,
     ),
@@ -53,7 +53,7 @@ rust_test(
     crate_name = "dx_binfmt",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_binfmt",
+        package_name = "cli/dx_binfmt",
         normal = True,
         normal_dev = True,
     ),

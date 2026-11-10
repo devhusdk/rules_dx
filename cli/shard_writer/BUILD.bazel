@@ -23,13 +23,13 @@ rust_library(
     name = "dx_shard_writer",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "libs/dx_shard_writer",
+        package_name = "cli/dx_shard_writer",
         normal = True,
     ),
     crate_name = "dx_shard_writer",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_shard_writer",
+        package_name = "cli/dx_shard_writer",
         normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
@@ -41,13 +41,13 @@ rust_test(
     name = "dx_shard_writer_test",
     size = "small",
     aliases = aliases(
-        package_name = "libs/dx_shard_writer",
+        package_name = "cli/dx_shard_writer",
         normal = True,
         normal_dev = True,
     ),
     crate = ":dx_shard_writer",
     deps = all_crate_deps(
-        package_name = "libs/dx_shard_writer",
+        package_name = "cli/dx_shard_writer",
         normal = True,
         normal_dev = True,
     ) + [

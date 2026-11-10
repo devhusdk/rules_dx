@@ -259,7 +259,7 @@ rust_test(
     crate_name = "artifact_writes_test",
     crate_root = "artifact_writes_test.rs",
     data = [
-        "//libs/shard_writer:src/lib.rs",
+        "//cli/shard_writer:src/lib.rs",
         "//quality/runner:src/entry.rs",
     ],
     deps = all_crate_deps(

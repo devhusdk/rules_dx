@@ -26,7 +26,7 @@ rust_library(
     ) + [
         "//cli/path:dx_path",
         "//env/proto:plan_proto_rs",
-        "//libs/shard_writer:dx_shard_writer",
+        "//cli/shard_writer:dx_shard_writer",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )

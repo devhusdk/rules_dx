@@ -241,7 +241,7 @@ rust_library(
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//cli/update:dx_update",
-        "//libs/binfmt:dx_binfmt",
+        "//cli/binfmt:dx_binfmt",
         "@rules_rust//rust/runfiles",
     ],
 )

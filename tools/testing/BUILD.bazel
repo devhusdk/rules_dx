@@ -69,7 +69,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/path:dx_path",
-        "//libs/binfmt:dx_binfmt",
+        "//cli/binfmt:dx_binfmt",
         "//tools/bazelrc:dx_preset",
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",

@@ -18,7 +18,7 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/ci/ci_producers",
         normal = True,
-    ) + ["//libs/binfmt:dx_binfmt"],
+    ) + ["//cli/binfmt:dx_binfmt"],
 )
 
 real_source_target(

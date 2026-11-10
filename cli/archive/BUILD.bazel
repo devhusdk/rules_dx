@@ -24,13 +24,13 @@ rust_library(
     name = "dx_archive",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "libs/dx_archive",
+        package_name = "cli/dx_archive",
         normal = True,
     ),
     crate_name = "dx_archive",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_archive",
+        package_name = "cli/dx_archive",
         normal = True,
     ),
 )
@@ -43,7 +43,7 @@ rust_test(
         "src/tests.rs",
     ],
     aliases = aliases(
-        package_name = "libs/dx_archive",
+        package_name = "cli/dx_archive",
         normal = True,
         normal_dev = True,
     ),
@@ -51,7 +51,7 @@ rust_test(
     crate_name = "dx_archive",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_archive",
+        package_name = "cli/dx_archive",
         normal = True,
         normal_dev = True,
     ),

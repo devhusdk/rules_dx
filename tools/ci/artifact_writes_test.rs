@@ -2,7 +2,7 @@ use dx_testing::read_runfiles;
 
 /// Sources whose whole job is to encode one validated artifact to an output path.
 const WRITERS: [&str; 2] = [
-    "libs/shard_writer/src/lib.rs",
+    "cli/shard_writer/src/lib.rs",
     "quality/runner/src/entry.rs",
 ];
 

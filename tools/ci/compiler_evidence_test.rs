@@ -2,317 +2,120 @@ use std::path::Path;
 use std::process::Command;
 
 use dx_test_scratch::{scratch, write};
-use dx_testing::runfiles_root;
+use dx_testing::{read_runfiles, runfiles_root};
 use serde_json::{Value, json};
 
 const SCRIPT: &str = "tools/ci/compiler_evidence.sh";
 
-fn facts() -> Value {
-    json!({"rows": [
-        {"name": "cc_a", "section": "compilers", "ci_tests": ["//p:a1", "//p:a2"], "consumer_tests": ["//q:a3"],
-         "identity": {"compiler": "a", "version": "1.2.3", "probe": "//p:probe_a",
-                      "platform_probes": {"linux_arm64": "//p:probe_a_arm64"}}},
-        {"name": "cc_b", "section": "compilers", "ci_tests": ["//p:b1"], "consumer_tests": [],
-         "identity": {"compiler": "b", "version": "", "probe": ""}},
-        {"name": "cc_m", "section": "compilers", "ci_tests": ["//p:m1"], "consumer_tests": [],
-         "identity": {"compiler": "msvc", "version": "35728", "probe": ""}},
-        {"name": "other", "section": "languages", "ci_tests": ["//p:o"], "consumer_tests": [], "identity": {}},
-    ],
-    "compiler_blockers": {"cc_a": {"windows_arm64": "waiting on a runner"},
-                          "cc_m": {"windows_arm64": "waiting on a runner"}}})
+fn producers_bin() -> Command {
+    let bin = runfiles_root().join(std::env::var("DX_PRODUCERS_BIN").expect("DX_PRODUCERS_BIN"));
+    let mut command = Command::new(bin);
+    command.env_clear();
+    command
 }
 
-fn log(root: &Path, label: &str, xml: &str) {
-    let path = label.trim_start_matches("//").replace(':', "/");
-    write(root, &format!("logs/{path}/test.xml"), xml);
-}
-
-fn passed(root: &Path, label: &str) {
-    log(root, label, "<testsuites><testcase/></testsuites>");
-}
-
-fn failed(root: &Path, label: &str) {
-    log(
-        root,
-        label,
-        "<testsuites><testcase><failure/></testcase></testsuites>",
-    );
-}
-
-fn run(root: &Path) -> Vec<Value> {
-    run_with(root, &mut Command::new("bash"))
-}
-
-fn run_with(root: &Path, command: &mut Command) -> Vec<Value> {
-    run_on(root, command, "linux_x86_64")
-}
-
-fn run_on(root: &Path, command: &mut Command, platform: &str) -> Vec<Value> {
-    write(root, "facts.json", &facts().to_string());
-    let status = command
-        .arg(runfiles_root().join(SCRIPT))
+fn evidence(root: &Path, command: &mut Command) -> std::process::Output {
+    command
+        .arg("--evidence")
         .arg(root.join("out.jsonl"))
-        .arg(platform)
+        .arg("linux_x86_64")
         .arg(root.join("facts.json"))
         .env("DX_BIN", root.join("bin"))
         .env("DX_TESTLOGS", root.join("logs"))
-        .env("DX_BAZEL_VERSION", "bazel 9")
         .env("DX_LOCKFILE", root.join("MODULE.bazel.lock"))
-        .status()
-        .expect("run bash");
-    assert!(status.success());
-    std::fs::read_to_string(root.join("out.jsonl"))
-        .expect("read evidence")
-        .lines()
-        .map(|line| serde_json::from_str(line).expect("json line"))
-        .collect()
-}
-
-fn row<'a>(lines: &'a [Value], name: &str) -> &'a Value {
-    lines
-        .iter()
-        .find(|line| line["row"] == name)
-        .unwrap_or_else(|| panic!("no line for {name}"))
+        .output()
+        .expect("run producers_bin")
 }
 
 #[test]
-fn all_passed() {
+fn evidence_mode_appends_a_line_per_compiler_row_from_its_environment() {
     let dir = scratch("compiler_evidence");
-    for label in ["//p:probe_a", "//p:a1", "//p:a2", "//q:a3", "//p:b1"] {
-        passed(dir.path(), label);
-    }
-    let lines = run(dir.path());
-    assert_eq!(lines.len(), 3);
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["outcome"], "passed");
-    assert_eq!((a["ran"].as_u64(), a["total"].as_u64()), (Some(3), Some(3)));
-    assert_eq!(a["tests"]["//p:a1"], "passed");
-}
-
-#[test]
-fn one_failed() {
-    let dir = scratch("compiler_evidence");
-    passed(dir.path(), "//p:probe_a");
-    passed(dir.path(), "//p:a1");
-    failed(dir.path(), "//p:a2");
-    let a = &run(dir.path())[0];
-    assert_eq!(a["outcome"], "failed");
-    assert_eq!(a["tests"]["//p:a2"], "failed");
-    assert_eq!(a["tests"]["//q:a3"], "skipped");
-}
-
-#[test]
-fn none_ran_is_skipped() {
-    let dir = scratch("compiler_evidence");
-    let lines = run(dir.path());
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["outcome"], "skipped");
-    assert_eq!((a["ran"].as_u64(), a["total"].as_u64()), (Some(0), Some(3)));
-}
-
-#[test]
-fn skipped_probe_is_not_passed() {
-    let dir = scratch("compiler_evidence");
-    passed(dir.path(), "//p:a1");
-    let lines = run(dir.path());
-    assert_eq!(row(&lines, "cc_a")["outcome"], "skipped");
-}
-
-#[test]
-fn platform_probe_replaces_the_probe_on_its_platform() {
-    let dir = scratch("compiler_evidence");
-    passed(dir.path(), "//p:probe_a_arm64");
-    passed(dir.path(), "//p:a1");
-    let lines = run_on(dir.path(), &mut Command::new("bash"), "linux_arm64");
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["probe"], "//p:probe_a_arm64");
-    assert_eq!(a["probe_outcome"], "passed");
-    assert_eq!(a["outcome"], "passed");
-}
-
-#[test]
-fn other_platforms_keep_the_default_probe() {
-    let dir = scratch("compiler_evidence");
-    passed(dir.path(), "//p:probe_a_arm64");
-    passed(dir.path(), "//p:a1");
-    let lines = run(dir.path());
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["probe"], "//p:probe_a");
-    assert_eq!(a["outcome"], "skipped");
-}
-
-#[test]
-fn row_without_probe_passes_on_its_tests() {
-    let dir = scratch("compiler_evidence");
-    passed(dir.path(), "//p:b1");
-    let lines = run(dir.path());
-    let b = row(&lines, "cc_b");
-    assert_eq!(b["outcome"], "passed");
-    assert_eq!(b["probe"], "");
-    assert_eq!(b["version"], "");
-}
-
-#[test]
-fn version_is_copied_through() {
-    let dir = scratch("compiler_evidence");
-    let lines = run(dir.path());
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["version"], "1.2.3");
-    assert_eq!(a["compiler_flag"], "a");
-    assert_eq!(a["bazel"], "bazel 9");
-}
-
-#[test]
-fn command_and_lockfile_digest_are_recorded() {
-    let dir = scratch("compiler_evidence");
-    write(dir.path(), "MODULE.bazel.lock", "lock\n");
-    let lines = run_with(
-        dir.path(),
-        Command::new("bash").env("DX_EVIDENCE_COMMAND", "bazel test //p:a1"),
-    );
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["command"], "bazel test //p:a1");
-    assert_eq!(
-        a["lockfile_sha256"],
-        "d8c9f2728aa278ebcd33ccedf3ad309a866870ad5fb93a03526b4b7655c9e911"
-    );
-}
-
-#[test]
-fn missing_lockfile_leaves_the_digest_empty() {
-    let dir = scratch("compiler_evidence");
-    let lines = run(dir.path());
-    assert_eq!(row(&lines, "cc_a")["lockfile_sha256"], "");
-    assert_eq!(row(&lines, "cc_a")["command"], "");
-}
-
-fn observe(root: &Path, signatures: &[&str]) -> Vec<Value> {
-    write(root, "bin/p/a1", "binary");
-    observe_with(root, signatures)
-}
-
-fn observe_with(root: &Path, signatures: &[&str]) -> Vec<Value> {
+    let root = dir.path();
+    let facts = json!({"rows": [
+        {"name": "cc_a", "section": "compilers", "ci_tests": ["//p:a1"], "consumer_tests": [],
+         "identity": {"compiler": "gcc", "version": "1.2.3", "probe": ""}},
+        {"name": "other", "section": "languages", "ci_tests": ["//p:o"], "consumer_tests": [], "identity": {}},
+    ]});
+    write(root, "facts.json", &facts.to_string());
     write(
         root,
-        "producers.sh",
-        &format!("#!/bin/sh\necho '{}'\n", json!({"x": signatures})),
+        "logs/p/a1/test.xml",
+        "<testsuites><testcase/></testsuites>",
     );
-    let producers = root.join("producers.sh");
-    let mut mode = std::fs::metadata(&producers).expect("stat").permissions();
-    std::os::unix::fs::PermissionsExt::set_mode(&mut mode, 0o755);
-    std::fs::set_permissions(&producers, mode).expect("chmod");
-    let mut command = Command::new("bash");
-    command.env("DX_PRODUCERS", root.join("producers.sh"));
-    for label in ["//p:probe_a", "//p:a1", "//p:a2", "//q:a3", "//p:m1"] {
-        passed(root, label);
-    }
-    run_with(root, &mut command)
-}
-
-#[test]
-fn observed_producer_with_the_version_passes() {
-    let dir = scratch("compiler_evidence");
-    let a = &observe(dir.path(), &["GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"])[0];
-    assert_eq!(a["outcome"], "passed");
+    write(root, "bin/p/a1", "not a binary");
+    write(root, "MODULE.bazel.lock", "lock\n");
+    write(root, "out.jsonl", "{\"row\":\"kept\"}\n");
+    let done = evidence(
+        root,
+        producers_bin()
+            .env("DX_BAZEL_VERSION", "bazel 9\r\n")
+            .env("DX_EVIDENCE_COMMAND", "bazel test //p:a1")
+            .env("GITHUB_SHA", "abc")
+            .env("GITHUB_SERVER_URL", "https://example.test")
+            .env("GITHUB_REPOSITORY", "o/r")
+            .env("GITHUB_RUN_ID", "7"),
+    );
+    assert!(done.status.success(), "{done:?}");
+    let text = std::fs::read_to_string(root.join("out.jsonl")).expect("read evidence");
+    let lines: Vec<Value> = text
+        .lines()
+        .map(|line| serde_json::from_str(line).expect("json line"))
+        .collect();
+    assert_eq!(lines.len(), 2, "{text}");
+    assert_eq!(lines[0], json!({"row": "kept"}));
     assert_eq!(
-        a["observed_producers"],
-        json!(["GCC: (GNU) 1.2.3", "GCC: (GNU) 9.9.9"])
+        lines[1],
+        json!({
+            "platform": "linux_x86_64", "row": "cc_a", "compiler_flag": "gcc", "version": "1.2.3", "sha": "abc",
+            "compiler": "", "target": "", "bazel": "bazel 9", "command": "bazel test //p:a1",
+            "lockfile_sha256": "d8c9f2728aa278ebcd33ccedf3ad309a866870ad5fb93a03526b4b7655c9e911",
+            "job": "https://example.test/o/r/actions/runs/7", "probe": "", "probe_outcome": "",
+            "tests": {"//p:a1": "passed"}, "ran": 1, "total": 1, "observed_producers": [],
+            "outcome": "passed", "tested_outcome": "passed", "blocker": "",
+        })
+    );
+    assert!(
+        text.lines().nth(1).is_some_and(
+            |line| line.starts_with("{\"platform\":\"linux_x86_64\",\"row\":\"cc_a\",")
+        ),
+        "{text}"
     );
 }
 
 #[test]
-fn observed_producer_with_another_version_is_a_mismatch() {
+fn evidence_mode_fails_without_the_bazel_version() {
     let dir = scratch("compiler_evidence");
-    let a = &observe(dir.path(), &["GCC: (GNU) 9.9.9"])[0];
-    assert_eq!(a["outcome"], "mismatch");
+    write(dir.path(), "facts.json", "{\"rows\": []}");
+    let done = evidence(dir.path(), &mut producers_bin());
+    assert!(!done.status.success(), "{done:?}");
+    assert!(
+        String::from_utf8_lossy(&done.stderr).contains("DX_BAZEL_VERSION is not set"),
+        "{done:?}"
+    );
 }
 
 #[test]
-fn no_observed_producer_keeps_the_outcome() {
-    let dir = scratch("compiler_evidence");
-    let a = &observe(dir.path(), &[])[0];
-    assert_eq!(a["outcome"], "passed");
-    assert_eq!(a["observed_producers"], json!([]));
-}
-
-#[test]
-fn msvc_rich_producer_passes() {
-    let dir = scratch("compiler_evidence");
-    write(dir.path(), "bin/p/m1.exe", "binary");
-    let lines = observe_with(dir.path(), &["msvc 261.35728"]);
-    assert_eq!(row(&lines, "cc_m")["outcome"], "passed");
-}
-
-#[test]
-fn msvc_rich_producer_of_another_build_is_a_mismatch() {
-    let dir = scratch("compiler_evidence");
-    write(dir.path(), "bin/p/m1.exe", "binary");
-    let lines = observe_with(dir.path(), &["msvc 261.33145"]);
-    assert_eq!(row(&lines, "cc_m")["outcome"], "mismatch");
-}
-
-#[test]
-fn blocked_platform_keeps_the_tested_outcome() {
-    let dir = scratch("compiler_evidence");
-    for label in ["//p:probe_a", "//p:a1", "//p:b1"] {
-        passed(dir.path(), label);
-    }
-    let lines = run_on(dir.path(), &mut Command::new("bash"), "windows_arm64");
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["outcome"], "blocked");
-    assert_eq!(a["tested_outcome"], "passed");
-    assert_eq!(a["blocker"], "waiting on a runner");
-    let m = row(&lines, "cc_m");
-    assert_eq!(m["outcome"], "blocked");
-    assert_eq!(m["tested_outcome"], "skipped");
-    let b = row(&lines, "cc_b");
-    assert_eq!(b["outcome"], "passed");
-    assert_eq!(b["blocker"], "");
-}
-
-#[test]
-fn blocked_platform_still_reports_failures() {
-    let dir = scratch("compiler_evidence");
-    failed(dir.path(), "//p:a1");
-    let lines = run_on(dir.path(), &mut Command::new("bash"), "windows_arm64");
-    let a = row(&lines, "cc_a");
-    assert_eq!(a["outcome"], "failed");
-    assert_eq!(a["blocker"], "waiting on a runner");
-}
-
-#[test]
-fn blocker_on_another_platform_does_not_apply() {
-    let dir = scratch("compiler_evidence");
-    passed(dir.path(), "//p:probe_a");
-    passed(dir.path(), "//p:a1");
-    let a = &run(dir.path())[0];
-    assert_eq!(a["outcome"], "passed");
-    assert_eq!(a["blocker"], "");
-}
-
-#[test]
-fn msvc_binary_without_rich_header_is_a_mismatch() {
-    let dir = scratch("compiler_evidence");
-    write(dir.path(), "bin/p/m1.exe", "binary");
-    let lines = observe_with(dir.path(), &[]);
-    let m = row(&lines, "cc_m");
-    assert_eq!(m["outcome"], "mismatch");
-    assert_eq!(m["observed_producers"], json!([]));
-}
-
-#[test]
-fn msvc_row_without_binaries_keeps_outcome() {
-    let dir = scratch("compiler_evidence");
-    let lines = observe_with(dir.path(), &[]);
-    assert_eq!(row(&lines, "cc_m")["outcome"], "passed");
+fn the_script_hands_its_arguments_to_producers_bin() {
+    let script = read_runfiles(SCRIPT);
+    let commands: Vec<&str> = script
+        .lines()
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .collect();
+    assert_eq!(
+        commands,
+        [
+            "set -euo pipefail",
+            "export DX_BAZEL_VERSION=\"${DX_BAZEL_VERSION:-$(bazel --version | tr -d '\\r')}\"",
+            "exec \"$DX_PRODUCERS\" --evidence \"$@\"",
+        ]
+    );
 }
 
 #[test]
 fn producers_bin_lists_nothing_for_a_non_elf_file() {
     let dir = scratch("compiler_evidence");
     write(dir.path(), "text", "plain");
-    let bin = runfiles_root().join(std::env::var("DX_PRODUCERS_BIN").expect("DX_PRODUCERS_BIN"));
-    let output = Command::new(bin)
+    let output = producers_bin()
         .arg(dir.path().join("text"))
         .output()
         .expect("run producers_bin");

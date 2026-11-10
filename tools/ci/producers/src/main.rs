@@ -1,4 +1,5 @@
 //! `producers_bin` prints the compiler signatures of each file argument as a JSON object.
+//! `producers_bin --evidence OUT PLATFORM FACTS` appends the compiler evidence lines to OUT.
 
 #![cfg_attr(
     not(test),
@@ -10,17 +11,27 @@
     )
 )]
 
+mod evidence;
+
 use dx_binfmt::producers;
 use std::collections::BTreeMap;
 
-fn main() -> Result<(), serde_json::Error> {
+fn main() -> Result<(), String> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(("--evidence", rest)) = args.split_first().map(|(mode, rest)| (mode.as_str(), rest))
+    {
+        return evidence::append(rest);
+    }
     let mut found = BTreeMap::new();
-    for path in std::env::args().skip(1) {
+    for path in args {
         let producers = std::fs::read(&path)
             .map(|bytes| producers(&bytes))
             .unwrap_or_default();
         found.insert(path, producers);
     }
-    println!("{}", serde_json::to_string(&found)?);
+    println!(
+        "{}",
+        serde_json::to_string(&found).map_err(|error| error.to_string())?
+    );
     Ok(())
 }

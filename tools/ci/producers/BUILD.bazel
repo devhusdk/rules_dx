@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust:defs.bzl", "rust_binary")
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
@@ -8,7 +8,10 @@ package(default_visibility = VIS_TOOLS)
 rust_binary(
     name = "producers_bin",
     testonly = True,
-    srcs = ["src/main.rs"],
+    srcs = [
+        "src/evidence.rs",
+        "src/main.rs",
+    ],
     aliases = aliases(
         package_name = "tools/ci/ci_producers",
         normal = True,
@@ -18,7 +21,30 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/ci/ci_producers",
         normal = True,
-    ) + ["//cli/binfmt:dx_binfmt"],
+    ) + [
+        "//cli/binfmt:dx_binfmt",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "producers_bin_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "tools/ci/ci_producers",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":producers_bin",
+    deps = all_crate_deps(
+        package_name = "tools/ci/ci_producers",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:serde_json",
+    ],
 )
 
 real_source_target(

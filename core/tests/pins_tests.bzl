@@ -24,7 +24,11 @@ def _checks():
                 checks += pin_checks({cell: cells[cell]}, "sha256:" + pin["sha256"])
         checks += pin_checks({c: v for c, v in cells.items() if "ghcr_scope" not in pins["cells"][c]}, pins["version"])
     for name, pins in DATA.items():
-        entries = pins.get("cells", {}).values() + pins.get("archives", {}).values() + pins.get("hex", {}).values()
+        cell_entries = pins.get("cells", {}).values()
+        entries = cell_entries + pins.get("archives", {}).values() + pins.get("hex", {}).values()
+        entries = [entry for entry in entries if "components" not in entry]
+        for cell in cell_entries:
+            entries += cell.get("components", {}).values()
         archives = [entry for entry in entries if "urls" in entry]
         checks += [
             expect_true(name + " has entries", len(entries) > 0),

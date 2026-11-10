@@ -787,6 +787,10 @@ dx_pins.data(
     pins = "//dart/private:pins.json",
 )
 dx_pins.data(
+    name = "dx_cuda",
+    pins = "//cuda/private/toolchain:pins.json",
+)
+dx_pins.data(
     name = "dx_dotnet",
     pins = "//dotnet:pins.json",
 )

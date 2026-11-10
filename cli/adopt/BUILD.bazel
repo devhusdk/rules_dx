@@ -232,7 +232,6 @@ rust_test(
         "//:.bazelversion",
         "//:MODULE.bazel",
         "//:package.json",
-        "//core/modules:cuda.bzl",
         "@dx_tools//:shellcheck",
     ],
     env = {

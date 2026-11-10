@@ -29,6 +29,7 @@ exports_files([
     "check.bzl",
     "repos.bzl",
     "extensions.bzl",
+    "pins.json",
     "settings.bzl",
     "transition.bzl",
 ])

@@ -2188,21 +2188,92 @@ fn rebar_set() -> ResolvedSet {
 }
 
 #[test]
-fn rebar_check_is_pinned_and_update_is_unsupported() {
+fn rebar_check_stages_lock_and_update_names_the_packages() {
     let head = no_head();
     let closure = UvClosure::default();
     let set = rebar_set();
+    let Ok(CheckPlan::Staged(check)) =
+        check_configured(ws(), &set, &Selection::Full, false, true, &head, &closure)
+    else {
+        panic!("staged check");
+    };
+    let scratch = Path::new("/scratch/1");
+    let argv = check.argv(scratch);
+    let under = "--run_under=cd '/scratch/1/out' &&".to_owned();
+    let target = argv
+        .iter()
+        .position(|arg| *arg == under)
+        .expect("run_under");
     assert_eq!(
-        check_configured(ws(), &set, &Selection::Full, false, true, &head, &closure),
-        Ok(CheckPlan::Pinned)
+        argv[target + 1..],
+        strings(&["@rules_dx//erlang/private/tools:rebar3", "--", "lock"])
+    );
+    assert_eq!(check.outputs, ["third_party/erlang/rebar.lock"]);
+    assert_eq!(
+        check.inputs,
+        [
+            "third_party/erlang/rebar.config",
+            "third_party/erlang/rebar.lock"
+        ]
+    );
+    let env = check.env(scratch);
+    for name in [
+        "REBAR_CACHE_DIR",
+        "REBAR_GLOBAL_CONFIG_DIR",
+        "REBAR_BASE_DIR",
+        "HEX_HOME",
+    ] {
+        assert!(
+            env.iter()
+                .any(|(key, value)| key == name && value.starts_with("/scratch/1/")),
+            "{name}"
+        );
+    }
+    assert_eq!(check.tool_name(), "rebar3");
+
+    let packages = Selection::Packages(vec!["cowboy".to_owned(), "ranch".to_owned()]);
+    let Ok(BackendPlan::Staged(update)) =
+        plan_configured(ws(), &set, &packages, false, false, &head, &closure)
+    else {
+        panic!("staged update");
+    };
+    assert_eq!(
+        update.argv_head[update.argv_head.len() - 3..],
+        strings(&["--", "upgrade", "cowboy,ranch"])
+    );
+    let Ok(BackendPlan::Staged(all)) =
+        plan_configured(ws(), &set, &Selection::Full, false, false, &head, &closure)
+    else {
+        panic!("staged full update");
+    };
+    assert_eq!(
+        all.argv_head[all.argv_head.len() - 2..],
+        strings(&["upgrade", "--all"])
     );
     assert_eq!(
-        plan_configured(ws(), &set, &Selection::Full, false, false, &head, &closure),
-        Err(BackendError::Unsupported {
-            set: "erl".to_owned(),
-            reason: "rebar.lock refresh: #9884",
+        plan_configured(ws(), &set, &Selection::Full, true, false, &head, &closure),
+        Err(BackendError::OfflineRequired {
+            set: "erl".to_owned()
         })
     );
+    assert_eq!(
+        plan_configured(ws(), &set, &Selection::Full, false, true, &head, &closure),
+        Err(BackendError::FrozenLocked {
+            set: "erl".to_owned()
+        })
+    );
+    assert!(matches!(
+        check_configured(
+            ws(),
+            &set,
+            &Selection::Packages(vec!["cowboy".to_owned()]),
+            false,
+            false,
+            &head,
+            &closure
+        ),
+        Err(BackendError::Unsupported { .. })
+    ));
 }
 
 #[test]

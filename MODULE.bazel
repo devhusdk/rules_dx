@@ -1228,7 +1228,7 @@ cuda.toolkit(
 use_repo(cuda, "cuda")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
-use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
+use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_rebar3", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
 
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
 elixir.lock(

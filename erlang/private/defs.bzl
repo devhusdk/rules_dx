@@ -115,16 +115,20 @@ def otp_tool_binary_impl(ctx):
     (_, _, erlang_runfiles) = erlang_dirs(ctx)
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
     otp_root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0]
+    script = ctx.file.script
+    script_key = runfiles_path(ctx.workspace_name, script.short_path) if script else None
+    script_runfiles = ctx.runfiles([script]) if script else ctx.runfiles()
     if target_is_windows(ctx):
-        launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool))
-        return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles))]
+        launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool, script_key))
+        return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles).merge(script_runfiles))]
     launcher = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.write(launcher, otp_launcher_text(
         root = otp_root,
         tool = ctx.attr.tool,
+        args = '"$runfiles/' + script_key + '" ' if script else "",
         prelude = _HOME_PRELUDE,
     ), is_executable = True)
-    return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = ctx.runfiles([launcher]).merge(erlang_runfiles))]
+    return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = ctx.runfiles([launcher]).merge(erlang_runfiles).merge(script_runfiles))]
 
 _NATIVE_SUFFIXES = (".so", ".dylib", ".dll")
 

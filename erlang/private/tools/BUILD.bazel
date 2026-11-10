@@ -27,6 +27,13 @@ otp_tool_binary(
     tool = "escript",
 )
 
+otp_tool_binary(
+    name = "rebar3",
+    script = "@dx_rebar3//file",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    tool = "escript",
+)
+
 dialyzer_plt(
     name = "otp_core_plt",
     apps = DIALYZER_PLT_CORE,

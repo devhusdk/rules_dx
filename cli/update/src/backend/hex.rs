@@ -10,10 +10,22 @@ pub(super) fn plan(
     _closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
     match request {
-        _ if is_rebar(set) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "rebar.lock refresh: #9884",
-        }),
+        request if is_rebar(set) => {
+            if frozen {
+                return Err(BackendError::FrozenLocked {
+                    set: set.name.clone(),
+                });
+            }
+            let args = match request {
+                Selection::Full => vec!["upgrade".to_owned(), "--all".to_owned()],
+                Selection::Packages(packages) => {
+                    vec!["upgrade".to_owned(), packages.join(",")]
+                }
+            };
+            Ok(BackendPlan::Staged(rebar_staged(
+                set, head, offline, &args,
+            )?))
+        }
         request => {
             if frozen {
                 return Err(BackendError::FrozenLocked {
@@ -44,9 +56,16 @@ pub(super) fn check(
     _closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
     match request {
-        // Nothing refreshes a rebar.lock yet, so its check has nothing to run.
-        Selection::Full if is_rebar(set) => Ok(CheckPlan::Pinned),
-        Selection::Packages(_) if is_rebar(set) => Err(pinned::selective(set)),
+        Selection::Full if is_rebar(set) => Ok(CheckPlan::Staged(rebar_staged(
+            set,
+            head,
+            offline,
+            &["lock".to_owned()],
+        )?)),
+        Selection::Packages(_) if is_rebar(set) => Err(BackendError::Unsupported {
+            set: set.name.clone(),
+            reason: "rebar3 lock checks the whole rebar.lock; select the set without a package",
+        }),
         Selection::Full => Ok(CheckPlan::Staged(hex_staged(
             set,
             head,

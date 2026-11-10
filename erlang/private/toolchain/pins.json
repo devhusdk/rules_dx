@@ -48,6 +48,13 @@
         "https://github.com/bazelverse/rules_erlang/archive/13977b3309fd0b0d6795f322cffd86a8c161be64.tar.gz"
       ]
     },
+    "dx_rebar3": {
+      "version": "3.28.0",
+      "sha256": "5a28b1cca082d3b023ec0f5df9d9f9d52557036c6f2a21c1ffa11b93a984dd42",
+      "urls": [
+        "https://github.com/erlang/rebar3/releases/download/3.28.0/rebar3"
+      ]
+    },
     "dx_elvis": {
       "version": "6.0.0",
       "sha256": "ea0d3438062d94b686b375e98995584ed7b6b8863582f77b1966971299e400f4",

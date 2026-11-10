@@ -1,9 +1,10 @@
 """Module extension for erlang/private/toolchain."""
 
+load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//elixir/private:hex.bzl", "hex_package")
 load("//erlang/private:rebar_lock.bzl", "rebar_lock_packages")
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "CELLS", "HEX_SOURCES", "RULES_ERLANG_COMMIT", "RULES_ERLANG_SHA256", "RULES_ERLANG_URLS", "TOOL_SOURCES")
+load(":pins.bzl", "CELLS", "HEX_SOURCES", "REBAR3_SHA256", "REBAR3_URLS", "RULES_ERLANG_COMMIT", "RULES_ERLANG_SHA256", "RULES_ERLANG_URLS", "TOOL_SOURCES")
 load(":repos.bzl", "HEX_BUILD", "HUB_NAME", "PRIVATE_BUILD", "ROOT_BUILD", "TOOL_BUILDS", "cell_repository_name", "hub_build", "otp_repo", "rebar_hub_build", "rebar_package")
 
 
@@ -56,6 +57,13 @@ def _erlang_impl(mctx):
             strip_prefix = source.strip_prefix,
             urls = source.urls,
         )
+    http_file(
+        name = "dx_rebar3",
+        downloaded_file_path = "rebar3",
+        executable = True,
+        sha256 = REBAR3_SHA256,
+        urls = REBAR3_URLS,
+    )
     for name, hex in sorted(HEX_SOURCES.items()):
         hex_package(
             name = name,

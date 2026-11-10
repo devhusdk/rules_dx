@@ -30,6 +30,10 @@ KATANA_CODE_VERSION = _ARCHIVES["dx_katana_code"]["version"]
 
 GETOPT_VERSION = _ARCHIVES["dx_erlang_getopt"]["version"]
 
+REBAR3_SHA256 = _ARCHIVES["dx_rebar3"]["sha256"]
+
+REBAR3_URLS = _ARCHIVES["dx_rebar3"]["urls"]
+
 TOOL_SOURCES = {
     "dx_elvis": struct(
         dropped = ["src/elvis.app.src"],

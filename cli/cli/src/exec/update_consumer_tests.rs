@@ -1647,7 +1647,7 @@ fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
 }
 
 #[test]
-fn consumer_mixed_mix_and_rebar_run_still_checks_the_mix_set() {
+fn consumer_mixed_mix_and_rebar_run_checks_both_sets() {
     let module = format!(
         "{HEX_MODULE}erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
     );
@@ -1657,14 +1657,62 @@ fn consumer_mixed_mix_and_rebar_run_still_checks_the_mix_set() {
     harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
     harness.write_source("third_party/erlang/rebar.lock", "[].\n");
     let runner = ScriptRunner::new(&[]);
-    stage(&runner, &[("mix.lock", "%{\"jason\" => 1}\n")]);
+    stage(
+        &runner,
+        &[("mix.lock", "%{\"jason\" => 1}\n"), ("rebar.lock", "[].\n")],
+    );
     let (code, out, err) = run_with(&["update"], &runner, &harness);
     assert_ne!(code, 0, "{out}{err}");
     let launches = runner.launches.borrow();
-    assert!(launches[0].argv.iter().any(|arg| arg == "deps.get"));
+    assert!(
+        launches
+            .iter()
+            .any(|l| l.argv.iter().any(|arg| arg == "deps.get"))
+    );
     assert_eq!(
         read_bytes(&harness, "third_party/erlang/rebar.lock"),
         b"[].\n"
+    );
+}
+
+#[test]
+fn consumer_rebar_check_reports_drift_and_apply_writes_only_rebar_lock() {
+    let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n";
+    let harness = consumer_harness("rebar-apply", module, false);
+    harness.write_source("third_party/erlang/rebar.config", "{deps, []}.\n");
+    harness.write_source("third_party/erlang/rebar.lock", "[].\n");
+    let runner = ScriptRunner::new(&[]);
+    stage(&runner, &[("rebar.lock", "[{<<\"cowboy\">>,1}].\n")]);
+    let (code, out, err) = run_with(&["update", "erl"], &runner, &harness);
+    assert_ne!(code, 0, "{out}{err}");
+    assert_eq!(
+        read_bytes(&harness, "third_party/erlang/rebar.lock"),
+        b"[].\n"
+    );
+    assert!(
+        runner.launches.borrow()[0]
+            .argv
+            .iter()
+            .any(|arg| arg == "lock")
+    );
+
+    let runner = ScriptRunner::new(&[]);
+    stage(&runner, &[("rebar.lock", "[{<<\"cowboy\">>,1}].\n")]);
+    let (code, out, err) = run_with(&["update", "--apply", "erl"], &runner, &harness);
+    assert_eq!(code, 0, "{out}{err}");
+    assert_eq!(
+        read_bytes(&harness, "third_party/erlang/rebar.lock"),
+        b"[{<<\"cowboy\">>,1}].\n"
+    );
+    assert_eq!(
+        read_bytes(&harness, "third_party/erlang/rebar.config"),
+        b"{deps, []}.\n"
+    );
+    assert!(
+        runner.launches.borrow()[0]
+            .argv
+            .iter()
+            .any(|arg| arg == "upgrade")
     );
 }
 
@@ -2287,7 +2335,12 @@ fn consumer_cpan_apply_module_runs_carton_then_the_compiler() {
     assert_eq!(launches.len(), 2, "{launches:?}");
     assert_eq!(
         carton_tail(&launches[0].argv),
-        &strings_of(&["@rules_dx//perl/private/tools:carton", "--", "update", "Text::CSV"])[..]
+        &strings_of(&[
+            "@rules_dx//perl/private/tools:carton",
+            "--",
+            "update",
+            "Text::CSV"
+        ])[..]
     );
     assert_eq!(
         launches[1].argv[launches[1].argv.len() - 3..],

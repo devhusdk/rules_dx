@@ -64,8 +64,16 @@ fn command_lines_see_a_child_with_a_marker_and_memory() {
         .spawn()
         .expect("spawn");
     let pid = child.id();
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    let found = command_lines().into_iter().find(|info| info.pid == pid);
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let found = loop {
+        let found = command_lines()
+            .into_iter()
+            .find(|info| info.pid == pid && info.rss_bytes > 0);
+        if found.is_some() || std::time::Instant::now() >= deadline {
+            break found;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
     child.kill().expect("kill");
     child.wait().expect("wait");
     let info = found.expect("child listed");

@@ -87,7 +87,11 @@ struct Pty {
     slave: CString,
 }
 
+/// `ptsname` returns one buffer shared by every thread.
+static PTSNAME: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn open_pty() -> Pty {
+    let _named = PTSNAME.lock().unwrap_or_else(|held| held.into_inner());
     unsafe {
         let master = libc::posix_openpt(libc::O_RDWR | libc::O_NOCTTY);
         assert!(master >= 0, "posix_openpt: {}", io::Error::last_os_error());
@@ -414,13 +418,15 @@ fn a_stop_signal_to_dx_alone_stops_a_hanging_query_and_its_descendants() {
     for signo in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
         let mut run = Run::query("dx-stream-query-stop-", QUERY_WORDS, &|dir| {
             format!(
-                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={} --marker={}",
+                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-alive-lock={} --descendant-marker={} --marker={}",
+                dir.join("descendant.alive").display(),
                 dir.join("descendant").display(),
                 dir.join("query").display()
             )
         });
         let query = run.query_pid();
-        std::thread::sleep(Duration::from_millis(300));
+        let alive = run.dir().join("descendant.alive");
+        wait_for_file(&mut run, &alive);
         assert!(group_alive(query), "{}", run.context());
         assert_eq!(
             unsafe { libc::getpgid(query) },
@@ -452,7 +458,6 @@ fn a_stop_signal_to_dx_alone_stops_a_hanging_query_and_its_descendants() {
     }
 }
 
-#[cfg(target_os = "linux")]
 fn wait_for_file(run: &mut Run, path: &Path) {
     let deadline = Instant::now() + Duration::from_secs(30);
     while !path.exists() {
@@ -465,6 +470,33 @@ fn wait_for_file(run: &mut Run, path: &Path) {
             path.display()
         );
         std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// Waits until dx has reaped `pid`.
+fn wait_until_reaped(run: &mut Run, pid: i32) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while unsafe { libc::kill(pid, 0) } == 0 {
+        if let Ok(Some(status)) = run.child.try_wait() {
+            panic!("dx exited ({status:?}) early\n{}", run.context());
+        }
+        assert!(Instant::now() < deadline, "{pid} never exited");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// Waits until job control has stopped `pid`.
+#[cfg(target_os = "linux")]
+fn wait_until_stopped(pid: i32) {
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        let stat = fs::read_to_string(format!("/proc/{pid}/stat")).unwrap_or_default();
+        let state = stat.rsplit_once(") ").map(|(_, rest)| rest.chars().next());
+        if state == Some(Some('T')) {
+            return;
+        }
+        assert!(Instant::now() < deadline, "{pid} never stopped: {stat}");
+        std::thread::sleep(Duration::from_millis(5));
     }
 }
 
@@ -603,9 +635,19 @@ fn a_terminal_build_resumes_after_ctrl_z() {
     let log = run.dir().join("sigint");
     wait_for_file(&mut run, &log);
     let build_pgid = assert_foreground_build(&run, &pty, build);
+    let dx = run.child.id() as i32;
+    let mut held = 0;
+    unsafe {
+        libc::kill(dx, libc::SIGSTOP);
+        assert_eq!(libc::waitpid(dx, &mut held, libc::WUNTRACED), dx);
+    }
+    assert!(libc::WIFSTOPPED(held), "{held}\n{}", run.context());
     (&pty.master).write_all(b"\x1a").expect("ctrl-z");
-    std::thread::sleep(Duration::from_millis(300));
+    wait_until_stopped(build);
     fs::write(run.dir().join("gate"), b"").expect("open the gate");
+    unsafe {
+        libc::kill(dx, libc::SIGCONT);
+    }
     let status = run.exit();
     assert_eq!(status.code(), Some(0), "{status:?}\n{}", run.context());
     assert!(wait_until_gone(build_pgid, Duration::from_secs(5)));
@@ -652,10 +694,15 @@ fn wait_until_gone(pgid: i32, within: Duration) -> bool {
 #[test]
 fn killing_dx_stops_the_test_it_started() {
     let mut run = Run::start("dx-stream-kill-", &["test", "//..."], &|dir| {
-        format!("--sleep-ms=30000 --marker={}", dir.join("build").display())
+        format!(
+            "--sleep-ms=30000 --alive-lock={} --marker={}",
+            dir.join("build.alive").display(),
+            dir.join("build").display()
+        )
     });
     let build = run.build_pid();
-    std::thread::sleep(Duration::from_millis(300));
+    let alive = run.dir().join("build.alive");
+    wait_for_file(&mut run, &alive);
     assert!(group_alive(build), "{}", run.context());
     run.signal(libc::SIGKILL);
     let status = run.exit();
@@ -670,10 +717,15 @@ fn killing_dx_stops_the_test_it_started() {
 #[test]
 fn killing_dx_stops_the_query_it_started() {
     let mut run = Run::query("dx-stream-query-kill-", QUERY_WORDS, &|dir| {
-        format!("--sleep-ms=30000 --marker={}", dir.join("query").display())
+        format!(
+            "--sleep-ms=30000 --alive-lock={} --marker={}",
+            dir.join("query.alive").display(),
+            dir.join("query").display()
+        )
     });
     let query = run.query_pid();
-    std::thread::sleep(Duration::from_millis(300));
+    let alive = run.dir().join("query.alive");
+    wait_for_file(&mut run, &alive);
     assert!(group_alive(query), "{}", run.context());
     run.signal(libc::SIGKILL);
     let status = run.exit();
@@ -693,12 +745,14 @@ fn the_next_run_stops_what_a_killed_dx_left_behind_from_a_query() {
         }
         let mut run = Run::query("dx-stream-query-leftover-", &words, &|dir| {
             format!(
-                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={}",
+                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-alive-lock={} --descendant-marker={}",
+                dir.join("descendant.alive").display(),
                 dir.join("descendant").display()
             )
         });
         let query = run.query_pid();
-        std::thread::sleep(Duration::from_millis(300));
+        let alive = run.dir().join("descendant.alive");
+        wait_for_file(&mut run, &alive);
         run.signal(libc::SIGKILL);
         let _ = run.exit();
         assert!(group_alive(query), "the descendant should outlive dx");
@@ -740,12 +794,14 @@ fn the_next_run_stops_what_a_killed_dx_left_behind() {
     ] {
         let mut run = Run::start("dx-stream-leftover-", words, &|dir| {
             format!(
-                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-marker={}",
+                "--spawn-descendant --descendant-sleep-ms=30000 --descendant-alive-lock={} --descendant-marker={}",
+                dir.join("descendant.alive").display(),
                 dir.join("descendant").display()
             )
         });
         let build = run.build_pid();
-        std::thread::sleep(Duration::from_millis(300));
+        let alive = run.dir().join("descendant.alive");
+        wait_for_file(&mut run, &alive);
         run.signal(libc::SIGKILL);
         let _ = run.exit();
         let leftover_dirs = run_dirs(&run);
@@ -799,13 +855,16 @@ fn a_stop_after_bazel_exits_reaps_the_descendant_holding_stdout() {
         &["build", "//...", "--output=json"],
         &|dir| {
             format!(
-                "--stdout-text=early --detached-descendant --descendant-sleep-ms=30000 --descendant-marker={}",
+                "--stdout-text=early --detached-descendant --descendant-sleep-ms=30000 --descendant-alive-lock={} --descendant-marker={}",
+                dir.join("descendant.alive").display(),
                 dir.join("descendant").display()
             )
         },
     );
     let build = run.build_pid();
-    std::thread::sleep(Duration::from_millis(500));
+    let alive = run.dir().join("descendant.alive");
+    wait_for_file(&mut run, &alive);
+    wait_until_reaped(&mut run, build);
     let sent = run.signal(libc::SIGTERM);
     let status = run.exit();
     let elapsed = sent.elapsed();
@@ -967,7 +1026,6 @@ fn an_ignored_hangup_does_not_stop_dx() {
     unsafe {
         libc::kill(child.id() as i32, libc::SIGHUP);
     }
-    std::thread::sleep(Duration::from_millis(300));
     assert!(child.try_wait().expect("poll").is_none(), "dx stopped");
     fs::write(&gate, "").expect("gate open");
     let status = child.wait().expect("dx exits");

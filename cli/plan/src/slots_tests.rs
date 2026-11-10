@@ -54,6 +54,30 @@ fn wait_for(path: &Path, what: &str) {
     }
 }
 
+/// Waits until the waiter queued in `dir` has finished one whole pass begun after this call,
+/// or has left the line.
+fn another_pass<T>(dir: &Path, waiter: &std::thread::JoinHandle<T>) {
+    let start = Instant::now();
+    let mut seen = SystemTime::now();
+    let mut passes = 0;
+    while passes < 2 && !waiter.is_finished() {
+        let latest = tickets(dir)
+            .iter()
+            .filter_map(|(_, path)| path.metadata().ok()?.modified().ok())
+            .max();
+        match latest {
+            Some(latest) if latest > seen => {
+                seen = latest;
+                passes += 1;
+            }
+            _ => {
+                assert!(start.elapsed() < ANNOUNCE_TIMEOUT, "waiter never polled");
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
+    }
+}
+
 fn spawn_holder(dir: &Path) -> std::process::Child {
     let child = Process::new(std::env::current_exe().expect("exe"))
         .arg("slots::tests::slot_holder_helper")
@@ -158,7 +182,7 @@ fn a_local_gate_never_takes_an_extra() {
     let gate = remote_gate(&dir, false, Some(false));
     let (waiter, rx) = spawn_take(gate);
     announced(&rx);
-    std::thread::sleep(POLL * 2);
+    another_pass(&dir, &waiter);
     assert!(free(&dir, 1) && free(&dir, 2));
     drop(fill);
     assert_eq!(waiter.join().expect("join").0.index, 0);
@@ -185,7 +209,7 @@ fn a_remote_gate_waits_under_pressure_or_without_a_signal() {
         let gate = remote_gate(&dir, true, high);
         let (waiter, rx) = spawn_take(gate);
         announced(&rx);
-        std::thread::sleep(POLL * 2);
+        another_pass(&dir, &waiter);
         assert!(free(&dir, 1) && free(&dir, 2));
         drop(fill);
         let (slot, err, _) = waiter.join().expect("join");
@@ -207,7 +231,7 @@ fn a_remote_waiter_does_not_jump_the_line_through_a_free_extra() {
     let gate = remote_gate(&dir, true, Some(false));
     let (waiter, rx) = spawn_take(gate);
     announced(&rx);
-    std::thread::sleep(POLL * 2);
+    another_pass(&dir, &waiter);
     assert!(!waiter.is_finished(), "a remote waiter must keep its place");
     assert!(free(&dir, 1) && free(&dir, 2));
     drop(queued);
@@ -288,7 +312,7 @@ fn a_free_base_slot_waits_under_pressure_while_another_is_held() {
     let switch = Arc::new(Switch(std::sync::atomic::AtomicBool::new(true)));
     let (waiter, rx) = spawn_take(base_gate(&dir, switch.clone()));
     announced(&rx);
-    std::thread::sleep(POLL * 2);
+    another_pass(&dir, &waiter);
     assert!(!waiter.is_finished());
     switch.0.store(false, std::sync::atomic::Ordering::SeqCst);
     let (slot, err, events) = waiter.join().expect("join");
@@ -313,7 +337,7 @@ fn the_pause_ends_after_the_cap_even_under_pressure() {
     let gate = base_gate(&dir, Arc::new(Fixed(Some(true)))).with_clock(clock);
     let (waiter, rx) = spawn_take(gate);
     announced(&rx);
-    std::thread::sleep(POLL * 2);
+    another_pass(&dir, &waiter);
     assert!(!waiter.is_finished());
     *offset.lock().expect("clock") = PRESSURE_WAIT;
     let (slot, _, _) = waiter.join().expect("join");
@@ -380,7 +404,7 @@ fn extra_grants_are_spaced_out() {
     let waiting = gate.clone();
     let (waiter, rx) = spawn_take(waiting);
     announced(&rx);
-    std::thread::sleep(POLL * 2);
+    another_pass(&dir, &waiter);
     assert!(free(&dir, 1) && free(&dir, 2));
     drop(fill);
     let base = waiter.join().expect("join").0;
@@ -1969,7 +1993,7 @@ fn a_queued_consumer_does_not_take_the_reserve_behind_a_rules_dx_run() {
         .recv_timeout(Duration::from_secs(30))
         .expect("notice");
     assert_eq!(notice, "r");
-    std::thread::sleep(Duration::from_millis(600));
+    another_pass(&dir, &late);
     assert!(
         !late.is_finished(),
         "a consumer must not take a reserve slot"
@@ -2267,7 +2291,6 @@ fn a_waiter_polls_while_it_waits_and_stops_once_it_takes_the_slot() {
     let slot = waiter.join().expect("join");
     let after = polls.load(std::sync::atomic::Ordering::SeqCst);
     assert!(after >= 2);
-    std::thread::sleep(Duration::from_millis(500));
     assert_eq!(polls.load(std::sync::atomic::Ordering::SeqCst), after);
     drop(slot);
 }

@@ -10,21 +10,29 @@ def _fake_upstream_impl(ctx):
     if not ctx.attr._executable:
         return [DefaultInfo(files = depset(ctx.files.srcs), runfiles = ctx.runfiles(files = ctx.files.srcs))] + providers
     providers.append(RunEnvironmentInfo(environment = ctx.attr.run_env, inherited_environment = ctx.attr.run_env_inherit))
-    exe = ctx.actions.declare_file(ctx.label.name + ".sh")
-    ctx.actions.write(exe, "#!/bin/sh\nexit 0\n", is_executable = True)
+    program = ctx.executable._program
+    exe = ctx.actions.declare_file(ctx.label.name + "_exe" + (".exe" if program.extension == "exe" else ""))
+    ctx.actions.symlink(output = exe, target_file = program, is_executable = True)
     return [DefaultInfo(
         executable = exe,
         files = depset([exe]),
-        runfiles = ctx.runfiles(files = [exe] + ctx.files.srcs),
+        runfiles = ctx.runfiles(files = [exe] + ctx.files.srcs).merge(ctx.attr._program[DefaultInfo].default_runfiles),
     )] + providers
 
 def _fake_attrs(executable):
-    return {
+    attrs = {
         "run_env": attr.string_dict(),
         "run_env_inherit": attr.string_list(),
         "srcs": attr.label_list(allow_files = True),
         "_executable": attr.bool(default = executable),
     }
+    if executable:
+        attrs["_program"] = attr.label(
+            default = Label("//core/tests:wrapper_forward_exit_zero"),
+            executable = True,
+            cfg = "target",
+        )
+    return attrs
 
 _fake_library = rule(
     implementation = _fake_upstream_impl,
@@ -130,7 +138,6 @@ def wrapper_forward_fixtures(name, hint):
         run_env_inherit = ["HOME"],
         env = {"DX_WRAP_ENV": "1"},
         env_inherit = ["USER"],
-        tags = ["manual"],
     )
 
     _fake_binary(

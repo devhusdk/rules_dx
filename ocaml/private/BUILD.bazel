@@ -1,6 +1,6 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "fake_file", "label_string")
-load("//core:wrapper.bzl", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
+load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core:rlocation.bzl", "runfiles_path")
 load(":defs.bzl", "launcher_descriptor", "owned_sources", "toolchain_choice")
@@ -153,7 +153,7 @@ dx_wrapper_contract_tests(
                 "env": {"K": "1"},
                 "env_inherit": ["HOME"],
             })),
-            {"tags": ["manual"], "visibility": ["//visibility:private"]},
+            {"tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
         ),
         expect_equal(
             "env and env_inherit reach the test forwarder",

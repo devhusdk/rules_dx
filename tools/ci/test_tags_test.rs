@@ -23,6 +23,9 @@ const BANNED: [&str; 8] = [
 /// Words in a rule or macro name that mark it as a test.
 const TEST_WORDS: [&str; 5] = ["bench", "fuzz", "suite", "test", "tests"];
 
+/// The constant in `core/wrapper.bzl` that holds `manual` for private upstream targets.
+const UPSTREAM_TAG: &str = "DX_UPSTREAM_TAG";
+
 /// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/test_tags_allowlist.txt";
 
@@ -387,6 +390,10 @@ fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
                 add(tag, 1);
             }
             for name in &call.names {
+                if scan.loads.get(name).unwrap_or(name) == UPSTREAM_TAG {
+                    add("manual", 1);
+                    continue;
+                }
                 let known = scan.globals.contains_key(name) || scan.loads.contains_key(name);
                 if !known {
                     continue;
@@ -573,6 +580,21 @@ rust_library(name = "c", tags = NET)
             ("use/BUILD.bazel", "local", 2),
             ("use/BUILD.bazel", "requires-network", 1),
         ]),
+    );
+}
+
+#[test]
+fn the_upstream_tag_constant_counts_as_manual_on_a_test_and_not_in_data() {
+    let build = r#"
+load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", MARK = "DX_UPSTREAM_TAG")
+rust_test(name = "a", tags = [DX_UPSTREAM_TAG])
+rust_test(name = "b", tags = ["x", MARK])
+rust_library(name = "c", tags = [DX_UPSTREAM_TAG])
+starlark_test(name = "d", checks = [expect_equal("x", f(), {"tags": [DX_UPSTREAM_TAG]})])
+"#;
+    assert_eq!(
+        scan_sources(&[("pkg/BUILD.bazel", build)]),
+        counts(&[("pkg/BUILD.bazel", "manual", 2)]),
     );
 }
 

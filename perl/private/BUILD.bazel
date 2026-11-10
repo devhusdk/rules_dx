@@ -100,8 +100,8 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "perl rules add no-typecheck once",
-            dx_language_kwargs({"tags": ["manual", "no-typecheck"]}, PERL_DEFERRED_SKIP_TAGS)["tags"],
-            ["manual", "no-typecheck"],
+            dx_language_kwargs({"tags": ["cpu:4", "no-typecheck"]}, PERL_DEFERRED_SKIP_TAGS)["tags"],
+            ["cpu:4", "no-typecheck"],
         ),
         expect_equal(
             "perl rules add no-typecheck to untagged targets",

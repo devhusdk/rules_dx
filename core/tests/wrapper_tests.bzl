@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
@@ -173,7 +173,7 @@ def wrapper_kwarg_hooks_tests(name):
 
 def wrapper_shape_kwargs_tests(name):
     """Checks upstream and forwarder kwargs for library, test and binary shapes."""
-    wrap_input = {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]}
+    wrap_input = {"copts": ["-Werror"], "tags": [DX_UPSTREAM_TAG, "no-lint"], "visibility": ["//visibility:public"]}
     wrap_output = dx_wrap_upstream_kwargs(wrap_input, ["lib.cc"])
     upstream_tags_input = ["no-lint"]
     upstream_tags_output = dx_upstream_tags(upstream_tags_input)
@@ -293,12 +293,12 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "library upstream without tags stays private",
                 dx_wrap_upstream_kwargs({}, ["lib.cc"]),
-                {"srcs": ["lib.cc"], "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"srcs": ["lib.cc"], "tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "library upstream none tags become manual",
                 dx_wrap_upstream_kwargs({"tags": None}, []),
-                {"srcs": [], "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"srcs": [], "tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "library upstream leaves srcs out when srcs is none",
@@ -317,28 +317,28 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "library upstream keeps manual",
-                dx_wrap_upstream_kwargs({"tags": ["manual"]}, ["lib.cc"])["tags"],
-                ["manual"],
+                dx_wrap_upstream_kwargs({"tags": [DX_UPSTREAM_TAG]}, ["lib.cc"])["tags"],
+                [DX_UPSTREAM_TAG],
             ),
             expect_equal(
                 "library upstream appends manual after user tags",
                 dx_wrap_upstream_kwargs({"tags": ["no-remote-exec", "no-lint"]}, [])["tags"],
-                ["no-remote-exec", "dx:no-lint", "manual"],
+                ["no-remote-exec", "dx:no-lint", DX_UPSTREAM_TAG],
             ),
             expect_equal(
                 "upstream tags for none are manual",
                 dx_upstream_tags(None),
-                ["manual"],
+                [DX_UPSTREAM_TAG],
             ),
             expect_equal(
                 "upstream tags keep one manual and rewrite skip tags",
-                dx_upstream_tags(["manual", "no-format"]),
-                ["manual", "dx:no-format"],
+                dx_upstream_tags([DX_UPSTREAM_TAG, "no-format"]),
+                [DX_UPSTREAM_TAG, "dx:no-format"],
             ),
             expect_equal(
                 "upstream tags append manual to a new list",
                 upstream_tags_output,
-                ["dx:no-lint", "manual"],
+                ["dx:no-lint", DX_UPSTREAM_TAG],
             ),
             expect_equal(
                 "upstream tags leave their input unchanged",
@@ -347,18 +347,18 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "library upstream keeps execution tags in order and rewrites skip tags",
-                dx_wrap_upstream_kwargs({"tags": ["manual", "no-remote-exec", "requires-network", "no-lint"]}, ["lib.cc"])["tags"],
-                ["manual", "no-remote-exec", "requires-network", "dx:no-lint"],
+                dx_wrap_upstream_kwargs({"tags": [DX_UPSTREAM_TAG, "no-remote-exec", "block-network", "no-lint"]}, ["lib.cc"])["tags"],
+                [DX_UPSTREAM_TAG, "no-remote-exec", "block-network", "dx:no-lint"],
             ),
             expect_equal(
                 "library upstream forces private visibility and passes srcs and copts",
                 wrap_output,
-                {"copts": ["-Werror"], "srcs": ["lib.cc"], "tags": ["manual", "dx:no-lint"], "visibility": ["//visibility:private"]},
+                {"copts": ["-Werror"], "srcs": ["lib.cc"], "tags": [DX_UPSTREAM_TAG, "dx:no-lint"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "library upstream leaves its input unchanged",
                 wrap_input,
-                {"copts": ["-Werror"], "tags": ["manual", "no-lint"], "visibility": ["//visibility:public"]},
+                {"copts": ["-Werror"], "tags": [DX_UPSTREAM_TAG, "no-lint"], "visibility": ["//visibility:public"]},
             ),
             expect_equal(
                 "binary empty stays empty",
@@ -367,8 +367,8 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "binary tags ride verbatim including manual",
-                dx_binary_forward_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["manual", "cpu:4"]},
+                dx_binary_forward_kwargs({"tags": [DX_UPSTREAM_TAG, "cpu:4"]}),
+                {"tags": [DX_UPSTREAM_TAG, "cpu:4"]},
             ),
             expect_equal(
                 "binary hints ride forwarder",
@@ -423,7 +423,7 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "binary upstream keeps testonly and drops empty srcs",
                 dx_binary_upstream_kwargs({"testonly": True}, None),
-                {"testonly": True, "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"testonly": True, "tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary none tags stay empty",
@@ -433,52 +433,52 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test upstream empty stays private",
                 dx_test_upstream_kwargs({}),
-                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream keeps manual-only tags",
-                dx_test_upstream_kwargs({"tags": ["manual"]}),
-                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                dx_test_upstream_kwargs({"tags": [DX_UPSTREAM_TAG]}),
+                {"tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream keeps non-manual tags",
-                dx_test_upstream_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["manual", "cpu:4"], "size": "small", "visibility": ["//visibility:private"]},
+                dx_test_upstream_kwargs({"tags": [DX_UPSTREAM_TAG, "cpu:4"]}),
+                {"tags": [DX_UPSTREAM_TAG, "cpu:4"], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream adds manual",
                 dx_test_upstream_kwargs({"tags": ["cpu:4"]}),
-                {"tags": ["cpu:4", "manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"tags": ["cpu:4", DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream forces private visibility",
                 dx_test_upstream_kwargs({"visibility": ["//visibility:public"]}),
-                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream sets srcs when given",
                 dx_test_upstream_kwargs({}, ["hello_test.go"]),
-                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"], "srcs": ["hello_test.go"]},
+                {"tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"], "srcs": ["hello_test.go"]},
             ),
             expect_equal(
                 "test upstream keeps compiler flags",
                 dx_test_upstream_kwargs({"copts": ["-Werror"]}),
-                {"copts": ["-Werror"], "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"copts": ["-Werror"], "tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream rewrites skip tags and adds manual",
                 dx_test_upstream_kwargs({"tags": ["no-lint", "cpu:4"]})["tags"],
-                ["dx:no-lint", "cpu:4", "manual"],
+                ["dx:no-lint", "cpu:4", DX_UPSTREAM_TAG],
             ),
             expect_equal(
                 "test upstream rewrites skip tags after manual",
-                dx_test_upstream_kwargs({"tags": ["manual", "no-format", "no-remote-exec"]})["tags"],
-                ["manual", "dx:no-format", "no-remote-exec"],
+                dx_test_upstream_kwargs({"tags": [DX_UPSTREAM_TAG, "no-format", "no-remote-exec"]})["tags"],
+                [DX_UPSTREAM_TAG, "dx:no-format", "no-remote-exec"],
             ),
             expect_equal(
                 "test upstream sets small size, srcs and rewrites skip tags",
                 test_output,
-                {"size": "small", "srcs": ["b_test.go"], "tags": ["dx:no-lint", "manual"], "visibility": ["//visibility:private"]},
+                {"size": "small", "srcs": ["b_test.go"], "tags": ["dx:no-lint", DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream leaves its input unchanged",
@@ -488,22 +488,22 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "binary upstream empty stays private",
                 dx_binary_upstream_kwargs({}, []),
-                {"tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream sets srcs when given",
                 dx_binary_upstream_kwargs({"srcs": ["old.go"]}, ["main.go"]),
-                {"srcs": ["main.go"], "tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"srcs": ["main.go"], "tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream drops srcs when empty",
                 dx_binary_upstream_kwargs({"srcs": ["old.go"]}, []),
-                {"tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream drops srcs when none",
                 dx_binary_upstream_kwargs({"srcs": ["old.go"]}, None),
-                {"tags": ["manual"], "visibility": ["//visibility:private"]},
+                {"tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "library forward empty stays empty",
@@ -542,18 +542,18 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "binary upstream rewrites skip tags and keeps manual",
-                dx_binary_upstream_kwargs({"tags": ["manual", "no-lint", "requires-network"]}, [])["tags"],
-                ["manual", "dx:no-lint", "requires-network"],
+                dx_binary_upstream_kwargs({"tags": [DX_UPSTREAM_TAG, "no-lint", "block-network"]}, [])["tags"],
+                [DX_UPSTREAM_TAG, "dx:no-lint", "block-network"],
             ),
             expect_equal(
                 "binary upstream appends manual after user tags",
                 dx_binary_upstream_kwargs({"tags": ["no-format", "cpu:4"]}, [])["tags"],
-                ["dx:no-format", "cpu:4", "manual"],
+                ["dx:no-format", "cpu:4", DX_UPSTREAM_TAG],
             ),
             expect_equal(
                 "binary upstream forces private visibility and keeps copts",
                 binary_output,
-                {"copts": ["-Werror"], "tags": ["dx:no-lint", "manual"], "visibility": ["//visibility:private"]},
+                {"copts": ["-Werror"], "tags": ["dx:no-lint", DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "binary upstream leaves its input unchanged",
@@ -567,13 +567,13 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "test forward keeps manual",
-                dx_test_forward_kwargs({"tags": ["manual", "cpu:4"]}),
-                {"tags": ["manual", "cpu:4"], "size": "small"},
+                dx_test_forward_kwargs({"tags": [DX_UPSTREAM_TAG, "cpu:4"]}),
+                {"tags": [DX_UPSTREAM_TAG, "cpu:4"], "size": "small"},
             ),
             expect_equal(
                 "test forward keeps manual-only",
-                dx_test_forward_kwargs({"tags": ["manual"]}),
-                {"tags": ["manual"], "size": "small"},
+                dx_test_forward_kwargs({"tags": [DX_UPSTREAM_TAG]}),
+                {"tags": [DX_UPSTREAM_TAG], "size": "small"},
             ),
             expect_equal(
                 "test forward keeps timeout and flaky",
@@ -643,7 +643,7 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test upstream keeps exec groups",
                 dx_test_upstream_kwargs({"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}}),
-                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}, "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"exec_group_compatible_with": {"test": ["@platforms//os:linux"], "cpp_link": ["@platforms//cpu:x86_64"]}, "tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward leaves exec groups input unchanged",
@@ -663,12 +663,12 @@ def wrapper_shape_kwargs_tests(name):
             expect_equal(
                 "test upstream keeps exec placement",
                 dx_test_upstream_kwargs({"exec_properties": {"Pool": "gpu"}}),
-                {"exec_properties": {"Pool": "gpu"}, "tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"exec_properties": {"Pool": "gpu"}, "tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test upstream drops env",
                 dx_test_upstream_kwargs({"env": {"K": "1"}, "env_inherit": ["HOME"]}),
-                {"tags": ["manual"], "size": "small", "visibility": ["//visibility:private"]},
+                {"tags": [DX_UPSTREAM_TAG], "size": "small", "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "test forward defaults size to small",
@@ -769,7 +769,7 @@ def wrapper_resource_tags_tests(name):
             expect_equal(
                 "upstream kwargs keep size and hints and mark manual",
                 dx_test_upstream_kwargs({"tags": ["x"], "size": "large", "aspect_hints": ["//h"]}, None),
-                {"tags": ["x", "manual"], "size": "large", "aspect_hints": ["//h"], "visibility": ["//visibility:private"]},
+                {"tags": ["x", DX_UPSTREAM_TAG], "size": "large", "aspect_hints": ["//h"], "visibility": ["//visibility:private"]},
             ),
             expect_equal(
                 "small tests declare nothing",

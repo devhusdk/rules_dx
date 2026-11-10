@@ -511,11 +511,13 @@ def dx_binary_forward_kwargs(kwargs):
     out.update(dx_binary_run_kwargs(kwargs))
     return out
 
+DX_UPSTREAM_TAG = "manual"
+
 def dx_upstream_tags(tags):
-    """Returns private upstream tags: user tags with skip markers, plus manual."""
+    """Returns private upstream tags: user tags with skip markers, plus DX_UPSTREAM_TAG."""
     out = upstream_tags(tags)
-    if "manual" not in out:
-        out = out + ["manual"]
+    if DX_UPSTREAM_TAG not in out:
+        out = out + [DX_UPSTREAM_TAG]
     return out
 
 def dx_src_path(package, src):

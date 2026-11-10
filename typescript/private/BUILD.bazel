@@ -591,18 +591,18 @@ dx_wrapper_contract_tests(
         expect_equal(
             "inner kwargs take tags",
             typescript_inner_kwargs(
-                ["manual"],
+                ["cpu:4"],
                 {},
             ),
-            {"tags": ["manual"]},
+            {"tags": ["cpu:4"]},
         ),
         expect_equal(
             "inner kwargs fall back to kwargs tags",
             typescript_inner_kwargs(
                 None,
-                {"tags": ["manual"]},
+                {"tags": ["cpu:4"]},
             ),
-            {"tags": ["manual"]},
+            {"tags": ["cpu:4"]},
         ),
         expect_equal(
             "project forwarder keeps target_compatible_with",

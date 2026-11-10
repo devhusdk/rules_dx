@@ -3,6 +3,7 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//rust:defs.bzl", "rust_test")
 load("//api_spec:defs.bzl", "api_spec_library", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
+load("//core:defs.bzl", "starlark_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//go:defs.bzl", "go_library")
 load("//python:defs.bzl", "python_test")
@@ -67,17 +68,15 @@ typescript_test(
     deps = [":client_ts"],
 )
 
-genrule(
-    name = "client_content",
-    testonly = True,
-    srcs = [":client"],
-    outs = ["client_content.txt"],
-    cmd = "grep -q 'export type Order = ' $< && grep -q 'getOrder' $< && grep -q 'export type ProblemDetail = ' $< && echo ok > $@",
-)
-
-build_test(
+starlark_test(
     name = "client_content_test",
-    targets = [":client_content"],
+    file_checks = {
+        ":client": """export type Order =
+getOrder
+export type ProblemDetail =
+""",
+    },
+    mode = "execution",
 )
 
 api_spec_library(
@@ -204,17 +203,14 @@ codegen_shard_argv_test(
     target_under_test = ":petstore_rs_shard",
 )
 
-genrule(
-    name = "petstore_rs_check",
-    testonly = True,
-    srcs = [":petstore_rs"],
-    outs = ["petstore_rs_check.txt"],
-    cmd = "grep -q 'pub struct Client' $< && grep -q 'fn list_pets' $< && echo ok > $@",
-)
-
-build_test(
+starlark_test(
     name = "petstore_rs_check_test",
-    targets = [":petstore_rs_check"],
+    file_checks = {
+        ":petstore_rs": """pub struct Client
+fn list_pets
+""",
+    },
+    mode = "execution",
 )
 
 rust_test(

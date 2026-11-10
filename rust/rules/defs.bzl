@@ -343,7 +343,7 @@ def rust_test(
         forward_kwargs["crate"] = crate
     if coverage_lib != None:
         forward_kwargs["coverage_lib"] = coverage_lib
-    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, **kwargs)
+    dx_wrap_test(name, _rust_test, _rust_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, extra_forward_kwargs = forward_kwargs, upstream_env = True, **kwargs)
 
 def rust_bench(
         name,

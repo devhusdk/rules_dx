@@ -632,14 +632,15 @@ def dx_src_path(package, src):
         src = src[1:]
     return package + "/" + src if package else src
 
-def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None):
+def dx_test_upstream_kwargs(kwargs, srcs = None, upstream_visibility = None, upstream_env = False):
     """Returns the private upstream kwargs for one test shape."""
     out = dict(kwargs)
     out["tags"] = dx_upstream_tags(out.get("tags", None))
     out["visibility"] = upstream_visibility if upstream_visibility != None else ["//visibility:private"]
     out.setdefault("size", "small")
-    out.pop("env", None)
-    out.pop("env_inherit", None)
+    if not upstream_env:
+        out.pop("env", None)
+        out.pop("env_inherit", None)
     if srcs != None:
         out["srcs"] = srcs
     return out
@@ -710,12 +711,15 @@ def dx_with_tag(tags, tag):
         out.append(tag)
     return out
 
-def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, **kwargs):
+def dx_wrap_test(name, upstream_rule, forward_rule, srcs, visibility = None, upstream_kwargs = None, extra_forward_kwargs = None, quality_srcs = None, coverage_collector = True, upstream_visibility = None, upstream_env = False, **kwargs):
     """Instantiates one private upstream test plus its public forwarder."""
     base = dict(upstream_kwargs) if upstream_kwargs != None else dict(kwargs)
-    effective = dx_test_upstream_kwargs(base, srcs = srcs, upstream_visibility = upstream_visibility)
+    effective = dx_test_upstream_kwargs(base, srcs = srcs, upstream_visibility = upstream_visibility, upstream_env = upstream_env)
     forward_srcs = quality_srcs if quality_srcs != None else (srcs if srcs != None else [])
     forward_kwargs = dx_test_forward_kwargs(kwargs)
+    if upstream_env:
+        forward_kwargs.pop("env", None)
+        forward_kwargs.pop("env_inherit", None)
     if extra_forward_kwargs:
         forward_kwargs.update(extra_forward_kwargs)
     if not coverage_collector:

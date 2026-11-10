@@ -7,17 +7,13 @@ load("//bundle:defs.bzl", "archives", "check_cell", "display", "resolved_xcode")
 load("//provisioning:defs.bzl", _deployment_floor = "deployment_floor")
 load("//provisioning:validate.bzl", _version_below = "provisioning_version_below")
 load(":cell.bzl", "APPLE_HOSTS", "CELL_ATTRS", "MACH_O_PLATFORMS", "ios_platform", "target_cell")
-load(":validate.bzl", _DEVICE_ENV = "DEVICE_ENV", "ios_config_errors", "ios_sdk_for", "ios_triple_for")
+load(":validate.bzl", _DEVICE_ENV = "DEVICE_ENV", "IOS_PLATFORMS", "ios_config_errors", "ios_sdk_for", "ios_triple_for")
 
 DEVICE_ENV = _DEVICE_ENV
 
 SIMULATOR_ENV = "simulator"
 
-_PLATFORMS = {
-    "device/arm64": Label("@apple_support//platforms:ios_arm64"),
-    "simulator/arm64": Label("@apple_support//platforms:ios_sim_arm64"),
-    "simulator/x86_64": Label("@apple_support//platforms:ios_x86_64"),
-}
+_PLATFORMS = IOS_PLATFORMS
 
 _PLATFORMS_SETTING = "//command_line_option:platforms"
 

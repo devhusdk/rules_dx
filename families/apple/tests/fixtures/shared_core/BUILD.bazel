@@ -35,8 +35,8 @@ apple_ios_xcframework(
     hdrs = ["shared_core.h"],
     library = ":core_rust",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
     ],
     resources = ["board.txt"],
     tags = ["manual"],

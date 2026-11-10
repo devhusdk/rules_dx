@@ -25,8 +25,8 @@ apple_ios_xcframework(
     hdrs = ["share_api.h"],
     library = ":share_rust",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
     ],
     resources = ["rates.txt"],
     tags = ["manual"],

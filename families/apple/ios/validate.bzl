@@ -1,5 +1,11 @@
 load("//provisioning:defs.bzl", _XCODE_LINEAGE = "XCODE_LINEAGE", _ceiling_for = "ceiling_for", _deployment_floor = "deployment_floor")
 
+IOS_PLATFORMS = {
+    "device/arm64": Label("@apple_support//platforms:ios_arm64"),
+    "simulator/arm64": Label("@apple_support//platforms:ios_sim_arm64"),
+    "simulator/x86_64": Label("@apple_support//platforms:ios_x86_64"),
+}
+
 DEVICE_ENV = "device"
 
 _DEVICE_ARCH = "arm64"

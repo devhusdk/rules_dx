@@ -20,7 +20,7 @@ load(
     "ios_platform",
     "target_cell",
 )
-load(":defs.bzl", "AppleIosLibInfo", "ios_platform_errors", "ios_slice", "split_platform")
+load(":defs.bzl", "AppleIosLibInfo", "ios_platform_errors", "ios_platforms", "ios_slice", "split_platform")
 load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
 
@@ -783,7 +783,7 @@ def _slice_dict(slices):
     ios = {}
     for slice in slices:
         parts = slice.split("/")
-        if len(parts) == 2 and parts[1] not in ios.get(parts[0], []):
+        if slice in ios_platforms() and parts[1] not in ios.get(parts[0], []):
             ios[parts[0]] = ios.get(parts[0], []) + [parts[1]]
     return ios
 
@@ -803,10 +803,14 @@ def apple_ios_xcframework(
         tags = None,
         testonly = False,
         visibility = None):
-    """Builds and checks one XCFramework over a Rust static library and public headers."""
+    """Builds and checks one XCFramework over a Rust static library and public headers.
+
+    platforms takes iOS platform labels: @apple_support//platforms:ios_arm64, ios_sim_arm64, ios_x86_64.
+    """
     deps = deps or []
     tags = tags or []
     module = bundle_name or name
+    slices = [ios_slice(platform) or str(native.package_relative_label(platform)) for platform in platforms]
     _framework_selection(
         name = name + "_selection" if library != None else name,
         bundle_id = bundle_id,
@@ -815,7 +819,7 @@ def apple_ios_xcframework(
         hdrs = [label_text(header) for header in hdrs],
         library = label_text(library),
         resources = [label_text(resource) for resource in resources],
-        slices = platforms,
+        slices = slices,
         version = version,
         xcode_version = xcode_version,
         tags = ["manual"] if library != None else tags,
@@ -827,7 +831,7 @@ def apple_ios_xcframework(
     _framework_cell(
         name = name + "_library",
         library = library,
-        slices = platforms,
+        slices = slices,
         xcode_version = xcode_version,
         tags = ["manual"],
         testonly = testonly,
@@ -857,7 +861,7 @@ def apple_ios_xcframework(
         bundle_name = module,
         data = resources,
         infoplists = infoplists,
-        ios = _slice_dict(platforms),
+        ios = _slice_dict(slices),
         minimum_os_versions = {"ios": deployment},
         public_hdrs = hdrs,
         version = ":" + name + "_version",
@@ -875,7 +879,7 @@ def apple_ios_xcframework(
         hdrs = hdrs,
         resources = resources,
         selection = ":" + name + "_selection",
-        slices = platforms,
+        slices = slices,
         version = version,
         xcframework = ":" + name + "_bundle",
         xcode_version = xcode_version,

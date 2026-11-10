@@ -2,7 +2,7 @@
 
 load("//bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
 load("//provisioning:validate.bzl", "provisioning_version_below")
-load(":validate.bzl", "ios_arch_errors", "ios_arches", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_xcode_errors")
+load(":validate.bzl", "IOS_PLATFORMS", "ios_arch_errors", "ios_deployment_errors", "ios_environment_errors", "ios_xcode_errors")
 
 def ios_test_coverage_kwargs(env):
     """Returns the test attributes that export coverage through the pinned LLVM."""
@@ -110,36 +110,29 @@ def ios_test_errors(device_type, os_version, deployment):
     return errors
 
 def ios_slice_errors(slices):
-    """Returns one error string per rejected framework slice selection."""
+    """Returns one error string per rejected framework platform selection."""
     if len(slices) == 0:
-        return ["apple_framework: framework needs at least one 'environment/arch' platform"]
+        return ["apple_framework: platforms needs at least one iOS platform label"]
     errors = []
     seen = {}
     has_device = False
     has_simulator = False
+    want = ", ".join([str(IOS_PLATFORMS[key]) for key in sorted(IOS_PLATFORMS.keys())])
     for slice in slices:
+        if slice not in IOS_PLATFORMS:
+            errors.append("apple_framework: platform '" + slice + "' is not an iOS platform: want " + want)
+            continue
+        label = str(IOS_PLATFORMS[slice])
         if slice in seen:
-            errors.append("apple_framework: duplicate platform '" + slice + "'")
+            errors.append("apple_framework: duplicate platform '" + label + "'")
             continue
         seen[slice] = True
-        parts = slice.split("/")
-        if len(parts) != 2 or parts[0] == "" or parts[1] == "":
-            errors.append("apple_framework: platform '" + slice + "' is not 'environment/arch'")
-            continue
-        environment = parts[0]
-        arch = parts[1]
-        if environment not in ios_environments():
-            errors.append("apple_framework: unknown environment '" + environment + "' in platform '" + slice + "': want " + ", ".join(ios_environments()))
-            continue
-        if arch not in ios_arches(environment):
-            errors.append("apple_framework: arch '" + arch + "' is outside " + environment + " in platform '" + slice + "': want " + ", ".join(ios_arches(environment)))
-            continue
-        if environment == "device":
+        if slice.startswith("device/"):
             has_device = True
         else:
             has_simulator = True
     if not has_device:
-        errors.append("apple_framework: framework needs the device/arm64 platform")
+        errors.append("apple_framework: framework needs the device platform " + str(IOS_PLATFORMS["device/arm64"]))
     if not has_simulator:
         errors.append("apple_framework: framework needs at least one simulator platform")
     return errors

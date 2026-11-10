@@ -430,9 +430,9 @@ apple_ios_xcframework(
     library = ":share_rust",
     resources = ["rates.txt"],
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
-        "simulator/x86_64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+        "@apple_support//platforms:ios_x86_64",
     ],
 )
 ```
@@ -462,13 +462,13 @@ The build writes `bazel-bin/<package>/<name>.xcframework.zip` with
 library identifier, platform, minimum OS, and install name. The archive
 appears only after every check passes.
 
-Each platform is a cell: `device/arm64`, `simulator/arm64`, or
-`simulator/x86_64`. The framework needs `device/arm64` and at least one
-simulator platform.
+Each platform is an `@apple_support//platforms` label: `ios_arm64`,
+`ios_sim_arm64`, or `ios_x86_64`. The framework needs `ios_arm64` and at
+least one simulator platform.
 
 The build fails when:
 
-- a platform is unknown, malformed, or listed twice, or `device/arm64` or
+- a platform is not an iOS platform label or is listed twice, or `ios_arm64` or
   every simulator platform is missing;
 - `hdrs`, `deployment`, `bundle_id`, `version`, or `library` is missing
   or malformed, or a resource path is empty or absolute;

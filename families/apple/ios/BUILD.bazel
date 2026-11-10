@@ -616,70 +616,42 @@ apple_ios_xcframework(
 
 failure_test(
     name = "no_slices_test",
-    expected_failure_substring = "needs at least one 'environment/arch' platform",
+    expected_failure_substring = "needs at least one iOS platform label",
     target = ":no_slices",
 )
 
 apple_ios_xcframework(
-    name = "flat_slice",
+    name = "non_ios_platform",
     bundle_id = "com.example.share",
-    platforms = ["simulator"],
+    platforms = ["@apple_support//platforms:macos_arm64"],
     tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
-    name = "flat_slice_test",
-    expected_failure_substring = "is not 'environment/arch'",
-    target = ":flat_slice",
-)
-
-apple_ios_xcframework(
-    name = "watch_slice",
-    bundle_id = "com.example.share",
-    platforms = ["watch/arm64"],
-    tags = ["manual"],
-    version = "1.0",
-)
-
-failure_test(
-    name = "watch_slice_test",
-    expected_failure_substring = "unknown environment 'watch'",
-    target = ":watch_slice",
-)
-
-apple_ios_xcframework(
-    name = "device_x86_slice",
-    bundle_id = "com.example.share",
-    platforms = ["device/x86_64"],
-    tags = ["manual"],
-    version = "1.0",
-)
-
-failure_test(
-    name = "device_x86_slice_test",
-    expected_failure_substring = "is outside device",
-    target = ":device_x86_slice",
+    name = "non_ios_platform_test",
+    expected_failure_substring = "is not an iOS platform",
+    target = ":non_ios_platform",
 )
 
 apple_ios_xcframework(
     name = "simulator_only",
     bundle_id = "com.example.share",
-    platforms = ["simulator/arm64"],
+    platforms = ["@apple_support//platforms:ios_sim_arm64"],
     tags = ["manual"],
     version = "1.0",
 )
 
 failure_test(
     name = "simulator_only_test",
-    expected_failure_substring = "needs the device/arm64 platform",
+    expected_failure_substring = "needs the device platform",
     target = ":simulator_only",
 )
 
 apple_ios_xcframework(
     name = "device_only",
     bundle_id = "com.example.share",
-    platforms = ["device/arm64"],
+    platforms = ["@apple_support//platforms:ios_arm64"],
     tags = ["manual"],
     version = "1.0",
 )
@@ -694,8 +666,8 @@ apple_ios_xcframework(
     name = "absolute_resource",
     bundle_id = "com.example.share",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
     ],
     resources = ["/abs/Assets.xcassets"],
     tags = ["manual"],
@@ -714,8 +686,8 @@ apple_ios_xcframework(
     deployment = "17.0",
     library = ":share_stub",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
     ],
     tags = ["manual"],
     version = "1.0",
@@ -733,8 +705,8 @@ apple_ios_xcframework(
     bundle_id = "com.example.share",
     library = ":share_stub",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
     ],
     tags = ["manual"],
     version = "1.0",
@@ -753,9 +725,9 @@ apple_ios_xcframework(
     deployment = "17.0",
     library = ":share_stub",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
-        "simulator/arm64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
     ],
     tags = ["manual"],
     version = "1.0",
@@ -763,7 +735,7 @@ apple_ios_xcframework(
 
 failure_test(
     name = "duplicate_slice_test",
-    expected_failure_substring = "apple_framework: duplicate platform 'simulator/arm64'",
+    expected_failure_substring = "apple_framework: duplicate platform",
     target = ":duplicate_slice_selection",
 )
 
@@ -773,8 +745,8 @@ apple_ios_xcframework(
     bundle_id = "com.example.share",
     deployment = "17.0",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
     ],
     tags = ["manual"],
     version = "1.0",
@@ -794,9 +766,9 @@ apple_ios_xcframework(
     deployment = "17.0",
     library = ":share_stub",
     platforms = [
-        "device/arm64",
-        "simulator/arm64",
-        "simulator/x86_64",
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+        "@apple_support//platforms:ios_x86_64",
     ],
     tags = ["manual"],
     version = "1.0",
@@ -830,7 +802,7 @@ apple_ios_xcframework(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["device/arm64"],
+    platforms = ["@apple_support//platforms:ios_arm64"],
     tags = ["manual"],
     version = "1.0",
 )
@@ -897,7 +869,7 @@ apple_ios_xcframework(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":device_share",
-    platforms = ["simulator/arm64"],
+    platforms = ["@apple_support//platforms:ios_sim_arm64"],
     tags = ["manual"],
     version = "1.0",
 )

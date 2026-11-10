@@ -1054,11 +1054,13 @@ bazel_dep(name = "rules_flutter", version = "0.0.8")
 # Pinned to the commit with aran/rules_flutter#5 until it is released.
 # registrant_javacopts.patch keeps -Xlint:all quiet about the registrant's source 8 (#9085).
 # lock_extension.patch marks the flutter extension non-reproducible so the lockfile keeps its result (#8987).
+# hermetic_tar.patch extracts pub archives with the pinned bsdtar (aran/rules_flutter#6, #11084).
 archive_override(
     module_name = "rules_flutter",
     integrity = "sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=",
     patch_strip = 1,
     patches = [
+        "//patches/rules_flutter:hermetic_tar.patch",
         "//patches/rules_flutter:lock_extension.patch",
         "//patches/rules_flutter:registrant_javacopts.patch",
     ],

@@ -93,7 +93,7 @@ common:ci --repo_env=JAVA_HOME=dx-no-local-jdk
 common:rbe --remote_executor=grpcs://remote.buildbuddy.io
 common:rbe --remote_default_exec_properties=OSFamily=Linux
 common:rbe --remote_default_exec_properties=Arch=amd64
-common:rbe --remote_default_exec_properties=container-image=docker://gcr.io/flame-public/rbe-ubuntu24-04:latest
+common:rbe --remote_default_exec_properties=container-image=docker://gcr.io/flame-public/rbe-ubuntu24-04@sha256:be9853fc45092d2cf2bda3abed30d22182881659a50bf35c7125161d7cfc8a75
 common:rbe --remote_default_exec_properties=dockerUser=nobody
 common:rbe --remote_local_fallback
 common:rbe --strategy=TestRunner=remote,sandboxed,local

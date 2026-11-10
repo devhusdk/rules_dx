@@ -1,0 +1,74 @@
+diff --git a/MODULE.bazel b/MODULE.bazel
+--- a/MODULE.bazel
++++ b/MODULE.bazel
+@@ -44,6 +44,20 @@
+ # generated files into one directory for the kernel compile.
+ bazel_dep(name = "bazel_lib", version = "3.7.2")
+ 
++# Provides the pinned bsdtar that extracts pub archives.
++bazel_dep(name = "tar.bzl", version = "0.10.9")
++
++bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
++use_repo(
++    bsd_tar_toolchains,
++    "bsd_tar_toolchains_darwin_amd64",
++    "bsd_tar_toolchains_darwin_arm64",
++    "bsd_tar_toolchains_linux_amd64",
++    "bsd_tar_toolchains_linux_arm64",
++    "bsd_tar_toolchains_windows_amd64",
++    "bsd_tar_toolchains_windows_arm64",
++)
++
+ bazel_dep(name = "rules_multitool", version = "1.11.1", dev_dependency = True)
+ bazel_dep(name = "buildifier_prebuilt", version = "10.1.0", dev_dependency = True)
+ bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2", dev_dependency = True)
+diff --git a/flutter/private/flutter_pub_package.bzl b/flutter/private/flutter_pub_package.bzl
+--- a/flutter/private/flutter_pub_package.bzl
++++ b/flutter/private/flutter_pub_package.bzl
+@@ -31,6 +31,25 @@
+ load("@rules_dart//dart/pub:yaml_parser.bzl", "parse_pubspec_deps", "parse_pubspec_sdk_constraint")
+ load("//flutter/private:flutter_pubspec.bzl", "parse_flutter_assets_block", "parse_flutter_plugin_block")
+ 
++_BSDTAR = {
++    "darwin_amd64": Label("@bsd_tar_toolchains_darwin_amd64//:tar"),
++    "darwin_arm64": Label("@bsd_tar_toolchains_darwin_arm64//:tar"),
++    "linux_amd64": Label("@bsd_tar_toolchains_linux_amd64//:tar"),
++    "linux_arm64": Label("@bsd_tar_toolchains_linux_arm64//:tar"),
++    "windows_amd64": Label("@bsd_tar_toolchains_windows_amd64//:tar.exe"),
++    "windows_arm64": Label("@bsd_tar_toolchains_windows_arm64//:tar.exe"),
++}
++
++def _bsdtar_path(ctx):
++    os_name = ctx.os.name.lower()
++    os_key = "darwin" if os_name.startswith("mac os") else "windows" if os_name.startswith("windows") else os_name
++    arch = ctx.os.arch.lower()
++    arch_key = "amd64" if arch in ("amd64", "x86_64", "x64") else "arm64" if arch in ("aarch64", "arm64") else arch
++    label = _BSDTAR.get("{}_{}".format(os_key, arch_key))
++    if not label:
++        fail("rules_flutter: no pinned bsdtar for host os={} arch={}".format(ctx.os.name, ctx.os.arch))
++    return str(ctx.path(label))
++
+ # Apple source extensions we sweep into the per-platform plugin library.
+ _APPLE_SRC_EXTENSIONS = ("swift", "m", "mm", "h")
+ 
+@@ -1507,16 +1526,16 @@
+         version = ctx.attr.version,
+     )
+ 
+-    # Match `pub_lock_package`'s download/extract semantics, including the
+-    # `tar -xzf` workaround for archives with trailing-garbage gzip streams.
++    # Extract with the pinned bsdtar from tar.bzl, which accepts archives
++    # with trailing-garbage gzip streams and needs no `tar` on the host.
+     ctx.download(
+         url = url,
+         output = "_archive.tar.gz",
+         sha256 = ctx.attr.sha256 if ctx.attr.sha256 else "",
+     )
+-    extract = ctx.execute(["tar", "-xzf", "_archive.tar.gz"])
++    extract = ctx.execute([_bsdtar_path(ctx), "-xzf", "_archive.tar.gz", "--no-same-owner"])
+     if extract.return_code != 0:
+-        fail("tar -xzf failed for {url}:\nstdout: {out}\nstderr: {err}".format(
++        fail("bsdtar -xzf failed for {url}:\nstdout: {out}\nstderr: {err}".format(
+             url = url,
+             out = extract.stdout,
+             err = extract.stderr,

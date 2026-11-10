@@ -103,6 +103,7 @@ go_test(
         "ignore_test.go",
         "jstestconfig_test.go",
         "manifest_test.go",
+        "moduledeps_test.go",
         "naming_test.go",
         "policyconfig_test.go",
         "npmhub_test.go",

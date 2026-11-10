@@ -1444,7 +1444,7 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
      "selector-pseudo-class-no-unknown": [
        true,
        {
-@@ -54,12 +71,14 @@
+@@ -60,12 +77,14 @@
      ],
      "selector-pseudo-element-no-unknown": true,
      "selector-type-no-unknown": [true, { "ignore": ["custom-elements"] }],

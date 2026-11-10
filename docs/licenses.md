@@ -65,6 +65,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | vale | 3.20.0 | MIT |
 | wasmtime | 49.0.5 | Apache-2.0 WITH LLVM-exception |
 | write-good (vale style) | 0.4.1 | MIT |
+| xmllint | 2.15.4 | MIT |
 | yamlfmt | 0.21.0 | Apache-2.0 |
 | zanuda | 2.1.0 | LGPL-3.0-only |
 | zizmor | 1.32.0 | MIT |

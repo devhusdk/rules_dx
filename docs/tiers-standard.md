@@ -717,7 +717,13 @@ Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
     "selector-pseudo-class-no-unknown": [
       true,
       {
-        "ignorePseudoClasses": ["export", "import", "global", "local", "external"]
+        "ignorePseudoClasses": [
+          "export",
+          "import",
+          "global",
+          "local",
+          "external"
+        ]
       }
     ],
     "selector-pseudo-element-no-unknown": true,

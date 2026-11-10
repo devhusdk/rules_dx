@@ -1,189 +1,48 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("//d:defs.bzl", "D_COMPATIBLE_WITH")
-load("//dart:defs.bzl", "DART_COMPATIBLE_WITH")
-load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
-load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH")
-load("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH")
-load("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH")
-load("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH")
-load("//perl:defs.bzl", "PERL_COMPATIBLE_WITH")
-load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//rust:defs.bzl", "rust_library")
 load(":defs.bzl", "starter_consumer_test")
 
-starter_consumer_test(
-    name = "astro",
-    bazel_deps = ["rules_dx", "aspect_rules_js"],
-)
+STARTER_BAZEL_DEPS = {
+    "astro": ["rules_dx", "aspect_rules_js"],
+    "c": ["rules_dx"],
+    "cpp": ["rules_dx"],
+    "csharp": ["rules_dx"],
+    "cuda": ["rules_dx", "rules_cuda"],
+    "d": ["rules_dx"],
+    "dart": ["rules_dx", "rules_dart"],
+    "elixir": ["rules_dx"],
+    "erlang": ["rules_dx"],
+    "flutter": ["rules_dx", "rules_flutter"],
+    "fortran": ["rules_dx"],
+    "fsharp": ["rules_dx"],
+    "go": ["rules_dx"],
+    "haskell": ["rules_dx"],
+    "java": ["rules_dx"],
+    "javascript": ["rules_dx"],
+    "julia": ["rules_dx"],
+    "kotlin": ["rules_dx"],
+    "lua": ["rules_dx"],
+    "mdx": ["rules_dx", "aspect_rules_js"],
+    "ocaml": ["rules_dx"],
+    "perl": ["rules_dx"],
+    "php": ["rules_dx"],
+    "powershell": ["rules_dx", "platforms"],
+    "python": ["rules_dx"],
+    "ruby": ["rules_dx", "rules_ruby"],
+    "rust": ["rules_dx"],
+    "rust-android": ["rules_dx", "platforms", "rules_rust", "rules_android"],
+    "scala": ["rules_dx"],
+    "svelte": ["rules_dx", "aspect_rules_js"],
+    "swift": ["rules_dx"],
+    "typescript": ["rules_dx"],
+    "vue": ["rules_dx", "aspect_rules_js"],
+    "zig": ["rules_dx"],
+}
 
 starter_consumer_test(
-    name = "c",
-)
-
-starter_consumer_test(
-    name = "cpp",
-)
-
-starter_consumer_test(
-    name = "csharp",
-)
-
-starter_consumer_test(
-    name = "cuda",
-    bazel_deps = ["rules_dx", "rules_cuda"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-)
-
-starter_consumer_test(
-    name = "d",
-    target_compatible_with = D_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "dart",
-    bazel_deps = ["rules_dx", "rules_dart"],
-    target_compatible_with = DART_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "elixir",
-    bazel_deps = ["rules_dx"],
-    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "erlang",
-    bazel_deps = ["rules_dx"],
-    target_compatible_with = ERLANG_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "flutter",
-    bazel_deps = ["rules_dx", "rules_flutter"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-starter_consumer_test(
-    name = "fortran",
-    bazel_deps = ["rules_dx"],
-    target_compatible_with = FORTRAN_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "fsharp",
-)
-
-starter_consumer_test(
-    name = "go",
-)
-
-starter_consumer_test(
-    name = "haskell",
-    bazel_deps = ["rules_dx"],
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "java",
-)
-
-starter_consumer_test(
-    name = "javascript",
-)
-
-starter_consumer_test(
-    name = "julia",
-    target_compatible_with = JULIA_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "kotlin",
-)
-
-starter_consumer_test(
-    name = "lua",
-)
-
-starter_consumer_test(
-    name = "mdx",
-    bazel_deps = ["rules_dx", "aspect_rules_js"],
-)
-
-starter_consumer_test(
-    name = "ocaml",
-    bazel_deps = ["rules_dx"],
-    target_compatible_with = OCAML_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "perl",
-    target_compatible_with = PERL_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "php",
-    target_compatible_with = PHP_COMPATIBLE_WITH,
-)
-
-starter_consumer_test(
-    name = "powershell",
-    bazel_deps = ["rules_dx", "platforms"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-starter_consumer_test(
-    name = "python",
-)
-
-starter_consumer_test(
-    name = "ruby",
-    bazel_deps = ["rules_dx", "rules_ruby"],
-)
-
-starter_consumer_test(
-    name = "rust",
-)
-
-starter_consumer_test(
-    name = "rust-android",
-    bazel_deps = ["rules_dx", "platforms", "rules_rust", "rules_android"],
-    target_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-)
-
-starter_consumer_test(
-    name = "scala",
-)
-
-starter_consumer_test(
-    name = "svelte",
-    bazel_deps = ["rules_dx", "aspect_rules_js"],
-)
-
-starter_consumer_test(
-    name = "swift",
-    bazel_deps = ["rules_dx"],
-    target_compatible_with = ["@platforms//os:linux"],
-)
-
-starter_consumer_test(
-    name = "typescript",
-)
-
-starter_consumer_test(
-    name = "vue",
-    bazel_deps = ["rules_dx", "aspect_rules_js"],
-)
-
-starter_consumer_test(
-    name = "zig",
+    name = "starters_test",
+    bazel_deps = STARTER_BAZEL_DEPS,
 )
 
 rust_library(

@@ -86,10 +86,8 @@ tools/testing/hermetic/defs.bzl no-remote 2
 tools/testing/hermetic/defs.bzl no-sandbox 4
 tools/testing/hermetic/defs.bzl requires-network 3
 tools/testing/nested_bazel.bzl local 1
-tools/testing/nested_bazel.bzl manual 1
 tools/testing/nested_bazel.bzl no-sandbox 1
 tools/testing/nested_bazel.bzl requires-network 1
-tools/testing/starters/defs.bzl manual 1
 typescript/private/BUILD.bazel manual 3
 typescript/private/defs.bzl manual 1
 typescript/tests/fixtures/fuzz/BUILD.bazel manual 1

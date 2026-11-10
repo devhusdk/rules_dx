@@ -140,3 +140,7 @@ path = "workflow_expressions_test.rs"
 [[test]]
 name = "workflow_pins_test"
 path = "workflow_pins_test.rs"
+
+[[test]]
+name = "upgrade_e2e_test"
+path = "upgrade_e2e_test.rs"

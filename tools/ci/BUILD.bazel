@@ -497,6 +497,27 @@ rust_test(
 )
 
 rust_test(
+    name = "upgrade_e2e_test",
+    srcs = ["upgrade_e2e_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "upgrade_e2e_test",
+    crate_root = "upgrade_e2e_test.rs",
+    data = [
+        "release_cell.sh",
+        "upgrade_e2e.sh",
+    ],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "review_paths_test",
     srcs = ["review_paths_test.rs"],
     aliases = aliases(

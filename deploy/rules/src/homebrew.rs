@@ -3,7 +3,7 @@
 use crate::archive::*;
 use crate::config::GithubConfig;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal, run_publish,
     scrubbed_command,
 };
 use crate::stage::*;
@@ -217,16 +217,16 @@ fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &
             &[("GH_TOKEN", token)],
         );
         cmd.arg("api").args(args);
-        cmd.output()
+        run_publish(&mut cmd)
     };
     let path = homebrew_formula_path(launch);
     let existing = match gh(&[&path, "--jq", ".sha"]) {
-        Ok(out) if out.status.success() => {
+        Ok(out) if out.success() => {
             Some(String::from_utf8_lossy(&out.stdout).trim().to_owned())
         }
         Ok(out) if String::from_utf8_lossy(&out.stderr).contains("404") => None,
         Ok(out) => {
-            eprintln!("homebrew_tap_deploy: gh failed with {}", out.status);
+            eprintln!("homebrew_tap_deploy: gh failed with {}", exit_text(&out));
             return 1;
         }
         Err(error) => {
@@ -251,7 +251,7 @@ fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &
         args.extend(["-f", field.as_str()]);
     }
     match gh(&args) {
-        Ok(out) if out.status.success() => {
+        Ok(out) if out.success() => {
             println!(
                 "homebrew_tap_deploy: pushed Formula/{}.rb to {}",
                 launch.formula, launch.tap
@@ -259,7 +259,7 @@ fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &
             0
         }
         Ok(out) => {
-            eprintln!("homebrew_tap_deploy: gh failed with {}", out.status);
+            eprintln!("homebrew_tap_deploy: gh failed with {}", exit_text(&out));
             1
         }
         Err(error) => {
@@ -275,18 +275,14 @@ fn homebrew_syntax_check(formula: &Path) -> bool {
         println!("  syntax: skipped, ruby not on PATH");
         return true;
     }
-    match std::process::Command::new("ruby")
-        .arg("-c")
-        .arg(formula)
-        .output()
-    {
-        Ok(out) if out.status.success() => {
+    match run_publish(std::process::Command::new("ruby").arg("-c").arg(formula)) {
+        Ok(out) if out.success() => {
             println!("  syntax: ruby -c ok");
             true
         }
         Ok(out) => {
             eprint!("{}", String::from_utf8_lossy(&out.stderr));
-            eprintln!("homebrew_tap_deploy: ruby -c failed with {}", out.status);
+            eprintln!("homebrew_tap_deploy: ruby -c failed with {}", exit_text(&out));
             false
         }
         Err(error) => {

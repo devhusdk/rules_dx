@@ -77,7 +77,7 @@ def _conan_impl(mctx):
     for key, pin in _platforms("conan_").items():
         http_archive(
             name = "conan_" + key,
-            build_file_content = 'exports_files(["%s"])\nfilegroup(name = "files", srcs = glob(["bin/**"]), visibility = ["//visibility:public"])\n' % pin["exe"],
+            build_file_content = 'exports_files(["%s"])\nfilegroup(name = "files", srcs = glob(["**"]), visibility = ["//visibility:public"])\n' % pin["exe"],
             sha256 = pin["sha256"],
             urls = pin["urls"],
         )

@@ -10,14 +10,14 @@ def _conan_config_impl(ctx):
     if len(recipe_files) == 0:
         fail("conan_deploy " + str(ctx.label) + ": recipe " +
              str(ctx.attr.recipe.label) + " provides no files, want conanfile.py and its sources")
-    conan = ctx.files.conan[0] if ctx.files.conan else None
-    runfiles = ctx.runfiles(files = recipe_files + ctx.files.conan_files + ([conan] if conan else []))
+    conan = ctx.files.conan[0]
+    runfiles = ctx.runfiles(files = recipe_files + ctx.files.conan_files + [conan])
 
     return deploy_config(
         ctx,
         "conan",
         {
-            "conan_rloc": rlocation_path(ctx, conan) if conan else "",
+            "conan_rloc": rlocation_path(ctx, conan),
             "deploy_name": ctx.attr.deploy_name,
             "package": ctx.attr.package,
             "recipe_rlocs": [rlocation_path(ctx, f) for f in recipe_files],
@@ -33,9 +33,10 @@ _conan_config = rule(
     doc = "Writes the deploy config for one Conan deployment.",
     attrs = {
         "conan": attr.label(
-            doc = "Pinned conan executable. Empty takes conan from PATH.",
+            doc = "Pinned conan executable.",
             allow_files = True,
             cfg = "exec",
+            mandatory = True,
         ),
         "conan_files": attr.label(
             doc = "Files the pinned conan needs at run time.",

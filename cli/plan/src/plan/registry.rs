@@ -368,11 +368,11 @@ mod tests {
                     .iter()
                     .find(|language| language.bzl == file);
                 assert!(
-                    language.is_none_or(|language| language.bzl == "core/quality:families/go.bzl"),
+                    language.is_none_or(|language| language.bzl == "go/private/quality:go.bzl"),
                     "{command:?}: {label}"
                 );
             }
-            assert!(labels.iter().any(|label| label.contains("families/go.bzl")));
+            assert!(labels.iter().any(|label| label.contains("go/private/quality:go.bzl")));
             assert!(
                 labels
                     .iter()
@@ -385,7 +385,7 @@ mod tests {
             probes,
             vec![
                 "core/quality:families/core_probe.bzl%real_core_lint_probe_aspect",
-                "core/quality:families/go.bzl%real_go_lint_probe_aspect",
+                "go/private/quality:go.bzl%real_go_lint_probe_aspect",
             ]
         );
     }

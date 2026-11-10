@@ -32,7 +32,7 @@
     "julia_standalone_binary"
   ],
   "quality": {
-    "bzl": "core/quality:families/julia.bzl",
+    "bzl": "julia/private/quality:julia.bzl",
     "file_extensions": [
       ".jl"
     ],

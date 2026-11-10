@@ -553,12 +553,20 @@ const FAMILY_FILES: [&str; 44] = [
 ];
 
 /// Family files that sit in their language directory instead of `core/quality/families`.
-const LANGUAGE_FAMILY_FILES: [&str; 8] = [
+const LANGUAGE_FAMILY_FILES: [&str; 16] = [
     "ansible",
     "bicep",
     "cloudformation",
+    "cmake",
+    "d",
+    "dart",
     "dockerfile",
+    "fortran",
+    "go",
+    "haskell",
+    "julia",
     "kubernetes",
+    "make",
     "rego",
     "rust",
     "terraform",

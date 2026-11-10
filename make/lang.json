@@ -18,7 +18,7 @@
     "make_library"
   ],
   "quality": {
-    "bzl": "core/quality:families/make.bzl",
+    "bzl": "make/private/quality:make.bzl",
     "file_extensions": [
       ".mk"
     ],

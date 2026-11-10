@@ -35,7 +35,7 @@
     "haskell_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/haskell.bzl",
+    "bzl": "haskell/private/quality:haskell.bzl",
     "file_extensions": [
       ".hs"
     ],

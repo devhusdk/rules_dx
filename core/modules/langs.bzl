@@ -505,7 +505,7 @@ LANGS = json.decode("""{
           "real_cmake_lint_aspect"
         ]
       },
-      "bzl": "core/quality:families/cmake.bzl",
+      "bzl": "cmake/private/quality:cmake.bzl",
       "file_extensions": [
         ".cmake"
       ]
@@ -617,7 +617,7 @@ LANGS = json.decode("""{
           "real_d_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/d.bzl",
+      "bzl": "d/private/quality:d.bzl",
       "file_extensions": [
         ".d"
       ],
@@ -687,7 +687,7 @@ LANGS = json.decode("""{
           "real_dart_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/dart.bzl",
+      "bzl": "dart/private/quality:dart.bzl",
       "file_extensions": [
         ".dart"
       ],
@@ -1061,7 +1061,7 @@ LANGS = json.decode("""{
           "real_fortran_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/fortran.bzl",
+      "bzl": "fortran/private/quality:fortran.bzl",
       "file_extensions": [
         ".f",
         ".f03",
@@ -1173,7 +1173,7 @@ LANGS = json.decode("""{
           "real_go_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/go.bzl",
+      "bzl": "go/private/quality:go.bzl",
       "file_extensions": [
         ".go"
       ],
@@ -1248,7 +1248,7 @@ LANGS = json.decode("""{
           "real_haskell_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/haskell.bzl",
+      "bzl": "haskell/private/quality:haskell.bzl",
       "file_extensions": [
         ".hs"
       ],
@@ -1501,7 +1501,7 @@ LANGS = json.decode("""{
           "real_julia_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/julia.bzl",
+      "bzl": "julia/private/quality:julia.bzl",
       "file_extensions": [
         ".jl"
       ],
@@ -1709,7 +1709,7 @@ LANGS = json.decode("""{
           "real_make_lint_aspect"
         ]
       },
-      "bzl": "core/quality:families/make.bzl",
+      "bzl": "make/private/quality:make.bzl",
       "file_extensions": [
         ".mk"
       ]

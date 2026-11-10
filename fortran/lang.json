@@ -28,7 +28,7 @@
     "fortran_test"
   ],
   "quality": {
-    "bzl": "core/quality:families/fortran.bzl",
+    "bzl": "fortran/private/quality:fortran.bzl",
     "file_extensions": [
       ".f",
       ".f03",

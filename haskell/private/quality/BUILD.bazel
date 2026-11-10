@@ -1,0 +1,27 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//haskell:__subpackages__", "//core/modules:__pkg__", "//core/quality:__subpackages__", "//tools/ci:__pkg__"])
+
+exports_files([
+    "haskell.bzl",
+    "haskell_tools.bzl",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "haskell.bzl",
+        "haskell_tools.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
+)

@@ -1,11 +1,11 @@
 """Canonical version pins stay equal to MODULE.bazel literals."""
 
+load("@dx_pins_data//:pins.bzl", _PINS = "PINS")
 load("//capnproto:pins.bzl", "CAPNP_JAVA_SHA256", "CAPNP_JAVA_STRIP_PREFIX", "CAPNP_JAVA_URL", "CAPNP_RUST_SHA256", "CAPNP_RUST_STRIP_PREFIX", "CAPNP_RUST_URL", "CAPNP_SHA256", "CAPNP_STRIP_PREFIX", "CAPNP_URL")
 load("//dart:pins.bzl", _DART_STRIP_PREFIX = "RULES_DART_STRIP_PREFIX", _DART_URL = "RULES_DART_URL")
 load("//dotnet:pins.bzl", _DOTNET_STRIP_PREFIX = "RULES_DOTNET_STRIP_PREFIX", _DOTNET_URL = "RULES_DOTNET_URL")
 load("//flatbuffers:pins.bzl", "BITFLAGS_SHA256", "BITFLAGS_STRIP_PREFIX", "BITFLAGS_URL", "FLATBUFFERS_JAVA_STRIP_PREFIX", "FLATBUFFERS_RUST_STRIP_PREFIX", "FLATBUFFERS_SHA256", "FLATBUFFERS_STRIP_PREFIX", "FLATBUFFERS_URL")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
-load("//powershell/toolchain:pins.bzl", _PINS_PWSH_VERSION = "PWSH_VERSION")
 load("//thrift:pins.bzl", "THRIFT_MIRROR_URLS", "THRIFT_SHA256", "THRIFT_STRIP_PREFIX", "THRIFT_URL")
 load(":cuda.bzl", _CUDA_CELLS = "CUDA_CELLS", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _CUDA_REDIST_SHA256 = "CUDA_REDIST_SHA256", _CUDA_REDIST_URL = "CUDA_REDIST_URL", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _cuda_qualified_cells = "cuda_qualified_cells")
 load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
@@ -90,7 +90,7 @@ def versions_contract_tests(name):
         checks = [
             expect_equal("ruby module follows canonical", _MOD_RUBY_VERSION, _RUBY_VERSION),
             expect_equal("python module follows canonical", _MOD_PYTHON_VERSION, _PYTHON_VERSION),
-            expect_equal("pwsh toolchain pins follow canonical", _PINS_PWSH_VERSION, _PWSH_VERSION),
+            expect_equal("pwsh toolchain pins follow canonical", _PINS["dx_powershell_toolchains"]["version"], _PWSH_VERSION),
             expect_equal("dart archive url follows canonical", _DART_URL, "https://github.com/aran/rules_dart/releases/download/v" + _RULES_DART_VERSION + "/rules_dart-v" + _RULES_DART_VERSION + ".tar.gz"),
             expect_equal("dart archive strip prefix follows canonical", _DART_STRIP_PREFIX, "rules_dart-" + _RULES_DART_VERSION),
             expect_equal("dotnet archive url follows canonical", _DOTNET_URL, "https://github.com/bazel-contrib/rules_dotnet/releases/download/v" + _RULES_DOTNET_VERSION + "/rules_dotnet-v" + _RULES_DOTNET_VERSION + ".tar.gz"),

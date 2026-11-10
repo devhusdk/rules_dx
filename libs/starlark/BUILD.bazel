@@ -1,6 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":pins_tests.bzl", "pins_tests")
 load(":platform.bzl", "platform_probe")
 
 bool_flag(
@@ -16,6 +15,7 @@ exports_files([
     "deb_closure.bzl",
     "defs.bzl",
     "entry.bzl",
+    "extensions.bzl",
     "failure_test.bzl",
         "fuzz_bench.bzl",
         "fuzz_bench_tests.bzl",
@@ -27,7 +27,6 @@ exports_files([
     "node_test.bzl",
     "packaging.bzl",
     "plan_shard.bzl",
-    "pins_tests.bzl",
     "platform.bzl",
     "repo.bzl",
     "resources.bzl",
@@ -49,6 +48,7 @@ real_source_target(
         "deb_closure.bzl",
         "defs.bzl",
         "entry.bzl",
+        "extensions.bzl",
         "failure_test.bzl",
         "fuzz_bench.bzl",
         "fuzz_bench_tests.bzl",
@@ -57,7 +57,6 @@ real_source_target(
         "jammy_runtime.bzl",
         "msvc_crt.bzl",
         "packaging.bzl",
-        "pins_tests.bzl",
         "plan_shard.bzl",
         "platform.bzl",
         "repo.bzl",
@@ -74,8 +73,6 @@ real_source_target(
     tags = ["corpus"],
     visibility = ["//tools/ci:__pkg__"],
 )
-
-pins_tests(name = "pins_test")
 
 platform_probe(
     name = "platform_probe",

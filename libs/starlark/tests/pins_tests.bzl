@@ -1,8 +1,8 @@
 """The checks every pins.json shares."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load(":defs.bzl", "expect_true", "starlark_test")
-load(":toolchain.bzl", "pin_checks")
+load("//libs/starlark:defs.bzl", "expect_true", "starlark_test")
+load("//libs/starlark:toolchain.bzl", "pin_checks")
 
 def _archive(pin):
     return struct(

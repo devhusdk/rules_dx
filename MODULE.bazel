@@ -826,7 +826,7 @@ use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 ruby_tools = use_extension("//ruby/toolchain:extensions.bzl", "ruby_tools")
 use_repo(ruby_tools, "rules_ruby")
 
-dx_pins = use_extension("//libs/starlark:toolchain.bzl", "dx_pins")
+dx_pins = use_extension("//libs/starlark:extensions.bzl", "dx_pins")
 dx_pins.pin(
     name = "dx_sorbet",
     aliases = {"windows_arm64": "windows_x86_64"},
@@ -836,11 +836,13 @@ dx_pins.pin(
 dx_pins.pin(
     name = "dx_powershell_toolchains",
     build = "//powershell/toolchain:pwsh.build",
+    compatible_with = "target",
     pins = "//powershell/toolchain:pins.json",
     toolchain_type = "@rules_powershell//powershell:toolchain_type",
 )
 use_repo(
     dx_pins,
+    "dx_pins_data",
     "dx_powershell_toolchains",
     "dx_powershell_toolchains__linux_arm64",
     "dx_powershell_toolchains__linux_x86_64",
@@ -848,12 +850,11 @@ use_repo(
     "dx_powershell_toolchains__macos_x86_64",
     "dx_powershell_toolchains__windows_arm64",
     "dx_powershell_toolchains__windows_x86_64",
-    "dx_pins_data",
     "dx_sorbet",
 )
 
 # The pinned Ruby is declared in families/ruby; deploy tests read its files.
-ruby = use_extension("//ruby:extensions.bzl", "ruby")
+ruby = use_extension("//ruby:extensions.bzl", "ruby", dev_dependency = True)
 use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
 
 # floor: equals tested

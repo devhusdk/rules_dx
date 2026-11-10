@@ -43,7 +43,7 @@ def _host_archive_impl(rctx):
         fail("no pinned {} archive for {}".format(rctx.attr.tool, cell))
     return _fetch(rctx, rctx.attr.tool, pin, rctx.attr.build)
 
-_host_archive = repository_rule(
+host_archive_rule = repository_rule(
     implementation = _host_archive_impl,
     doc = "Downloads the pinned archive of the host cell and writes its BUILD file.",
     attrs = {
@@ -57,7 +57,7 @@ _host_archive = repository_rule(
 def _cell_archive_impl(rctx):
     return _fetch(rctx, rctx.attr.tool, json.decode(rctx.attr.pin), rctx.attr.build)
 
-_cell_archive = repository_rule(
+cell_archive_rule = repository_rule(
     implementation = _cell_archive_impl,
     doc = "Downloads the pinned archive of one cell and writes its BUILD file.",
     attrs = {
@@ -77,7 +77,7 @@ def host_archive(name, tool, cells, build, aliases = {}):
         build: BUILD file content; {binary} is replaced by the cell's binary path.
         aliases: Dict of host cell to the pinned cell that serves it.
     """
-    _host_archive(
+    host_archive_rule(
         name = name,
         aliases = aliases,
         build = build,
@@ -150,60 +150,22 @@ def cell_repo(name, cell):
     """Returns the name of the repository holding one cell of a pin."""
     return name + "__" + cell
 
-def pins_hub(name, cells, toolchain_type):
+def pins_hub(name, cells, toolchain_type, compatible_with = "exec"):
     """Returns the hub BUILD file of a pin: one toolchain() per cell.
 
     Args:
         name: Pin name.
         cells: Cell names.
         toolchain_type: Label string of the toolchain type.
+        compatible_with: "exec" constrains exec_compatible_with, "target" target_compatible_with.
     """
     return "\n".join([
         toolchain_target(
             name = cell_repo(name, cell),
-            exec_compatible_with = [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]],
             toolchain = "@{}//:toolchain".format(cell_repo(name, cell)),
             toolchain_type = toolchain_type,
             visibility = ["//visibility:public"],
+            **{compatible_with + "_compatible_with": [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]]},
         )
         for cell in sorted(cells)
     ])
-
-def _dx_pins_impl(mctx):
-    data = {}
-    for mod in mctx.modules:
-        for tag in mod.tags.pin:
-            pins = json.decode(mctx.read(tag.pins))
-            build = mctx.read(tag.build)
-            data[tag.name] = pins
-            if tag.toolchain_type == None:
-                _host_archive(
-                    name = tag.name,
-                    aliases = tag.aliases,
-                    build = build,
-                    cells = json.encode(pins["cells"]),
-                    tool = tag.name,
-                )
-                continue
-            for cell, pin in pins["cells"].items():
-                _cell_archive(name = cell_repo(tag.name, cell), build = build, pin = json.encode(pin), tool = tag.name)
-            hub_repo(name = tag.name, files = {"BUILD.bazel": pins_hub(tag.name, pins["cells"].keys(), str(tag.toolchain_type))})
-    hub_repo(name = "dx_pins_data", files = {"BUILD.bazel": "", "pins.bzl": "PINS = " + repr(data) + "\n"})
-    return mctx.extension_metadata(reproducible = True)
-
-dx_pins = module_extension(
-    implementation = _dx_pins_impl,
-    doc = "Creates the repositories of every pins.json: one per cell and a toolchain hub, or one host-selected repository.",
-    tag_classes = {
-        "pin": tag_class(
-            doc = "One pins.json. With a toolchain_type it makes a repository per cell and a hub of toolchain() targets; without, one repository of the host cell.",
-            attrs = {
-                "aliases": attr.string_dict(doc = "Host cell to the pinned cell that serves it."),
-                "build": attr.label(mandatory = True, allow_single_file = True, doc = "BUILD file template; {binary} is replaced by the cell's binary path."),
-                "name": attr.string(mandatory = True, doc = "Hub, or sole, repository name."),
-                "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file of version and cells."),
-                "toolchain_type": attr.label(doc = "Toolchain type the hub registers; unset for a host-selected repository."),
-            },
-        ),
-    },
-)

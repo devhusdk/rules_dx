@@ -4,13 +4,18 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load(":jazzer.bzl", "jazzer_target_class")
 load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 
-package(default_visibility = ["//java:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//java:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 _ON = {"warnings_as_errors": True}
 
 exports_files([
     "jazzer.bzl",
     "jmh.bzl",
+    "jmh_tests.bzl",
     "coverage.bzl",
     "coverage_tests.bzl",
     "defs.bzl",
@@ -84,22 +89,53 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "fuzz target class explicit wins",
-            jazzer_target_class("k", "x", ["X.kt"], "a.B", "p", ".kt"),
+            jazzer_target_class(
+                "k",
+                "x",
+                ["X.kt"],
+                "a.B",
+                "p",
+                ".kt",
+            ),
             "a.B",
         ),
         expect_equal(
             "java fuzz class from name-matching src",
-            jazzer_target_class("k", "Fuzz", ["src/main/java/com/x/Fuzz.java", "O.java"], None, "p", ".java"),
+            jazzer_target_class(
+                "k",
+                "Fuzz",
+                [
+                    "src/main/java/com/x/Fuzz.java",
+                    "O.java",
+                ],
+                None,
+                "p",
+                ".java",
+            ),
             "com.x.Fuzz",
         ),
         expect_equal(
             "kotlin fuzz class from single src",
-            jazzer_target_class("k", "parse_fuzz", ["ParseFuzz.kt"], None, "kotlin/tests/fuzz", ".kt"),
+            jazzer_target_class(
+                "k",
+                "parse_fuzz",
+                ["ParseFuzz.kt"],
+                None,
+                "kotlin/tests/fuzz",
+                ".kt",
+            ),
             "tests.fuzz.ParseFuzz",
         ),
         expect_equal(
             "scala fuzz class from single src",
-            jazzer_target_class("k", "parse_fuzz", ["src/main/scala/a/ParseFuzz.scala"], None, "p", ".scala"),
+            jazzer_target_class(
+                "k",
+                "parse_fuzz",
+                ["src/main/scala/a/ParseFuzz.scala"],
+                None,
+                "p",
+                ".scala",
+            ),
             "a.ParseFuzz",
         ),
         expect_equal(
@@ -336,17 +372,35 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "test forwards explicit main class",
-            java_test_main_class("T", ["T.java"], "java/x", {"main_class": "a.B"}, "R"),
+            java_test_main_class(
+                "T",
+                ["T.java"],
+                "java/x",
+                {"main_class": "a.B"},
+                "R",
+            ),
             "a.B",
         ),
         expect_equal(
             "test forwards runner by default",
-            java_test_main_class("T", ["T.java"], "java/x", {}, "R"),
+            java_test_main_class(
+                "T",
+                ["T.java"],
+                "java/x",
+                {},
+                "R",
+            ),
             "R",
         ),
         expect_equal(
             "test without testrunner forwards inferred class",
-            java_test_main_class("T", ["T.java"], "java/x", {"use_testrunner": False}, "R"),
+            java_test_main_class(
+                "T",
+                ["T.java"],
+                "java/x",
+                {"use_testrunner": False},
+                "R",
+            ),
             "x.T",
         ),
         expect_equal(
@@ -375,6 +429,7 @@ real_source_target(
         "coverage_tests.bzl",
         "defs.bzl",
         "jmh.bzl",
+        "jmh_tests.bzl",
         "kwargs.bzl",
     ],
     tags = ["corpus"],

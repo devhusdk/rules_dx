@@ -1,6 +1,7 @@
-load("@rules_dx//java:defs.bzl", "java_bench")
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//java:defs.bzl", "java_bench")
+load("@rules_dx//java/private:jmh_tests.bzl", "jmh_compile_flag_test", "jmh_inner_attr_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -20,9 +21,9 @@ real_source_target(
 
 java_bench(
     name = "sized_bench",
-    srcs = ["Sum.java"],
     size = "large",
     timeout = "long",
+    srcs = ["Sum.java"],
 )
 
 dx_runner_attr_test(
@@ -44,8 +45,44 @@ dx_runner_attr_test(
     name = "env_bench_attrs",
     expected = {
         "env": {"BENCH_MODE": "fast"},
-        "tags": ["dx-bench", "manual"],
+        "tags": [
+            "dx-bench",
+            "manual",
+        ],
         "upstream": ":env_bench_upstream",
     },
     runner = "env_bench",
+)
+
+java_bench(
+    name = "compile_attr_bench",
+    srcs = ["Sum.java"],
+    javacopts = ["-parameters"],
+)
+
+jmh_compile_flag_test(
+    name = "compile_attr_bench_flag_test",
+    bench = "compile_attr_bench",
+    flag = "-parameters",
+    mnemonic = "Javac",
+)
+
+java_bench(
+    name = "incompatible_bench",
+    srcs = ["Sum.java"],
+    tags = ["bench-inner"],
+    target_compatible_with = ["@platforms//:incompatible"],
+)
+
+jmh_inner_attr_test(
+    name = "incompatible_bench_inner_test",
+    bench = "incompatible_bench",
+    inner = [
+        "_bin",
+        "_bin_upstream",
+        "_jmh_processor",
+        "_jmh_runner",
+    ],
+    tags = ["bench-inner"],
+    target_compatible_with = ["@platforms//:incompatible"],
 )

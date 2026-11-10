@@ -320,3 +320,77 @@ fn langs_bzl_is_generated_from_every_lang_json() {
     dx_testing::snapshot_diff(&expected, &actual, Some("core/modules/langs.bzl"))
         .expect("core/modules/langs.bzl is generated from every lang.json");
 }
+
+fn lang_aspects(manifest: &Value) -> Vec<(String, String)> {
+    let mut found = Vec::new();
+    for (section, label_key) in [("aspects", "quality"), ("probes", "quality"), ("aspects", "docs")] {
+        let Some(table) = manifest.get(label_key) else {
+            continue;
+        };
+        let label = table["bzl"].as_str().expect("bzl").to_owned();
+        let names: Vec<&Value> = match &table[section] {
+            Value::Array(items) => items.iter().collect(),
+            Value::Object(groups) => groups
+                .values()
+                .flat_map(|group| group.as_array().expect("group").iter())
+                .collect(),
+            _ => Vec::new(),
+        };
+        for name in names {
+            found.push((label.clone(), name.as_str().expect("aspect").to_owned()));
+        }
+    }
+    found
+}
+
+fn loaded_names(text: &str) -> BTreeSet<(String, String)> {
+    let mut loaded = BTreeSet::new();
+    for line in text.lines().filter(|line| line.starts_with("load(")) {
+        let mut quoted = line.split('"').skip(1).step_by(2);
+        let label = quoted.next().expect("load label");
+        let (package, file) = label.trim_start_matches("//").split_once(':').expect("label");
+        for name in quoted {
+            loaded.insert((format!("{package}:{file}"), name.to_owned()));
+        }
+    }
+    loaded
+}
+
+#[test]
+fn every_lang_json_aspect_is_loaded_from_its_bzl() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+            .expect("families.json");
+    let listed: BTreeSet<&str> = families["families"]
+        .as_object()
+        .expect("families")
+        .values()
+        .flat_map(|family| family["aspects"].as_array().expect("aspects").iter())
+        .map(|name| name.as_str().expect("aspect"))
+        .collect();
+    let loaded = loaded_names(&dx_testing::read_runfiles(
+        "core/quality/testdata/all_languages.bzl",
+    ));
+    let mut problems = Vec::new();
+    for dir in language_dirs(&root, &families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        for (label, name) in lang_aspects(&manifest) {
+            let (package, file) = label.split_once(':').expect("label");
+            if !loaded.contains(&(format!("{package}:{file}"), name.clone())) {
+                problems.push(format!(
+                    "{}: {name} is not loaded from //{package}:{file} in core/quality/testdata/all_languages.bzl",
+                    dir.display()
+                ));
+            }
+            if !listed.contains(name.as_str()) {
+                problems.push(format!(
+                    "{}: {name} is not in any families.json aspects list",
+                    dir.display()
+                ));
+            }
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

@@ -2,7 +2,7 @@
 
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, resolve_version, scrubbed_command,
+    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::collections::BTreeSet;
@@ -133,7 +133,7 @@ fn file_list_refusal(
 }
 
 /// Returns the last output lines with the token value removed.
-fn gem_failure_lines(output: &std::process::Output, token: &str) -> Vec<String> {
+fn gem_failure_lines(output: &dx_process::capture::Captured, token: &str) -> Vec<String> {
     let mut text = String::from_utf8_lossy(&output.stdout).into_owned();
     text.push_str(&String::from_utf8_lossy(&output.stderr));
     if !token.is_empty() {
@@ -146,8 +146,8 @@ fn gem_failure_lines(output: &std::process::Output, token: &str) -> Vec<String> 
         .collect()
 }
 
-fn gem_failure(what: &str, output: &std::process::Output, token: &str) -> String {
-    let mut message = format!("rubygems_deploy: {what} failed with {}", output.status);
+fn gem_failure(what: &str, output: &dx_process::capture::Captured, token: &str) -> String {
+    let mut message = format!("rubygems_deploy: {what} failed with {}", exit_text(output));
     for line in gem_failure_lines(output, token) {
         message.push_str("\ngem: ");
         message.push_str(&line);
@@ -179,19 +179,20 @@ fn gem_build(
 ) -> Result<PathBuf, String> {
     let gem = staging.join(format!("{gem_name}-{version}.gem"));
     let path = gem_path(program);
-    let output = scrubbed_command(
-        program,
-        &[PUBLISH_CHILD_ENV_KEEP, GEM_CHILD_ENV_EXTRA],
-        &[("PATH", path.as_str())],
+    let output = run_publish(
+        scrubbed_command(
+            program,
+            &[PUBLISH_CHILD_ENV_KEEP, GEM_CHILD_ENV_EXTRA],
+            &[("PATH", path.as_str())],
+        )
+        .current_dir(staging)
+        .arg("build")
+        .arg(format!("{gem_name}.gemspec"))
+        .arg("--output")
+        .arg(&gem),
     )
-    .current_dir(staging)
-    .arg("build")
-    .arg(format!("{gem_name}.gemspec"))
-    .arg("--output")
-    .arg(&gem)
-    .output()
     .map_err(|error| format!("rubygems_deploy: {error}"))?;
-    if !output.status.success() {
+    if !output.success() {
         return Err(gem_failure("gem build", &output, ""));
     }
     Ok(gem)
@@ -200,16 +201,17 @@ fn gem_build(
 /// Runs `gem push`; the key goes through GEM_HOST_API_KEY.
 fn gem_push(program: &Path, gem: &Path, token: &str) -> Result<(), String> {
     let path = gem_path(program);
-    let output = scrubbed_command(
-        program,
-        &[PUBLISH_CHILD_ENV_KEEP, GEM_CHILD_ENV_EXTRA],
-        &[("GEM_HOST_API_KEY", token), ("PATH", path.as_str())],
+    let output = run_publish(
+        scrubbed_command(
+            program,
+            &[PUBLISH_CHILD_ENV_KEEP, GEM_CHILD_ENV_EXTRA],
+            &[("GEM_HOST_API_KEY", token), ("PATH", path.as_str())],
+        )
+        .arg("push")
+        .arg(gem),
     )
-    .arg("push")
-    .arg(gem)
-    .output()
     .map_err(|error| format!("rubygems_deploy: {error}"))?;
-    if output.status.success() {
+    if output.success() {
         return Ok(());
     }
     Err(gem_failure("gem push", &output, token))

@@ -161,7 +161,7 @@ def javascript_test_rejection(runner, node_modules, main, kwargs):
     """Returns the rejection for bad javascript_test arguments, or None."""
     return node_test_runner_rejection("javascript_test", runner, node_modules, main, kwargs)
 
-def javascript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
+def javascript_test(name, *, srcs = None, main = None, runner = "jest", node_modules = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test, or js_test with runner = "node". runner defaults to "jest"; main is linted unless it is an external label."""
     rejection = javascript_test_rejection(runner, node_modules, main, kwargs)
     if rejection != None:
@@ -179,7 +179,7 @@ def javascript_test(name, *, srcs = None, runner = "jest", node_modules = None, 
 def _source_label(src):
     return src if src.startswith(":") or src.startswith("//") or src.startswith("@") else ":" + src
 
-def javascript_bench(name, *, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs):
+def javascript_bench(name, *, srcs, main = None, node_modules, data = None, args = None, tags = None, **kwargs):
     """A javascript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench."""
     javascript_test(
         name = name,
@@ -192,7 +192,7 @@ def javascript_bench(name, *, srcs, node_modules, main = None, data = None, args
         **with_default_size(kwargs)
     )
 
-def javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, visibility = None, tags = None, **kwargs):
+def javascript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, visibility = None, tags = None, **kwargs):
     """A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core."""
     kwargs = dict(kwargs)
     fixed_args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(kwargs.pop("fixed_args", []))

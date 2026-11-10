@@ -45,7 +45,7 @@ Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a priv
 ### `typescript_test`
 
 ```python
-typescript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs)
+typescript_test(name, *, srcs = None, main = None, runner = "jest", node_modules = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs)
 ```
 
 Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources. runner defaults to "jest"; declaration_srcs are outside quality ownership.
@@ -53,7 +53,7 @@ Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript 
 ### `typescript_bench`
 
 ```python
-typescript_bench(name, *, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs)
+typescript_bench(name, *, srcs, main = None, node_modules, data = None, args = None, tags = None, **kwargs)
 ```
 
 A typescript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench.
@@ -61,7 +61,7 @@ A typescript_test run by dx bench. `main`, the first of srcs by default, exports
 ### `typescript_fuzz_test`
 
 ```python
-typescript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, deps = None, visibility = None, tags = None, **kwargs)
+typescript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
 A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core.

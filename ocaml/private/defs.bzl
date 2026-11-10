@@ -375,13 +375,13 @@ def ocaml_fuzz_test(name, *, main, deps = None, visibility = None, tags = None, 
     )
     dx_fuzz_runner(name, ":" + name, engine = "crowbar", visibility = visibility)
 
-def ocaml_bench(name, *, struct, deps = None, visibility = None, tags = None, **kwargs):
-    """A benchmark `dx bench` runs: `struct` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`."""
+def ocaml_bench(name, *, main, deps = None, visibility = None, tags = None, **kwargs):
+    """A benchmark `dx bench` runs: `main` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`."""
     build, run = split_test_kwargs(kwargs)
     ocaml_module(
         name = name + "_bin",
         testonly = True,
-        struct = struct,
+        struct = main,
         deps = (deps or []) + [Label("//ocaml/bench:dx_bench")],
         tags = merge_tags(tags, "manual"),
         visibility = ["//visibility:private"],

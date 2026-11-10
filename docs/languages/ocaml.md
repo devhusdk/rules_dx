@@ -73,10 +73,10 @@ A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the
 ### `ocaml_bench`
 
 ```python
-ocaml_bench(name, *, struct, deps = None, visibility = None, tags = None, **kwargs)
+ocaml_bench(name, *, main, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
-A benchmark `dx bench` runs: `struct` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`.
+A benchmark `dx bench` runs: `main` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`.
 
 ### `dx_dune_library`
 

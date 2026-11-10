@@ -45,7 +45,7 @@ Minimal wrapper over go_test. cgo is off unless set.
 ### `go_fuzz_test`
 
 ```python
-go_fuzz_test(name, *, target, srcs = None, visibility = None, tags = None, **kwargs)
+go_fuzz_test(name, *, srcs = None, target, visibility = None, tags = None, **kwargs)
 ```
 
 A go_test plus a `<name>_run` runner that fuzzes the function `target` for `dx fuzz`.

@@ -1,0 +1,20 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//python:defs.bzl", "python_test")
+
+python_test(
+    name = "macro_signatures_test",
+    srcs = ["macro_signatures.py"],
+    main = "macro_signatures.py",
+    runner = "plain",
+    tags = [
+        "external",
+        "local",
+        "no-sandbox",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

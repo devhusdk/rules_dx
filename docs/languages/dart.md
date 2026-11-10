@@ -33,7 +33,7 @@ Thin wrapper over dart_library.
 ### `dart_binary`
 
 ```python
-dart_binary(name, *, main = None, srcs = None, visibility = None, **kwargs)
+dart_binary(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over dart_binary. main is name.dart, then bin/name.dart, else the single src.
@@ -41,7 +41,7 @@ Thin wrapper over dart_binary. main is name.dart, then bin/name.dart, else the s
 ### `dart_js_binary`
 
 ```python
-dart_js_binary(name, *, main = None, srcs = None, visibility = None, **kwargs)
+dart_js_binary(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over dart_js_binary. main is inferred as for dart_binary.
@@ -49,7 +49,7 @@ Thin wrapper over dart_js_binary. main is inferred as for dart_binary.
 ### `dart_wasm_binary`
 
 ```python
-dart_wasm_binary(name, *, main = None, srcs = None, visibility = None, **kwargs)
+dart_wasm_binary(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over dart_wasm_binary. main is inferred as for dart_binary.
@@ -57,7 +57,7 @@ Thin wrapper over dart_wasm_binary. main is inferred as for dart_binary.
 ### `dart_test`
 
 ```python
-dart_test(name, *, main = None, srcs = None, visibility = None, **kwargs)
+dart_test(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over dart_test. main is name.dart, then test/name.dart, else the single src.
@@ -65,7 +65,7 @@ Thin wrapper over dart_test. main is name.dart, then test/name.dart, else the si
 ### `dart_bench`
 
 ```python
-dart_bench(name, *, main = None, srcs = None, deps = None, tags = None, **kwargs)
+dart_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs)
 ```
 
 A dart_test run by dx bench: `main` calls runBenchmarks from package:dx_bench with BenchmarkBase objects, which writes dx-bench.json.

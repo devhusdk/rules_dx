@@ -33,7 +33,7 @@ Thin wrapper over flutter_library; fonts_json assets must come from font_files.
 ### `flutter_test`
 
 ```python
-flutter_test(name, *, main = None, srcs = None, visibility = None, **kwargs)
+flutter_test(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over flutter_test. main is name.dart, then test/name.dart, else the single src.
@@ -41,7 +41,7 @@ Thin wrapper over flutter_test. main is name.dart, then test/name.dart, else the
 ### `flutter_application`
 
 ```python
-flutter_application(name, *, main = None, srcs = None, visibility = None, **kwargs)
+flutter_application(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over flutter_application. main is name.dart, then lib/main.dart, else the single src.
@@ -49,7 +49,7 @@ Thin wrapper over flutter_application. main is name.dart, then lib/main.dart, el
 ### `flutter_web_app`
 
 ```python
-flutter_web_app(name, *, main = None, srcs = None, visibility = None, **kwargs)
+flutter_web_app(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over flutter_web_app. main is name.dart, then lib/main.dart, else the single src.

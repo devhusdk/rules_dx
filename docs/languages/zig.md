@@ -29,7 +29,7 @@ Minimal wrapper over zig_library; @import uses the public name.
 ### `zig_binary`
 
 ```python
-zig_binary(name, *, main = None, srcs = None, visibility = None, **kwargs)
+zig_binary(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Minimal wrapper over zig_binary. main is name.zig, else the single src.
@@ -37,7 +37,7 @@ Minimal wrapper over zig_binary. main is name.zig, else the single src.
 ### `zig_test`
 
 ```python
-zig_test(name, *, main = None, srcs = None, visibility = None, **kwargs)
+zig_test(name, *, srcs = None, main = None, visibility = None, **kwargs)
 ```
 
 Minimal wrapper over zig_test. main is name.zig, else the single src; kcov builds add -fllvm.
@@ -45,7 +45,7 @@ Minimal wrapper over zig_test. main is name.zig, else the single src; kcov build
 ### `zig_bench`
 
 ```python
-zig_bench(name, *, main = None, srcs = None, visibility = None, tags = None, **kwargs)
+zig_bench(name, *, srcs = None, main = None, visibility = None, tags = None, **kwargs)
 ```
 
 A ReleaseFast zig_binary plus a `<name>` runner that writes dx-bench.json for `dx bench`.

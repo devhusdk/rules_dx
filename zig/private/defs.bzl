@@ -117,14 +117,14 @@ def zig_library(name, main, *, srcs = None, import_name = None, visibility = Non
     kwargs = dx_without_warnings_attr(kwargs)
     dx_wrap(name, _zig_library, _zig_library_forward, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, import_name = zig_import_name(name, import_name), **kwargs)
 
-def zig_binary(name, *, main = None, srcs = None, visibility = None, **kwargs):
+def zig_binary(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary. main is name.zig, else the single src."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_binary", name, main, srcs, dx_main_candidates(name, ".zig"))
     upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)))
     dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
 
-def zig_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
+def zig_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_test. main is name.zig, else the single src; kcov builds add -fllvm."""
     kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_test", name, main, srcs, dx_main_candidates(name, ".zig"))
@@ -150,7 +150,7 @@ def _zig_bench_binary(name, tags = None, **kwargs):
         tags = tags,
     )
 
-def zig_bench(name, *, main = None, srcs = None, visibility = None, tags = None, **kwargs):
+def zig_bench(name, *, srcs = None, main = None, visibility = None, tags = None, **kwargs):
     """A ReleaseFast zig_binary plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
     dx_bench_test(
         name,

@@ -97,7 +97,7 @@ def go_test(name, *, srcs = None, visibility = None, **kwargs):
     kwargs = _warn(kwargs)
     dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
-def go_fuzz_test(name, *, target, srcs = None, visibility = None, tags = None, **kwargs):
+def go_fuzz_test(name, *, srcs = None, target, visibility = None, tags = None, **kwargs):
     """A go_test plus a `<name>_run` runner that fuzzes the function `target` for `dx fuzz`."""
     dx_fuzz_test(
         name,

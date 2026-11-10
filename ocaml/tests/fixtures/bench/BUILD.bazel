@@ -12,7 +12,7 @@ package(
 
 ocaml_bench(
     name = "sum_bench",
-    struct = "sum_bench.ml",
+    main = "sum_bench.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
 )
 
@@ -34,7 +34,7 @@ sh_test(
 ocaml_bench(
     name = "sized_bench",
     size = "large",
-    struct = "sum_bench.ml",
+    main = "sum_bench.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
     timeout = "long",
 )

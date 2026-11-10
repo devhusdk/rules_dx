@@ -45,7 +45,7 @@ Minimal wrapper over js_binary. main is the entry file; srcs are added to data.
 ### `javascript_test`
 
 ```python
-javascript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs)
+javascript_test(name, *, srcs = None, main = None, runner = "jest", node_modules = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs)
 ```
 
 Minimal wrapper over jest_test, or js_test with runner = "node". runner defaults to "jest"; main is linted unless it is an external label.
@@ -53,7 +53,7 @@ Minimal wrapper over jest_test, or js_test with runner = "node". runner defaults
 ### `javascript_bench`
 
 ```python
-javascript_bench(name, *, srcs, node_modules, main = None, data = None, args = None, tags = None, **kwargs)
+javascript_bench(name, *, srcs, main = None, node_modules, data = None, args = None, tags = None, **kwargs)
 ```
 
 A javascript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench.
@@ -61,7 +61,7 @@ A javascript_test run by dx bench. `main`, the first of srcs by default, exports
 ### `javascript_fuzz_test`
 
 ```python
-javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, visibility = None, tags = None, **kwargs)
+javascript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, visibility = None, tags = None, **kwargs)
 ```
 
 A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core.

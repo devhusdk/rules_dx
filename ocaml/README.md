@@ -243,8 +243,8 @@ ocaml_fuzz_test(
 
 ### Benchmarks
 
-`ocaml_bench(name, struct, deps)` builds the module `struct` and runs it as the
-manual `dx-bench` test `dx bench` runs. `struct` calls `Dx_bench.run` from
+`ocaml_bench(name, main, deps)` builds the module `main` and runs it as the
+manual `dx-bench` test `dx bench` runs. `main` calls `Dx_bench.run` from
 `//ocaml/bench:dx_bench` with a list of named jobs. Each job runs once to warm
 up, then in 10 timed samples of `iterations` calls (default 1000), and the
 results go to `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json` in ns/iter.
@@ -254,7 +254,7 @@ load("@rules_dx//ocaml:defs.bzl", "ocaml_bench")
 
 ocaml_bench(
     name = "sum_bench",
-    struct = "sum_bench.ml",
+    main = "sum_bench.ml",
 )
 ```
 

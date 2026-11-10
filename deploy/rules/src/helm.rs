@@ -2,10 +2,9 @@
 
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, pages_redact,
-    placeholder_refusal, resolve_version, scrubbed_command,
+    PUBLISH_TIMEOUT, exit_text, placeholder_refusal, resolve_version, scrubbed_command,
 };
 use crate::stage::copy_verified;
-use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
 /// One chart file: its path inside the chart and its runfiles location.
@@ -112,28 +111,21 @@ impl Helm {
     fn run(&self, args: &[&std::ffi::OsStr], stdin: Option<&str>) -> bool {
         let mut command = self.command();
         command.args(args);
-        if stdin.is_some() {
-            command.stdin(std::process::Stdio::piped());
-        }
-        command
-            .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped());
-        let child = command.spawn().and_then(|mut child| {
-            if let (Some(text), Some(mut pipe)) = (stdin, child.stdin.take()) {
-                pipe.write_all(text.as_bytes())?;
-            }
-            child.wait_with_output()
-        });
+        let child = dx_process::capture::run_captured_with_input(
+            &mut command,
+            stdin.map(str::as_bytes),
+            PUBLISH_TIMEOUT,
+        );
         match child {
             Ok(out) => {
                 let text =
                     |bytes: &[u8]| pages_redact(&String::from_utf8_lossy(bytes), &self.secret);
                 print!("{}", text(&out.stdout));
                 eprint!("{}", text(&out.stderr));
-                if !out.status.success() {
-                    eprintln!("helm_chart_deploy: helm failed with {}", out.status);
+                if !out.success() {
+                    eprintln!("helm_chart_deploy: helm failed with {}", exit_text(&out));
                 }
-                out.status.success()
+                out.success()
             }
             Err(error) => {
                 eprintln!("helm_chart_deploy: cannot run helm: {error}");

@@ -216,7 +216,7 @@ external label.
 Language rules:
 
 - `@rules_dx_android//rules:defs.bzl`: Android libraries.
-- `@rules_dx//api_spec/rules:defs.bzl`: OpenAPI and AsyncAPI specs.
+- `@rules_dx//api_spec:defs.bzl`: OpenAPI and AsyncAPI specs.
 - `@rules_dx_apple//ios:app.bzl`: iOS apps, tests and frameworks.
 - `@rules_dx_apple//ios:defs.bzl`: iOS libraries.
 - `@rules_dx_apple//macos:app.bzl`: macOS apps.
@@ -307,18 +307,18 @@ dx rule that wraps it.
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//vue:defs.bzl` | `vue_library` |
 | `@rules_zig//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` | `@rules_dx//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` |
-|  |  | `@rules_dx//ansible:defs.bzl` | `ansible_library` |
-|  |  | `@rules_dx//api_spec/rules:defs.bzl` | `api_spec_library` |
+|  |  | `@rules_dx//ansible/private:defs.bzl` | `ansible_library` |
+|  |  | `@rules_dx//api_spec/private:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
 |  |  | `@rules_dx//asciidoc/rules:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_build` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_test` |
-|  |  | `@rules_dx//avro/rules:defs.bzl` | `avro_library` |
-|  |  | `@rules_dx//bicep:defs.bzl` | `bicep_library` |
-|  |  | `@rules_dx//bicep:defs.bzl` | `bicep_registry_module` |
-|  |  | `@rules_dx//capnproto/rules:defs.bzl` | `capnp_library` |
-|  |  | `@rules_dx//capnproto/rules:defs.bzl` | `std_import_path` |
+|  |  | `@rules_dx//avro/private:defs.bzl` | `avro_library` |
+|  |  | `@rules_dx//bicep/private:defs.bzl` | `bicep_library` |
+|  |  | `@rules_dx//bicep/private:defs.bzl` | `bicep_registry_module` |
+|  |  | `@rules_dx//capnproto/private:defs.bzl` | `capnp_library` |
+|  |  | `@rules_dx//capnproto/private:defs.bzl` | `std_import_path` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_bench` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_features` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_mismatch` |
@@ -327,7 +327,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
-|  |  | `@rules_dx//cloudformation:defs.bzl` | `cloudformation_library` |
+|  |  | `@rules_dx//cloudformation/private:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_bench` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_binary` |
@@ -343,7 +343,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_test` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_wasm_binary` |
 |  |  | `@rules_dx//deploy/tests/cross:defs.bzl` | `cross_deployment` |
-|  |  | `@rules_dx//dockerfile:defs.bzl` | `dockerfile_library` |
+|  |  | `@rules_dx//dockerfile/private:defs.bzl` | `dockerfile_library` |
 |  |  | `@rules_dx//elixir/private:defs.bzl` | `app_sources` |
 |  |  | `@rules_dx//elixir/private:defs.bzl` | `cover_sources` |
 |  |  | `@rules_dx//elixir/private:defs.bzl` | `elixir_app` |
@@ -442,8 +442,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_package` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_sign` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `publisher_cn` |
-|  |  | `@rules_dx//flatbuffers/rules:defs.bzl` | `flatbuffers_library` |
-|  |  | `@rules_dx//flatbuffers/rules:defs.bzl` | `resolve_root` |
+|  |  | `@rules_dx//flatbuffers/private:defs.bzl` | `flatbuffers_library` |
+|  |  | `@rules_dx//flatbuffers/private:defs.bzl` | `resolve_root` |
 |  |  | `@rules_dx//flutter/rules:defs.bzl` | `flutter_android_app` |
 |  |  | `@rules_dx//flutter/rules:defs.bzl` | `flutter_application` |
 |  |  | `@rules_dx//flutter/rules:defs.bzl` | `flutter_ios_app` |
@@ -459,7 +459,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_bench` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
-|  |  | `@rules_dx//helm:defs.bzl` | `helm_chart` |
+|  |  | `@rules_dx//helm/private:defs.bzl` | `helm_chart` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_bench` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_binary` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_fuzz_test` |
@@ -484,8 +484,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_library` |
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_test` |
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_warnings_as_errors_opts` |
-|  |  | `@rules_dx//kubernetes:defs.bzl` | `kubernetes_library` |
-|  |  | `@rules_dx//kubernetes:defs.bzl` | `kubernetes_schemas` |
+|  |  | `@rules_dx//kubernetes/private:defs.bzl` | `kubernetes_library` |
+|  |  | `@rules_dx//kubernetes/private:defs.bzl` | `kubernetes_schemas` |
 |  |  | `@rules_dx//libs/exec_os:defs.bzl` | `exec_os` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `native_launch_descriptor_path` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `target_is_windows` |
@@ -499,10 +499,10 @@ dx rule that wraps it.
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `fake_file` |
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `label_string` |
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `starlark_test` |
-|  |  | `@rules_dx//lua:defs.bzl` | `lua_bench` |
-|  |  | `@rules_dx//lua:defs.bzl` | `lua_binary` |
-|  |  | `@rules_dx//lua:defs.bzl` | `lua_library` |
-|  |  | `@rules_dx//lua:defs.bzl` | `lua_test` |
+|  |  | `@rules_dx//lua/private:defs.bzl` | `lua_bench` |
+|  |  | `@rules_dx//lua/private:defs.bzl` | `lua_binary` |
+|  |  | `@rules_dx//lua/private:defs.bzl` | `lua_library` |
+|  |  | `@rules_dx//lua/private:defs.bzl` | `lua_test` |
 |  |  | `@rules_dx//make/rules:defs.bzl` | `make_library` |
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_build` |
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_library` |
@@ -520,11 +520,14 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `toolchain_choice` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `toolchain_settings` |
 |  |  | `@rules_dx//ocaml/tests/native:defs.bzl` | `sys_cell_test` |
-|  |  | `@rules_dx//perl:defs.bzl` | `perl_bench` |
-|  |  | `@rules_dx//php:defs.bzl` | `php_bench` |
-|  |  | `@rules_dx//php:defs.bzl` | `php_binary` |
-|  |  | `@rules_dx//php:defs.bzl` | `php_library` |
-|  |  | `@rules_dx//php:defs.bzl` | `php_test` |
+|  |  | `@rules_dx//perl/private:defs.bzl` | `perl_bench` |
+|  |  | `@rules_dx//perl/private:defs.bzl` | `perl_binary` |
+|  |  | `@rules_dx//perl/private:defs.bzl` | `perl_library` |
+|  |  | `@rules_dx//perl/private:defs.bzl` | `perl_test` |
+|  |  | `@rules_dx//php/private:defs.bzl` | `php_bench` |
+|  |  | `@rules_dx//php/private:defs.bzl` | `php_binary` |
+|  |  | `@rules_dx//php/private:defs.bzl` | `php_library` |
+|  |  | `@rules_dx//php/private:defs.bzl` | `php_test` |
 |  |  | `@rules_dx//python/private:defs.bzl` | `python_bench` |
 |  |  | `@rules_dx//python/private:defs.bzl` | `python_binary` |
 |  |  | `@rules_dx//python/private:defs.bzl` | `python_fuzz_test` |
@@ -544,11 +547,14 @@ dx rule that wraps it.
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_runtime` |
 |  |  | `@rules_dx//quality/tools/javascript:defs.bzl` | `js_tool` |
 |  |  | `@rules_dx//quality/tools/javascript:defs.bzl` | `js_tool_binary` |
-|  |  | `@rules_dx//rego:defs.bzl` | `rego_library` |
-|  |  | `@rules_dx//rego:defs.bzl` | `rego_test` |
+|  |  | `@rules_dx//rego/private:defs.bzl` | `rego_library` |
+|  |  | `@rules_dx//rego/private:defs.bzl` | `rego_test` |
 |  |  | `@rules_dx//rst/rules:defs.bzl` | `rst_library` |
-|  |  | `@rules_dx//ruby:defs.bzl` | `ruby_bench` |
-|  |  | `@rules_dx//ruby:defs.bzl` | `ruby_coverage_lib_dirs` |
+|  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_bench` |
+|  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_binary` |
+|  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_coverage_lib_dirs` |
+|  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_library` |
+|  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_test` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_bench` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_binary` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_fuzz_test` |
@@ -571,9 +577,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_fuzz_test` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_library` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_test` |
-|  |  | `@rules_dx//terraform:defs.bzl` | `collect_providers` |
-|  |  | `@rules_dx//terraform:defs.bzl` | `terraform_library` |
-|  |  | `@rules_dx//thrift/rules:defs.bzl` | `thrift_library` |
+|  |  | `@rules_dx//terraform/private:defs.bzl` | `collect_providers` |
+|  |  | `@rules_dx//terraform/private:defs.bzl` | `terraform_library` |
+|  |  | `@rules_dx//thrift/private:defs.bzl` | `thrift_library` |
 |  |  | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_doc_shard` |
 |  |  | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_shard_action` |
 |  |  | `@rules_dx//tools/docs/avro:defs.bzl` | `docs_avro_shard` |

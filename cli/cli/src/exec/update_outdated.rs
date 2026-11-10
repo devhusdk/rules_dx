@@ -29,11 +29,14 @@ const ACTIONS_SELECTOR: &str = "github-actions";
 const BAZELVERSION_SELECTOR: &str = "bazel:.bazelversion";
 const CONTAINERS_SELECTOR: &str = containers::SET;
 const PINS_SELECTOR: &str = dx_update::pins::SET;
+const BCR_NEWEST_SELECTOR: &str = "bcr:newest";
+const BCR_NEWEST_FILE: &str = "core/modules/bcr_newest.json";
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub(super) struct Builtins {
     actions: Option<Vec<String>>,
     bazelversion: bool,
+    bcr_newest: bool,
     containers: Option<Vec<String>>,
     pins: Option<Vec<String>>,
 }
@@ -104,6 +107,8 @@ pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
             }
         } else if target == BAZELVERSION_SELECTOR {
             builtins.bazelversion = true;
+        } else if target == BCR_NEWEST_SELECTOR {
+            builtins.bcr_newest = true;
         } else {
             rest.push(target.clone());
         }
@@ -716,6 +721,9 @@ fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found:
             }
         }
     }
+    if builtins.bcr_newest {
+        write_bcr_newest(workspace, fetch, found);
+    }
     if builtins.bazelversion
         && let Ok(text) = std::fs::read_to_string(workspace.join(".bazelversion"))
     {
@@ -723,6 +731,32 @@ fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found:
             found,
             github::bazelversion(&text, github::DEFAULT_BASE, fetch),
         );
+    }
+}
+
+fn write_bcr_newest(workspace: &Path, fetch: &dyn Fetch, found: &mut Findings) {
+    let mut fail = |reason: String| {
+        found.errors.push(dx_update::discover::LookupError {
+            set: "bcr".to_owned(),
+            package: "newest".to_owned(),
+            reason,
+        });
+    };
+    let text = match std::fs::read_to_string(workspace.join("MODULE.bazel")) {
+        Ok(text) => text,
+        Err(error) => return fail(format!("cannot read MODULE.bazel: {error}")),
+    };
+    let module = match dx_module_bazel::ModuleFile::parse(&text) {
+        Ok(module) => module,
+        Err(error) => return fail(error.to_string()),
+    };
+    match bcr::newest_snapshot(&module, bcr::DEFAULT_BASE, fetch) {
+        Ok(snapshot) => {
+            if let Err(error) = std::fs::write(workspace.join(BCR_NEWEST_FILE), snapshot) {
+                fail(format!("cannot write {BCR_NEWEST_FILE}: {error}"));
+            }
+        }
+        Err(error) => fail(error.to_string()),
     }
 }
 
@@ -1322,6 +1356,32 @@ mod tests {
         assert_eq!(candidate.package, "distroless_static");
         assert_eq!((&candidate.current, &candidate.latest), (&old, &new));
         assert!(collected.found.errors.is_empty());
+    }
+
+    #[test]
+    fn bcr_newest_selector_writes_the_snapshot() {
+        let root = std::env::temp_dir().join(format!("dx-bcr-newest-{}", std::process::id()));
+        let metadata = root.join("mirror/bcr.bazel.build/modules/rules_cc");
+        std::fs::create_dir_all(&metadata).expect("mirror");
+        std::fs::create_dir_all(root.join("core/modules")).expect("out dir");
+        std::fs::write(
+            metadata.join("metadata.json"),
+            r#"{"versions": ["0.1.0", "0.2.0", "0.3.0-rc1"], "yanked_versions": {}}"#,
+        )
+        .expect("metadata");
+        std::fs::write(
+            root.join("MODULE.bazel"),
+            "bazel_dep(name = \"rules_cc\", version = \"0.1.0\")\n",
+        )
+        .expect("module");
+        let (builtins, rest) = split_builtin(&["bcr:newest".to_owned()]);
+        assert!(builtins.bcr_newest && rest.is_empty());
+        let collected = collect(&root, &[], &builtins, false, &DirFetch(root.join("mirror")));
+        let written = std::fs::read_to_string(root.join(BCR_NEWEST_FILE));
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(collected.found.errors.is_empty());
+        assert_eq!(written.expect("snapshot"), "{\n  \"rules_cc\": \"0.2.0\"\n}\n");
+        assert!(!split_builtin(&[]).0.bcr_newest);
     }
 
     #[test]

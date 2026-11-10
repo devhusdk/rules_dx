@@ -1,5 +1,4 @@
-# Tests that run a nested Bazel. At most 8; the cap in nested_smoke_guard.sh may only go down.
-//cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test
+# Tests that run a nested Bazel. At most 6; the cap in nested_smoke_guard.sh may only go down.
 //deploy/private/release/tests:release_candidate_smoke_test
 //deploy/private/release/tests:readme_quickstart_smoke_test
 //core/quality/tests:quality_check_smoke_test

@@ -122,13 +122,6 @@ exports_files([
 filegroup(
     name = "real_srcs",
     srcs = glob(["src/real/*.rs"]),
-)
-
-genrule(
-    name = "real_sources",
-    srcs = [":real_srcs"],
-    outs = ["real_sources.txt"],
-    cmd = "cat $(locations :real_srcs) > $@",
     visibility = ["//visibility:public"],
 )
 

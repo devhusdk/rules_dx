@@ -196,7 +196,17 @@ fn every_runner_tier_base_tool_has_a_bound_tier_base() {
 
 #[test]
 fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default() {
-    let refusals = runner_config_refusals(&read_runfiles("core/quality/runner/real_sources.txt"));
+    let real_dir = runfiles_root().join("core/quality/runner/src/real");
+    let mut sources: Vec<_> = std::fs::read_dir(&real_dir)
+        .expect("runner real sources directory")
+        .map(|entry| entry.expect("directory entry").path())
+        .collect();
+    sources.sort();
+    let joined: String = sources
+        .iter()
+        .map(|path| std::fs::read_to_string(path).expect("runner source"))
+        .collect();
+    let refusals = runner_config_refusals(&joined);
     let effective = refusals;
     assert_eq!(
         effective,

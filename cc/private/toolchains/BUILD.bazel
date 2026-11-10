@@ -632,20 +632,10 @@ done
 """,
 )
 
-genrule(
-    name = "gcc_linux_libstdcxx_notice",
-    srcs = [
-        "notices/GCC_RUNTIME_LIBRARY_EXCEPTION.txt",
-        "notices/GPL-3.txt",
-    ],
-    outs = ["gcc_linux_libstdcxx_NOTICE.txt"],
-    cmd = "cat $(SRCS) > $@",
-)
-
 dx_native_runtime(
     name = "gcc_linux_libstdcxx",
     srcs = [":gcc_linux_libstdcxx_libs"],
-    notice = ":gcc_linux_libstdcxx_notice",
+    notice = "gcc_linux_libstdcxx_NOTICE.txt",
     redistribution = "app_local",
     source = "gcc " + GCC_VERSION,
     version = GCC_VERSION,

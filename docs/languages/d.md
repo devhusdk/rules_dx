@@ -29,7 +29,7 @@ Returns the hand-written D sources a target owns: srcs without any string import
 ### `d_library`
 
 ```python
-d_library(name, srcs, visibility = None, **kwargs)
+d_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
 Thin wrapper over the rules_d d_library rule.
@@ -40,7 +40,7 @@ Thin wrapper over the rules_d d_library rule.
 d_binary(name, *, srcs = None, visibility = None, **kwargs)
 ```
 
-Thin wrapper over the rules_d d_binary rule. srcs is required.
+Thin wrapper over the rules_d d_binary rule.
 
 ### `d_test`
 

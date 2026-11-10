@@ -21,7 +21,7 @@ load("@rules_dx//powershell:defs.bzl", "powershell_library", "powershell_binary"
 ### `powershell_library`
 
 ```python
-powershell_library(name, srcs, visibility = None, **kwargs)
+powershell_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
 Minimal wrapper over pwsh_library; srcs are .ps1, .psm1 or .psd1 files.

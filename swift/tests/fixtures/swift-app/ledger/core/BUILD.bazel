@@ -32,6 +32,7 @@ swift_test(
 
 swift_library_provider_test(
     name = "core_providers_test",
+    srcs = ["ledger.swift"],
     tags = ["block-network"],
     target_under_test = ":core",
 )

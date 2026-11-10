@@ -26,12 +26,14 @@ fn identity_records_the_os_supplied_runtime() {
             .ok()
             .filter(|_| archive.to_string_lossy().contains("tasks_release"));
         if let Some(record) = tasks_record {
-            assert_eq!(
-                records,
-                [record.as_str()],
-                "{}: {identity}",
-                archive.display()
-            );
+            let mut expected: Vec<&str> = [want.as_str(), record.as_str()]
+                .into_iter()
+                .filter(|record| !record.is_empty())
+                .collect();
+            expected.sort_unstable();
+            let mut actual = records.clone();
+            actual.sort_unstable();
+            assert_eq!(actual, expected, "{}: {identity}", archive.display());
         } else if want.is_empty() {
             assert!(records.is_empty(), "{}: {identity}", archive.display());
         } else if let Some((head, tail)) = want.split_once('*') {

@@ -13,7 +13,7 @@ def _library_impl(ctx):
     asserts.true(env, DefaultInfo in target)
     asserts.true(env, SwiftDocsInfo in target)
     asserts.equals(env, 1, len(target[SwiftDocsInfo].graphs))
-    asserts.equals(env, ["greet.swift"], [f.basename for f in target[SwiftDocsInfo].srcs])
+    asserts.equals(env, ctx.attr.srcs, [f.basename for f in target[SwiftDocsInfo].srcs])
     return analysistest.end(env)
 
 def _binary_impl(ctx):
@@ -24,7 +24,10 @@ def _binary_impl(ctx):
     asserts.true(env, target[DefaultInfo].files_to_run.executable != None)
     return analysistest.end(env)
 
-swift_library_provider_test = analysistest.make(_library_impl)
+swift_library_provider_test = analysistest.make(
+    _library_impl,
+    attrs = {"srcs": attr.string_list(default = ["greet.swift"], doc = "Basenames of the sources the docs provider must carry.")},
+)
 swift_binary_provider_test = analysistest.make(_binary_impl)
 
 def _coverage_impl(ctx):

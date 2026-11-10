@@ -29,7 +29,7 @@ Compiles a proto_library to C# with protoc; deps should hold Google.Protobuf.
 ### `csharp_library`
 
 ```python
-csharp_library(name, srcs, visibility = None, **kwargs)
+csharp_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
 Minimal wrapper over csharp_library; target_frameworks defaults to net10.0 and warnings are errors.

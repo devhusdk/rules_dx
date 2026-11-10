@@ -92,7 +92,27 @@ elixir_test run by dx bench: DxBench.run in srcs runs Benchee and writes dx-benc
 
 ## API docs
 
-No API doc tool yet.
+Tool: `Code.fetch_docs`.
+
+```python
+load("@rules_dx//tools/docs/elixir:defs.bzl", "elixir_doc_shard")
+```
+
+### `elixir_doc_shard`
+
+```python
+elixir_doc_shard(name, app, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Elixir app.
+
+Args:
+  name: Name of the shard target.
+  app: The documented elixir_app.
+  package: Package segment of every symbol id; defaults to the app name.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools
 

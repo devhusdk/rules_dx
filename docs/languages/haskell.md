@@ -20,23 +20,43 @@ load("@rules_dx//haskell:defs.bzl", "with_gmp", "haskell_library", "haskell_bina
 
 ### `with_gmp`
 
-No documentation.
+```python
+with_gmp(deps, gmp = GMP)
+```
+
+Returns executable deps with the GMP runtime that ghc-bignum links added once.
 
 ### `haskell_library`
 
-No documentation.
+```python
+haskell_library(name, srcs = None, visibility = None, testonly = False, **kwargs)
+```
+
+Thin wrapper over the rules_haskell haskell_library macro.
 
 ### `haskell_binary`
 
-No documentation.
+```python
+haskell_binary(name, *, srcs = None, visibility = None, **kwargs)
+```
+
+Thin wrapper over the rules_haskell haskell_binary macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False.
 
 ### `haskell_test`
 
-No documentation.
+```python
+haskell_test(name, *, srcs = None, visibility = None, **kwargs)
+```
+
+Thin wrapper over the rules_haskell haskell_test macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False.
 
 ### `haskell_bench`
 
-No documentation.
+```python
+haskell_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs)
+```
+
+A haskell_binary of tasty-bench benchmarks plus a `<name>` runner that writes dx-bench.json for `dx bench`.
 
 ## API docs
 

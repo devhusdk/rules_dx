@@ -29,7 +29,7 @@ Returns the runfiles-relative lib dir of each pinned SimpleCov gem, in pin order
 ### `ruby_library`
 
 ```python
-ruby_library(name, srcs, visibility = None, **kwargs)
+ruby_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
 Minimal wrapper over rb_library; takes .rb srcs.

@@ -9,13 +9,6 @@ package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 # gazelle:resolve rust dx_nested //tools/testing/nested:dx_nested
 
-# Every family module rules_dx publishes; each carries a `module_srcs` filegroup.
-FAMILY_MODULES = [
-    "android",
-    "apple",
-    "cuda",
-]
-
 exports_files(
     [
         "child_runfiles.bzl",
@@ -206,11 +199,7 @@ rust_test(
         "//deploy:module_srcs",
         "//erlang:module_srcs",
         "//qt:module_srcs",
-    ] + ["@rules_dx_%s//:module_srcs" % family for family in FAMILY_MODULES],
-    env = {
-        "MODULE_SRCS_rules_dx_%s" % family: "$(rlocationpaths @rules_dx_%s//:module_srcs)" % family
-        for family in FAMILY_MODULES
-    },
+    ],
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,

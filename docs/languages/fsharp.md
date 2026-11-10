@@ -21,7 +21,7 @@ load("@rules_dx//fsharp:defs.bzl", "fsharp_library", "fsharp_binary", "fsharp_te
 ### `fsharp_library`
 
 ```python
-fsharp_library(name, srcs, visibility = None, **kwargs)
+fsharp_library(name, srcs = None, visibility = None, **kwargs)
 ```
 
 Minimal wrapper over fsharp_library; srcs compile in list order, target_frameworks defaults to net10.0 and warnings are errors.

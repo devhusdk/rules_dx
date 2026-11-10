@@ -56,9 +56,10 @@ def versions_contract_tests(name):
     )
     manifests_block = "    manifests = [\n" + "".join(["        \"" + m + "\",\n" for m in _RUST_CRATE_MANIFESTS]) + "    ],\n"
     npm_pins = "\n".join(
-        ["use_repo(npm, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_HUBS]) + ")", "use_repo(npm_dev, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_DEV_HUBS]) + ")"] +
+        ["use_repo(npm, " + ", ".join(["\"" + hub + "\"" for hub in _NPM_HUBS]) + ")"] +
         ["pnpm_lock = \"" + lock + "\"," for lock in _NPM_LOCKS],
     )
+    npm_dev_block = "use_repo(\n    npm_dev,\n" + "".join(["    \"" + hub + "\",\n" for hub in _NPM_DEV_HUBS])
     cuda_stanza = "\n".join([
         "name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\"",
         "nvcc_version = \"" + _CUDA_VERSION + "\"",
@@ -85,7 +86,7 @@ def versions_contract_tests(name):
         ],
         file_blocks = {
             "@cuda_redistrib_json//file": cuda_manifest_blocks,
-            "//:MODULE.bazel": [manifests_block, "    version = \"" + _RUBY_VERSION + "\",\n"] + gem_pins + portable_ruby_pins + [
+            "//:MODULE.bazel": [manifests_block, npm_dev_block, "    version = \"" + _RUBY_VERSION + "\",\n"] + gem_pins + portable_ruby_pins + [
                 "    sha256 = \"" + _CUDA_REDIST_SHA256 + "\",\n    urls = [\"" + _CUDA_REDIST_URL + "\"],",
             ],
             "//tools/bazelrc:src/lib.rs": [

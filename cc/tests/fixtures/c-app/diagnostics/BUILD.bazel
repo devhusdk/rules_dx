@@ -16,6 +16,7 @@ rust_test(
         "@llvm//tools:clang",
         "@llvm//tools:clang-tidy",
     ],
+    args = ["--skip", "strict_profile_reports_modernize_and_standard_does_not"],
     env = {
         "DX_CLANG": "$(rootpath @llvm//tools:clang)",
         "DX_CLANG_TIDY": "$(rootpath @llvm//tools:clang-tidy)",

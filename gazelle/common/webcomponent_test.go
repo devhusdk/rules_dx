@@ -34,7 +34,7 @@ func TestNewWebComponentLangMetadata(t *testing.T) {
 			t.Errorf("%s: kinds %v lack %s", tc.name, l.Kinds(), kind)
 		}
 		loads := l.Loads()
-		if len(loads) != 1 || loads[0].Name != "@rules_dx//"+tc.name+"/rules:defs.bzl" || strings.Join(loads[0].Symbols, ",") != kind {
+		if len(loads) != 1 || loads[0].Name != "@rules_dx//"+tc.name+":defs.bzl" || strings.Join(loads[0].Symbols, ",") != kind {
 			t.Errorf("%s: loads = %+v", tc.name, loads)
 		}
 	}

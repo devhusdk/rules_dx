@@ -20,6 +20,7 @@ fn local() {
         local_memory: dx_process::VerbMask::ALL,
         disk_cache_gc: true,
         gc_idle_delay_secs: None,
+        slot_idle_secs: None,
         rc_color: dx_process::RcColor::NONE,
     });
 }

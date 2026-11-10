@@ -305,7 +305,7 @@ def _first(value):
 def _forwarded(info):
     return [info, OutputGroupInfo(compile_check = depset(info.diagnostics + info.statuses))]
 
-_SH_TOOLCHAIN_TYPE = "@bazel_tools//tools/sh:toolchain_type"
+_SH_TOOLCHAIN_TYPE = "//core/quality:compile_check_sh_toolchain_type"
 
 def _compile_check_impl(target, ctx):
     if target.label.repo_name != "":

@@ -1,1 +1,1 @@
-pipeline failed: tool execution failed for vale: vale analysis was incomplete: vale document converter failed: E100 [lintRST] Runtime error
+pipeline failed: tool execution failed for vale: vale analysis was incomplete: vale document converter failed: rst2html not found; it's needed to read reStructuredText (config core/quality/testdata/vale_test.ini): {

@@ -11,5 +11,5 @@ dx_sh_toolchain = rule(
     attrs = {
         "executable": attr.label(allow_single_file = True, mandatory = True),
     },
-    doc = "A bazel_tools sh toolchain whose shell is a declared input.",
+    doc = "A compile check sh toolchain whose shell is a declared input.",
 )

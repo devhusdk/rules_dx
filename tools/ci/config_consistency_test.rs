@@ -999,3 +999,46 @@ fn the_network_job_selects_a_tag_the_network_tests_carry() {
         "ci.yml selects network-consumer but NESTED_BAZEL_NETWORK_TAGS does not carry it"
     );
 }
+
+fn pin_value(key: &str) -> String {
+    let prefix = format!("{key}=");
+    read_runfiles("tools/bazelisk/pin.env")
+        .lines()
+        .find_map(|line| line.strip_prefix(prefix.as_str()))
+        .unwrap_or_else(|| panic!("pin.env sets no {key}"))
+        .trim()
+        .to_owned()
+}
+
+fn yaml_assignments(text: &str, key: &str) -> Vec<String> {
+    let prefix = format!("{key}:");
+    text.lines()
+        .filter_map(|line| line.trim().strip_prefix(prefix.as_str()))
+        .map(|value| value.trim().trim_matches('"').to_owned())
+        .collect()
+}
+
+#[test]
+fn bazelisk_pins_match_pin_env() {
+    let version = pin_value("BAZELISK_VERSION");
+    let sha = pin_value("BAZELISK_SHA256_LINUX_AMD64");
+    let mut seen = 0;
+    for name in dx_testing::workflow_files() {
+        for value in yaml_assignments(&read_runfiles(&name), "BAZELISK_VERSION") {
+            seen += 1;
+            assert_eq!(value, version, "{name} pins BAZELISK_VERSION {value}");
+        }
+    }
+    assert!(seen > 0, "no workflow sets BAZELISK_VERSION");
+    let gitlab = read_runfiles("ci/gitlab/dx.gitlab-ci.yml");
+    assert_eq!(
+        yaml_assignments(&gitlab, "BAZELISK_VERSION"),
+        [version],
+        "dx.gitlab-ci.yml BAZELISK_VERSION differs from pin.env"
+    );
+    assert_eq!(
+        yaml_assignments(&gitlab, "BAZELISK_SHA256"),
+        [sha],
+        "dx.gitlab-ci.yml BAZELISK_SHA256 differs from pin.env"
+    );
+}

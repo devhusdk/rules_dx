@@ -1,6 +1,6 @@
 """Module extension for swift/toolchain."""
 
-load(":repos.bzl", "swift_format_macos_repo", "swift_host_repo", "swift_windows_repo")
+load(":repos.bzl", "swift_host_repo", "swift_windows_repo")
 
 
 def _swift_host_ext_impl(module_ctx):

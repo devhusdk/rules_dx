@@ -90,6 +90,12 @@ pub enum ResolveError {
     NoCapability,
 }
 
+impl From<ResolveError> for dx_error::DxError {
+    fn from(error: ResolveError) -> Self {
+        Self::failure(error.to_string())
+    }
+}
+
 pub struct PairInputs {
     pub prepared_environment: Option<GenerationId>,
     pub prepared_generated: Option<GenerationId>,

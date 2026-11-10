@@ -294,3 +294,15 @@ fn every_failure_diagnostic_carries_the_resolve_code() {
         );
     }
 }
+
+#[test]
+fn resolve_error_kinds_map_to_dx_error_kinds() {
+    let usage = dx_error::DxError::from(ResolveError::Usage {
+        detail: "x".to_owned(),
+    });
+    assert_eq!(usage.kind(), dx_error::ErrorKind::Usage);
+    let infra = dx_error::DxError::from(ResolveError::NoArtifact {
+        label: "//a:b".to_owned(),
+    });
+    assert_eq!(infra.kind(), dx_error::ErrorKind::Infra);
+}

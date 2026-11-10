@@ -41,6 +41,16 @@ pub enum ResolveError {
     },
 }
 
+impl From<ResolveError> for dx_error::DxError {
+    fn from(error: ResolveError) -> Self {
+        let message = error.to_string();
+        match error {
+            ResolveError::Usage { .. } => Self::usage(message),
+            _ => Self::infra(message),
+        }
+    }
+}
+
 /// How one resolution reaches the Bazel server.
 pub trait Bazel {
     fn cquery_files(&self, label: &str, args: &[String]) -> Result<String, ResolveError>;

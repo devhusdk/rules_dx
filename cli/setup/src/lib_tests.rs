@@ -740,3 +740,9 @@ fn commit_errors_display() {
         assert!(!format!("{error}").is_empty());
     }
 }
+
+#[test]
+fn resolve_error_maps_to_a_failure() {
+    let error = dx_error::DxError::from(ResolveError::NoCapability);
+    assert_eq!(error.kind(), dx_error::ErrorKind::Failure);
+}

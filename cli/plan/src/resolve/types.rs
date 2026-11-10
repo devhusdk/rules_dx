@@ -135,6 +135,38 @@ pub enum ResolveError {
     },
 }
 
+impl From<ResolveError> for dx_error::DxError {
+    fn from(error: ResolveError) -> Self {
+        let message = error.to_string();
+        match error {
+            ResolveError::EmptyScope
+            | ResolveError::RelativeLabel { .. }
+            | ResolveError::ExternalScope { .. }
+            | ResolveError::OutsideWorkspace { .. }
+            | ResolveError::PathNotFound { .. }
+            | ResolveError::NoTargets { .. }
+            | ResolveError::NotFileOrDir { .. }
+            | ResolveError::NotAPackage { .. }
+            | ResolveError::UnsupportedName { .. }
+            | ResolveError::DeployCount { .. }
+            | ResolveError::DeployScope { .. }
+            | ResolveError::QueryFailed {
+                failure: QueryFailure::Prepare { .. },
+                ..
+            } => Self::usage(message),
+            ResolveError::NoOwner { .. }
+            | ResolveError::NoTests { .. }
+            | ResolveError::NoRunnable { .. }
+            | ResolveError::AmbiguousRunnable { .. }
+            | ResolveError::ChooseRunnable { .. }
+            | ResolveError::NotDeployable { .. }
+            | ResolveError::Config { .. }
+            | ResolveError::AllExcluded { .. } => Self::failure(message),
+            ResolveError::QueryFailed { .. } => Self::infra(message),
+        }
+    }
+}
+
 const EXCERPT_LINES: usize = 20;
 const EXCERPT_BYTES: usize = 4096;
 
@@ -274,6 +306,33 @@ impl ResolveError {
 mod tests {
     use super::*;
     use std::cell::RefCell;
+
+    #[test]
+    fn resolve_errors_map_to_dx_error_kinds() {
+        use dx_error::{DxError, ErrorKind};
+        let kind = |error: ResolveError| DxError::from(error).kind();
+        assert_eq!(kind(ResolveError::EmptyScope), ErrorKind::Usage);
+        assert_eq!(
+            kind(ResolveError::NoTests { owners: vec![] }),
+            ErrorKind::Failure
+        );
+        let query = |failure| ResolveError::QueryFailed {
+            label: "x".to_owned(),
+            failure,
+        };
+        assert_eq!(
+            kind(query(QueryFailure::Prepare {
+                detail: String::new()
+            })),
+            ErrorKind::Usage
+        );
+        assert_eq!(
+            kind(query(QueryFailure::Launch {
+                detail: String::new()
+            })),
+            ErrorKind::Infra
+        );
+    }
 
     #[test]
     fn launch_failure_says_how_to_install_a_missing_bazel() {

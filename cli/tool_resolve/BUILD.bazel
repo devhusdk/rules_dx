@@ -18,7 +18,10 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_tool_resolve",
         normal = True,
-    ) + ["//cli/process:dx_process"],
+    ) + [
+        "//cli/error:dx_error",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(
@@ -39,7 +42,10 @@ rust_test(
         package_name = "cli/dx_tool_resolve",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/process:dx_process"],
+    ) + [
+        "//cli/error:dx_error",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_binary(

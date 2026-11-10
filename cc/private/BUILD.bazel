@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "cc_coverage_probe", "objc_library")
+load(":defs.bzl", "cc_coverage_probe", "cc_library", "objc_library")
 load(":wrapper_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 
 package(default_visibility = ["//cc:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
@@ -50,4 +50,11 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "fuzz_driver",
+    testonly = True,
+    srcs = ["fuzz_driver.cc"],
+    visibility = ["//visibility:public"],
 )

@@ -208,12 +208,16 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
 def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
-    """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
+    """A libFuzzer binary with AddressSanitizer, or on Windows linked to a standalone driver, plus a `<name>_run` runner for `dx fuzz`."""
     flags = select({
-        Label("@platforms//os:windows"): ["-fsanitize=fuzzer"],  # TODO(#9946)
+        Label("@platforms//os:windows"): [],
         "//conditions:default": ["-fsanitize=fuzzer,address"],
     })
-    dx_fuzz_test(name, cc_binary, {"srcs": srcs, "copts": flags + (copts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
+    driver = select({
+        Label("@platforms//os:windows"): [Label("//cc/private:fuzz_driver")],
+        "//conditions:default": [],
+    })
+    dx_fuzz_test(name, cc_binary, {"srcs": srcs, "deps": driver, "copts": flags + (copts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
 
 def cc_bench(name, *, srcs = None, visibility = None, tags = None, deps = None, **kwargs):
     """A Google Benchmark binary plus a `<name>` runner that writes dx-bench.json for `dx bench`."""

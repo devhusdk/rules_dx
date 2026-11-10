@@ -1189,17 +1189,7 @@ mod tests {
         }
 
         fn sha_of(path: &Path) -> String {
-            let out = Command::new("sh")
-                .arg("-c")
-                .arg("sha256sum \"$0\" 2>/dev/null || shasum -a 256 \"$0\"")
-                .arg(path)
-                .output()
-                .expect("hashes");
-            String::from_utf8_lossy(&out.stdout)
-                .split_whitespace()
-                .next()
-                .expect("digest")
-                .to_owned()
+            dx_digest::sha256_hex(&std::fs::read(path).expect("reads"))
         }
 
         const UNAME_LINUX: &str =

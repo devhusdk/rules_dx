@@ -261,9 +261,7 @@ fn github_notes(planned: &[super::init_files::InitFile]) -> Vec<String> {
 
 fn next_steps(runner: &str, adopting: bool) -> String {
     if adopting {
-        format!(
-            "next: run `{runner} generate --apply` to wire your existing code, then `{runner} build //...`\n"
-        )
+        format!("next: run `{runner} build //...`\n")
     } else {
         format!(
             "next: add your code, then run `{runner} generate --apply` and `{runner} build //...`\n"
@@ -1111,7 +1109,7 @@ mod tests {
         );
         assert_eq!(
             next_steps("tools/dx", true),
-            "next: run `tools/dx generate --apply` to wire your existing code, then `tools/dx build //...`\n"
+            "next: run `tools/dx build //...`\n"
         );
     }
 

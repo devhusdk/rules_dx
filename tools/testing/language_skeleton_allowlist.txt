@@ -71,7 +71,6 @@ extension-label deploy/private/release/extensions.bzl
 extension-label dotnet/rules_dotnet.bzl
 extension-label gazelle/dispatch/extension.bzl
 extension-label javascript/private/dev_hub.bzl
-extension-label lua/luarocks/extensions.bzl
 extension-label ruby/private/coverage/extensions.bzl
 extension-label third_party/dotnet/extension.bzl
 extension-label typescript/private/playwright/extensions.bzl

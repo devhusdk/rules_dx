@@ -527,4 +527,4 @@ tag-use MODULE.bazel ruby.toolchain.portable_ruby_checksums
 tag-use MODULE.bazel ruby.toolchain.version
 tag-use MODULE.bazel terraform.provider.sha256
 tag-use MODULE.bazel terraform.provider.version
-tag-use MODULE.bazel zig_deps.lock.digests
+tag-use MODULE.bazel zig.lock.digests

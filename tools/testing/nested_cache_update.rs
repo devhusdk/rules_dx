@@ -1,7 +1,6 @@
 //! Re-records the cache sets and locks of nested tests: `bazel run //tools/testing:nested_cache_update -- <test label>...`.
 
 use std::path::PathBuf;
-use std::process::Command;
 
 const DIR: &str = "tools/testing/nested_cache";
 
@@ -29,22 +28,10 @@ fn main() {
         .iter()
         .map(|label| split_label(label).unwrap_or_else(|| fail(&format!("{label} is not a //package:name label"))))
         .collect();
-    let status = Command::new("bazel")
-        .current_dir(&workspace)
-        .arg("test")
-        .args(&labels)
-        .args([
-            "--test_env=DX_NESTED_BAZEL_NETWORK=1",
-            "--nocache_test_results",
-            "--nozip_undeclared_test_outputs",
-            "--test_tag_filters=",
-            "--build_tag_filters=",
-        ])
-        .status()
-        .unwrap_or_else(|error| fail(&format!("cannot run bazel: {error}")));
-    if !status.success() {
-        fail(&format!("bazel test failed: {status}"));
-    }
+    let test_command = format!(
+        "bazel test {} --test_env=DX_NESTED_BAZEL_NETWORK=1 --nocache_test_results --nozip_undeclared_test_outputs --test_tag_filters= --build_tag_filters=",
+        labels.join(" ")
+    );
     let target = workspace.join(DIR);
     for (package, name) in parts {
         let recorded = workspace
@@ -54,7 +41,7 @@ fn main() {
             .join("test.outputs")
             .join("nested_cache");
         let entries = std::fs::read_dir(&recorded)
-            .unwrap_or_else(|error| fail(&format!("{} recorded nothing: {error}", recorded.display())));
+            .unwrap_or_else(|error| fail(&format!("{} recorded nothing: {error}; run `{test_command}` first", recorded.display())));
         for entry in entries.filter_map(Result::ok) {
             let dst = target.join(entry.file_name());
             std::fs::copy(entry.path(), &dst)

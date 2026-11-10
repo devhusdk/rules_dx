@@ -101,13 +101,16 @@ override archive_override lua
 override archive_override rules_flutter
 override archive_override rules_py
 override override_repo androidsdk
+override override_repo dx_avro_cpp
 override single_version_override apple_support
 override single_version_override aspect_rules_jest
 override single_version_override aspect_rules_js
+override single_version_override aspect_rules_ts
 override single_version_override avro-cpp
 override single_version_override bazel_lib
 override single_version_override bazel_linux_packages
 override single_version_override bazel_skylib
+override single_version_override cgrindel_bazel_starlib
 override single_version_override elfutils
 override single_version_override envoy_api
 override single_version_override fmt
@@ -136,6 +139,7 @@ override single_version_override rules_perl
 override single_version_override rules_pkg
 override single_version_override rules_proto
 override single_version_override rules_python
+override single_version_override rules_rust
 override single_version_override rules_rust_prost
 override single_version_override rules_rust_wasm_bindgen
 override single_version_override rules_scala

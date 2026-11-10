@@ -387,7 +387,7 @@ fn fpm_locks_become_fpm_sets() {
 
 #[test]
 fn luarocks_locks_become_luarocks_sets() {
-    let module = "luarocks = use_extension(\"@rules_dx//lua/luarocks:extensions.bzl\", \"luarocks\")\nluarocks.lock(name = \"rocks\", lock = \"//lua:luarocks.lock\", digests = \"//lua:luarocks.digests.json\")\n";
+    let module = "luarocks = use_extension(\"@rules_dx//lua:extensions.bzl\", \"luarocks\")\nluarocks.lock(name = \"rocks\", lock = \"//lua:luarocks.lock\", digests = \"//lua:luarocks.digests.json\")\n";
     let registry = found(module, &[]);
     let set = registry.find("rocks").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::LuaRocks);

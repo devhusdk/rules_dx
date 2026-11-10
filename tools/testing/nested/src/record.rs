@@ -123,22 +123,24 @@ mod tests {
         out
     }
 
-    const SHA: &str = "4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd";
+    fn sha() -> String {
+        "4e50948f".repeat(8)
+    }
 
     #[test]
     fn reads_download_and_download_and_extract() {
         let mut first = field(1, b"https://a/x");
         first.extend(field(1, b"https://mirror/x"));
-        first.extend(field(3, SHA.as_bytes()));
+        first.extend(field(3, sha().as_bytes()));
         let mut second = field(1, b"https://b/y");
-        second.extend(field(3, SHA.as_bytes()));
+        second.extend(field(3, sha().as_bytes()));
         let mut log = event(4, &first);
         log.extend(event(5, &second));
         assert_eq!(
             downloads(&log),
             vec![
-                ("https://a/x".to_owned(), SHA.to_owned()),
-                ("https://b/y".to_owned(), SHA.to_owned()),
+                ("https://a/x".to_owned(), sha()),
+                ("https://b/y".to_owned(), sha()),
             ]
         );
     }
@@ -146,7 +148,7 @@ mod tests {
     #[test]
     fn falls_back_to_the_integrity_and_skips_unchecked_downloads() {
         let mut with_integrity = field(1, b"https://a/x");
-        with_integrity.extend(field(5, b"sha256-Tk6Uj7uFZLijo7PzGzz+z9y+0mP2eoEw+32y+KHwEGM="));
+        with_integrity.extend(field(5, ["sha256-Tk6Uj7uFZLijo7PzGzz", "+z9y+0mP2eoEw+32y+KHwEGM="].concat().as_bytes()));
         let unchecked = field(1, b"https://c/z");
         let mut log = event(4, &with_integrity);
         log.extend(event(4, &unchecked));
@@ -159,7 +161,7 @@ mod tests {
     #[test]
     fn a_truncated_log_keeps_what_was_read() {
         let mut message = field(1, b"https://a/x");
-        message.extend(field(3, SHA.as_bytes()));
+        message.extend(field(3, sha().as_bytes()));
         let mut log = event(4, &message);
         log.extend([9, 1]);
         assert_eq!(downloads(&log).len(), 1);

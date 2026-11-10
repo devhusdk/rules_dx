@@ -466,7 +466,7 @@ Review a bump pull request by reading the diff of `.dx/pins` and the list of new
 | `composer.lock` of `@rules_dx//php:extensions.bzl` | `name` | `composer.json` beside the lock | `lock`, `digests` |
 | `dub.lock` of `@rules_dx//d:extensions.bzl` | `name` | `dub.json` or `dub.sdl` beside `lock` | `lock`, `digests` |
 | `fortran.fpm` of `@rules_dx//fortran:extensions.bzl` | `name` | `fpm.toml` beside the lock | `lock` |
-| `luarocks.lock` of `@rules_dx//lua/luarocks:extensions.bzl` | `name` | `lock` | `digests` |
+| `luarocks.lock` of `@rules_dx//lua:extensions.bzl` | `name` | `lock` | `digests` |
 | `zig_deps.lock` of `@rules_dx//zig:extensions.bzl` | `name` | `build.zig.zon` beside `lock` | `digests` |
 | `cpan.install` of `@rules_perl//perl/cpan:extensions.bzl` | `name` | `cpanfile` beside the lock | `cpanfile.snapshot` and the `lock` JSON |
 | `pub.from_lock` of `@rules_dart//dart/pub:extensions.bzl`, `flutter.pub` of rules_flutter | `name` | `pubspec.yaml` beside the lock | `pubspec.lock` |
@@ -578,7 +578,7 @@ fortran.fpm(
 ### zig
 
 ```starlark
-zig_deps = use_extension("@rules_dx//zig:extensions.bzl", "zig_deps")
+zig_deps = use_extension("@rules_dx//zig:extensions.bzl", "zig")
 zig_deps.lock(
     name = "zig_packages",
     digests = "//:zig.digests.json",

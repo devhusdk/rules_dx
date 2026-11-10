@@ -21,7 +21,7 @@
         "manifest": "*.rockspec",
         "lock": "luarocks.lock",
         "state": null,
-        "extension": "@rules_dx//lua/luarocks:extensions.bzl",
+        "extension": "@rules_dx//lua:extensions.bzl",
         "tag": "lock",
         "hub": "luarocks",
         "resolver": null,

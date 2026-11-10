@@ -1022,7 +1022,7 @@ impl ModuleFile {
         const TAG: &str = "luarocks.lock";
         self.tags(
             RUBY_MODULE,
-            "lua/luarocks:extensions.bzl",
+            "lua:extensions.bzl",
             "luarocks",
             "lock",
         )
@@ -1125,8 +1125,8 @@ impl ModuleFile {
     /// Every `zig.lock` tag of the rules_dx zig deps extension in source order.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
-        let own = self.tags_of("//zig:extensions.bzl".to_owned(), "zig_deps", "lock");
-        self.tags(RUBY_MODULE, "zig:extensions.bzl", "zig_deps", "lock")
+        let own = self.tags_of("//zig:extensions.bzl".to_owned(), "zig", "lock");
+        self.tags(RUBY_MODULE, "zig:extensions.bzl", "zig", "lock")
             .chain(own)
             .map(|call| {
                 Ok(ZigLock {

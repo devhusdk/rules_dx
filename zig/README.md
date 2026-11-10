@@ -45,7 +45,7 @@ installed.
 The `.dependencies` of a `build.zig.zon` become one hub of `zig_library` targets. Bazel fetches each archive through its repository cache; Zig never runs at fetch time. Only `http(s)` archive URLs (`.tar.gz`, `.tgz`, `.tar.xz`, `.tar.zst`, `.zip`) are supported; `git+` URLs and path dependencies are not.
 
 ```python
-zig_deps = use_extension("@rules_dx//zig:extensions.bzl", "zig_deps")
+zig_deps = use_extension("@rules_dx//zig:extensions.bzl", "zig")
 zig_deps.lock(
     name = "zig_packages",
     digests = "//:zig.digests.json",

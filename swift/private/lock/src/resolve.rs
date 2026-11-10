@@ -1,6 +1,6 @@
 //! Resolves a Swift package set from its pins and the targets `swift package describe` prints.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 
 use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
@@ -67,6 +67,7 @@ struct Described {
 #[derive(Default)]
 struct Settings {
     defines: Vec<String>,
+    c_defines: Vec<String>,
     header_paths: Vec<String>,
     include: String,
 }
@@ -223,8 +224,8 @@ impl<'a> Swift<'a> {
             return Err(failed("declares dependencies on other packages; only packages without dependencies are supported".to_owned()));
         }
         let described = self.package_json(scratch, &package, "describe", &["--type", "json"]).map_err(failed)?;
-        let (products, targets) = library_targets(&described).map_err(failed)?;
-        let settings = target_settings(&dumped).map_err(failed)?;
+        let (settings, conditional) = target_settings(&dumped).map_err(failed)?;
+        let (products, targets) = library_targets(&described, &conditional).map_err(failed)?;
         Ok(Described { pin, sha256, products, targets, settings })
     }
 }
@@ -248,12 +249,14 @@ fn setting_values(setting: &Value, kind: &str) -> Vec<String> {
         .collect()
 }
 
-/// The defines and header paths that apply to every platform and configuration, by target name.
+/// The defines and header paths that apply to every platform and configuration, by target name,
+/// and the names of targets with a setting that applies to some platforms or configurations only.
 ///
 /// # Errors
-/// Fails when a setting applies to some platforms or configurations only.
-fn target_settings(dumped: &Value) -> Result<BTreeMap<String, Settings>, String> {
+/// Fails when a target has no name.
+fn target_settings(dumped: &Value) -> Result<(BTreeMap<String, Settings>, BTreeSet<String>), String> {
     let mut all = BTreeMap::new();
+    let mut conditional = BTreeSet::new();
     for target in elements(&dumped["targets"]) {
         let name = target["name"].as_str().ok_or("a target has no name")?;
         let mut settings = Settings {
@@ -262,7 +265,7 @@ fn target_settings(dumped: &Value) -> Result<BTreeMap<String, Settings>, String>
         };
         for setting in elements(&target["settings"]) {
             let tool = setting["tool"].as_str().unwrap_or_default();
-            if !matches!(tool, "swift" | "c") {
+            if !matches!(tool, "swift" | "c" | "cxx") {
                 continue;
             }
             let defines = setting_values(setting, "define");
@@ -271,24 +274,35 @@ fn target_settings(dumped: &Value) -> Result<BTreeMap<String, Settings>, String>
                 continue;
             }
             if !setting["condition"].is_null() {
-                return Err(format!("target {name} has a setting that applies to some platforms only"));
+                conditional.insert(name.to_owned());
+                continue;
             }
-            settings.defines.extend(defines.into_iter().map(|define| define.split('=').next().unwrap_or_default().to_owned()));
+            if tool == "swift" {
+                settings.defines.extend(defines.into_iter().map(|define| define.split('=').next().unwrap_or_default().to_owned()));
+            } else {
+                settings.c_defines.extend(defines);
+            }
             settings.header_paths.extend(paths);
         }
         settings.defines.sort();
         settings.defines.dedup();
+        settings.c_defines.sort();
+        settings.c_defines.dedup();
         all.insert(name.to_owned(), settings);
     }
-    Ok(all)
+    Ok((all, conditional))
 }
 
-/// The library products of a described package and the targets they need, by name.
+/// The library products of a described package and the targets they need, by name. A product
+/// whose targets include one that is not a Swift or C library, such as a macro, plugin or
+/// executable target, or one named in `unsupported`, is left out.
 ///
 /// # Errors
-/// Fails when a target is not described or is neither a Swift nor a C library, such as a macro,
-/// plugin or executable target.
-pub fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String>>, BTreeMap<String, Value>), String> {
+/// Fails when a product has no name or a target is not described.
+pub fn library_targets(
+    described: &Value,
+    unsupported: &BTreeSet<String>,
+) -> Result<(BTreeMap<String, Vec<String>>, BTreeMap<String, Value>), String> {
     let all: BTreeMap<&str, &Value> = described["targets"]
         .as_array()
         .into_iter()
@@ -297,7 +311,7 @@ pub fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String
         .collect();
     let mut products = BTreeMap::new();
     let mut targets = BTreeMap::new();
-    for product in described["products"].as_array().into_iter().flatten() {
+    'products: for product in described["products"].as_array().into_iter().flatten() {
         if product["type"].get("library").is_none() {
             continue;
         }
@@ -311,11 +325,11 @@ pub fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String
             }
             let target = all.get(target_name.as_str()).ok_or(format!("target {target_name} is not described"))?;
             let module_type = target["module_type"].as_str().unwrap_or_default();
-            if !matches!(module_type, "SwiftTarget" | "ClangTarget") || target["type"] != "library" {
-                return Err(format!(
-                    "product {name} needs target {target_name}, a {} {module_type}; only Swift and C library targets are supported",
-                    target["type"].as_str().unwrap_or("unknown")
-                ));
+            if !matches!(module_type, "SwiftTarget" | "ClangTarget")
+                || target["type"] != "library"
+                || unsupported.contains(&target_name)
+            {
+                continue 'products;
             }
             pending.extend(strings(&target["target_dependencies"]));
             seen.insert(target_name, (*target).clone());
@@ -412,8 +426,9 @@ impl Resolver for Swift<'_> {
                     if target["module_type"] == "ClangTarget" {
                         entry["include"] = json!(format!("{path}/{}", settings.include));
                     }
-                    if !settings.defines.is_empty() {
-                        entry["defines"] = json!(settings.defines);
+                    let defines = if target["module_type"] == "ClangTarget" { &settings.c_defines } else { &settings.defines };
+                    if !defines.is_empty() {
+                        entry["defines"] = json!(defines);
                     }
                     if !settings.header_paths.is_empty() {
                         entry["header_paths"] =

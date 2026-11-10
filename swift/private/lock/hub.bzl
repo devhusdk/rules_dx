@@ -5,6 +5,8 @@ load("//core:pins.bzl", "lock_repos", "lock_tag")
 _SWIFT_DEFS = str(Label("//swift:defs.bzl"))
 _CC_DEFS = str(Label("//cc:defs.bzl"))
 
+_HEADER_EXTENSIONS = [".h", ".hh", ".hpp", ".hxx", ".inc"]
+
 def _list(items):
     return "[" + ", ".join(['"%s"' % item for item in items]) + "]"
 
@@ -42,7 +44,7 @@ def build_file(package):
                 "cc_library(",
                 '    name = "%s",' % name,
                 "    srcs = %s + glob([%s])," % (_list(target["srcs"]), ", ".join(private)),
-                '    hdrs = glob(["%s/**/*.h"]),' % include,
+                '    hdrs = glob([%s]),' % ", ".join(['"%s/**/*%s"' % (include, ext) for ext in _HEADER_EXTENSIONS]),
                 "    defines = %s," % _list(defines),
                 "    includes = %s," % _list([include] + header_paths),
                 "    deps = %s," % _list(deps),

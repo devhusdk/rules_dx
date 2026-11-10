@@ -177,31 +177,45 @@ fn a_product_with_a_c_target_and_two_targets_is_kept() {
         r#"[{"name": "Swifty", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Native"]},
             {"name": "Native", "module_type": "ClangTarget", "type": "library", "target_dependencies": []}]"#,
     );
-    let (products, targets) = swift_lock::library_targets(&value).expect("targets");
+    let (products, targets) = swift_lock::library_targets(&value, &Default::default()).expect("targets");
     assert_eq!(products["Both"], ["Swifty", "Native"]);
     assert_eq!(targets.keys().collect::<Vec<_>>(), ["Native", "Swifty"]);
 }
 
 #[test]
-fn a_product_depending_on_a_macro_target_fails() {
+fn a_product_depending_on_a_macro_target_is_skipped() {
     let value = described(
-        r#"[{"name": "Lib", "targets": ["Lib"], "type": {"library": ["automatic"]}}]"#,
+        r#"[{"name": "Lib", "targets": ["Lib"], "type": {"library": ["automatic"]}},
+            {"name": "Ok", "targets": ["Fine"], "type": {"library": ["automatic"]}}]"#,
         r#"[{"name": "Lib", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Macros"]},
+            {"name": "Fine", "module_type": "SwiftTarget", "type": "library", "target_dependencies": []},
             {"name": "Macros", "module_type": "SwiftTarget", "type": "macro", "target_dependencies": []}]"#,
     );
-    let error = swift_lock::library_targets(&value).expect_err("refused");
-    assert!(error.contains("Macros"), "{error}");
+    let (products, targets) = swift_lock::library_targets(&value, &Default::default()).expect("targets");
+    assert_eq!(products.keys().collect::<Vec<_>>(), ["Ok"]);
+    assert_eq!(targets.keys().collect::<Vec<_>>(), ["Fine"]);
 }
 
 #[test]
-fn a_product_depending_on_a_plugin_target_fails() {
+fn a_product_depending_on_a_plugin_target_is_skipped() {
     let value = described(
         r#"[{"name": "Lib", "targets": ["Lib"], "type": {"library": ["automatic"]}}]"#,
         r#"[{"name": "Lib", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Gen"]},
             {"name": "Gen", "module_type": "PluginTarget", "type": "plugin", "target_dependencies": []}]"#,
     );
-    let error = swift_lock::library_targets(&value).expect_err("refused");
-    assert!(error.contains("Gen"), "{error}");
+    let (products, _) = swift_lock::library_targets(&value, &Default::default()).expect("targets");
+    assert!(products.is_empty());
+}
+
+#[test]
+fn a_product_with_an_unsupported_target_is_skipped() {
+    let value = described(
+        r#"[{"name": "Lib", "targets": ["Lib"], "type": {"library": ["automatic"]}}]"#,
+        r#"[{"name": "Lib", "module_type": "SwiftTarget", "type": "library", "target_dependencies": []}]"#,
+    );
+    let unsupported = ["Lib".to_owned()].into_iter().collect();
+    let (products, _) = swift_lock::library_targets(&value, &unsupported).expect("targets");
+    assert!(products.is_empty());
 }
 
 #[test]

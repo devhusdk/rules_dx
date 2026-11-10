@@ -88,7 +88,7 @@ def _checks():
         expect_contains("a target is a swift_library", text, 'name = "LibCore",\n    module_name = "LibCore",\n    srcs = ["Sources/LibCore/a.swift"],'),
         expect_contains("a target and a product dependency are labels", text, 'deps = [":Helper", "//other:Other"],'),
         expect_contains("a product with another name is an alias", text, 'name = "Lib",\n    actual = ":LibCore",'),
-        expect_contains("a C target is a cc_library with its include directory", c_text, 'name = "CCore",\n    srcs = ["Sources/CCore/ccore.c"] + glob(["Sources/CCore/private/**/*.h"]),\n    hdrs = glob(["Sources/CCore/include/**/*.h"]),\n    defines = [],\n    includes = ["Sources/CCore/include", "Sources/CCore/private"],'),
+        expect_contains("a C target is a cc_library with its include directory", c_text, 'name = "CCore",\n    srcs = ["Sources/CCore/ccore.c"] + glob(["Sources/CCore/private/**/*.h"]),\n    hdrs = glob(["Sources/CCore/include/**/*.h", "Sources/CCore/include/**/*.hh", "Sources/CCore/include/**/*.hpp", "Sources/CCore/include/**/*.hxx", "Sources/CCore/include/**/*.inc"]),\n    defines = [],\n    includes = ["Sources/CCore/include", "Sources/CCore/private"],'),
         expect_contains("a C target has an interop hint", c_text, 'aspect_hints = [":CCore_hint"],'),
         expect_contains("a Swift target has its defines", c_text, 'srcs = ["Sources/Wrap/Wrap.swift"],\n    defines = ["WRAP"],\n    deps = [":CCore"],'),
         expect_contains("a product with several targets is a group", c_text, 'swift_library_group(\n    name = "Multi",\n    deps = [":Wrap", ":Extra"],'),

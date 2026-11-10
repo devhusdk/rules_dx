@@ -595,8 +595,8 @@ complete_words() {
   set -eu
   echo "stderr_bytes=$$(wc -c < "$$root/stderr.txt" | tr -d ' ')" >> "$$dest"
 }
-# Hermetic rc policy (CI set) pins the --nohome_rc --nosystem_rc startup tokens on any host.
-(cd "$$start" && export CI=true && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
+# Hermetic rc policy (BAZEL_TEST set) pins the --nohome_rc --nosystem_rc startup tokens on any host.
+(cd "$$start" && export BAZEL_TEST=1 && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
 { native "$$(head -n 1 "$$root/argv.txt")"; echo; tail -n +2 "$$root/argv.txt"; } | sed "s|$$root|ROOT|g" > "$$out/completion_argv.txt"
 (cd "$$start" && complete_words "$$out/completion_env.txt" dx build --workspace "$$other" "")
 (cd "$$start" && export PROCESS_PROBE_SHIM_EXIT=1 && complete_words "$$out/completion_failed_query.txt" dx build --workspace "$$ws" "//pkg:")

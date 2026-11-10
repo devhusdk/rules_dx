@@ -992,18 +992,19 @@ dart.toolchain(dart_version = "3.13.7")
 # floor: equals tested
 bazel_dep(name = "rules_flutter", version = "0.0.8")
 
-# Fail on a fonts_json font that font_files lacks; drop once aran/rules_flutter#5 is released.
+# Pinned to the commit with aran/rules_flutter#5 until it is released.
 # registrant_javacopts.patch keeps -Xlint:all quiet about the registrant's source 8 (#9085).
 # lock_extension.patch marks the flutter extension non-reproducible so the lockfile keeps its result (#8987).
-single_version_override(
+archive_override(
     module_name = "rules_flutter",
+    integrity = "sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=",
     patch_strip = 1,
     patches = [
-        "//patches/rules_flutter:missing_font.patch",
         "//patches/rules_flutter:lock_extension.patch",
         "//patches/rules_flutter:registrant_javacopts.patch",
     ],
-    version = "0.0.8",
+    strip_prefix = "rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353",
+    urls = ["https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz"],
 )
 
 flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")

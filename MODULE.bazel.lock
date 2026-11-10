@@ -408,8 +408,6 @@
     "https://bcr.bazel.build/modules/rules_cuda/0.4.0-beta1/source.json": "ebcdc64c2dff7907dbbb29b6d42bb7bca7adfbc6ce32b7fc7c2fa31d49e1d4e0",
     "https://bcr.bazel.build/modules/rules_dart/0.8.1/MODULE.bazel": "33619834fd31d962818d096d9a39195a8c656752e0734237e159254df9b3dc79",
     "https://bcr.bazel.build/modules/rules_dart/0.8.1/source.json": "ef64102b1100ed61c1eb00e11ee049265523d8469d624e7e8a4484cac55a321f",
-    "https://bcr.bazel.build/modules/rules_flutter/0.0.8/MODULE.bazel": "8066f31443a0dcc2b198ce64149d60569f13cb2b497e94095c3a16420bd0ac9d",
-    "https://bcr.bazel.build/modules/rules_flutter/0.0.8/source.json": "c932c3f0d3e84b433e914e9057c5188b32539f6fe68f620699081a7c40e8dc0e",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.17.0/MODULE.bazel": "9aac24f07a642f38ccc15131f580a62e2972a649f206d6ce333eef89878558dd",
     "https://bcr.bazel.build/modules/rules_foreign_cc/0.17.0/source.json": "045d9c347ceb45d10b023d3dac39e41214f1a111cf2920de35d6971c3e77cabc",
     "https://bcr.bazel.build/modules/rules_go/0.65.0/MODULE.bazel": "9aedb8cc7186d99881b438b545334e6c8ea38619a43b79b4240d1181d5e88abe",
@@ -7384,7 +7382,7 @@
     },
     "//qt:extensions.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "GwgDcuv1lzs93US/TSvlvXNITrodJz0UgJbBhqpxf0k=",
+        "bzlTransitiveDigest": "mtoXPEnStW/xNK1qZ4MS+j4kzrh5qK72yDT1imxoiDQ=",
         "usagesDigest": "3BS0SqqE9nsbYI9+Bl0Un9zfcl6driMWFHsFPN6Mr1M=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_pins_data +dx_pins+dx_pins_data",
@@ -18510,7 +18508,7 @@
     "@@rules_flutter+//flutter:extensions.bzl%flutter": {
       "general": {
         "bzlTransitiveDigest": "GK/nTVuhKsoYTSmRtqwxsJqzVBZ9wkKBrd2UmlgX4dM=",
-        "usagesDigest": "b6MdKy4c2/hyU0jnQGV8mM1QQHkmsrQdCi2Rga5vobo=",
+        "usagesDigest": "HucYF0TDh95cdm34211YSaQUXJjJ2bdsnapnUbFPtms=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dart+,yaml.bzl yaml.bzl+",
           "REPO_MAPPING:rules_flutter+,rules_dart rules_dart+",

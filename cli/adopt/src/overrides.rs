@@ -314,12 +314,12 @@ pub const OVERRIDES: &[Override] = &[
         module: "rules_flutter",
         version: "0.0.8",
         patch_strip: 1,
-        archive: None,
+        archive: Some(Archive {
+            url: "https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz",
+            integrity: "sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=",
+            strip_prefix: "rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353",
+        }),
         patches: &[
-            OverridePatch {
-                file: "missing_font.patch",
-                content: include_str!("../../../patches/rules_flutter/missing_font.patch"),
-            },
             OverridePatch {
                 file: "lock_extension.patch",
                 content: include_str!("../../../patches/rules_flutter/lock_extension.patch"),

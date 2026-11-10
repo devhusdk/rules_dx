@@ -41,6 +41,12 @@ use_repo(npm, web = "web_npm")
 include("//tools:js.MODULE.bazel")
 `, lock: "web/pnpm-lock.yaml", want: "web", files: map[string]string{"tools/js.MODULE.bazel": `use_repo(npm, web = "web_npm")
 `}},
+		{name: "root package include", module: `include("//:js.MODULE.bazel")
+`, lock: "pnpm-lock.yaml", want: "web", files: map[string]string{"js.MODULE.bazel": `npm.npm_translate_lock(name = "web", pnpm_lock = "//:pnpm-lock.yaml")
+`}},
+		{name: "include outside the workspace", module: `include("//..:js.MODULE.bazel")
+npm.npm_translate_lock(name = "web", pnpm_lock = "//:pnpm-lock.yaml")
+`, lock: "pnpm-lock.yaml", want: "web"},
 		{name: "nested include", module: `include("//a.MODULE.bazel")
 `, lock: "pnpm-lock.yaml", want: "deep", files: map[string]string{
 			"a.MODULE.bazel": `include("//b.MODULE.bazel")

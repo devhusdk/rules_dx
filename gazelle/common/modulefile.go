@@ -39,7 +39,7 @@ func moduleCalls(repoRoot string) []*build.CallExpr {
 					continue
 				}
 				if label, ok := includeLabel(call); ok {
-					walk(path.Clean(strings.TrimPrefix(strings.Replace(label, ":", "/", 1), "//")))
+					walk(repoRelative(label))
 				}
 				continue
 			}
@@ -62,7 +62,7 @@ func includeLabel(call *build.CallExpr) (string, bool) {
 	if !ok || !strings.HasPrefix(label, "//") || !strings.HasSuffix(label, ".MODULE.bazel") {
 		return "", false
 	}
-	rel := path.Clean(strings.TrimPrefix(strings.Replace(label, ":", "/", 1), "//"))
+	rel := repoRelative(label)
 	if rel == ".." || strings.HasPrefix(rel, "../") || path.IsAbs(rel) {
 		return "", false
 	}

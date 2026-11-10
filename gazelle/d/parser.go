@@ -207,9 +207,11 @@ func (p *scanner) importAt() error {
 				i++
 			}
 			p.i = i
+			p.stmt = i + 1
 			return nil
 		case p.at(i).is(";"):
 			p.i = i
+			p.stmt = i + 1
 			return nil
 		default:
 			return fmt.Errorf("syntax error at line %d: malformed import", line)

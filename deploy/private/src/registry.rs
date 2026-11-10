@@ -62,6 +62,7 @@ impl RegistryRef {
             ));
         }
         let host = host.to_ascii_lowercase();
+        let host = host.strip_suffix(":443").unwrap_or(&host).to_owned();
         let docker_hub = host == "docker.io" || host == "index.docker.io";
         let api_host = if docker_hub {
             "registry-1.docker.io".to_owned()
@@ -634,6 +635,14 @@ mod tests {
         let local = RegistryRef::parse("localhost:5000", "demo/app").expect("local");
         assert_eq!(local.endpoint.origin, "https://localhost:5000");
         assert_eq!(local.name, "demo/app");
+        let default_port = RegistryRef::parse("GHCR.io:443/example", "app").expect("default port");
+        assert_eq!(default_port, ghcr);
+        assert_eq!(
+            origin_of("https://ghcr.io:443/v2/example/app/blobs/uploads/1").as_deref(),
+            Some(default_port.endpoint.origin.as_str())
+        );
+        let hub = RegistryRef::parse("docker.io:443", "app").expect("hub default port");
+        assert_eq!(hub.endpoint.origin, "https://registry-1.docker.io");
         let hub = RegistryRef::parse("docker.io", "app").expect("hub");
         assert_eq!(hub.endpoint.origin, "https://registry-1.docker.io");
         assert_eq!(hub.name, "library/app");

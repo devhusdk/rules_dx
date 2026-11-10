@@ -178,7 +178,9 @@ pub fn sync_assets(
         return records;
     }
     let mut failures = Vec::new();
+    let mut attempted = 0;
     for name in &pending {
+        attempted += 1;
         let path = paths.get(name).map(String::as_str).unwrap_or(name);
         if let Err(err) = backend.upload(tag, path) {
             failures.push((name.clone(), err));
@@ -192,7 +194,18 @@ pub fn sync_assets(
         Ok(remote) => remote,
         Err(err) => return vec![OpRecord::new("release-view", tag, OpState::Failed, &err)],
     };
-    let (mut records, _) = reconcile_assets(staged, &remote, approved);
+    let (mut records, missing) = reconcile_assets(staged, &remote, approved);
+    for name in &missing {
+        if failures.iter().any(|(failed, _)| failed == name) {
+            continue;
+        }
+        let detail = if pending[..attempted].contains(name) {
+            "uploaded, but the release does not list the asset"
+        } else {
+            "not uploaded: an earlier upload failed"
+        };
+        records.push(OpRecord::new("asset-upload", name, OpState::Failed, detail));
+    }
     let uploaded_any = pending.iter().any(|name| remote.assets.contains_key(name));
     for (name, err) in failures {
         let state = if uploaded_any {
@@ -345,6 +358,37 @@ mod tests {
         let records = run(&fake, true);
         assert_eq!(fake.uploads.borrow().as_slice(), ["a.bin"]);
         assert_eq!(states(&records), vec![OpState::Validated, OpState::Partial]);
+        assert_eq!(ledger_exit(&records), 1);
+    }
+
+    #[test]
+    fn assets_after_a_failed_upload_are_recorded() {
+        let mut fake = Fake::new(true, &[]);
+        fake.fail_on = Some("a.bin");
+        let records = run(&fake, true);
+        assert!(fake.uploads.borrow().is_empty());
+        assert_eq!(states(&records), vec![OpState::Failed; 2]);
+        assert_eq!(records[1].subject, "b.bin");
+        assert_eq!(records[1].detail, "not uploaded: an earlier upload failed");
+    }
+
+    #[test]
+    fn an_accepted_upload_the_release_does_not_list_fails() {
+        struct Dropping;
+        impl ReleaseBackend for Dropping {
+            fn view(&self, _: &str) -> Result<String, String> {
+                Ok(r#"{"draft": true, "assets": []}"#.to_owned())
+            }
+            fn upload(&self, _: &str, _: &str) -> Result<String, String> {
+                Ok(String::new())
+            }
+        }
+        let records = sync_assets(&Dropping, "v1", &staged(), &paths(), true);
+        assert_eq!(states(&records), vec![OpState::Failed; 2]);
+        assert_eq!(
+            records[0].detail,
+            "uploaded, but the release does not list the asset"
+        );
         assert_eq!(ledger_exit(&records), 1);
     }
 

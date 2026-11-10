@@ -2,8 +2,8 @@
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
+use crate::run::{PUBLISH_CHILD_ENV_KEEP, run_publish, scrubbed_command};
 use dx_audit::exception::{load_security, validate_exception};
 use dx_audit::image_scan::{
     ImageFinding, covers, parse_report, severity_list, trivy_args, trivy_cache,
@@ -141,10 +141,18 @@ pub fn scan_layout(
     apply_exceptions(findings, label, toml.as_deref(), &today())
 }
 
+/// Extra env names trivy needs to find its cache and settings.
+const TRIVY_CHILD_ENV_EXTRA: &[&str] = &["XDG_CACHE_HOME", "TRIVY_"];
+
 /// The real trivy: `DX_TRIVY` or `trivy` on the PATH, offline.
 pub fn run_trivy(args: &[OsString]) -> Result<String, String> {
     let binary = std::env::var_os("DX_TRIVY").unwrap_or_else(|| "trivy".into());
-    let output = crate::run::run_publish(Command::new(&binary).args(args))
+    let mut cmd = scrubbed_command(
+        Path::new(&binary),
+        &[PUBLISH_CHILD_ENV_KEEP, TRIVY_CHILD_ENV_EXTRA],
+        &[],
+    );
+    let output = run_publish(cmd.args(args))
         .map_err(|error| format!("cannot run {}: {error}", Path::new(&binary).display()))?;
     if !output.success() {
         return Err(format!(
@@ -313,6 +321,33 @@ mod tests {
             exception("CVE-2022-3602", "libssl1.1", "2999-01-01")
         );
         assert!(scan_recorded(Some(&toml)).is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn trivy_runs_without_the_registry_credentials() {
+        use crate::test_support::{env_test_in_child, scratch_dir, with_env};
+        if env_test_in_child("oci_scan::tests::trivy_runs_without_the_registry_credentials") {
+            return;
+        }
+        let scratch = scratch_dir();
+        let tool = scratch.path().join("trivy");
+        dx_testing::executable_script(&tool, "#!/bin/sh\nexec env\n");
+        let env = with_env(
+            &[
+                ("DX_TRIVY", tool.to_str()),
+                ("OCI_API_TOKEN", Some("fake-oci-token")),
+                ("GH_TOKEN", Some("fake-gh-token")),
+                ("TRIVY_PASSWORD", Some("fake-trivy-password")),
+                ("TRIVY_INSECURE", Some("false")),
+                ("XDG_CACHE_HOME", Some("/cache")),
+            ],
+            || run_trivy(&[]).expect("fake trivy"),
+        );
+        assert!(!env.contains("fake-"), "{env}");
+        assert!(env.contains("TRIVY_INSECURE=false\n"), "{env}");
+        assert!(env.contains("XDG_CACHE_HOME=/cache\n"), "{env}");
+        assert!(env.contains("PATH="), "{env}");
     }
 
     #[test]

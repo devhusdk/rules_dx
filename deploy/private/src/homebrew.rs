@@ -275,7 +275,8 @@ fn homebrew_syntax_check(formula: &Path) -> bool {
         println!("  syntax: skipped, ruby not on PATH");
         return true;
     }
-    match run_publish(std::process::Command::new("ruby").arg("-c").arg(formula)) {
+    let mut cmd = scrubbed_command(Path::new("ruby"), &[PUBLISH_CHILD_ENV_KEEP], &[]);
+    match run_publish(cmd.arg("-c").arg(formula)) {
         Ok(out) if out.success() => {
             println!("  syntax: ruby -c ok");
             true

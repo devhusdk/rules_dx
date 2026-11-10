@@ -4,7 +4,7 @@ load("//quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "deadnix": {
-        "attr": attr.label(default = "//quality/tools/rust:deadnix_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//rust/private/quality/tools:deadnix_tool", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "shard": "nix",

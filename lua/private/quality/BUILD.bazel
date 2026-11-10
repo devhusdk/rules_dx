@@ -23,7 +23,7 @@ sh_test(
     size = "small",
     srcs = ["selene_smoke_test.sh"],
     args = [
-        "$(rootpath //quality/tools/rust:selene)",
+        "$(rootpath //rust/private/quality/tools:selene)",
         "$(rootpath selene.toml)",
         "$(rootpath //lua/private/quality/testdata:lua54_valid.lua)",
         "$(rootpath //lua/private/quality/testdata:undefined_variable.lua)",
@@ -33,7 +33,7 @@ sh_test(
         "selene.toml",
         "//lua/private/quality/testdata:lua54_valid.lua",
         "//lua/private/quality/testdata:undefined_variable.lua",
-        "//quality/tools/rust:selene",
+        "//rust/private/quality/tools:selene",
     ],
 )
 

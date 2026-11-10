@@ -7,7 +7,7 @@ const TOOL: &str = "topiary";
 
 /// Parses `dx_topiary <files>`.
 ///
-/// Contract of `dx_topiary` (//quality/tools/rust/topiary):
+/// Contract of `dx_topiary` (//rust/private/quality/tools/topiary):
 /// - exit 0 is clean and prints nothing;
 /// - exit 1 prints the path of each file that would change on stdout, one per line, as given;
 /// - exit 2 is a syntax error, an unsupported extension or a tool failure (details on stderr).

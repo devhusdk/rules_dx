@@ -109,7 +109,7 @@ def _lint_cases(tier):
             _SELENE_CLEAN,
             "selene;lua;matrix/selene_tier/add.lua",
             "selene",
-            "//quality/tools/rust:selene",
+            "//rust/private/quality/tools:selene",
             "//quality/tiers/selene:%s.toml" % tier,
             **_NO_PLATFORMS
         ),

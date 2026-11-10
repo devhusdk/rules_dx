@@ -2,7 +2,7 @@
   "binary_crates": [
     "deadnix 1.3.1"
   ],
-  "checksum": "d526e4985e3971b1cafbc773995c7525e0a26ea886a2fab98eb95d6dd935ff33",
+  "checksum": "a48295cfb76fb8f3d72dc20a9bbbe7a8d4e188588cefc2c24e0b1343420b2de2",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -10654,8 +10654,8 @@
   ],
   "direct_dev_deps": [],
   "workspace_members": {
-    "dx_progenitor 0.0.0": "quality/tools/rust/dx_progenitor",
-    "dx_quality_tools 0.0.0": "quality/tools/dx_quality_tools",
-    "dx_topiary 0.0.0": "quality/tools/rust/dx_topiary"
+    "dx_progenitor 0.0.0": "rust/private/quality/tools/dx_progenitor",
+    "dx_quality_tools 0.0.0": "rust/private/quality/dx_quality_tools",
+    "dx_topiary 0.0.0": "rust/private/quality/tools/dx_topiary"
   }
 }

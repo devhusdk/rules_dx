@@ -24,7 +24,7 @@ alias(
 
 alias(
     name = "progenitor",
-    actual = "//quality/tools/rust/progenitor:dx_progenitor",
+    actual = "//rust/private/quality/tools/progenitor:dx_progenitor",
 )
 
 alias(
@@ -34,7 +34,7 @@ alias(
 
 alias(
     name = "topiary",
-    actual = "//quality/tools/rust/topiary:dx_topiary",
+    actual = "//rust/private/quality/tools/topiary:dx_topiary",
 )
 
 # The dx_quality_crates hub has no windows_arm64 cell, so the aspect tool

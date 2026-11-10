@@ -13,7 +13,7 @@ TOOLS = {
         "shard": "lua",
     },
     "selene": {
-        "attr": attr.label(default = "//quality/tools/rust:selene_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//rust/private/quality/tools:selene_tool", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "shard": "lua",

@@ -4,7 +4,7 @@ load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
 
 # gazelle:dx_rust_crates_hub dx_quality_crates
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//rust/private/quality/tools:__pkg__"])
 
 real_source_target(
     name = "corpus_starlark",
@@ -13,31 +13,30 @@ real_source_target(
 )
 
 rust_binary(
-    name = "dx_progenitor",
+    name = "dx_topiary",
     srcs = ["main.rs"],
     aliases = aliases(
-        package_name = "quality/tools/rust/dx_progenitor",
+        package_name = "rust/private/quality/tools/dx_topiary",
         normal = True,
     ),
-    crate_name = "dx_progenitor",
+    crate_name = "dx_topiary",
     crate_root = "main.rs",
-    edition = "2021",
     deps = all_crate_deps(
-        package_name = "quality/tools/rust/dx_progenitor",
+        package_name = "rust/private/quality/tools/dx_topiary",
         normal = True,
     ),
 )
 
 rust_test(
-    name = "dx_progenitor_bin_test",
+    name = "dx_topiary_bin_test",
     aliases = aliases(
-        package_name = "quality/tools/rust/dx_progenitor",
+        package_name = "rust/private/quality/tools/dx_topiary",
         normal = True,
         normal_dev = True,
     ),
-    crate = ":dx_progenitor",
+    crate = ":dx_topiary",
     deps = all_crate_deps(
-        package_name = "quality/tools/rust/dx_progenitor",
+        package_name = "rust/private/quality/tools/dx_topiary",
         normal = True,
         normal_dev = True,
     ),

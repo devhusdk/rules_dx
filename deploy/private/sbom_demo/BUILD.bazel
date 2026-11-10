@@ -1,4 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//core:defs.bzl", "starlark_test")
 load("//deploy/private:github.bzl", "github_deploy")
 load("//deploy/private:oci.bzl", "oci_deploy")
 load("//deploy/private:pypi.bzl", "pypi_deploy")
@@ -31,12 +32,15 @@ github_deploy(
     sbom = ":app_sbom",
 )
 
-sh_test(
+starlark_test(
     name = "sbom_test",
     size = "small",
-    srcs = ["check.sh"],
-    args = ["$(rootpath :app_sbom)"],
-    data = [":app_sbom"],
+    file_checks = {
+        ":app_sbom": """"downloadLocation"
+"name": "greeter"
+""",
+    },
+    mode = "execution",
 )
 
 oci_deploy(
@@ -46,12 +50,15 @@ oci_deploy(
     sbom = ":app_sbom",
 )
 
-sh_test(
+starlark_test(
     name = "oci_sbom_test",
     size = "small",
-    srcs = ["oci_check.sh"],
-    args = ["$(rootpath :app_image_config)"],
-    data = [":app_image_config"],
+    file_checks = {
+        ":app_image_config": """"sbom_rloc"
+app.spdx.json
+""",
+    },
+    mode = "execution",
 )
 
 dx_sbom(
@@ -64,12 +71,18 @@ dx_sbom(
     pip_lock = "uv.lock",
 )
 
-sh_test(
+starlark_test(
     name = "locks_test",
     size = "small",
-    srcs = ["locks_check.sh"],
-    args = ["$(rootpath :locked_sbom)"],
-    data = [":locked_sbom"],
+    file_checks = {
+        ":locked_sbom": """pkg:npm/left-pad@1.3.0
+pkg:npm/is-odd@3.0.1
+pkg:golang/github.com/google/uuid@v1.6.0
+pkg:maven/com.google.guava:guava@33.0.0-jre
+pkg:pypi/requests@2.32.3
+""",
+    },
+    mode = "execution",
 )
 
 pypi_deploy(

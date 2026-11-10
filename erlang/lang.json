@@ -7,10 +7,10 @@
     "hex"
   ],
   "manifests": [
-    "rebar.config"
+    "mix.exs"
   ],
   "lockfiles": [
-    "rebar.lock"
+    "mix.lock"
   ],
   "tools": [
     "dialyzer",

@@ -3,8 +3,12 @@
   "name": "ansible",
   "title": "ansible",
   "family": "core",
-  "ecosystems": [],
-  "manifests": [],
+  "ecosystems": [
+    "ansible"
+  ],
+  "manifests": [
+    "MODULE.bazel"
+  ],
   "lockfiles": [],
   "tools": [
     "ansible_lint",

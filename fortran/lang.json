@@ -3,7 +3,9 @@
   "name": "fortran",
   "title": "Fortran",
   "family": "core",
-  "ecosystems": [],
+  "ecosystems": [
+    "fpm"
+  ],
   "manifests": [
     "fpm.toml"
   ],

@@ -3,9 +3,7 @@
   "name": "terraform",
   "title": "terraform",
   "family": "core",
-  "ecosystems": [
-    "terraform registry"
-  ],
+  "ecosystems": [],
   "manifests": [
     "*.tf"
   ],

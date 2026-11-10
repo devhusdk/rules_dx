@@ -4,11 +4,10 @@
   "title": "Python",
   "family": "python",
   "ecosystems": [
-    "pypi"
+    "uv"
   ],
   "manifests": [
-    "pyproject.toml",
-    "requirements.txt"
+    "pyproject.toml"
   ],
   "lockfiles": [
     "uv.lock"

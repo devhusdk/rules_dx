@@ -4,11 +4,10 @@
   "title": "Go",
   "family": "core",
   "ecosystems": [
-    "go modules"
+    "go"
   ],
   "manifests": [
-    "go.mod",
-    "go.work"
+    "go.mod"
   ],
   "lockfiles": [
     "go.sum"

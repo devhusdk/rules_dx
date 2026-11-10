@@ -7,10 +7,10 @@
     "nuget"
   ],
   "manifests": [
-    "*.csproj"
+    "paket.dependencies"
   ],
   "lockfiles": [
-    "packages.lock.json"
+    "paket.lock"
   ],
   "tools": [
     "csc",

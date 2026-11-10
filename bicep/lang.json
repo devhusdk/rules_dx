@@ -3,8 +3,12 @@
   "name": "bicep",
   "title": "bicep",
   "family": "core",
-  "ecosystems": [],
-  "manifests": [],
+  "ecosystems": [
+    "bicep"
+  ],
+  "manifests": [
+    "MODULE.bazel"
+  ],
   "lockfiles": [],
   "tools": [
     "bicep",

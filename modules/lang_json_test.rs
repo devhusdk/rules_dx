@@ -186,3 +186,38 @@ fn schema_rejects_a_bad_manifest() {
     assert!(found.contains("is not allowed"), "{found}");
     assert!(found.contains("duplicate items"), "{found}");
 }
+
+#[test]
+fn ecosystems_are_dx_ids_and_every_id_is_used() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("modules/families.json"))
+        .expect("families.json");
+    let table: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("cli/ecosystems/ecosystems.json"))
+            .expect("ecosystems.json");
+    let ids: BTreeSet<String> = table["ecosystems"]
+        .as_array()
+        .expect("ecosystems")
+        .iter()
+        .map(|row| row["name"].as_str().expect("name").to_owned())
+        .collect();
+    let mut used = BTreeSet::new();
+    let mut unknown = Vec::new();
+    for dir in language_dirs(&root, &families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        for id in manifest["ecosystems"].as_array().expect("ecosystems") {
+            let id = id.as_str().expect("id");
+            if !ids.contains(id) {
+                unknown.push(format!("{}: {id} is not in ecosystems.json", dir.display()));
+            }
+            used.insert(id.to_owned());
+        }
+    }
+    assert!(unknown.is_empty(), "{}", unknown.join("\n"));
+    let unused: Vec<&String> = ids
+        .iter()
+        .filter(|id| id.as_str() != "bazel" && !used.contains(*id))
+        .collect();
+    assert!(unused.is_empty(), "no lang.json lists {unused:?}");
+}

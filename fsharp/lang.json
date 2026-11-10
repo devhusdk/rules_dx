@@ -7,10 +7,10 @@
     "nuget"
   ],
   "manifests": [
-    "*.fsproj"
+    "paket.dependencies"
   ],
   "lockfiles": [
-    "packages.lock.json"
+    "paket.lock"
   ],
   "tools": [
     "fantomas",

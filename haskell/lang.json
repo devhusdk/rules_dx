@@ -4,11 +4,10 @@
   "title": "Haskell",
   "family": "core",
   "ecosystems": [
-    "hackage"
+    "cabal"
   ],
   "manifests": [
-    "*.cabal",
-    "package.yaml"
+    "cabal.project"
   ],
   "lockfiles": [
     "cabal.project.freeze"

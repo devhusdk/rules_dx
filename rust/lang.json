@@ -4,7 +4,7 @@
   "title": "Rust",
   "family": "core",
   "ecosystems": [
-    "crates.io"
+    "cargo"
   ],
   "manifests": [
     "Cargo.toml"

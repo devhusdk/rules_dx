@@ -4,7 +4,7 @@
   "title": "Zig",
   "family": "core",
   "ecosystems": [
-    "zig packages"
+    "zig"
   ],
   "manifests": [
     "build.zig.zon"

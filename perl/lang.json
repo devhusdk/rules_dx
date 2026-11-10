@@ -7,8 +7,7 @@
     "cpan"
   ],
   "manifests": [
-    "cpanfile",
-    "Makefile.PL"
+    "cpanfile"
   ],
   "lockfiles": [
     "cpanfile.snapshot"

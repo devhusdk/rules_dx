@@ -3,9 +3,7 @@
   "name": "helm",
   "title": "helm",
   "family": "core",
-  "ecosystems": [
-    "helm charts"
-  ],
+  "ecosystems": [],
   "manifests": [
     "Chart.yaml"
   ],

@@ -7,7 +7,7 @@
     "maven"
   ],
   "manifests": [
-    "pom.xml"
+    "MODULE.bazel"
   ],
   "lockfiles": [
     "maven_install.json"

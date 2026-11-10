@@ -4,11 +4,10 @@
   "title": "Ruby",
   "family": "core",
   "ecosystems": [
-    "rubygems"
+    "ruby"
   ],
   "manifests": [
-    "Gemfile",
-    "*.gemspec"
+    "Gemfile"
   ],
   "lockfiles": [
     "Gemfile.lock"

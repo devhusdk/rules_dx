@@ -4,7 +4,7 @@
   "title": "Julia",
   "family": "core",
   "ecosystems": [
-    "julia general registry"
+    "julia"
   ],
   "manifests": [
     "Project.toml"

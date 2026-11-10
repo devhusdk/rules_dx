@@ -9,7 +9,9 @@
   "manifests": [
     "*.rockspec"
   ],
-  "lockfiles": [],
+  "lockfiles": [
+    "luarocks.lock"
+  ],
   "tools": [
     "selene",
     "stylua"

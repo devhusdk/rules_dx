@@ -183,6 +183,7 @@ rust_test(
         "families.json",
         "lang.schema.json",
         "//:MODULE.bazel",
+        "//cli/ecosystems:ecosystems.json",
     ],
     deps = all_crate_deps(
         package_name = "modules_tests",

@@ -7,10 +7,11 @@
     "dub"
   ],
   "manifests": [
-    "dub.json",
-    "dub.sdl"
+    "dub.json"
   ],
-  "lockfiles": [],
+  "lockfiles": [
+    "dub.selections.json"
+  ],
   "tools": [],
   "platforms": [],
   "pins": [

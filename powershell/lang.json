@@ -4,12 +4,14 @@
   "title": "PowerShell",
   "family": "core",
   "ecosystems": [
-    "powershell gallery"
+    "powershell"
   ],
   "manifests": [
-    "*.psd1"
+    "PSGallery.requirements.psd1"
   ],
-  "lockfiles": [],
+  "lockfiles": [
+    "PSGallery.lock.json"
+  ],
   "tools": [
     "psscriptanalyzer"
   ],

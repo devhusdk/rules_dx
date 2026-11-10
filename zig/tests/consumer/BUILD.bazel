@@ -1,0 +1,14 @@
+load("@rules_dx//zig:defs.bzl", "zig_library", "zig_test")
+
+zig_library(
+    name = "consumer",
+    main = "greet.zig",
+    visibility = ["//visibility:public"],
+)
+
+zig_test(
+    name = "consumer_test",
+    size = "small",
+    main = "greet_test.zig",
+    deps = [":consumer"],
+)

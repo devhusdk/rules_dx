@@ -6,6 +6,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//rust:defs.bzl", "rust_test")
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":buf_breaking_tests.bzl", "buf_breaking_analysis_tests")
+load(":link_requests_tests.bzl", "link_requests_analysis_tests")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
 load(":elixirc_script_tests.bzl", "elixirc_script_test_suite")
@@ -206,6 +207,8 @@ real_pipeline_unit_tests(name = "real_pipeline_unit")
 rustc_request_analysis_tests(name = "rustc_request_analysis")
 
 buf_breaking_analysis_tests(name = "buf_breaking_analysis", size = "small")
+
+link_requests_analysis_tests(name = "link_requests_analysis", size = "small")
 
 unsupported_platform_analysis_tests(name = "unsupported_platform_analysis")
 

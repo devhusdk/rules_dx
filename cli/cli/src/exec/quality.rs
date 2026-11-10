@@ -3,7 +3,9 @@ use super::breaking_base;
 use super::build_failures::report_build_failures;
 use super::common::*;
 use super::guidance::{apply_hint, rerun_hint};
+use super::link_check;
 use super::notice_codes::{CODE_CHANGES_PROPOSED, CODE_TOOL_SKIPPED};
+use super::pinned_tool::QueryBazel;
 use super::quality_apply::{apply_collected_changes, project_status, terminal_on_disk};
 use super::quality_emit::{EmitInputs, emit_findings};
 use super::quality_patch::render_diff_patch;
@@ -390,6 +392,7 @@ fn run_quality_request(
             shards: None,
             consumer,
             unsafe_fixes: request.unsafe_fixes,
+            online: request.online,
         },
     )
     .map_err(|error| format!("{error}"))
@@ -441,6 +444,7 @@ fn run_quality_request(
                     shards: Some(&shards),
                     consumer,
                     unsafe_fixes: request.unsafe_fixes,
+                    online: request.online,
                 },
             ) {
                 build = narrowed;
@@ -533,7 +537,41 @@ fn run_quality_request(
             let _ = writeln!(err, "dx: note: {note}");
         }
     }
+    let link_requests = if request.online {
+        link_check::read_requests(&bep, workspace)
+    } else {
+        Vec::new()
+    };
     let _ = std::fs::remove_file(&bep);
+    if !link_requests.is_empty() {
+        let bazel = QueryBazel {
+            query_runner,
+            workspace,
+            startup: &request.bazel_startup_options,
+        };
+        match link_check::Roots::query(&bazel) {
+            Ok(roots) => {
+                let tag = format!("dx-link-{pid}-{nonce}");
+                let outcome = link_check::run(
+                    &link_requests,
+                    &roots,
+                    temp_dir,
+                    &tag,
+                    &|request, output| {
+                        quality_runner::entry::run_request(request, output, Some("link-check"))
+                            .map_err(|error| error.to_string())
+                    },
+                );
+                for result in &outcome.results {
+                    collected.absorb_host_result(result, "dx lint --online", workspace);
+                }
+                collected.problems.extend(outcome.problems);
+            }
+            Err(error) => collected.problems.push(format!(
+                "link check could not locate Bazel's roots: {error}"
+            )),
+        }
+    }
     if bazel_code != 0 {
         let crashed = server_died(bazel_code);
         let (code, failed, fix) = if crashed {

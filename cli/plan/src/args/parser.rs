@@ -473,9 +473,6 @@ fn parse_inner<S: AsRef<OsStr>>(
     } else {
         (passthrough, Vec::new())
     };
-    if online {
-        bazel_options.insert(0, "--//config:lint_online=true".to_owned());
-    }
     if let Some(reference) = breaking_against {
         bazel_options.insert(0, format!("{BREAKING_AGAINST_OPTION}={reference}"));
     }
@@ -702,6 +699,7 @@ fn parse_inner<S: AsRef<OsStr>>(
         include_edits,
         max_findings,
         unsafe_fixes,
+        online,
         min_coverage,
         min_changed_line_coverage,
         targets,

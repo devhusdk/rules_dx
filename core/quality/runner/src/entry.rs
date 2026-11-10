@@ -120,7 +120,7 @@ fn real_tool(
     })
 }
 
-fn run_request(request_path: &str, output: &str, shard: Option<&str>) -> Result<(), RunnerError> {
+pub fn run_request(request_path: &str, output: &str, shard: Option<&str>) -> Result<(), RunnerError> {
     let bytes = std::fs::read(request_path).map_err(|error| RunnerError::UnreadableRequest {
         path: request_path.to_owned(),
         detail: error.to_string(),

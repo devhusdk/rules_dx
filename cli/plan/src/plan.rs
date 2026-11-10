@@ -205,6 +205,7 @@ pub const DOCS_TOOLS_OUTPUT_GROUP: &str = "dx_docs_tools";
 
 /// The output group of notes naming the tools a target dropped because none is pinned for the platform.
 pub const SKIP_OUTPUT_GROUP: &str = "dx_skips";
+pub const LINK_REQUEST_OUTPUT_GROUP: &str = "dx_link_requests";
 
 /// The output group the shard probe writes `{"shards":[...]}` files to.
 pub const SHARD_OUTPUT_GROUP: &str = "dx_shards";

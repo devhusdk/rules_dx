@@ -376,14 +376,8 @@ const TRIVY_IMAGE_CONFIG_PREFIX: &[&str] = &[
     "--image-config-scanners",
     "misconfig,secret",
 ];
-const CONTAINER_STRUCTURE_TEST_PREFIX: &[&str] = &[
-    "test",
-    "--driver",
-    "tar",
-    "--output",
-    "json",
-    "--no-color",
-];
+const CONTAINER_STRUCTURE_TEST_PREFIX: &[&str] =
+    &["test", "--driver", "tar", "--output", "json", "--no-color"];
 const END_OF_FLAGS: &[&str] = &["--"];
 const DEADNIX_CHECK_ARGS: &[&str] = &["--fail", "-o", "json", "--"];
 const DEADNIX_FIX_ARGS: &[&str] = &["--edit", "--"];
@@ -602,7 +596,7 @@ pub fn vale_check(binary: &Path, ini: &Path, files: &[&Path], ini_dir_rel: &str)
     assemble(binary, head, files, ini_dir_rel)
 }
 
-/// Offline checks local paths and `#anchors`; online adds external links.
+/// Offline checks local paths and `#anchors`; online checks only `http` and `https` links.
 /// Root-relative links resolve against `root`.
 pub fn lychee_check(
     binary: &Path,
@@ -622,6 +616,12 @@ pub fn lychee_check(
             .filter(|flag| !online || **flag != "--offline")
             .map(OsString::from),
     );
+    if online {
+        for scheme in ["http", "https"] {
+            head.push(OsString::from("--scheme"));
+            head.push(OsString::from(scheme));
+        }
+    }
     head.push(OsString::from("--root-dir"));
     head.push(root.as_os_str().to_owned());
     assemble(binary, head, files, "")
@@ -2877,7 +2877,11 @@ pub fn trivy_image_config_check(binary: &Path, layout: &Path, cache_dir: &Path) 
 }
 
 /// Runs every config against one docker archive with the tar driver, so no container runtime is used.
-pub fn container_structure_test_check(binary: &Path, archive: &Path, configs: &[&Path]) -> Invocation {
+pub fn container_structure_test_check(
+    binary: &Path,
+    archive: &Path,
+    configs: &[&Path],
+) -> Invocation {
     let mut head = vec![binary.as_os_str().to_owned()];
     head.extend(CONTAINER_STRUCTURE_TEST_PREFIX.iter().map(OsString::from));
     head.push(OsString::from("--image"));
@@ -3178,10 +3182,9 @@ pub enum ArgTransport {
 /// The transport a tool proved: Batched tools report each file independently of the others.
 pub fn transport_for(tool_id: &str) -> ArgTransport {
     match tool_id {
-        "actionlint" | "helmfmt" | "keep_sorted" | "typos" | "lychee" | "notebook_outputs" | "ruff"
-        | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint" | "selene" => {
-            ArgTransport::Batched
-        }
+        "actionlint" | "helmfmt" | "keep_sorted" | "typos" | "lychee" | "notebook_outputs"
+        | "ruff" | "pydoclint" | "buildifier" | "deadnix" | "check_jsonschema" | "xmllint"
+        | "selene" => ArgTransport::Batched,
         _ => ArgTransport::Single,
     }
 }

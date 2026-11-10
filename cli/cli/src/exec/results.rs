@@ -204,6 +204,36 @@ impl Collected {
         self.terminal_digests.retain(|path, _| wanted(path));
     }
 
+    /// Adds the findings of one host-run result artifact, attributed to `label`.
+    pub(crate) fn absorb_host_result(&mut self, bytes: &[u8], label: &str, workspace: &Path) {
+        let Some(mut staged) = stage_artifact(bytes, workspace) else {
+            self.problems
+                .push(format!("{label} reported an invalid quality result"));
+            return;
+        };
+        for origin in staged
+            .initial
+            .iter_mut()
+            .chain(staged.terminal.iter_mut())
+            .flat_map(|diagnostic| diagnostic.origins.iter_mut())
+        {
+            origin.target = label.to_owned();
+        }
+        for tool in staged.tools {
+            if !self.tools.contains(&tool) {
+                self.tools.push(tool);
+            }
+        }
+        self.initial.extend(staged.initial);
+        self.terminal.extend(staged.terminal);
+        for (path, digest) in staged.digests {
+            self.terminal_digests.entry(path).or_insert(digest);
+        }
+        for (path, digest) in staged.originals {
+            self.original_digests.entry(path).or_insert(digest);
+        }
+    }
+
     /// Names the first missing or invalid result, with how many there were.
     pub(crate) fn problem_detail(&self) -> Option<String> {
         let first = self.problems.first()?;

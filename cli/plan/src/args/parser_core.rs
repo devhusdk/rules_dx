@@ -829,10 +829,13 @@ fn accept_needs_a_reason_and_an_expiry() {
 }
 
 #[test]
-fn lint_online_sets_the_lychee_build_flag() {
+fn lint_online_sets_the_request_flag_and_no_build_option() {
     let got = parse(&strings(&["lint", "--online"])).expect("parse");
-    assert_eq!(got.bazel_options[0], "--//config:lint_online=true");
+    assert!(got.online);
+    assert!(got.bazel_options.is_empty());
+    assert!(got.quality_request().expect("quality").online);
     let plain = parse(&strings(&["lint"])).expect("parse");
+    assert!(!plain.online);
     assert!(plain.bazel_options.is_empty());
 }
 

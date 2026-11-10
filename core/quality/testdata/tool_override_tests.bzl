@@ -558,12 +558,14 @@ def perlcritic_flag_tests(name, subject):
     _perlcritic_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
     _perlcritic_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
@@ -604,12 +606,14 @@ def perltidy_flag_tests(name, subject):
     _perltidy_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
     _perltidy_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
@@ -650,11 +654,13 @@ def zig_fmt_flag_tests(name, subject):
     _zig_fmt_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _zig_fmt_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -694,11 +700,13 @@ def zig_ast_check_flag_tests(name, subject):
     _zig_ast_check_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _zig_ast_check_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -738,11 +746,13 @@ def dart_format_flag_tests(name, subject):
     _dart_format_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _dart_format_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -782,11 +792,13 @@ def julia_format_flag_tests(name, subject):
     _julia_format_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _julia_format_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -817,11 +829,13 @@ def erlfmt_flag_tests(name, subject):
     _erlfmt_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _erlfmt_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -873,11 +887,13 @@ def credo_flag_tests(name, subject):
     _credo_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _credo_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -908,11 +924,13 @@ def elvis_flag_tests(name, subject):
     _elvis_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _elvis_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -943,11 +961,13 @@ def mix_format_flag_tests(name, subject):
     _mix_format_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _mix_format_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -960,6 +980,7 @@ def qmllint_flag_tests(name, subject):
     _qmllint_unset_test(
         name = name + "_unset_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
         expected_failure_substring = "--@rules_dx//config:tool_qmllint",
     )
@@ -972,6 +993,7 @@ def qmlformat_flag_tests(name, subject):
     _qmlformat_unset_test(
         name = name + "_unset_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
         expected_failure_substring = "--@rules_dx//config:tool_qmlformat",
     )
@@ -984,28 +1006,33 @@ def tool_override_tests(name, subject):
     _tool_override_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _tool_override_selected_test(
         name = name + "_selected_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _tool_override_rejects_pair_test(
         name = name + "_rejects_pair_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
         expected_failure_substring = "two_ruffs' must produce a single file",
     )
     _tool_override_rejects_empty_test(
         name = name + "_rejects_empty_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
         expected_failure_substring = "no_ruff' must produce a single file",
     )
     _tool_override_rejects_policy_test(
         name = name + "_rejects_policy_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
         expected_failure_substring = "fixture_policy' must produce a single file",
     )
@@ -1039,11 +1066,13 @@ def dialyzer_flag_tests(name, subject):
     _dialyzer_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _dialyzer_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -1066,11 +1095,13 @@ def dialyzer_elixir_flag_tests(name, subject):
     _dialyzer_elixir_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _dialyzer_elixir_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -1100,11 +1131,13 @@ def phpcs_flag_tests(name, subject):
     _phpcs_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _phpcs_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -1134,11 +1167,13 @@ def phpstan_flag_tests(name, subject):
     _phpstan_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _phpstan_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -1168,11 +1203,13 @@ def luals_flag_tests(name, subject):
     _luals_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _luals_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -1202,11 +1239,13 @@ def jet_flag_tests(name, subject):
     _jet_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _jet_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -1236,11 +1275,13 @@ def sorbet_flag_tests(name, subject):
     _sorbet_default_test(
         name = name + "_default_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     _sorbet_set_test(
         name = name + "_set_test",
         size = "small",
+        tags = ["manual"],
         target_under_test = subject,
     )
     return [
@@ -1289,7 +1330,8 @@ def tool_override_suite(name):
     dart_config_deps_test(
         name = "dart_config_deps",
         size = "small",
+        tags = ["manual"],
         target_under_test = ":dart_lints_config",
     )
     tests.append(":dart_config_deps")
-    native.test_suite(name = name, tests = tests)
+    native.test_suite(name = name, tests = tests, tags = ["manual"])

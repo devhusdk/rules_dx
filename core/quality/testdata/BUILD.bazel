@@ -1202,6 +1202,7 @@ filegroup(
 
 tool_override_subject(
     name = "tool_override_default_subject",
+    tags = ["manual"],
     target = ":fixture_real_python",
 )
 
@@ -1338,95 +1339,111 @@ qml_sources(
 
 qml_subject(
     name = "qml_subject",
+    tags = ["manual"],
     target = ":qml_fixture",
 )
 
 erlang_subject(
     name = "erlang_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//erlang/tests/runtime:erlang_app",
 )
 
 erlang_lint_subject(
     name = "erlang_lint_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//erlang/tests/runtime:erlang_app",
 )
 
 erlang_typecheck_subject(
     name = "erlang_typecheck_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//erlang/tests/runtime:erlang_app",
 )
 
 erlang_typecheck_subject(
     name = "elixir_typecheck_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//elixir/tests/runtime:erlang_app",
 )
 
 php_lint_subject(
     name = "php_lint_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//php/tests/fixtures/hello:greeter",
 )
 
 lua_typecheck_subject(
     name = "lua_typecheck_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//lua/tests/runtime:lib",
 )
 
 ruby_typecheck_subject(
     name = "ruby_typecheck_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//ruby/tests/fixtures/hello:hello_lib",
 )
 
 php_typecheck_subject(
     name = "php_typecheck_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//php/tests/fixtures/hello:greeter",
 )
 
 elixir_subject(
     name = "elixir_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//elixir/tests/runtime:erlang_app",
 )
 
 elixir_lint_subject(
     name = "elixir_lint_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//elixir/tests/runtime:erlang_app",
 )
 
 perl_subject(
     name = "perl_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//perl/tests/runtime:dx_probe",
 )
 
 perl_lint_subject(
     name = "perl_lint_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//perl/tests/runtime:dx_probe",
 )
 
 zig_subject(
     name = "zig_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//zig/tests/fixtures/hello:greet",
 )
 
 zig_lint_subject(
     name = "zig_lint_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//zig/tests/fixtures/hello:greet",
 )
 
 dart_subject(
     name = "dart_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//dart/tests/runtime:greet",
 )
@@ -1439,12 +1456,14 @@ dart_config(
 
 julia_subject(
     name = "julia_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//julia/tests/fixtures/hello:Greet",
 )
 
 julia_typecheck_subject(
     name = "julia_typecheck_subject",
+    tags = ["manual"],
     testonly = True,
     target = "//julia/tests/fixtures/hello:Greet",
 )
@@ -1467,6 +1486,7 @@ workspace_policy(
 
 qml_lint_subject(
     name = "qml_lint_subject",
+    tags = ["manual"],
     target = ":qml_fixture",
 )
 

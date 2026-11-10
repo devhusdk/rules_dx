@@ -130,3 +130,17 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//cc/tests/fixtures/googletest:greeter_test",
+        "//cc/tests/fixtures/lcov_accounting:accounting_test",
+        "//cc/tests/fixtures/lcov_accounting:partial_test",
+        "//cc/tests/fixtures/linux_corpus:corpus_test",
+        "//cc/tests/fixtures/no_srcs:app_sources_test",
+        "//cc/tests/fixtures/no_srcs:x_test",
+        "//cc/tests/fixtures/strict_generation:strict_test",
+    ],
+)

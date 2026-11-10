@@ -11,9 +11,9 @@ SOURCE = {
         },
     ],
     "repo": "jvm_spotbugs_dist",
-    "sha256": "72bc0d4edd686e462c0f71f42a049b27bf4da6708797ff7b2b56dd202714b4e5",
-    "strip_prefix": "spotbugs-4.10.4",
+    "sha256": "cce3244900cc215ccd9f5a8db29ed9468fc47824faf662f4fad005343d96007e",
+    "strip_prefix": "spotbugs-4.10.5",
     "tool": "spotbugs",
-    "urls": ["https://github.com/spotbugs/spotbugs/releases/download/4.10.4/spotbugs-4.10.4.tgz"],
-    "version": "4.10.4",
+    "urls": ["https://github.com/spotbugs/spotbugs/releases/download/4.10.5/spotbugs-4.10.5.tgz"],
+    "version": "4.10.5",
 }

@@ -2266,7 +2266,7 @@ fn chdir_flag(dir: &Path) -> OsString {
 /// `--chdir` makes tflint report workspace-relative paths, `--filter` (relative to
 /// `--chdir`) narrows the report to the owned files, and `--config` is always passed so
 /// `./.tflint.hcl` and `~/.tflint.hcl` never load. `--call-module-type=none` stops it
-/// reading local module sources outside the mirror. Exit codes (v0.65.0 `cmd/cli.go`):
+/// reading local module sources outside the mirror. Exit codes (v0.66.0 `cmd/cli.go`):
 /// 0 clean, 1 failure (JSON `errors`), 2 issues found.
 pub fn tflint_check(binary: &Path, dir_rel: &str, files: &[&Path], config: &Path) -> Invocation {
     let mut argv = vec![

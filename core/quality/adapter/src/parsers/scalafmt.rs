@@ -102,13 +102,13 @@ mod tests {
         assert!(err.to_string().contains("E.scala:3: error: illegal start"));
         let err = parse_scalafmt(
             b"",
-            b"add version = 3.11.4\n",
+            b"add version = 3.11.5\n",
             Some(16),
             &files(),
             scratch(),
         )
         .expect_err("config error");
-        assert!(err.to_string().contains("add version = 3.11.4"));
+        assert!(err.to_string().contains("add version = 3.11.5"));
     }
 
     #[test]

@@ -11,9 +11,9 @@ SOURCE = {
         },
     ],
     "repo": "jvm_pmd_dist",
-    "sha256": "4ae396ffaf2b0d3ef0b73a10b2925e77066f73d57a4ce9078c60e7302bcddec9",
-    "strip_prefix": "pmd-bin-7.27.0",
+    "sha256": "d27177c185b837fa57f097e482d1253468aa035379c5eb2671fa0a279109b179",
+    "strip_prefix": "pmd-bin-7.29.0",
     "tool": "pmd",
-    "urls": ["https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.27.0/pmd-dist-7.27.0-bin.zip"],
-    "version": "7.27.0",
+    "urls": ["https://github.com/pmd/pmd/releases/download/pmd_releases%2F7.29.0/pmd-dist-7.29.0-bin.zip"],
+    "version": "7.29.0",
 }

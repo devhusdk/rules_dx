@@ -1,1 +1,1 @@
-#define HIDDEN 1
+enum { HIDDEN = 1 };

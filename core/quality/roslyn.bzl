@@ -185,32 +185,17 @@ def _roslyn_impl(target, ctx):
             toolchain.csharp_compiler.default_runfiles.files,
         ],
     )
-    env = {"DOTNET_CLI_HOME": runtime.dirname}
-    if ctx.target_platform_has_constraint(attrs._windows_constraint[platform_common.ConstraintValueInfo]):
-        ctx.actions.run(
-            mnemonic = "CSharpRoslyn",
-            progress_message = "Roslyn analyzers %{label}",
-            executable = ctx.file._status_launcher,
-            arguments = [status.path, wrapper.path, runtime.path, csc.path, args],
-            inputs = inputs,
-            outputs = [sarif, status, out_tree],
-            env = env,
-            resource_set = dx_heavy_resources,
-            toolchain = _TOOLCHAIN,
-        )
-    else:
-        # run_shell: The shell records the exit status of the command in a file.
-        ctx.actions.run_shell(
-            mnemonic = "CSharpRoslyn",
-            progress_message = "Roslyn analyzers %{label}",
-            command = 'status="$1"; shift; "$@"; echo "$?" > "$status"',
-            arguments = [status.path, wrapper.path, runtime.path, csc.path, args],
-            inputs = inputs,
-            outputs = [sarif, status, out_tree],
-            env = env,
-            resource_set = dx_heavy_resources,
-            toolchain = _TOOLCHAIN,
-        )
+    ctx.actions.run(
+        mnemonic = "CSharpRoslyn",
+        progress_message = "Roslyn analyzers %{label}",
+        executable = ctx.executable._capture,
+        arguments = ["--status", status.path, "--", wrapper.path, runtime.path, csc.path, args],
+        inputs = inputs,
+        outputs = [sarif, status, out_tree],
+        env = {"DOTNET_CLI_HOME": runtime.dirname},
+        resource_set = dx_heavy_resources,
+        toolchain = _TOOLCHAIN,
+    )
     return [RoslynInfo(deps_maps = [deps_map], sarifs = [sarif], statuses = [status], tfms = [tfm])]
 
 roslyn_aspect = aspect(
@@ -218,10 +203,11 @@ roslyn_aspect = aspect(
     doc = "Compiles a C# target with the SDK analyzers and records the SARIF log.",
     attr_aspects = ["upstream", "dx_tfm_variants"],
     attrs = {
-        "_status_launcher": attr.label(
-            allow_single_file = True,
-            default = "//core/quality:roslyn_status.bat",
-            doc = "Windows launcher that records the csc exit code.",
+        "_capture": attr.label(
+            default = "//core/quality/capture",
+            executable = True,
+            cfg = "exec",
+            doc = "Runs one program with its streams and exit code written to files.",
         ),
         "_reference_trimmer": attr.label(
             default = "@paket.referencetrimmer//referencetrimmer:files",

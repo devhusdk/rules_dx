@@ -140,12 +140,11 @@ def _fsc_impl(target, ctx):
             toolchain.fsharp_compiler.default_runfiles.files,
         ],
     )
-    # run_shell: Redirects keep the log and the exit status of the command.
-    ctx.actions.run_shell(
+    ctx.actions.run(
         mnemonic = "FSharpFsc",
         progress_message = "fsc diagnostics %{label}",
-        command = 'log="$1"; status="$2"; shift 2; "$@" > "$log" 2>&1; echo "$?" > "$status"',
-        arguments = [log.path, status.path, wrapper.path, runtime.path, fsc.path, args],
+        executable = ctx.executable._capture,
+        arguments = ["--stdout", log.path, "--stderr", log.path, "--status", status.path, "--", wrapper.path, runtime.path, fsc.path, args],
         inputs = inputs,
         outputs = [log, status, out_tree],
         env = {"DOTNET_CLI_HOME": runtime.dirname},
@@ -158,5 +157,13 @@ fsc_aspect = aspect(
     implementation = _fsc_impl,
     doc = "Replays the F# compilation of a target and records the fsc diagnostics.",
     attr_aspects = ["upstream", "dx_tfm_variants"],
+    attrs = {
+        "_capture": attr.label(
+            default = "//core/quality/capture",
+            executable = True,
+            cfg = "exec",
+            doc = "Runs one program with its streams and exit code written to files.",
+        ),
+    },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],
 )

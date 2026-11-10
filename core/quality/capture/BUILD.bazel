@@ -1,0 +1,58 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_library(
+    name = "capture_lib",
+    srcs = ["src/lib.rs"],
+    crate_name = "capture",
+    crate_root = "src/lib.rs",
+)
+
+rust_binary(
+    name = "capture",
+    srcs = ["src/main.rs"],
+    crate_name = "capture",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":capture_lib"],
+)
+
+rust_binary(
+    name = "fake_tool",
+    testonly = True,
+    srcs = ["tests/fake_tool.rs"],
+    crate_root = "tests/fake_tool.rs",
+)
+
+rust_test(
+    name = "capture_test",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
+    coverage_lib = ":capture_lib",
+    crate_name = "capture",
+    crate_root = "src/lib.rs",
+    data = [":fake_tool"],
+    env = {"FAKE_TOOL": "$(rlocationpath :fake_tool)"},
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    [
+        "src/lib.rs",
+        "src/main.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

@@ -64,6 +64,7 @@ real_source_target(
         "cli/commands/windows.md",
         "cli/commands/worktree.md",
         "design/consumer-setup.md",
+        "design/language-skeleton.md",
         "design/layout.md",
         "design/nested-tests.md",
         "design/quality-config.md",

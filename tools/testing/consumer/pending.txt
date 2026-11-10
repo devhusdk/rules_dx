@@ -56,7 +56,6 @@ fixture cloudformation
 fixture cmake
 fixture csharp
 fixture cuda
-fixture d
 fixture dart
 fixture dockerfile
 fixture elixir
@@ -77,7 +76,6 @@ fixture make
 fixture mdx
 fixture msix
 fixture ocaml
-fixture perl
 fixture php
 fixture powershell
 fixture python
@@ -104,7 +102,6 @@ override override_repo androidsdk
 override single_version_override apple_support
 override single_version_override aspect_rules_jest
 override single_version_override aspect_rules_js
-override single_version_override aspect_rules_ts
 override single_version_override avro-cpp
 override single_version_override bazel_lib
 override single_version_override bazel_linux_packages
@@ -137,7 +134,6 @@ override single_version_override rules_perl
 override single_version_override rules_pkg
 override single_version_override rules_proto
 override single_version_override rules_python
-override single_version_override rules_rust
 override single_version_override rules_rust_prost
 override single_version_override rules_rust_wasm_bindgen
 override single_version_override rules_scala

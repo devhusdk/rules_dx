@@ -1,0 +1,14 @@
+load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
+
+perl_library(
+    name = "consumer",
+    srcs = ["lib/Consumer/Greet.pm"],
+    visibility = ["//visibility:public"],
+)
+
+perl_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["t/greet.t"],
+    deps = [":consumer"],
+)

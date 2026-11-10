@@ -1,0 +1,14 @@
+load("@rules_dx//d:defs.bzl", "d_library", "d_test")
+
+d_library(
+    name = "consumer",
+    srcs = ["greet.d"],
+    visibility = ["//visibility:public"],
+)
+
+d_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["greet_test.d"],
+    deps = [":consumer"],
+)

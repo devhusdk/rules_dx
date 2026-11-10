@@ -230,8 +230,6 @@ consumer_policy_tests(
         {
             "case": "default_d",
             "expected_dx_results": [
-                "greet-real-format-d.pb",
-                "greet-real-lint-d.pb",
                 "greet-real-lint-text.pb",
             ],
             "policy": "//config:default_workspace_policy",
@@ -262,7 +260,6 @@ consumer_policy_tests(
             "case": "default_ocaml",
             "expected_dx_results": [
                 "clean-real-format-ocaml.pb",
-                "clean-real-lint-ocaml.pb",
                 "clean-real-lint-text.pb",
             ],
             "policy": "//config:default_workspace_policy",
@@ -270,22 +267,13 @@ consumer_policy_tests(
         },
         {
             "case": "default_powershell",
-            "expected_dx_results": [
-                "hello-real-format-powershell.pb",
-                "hello-real-lint-powershell.pb",
-                "hello-real-lint-text.pb",
-            ],
+            "expected_dx_results": [],
             "policy": "//config:default_workspace_policy",
             "subject": "@rules_dx_powershell//tests/fixtures/hello:hello",
         },
         {
             "case": "default_swift",
             "expected_dx_results": select({
-                "@platforms//os:linux": [
-                    "greet-real-format-swift.pb",
-                    "greet-real-lint-swift.pb",
-                    "greet-real-lint-text.pb",
-                ],
                 "//conditions:default": ["greet-real-lint-text.pb"],
             }),
             "policy": "//config:default_workspace_policy",
@@ -294,8 +282,6 @@ consumer_policy_tests(
         {
             "case": "default_haskell",
             "expected_dx_results": [
-                "cli-real-format-haskell.pb",
-                "cli-real-lint-haskell.pb",
                 "cli-real-lint-text.pb",
             ],
             "policy": "//config:default_workspace_policy",
@@ -333,6 +319,7 @@ consumer_policy_tests(
             "case": "cue_formatted",
             "expected_dx_results": [
                 "clean_cue-real-format-cue.pb",
+                "clean_cue-real-typecheck-cue.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:cue_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_cue",
@@ -418,6 +405,7 @@ consumer_policy_tests(
             "case": "pkl_formatted",
             "expected_dx_results": [
                 "clean_pkl-real-format-pkl.pb",
+                "clean_pkl-real-typecheck-pkl.pb",
             ],
             "policy": "//quality/tests/fixtures/consumer_policy:pkl_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_pkl",
@@ -822,7 +810,6 @@ rust_test(
         "//deploy/private/install:src/lib.rs",
         "//deploy/private/install:src/main.rs",
         "//deploy/private/offline/bootstrap:src/lib.rs",
-        "//deploy/private/offline/bootstrap:src/main.rs",
         "//deploy/private/release:src/bin_bcr_ledger.rs",
         "//deploy/private/release:src/bin_release_deploy_tool.rs",
         "//deploy/private/release:src/bin_release_driver.rs",

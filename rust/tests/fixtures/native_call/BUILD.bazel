@@ -282,27 +282,33 @@ _raw_cc_library(
     tags = ["manual"],
 )
 
-rust_test(
-    name = "native_md_crt_test",
-    crate = ":native_call",
+rust_binary(
+    name = "native_md_crt_bin",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    edition = "2021",
     link_deps = [":native_md"],
     tags = ["manual"],
-    deps = [":native_call_build_script"],
+    testonly = True,
+    deps = [":native_call"],
 )
 
-rust_test(
-    name = "native_target_crt_test",
-    crate = ":native_call",
+rust_binary(
+    name = "native_target_crt_bin",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    edition = "2021",
     link_deps = [":native_c"],
     rustc_flags = ["-Ctarget-feature=+crt-static"],
     tags = ["manual"],
-    deps = [":native_call_build_script"],
+    testonly = True,
+    deps = [":native_call"],
 )
 
 rust_msvc_crt_tests(
     name = "native_call_msvc_crt_tests",
-    bad = ":native_md_crt_test",
-    target_flag = ":native_target_crt_test",
+    bad = ":native_md_crt_bin",
+    target_flag = ":native_target_crt_bin",
     ok = ":native_call_test",
 )
 

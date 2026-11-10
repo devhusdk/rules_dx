@@ -223,7 +223,6 @@ rust_test(
     ),
     crate = ":hello_lib",
     data = ["@rules_dx//cc/tests/fixtures/hello"],
-    tags = ["manual"],
     deps = all_crate_deps(
         normal = True,
         package_name = "rust/tests/fixtures/hello",

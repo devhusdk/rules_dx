@@ -3,12 +3,6 @@ use std::time::{Duration, Instant};
 
 use dx_lsp::*;
 
-fn tool_path(variable: &str) -> PathBuf {
-    let rel =
-        std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name the managed tool"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 const CPP_HEADER: &str = "inline int generated_helper(int value) {\n    return value * 2;\n}\n";
 
 const CPP_MAIN: &str = "#include \"probe_generated.h\"\n\nint main() {\n    int value = generated_helper(21);\n    int broken = value + unknown_identifier;\n    return broken;\n}\n";
@@ -61,8 +55,8 @@ fn stage_cpp(tag: &str, clang: &Path) -> CppFixture {
 
 #[test]
 fn clangd_reports_diagnostic_and_definition_for_generated_sources() {
-    let clang = tool_path("DX_LSP_CLANG");
-    let clangd = tool_path("DX_LSP_CLANGD");
+    let clang = dx_testing::env_file("DX_LSP_CLANG");
+    let clangd = dx_testing::env_file("DX_LSP_CLANGD");
     let fixture = stage_cpp("lsp-clangd", &clang);
     let vars = scoped_env(&fixture.root);
     require_context(&fixture.directory, cc_context::DATABASE_FILE)
@@ -136,7 +130,7 @@ fn clangd_missing_context_is_explicit() {
     let err =
         require_context(&empty, cc_context::DATABASE_FILE).expect_err("missing context must fail");
     assert!(matches!(err, Error::MissingContext(_)), "unexpected {err}");
-    let clang = tool_path("DX_LSP_CLANG");
+    let clang = dx_testing::env_file("DX_LSP_CLANG");
     let staged = stage_cpp("lsp-clangd-bare", &clang);
     let bare_tmp = dx_test_scratch::scratch("lsp-clangd-bare-tree");
     let bare = bare_tmp.path().to_path_buf();
@@ -144,7 +138,7 @@ fn clangd_missing_context_is_explicit() {
     write_text(&main, &staged.main_text);
     let main_uri = file_uri(&main);
     let vars = scoped_env(&bare);
-    let clangd = tool_path("DX_LSP_CLANGD");
+    let clangd = dx_testing::env_file("DX_LSP_CLANGD");
     let dir_arg = format!("--compile-commands-dir={}", empty.display());
     let mut session = Session::spawn(&clangd, &[dir_arg.as_str()], &vars).expect("clangd starts");
     let deadline = Instant::now() + Duration::from_secs(90);
@@ -186,7 +180,7 @@ fn clangd_unsupported_request_reports_method_not_found() {
     let root_tmp = dx_test_scratch::scratch("lsp-clangd-errors");
     let root = root_tmp.path().to_path_buf();
     let vars = scoped_env(&root);
-    let clangd = tool_path("DX_LSP_CLANGD");
+    let clangd = dx_testing::env_file("DX_LSP_CLANGD");
     let mut session = Session::spawn(&clangd, &[], &vars).expect("clangd starts");
     let deadline = Instant::now() + Duration::from_secs(60);
     session
@@ -208,7 +202,7 @@ fn clangd_wrong_target_reports_server_error() {
     let root_tmp = dx_test_scratch::scratch("lsp-clangd-target");
     let root = root_tmp.path().to_path_buf();
     let vars = scoped_env(&root);
-    let clangd = tool_path("DX_LSP_CLANGD");
+    let clangd = dx_testing::env_file("DX_LSP_CLANGD");
     let mut session = Session::spawn(&clangd, &[], &vars).expect("clangd starts");
     let deadline = Instant::now() + Duration::from_secs(60);
     session
@@ -236,7 +230,7 @@ fn lsp_wait_timeout_reports_cancellation() {
     let root_tmp = dx_test_scratch::scratch("lsp-quiet");
     let root = root_tmp.path().to_path_buf();
     let vars = scoped_env(&root);
-    let clangd = tool_path("DX_LSP_CLANGD");
+    let clangd = dx_testing::env_file("DX_LSP_CLANGD");
     let mut session = Session::spawn(&clangd, &[], &vars).expect("clangd starts");
     let deadline = Instant::now() + Duration::from_secs(60);
     session

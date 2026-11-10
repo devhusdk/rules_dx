@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-use dx_testing::{read_runfiles, resolve_runfiles, runfiles_root};
+use dx_testing::{read_runfiles, runfiles_root};
 
 const CONFIG: &str = ".github/actionlint.yaml";
 
@@ -30,9 +30,7 @@ const EXPECTED_FIXTURE_FINDINGS: [&str; 5] = [
 
 /// Returns the pinned tool one env var names.
 fn tool(variable: &str) -> PathBuf {
-    let value =
-        std::env::var(variable).unwrap_or_else(|_| panic!("{variable} must name the pinned tool"));
-    let path = resolve_runfiles(&value);
+    let path = dx_testing::env_file(variable);
     assert!(
         path.is_file(),
         "{variable} names {} which is absent",

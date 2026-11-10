@@ -1,11 +1,6 @@
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 const DX_USAGE: &str = "dx <command> [flags] [scope ...] [-- bazel-options ...]";
-
-fn staged(name: &str) -> PathBuf {
-    let rel = std::env::var(name).unwrap_or_else(|_| panic!("{name} must name the staged binary"));
-    dx_testing::resolve_runfiles(&rel)
-}
 
 fn binary_arch() -> &'static str {
     std::env::consts::ARCH
@@ -134,7 +129,7 @@ fn report() -> String {
 
 #[test]
 fn dx_builds_and_executes() {
-    let dx = staged("DX_PREFLIGHT_DX");
+    let dx = dx_testing::env_file("DX_PREFLIGHT_DX");
     assert_native("dx", &dx);
     let run = dx_testing::run(&dx, &["--help"], &[]).expect("dx must execute");
     assert!(
@@ -159,7 +154,7 @@ fn dx_builds_and_executes() {
 /// after `dx_plan::platform::host_refusal`.
 #[test]
 fn dx_passes_host_check() {
-    let dx = staged("DX_PREFLIGHT_DX");
+    let dx = dx_testing::env_file("DX_PREFLIGHT_DX");
     let scratch_tmp = dx_test_scratch::scratch("preflight-host");
     let scratch = scratch_tmp.path().to_path_buf();
     let output = dx_testing::command_for(&dx, &[])
@@ -186,7 +181,7 @@ fn dx_passes_host_check() {
 
 #[test]
 fn native_fixture_builds_and_runs() {
-    let hello = staged("DX_PREFLIGHT_HELLO");
+    let hello = dx_testing::env_file("DX_PREFLIGHT_HELLO");
     assert_native("hello", &hello);
     let run = dx_testing::run(&hello, &[], &[]).expect("hello must execute");
     assert!(

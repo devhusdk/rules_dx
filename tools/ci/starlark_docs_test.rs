@@ -20,8 +20,8 @@ const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test",
 /// Packages whose :corpus_starlark is in the test data.
 const PACKAGES: [&str; 112] = [
     "android/platforms",
+    "android/private/library",
     "android/private/packaging",
-    "android/private/rules",
     "android/private/sdk",
     "android/private/toolchain",
     "api_spec/private",

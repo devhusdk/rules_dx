@@ -11,7 +11,7 @@ load(
     _rust_android_apk = "rust_android_apk",
 )
 load(
-    "//android/private/rules:defs.bzl",
+    "//android/private/library:defs.bzl",
     _android_native_library = "android_native_library",
     _java_android_library = "java_android_library",
     _kotlin_android_library = "kotlin_android_library",

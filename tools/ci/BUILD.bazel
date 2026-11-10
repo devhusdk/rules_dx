@@ -666,8 +666,8 @@ rust_test(
     crate_root = "starlark_docs_test.rs",
     data = [
         "//android/platforms:corpus_starlark",
+        "//android/private/library:corpus_starlark",
         "//android/private/packaging:corpus_starlark",
-        "//android/private/rules:corpus_starlark",
         "//android/private/sdk:corpus_starlark",
         "//android/private/toolchain:corpus_starlark",
         "//ansible/private/quality:corpus_starlark",

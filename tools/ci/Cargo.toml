@@ -38,6 +38,10 @@ name = "blocker_refs_test"
 path = "blocker_refs_test.rs"
 
 [[test]]
+name = "command_docs_test"
+path = "command_docs_test.rs"
+
+[[test]]
 name = "compiler_evidence_test"
 path = "compiler_evidence_test.rs"
 
@@ -110,6 +114,10 @@ name = "pr_check_test"
 path = "pr_check_test.rs"
 
 [[test]]
+name = "prose_rules_test"
+path = "prose_rules_test.rs"
+
+[[test]]
 name = "release_assets_test"
 path = "release_assets_test.rs"
 
@@ -158,6 +166,10 @@ name = "tool_resolve_test"
 path = "tool_resolve_test.rs"
 
 [[test]]
+name = "unreferenced_files_test"
+path = "unreferenced_files_test.rs"
+
+[[test]]
 name = "workflow_expressions_test"
 path = "workflow_expressions_test.rs"
 
@@ -168,3 +180,7 @@ path = "workflow_pins_test.rs"
 [[test]]
 name = "upgrade_e2e_test"
 path = "upgrade_e2e_test.rs"
+
+[[test]]
+name = "zero_compat_test"
+path = "zero_compat_test.rs"

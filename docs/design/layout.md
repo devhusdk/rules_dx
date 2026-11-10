@@ -87,6 +87,7 @@ examples/   tested examples
 - Every example in `examples/` is a tested target.
 - The root holds only language directories with a `lang.json` and the directories above. A test enforces the list, and the list has no pending entries.
 - A directory that holds only a README is not a root directory. Its page lives in `docs/`.
+- Every `.bzl` file is loaded, every fixture and Rust file is named by a target or a test, every `filegroup` and exported file has a user, and every directory belongs to a package. `//tools/ci:unreferenced_files_test` enforces it.
 
 ## Quality code
 

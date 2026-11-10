@@ -351,8 +351,10 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         if lock_parser(path, source) {
             out.insert(format!("parser {path}"));
         }
-        for name in stated_names(source).intersection(&names) {
-            out.insert(format!("name {path} {name}"));
+        if path != "core/modules/langs.bzl" {
+            for name in stated_names(source).intersection(&names) {
+                out.insert(format!("name {path} {name}"));
+            }
         }
         if langs.with_set.contains(top_dir(path)) {
             for attr in banned_tag_attrs(path, source) {

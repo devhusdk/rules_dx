@@ -41,6 +41,12 @@ impl Scratch {
         &self.set
     }
 
+    /// The scratch temporary directory.
+    #[must_use]
+    pub fn tmp(&self) -> PathBuf {
+        self.root.path().join("tmp")
+    }
+
     /// A command that runs `program` in the set directory with an empty `PATH` and no host environment.
     pub fn command(&self, program: impl AsRef<std::ffi::OsStr>) -> Command {
         let mut command = Command::new(program);

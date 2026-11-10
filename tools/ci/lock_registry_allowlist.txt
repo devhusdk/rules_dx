@@ -362,45 +362,6 @@ name cli/update/src/recovery.rs Cargo.lock
 name cli/update/src/recovery.rs maven_install.json
 name cli/update/src/recovery.rs pnpm-lock.yaml
 name cli/update/src/recovery.rs uv.lock
-name core/modules/langs.bzl .terraform.lock.hcl
-name core/modules/langs.bzl Cargo.lock
-name core/modules/langs.bzl Cargo.toml
-name core/modules/langs.bzl Gemfile
-name core/modules/langs.bzl Gemfile.lock
-name core/modules/langs.bzl Manifest.toml
-name core/modules/langs.bzl PSGallery.lock.json
-name core/modules/langs.bzl PSGallery.requirements.psd1
-name core/modules/langs.bzl Package.resolved
-name core/modules/langs.bzl Package.swift
-name core/modules/langs.bzl Project.toml
-name core/modules/langs.bzl build.zig.zon
-name core/modules/langs.bzl cabal.project
-name core/modules/langs.bzl cabal.project.freeze
-name core/modules/langs.bzl composer.json
-name core/modules/langs.bzl composer.lock
-name core/modules/langs.bzl conan.lock
-name core/modules/langs.bzl conanfile.txt
-name core/modules/langs.bzl cpanfile
-name core/modules/langs.bzl cpanfile.snapshot
-name core/modules/langs.bzl dub.json
-name core/modules/langs.bzl dub.selections.json
-name core/modules/langs.bzl dune-project
-name core/modules/langs.bzl fpm.toml
-name core/modules/langs.bzl go.mod
-name core/modules/langs.bzl go.sum
-name core/modules/langs.bzl luarocks.lock
-name core/modules/langs.bzl maven_install.json
-name core/modules/langs.bzl mix.exs
-name core/modules/langs.bzl mix.lock
-name core/modules/langs.bzl package.json
-name core/modules/langs.bzl paket.dependencies
-name core/modules/langs.bzl paket.lock
-name core/modules/langs.bzl pnpm-lock.yaml
-name core/modules/langs.bzl pubspec.lock
-name core/modules/langs.bzl pubspec.yaml
-name core/modules/langs.bzl pyproject.toml
-name core/modules/langs.bzl tsconfig.json
-name core/modules/langs.bzl uv.lock
 name core/modules/python.bzl pyproject.toml
 name core/modules/python.bzl uv.lock
 name core/modules/rust.bzl Cargo.lock
@@ -533,8 +494,6 @@ name ruby/lang.json Gemfile
 name ruby/lang.json Gemfile.lock
 name scala/lang.json MODULE.bazel
 name scala/lang.json maven_install.json
-name swift/lang.json Package.resolved
-name swift/lang.json Package.swift
 name terraform/lang.json .terraform.lock.hcl
 name third_party/dotnet/framework.bzl paket.dependencies
 name tools/docs/components/aspect.bzl tsconfig.json
@@ -575,7 +534,6 @@ registry nuget
 registry opam
 registry powershell
 registry ruby
-registry swiftpm
 resolve-doc csharp/README.md 1
 resolve-doc elixir/README.md 1
 resolve-doc lua/README.md 1

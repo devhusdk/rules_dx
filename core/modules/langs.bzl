@@ -2733,6 +2733,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "swiftpm",
+          "extension": "@rules_dx//swift:extensions.bzl",
+          "hub": "swiftpkg",
+          "imports": "provides",
+          "lock": "swiftpm.lock.json",
+          "manifest": "Package.swift",
+          "resolver": "@rules_dx//swift:lock",
+          "state": "Package.resolved",
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "Swift",
     "tools": [
       "swift_format",

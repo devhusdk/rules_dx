@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regenerate checked-in artifact metadata.
 
-Host tools: `file` on PATH. ELF and PE headers are parsed in Python, so no
+Host tools: `file` (and `zstd` for zstd assets) on PATH. ELF and PE headers are parsed in Python, so no
 readelf or objdump is needed (macOS maintainers can run this).
 """
 
@@ -2379,6 +2379,50 @@ TOOLS: dict[str, dict[str, Any]] = {
             },
         },
     },
+    "xmllint": {
+        "upstream_version": "2.15.4",
+        "release_page": "https://github.com/unpins/xmllint/releases/tag/v2.15.4-1",
+        "licenses": [
+            {
+                "name": "MIT",
+                "source": "https://gitlab.gnome.org/GNOME/libxml2/-/blob/v2.15.4/Copyright",
+            }
+        ],
+        "platforms": {
+            "linux_x86_64": {
+                "os": "linux",
+                "cpu": "x86_64",
+                "asset": "xmllint-2.15.4-1-x86_64-linux.zst",
+                "url": "https://github.com/unpins/xmllint/releases/download/v2.15.4-1/xmllint-2.15.4-1-x86_64-linux.zst",
+                "kind": "zstd",
+                "executable": "xmllint",
+            },
+            "linux_arm64": {
+                "os": "linux",
+                "cpu": "arm64",
+                "asset": "xmllint-2.15.4-1-aarch64-linux.zst",
+                "url": "https://github.com/unpins/xmllint/releases/download/v2.15.4-1/xmllint-2.15.4-1-aarch64-linux.zst",
+                "kind": "zstd",
+                "executable": "xmllint",
+            },
+            "macos_arm64": {
+                "os": "macos",
+                "cpu": "arm64",
+                "asset": "xmllint-2.15.4-1-aarch64-darwin.zst",
+                "url": "https://github.com/unpins/xmllint/releases/download/v2.15.4-1/xmllint-2.15.4-1-aarch64-darwin.zst",
+                "kind": "zstd",
+                "executable": "xmllint",
+            },
+            "windows_x86_64": {
+                "os": "windows",
+                "cpu": "x86_64",
+                "asset": "xmllint-2.15.4-1-x86_64-windows.exe.zst",
+                "url": "https://github.com/unpins/xmllint/releases/download/v2.15.4-1/xmllint-2.15.4-1-x86_64-windows.exe.zst",
+                "kind": "zstd",
+                "executable": "xmllint.exe",
+            },
+        },
+    },
     "wasmtime": {
         "upstream_version": "49.0.5",
         "release_page": "https://github.com/bytecodealliance/wasmtime/releases/tag/v49.0.5",
@@ -2749,6 +2793,7 @@ def _native_bounds(tool, spec):
         "shfmt",
         "terraform",
         "typos",
+        "xmllint",
     ):
         linkage = "static"
     else:
@@ -3006,6 +3051,21 @@ def _collect(tool, platform_key, spec, workdir):
         exe_path, exe_digest = member_path, hashlib.sha256(inner).hexdigest()
         archive = {
             "format": "gzip",
+            "member": spec["executable"],
+            "member_sha256": exe_digest,
+            "member_size": len(inner),
+        }
+    elif kind == "zstd":
+        inner_path = os.path.join(workdir, "decompressed")
+        _run([_require_tool("zstd"), "-d", "-q", "-f", "-o", inner_path, asset_path])
+        with open(inner_path, "rb") as handle:
+            inner = handle.read()
+        member_path = os.path.join(workdir, spec["executable"])
+        with open(member_path, "wb") as handle:
+            handle.write(inner)
+        exe_path, exe_digest = member_path, hashlib.sha256(inner).hexdigest()
+        archive = {
+            "format": "zstd",
             "member": spec["executable"],
             "member_sha256": exe_digest,
             "member_size": len(inner),

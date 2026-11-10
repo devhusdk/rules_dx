@@ -11,7 +11,6 @@ const SAME_FLOOR: &[&[&str]] = &[&["rules_rust", "rules_rust_wasm_bindgen"]];
 /// Non-dev `bazel_dep`s that carry no floor or single_version_override yet; each is
 /// only a transitive need of a root extension.
 const UNPINNED: &[&str] = &[
-    "libxml2",
     "bazel_features",
     "tar.bzl",
     "yaml.bzl",

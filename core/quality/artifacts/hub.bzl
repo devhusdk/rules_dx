@@ -54,6 +54,7 @@ EMULATED_TOOLS = {
         "stylua",
         "tflint",
         "trivy",
+        "xmllint",
         "zizmor",
     ],
 }

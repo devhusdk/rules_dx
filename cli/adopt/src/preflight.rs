@@ -12,7 +12,6 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_rust_wasm_bindgen", "0.75.0"),
     ("rules_cc", "0.2.27"),
     ("avro-cpp", "1.12.0.bcr.1"),
-    ("libxml2", "2.15.4"),
     ("gcc_toolchain", "0.13.0"),
     ("llvm", "0.8.26"),
     ("rules_cuda", "0.4.0-beta1"),

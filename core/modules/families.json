@@ -264,7 +264,6 @@
         "gcc_toolchain",
         "google_benchmark",
         "hermetic_launcher",
-        "libxml2",
         "llvm",
         "lua",
         "platforms",

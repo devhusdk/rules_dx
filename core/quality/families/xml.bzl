@@ -4,8 +4,8 @@ load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "xmllint": {
-        "attr": attr.label(default = "//core/quality/tools/xml:xmllint", cfg = "exec", executable = True),
-        "kind": "executable",
+        "attr": attr.label(default = "@dx_tools//:xmllint", allow_single_file = True, cfg = "exec"),
+        "kind": "file",
         "resources": "light",
         "shard": "xml",
     },
@@ -14,7 +14,7 @@ TOOLS = {
 SHARD_SPECS = {
     "real_xml_lint": {
         "capability": "lint",
-        "doc": "Additive XML lint family aspect (xmllint, built from the BCR libxml2 module).",
+        "doc": "Additive XML lint family aspect (xmllint).",
         "shard": "xml",
         "suffix": "-xml",
     },

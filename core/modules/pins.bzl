@@ -5,7 +5,6 @@ PINNED_REPOS = {
     "bazel_linux_packages": Label("@bazel_linux_packages//:all"),
     "elfutils": Label("@elfutils//:all"),
     "hermetic_launcher": Label("@hermetic_launcher//:all"),
-    "libxml2": Label("@libxml2//:all"),
     "lua": Label("@lua//:all"),
     "rules_android": Label("@rules_android//:all"),
     "rules_apple": Label("@rules_apple//:all"),

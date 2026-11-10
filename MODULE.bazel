@@ -51,10 +51,6 @@ single_version_override(
     version = "12.2.0.bcr.1",
 )
 
-# xmllint comes from the BCR source build; the overlay carries its own cc_binary (#4618)
-# floor: equals tested
-bazel_dep(name = "libxml2", version = "2.15.4")
-
 # floor: equals tested; patched, consumers are pinned by the dx include (#5905)
 bazel_dep(name = "gcc_toolchain", version = "0.13.0")
 single_version_override(
@@ -2909,6 +2905,10 @@ use_repo(
     "dx_wasmtime_macos_x86_64",
     "dx_wasmtime_windows_arm64",
     "dx_wasmtime_windows_x86_64",
+    "dx_xmllint_linux_arm64",
+    "dx_xmllint_linux_x86_64",
+    "dx_xmllint_macos_arm64",
+    "dx_xmllint_windows_x86_64",
     "dx_yamlfmt_linux_arm64",
     "dx_yamlfmt_linux_x86_64",
     "dx_yamlfmt_macos_arm64",

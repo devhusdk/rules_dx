@@ -58,6 +58,7 @@ load("//core/quality/artifacts:typstyle.bzl", _typstyle = "ARTIFACTS")
 load("//core/quality/artifacts:uv.bzl", _uv = "ARTIFACTS")
 load("//core/quality/artifacts:vale.bzl", _vale = "ARTIFACTS")
 load("//core/quality/artifacts:wasmtime.bzl", _wasmtime = "ARTIFACTS")
+load("//core/quality/artifacts:xmllint.bzl", _xmllint = "ARTIFACTS")
 load("//core/quality/artifacts:yamlfmt.bzl", _yamlfmt = "ARTIFACTS")
 load("//core/quality/artifacts:zanuda.bzl", _zanuda = "SOURCE")
 load("//core/quality/artifacts:zizmor.bzl", _zizmor = "ARTIFACTS")
@@ -110,6 +111,7 @@ _ARTIFACTS = [
         _uv,
         _vale,
         _wasmtime,
+        _xmllint,
         _yamlfmt,
         _zizmor,
     ]

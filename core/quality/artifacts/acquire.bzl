@@ -6,6 +6,7 @@ ARCHIVE_TYPES = {
     "tar.gz": "tar.gz",
     "tar.xz": "tar.xz",
     "zip": "zip",
+    "zstd": "zst",
 }
 
 ACQUIRE_ATTRS = {
@@ -123,17 +124,18 @@ def _runtime(ctx):
 def _extracted(ctx, kind):
     """Returns the repository path one extraction wrote the executable to."""
     candidates = [_STAGING + "/" + ctx.attr.executable]
-    if kind == "gzip":
-        candidates.append(_STAGING + "/" + _gzip_member(ctx.attr.asset))
+    if kind in ("gzip", "zstd"):
+        candidates.append(_STAGING + "/" + _compressed_member(ctx.attr.asset, kind))
     for candidate in candidates:
         if ctx.path(candidate).exists:
             return candidate
     fail("standalone tool repo: " + kind + " extraction of '" + ctx.attr.asset +
          "' produced no '" + ctx.attr.executable + "'")
 
-def _gzip_member(asset):
-    """Returns the path Bazel names one gzip extraction after."""
-    return asset[:-3] if asset.endswith(".gz") else asset
+def _compressed_member(asset, kind):
+    """Returns the path Bazel names one single-file extraction after."""
+    suffix = ".gz" if kind == "gzip" else ".zst"
+    return asset[:-len(suffix)] if asset.endswith(suffix) else asset
 
 def _file_url(ctx, path):
     """Returns the file URL of one repository path."""

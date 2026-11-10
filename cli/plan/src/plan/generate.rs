@@ -118,14 +118,13 @@ pub fn generate_traversal_dirs(resolved: &ResolvedScope) -> Vec<String> {
 
 /// Workspace-relative directories under `[scope] exclude`, as Gazelle `-exclude` values.
 ///
-/// Only `//dir/...` patterns count: a single-package or external pattern must
+/// Only recursive patterns count: a single-package or external pattern must
 /// not hide a whole directory tree from the generator.
 pub fn generate_exclude_dirs(resolved: &ResolvedScope) -> Vec<String> {
     let mut dirs: Vec<String> = resolved
         .excluded
         .iter()
-        .filter_map(|pattern| pattern.strip_prefix("//")?.strip_suffix("/..."))
-        .filter(|dir| !dir.is_empty() && !dir.contains(':'))
+        .filter_map(|pattern| dx_config::conventions::recursive_dir(pattern))
         .map(str::to_owned)
         .collect();
     dirs.sort();
@@ -439,5 +438,23 @@ mod tests {
         )
         .expect("apply");
         assert_eq!(generate_traversal_dirs(&resolved), strings(&["app"]));
+    }
+
+    #[test]
+    fn every_recursive_exclude_spelling_reaches_gazelle() {
+        for pattern in [
+            "//vendor/...",
+            "//vendor/...:all",
+            "//vendor/...:*",
+            "//vendor/...:all-targets",
+        ] {
+            let mut resolved = resolved(&["//app/..."]);
+            resolved.excluded = strings(&[pattern, "//pkg:all", "//...", "@ext//vendor/..."]);
+            assert_eq!(
+                generate_exclude_dirs(&resolved),
+                strings(&["vendor"]),
+                "{pattern}"
+            );
+        }
     }
 }

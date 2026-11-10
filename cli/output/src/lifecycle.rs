@@ -297,6 +297,8 @@ pub struct ConfigFileEvent {
     /// The base the root file extends, or `tier base` when the tool runs on the base itself.
     pub base: Option<String>,
     pub edited: Option<bool>,
+    /// The unified diff from the base to the root file, from `dx config diff`.
+    pub patch: Option<String>,
 }
 
 pub fn config_file_event(file: &ConfigFileEvent) -> Result<Value, OutputError> {
@@ -313,6 +315,9 @@ pub fn config_file_event(file: &ConfigFileEvent) -> Result<Value, OutputError> {
     }
     if let Some(edited) = file.edited {
         map.insert("edited".to_owned(), Value::Bool(edited));
+    }
+    if let Some(patch) = &file.patch {
+        map.insert("patch".to_owned(), Value::String(patch.clone()));
     }
     Ok(Value::Object(map))
 }

@@ -313,6 +313,7 @@ fn bindings(workspace: &std::path::Path) -> Bindings {
                 role: "root".to_owned(),
                 base: None,
                 edited: None,
+                patch: None,
             })
             .collect(),
         Err(error) => {

@@ -343,6 +343,7 @@ fn samples() -> Vec<Value> {
             role: "root".to_owned(),
             base: None,
             edited: None,
+            patch: None,
         })
         .expect("bound config file"),
         family_tools_event(&FamilyToolsEvent {
@@ -357,6 +358,7 @@ fn samples() -> Vec<Value> {
             role: "root".to_owned(),
             base: Some(".dx/config/hlint/base.yaml".to_owned()),
             edited: Some(true),
+            patch: Some("--- a/.hlint.yaml\n+++ b/.hlint.yaml\n".to_owned()),
         })
         .expect("config file"),
         with_correlation(started(), "c1").expect("correlation"),

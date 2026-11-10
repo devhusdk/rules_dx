@@ -65,7 +65,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/dotnet/fsharp
 # gazelle:exclude tools/docs/jvm/record
 # gazelle:exclude core/quality/tools/jvm/javac_check
-# gazelle:exclude avro/private/tools/avdl_union
+# gazelle:exclude avro/private/tools/avro_union
 # gazelle:exclude core/quality/tools/jvm/kotlinc_check
 # gazelle:exclude core/quality/tools/jvm/scalac_check
 # gazelle:exclude javascript/private/quality/bin

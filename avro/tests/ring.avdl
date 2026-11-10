@@ -1,0 +1,8 @@
+@namespace("dx.avro")
+protocol Rings {
+  import schema "avro/tests/point.avsc";
+  record Ring {
+    Point center;
+    int radius;
+  }
+}

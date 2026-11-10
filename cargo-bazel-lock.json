@@ -1,5 +1,5 @@
 {
-  "checksum": "350b3973764ac943e1c981e1bd859dc70f64830f2a73ec6c712d2d6feebe2e78",
+  "checksum": "2cabb0f89efdf52b4eb877210e3769441535a2cc122f4120983c0c752eedbb94",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -15012,6 +15012,25 @@
       ],
       "version": "1.2.3"
     },
+    "modules_tests 0.0.0": {
+      "common_attrs": {
+        "deps_dev": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "modules_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "mvn_version 0.1.0": {
       "common_attrs": {
         "deps": [
@@ -26726,6 +26745,27 @@
       ],
       "version": "0.11.1+wasi-snapshot-preview1"
     },
+    "wasi_testing 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "library_target_name": "wasi_run",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "wasi_testing",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "wasi_run",
+            "crate_root": "wasi_run.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "wasip2 1.0.4+wasi-0.2.12": {
       "common_attrs": {
         "deps": [
@@ -29064,6 +29104,7 @@
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
+    "modules_tests 0.0.0": "modules_tests",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",
     "perl_extract 0.0.0": "tools/docs/perl/perl_extract",
     "php_extract 0.0.0": "tools/docs/php/php_extract",
@@ -29097,6 +29138,7 @@
     "tiers 0.0.0": "tools/docs/tiers",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
+    "wasi_testing 0.0.0": "wasi/wasi_testing",
     "zig_extract 0.0.0": "tools/docs/zig/zig_extract"
   }
 }

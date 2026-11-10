@@ -1908,6 +1908,8 @@ crate.from_cargo(
         "//tools/testing/lsp:Cargo.toml",
         "//tools/testing/floor:Cargo.toml",
         "//tools/testing/starters:Cargo.toml",
+        "//modules:Cargo.toml",
+        "//wasi/testing:Cargo.toml",
         "//appimage/packer:Cargo.toml",
         "//qt/rust:Cargo.toml",
     ],

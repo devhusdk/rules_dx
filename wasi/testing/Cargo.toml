@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "wasi_testing"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "wasi_run"
+path = "wasi_run.rs"
+
+[[bin]]
+name = "wasi_test_runner"
+path = "wasi_test_runner.rs"

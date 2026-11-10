@@ -1,30 +1,42 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//rust/rules:wrapper_tests.bzl", "dx_wasi_test_tests")
 
 package(default_visibility = ["//visibility:public"])
 
-# keep
 rust_library(
     name = "wasi_run",
     testonly = True,
     srcs = ["wasi_run.rs"],
+    aliases = aliases(
+        package_name = "wasi/wasi_testing",
+        normal = True,
+    ),
     crate_name = "wasi_run",
     crate_root = "wasi_run.rs",
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "wasi_run_unit_test",
+    aliases = aliases(
+        package_name = "wasi/wasi_testing",
+        normal = True,
+        normal_dev = True,
+    ),
     crate = ":wasi_run",
+    deps = [],
 )
 
-# keep
 rust_binary(
     name = "wasi_test_runner",
     testonly = True,
     srcs = ["wasi_test_runner.rs"],
+    aliases = aliases(
+        package_name = "wasi/wasi_testing",
+        normal = True,
+    ),
     crate_name = "wasi_test_runner",
     crate_root = "wasi_test_runner.rs",
     deps = [
@@ -56,4 +68,10 @@ real_source_target(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

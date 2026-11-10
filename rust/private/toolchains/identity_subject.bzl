@@ -3,6 +3,10 @@
 load("//core:defs.bzl", "DxSubjectInfo")
 load(":bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
+def _configuration_free(ctx, path):
+    prefix = ctx.bin_dir.path + "/"
+    return path[len(prefix):] if path.startswith(prefix) else path
+
 def _toolchain_identity_subject_impl(ctx):
     clippy_driver, rustfmt = rust_toolchain_tools(ctx)
     rustc = rust_toolchain_rustc(ctx)
@@ -10,11 +14,11 @@ def _toolchain_identity_subject_impl(ctx):
         DefaultInfo(files = depset([])),
         DxSubjectInfo(fields = {
             "clippy.owner": str(clippy_driver.owner),
-            "clippy.path": clippy_driver.path,
+            "clippy.path": _configuration_free(ctx, clippy_driver.path),
             "rustc.owner": str(rustc.owner),
-            "rustc.path": rustc.path,
+            "rustc.path": _configuration_free(ctx, rustc.path),
             "rustfmt.owner": str(rustfmt.owner),
-            "rustfmt.path": rustfmt.path,
+            "rustfmt.path": _configuration_free(ctx, rustfmt.path),
         }),
     ]
 

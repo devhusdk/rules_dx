@@ -453,7 +453,7 @@ _msvc_opt_pdb_test = analysistest.make(
 )
 
 def dx_msvc_opt_pdb_tests(name, target, expected):
-    """Asserts an MSVC opt rust_binary declares exactly its own PDB (#8410, #8428)."""
+    """Asserts an MSVC opt rust_binary declares exactly its own PDB."""
     _msvc_opt_pdb_test(
         name = name,
         size = "small",

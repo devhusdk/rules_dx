@@ -13,11 +13,6 @@ exports_files([
     "selene.BUILD.bazel",
 ])
 
-filegroup(
-    name = "crate_carrier",
-    srcs = ["src/lib.rs"],
-)
-
 alias(
     name = "deadnix",
     actual = "@dx_quality_crates//:deadnix__deadnix",
@@ -59,6 +54,19 @@ alias(
 dx_unavailable_tool(
     name = "deadnix_unsupported",
     tool = "deadnix",
+)
+
+alias(
+    name = "progenitor_tool",
+    actual = select({
+        ":windows_arm64": ":progenitor_unsupported",
+        "//conditions:default": ":progenitor",
+    }),
+)
+
+dx_unavailable_tool(
+    name = "progenitor_unsupported",
+    tool = "progenitor",
 )
 
 alias(

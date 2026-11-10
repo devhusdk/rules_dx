@@ -7,7 +7,7 @@ load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "RustWasmBindgenInfo", _rust_wasm_bindgen = "rust_wasm_bindgen", _rust_wasm_bindgen_test = "rust_wasm_bindgen_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
+load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings", "msvc_crt_static_flag")
 load("//core:resources.bzl", "dx_test_resource_tags")
 load("//core:wrapper.bzl", "dx_warnings_flags", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs", "dx_without_warnings_attr")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
@@ -34,8 +34,6 @@ _MSVC_OPT = Label("//rust/private:msvc_opt")
 
 _MSVC_LINK = Label("//rust/private/tools/msvc_paths:msvc_link")
 
-# rustc always passes /DEBUG and msvc_pdb_output.patch declares the PDB as an output;
-# /Brepro makes the PDB GUID a content hash and msvc_link makes its paths relative (#8409, #8410).
 MSVC_OPT_LINK_FLAGS = [
     "-Clinker=$(execpath {})".format(_MSVC_LINK),
     "-Clinker-flavor=lld-link",
@@ -43,7 +41,6 @@ MSVC_OPT_LINK_FLAGS = [
 ] + REPRODUCIBLE_PDB_LINK_FLAGS
 _NO_STATIC_CPP_RUNTIMES = "-static_link_cpp_runtimes"
 _EXTRA_RUSTC_FLAG = str(Label("@rules_rust//rust/settings:extra_rustc_flag"))
-_CRT_STATIC_FLAG = "-Ctarget-feature=+crt-static"
 
 _COVERAGE = "//command_line_option:collect_code_coverage"
 
@@ -59,7 +56,7 @@ def _cpp_runtime_transition_impl(settings, attr):
     from_rust = settings[MSVC_CRT_FROM_RUST]
     if attr.libstdcxx and _NO_STATIC_CPP_RUNTIMES not in features:
         features = features + [_NO_STATIC_CPP_RUNTIMES]
-    if attr.msvc and (attr.crt_static or _CRT_STATIC_FLAG in settings[_EXTRA_RUSTC_FLAG]):
+    if attr.msvc and (attr.crt_static or any([msvc_crt_static_flag(flag) for flag in settings[_EXTRA_RUSTC_FLAG]])):
         return msvc_crt_static_settings(features)
     return {"//command_line_option:features": features, MSVC_CRT_FROM_RUST: from_rust}
 
@@ -93,7 +90,7 @@ _LIBSTDCXX_ATTRS = {
 
 def _libstdcxx_forward(rustc_flags = None):
     """Returns the forwarder kwargs that mark libstdc++ platforms and static CRT targets."""
-    crt_static = type(rustc_flags) == "list" and any(["+crt-static" in flag for flag in rustc_flags])
+    crt_static = type(rustc_flags) == "list" and any([msvc_crt_static_flag(flag) for flag in rustc_flags])
     return {
         "libstdcxx": select({_LIBSTDCXX: True, "//conditions:default": False}),
         "msvc": select({_MSVC: True, "//conditions:default": False}),
@@ -309,7 +306,7 @@ def rust_test(
         fail("rust_test: preopens and runtime need wasm = \"wasi\"")
     if wasm == "browser":
         if (crate == None) == (srcs == None):
-            fail("rust_test: wasm = \"browser\" needs srcs or crate, not both")
+            fail("rust_test: wasm = \"browser\" needs exactly one of srcs or crate")
         if srcs != None:
             crate_root = kwargs.pop("crate_root", None)
             if crate_root == None and type(srcs) == "list" and len(srcs) == 1:

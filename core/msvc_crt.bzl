@@ -41,11 +41,12 @@ dx_msvc_crt_reset_transition = transition(
     outputs = [_FEATURES, MSVC_CRT_FROM_RUST],
 )
 
+def msvc_crt_static_flag(arg):
+    """Whether a rustc argument turns on +crt-static."""
+    return arg.startswith(("-Ctarget-feature=", "--codegen=target-feature=")) and "+crt-static" in arg
+
 def _crt_static(argv):
-    for arg in argv:
-        if arg.startswith(("-Ctarget-feature=", "--codegen=target-feature=")) and "+crt-static" in arg:
-            return True
-    return False
+    return any([msvc_crt_static_flag(arg) for arg in argv])
 
 def _dx_msvc_crt_aspect_impl(target, ctx):
     crt_static = False

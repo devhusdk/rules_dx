@@ -36,7 +36,6 @@ rust_binary(
     deps = [":msvc_paths"],
 )
 
-# Hermetic clang-cl for build scripts that need it on aarch64 Windows (#9224).
 alias(
     name = "clang_cl",
     actual = "@llvm//tools:clang-cl",

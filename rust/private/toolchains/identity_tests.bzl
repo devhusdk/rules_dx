@@ -8,9 +8,9 @@ _AT = "@"
 
 EXPECTED_IDENTITY_OBSERVATIONS = """subject //rust/private/toolchains:identity_under_test
 field clippy.owner=""" + _AT + """@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rust_toolchain
-field clippy.path=bazel-out/k8-fastbuild/bin/external/rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools/rust_toolchain/bin/clippy-driver
+field clippy.path=external/rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools/rust_toolchain/bin/clippy-driver
 field rustc.owner=""" + _AT + """@rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools//:rust_toolchain
-field rustc.path=bazel-out/k8-fastbuild/bin/external/rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools/rust_toolchain/bin/rustc
+field rustc.path=external/rules_rust++rust+rust_linux_x86_64__x86_64-unknown-linux-gnu__stable_tools/rust_toolchain/bin/rustc
 field rustfmt.owner=""" + _AT + """@rules_rust++rust+rustfmt_""" + RUSTFMT_VERSION + """__x86_64-unknown-linux-gnu_tools//:bin/rustfmt
 field rustfmt.path=external/rules_rust++rust+rustfmt_""" + RUSTFMT_VERSION + """__x86_64-unknown-linux-gnu_tools/bin/rustfmt
 aspect_field aspect_seen=True

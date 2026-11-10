@@ -432,7 +432,6 @@ _CRT_CONFIG_LLVM = {
 
 def _crt_ok_impl(ctx):
     env = analysistest.begin(ctx)
-    asserts.true(env, analysistest.target_under_test(env) != None)
     return analysistest.end(env)
 
 def _crt_bad_impl(ctx):
@@ -498,7 +497,7 @@ def rust_msvc_crt_library_tests(name, shared, static, cc_consumer):
     native.test_suite(name = name, tests = tests)
 
 def build_script_msvc_coverage_test(name, target):
-    """Asserts Windows coverage builds build-script C, not C++, without ISO wide stdio (#8448).
+    """Asserts Windows coverage builds build-script C, not C++, without ISO wide stdio.
 
     Args:
         name: Name of the test.

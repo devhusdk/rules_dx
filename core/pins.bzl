@@ -95,41 +95,34 @@ def _lock_repo_impl(rctx):
             )
         rctx.file(name + "/BUILD.bazel", rctx.attr.builds[name])
     rctx.file("BUILD.bazel", "")
+    return rctx.repo_metadata(reproducible = True)
 
 lock_repo = repository_rule(
     implementation = _lock_repo_impl,
     attrs = {
-        "builds": attr.string_dict(mandatory = True),
-        "lock": attr.string(mandatory = True),
+        "builds": attr.string_dict(mandatory = True, doc = "The BUILD file text of each package, by package name."),
+        "lock": attr.string(mandatory = True, doc = "The decoded dx lock as JSON text."),
     },
 )
 
-_lock_tag = tag_class(
+lock_tag = tag_class(
     attrs = {
-        "lock": attr.label(mandatory = True, allow_single_file = [".json"]),
-        "name": attr.string(mandatory = True),
+        "lock": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The dx lock file of the repository."),
+        "name": attr.string(mandatory = True, doc = "The name of the repository."),
     },
 )
 
-def lock_hub(build_file):
-    """Returns the module extension of one dx class ecosystem; `build_file(package)` returns the BUILD file text of a decoded lock package."""
-
-    def _impl(mctx):
-        for module in mctx.modules:
-            for tag in module.tags.lock:
-                text = mctx.read(tag.lock)
-                lock = json.decode(text)
-                problems = lock_problems(lock)
-                if problems:
-                    fail("%s %s" % (tag.lock, "; ".join(problems)))
-                lock_repo(
-                    name = tag.name,
-                    lock = text,
-                    builds = {package["name"]: build_file(package) for package in lock["packages"]},
-                )
-        return mctx.extension_metadata(reproducible = True)
-
-    return module_extension(
-        implementation = _impl,
-        tag_classes = {"lock": _lock_tag},
-    )
+def lock_repos(mctx, build_file):
+    """Creates one repository per `lock` tag of the module context; `build_file(package)` returns the BUILD file text of a decoded lock package."""
+    for module in mctx.modules:
+        for tag in module.tags.lock:
+            text = mctx.read(tag.lock)
+            lock = json.decode(text)
+            problems = lock_problems(lock)
+            if problems:
+                fail("%s %s" % (tag.lock, "; ".join(problems)))
+            lock_repo(
+                name = tag.name,
+                lock = text,
+                builds = {package["name"]: build_file(package) for package in lock["packages"]},
+            )

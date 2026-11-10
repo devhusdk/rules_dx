@@ -101,11 +101,8 @@ cli/cli/src/exec/test_case_launcher_tests.rs shebang 1
 cli/cli/src/exec/update_pr.rs shebang 2
 cli/cli/src/multicall.rs host-path 1
 cli/cli/tests/adopt/tests/adopt.rs shebang 1
-cli/cli/tests/agents/BUILD.bazel env-inherit 1
 cli/cli/tests/agents/tests/dev_launcher.rs host-path 3
 cli/cli/tests/agents/tests/dev_launcher.rs shebang 16
-cli/cli/tests/uv_sets/BUILD.bazel env-inherit 1
-cli/cli/tests/uv_sets/BUILD.bazel home 1
 cli/cli/tests/uv_sets/tests/uv_sets.rs shebang 2
 cli/env/src/lib_tests.rs shebang 2
 cli/ide/src/go.rs shebang 1

@@ -11,6 +11,7 @@ dx_missing_avro_cpp(name = "avrogencpp")
 
 def _repo_impl(rctx):
     rctx.file("BUILD.bazel", _BUILD.format(missing = rctx.attr.missing))
+    return rctx.repo_metadata(reproducible = True)
 
 _avro_cpp_stub = repository_rule(
     implementation = _repo_impl,

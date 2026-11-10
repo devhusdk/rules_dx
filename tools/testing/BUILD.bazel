@@ -4,6 +4,7 @@ load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
 load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_TAGS")
+load(":test.bzl", "testing_rust_test")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
@@ -168,77 +169,33 @@ rust_binary(
     ],
 )
 
-rust_test(
+testing_rust_test(
     name = "root_layout_test",
-    srcs = ["root_layout_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "root_layout_test",
-    crate_root = "root_layout_test.rs",
     data = ["//:module_srcs"],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [":dx_testing"],
+    deps = [":dx_testing"],
 )
 
-rust_test(
+testing_rust_test(
     name = "host_path_scan_test",
-    srcs = ["host_path_scan_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "host_path_scan_test",
-    crate_root = "host_path_scan_test.rs",
     data = [
         "host_path_allowlist.txt",
         "//:module_srcs",
     ],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [":dx_testing"],
+    deps = [":dx_testing"],
 )
 
-rust_test(
+testing_rust_test(
     name = "dx_generated_fresh_test",
-    srcs = ["dx_generated_fresh_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "dx_generated_fresh_test",
-    crate_root = "dx_generated_fresh_test.rs",
     data = ["//:module_srcs"],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_testing",
         "//cli/adopt:dx_adopt",
         "//cli/generate:dx_generate",
     ],
 )
 
-rust_test(
+testing_rust_test(
     name = "module_srcs_test",
-    srcs = ["module_srcs_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "module_srcs_test",
-    crate_root = "module_srcs_test.rs",
     data = [
         "//android:module_srcs",
         "//apple:module_srcs",
@@ -247,30 +204,14 @@ rust_test(
         "//erlang:module_srcs",
         "//qt:module_srcs",
     ],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [":dx_testing"],
+    deps = [":dx_testing"],
 )
 
-rust_test(
+testing_rust_test(
     name = "consumer_maven_lock_test",
-    srcs = ["consumer_maven_lock_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "consumer_maven_lock_test",
-    crate_root = "consumer_maven_lock_test.rs",
     data = CONSUMER_MAVEN_DATA,
     env = CONSUMER_MAVEN_ENV,
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_testing",
         "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",
@@ -278,18 +219,10 @@ rust_test(
 )
 
 # size: large, nested Bazel consumer build, see #5689
-rust_test(
+testing_rust_test(
     name = "nested_bazel_harness_test",
     size = "large",
     timeout = "moderate",
-    srcs = ["nested_bazel_harness_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "nested_bazel_harness_test",
-    crate_root = "nested_bazel_harness_test.rs",
     data = [
         ":nested_bazel_probe",
         "//:.bazelversion",
@@ -311,11 +244,7 @@ rust_test(
         "//conditions:default": NESTED_BAZEL_ENV_INHERIT,
     }),
     tags = NESTED_BAZEL_TAGS,
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing/nested:dx_nested",
@@ -357,36 +286,16 @@ rust_test(
     ) + ["//cli/path:dx_path"],
 )
 
-rust_test(
+testing_rust_test(
     name = "starlark_harness_exit_test",
-    srcs = ["starlark_harness_exit_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "starlark_harness_exit_test",
-    crate_root = "starlark_harness_exit_test.rs",
     data = [":starlark_harness"],
     env = {"STARLARK_HARNESS_BIN": "$(rootpath :starlark_harness)"},
     tags = ["no-remote-exec"],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [":dx_testing"],
+    deps = [":dx_testing"],
 )
 
-rust_test(
+testing_rust_test(
     name = "preflight_smoke_test",
-    srcs = ["preflight_smoke_test.rs"],
-    aliases = aliases(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "preflight_smoke_test",
-    crate_root = "preflight_smoke_test.rs",
     data = [
         "//cc/tests/fixtures/hello",
         "//cli/cli:dx",
@@ -399,11 +308,7 @@ rust_test(
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_ARCHITEW6432",
     ],
-    deps = all_crate_deps(
-        package_name = "tools/dx_testing",
-        normal = True,
-        normal_dev = True,
-    ) + [
+    deps = [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
     ],

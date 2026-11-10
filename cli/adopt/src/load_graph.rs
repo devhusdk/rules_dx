@@ -1303,8 +1303,8 @@ mod tests {
                 &["@demo//core/quality:aspects.bzl%lint_aspect"]
             ),
             [
-                packages("plain.bzl", &[]),
                 global("core/quality/aspects.bzl", "aspect input"),
+                packages("plain.bzl", &[]),
                 global("rc/rc_helper.bzl", "aspect input"),
             ]
         );

@@ -47,8 +47,8 @@ javascript_test(
     runner = "node",
     srcs = ["plain_test.js"],
     main = "plain_test.js",
+    data = [":hello_lib"],
     env = {"FOO": "1"},
-    tags = ["manual"],
 )
 
 real_source_target(

@@ -6,7 +6,7 @@ use crate::api_compat::{
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, resolve_version, scrubbed_command,
+    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -114,13 +114,11 @@ fn cargo_publish(program: &Path, manifest: &Path, token: &str) -> Result<(), Str
         &[("CARGO_REGISTRY_TOKEN", token)],
     );
     cmd.arg("publish").arg("--manifest-path").arg(manifest);
-    let output = cmd
-        .output()
-        .map_err(|error| format!("crates_deploy: {error}"))?;
-    if output.status.success() {
+    let output = run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))?;
+    if output.success() {
         return Ok(());
     }
-    let mut message = format!("crates_deploy: cargo publish failed with {}", output.status);
+    let mut message = format!("crates_deploy: cargo publish failed with {}", exit_text(&output));
     for line in cargo_failure_lines(&output.stderr, token) {
         message.push_str("\ncargo: ");
         message.push_str(&line);
@@ -244,15 +242,13 @@ fn cargo_package_list(program: &Path, manifest: &Path) -> Result<(), String> {
         "--manifest-path",
     ])
     .arg(manifest);
-    let output = cmd
-        .output()
-        .map_err(|error| format!("crates_deploy: {error}"))?;
-    if output.status.success() {
+    let output = run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))?;
+    if output.success() {
         return Ok(());
     }
     let mut message = format!(
         "crates_deploy: cargo package --list failed with {}",
-        output.status
+        exit_text(&output)
     );
     for line in cargo_failure_lines(&output.stderr, "") {
         message.push_str("\ncargo: ");
@@ -356,8 +352,7 @@ fn crates_api_check(
             cmd.args(["semver-checks", "check-release", "--manifest-path"])
                 .arg(staging.join("Cargo.toml"))
                 .args(&baseline_args);
-            cmd.output()
-                .map_err(|error| format!("crates_deploy: {error}"))
+            run_publish(&mut cmd).map_err(|error| format!("crates_deploy: {error}"))
         });
     let _ = std::fs::remove_dir_all(&staging);
     if let Some(dir) = &export_dir {
@@ -369,7 +364,7 @@ fn crates_api_check(
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let changes = if output.status.success() {
+    let changes = if output.success() {
         Vec::new()
     } else {
         changes_or_failure(semver_changes(&text), false, "cargo-semver-checks", &text)

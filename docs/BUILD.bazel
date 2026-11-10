@@ -70,6 +70,7 @@ real_source_target(
         "cli/commands/worktree.md",
         "design/layout.md",
         "design/quality-config.md",
+        "design/tool-prebuilts.md",
         "editors.md",
         "github-ci.md",
         "licenses.md",

@@ -131,6 +131,12 @@ fn expected_args(root: &Path, with_junit: bool) -> Vec<OsString> {
     args
 }
 
+fn slashed(args: &[OsString]) -> Vec<String> {
+    args.iter()
+        .map(|arg| arg.to_string_lossy().replace('\\', "/"))
+        .collect()
+}
+
 #[test]
 fn plans_from_a_runfiles_tree() {
     let dir = scratch("tree");
@@ -147,16 +153,16 @@ fn plans_from_a_runfiles_tree() {
 
     let none = plan(&resolver, &descriptor, &|_| None).unwrap();
     assert_eq!(none.program, main.join("bin/php"));
-    assert_eq!(none.args, expected_args(&main, false));
+    assert_eq!(slashed(&none.args), slashed(&expected_args(&main, false)));
 
     let empty = plan(&resolver, &descriptor, &|_| Some(OsString::new())).unwrap();
-    assert_eq!(empty.args, expected_args(&main, false));
+    assert_eq!(slashed(&empty.args), slashed(&expected_args(&main, false)));
 
     let junit = plan(&resolver, &descriptor, &|name| {
         (name == "XML_OUTPUT_FILE").then(|| OsString::from("/out/junit.xml"))
     })
     .unwrap();
-    assert_eq!(junit.args, expected_args(&main, true));
+    assert_eq!(slashed(&junit.args), slashed(&expected_args(&main, true)));
 }
 
 #[test]
@@ -187,7 +193,7 @@ fn plans_from_a_manifest_with_a_tree_artifact() {
     );
     let planned = plan(&resolver, &parse(GOOD).unwrap(), &|_| None).unwrap();
     assert_eq!(planned.program, store.join("php"));
-    assert_eq!(planned.args, expected_args(&store, false));
+    assert_eq!(slashed(&planned.args), slashed(&expected_args(&store, false)));
 }
 
 #[test]

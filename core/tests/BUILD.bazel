@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//cc:defs.bzl", "cc_test")
+load("//cc:defs.bzl", "cc_binary", "cc_test")
 load("//core:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
@@ -189,6 +189,21 @@ failure_test(
 filegroup(
     name = "wrapper_forward_hint",
     srcs = [],
+)
+
+write_file(
+    name = "wrapper_forward_exit_zero_src",
+    out = "wrapper_forward_exit_zero_src.cc",
+    content = [
+        "int main() { return 0; }",
+        "",
+    ],
+)
+
+cc_binary(
+    name = "wrapper_forward_exit_zero",
+    testonly = True,
+    srcs = [":wrapper_forward_exit_zero_src"],
 )
 
 wrapper_forward_fixtures(

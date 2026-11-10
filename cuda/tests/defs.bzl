@@ -1,6 +1,7 @@
 """Test helpers for the dx CUDA family."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//cuda/private:defs.bzl", "cuda_gpu_env")
 load("//cuda/private/toolchain:check.bzl", "in_component")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -146,4 +147,77 @@ gcc_device_link_hermetic_test = analysistest.make(
     attrs = {"allow_unsupported": attr.bool(default = False)},
     config_settings = {str(Label("//cc:compiler")): "gcc"},
     extra_target_under_test_aspects = [_link_aspect],
+)
+
+_GPU_COMPUTE_CAPABILITY = str(Label("//cuda:gpu_compute_capability"))
+_GPU_DRIVER = str(Label("//cuda:gpu_driver"))
+
+def _gpu_device_transition_impl(_settings, attr):
+    return {
+        _GPU_COMPUTE_CAPABILITY: attr.compute_capability,
+        _GPU_DRIVER: attr.driver,
+    }
+
+_gpu_device_transition = transition(
+    implementation = _gpu_device_transition_impl,
+    inputs = [],
+    outputs = [_GPU_COMPUTE_CAPABILITY, _GPU_DRIVER],
+)
+
+def _with_gpu_device_impl(ctx):
+    target = ctx.attr.target[0][DefaultInfo]
+    built = target.files_to_run.executable
+    executable = ctx.actions.declare_file(ctx.label.name + ("." + built.extension if built.extension else ""))
+    ctx.actions.symlink(output = executable, target_file = built, is_executable = True)
+    return [DefaultInfo(
+        files = depset([executable]),
+        runfiles = ctx.runfiles([executable] + [f for f in target.default_runfiles.files.to_list() if f != built]),
+    )]
+
+with_gpu_device = rule(
+    implementation = _with_gpu_device_impl,
+    doc = "Builds one executable for a declared GPU device.",
+    attrs = {
+        "compute_capability": attr.string(doc = "Declared compute capability, as X.Y.", mandatory = True),
+        "driver": attr.string(doc = "Declared CUDA driver version, as X.Y.", mandatory = True),
+        "target": attr.label(doc = "Executable to build.", mandatory = True, cfg = _gpu_device_transition),
+    },
+)
+
+GpuTestTagsInfo = provider(
+    doc = "Tags of one GPU cuda_test.",
+    fields = {"tags": "List of tags."},
+)
+
+def _gpu_tags_aspect_impl(_target, ctx):
+    return [GpuTestTagsInfo(tags = ctx.rule.attr.tags)]
+
+_gpu_tags_aspect = aspect(implementation = _gpu_tags_aspect_impl)
+
+_GPU_TEST_REFUSED = ["exclusive", "external", "local", "manual", "no-cache", "no-remote", "no-sandbox"]
+
+def _gpu_test_declared_impl(ctx):
+    env = analysistest.begin(ctx)
+    target = analysistest.target_under_test(env)
+    found = target[GpuTestTagsInfo].tags
+    asserts.true(env, "resources:gpu:1" in found, "a GPU cuda_test must count one gpu resource, got " + str(found))
+    asserts.true(env, "requires-gpu" in found, "a GPU cuda_test must carry requires-gpu, got " + str(found))
+    asserts.equals(env, [], [name for name in _GPU_TEST_REFUSED if name in found])
+    run_env = target[RunEnvironmentInfo].environment
+    for key, value in cuda_gpu_env(ctx.attr.min_compute_capability, ctx.attr.min_driver).items():
+        asserts.equals(env, value, run_env.get(key), key)
+    return analysistest.end(env)
+
+gpu_test_declared_test = analysistest.make(
+    _gpu_test_declared_impl,
+    doc = "Asserts a GPU cuda_test, analyzed for a declared GPU device, is compatible, counts the gpu resource and gets its requirements as env.",
+    attrs = {
+        "min_compute_capability": attr.string(mandatory = True),
+        "min_driver": attr.string(mandatory = True),
+    },
+    config_settings = {
+        _GPU_COMPUTE_CAPABILITY: "12.0",
+        _GPU_DRIVER: "13.4",
+    },
+    extra_target_under_test_aspects = [_gpu_tags_aspect],
 )

@@ -182,7 +182,7 @@ def cuda_objects(name, srcs, cuda_archs, hdrs = None, deps = None, visibility = 
         **forward_kwargs
     )
 
-def _cuda_executable(cc_rule, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None, rdc = False, cuda_copts = None):
+def _cuda_executable(cc_rule, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, library_tags = None, rdc = False, cuda_copts = None, executable_compatible_with = []):
     device, host = cuda_split_srcs(srcs)
     compatible = cuda_target_compatible_with(target_compatible_with)
     cuda_library(
@@ -205,7 +205,7 @@ def _cuda_executable(cc_rule, name, srcs, cuda_archs, deps, hdrs, visibility, ta
         srcs = host,
         deps = (deps or []) + [name + "_cuda"],
         tags = tags,
-        target_compatible_with = compatible,
+        target_compatible_with = compatible + executable_compatible_with,
         visibility = visibility,
         **kwargs
     )
@@ -214,7 +214,12 @@ def cuda_binary(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility 
     """Compiles .cu sources with nvcc and links them into a cc_binary; cuda_copts go to nvcc."""
     _cuda_executable(_cc_binary, name, srcs, cuda_archs, deps, hdrs, visibility, tags, target_compatible_with, kwargs, rdc = rdc, cuda_copts = cuda_copts)
 
-_GPU_TAGS = ["exclusive", "external", "local", "requires-gpu"]
+_GPU_TAGS = ["requires-gpu", "resources:gpu:1"]
+
+_GPU_DECLARED = select({
+    Label("//cuda:gpu_undeclared"): [Label("@platforms//:incompatible")],
+    "//conditions:default": [],
+})
 
 def cuda_gpu_env(min_compute_capability, min_driver):
     """Returns the env a GPU cuda_test binary reads its declared requirements from."""
@@ -265,4 +270,5 @@ def cuda_test(name, *, srcs, cuda_archs, deps = None, hdrs = None, visibility = 
         library_tags = user_tags,
         rdc = rdc,
         cuda_copts = cuda_copts,
+        executable_compatible_with = _GPU_DECLARED,
     )

@@ -4,13 +4,13 @@ load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//cuda:defs.bzl", "CUDA_TARGET", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
+load("//cuda:defs.bzl", "CUDA_TARGET", "cuda_binary", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
 load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
 load("//cuda/private/toolchain:repos.bzl", "UNACCEPTED")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
-load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "hermetic_toolchain_test", "with_clang_compiler")
+load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
 
 # gazelle:lang rust,dx_dispatch
 
@@ -48,7 +48,6 @@ cuda_test(
     ],
     min_compute_capability = "8.9",
     min_driver = "13.0",
-    tags = ["manual"],
     deps = ["//cuda/tests/fixtures/saxpy"],
 )
 
@@ -132,9 +131,47 @@ cuda_test(
     min_compute_capability = "8.9",
     min_driver = "13.0",
     rdc = True,
-    tags = ["manual"],
     deps = ["//cuda/tests/fixtures/rdc:axpy"],
 )
+
+cuda_binary(
+    name = "saxpy_gpu_probe_undeclared",
+    testonly = True,
+    srcs = ["saxpy_gpu_test.cu"],
+    cuda_archs = [
+        "compute_89:compute_89,sm_89",
+        "sm_120",
+    ],
+    deps = [
+        "//cuda/private/testing:gpu_main",
+        "//cuda/tests/fixtures/saxpy",
+    ],
+)
+
+with_gpu_device(
+    name = "saxpy_gpu_probe",
+    testonly = True,
+    compute_capability = "12.0",
+    driver = "13.4",
+    target = ":saxpy_gpu_probe_undeclared",
+    target_compatible_with = CUDA_TARGET,
+)
+
+[
+    gpu_test_declared_test(
+        name = name + "_declared_test",
+        min_compute_capability = min_compute_capability,
+        min_driver = "13.0",
+        target_compatible_with = CUDA_TARGET,
+        target_under_test = target,
+    )
+    for name, target, min_compute_capability in [
+        ("saxpy_gpu", ":saxpy_gpu_test", "8.9"),
+        ("rdc_gpu", ":rdc_gpu_test", "8.9"),
+        ("cublas_gpu", ":cublas_gpu_test", "8.9"),
+        ("cuda_app_gpu", "//cuda/tests/fixtures/cuda-app/gpu:gpu_test", "8.0"),
+    ]
+]
 
 rust_test(
     name = "saxpy_gpu_unavailable_test",
@@ -147,9 +184,13 @@ rust_test(
     ),
     crate_name = "saxpy_gpu_unavailable_test",
     crate_root = "saxpy_gpu_unavailable_test.rs",
-    data = [":saxpy_gpu_test"],
+    data = [
+        ":saxpy_gpu_probe",
+        ":saxpy_gpu_probe_undeclared",
+    ],
     env = cuda_gpu_env("8.9", "13.0") | {
-        "DX_GPU_TEST": "$(rootpath :saxpy_gpu_test)",
+        "DX_GPU_TEST": "$(rootpath :saxpy_gpu_probe)",
+        "DX_GPU_TEST_UNDECLARED": "$(rootpath :saxpy_gpu_probe_undeclared)",
     },
     target_compatible_with = CUDA_TARGET,
     deps = ["//tools/testing:dx_testing"],
@@ -203,7 +244,6 @@ cuda_test(
     ],
     min_compute_capability = "8.9",
     min_driver = "13.0",
-    tags = ["manual"],
     deps = ["//cuda/tests/fixtures/cublas"],
 )
 

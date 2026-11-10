@@ -8,7 +8,14 @@
 namespace dx_gpu {
 namespace {
 
-Declared Saxpy() { return Declared{"8.9", "13.0", "13.4"}; }
+Declared Saxpy() { return Declared{"8.9", "13.0", "13.4", "12.0", "13.4"}; }
+
+Declared SaxpyOn(const char *compute_capability, const char *driver) {
+  Declared declared = Saxpy();
+  declared.device_compute_capability = compute_capability;
+  declared.device_driver = driver;
+  return declared;
+}
 
 Probe Rtx() {
   Probe probe;
@@ -78,12 +85,40 @@ TEST(Classify, FailsOnAMissingDeclaration) {
             "DX_GPU_RUNTIME is missing or not X.Y");
 }
 
+TEST(Classify, FailsOnAMissingDeclaredDevice) {
+  Verdict verdict = Classify(Rtx(), SaxpyOn("", ""));
+  EXPECT_EQ(verdict.status, Status::kFail);
+  EXPECT_EQ(verdict.reason,
+            "the declared GPU compute capability is missing or not X.Y");
+  EXPECT_EQ(Classify(Rtx(), SaxpyOn("12.0", "13")).reason,
+            "the declared GPU driver is missing or not X.Y");
+}
+
+TEST(Classify, FailsOnADeviceOtherThanTheDeclaredOne) {
+  Verdict verdict = Classify(Rtx(), SaxpyOn("8.9", "13.4"));
+  EXPECT_EQ(verdict.status, Status::kFail);
+  EXPECT_EQ(verdict.reason,
+            "device compute capability 12.0 is not the declared 8.9");
+  Probe probe = Rtx();
+  probe.ran = false;
+  probe.checks.clear();
+  EXPECT_EQ(CheckDevice(probe, SaxpyOn("8.9", "13.4")).status, Status::kFail);
+}
+
+TEST(Classify, FailsOnADriverOtherThanTheDeclaredOne) {
+  Verdict verdict = Classify(Rtx(), SaxpyOn("12.0", "13.2"));
+  EXPECT_EQ(verdict.status, Status::kFail);
+  EXPECT_EQ(verdict.reason, "driver 13.4 is not the declared 13.2");
+}
+
 TEST(Classify, NoDeviceIsUnavailable) {
   Probe probe = Rtx();
   probe.device_count = 0;
   Verdict verdict = Classify(probe, Saxpy());
   EXPECT_EQ(verdict.status, Status::kUnavailable);
   EXPECT_EQ(verdict.reason, "no CUDA device");
+  EXPECT_EQ(Classify(probe, SaxpyOn("12.0", "13.2")).status,
+            Status::kUnavailable);
 }
 
 TEST(Classify, AFailingCudaCallIsUnavailable) {
@@ -107,17 +142,17 @@ TEST(Classify, LowComputeCapabilityIsUnsupported) {
   Probe probe = Rtx();
   probe.cc_major = 8;
   probe.cc_minor = 6;
-  Verdict verdict = Classify(probe, Saxpy());
+  Verdict verdict = Classify(probe, SaxpyOn("8.6", "13.4"));
   EXPECT_EQ(verdict.status, Status::kUnsupported);
   EXPECT_EQ(verdict.reason, "device compute capability 8.6 is below 8.9");
   probe.cc_minor = 9;
-  EXPECT_EQ(Classify(probe, Saxpy()).status, Status::kPass);
+  EXPECT_EQ(Classify(probe, SaxpyOn("8.9", "13.4")).status, Status::kPass);
 }
 
 TEST(Classify, LowDriverIsUnsupported) {
   Probe probe = Rtx();
   probe.driver = 12090;
-  Verdict verdict = Classify(probe, Saxpy());
+  Verdict verdict = Classify(probe, SaxpyOn("12.0", "12.9"));
   EXPECT_EQ(verdict.status, Status::kUnsupported);
   EXPECT_EQ(verdict.reason, "driver 12.9 is below 13.0");
 }
@@ -178,7 +213,9 @@ TEST(FactsJson, WritesEveryField) {
             "{\"schema\":\"dx.cuda.gpu_facts.v1\",\"status\":\"pass\","
             "\"reason\":\"1 checks passed\",\"declared\":{"
             "\"min_compute_capability\":\"8.9\",\"min_driver\":\"13.0\","
-            "\"runtime\":\"13.4\"},\"driver\":\"13.4\",\"runtime\":\"13.4\","
+            "\"runtime\":\"13.4\",\"device_compute_capability\":\"12.0\","
+            "\"device_driver\":\"13.4\"},\"driver\":\"13.4\","
+            "\"runtime\":\"13.4\","
             "\"device\":{\"name\":\"NVIDIA GeForce RTX 5070 Ti\","
             "\"compute_capability\":\"12.0\",\"memory_bytes\":17094475776},"
             "\"checks\":[{\"name\":\"saxpy\",\"n\":4,\"max_abs_error\":0.25,"

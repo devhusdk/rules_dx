@@ -153,10 +153,23 @@ cuda_test(
     cuda_archs = ["compute_89:compute_89,sm_89", "sm_120"],
     min_compute_capability = "8.9",
     min_driver = "13.0",
-    tags = ["manual"],
     deps = [":saxpy"],
 )
 ```
+
+A machine with a GPU declares it with three flags, for example in its `user.bazelrc`:
+
+```
+common --@rules_dx//cuda:gpu_compute_capability=12.0
+common --@rules_dx//cuda:gpu_driver=13.4
+common --local_resources=gpu=1
+```
+
+- `gpu_compute_capability`: compute capability of the device, `X.Y`.
+- `gpu_driver`: CUDA driver version of the machine, `X.Y`.
+- `--local_resources=gpu=<n>`: number of GPU tests that run at once.
+
+Set both `gpu_` flags or neither. Without them every GPU `cuda_test` is incompatible, so `bazel test //...` skips it.
 
 ```sh
 bazel test //:saxpy_gpu_test --test_output=streamed
@@ -177,30 +190,24 @@ Set `min_compute_capability` and `min_driver` on `cuda_test` to run it on a GPU.
 
 The runtime version is always the pinned toolkit, 13.4.
 
-Every GPU `cuda_test` gets the tags `requires-gpu`, `external`, `local`
-and `exclusive`. It never adds `manual`.
+Every GPU `cuda_test` gets the tags `requires-gpu` and `resources:gpu:1`.
+It runs sandboxed and its result is cached. The declared device, the
+minimums and the runtime version are inputs of the test.
 
 Each run prints one `dx-gpu-facts: {...}` line and writes
 `gpu_facts.json` to `bazel-testlogs/<package>/<name>/test.outputs/`
 (as `outputs.zip` when Bazel zips undeclared outputs; pass
 `--nozip_undeclared_test_outputs` for the plain file).
 The file has the schema `dx.cuda.gpu_facts.v1` and records the status,
-the reason, the declared versions, the driver, the runtime, the device
+the reason, the declared versions and device, the driver, the runtime, the device
 name, compute capability and memory, and every check.
 
 | Status | Meaning | Exit code |
 | --- | --- | --- |
 | `pass` | Every recorded check is within tolerance. | 0 |
-| `fail` | A check failed, no check ran, or a declared value is missing. | 1 |
-| `unavailable` | No GPU, no driver, or a CUDA call failed. | 1 |
+| `fail` | A check failed, no check ran, a declared value is missing, or the device or driver is not the declared one. | 1 |
+| `unavailable` | A device is declared, but there is no GPU, no driver, or a CUDA call failed. | 1 |
 | `unsupported` | The device or driver is below the minimum, or the runtime differs. | 1 |
 
 When the status is not `pass`, the first stderr line is
-`<status>: <reason>`. A host without a GPU fails with `unavailable:`.
-It is never skipped.
-
-On CI lanes without a GPU, exclude the tests:
-
-```sh
-bazel test //... --test_tag_filters=-requires-gpu
-```
+`<status>: <reason>`.

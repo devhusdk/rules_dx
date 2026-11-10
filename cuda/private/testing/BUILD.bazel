@@ -2,6 +2,7 @@
 
 load("//cc:defs.bzl", "cc_library", "cc_test")
 load("//cuda/private:defs.bzl", "CUDA_TARGET", "cuda_library")
+load("//cuda/private/toolchain:check.bzl", "cuda_gpu_device")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,13 +14,28 @@ cc_library(
     target_compatible_with = CUDA_TARGET,
 )
 
+cuda_gpu_device(
+    name = "gpu_device_src",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cc_library(
+    name = "gpu_device",
+    srcs = [":gpu_device_src"],
+    hdrs = ["gpu_device.h"],
+    target_compatible_with = CUDA_TARGET,
+)
+
 cuda_library(
     name = "gpu_main",
     testonly = True,
     srcs = ["gpu_main.cu"],
     hdrs = ["gpu_test.h"],
     cuda_archs = ["compute_75"],
-    deps = [":gpu_facts"],
+    deps = [
+        ":gpu_device",
+        ":gpu_facts",
+    ],
 )
 
 cc_test(

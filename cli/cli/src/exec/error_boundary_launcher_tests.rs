@@ -19,7 +19,7 @@ case " $* " in
     case "$FAKE_QUERY" in
       fail) printf 'Loading: 1 package\nINFO: still loading\nERROR: no such target //src:gone\n' >&2; exit 7 ;;
       owner) printf '{"type":"RULE","rule":{"name":"//src:bin","ruleInput":["//:src/main.rs"]}}\n'; exit 0 ;;
-      sleep) : > "$FAKE_LOG.started"; sleep 30; exit 0 ;;
+      sleep) : > "$FAKE_LOG.started"; "$FAKE_PROBE" --sleep-ms=30000; exit 0 ;;
       *) exit 0 ;;
     esac ;;
 esac
@@ -28,9 +28,13 @@ for arg in "$@"; do
 done
 case "$FAKE_BUILD" in
   findings)
-    if [ -n "$FAKE_GATE_AT" ] && [ "$(grep -c ' build ' "$FAKE_LOG")" -ge "$FAKE_GATE_AT" ]; then
+    builds=0
+    while IFS= read -r line; do
+      case "$line" in *" build "*) builds=$((builds + 1)) ;; esac
+    done < "$FAKE_LOG"
+    if [ -n "$FAKE_GATE_AT" ] && [ "$builds" -ge "$FAKE_GATE_AT" ]; then
       : > "$FAKE_LOG.started"
-      while [ ! -e "$FAKE_LOG.gate" ]; do sleep 0.02; done
+      "$FAKE_PROBE" --sleep-ms=60000 --gate="$FAKE_LOG.gate"
     fi
     if [ -n "$DX_GENERATE_INTENDED" ]; then printf '%s' "$FAKE_WITNESS" > "$DX_GENERATE_INTENDED"; fi
     if [ -n "$bep" ]; then
@@ -40,9 +44,9 @@ case "$FAKE_BUILD" in
     fi ;;
   badbep) printf 'not json\n' > "$bep" ;;
   done) printf '{"id":{"buildMetrics":{}},"lastMessage":true}\n' > "$bep" ;;
-  nobep) rm -f "$bep" ;;
+  nobep) ;;
   cutbep) printf '%s\n{"id":{"testRes' '{"id":{"started":{}},"started":{}}' > "$bep" ;;
-  sleep) if [ -n "$bep" ]; then : > "$bep"; fi; : > "$FAKE_LOG.started"; sleep 30 ;;
+  sleep) if [ -n "$bep" ]; then : > "$bep"; fi; : > "$FAKE_LOG.started"; "$FAKE_PROBE" --sleep-ms=30000 ;;
   *) : > "$bep" ;;
 esac
 exit "${FAKE_EXIT:-0}"
@@ -137,7 +141,8 @@ impl Consumer {
             .current_dir(self.workspace())
             .env_clear()
             .env("BAZEL_TEST", "1")
-            .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+            .env("PATH", bin.as_os_str())
+            .env("FAKE_PROBE", dx_testing::process_probe())
             .env("HOME", &self.base)
             .env("TMPDIR", self.base.join("tmp"))
             .env("FAKE_LOG", self.log())

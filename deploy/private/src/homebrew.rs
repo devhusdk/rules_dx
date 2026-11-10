@@ -3,8 +3,8 @@
 use crate::archive::*;
 use crate::config::GithubConfig;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal, run_publish,
-    scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, pages_redact,
+    placeholder_refusal, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use base64::Engine as _;
@@ -89,6 +89,23 @@ pub fn homebrew_class_name(formula: &str) -> String {
     out
 }
 
+/// Escapes a value for a double-quoted Ruby string.
+fn ruby_escape(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '\\' | '"' | '#' => {
+                out.push('\\');
+                out.push(c);
+            }
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
 /// Renders the formula for the given release archives.
 pub fn homebrew_render_formula(
     launch: &HomebrewLaunch<'_>,
@@ -99,8 +116,8 @@ pub fn homebrew_render_formula(
     let mut out = format!(
         "class {} < Formula\n  desc \"{}\"\n  homepage \"{}\"\n  version \"{version}\"\n",
         homebrew_class_name(launch.formula),
-        launch.desc,
-        launch.homepage,
+        ruby_escape(launch.desc),
+        ruby_escape(launch.homepage),
     );
     for os in ["macos", "linux"] {
         let in_os: Vec<&FormulaAsset> = assets.iter().filter(|asset| asset.os == os).collect();
@@ -120,7 +137,7 @@ pub fn homebrew_render_formula(
     }
     out.push_str(&format!(
         "\n  def install\n    bin.install \"{}\"\n  end\nend\n",
-        launch.binary
+        ruby_escape(launch.binary)
     ));
     out
 }
@@ -224,9 +241,13 @@ fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &
         Ok(out) if out.success() => {
             Some(String::from_utf8_lossy(&out.stdout).trim().to_owned())
         }
-        Ok(out) if String::from_utf8_lossy(&out.stderr).contains("404") => None,
+        Ok(out) if String::from_utf8_lossy(&out.stderr).contains("(HTTP 404)") => None,
         Ok(out) => {
-            eprintln!("homebrew_tap_deploy: gh failed with {}", exit_text(&out));
+            eprintln!(
+                "homebrew_tap_deploy: gh failed with {}: {}",
+                exit_text(&out),
+                pages_redact(&String::from_utf8_lossy(&out.stderr), token).trim_end()
+            );
             return 1;
         }
         Err(error) => {
@@ -259,7 +280,11 @@ fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &
             0
         }
         Ok(out) => {
-            eprintln!("homebrew_tap_deploy: gh failed with {}", exit_text(&out));
+            eprintln!(
+                "homebrew_tap_deploy: gh failed with {}: {}",
+                exit_text(&out),
+                pages_redact(&String::from_utf8_lossy(&out.stderr), token).trim_end()
+            );
             1
         }
         Err(error) => {
@@ -401,6 +426,16 @@ mod tests {
     }
 
     #[test]
+    fn render_escapes_ruby_metacharacters() {
+        let mut l = launch();
+        l.desc = "A \"fast\" #{x} tool\\";
+        l.binary = "b\"#{y}";
+        let out = homebrew_render_formula(&l, "v1", &[]);
+        assert!(out.contains("desc \"A \\\"fast\\\" \\#{x} tool\\\\\""), "{out}");
+        assert!(out.contains("bin.install \"b\\\"\\#{y}\""), "{out}");
+    }
+
+    #[test]
     fn platforms_come_from_archive_names() {
         assert_eq!(
             homebrew_asset_platform("t-aarch64-apple-darwin.tar.gz"),
@@ -511,7 +546,7 @@ end
         dx_testing::executable_script(
             &gh,
             &format!(
-                "#!/bin/sh\necho \"$GH_TOKEN $*\" >> {}\n[ \"$3\" = PUT ] || {{ echo 'HTTP 404' >&2; exit 1; }}\n",
+                "#!/bin/sh\necho \"$GH_TOKEN $*\" >> {}\n[ \"$3\" = PUT ] || {{ echo 'gh: Not Found (HTTP 404)' >&2; exit 1; }}\n",
                 log.display()
             ),
         );

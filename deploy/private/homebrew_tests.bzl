@@ -1,7 +1,7 @@
 """Unit tests for the Homebrew tap publisher."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":validate_homebrew.bzl", "homebrew_formula_error", "homebrew_repo_error")
+load(":validate_homebrew.bzl", "homebrew_formula_error", "homebrew_repo_error", "homebrew_text_error")
 
 def homebrew_unit_tests(name):
     starlark_test(
@@ -28,6 +28,16 @@ def homebrew_unit_tests(name):
                 homebrew_repo_error("tap", "tap"),
                 "homebrew_tap_deploy: invalid tap 'tap': want owner/repository " +
                 "(for example 'org/homebrew-tap')",
+            ),
+            expect_equal(
+                "homebrew_text_error accepts quotes",
+                homebrew_text_error("desc", "A \"fast\" tool"),
+                "",
+            ),
+            expect_equal(
+                "homebrew_text_error rejects a newline",
+                homebrew_text_error("desc", "a\nb"),
+                "homebrew_tap_deploy: invalid desc: must be a single line",
             ),
         ],
     )

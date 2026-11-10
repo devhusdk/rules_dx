@@ -19,3 +19,11 @@ def homebrew_repo_error(field, value):
         return ("homebrew_tap_deploy: invalid " + field + " '" + str(value) +
                 "': want owner/repository (for example 'org/homebrew-tap')")
     return ""
+
+def homebrew_text_error(field, value):
+    """Validates one formula text value."""
+    if type(value) != "string" or value == "":
+        return "homebrew_tap_deploy: invalid " + field + " '" + str(value) + "': want a non-empty string"
+    if "\n" in value or "\r" in value:
+        return "homebrew_tap_deploy: invalid " + field + ": must be a single line"
+    return ""

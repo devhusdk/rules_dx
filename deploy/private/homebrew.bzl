@@ -2,7 +2,7 @@
 
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "DxDeployConfigInfo", "deploy_config", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
-load(":validate_homebrew.bzl", "homebrew_formula_error", "homebrew_repo_error")
+load(":validate_homebrew.bzl", "homebrew_formula_error", "homebrew_repo_error", "homebrew_text_error")
 
 def _homebrew_config_impl(ctx):
     """Writes the deploy config for one Homebrew tap deployment."""
@@ -69,6 +69,9 @@ def homebrew_tap_deploy(
         homebrew_formula_error(formula),
         homebrew_repo_error("repo", repo),
         homebrew_repo_error("tap", tap),
+        homebrew_text_error("desc", desc or formula),
+        homebrew_text_error("homepage", homepage or "https://github.com/" + repo),
+        homebrew_text_error("binary", binary or formula),
     ]:
         if error != "":
             fail(error + where)

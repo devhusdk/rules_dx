@@ -1,5 +1,6 @@
 """Rego source ownership for dx quality."""
 
+load("//core:rlocation.bzl", "rlocation_path")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "RegoInfo")
 
@@ -27,12 +28,6 @@ rego_library = rule(
         "deps": attr.label_list(providers = [RegoInfo], doc = "Rego libraries this package depends on."),
     },
 )
-
-def _runfiles_key(ctx, f):
-    """Returns the runfiles key naming one file."""
-    if f.short_path.startswith("../"):
-        return f.short_path[3:]
-    return ctx.workspace_name + "/" + f.short_path
 
 def _staged_dest(f):
     """Returns the repository-relative path a file is staged at."""
@@ -64,9 +59,9 @@ def _rego_test_impl(ctx):
             fail("rego_test: {} and {} both stage as {}".format(staged[dest].path, f.path, dest))
         staged[dest] = f
     opa = ctx.file._opa
-    lines = ["opa=" + _runfiles_key(ctx, opa)]
+    lines = ["opa=" + rlocation_path(ctx, opa)]
     for dest in sorted(staged.keys()):
-        lines.append("file=" + _runfiles_key(ctx, staged[dest]) + "\t" + dest)
+        lines.append("file=" + rlocation_path(ctx, staged[dest]) + "\t" + dest)
     manifest = ctx.actions.declare_file(ctx.label.name + "_rego_test.manifest")
     ctx.actions.write(manifest, "\n".join(lines) + "\n")
     if ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo]):
@@ -78,7 +73,7 @@ def _rego_test_impl(ctx):
     runfiles = runfiles.merge(ctx.attr._launcher[DefaultInfo].default_runfiles)
     return [
         DefaultInfo(executable = executable, runfiles = runfiles),
-        RunEnvironmentInfo({"DX_REGO_TEST_MANIFEST": _runfiles_key(ctx, manifest)}),
+        RunEnvironmentInfo({"DX_REGO_TEST_MANIFEST": rlocation_path(ctx, manifest)}),
         OutputGroupInfo(rego_test_manifest = depset([manifest])),
         RegoInfo(transitive_srcs = transitive_srcs, transitive_data = transitive_data),
         dx_quality_sources(ctx.files.srcs, [("rego", ["rego"])], str(ctx.label)),

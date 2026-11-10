@@ -622,7 +622,7 @@ rust_test(
         "//core/quality:native_config_tests.bzl",
         "//core/quality/artifacts:scalafmt.bzl",
         "//core/quality/private:native_config_impl.bzl",
-        "//core/quality/runner:real_sources.txt",
+        "//core/quality/runner:real_srcs",
         "//core/quality/runner:src/real/staging.rs",
         "//core/quality/testdata:biome_cfg/biome.json",
         "//core/quality/testdata:buildifier_cfg/.buildifier.json",

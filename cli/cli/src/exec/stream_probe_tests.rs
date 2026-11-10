@@ -69,7 +69,7 @@ fn dx_session(base: &Path, words: &[&str], probe_args: &str, query_args: &str) -
         .args(words)
         .current_dir(&workspace)
         .env_clear()
-        .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+        .env("PATH", bin.as_os_str())
         .env("HOME", base)
         .env("DX_BUILD_SLOTS", "auto")
         .env("TMPDIR", &tmp)

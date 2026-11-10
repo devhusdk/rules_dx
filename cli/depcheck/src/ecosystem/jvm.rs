@@ -83,12 +83,46 @@ pub fn parse_jvm_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckE
     Ok(pkgs)
 }
 
+const MAVEN_LOCK_LABEL: &str = "\"//third_party/jvm:maven_install.json\"";
+
+fn maven_install_artifacts(text: &str) -> Option<&str> {
+    let mut rest = text;
+    while let Some(at) = rest.find("maven.install(") {
+        let body = &rest[at + "maven.install(".len()..];
+        let mut depth = 1usize;
+        let mut end = body.len();
+        for (i, c) in body.char_indices() {
+            match c {
+                '(' => depth += 1,
+                ')' => {
+                    depth -= 1;
+                    if depth == 0 {
+                        end = i;
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+        let call = &body[..end];
+        if call.contains(MAVEN_LOCK_LABEL) {
+            let list = &call[call.find("artifacts")?..];
+            let open = list.find('[')?;
+            let close = open + list[open..].find(']')?;
+            return Some(&list[open..close]);
+        }
+        rest = &body[end..];
+    }
+    None
+}
+
 pub fn parse_maven_artifacts_list(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
+    let text = maven_install_artifacts(&text).ok_or(DepcheckError::NoMavenCoords)?;
     let re = regex::Regex::new(r#""([^":\s]+:[^":\s]+:[^":\s]+)""#)
         .map_err(DepcheckError::ManifestRegex)?;
     let mut deps = BTreeMap::new();
-    for caps in re.captures_iter(&text) {
+    for caps in re.captures_iter(text) {
         let coord = caps[1].to_owned();
         let mut parts = coord.split(':');
         let (Some(group), Some(artifact), Some(version)) =

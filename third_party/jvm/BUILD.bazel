@@ -5,7 +5,6 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "dokka_install.json",
     "maven_install.json",
-    "pins.bzl",
     "rules_android_maven_install.json",
 ])
 
@@ -13,7 +12,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "pins.bzl",
     ],
     tags = ["corpus"],
 )

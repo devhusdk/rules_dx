@@ -70,8 +70,6 @@ rust/private/defs.bzl manual 2
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel manual 1
 swift/tests/fixtures/fuzz/BUILD.bazel manual 1
 tools/ci/BUILD.bazel no-remote 2
-tools/testing/BUILD.bazel local 1
-tools/testing/BUILD.bazel no-sandbox 1
 tools/testing/hermetic/BUILD.bazel exclusive 2
 tools/testing/hermetic/BUILD.bazel manual 5
 tools/testing/hermetic/BUILD.bazel no-cache 2

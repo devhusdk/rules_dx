@@ -1,9 +1,10 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/testing/nested:defs.bzl", "nested_bazel_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
-load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_TAGS")
+load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV")
 load(":test.bzl", "testing_rust_test")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
@@ -50,8 +51,8 @@ rust_library(
         package_name = "tools/dx_testing",
         normal = True,
     ) + [
-        "//cli/path:dx_path",
         "//cli/binfmt:dx_binfmt",
+        "//cli/path:dx_path",
         "//tools/bazelrc:dx_preset",
         "@crates//:serde_json",
         "@rules_rust//rust/runfiles",
@@ -142,6 +143,10 @@ rust_binary(
     ),
     crate_name = "nested_bazel_probe",
     crate_root = "nested_bazel_probe.rs",
+    data = [
+        ":nested_bazel_bin",
+        ":nested_bazel_shim",
+    ],
     deps = all_crate_deps(
         package_name = "tools/dx_testing",
         normal = True,
@@ -220,32 +225,18 @@ testing_rust_test(
     ],
 )
 
-# size: large, nested Bazel consumer build, see #5689
-testing_rust_test(
+nested_bazel_test(
     name = "nested_bazel_harness_test",
-    size = "large",
-    timeout = "moderate",
+    srcs = ["nested_bazel_harness_test.rs"],
+    cache = "nested_bazel_harness_test.cache.txt",
+    crate_root = "nested_bazel_harness_test.rs",
     data = [
+        "fixtures/nested_harness/MODULE.bazel.lock",
         ":nested_bazel_probe",
         "//:.bazelversion",
         "//:module_srcs",
-    ] + NESTED_BAZEL_DATA,
-    env = select({
-        "@platforms//os:linux": NESTED_BAZEL_ENV | {
-            "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
-            "PATH": "/dx_no_path",
-            "RUST_TEST_THREADS": "1",
-        },
-        "//conditions:default": NESTED_BAZEL_ENV | {
-            "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
-            "RUST_TEST_THREADS": "1",
-        },
-    }),
-    env_inherit = select({
-        "@platforms//os:linux": [],
-        "//conditions:default": NESTED_BAZEL_ENV_INHERIT,
-    }),
-    tags = NESTED_BAZEL_TAGS,
+    ],
+    env = {"DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)"},
     deps = [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",

@@ -907,7 +907,6 @@ ruby.bundle_fetch(
     gemfile = "//third_party/ruby:Gemfile",
     gemfile_lock = "//third_party/ruby:Gemfile.lock",
 )
-
 use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
 
 register_toolchains("@ruby_toolchains//:all")
@@ -1108,7 +1107,6 @@ pub.from_lock(
     lock = "//third_party/dart:pubspec.lock",
     on_version_conflict = "upgrade",
 )
-
 pub.from_lock(
     name = "dx_dart_padded_archive",
     lock = "//dart/tests:padded_archive.pubspec.lock",
@@ -1279,7 +1277,7 @@ cuda_dev.toolkit(
 )
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
-use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_rebar3", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
+use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlang_toolchains", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "dx_rebar3", "rules_erlang")
 
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
 elixir.lock(
@@ -1300,10 +1298,10 @@ _beam_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl
 _beam_http_archive(
     name = "erlang_app_thoas",
     build_file = "//erlang/tests/fixtures/erlang-app:thoas.BUILD.bazel",
+    dev_dependency = True,
     sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
     strip_prefix = "thoas-1.2.1",
     urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
-    dev_dependency = True,
 )
 
 register_toolchains(
@@ -1411,7 +1409,7 @@ single_version_override(
 )
 
 lua_tools = use_extension("//lua:extensions.bzl", "lua")
-use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_ldoc", "dx_luafilesystem", "dx_penlight")
+use_repo(lua_tools, "dx_ldoc", "dx_luacov", "dx_luacov_reporter_lcov", "dx_luafilesystem", "dx_penlight")
 
 register_toolchains("//lua/private/toolchain:all")
 
@@ -1488,7 +1486,7 @@ use_repo(haskell_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_e
 register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d:extensions.bzl", "d")
-use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_x86_64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
+use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_arm64", "dx_d_ldc_linux_x86_64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 
@@ -2463,6 +2461,10 @@ _test_tags_sources(
 
 nested_bazel = use_extension("//tools/testing:extensions.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
+
+nested_cache = use_extension("//tools/testing/nested:extensions.bzl", "nested_cache", dev_dependency = True)
+nested_cache.list(file = "//tools/testing:nested_bazel_harness_test.cache.txt")
+use_repo(nested_cache, "nested_repository_cache")
 
 _http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 

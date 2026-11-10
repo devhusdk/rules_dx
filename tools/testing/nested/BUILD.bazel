@@ -12,6 +12,7 @@ rust_library(
         "src/compose.rs",
         "src/footprint.rs",
         "src/lib.rs",
+        "src/update.rs",
     ],
     aliases = aliases(
         package_name = "tools/testing/dx_nested",
@@ -24,9 +25,7 @@ rust_library(
         package_name = "tools/testing/dx_nested",
         normal = True,
     ) + [
-        "//cli/path:dx_path",
         "//cli/process:dx_process",
-        "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
@@ -41,20 +40,15 @@ rust_test(
         normal_dev = True,
     ),
     crate = ":dx_nested",
-    data = [
-        "//:.bazelrc",
-        "//tools/testing:nested_bazel_shim",
-    ],
+    data = ["//tools/testing:nested_bazel_shim"],
     env = {
         "DX_TEST_NESTED_BAZEL_SHIM": "$(rlocationpath //tools/testing:nested_bazel_shim)",
-        "DX_TEST_ROOT_BAZELRC": "$(rlocationpath //:.bazelrc)",
     },
     deps = all_crate_deps(
         package_name = "tools/testing/dx_nested",
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/bazelrc:dx_preset",

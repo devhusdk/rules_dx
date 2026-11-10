@@ -13,18 +13,21 @@ pub fn rules_dx_override(rules_dx: &Path) -> String {
     )
 }
 
+/// The rules_py patches of the root MODULE.bazel, in order.
+pub const RULES_PY_PATCHES: [&str; 6] = [
+    "py_cc_toolchain_platform",
+    "native_sdist_toolchain_flags",
+    "pep517_msvc",
+    "venv_bin_files",
+    "host_interpreter_windows_arm64",
+    "external_repo_pytest_paths",
+];
+
 /// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11 (#6811).
 pub fn rules_py_override() -> String {
-    let patches = [
-        "py_cc_toolchain_platform",
-        "native_sdist_toolchain_flags",
-        "pep517_msvc",
-        "venv_bin_files",
-        "host_interpreter_windows_arm64",
-        "external_repo_pytest_paths",
-    ]
-    .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
-    .concat();
+    let patches = RULES_PY_PATCHES
+        .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
+        .concat();
     format!(
         "archive_override(\n    module_name = \"rules_py\",\n    integrity = \"sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"rules_py-2.0.0-alpha.11\",\n    urls = [\"https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz\"],\n)\n"
     )

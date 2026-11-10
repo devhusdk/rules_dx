@@ -5,7 +5,7 @@ const DECLARED: &[&str] = &[
     "config/BUILD.bazel",
     "deploy/rules/archive.bzl",
     "erlang/rules/defs.bzl",
-    "erlang/toolchain/repos.bzl",
+    "erlang/toolchain/extensions.bzl",
     "libs/starlark/wrapper.bzl",
     "qt/rules/defs.bzl",
     "qt/sdk/launcher.c",
@@ -18,9 +18,9 @@ const ENTRY_POINTS: &[&str] = &[
     "//deploy/rules:defs.bzl",
     "//deploy/rules:deployment.bzl",
     "//erlang/rules:defs.bzl",
-    "//erlang/toolchain:repos.bzl",
+    "//erlang/toolchain:extensions.bzl",
     "//qt/rules:defs.bzl",
-    "//qt/sdk:repos.bzl",
+    "//qt/sdk:extensions.bzl",
 ];
 
 #[test]
@@ -104,12 +104,12 @@ fn in_runfiles(rel: &str) -> Option<PathBuf> {
 
 #[test]
 fn load_parser_follows_multi_line_and_repository_forms() {
-    let text = "load(\n    \"@rules_dx//erlang/toolchain:repos.bzl\",\n    \"x\",\n)\n# load(\"//no:pe.bzl\")\nload(\":sibling.bzl\", \"y\")\nload(\"@bazel_skylib//lib:paths.bzl\", \"paths\")\n";
+    let text = "load(\n    \"@rules_dx//erlang/toolchain:extensions.bzl\",\n    \"x\",\n)\n# load(\"//no:pe.bzl\")\nload(\":sibling.bzl\", \"y\")\nload(\"@bazel_skylib//lib:paths.bzl\", \"paths\")\n";
     let labels = loads(text);
     assert_eq!(
         labels,
         [
-            "@rules_dx//erlang/toolchain:repos.bzl",
+            "@rules_dx//erlang/toolchain:extensions.bzl",
             ":sibling.bzl",
             "@bazel_skylib//lib:paths.bzl"
         ]
@@ -120,7 +120,7 @@ fn load_parser_follows_multi_line_and_repository_forms() {
         [
             Some(Bzl {
                 package: "erlang/toolchain".into(),
-                path: "erlang/toolchain/repos.bzl".into()
+                path: "erlang/toolchain/extensions.bzl".into()
             }),
             Some(Bzl {
                 package: "quality".into(),

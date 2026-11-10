@@ -109,7 +109,7 @@ def clang_syntax_argv(argv, src, identity):
     return struct(argv = out, error = "")
 
 def _config_flag(config):
-    return ["--config-file=" + config] if config else []
+    return (["--config-file=" + config] if config else []) + ["--header-filter="]
 
 _MSVC_TIDY_UNSUPPORTED = {
     "Yc": "precompiled headers",

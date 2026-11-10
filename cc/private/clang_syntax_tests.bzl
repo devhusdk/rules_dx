@@ -23,32 +23,37 @@ def clang_syntax_unit_tests(name):
             expect_equal(
                 "CUDA: nvcc flags are translated to clang -x cuda with the toolkit root",
                 cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-Iinc", "-DX=1", "-Xcompiler", "-fPIC,-isystem/x", "-gencode", "arch=compute_80,code=sm_80", "-rdc=true", "-std=c++17", "-c", "a.cu", "-o", "a.o"], "a.cu").argv,
-                ["tidy", "a.cu", "--", "-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "--cuda-path=external/cuda", "-Iinc", "-DX=1", "-isystem/x", "-std=c++17"],
+                ["tidy", "--header-filter=", "a.cu", "--", "-x", "cuda", "--cuda-host-only", "-nocudalib", "-Wno-unknown-cuda-version", "--cuda-path=external/cuda", "-Iinc", "-DX=1", "-isystem/x", "-std=c++17"],
             ),
             expect_equal(
                 "clang-tidy takes the config file right after the executable",
-                clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", _LLVM, "q/.clang-tidy").argv[:4],
-                ["tidy", "--config-file=q/.clang-tidy", "a.c", "--"],
+                clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", _LLVM, "q/.clang-tidy").argv[:5],
+                ["tidy", "--config-file=q/.clang-tidy", "--header-filter=", "a.c", "--"],
             ),
             expect_equal(
                 "CUDA clang-tidy takes the config file right after the executable",
-                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-c", "a.cu"], "a.cu", "q/.clang-tidy").argv[:4],
-                ["tidy", "--config-file=q/.clang-tidy", "a.cu", "--"],
+                cuda_tidy_argv("tidy", ["external/cuda/bin/nvcc", "-c", "a.cu"], "a.cu", "q/.clang-tidy").argv[:5],
+                ["tidy", "--config-file=q/.clang-tidy", "--header-filter=", "a.cu", "--"],
+            ),
+            expect_equal(
+                "clang-tidy reports no header findings",
+                clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", _LLVM).argv.index("--header-filter=") < clang_tidy_argv("tidy", [_CLANG, "-c", "a.c"], "a.c", _LLVM).argv.index("a.c"),
+                True,
             ),
             expect_equal(
                 "clang-tidy gets the source then -- then the compile flags",
                 clang_tidy_argv("tidy", [_CLANG, "-DX=1", "-c", "a.c", "-o", "a.o"], "a.c", _LLVM).argv,
-                ["tidy", "a.c", "--", "-DX=1", "-fno-caret-diagnostics", "-fno-color-diagnostics"],
+                ["tidy", "--header-filter=", "a.c", "--", "-DX=1", "-fno-caret-diagnostics", "-fno-color-diagnostics"],
             ),
             expect_equal(
                 "clang-tidy drops gcc-only flags under gcc",
                 clang_tidy_argv("tidy", ["/usr/bin/gcc", "-fno-canonical-system-headers", "-DX=1", "-c", "a.c"], "a.c", _GCC).argv,
-                ["tidy", "a.c", "--", "-DX=1", "-c"],
+                ["tidy", "--header-filter=", "a.c", "--", "-DX=1", "-c"],
             ),
             expect_equal(
                 "clang-tidy keeps Apple placeholders for the runner and Objective-C flags",
-                clang_tidy_argv("tidy", ["wrapped_clang", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc", "-c", "pkg/a.m"], "pkg/a.m", _LLVM).argv[:6],
-                ["tidy", "pkg/a.m", "--", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc"],
+                clang_tidy_argv("tidy", ["wrapped_clang", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc", "-c", "pkg/a.m"], "pkg/a.m", _LLVM).argv[:7],
+                ["tidy", "--header-filter=", "pkg/a.m", "--", "-isysroot", "__BAZEL_XCODE_SDKROOT__", "-fobjc-arc"],
             ),
             expect_equal(
                 "-c becomes -fsyntax-only and output flags are dropped",
@@ -118,22 +123,22 @@ def clang_syntax_unit_tests(name):
             expect_equal(
                 "clang-tidy projects cl.exe into clang-cl mode",
                 clang_tidy_argv("tidy", ["cl.exe", "/nologo", "/DX=1", "/c", "a.c", "/Foa.obj", "/Fdv.pdb", "/showIncludes", "/sourceDependencies", "a.json", "/I", "inc"], "a.c", _CL).argv,
-                ["tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/nologo", "/DX=1", "/I", "inc"],
+                ["tidy", "--header-filter=", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/nologo", "/DX=1", "/I", "inc"],
             ),
             expect_equal(
                 "clang-tidy turns the action INCLUDE into /imsvc for MSVC",
                 clang_tidy_argv("tidy", ["cl.exe", "/c", "a.c"], "a.c", _CL, "", {"INCLUDE": "C:\\crt\\include;C:\\sdk\\ucrt;", "EXTERNAL_INCLUDE": "D:\\ext"}).argv,
-                ["tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/imsvcC:/crt/include", "/imsvcC:/sdk/ucrt", "/imsvcD:/ext", "/X"],
+                ["tidy", "--header-filter=", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/imsvcC:/crt/include", "/imsvcC:/sdk/ucrt", "/imsvcD:/ext", "/X"],
             ),
             expect_equal(
                 "clang-tidy keeps argv /imsvc over the action INCLUDE",
                 clang_tidy_argv("tidy", ["cl.exe", "/imsvcx", "/c", "a.c"], "a.c", _CL, "", {"INCLUDE": "C:\\crt"}).argv,
-                ["tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/imsvcx"],
+                ["tidy", "--header-filter=", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/imsvcx"],
             ),
             expect_equal(
                 "clang-tidy projects clang-cl and keeps its flags in order",
                 clang_tidy_argv("tidy", ["clang-cl.exe", "-c", "a.c", "/Foa.obj", "/std:c++17", "-m64"], "a.c", _CLANG_CL, "q/.clang-tidy").argv,
-                ["tidy", "--config-file=q/.clang-tidy", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/std:c++17", "-m64"],
+                ["tidy", "--config-file=q/.clang-tidy", "--header-filter=", "a.c", "--", "--driver-mode=cl", "--target=x86_64-pc-windows-msvc", "/std:c++17", "-m64"],
             ),
             expect_equal(
                 "clang-tidy names precompiled headers for MSVC",

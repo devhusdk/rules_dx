@@ -76,60 +76,30 @@ _erlang_bytecode_forward = dx_library_forward_rule(
     runtime = "besteffort",
 )
 
-_LAUNCHER = """#!/usr/bin/env bash
-set -euo pipefail
-if [[ -d "$0.runfiles" ]]; then
-    runfiles="$0.runfiles"
-elif [[ -n "${{RUNFILES_DIR:-}}" ]]; then
-    runfiles="$RUNFILES_DIR"
-elif [[ "$0" == *.runfiles/* ]]; then
-    runfiles="${{0%%.runfiles/*}}.runfiles"
-else
-    echo "$0: no runfiles tree" >&2
-    exit 2
-fi
-DX_ERLANG_HOME="$(cd "$runfiles/{root}" && pwd)"
-{prelude}exec "$DX_ERLANG_HOME/bin/{tool}" {args}"$@"
-"""
-
-# dialyzer reads $HOME for its caches even when every PLT is named; hermetic callers may unset it.
-_HOME_PRELUDE = 'export HOME="${HOME:-${TMPDIR:-/tmp}}"\n'
-
-def otp_launcher_text(root, tool, args = "", prelude = ""):
-    """Returns the shared launcher script that runs `bin/<tool>` of the resolved OTP tree."""
-    return _LAUNCHER.format(root = root, tool = tool, args = args, prelude = prelude)
-
-def otp_launch_descriptor(root, tool, archive_key = None):
-    """Returns the native launcher descriptor that runs `bin/<tool>.exe` of the OTP tree at `root`."""
-    lines = ["program=" + root + "/bin/" + tool + ".exe"]
+def otp_launch_descriptor(root, tool, archive_key = None, windows = False, version_key = None):
+    """Returns the native launcher descriptor that runs `bin/<tool>` of the OTP tree at `root`; `version_key` is a file in the tree root."""
+    lines = ["program=" + root + "/bin/" + tool + (".exe" if windows else "")]
     if archive_key:
         lines.append("path=" + archive_key)
+    if not windows:
+        if version_key:
+            lines.append("env_dir=ERL_ROOTDIR\t" + version_key)
+        lines.append("env_default=HOME\t/tmp")
     return "\n".join(lines) + "\n"
 
 def otp_tool_binary_impl(ctx):
     """Implements `otp_tool_binary`: a launcher for one `bin/<tool>` of the resolved OTP tree."""
     (_, _, erlang_runfiles) = erlang_dirs(ctx)
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
-    otp_root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0]
+    version_key = runfiles_path(ctx.workspace_name, root.short_path)
+    otp_root = version_key.rpartition("/")[0]
     script = ctx.file.script
     script_key = runfiles_path(ctx.workspace_name, script.short_path) if script else None
     script_runfiles = ctx.runfiles([script]) if script else ctx.runfiles()
-    if target_is_windows(ctx):
-        launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool, script_key))
-        return [
-            DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles).merge(script_runfiles)),
-            OtpToolInfo(files = erlang_runfiles.files, program = None),
-        ]
-    launcher = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(launcher, otp_launcher_text(
-        root = otp_root,
-        tool = ctx.attr.tool,
-        args = '"$runfiles/' + script_key + '" ' if script else "",
-        prelude = _HOME_PRELUDE,
-    ), is_executable = True)
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool, script_key, target_is_windows(ctx), version_key))
     return [
-        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = ctx.runfiles([launcher]).merge(erlang_runfiles).merge(script_runfiles)),
-        OtpToolInfo(files = erlang_runfiles.files, program = root.dirname + "/bin/" + ctx.attr.tool),
+        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles).merge(script_runfiles)),
+        OtpToolInfo(files = erlang_runfiles.files),
     ]
 
 _NATIVE_SUFFIXES = (".so", ".dylib", ".dll")
@@ -165,18 +135,10 @@ def _escript_binary_impl(ctx):
     archive = ctx.attr.upstream[DefaultInfo].files_to_run.executable
     (_, _, erlang_runfiles) = erlang_dirs(ctx)
     root = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo.version_file
-    otp_root = runfiles_path(ctx.workspace_name, root.short_path).rpartition("/")[0]
+    version_key = runfiles_path(ctx.workspace_name, root.short_path)
+    otp_root = version_key.rpartition("/")[0]
     archive_key = runfiles_path(ctx.workspace_name, archive.short_path)
-    if target_is_windows(ctx):
-        launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, "escript", archive_key))
-    else:
-        launcher = ctx.actions.declare_file(ctx.label.name)
-        ctx.actions.write(launcher, otp_launcher_text(
-            root = otp_root,
-            tool = "escript",
-            args = '"$runfiles/' + archive_key + '" ',
-        ), is_executable = True)
-        launcher_runfiles = ctx.runfiles([launcher])
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, "escript", archive_key, target_is_windows(ctx), version_key))
     runfiles = launcher_runfiles.merge(ctx.runfiles([archive])).merge(erlang_runfiles).merge(ctx.attr.upstream[DefaultInfo].default_runfiles)
     for dep in ctx.attr.data:
         runfiles = runfiles.merge(dep[DefaultInfo].default_runfiles)

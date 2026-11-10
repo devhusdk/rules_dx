@@ -31,9 +31,8 @@ ErlangNifInfo = provider(
 )
 
 OtpToolInfo = provider(
-    doc = "One OTP program an action runs without its launcher.",
+    doc = "One OTP program an action runs through its launcher.",
     fields = {
         "files": "depset of the OTP tree.",
-        "program": "Exec path of `bin/<tool>` in the OTP tree; None on Windows, where actions run the launcher.",
     },
 )

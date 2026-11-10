@@ -6,7 +6,7 @@ use crate::api_compat::{
 };
 use crate::archive::*;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -376,12 +376,12 @@ fn pypi_upload_staged(
     };
     let mut check = command("check");
     check.arg("--strict").args(&files);
-    match check.output() {
-        Ok(out) if out.status.success() => {}
+    match run_publish(&mut check) {
+        Ok(out) if out.success() => {}
         Ok(out) => {
             eprint!("{}", pypi_scrub(&out.stdout, token));
             eprint!("{}", pypi_scrub(&out.stderr, token));
-            eprintln!("pypi_deploy: twine check failed with {}", out.status);
+            eprintln!("pypi_deploy: twine check failed with {}", exit_text(&out));
             return 1;
         }
         Err(error) => {
@@ -395,7 +395,7 @@ fn pypi_upload_staged(
         .arg("--repository-url")
         .arg(registry_url)
         .args(&files);
-    let out = match upload.output() {
+    let out = match run_publish(&mut upload) {
         Ok(out) => out,
         Err(error) => {
             eprintln!("pypi_deploy: {error}");
@@ -407,7 +407,7 @@ fn pypi_upload_staged(
     print!("{stdout}");
     eprint!("{stderr}");
     let base = wheel.file_name().and_then(|n| n.to_str()).unwrap_or("");
-    if out.status.success() {
+    if out.success() {
         println!("pypi_deploy: uploaded {base} to {registry_url}");
         return 0;
     }
@@ -416,7 +416,7 @@ fn pypi_upload_staged(
     {
         eprintln!("{note}");
     }
-    eprintln!("pypi_deploy: twine failed with {}", out.status);
+    eprintln!("pypi_deploy: twine failed with {}", exit_text(&out));
     1
 }
 
@@ -535,7 +535,7 @@ fn pypi_api_check(
             cmd.args(["check", check.package])
                 .args(&args)
                 .current_dir(workspace);
-            cmd.output()
+            run_publish(&mut cmd)
                 .map_err(|error| format!("pypi_deploy: {error}"))
                 .map(|output| {
                     let text = format!(
@@ -543,7 +543,7 @@ fn pypi_api_check(
                         String::from_utf8_lossy(&output.stdout),
                         String::from_utf8_lossy(&output.stderr)
                     );
-                    let success = output.status.success();
+                    let success = output.success();
                     let changes = if success {
                         Vec::new()
                     } else {

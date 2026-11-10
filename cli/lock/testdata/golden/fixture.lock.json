@@ -1,0 +1,64 @@
+{
+  "ecosystem": "fixture",
+  "inputs": {
+    "fixture.json": "aeecdf625d15da92605fe5a19aee147fc6e76a109b296c445df457fc5ea7ca49",
+    "fixture.state": "2e1544c64bfb9fa5061263d62e2c28c6273560a15b76d2fe7014dff3450d7d00"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "acf33cfbc5442b1565bc6d1ed0cfde327f3480a1f18416fdcced13de8c1e0433",
+          "urls": [
+            "https://registry.example/alpha-1.2.0.pkg"
+          ]
+        }
+      ],
+      "deps": [
+        "vendor/beta"
+      ],
+      "name": "alpha",
+      "provides": [
+        "alpha",
+        "alpha/util"
+      ],
+      "version": "1.2.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "95bb4648507dbe41a2f66f43e1cde2d385a5867afd5671b4ebba341613548ec4",
+          "urls": [
+            "https://registry.example/gamma-3.0.0.pkg"
+          ]
+        }
+      ],
+      "deps": [
+        "vendor/beta"
+      ],
+      "dev": true,
+      "name": "gamma",
+      "provides": [
+        "gamma"
+      ],
+      "version": "3.0.0"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "a7fea24c4b27e82ed15772222e8198944ed18a5ab7b710489a723d92697de778",
+          "urls": [
+            "https://registry.example/beta-0.4.1.pkg"
+          ]
+        }
+      ],
+      "deps": [],
+      "name": "vendor/beta",
+      "provides": [
+        "beta"
+      ],
+      "version": "0.4.1"
+    }
+  ],
+  "schema": 1
+}

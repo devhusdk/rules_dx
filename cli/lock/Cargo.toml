@@ -1,0 +1,26 @@
+[package]
+license = "Apache-2.0"
+name = "dx_lock"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "dx_lock"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fixture_resolver"
+path = "tests/fixture_resolver.rs"
+
+[[test]]
+name = "lock_test"
+path = "tests/lock_test.rs"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tempfile = "3"
+ureq = { version = "3", features = ["platform-verifier"] }
+
+[dev-dependencies]
+jsonschema = { version = "0.60", default-features = false }

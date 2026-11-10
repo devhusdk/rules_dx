@@ -864,6 +864,7 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
     "//cli/ide:src/lib.rs",
     "//cli/launcher:src/main.rs",
     "//cli/lcov:src/lib.rs",
+    "//cli/lock:src/lib.rs",
     "//cli/merge:src/lib.rs",
     "//cli/module_bazel:src/lib.rs",
     "//cli/ocaml_cc_driver:src/main.rs",

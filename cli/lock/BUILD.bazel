@@ -1,0 +1,119 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_CLI")
+
+package(default_visibility = VIS_CLI)
+
+exports_files([
+    "src/lib.rs",
+])
+
+rust_library(
+    name = "dx_lock",
+    srcs = [
+        "src/http.rs",
+        "src/lib.rs",
+        "src/model.rs",
+        "src/scratch.rs",
+    ],
+    aliases = aliases(
+        package_name = "cli/dx_lock",
+        normal = True,
+    ),
+    crate_name = "dx_lock",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_lock",
+        normal = True,
+    ) + ["//cli/digest:dx_digest"],
+)
+
+rust_test(
+    name = "dx_lock_test",
+    size = "small",
+    aliases = aliases(
+        package_name = "cli/dx_lock",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":dx_lock",
+    deps = all_crate_deps(
+        package_name = "cli/dx_lock",
+        normal = True,
+        normal_dev = True,
+    ) + ["//cli/digest:dx_digest"],
+)
+
+rust_binary(
+    name = "fixture_resolver",
+    testonly = True,
+    srcs = ["tests/fixture_resolver.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_lock",
+        normal = True,
+    ),
+    crate_name = "fixture_resolver",
+    crate_root = "tests/fixture_resolver.rs",
+    deps = all_crate_deps(
+        package_name = "cli/dx_lock",
+        normal = True,
+    ),
+)
+
+rust_test(
+    name = "lock_test",
+    size = "small",
+    srcs = ["tests/lock_test.rs"],
+    aliases = aliases(
+        package_name = "cli/dx_lock",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "lock_test",
+    crate_root = "tests/lock_test.rs",
+    data = [
+        ":fixture_resolver",
+        "testdata/golden/fixture.lock.json",
+        "testdata/registry/alpha-1.2.0.pkg",
+        "testdata/registry/beta-0.4.1.pkg",
+        "testdata/registry/delta-2.0.0.pkg",
+        "testdata/registry/gamma-3.0.0.pkg",
+        "testdata/registry/index.json",
+        "testdata/set/fixture.json",
+        "//core/modules:lock.schema.json",
+    ],
+    env = {
+        "FIXTURE_RESOLVER": "$(rootpath :fixture_resolver)",
+        "GOLDEN": "$(rootpath testdata/golden/fixture.lock.json)",
+        "LOCK_SCHEMA": "$(rootpath //core/modules:lock.schema.json)",
+        "MANIFEST": "$(rootpath testdata/set/fixture.json)",
+        "REGISTRY_INDEX": "$(rootpath testdata/registry/index.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "cli/dx_lock",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":dx_lock",
+        "//cli/digest:dx_digest",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+exports_files(
+    ["Cargo.toml"],
+    visibility = ["//visibility:public"],
+)

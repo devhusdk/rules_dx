@@ -32,19 +32,6 @@ pub struct PrunePlan {
     pub preserved_unobserved_generations: Vec<GenerationView>,
 }
 
-impl PrunePlan {
-    /// Whether the plan would delete any setup record or generation.
-    pub fn has_prune(&self) -> bool {
-        !self.prune_setup_records.is_empty() || !self.prune_generations.is_empty()
-    }
-
-    /// Whether the plan keeps any state because process observation is unavailable.
-    pub fn has_preserved_unobserved(&self) -> bool {
-        !self.preserved_unobserved_setup_records.is_empty()
-            || !self.preserved_unobserved_generations.is_empty()
-    }
-}
-
 pub fn plan_prune(inputs: PruneInputs<'_>) -> PrunePlan {
     let mut retained: Vec<&str> = Vec::new();
     if let Some(current) = inputs.current_hex {
@@ -300,8 +287,6 @@ mod tests {
         assert_eq!(plan.preserved_unobserved_setup_records, vec![stale.hex]);
         assert_eq!(plan.preserved_unobserved_generations, generations);
         assert_eq!(plan.preserved_current, Some(current.hex));
-        assert!(!plan.has_prune());
-        assert!(plan.has_preserved_unobserved());
     }
 
     #[test]
@@ -347,6 +332,7 @@ mod tests {
             ..inputs(&records, &[], Some(&current.hex))
         });
         assert_eq!(plan.prune_setup_records, vec![previous.hex]);
-        assert!(!plan.has_preserved_unobserved());
+        assert!(plan.preserved_unobserved_setup_records.is_empty());
+        assert!(plan.preserved_unobserved_generations.is_empty());
     }
 }

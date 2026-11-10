@@ -134,7 +134,7 @@ If the disk stays full, `add` refuses with `disk_full`. Run
 
 `slot` fields: `action` (`add`, `release`, `list`, `path`, `prune`,
 `prune_base`, `prune_cache`, `prune_downloads`), `path`, `state`, `server`, and
-optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`
+optional `slot`, `branch`, `holder`, `reason`, `base`, `disk_bytes`, `entries`,
 `busy` and `prunable`. `state` is `held`, `free`, `reclaimable`, `external`, `removed`,
 `kept`, `orphaned`, `nested`, `skipped` or `stale`. `summary` fields: `slots`,
 `servers`, `servers_rss_bytes`, `disk_cache_bytes` and, with `--disk`,

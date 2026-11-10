@@ -90,10 +90,6 @@ pub fn sync_lock_path(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(SYNC_LOCK)
 }
 
-pub fn ide_dir(workspace: &Path) -> PathBuf {
-    local_dir(workspace).join(IDE)
-}
-
 pub fn launcher_dir(workspace: &Path) -> PathBuf {
     local_dir(workspace).join(LAUNCHER)
 }
@@ -122,7 +118,7 @@ mod tests {
     #[test]
     fn ide_and_launcher_dirs_live_under_local() {
         let ws = Path::new("ws");
-        assert_eq!(ide_dir(ws), local_dir(ws).join("ide"));
+        assert_eq!(IDE, "ide");
         assert_eq!(launcher_dir(ws), local_dir(ws).join("launcher"));
         assert!(!LOCAL_ENTRIES.contains(&IDE));
         assert!(!LOCAL_ENTRIES.contains(&LAUNCHER));

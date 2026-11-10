@@ -26,6 +26,7 @@ pub const FORMAT_ASPECTS: &[&str] = &[
 
 pub const LINT_ASPECTS: &[&str] = &[
     "quality:families/dockerfile.bzl%real_dockerfile_lint_aspect",
+    "quality:families/oci_image.bzl%real_oci_image_lint_aspect",
     "quality:families/make.bzl%real_make_lint_aspect",
     "quality:families/cmake.bzl%real_cmake_lint_aspect",
     "quality:families/terraform.bzl%real_terraform_lint_aspect",

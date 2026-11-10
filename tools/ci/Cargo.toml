@@ -130,6 +130,10 @@ name = "starlark_docs_test"
 path = "starlark_docs_test.rs"
 
 [[test]]
+name = "test_tags_test"
+path = "test_tags_test.rs"
+
+[[test]]
 name = "tool_resolve_test"
 path = "tool_resolve_test.rs"
 

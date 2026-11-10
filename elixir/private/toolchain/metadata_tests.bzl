@@ -18,6 +18,77 @@ if [ "$OSTYPE" = "cygwin" ]; then SCRIPT_PATH=$(cygpath -m "$SCRIPT_PATH"); fi
 set -- "$ERTS_BIN$ERL_EXEC" -noshell -pa "$SCRIPT_PATH"/../lib/elixir/ebin $ELIXIR_ERL_OPTIONS $ERL "$@"
 """
 
+_ERL_ARGS = "arg=-noshell\narg=-elixir_root\npath=elixir/lib\narg=-pa\npath=elixir/lib/elixir/ebin\n"
+
+_WINDOWS_DESCRIPTOR = "program=otp/bin/erl.exe\n" + _ERL_ARGS + """arg=-pa
+path=credo/ebin
+arg=+pc
+arg=unicode
+arg=-s
+arg=elixir
+arg=start_cli
+arg=-extra
+path=elixir/bin/mix
+arg=format
+env_dir=PATH\totp/bin/erl.exe
+env=ELIXIR_ERL_OPTIONS\t-elixir ansi_enabled false
+env=HEX_HOME\tC:/dx_nonexistent/dx_mix_format/hex
+env=HEX_OFFLINE\t1
+env=HOME\tC:/dx_nonexistent/dx_mix_format
+env=MIX_ARCHIVES\tC:/dx_nonexistent/dx_mix_format/archives
+env=MIX_ENV\tdev
+env=MIX_HOME\tC:/dx_nonexistent/dx_mix_format
+"""
+
+_WINDOWS_CALLER_HOMES_DESCRIPTOR = "program=otp/bin/erl.exe\n" + _ERL_ARGS + """arg=+pc
+arg=unicode
+arg=-s
+arg=elixir
+arg=start_cli
+arg=-extra
+path=elixir/bin/mix
+env_dir=PATH\totp/bin/erl.exe
+env_default=HEX_HOME\tC:/dx_nonexistent/dx_mix_format/hex
+env_default=HOME\tC:/dx_nonexistent/dx_mix_format
+env_default=MIX_HOME\tC:/dx_nonexistent/dx_mix_format
+env=ELIXIR_ERL_OPTIONS\t-elixir ansi_enabled false
+"""
+
+_UNIX_CALLER_HOMES_DESCRIPTOR = "program=otp/bin/erl\n" + _ERL_ARGS + """arg=+pc
+arg=unicode
+arg=+fnu
+arg=-kernel
+arg=standard_io_encoding
+arg=unicode
+arg=-s
+arg=elixir
+arg=start_cli
+arg=-extra
+path=elixir/bin/mix
+env_dir=ERL_ROOTDIR\totp/VERSION
+env_default=HEX_HOME\t/nonexistent/dx_mix_format/hex
+env_default=HOME\t/nonexistent/dx_mix_format
+env_default=MIX_HOME\t/nonexistent/dx_mix_format
+env=ELIXIR_ERL_OPTIONS\t-elixir ansi_enabled false
+"""
+
+def _path_lines(descriptor):
+    return [line for line in descriptor.split("\n") if line.partition("=")[2].startswith("PATH\t")]
+
+def _launcher_checks():
+    windows = elixir_descriptor("otp/VERSION", "elixir", ["credo/ebin"], "elixir/bin/mix", True, ["format"])
+    windows_caller = elixir_descriptor("otp/VERSION", "elixir", [], "elixir/bin/mix", True, [], True)
+    unix = elixir_descriptor("otp/VERSION", "elixir", [], "elixir/bin/mix", False)
+    unix_caller = elixir_descriptor("otp/VERSION", "elixir", [], "elixir/bin/mix", False, [], True)
+    return [
+        expect_equal("windows launcher descriptor", windows, _WINDOWS_DESCRIPTOR),
+        expect_equal("windows caller_homes launcher descriptor", windows_caller, _WINDOWS_CALLER_HOMES_DESCRIPTOR),
+        expect_equal("unix caller_homes launcher descriptor", unix_caller, _UNIX_CALLER_HOMES_DESCRIPTOR),
+        expect_equal("windows PATH is the OTP bin directory of the runfiles", _path_lines(windows) + _path_lines(windows_caller), ["env_dir=PATH\totp/bin/erl.exe"] * 2),
+        expect_equal("unix launchers set no PATH", _path_lines(unix) + _path_lines(unix_caller), []),
+        expect_equal("no launcher names a Windows system directory", [d for d in [windows, windows_caller, unix, unix_caller] if "Windows" in d or "System32" in d], []),
+    ]
+
 def _credo_checks():
     descriptor = elixir_descriptor("otp/VERSION", "elixir", [], "elixir/bin/mix", False)
     return [
@@ -49,7 +120,7 @@ def _checks():
         expect_equal("only the elixir windows launcher is kept", [path for path in DROPPED_PATHS if path.endswith(".bat") or path.endswith(".ps1")], ["bin/iex.bat", "bin/mix.bat", "bin/mix.ps1"]),
         expect_contains("windows launcher forces Unicode names and stdio", elixir_bat(_BAT_SOURCE), '"%ERTS_BIN%erl.exe" +fnu -kernel standard_io_encoding unicode %ELIXIR_ERL_OPTIONS%'),
         expect_contains("launcher converts the script path on msys", script, '[ "$OSTYPE" = "msys" ]; then SCRIPT_PATH'),
-    ] + _credo_checks()
+    ] + _credo_checks() + _launcher_checks()
 
 def elixir_metadata_tests(name):
     """Declares the Elixir toolchain metadata test."""

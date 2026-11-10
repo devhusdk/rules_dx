@@ -934,3 +934,30 @@ fn host_dependent_extensions_are_locked_for_every_ci_platform() {
         );
     }
 }
+
+#[test]
+fn the_network_job_selects_a_tag_the_network_tests_carry() {
+    let bzl = read_runfiles("tools/testing/nested_bazel.bzl");
+    let line = bzl
+        .lines()
+        .find(|line| line.starts_with("NESTED_BAZEL_NETWORK_TAGS ="))
+        .expect("NESTED_BAZEL_NETWORK_TAGS is missing");
+    let queried: Vec<String> = workflow_values()
+        .into_iter()
+        .filter(|(name, _)| name.ends_with("workflows/ci.yml"))
+        .flat_map(|(_, text)| {
+            text.split("attr(tags, ")
+                .skip(1)
+                .filter_map(|rest| rest.split(',').next().map(str::to_owned))
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    assert!(
+        queried.iter().any(|tag| tag == "network-consumer"),
+        "ci.yml no longer queries the network-consumer tag"
+    );
+    assert!(
+        line.contains("\"network-consumer\""),
+        "ci.yml selects network-consumer but NESTED_BAZEL_NETWORK_TAGS does not carry it"
+    );
+}

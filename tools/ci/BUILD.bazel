@@ -611,6 +611,7 @@ rust_test(
         "//tools/platforms/no_winsdk:BUILD.bazel",
         "//tools/platforms/no_winsdk:REPO.bazel",
         "//tools/platforms/no_winsdk:toolchains.bzl",
+        "//tools/testing:nested_bazel.bzl",
     ],
     env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
     deps = all_crate_deps(

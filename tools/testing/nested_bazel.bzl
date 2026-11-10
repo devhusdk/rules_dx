@@ -8,10 +8,8 @@ NESTED_BAZEL_TAGS = [
     "resources:nested_bazel:1",
 ]
 
-NESTED_BAZEL_NETWORK_TAGS = NESTED_BAZEL_TAGS + ["requires-network"]
-
-# Opts a test into the CI `network` job, which selects the `network-consumer` tag.
-NESTED_BAZEL_CI_NETWORK_TAGS = NESTED_BAZEL_NETWORK_TAGS + ["network-consumer"]
+# `network-consumer` opts a test into the CI `network` job.
+NESTED_BAZEL_NETWORK_TAGS = NESTED_BAZEL_TAGS + ["requires-network", "network-consumer"]
 
 # Opts a test into the CI `starter-consumer` job, which selects the `starter-consumer` tag.
 STARTER_CONSUMER_TAGS = ["manual", "starter-consumer"]

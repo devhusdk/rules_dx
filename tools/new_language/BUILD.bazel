@@ -1,0 +1,16 @@
+load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+rust_binary(
+    name = "new_language",
+    srcs = ["src/main.rs"],
+    crate_name = "new_language",
+    crate_root = "src/main.rs",
+)
+
+rust_test(
+    name = "new_language_test",
+    crate = ":new_language",
+)

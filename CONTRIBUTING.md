@@ -21,6 +21,14 @@ Read `docs/design/layout.md` before you add or move a language.
 - Do not edit generated files. Use the generator.
 - Library crates return typed errors. Only binaries map exit codes.
 
+## Add a language
+
+```sh
+bazel run //tools/new_language -- <lang> [title]
+```
+
+It creates `<lang>/` with `defs.bzl`, `extensions.bzl`, `BUILD.bazel`, `lang.json`, `pins.json`, `private/` and `tests/`, and adds the directory to `modules/families.json`. Fill in `lang.json`, then run `bazel run //tools/docs/support_matrix:update`.
+
 ## Remote cache
 
 Export your BuildBuddy API key and add `--config=bb`:

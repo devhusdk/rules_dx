@@ -39,9 +39,4 @@ jobs:
         env:
           FROM: ${{ inputs.from }}
           TO: ${{ inputs.to }}
-        run: |
-          if [ -n "$FROM" ] && [ -n "$TO" ]; then
-            tools/ci/upgrade_e2e.sh "$FROM" "$TO"
-          else
-            tools/ci/upgrade_e2e.sh
-          fi
+        run: tools/ci/upgrade_e2e.sh --from "$FROM" --to "$TO"

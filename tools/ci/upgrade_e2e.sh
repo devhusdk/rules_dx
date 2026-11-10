@@ -1,30 +1,56 @@
 #!/usr/bin/env bash
 # Upgrades a throwaway consumer from the second-latest BCR release of rules_dx
 # to the latest and back, running tests after each step.
-# Usage: upgrade_e2e.sh [<previous> <latest>]
-# With "local" as <latest>, the upgrade target is this checkout (through
+# Usage: upgrade_e2e.sh [--from <previous>] [--to <latest>] [--resolve-only]
+# An absent or empty --from is the second-latest BCR release and an absent or empty --to the latest.
+# With "local" as --to, the upgrade target is this checkout (through
 # local_path_override) at the version in the root MODULE.bazel.
+# --resolve-only prints "<from> <to>" and exits.
 set -euo pipefail
 
 bcr_url="${BCR_URL:-https://bcr.bazel.build}"
 
-last_two_versions() {
-  jq -r '(.versions - (.yanked_versions // {} | keys)) | .[-2:] | join(" ")'
-}
+from=""
+to=""
+resolve_only=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --from | --to)
+      if [ "$#" -lt 2 ]; then
+        echo "upgrade-e2e: $1 needs a value" >&2
+        exit 2
+      fi
+      if [ "$1" = --from ]; then from=$2; else to=$2; fi
+      shift 2
+      ;;
+    --resolve-only)
+      resolve_only=1
+      shift
+      ;;
+    *)
+      echo "upgrade-e2e: unknown argument: $1" >&2
+      exit 2
+      ;;
+  esac
+done
 
-if [ "$#" -eq 2 ]; then
-  from=$1
-  to=$2
-else
-  versions=$(curl -fsSL "$bcr_url/modules/rules_dx/metadata.json" | last_two_versions)
-  read -r from to <<<"$versions" || true
-  if [ -z "${to:-}" ]; then
-    echo "upgrade-e2e: fewer than two rules_dx versions on the BCR"
+if [ -z "$from" ] || [ -z "$to" ]; then
+  versions=$(curl -fsSL "$bcr_url/modules/rules_dx/metadata.json" | jq -r '(.versions - (.yanked_versions // {} | keys)) | join(" ")')
+  read -r -a all <<<"$versions" || true
+  count=${#all[@]}
+  if [ -z "$to" ] && [ "$count" -ge 1 ]; then to=${all[count - 1]}; fi
+  if [ -z "$from" ] && [ "$count" -ge 2 ]; then from=${all[count - 2]}; fi
+  if [ -z "$from" ] || [ -z "$to" ]; then
+    echo "upgrade-e2e: not enough rules_dx versions on the BCR to resolve the missing input"
     case "${GITHUB_EVENT_NAME:-}" in
       workflow_dispatch | release) exit 1 ;;
     esac
     exit 0
   fi
+fi
+if [ "$resolve_only" = 1 ]; then
+  echo "$from $to"
+  exit 0
 fi
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)

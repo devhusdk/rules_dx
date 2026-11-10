@@ -14,21 +14,11 @@ FAMILY_MODULES = [
     "android",
     "apple",
     "cuda",
-    "dotnet",
-    "fortran",
     "haskell",
     "js",
-    "julia",
-    "lua",
     "ocaml",
-    "perl",
-    "php",
     "powershell",
-    "python",
-    "ruby",
-    "rust",
     "swift",
-    "zig",
 ]
 
 exports_files(

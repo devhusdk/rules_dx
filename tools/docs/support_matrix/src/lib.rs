@@ -101,8 +101,6 @@ pub struct Facts {
     pub quality: BTreeMap<String, BTreeMap<String, Vec<String>>>,
     pub support: Vec<Support>,
     pub deferred_families: Vec<String>,
-    #[serde(default)]
-    pub pending_compilers: BTreeMap<String, String>,
     /// Capability, then family, then the reason the capability never applies.
     #[serde(default)]
     pub not_applicable: BTreeMap<String, BTreeMap<String, String>>,

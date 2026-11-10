@@ -142,12 +142,12 @@ fn empty_rejection(args: &[String]) -> EmptyRejection {
 }
 
 fn check_mapping(flag: &str, raw: &str, error: &clap::Error) -> Vec<String> {
-    let legacy = if flag == "--sibling" {
+    let mapping = if flag == "--sibling" {
         parse_sibling_mapping(raw)
     } else {
         parse_source_mapping(raw)
     };
-    match legacy {
+    match mapping {
         Err(message) => vec![message, usage()],
         Ok(_) => vec![dx_output::first_line(error), usage()],
     }

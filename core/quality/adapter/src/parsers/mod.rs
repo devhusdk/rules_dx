@@ -1322,7 +1322,7 @@ mod tests {
         // A hunk may remove a line whose own text starts with `-- `; that is body, not a header.
         assert_eq!(
             super::diff_paths(
-                "--- a/q.sql\n+++ b/q.sql\n@@ -1,2 +1,2 @@\n CREATE TABLE t (id int);\n--- drop the old table\n+-- drop the legacy table\n"
+                "--- a/q.sql\n+++ b/q.sql\n@@ -1,2 +1,2 @@\n CREATE TABLE t (id int);\n--- drop the old table\n+-- drop the unused table\n"
             ),
             ["q.sql"]
         );

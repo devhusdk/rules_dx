@@ -106,7 +106,7 @@ type targetImports struct {
 	// deferred are imports Cargo.toml does not declare; Resolve finds them in the rule index.
 	deferred map[string]bool
 	// inheritedDeps are dependency labels of the existing crate rule that a
-	// self-contained unit test no longer inherits through crate=.
+	// self-contained unit test does not inherit through crate=.
 	inheritedDeps []string
 }
 
@@ -577,7 +577,7 @@ func inheritCrateAttrs(file *rule.File, gen []*rule.Rule) (map[*rule.Rule][]stri
 						continue
 					}
 					if bzl.FormatString(have) != bzl.FormatString(value) {
-						return nil, fmt.Errorf("rust: %s: unit test %s sets %s = %s but its crate %s sets %s; a self-contained unit test no longer inherits it, so make them equal",
+						return nil, fmt.Errorf("rust: %s: unit test %s sets %s = %s but its crate %s sets %s; a self-contained unit test does not inherit it, so make them equal",
 							file.Path, t.Name(), attr, bzl.FormatString(have), of, bzl.FormatString(value))
 					}
 					continue

@@ -48,7 +48,7 @@ func lex(content []byte) lexed {
 	tree := treesitter.Parse(cpp.Language(), src)
 	defer tree.Release()
 	if tree.HasError || tree.Root == nil {
-		return legacyLex(content)
+		return scanLex(content)
 	}
 	set := make(map[string]struct{})
 	var systems []SystemInclude

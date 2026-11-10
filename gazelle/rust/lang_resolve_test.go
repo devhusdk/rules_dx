@@ -111,8 +111,8 @@ func TestSourceFilesBoundaries(t *testing.T) {
 	writeFixture(t, root, "src/.hidden/no.rs", "")
 	writeFixture(t, root, "src/nested/BUILD.bazel", "")
 	writeFixture(t, root, "src/nested/no.rs", "")
-	writeFixture(t, root, "src/legacy/BUILD", "")
-	writeFixture(t, root, "src/legacy/no.rs", "")
+	writeFixture(t, root, "src/plain/BUILD", "")
+	writeFixture(t, root, "src/plain/no.rs", "")
 	writeFixture(t, root, "tests/smoke.rs", "")
 	files, err := sourceFiles(root, "pkg")
 	if err != nil {
@@ -312,11 +312,11 @@ libc = "0.2"
 	}
 }
 
-func TestLegacyCrateDepsMigrates(t *testing.T) {
+func TestCrateDepsMergeKeepsFileLabels(t *testing.T) {
 	call := crateDepsCall{call: cargoCall("all_crate_deps", "dx/dx_a", false), external: true}
 	merged := call.Merge(allCrateDepsFileExpr("dx/dx_a", "//x"))
 	if got := exprString(merged); got != `all_crate_deps(normal = True, package_name = "dx/dx_a") + ["//x"]` {
-		t.Errorf("migrated deps = %s", got)
+		t.Errorf("merged deps = %s", got)
 	}
 }
 

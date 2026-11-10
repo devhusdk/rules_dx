@@ -386,7 +386,7 @@ func TestLoadCrateTestOnly(t *testing.T) {
 		}
 	}
 	if !owned["a/src/inner_only/child.rs"].HasCfgTest && !owned["a/src/inner_only.rs"].Modules[0].CfgTest {
-		t.Errorf("inner cfg(test) no longer marks its modules as test scope")
+		t.Errorf("inner cfg(test) does not mark its modules as test scope")
 	}
 }
 

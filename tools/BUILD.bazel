@@ -21,11 +21,6 @@ sh_test(
     data = ["dx"],
 )
 
-alias(
-    name = "repin-all",
-    actual = "//tools/repin_all:repin_all",
-)
-
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],

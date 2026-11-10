@@ -90,7 +90,7 @@ cells_tests(name = "cells")
 
 pins_tests(name = "pins")
 
-lock_hub_tests(name = "lock_hub")
+lock_hub_tests(name = "lock_hub", size = "small")
 
 entry_tests(name = "entry")
 

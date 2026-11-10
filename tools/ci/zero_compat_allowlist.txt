@@ -55,9 +55,7 @@ core/quality/BUILD.bazel alias 1
 core/quality/BUILD.bazel compat-word 2
 core/quality/adapter/src/commands.rs compat-word 2
 core/quality/adapter/src/commands_tests.rs compat-word 1
-core/quality/adapter/src/lib.rs compat-word 5
 core/quality/adapter/src/parsers/ldc.rs compat-word 1
-core/quality/adapter/src/parsers/mod.rs compat-word 1
 core/quality/adapter/src/parsers/ocaml_compile.rs compat-word 3
 core/quality/adapter/src/parsers/rubocop.rs compat-word 1
 core/quality/adapter/src/parsers/terraform_validate.rs compat-word 1
@@ -65,7 +63,6 @@ core/quality/adapter/src/severity_gen.rs compat-word 1
 core/quality/artifacts/ocaml_duniverse.bzl compat-word 1
 core/quality/lsp_check/src/entry.rs compat-word 2
 core/quality/lsp_check/src/main.rs compat-word 2
-core/quality/markdown/src/check.rs compat-word 2
 core/quality/markdown/src/entry.rs compat-word 2
 core/quality/markdown/src/main.rs compat-word 2
 core/quality/notebook/src/entry.rs compat-word 2
@@ -135,7 +132,6 @@ dotnet/rules_dotnet.bzl reexport 1
 env/BUILD.bazel alias 2
 env/private/env_shard/src/main.rs compat-word 2
 env/private/env_shard/src/writer.rs compat-word 2
-gazelle/cc/BUILD.bazel compat-word 1
 javascript/private/dev_hub.bzl compat-word 5
 javascript/private/dev_hub_tests.bzl compat-word 2
 ocaml/BUILD.bazel alias 3
@@ -153,7 +149,6 @@ rust/private/quality/rust_tools.bzl compat-word 1
 rust/private/quality/tools/BUILD.bazel alias 2
 rust/tests/fixtures/cxx_identity/BUILD.bazel alias 1
 rust/tests/fixtures/hello/src/main.rs compat-word 2
-tools/BUILD.bazel alias 1
 tools/ci/advisory_launch_test.rs compat-word 12
 tools/ci/config_consistency_test.rs compat-word 4
 tools/ci/guards/shared.rs compat-word 4

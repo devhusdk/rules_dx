@@ -64,14 +64,15 @@ _two_images_test = analysistest.make(
     extra_target_under_test_aspects = [real_protobuf_lint_aspect],
 )
 
-def buf_breaking_analysis_tests(name):
+def buf_breaking_analysis_tests(name, size):
     """Instantiates the base image input tests as one suite.
 
     Args:
         name: suite name and test name prefix.
+        size: size of each test.
     """
     subject = "//core/quality/tests/fixtures/consumer_policy:clean_protobuf"
-    _with_image_test(name = name + "_with_image", size = "small", target_under_test = subject)
-    _without_image_test(name = name + "_without_image", size = "small", target_under_test = subject)
-    _two_images_test(name = name + "_two_images", size = "small", target_under_test = subject)
+    _with_image_test(name = name + "_with_image", size = size, target_under_test = subject)
+    _without_image_test(name = name + "_without_image", size = size, target_under_test = subject)
+    _two_images_test(name = name + "_two_images", size = size, target_under_test = subject)
     native.test_suite(name = name, tests = [name + "_with_image", name + "_without_image", name + "_two_images"])

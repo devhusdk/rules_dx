@@ -177,7 +177,7 @@ core/quality/sources_tests.bzl no-size 1
 core/quality/suite_membership.bzl no-size 1
 core/quality/support_tests.bzl no-size 1
 core/quality/testdata/BUILD.bazel no-size 20
-core/quality/testdata/coverage_sources/BUILD.bazel no-size 8
+core/quality/testdata/coverage_sources/BUILD.bazel no-size 7
 core/quality/testdata/real_aspect_tests.bzl no-size 4
 core/quality/testdata/real_result_cases.bzl no-size 1
 core/quality/testdata/real_typecheck_tests.bzl no-size 1
@@ -372,7 +372,7 @@ fsharp/private/ide/BUILD.bazel no-size 1
 fsharp/tests/fixtures/adopt-fsharp/greet/BUILD.bazel no-size 1
 fsharp/tests/fixtures/adopt-fsharp/solo/BUILD.bazel no-size 1
 fsharp/tests/fixtures/bench/BUILD.bazel no-size 2
-fsharp/tests/fixtures/fuzz/BUILD.bazel no-size 8
+fsharp/tests/fixtures/fuzz/BUILD.bazel no-size 7
 fsharp/tests/fixtures/hello/BUILD.bazel no-size 2
 fsharp/tests/fixtures/layouts/BUILD.bazel no-size 1
 fsharp/tests/fixtures/order/BUILD.bazel no-size 1
@@ -671,7 +671,7 @@ rust/tests/fixtures/fuzz/BUILD.bazel no-size 2
 rust/tests/fixtures/hello/BUILD.bazel no-size 25
 rust/tests/fixtures/native_call/BUILD.bazel no-size 25
 rust/tests/fixtures/shared-rust-checks/BUILD.bazel no-size 6
-rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 14
+rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 13
 rust/tests/fixtures/wasm_bindgen/js_parity.bzl no-size 1
 rust/tests/tonic/BUILD.bazel no-size 1
 scala/private/BUILD.bazel no-size 1

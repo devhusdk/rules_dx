@@ -26,6 +26,7 @@ build_test(
 beam_shard_path_test(
     name = "shard_path_test",
     language = "elixir",
+    size = "small",
     target = ":geometry_docs",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
 )

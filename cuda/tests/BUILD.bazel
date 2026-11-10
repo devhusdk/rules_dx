@@ -162,6 +162,7 @@ with_gpu_device(
         name = name + "_declared_test",
         min_compute_capability = min_compute_capability,
         min_driver = "13.0",
+        size = "small",
         target_compatible_with = CUDA_TARGET,
         target_under_test = target,
     )

@@ -205,7 +205,7 @@ real_pipeline_unit_tests(name = "real_pipeline_unit")
 
 rustc_request_analysis_tests(name = "rustc_request_analysis")
 
-buf_breaking_analysis_tests(name = "buf_breaking_analysis")
+buf_breaking_analysis_tests(name = "buf_breaking_analysis", size = "small")
 
 unsupported_platform_analysis_tests(name = "unsupported_platform_analysis")
 

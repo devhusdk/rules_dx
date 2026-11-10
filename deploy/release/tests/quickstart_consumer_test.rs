@@ -66,6 +66,18 @@ fn footprint_of(case: &Case) -> footprint::Footprint {
     .unwrap_or_else(|error| panic!("{error}"))
 }
 
+/// Builds `@rules_dx//:dx` and returns the path of the binary.
+fn built_dx(case: &Case) -> std::path::PathBuf {
+    run_in(case, &["build", "@rules_dx//:dx"], "build dx");
+    let files = run_in(
+        case,
+        &["cquery", "--output=files", "@rules_dx//:dx"],
+        "cquery dx",
+    );
+    let info = run_in(case, &["info", "execution_root"], "info execution_root");
+    std::path::PathBuf::from(info.stdout.trim()).join(files.stdout.trim())
+}
+
 fn run_in(case: &Case, args: &[&str], what: &str) -> Run {
     let run = case.bazel(args);
     ok(&run, what);
@@ -129,11 +141,19 @@ fn the_readme_quickstart_runs_as_written() {
         &["run", "@rules_dx//:dx", "--", "--help"],
         "dx --help",
     );
-    run_in(
-        &case,
-        &["run", "@rules_dx//:dx", "--", "init", "--apply"],
-        "dx init --apply",
+    let dx = built_dx(&case);
+    let module = case.root().join("MODULE.bazel");
+    write_text(
+        &module,
+        &read_text(&module).replace(&rules_py_override(), ""),
     );
+    let root = case.root().to_string_lossy().into_owned();
+    let init = case.run(
+        &dx,
+        &["init", "--apply"],
+        &[("BUILD_WORKSPACE_DIRECTORY", root.as_str())],
+    );
+    ok(&init, "dx init --apply");
     run_in(
         &case,
         &["run", "@rules_dx//:dx", "--", "test", "//..."],
@@ -172,6 +192,13 @@ fn bcr_test_module_runs_its_presubmit_targets() {
     for name in ["BUILD.bazel", "MODULE.bazel", "hello_test.sh"] {
         let text = read_text(&source.join("bcr_test_module").join(name));
         write_text(&case.root().join(name), &text);
+    }
+    let script = case.root().join("hello_test.sh");
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
+            .unwrap_or_else(|error| panic!("chmod {}: {error}", script.display()));
     }
     write_text(
         &case.root().join(".bazelversion"),

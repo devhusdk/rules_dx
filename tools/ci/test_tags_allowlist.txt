@@ -49,8 +49,6 @@ php/private/defs.bzl manual 1
 python/private/defs.bzl manual 1
 python/tests/fixtures/fuzz/BUILD.bazel manual 1
 ruby/private/defs.bzl manual 1
-rust/private/defs.bzl manual 2
-rust/tests/fixtures/wasm_bindgen/BUILD.bazel manual 1
 swift/tests/fixtures/fuzz/BUILD.bazel manual 1
 tools/ci/BUILD.bazel no-remote 2
 tools/testing/hermetic/BUILD.bazel exclusive 2

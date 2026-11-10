@@ -1,5 +1,6 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_dx//rust/private:defs.bzl", "rust_browser_crate")
 load("@rules_dx//rust/private:wrapper_tests.bzl", "dx_browser_binary_tests", "dx_browser_cell_tests")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen", "rust_wasm_bindgen_toolchain")
 load("//javascript:defs.bzl", "javascript_library", "javascript_test", "javascript_wasm_bindgen_library")
@@ -181,17 +182,16 @@ failure_test(
     target = ":wasm_hello_partial_toolchain",
 )
 
-rust_test(
-    name = "wasm_hello_raw_browser_test",
+rust_browser_crate(
+    name = "wasm_hello_raw_browser_crate",
     crate = ":wasm_hello_bin",
     tags = ["manual"],
-    wasm = "browser",
 )
 
 failure_test(
     name = "wasm_hello_raw_browser_rejected_test",
-    expected_failure_substring = "No attribute 'wasm_file' in attr",
-    target = ":wasm_hello_raw_browser_test",
+    expected_failure_substring = "to be a rust_binary with wasm = \"browser\"",
+    target = ":wasm_hello_raw_browser_crate",
 )
 
 javascript_wasm_bindgen_library(

@@ -1,7 +1,7 @@
 """Coverage of the walk behind @dx_test_tags_sources."""
 
 load("//core:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":repos.bzl", "ignored_paths", "skipped", "walk")
+load(":repos.bzl", "consumer_fixture_file", "ignored_paths", "skipped", "walk")
 
 _BAZELIGNORE = """node_modules
 .claude/
@@ -101,6 +101,10 @@ def _checks():
         expect_false("source directory", skipped("tools/ci", _dir("ci"), ignored)),
         expect_false("source file", skipped("tools/ci/repos.bzl", _file("repos.bzl"), ignored)),
         expect_false("ignored name below the root", skipped("tools/bin", _dir("bin"), ignored)),
+        expect_true("consumer fixture file", consumer_fixture_file("go/tests/consumer/pkg/a.go", {"go": True})),
+        expect_false("consumer directory of no language", consumer_fixture_file("tools/tests/consumer/a.go", {"go": True})),
+        expect_false("file beside the consumer directory", consumer_fixture_file("go/tests/consumer.bzl", {"go": True})),
+        expect_false("another fixture", consumer_fixture_file("go/tests/fixtures/consumer/a.go", {"go": True})),
         expect_equal("listed directories", before.listed, _DIRECTORIES),
         expect_equal("returned directories", before.directories, _DIRECTORIES),
         expect_equal("files", before.files, _FILES),

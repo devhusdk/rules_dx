@@ -1,0 +1,18 @@
+load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
+
+rust_library(
+    name = "consumer",
+    srcs = ["src/lib.rs"],
+    crate_name = "consumer",
+    crate_root = "src/lib.rs",
+    visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "consumer_test",
+    srcs = ["src/lib.rs"],
+    size = "small",
+    coverage_lib = ":consumer",
+    crate_name = "consumer",
+    crate_root = "src/lib.rs",
+)

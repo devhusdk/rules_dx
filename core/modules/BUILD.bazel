@@ -209,6 +209,7 @@ rust_test(
         "//cli/ecosystems:languages.json",
         "//cli/families:languages.json",
         "//core/quality/testdata:all_languages.bzl",
+        "//gazelle/common:lock_registry.json",
     ],
     deps = all_crate_deps(
         package_name = "core/modules_tests",

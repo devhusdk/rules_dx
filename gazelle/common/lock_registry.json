@@ -1,0 +1,8 @@
+[
+  {
+    "ecosystem": "swiftpm",
+    "hub": "swiftpkg",
+    "lock": "swiftpm.lock.json",
+    "manifest": "Package.swift"
+  }
+]

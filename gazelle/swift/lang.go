@@ -31,6 +31,7 @@ func NewLanguage() language.Language {
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
+		External:       "swiftpm",
 		UnresolvedHint: "add a swift_library with that name or module_name, or an exact # gazelle:resolve swift mapping",
 		Generate:       generateRules,
 	})}

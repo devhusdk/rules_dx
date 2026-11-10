@@ -194,10 +194,10 @@ findings report the same workspace path.
 `ocaml.lock(name, lock)` reads the pinned versions from the `depends:` list
 of a `.opam.locked` file and creates a hub with one alias per package. Sources
 and sha256 digests (sha512 when an opam file has no sha256) come from the opam-repository snapshot pinned in
-`ocaml/toolchain/pins.bzl`; nothing runs opam. Compiler and `base-*` packages
+`ocaml/toolchain/pins.json`; nothing runs opam. Compiler and `base-*` packages
 and `dune` come from the toolchain and get no alias. A package without an
 `ocaml.annotation` is a dune package: it is built with `dx_dune_library` and
-`//ocaml/toolchain:dune` (dune 3.24.2 from `ocaml/toolchain/pins.bzl`), and its
+`//ocaml/toolchain:dune` (dune 3.24.2 from `ocaml/toolchain/pins.json`), and its
 library is the package name with `-` and `.` as `_`. Set
 `ocaml.annotation(package, library = ...)` for another library name. A dune
 package that depends on another non-toolchain package fails until dune package

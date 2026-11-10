@@ -792,6 +792,14 @@ dx_pins.pin(
     build = "//swift/toolchain:swift_format.build",
     pins = "//swift/toolchain:pins.json",
 )
+dx_pins.data(
+    name = "dx_haskell",
+    pins = "//haskell/toolchain:pins.json",
+)
+dx_pins.data(
+    name = "dx_ocaml",
+    pins = "//ocaml/toolchain:pins.json",
+)
 use_repo(
     dx_pins,
     "dx_pins_data",

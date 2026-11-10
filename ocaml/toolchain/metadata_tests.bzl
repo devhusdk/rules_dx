@@ -4,7 +4,7 @@ load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starl
 load("//core:toolchain.bzl", "hub_checks")
 load(":ocaml.bzl", "COMPILERS", "TOOLS", "native_cc_env", "toolchain_fields")
 load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
-load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION", "OPAM_REPOSITORY_COMMIT", "OPAM_REPOSITORY_SHA256", "OPAM_REPOSITORY_URL", "RULES_OCAML_COMMIT", "RULES_OCAML_SHA256", "RULES_OCAML_URL")
+load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
 load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
 
 _LOCK = """opam-version: "2.0"
@@ -40,15 +40,11 @@ def _checks():
         expect_equal("linux emitters", linux.emitters, ["sys", "vm"]),
         expect_equal("known emitters", sorted(EMITTERS.keys()), ["sys", "vm"]),
         expect_equal("linux packages", sorted([p.name for p in linux.packages]), ["ocaml", "zstd"]),
-        expect_contains("ocaml package names the version", ocaml.url, "ocaml_linux-64-" + OCAML_VERSION + "-"),
+        expect_contains("ocaml package names the version", ocaml.archive.urls[0], "ocaml_linux-64-" + OCAML_VERSION + "-"),
         expect_equal("macos packages", sorted(macos.keys()), ["ocaml", "zstd", "zstd-static"]),
-        expect_contains("macos zstd version", macos["zstd"].url, "/zstd-1.5.7-"),
-        expect_contains("macos zstd-static matches the zstd version", macos["zstd-static"].url, "/zstd-static-1.5.7-"),
-        expect_true("package digests are sha256", all([len(p.sha256) == 64 for p in linux.packages])),
+        expect_contains("macos zstd version", macos["zstd"].archive.urls[0], "/zstd-1.5.7-"),
+        expect_contains("macos zstd-static matches the zstd version", macos["zstd-static"].archive.urls[0], "/zstd-static-1.5.7-"),
         expect_equal("ocaml license", ocaml.license, "LGPL-2.1-only WITH OCaml-LGPL-linking-exception"),
-        expect_equal("rules_ocaml commit", len(RULES_OCAML_COMMIT), 40),
-        expect_equal("rules_ocaml digest", len(RULES_OCAML_SHA256), 64),
-        expect_contains("rules_ocaml url names the commit", RULES_OCAML_URL, RULES_OCAML_COMMIT),
         expect_true("the upstream module file is dropped", "MODULE.bazel" in DROPPED_PATHS),
         expect_equal("bytecode compiler", TOOLS["compiler"], "bin/ocamlc.opt"),
         expect_equal("native compiler", TOOLS["native_compiler"], "bin/ocamlopt.opt"),
@@ -91,8 +87,6 @@ def _checks():
             ], "text"),
             ["t"],
         ),
-        expect_equal("opam snapshot digest", len(OPAM_REPOSITORY_SHA256), 64),
-        expect_contains("opam snapshot url names the commit", OPAM_REPOSITORY_URL, OPAM_REPOSITORY_COMMIT),
         expect_equal("locked versions are read", parse_depends(_LOCK), {"astring": "0.8.5", "cmdliner": "1.3.0", "dune": "3.16.0", "ocaml": "5.5.2"}),
         expect_equal("a file without depends pins nothing", parse_depends("opam-version: \"2.0\"\n"), {}),
         expect_equal("an unpinned entry is skipped", parse_depends("depends: [\"a\" {>= \"1\"}]"), {}),

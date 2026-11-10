@@ -1,0 +1,70 @@
+{
+  "archives": {
+    "cabal__linux_arm64": {
+      "sha256": "e4d940131ab0b78943a4b5ce64a9ef5acc452ea849df197787eaeecb1c3bf276",
+      "urls": [
+        "https://downloads.haskell.org/~cabal/cabal-install-3.18.2.0/cabal-install-3.18.2.0-aarch64-linux-unknown.tar.xz"
+      ]
+    },
+    "cabal__linux_x86_64": {
+      "sha256": "b4f4c83135da77cfc18ccd6056398ca714a2dad86d5f635621ffdda8f9afe587",
+      "urls": [
+        "https://downloads.haskell.org/~cabal/cabal-install-3.18.2.0/cabal-install-3.18.2.0-x86_64-linux-unknown.tar.xz"
+      ]
+    },
+    "cabal__macos_arm64": {
+      "sha256": "d91f76cf9539d927205858c42d0c1fe3868dea89f54a5dd6151f9c3fdd56f21f",
+      "urls": [
+        "https://downloads.haskell.org/~cabal/cabal-install-3.18.2.0/cabal-install-3.18.2.0-aarch64-apple-darwin.tar.xz"
+      ]
+    },
+    "cabal__windows_x86_64": {
+      "sha256": "7430982fd2aedef41539155d819e7e24349c664206ecf8c6e53c1c31acdbe630",
+      "urls": [
+        "https://downloads.haskell.org/~cabal/cabal-install-3.18.2.0/cabal-install-3.18.2.0-x86_64-mingw64.zip"
+      ]
+    },
+    "ghc__linux_arm64": {
+      "sha256": "99b85c1948e58e310f4e29cd2c8724a18c246c07e12637d8cbd591a064138236",
+      "strip_prefix": "ghc-9.10.3-aarch64-unknown-linux",
+      "urls": [
+        "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-aarch64-deb10-linux.tar.xz"
+      ]
+    },
+    "ghc__linux_x86_64": {
+      "sha256": "90f4e3082e1f43b984579f16b6349bd406dfdf88bda85733d7ccd54cb6a8eda8",
+      "strip_prefix": "ghc-9.10.3-x86_64-unknown-linux",
+      "urls": [
+        "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-x86_64-deb10-linux.tar.xz"
+      ]
+    },
+    "ghc__macos_arm64": {
+      "sha256": "9f50ddd87be5cb994c719402778d6c7fdd341934fd4fbc0fcc3ecb40d49f860c",
+      "strip_prefix": "ghc-9.10.3-aarch64-apple-darwin",
+      "urls": [
+        "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-aarch64-apple-darwin.tar.xz"
+      ]
+    },
+    "ghc__windows_x86_64": {
+      "sha256": "ad17bdbee5f195d50024da1447f458071d9d8a34f90d76907c873abaf95d893f",
+      "strip_prefix": "ghc-9.10.3-x86_64-unknown-mingw32",
+      "urls": [
+        "https://downloads.haskell.org/~ghc/9.10.3/ghc-9.10.3-x86_64-unknown-mingw32.tar.xz"
+      ]
+    },
+    "gmp_license": {
+      "sha256": "e3a994d82e644b03a792a930f574002658412f62407f5fee083f2555c5f23118",
+      "urls": [
+        "https://www.gnu.org/licenses/lgpl-3.0.txt"
+      ]
+    },
+    "rules_haskell": {
+      "sha256": "86d126db53fa06ee935d94ee109420d3a68733377091f7914f62abe36c1972a1",
+      "strip_prefix": "rules_haskell-826018312ea91c80ff66fde1e1e39f76c42c07b8",
+      "urls": [
+        "https://github.com/tweag/rules_haskell/archive/826018312ea91c80ff66fde1e1e39f76c42c07b8.tar.gz"
+      ]
+    }
+  },
+  "version": "9.10.3"
+}

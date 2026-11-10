@@ -139,8 +139,8 @@ def conda_stem(url):
     return name[:-len(".conda")]
 
 def _install_package(rctx, package):
-    stem = conda_stem(package.url)
-    rctx.download(url = package.url, output = "_conda/" + stem + ".conda", sha256 = package.sha256)
+    stem = conda_stem(package.archive.urls[0])
+    rctx.download(url = package.archive.urls, output = "_conda/" + stem + ".conda", sha256 = package.archive.sha256)
     rctx.extract("_conda/" + stem + ".conda", output = "_conda/" + stem, type = "zip")
     rctx.extract("_conda/" + stem + "/pkg-" + stem + ".tar.zst", output = ".")
     rctx.extract("_conda/" + stem + "/info-" + stem + ".tar.zst", output = "_conda/" + stem + "/info")

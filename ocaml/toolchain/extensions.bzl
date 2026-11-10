@@ -2,7 +2,7 @@
 
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
-load(":pins.bzl", "DUNE_SHA256", "DUNE_URL", "DUNE_VERSION", "OCAML_CELLS", "OPAM_REPOSITORY_COMMIT", "OPAM_REPOSITORY_SHA256", "OPAM_REPOSITORY_URL", "RULES_OCAML_COMMIT", "RULES_OCAML_SHA256", "RULES_OCAML_URL")
+load(":pins.bzl", "DUNE", "OCAML_CELLS", "OPAM_REPOSITORY", "OPAM_REPOSITORY_COMMIT", "RULES_OCAML")
 load(":repos.bzl", "DIST_PREFIX", "DROPPED_PATHS", "DUNE_BUILD", "HUB_NAME", "dist_repo", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build")
 
 def _fact_key(package, version):
@@ -58,9 +58,9 @@ def _ocaml_impl(mctx):
             Label("//patches/rules_ocaml:platform_alias.patch"),
             Label("//patches/rules_ocaml:static_cc_deps.patch"),
         ],
-        sha256 = RULES_OCAML_SHA256,
-        strip_prefix = "rules_ocaml-" + RULES_OCAML_COMMIT,
-        urls = [RULES_OCAML_URL],
+        sha256 = RULES_OCAML.sha256,
+        strip_prefix = RULES_OCAML.strip_prefix,
+        urls = RULES_OCAML.urls,
     )
     for cell in sorted(OCAML_CELLS.keys()):
         dist_repo(name = DIST_PREFIX + cell, cell = cell)
@@ -68,9 +68,9 @@ def _ocaml_impl(mctx):
     pinned_archive(
         name = "dx_ocaml_dune",
         files = {"BUILD.bazel": DUNE_BUILD},
-        sha256 = DUNE_SHA256,
-        strip_prefix = "dune-" + DUNE_VERSION,
-        urls = [DUNE_URL],
+        sha256 = DUNE.sha256,
+        strip_prefix = DUNE.strip_prefix,
+        urls = DUNE.urls,
     )
     tags = [tag for module in mctx.modules for tag in module.tags.lock]
     locks = [parse_depends(mctx.read(tag.lock)) for tag in tags]
@@ -82,10 +82,10 @@ def _ocaml_impl(mctx):
     facts = {key: mctx.facts.get(key) for key in wanted}
     if None in facts.values():
         mctx.download_and_extract(
-            url = [OPAM_REPOSITORY_URL],
+            url = OPAM_REPOSITORY.urls,
             output = "opam_snapshot",
-            sha256 = OPAM_REPOSITORY_SHA256,
-            strip_prefix = "opam-repository-" + OPAM_REPOSITORY_COMMIT,
+            sha256 = OPAM_REPOSITORY.sha256,
+            strip_prefix = OPAM_REPOSITORY.strip_prefix,
         )
         for key, (package, version) in wanted.items():
             if not facts[key]:

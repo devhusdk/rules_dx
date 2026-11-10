@@ -456,13 +456,13 @@ def _ghc_repo_impl(rctx):
         rctx.file("BUILD.bazel", _UNAVAILABLE_BUILD)
         return rctx.repo_metadata(reproducible = True)
     rctx.download_and_extract(
-        url = cell.ghc_url,
-        sha256 = cell.ghc_sha256,
-        stripPrefix = cell.ghc_strip_prefix,
+        url = cell.ghc.urls,
+        sha256 = cell.ghc.sha256,
+        stripPrefix = cell.ghc.strip_prefix,
     )
     rctx.download_and_extract(
-        url = cell.cabal_url,
-        sha256 = cell.cabal_sha256,
+        url = cell.cabal.urls,
+        sha256 = cell.cabal.sha256,
         output = "cabal",
     )
     for path in GHC_DROPPED_PATHS:

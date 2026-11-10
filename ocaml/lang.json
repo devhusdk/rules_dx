@@ -24,7 +24,8 @@
     "windows_x86_64"
   ],
   "pins": [
-    "toolchain/pins.bzl"
+    "toolchain/pins.bzl",
+    "toolchain/pins.json"
   ],
   "entry_points": [
     "ocamllex",

@@ -2,7 +2,7 @@
 
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":packages.bzl", "declare_packages")
-load(":pins.bzl", "CELLS", "RULES_HASKELL_COMMIT", "RULES_HASKELL_SHA256", "RULES_HASKELL_URL")
+load(":pins.bzl", "CELLS", "RULES_HASKELL")
 load(":repos.bzl", "DROPPED_PATHS", "HUB_NAME", "ROOT_BUILD", "cell_repository_name", "ghc_repo", "hub_files")
 
 def _haskell_impl(mctx):
@@ -18,9 +18,9 @@ def _haskell_impl(mctx):
             Label("//patches/rules_haskell:cc_wrapper_relpath_mount.patch"),
             Label("//patches/rules_haskell:cc_toolchain_config_info.patch"),
         ],
-        sha256 = RULES_HASKELL_SHA256,
-        strip_prefix = "rules_haskell-" + RULES_HASKELL_COMMIT,
-        urls = [RULES_HASKELL_URL],
+        sha256 = RULES_HASKELL.sha256,
+        strip_prefix = RULES_HASKELL.strip_prefix,
+        urls = RULES_HASKELL.urls,
     )
     for cell in sorted(CELLS):
         ghc_repo(

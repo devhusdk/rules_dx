@@ -11,6 +11,7 @@ exports_files([
     "metadata_tests.bzl",
     "packages.bzl",
     "pins.bzl",
+    "pins.json",
     "repos.bzl",
     "transition.bzl",
 ])

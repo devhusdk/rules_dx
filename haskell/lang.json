@@ -25,7 +25,8 @@
     "macos_arm64"
   ],
   "pins": [
-    "toolchain/pins.bzl"
+    "toolchain/pins.bzl",
+    "toolchain/pins.json"
   ],
   "entry_points": [
     "with_gmp",

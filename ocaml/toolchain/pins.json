@@ -1,0 +1,68 @@
+{
+  "archives": {
+    "dune": {
+      "sha256": "472798691b0216daf538709f0f4703b3617ef24ad0866c9096068baaba4d762a",
+      "strip_prefix": "dune-3.24.2",
+      "urls": [
+        "https://github.com/ocaml/dune/releases/download/3.24.2/dune-3.24.2.tbz"
+      ]
+    },
+    "ocaml__linux_arm64": {
+      "sha256": "baccdbbfdb82f56b034337afe807512e5a35ce41c8a2114d61341df08eca21c6",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/linux-aarch64/ocaml_linux-aarch64-5.5.2-hbe3a449_1.conda"
+      ]
+    },
+    "ocaml__linux_x86_64": {
+      "sha256": "6255afce499f06f0f371ab0db54662fa1d3d1f86c28650534a18371d1121836b",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/linux-64/ocaml_linux-64-5.5.2-h022e319_1.conda"
+      ]
+    },
+    "ocaml__macos_arm64": {
+      "sha256": "dea8d2c0b992daea33d5b73432c3b3eeddfa1ba9dcc1152ffa1e60a9c38d8ae5",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/osx-arm64/ocaml_osx-arm64-5.5.2-h9c96050_1.conda"
+      ]
+    },
+    "opam_repository": {
+      "sha256": "f6c38ba5a0ef7facfedaf046358b722e63ae9d1a1aa7ebc773a17ecb5752473a",
+      "strip_prefix": "opam-repository-691408b00730fcedbd3e30ccdb42c388a83fd304",
+      "urls": [
+        "https://github.com/ocaml/opam-repository/archive/691408b00730fcedbd3e30ccdb42c388a83fd304.tar.gz"
+      ]
+    },
+    "rules_ocaml": {
+      "sha256": "a23ad90cff101aa9d0cea279462dad72dddf597fc23be7748fbb1bb63143705c",
+      "strip_prefix": "rules_ocaml-24fa272c7b59ad902c5c82e71aae397b63f05467",
+      "urls": [
+        "https://github.com/obazl/rules_ocaml/archive/24fa272c7b59ad902c5c82e71aae397b63f05467.tar.gz"
+      ]
+    },
+    "zstd-static__macos_arm64": {
+      "sha256": "e817ff246bdf44ec470071a69abba0a961ee001413aa74276798135925163870",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/osx-arm64/zstd-static-1.5.7-hfbe9180_7.conda"
+      ]
+    },
+    "zstd__linux_arm64": {
+      "sha256": "427fd14bcb3b8659796fecc682716617409350fb5a98e5b7b47558a10d1a2fc7",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/linux-aarch64/zstd-1.5.7-h9d15635_7.conda"
+      ]
+    },
+    "zstd__linux_x86_64": {
+      "sha256": "47d682b9f6d6ec9eb1a6e6c3e75ea6273e899e78fb7fc59f81d39745009fbc60",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_7.conda"
+      ]
+    },
+    "zstd__macos_arm64": {
+      "sha256": "da867f5092eb0cb746d353694f0098031fd9817a4ce7d5743121209ae0f406ca",
+      "urls": [
+        "https://conda.anaconda.org/conda-forge/osx-arm64/zstd-1.5.7-hf451053_7.conda"
+      ]
+    }
+  },
+  "version": "5.5.2"
+}

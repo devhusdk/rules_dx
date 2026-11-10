@@ -1,14 +1,22 @@
-"""Pinned OCaml compiler packages and rules_ocaml identities."""
+"""Pinned OCaml compiler packages and rules_ocaml identities; the archive data is in pins.json."""
 
-OCAML_VERSION = "5.5.2"
+load("@dx_pins_data//:pins.bzl", "DATA")
 
-CONDA_FORGE = "https://conda.anaconda.org/conda-forge/"
+_PINS = DATA["dx_ocaml"]
 
-RULES_OCAML_COMMIT = "24fa272c7b59ad902c5c82e71aae397b63f05467"
+OCAML_VERSION = _PINS["version"]
 
-RULES_OCAML_SHA256 = "a23ad90cff101aa9d0cea279462dad72dddf597fc23be7748fbb1bb63143705c"
+def _archive(name):
+    pin = _PINS["archives"][name]
+    return struct(sha256 = pin["sha256"], strip_prefix = pin.get("strip_prefix", ""), urls = pin["urls"])
 
-RULES_OCAML_URL = "https://github.com/obazl/rules_ocaml/archive/" + RULES_OCAML_COMMIT + ".tar.gz"
+RULES_OCAML = _archive("rules_ocaml")
+
+OPAM_REPOSITORY = _archive("opam_repository")
+
+OPAM_REPOSITORY_COMMIT = OPAM_REPOSITORY.strip_prefix.removeprefix("opam-repository-")
+
+DUNE = _archive("dune")
 
 OCAML_CELLS = {
     "linux_x86_64": struct(
@@ -17,8 +25,7 @@ OCAML_CELLS = {
         packages = [
             struct(
                 name = "ocaml",
-                url = CONDA_FORGE + "linux-64/ocaml_linux-64-" + OCAML_VERSION + "-h022e319_1.conda",
-                sha256 = "6255afce499f06f0f371ab0db54662fa1d3d1f86c28650534a18371d1121836b",
+                archive = _archive("ocaml__linux_x86_64"),
                 license = "LGPL-2.1-only WITH OCaml-LGPL-linking-exception",
                 license_file = "info/ocaml/licenses/LICENSE",
                 binary_placeholders = [
@@ -38,8 +45,7 @@ OCAML_CELLS = {
             ),
             struct(
                 name = "zstd",
-                url = CONDA_FORGE + "linux-64/zstd-1.5.7-hb78ec9c_7.conda",
-                sha256 = "47d682b9f6d6ec9eb1a6e6c3e75ea6273e899e78fb7fc59f81d39745009fbc60",
+                archive = _archive("zstd__linux_x86_64"),
                 license = "BSD-3-Clause",
                 license_file = "info/zstd/licenses/LICENSE",
                 binary_placeholders = [],
@@ -52,8 +58,7 @@ OCAML_CELLS = {
         packages = [
             struct(
                 name = "ocaml",
-                url = CONDA_FORGE + "linux-aarch64/ocaml_linux-aarch64-5.5.2-hbe3a449_1.conda",
-                sha256 = "baccdbbfdb82f56b034337afe807512e5a35ce41c8a2114d61341df08eca21c6",
+                archive = _archive("ocaml__linux_arm64"),
                 license = "LGPL-2.1-only WITH OCaml-LGPL-linking-exception",
                 license_file = "info/ocaml/licenses/LICENSE",
                 binary_placeholders = [
@@ -78,8 +83,7 @@ OCAML_CELLS = {
             ),
             struct(
                 name = "zstd",
-                url = CONDA_FORGE + "linux-aarch64/zstd-1.5.7-h9d15635_7.conda",
-                sha256 = "427fd14bcb3b8659796fecc682716617409350fb5a98e5b7b47558a10d1a2fc7",
+                archive = _archive("zstd__linux_arm64"),
                 license = "BSD-3-Clause",
                 license_file = "info/zstd/licenses/LICENSE",
                 binary_placeholders = [],
@@ -92,8 +96,7 @@ OCAML_CELLS = {
         packages = [
             struct(
                 name = "ocaml",
-                url = CONDA_FORGE + "osx-arm64/ocaml_osx-arm64-5.5.2-h9c96050_1.conda",
-                sha256 = "dea8d2c0b992daea33d5b73432c3b3eeddfa1ba9dcc1152ffa1e60a9c38d8ae5",
+                archive = _archive("ocaml__macos_arm64"),
                 license = "LGPL-2.1-only WITH OCaml-LGPL-linking-exception",
                 license_file = "info/ocaml/licenses/LICENSE",
                 binary_placeholders = [
@@ -114,8 +117,7 @@ OCAML_CELLS = {
             ),
             struct(
                 name = "zstd",
-                url = CONDA_FORGE + "osx-arm64/zstd-1.5.7-hf451053_7.conda",
-                sha256 = "da867f5092eb0cb746d353694f0098031fd9817a4ce7d5743121209ae0f406ca",
+                archive = _archive("zstd__macos_arm64"),
                 license = "BSD-3-Clause",
                 license_file = "info/zstd/licenses/LICENSE",
                 binary_placeholders = [],
@@ -124,8 +126,7 @@ OCAML_CELLS = {
             # Its build hash must follow the zstd pin above.
             struct(
                 name = "zstd-static",
-                url = CONDA_FORGE + "osx-arm64/zstd-static-1.5.7-hfbe9180_7.conda",
-                sha256 = "e817ff246bdf44ec470071a69abba0a961ee001413aa74276798135925163870",
+                archive = _archive("zstd-static__macos_arm64"),
                 license = "BSD-3-Clause",
                 license_file = "info/zstd-static/licenses/LICENSE",
                 binary_placeholders = [],
@@ -133,15 +134,3 @@ OCAML_CELLS = {
         ],
     ),
 }
-
-OPAM_REPOSITORY_COMMIT = "691408b00730fcedbd3e30ccdb42c388a83fd304"
-
-OPAM_REPOSITORY_SHA256 = "f6c38ba5a0ef7facfedaf046358b722e63ae9d1a1aa7ebc773a17ecb5752473a"
-
-OPAM_REPOSITORY_URL = "https://github.com/ocaml/opam-repository/archive/" + OPAM_REPOSITORY_COMMIT + ".tar.gz"
-
-DUNE_VERSION = "3.24.2"
-
-DUNE_SHA256 = "472798691b0216daf538709f0f4703b3617ef24ad0866c9096068baaba4d762a"
-
-DUNE_URL = "https://github.com/ocaml/dune/releases/download/" + DUNE_VERSION + "/dune-" + DUNE_VERSION + ".tbz"

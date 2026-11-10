@@ -11,6 +11,14 @@ tsc_framework_cases(
     library_rule = vue_library,
     ext = "vue",
     deps = ["//:node_modules/vue"],
+    diagnostics = {
+        "bad": """bad.vue(2,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+bad.vue(4,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+""",
+        "broken": """broken.vue(6,3): error vue/x_missing_end_tag: Element is missing end tag.
+broken.vue(5,1): error vue/x_missing_end_tag: Element is missing end tag.
+""",
+    },
 )
 
 real_source_target(

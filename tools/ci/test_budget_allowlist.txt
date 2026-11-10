@@ -790,7 +790,6 @@ tools/visibility/visibility_tests.bzl no-size 1
 tools/workspace/BUILD.bazel no-size 2
 typescript/private/BUILD.bazel no-size 1
 typescript/private/ide/BUILD.bazel no-size 1
-typescript/private/quality/tsc_report.bzl no-size 1
 typescript/tests/BUILD.bazel no-size 1
 typescript/tests/fixtures/args/BUILD.bazel no-size 1
 typescript/tests/fixtures/bench/BUILD.bazel no-size 3

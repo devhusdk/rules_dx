@@ -1,10 +1,9 @@
 # gazelle:exclude src
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//typescript:defs.bzl", "typescript_library")
-load("//typescript/private/quality:tsc_report.bzl", "tsc_report")
+load("//typescript/private/quality:tsc_report.bzl", "tsc_report", "tsc_stdout_test")
 
 package(
     default_testonly = True,
@@ -70,10 +69,12 @@ ts_config(
 ]
 
 [
-    diff_test(
+    tsc_stdout_test(
         name = "%s_test" % profile,
-        file1 = "%s.stdout.expected" % profile,
-        file2 = ":%s_report" % profile,
+        diagnostics = {"strict": """main.ts(2,9): error TS6133: 'unused' is declared but its value is never read.
+"""}.get(profile, ""),
+        expected = "%s.stdout.expected" % profile,
+        report = ":%s_report" % profile,
     )
     for profile in [
         "standard",

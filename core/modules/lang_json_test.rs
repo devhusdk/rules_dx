@@ -23,7 +23,6 @@ const NON_LANGUAGE: [&str; 33] = [
     "families",
     "gazelle",
     "ios",
-    "libs",
     "macos",
     "packaging",
     "patches",

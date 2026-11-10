@@ -661,9 +661,8 @@ mod tests {
     }
 
     #[test]
-    fn probe_with_installed_modules_passes_core_and_installed_family_probes() {
+    fn probe_with_present_extensions_passes_core_and_matching_family_probes() {
         let scope = resolved(&["//pkg:lib"]);
-        let installed = strings(&["rules_dx_rust"]);
         let extensions = strings(&[".py", ".go"]).into_iter().collect();
         let plan = plan_probe(
             Command::Lint,
@@ -672,7 +671,6 @@ mod tests {
             "/tmp/p.json",
             &[],
             Some(Consumer {
-                modules: &installed,
                 extensions: &extensions,
             }),
         )
@@ -690,9 +688,8 @@ mod tests {
     }
 
     #[test]
-    fn probe_with_the_rust_module_installed_passes_the_rust_probe() {
+    fn probe_with_rust_files_passes_the_rust_probe() {
         let scope = resolved(&["//pkg:lib"]);
-        let installed = strings(&["rules_dx_rust"]);
         let extensions = strings(&[".rs"]).into_iter().collect();
         let plan = plan_probe(
             Command::Lint,
@@ -701,7 +698,6 @@ mod tests {
             "/tmp/p.json",
             &[],
             Some(Consumer {
-                modules: &installed,
                 extensions: &extensions,
             }),
         )

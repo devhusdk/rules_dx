@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use super::*;
 
@@ -26,25 +26,6 @@ fn extension_lookup_ignores_case() {
         Some("core")
     );
     assert!(family_for_extension(".nope").is_none());
-}
-
-#[test]
-fn family_without_module_counts_as_installed() {
-    let none = BTreeSet::new();
-    let expected = families()
-        .iter()
-        .filter(|family| family.module.is_none())
-        .count();
-    assert_eq!(installed(&none).len(), expected);
-}
-
-#[test]
-fn module_field_parses() {
-    let text = r#"{"families": {"go": {"module": "rules_dx_go"}, "core": {}}}"#;
-    let all = parse(text).unwrap();
-    assert_eq!(all[0].name, "core");
-    assert_eq!(all[0].module, None);
-    assert_eq!(all[1].module.as_deref(), Some("rules_dx_go"));
 }
 
 #[test]

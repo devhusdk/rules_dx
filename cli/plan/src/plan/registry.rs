@@ -195,50 +195,31 @@ pub fn spec(command: Command) -> CommandSpec {
     }
 }
 
-/// What a consumer has: its `bazel_dep` names and the extensions of the files in its workspace.
+/// What a consumer has: the extensions of the files in its workspace.
 #[derive(Debug, Clone, Copy)]
 pub struct Consumer<'a> {
-    pub modules: &'a [String],
     pub extensions: &'a BTreeSet<String>,
 }
 
 /// The aspects of `command` that fit the consumer: those of core files and of the languages whose
-/// files it has, when their family module is installed. A family without a `module` is always kept.
+/// files it has.
 pub fn aspects_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
-    aspects_for_families(command, dx_families::families(), consumer)
-}
-
-fn aspects_for_families(
-    command: Command,
-    families: &[dx_families::Family],
-    consumer: Consumer,
-) -> Vec<&'static str> {
-    let missing = missing_aspects(families, consumer.modules);
     spec(command)
         .aspects
         .iter()
         .copied()
-        .filter(|aspect| !missing.contains(&label_name(aspect)) && wanted(aspect, consumer))
+        .filter(|aspect| wanted(aspect, consumer))
         .collect()
 }
 
 /// The probes of `command` that fit the consumer, chosen as its aspects are. Empty for a command
 /// without a probe.
 pub fn probes_for(command: Command, consumer: Consumer) -> Vec<&'static str> {
-    probes_for_families(command, dx_families::families(), consumer)
-}
-
-fn probes_for_families(
-    command: Command,
-    families: &[dx_families::Family],
-    consumer: Consumer,
-) -> Vec<&'static str> {
-    let missing = missing_aspects(families, consumer.modules);
     spec(command)
         .probes
         .iter()
         .copied()
-        .filter(|probe| !missing.contains(&label_name(probe)) && wanted(probe, consumer))
+        .filter(|probe| wanted(probe, consumer))
         .collect()
 }
 
@@ -260,26 +241,6 @@ fn wanted(label: &str, consumer: Consumer) -> bool {
             .iter()
             .any(|extension| consumer.extensions.contains(extension))
     })
-}
-
-fn label_name(label: &str) -> &str {
-    label.rsplit_once('%').map_or(label, |(_, name)| name)
-}
-
-fn missing_aspects<'a>(
-    families: &'a [dx_families::Family],
-    installed_modules: &[String],
-) -> Vec<&'a str> {
-    families
-        .iter()
-        .filter(|family| {
-            family
-                .module
-                .as_ref()
-                .is_some_and(|module| !installed_modules.contains(module))
-        })
-        .flat_map(|family| family.aspects.iter().map(String::as_str))
-        .collect()
 }
 
 /// Every aspect label dx passes to Bazel.
@@ -364,73 +325,25 @@ mod tests {
         names.iter().map(|name| (*name).to_owned()).collect()
     }
 
-    fn consumer<'a>(modules: &'a [String], extensions: &'a BTreeSet<String>) -> Consumer<'a> {
-        Consumer {
-            modules,
-            extensions,
-        }
-    }
-
-    fn families_json() -> Vec<dx_families::Family> {
-        dx_families::parse(
-            r#"{"families": {
-                "python": {"aspects": ["real_python_lint_aspect"]},
-                "jvm": {"module": "rules_dx_jvm", "aspects": ["real_jvm_lint_aspect"]},
-                "rust": {"module": "rules_dx_rust", "aspects": ["real_rust_lint_aspect"]},
-                "core": {"aspects": ["real_lint_aspect"]}
-            }}"#,
-        )
-        .expect("families")
+    fn consumer(extensions: &BTreeSet<String>) -> Consumer<'_> {
+        Consumer { extensions }
     }
 
     #[test]
-    fn aspects_for_drops_aspects_of_families_that_are_not_installed() {
-        let installed = ["rules_dx_rust".to_owned()];
-        let extensions = extensions(&[".c", ".py", ".rs"]);
-        let lint = aspects_for_families(
-            Command::Lint,
-            &families_json(),
-            consumer(&installed, &extensions),
-        );
-        let has = |name: &str| {
-            lint.iter()
-                .any(|aspect| aspect.ends_with(&format!("%{name}")))
-        };
-        assert!(has("real_lint_aspect"));
-        assert!(has("real_python_lint_aspect"));
-        assert!(has("real_cc_lint_aspect"));
-        assert!(has("real_rust_lint_aspect"));
-        assert!(!has("real_jvm_lint_aspect"));
-    }
-
-    #[test]
-    fn aspects_for_keeps_families_without_a_module() {
-        let extensions = extensions(&[".py", ".java"]);
-        let lint = aspects_for_families(
-            Command::Lint,
-            &families_json(),
-            consumer(&[], &extensions),
-        );
-        assert!(lint.contains(&"core/quality:families/python.bzl%real_python_lint_aspect"));
-        assert!(!lint.contains(&"core/quality:families/jvm.bzl%real_jvm_lint_aspect"));
-    }
-
-    #[test]
-    fn probes_for_lists_the_core_probe_and_the_installed_families_probes() {
-        let installed = ["rules_dx_rust".to_owned()];
+    fn probes_for_lists_the_core_probe_and_the_present_families_probes() {
         let extensions = extensions(&[".py", ".rs", ".swift"]);
-        let probes = probes_for(Command::Lint, consumer(&installed, &extensions));
+        let probes = probes_for(Command::Lint, consumer(&extensions));
         assert!(probes.contains(&"core/quality:families/core_probe.bzl%real_core_lint_probe_aspect"));
         assert!(probes.contains(&"core/quality:families/python.bzl%real_python_lint_probe_aspect"));
         assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
         assert!(probes.contains(&"core/quality:families/swift.bzl%real_swift_lint_probe_aspect"));
-        assert!(probes_for(Command::Docs, consumer(&installed, &extensions)).is_empty());
+        assert!(probes_for(Command::Docs, consumer(&extensions)).is_empty());
     }
 
     #[test]
     fn go_only_consumer_docs_selects_the_core_aspect_and_go() {
         let extensions = extensions(&[".go", ".json", ".md"]);
-        let labels = aspects_for(Command::Docs, consumer(&[], &extensions));
+        let labels = aspects_for(Command::Docs, consumer(&extensions));
         assert_eq!(
             labels,
             [
@@ -445,8 +358,8 @@ mod tests {
         let extensions = extensions(&[".go", ".json", ".md"]);
         for command in [Command::Lint, Command::Typecheck, Command::Format] {
             let entry = spec(command);
-            let labels = aspects_for(command, consumer(&[], &extensions));
-            let probes = probes_for(command, consumer(&[], &extensions));
+            let labels = aspects_for(command, consumer(&extensions));
+            let probes = probes_for(command, consumer(&extensions));
             for label in labels.iter().chain(&probes) {
                 let file = label.split_once('%').expect("label has a name").0;
                 let language = dx_families::quality_languages()
@@ -461,7 +374,7 @@ mod tests {
             assert!(labels.iter().any(|label| label.contains("families/core.bzl")));
             assert!(labels.len() < entry.aspects.len());
         }
-        let probes = probes_for(Command::Lint, consumer(&[], &extensions));
+        let probes = probes_for(Command::Lint, consumer(&extensions));
         assert_eq!(
             probes,
             vec![
@@ -489,30 +402,6 @@ mod tests {
             let before = sorted.len();
             sorted.dedup();
             assert_eq!(before, sorted.len(), "{command:?} lists a label twice");
-        }
-    }
-
-    /// Family extensions no aspect file checks.
-    const UNCHECKED_EXTENSIONS: &[&str] = &[".aidl", ".plist"];
-
-    #[test]
-    fn language_rows_cover_family_extensions() {
-        for family in dx_families::families() {
-            if family.module.is_none() {
-                continue;
-            }
-            for extension in &family.file_extensions {
-                if UNCHECKED_EXTENSIONS.contains(&extension.as_str()) {
-                    continue;
-                }
-                assert!(
-                    dx_families::quality_languages()
-                        .iter()
-                        .any(|row| row.file_extensions.contains(extension)),
-                    "{} extension {extension} is in no lang.json quality entry",
-                    family.name
-                );
-            }
         }
     }
 

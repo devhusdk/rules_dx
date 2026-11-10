@@ -375,17 +375,11 @@ fn run_quality_request(
     // An unreadable MODULE.bazel gives no deps, and the rules_dx root carries every family;
     // in both cases every family's aspects stay.
     let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
-    let installed = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace)).then_some(deps);
-    let extensions = installed
+    let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
+        .then(|| dx_adopt::file_extensions(workspace));
+    let consumer = extensions
         .as_ref()
-        .map(|_| dx_adopt::file_extensions(workspace));
-    let consumer = installed
-        .as_deref()
-        .zip(extensions.as_ref())
-        .map(|(modules, extensions)| Consumer {
-            modules,
-            extensions,
-        });
+        .map(|extensions| Consumer { extensions });
     let mut build = match plan_build_with(
         request.command,
         &resolved,

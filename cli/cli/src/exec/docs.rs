@@ -138,17 +138,11 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
         );
     };
     let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
-    let installed = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace)).then_some(deps);
-    let extensions = installed
+    let extensions = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace))
+        .then(|| dx_adopt::file_extensions(workspace));
+    let consumer = extensions
         .as_ref()
-        .map(|_| dx_adopt::file_extensions(workspace));
-    let consumer = installed
-        .as_deref()
-        .zip(extensions.as_ref())
-        .map(|(modules, extensions)| Consumer {
-            modules,
-            extensions,
-        });
+        .map(|extensions| Consumer { extensions });
     let plan = match plan_docs(
         &resolved,
         &invocation.quiet_bazel_options(),

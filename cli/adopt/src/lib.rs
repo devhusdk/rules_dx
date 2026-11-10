@@ -35,7 +35,7 @@ pub mod watch;
 mod local_paths_tests;
 
 pub use error::AdoptError;
-pub use families::{FamilyDeps, detected_families, file_extensions, plan_family_deps};
+pub use families::{detected_families, file_extensions};
 pub use git_changes::{
     ChangeKind, DEFAULT_BRANCH_CANDIDATES, GitChange, dedupe_changes, dx_config_git_ignored,
     is_dx_state, nearest_package_pattern, parse_name_status_nul,

@@ -12,8 +12,6 @@ const TABLE: &str = include_str!("../../../core/modules/families.json");
 pub struct Family {
     #[serde(skip)]
     pub name: String,
-    /// The `rules_dx_<family>` module that carries the family, once it is published.
-    pub module: Option<String>,
     pub bazel_deps: Vec<String>,
     pub file_extensions: Vec<String>,
     pub aspects: Vec<String>,
@@ -48,20 +46,6 @@ pub fn family_for_extension(ext: &str) -> Option<&'static Family> {
             .iter()
             .any(|own| own.eq_ignore_ascii_case(ext))
     })
-}
-
-/// The families a workspace with these `bazel_dep` names has. A family without a `module`
-/// always counts.
-pub fn installed(dep_names: &BTreeSet<String>) -> Vec<&'static Family> {
-    families()
-        .iter()
-        .filter(|family| {
-            family
-                .module
-                .as_ref()
-                .is_none_or(|module| dep_names.contains(module))
-        })
-        .collect()
 }
 
 /// The `quality` entry of one `<lang>/lang.json`.

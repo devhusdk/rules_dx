@@ -35,7 +35,6 @@ when it is missing. A directory is fresh when it is missing or holds only `.git`
 and a `.bazelversion`. A tree with other files keeps its own `MODULE.bazel`.
 If such a tree has no `MODULE.bazel`, `--apply` names the entry that made it an
 existing tree, for example `dx: src/ exists, treating this as an existing repo`.
-`init --apply` also adds the `rules_dx_<family>` dep for each language family found in the tree, once that module is published.
 Nothing language-specific is chosen up front; languages are wired when their
 sources appear.
 

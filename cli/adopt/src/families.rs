@@ -1,105 +1,7 @@
-//! Plans the `bazel_dep(rules_dx_<family>)` lines for the languages a workspace contains.
-//!
-//! A family counts when a file with one of its extensions is in the tree. A dep whose files
-//! are gone is reported and never removed.
+//! Finds the languages a workspace contains from the files in its tree.
 
 use std::collections::BTreeSet;
 use std::path::Path;
-
-use dx_families::Family;
-use dx_module_bazel::ModuleFile;
-
-use crate::AdoptError;
-use crate::module_pin::ModuleEdit;
-
-const MODULE_FILE: &str = "MODULE.bazel";
-
-/// The planned `MODULE.bazel` edit, if any, and what the planner left alone.
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct FamilyDeps {
-    pub edit: Option<ModuleEdit>,
-    pub notes: Vec<String>,
-}
-
-fn is_rules_dx_module(name: &str) -> bool {
-    name == "rules_dx" || name.starts_with("rules_dx_")
-}
-
-fn refuse(detail: impl std::fmt::Display) -> AdoptError {
-    AdoptError::ModulePin {
-        path: MODULE_FILE.to_owned(),
-        detail: detail.to_string(),
-    }
-}
-
-/// Plans the family deps of the workspace at `root`. Writes nothing.
-pub fn plan_family_deps(root: &Path, families: &[Family]) -> Result<FamilyDeps, AdoptError> {
-    let Ok(text) = std::fs::read_to_string(root.join(MODULE_FILE)) else {
-        return Ok(FamilyDeps::default());
-    };
-    let read_include = |label: &str| -> Result<String, dx_error::DxError> {
-        let rel = dx_module_bazel::include_rel("", label).map_err(dx_error::DxError::failure)?;
-        std::fs::read_to_string(root.join(&rel))
-            .map_err(|e| dx_error::DxError::failure(format!("cannot read {rel}: {e}")))
-    };
-    let loaded =
-        dx_module_bazel::load_with_includes_labeled(&text, &read_include).map_err(refuse)?;
-    let mut deps = BTreeSet::new();
-    let mut pin = None;
-    for (_, file) in &loaded {
-        for call in file.calls() {
-            match call.name.as_str() {
-                "module" if call.str("name").is_some_and(is_rules_dx_module) => {
-                    return Ok(FamilyDeps::default());
-                }
-                "bazel_dep" => {
-                    let Some(name) = call.str("name") else {
-                        continue;
-                    };
-                    if name == "rules_dx" {
-                        pin = call.str("version").map(str::to_owned);
-                    }
-                    deps.insert(name.to_owned());
-                }
-                _ => {}
-            }
-        }
-    }
-    let Some(pin) = pin else {
-        return Ok(FamilyDeps::default());
-    };
-
-    let extensions = file_extensions(root);
-    let mut new_text = text.clone();
-    let mut notes = Vec::new();
-    for family in families {
-        let Some(module) = &family.module else {
-            continue;
-        };
-        let found = family
-            .file_extensions
-            .iter()
-            .any(|ext| extensions.contains(&ext.to_ascii_lowercase()));
-        let declared = deps.contains(module);
-        if found && !declared {
-            new_text = ModuleFile::parse(&new_text)
-                .map_err(refuse)?
-                .insert_bazel_dep(module, &pin)
-                .map_err(refuse)?;
-        } else if declared && !found {
-            notes.push(format!(
-                "{module} is a bazel_dep but no {} files were found; remove it by hand if unused",
-                family.file_extensions.join(", ")
-            ));
-        }
-    }
-    let edit = (new_text != text).then(|| ModuleEdit {
-        path: MODULE_FILE.to_owned(),
-        old: text,
-        new: new_text,
-    });
-    Ok(FamilyDeps { edit, notes })
-}
 
 /// The quality families of `dx.toml` and the files that mean one is present: an extension with
 /// its dot, or an exact file name. Families found only by file content are left out.
@@ -296,6 +198,7 @@ mod tests {
     use super::*;
     use dx_test_scratch::{scratch, write};
 
+    const MODULE_FILE: &str = "MODULE.bazel";
     const MODULE: &str =
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
 
@@ -312,25 +215,6 @@ mod tests {
         );
     }
 
-    fn table() -> Vec<Family> {
-        let family = |name: &str, module: &str, ext: &str| Family {
-            name: name.to_owned(),
-            module: Some(module.to_owned()),
-            file_extensions: vec![ext.to_owned()],
-            ..Family::default()
-        };
-        vec![
-            family("go", "rules_dx_go", ".go"),
-            family("jvm", "rules_dx_jvm", ".java"),
-            family("rust", "rules_dx_rust", ".rs"),
-            Family {
-                name: "core".to_owned(),
-                file_extensions: vec![".md".to_owned()],
-                ..Family::default()
-            },
-        ]
-    }
-
     fn git(dir: &Path) {
         dx_process::capture::run_checked(
             dx_process::capture::git(dir).args(["init", "-q"]),
@@ -339,9 +223,9 @@ mod tests {
         .expect("git init");
     }
 
-    fn workspace(module: &str, files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {
+    fn workspace(files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {
         let dir = scratch("families");
-        write(dir.path(), MODULE_FILE, module);
+        write(dir.path(), MODULE_FILE, MODULE);
         for file in files {
             write(dir.path(), file, "");
         }
@@ -351,100 +235,20 @@ mod tests {
         dir
     }
 
-    fn new_text(deps: &FamilyDeps) -> &str {
-        &deps.edit.as_ref().expect("an edit").new
-    }
-
-    #[test]
-    fn adds_a_dep_for_each_language_after_rules_dx() {
-        let dir = workspace(MODULE, &["A.java", "b.go", "c.md"], true);
-        let deps = plan_family_deps(dir.path(), &table()).expect("plan");
-        assert_eq!(
-            new_text(&deps),
-            format!(
-                "{MODULE}bazel_dep(name = \"rules_dx_go\", version = \"1.0.0\")\n\
-                 bazel_dep(name = \"rules_dx_jvm\", version = \"1.0.0\")\n"
-            )
-        );
-        assert!(deps.notes.is_empty());
-    }
-
     #[test]
     fn dx_directory_files_are_not_sources() {
-        let dir = workspace(MODULE, &["A.java", ".dx/config/ruff/extra.toml"], true);
+        let dir = workspace(&["A.java", ".dx/config/ruff/extra.toml"], true);
         let extensions = file_extensions(dir.path());
         assert!(extensions.contains(".java"));
         assert!(!extensions.contains(".toml"));
     }
 
     #[test]
-    fn a_second_run_plans_nothing() {
-        let dir = workspace(MODULE, &["A.java", "b.go"], true);
-        let deps = plan_family_deps(dir.path(), &table()).expect("plan");
-        write(dir.path(), MODULE_FILE, new_text(&deps));
-        let again = plan_family_deps(dir.path(), &table()).expect("plan");
-        assert_eq!(again, FamilyDeps::default());
-    }
-
-    #[test]
-    fn a_dep_without_files_is_reported_and_kept() {
-        let module = format!("{MODULE}bazel_dep(name = \"rules_dx_go\", version = \"1.0.0\")\n");
-        let dir = workspace(&module, &["a.md"], true);
-        let deps = plan_family_deps(dir.path(), &table()).expect("plan");
-        assert_eq!(
-            deps.notes,
-            ["rules_dx_go is a bazel_dep but no .go files were found; remove it by hand if unused"]
-        );
-        assert_eq!(deps.edit, None);
-    }
-
-    #[test]
-    fn no_rules_dx_dep_plans_nothing() {
-        let dir = workspace("module(name = \"app\")\n", &["A.java"], true);
-        assert_eq!(
-            plan_family_deps(dir.path(), &table()).expect("plan"),
-            FamilyDeps::default()
-        );
-    }
-
-    #[test]
-    fn rules_dx_itself_plans_nothing() {
-        let module =
-            "module(name = \"rules_dx\")\nbazel_dep(name = \"rules_dx\", version = \"1\")\n";
-        let dir = workspace(module, &["A.java"], true);
-        assert_eq!(
-            plan_family_deps(dir.path(), &table()).expect("plan"),
-            FamilyDeps::default()
-        );
-    }
-
-    #[test]
-    fn a_rules_dx_family_module_plans_nothing() {
-        let module =
-            "module(name = \"rules_dx_jvm\")\nbazel_dep(name = \"rules_dx\", version = \"1\")\n";
-        let dir = workspace(module, &["A.java"], true);
-        assert_eq!(
-            plan_family_deps(dir.path(), &table()).expect("plan"),
-            FamilyDeps::default()
-        );
-    }
-
-    #[test]
     fn a_tree_without_git_is_walked() {
-        let dir = workspace(MODULE, &["src/A.java", ".git/x.go", "bazel-out/y.go"], false);
-        let deps = plan_family_deps(dir.path(), &table()).expect("plan");
-        let text = new_text(&deps);
-        assert!(text.contains("rules_dx_jvm"), "{text}");
-        assert!(!text.contains("rules_dx_go"), "{text}");
-    }
-
-    #[test]
-    fn a_rust_tree_gets_the_rust_module() {
-        let dir = workspace(MODULE, &["src/lib.rs"], false);
-        let deps = plan_family_deps(dir.path(), &table()).expect("plan");
-        let text = new_text(&deps);
-        assert!(text.contains("rules_dx_rust"), "{text}");
-        assert!(!text.contains("rules_dx_jvm"), "{text}");
+        let dir = workspace(&["src/A.java", ".git/x.go", "bazel-out/y.go"], false);
+        let extensions = file_extensions(dir.path());
+        assert!(extensions.contains(".java"));
+        assert!(!extensions.contains(".go"));
     }
 
     #[test]
@@ -456,28 +260,15 @@ mod tests {
         for file in ["src/A.java", ".git/x.go", "bazel-out/y.go"] {
             write(&root, file, "");
         }
-        let deps = plan_family_deps(&root, &table()).expect("plan");
-        let text = new_text(&deps);
-        assert!(text.contains("rules_dx_jvm"), "{text}");
-        assert!(!text.contains("rules_dx_go"), "{text}");
+        let extensions = file_extensions(&root);
+        assert!(extensions.contains(".java"));
+        assert!(!extensions.contains(".go"));
     }
 
     #[test]
     fn bazelignore_dirs_are_skipped() {
-        let dir = workspace(MODULE, &["vendor/A.java", ".bazelignore"], true);
+        let dir = workspace(&["vendor/A.java", ".bazelignore"], true);
         write(dir.path(), ".bazelignore", "# vendored\nvendor/\n");
-        assert_eq!(
-            plan_family_deps(dir.path(), &table()).expect("plan"),
-            FamilyDeps::default()
-        );
-    }
-
-    #[test]
-    fn families_without_a_module_are_never_added() {
-        let dir = workspace(MODULE, &["README.md"], true);
-        assert_eq!(
-            plan_family_deps(dir.path(), &table()).expect("plan"),
-            FamilyDeps::default()
-        );
+        assert!(!file_extensions(dir.path()).contains(".java"));
     }
 }

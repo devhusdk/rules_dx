@@ -4,7 +4,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 /// The `bazel_dep` names of the consumer's `MODULE.bazel`, includes followed, plus its own
-/// module name, so a family module counts as installed in itself. Empty when it cannot be read.
+/// module name. Empty when it cannot be read.
 pub fn module_deps(root: &Path) -> BTreeSet<String> {
     let mut deps = load_calls(root, "bazel_dep");
     deps.extend(load_calls(root, "module"));

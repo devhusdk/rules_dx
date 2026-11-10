@@ -417,8 +417,7 @@ pub(super) fn apply(
     sync_generated(root, prefix, applied, notes)
 }
 
-/// Adds the `MODULE.bazel` stanzas for the root lock files, then the rules_dx family modules,
-/// reporting what it could not wire.
+/// Adds the `MODULE.bazel` stanzas for the root lock files, reporting what it could not wire.
 fn wire_module(
     root: &Path,
     prefix: &str,
@@ -430,16 +429,6 @@ fn wire_module(
     if let Some(edit) = hubs.edit {
         dx_adopt::write_module_edit(root, &edit).map_err(|error| from_adopt(prefix, &error))?;
         applied.wrote.push(format!("{prefix}{}", edit.path));
-    }
-    let deps = dx_adopt::plan_family_deps(root, dx_families::families())
-        .map_err(|error| from_adopt(prefix, &error))?;
-    notes.extend(deps.notes.iter().map(|note| format!("{prefix}{note}")));
-    if let Some(edit) = deps.edit {
-        dx_adopt::write_module_edit(root, &edit).map_err(|error| from_adopt(prefix, &error))?;
-        let entry = format!("{prefix}{}", edit.path);
-        if !applied.wrote.contains(&entry) {
-            applied.wrote.push(entry);
-        }
     }
     Ok(())
 }

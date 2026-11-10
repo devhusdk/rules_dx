@@ -59,8 +59,6 @@ dx generate --apply
 
 When the root `Cargo.lock`, `uv.lock`, `pnpm-lock.yaml`, or `pubspec.lock` has its manifest beside it and `MODULE.bazel` has no stanza for it, `dx generate --apply` adds one: a `crates`, `pypi`, `npm`, or `pub_deps` hub plus its `bazel_dep`. A stanza you wrote is left alone. Without `--apply`, dx says what it would add and exits `1`. Each wiring step is also a `notice` in JSON, with code `wiring`, `wiring_pending`, or `wiring_failed`. List Cargo workspace members written as globs in `manifests` yourself.
 
-When files of a language family are in the tree and its `rules_dx_<family>` module is published, `--apply` adds `bazel_dep(name = "rules_dx_<family>")`.
-
 ## The `.dx` tree
 
 Every dx command except `init`, `status` and `upgrade` first brings `.dx` in step with `dx.toml`: `.dx/BUILD.bazel` with the workspace policy, the tool bases under `.dx/config/`, the `.dx/bazelrc/` layers, and the marked exports block in the root `BUILD.bazel` when root tool configs exist. Only the families whose files are in the tree are wired. dx removes files under `.dx` it no longer renders and keeps `.dx/local` and `.dx/pins`. A `.dx` file that a root tool config still names is kept too, with `dx: warning: <file> references <path>, which dx does not render; kept it`. A named path that does not exist prints `dx: warning: <file> references <path>, which does not exist`. When nothing it reads has changed, it skips the work. `dx generate` and `dx check` always look at the tree again, so a language added later is wired by the next `dx generate`. When the sync fails, the command prints `dx: warning: .dx not refreshed: <error>` and runs anyway.

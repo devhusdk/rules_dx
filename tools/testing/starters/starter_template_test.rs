@@ -41,6 +41,10 @@ fn starter_generates_its_files_and_deps() {
         if path.extension().is_some_and(|ext| ext == "bazel" || ext == "bzl") {
             let text = std::fs::read_to_string(&path).unwrap_or_default();
             assert!(!text.contains("families/"), "{path:?} refers to families/");
+            assert!(
+                !text.contains("/rules:defs.bzl"),
+                "{path:?} loads a /rules:defs.bzl label"
+            );
             for module in text.split("@rules_dx_").skip(1) {
                 let name: String = module
                     .chars()

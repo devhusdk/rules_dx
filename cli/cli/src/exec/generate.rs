@@ -49,8 +49,7 @@ fn finish_incomplete_generate(
     code
 }
 
-/// Adds the `MODULE.bazel` stanzas for the root lock files and the rules_dx modules
-/// with `--apply`, first creating the root locks that are missing; otherwise says what
+/// Adds the `MODULE.bazel` stanzas for the root lock files with `--apply`, first creating the root locks that are missing; otherwise says what
 /// `--apply` would do. Every step is said on `err` and kept as a notice for the run.
 fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     let mut wiring = Wiring::default();
@@ -90,17 +89,6 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
         "lock files",
         "stanzas for the lock files at the root",
         hubs,
-    );
-    let deps = dx_adopt::plan_family_deps(workspace, dx_families::families())
-        .map(|deps| (deps.notes, deps.edit));
-    wire(
-        workspace,
-        apply,
-        env.err,
-        &mut wiring,
-        "rules_dx modules",
-        "the rules_dx modules it needs",
-        deps,
     );
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);

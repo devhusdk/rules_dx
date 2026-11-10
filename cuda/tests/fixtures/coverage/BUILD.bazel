@@ -1,0 +1,16 @@
+load("//cuda:defs.bzl", "cuda_test")
+
+package(default_visibility = ["//cuda/tests:__subpackages__"])
+
+cuda_test(
+    name = "clamp_test",
+    srcs = [
+        "clamp.cu",
+        "main.cc",
+    ],
+    hdrs = ["clamp.h"],
+    cuda_archs = [
+        "sm_89",
+        "sm_120",
+    ],
+)

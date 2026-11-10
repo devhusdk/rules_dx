@@ -8,6 +8,7 @@ load(":gcc_unsupported_tests.bzl", "gcc_unsupported_tests")
 load(":identity_subject.bzl", "cc_toolchain_identity_subject")
 load(":identity_tests.bzl", "cc_toolchain_identity_tests")
 load(":pins.bzl", "GCC_GLIBC", "GCC_VERSION")
+load(":runtime_libs.bzl", "gcc_runtime_libs")
 load(":select.bzl", "cc_toolchain_test", "gcov_tool")
 load(":unavailable.bzl", "GCC_UNSUPPORTED", "cc_toolchain_unavailable")
 
@@ -613,23 +614,12 @@ dx_native_runtime(
 # ship next to the app and are found through its $ORIGIN rpath. They come from
 # the GCC archive of the target CPU; the ARM64 one is the cross repo, which
 # also builds on x86_64.
-genrule(
+gcc_runtime_libs(
     name = "gcc_linux_libstdcxx_libs",
     srcs = select({
         ":linux_arm64": ["@dx_gcc_linux_aarch64_cross//:lib"],
         "//conditions:default": ["@dx_gcc_linux_x86_64//:lib"],
     }),
-    outs = [
-        "gcc_linux_libstdcxx/libgcc_s.so.1",
-        "gcc_linux_libstdcxx/libstdc++.so.6",
-    ],
-    cmd = """
-for f in $(SRCS); do
-  case "$$f" in
-    */lib64/libstdc++.so.6|*/lib64/libgcc_s.so.1) cp -L "$$f" "$(RULEDIR)/gcc_linux_libstdcxx/$$(basename "$$f")" ;;
-  esac
-done
-""",
 )
 
 dx_native_runtime(

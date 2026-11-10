@@ -198,10 +198,10 @@ fn bcr_test_module_runs_its_presubmit_targets() {
         let text = read_text(&source.join("bcr_test_module").join(name));
         write_text(&case.root().join(name), &text);
     }
-    let script = case.root().join("hello_test.sh");
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
+        let script = case.root().join("hello_test.sh");
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
             .unwrap_or_else(|error| panic!("chmod {}: {error}", script.display()));
     }

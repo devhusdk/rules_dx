@@ -400,7 +400,7 @@ impl Driver {
             .current_dir(cwd)
             .env_clear()
             .env("HOME", home)
-            .env("PATH", "/usr/bin:/bin")
+            .env("PATH", self.dir.join("bin"))
             .output()
             .expect("run ruby");
         (

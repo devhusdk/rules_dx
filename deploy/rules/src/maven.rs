@@ -13,7 +13,7 @@ use crate::api_compat::{
 };
 use crate::http;
 use crate::run::{
-    OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, resolve_version,
+    OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal, resolve_version, run_publish,
     scrubbed_command,
 };
 use crate::{DeployRun, copy_verified, deploy_build_mode, tempfile_stage_dir, zip_archive};
@@ -716,8 +716,7 @@ fn maven_api_compare(
                     "--error-on-source-incompatibility",
                     "--ignore-missing-classes",
                 ]);
-            cmd.output()
-                .map_err(|error| format!("maven_deploy: {error}"))
+            run_publish(&mut cmd).map_err(|error| format!("maven_deploy: {error}"))
         });
     let _ = std::fs::remove_dir_all(&staging);
     let output = ran?;
@@ -726,7 +725,7 @@ fn maven_api_compare(
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let changes = if output.status.success() {
+    let changes = if output.success() {
         Vec::new()
     } else {
         changes_or_failure(japicmp_changes(&text), false, "japicmp", &text)

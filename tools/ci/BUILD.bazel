@@ -1,6 +1,7 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
+load(":repos_tests.bzl", "repos_tests")
 load(":test.bzl", "ci_rust_test")
 
 package(default_visibility = VIS_TOOLS)
@@ -689,6 +690,8 @@ real_source_target(
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )
+
+repos_tests(name = "repos_walk_test")
 
 rust_test(
     name = "repos_bzl_test",

@@ -19,6 +19,8 @@ _CASES = {
     ),
 }
 
+_DEFAULT_MESSAGE = "Go cgo on Windows needs the MinGW (GNU) ABI"
+
 def _impl(ctx):
     env = analysistest.begin(ctx)
     asserts.expect_failure(env, ctx.attr.message)
@@ -37,6 +39,15 @@ def _make(case):
 _clang_cl_test = _make("clang_cl")
 _clang_msvc_test = _make("clang_msvc")
 _msvc_cl_test = _make("msvc_cl")
+
+_default_windows_test = analysistest.make(
+    _impl,
+    attrs = {"message": attr.string(mandatory = True)},
+    expect_failure = True,
+    config_settings = {
+        "//command_line_option:platforms": [str(Label("//go/tests/fixtures/cgo:windows_x86_64"))],
+    },
+)
 
 _RULES = {
     "clang_cl": _clang_cl_test,
@@ -61,4 +72,12 @@ def cgo_unsupported_toolchain_tests(name, target_under_test):
             target_under_test = target_under_test,
         )
         tests.append(":" + test)
+    test = name + "_default_windows"
+    _default_windows_test(
+        name = test,
+        message = _DEFAULT_MESSAGE,
+        size = "small",
+        target_under_test = target_under_test,
+    )
+    tests.append(":" + test)
     native.test_suite(name = name, tests = tests)

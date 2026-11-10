@@ -478,7 +478,7 @@ LANGUAGES = [
         "go",
         bench = "go_bench",
         fuzz = "go_fuzz_test",
-        deps = "`go`",
+        deps = "`go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI",
         doc = struct(tool = "go doc", shard = "go_doc_shard"),
         dead_code = ["staticcheck U1000"],
         coverage = ["go cover"],

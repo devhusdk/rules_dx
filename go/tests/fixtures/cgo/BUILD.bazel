@@ -11,6 +11,20 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
+_UNIX = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+platform(
+    name = "windows_x86_64",
+    constraint_values = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
 go_library(
     name = "cgo",
     srcs = [
@@ -39,7 +53,7 @@ go_test(
     srcs = ["cgo_test.go"],
     embed = [":cgo"],
     pure = "off",
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = _UNIX,
 )
 
 go_test(
@@ -48,7 +62,7 @@ go_test(
     embed = [":cgo"],
     pure = "off",
     race = "on",
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = _UNIX,
 )
 
 cc_library(
@@ -66,7 +80,10 @@ go_library(
     ],
     cdeps = [":cxx_adder"],
     cgo = True,
-    clinkopts = ["-Wl,-z,now"],
+    clinkopts = select({
+        "@platforms//os:linux": ["-Wl,-z,now"],
+        "//conditions:default": [],
+    }),
     copts = ["-DDX_CGO_COPT=1"],
     importpath = "rules_dx/go/tests/fixtures/cgo/cxx",
 )
@@ -76,7 +93,7 @@ go_test(
     srcs = ["cxx_test.go"],
     embed = [":cxx"],
     pure = "off",
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = _UNIX,
 )
 
 cgo_toolchain_tests(

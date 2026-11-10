@@ -26,7 +26,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a |
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | `fortran.fpm` builds pinned archives from `fpm.lock`; `dx security` and `dx license` read it, `dx update` re-hashes the archives | n/a | n/a |
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` |
-| Go | none | `go` | `go_bench` | `go_fuzz_test` |
+| Go | none | `go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI | `go_bench` | `go_fuzz_test` |
 | Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it | `haskell_bench` | n/a |
 | Java | none | `maven` | `java_bench` | `java_fuzz_test` |
 | JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` |

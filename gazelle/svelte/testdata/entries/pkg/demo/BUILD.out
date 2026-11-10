@@ -1,4 +1,4 @@
-load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
+load("@rules_dx//svelte:defs.bzl", "svelte_library")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(

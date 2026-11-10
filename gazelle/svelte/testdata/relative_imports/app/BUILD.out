@@ -1,5 +1,5 @@
 load("@rules_dx//javascript:defs.bzl", "javascript_library")
-load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
+load("@rules_dx//svelte:defs.bzl", "svelte_library")
 load("@rules_dx//typescript:defs.bzl", "typescript_library")
 
 javascript_library(

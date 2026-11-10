@@ -531,9 +531,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_bench` |
 |  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_fuzz_test` |
 |  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
-|  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_build` |
-|  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_library` |
-|  |  | `@rules_dx//svelte/rules:defs.bzl` | `svelte_test` |
+|  |  | `@rules_dx//svelte:defs.bzl` | `svelte_build` |
+|  |  | `@rules_dx//svelte:defs.bzl` | `svelte_library` |
+|  |  | `@rules_dx//svelte:defs.bzl` | `svelte_test` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_bench` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_binary` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_fuzz_test` |

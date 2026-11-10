@@ -1,4 +1,4 @@
-load("@rules_dx//svelte/rules:defs.bzl", "svelte_library")
+load("@rules_dx//svelte:defs.bzl", "svelte_library")
 
 svelte_library(
     name = "demo",

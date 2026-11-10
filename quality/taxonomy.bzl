@@ -250,7 +250,7 @@ TAXONOMY = {
         classes = ["starlark"],
     ),
     "svelte": struct(
-        owner = "//svelte/rules:defs.bzl",
+        owner = "//svelte:defs.bzl",
         classes = ["svelte"],
     ),
     "swift": struct(

@@ -241,7 +241,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"svelte": {
 		files: map[string]string{"demo.svelte": "<script>\n" + webScript + "</script>\n\n<div>hello</div>\n"},
-		kind:  "svelte_library", target: "demo", defs: "svelte/rules:defs.bzl",
+		kind:  "svelte_library", target: "demo", defs: "svelte:defs.bzl",
 		symbols: []string{"svelte_library"},
 	},
 	"ocaml": {

@@ -69,7 +69,7 @@ const PACKAGES: [&str; 72] = [
     "rust/toolchains",
     "scala/rules",
     "sql/rules",
-    "svelte/rules",
+    "svelte/private",
     "terraform/rules",
     "tools/docs/go",
     "tools/docs/ir",

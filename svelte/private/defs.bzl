@@ -3,6 +3,8 @@
 load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
 load("//javascript/private:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_build", "dx_framework_test")
 
+visibility(["//..."])
+
 _svelte_library_forward = dx_framework_forward_rule("svelte", ".svelte")
 
 def svelte_library(name, srcs, visibility = None, **kwargs):
@@ -15,4 +17,4 @@ def svelte_build(name, srcs, config, node_modules, package_json = None, public =
 
 def svelte_test(name, *, srcs, node_modules, data = None, **kwargs):
     """Runs jest over Svelte components, compiled by the linked svelte. Coverage maps back to the .svelte sources."""
-    dx_framework_test(name, srcs, Label("//svelte/rules:jest_config"), Label("//svelte/rules:jest_transform"), ["svelte"], node_modules, data = data, **kwargs)
+    dx_framework_test(name, srcs, Label("//svelte/private:jest_config"), Label("//svelte/private:jest_transform"), ["svelte"], node_modules, data = data, **kwargs)

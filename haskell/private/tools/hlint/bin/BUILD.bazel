@@ -1,0 +1,10 @@
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "bin",
+    actual = select({
+        "//haskell/private/toolchain:cell_linux_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
+        "//haskell/private/toolchain:cell_macos_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
+        "//conditions:default": "@dx_tools//:hlint",
+    }),
+)

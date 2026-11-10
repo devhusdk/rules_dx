@@ -1,0 +1,9 @@
+load("//haskell/private:kwargs.bzl", "HASKELL_COMPATIBLE_WITH")
+
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "bin",
+    actual = "@haskell_weeder_hackage//:weeder-exe-weeder",
+    target_compatible_with = HASKELL_COMPATIBLE_WITH,
+)

@@ -26,9 +26,6 @@ const LANGUAGE_HELPERS: &[&str] = &[
 /// Packages of core tool defaults that load a language rule set; this list only shrinks.
 const PENDING_TOOL_PACKAGES: &[&str] = &[
     "core/quality/tools/python",     // #10545
-    "haskell/private/tools/hlint",   // #10548
-    "haskell/private/tools/ormolu",  // #10548
-    "haskell/private/tools/weeder",  // #10548
     "core/quality/tools/nixfmt/bin", // #10565
     "core/quality/tools/xml",        // #10566
     "rust/private/quality/tools",    // #10567

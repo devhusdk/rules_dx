@@ -1,0 +1,9 @@
+package(default_visibility = ["//visibility:public"])
+
+alias(
+    name = "bin",
+    actual = select({
+        "//haskell/private/toolchain:cell_linux_arm64": "@haskell_ormolu_hackage//:ormolu-exe-ormolu",
+        "//conditions:default": "@dx_tools//:ormolu",
+    }),
+)

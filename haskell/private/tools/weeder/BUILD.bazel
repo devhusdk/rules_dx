@@ -22,12 +22,6 @@ haskell_deps_resolve_test(
     srcs = _PROJECT,
 )
 
-alias(
-    name = "weeder",
-    actual = "@haskell_weeder_hackage//:weeder-exe-weeder",
-    target_compatible_with = HASKELL_COMPATIBLE_WITH,
-)
-
 build_test(
     name = "weeder_build_test",
     target_compatible_with = HASKELL_COMPATIBLE_WITH,

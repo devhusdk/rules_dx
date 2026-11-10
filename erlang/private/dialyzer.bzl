@@ -1,6 +1,6 @@
 """Dialyzer PLT and tool rules over the pinned OTP runtime."""
 
-load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "native_launch_descriptor_path")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "native_launch_descriptor_path", "target_is_windows")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
 load(":defs.bzl", "otp_tool_binary_impl")
 load(":providers.bzl", "DialyzerToolInfo", "OtpToolInfo", _DialyzerPltInfo = "DialyzerPltInfo")
@@ -24,17 +24,9 @@ def _dirs(files):
 
 def otp_action_tools(ctx, dialyzer, escript):
     """Returns how an action runs escript and dialyzer: executable, dialyzer path, inputs, tools and PATH."""
-    if escript[OtpToolInfo].program == None:
-        launchers = [escript[DefaultInfo].files_to_run, dialyzer[DefaultInfo].files_to_run]
-        return struct(executable = launchers[0], dialyzer = launchers[1].executable.path, inputs = depset(), tools = [launchers[1]], path = "/dx_no_path")
     applets = coreutils(ctx)
-    return struct(
-        executable = escript[OtpToolInfo].program,
-        dialyzer = dialyzer[OtpToolInfo].program,
-        inputs = depset(transitive = [escript[OtpToolInfo].files, dialyzer[OtpToolInfo].files, applets.files]),
-        tools = [],
-        path = applets.path,
-    )
+    launchers = [escript[DefaultInfo].files_to_run, dialyzer[DefaultInfo].files_to_run]
+    return struct(executable = launchers[0], dialyzer = launchers[1].executable.path, inputs = applets.files, tools = [launchers[1]], path = applets.path)
 
 def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code, out):
     """Builds one PLT of OTP `apps` and `beams`, layered over `plts`; `dialyzer` and `escript` are otp_tool_binary targets."""
@@ -97,20 +89,15 @@ def tool_launcher(ctx, binary_target):
     """Links an otp_tool_binary as this rule's executable."""
     binary = binary_target[DefaultInfo]
     exe = binary.files_to_run.executable
-    runfiles = binary.default_runfiles
-    if exe.path.endswith(".exe"):
-        launcher = ctx.actions.declare_file(ctx.label.name + ".exe")
-        ctx.actions.symlink(output = launcher, target_file = exe, is_executable = True)
-        wanted = native_launch_descriptor_path(exe.path)
-        descriptors = [f for f in binary.default_runfiles.files.to_list() if f.path == wanted]
-        if not descriptors:
-            fail(str(ctx.label) + ": " + wanted + " is not in the runfiles of " + str(binary_target.label))
-        descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
-        ctx.actions.symlink(output = descriptor, target_file = descriptors[0])
-        runfiles = ctx.runfiles(files = [launcher, descriptor]).merge(binary.default_runfiles)
-    else:
-        launcher = ctx.actions.declare_file(ctx.label.name)
-        ctx.actions.symlink(output = launcher, target_file = exe, is_executable = True)
+    launcher = ctx.actions.declare_file(ctx.label.name + (".exe" if target_is_windows(ctx) else ""))
+    ctx.actions.symlink(output = launcher, target_file = exe, is_executable = True)
+    wanted = native_launch_descriptor_path(exe.path)
+    descriptors = [f for f in binary.default_runfiles.files.to_list() if f.path == wanted]
+    if not descriptors:
+        fail(str(ctx.label) + ": " + wanted + " is not in the runfiles of " + str(binary_target.label))
+    descriptor = ctx.actions.declare_file(ctx.label.name + ".launch")
+    ctx.actions.symlink(output = descriptor, target_file = descriptors[0])
+    runfiles = ctx.runfiles(files = [launcher, descriptor]).merge(binary.default_runfiles)
     return launcher, runfiles
 
 def _dialyzer_tool_impl(ctx):
@@ -130,6 +117,7 @@ dialyzer_tool = rule(
     doc = "The dialyzer launcher plus the PLTs `dx check` runs it against.",
     executable = True,
     attrs = {
+        "_windows_os": NATIVE_LAUNCHER_ATTRS["_windows_os"],
         "binary": attr.label(mandatory = True, executable = True, cfg = "target", doc = "An otp_tool_binary for dialyzer."),
         "plts": attr.label_list(mandatory = True, providers = [DialyzerPltInfo], doc = "PLTs in analysis order."),
     },

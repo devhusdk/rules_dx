@@ -49,9 +49,9 @@ def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code,
         inputs = list(plts) + list(beams) + list(code) + [driver],
         outputs = [out],
         tools = [dialyzer],
-        # The Windows erlexec stops with "No PATH variable (!)" when PATH is unset, and a hermetic
-        # action has none. The value is never searched for a tool, so it names no real directory.
-        env = {"PATH": "/dx_no_path"},
+        # The Windows erlexec stops with "No PATH variable (!)" when PATH is unset. The POSIX `erl`
+        # and `escript` launchers need dirname and pwd from PATH.
+        env = {"PATH": "/dx_no_path" if escript.executable.path.endswith(".exe") else "/usr/bin:/bin"},
         use_default_shell_env = False,
     )
 

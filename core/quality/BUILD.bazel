@@ -390,6 +390,16 @@ consumer_policy_tests(
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_rst",
         },
         {
+            "case": "protobuf_formatted",
+            "expected_dx_results": [
+                "clean_protobuf-real-format-protobuf.pb",
+                "clean_protobuf-real-lint-protobuf.pb",
+                "clean_protobuf-real-typecheck-protobuf.pb",
+            ],
+            "config": "shared",
+            "subject": "//core/quality/tests/fixtures/consumer_policy:clean_protobuf",
+        },
+        {
             "case": "lua_formatted",
             "expected_dx_results": [
                 "clean_lua-real-format-lua.pb",
@@ -672,6 +682,7 @@ test_suite(
         ":consumer_policy_case_make_checked_test",
         ":consumer_policy_case_nix_linted_test",
         ":consumer_policy_case_pkl_formatted_test",
+        ":consumer_policy_case_protobuf_formatted_test",
         ":consumer_policy_case_rego_checked_test",
         ":consumer_policy_case_rst_vale_test",
         ":consumer_policy_case_terraform_formatted_test",

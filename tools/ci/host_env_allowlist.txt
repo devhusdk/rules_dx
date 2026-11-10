@@ -175,7 +175,6 @@ core/quality/testdata/real_results.bzl sh-rule 1
 core/quality/testdata/runner_matrix_file_family.bzl home 2
 core/quality/testdata/runner_matrix_file_family.bzl host-path 8
 core/quality/testdata/runner_matrix_file_family.bzl shebang 8
-core/quality/testdata/runner_matrix_structured.bzl host-path 1
 core/quality/testdata/scalafix_aux/BUILD.bazel sh-rule 1
 core/quality/testdata/scalafix_aux/check.sh shebang 1
 core/quality/testdata/scalafmt_errors.sh shebang 1

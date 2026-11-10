@@ -138,19 +138,22 @@ fn hold_current_waits_for_commit_lock_then_reads_new_current() {
     )
     .expect("hold the commit lock");
     let reader_workspace = workspace.clone();
+    let (started, starts) = std::sync::mpsc::channel();
     let reader = std::thread::spawn(move || {
-        hold_current(&reader_workspace, WAIT)
+        started.send(()).expect("start");
+        let held = hold_current(&reader_workspace, WAIT)
             .expect("hold")
-            .expect("a selection")
-            .pair()
-            .clone()
+            .expect("a selection");
+        (held.pair().clone(), Instant::now())
     });
-    std::thread::sleep(Duration::from_millis(300));
-    assert!(!reader.is_finished(), "the hold waits for the commit lock");
+    starts.recv_timeout(WAIT).expect("the reader starts");
     dx_test_scratch::remove_directory_link(&current).expect("unlink current");
     link_dir(&second_target, &current);
+    let released = Instant::now();
     drop(lock);
-    assert_eq!(reader.join().expect("reader"), second);
+    let (pair, held_at) = reader.join().expect("reader");
+    assert!(held_at >= released, "the hold waits for the commit lock");
+    assert_eq!(pair, second);
 }
 
 #[test]

@@ -52,6 +52,8 @@ def _make_native_config_rule(tool_id):
         },
     )
 
+dart_config = _make_native_config_rule("dart")
+
 buildifier_config = _make_native_config_rule("buildifier")
 
 stylua_config = _make_native_config_rule("stylua")

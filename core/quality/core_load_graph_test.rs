@@ -11,6 +11,7 @@ const ALLOWED_REPOS: &[&str] = &[
     "bazel_tools",
     "dx_prebuilt",
     "platforms",
+    "rules_dx",
 ];
 
 /// Language helpers that sit in `core/quality/` and are not roots; this list only shrinks.
@@ -27,8 +28,25 @@ const LANGUAGE_HELPERS: &[&str] = &[
 const PENDING_TOOL_PACKAGES: &[&str] = &[
     "core/quality/tools/python",     // #10545
     "core/quality/tools/nixfmt/bin", // #10565
-    "core/quality/tools/xml",        // #10566
     "rust/private/quality/tools",    // #10567
+];
+
+/// Tier packages that load a language rule set; this list only shrinks.
+const PENDING_TIER_PACKAGES: &[&str] = &[
+    "core/quality/tiers/gopls",    // #10622
+    "core/quality/tiers/prettier", // #10622
+];
+
+/// Top-level packages `core/` may load from or point labels into.
+const CORE_PACKAGES: &[&str] = &["config", "core", "tools"];
+
+/// Files whose `//` loads and labels may still reach a language package; this list only shrinks.
+const PENDING_LANGUAGE_REACH: &[&str] = &[
+    "core/quality/compile_check.bzl",
+    "core/quality/families/core_probe.bzl",
+    "core/quality/fixtures.bzl",
+    "core/quality/tiers/gopls/BUILD.bazel",
+    "core/quality/tools.bzl",
 ];
 
 /// External repositories named by `"@repo//` labels in `actual =` and `select()` values of `text`.
@@ -124,6 +142,54 @@ fn bzl_files(dir: &Path, prefix: &str) -> Vec<String> {
     found
 }
 
+/// The `BUILD.bazel` paths of the tier packages that do not load a language rule set yet.
+fn tier_packages(source: &Path) -> Vec<String> {
+    let mut found: Vec<String> = std::fs::read_dir(source.join("core/quality/tiers"))
+        .expect("tiers dir")
+        .filter_map(Result::ok)
+        .filter(|entry| entry.path().join("BUILD.bazel").is_file())
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .map(|name| format!("core/quality/tiers/{name}"))
+        .filter(|package| !PENDING_TIER_PACKAGES.contains(&package.as_str()))
+        .map(|package| format!("{package}/BUILD.bazel"))
+        .collect();
+    found.sort();
+    found
+}
+
+/// Quoted `//pkg:name` labels in `load(` and `Label(` calls of `text`, without any repo prefix.
+fn loaded_labels(text: &str) -> Vec<String> {
+    let mut found = Vec::new();
+    for marker in ["load(\"", "Label(\""] {
+        for part in text.split(marker).skip(1) {
+            if let Some(label) = part.split('"').next() {
+                let label = label.strip_prefix("@rules_dx").unwrap_or(label);
+                if label.starts_with("//") {
+                    found.push(label.to_owned());
+                }
+            }
+        }
+    }
+    found
+}
+
+/// Whether `label` names a language package or any `private/` package outside `core/`.
+fn reaches_language(label: &str) -> bool {
+    let package = label
+        .trim_start_matches("//")
+        .split(':')
+        .next()
+        .unwrap_or_default();
+    let top = package.split('/').next().unwrap_or_default();
+    if top.is_empty() {
+        return false;
+    }
+    if top == "core" {
+        return false;
+    }
+    !CORE_PACKAGES.contains(&top) || package.split('/').any(|part| part == "private")
+}
+
 fn roots(source: &Path) -> Vec<String> {
     let mut roots = bzl_files(&source.join("config"), "config");
     roots.push("config/BUILD.bazel".to_owned());
@@ -142,6 +208,7 @@ fn roots(source: &Path) -> Vec<String> {
             .into_iter()
             .filter(|path| !PENDING_TOOL_PACKAGES.contains(&path.trim_end_matches("/BUILD.bazel"))),
     );
+    roots.extend(tier_packages(source));
     roots.push("core/quality/families/core.bzl".to_owned());
     roots.push("core/quality/families/core_probe.bzl".to_owned());
     roots.push("tools/docs/aspect.bzl".to_owned());
@@ -214,6 +281,59 @@ fn pending_tool_packages_still_offend() {
         assert!(
             offends,
             "{package} reaches no language rule set; drop it from PENDING_TOOL_PACKAGES"
+        );
+    }
+}
+
+#[test]
+fn core_reaches_no_language_package() {
+    let source = dx_testing::rules_dx_source();
+    let mut offenders: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    let mut paths = roots(&source);
+    paths.extend(
+        PENDING_TIER_PACKAGES
+            .iter()
+            .map(|package| format!("{package}/BUILD.bazel")),
+    );
+    for path in paths {
+        let bad: Vec<String> = loaded_labels(&dx_testing::read_text(&source.join(&path)))
+            .into_iter()
+            .filter(|label| reaches_language(label))
+            .collect();
+        if !bad.is_empty() && !PENDING_LANGUAGE_REACH.contains(&path.as_str()) {
+            offenders.insert(path, bad);
+        }
+    }
+    assert!(
+        offenders.is_empty(),
+        "core loads or labels reach a language package or a private/ package:\n{offenders:#?}"
+    );
+}
+
+#[test]
+fn pending_language_reach_still_offends() {
+    let source = dx_testing::rules_dx_source();
+    for path in PENDING_LANGUAGE_REACH {
+        let found = loaded_labels(&dx_testing::read_text(&source.join(path)));
+        assert!(
+            found.iter().any(|label| reaches_language(label)),
+            "{path} reaches no language package; drop it from PENDING_LANGUAGE_REACH"
+        );
+    }
+}
+
+#[test]
+fn pending_tier_packages_still_offend() {
+    let source = dx_testing::rules_dx_source();
+    for package in PENDING_TIER_PACKAGES {
+        let root = format!("{package}/BUILD.bazel");
+        let found = dx_adopt::external_repos(&source, &[root]).expect("load graph");
+        assert!(
+            found
+                .values()
+                .flatten()
+                .any(|repo| !ALLOWED_REPOS.contains(&repo.as_str())),
+            "{package} reaches no language rule set; drop it from PENDING_TIER_PACKAGES"
         );
     }
 }

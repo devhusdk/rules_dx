@@ -10,6 +10,21 @@
     "MODULE.bazel"
   ],
   "lockfiles": [],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "ansible",
+        "manifest": "MODULE.bazel",
+        "lock": null,
+        "state": null,
+        "extension": "@rules_dx//ansible:extensions.bzl",
+        "tag": null,
+        "hub": "ansible_collections",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "ansible_lint",
     "yamlfmt"

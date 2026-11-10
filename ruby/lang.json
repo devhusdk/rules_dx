@@ -14,6 +14,21 @@
   "lockfiles": [
     "Gemfile.lock"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "ruby",
+        "manifest": "Gemfile",
+        "lock": "Gemfile.lock",
+        "state": null,
+        "extension": "@rules_dx//ruby:extensions.bzl",
+        "tag": "bundle_fetch",
+        "hub": "bundle",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "rubocop",
     "sorbet"

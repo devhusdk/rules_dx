@@ -14,6 +14,21 @@
           ".yaml",
           ".yml"
         ]
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "ansible",
+            "extension": "@rules_dx//ansible:extensions.bzl",
+            "hub": "ansible_collections",
+            "imports": "name",
+            "lock": null,
+            "manifest": "MODULE.bazel",
+            "resolver": null,
+            "state": null,
+            "tag": null
+          }
+        ]
       }
     },
     {
@@ -1214,6 +1229,21 @@
             "real_ruby_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "ruby",
+            "extension": "@rules_dx//ruby:extensions.bzl",
+            "hub": "bundle",
+            "imports": "name",
+            "lock": "Gemfile.lock",
+            "manifest": "Gemfile",
+            "resolver": null,
+            "state": null,
+            "tag": "bundle_fetch"
+          }
+        ]
       }
     },
     {

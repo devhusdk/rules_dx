@@ -133,124 +133,124 @@ _policy_transition = transition(
     outputs = ["//config:workspace"],
 )
 
-_ASPECTS = [
-    real_cc_format_aspect,
-    real_cc_lint_aspect,
-    real_cc_typecheck_aspect,
-    real_cue_format_aspect,
-    real_jsonnet_format_aspect,
-    real_fortran_format_aspect,
-    real_fortran_lint_aspect,
-    real_jsonnet_lint_aspect,
-    real_typst_format_aspect,
-    real_typst_lint_aspect,
-    real_latex_format_aspect,
-    real_lua_format_aspect,
-    real_lua_lint_aspect,
-    real_ocaml_lint_aspect,
-    real_cmake_format_aspect,
-    real_make_format_aspect,
-    real_cmake_lint_aspect,
-    real_haskell_format_aspect,
-    real_haskell_lint_aspect,
-    real_latex_lint_aspect,
-    real_haskell_typecheck_aspect,
-    real_pkl_format_aspect,
-    real_pkl_lint_aspect,
-    real_pkl_typecheck_aspect,
-    real_terraform_typecheck_aspect,
-    real_dotnet_format_aspect,
-    real_dotnet_lint_aspect,
-    real_dotnet_typecheck_aspect,
-    real_dockerfile_lint_aspect,
-    real_oci_image_lint_aspect,
-    real_make_lint_aspect,
-    real_capnp_lint_aspect,
-    real_flatbuffers_lint_aspect,
-    real_thrift_lint_aspect,
-    real_avro_lint_aspect,
-    real_format_aspect,
-    real_go_format_aspect,
-    real_go_lint_aspect,
-    real_go_typecheck_aspect,
-    real_js_format_aspect,
-    real_js_lint_aspect,
-    real_jvm_format_aspect,
-    real_jvm_lint_aspect,
-    real_lint_aspect,
-    real_nix_format_aspect,
-    real_nix_lint_aspect,
-    real_ocaml_format_aspect,
-    real_ocaml_typecheck_aspect,
-    real_kubernetes_format_aspect,
-    real_kubernetes_lint_aspect,
-    real_ansible_lint_aspect,
-    real_bicep_format_aspect,
-    real_bicep_lint_aspect,
-    real_cloudformation_lint_aspect,
-    real_sql_format_aspect,
-    real_sql_lint_aspect,
-    real_protobuf_format_aspect,
-    real_powershell_format_aspect,
-    real_powershell_lint_aspect,
-    real_protobuf_lint_aspect,
-    real_protobuf_typecheck_aspect,
-    real_python_lint_aspect,
-    real_dart_format_aspect,
-    real_dart_lint_aspect,
-    real_dart_typecheck_aspect,
-    real_d_format_aspect,
-    real_d_lint_aspect,
-    real_perl_format_aspect,
-    real_perl_lint_aspect,
-    real_python_format_aspect,
-    real_python_typecheck_aspect,
-    real_julia_format_aspect,
-    real_swift_format_aspect,
-    real_swift_lint_aspect,
-    real_zig_format_aspect,
-    real_zig_lint_aspect,
-    real_julia_lint_aspect,
-    real_rego_format_aspect,
-    real_rego_lint_aspect,
-    real_js_typecheck_aspect,
-    real_jvm_typecheck_aspect,
-    real_d_typecheck_aspect,
-    real_fortran_typecheck_aspect,
-    real_zig_typecheck_aspect,
-    real_rego_typecheck_aspect,
-    real_capnp_typecheck_aspect,
-    real_flatbuffers_typecheck_aspect,
-    real_thrift_typecheck_aspect,
-    real_avro_typecheck_aspect,
-    real_cue_typecheck_aspect,
-    real_erlang_format_aspect,
-    real_erlang_lint_aspect,
-    real_erlang_typecheck_aspect,
-    real_elixir_format_aspect,
-    real_elixir_lint_aspect,
-    real_php_lint_aspect,
-    real_php_typecheck_aspect,
-    real_julia_typecheck_aspect,
-    real_lua_typecheck_aspect,
-    real_ruby_typecheck_aspect,
-    real_ruby_format_aspect,
-    real_ruby_lint_aspect,
-    real_rust_format_aspect,
-    real_rust_lint_aspect,
-    real_scala_format_aspect,
-    real_scala_lint_aspect,
-    real_shell_format_aspect,
-    real_shell_lint_aspect,
-    real_terraform_format_aspect,
-    real_terraform_lint_aspect,
-    real_text_lint_aspect,
-    real_html_template_format_aspect,
-    real_html_template_lint_aspect,
-    real_xml_lint_aspect,
-    real_yaml_format_aspect,
-    real_yaml_lint_aspect,
-]
+_ASPECTS_BY_RESULT = {
+    "format-cc": real_cc_format_aspect,
+    "lint-cc": real_cc_lint_aspect,
+    "typecheck-cc": real_cc_typecheck_aspect,
+    "format-cue": real_cue_format_aspect,
+    "format-jsonnet": real_jsonnet_format_aspect,
+    "format-fortran": real_fortran_format_aspect,
+    "lint-fortran": real_fortran_lint_aspect,
+    "lint-jsonnet": real_jsonnet_lint_aspect,
+    "format-typst": real_typst_format_aspect,
+    "lint-typst": real_typst_lint_aspect,
+    "format-latex": real_latex_format_aspect,
+    "format-lua": real_lua_format_aspect,
+    "lint-lua": real_lua_lint_aspect,
+    "lint-ocaml": real_ocaml_lint_aspect,
+    "format-cmake": real_cmake_format_aspect,
+    "format-make": real_make_format_aspect,
+    "lint-cmake": real_cmake_lint_aspect,
+    "format-haskell": real_haskell_format_aspect,
+    "lint-haskell": real_haskell_lint_aspect,
+    "lint-latex": real_latex_lint_aspect,
+    "typecheck-haskell": real_haskell_typecheck_aspect,
+    "format-pkl": real_pkl_format_aspect,
+    "lint-pkl": real_pkl_lint_aspect,
+    "typecheck-pkl": real_pkl_typecheck_aspect,
+    "typecheck-terraform": real_terraform_typecheck_aspect,
+    "format-dotnet": real_dotnet_format_aspect,
+    "lint-dotnet": real_dotnet_lint_aspect,
+    "typecheck-dotnet": real_dotnet_typecheck_aspect,
+    "lint-dockerfile": real_dockerfile_lint_aspect,
+    "lint-oci-image": real_oci_image_lint_aspect,
+    "lint-make": real_make_lint_aspect,
+    "lint-capnp": real_capnp_lint_aspect,
+    "lint-flatbuffers": real_flatbuffers_lint_aspect,
+    "lint-thrift": real_thrift_lint_aspect,
+    "lint-avro": real_avro_lint_aspect,
+    "format": real_format_aspect,
+    "format-go": real_go_format_aspect,
+    "lint-go": real_go_lint_aspect,
+    "typecheck-go": real_go_typecheck_aspect,
+    "format-js": real_js_format_aspect,
+    "lint-js": real_js_lint_aspect,
+    "format-jvm": real_jvm_format_aspect,
+    "lint-jvm": real_jvm_lint_aspect,
+    "lint": real_lint_aspect,
+    "format-nix": real_nix_format_aspect,
+    "lint-nix": real_nix_lint_aspect,
+    "format-ocaml": real_ocaml_format_aspect,
+    "typecheck-ocaml": real_ocaml_typecheck_aspect,
+    "format-kubernetes": real_kubernetes_format_aspect,
+    "lint-kubernetes": real_kubernetes_lint_aspect,
+    "lint-ansible": real_ansible_lint_aspect,
+    "format-bicep": real_bicep_format_aspect,
+    "lint-bicep": real_bicep_lint_aspect,
+    "lint-cloudformation": real_cloudformation_lint_aspect,
+    "format-sql": real_sql_format_aspect,
+    "lint-sql": real_sql_lint_aspect,
+    "format-protobuf": real_protobuf_format_aspect,
+    "format-powershell": real_powershell_format_aspect,
+    "lint-powershell": real_powershell_lint_aspect,
+    "lint-protobuf": real_protobuf_lint_aspect,
+    "typecheck-protobuf": real_protobuf_typecheck_aspect,
+    "lint-py": real_python_lint_aspect,
+    "format-dart": real_dart_format_aspect,
+    "lint-dart": real_dart_lint_aspect,
+    "typecheck-dart": real_dart_typecheck_aspect,
+    "format-d": real_d_format_aspect,
+    "lint-d": real_d_lint_aspect,
+    "format-perl": real_perl_format_aspect,
+    "lint-perl": real_perl_lint_aspect,
+    "format-py": real_python_format_aspect,
+    "typecheck-py": real_python_typecheck_aspect,
+    "format-julia": real_julia_format_aspect,
+    "format-swift": real_swift_format_aspect,
+    "lint-swift": real_swift_lint_aspect,
+    "format-zig": real_zig_format_aspect,
+    "lint-zig": real_zig_lint_aspect,
+    "lint-julia": real_julia_lint_aspect,
+    "format-rego": real_rego_format_aspect,
+    "lint-rego": real_rego_lint_aspect,
+    "typecheck-js": real_js_typecheck_aspect,
+    "typecheck-jvm": real_jvm_typecheck_aspect,
+    "typecheck-d": real_d_typecheck_aspect,
+    "typecheck-fortran": real_fortran_typecheck_aspect,
+    "typecheck-zig": real_zig_typecheck_aspect,
+    "typecheck-rego": real_rego_typecheck_aspect,
+    "typecheck-capnp": real_capnp_typecheck_aspect,
+    "typecheck-flatbuffers": real_flatbuffers_typecheck_aspect,
+    "typecheck-thrift": real_thrift_typecheck_aspect,
+    "typecheck-avro": real_avro_typecheck_aspect,
+    "typecheck-cue": real_cue_typecheck_aspect,
+    "format-erlang": real_erlang_format_aspect,
+    "lint-erlang": real_erlang_lint_aspect,
+    "typecheck-erlang": real_erlang_typecheck_aspect,
+    "format-elixir": real_elixir_format_aspect,
+    "lint-elixir": real_elixir_lint_aspect,
+    "lint-php": real_php_lint_aspect,
+    "typecheck-php": real_php_typecheck_aspect,
+    "typecheck-julia": real_julia_typecheck_aspect,
+    "typecheck-lua": real_lua_typecheck_aspect,
+    "typecheck-ruby": real_ruby_typecheck_aspect,
+    "format-ruby": real_ruby_format_aspect,
+    "lint-ruby": real_ruby_lint_aspect,
+    "format-rust": real_rust_format_aspect,
+    "lint-rust": real_rust_lint_aspect,
+    "format-scala": real_scala_format_aspect,
+    "lint-scala": real_scala_lint_aspect,
+    "format-shell": real_shell_format_aspect,
+    "lint-shell": real_shell_lint_aspect,
+    "format-terraform": real_terraform_format_aspect,
+    "lint-terraform": real_terraform_lint_aspect,
+    "lint-text": real_text_lint_aspect,
+    "format-html-template": real_html_template_format_aspect,
+    "lint-html-template": real_html_template_lint_aspect,
+    "lint-xml": real_xml_lint_aspect,
+    "format-yaml": real_yaml_format_aspect,
+    "lint-yaml": real_yaml_lint_aspect,
+}
 
 def _dx_result_names(target):
     """Returns the sorted real-aspect result names published for one target."""
@@ -261,13 +261,25 @@ def _dx_result_names(target):
         return []
     return sorted([f.basename for f in groups["dx_results"].to_list()])
 
+def _subject_attr(key):
+    """Returns the subject attribute name carrying one aspect key."""
+    return "subject_" + key.replace("-", "_")
+
 def _consumer_policy_impl(ctx):
-    dep = ctx.attr.subject
-    subject = dep[0] if type(dep) == "list" else dep
-    results = _dx_result_names(subject)
+    results = {}
+    subjects = []
+    for key in _ASPECTS_BY_RESULT:
+        dep = getattr(ctx.attr, _subject_attr(key))
+        if not dep:
+            continue
+        subject = dep[0] if type(dep) == "list" else dep
+        subjects.append(str(subject.label))
+        for name in _dx_result_names(subject):
+            results[name] = True
+    results = sorted(results)
     if results != ctx.attr.expected_dx_results:
         fail("consumer policy " + str(ctx.attr.policy_target) + " publishes " +
-             str(results) + " real result(s) for " + str(subject.label) +
+             str(results) + " real result(s) for " + str(subjects) +
              ", want " + str(ctx.attr.expected_dx_results))
     windows = ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo])
     out = ctx.actions.declare_file(ctx.label.name + (".bat" if windows else ".sh"))
@@ -281,23 +293,37 @@ def _consumer_policy_impl(ctx):
 _consumer_policy_test = rule(
     implementation = _consumer_policy_impl,
     test = True,
-    attrs = {
-        "expected_dx_results": attr.string_list(
-            mandatory = True,
-        ),
-        "policy_target": attr.label(
-            mandatory = True,
-        ),
-        "subject": attr.label(
-            aspects = _ASPECTS,
-            cfg = _policy_transition,
-            mandatory = True,
-        ),
-        "_windows_os": attr.label(
-            default = "@platforms//os:windows",
-        ),
-    },
+    attrs = dict(
+        {
+            "expected_dx_results": attr.string_list(
+                mandatory = True,
+            ),
+            "policy_target": attr.label(
+                mandatory = True,
+            ),
+            "_windows_os": attr.label(
+                default = "@platforms//os:windows",
+            ),
+        },
+        **{
+            _subject_attr(key): attr.label(
+                aspects = [aspect],
+                cfg = _policy_transition,
+            )
+            for key, aspect in _ASPECTS_BY_RESULT.items()
+        }
+    ),
 )
+
+def _result_keys(expected_dx_results):
+    """Returns the sorted aspect keys named by expected result file names."""
+    keys = {}
+    for result in expected_dx_results:
+        key = result.rsplit("-real-", 1)[1].removesuffix(".pb")
+        if key not in _ASPECTS_BY_RESULT:
+            fail("no real aspect for expected result " + result)
+        keys[key] = True
+    return sorted(keys) or ["lint-text"]
 
 def _ruff_config_inputs(env):
     paths = []
@@ -443,10 +469,10 @@ def consumer_policy_tests(name, cases, **kwargs):
     """Instantiates one proof per consumer policy selection."""
     kwargs.setdefault("size", "small")
     for case in cases:
+        subjects = {_subject_attr(key): case["subject"] for key in _result_keys(case["expected_dx_results"])}
         _consumer_policy_test(
             name = name + "_" + case["case"] + "_test",
             expected_dx_results = case["expected_dx_results"],
             policy_target = case["policy"],
-            subject = case["subject"],
-            **kwargs
+            **dict(kwargs, **subjects)
         )

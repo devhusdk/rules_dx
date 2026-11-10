@@ -272,9 +272,7 @@ consumer_policy_tests(
         },
         {
             "case": "default_swift",
-            "expected_dx_results": select({
-                "//conditions:default": ["greet-real-lint-text.pb"],
-            }),
+            "expected_dx_results": ["greet-real-lint-text.pb"],
             "policy": "//config:default_workspace_policy",
             "subject": "//swift/tests/fixtures/hello:greet",
         },

@@ -471,8 +471,6 @@ tools/testing/hermetic/src/tests.rs shebang 2
 tools/testing/language_skeleton_test.rs sh-rule 1
 tools/testing/nested/src/lib.rs host-path 5
 tools/testing/nested/src/lib.rs shebang 4
-tools/testing/nested_smoke_guard.sh host-path 1
-tools/testing/nested_smoke_guard.sh shebang 1
 tools/testing/src/fatbin.rs shebang 1
 tools/testing/src/lib.rs shebang 2
 typescript/private/quality/tsc.bzl run-shell 1

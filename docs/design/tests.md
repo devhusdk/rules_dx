@@ -52,13 +52,13 @@ A test is the first of four kinds that can prove the behaviour.
 - The nested build is offline.
 - Every repository the nested build reads is a declared input of the test.
 - The nested build sees no host `PATH`.
-- Each nested test is listed with its measured time.
 
 ## Speed
 
 - The target is under 1 second per test.
 - A unit, analysis or in-graph fixture test starts no Bazel server.
 - A change that adds a nested test states its measured time.
+- `//tools/ci:test_budget_test` holds the budget: `docs/design/test-budget.md`.
 
 ## Expected failures
 
@@ -115,3 +115,4 @@ A test is the first of four kinds that can prove the behaviour.
 ## Guard
 
 - `docs/design/test-guards.md` holds the rules of the guards that check these rules.
+- `docs/design/test-budget.md` covers `//tools/ci:test_budget_test`.

@@ -1,11 +1,16 @@
 //! No test carries a banned tag outside tools/ci/test_tags_allowlist.txt, and the allowlist holds no spare entry.
 
+mod test_calls;
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use starlark_syntax::syntax::ast::{
     ArgumentP, AssignTargetP, AstAssignTarget, AstExpr, AstLiteral, AstStmt, BinOp, ExprP, StmtP,
 };
-use starlark_syntax::syntax::{AstModule, Dialect};
+use test_calls::{
+    Callees, Counts, callee_name, differences, is_test, is_true, parse, parse_allowlist,
+    read_input, string, test_callees,
+};
 use yaml_serde as _;
 
 /// Tags no test may carry.
@@ -20,20 +25,17 @@ const BANNED: [&str; 8] = [
     "requires-network",
 ];
 
-/// Words in a rule or macro name that mark it as a test.
-const TEST_WORDS: [&str; 5] = ["bench", "fuzz", "suite", "test", "tests"];
-
 /// The constant in `core/wrapper.bzl` that holds `manual` for private upstream targets.
 const UPSTREAM_TAG: &str = "DX_UPSTREAM_TAG";
+
+/// What a failure tells the author of a new tag to do.
+const FIX: &str = "remove the tag";
 
 /// The allowlist path named in failures.
 const ALLOWLIST: &str = "tools/ci/test_tags_allowlist.txt";
 
 /// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 1000;
-
-/// Occurrences keyed by file path and tag.
-type Counts = BTreeMap<(String, String), usize>;
 
 /// Where an expression sits relative to a tags value.
 #[derive(Clone, Copy, PartialEq)]
@@ -49,8 +51,7 @@ struct FileScan {
     literals: BTreeMap<String, usize>,
     globals: BTreeMap<String, Carrier>,
     loads: BTreeMap<String, String>,
-    test_rules: BTreeSet<String>,
-    defs: BTreeMap<String, BTreeSet<String>>,
+    callees: Callees,
     calls: Vec<TaggedCall>,
 }
 
@@ -76,26 +77,8 @@ fn names_tags(name: &str) -> bool {
     name.to_ascii_lowercase().contains("tags")
 }
 
-/// Whether `name` reads as a test rule or macro.
-fn test_name(name: &str) -> bool {
-    name.split('_').any(|word| TEST_WORDS.contains(&word))
-}
-
-/// The last name of a callee: `native.test_suite` gives `test_suite`.
-fn callee_name(callee: &AstExpr) -> String {
-    match &callee.node {
-        ExprP::Identifier(ident) => ident.node.ident.clone(),
-        ExprP::Dot(_, name) => name.node.clone(),
-        _ => String::new(),
-    }
-}
-
-fn is_true(expr: &AstExpr) -> bool {
-    matches!(&expr.node, ExprP::Identifier(ident) if ident.node.ident == "True")
-}
-
 fn is_string(expr: &AstExpr, wanted: &str) -> bool {
-    matches!(&expr.node, ExprP::Literal(AstLiteral::String(text)) if text.node == wanted)
+    string(expr) == Some(wanted)
 }
 
 /// Whether an assignment target holds tags: a tags-named variable or a `["tags"]` slot.
@@ -140,15 +123,12 @@ impl Walker<'_> {
             }
             StmtP::Def(def) => {
                 let outer = self.def.replace(def.name.node.ident.clone());
-                self.scan
-                    .defs
-                    .entry(def.name.node.ident.clone())
-                    .or_default();
+                self.scan.callees.def(&def.name.node.ident);
                 self.stmt(&def.body, false);
                 self.def = outer;
             }
             StmtP::Assign(assign) => {
-                self.test_rule(&assign.lhs, &assign.rhs);
+                self.scan.callees.rule(&assign.lhs, &assign.rhs);
                 self.assign(&assign.lhs, &assign.rhs, top);
             }
             StmtP::AssignModify(lhs, _, rhs) => self.assign(lhs, rhs, top),
@@ -169,25 +149,6 @@ impl Walker<'_> {
                 self.expr(expr, Position::Outside, None);
             }
             StmtP::Return(None) | StmtP::Break | StmtP::Continue | StmtP::Pass => {}
-        }
-    }
-
-    /// Records `name = rule(..., test = True)`.
-    fn test_rule(&mut self, lhs: &AstAssignTarget, rhs: &AstExpr) {
-        let AssignTargetP::Identifier(ident) = &lhs.node else {
-            return;
-        };
-        let ExprP::Call(callee, args) = &rhs.node else {
-            return;
-        };
-        if callee_name(callee) != "rule" {
-            return;
-        }
-        let test = args.args.iter().any(|arg| {
-            matches!(&arg.node, ArgumentP::Named(key, value) if key.node == "test" && is_true(value))
-        });
-        if test {
-            self.scan.test_rules.insert(ident.node.ident.clone());
         }
     }
 
@@ -234,13 +195,7 @@ impl Walker<'_> {
             }
             ExprP::Call(callee, args) => {
                 let name = callee_name(callee);
-                if let Some(def) = &self.def {
-                    self.scan
-                        .defs
-                        .entry(def.clone())
-                        .or_default()
-                        .insert(name.clone());
-                }
+                self.scan.callees.call(self.def.as_deref(), &name);
                 self.expr(callee, Position::Outside, None);
                 for arg in &args.args {
                     match &arg.node {
@@ -297,8 +252,7 @@ impl Walker<'_> {
 
 /// Parses one BUILD or .bzl file.
 fn scan_file(path: &str, source: &str) -> FileScan {
-    let ast = AstModule::parse(path, source.to_owned(), &Dialect::Extended)
-        .unwrap_or_else(|error| panic!("{path}: does not parse: {}", error.without_diagnostic()));
+    let ast = parse(path, source);
     let mut scan = FileScan::default();
     Walker {
         scan: &mut scan,
@@ -306,34 +260,6 @@ fn scan_file(path: &str, source: &str) -> FileScan {
     }
     .stmt(ast.statement(), true);
     scan
-}
-
-/// Names that are tests: test-named callees, test rules, and macros that call one.
-fn test_callees(files: &BTreeMap<String, FileScan>) -> BTreeSet<String> {
-    let mut tests = BTreeSet::new();
-    for scan in files.values() {
-        tests.extend(scan.test_rules.iter().cloned());
-    }
-    loop {
-        let mut grew = false;
-        for scan in files.values() {
-            for (def, callees) in &scan.defs {
-                if tests.contains(def) {
-                    continue;
-                }
-                if callees
-                    .iter()
-                    .any(|callee| test_name(callee) || tests.contains(callee))
-                {
-                    tests.insert(def.clone());
-                    grew = true;
-                }
-            }
-        }
-        if !grew {
-            return tests;
-        }
-    }
 }
 
 /// Banned tags each module-level tags constant carries, by constant name.
@@ -372,7 +298,7 @@ fn carriers(files: &BTreeMap<String, FileScan>) -> BTreeMap<String, BTreeSet<Str
 
 /// Banned tag occurrences across `files`, keyed by path and tag.
 fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
-    let tests = test_callees(files);
+    let tests = test_callees(files.values().map(|scan| &scan.callees));
     let carried = carriers(files);
     let mut counts = Counts::new();
     for (path, scan) in files {
@@ -383,7 +309,7 @@ fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
             add(tag, *count);
         }
         for call in &scan.calls {
-            if !test_name(&call.callee) && !tests.contains(&call.callee) {
+            if !is_test(&tests, &call.callee) {
                 continue;
             }
             for tag in &call.literals {
@@ -408,13 +334,6 @@ fn occurrences(files: &BTreeMap<String, FileScan>) -> Counts {
     counts
 }
 
-/// Reads one runfile named by an environment variable.
-fn read_input(variable: &str) -> String {
-    let key = std::env::var(variable).unwrap_or_else(|_| panic!("{variable} is set by the test"));
-    let path = dx_testing::rlocation(&key).unwrap_or_else(|error| panic!("{variable}: {error}"));
-    dx_testing::read_text(&path)
-}
-
 /// Scans the snapshot that maps each BUILD and .bzl path to its text.
 fn scan_snapshot(text: &str) -> BTreeMap<String, FileScan> {
     let sources: BTreeMap<String, String> =
@@ -423,64 +342,6 @@ fn scan_snapshot(text: &str) -> BTreeMap<String, FileScan> {
         .iter()
         .map(|(path, source)| (path.clone(), scan_file(path, source)))
         .collect()
-}
-
-/// One allowlist line: `<path> <tag> <count>`.
-fn parse_allowlist(text: &str) -> (Counts, Vec<String>) {
-    let mut counts = Counts::new();
-    let mut problems = Vec::new();
-    let mut previous = None;
-    for line in text.lines() {
-        let fields: Vec<&str> = line.split(' ').collect();
-        let [path, tag, count] = fields.as_slice() else {
-            problems.push(format!("malformed line: {line:?}"));
-            continue;
-        };
-        let count = count.parse::<usize>().unwrap_or(0);
-        if count == 0 || !banned(tag) {
-            problems.push(format!("malformed line: {line:?}"));
-            continue;
-        }
-        let key = ((*path).to_owned(), (*tag).to_owned());
-        if previous.as_ref().is_some_and(|before| *before >= key) {
-            problems.push(format!("not sorted or repeated: {line:?}"));
-        }
-        previous = Some(key.clone());
-        counts.insert(key, count);
-    }
-    (counts, problems)
-}
-
-/// Lines that differ between the tree and the allowlist.
-fn differences(found: &Counts, allowed: &Counts) -> Vec<String> {
-    let mut out = Vec::new();
-    for ((path, tag), count) in found {
-        let limit = allowed
-            .get(&(path.clone(), tag.clone()))
-            .copied()
-            .unwrap_or(0);
-        if *count > limit {
-            out.push(format!(
-                "{path}: {count} `{tag}` on tests, {limit} allowed; remove the tag"
-            ));
-        }
-    }
-    for ((path, tag), limit) in allowed {
-        let count = found
-            .get(&(path.clone(), tag.clone()))
-            .copied()
-            .unwrap_or(0);
-        if count == 0 {
-            out.push(format!(
-                "{path}: no `{tag}` left; delete the allowlist line"
-            ));
-        } else if count < *limit {
-            out.push(format!(
-                "{path}: {count} `{tag}` left; lower the allowlist count from {limit}"
-            ));
-        }
-    }
-    out
 }
 
 fn scan_sources(sources: &[(&str, &str)]) -> Counts {
@@ -507,8 +368,8 @@ fn the_tree_matches_the_allowlist() {
         files.len()
     );
     let found = occurrences(&files);
-    let (allowed, mut problems) = parse_allowlist(&read_input("TEST_TAGS_ALLOWLIST"));
-    problems.extend(differences(&found, &allowed));
+    let (allowed, mut problems) = parse_allowlist(&read_input("TEST_TAGS_ALLOWLIST"), &BANNED);
+    problems.extend(differences(&found, &allowed, FIX));
     assert!(
         problems.is_empty(),
         "{ALLOWLIST} and the tree disagree:\n{}",
@@ -634,20 +495,20 @@ fn the_allowlist_rejects_new_tags_and_spare_entries() {
         ("c/BUILD.bazel", "manual", 1),
     ]);
     assert_eq!(
-        differences(&found, &allowed),
+        differences(&found, &allowed, FIX),
         [
             "a/BUILD.bazel: 3 `manual` on tests, 2 allowed; remove the tag",
             "b/BUILD.bazel: 1 `local` left; lower the allowlist count from 2",
             "c/BUILD.bazel: no `manual` left; delete the allowlist line",
         ],
     );
-    assert_eq!(differences(&found, &found), Vec::<String>::new());
+    assert_eq!(differences(&found, &found, FIX), Vec::<String>::new());
 }
 
 #[test]
 fn the_allowlist_format_is_strict() {
     let good = "a/BUILD.bazel exclusive 1\na/BUILD.bazel manual 2\n";
-    let (parsed, problems) = parse_allowlist(good);
+    let (parsed, problems) = parse_allowlist(good, &BANNED);
     assert_eq!(problems, Vec::<String>::new());
     assert_eq!(
         parsed,
@@ -664,6 +525,6 @@ fn the_allowlist_format_is_strict() {
         "b/BUILD.bazel manual 1\na/BUILD.bazel manual 1\n",
         "a/BUILD.bazel manual\n",
     ] {
-        assert!(!parse_allowlist(bad).1.is_empty(), "{bad:?}");
+        assert!(!parse_allowlist(bad, &BANNED).1.is_empty(), "{bad:?}");
     }
 }

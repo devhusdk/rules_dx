@@ -47,8 +47,8 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | `//examples/adopt-polyglot:consumer_test` | `dx init` and `dx generate` adopt a tree with no BUILD files, twice with no change | Stays nested, on the harness |
 
 - `tools/docs/support_matrix` lists the in-graph test of a language once its nested test is converted.
-- `tools/testing/nested_smoke.txt` lists every nested test. The cap in `nested_smoke_guard.sh` only goes down.
-- A nested test gets its cold time in `nested_smoke.txt` when it passes on the harness.
+- `tools/testing/nested_smoke.txt` lists every nested test, one sorted line each: `<label> <seconds>`.
+- `//tools/ci:test_budget_test` checks the list. `docs/design/test-budget.md` has its rules.
 
 ## Harness
 

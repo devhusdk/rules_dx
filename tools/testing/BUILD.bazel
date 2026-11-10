@@ -423,6 +423,11 @@ exports_files(
     visibility = VIS_TOOLS_CLI_TEST,
 )
 
+exports_files(
+    ["nested_smoke.txt"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

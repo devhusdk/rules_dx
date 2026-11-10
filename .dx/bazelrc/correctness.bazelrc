@@ -8,6 +8,9 @@ build --verbose_failures
 # Show the log of a failing test in the console.
 test --test_output=errors
 
+# Warn when a test runs far under or over its declared size.
+test --test_verbose_timeout_warnings
+
 # Apply the linux, macos and windows config lines on matching hosts.
 common --enable_platform_specific_config
 

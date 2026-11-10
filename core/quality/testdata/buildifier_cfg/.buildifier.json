@@ -10,7 +10,6 @@
     "attr-single-file",
     "build-args-kwargs",
     "bzl-visibility",
-    "canonical-repository",
     "confusing-name",
     "constant-glob",
     "ctx-actions",

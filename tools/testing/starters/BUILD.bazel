@@ -4,10 +4,7 @@ load("//rust:defs.bzl", "rust_library")
 load(":defs.bzl", "starter_consumer_test")
 
 STARTER_BAZEL_DEPS = {
-    "astro": [
-        "rules_dx",
-        "aspect_rules_js",
-    ],
+    "astro": ["rules_dx"],
     "c": ["rules_dx"],
     "cpp": ["rules_dx"],
     "csharp": ["rules_dx"],
@@ -32,10 +29,7 @@ STARTER_BAZEL_DEPS = {
     "julia": ["rules_dx"],
     "kotlin": ["rules_dx"],
     "lua": ["rules_dx"],
-    "mdx": [
-        "rules_dx",
-        "aspect_rules_js",
-    ],
+    "mdx": ["rules_dx"],
     "ocaml": ["rules_dx"],
     "perl": ["rules_dx"],
     "php": ["rules_dx"],
@@ -56,16 +50,10 @@ STARTER_BAZEL_DEPS = {
         "rules_android",
     ],
     "scala": ["rules_dx"],
-    "svelte": [
-        "rules_dx",
-        "aspect_rules_js",
-    ],
+    "svelte": ["rules_dx"],
     "swift": ["rules_dx"],
     "typescript": ["rules_dx"],
-    "vue": [
-        "rules_dx",
-        "aspect_rules_js",
-    ],
+    "vue": ["rules_dx"],
     "zig": ["rules_dx"],
 }
 

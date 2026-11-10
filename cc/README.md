@@ -89,7 +89,7 @@ bazel test --@rules_dx//cc:compiler=gcc --features=dynamic_libstdcxx //pkg:test
 
 `cc_test` coverage works with both toolchains. GCC coverage works on Linux x86_64 with the gcov that ships with the toolchain, and collection fails when gcov reports a version, stamp or profile mismatch, corrupt data or a missing notes file. MSVC/Windows coverage is not supported. `//tools/coverage/collect:gcov_native_test` runs the collector on a GCC-instrumented binary.
 
-Sanitizers work under GCC with the `asan` and `ubsan` features. The toolchain links the runtimes statically, so nothing loads from the host. GCC's static libasan still fails its link order check at startup (#5981), so `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` under GCC unless the target's `env` sets `ASAN_OPTIONS`. A `cc_binary` run with `bazel run` still needs it set by hand. The asan command:
+Sanitizers work under GCC with the `asan` and `ubsan` features. The toolchain links the runtimes statically, so nothing loads from the host. GCC's static libasan still fails its link order check at startup, so `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` under GCC unless the target's `env` sets `ASAN_OPTIONS`. A `cc_binary` run with `bazel run` still needs it set by hand. The asan command:
 
 ```sh
 bazel test --@rules_dx//cc:compiler=gcc --features=asan //pkg:test
@@ -112,8 +112,6 @@ msvc.license(accept = ["visual-studio-build-tools"])
 ```
 
 Any other host or target platform fails with a message that names the supported pair. There is no clang-cl fallback.
-
-The hermetic harness denies the preinstalled Visual Studio, Windows Kits and Microsoft SDKs directories when it qualifies an MSVC consumer, so a build that reaches them fails. `c_fixture_msvc` and `cpp_fixture_msvc` qualified that way on `windows_x86_64` in ci.yml [run 42372644803](https://github.com/devhusdk/rules_dx/actions/runs/42372644803). They qualified the same way on `windows_arm64` in ci.yml [run 42375312749](https://github.com/devhusdk/rules_dx/actions/runs/42375312749). On `windows_arm64`, `msvc_arm64_hello_test` and `msvc_arm64_pe_machine_test` passed in [run 42183869292](https://github.com/devhusdk/rules_dx/actions/runs/42183869292).
 
 ## Benchmarks
 

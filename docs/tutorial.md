@@ -4,8 +4,6 @@ Go from an empty directory to a passing `dx test`. The steps are for Linux.
 
 ## Install
 
-rules_dx is not released yet. Install starts with the first BCR release.
-
 Install Bazelisk, then install `dx` from the latest release.
 
 ```sh

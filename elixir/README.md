@@ -198,13 +198,9 @@ See `docs/cli/commands/quality.md`.
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Qualified |
-| `macos_arm64` | Qualified |
-| `windows_x86_64` | Qualified for build, `elixir_test`, `mix_format` and `credo`. No dialyzer yet. |
-| `windows_arm64` | Qualified for build, `elixir_test`, `mix_format` and `credo`. No dialyzer yet. |
+See the [support matrix](../docs/support-matrix.md).
+
+Dialyzer does not run on Windows.
 
 On other platforms Elixir targets fail toolchain resolution.
 

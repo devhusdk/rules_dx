@@ -7,6 +7,7 @@ Find your task.
 - Format, lint and typecheck: [Quality](cli/commands/quality.md).
 - Add a dependency: [Generate](cli/commands/generate.md), [Sync](cli/commands/sync.md).
 - Set up CI: [GitHub CI](github-ci.md).
+- Publish a package: [Deploy](cli/commands/deploy.md).
 - Upgrade dx: [Upgrade](cli/commands/upgrade.md).
 - Use with an AI agent: [Init](cli/commands/init.md), [Agent sessions](cli/commands/worktree.md#agent-sessions).
 - Adopt an existing Bazel repo: [Adopting rules_dx in an existing Bazel repo](adopting-existing-bazel.md).
@@ -30,6 +31,7 @@ Find your task.
 - [Command reference](cli/commands/README.md)
 - [Scope defaults](cli/commands/scope-defaults.md)
 - [Build, test, coverage](cli/commands/build-test-coverage.md)
+- [Deploy](cli/commands/deploy.md)
 - [Bench](cli/commands/bench.md)
 - [Quality](cli/commands/quality.md)
 - [Check](cli/commands/check.md)
@@ -70,6 +72,7 @@ Per-language guides in the repository:
 - [F#](https://github.com/devhusdk/rules_dx/blob/main/fsharp/README.md)
 - [Go](https://github.com/devhusdk/rules_dx/blob/main/go/README.md)
 - [Haskell](https://github.com/devhusdk/rules_dx/blob/main/haskell/README.md)
+- [Helm](https://github.com/devhusdk/rules_dx/blob/main/helm/README.md)
 - [Java](https://github.com/devhusdk/rules_dx/blob/main/java/README.md)
 - [JavaScript](https://github.com/devhusdk/rules_dx/blob/main/javascript/README.md)
 - [Julia](https://github.com/devhusdk/rules_dx/blob/main/julia/README.md)

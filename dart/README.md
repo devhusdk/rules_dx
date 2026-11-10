@@ -160,7 +160,7 @@ dart_config(
 ```
 
 Bind it with `aspect_hints = [":analysis_options"]`. Format ignores `deps`.
-`dx lint --fix` does not rewrite Dart sources.
+`dx lint --apply` does not rewrite Dart sources.
 
 ## Platforms
 

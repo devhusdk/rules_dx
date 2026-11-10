@@ -271,7 +271,7 @@ The run checks the tarball against its checksum and copies both into the
 workspace root, or into the one directory argument. More than one argument
 is refused. Exit codes: `0` released, `1` any failure or refusal.
 
-Example: [shared-rust](../../examples/shared-rust/README.md#deploy).
+Example: [shared-rust](../examples/shared-rust/README.md#deploy).
 
 # consumer_archive
 
@@ -360,8 +360,8 @@ Outputs: `<name>` builds `<name>.<format>` and `<name>_checksum`
 builds `<name>.<format>.sha256`. The app is stored with mode 0755 and every
 other member with mode 0644, in both formats.
 
-Examples: [Qt packaging](../../qt/README.md#packaging) and
-[qt-rust](../../qt/tests/fixtures/qt-rust/app/BUILD.bazel).
+Examples: [Qt packaging](../qt/README.md#packaging) and
+[qt-rust](../qt/tests/fixtures/qt-rust/app/BUILD.bazel).
 
 # crates_deploy
 
@@ -692,7 +692,7 @@ No credentials needed.
 
 ```sh
 CPAN_PUBLISH_APPROVED=1 CPAN_API_USER=... CPAN_API_TOKEN=... \
-DX_DEPLOY_LIVE=1 dx deploy --apply //pkg:cpan-demo
+dx deploy --apply //pkg:cpan-demo
 ```
 
 This posts the tarball to `https://pause.perl.org/pause/authenquery?ACTION=add_uri` with HTTP
@@ -725,7 +725,7 @@ A default run checks the recipe and stages `<name>-recipe/`. No credentials need
 
 ```sh
 CONAN_PUBLISH_APPROVED=1 CONAN_LOGIN_USERNAME=... CONAN_PASSWORD=... \
-DX_DEPLOY_LIVE=1 dx deploy --apply //pkg:conan_demo
+dx deploy --apply //pkg:conan_demo
 ```
 
 A live run uses a private `CONAN_HOME`, runs `conan profile detect`, `conan
@@ -1254,20 +1254,20 @@ Live run needs `PACKAGIST_USERNAME`, `PACKAGIST_API_TOKEN` and
 
 # Registries released by tag
 
-Most of these registries have no deploy rule. The release is a git tag, a pull
-request, or an upload, so the last step is manual. PHP has `packagist_deploy`.
-For the registries that read versions from tags (Go, Swift, PHP, dub),
-`github_deploy` with `release_tag` set to the tag is the release step.
+Go, Julia, Swift and dub have no deploy rule. The release is a git tag.
+`github_deploy` with `release_tag` set to the tag adds a GitHub release.
 
 - Go: push the tag `vX.Y.Z`. The module proxy fetches it from the repository.
-  For a GitHub release, set `release_tag` on `github_deploy` to that tag.
 - Julia: push the tag, then comment `@JuliaRegistrator register` on the commit.
 - Swift: push a semver tag such as `1.2.0`. SwiftPM reads versions from tags.
-- PHP: run `composer validate`, push a tag, then run `packagist_deploy`.
 - dub: push a semver tag such as `v1.2.0`. The dub registry reads versions
   from tags.
-- opam: run `opam_deploy` (above).
-- CPAN: upload the tarball to PAUSE.
+
+PHP, opam and CPAN have a deploy rule:
+
+- PHP: run `composer validate`, push a tag, then run `packagist_deploy`.
+- opam: run `opam_deploy`.
+- CPAN: run `cpan_deploy`.
 
 # Public API compatibility
 

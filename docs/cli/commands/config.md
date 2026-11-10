@@ -39,6 +39,19 @@ taplo  -  tier base .dx/config/taplo/base.toml
 
 `--output json` emits one `config_file` event per file (`tool`, `file`, `role` as `root` or `base`, `base`, `edited`). The list form emits the root file of each tool, or the base when the tool has no root file. `dx config diff <tool>` emits the root file's event with `patch`, the unified diff as one string (empty when the copy is unchanged). `dx config override <tool>` emits the event of the root file it wrote. An unknown tool fails with `config_failed`.
 
+| Flag | What it does |
+| --- | --- |
+| `-o, --output text\|json` | Choose the output format. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+
+### Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | `config_failed`: an unknown tool, `diff` without a root file, or a refused `override`. |
+| `2` | Usage error. |
+
 ## dx.toml
 
 Picks the tier, the tools of each family, and what dx leaves out. Optional:

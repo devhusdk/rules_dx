@@ -109,25 +109,9 @@ exists, the Perl rules add the `no-typecheck` tag to every target. Set
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Qualified by CI |
-| `macos_x86_64` | Not qualified |
-| `macos_arm64` | Qualified by CI |
-| `windows_x86_64` | Qualified by CI |
-| `windows_arm64` | Unsupported |
+See the [support matrix](../docs/support-matrix.md).
 
-`macos_x86_64` has no CI cell. The `linux_arm64` cell is qualified by
-evidence.yml run 42002623118 (`//perl/tests/fixtures/perl-app/...`,
-`//perl/tests/runtime:all`, `//tools/testing/hermetic:perl`). The `macos_arm64`
-cell is qualified by evidence.yml run 42083319727: the example and runtime
-tests pass, a build and test pass rather than a hermetic one, since the
-hermetic qualification is linux only. The `windows_x86_64` cell is
-qualified by evidence.yml run 42112137283 (`//perl/tests/fixtures/perl-app/...`,
-`//perl/tests/runtime:all`), also a build and test pass. The `.bat` launcher
-needs `RUNFILES_MANIFEST_FILE` with backslashes and no `RUNFILES_DIR`, and
-`cmd` needs double quotes.
+`windows_arm64` is unsupported.
 
 rules_perl has no toolchain for other platforms. The wrappers mark their
 targets incompatible there, so a build fails instead of running the host

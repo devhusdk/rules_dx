@@ -22,8 +22,9 @@ Flags go to the wrapped command and are checked as `dx <command>` checks them. A
 | `--debug`, `--release` | Pick the build mode. |
 | `--here` | Resolve the scope once from the current directory. |
 | `--affected` | Re-resolve the affected targets each iteration. |
+| `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. |
 | `--poll` | Poll the tree every second instead of using the platform watcher, on any platform. |
-| `--fail-on`, `--report`, `--diff`, `--unsafe`, `--include-edits` | Passed to the wrapped command when it takes them. |
+| `--fail-on`, `--report`, `--diff`, `--unsafe`, `--include-edits`, `--max-findings` | Passed to the wrapped command when it takes them. |
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 

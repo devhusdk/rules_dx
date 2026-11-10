@@ -32,7 +32,7 @@ def site_unit_tests(name):
                         ["README.md", "docs/README.md", "docs/adopting-existing-bazel.md"],
                         [None, "//docs:README.md", "//docs:adopting-existing-bazel.md"],
                     ],
-                    [41],
+                    [42],
                 ],
             ),
             expect_equal(

@@ -23,7 +23,7 @@
    tools/dx build //pkg/...
    ```
 
-6. Move one package. Change the `load()`.
+5. Move one package. Change the `load()`.
 
    Rust keeps its names:
 
@@ -39,19 +39,19 @@
 
    Other languages: see [Rule names](cli/commands/README.md#rule-names).
 
-7. Check the package:
+6. Check the package:
 
    ```sh
    tools/dx check //pkg/...
    ```
 
-8. Test the package:
+7. Test the package:
 
    ```sh
    tools/dx test //pkg/...
    ```
 
-9. Move the next package.
+8. Move the next package.
 
 ## Roll back
 

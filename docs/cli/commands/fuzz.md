@@ -24,19 +24,17 @@ Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//
 
 JavaScript and TypeScript: `javascript_fuzz_test(name, srcs, node_modules)` from `//javascript:defs.bzl` and `typescript_fuzz_test` from `//typescript:defs.bzl` run the `fuzz(data)` function that the first source (or `main`) exports with [Jazzer.js](https://github.com/CodeIntelligenceTesting/jazzer.js), tag it and add the `<name>_run` runner. List `@jazzer.js/core` in `package.json` so `node_modules` links it. pnpm needs `packageExtensions` that add `@babel/core` and `@babel/types` to `@jazzer.js/bug-detectors` and `@babel/types` to `@jazzer.js/instrumentor`, which use them without declaring them. Jazzer.js ships native add-ons for Linux, macOS arm64 and x64, and Windows x64.
 
-Rust: `rust_fuzz_test(name, srcs, libfuzzer_sys = ..., crate_root = ...)` from `//rust:defs.bzl` builds a `libfuzzer-sys` binary with sancov and AddressSanitizer using `RUSTC_BOOTSTRAP=1` and the pinned LLVM's libFuzzer, tags it and adds the `<name>_run` runner. The source is `#![no_main]` and calls `fuzz_target!`. `libfuzzer_sys = "@<your_hub>//:libfuzzer-sys"` names the `libfuzzer-sys` crate in your own hub, which also lets you use `arbitrary`. Tested on linux x86_64 only.
+Rust: `rust_fuzz_test(name, srcs, libfuzzer_sys = ..., crate_root = ...)` from `//rust:defs.bzl` builds a `libfuzzer-sys` binary with sancov and AddressSanitizer using `RUSTC_BOOTSTRAP=1` and the pinned LLVM's libFuzzer, tags it and adds the `<name>_run` runner. The source is `#![no_main]` and calls `fuzz_target!`. `libfuzzer_sys = "@<your_hub>//:libfuzzer-sys"` names the `libfuzzer-sys` crate in your own hub, which also lets you use `arbitrary`. Linux x86_64 only.
 
-C#: `csharp_fuzz_test(name, srcs, deps)` from `//csharp:defs.bzl` declares a harness binary that calls `Fuzzer.LibFuzzer.Run` from SharpFuzz, tags it and adds the `<name>_run` runner. The macro instruments each library in `deps` with SharpFuzz.CommandLine at build time; NuGet packages stay uninstrumented. `<name>` is the harness, and the runner starts it from the libfuzzer-dotnet driver that rules_dx builds from a pinned source archive. Linux only for now.
+C#: `csharp_fuzz_test(name, srcs, deps)` from `//csharp:defs.bzl` declares a harness binary that calls `Fuzzer.LibFuzzer.Run` from SharpFuzz, tags it and adds the `<name>_run` runner. The macro instruments each library in `deps` with SharpFuzz.CommandLine at build time; NuGet packages stay uninstrumented. `<name>` is the harness, and the runner starts it from the libfuzzer-dotnet driver that rules_dx builds from a pinned source archive. Linux only.
 
 OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml:defs.bzl` runs Crowbar in quickcheck mode, tags it and adds the `<name>_run` runner. The runner repeats `-s <seed> -r 500` with fresh seeds until `--time` is up and writes a failing seed to `crash-<hash>`; `--repro` replays it.
 
-F#: `fsharp_fuzz_test(name, srcs, deps)` from `//fsharp:defs.bzl` works like `csharp_fuzz_test` with an F# harness. Linux only for now.
+F#: `fsharp_fuzz_test(name, srcs, deps)` from `//fsharp:defs.bzl` works like `csharp_fuzz_test` with an F# harness. Linux only.
 
 Java, Kotlin and Scala: `java_fuzz_test`, `kotlin_fuzz_test` and `scala_fuzz_test` from `//java:defs.bzl`, `//kotlin:defs.bzl` and `//scala:defs.bzl` build a Jazzer binary, tag it and add the `<name>_run` runner. Pass `target_class`, a class with a static `fuzzerTestOneInput(byte[])`: a Kotlin `object` method marked `@JvmStatic`, or a top-level Scala `object` method. Linux runs are tested; Jazzer comes from rules_dx's pinned Maven artifacts.
 
-OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml:defs.bzl` runs a Crowbar test in quickcheck mode. It is manual, has no `dx-fuzz` tag or `<name>_run` runner, and `dx fuzz` does not run it yet (#10221). Run it with `bazel test`.
-
-Zig and Haskell have no fuzz macro. Zig's fuzzer runs only under `zig build --fuzz`, and Haskell's harness cannot run hermetically.
+Zig and Haskell have no fuzz macro.
 
 | Flag | What it does |
 | --- | --- |

@@ -213,7 +213,7 @@ selene has no autofix.
 reported; only the sources of the target are. Bind a `luals_config` from
 `@rules_dx//core/quality:native_config.bzl` (a plain `.luarc.json`, never `.jsonc`) to
 set globals or diagnostics. The runtime version, the library, `libraryFiles` and
-the output paths are always set by dx. Only `linux_x86_64` is qualified.
+the output paths are always set by dx. Linux x86_64 only.
 
 ## API docs
 
@@ -236,11 +236,4 @@ Tag a test `no-coverage` to skip it under coverage.
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Qualified |
-| `linux_arm64` | Not qualified |
-| `macos_x86_64` | Not qualified |
-| `macos_arm64` | Not qualified |
-| `windows_x86_64` | Not qualified |
-| `windows_arm64` | Not qualified |
+See the [support matrix](../docs/support-matrix.md).

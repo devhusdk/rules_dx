@@ -269,7 +269,7 @@ version on line 1, then one `<sha256>  dx-<os>-<arch>` line per release binary:
 ```
 
 The version may only use `0-9`, `A-Z`, `a-z`, `.`, `+` and `-`, and may not
-start with `.`. Until dx ships release pins, `dx init` writes no hash lines.
+start with `.`. `dx init` writes no hash lines.
 Without a line for the platform the launcher does not download: it exits `1`
 with the `bazel run @rules_dx//:dx -- ...` command. A binary already in the
 cache still runs.

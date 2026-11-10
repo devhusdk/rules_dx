@@ -103,20 +103,15 @@ Haskell tests write LCOV under `bazel coverage` and `dx coverage`. rules_haskell
 
 ## Platforms
 
-| Cell | Status | Reason |
-| --- | --- | --- |
-| `linux_x86_64` | Qualified | |
-| `linux_arm64` | Qualified | |
-| `macos_arm64` | Qualified | CI job `checks (macos_arm64)`. |
-| `macos_x86_64` | Not qualified | No CI cell. |
-| `windows_x86_64` | Qualified | CI job `checks (windows_x86_64)`. |
-| `windows_arm64` | n/a | GHC 9.10.3 ships no Windows arm64 bindist. |
+See the [support matrix](../docs/support-matrix.md).
+
+GHC 9.10.3 ships no Windows arm64 bindist.
 
 On other platforms Haskell targets fail toolchain resolution.
 
 ## Resolving Hackage dependencies
 
-The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale. With `stack_lock = "stack.yaml.lock"` (listed in `srcs`), `haskell_deps_resolve` pins every version named by the lock's sha256-checked snapshot and extra-deps, and writes the same two files; `dx audit` and `dx update` read the resulting `cabal.project.freeze`. It does not run `stack`; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
+The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale. With `stack_lock = "stack.yaml.lock"` (listed in `srcs`), `haskell_deps_resolve` pins every version named by the lock's sha256-checked snapshot and extra-deps, and writes the same two files; `dx security`, `dx license` and `dx update` read the resulting `cabal.project.freeze`. It does not run `stack`; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
 
 ```starlark
 load("@rules_dx//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")

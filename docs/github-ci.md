@@ -40,11 +40,7 @@
 
 4. Require `dx-ci (aggregate)` in branch protection. Do not require the per-platform jobs.
 
-5. For docs, copy the docs starter and set `site`:
-
-   ```sh
-   cp examples/docs-ci/caller.yml .github/workflows/docs.yml
-   ```
+5. For docs, copy the YAML below to `.github/workflows/docs.yml` and set `site`:
 
    <!-- snippet: examples/docs-ci/caller.yml -->
    ```yaml
@@ -183,8 +179,6 @@ Bazel downloads and Bazelisk are fetched fresh in each job.
 | `remote_cache` | REAPI cache URL. `dx init --apply` wires it to the `DX_REMOTE_CACHE` repository variable. |
 | `advisory_pr` | Default `false`. Run `dx update advisory --pr`, which opens or refreshes the `dx-update/advisory` pull request that moves the advisory pins in `.dx/pins` to the newest snapshot release. Call the workflow from a `schedule` trigger with `contents: write` and `pull-requests: write` permissions. |
 | `invocation_id` | 1 to 40 letters, digits, underscores or hyphens. Set one per call when a run has several calls. |
-
-The `disabled_checks` input is gone. Callers must delete `disabled_checks` from their `with:` block, or the call fails with an undefined-input error.
 
 Changed-line coverage runs `dx coverage --min-changed-line-coverage <percent>`. See [Build, test, coverage](cli/commands/build-test-coverage.md) for output lines and error codes.
 

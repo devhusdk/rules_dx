@@ -13,13 +13,14 @@ tools/dx security --report sarif=security.sarif core/quality/tools/python
 ```
 
 ```text
-dx security [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [scope...]
-dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx|cyclonedx=<dest>] [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [scope...]
+dx security [--here] [--affected [--since <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif=<dest>] [--accept <advisory>[:<package>]|uncovered:<set> --reason <text> --expires <YYYY-MM-DD>] [scope...]
+dx license  [--here] [--affected [--since <ref>]] [--offline] [--frozen] [--fail-on info|warning|error] [--report sarif|spdx|cyclonedx=<dest>] [--accept <package> --reason <text> --expires <YYYY-MM-DD>] [scope...]
 ```
 
 | Flag | What it does |
 | --- | --- |
 | `--affected` | Runs the sets that own targets your git changes reach. Not with scopes or `--here`. |
+| `--since <ref>` | With `--affected`: diffs from this ref instead of the merge-base. Without `--affected`, exits `2`. |
 | `--here` | Uses the current directory tree. Not with scopes. |
 | `--offline` | Uses pinned cached snapshots. Fails with `offline_required` when missing. |
 | `--frozen` | Forbids manifest and lock resolution changes. |
@@ -28,6 +29,7 @@ dx license  [--here] [--affected] [--offline] [--frozen] [--fail-on info|warning
 | `--report cyclonedx=<dest>` | `dx license` only: writes a CycloneDX 1.6 JSON SBOM of the scoped dependencies with purl, version and license. Same ordering and dating as the SPDX report; combine with `--report spdx=<dest>` for both from one audit pass. |
 | `--report spdx=<dest>` | `dx license` only: writes an SPDX 2.3 JSON SBOM of the scoped dependencies with their licenses. Sorted, and dated from `SOURCE_DATE_EPOCH` or `DX_AUDIT_TODAY`, so reruns match byte for byte. |
 | `--output text\|json` | Sets the output format. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 Scopes: dependency-set, package or target selectors. No scope means `//...`. See [Scope Defaults](scope-defaults.md). With `--affected` and no changes, or no owned set for `dx license`, they print `no affected targets` and exit `0`. With changes that no set owns, `dx security` runs only the secrets scan. Bazel options do not apply.
 
@@ -174,6 +176,17 @@ A relative report destination anchors at the workspace root. Colliding destinati
 | `1` | Findings at or above `--fail-on`, an incomplete assessment, or an operational failure. |
 | `2` | Usage or scope error. |
 
+### Exit codes
+
+`dx security` and `dx license` share these.
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success, or `no affected targets`. |
+| `1` | A finding at or above `--fail-on`, an unassessed package, `offline_required`, or an `--accept` that matches no finding. |
+| `2` | Usage error, or a scope that owns no set. |
+| `3` | A `security.toml` or `license.toml` that cannot be read or written. |
+
 ## Advisory Snapshots
 
 ```sh
@@ -286,11 +299,14 @@ Output: JSON emits `command_started`, then per set one `notice` (`update_set_suc
 
 Text prints `dx: <code>: <message>` on stderr per failure, then a count of updated, current, pinned, unsupported, failed and blocked sets. A failed run prints the rerun command: `dx update --apply <sets>` plus `git checkout -- <locks>` after `--apply`, or `dx update <sets>` after a check.
 
+### Exit codes
+
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
 | `1` | A set is unsupported, failed or blocked, or an operational failure. |
 | `2` | Usage or scope error. |
+| `3` | A read or write failure, or a `git` or `gh` that cannot start or times out. |
 
 ### Outdated
 

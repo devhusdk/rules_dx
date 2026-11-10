@@ -192,15 +192,11 @@ aspect skips cells with no pinned PHP.
 
 ## Platforms
 
-| Cell | Status |
-| --- | --- |
-| `linux_x86_64` | Pinned; qualified by CI |
-| `linux_arm64` | Pinned; qualified by CI |
-| `macos_arm64` | Pinned; qualified by CI |
-| `windows_x86_64` | Pinned; qualified by CI |
-| `windows_arm64` | Unsupported; no Windows arm64 PHP 8.5 build exists |
+See the [support matrix](../docs/support-matrix.md).
 
-Four cells have a pinned PHP. The rules mark their targets
+No Windows arm64 PHP 8.5 build exists.
+
+The rules mark their targets
 incompatible elsewhere, so a build fails instead of running the host PHP.
 Launchers start through a bash script, except on Windows, where a small
 native launcher starts PHP from a descriptor file beside the `.exe`.

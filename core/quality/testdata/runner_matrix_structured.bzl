@@ -224,6 +224,7 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_pass.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_java_annotation_pass",
@@ -239,6 +240,7 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_java_annotation_pass.expected.txt",
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_typecheck_pass",
@@ -257,6 +259,7 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_typecheck_pass.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_typecheck_semantic_fail",
@@ -269,6 +272,7 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_typecheck_semantic_fail.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_semantic_fail",
@@ -281,6 +285,7 @@ STRUCTURED_CASES = [
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_semantic_fail.expected.txt",
         "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_syntax_error",
@@ -292,6 +297,7 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_syntax_error.expected.txt",
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_missing_id",
@@ -303,6 +309,7 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_missing_id.expected.txt",
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_import_undeclared",
@@ -314,6 +321,7 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_import_undeclared.expected.txt",
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_import_escape_parent",
@@ -325,6 +333,7 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_import_escape_parent.expected.txt",
+        "macos_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_import_escape_absolute",
@@ -336,6 +345,7 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_import_escape_absolute.expected.txt",
+        "macos_arm64": True,
     },
     {
         "name": "matrix_avro_lint_avsc_pass",

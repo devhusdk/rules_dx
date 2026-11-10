@@ -26,9 +26,9 @@ This page fixes how tests in this repository are declared and run. Every test ta
 
 ## Exclusive
 
-- `exclusive` is allowed only where two tests cannot share a resource.
-- Each case has a line in the allowlist that names the resource as `resource=<name>`.
-- A resource that Bazel can count is declared with a `resources:<name>:<n>` tag instead.
+- `exclusive` is not allowed.
+- Tests that share a resource each get their own copy of it.
+- A resource that Bazel can count is declared with a `resources:<name>:<n>` tag.
 
 ## Test kinds
 
@@ -75,7 +75,7 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 - It counts a loaded tags constant at each test call that uses it.
 - A call is a test call when its name has the word `test`, `tests`, `suite`, `bench` or `fuzz`, when the name is a `rule(test = True)`, or when the name is a macro that calls one of these.
 - It skips `tags` on a call that is not a test call.
-- `tools/ci/test_tags_allowlist.txt` holds one line per file and tag: `<path> <tag> <count>`. An `exclusive` line ends with `resource=<name>`. Lines are sorted.
+- `tools/ci/test_tags_allowlist.txt` holds one line per file and tag: `<path> <tag> <count>`. Lines are sorted.
 - The guard fails when a file has more occurrences than its line allows.
 - The guard fails when a line allows more than the file has, or names a file with none.
 - The allowlist only shrinks. No change adds a line or raises a count.

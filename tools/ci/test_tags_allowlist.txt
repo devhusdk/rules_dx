@@ -9,9 +9,8 @@ cc/private/toolchains/action_tests.bzl manual 1
 cc/tests/fixtures/bench/BUILD.bazel manual 1
 cc/tests/fixtures/fuzz/BUILD.bazel manual 1
 cc/tests/fixtures/gcc_coverage/BUILD.bazel manual 2
-cc/tests/fixtures/gcc_sanitize/BUILD.bazel manual 4
-cc/tests/fixtures/gcc_shared/BUILD.bazel manual 3
 cc/tests/fixtures/msvc_shared/BUILD.bazel manual 4
+cc/tests/fixtures/sanitize/BUILD.bazel manual 4
 cc/tests/msvc_x86_64/BUILD.bazel manual 3
 cc/tests/tags/BUILD.bazel manual 1
 cli/cli/tests/agents/BUILD.bazel local 1
@@ -42,7 +41,7 @@ core/tests/wrapper_tests.bzl manual 36
 core/tests/wrapper_tests.bzl requires-network 2
 csharp/private/defs.bzl manual 1
 csharp/tests/fixtures/fuzz/BUILD.bazel manual 1
-cuda/private/defs.bzl exclusive 1 resource=gpu
+cuda/private/defs.bzl exclusive 1
 cuda/private/defs.bzl external 1
 cuda/private/defs.bzl local 1
 cuda/tests/BUILD.bazel manual 3
@@ -65,10 +64,10 @@ examples/adopt-polyglot/BUILD.bazel no-sandbox 1
 examples/adopt-polyglot/BUILD.bazel requires-network 1
 flatbuffers/tests/BUILD.bazel manual 3
 flutter/private/defs.bzl manual 1
-flutter/tests/fixtures/flutter-app/BUILD.bazel exclusive 1 resource=ios_simulator
+flutter/tests/fixtures/flutter-app/BUILD.bazel exclusive 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel local 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel manual 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel exclusive 1 resource=android_emulator
+flutter/tests/fixtures/flutter-app/android/BUILD.bazel exclusive 1
 flutter/tests/fixtures/flutter-app/android/BUILD.bazel manual 4
 fsharp/private/defs.bzl manual 1
 fsharp/tests/fixtures/fuzz/BUILD.bazel manual 1
@@ -82,7 +81,7 @@ javascript/private/defs.bzl manual 1
 javascript/tests/fixtures/fuzz/BUILD.bazel manual 1
 javascript/tests/fixtures/hello/BUILD.bazel manual 1
 lua/private/defs.bzl manual 1
-msix/tests/BUILD.bazel exclusive 1 resource=msix_package_store
+msix/tests/BUILD.bazel exclusive 1
 msix/tests/BUILD.bazel manual 2
 ocaml/private/BUILD.bazel manual 1
 ocaml/private/defs.bzl manual 1
@@ -119,13 +118,13 @@ tools/docs/support_matrix/BUILD.bazel local 1
 tools/docs/support_matrix/BUILD.bazel no-sandbox 1
 tools/testing/BUILD.bazel local 1
 tools/testing/BUILD.bazel no-sandbox 1
-tools/testing/hermetic/BUILD.bazel exclusive 2 resource=nested_bazel
+tools/testing/hermetic/BUILD.bazel exclusive 2
 tools/testing/hermetic/BUILD.bazel manual 5
 tools/testing/hermetic/BUILD.bazel no-cache 2
 tools/testing/hermetic/BUILD.bazel no-remote 2
 tools/testing/hermetic/BUILD.bazel no-sandbox 2
 tools/testing/hermetic/BUILD.bazel requires-network 2
-tools/testing/hermetic/defs.bzl exclusive 2 resource=nested_bazel
+tools/testing/hermetic/defs.bzl exclusive 2
 tools/testing/hermetic/defs.bzl local 2
 tools/testing/hermetic/defs.bzl manual 2
 tools/testing/hermetic/defs.bzl no-cache 2

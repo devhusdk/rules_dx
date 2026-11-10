@@ -434,35 +434,23 @@ fn collect(root: &Path, dir: &Path, files: &mut BTreeMap<String, FileScan>) {
     }
 }
 
-/// One allowlist line: `<path> <tag> <count>`, plus `resource=<name>` for exclusive.
+/// One allowlist line: `<path> <tag> <count>`.
 fn parse_allowlist(text: &str) -> (Counts, Vec<String>) {
     let mut counts = Counts::new();
     let mut problems = Vec::new();
     let mut previous = None;
     for line in text.lines() {
         let fields: Vec<&str> = line.split(' ').collect();
-        let (path, tag, count, resource) = match fields.as_slice() {
-            [path, tag, count] => (*path, *tag, *count, None),
-            [path, tag, count, resource] => (*path, *tag, *count, Some(*resource)),
-            _ => {
-                problems.push(format!("malformed line: {line:?}"));
-                continue;
-            }
+        let [path, tag, count] = fields.as_slice() else {
+            problems.push(format!("malformed line: {line:?}"));
+            continue;
         };
         let count = count.parse::<usize>().unwrap_or(0);
         if count == 0 || !banned(tag) {
             problems.push(format!("malformed line: {line:?}"));
             continue;
         }
-        let named = resource
-            .and_then(|field| field.strip_prefix("resource="))
-            .is_some_and(|name| !name.is_empty());
-        if (tag == "exclusive") != named || (resource.is_some() && !named) {
-            problems.push(format!(
-                "exclusive lines end with resource=<name>, other lines have three fields: {line:?}"
-            ));
-        }
-        let key = (path.to_owned(), tag.to_owned());
+        let key = ((*path).to_owned(), (*tag).to_owned());
         if previous.as_ref().is_some_and(|before| *before >= key) {
             problems.push(format!("not sorted or repeated: {line:?}"));
         }
@@ -654,7 +642,7 @@ fn the_allowlist_rejects_new_tags_and_spare_entries() {
 
 #[test]
 fn the_allowlist_format_is_strict() {
-    let good = "a/BUILD.bazel exclusive 1 resource=gpu\na/BUILD.bazel manual 2\n";
+    let good = "a/BUILD.bazel exclusive 1\na/BUILD.bazel manual 2\n";
     let (parsed, problems) = parse_allowlist(good);
     assert_eq!(problems, Vec::<String>::new());
     assert_eq!(
@@ -665,7 +653,7 @@ fn the_allowlist_format_is_strict() {
         ]),
     );
     for bad in [
-        "a/BUILD.bazel exclusive 1\n",
+        "a/BUILD.bazel exclusive 1 resource=gpu\n",
         "a/BUILD.bazel manual 1 resource=gpu\n",
         "a/BUILD.bazel manual 0\n",
         "a/BUILD.bazel slow 1\n",

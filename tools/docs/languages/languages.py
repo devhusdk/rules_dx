@@ -9,6 +9,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 
 OUT = "docs/languages"
 UPDATE = "bazel run //tools/docs/languages:languages_bin -- --write"
@@ -23,6 +24,31 @@ LOAD = re.compile(r"^load\(\s*(\"[^\"]+\")\s*,([^\n]*)\)\s*$|^load\(\s*(\"[^\"]+
 LOAD_ITEM = re.compile(r"(?:(\w+)\s*=\s*)?\"(\w+)\"")
 ALIAS = re.compile(r"^(\w+)\s*=\s*(\w+)\s*$", re.M)
 STRING = re.compile(r'"""(.*?)"""|"((?:[^"\\\n]|\\.)*)"', re.S)
+
+
+def runfile(key):
+    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
+    if manifest and os.path.isfile(manifest):
+        with open(manifest, encoding="utf-8") as handle:
+            for line in handle:
+                name, _, value = line.rstrip("\n").partition(" ")
+                if name == key:
+                    return value
+    return os.path.join(os.environ["TEST_SRCDIR"], key)
+
+
+def snapshot_root():
+    """Writes the declared source snapshots into a scratch tree and returns its root."""
+    root = tempfile.mkdtemp(dir=os.environ.get("TEST_TMPDIR"))
+    for variable in ("DX_SOURCES_JSON", "DX_FILES_JSON"):
+        with open(runfile(os.environ[variable]), encoding="utf-8") as handle:
+            files = json.load(handle)
+        for rel, text in files.items():
+            path = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8", newline="\n") as out:
+                out.write(text)
+    return root
 
 
 def languages(root):
@@ -294,10 +320,8 @@ def pages(root):
 def find_root():
     if "BUILD_WORKSPACE_DIRECTORY" in os.environ:
         return os.environ["BUILD_WORKSPACE_DIRECTORY"]
-    if "TEST_SRCDIR" in os.environ:
-        marker = "docs/languages/zig.md"
-        linked = os.path.join(os.environ["TEST_SRCDIR"], os.environ["TEST_WORKSPACE"], marker)
-        return os.path.realpath(linked)[: -len(marker)]
+    if "DX_SOURCES_JSON" in os.environ:
+        return snapshot_root()
     return os.getcwd()
 
 

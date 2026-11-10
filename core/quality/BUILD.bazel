@@ -1023,11 +1023,14 @@ rust_test(
         "//:MODULE.bazel",
         "//config:BUILD.bazel",
         "real_aspect_labels.bzl",
-    ] + glob(["families/*.bzl"]),
-    tags = [
-        "external",
-        "no-remote-exec",
+    ] + glob(["families/*.bzl"]) + [
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
     ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
     deps = [
         "//cli/adopt:dx_adopt",
         "//tools/testing:dx_testing",

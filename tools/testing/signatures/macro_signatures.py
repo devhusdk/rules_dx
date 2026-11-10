@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Check that binary, test, bench and fuzz macros follow one signature rule."""
 
+import json
 import os
 import re
 import sys
+import tempfile
 
-SELF = os.path.join("tools", "testing", "signatures", "macro_signatures.py")
 MACRO = re.compile(r"^def ([a-z]\w*_(binary|test|bench|fuzz_test))\(", re.M)
 BANNED = ("entry_point",)
 REQUIRED_SRCS = {
@@ -20,13 +21,29 @@ REQUIRED_SRCS = {
 }
 
 
-def checkout_root():
-    # Unsandboxed, so the runfiles copy of this file links into the checkout.
-    linked = os.path.join(os.environ["TEST_SRCDIR"], os.environ["TEST_WORKSPACE"], SELF)
-    real = os.path.realpath(linked)
-    if not real.endswith(SELF):
-        sys.exit("cannot find the checkout from %s" % linked)
-    return real[: -len(SELF)]
+def runfile(key):
+    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
+    if manifest and os.path.isfile(manifest):
+        with open(manifest, encoding="utf-8") as handle:
+            for line in handle:
+                name, _, value = line.rstrip("\n").partition(" ")
+                if name == key:
+                    return value
+    return os.path.join(os.environ["TEST_SRCDIR"], key)
+
+
+def snapshot_root():
+    """Writes the declared source snapshots into a scratch tree and returns its root."""
+    root = tempfile.mkdtemp(dir=os.environ.get("TEST_TMPDIR"))
+    for variable in ("DX_SOURCES_JSON", "DX_FILES_JSON"):
+        with open(runfile(os.environ[variable]), encoding="utf-8") as handle:
+            files = json.load(handle)
+        for rel, text in files.items():
+            path = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8", newline="\n") as out:
+                out.write(text)
+    return root
 
 
 def parameters(text, start):
@@ -124,7 +141,7 @@ def problems(root):
 
 
 def main():
-    found = problems(checkout_root())
+    found = problems(snapshot_root())
     for line in found:
         print(line, file=sys.stderr)
     if found:

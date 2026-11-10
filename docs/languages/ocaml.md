@@ -65,7 +65,7 @@ Builds one rules_ocaml bytecode executable and runs it as a test on the pinned o
 ### `ocaml_fuzz_test`
 
 ```python
-ocaml_fuzz_test(name, *, main, deps = None, visibility = None, tags = None, **kwargs)
+ocaml_fuzz_test(name, *, main = None, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
 A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual, tagged `dx-fuzz`, and `<name>_run` drives it for `dx fuzz`.
@@ -73,7 +73,7 @@ A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the
 ### `ocaml_bench`
 
 ```python
-ocaml_bench(name, *, main, deps = None, visibility = None, tags = None, **kwargs)
+ocaml_bench(name, *, main = None, deps = None, visibility = None, tags = None, **kwargs)
 ```
 
 A benchmark `dx bench` runs: `main` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`.

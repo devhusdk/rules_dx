@@ -70,11 +70,15 @@ rust_test(
     ),
     crate_name = "loaders_test",
     crate_root = "loaders_test.rs",
-    data = ["//:MODULE.bazel"],
-    tags = [
-        "external",
-        "no-remote-exec",
+    data = [
+        "//:MODULE.bazel",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
     ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
     deps = all_crate_deps(
         package_name = "core/modules_tests",
         normal = True,
@@ -166,11 +170,13 @@ rust_test(
         "//rego/private/quality:rego.bzl",
         "//rust/private/quality:rust.bzl",
         "//terraform/private/quality:terraform.bzl",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
     ],
-    tags = [
-        "external",
-        "no-remote-exec",
-    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
     deps = all_crate_deps(
         package_name = "core/modules_tests",
         normal = True,

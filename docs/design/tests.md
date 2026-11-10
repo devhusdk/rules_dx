@@ -76,6 +76,8 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 ## Guard
 
 - `@dx_test_tags_sources//:sources.json` snapshots every `BUILD`, `BUILD.bazel` and `.bzl` file of the module. Its repository rule watches each directory and file it reads.
+- `@dx_test_tags_sources//:files.json` snapshots the `MODULE.bazel`, `<lang>/lang.json`, repository `*.BUILD` and `*.BUILD.bazel` files and the language and command pages under `docs/`.
+- A test that walks the module tree declares both snapshots, passes them through `DX_SOURCES_JSON` and `DX_FILES_JSON`, and reads them with `dx_testing::source_snapshot()`. A Python test writes them into a scratch tree.
 - `//tools/ci:test_tags_test` scans that snapshot as a declared input.
 - It counts the banned tags `manual`, `local`, `no-sandbox`, `no-cache`, `no-remote`, `external`, `requires-network` and `exclusive`.
 - It counts a tag in the `tags` of a test rule or test macro call, in `local = True` on such a call, and in a tags value built outside a call: a tags-named variable, a `"tags"` dict entry, or the arguments of a tags-named function.

@@ -9,8 +9,6 @@ cli/cli/tests/uv_sets/BUILD.bazel local 1
 cli/cli/tests/uv_sets/BUILD.bazel no-sandbox 1
 core/conformance.bzl manual 2
 core/fuzz.bzl manual 1
-core/modules/BUILD.bazel external 2
-core/quality/BUILD.bazel external 1
 core/quality/pipeline_tests.bzl manual 1
 core/quality/pipeline_tests.bzl no-remote 1
 core/quality/pipeline_tests.bzl requires-network 1
@@ -18,9 +16,6 @@ core/quality/testdata/coverage_sources/BUILD.bazel manual 8
 core/quality/testdata/scalafix_aux/BUILD.bazel manual 1
 core/quality/testdata/spotbugs_owned/BUILD.bazel manual 2
 core/quality/testdata/tool_override_tests.bzl manual 43
-core/quality/tests/BUILD.bazel local 1
-core/quality/tests/BUILD.bazel no-sandbox 1
-core/quality/tests/BUILD.bazel requires-network 1
 core/tests/wrapper_forward_fixture.bzl manual 1
 core/tests/wrapper_tests.bzl manual 36
 core/tests/wrapper_tests.bzl requires-network 2
@@ -75,15 +70,6 @@ rust/private/defs.bzl manual 2
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel manual 1
 swift/tests/fixtures/fuzz/BUILD.bazel manual 1
 tools/ci/BUILD.bazel no-remote 2
-tools/docs/languages/BUILD.bazel external 1
-tools/docs/languages/BUILD.bazel local 1
-tools/docs/languages/BUILD.bazel no-sandbox 1
-tools/docs/rule_names/BUILD.bazel external 1
-tools/docs/rule_names/BUILD.bazel local 1
-tools/docs/rule_names/BUILD.bazel no-sandbox 1
-tools/docs/support_matrix/BUILD.bazel external 1
-tools/docs/support_matrix/BUILD.bazel local 1
-tools/docs/support_matrix/BUILD.bazel no-sandbox 1
 tools/testing/BUILD.bazel local 1
 tools/testing/BUILD.bazel no-sandbox 1
 tools/testing/hermetic/BUILD.bazel exclusive 2
@@ -103,9 +89,6 @@ tools/testing/nested_bazel.bzl local 1
 tools/testing/nested_bazel.bzl manual 1
 tools/testing/nested_bazel.bzl no-sandbox 1
 tools/testing/nested_bazel.bzl requires-network 1
-tools/testing/signatures/BUILD.bazel external 1
-tools/testing/signatures/BUILD.bazel local 1
-tools/testing/signatures/BUILD.bazel no-sandbox 1
 tools/testing/starters/defs.bzl manual 1
 typescript/private/BUILD.bazel manual 3
 typescript/private/defs.bzl manual 1

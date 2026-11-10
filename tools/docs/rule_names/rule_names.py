@@ -9,9 +9,35 @@ import json
 import os
 import re
 import sys
+import tempfile
 
 DOC = "docs/cli/commands/README.md"
 HEADER = "| Upstream load | Upstream rule | dx load | dx rule |\n| --- | --- | --- | --- |\n"
+
+
+def runfile(key):
+    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
+    if manifest and os.path.isfile(manifest):
+        with open(manifest, encoding="utf-8") as handle:
+            for line in handle:
+                name, _, value = line.rstrip("\n").partition(" ")
+                if name == key:
+                    return value
+    return os.path.join(os.environ["TEST_SRCDIR"], key)
+
+
+def snapshot_root():
+    """Writes the declared source snapshots into a scratch tree and returns its root."""
+    root = tempfile.mkdtemp(dir=os.environ.get("TEST_TMPDIR"))
+    for variable in ("DX_SOURCES_JSON", "DX_FILES_JSON"):
+        with open(runfile(os.environ[variable]), encoding="utf-8") as handle:
+            files = json.load(handle)
+        for rel, text in files.items():
+            path = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8", newline="\n") as out:
+                out.write(text)
+    return root
 
 
 def exports(root):
@@ -63,10 +89,8 @@ def main():
     root = os.getcwd()
     if "BUILD_WORKSPACE_DIRECTORY" in os.environ:
         root = os.environ["BUILD_WORKSPACE_DIRECTORY"]
-    elif "TEST_SRCDIR" in os.environ:
-        # The test runs unsandboxed, so the README in runfiles is a link into the checkout.
-        linked = os.path.join(os.environ["TEST_SRCDIR"], os.environ["TEST_WORKSPACE"], DOC)
-        root = os.path.realpath(linked)[: -len(DOC)]
+    elif "DX_SOURCES_JSON" in os.environ:
+        root = snapshot_root()
     doc = os.path.join(root, DOC)
     with open(doc, encoding="utf-8") as f:
         text = f.read()

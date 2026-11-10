@@ -143,7 +143,6 @@ fn shim_runs_a_binary_in_the_tools_dx_layout() {
         .arg("hello")
         .current_dir(ws.path())
         .env_clear()
-        .env("PATH", "/usr/bin:/bin")
         .env("HOME", home.path())
         .env("DX_RELEASE_BASE_URL", support::dead_base());
     if cfg!(windows) {

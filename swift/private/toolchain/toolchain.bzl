@@ -32,7 +32,7 @@ _LINUX = ["@platforms//os:linux"]
 _VERSION = "6.4.2"
 SWIFT_LINUX_CPUS = ["aarch64", "x86_64"]
 
-def _swift_cross_toolchain(name, exec_cpu, target_cpu, tags):
+def _swift_cross_toolchain(name, exec_cpu, target_cpu):
     """Declares the Swift toolchain whose tools run on one Linux cpu and build for another."""
     exec_repo = "@dx_swift_linux_" + exec_cpu
     target_repo = "@dx_swift_linux_" + target_cpu
@@ -41,7 +41,7 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu, tags):
 
     swift_tools(
         name = name + "_tools",
-        tags = tags,
+        tags = ["manual"],
         additional_inputs = [
             exec_repo + "//:swift_tool_inputs",
             exec_sysroot + "//:files",
@@ -55,7 +55,7 @@ def _swift_cross_toolchain(name, exec_cpu, target_cpu, tags):
 
     swift_toolchain(
         name = name,
-        tags = tags,
+        tags = ["manual"],
         target_compatible_with = _LINUX,
         arch = target_cpu,
         dynamic_runtime = [target_repo + "//:linux_dynamic_runtime"],
@@ -88,11 +88,10 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
     pair = exec_cpu + "_" + target_cpu
     sysroot = "@dx_swift_sysroot_linux_" + target_cpu
     sysroot_root = Label(sysroot + "//:files").workspace_root
-    tags = ["manual"]
 
     cc_library(
         name = "linux_link_libs_" + pair,
-        tags = tags,
+        tags = ["manual"],
         target_compatible_with = _LINUX,
         additional_linker_inputs = [
             sysroot + "//:link_libs/libcurl.so",
@@ -112,11 +111,11 @@ def swift_linux_toolchain(name, exec_cpu, target_cpu):
         upstream = "@dx_swift_linux_" + exec_cpu + "//:swift_toolchain_exec"
     else:
         upstream = ":swift_cross_" + pair
-        _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu, tags)
+        _swift_cross_toolchain("swift_cross_" + pair, exec_cpu, target_cpu)
 
     _with_link_libs(
         name = "swift_toolchain_" + pair,
-        tags = tags,
+        tags = ["manual"],
         target_compatible_with = _LINUX,
         link_libs = ":linux_link_libs_" + pair,
         toolchain = upstream,

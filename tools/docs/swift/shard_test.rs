@@ -125,3 +125,13 @@ fn the_fixture_shard_documents_members_added_to_other_modules_types() {
         .expect("extends");
     assert_eq!(extends.value, b"s:SS");
 }
+
+#[test]
+fn docc_symbol_links_become_dx_links() {
+    let shard = shard();
+    let area = symbol(&shard, "Shapes.Measured.area");
+    assert_eq!(
+        area.doc_markdown,
+        "The area of a [Circle](dx:swift:shapes:Shapes.Circle) or a ``Missing``."
+    );
+}

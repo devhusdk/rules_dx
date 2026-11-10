@@ -18,6 +18,6 @@ public struct Circle {
 
 /// Things that have an area.
 public protocol Measured {
-    /// The area.
+    /// The area of a ``Circle`` or a ``Missing``.
     var area: Double { get }
 }

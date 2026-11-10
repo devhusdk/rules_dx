@@ -393,3 +393,48 @@ fn members_added_to_other_modules_types_are_documented() {
     assert_eq!(at(&shard, "Swift.String.shout~28~29").1, 9);
     assert!(!shard.symbols.iter().any(|s| s.id.contains("quiet")));
 }
+
+#[test]
+fn symbol_links_resolve_to_dx_links() {
+    let links: BTreeMap<String, String> = [
+        ("Circle", "swift:shapes:Shapes.Circle"),
+        (
+            "Circle/scale(by:)",
+            "swift:shapes:Shapes.Circle.scale~28by~3A~29",
+        ),
+    ]
+    .into_iter()
+    .map(|(path, id)| (path.to_owned(), id.to_owned()))
+    .collect();
+    assert_eq!(
+        link_symbols(
+            "See ``Circle`` and ``Circle/scale(by:)`` and ``Shapes/Circle``.",
+            "Shapes",
+            &links
+        ),
+        "See [Circle](dx:swift:shapes:Shapes.Circle) and [scale(by:)](dx:swift:shapes:Shapes.Circle.scale~28by~3A~29) and [Circle](dx:swift:shapes:Shapes.Circle)."
+    );
+    assert_eq!(
+        link_symbols(
+            "Not ``Missing`` and `Circle` and ```Circle```.",
+            "Shapes",
+            &links
+        ),
+        "Not ``Missing`` and `Circle` and ```Circle```."
+    );
+}
+
+#[test]
+fn doc_comment_links_are_rewritten_in_a_shard() {
+    let graph = GRAPH.replacen("A circle.\"}", "See ``Circle/radius`` and ``Nope``.\"}", 1);
+    let (list, texts) = sources();
+    let shard = convert(&graph, &[], "Shapes", &list, &texts, "shapes", "").expect("converts");
+    let circle = find(&shard, "Shapes.Circle");
+    assert!(
+        circle
+            .doc_markdown
+            .contains("[radius](dx:swift:shapes:Shapes.Circle.radius) and ``Nope``."),
+        "{}",
+        circle.doc_markdown
+    );
+}

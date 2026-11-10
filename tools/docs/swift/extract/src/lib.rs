@@ -404,6 +404,13 @@ pub fn convert(
         }
         symbols.push(symbol);
     }
+    let mut links: BTreeMap<String, String> = BTreeMap::new();
+    for (path, id) in &ids_by_path {
+        links.insert(path.join("/"), format!("{LANGUAGE}:{package}:{id}"));
+    }
+    for symbol in &mut symbols {
+        symbol.doc_markdown = link_symbols(&symbol.doc_markdown, module, &links);
+    }
     symbols.sort_by(|a, b| a.id.cmp(&b.id));
     let shard = DocIr {
         language: LANGUAGE.to_owned(),
@@ -412,6 +419,47 @@ pub fn convert(
     };
     documentation_ir::validate_shard(&shard).map_err(|error| format!("invalid IR: {error:?}"))?;
     Ok(shard)
+}
+
+/// Rewrites each resolvable DocC symbol link ``` ``Path/To/Symbol`` ``` to a `dx:` link; others stay code.
+fn link_symbols(text: &str, module: &str, links: &BTreeMap<String, String>) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(open) = rest.find("``") {
+        let run = rest[open..].bytes().take_while(|b| *b == b'`').count();
+        let after = open + run;
+        out.push_str(&rest[..after]);
+        rest = &rest[after..];
+        if run != 2 {
+            continue;
+        }
+        let Some(close) = rest.find('`') else {
+            break;
+        };
+        let name = &rest[..close];
+        let closing = rest[close..].bytes().take_while(|b| *b == b'`').count();
+        let key = name
+            .strip_prefix(module)
+            .and_then(|tail| tail.strip_prefix('/'))
+            .filter(|tail| !links.contains_key(name) && !tail.is_empty())
+            .unwrap_or(name);
+        let target = links.get(key);
+        match (closing, target, key.rsplit('/').next()) {
+            (2, Some(id), Some(last))
+                if !name.is_empty() && !name.contains('\n') && !last.is_empty() =>
+            {
+                out.truncate(out.len() - 2);
+                out.push_str(&format!("[{last}](dx:{id})"));
+                rest = &rest[close + 2..];
+            }
+            _ => {
+                out.push_str(&rest[..close + closing]);
+                rest = &rest[close + closing..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
 }
 
 #[allow(clippy::too_many_arguments)]

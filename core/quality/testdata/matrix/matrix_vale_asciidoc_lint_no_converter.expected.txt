@@ -1,1 +1,1 @@
-pipeline failed: tool execution failed for vale: vale analysis was incomplete: vale document converter failed: E100 [lintAdoc] Runtime error
+pipeline failed: tool execution failed for vale: vale analysis was incomplete: vale document converter failed: asciidoctor not found; it's needed to read AsciiDoc (config core/quality/testdata/vale_test.ini): {

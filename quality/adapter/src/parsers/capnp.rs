@@ -150,7 +150,9 @@ pub fn parse_capnp(
         if found.severity == ToolSeverity::Error {
             errors += 1;
         }
-        let Some(file) = files.iter().find(|file| **file == found.path) else {
+        let Some(file) = files
+            .iter()
+            .find(|file| **file == found.path.replace('\\', "/")) else {
             if found.severity == ToolSeverity::Error && foreign_error.is_none() {
                 foreign_error = Some(format!(
                     "{}:{}:{}: {}",
@@ -213,6 +215,14 @@ mod tests {
         let found =
             parse_capnp(b"dep/b.capnp:2:1-4: error: boom\n", Some(1), &[FILE]).expect("finding");
         assert_eq!(found.len(), 1);
+    }
+
+    #[test]
+    fn backslash_separators_match_the_checked_file() {
+        let err = b"pkg\\a.capnp:2:18-22: error: Not defined: Nope\n";
+        let found = parse_capnp(err, Some(1), &[FILE]).expect("findings");
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].file, FILE);
     }
 
     #[test]

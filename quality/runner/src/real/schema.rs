@@ -239,18 +239,19 @@ pub(super) const TOOLS: &[ToolDef] = &[
             let pairs = &call.staged.pairs;
             let capability = call.capability;
 
-            let root = std::fs::canonicalize(call.staged.scratch.root()).map_err(|err| {
-                execution(call.tool_id, format!("canonicalize scratch root: {err}"))
-            })?;
+            let root =
+                without_verbatim(std::fs::canonicalize(call.staged.scratch.root()).map_err(
+                    |err| execution(call.tool_id, format!("canonicalize scratch root: {err}")),
+                )?);
             let out_dir = root.join(".dx-thrift-out");
             std::fs::create_dir_all(&out_dir)
                 .map_err(|err| execution(call.tool_id, format!("create output dir: {err}")))?;
             let mut findings = Vec::new();
             for (workspace, absolute) in pairs {
                 // thrift prints realpaths of the staged copy, so check and report that one.
-                let file = std::fs::canonicalize(root.join(workspace)).map_err(|err| {
-                    execution(call.tool_id, format!("resolve {workspace}: {err}"))
-                })?;
+                let file = without_verbatim(std::fs::canonicalize(root.join(workspace)).map_err(
+                    |err| execution(call.tool_id, format!("resolve {workspace}: {err}")),
+                )?);
                 let invocation = commands::thrift_check(&call.tool.binary, &file, &root, &out_dir);
                 let out =
                     backend.run(call.tool_id, call.tool, &invocation, &call.staged.scratch)?;

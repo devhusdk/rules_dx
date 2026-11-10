@@ -81,7 +81,7 @@ examples/   tested examples
 - `gazelle/` holds the shared Gazelle plugins.
 - `ci/` holds one directory per CI system. Its file paths are public URLs.
 - `tools/` holds scripts that only maintainers run, and the generators.
-- `patches/` holds upstream patches. The patch table is generated from `MODULE.bazel`.
+- `patches/` holds upstream patches and the rules_dx registry. The patch table is generated from them.
 - `third_party/` holds vendored upstream sources.
 - `docs/` holds user docs. Per-language pages are generated from `lang.json`.
 - Every example in `examples/` is a tested target.
@@ -117,7 +117,7 @@ examples/   tested examples
 
 `<lang>/lang.json` is the single description of a language.
 
-- Its fields are `name`, `title`, `family`, `ecosystems`, `manifests`, `lockfiles`, `tools`, `platforms`, `pins` and `entry_points`.
+- Its fields are `name`, `title`, `family`, `ecosystems`, `manifests`, `lockfiles`, `tools`, `platforms`, `pins`, `entry_points` and `setup`.
 - Every manifest validates against one shared schema. A test checks it.
 - It drives quality registration, the dx ecosystem registry, `dx init`, the support matrix and the per-language docs.
 - Its `quality` entry names the aspect file, the aspects and the probes. dx loads the file when the workspace has a file with one of `file_extensions`, or in every workspace when `every_workspace` is set.

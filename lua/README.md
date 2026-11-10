@@ -1,6 +1,6 @@
 # Lua
 
-Build, run and test Lua 5.4 with Lua built from source through the
+Build, run and test Lua 5.5 with Lua built from source through the
 [`lua` module](https://registry.bazel.build/modules/lua) on the Bazel Central
 Registry. Nothing is installed on the host and no host `lua` runs. rules_dx
 registers the Lua toolchain, so there is no toolchain setup in
@@ -134,7 +134,7 @@ Add `luarocks_lock(name = "lock")` from `@rules_dx//lua/luarocks:defs.bzl` next 
 the lock. `dx update` runs it: it moves the named rocks (all of them for a full
 update) to their newest release in `luarocks.lock`, then rewrites
 `luarocks.digests.json` from the rockspecs and the downloaded sources.
-`dx update --outdated` lists newer releases from `https://luarocks.org/manifest-5.4.json`.
+`dx update --outdated` lists newer releases from `https://luarocks.org/manifest-5.5.json`.
 Only `build.type = "builtin"` rocks with Lua modules are accepted. A `git+` source
 must be a GitHub URL with a `tag`.
 
@@ -200,7 +200,7 @@ width or quote style.
 ### Lint with selene
 
 `dx check` lints Lua with `selene` 0.32.0, built from source with the Lua 5.2
-to 5.4 parsers. Add `lint = ["selene"]` to the `lua` family. The default config
+to 5.5 parsers. Add `lint = ["selene"]` to the `lua` family. The default config
 uses `std = "lua53+lua54"`; bind a `selene_config` from
 `@rules_dx//core/quality:native_config.bzl` to change lints or the standard library.
 selene has no autofix.

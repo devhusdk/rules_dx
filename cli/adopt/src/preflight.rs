@@ -47,7 +47,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("rules_julia", "0.8.0"),
     ("rules_perl", "2.1.0"),
     ("rules_batch", "0.1.1"),
-    ("lua", "5.4.6.bcr.1"),
+    ("lua", "5.5.0"),
     ("rules_oci", "2.3.0"),
     ("rules_pkg", "1.3.0"),
     ("hermetic_launcher", "0.0.17"),

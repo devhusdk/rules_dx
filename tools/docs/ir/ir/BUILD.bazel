@@ -11,7 +11,10 @@ package(default_visibility = VIS_TOOLS)
 
 rust_library(
     name = "documentation_ir",
-    srcs = ["src/lib.rs"],
+    srcs = [
+        "src/lib.rs",
+        "src/tool.rs",
+    ],
     aliases = aliases(
         package_name = "tools/docs/ir/documentation_ir",
         normal = True,

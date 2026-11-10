@@ -49,12 +49,10 @@ This rule covers every public `<lang>_binary`, `<lang>_test`, `<lang>_bench` and
 - `srcs` is the first keyword parameter of a macro that takes it.
 - `srcs` defaults to `None` in binary and test macros. A bench or fuzz macro may require it.
 - `main` names the entry file. It follows `srcs` and defaults to `None`.
-- A macro with an unset `main` infers it with `dx_infer_main` from `core/entry.bzl`.
-- The quality sources of an executable come from `dx_entry_quality_srcs`, so they include `main`.
 - No macro takes `entry_point`. JVM macros take `main_class` or `target_class`.
 - `visibility` defaults to `None`.
 - `**kwargs` comes last.
-- `tools/testing/signatures/macro_signatures.py` enforces the rule. It lists the macros that require `srcs` or `main`.
+- `tools/testing/signatures/macro_signatures.py` checks the parameter order, the defaults and the absence of `entry_point`. It lists the macros that require `srcs` or `main`.
 
 ## Shared directories
 

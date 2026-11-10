@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//java/rules:defs.bzl", "java_library", "java_test")
+load("//java:defs.bzl", "java_library", "java_test")
 load(":results.bzl", "spotbugs_results")
 
 java_library(

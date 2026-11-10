@@ -1,4 +1,4 @@
-load("@rules_dx//scala/rules:defs.bzl", "scala_library")
+load("@rules_dx//scala:defs.bzl", "scala_library")
 
 # gazelle:resolve scala org.scalactic @maven//:org_scalactic_scalactic_2_13
 # gazelle:resolve scala scala.xml.Elem @maven//:org_scala_lang_modules_scala_xml_2_13

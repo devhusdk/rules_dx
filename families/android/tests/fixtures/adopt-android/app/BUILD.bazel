@@ -1,7 +1,7 @@
 # gazelle:ignore
 # gazelle:exclude src
 
-load("@rules_dx//java/rules:defs.bzl", "java_library", "java_test")
+load("@rules_dx//java:defs.bzl", "java_library", "java_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx_android//packaging:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_check", "rust_android_apk")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")

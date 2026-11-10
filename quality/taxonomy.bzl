@@ -126,7 +126,7 @@ TAXONOMY = {
         classes = ["html_template"],
     ),
     "java": struct(
-        owner = "//java/rules:defs.bzl",
+        owner = "//java:defs.bzl",
         classes = ["java"],
     ),
     "javascript": struct(
@@ -150,7 +150,7 @@ TAXONOMY = {
         classes = ["jupyter"],
     ),
     "kotlin": struct(
-        owner = "//kotlin/rules:defs.bzl",
+        owner = "//kotlin:defs.bzl",
         classes = ["kotlin"],
     ),
     "kubernetes": struct(
@@ -234,7 +234,7 @@ TAXONOMY = {
         classes = ["rust"],
     ),
     "scala": struct(
-        owner = "//scala/rules:defs.bzl",
+        owner = "//scala:defs.bzl",
         classes = ["scala"],
     ),
     "shell": struct(

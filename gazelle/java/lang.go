@@ -23,7 +23,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		MainRule:       "java_binary",
-		DefsPackage:    "java/rules:defs.bzl",
+		DefsPackage:    "java:defs.bzl",
 		UnresolvedHint: "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package",
 		Exts:           SupportedExts,
 		TestSuffixes:   []string{"Test"},

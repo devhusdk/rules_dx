@@ -232,13 +232,13 @@ Language rules:
 - `@rules_dx_dotnet//fsharp/rules:defs.bzl`: F#.
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
-- `@rules_dx//java/rules:defs.bzl`: Java.
+- `@rules_dx//java:defs.bzl`: Java.
 - `@rules_dx//javascript:defs.bzl`: JavaScript.
 - `@rules_dx//ansible/rules:defs.bzl`: Ansible.
 - `@rules_dx//bicep/rules:defs.bzl`: Bicep.
 - `@rules_dx//cloudformation/rules:defs.bzl`: CloudFormation.
 - `@rules_dx//julia/rules:defs.bzl`: Julia.
-- `@rules_dx//kotlin/rules:defs.bzl`: Kotlin.
+- `@rules_dx//kotlin:defs.bzl`: Kotlin.
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
 - `@rules_dx//kubernetes/rules:defs.bzl`: Kubernetes.
 - `@rules_dx//perl/rules:defs.bzl`: Perl.
@@ -251,7 +251,7 @@ Language rules:
 - `@rules_dx//rego/rules:defs.bzl`: Rego.
 - `@rules_dx//ruby/rules:defs.bzl`: Ruby.
 - `@rules_dx//rust/rules:defs.bzl`: Rust.
-- `@rules_dx//scala/rules:defs.bzl`: Scala.
+- `@rules_dx//scala:defs.bzl`: Scala.
 - `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript:defs.bzl`: TypeScript.
@@ -286,13 +286,13 @@ dx rule that wraps it.
 | `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
 | `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go/rules:defs.bzl` | `go_binary`, `go_library`, `go_test` |
 | `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell/rules:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
-| `@rules_java//java:defs.bzl` | `java_binary`, `java_library`, `java_test` | `@rules_dx//java/rules:defs.bzl` | `java_binary`, `java_library`, `java_test` |
+| `@rules_java//java:defs.bzl` | `java_binary`, `java_library`, `java_test` | `@rules_dx//java:defs.bzl` | `java_binary`, `java_library`, `java_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//javascript:defs.bzl` | `javascript_binary` |
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//javascript:defs.bzl` | `javascript_library` |
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//javascript:defs.bzl` | `javascript_test` |
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//javascript:defs.bzl` | `javascript_test` |
 | `@rules_julia//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` | `@rules_dx//julia/rules:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` |
-| `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
+| `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
 | `@rules_perl//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` | `@rules_dx//perl/rules:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` |
 | `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell/rules:defs.bzl` | `powershell_binary`, `powershell_library`, `powershell_test` |
 | `@rules_py//py:defs.bzl` | `py_binary` | `@rules_dx//python/rules:defs.bzl` | `python_binary` |
@@ -300,7 +300,7 @@ dx rule that wraps it.
 | `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python/rules:defs.bzl` | `python_test` |
 | `@rules_ruby//ruby:defs.bzl` | `rb_binary`, `rb_library`, `rb_test` | `@rules_dx//ruby/rules:defs.bzl` | `ruby_binary`, `ruby_library`, `ruby_test` |
 | `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
-| `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala/rules:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |
+| `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//typescript:defs.bzl` | `typescript_binary` |
 | `@aspect_rules_ts//ts:defs.bzl` | `ts_project` | `@rules_dx//typescript:defs.bzl` | `typescript_library` |
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
@@ -449,9 +449,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_bench` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
 |  |  | `@rules_dx//helm/rules:defs.bzl` | `helm_chart` |
-|  |  | `@rules_dx//java/rules:defs.bzl` | `java_bench` |
-|  |  | `@rules_dx//java/rules:defs.bzl` | `java_fuzz_test` |
-|  |  | `@rules_dx//java/rules:defs.bzl` | `java_jmh_test` |
+|  |  | `@rules_dx//java/private:defs.bzl` | `java_bench` |
+|  |  | `@rules_dx//java/private:defs.bzl` | `java_binary` |
+|  |  | `@rules_dx//java/private:defs.bzl` | `java_fuzz_test` |
+|  |  | `@rules_dx//java/private:defs.bzl` | `java_jmh_test` |
+|  |  | `@rules_dx//java/private:defs.bzl` | `java_library` |
+|  |  | `@rules_dx//java/private:defs.bzl` | `java_test` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_bench` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_binary` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_binary_upstream_data` |
@@ -461,9 +464,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_test_rejection` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_standalone_binary` |
-|  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_bench` |
-|  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_fuzz_test` |
-|  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_warnings_as_errors_opts` |
+|  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_bench` |
+|  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_binary` |
+|  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_fuzz_test` |
+|  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_library` |
+|  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_test` |
+|  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_warnings_as_errors_opts` |
 |  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_library` |
 |  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_schemas` |
 |  |  | `@rules_dx//libs/exec_os:defs.bzl` | `exec_os` |
@@ -534,8 +540,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_shared_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_static_library` |
 |  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_test` |
-|  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_bench` |
-|  |  | `@rules_dx//scala/rules:defs.bzl` | `scala_fuzz_test` |
+|  |  | `@rules_dx//scala/private:defs.bzl` | `scala_bench` |
+|  |  | `@rules_dx//scala/private:defs.bzl` | `scala_binary` |
+|  |  | `@rules_dx//scala/private:defs.bzl` | `scala_fuzz_test` |
+|  |  | `@rules_dx//scala/private:defs.bzl` | `scala_library` |
+|  |  | `@rules_dx//scala/private:defs.bzl` | `scala_test` |
 |  |  | `@rules_dx//sql/rules:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_build` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_library` |

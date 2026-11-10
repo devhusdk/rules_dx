@@ -8,7 +8,7 @@ scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_dep
 scala_deps.scala()
 scala_deps.scalatest()
 
-register_toolchains("@my_dx//scala/toolchain:semanticdb")
+register_toolchains("@my_dx//scala/private/toolchain:semanticdb")
 
 bazel_dep(name = "rules_jvm_external", version = "7.2")
 

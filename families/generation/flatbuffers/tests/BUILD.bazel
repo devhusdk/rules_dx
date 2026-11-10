@@ -4,7 +4,7 @@ load("@rules_dx//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flat
 load("@rules_dx//flatbuffers/rules:conform.bzl", "flatbuffers_conform_test")
 load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
 load("@rules_dx//generation:codegen_tests.bzl", "codegen_shard_argv_test")
-load("@rules_dx//java/rules:defs.bzl", "java_test")
+load("@rules_dx//java:defs.bzl", "java_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_codegen_failure_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
 

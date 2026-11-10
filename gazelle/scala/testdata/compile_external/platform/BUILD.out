@@ -1,4 +1,4 @@
-load("@rules_dx//scala/rules:defs.bzl", "scala_library")
+load("@rules_dx//scala:defs.bzl", "scala_library")
 
 scala_library(
     name = "platform",

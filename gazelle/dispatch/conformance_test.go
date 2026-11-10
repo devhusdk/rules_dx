@@ -102,7 +102,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"java": {
 		files: map[string]string{"Demo.java": "package demo;\n\npublic class Demo {}\n"},
-		kind:  "java_library", target: "demo", defs: "java/rules:defs.bzl",
+		kind:  "java_library", target: "demo", defs: "java:defs.bzl",
 		symbols:    []string{"java_library", "java_test"},
 		extraLoads: map[string][]string{"@rules_dx_android//rules:defs.bzl": {"java_android_library"}},
 	},
@@ -128,7 +128,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"kotlin": {
 		files: map[string]string{"Demo.kt": "package demo\n\nclass Demo\n"},
-		kind:  "kotlin_library", target: "demo", defs: "kotlin/rules:defs.bzl",
+		kind:  "kotlin_library", target: "demo", defs: "kotlin:defs.bzl",
 		symbols:    []string{"kotlin_library", "kotlin_test"},
 		extraLoads: map[string][]string{"@rules_dx_android//rules:defs.bzl": {"kotlin_android_library"}},
 	},
@@ -236,7 +236,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"scala": {
 		files: map[string]string{"Demo.scala": "package demo\n\nclass Demo\n"},
-		kind:  "scala_library", target: "demo", defs: "scala/rules:defs.bzl",
+		kind:  "scala_library", target: "demo", defs: "scala:defs.bzl",
 		symbols: []string{"scala_library", "scala_test"},
 	},
 	"svelte": {

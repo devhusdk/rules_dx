@@ -1,4 +1,4 @@
-load("//kotlin/rules:defs.bzl", "kotlin_binary")
+load("//kotlin:defs.bzl", "kotlin_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 

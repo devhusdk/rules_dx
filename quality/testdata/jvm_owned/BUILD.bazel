@@ -1,6 +1,6 @@
-load("//java/rules:defs.bzl", "java_library")
-load("//kotlin/rules:defs.bzl", "kotlin_library")
-load("//scala/rules:defs.bzl", "scala_library")
+load("//java:defs.bzl", "java_library")
+load("//kotlin:defs.bzl", "kotlin_library")
+load("//scala:defs.bzl", "scala_library")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality/testdata:__pkg__"])

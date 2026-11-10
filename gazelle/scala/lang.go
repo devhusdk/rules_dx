@@ -25,7 +25,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		MainRule:       "scala_binary",
-		DefsPackage:    "scala/rules:defs.bzl",
+		DefsPackage:    "scala:defs.bzl",
 		UnresolvedHint: "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package",
 		Exts:           SupportedExts,
 		TestSuffixes:   []string{"Test", "Spec", "Suite"},

@@ -29,7 +29,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude haskell/tests/fixtures/bench/bench_src
 # gazelle:exclude flutter/tests/fixtures/flutter-app/ios/Runner
 # gazelle:exclude quality/tiers
-# gazelle:exclude java/rules/jmh
+# gazelle:exclude java/private/jmh
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures
 # gazelle:exclude rust/tests/fixtures
@@ -258,6 +258,8 @@ real_source_target(
         "d/README.md",
         "fortran/README.md",
         "go/README.md",
+        "//java:README.md",
+        "//kotlin:README.md",
         "lua/README.md",
         "ocaml/README.md",
         "perl/README.md",
@@ -266,6 +268,7 @@ real_source_target(
         "powershell/README.md",
         "python/README.md",
         "julia/README.md",
+        "//scala:README.md",
         "swift/README.md",
         "zig/README.md",
         "CLAUDE.md",

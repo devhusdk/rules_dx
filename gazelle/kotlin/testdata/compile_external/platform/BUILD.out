@@ -1,4 +1,4 @@
-load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_library")
+load("@rules_dx//kotlin:defs.bzl", "kotlin_library")
 
 kotlin_library(
     name = "platform",

@@ -4,7 +4,7 @@ use dx_error::DxError;
 pub const PLUGIN: Plugin = Plugin {
     name: "jdk",
     extensions: &["java", "kt", "kts", "scala", "sc"],
-    labels: &["java/ide:java_tool"],
+    labels: &["java/private/ide:java_tool"],
     outputs: &["home"],
     write,
 };

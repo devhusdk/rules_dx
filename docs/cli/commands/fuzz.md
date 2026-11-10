@@ -32,7 +32,7 @@ OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml/rules:defs.bzl` runs Cr
 
 F#: `fsharp_fuzz_test(name, srcs, deps)` from `//fsharp/rules:defs.bzl` works like `csharp_fuzz_test` with an F# harness. Linux only for now.
 
-Java, Kotlin and Scala: `java_fuzz_test`, `kotlin_fuzz_test` and `scala_fuzz_test` from `//java/rules:defs.bzl`, `//kotlin/rules:defs.bzl` and `//scala/rules:defs.bzl` build a Jazzer binary, tag it and add the `<name>_run` runner. Pass `target_class`, a class with a static `fuzzerTestOneInput(byte[])`: a Kotlin `object` method marked `@JvmStatic`, or a top-level Scala `object` method. Linux runs are tested; Jazzer comes from rules_dx's pinned Maven artifacts.
+Java, Kotlin and Scala: `java_fuzz_test`, `kotlin_fuzz_test` and `scala_fuzz_test` from `//java:defs.bzl`, `//kotlin:defs.bzl` and `//scala:defs.bzl` build a Jazzer binary, tag it and add the `<name>_run` runner. Pass `target_class`, a class with a static `fuzzerTestOneInput(byte[])`: a Kotlin `object` method marked `@JvmStatic`, or a top-level Scala `object` method. Linux runs are tested; Jazzer comes from rules_dx's pinned Maven artifacts.
 
 OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml/rules:defs.bzl` runs a Crowbar test in quickcheck mode. It is manual, has no `dx-fuzz` tag or `<name>_run` runner, and `dx fuzz` does not run it yet (#10221). Run it with `bazel test`.
 

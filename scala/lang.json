@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "scala",
   "title": "Scala",
-  "family": "jvm",
+  "family": "core",
   "ecosystems": [
     "maven"
   ],

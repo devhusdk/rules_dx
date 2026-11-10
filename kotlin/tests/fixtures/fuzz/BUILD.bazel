@@ -1,0 +1,35 @@
+load("@rules_dx//kotlin:defs.bzl", "kotlin_fuzz_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kotlin_fuzz_test(
+    name = "parse_fuzz",
+    srcs = ["ParseFuzz.kt"],
+)
+
+sh_test(
+    name = "parse_fuzz_run_test",
+    srcs = ["run_test.sh"],
+    args = [
+        "$(rlocationpath @rules_dx//libs/fuzz_run:fuzz_run)",
+        "$(rootpath :parse_fuzz)",
+        "tests.fixtures.fuzz.ParseFuzz",
+    ],
+    data = [
+        ":parse_fuzz",
+        "@rules_dx//libs/fuzz_run:fuzz_run",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    timeout = "short",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1,0 +1,89 @@
+load("@rules_dx//java/private:coverage_tests.bzl", "jvm_coverage_env_test")
+load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
+load("@rules_dx//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+java_library(
+    name = "hello_lib",
+    srcs = ["Hello.java"],
+)
+
+genrule(
+    name = "generated_srcjar",
+    srcs = ["Generated.java.txt"],
+    outs = ["generated.srcjar"],
+    cmd = "$(execpath @bazel_tools//tools/zip:zipper) c $@ hello/Generated.java=$<",
+    tools = ["@bazel_tools//tools/zip:zipper"],
+)
+
+java_library(
+    name = "srcjar_lib",
+    srcs = [":generated_srcjar"],
+)
+
+dx_direct_sources_test(
+    name = "srcjar_sources_test",
+    expected = {},
+    target_under_test = ":srcjar_lib",
+)
+
+java_binary(
+    name = "hello",
+    srcs = ["Main.java"],
+    main_class = "hello.Main",
+    deps = [":hello_lib"],
+)
+
+java_test(
+    name = "hello_test",
+    srcs = ["HelloTest.java"],
+    test_class = "hello.HelloTest",
+    deps = [":hello_lib"],
+)
+
+jvm_coverage_env_test(
+    name = "hello_test_coverage_env_test",
+    target = ":hello_test",
+)
+
+java_test(
+    name = "InferredTest",
+    srcs = ["src/test/java/hello/InferredTest.java"],
+    deps = [":hello_lib"],
+)
+
+java_binary(
+    name = "InferredMain",
+    srcs = ["src/main/java/hello/InferredMain.java"],
+    deps = [":hello_lib"],
+)
+
+dx_hello_output_test(
+    name = "inferred_main_output_test",
+    binary = ":InferredMain",
+    expected = "hello world",
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello",
+    expected = "hello world",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
+)

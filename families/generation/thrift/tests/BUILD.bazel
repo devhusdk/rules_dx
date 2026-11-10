@@ -5,7 +5,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//cc/rules:defs.bzl", "cc_test")
 load("@rules_dx//generation:codegen_tests.bzl", "codegen_shard_argv_test")
-load("@rules_dx//java/rules:defs.bzl", "java_test")
+load("@rules_dx//java:defs.bzl", "java_test")
 load("@rules_dx//thrift/rules:codegen.bzl", "thrift_cc_library", "thrift_codegen_shard", "thrift_java_library", "thrift_rust_library")
 
 package(default_visibility = ["//visibility:private"])

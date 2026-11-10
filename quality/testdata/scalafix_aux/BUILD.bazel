@@ -1,8 +1,8 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//java/rules:defs.bzl", "java_library")
+load("//java:defs.bzl", "java_library")
 load("//quality:native_config.bzl", "scalafix_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
-load("//scala/rules:defs.bzl", "scala_library", "scala_test")
+load("//scala:defs.bzl", "scala_library", "scala_test")
 load(":results.bzl", "scalafix_results")
 
 quality_family(

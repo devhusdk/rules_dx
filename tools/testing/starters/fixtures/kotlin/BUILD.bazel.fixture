@@ -1,4 +1,4 @@
-load("@rules_dx//kotlin/rules:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
+load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 
 kotlin_library(
     name = "demo-app",

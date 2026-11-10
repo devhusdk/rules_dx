@@ -279,12 +279,6 @@ local_path_override(
     path = "families/beam",
 )
 
-bazel_dep(name = "rules_dx_jvm", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_jvm",
-    path = "families/jvm",
-)
-
 bazel_dep(name = "rules_dx_cuda", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_cuda",
@@ -558,10 +552,10 @@ scala_deps.scala()
 scala_deps.scalatest()
 
 register_toolchains(
-    "//java/toolchains:all",
-    "//kotlin/toolchain:unused_deps",
-    "//scala/toolchain:semanticdb",
-    "//scala/toolchain:semanticdb_scala3",
+    "//java/private/toolchains:all",
+    "//kotlin/private/toolchain:unused_deps",
+    "//scala/private/toolchain:semanticdb",
+    "//scala/private/toolchain:semanticdb_scala3",
     dev_dependency = True,
 )
 

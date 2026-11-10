@@ -1,4 +1,4 @@
-load("//java/rules:defs.bzl", "java_library")
+load("//java:defs.bzl", "java_library")
 
 package(default_visibility = ["//quality:__subpackages__"])
 

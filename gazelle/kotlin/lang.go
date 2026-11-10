@@ -21,7 +21,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		MainRule:       "kotlin_binary",
-		DefsPackage:    "kotlin/rules:defs.bzl",
+		DefsPackage:    "kotlin:defs.bzl",
 		UnresolvedHint: "add a local library, a maven_install.json artifact, or a # gazelle:resolve mapping on the qualified import or its package",
 		Exts:           SupportedExts,
 		TestSuffixes:   []string{"Test"},

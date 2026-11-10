@@ -26,10 +26,10 @@ env:defs.bzl
 erlang/rules:defs.bzl
 go/rules:defs.bzl
 haskell/rules:defs.bzl
-java/rules:defs.bzl
+java/private:defs.bzl
 javascript:defs.bzl
 julia/rules:defs.bzl
-kotlin/rules:defs.bzl
+kotlin/private:defs.bzl
 kubernetes/rules:defs.bzl
 libs/web_server:server.bzl
 lua/rules:defs.bzl
@@ -94,7 +94,7 @@ quality:native_config.bzl
 rego/rules:defs.bzl
 ruby/rules:defs.bzl
 rust/rules:defs.bzl
-scala/rules:defs.bzl
+scala/private:defs.bzl
 sql/rules:defs.bzl
 svelte:defs.bzl
 terraform/rules:defs.bzl

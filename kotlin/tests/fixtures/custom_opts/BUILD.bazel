@@ -1,0 +1,49 @@
+load("@rules_dx//kotlin:defs.bzl", "kotlin_library")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
+load(":kotlinc_opts_tests.bzl", "default_warnings_as_errors_test", "flag_off_test", "warnings_as_errors_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kt_kotlinc_options(
+    name = "custom",
+    api_version = "2.2",
+    language_version = "2.2",
+    warn = "report",
+    x_no_param_assertions = True,
+)
+
+warnings_as_errors_test(
+    name = "warnings_as_errors_test",
+    target_under_test = ":custom_opts_kotlinc_opts",
+)
+
+flag_off_test(
+    name = "flag_off_test",
+    target_under_test = "@rules_dx//kotlin/private:warnings_as_errors",
+)
+
+default_warnings_as_errors_test(
+    name = "default_warnings_as_errors_test",
+    target_under_test = "@rules_dx//kotlin/private:warnings_as_errors",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "kotlinc_opts_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+kotlin_library(
+    name = "custom_opts",
+    testonly = True,
+    srcs = ["Lib.kt"],
+    kotlinc_opts = ":custom",  # keep
+)

@@ -1,0 +1,44 @@
+load("@rules_dx//java/private:coverage_tests.bzl", "jvm_coverage_env_test")
+load("@rules_dx//kotlin:defs.bzl", "kotlin_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+kotlin_test(
+    name = "hello_jupiter_test",
+    srcs = ["HelloJupiterTest.kt"],
+    args = [
+        "execute",
+        "--select-class",
+        "hello.HelloJupiterTest",
+    ],
+    main_class = "org.junit.platform.console.ConsoleLauncher",
+    test_class = "hello.HelloJupiterTest",
+    runtime_deps = [
+        "@maven//:org_junit_jupiter_junit_jupiter_engine",
+        "@maven//:org_junit_platform_junit_platform_console",
+        "@maven//:org_junit_platform_junit_platform_engine",
+        "@maven//:org_junit_platform_junit_platform_launcher",
+    ],
+    deps = [
+        "//kotlin/tests/fixtures/hello:hello_lib",
+        "@maven//:org_junit_jupiter_junit_jupiter_api",
+        "@maven//:org_junit_jupiter_junit_jupiter_params",
+    ],
+)
+
+jvm_coverage_env_test(
+    name = "hello_jupiter_coverage_env_test",
+    main_class = "org.junit.platform.console.ConsoleLauncher",
+    target = ":hello_jupiter_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

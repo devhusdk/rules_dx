@@ -1,4 +1,4 @@
-load("@rules_dx//java/rules:defs.bzl", "java_binary", "java_library", "java_test")
+load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
 
 java_library(
     name = "demo-app",

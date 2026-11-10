@@ -1,0 +1,366 @@
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":jazzer.bzl", "jazzer_target_class")
+load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors")
+
+package(default_visibility = ["//visibility:public"])
+
+_ON = {"warnings_as_errors": True}
+
+exports_files([
+    "jazzer.bzl",
+    "jmh.bzl",
+    "coverage.bzl",
+    "coverage_tests.bzl",
+    "defs.bzl",
+    "kwargs.bzl",
+])
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "empty gains warnings-as-errors and lint",
+            java_javacopts_with_warnings_as_errors(_ON)["javacopts"],
+            [
+                "-Xlint:all",
+                "-Werror",
+            ],
+        ),
+        expect_equal(
+            "existing warnings-as-errors is kept without duplication",
+            java_javacopts_with_warnings_as_errors(dict(
+                _ON,
+                javacopts = ["-Werror"],
+            ))["javacopts"],
+            [
+                "-Werror",
+                "-Xlint:all",
+            ],
+        ),
+        expect_equal(
+            "existing lint gains warnings-as-errors",
+            java_javacopts_with_warnings_as_errors(dict(
+                _ON,
+                javacopts = ["-Xlint:all"],
+            ))["javacopts"],
+            [
+                "-Xlint:all",
+                "-Werror",
+            ],
+        ),
+        expect_equal(
+            "both flags stay unchanged",
+            java_javacopts_with_warnings_as_errors(dict(
+                _ON,
+                javacopts = [
+                    "-Werror",
+                    "-Xlint:all",
+                ],
+            ))["javacopts"],
+            [
+                "-Werror",
+                "-Xlint:all",
+            ],
+        ),
+        expect_equal(
+            "turned off keeps lint without warnings-as-errors",
+            java_javacopts_with_warnings_as_errors({"warnings_as_errors": False})["javacopts"],
+            ["-Xlint:all"],
+        ),
+        expect_equal(
+            "attribute is consumed",
+            java_javacopts_with_warnings_as_errors(_ON).get("warnings_as_errors"),
+            None,
+        ),
+        expect_equal(
+            "other kwargs survive",
+            java_javacopts_with_warnings_as_errors(dict(
+                _ON,
+                deps = [":hello_lib"],
+            ))["deps"],
+            [":hello_lib"],
+        ),
+        expect_equal(
+            "fuzz target class explicit wins",
+            jazzer_target_class("k", "x", ["X.kt"], "a.B", "p", ".kt"),
+            "a.B",
+        ),
+        expect_equal(
+            "java fuzz class from name-matching src",
+            jazzer_target_class("k", "Fuzz", ["src/main/java/com/x/Fuzz.java", "O.java"], None, "p", ".java"),
+            "com.x.Fuzz",
+        ),
+        expect_equal(
+            "kotlin fuzz class from single src",
+            jazzer_target_class("k", "parse_fuzz", ["ParseFuzz.kt"], None, "kotlin/tests/fuzz", ".kt"),
+            "tests.fuzz.ParseFuzz",
+        ),
+        expect_equal(
+            "scala fuzz class from single src",
+            jazzer_target_class("k", "parse_fuzz", ["src/main/scala/a/ParseFuzz.scala"], None, "p", ".scala"),
+            "a.ParseFuzz",
+        ),
+        expect_equal(
+            "fuzz class from name and package",
+            jazzer_target_class("k", "ParseFuzz", [], None, "scala/x", ".scala"),
+            "x.ParseFuzz",
+        ),
+        expect_equal(
+            "maven test path infers class",
+            java_entry_class(
+                "FooTest",
+                ["src/test/java/com/x/FooTest.java"],
+                "p",
+            ),
+            "com.x.FooTest",
+        ),
+        expect_equal(
+            "nested main path infers class",
+            java_entry_class(
+                "M",
+                ["src/main/java/hello/M.java"],
+                "java/tests/fixtures/hello",
+            ),
+            "hello.M",
+        ),
+        expect_equal(
+            "basename mismatch uses package path",
+            java_entry_class(
+                "Bar",
+                ["Other.java"],
+                "java/foo",
+            ),
+            "foo.Bar",
+        ),
+        expect_equal(
+            "path without root infers nothing",
+            java_entry_class(
+                "X",
+                ["X.java"],
+                "p",
+            ),
+            None,
+        ),
+        expect_equal(
+            "colon label src infers class",
+            java_entry_class(
+                "FooTest",
+                [":src/test/java/com/x/FooTest.java"],
+                "p",
+            ),
+            "com.x.FooTest",
+        ),
+        expect_equal(
+            "missing srcs use package path",
+            java_entry_class("FooTest", None, "java/foo"),
+            "foo.FooTest",
+        ),
+        expect_equal(
+            "select srcs use package path",
+            java_entry_class(
+                "FooTest",
+                select({"//conditions:default": ["x/FooTest.java"]}),
+                "src/test/java/com/x",
+            ),
+            "com.x.FooTest",
+        ),
+        expect_equal(
+            "test without srcs gains package class",
+            java_entry_kwargs("FooTest", None, "src/test/java/com/x", {}, "test_class"),
+            {"test_class": "com.x.FooTest"},
+        ),
+        expect_equal(
+            "binary with select srcs gains package class",
+            java_entry_kwargs(
+                "Main",
+                select({"//conditions:default": ["Main.java"]}),
+                "src/main/java/com/x",
+                {},
+                "main_class",
+            ),
+            {"main_class": "com.x.Main"},
+        ),
+        expect_equal(
+            "binary with None srcs gains nothing",
+            java_entry_kwargs("M", None, "java/x", {}, "main_class"),
+            {},
+        ),
+        expect_equal(
+            "uninferable test is an error",
+            java_entry_error(
+                "X",
+                ["X.java"],
+                "p",
+                {},
+                "test_class",
+            ),
+            "java_test //p:X: cannot infer test_class from srcs or package; set test_class.",
+        ),
+        expect_equal(
+            "uninferable binary is an error",
+            java_entry_error(
+                "X",
+                ["X.java"],
+                "p",
+                {},
+                "main_class",
+            ),
+            "java_binary //p:X: cannot infer main_class from srcs or package; set main_class.",
+        ),
+        expect_equal(
+            "explicit test class is no error",
+            java_entry_error(
+                "X",
+                ["X.java"],
+                "p",
+                {"test_class": "a.B"},
+                "test_class",
+            ),
+            None,
+        ),
+        expect_equal(
+            "test without testrunner is no error",
+            java_entry_error(
+                "X",
+                ["X.java"],
+                "p",
+                {"use_testrunner": False},
+                "test_class",
+            ),
+            None,
+        ),
+        expect_equal(
+            "binary without srcs is no error",
+            java_entry_error("X", [], "p", {}, "main_class"),
+            None,
+        ),
+        expect_equal(
+            "empty srcs use package path",
+            java_entry_class("FooTest", [], "java/foo"),
+            "foo.FooTest",
+        ),
+        expect_equal(
+            "test gains inferred class",
+            java_entry_kwargs(
+                "FooTest",
+                ["src/test/java/com/x/FooTest.java"],
+                "p",
+                {},
+                "test_class",
+            ),
+            {"test_class": "com.x.FooTest"},
+        ),
+        expect_equal(
+            "explicit test class is kept",
+            java_entry_kwargs(
+                "FooTest",
+                ["src/test/java/com/x/FooTest.java"],
+                "p",
+                {"test_class": "a.B"},
+                "test_class",
+            )["test_class"],
+            "a.B",
+        ),
+        expect_equal(
+            "empty test class counts as unset",
+            java_entry_kwargs(
+                "FooTest",
+                ["src/test/java/com/x/FooTest.java"],
+                "p",
+                {"test_class": ""},
+                "test_class",
+            )["test_class"],
+            "com.x.FooTest",
+        ),
+        expect_equal(
+            "test without testrunner gains nothing",
+            java_entry_kwargs(
+                "FooTest",
+                ["src/test/java/com/x/FooTest.java"],
+                "p",
+                {"use_testrunner": False},
+                "test_class",
+            ),
+            {"use_testrunner": False},
+        ),
+        expect_equal(
+            "binary gains inferred main class",
+            java_entry_kwargs(
+                "M",
+                ["src/main/java/hello/M.java"],
+                "java/x",
+                {},
+                "main_class",
+            ),
+            {"main_class": "hello.M"},
+        ),
+        expect_equal(
+            "binary with testrunner gains nothing",
+            java_entry_kwargs(
+                "M",
+                ["src/main/java/hello/M.java"],
+                "java/x",
+                {"use_testrunner": True},
+                "main_class",
+            ),
+            {"use_testrunner": True},
+        ),
+        expect_equal(
+            "binary without executable gains nothing",
+            java_entry_kwargs(
+                "M",
+                ["src/main/java/hello/M.java"],
+                "java/x",
+                {"create_executable": False},
+                "main_class",
+            ),
+            {"create_executable": False},
+        ),
+        expect_equal(
+            "binary without srcs gains nothing",
+            java_entry_kwargs("M", [], "java/x", {}, "main_class"),
+            {},
+        ),
+        expect_equal(
+            "binary without root gains nothing",
+            java_entry_kwargs(
+                "M",
+                ["M.java"],
+                "p",
+                {},
+                "main_class",
+            ),
+            {},
+        ),
+        expect_equal(
+            "javacopts survive inference",
+            java_entry_kwargs(
+                "M",
+                ["src/main/java/hello/M.java"],
+                "java/x",
+                java_javacopts_with_warnings_as_errors(_ON),
+                "main_class",
+            )["javacopts"],
+            [
+                "-Xlint:all",
+                "-Werror",
+            ],
+        ),
+    ],
+    file_classes = ["java"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "coverage.bzl",
+        "coverage_tests.bzl",
+        "defs.bzl",
+        "jmh.bzl",
+        "kwargs.bzl",
+    ],
+    tags = ["corpus"],
+)

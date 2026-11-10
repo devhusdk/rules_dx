@@ -1,4 +1,4 @@
-load("//scala/rules:defs.bzl", "scala_library")
+load("//scala:defs.bzl", "scala_library")
 
 package(default_visibility = ["//quality:__subpackages__"])
 

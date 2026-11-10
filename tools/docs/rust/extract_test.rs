@@ -1,6 +1,6 @@
 //! Runs the rustdoc JSON converter on the fixture crate and on broken inputs.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use documentation_ir::decode_shard;
@@ -10,19 +10,14 @@ struct Run {
     stderr: String,
 }
 
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn fixture_json() -> String {
-    let dir = runfile("DX_FIXTURE_RUSTDOC");
+    let dir = dx_testing::env_file("DX_FIXTURE_RUSTDOC");
     std::fs::read_to_string(dir.join("docs_fixture.json"))
         .unwrap_or_else(|error| panic!("read fixture JSON: {error}"))
 }
 
 fn fixture_srcs() -> String {
-    std::fs::read_to_string(runfile("DX_FIXTURE_SRCS"))
+    std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_SRCS"))
         .unwrap_or_else(|error| panic!("read fixture srcs: {error}"))
 }
 
@@ -34,7 +29,7 @@ fn scratch(name: &str, json: &str, srcs: &str) -> dx_test_scratch::TempDir {
 }
 
 fn extract(dir: &Path, args: &[&str]) -> Run {
-    let output = Command::new(runfile("DX_RUST_EXTRACT"))
+    let output = Command::new(dx_testing::env_file("DX_RUST_EXTRACT"))
         .args(args)
         .current_dir(dir)
         .output()
@@ -104,7 +99,7 @@ fn the_fixture_json_becomes_a_valid_shard() {
 
 #[test]
 fn the_aspect_shard_keeps_the_enabled_features() {
-    let bytes = std::fs::read(runfile("DX_ASPECT_SHARD")).expect("read aspect shard");
+    let bytes = std::fs::read(dx_testing::env_file("DX_ASPECT_SHARD")).expect("read aspect shard");
     let shard = decode_shard(&bytes).unwrap_or_else(|error| panic!("decode: {error:?}"));
     assert!(shard.symbols.iter().any(|s| s.id.ends_with("unit_circle")));
     assert!(

@@ -1,17 +1,12 @@
 //! Checks the TypeScript fixture shard and the extractor's failure handling.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use documentation_ir::{decode_shard, validate_shard};
 
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn fixture() -> documentation_ir::proto::DocIr {
-    let bytes = std::fs::read(runfile("DX_FIXTURE_SHARD")).expect("read the fixture shard");
+    let bytes = std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("read the fixture shard");
     decode_shard(&bytes).expect("the fixture shard decodes")
 }
 
@@ -73,7 +68,7 @@ fn sources_are_repo_relative() {
 }
 
 fn run_extract(dir: &Path, typedoc: &Path) -> (i32, String) {
-    let output = Command::new(runfile("DX_TYPESCRIPT_EXTRACT"))
+    let output = Command::new(dx_testing::env_file("DX_TYPESCRIPT_EXTRACT"))
         .args(["--typedoc"])
         .arg(typedoc)
         .args(["--package", "geometry", "--out", "shard.ir.pb"])
@@ -90,7 +85,7 @@ fn run_extract(dir: &Path, typedoc: &Path) -> (i32, String) {
 fn the_binary_rejects_a_wrong_schema_version_and_writes_no_shard() {
     let dir_tmp = dx_test_scratch::scratch("ts-extract");
     let dir = dir_tmp.path().to_path_buf();
-    let json = std::fs::read_to_string(runfile("DX_FIXTURE_TYPEDOC")).expect("typedoc json");
+    let json = std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_TYPEDOC")).expect("typedoc json");
     assert!(json.contains("\"schemaVersion\": \"2.0\""));
     let old = dir.join("old.json");
     std::fs::write(
@@ -102,7 +97,7 @@ fn the_binary_rejects_a_wrong_schema_version_and_writes_no_shard() {
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("schemaVersion '1.0'"), "{stderr}");
     assert!(!dir.join("shard.ir.pb").exists());
-    let (code, stderr) = run_extract(&dir, &runfile("DX_FIXTURE_TYPEDOC"));
+    let (code, stderr) = run_extract(&dir, &dx_testing::env_file("DX_FIXTURE_TYPEDOC"));
     assert_eq!(code, 0, "{stderr}");
     assert!(dir.join("shard.ir.pb").exists());
 }

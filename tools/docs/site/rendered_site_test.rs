@@ -52,13 +52,8 @@ impl Run {
     }
 }
 
-fn runfiles(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn site(var: &str) -> PathBuf {
-    let path = runfiles(var);
+    let path = dx_testing::env_file(var);
     assert!(
         path.is_dir(),
         "{} is not a directory: {}",
@@ -69,7 +64,7 @@ fn site(var: &str) -> PathBuf {
 }
 
 fn check(args: &[String]) -> Run {
-    let output = Command::new(runfiles(SITE_CHECK))
+    let output = Command::new(dx_testing::env_file(SITE_CHECK))
         .args(args)
         .output()
         .unwrap_or_else(|error| panic!("run site_check: {error}"));

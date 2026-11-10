@@ -1,4 +1,6 @@
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@crates//:crates.bzl", "aliases")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary")
 
 exports_files(
@@ -12,8 +14,13 @@ exports_files(
 rust_binary(
     name = "gen",
     srcs = ["gen.rs"],
-    crate_name = "gopls_gen",
+    aliases = aliases(
+        package_name = "quality/tiers/gopls_gen",
+        normal = True,
+    ),
+    crate_name = "gen",
     crate_root = "gen.rs",
+    deps = [],
 )
 
 [
@@ -29,7 +36,10 @@ rust_binary(
         cmd = "$(execpath :gen) $(execpath //quality/tiers/govet:%s.json) $(execpath //quality/tiers/staticcheck:%s.conf) $(execpath //quality/tiers/govet:strict.json) $(execpath //quality/tiers/staticcheck:strict.conf) > $@" % (tier, tier),
         tools = [":gen"],
     )
-    for tier in ["standard", "strict"]
+    for tier in [
+        "standard",
+        "strict",
+    ]
 ]
 
 [
@@ -39,5 +49,20 @@ rust_binary(
         file1 = "gopls_%s.json" % tier,
         file2 = ":gen_%s" % tier,
     )
-    for tier in ["standard", "strict"]
+    for tier in [
+        "standard",
+        "strict",
+    ]
 ]
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

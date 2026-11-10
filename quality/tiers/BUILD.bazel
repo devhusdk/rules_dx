@@ -1,11 +1,21 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load(":corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "TYPOS_UNSAFE", "tier_labels")
 
 # gazelle:exclude buildifier
+# gazelle:exclude djlint
+# gazelle:exclude docstrfmt
 # gazelle:exclude eslint
+# gazelle:exclude gitleaks
+# gazelle:exclude graphql_eslint
+# gazelle:exclude julialint
+# gazelle:exclude lychee
+# gazelle:exclude mbake
+# gazelle:exclude ruff
 # gazelle:exclude rustfmt
 # gazelle:exclude taplo
+# gazelle:exclude typos
 # gazelle:exclude vale
 _VISIBILITY = [
     "//docs:__pkg__",
@@ -32,8 +42,8 @@ filegroup(
         "//quality/tiers/checkmake:files",
         "//quality/tiers/clang_format:files",
         "//quality/tiers/clang_tidy:files",
-        "//quality/tiers/cmakelint:files",
         "//quality/tiers/clippy:files",
+        "//quality/tiers/cmakelint:files",
         "//quality/tiers/credo:files",
         "//quality/tiers/dart:files",
         "//quality/tiers/deadnix:files",
@@ -81,14 +91,14 @@ filegroup(
         "//quality/tiers/selene:files",
         "//quality/tiers/shellcheck:files",
         "//quality/tiers/shfmt:files",
-        "//quality/tiers/sqlfluff:files",
         "//quality/tiers/spotbugs:files",
+        "//quality/tiers/sqlfluff:files",
         "//quality/tiers/staticcheck:files",
         "//quality/tiers/stylelint:files",
         "//quality/tiers/stylua:files",
         "//quality/tiers/swift_format:files",
-        "//quality/tiers/taplo:files",
         "//quality/tiers/swift_lint:files",
+        "//quality/tiers/taplo:files",
         "//quality/tiers/tflint:files",
         "//quality/tiers/trivy_config:files",
         "//quality/tiers/tsconfig:files",
@@ -97,8 +107,8 @@ filegroup(
         "//quality/tiers/vale:files",
         "//quality/tiers/yamlfmt:files",
         "//quality/tiers/yamllint:files",
-        "//quality/tiers/zizmor:files",
         "//quality/tiers/zanuda:files",
+        "//quality/tiers/zizmor:files",
     ],
     visibility = _VISIBILITY,
 )
@@ -125,6 +135,7 @@ real_source_target(
 
 real_source_target(
     name = "corpus_toml",
+    tags = ["corpus"],
     toml_srcs = tier_labels([path for path in TIER_TOML if path not in TYPOS_UNSAFE]),
 )
 
@@ -144,6 +155,13 @@ _CORPORA = [
 rust_test(
     name = "tiers_test",
     srcs = ["tiers_test.rs"],
+    aliases = aliases(
+        package_name = "quality/quality_tiers",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "tiers_test",
+    crate_root = "tiers_test.rs",
     data = [
         ":all",
         "//cli/generate:src/tools_gen.rs",
@@ -155,4 +173,3 @@ rust_test(
     },
     deps = ["//tools/testing:dx_testing"],
 )
-

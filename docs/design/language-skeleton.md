@@ -1,6 +1,6 @@
 # Language skeleton design
 
-This page fixes the shape of every language directory. A language directory is a root directory with a `lang.json`. Platform and packaging directories such as `android`, `apple`, `qt`, `cuda`, `appimage` and `msix` are language directories. `docs/design/layout.md` fixes the repository around them.
+This page fixes the shape of every language directory. A language directory is a root directory with a `lang.json`. Platform and packaging directories such as `android` and `msix` are language directories. `docs/design/layout.md` fixes the repository around them.
 
 ## Membership
 
@@ -43,7 +43,7 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 | `platforms/` | private platforms and constraint values |
 
 - `private/` holds no directory named `toolchains`, `tests`, `testing`, `testdata` or `fixtures`. One exception: `private/tools/<tool>/testdata/`.
-- `<lang>/private/defs.bzl` defines the public macros. Other files there hold what it loads.
+- `<lang>/private/defs.bzl` defines the public macros.
 
 ## Public names
 
@@ -61,7 +61,6 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 
 - Every `<lang>_binary`, `<lang>_test`, `<lang>_bench` and `<lang>_fuzz_test` is a macro that calls `dx_wrap_binary` or `dx_wrap_test` from `//core:wrapper.bzl`.
 - A language whose runner is not an upstream rule passes its own rule as `upstream_rule`.
-- The signature rules in `docs/design/layout.md` apply.
 
 ## Platforms
 
@@ -74,8 +73,10 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 ## Toolchains
 
 - A language that defines its own toolchain declares `//<lang>:toolchain_type`.
-- Its toolchains come from the `<lang>` extension, built on `pins_hub` in `core/toolchain.bzl`.
 - The hub repository is `dx_<lang>_toolchains`. `MODULE.bazel` registers it with one line: `register_toolchains("@dx_<lang>_toolchains//:all")`.
+- Only `dx_pins` in `//core:extensions.bzl` reads `pins.json`, through one `dx_pins.pin` tag per file in `MODULE.bazel`.
+- Without consumer tags, that tag is named `dx_<lang>_toolchains` and sets `build` and `toolchain_type`. `dx_pins` creates the hub. No `<lang>` extension exists.
+- With consumer tags, that tag is named `dx_<lang>` and sets no `build`. The `<lang>` extension loads `PINS["dx_<lang>"]` from `@dx_pins_data//:pins.bzl` and creates the hub with `pins_hub`.
 - A language that uses an upstream rule set's toolchain registers the upstream repository instead.
 - `register_toolchains` never takes a `//` label and never sets `dev_dependency`.
 - Where registration order matters, the hub names its targets so that name order is the order.
@@ -97,15 +98,15 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 ## Fixtures
 
 - Fixtures live in `<lang>/tests/fixtures/<name>/`. `<name>` is lower-case with underscores.
-- Every language has `tests/fixtures/hello/`. It holds the smallest target of each common kind the language exports.
+- A language that exports a name ending in a common kind has `tests/fixtures/hello/`. It holds the smallest target of each such kind. No other language has a `hello` fixture.
 - A fixture that is a workspace of its own lives in `tests/fixtures/<name>/repo/`.
-- The path of every fixture directory appears in a `BUILD.bazel`, `.bzl` or `MODULE.bazel` file outside that fixture. A fixture that no file names is deleted.
-- `examples/` holds only workspaces that span several languages. A one-language example is the `hello` fixture.
+- The path of every fixture directory appears in a `BUILD.bazel`, `.bzl` or `MODULE.bazel` file outside that fixture.
+- `examples/` holds only workspaces that span several languages. A one-language example is a fixture.
 
 ## README
 
 - `docs/languages/<lang>.md` is generated. It holds `Install` and `Rules`.
-- `<lang>/README.md` is the hand-written guide. A language with nothing to add has none.
+- `<lang>/README.md` is the hand-written guide.
 - Its first line is `# <title>`.
 - Its `##` headings come from this list, in this order: `Dependencies`, `Generate`, `Quality`, `Coverage`, `Bench and fuzz`, `API docs`, `Packaging`, `Toolchain`, `Platforms`, `License`.
 - Any other topic is a `###` heading under one of them.
@@ -115,10 +116,10 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 ## Structure lint
 
 - `//tools/testing:language_skeleton_test` is a `rust_test`. It reads the snapshots that `docs/design/tests.md` names.
+- `paths.json` gives it entries, pin files, `private/` names and fixture directories. `files.json` gives it README text.
 - It checks the Entries, Private directories, Public names, Toolchains and README rules, the test and fixture locations, and the two decidable Platforms rules: the type of each `platforms` attr and the option name under `private/`.
 - `tools/testing/language_skeleton_allowlist.txt` holds one line per violation: `<rule> <path>`. Lines are sorted.
-- The lint fails on a violation that has no line.
-- The lint fails on a line that matches no violation.
+- The lint fails on a violation with no line and on a line with no violation.
 - The allowlist only shrinks. No change adds a line.
 - A new language directory passes with no line.
 
@@ -128,7 +129,7 @@ A new language is these steps and no others.
 
 1. Add `<lang>/lang.json`.
 2. Add `<lang>/BUILD.bazel`, `<lang>/defs.bzl`, `<lang>/private/defs.bzl` and `<lang>/tests/BUILD.bazel`.
-3. Add `<lang>/tests/fixtures/hello/`.
-4. Add `<lang>/pins.json` and `<lang>/extensions.bzl` when the language pins a toolchain.
-5. Add the `use_extension` and `register_toolchains` lines to `MODULE.bazel`.
+3. Add `<lang>/tests/fixtures/hello/` when the language exports a common kind.
+4. Add `<lang>/pins.json` when the language pins a toolchain, and `<lang>/extensions.bzl` when the toolchain takes consumer tags.
+5. Add the `dx_pins.pin`, `use_extension` and `register_toolchains` lines to `MODULE.bazel`.
 6. Run the generators.

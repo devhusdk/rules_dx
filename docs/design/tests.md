@@ -103,9 +103,9 @@ A test is the first of four kinds that can prove the behaviour.
 
 ## Guard
 
-- `@dx_test_tags_sources//:sources.json` snapshots every `BUILD`, `BUILD.bazel` and `.bzl` file of the module. Its repository rule watches each directory and file it reads.
-- `@dx_test_tags_sources//:files.json` snapshots the `MODULE.bazel`, `<lang>/lang.json`, repository `*.BUILD` and `*.BUILD.bazel` files and the language and command pages under `docs/`.
-- A test that walks the module tree declares both snapshots, passes them through `DX_SOURCES_JSON` and `DX_FILES_JSON`, and reads them with `dx_testing::source_snapshot()`. A Python test writes them into a scratch tree.
+- `@dx_test_tags_sources//:sources.json` snapshots every `BUILD`, `BUILD.bazel` and `.bzl` file. Its repository rule watches each directory and file it reads.
+- `@dx_test_tags_sources//:files.json` snapshots the `MODULE.bazel`, `<lang>/lang.json`, `<lang>/README.md`, repository `*.BUILD` and `*.BUILD.bazel` files and the language and command pages under `docs/`. `paths.json` lists every path under language directories.
+- A test that walks the module tree declares the snapshots, passes them through `DX_SOURCES_JSON`, `DX_FILES_JSON` and `DX_PATHS_JSON`, and reads them with `dx_testing::source_snapshot()`. A Python test writes them into a scratch tree.
 - `//tools/ci:test_tags_test` scans that snapshot as a declared input.
 - It counts `manual`, `exclusive` and the tags banned under Sandbox, remote execution and cache.
 - It counts a tag in the `tags` of a test rule or test macro call, in `local = True` on such a call, and in a tags value built outside a call: a tags-named variable, a `"tags"` dict entry, or the arguments of a tags-named function.

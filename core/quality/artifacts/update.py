@@ -3039,7 +3039,27 @@ def _runtime_files(spec, workdir):
     return files
 
 
+RELEASE_BUILD_ORIGIN = "rules_dx"
+RELEASE_BUILD_MANIFEST = "/dx-tool-sha256sums.txt"
+
+
+def _release_build_error(spec):
+    """Returns why a rules_dx release-built spec is malformed, or None."""
+    if spec.get("origin") != RELEASE_BUILD_ORIGIN:
+        return None
+    url = spec.get("checksums_url", "")
+    if not url.endswith(RELEASE_BUILD_MANIFEST):
+        return "update: %s is release built and needs a checksums_url ending in %s" % (
+            spec.get("asset"),
+            RELEASE_BUILD_MANIFEST,
+        )
+    return None
+
+
 def _collect(tool, platform_key, spec, workdir):
+    error = _release_build_error(spec)
+    if error:
+        sys.exit(error)
     asset_path = os.path.join(workdir, spec["asset"])
     _download(spec["url"], asset_path)
     size = os.path.getsize(asset_path)
@@ -3070,6 +3090,8 @@ def _collect(tool, platform_key, spec, workdir):
                 % (spec["asset"], digest, expected)
             )
         checksum_source = "upstream published checksums file"
+        if spec.get("origin") == RELEASE_BUILD_ORIGIN:
+            checksum_source = "rules_dx release build"
     if "pypi" in spec:
         json_path = os.path.join(workdir, "pypi.json")
         _download(

@@ -54,7 +54,7 @@ Each tool and host takes the first rule that applies.
 
 Where release-built assets are hosted is the owner's decision. The rules above hold under either outcome.
 
-- **rules_dx hosts the assets.** The release build rule applies as written.
+- **rules_dx hosts the assets.** The release build rule applies as written. `release-tools.yml` builds them and `dx-tool-sha256sums.txt` lists them.
 - **rules_dx hosts no tool assets.** The release build rule does not exist. A core default that needs it keeps its source build and its `PENDING_TOOL_PACKAGES` entry, and a host whose source build fails is unsupported. Fetch upstream and consumer build are unaffected.
 
 ## Tools

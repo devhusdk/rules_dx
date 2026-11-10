@@ -91,6 +91,29 @@ class ChecksumsFilePinTest(unittest.TestCase):
         self._check("jsonnet_lint", "/v0.22.0/checksums.txt")
 
 
+class ReleaseBuildPinTest(unittest.TestCase):
+    URL = "https://github.com/devhusdk/rules_dx/releases/download/v1.0.0/dx-tool-sha256sums.txt"
+
+    def test_other_origins_are_not_checked(self):
+        self.assertIsNone(update._release_build_error({"asset": "a"}))
+
+    def test_manifest_url_is_accepted(self):
+        spec = {"asset": "a", "origin": "rules_dx", "checksums_url": self.URL}
+        self.assertIsNone(update._release_build_error(spec))
+
+    def test_missing_manifest_url_is_rejected(self):
+        spec = {"asset": "a", "origin": "rules_dx"}
+        self.assertIn("dx-tool-sha256sums.txt", update._release_build_error(spec))
+
+    def test_foreign_manifest_url_is_rejected(self):
+        spec = {
+            "asset": "a",
+            "origin": "rules_dx",
+            "checksums_url": "https://example.com/checksums.txt",
+        }
+        self.assertIsNotNone(update._release_build_error(spec))
+
+
 class HelmPinTest(unittest.TestCase):
     def test_every_platform_uses_the_per_asset_checksum_file(self):
         spec = update.TOOLS["helm"]

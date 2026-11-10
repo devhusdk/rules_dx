@@ -1,0 +1,46 @@
+name: release-tools
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  MSYS2_ARG_CONV_EXCL: "//"
+
+jobs:
+  tools:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - host: linux-x86_64
+            runner: ubuntu-latest
+          - host: linux-arm64
+            runner: ubuntu-24.04-arm
+          - host: macos-arm64
+            runner: macos-15
+          - host: windows-x86_64
+            runner: windows-latest
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-bazel
+      - name: Build the tools and collect licences and sources
+        env:
+          HOST: ${{ matrix.host }}
+        run: tools/ci/release_tools.sh "$RUNNER_TEMP/tool-out" "$HOST"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-tool-${{ matrix.host }}
+          path: ${{ runner.temp }}/tool-out/*
+          if-no-files-found: error

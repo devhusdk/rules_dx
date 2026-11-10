@@ -39,7 +39,7 @@ gh workflow run release.yml --ref vX.Y.Z
 
 The release has one source archive, `rules_dx-X.Y.Z.tar.gz`, and one source file, `source.json`.
 
-The workflow builds every cell, writes `dx-sha256sums.txt` and, for the pure-Go `dx-gazelle-<os>-<cpu>` binaries, a separate `dx-gazelle-sha256sums.txt`, fills the sha256 values into `SHA256` and `GAZELLE_SHA256` in the `cli/prebuilt/pins.bzl` of the release source archive, attests both manifests and the source archive (`rules_dx-X.Y.Z.tar.gz.intoto.jsonl`), and uploads the assets to the draft through `release_driver`. `main` keeps the pins empty. The assets job writes the `release-ledger/v1` JSON to `$RUNNER_TEMP/ledger.json` and uploads it as the `release-ledger` artifact. It fails when:
+The workflow builds every cell, writes `dx-sha256sums.txt` and, for the pure-Go `dx-gazelle-<os>-<cpu>` binaries, a separate `dx-gazelle-sha256sums.txt`, builds the `dx-tool-<tool>-<version>-<host>` quality tool binaries with their licences and the deadnix source crate and lists them in `dx-tool-sha256sums.txt`, fills the sha256 values into `SHA256` and `GAZELLE_SHA256` in the `cli/prebuilt/pins.bzl` of the release source archive, attests the three manifests and the source archive (`rules_dx-X.Y.Z.tar.gz.intoto.jsonl`), and uploads the assets to the draft through `release_driver`. `main` keeps the pins empty. The assets job writes the `release-ledger/v1` JSON to `$RUNNER_TEMP/ledger.json` and uploads it as the `release-ledger` artifact. It fails when:
 
 - there is no release for the tag (go back to step 3)
 - the release already holds a different file of the same name (delete that asset by hand)

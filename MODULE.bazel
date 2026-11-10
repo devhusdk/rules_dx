@@ -1154,10 +1154,6 @@ use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
 
 julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
 julia_pkg.from_manifest(
-    name = "dx_julia_bench",
-    lockfile = "//julia/private/bench:Manifest.bazel.json",
-)
-julia_pkg.from_manifest(
     name = "dx_julia_coverage",
     lockfile = "//julia/private/coverage:Manifest.bazel.json",
 )
@@ -1225,7 +1221,7 @@ julia_pkg.pkg_annotation(
     patch_args = ["-p1"],
     patches = ["//julia/private/tools/lint/patches:JSON.patch"],
 )
-use_repo(julia_pkg, "dx_julia_bench", "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
+use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
 
 # floor: equals tested
 bazel_dep(name = "rules_perl", version = "2.1.0")

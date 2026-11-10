@@ -1,7 +1,5 @@
 module DxBench
 
-using BenchmarkTools
-
 export run_benchmarks
 
 json_string(s) = string('"', replace(s, "\\" => "\\\\", "\"" => "\\\""), '"')
@@ -9,8 +7,14 @@ json_string(s) = string('"', replace(s, "\\" => "\\\\", "\"" => "\\\""), '"')
 function run_benchmarks(cases; seconds = 0.5)
     results = String[]
     for (name, fn) in cases
-        trial = run(@benchmarkable $fn() evals = 1 samples = 20 seconds = seconds)
-        times = trial.times ./ 1.0e9
+        fn()
+        times = Float64[]
+        deadline = time_ns() + round(UInt64, seconds * 1.0e9)
+        while length(times) < 20 || (length(times) < 1000 && time_ns() < deadline)
+            start = time_ns()
+            fn()
+            push!(times, (time_ns() - start) / 1.0e9)
+        end
         mean = sum(times) / length(times)
         variance = length(times) > 1 ? sum((t - mean)^2 for t in times) / (length(times) - 1) : 0.0
         push!(

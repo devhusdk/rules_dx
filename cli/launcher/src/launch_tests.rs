@@ -1,4 +1,5 @@
 use crate::launch::*;
+use dx_path::Resolver;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
@@ -41,6 +42,10 @@ fn rejects_bad_descriptors() {
         "program=x\nenv=A\n",
         "program=x\nenv=\tv\n",
         "program=x\nenv=A=B\tv\n",
+        "program=x\nenv_dir=A\n",
+        "program=x\nenv_dir=\tk\n",
+        "program=x\nenv_default=A\n",
+        "program=x\nenv_default=A=B\tv\n",
     ];
     for case in cases {
         assert!(parse(case).is_err(), "accepted {case:?}");
@@ -291,4 +296,42 @@ fn command_forwards_non_utf8_arguments() {
     );
     let args: Vec<_> = built.get_args().collect();
     assert_eq!(args[0].as_bytes(), &[0x66, 0xff, 0x6f]);
+}
+
+#[test]
+fn parses_env_dir_and_env_default_lines() {
+    let parsed = parse("program=x\nenv_dir=ERL_ROOTDIR\t_main/otp/bin/erl\nenv_default=HOME\t/tmp\n").unwrap();
+    assert_eq!(
+        parsed.env_dir,
+        [("ERL_ROOTDIR".to_owned(), "_main/otp/bin/erl".to_owned())]
+    );
+    assert_eq!(parsed.env_default, [("HOME".to_owned(), "/tmp".to_owned())]);
+    assert!(parsed.items.is_empty());
+}
+
+#[test]
+fn env_default_applies_only_when_unset_or_empty() {
+    let tree = scratch("env_default");
+    let resolver = Resolver::for_tree(&tree).unwrap();
+    let descriptor = parse("program=x\nenv_default=HOME\t/fallback\n").unwrap();
+    let unset = child_env(&resolver, &descriptor, &|_| None).unwrap();
+    assert_eq!(unset, [("HOME".to_owned(), "/fallback".to_owned())]);
+    let empty = child_env(&resolver, &descriptor, &|_| Some(OsString::new())).unwrap();
+    assert_eq!(empty, unset);
+    let set = child_env(&resolver, &descriptor, &|_| Some(OsString::from("/h"))).unwrap();
+    assert!(set.is_empty());
+}
+
+#[test]
+fn env_dir_is_the_directory_of_the_runfiles_file() {
+    let tree = scratch("env_dir");
+    std::fs::create_dir_all(tree.join("_main/otp/bin")).unwrap();
+    std::fs::write(tree.join("_main/otp/bin/erl"), "").unwrap();
+    let resolver = Resolver::for_tree(&tree).unwrap();
+    let descriptor = parse("program=x\nenv_dir=ERL_ROOTDIR\t_main/otp/bin/erl\n").unwrap();
+    let out = child_env(&resolver, &descriptor, &|_| None).unwrap();
+    assert_eq!(out.len(), 1);
+    assert_eq!(out[0].0, "ERL_ROOTDIR");
+    assert!(Path::new(&out[0].1).is_absolute());
+    assert!(out[0].1.ends_with("bin"));
 }

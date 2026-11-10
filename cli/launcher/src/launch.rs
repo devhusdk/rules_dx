@@ -2,9 +2,12 @@
 //!
 //! The descriptor sits beside the executable as `<stem>.launch`, one entry per line:
 //! `program=<key>`, `arg=<literal>`, `path=<key>`,
-//! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>` and
-//! `unset=<VAR>`. The user's arguments follow the listed ones; `unset` names
-//! variables removed from the child's environment and `env` sets one.
+//! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
+//! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>` and `unset=<VAR>`.
+//! The user's arguments follow the listed ones; `unset` names variables removed
+//! from the child's environment, `env` sets one, `env_dir` sets one to the
+//! absolute directory of a runfiles file and `env_default` sets one only when
+//! it is unset or empty.
 
 use std::ffi::OsString;
 use std::io;
@@ -37,6 +40,10 @@ pub struct Descriptor {
     pub unset: Vec<String>,
     /// Environment variables set for the program, as name and value.
     pub env: Vec<(String, String)>,
+    /// Environment variables set to the directory of a runfiles key, as name and key.
+    pub env_dir: Vec<(String, String)>,
+    /// Environment variables set only when unset or empty, as name and value.
+    pub env_default: Vec<(String, String)>,
 }
 
 /// The runfiles source a child process is told about.
@@ -66,6 +73,8 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut items = Vec::new();
     let mut unset = Vec::new();
     let mut env = Vec::new();
+    let mut env_dir = Vec::new();
+    let mut env_default = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
         if let Some(value) = line.strip_prefix("program=") {
             if value.is_empty() || program.is_some() {
@@ -94,6 +103,18 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
                 return Err(bad(format!("env line has a bad name: {line}")));
             }
             env.push((name, value));
+        } else if let Some(value) = line.strip_prefix("env_dir=") {
+            let (name, key) = pair(line, value)?;
+            if name.is_empty() || name.contains('=') {
+                return Err(bad(format!("env_dir line has a bad name: {line}")));
+            }
+            env_dir.push((name, key));
+        } else if let Some(value) = line.strip_prefix("env_default=") {
+            let (name, value) = pair(line, value)?;
+            if name.is_empty() || name.contains('=') {
+                return Err(bad(format!("env_default line has a bad name: {line}")));
+            }
+            env_default.push((name, value));
         } else if let Some(value) = line.strip_prefix("unset=") {
             if value.is_empty() || value.contains('=') || value.contains('\t') {
                 return Err(bad(format!("unset line has a bad name: {line}")));
@@ -109,6 +130,8 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
         items,
         unset,
         env,
+        env_dir,
+        env_default,
     })
 }
 
@@ -216,6 +239,26 @@ pub fn plan(
     Ok(Plan { program, args })
 }
 
+/// Resolves `env`, `env_dir` and `env_default` lines into the variables the child gets.
+pub fn child_env(
+    resolver: &Resolver,
+    descriptor: &Descriptor,
+    env: &dyn Fn(&str) -> Option<OsString>,
+) -> io::Result<Vec<(String, String)>> {
+    let mut out = descriptor.env.clone();
+    for (name, key) in &descriptor.env_dir {
+        let file = locate(resolver, key)?;
+        let dir = file.parent().unwrap_or(&file);
+        out.push((name.clone(), dir.to_string_lossy().into_owned()));
+    }
+    for (name, value) in &descriptor.env_default {
+        if env(name).is_none_or(|current| current.is_empty()) {
+            out.push((name.clone(), value.clone()));
+        }
+    }
+    Ok(out)
+}
+
 /// Returns the environment entry that tells the child where the runfiles are.
 pub fn runfiles_env(resolver: &Resolver) -> (&'static str, PathBuf) {
     let source = resolver.source().to_path_buf();
@@ -252,10 +295,11 @@ pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
     let descriptor = parse(&text)?;
     let plan = plan(&resolver, &descriptor, &|name| std::env::var_os(name))?;
+    let child = child_env(&resolver, &descriptor, &|name| std::env::var_os(name))?;
     let status = command(
         &plan,
         &descriptor.unset,
-        &descriptor.env,
+        &child,
         runfiles_env(&resolver),
         user_args,
     )

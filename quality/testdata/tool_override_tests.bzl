@@ -567,6 +567,10 @@ def perlcritic_flag_tests(name, subject):
         target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _perltidy_default_impl(ctx):
     """Asserts an unset flag falls back to the wrapper's perltidy."""
@@ -609,6 +613,10 @@ def perltidy_flag_tests(name, subject):
         target_compatible_with = PERL_COMPATIBLE_WITH,
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _zig_default_impl(ctx):
     """Asserts an unset flag falls back to the wrapper's compiler."""
@@ -649,6 +657,10 @@ def zig_fmt_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _zig_ast_check_default_impl(ctx):
     """Asserts an unset flag falls back to the wrapper's compiler."""
@@ -689,6 +701,10 @@ def zig_ast_check_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _dart_default_impl(ctx):
     """Asserts an unset flag falls back to the dart binary the wrapper carries."""
@@ -729,6 +745,10 @@ def dart_format_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _julia_default_impl(ctx):
     """Asserts an unset flag falls back to the wrapper's formatter."""
@@ -769,6 +789,10 @@ def julia_format_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _erlfmt_wired_impl(ctx):
     """Asserts the flag wires the erlfmt escript and a format stage result."""
@@ -800,6 +824,10 @@ def erlfmt_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _elixir_lint_subject_impl(ctx):
     """Exposes the resolved credo launcher and the lint results beside the real aspect."""
@@ -852,6 +880,10 @@ def credo_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _elvis_wired_impl(ctx):
     """Asserts the flag wires the elvis escript and a lint stage result."""
@@ -883,6 +915,10 @@ def elvis_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _mix_format_wired_impl(ctx):
     """Asserts the flag wires the mix format launcher and a format stage result."""
@@ -914,6 +950,10 @@ def mix_format_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def qmllint_flag_tests(name, subject):
     """Instantiates the missing qmllint flag proof."""
@@ -923,6 +963,9 @@ def qmllint_flag_tests(name, subject):
         target_under_test = subject,
         expected_failure_substring = "--@rules_dx//config:tool_qmllint",
     )
+    return [
+        ":" + name + "_unset_test",
+    ]
 
 def qmlformat_flag_tests(name, subject):
     """Instantiates the missing qmlformat flag proof."""
@@ -932,6 +975,9 @@ def qmlformat_flag_tests(name, subject):
         target_under_test = subject,
         expected_failure_substring = "--@rules_dx//config:tool_qmlformat",
     )
+    return [
+        ":" + name + "_unset_test",
+    ]
 
 def tool_override_tests(name, subject):
     """Instantiates the ruff override selection and rejection proofs."""
@@ -963,6 +1009,13 @@ def tool_override_tests(name, subject):
         target_under_test = subject,
         expected_failure_substring = "fixture_policy' must produce a single file",
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_selected_test",
+        ":" + name + "_rejects_pair_test",
+        ":" + name + "_rejects_empty_test",
+        ":" + name + "_rejects_policy_test",
+    ]
 
 def _dialyzer_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the erlang target."""
@@ -993,6 +1046,10 @@ def dialyzer_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 _dialyzer_elixir_default_test = analysistest.make(
     _dialyzer_wired_impl,
@@ -1016,6 +1073,10 @@ def dialyzer_elixir_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _phpcs_wired_impl(ctx):
     """Asserts the flag wires a lint stage result for the php target."""
@@ -1046,6 +1107,10 @@ def phpcs_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _phpstan_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the php target."""
@@ -1076,6 +1141,10 @@ def phpstan_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _luals_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the lua target."""
@@ -1106,6 +1175,10 @@ def luals_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _jet_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the julia target."""
@@ -1136,6 +1209,10 @@ def jet_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _sorbet_wired_impl(ctx):
     """Asserts the flag wires a typecheck stage result for the ruby target."""
@@ -1166,6 +1243,10 @@ def sorbet_flag_tests(name, subject):
         size = "small",
         target_under_test = subject,
     )
+    return [
+        ":" + name + "_default_test",
+        ":" + name + "_set_test",
+    ]
 
 def _dart_config_deps_impl(ctx):
     """Asserts a dart_config carries the lints package and its recommended.yaml."""
@@ -1178,3 +1259,37 @@ def _dart_config_deps_impl(ctx):
     return analysistest.end(env)
 
 dart_config_deps_test = analysistest.make(_dart_config_deps_impl)
+
+def tool_override_suite(name):
+    """Instantiates every tool override proof and a test_suite named name over them."""
+    tests = []
+    for macro, test_name, subject in [
+        (tool_override_tests, "tool_override", ":tool_override_default_subject"),
+        (qmlformat_flag_tests, "qmlformat_flag", ":qml_subject"),
+        (erlfmt_flag_tests, "erlfmt_flag", ":erlang_subject"),
+        (elvis_flag_tests, "elvis_flag", ":erlang_lint_subject"),
+        (dialyzer_flag_tests, "dialyzer_flag", ":erlang_typecheck_subject"),
+        (dialyzer_elixir_flag_tests, "dialyzer_elixir_flag", ":elixir_typecheck_subject"),
+        (phpcs_flag_tests, "phpcs_flag", ":php_lint_subject"),
+        (luals_flag_tests, "luals_flag", ":lua_typecheck_subject"),
+        (sorbet_flag_tests, "sorbet_flag", ":ruby_typecheck_subject"),
+        (phpstan_flag_tests, "phpstan_flag", ":php_typecheck_subject"),
+        (mix_format_flag_tests, "mix_format_flag", ":elixir_subject"),
+        (credo_flag_tests, "credo_flag", ":elixir_lint_subject"),
+        (perltidy_flag_tests, "perltidy_flag", ":perl_subject"),
+        (perlcritic_flag_tests, "perlcritic_flag", ":perl_lint_subject"),
+        (zig_fmt_flag_tests, "zig_fmt_flag", ":zig_subject"),
+        (zig_ast_check_flag_tests, "zig_ast_check_flag", ":zig_lint_subject"),
+        (dart_format_flag_tests, "dart_format_flag", ":dart_subject"),
+        (julia_format_flag_tests, "julia_format_flag", ":julia_subject"),
+        (jet_flag_tests, "jet_flag", ":julia_typecheck_subject"),
+        (qmllint_flag_tests, "qmllint_flag", ":qml_lint_subject"),
+    ]:
+        tests += macro(name = test_name, subject = subject)
+    dart_config_deps_test(
+        name = "dart_config_deps",
+        size = "small",
+        target_under_test = ":dart_lints_config",
+    )
+    tests.append(":dart_config_deps")
+    native.test_suite(name = name, tests = tests)

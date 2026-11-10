@@ -25,45 +25,25 @@ load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load(
     ":tool_override_tests.bzl",
-    "credo_flag_tests",
-    "dart_config_deps_test",
-    "dart_format_flag_tests",
     "dart_subject",
-    "dialyzer_elixir_flag_tests",
-    "dialyzer_flag_tests",
     "elixir_lint_subject",
     "elixir_subject",
-    "elvis_flag_tests",
     "erlang_lint_subject",
     "erlang_subject",
     "erlang_typecheck_subject",
-    "erlfmt_flag_tests",
-    "jet_flag_tests",
-    "julia_format_flag_tests",
     "julia_subject",
     "julia_typecheck_subject",
     "lua_typecheck_subject",
-    "luals_flag_tests",
-    "mix_format_flag_tests",
     "perl_lint_subject",
     "perl_subject",
-    "perlcritic_flag_tests",
-    "perltidy_flag_tests",
     "php_lint_subject",
     "php_typecheck_subject",
-    "phpcs_flag_tests",
-    "phpstan_flag_tests",
     "qml_lint_subject",
     "qml_sources",
     "qml_subject",
-    "qmlformat_flag_tests",
-    "qmllint_flag_tests",
     "ruby_typecheck_subject",
-    "sorbet_flag_tests",
     "tool_override_subject",
-    "tool_override_tests",
-    "zig_ast_check_flag_tests",
-    "zig_fmt_flag_tests",
+    "tool_override_suite",
     "zig_lint_subject",
     "zig_subject",
 )
@@ -1222,11 +1202,6 @@ tool_override_subject(
     target = ":fixture_real_python",
 )
 
-tool_override_tests(
-    name = "tool_override",
-    subject = ":tool_override_default_subject",
-)
-
 quality_family(
     name = "qml_family",
     disabled = [
@@ -1363,20 +1338,10 @@ qml_subject(
     target = ":qml_fixture",
 )
 
-qmlformat_flag_tests(
-    name = "qmlformat_flag",
-    subject = ":qml_subject",
-)
-
 erlang_subject(
     name = "erlang_subject",
     testonly = True,
     target = "//erlang/tests/runtime:erlang_app",
-)
-
-erlfmt_flag_tests(
-    name = "erlfmt_flag",
-    subject = ":erlang_subject",
 )
 
 erlang_lint_subject(
@@ -1385,20 +1350,10 @@ erlang_lint_subject(
     target = "//erlang/tests/runtime:erlang_app",
 )
 
-elvis_flag_tests(
-    name = "elvis_flag",
-    subject = ":erlang_lint_subject",
-)
-
 erlang_typecheck_subject(
     name = "erlang_typecheck_subject",
     testonly = True,
     target = "//erlang/tests/runtime:erlang_app",
-)
-
-dialyzer_flag_tests(
-    name = "dialyzer_flag",
-    subject = ":erlang_typecheck_subject",
 )
 
 erlang_typecheck_subject(
@@ -1407,20 +1362,10 @@ erlang_typecheck_subject(
     target = "//elixir/tests/runtime:erlang_app",
 )
 
-dialyzer_elixir_flag_tests(
-    name = "dialyzer_elixir_flag",
-    subject = ":elixir_typecheck_subject",
-)
-
 php_lint_subject(
     name = "php_lint_subject",
     testonly = True,
     target = "//php/tests/fixtures/hello:greeter",
-)
-
-phpcs_flag_tests(
-    name = "phpcs_flag",
-    subject = ":php_lint_subject",
 )
 
 lua_typecheck_subject(
@@ -1429,20 +1374,10 @@ lua_typecheck_subject(
     target = "//lua/tests/runtime:lib",
 )
 
-luals_flag_tests(
-    name = "luals_flag",
-    subject = ":lua_typecheck_subject",
-)
-
 ruby_typecheck_subject(
     name = "ruby_typecheck_subject",
     testonly = True,
     target = "//ruby/tests/fixtures/hello:hello_lib",
-)
-
-sorbet_flag_tests(
-    name = "sorbet_flag",
-    subject = ":ruby_typecheck_subject",
 )
 
 php_typecheck_subject(
@@ -1451,20 +1386,10 @@ php_typecheck_subject(
     target = "//php/tests/fixtures/hello:greeter",
 )
 
-phpstan_flag_tests(
-    name = "phpstan_flag",
-    subject = ":php_typecheck_subject",
-)
-
 elixir_subject(
     name = "elixir_subject",
     testonly = True,
     target = "//elixir/tests/runtime:erlang_app",
-)
-
-mix_format_flag_tests(
-    name = "mix_format_flag",
-    subject = ":elixir_subject",
 )
 
 elixir_lint_subject(
@@ -1473,20 +1398,10 @@ elixir_lint_subject(
     target = "//elixir/tests/runtime:erlang_app",
 )
 
-credo_flag_tests(
-    name = "credo_flag",
-    subject = ":elixir_lint_subject",
-)
-
 perl_subject(
     name = "perl_subject",
     testonly = True,
     target = "//perl/tests/runtime:dx_probe",
-)
-
-perltidy_flag_tests(
-    name = "perltidy_flag",
-    subject = ":perl_subject",
 )
 
 perl_lint_subject(
@@ -1495,20 +1410,10 @@ perl_lint_subject(
     target = "//perl/tests/runtime:dx_probe",
 )
 
-perlcritic_flag_tests(
-    name = "perlcritic_flag",
-    subject = ":perl_lint_subject",
-)
-
 zig_subject(
     name = "zig_subject",
     testonly = True,
     target = "//zig/tests/fixtures/hello:greet",
-)
-
-zig_fmt_flag_tests(
-    name = "zig_fmt_flag",
-    subject = ":zig_subject",
 )
 
 zig_lint_subject(
@@ -1517,20 +1422,10 @@ zig_lint_subject(
     target = "//zig/tests/fixtures/hello:greet",
 )
 
-zig_ast_check_flag_tests(
-    name = "zig_ast_check_flag",
-    subject = ":zig_lint_subject",
-)
-
 dart_subject(
     name = "dart_subject",
     testonly = True,
     target = "//dart/tests/runtime:greet",
-)
-
-dart_format_flag_tests(
-    name = "dart_format_flag",
-    subject = ":dart_subject",
 )
 
 dart_config(
@@ -1539,32 +1434,16 @@ dart_config(
     deps = ["@dx_dart_deps//:lints"],
 )
 
-dart_config_deps_test(
-    name = "dart_config_deps",
-    size = "small",
-    target_under_test = ":dart_lints_config",
-)
-
 julia_subject(
     name = "julia_subject",
     testonly = True,
     target = "//julia/tests/fixtures/hello:Greet",
 )
 
-julia_format_flag_tests(
-    name = "julia_format_flag",
-    subject = ":julia_subject",
-)
-
 julia_typecheck_subject(
     name = "julia_typecheck_subject",
     testonly = True,
     target = "//julia/tests/fixtures/hello:Greet",
-)
-
-jet_flag_tests(
-    name = "jet_flag",
-    subject = ":julia_typecheck_subject",
 )
 
 quality_family(
@@ -1588,10 +1467,7 @@ qml_lint_subject(
     target = ":qml_fixture",
 )
 
-qmllint_flag_tests(
-    name = "qmllint_flag",
-    subject = ":qml_lint_subject",
-)
+tool_override_suite(name = "tool_overrides")
 
 real_source_target(
     name = "fixture_real_rust_typecheck_clean",
@@ -1660,7 +1536,7 @@ java_library(
     tags = ["manual"],
 )
 
-real_result_cases()
+real_result_cases(name = "real_results")
 
 sh_test(
     name = "real_result_check_spaces_test",

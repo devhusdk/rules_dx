@@ -42,6 +42,13 @@ tools/dx test --affected -- --config=bb
 
 A read-only key makes Bazel warn on every build that it cannot upload results. Use `--config=bb-ro` instead of `--config=bb`.
 
+## Quality tests
+
+- `bazel test //quality/testdata:real_results`
+- `bazel test //quality/testdata:tool_overrides`
+- `bazel test //quality/testdata:runner_matrix`
+- `bazel test //quality:all`
+
 ## Evidence status
 
 Each `evidence.yml` run posts the commit status `evidence/<platform>/<task>/<scope>` on the dispatched commit: pending at dispatch, then success, failure or error. `gh pr checks <n> --watch` shows it. A second run for the same platform, task and scope on one commit replaces the status. The merge-group `gate` job fails when the newest status of any `evidence/*` context on the pull request head is `pending`, `failure` or `error`.

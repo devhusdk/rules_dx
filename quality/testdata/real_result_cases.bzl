@@ -704,8 +704,10 @@ def real_result_evidence(case):
             evidence[flag] = case[flag]
     return evidence
 
-def real_result_cases():
-    """Instantiates every real-result case."""
+def real_result_cases(name):
+    """Instantiates every real-result case and a test_suite named name over them."""
+    if not REAL_RESULT_CASES:
+        fail("REAL_RESULT_CASES is empty")
     for case in REAL_RESULT_CASES:
         real_result_test(
             name = case["name"],
@@ -726,3 +728,4 @@ def real_result_cases():
             windows_x86_64 = case.get("windows_x86_64", False),
             windows_arm64 = case.get("windows_arm64", False),
         )
+    native.test_suite(name = name, tests = [":" + case["name"] for case in REAL_RESULT_CASES])

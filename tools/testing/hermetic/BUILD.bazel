@@ -3,15 +3,17 @@ load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV")
+load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
-load("//tools/testing/hermetic:defs.bzl", "HERMETIC_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
+load("//tools/testing/hermetic:compilers.bzl", "compiler_fixture", "starter_sources")
+load("//tools/testing/hermetic:defs.bzl", "HERMETIC_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 exports_files(
     [
         "BUILD.bazel",
+        "compiler_fixture_test.rs",
         "consumers/cuda/module_fragment.bazel",
         "defs.bzl",
         "manifest_golden_test.rs",
@@ -859,81 +861,40 @@ rust_test(
     ) + [
         ":hermetic",
         "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
     ],
 )
 
-# Manual: re-pins the cpp_rust Maven lock with the qualification's composed MODULE.bazel and
-# writes it to the undeclared outputs: /evidence scope=//tools/testing/hermetic:cpp_rust_maven_pin
-nested_bazel_test(
+rust_binary(
     name = "cpp_rust_maven_pin",
-    timeout = "long",
-    srcs = ["maven_pin_test.rs"],
-    data = [":cpp_rust_manifest"],
-    env = {"DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)"},
-    network = True,
-    tags = ["manual"],
-    deps = [
-        ":hermetic",
-        "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
-    ],
-)
-
-# Manual: re-pins the lock every nested consumer shares and writes it to the undeclared outputs:
-# /evidence scope=//tools/testing/hermetic:consumer_maven_pin
-nested_bazel_test(
-    name = "consumer_maven_pin",
-    timeout = "long",
-    srcs = ["consumer_maven_pin_test.rs"],
-    data = CONSUMER_MAVEN_DATA,
-    env = CONSUMER_MAVEN_ENV,
-    network = True,
-    tags = ["manual"],
-    deps = [
-        ":hermetic",
-        "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
-    ],
-)
-
-# Needs a CUDA GPU; run it by hand: bazel test //tools/testing/hermetic:cuda_gpu_nested_test
-nested_bazel_test(
-    name = "cuda_gpu_nested_test",
-    timeout = "moderate",
-    srcs = ["cuda_gpu_test.rs"],
-    args = ["--ignored"],
+    testonly = True,
+    srcs = ["maven_pin.rs"],
     data = [
-        "consumers/cuda/module_fragment.bazel",
-        "//:module_srcs",
-        "//cuda/tests/fixtures/cuda-app/gpu:BUILD.bazel",
-        "//cuda/tests/fixtures/cuda-app/gpu:gpu_test.cu",
-        "//cuda/tests/fixtures/cuda-app/kernels:common.cuh",
-        "//cuda/tests/fixtures/cuda-app/kernels:kernels.h",
-        "//cuda/tests/fixtures/cuda-app/kernels:reduce.cu",
-        "//cuda/tests/fixtures/cuda-app/kernels:stencil.cu",
-        "//cuda/tests/fixtures/cuda-app/kernels:vector_add.cu",
-    ],
-    env = {
-        "DX_CUDA_FILES": " ".join([
-            "$(rlocationpath //cuda/tests/fixtures/cuda-app/gpu:BUILD.bazel)=cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel",
-            "$(rlocationpath //cuda/tests/fixtures/cuda-app/gpu:gpu_test.cu)=cuda/tests/fixtures/cuda-app/gpu/gpu_test.cu",
-            "$(rlocationpath //cuda/tests/fixtures/cuda-app/kernels:common.cuh)=cuda/tests/fixtures/cuda-app/kernels/common.cuh",
-            "$(rlocationpath //cuda/tests/fixtures/cuda-app/kernels:kernels.h)=cuda/tests/fixtures/cuda-app/kernels/kernels.h",
-            "$(rlocationpath //cuda/tests/fixtures/cuda-app/kernels:reduce.cu)=cuda/tests/fixtures/cuda-app/kernels/reduce.cu",
-            "$(rlocationpath //cuda/tests/fixtures/cuda-app/kernels:stencil.cu)=cuda/tests/fixtures/cuda-app/kernels/stencil.cu",
-            "$(rlocationpath //cuda/tests/fixtures/cuda-app/kernels:vector_add.cu)=cuda/tests/fixtures/cuda-app/kernels/vector_add.cu",
-        ]),
-        "DX_CUDA_FRAGMENT": "$(rlocationpath consumers/cuda/module_fragment.bazel)",
+        "consumers/cpp_rust/maven_install.json",
+        ":cpp_rust_manifest",
+    ] + NESTED_BAZEL_DATA,
+    env = NESTED_BAZEL_NETWORK_ENV | {
+        "DX_HERMETIC_MANIFEST": "$(rootpath :cpp_rust_manifest)",
+        "DX_MAVEN_LOCK": "$(rootpath consumers/cpp_rust/maven_install.json)",
     },
-    network = True,
-    tags = [
-        "manual",
-        "requires-gpu",
-    ],
     deps = [
-        "//tools/testing/nested:dx_nested",
+        ":hermetic",
         "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
+rust_binary(
+    name = "consumer_maven_pin",
+    testonly = True,
+    srcs = ["maven_pin.rs"],
+    data = ["//:module_srcs"] + CONSUMER_MAVEN_DATA + NESTED_BAZEL_DATA,
+    env = NESTED_BAZEL_NETWORK_ENV | {
+        "DX_MAVEN_LOCK": "$(rootpath //tools/testing/fixtures/consumer_maven:maven_install.json)",
+    },
+    deps = [
+        ":hermetic",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
     ],
 )
 
@@ -1223,10 +1184,91 @@ hermetic_qualification(
     timeout = "eternal",
 )
 
+rust_binary(
+    name = "compile_capture",
+    testonly = True,
+    srcs = ["compile_capture.rs"],
+)
+
+starter_sources(
+    name = "c_starter",
+    files = {
+        "accepted": "c_only.c",
+        "hdr": "hello.h",
+        "lib": "hello.c",
+        "main": "main.c",
+        "rejected": "cxx_in_c.c",
+        "test": "hello_test.c",
+    },
+    language = "c",
+)
+
+starter_sources(
+    name = "cpp_starter",
+    files = {
+        "accepted": "cxx_only.cc",
+        "hdr": "hello.h",
+        "lib": "hello.cc",
+        "main": "main.cc",
+        "rejected": "c_in_cxx.cc",
+        "test": "hello_test.cc",
+    },
+    language = "cpp",
+)
+
+compiler_fixture(
+    name = "c_gcc_fixture",
+    compiler = "gcc",
+    rejected = "cxx_in_c.c:1:10: fatal error: string: No such file or directory",
+    sources = "c_starter",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+compiler_fixture(
+    name = "cpp_gcc_fixture",
+    compiler = "gcc",
+    rejected = "c_in_cxx.cc:2:3: error: expected primary-expression before 'int'",
+    sources = "cpp_starter",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+compiler_fixture(
+    name = "c_llvm_fixture",
+    compiler = "llvm",
+    rejected = "cxx_in_c.c:1:10: fatal error: 'string' file not found",
+    sources = "c_starter",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+compiler_fixture(
+    name = "cpp_llvm_fixture",
+    compiler = "llvm",
+    rejected = "c_in_cxx.cc:2:7: error: declaration of anonymous class must be a definition",
+    sources = "cpp_starter",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+compiler_fixture(
+    name = "c_msvc_fixture",
+    compiler = "msvc",
+    rejected = "error STL1003: Unexpected compiler, expected C++ compiler",
+    sources = "c_starter",
+    target_compatible_with = WINDOWS,
+)
+
+compiler_fixture(
+    name = "cpp_msvc_fixture",
+    compiler = "msvc",
+    rejected = "c_in_cxx.cc(2): error C",
+    sources = "cpp_starter",
+    target_compatible_with = WINDOWS,
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "compilers.bzl",
         "consumers/cc_fixture/c_probe.BUILD.bazel",
         "consumers/cc_fixture/cpp_probe.BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel",

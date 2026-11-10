@@ -2252,17 +2252,16 @@ fn isolation_check_result_reports_the_first_failure() {
 }
 
 #[test]
-fn lock_drift_accepts_the_same_lock() {
-    assert!(lock_drift("{\"a\": 1}\n", "{\"a\": 1}\n").is_ok());
+fn lock_differs_accepts_the_same_lock() {
+    assert!(!lock_differs("{\"a\": 1}\n", "{\"a\": 1}\n"));
 }
 
 #[test]
-fn lock_drift_names_the_refresh_flow_for_a_different_lock() {
-    let err = lock_drift("{\"a\": 1}\n", "{\"a\": 2}\n").unwrap_err();
-    assert!(err.contains("test.outputs"), "{err}");
+fn lock_differs_reports_a_different_lock() {
+    assert!(lock_differs("{\"a\": 1}\n", "{\"a\": 2}\n"));
 }
 
 #[test]
-fn lock_drift_ignores_crlf() {
-    assert!(lock_drift("a\r\nb\r\n", "a\nb\n").is_ok());
+fn lock_differs_ignores_crlf() {
+    assert!(!lock_differs("a\r\nb\r\n", "a\nb\n"));
 }

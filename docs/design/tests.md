@@ -66,6 +66,7 @@ A test is the first of four kinds that can prove the behaviour.
 - A passing test runs that executable from runfiles and asserts its exit code and output.
 - An analysis failure is asserted with `failure_test` on the non-test target.
 - A language test that must fail is a conformance subject.
+- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`. An action replays the compile action of the fixture library and writes the exit code and the output to a file. A passing test asserts both.
 
 ## Conformance
 

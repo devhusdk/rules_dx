@@ -119,6 +119,19 @@ impl AuditError {
     }
 }
 
+impl From<&AuditError> for DxError {
+    fn from(error: &AuditError) -> Self {
+        let message = error.to_string();
+        match error {
+            AuditError::Read { error, .. } => DxError::from_io(message, error),
+            AuditError::AdvisoryPinFetch { .. } | AuditError::OfflineRequired { .. } => {
+                DxError::infra(message)
+            }
+            _ => DxError::failure(message),
+        }
+    }
+}
+
 pub(super) enum AuditTarget<'a> {
     Configured(&'a dx_adopt::dependency_sets::ResolvedSet),
 }
@@ -411,7 +424,7 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Conan => dx_audit::locks::parse_conan_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Fpm => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::FPM_LOCK) => dx_audit::locks::parse_fpm_lock(text).map_err(dx_error::DxError::failure),
+                Some(dx_adopt::dependency_sets::FPM_LOCK) => dx_audit::locks::parse_fpm_lock(text),
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
@@ -438,7 +451,7 @@ fn parse_locked_for_configured(
                     dx_audit::locks::parse_cabal_freeze(text)
                 }
                 Some(dx_adopt::dependency_sets::STACK_LOCK) => {
-                    dx_audit::locks::parse_stack_lock(text).map_err(dx_error::DxError::failure)
+                    dx_audit::locks::parse_stack_lock(text)
                 }
                 _ => Ok(Vec::new()),
             },
@@ -1014,7 +1027,7 @@ fn collect_target(
     target: &AuditTarget<'_>,
     accepted_uncovered: &[&str],
     offline: bool,
-) -> Result<Option<Assessable>, (&'static str, String)> {
+) -> Result<Option<Assessable>, (&'static str, DxError)> {
     if !target.lock_covered() {
         return Ok(None);
     }
@@ -1031,20 +1044,20 @@ fn collect_target(
     let locks = locks.map_err(|error| {
         (
             CODE_AUDIT_FAILED,
-            format!("failed to assess {label}: {error}"),
+            DxError::from(&error).with_context(format!("failed to assess {label}")),
         )
     })?;
     let parsed = match target {
         AuditTarget::Configured(set) => parse_locked_for_configured(set, &locks),
     };
-    let (packages, lock_paths) = parsed.map_err(|error| (CODE_AUDIT_FAILED, error.to_string()))?;
+    let (packages, lock_paths) = parsed.map_err(|error| (CODE_AUDIT_FAILED, DxError::from(&error)))?;
     if !target.advisory_covered() {
         if packages.is_empty() || accepted_uncovered.contains(&label.as_str()) {
             return Ok(None);
         }
         return Err((
             CODE_AUDIT_FAILED,
-            uncovered_message(&label, target.ecosystem_name()),
+            DxError::failure(uncovered_message(&label, target.ecosystem_name())),
         ));
     }
     let (advisories, pin) = load_advisories(workspace, &key, &label, offline).map_err(|error| {
@@ -1058,7 +1071,7 @@ fn collect_target(
         };
         (
             wrapped.code(),
-            format!("failed to assess {label}: {wrapped}"),
+            DxError::from(&wrapped).with_context(format!("failed to assess {label}")),
         )
     })?;
     let mut advisories = advisories;
@@ -1078,7 +1091,7 @@ fn collect_target(
                 };
                 return Err((
                     wrapped.code(),
-                    format!("failed to assess {label}: {wrapped}"),
+                    DxError::from(&wrapped).with_context(format!("failed to assess {label}")),
                 ));
             }
         }
@@ -1198,9 +1211,9 @@ fn run_security(inputs: SecurityInputs<'_>) -> SecurityResult {
             continue;
         }
         let assessable = match collect_target(workspace, target, &accepted_uncovered, offline) {
-            Err((code, message)) => {
+            Err((code, error)) => {
                 if incomplete.is_none() {
-                    incomplete = Some(message);
+                    incomplete = Some(error.to_string());
                     incomplete_code = code;
                 }
                 continue;

@@ -63,6 +63,14 @@ impl DxError {
     }
 
     #[must_use]
+    pub fn with_context(self, context: impl fmt::Display) -> Self {
+        Self {
+            kind: self.kind,
+            message: format!("{context}: {}", self.message),
+        }
+    }
+
+    #[must_use]
     pub const fn kind(&self) -> ErrorKind {
         self.kind
     }
@@ -123,6 +131,13 @@ mod tests {
         assert_eq!(error.exit_code(), EXIT_USAGE);
         assert_eq!(DxError::failure("x").exit_code(), EXIT_FAILURE);
         assert_eq!(DxError::infra("x").exit_code(), EXIT_INFRA);
+    }
+
+    #[test]
+    fn with_context_prefixes_the_message_and_keeps_the_kind() {
+        let error = DxError::infra("disk full").with_context("failed to write");
+        assert_eq!(error.kind(), ErrorKind::Infra);
+        assert_eq!(error.message(), "failed to write: disk full");
     }
 
     #[test]

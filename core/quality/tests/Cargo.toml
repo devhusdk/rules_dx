@@ -15,7 +15,3 @@ path = "powershell_gallery_lock_test.rs"
 [[test]]
 name = "qt_adapter_test"
 path = "qt_adapter_test.rs"
-
-[[test]]
-name = "quality_check_smoke_test"
-path = "quality_check_smoke_test.rs"

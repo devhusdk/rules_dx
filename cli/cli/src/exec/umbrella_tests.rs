@@ -588,6 +588,17 @@ fn check_json_brackets_phase_lifecycles() {
     assert_eq!(events.first().expect("first")["command"], "check");
     assert_eq!(events.last().expect("last")["event"], "command_finished");
     assert_eq!(events.last().expect("last")["exit_code"], 0);
+    assert_eq!(
+        events.last().expect("last")["results_complete"],
+        serde_json::json!(true),
+        "{out}"
+    );
+    assert!(
+        events_of_kind(&events, "notice")
+            .iter()
+            .all(|notice| notice["code"] != "umbrella_phase_skipped"),
+        "{out}"
+    );
     assert_eq!(events_of_kind(&events, "command_started").len(), 1);
     assert_eq!(events_of_kind(&events, "command_finished").len(), 1);
     let boundaries: Vec<(&str, &str)> = events

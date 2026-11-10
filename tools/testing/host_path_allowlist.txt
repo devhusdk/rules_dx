@@ -79,7 +79,6 @@ core/quality/testdata/spotbugs_owned/BUILD.bazel
 core/quality/testdata/spotbugs_owned/check.sh
 core/quality/testdata/spotbugs_owned/native.sh
 core/quality/tests/fixtures/prose-docs/bundle_test.sh
-core/quality/tests/quality_check_smoke_common.rs
 core/quality/tools/dotnet/fsharplint/fsharplint.sh
 core/quality/tools/python_bundle/build_bundle.sh
 csharp/tests/fixtures/fuzz/run_test.sh

@@ -53,6 +53,16 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             )),
         }
     }
+    for call in module.calls_named("bazel_dep") {
+        if let Some(version) = call.str("version")
+            && version.contains(".dx.")
+        {
+            problems.push(format!(
+                "bazel_dep at line {} has the version {version:?}; a consumer resolves BCR versions only",
+                call.line
+            ));
+        }
+    }
     for name in &declared {
         if !table.contains_key(name) && !UNPINNED.contains(&name.as_str()) {
             problems.push(format!(
@@ -311,6 +321,16 @@ fn a_matching_fixture_passes() {
             &fixture_table(&[("demo", "1.2.0", "1.2.0")])
         ),
         Vec::<String>::new()
+    );
+}
+
+#[test]
+fn a_dx_version_is_rejected() {
+    let demo = fixture_table(&[("demo", "1.2.0.dx.1", "1.2.0.dx.1")]);
+    let problems = violations(&good("1.2.0.dx.1", "1.2.0.dx.1"), &demo);
+    assert!(
+        problems.iter().any(|problem| problem.contains("BCR versions only")),
+        "{problems:?}"
     );
 }
 

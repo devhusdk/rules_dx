@@ -27,19 +27,11 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 
 ## Patched dependencies
 
-- The root `MODULE.bazel` has no override of any kind.
-- A patched upstream that some module in the graph depends on is a version in the rules_dx registry.
-- A patched upstream that no module depends on is an archive fetched by a repository rule in `<lang>/private/`, with its `patches`.
-- The registry is `patches/`: `patches/bazel_registry.json` and `patches/modules/<module>/<version>/` with `MODULE.bazel`, `source.json` and `patches/`.
-- A patched version is named `<upstream version>.dx.<n>`. `n` goes up by one when the patch set changes.
-- An upstream release that the Bazel Central Registry lacks enters the registry the same way, with no patch.
-- `source.json` holds the integrity of the archive and of every patch.
-- rules_dx names the registry version in its `bazel_dep`. Root and consumer resolve the same files.
-- Root `.bazelrc` sets `--registry=file://%workspace%/patches` ahead of the Bazel Central Registry.
-- The release copies `patches/modules/` to the `registry` branch and adds the `rules_dx` version. A published version directory never changes.
-- The consumer `.bazelrc` names `https://raw.githubusercontent.com/devhusdk/rules_dx/registry` ahead of the Bazel Central Registry.
-- rules_dx goes to the Bazel Central Registry only when `patches/modules/` is empty.
-- `dx check` fails when a module under `patches/modules/` resolves to another version in the consumer graph. It names the module that asked for it.
+- A consumer resolves from the Bazel Central Registry only. No version is named `<upstream version>.dx.<n>`.
+- Each patch is root-only, upstream and then in the Bazel Central Registry, or rules_dx code or an extension.
+- A root-only patch is a `single_version_override` in the root `MODULE.bazel`. Bazel ignores it in a non-root module.
+- A consumer never applies a patch.
+- `rules_py` is pinned in the test harness until its release is in the Bazel Central Registry (#11398).
 
 ## Root module
 
@@ -71,7 +63,7 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 - No language needs a flag to build with its default toolchain. A flag only picks another registered toolchain or a mode.
 - A rule that chooses what to build for takes `platforms` and applies a transition. No consumer sets `--platforms`, a minimum OS flag or an SDK version flag.
 - A flag Bazel can take only from an rc file is in the manifest `setup.flags`. dx writes it into `.dx/bazelrc/` when the workspace has that language's files.
-- The `.bazelrc` that `dx init` writes holds the two registry lines and the `try-import` lines of `.dx/bazelrc/`. It holds no other flag.
+- The `.bazelrc` that `dx init` writes holds the `try-import` lines of `.dx/bazelrc/`. It holds no other flag.
 - Root `.bazelrc` gets language flags from the same generated layers. It sets no other build flag, except the names in `tools/ci/root_bazelrc_allowlist.txt`. That list only shrinks.
 
 ## Platform families

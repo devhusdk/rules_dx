@@ -240,13 +240,11 @@ fn a_failed_preparation_skips_the_audit_and_fails_the_aggregate() {
         aggregate_needs.contains(&AUDIT.to_owned()),
         "{WORKFLOW} job dx-ci must need {AUDIT}"
     );
-    let aggregate = scripts(WORKFLOW, "dx-ci");
-    for needle in ["skipped) skipped+=", "skipped checks"] {
-        assert!(
-            aggregate.contains(needle),
-            "{WORKFLOW} job dx-ci must fail a skipped {AUDIT}: {aggregate}"
-        );
-    }
+    let aggregate = document(WORKFLOW)["jobs"]["dx-ci"]["steps"].to_string();
+    assert!(
+        aggregate.contains("contains(needs.*.result, 'skipped')"),
+        "{WORKFLOW} job dx-ci must fail a skipped {AUDIT}: {aggregate}"
+    );
 }
 
 #[test]

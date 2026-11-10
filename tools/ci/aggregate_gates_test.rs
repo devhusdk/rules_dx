@@ -18,40 +18,14 @@ const AGGREGATE: &str = "dx-ci";
 /// Runs a gate on every dependency outcome, except a cancelled run outside merge_group.
 const GATE_IF: &str = "${{ !cancelled() || github.event_name == 'merge_group' }}";
 
-/// Returns the aggregate run script of one job.
-fn aggregate_script(workflow: &str, job: &str) -> String {
-    let document = document(workflow);
-    let run = document["jobs"][job]["steps"][0]["run"].clone();
-    run.as_str()
-        .unwrap_or_else(|| panic!("{workflow} job {job} steps.0.run is not a script: {run}"))
-        .to_owned()
-}
+/// Fails a gate when any needed job failed, was cancelled or was skipped.
+const FAIL_IF: &str = "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}";
 
-/// Returns the required list one aggregate script declares.
-fn required_of(script: &str) -> Vec<String> {
-    let line = script
-        .lines()
-        .find(|line| line.trim_start().starts_with("required=("))
-        .unwrap_or_else(|| panic!("aggregate script declares no required list: {script}"));
-    line.trim_start()
-        .trim_start_matches("required=(")
-        .trim_end_matches(')')
-        .split_whitespace()
-        .map(str::to_owned)
-        .collect()
-}
-
-/// Asserts the job passes each required result to its script as NEEDS_<NAME>.
-fn assert_results_passed(workflow: &str, job: &str, names: &[String]) {
-    let env = &document(workflow)["jobs"][job]["steps"][0]["env"];
-    for name in names {
-        let var = format!("NEEDS_{}", name.to_uppercase().replace('-', "_"));
-        assert_eq!(
-            env[&var],
-            json!(format!("${{{{ needs.{name}.result }}}}")),
-            "{workflow} job {job} must pass {name} as {var}"
-        );
-    }
+/// Asserts one gate step carries the exact `if:` and exits 1.
+fn assert_fails_when(step: &Value, condition: &str, context: &str) {
+    assert_eq!(step["if"], json!(condition), "{context} step if");
+    let run = step["run"].as_str().unwrap_or_default();
+    assert!(run.contains("exit 1"), "{context} step must exit 1: {run}");
 }
 
 /// Returns the declared needs of one job as names.
@@ -101,24 +75,9 @@ fn the_outer_gate_requires_every_declared_dependency() {
         json!(GATE_IF),
         "{CI_WORKFLOW} job {GATE} must run on every dependency outcome unless the run is cancelled outside merge_group"
     );
-    let script = aggregate_script(CI_WORKFLOW, GATE);
-    assert_results_passed(CI_WORKFLOW, GATE, &required_of(&script));
-    assert_eq!(
-        json!(required_of(&script)),
-        wanted,
-        "{CI_WORKFLOW} job {GATE} must gate every name it needs"
-    );
-    for needle in [
-        "= success ]",
-        "\\\"aggregate\\\":\\\"ci\\\"",
-        "failing checks",
-        "[ ${#failing[@]} -eq 0 ]",
-    ] {
-        assert!(
-            script.contains(needle),
-            "{CI_WORKFLOW} job {GATE} must state {needle:?}: {script}"
-        );
-    }
+    let step = &document["jobs"][GATE]["steps"][0];
+    assert_fails_when(step, FAIL_IF, CI_WORKFLOW);
+    assert_eq!(step["env"]["NEEDS_JSON"], json!("${{ toJSON(needs) }}"));
     let summary = document["jobs"][GATE]["steps"][1]["run"]
         .as_str()
         .unwrap_or_else(|| panic!("{CI_WORKFLOW} job {GATE} steps.1.run is not a script"));
@@ -146,26 +105,19 @@ fn the_consumer_gate_requires_every_declared_check() {
         .filter(|name| name != "validate")
         .collect();
     assert_eq!(wanted.len(), 3, "{CONSUMER_WORKFLOW} declares the checks");
-    let script = aggregate_script(CONSUMER_WORKFLOW, AGGREGATE);
-    assert_results_passed(CONSUMER_WORKFLOW, AGGREGATE, &wanted);
-    assert_eq!(
-        json!(required_of(&script)),
-        json!(wanted),
-        "{CONSUMER_WORKFLOW} job {AGGREGATE} must gate every check it needs"
+    let steps = &document["jobs"][AGGREGATE]["steps"];
+    assert_fails_when(
+        &steps[0],
+        "${{ needs.validate.result != 'success' }}",
+        CONSUMER_WORKFLOW,
     );
-    for needle in [
-        "!= success ]",
-        "skipped checks",
-        "missing checks",
-        "-eq 0 ]",
-        "\\\"aggregate\\\":\\\"dx-ci\\\"",
-        "-z \"${CHECKS:-}\"",
-    ] {
-        assert!(
-            script.contains(needle),
-            "{CONSUMER_WORKFLOW} job {AGGREGATE} must state {needle:?}: {script}"
-        );
-    }
+    assert_fails_when(
+        &steps[1],
+        "${{ needs.validate.outputs.checks == '' }}",
+        CONSUMER_WORKFLOW,
+    );
+    assert_fails_when(&steps[2], FAIL_IF, CONSUMER_WORKFLOW);
+    assert_eq!(steps[2]["env"]["NEEDS_JSON"], json!("${{ toJSON(needs) }}"));
 }
 
 /// Returns the job ids one job needs, whether `needs` is one name or a list.

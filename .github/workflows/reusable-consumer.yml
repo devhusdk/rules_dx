@@ -778,51 +778,21 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Aggregate selected check results
-        env:
-          NEEDS_VALIDATE: ${{ needs.validate.result }}
-          NEEDS_CHECKS: ${{ needs.checks.result }}
-          NEEDS_SECURITY_AUDIT: ${{ needs.security-audit.result }}
-          NEEDS_ADVISORY_SNAPSHOTS: ${{ needs.advisory-snapshots.result }}
-          CHECKS: ${{ needs.validate.outputs.checks }}
+      - name: Fail when input validation failed
+        if: ${{ needs.validate.result != 'success' }}
         run: |
-          set -eu
-          export LC_ALL=C
-          required=(checks security-audit advisory-snapshots)
-          result() {
-            local name="NEEDS_${1^^}"
-            echo "${!name:-}"
-          }
-          sorted() { printf '%s\n' "$@" | sort; }
-          say() {
-            local label=$1
-            shift
-            [ $# -eq 0 ] || echo "dx-ci: $label: $(sorted "$@" | paste -sd, - | sed 's/,/, /g')"
-          }
-          needs=""
-          for name in validate "${required[@]}"; do
-            value=$(result "${name//-/_}")
-            [ -z "$value" ] || needs="$needs${needs:+,}\"$name\":\"$value\""
-          done
-          echo "{\"aggregate\":\"dx-ci\",\"needs\":{$needs}}"
-          if [ "$(result VALIDATE)" != success ]; then
-            echo "dx-ci: input validation failed; see the validate job"
-            exit 1
-          fi
-          if [ -z "${CHECKS:-}" ]; then
-            echo "dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit"
-            exit 1
-          fi
-          skipped=() bad=() missing=()
-          for name in "${required[@]}"; do
-            case $(result "${name//-/_}") in
-              "") missing+=("$name") ;;
-              success) ;;
-              skipped) skipped+=("$name") ;;
-              *) bad+=("$name") ;;
-            esac
-          done
-          say "skipped checks" "${skipped[@]}"
-          say "failing checks" "${bad[@]}"
-          say "missing checks" "${missing[@]}"
-          [ $((${#skipped[@]} + ${#bad[@]} + ${#missing[@]})) -eq 0 ]
+          echo "dx-ci: input validation failed; see the validate job"
+          exit 1
+      - name: Fail when validate wrote no checks list
+        if: ${{ needs.validate.outputs.checks == '' }}
+        run: |
+          echo "dx-ci: validate wrote no checks list; pin the workflow and rules_dx to the same commit"
+          exit 1
+      - name: Fail when a selected check did not succeed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          echo "dx-ci: a selected check did not succeed"
+          echo "$NEEDS_JSON"
+          exit 1

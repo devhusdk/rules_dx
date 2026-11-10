@@ -31,7 +31,11 @@ fn extension_lookup_ignores_case() {
 #[test]
 fn family_without_module_counts_as_installed() {
     let none = BTreeSet::new();
-    assert_eq!(installed(&none).len(), families().len());
+    let expected = families()
+        .iter()
+        .filter(|family| family.module.is_none())
+        .count();
+    assert_eq!(installed(&none).len(), expected);
 }
 
 #[test]

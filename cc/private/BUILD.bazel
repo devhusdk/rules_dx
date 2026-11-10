@@ -1,6 +1,6 @@
 # gazelle:exclude fuzz_driver.cc
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
 load(":defs.bzl", "cc_coverage_probe", "cc_library", "objc_library")
 load(":wrapper_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
@@ -27,11 +27,12 @@ cc_wrapper_contract_tests(name = "wrapper_contract_tests")
 
 clang_syntax_unit_tests(name = "clang_syntax_unit")
 
-sh_test(
+rust_test(
     name = "clang_tidy_run_test",
-    srcs = ["clang_tidy_run_test.sh"],
-    args = ["$(location :clang_tidy_run.sh)"],
+    srcs = ["clang_tidy_run_test.rs"],
     data = [":clang_tidy_run.sh"],
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
 )
 
 objc_library(

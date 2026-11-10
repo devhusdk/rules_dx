@@ -9,7 +9,7 @@ load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
 load("//core:resources.bzl", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "dx_warnings_flags", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
+load("//core:wrapper.bzl", "dx_warnings_flags", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs", "dx_without_warnings_attr")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -313,7 +313,7 @@ def rust_test(
             crate_root = kwargs.pop("crate_root", None)
             if crate_root == None and type(srcs) == "list" and len(srcs) == 1:
                 crate_root = srcs[0]
-            binary = {key: kwargs.pop(key) for key in ("deps", "proc_macro_deps", "crate_name", "compile_data", "rustc_env", "rustc_env_files", "aliases") if key in kwargs}
+            binary = {key: kwargs.pop(key) for key in ("deps", "proc_macro_deps", "crate_name", "compile_data", "rustc_env", "rustc_env_files", "aliases", "warnings_as_errors") if key in kwargs}
             binary |= {key: kwargs[key] for key in ("crate_features", "rustc_flags") if key in kwargs}
             if crate_root != None:
                 binary["crate_root"] = crate_root
@@ -329,7 +329,7 @@ def rust_test(
                 **binary
             )
             crate = ":" + name + "_crate"
-        _rust_browser_test(name, crate, visibility = visibility, **kwargs)
+        _rust_browser_test(name, crate, visibility = visibility, **dx_without_warnings_attr(kwargs))
         return
     if wasm == "wasi":
         _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs)

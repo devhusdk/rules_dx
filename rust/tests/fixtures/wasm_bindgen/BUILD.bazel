@@ -144,6 +144,7 @@ rust_test(
     name = "wasm_hello_browser_test",
     crate = ":wasm_hello_web",
     tags = ["manual"],
+    warnings_as_errors = True,
     wasm = "browser",
 )
 

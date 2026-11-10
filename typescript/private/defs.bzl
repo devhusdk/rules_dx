@@ -11,6 +11,8 @@ load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap_test")
 load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
+load("//typescript/private/playwright:repos.bzl", "CHROMIUM_REVISION", "PLAYWRIGHT_VERSION", "playwright_compatible_with")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 load(":proto.bzl", "ts_proto_srcs")
 
@@ -425,11 +427,27 @@ def typescript_test(name, *, srcs = None, main = None, runner = "jest", node_mod
     a = node_test_wrap_args(name, srcs, [":" + name + "_ts"] + list(deps or []) + list(data or []), package_json, upstream_kwargs, env_inherit, kwargs)
     dx_wrap_test(name, upstream, _typescript_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)
 
-def _compiled_path(main):
-    if not main.endswith(".ts"):
-        fail("%s must be a .ts file" % main)
-    package = native.package_name()
-    return (package + "/" if package else "") + main[:-len(".ts")] + ".js"
+def typescript_entry_rejection(rule, main):
+    """Returns the rejection for a bench or fuzz entry that is not a .ts, .mts or .cts file of the package, or None."""
+    entry = main[1:] if main.startswith(":") else main
+    if ":" in entry or entry.startswith("/") or entry.startswith("@"):
+        return "%s main must be a file in this package, not a label: %s" % (rule, main)
+    if typescript_compiled_entry(entry) == None:
+        return "%s main must end in .ts, .mts or .cts: %s" % (rule, main)
+    return None
+
+def typescript_compiled_path(package, main):
+    """Maps a bench or fuzz entry to the workspace path of its compiled file, or None."""
+    compiled = typescript_compiled_entry(main[1:] if main.startswith(":") else main)
+    if compiled == None:
+        return None
+    return (package + "/" if package else "") + compiled
+
+def _entry_path(rule, main):
+    rejection = typescript_entry_rejection(rule, main)
+    if rejection != None:
+        fail(rejection)
+    return typescript_compiled_path(native.package_name(), main)
 
 def typescript_bench(name, *, srcs, main = None, node_modules, data = None, args = None, tags = None, **kwargs):
     """A typescript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench."""
@@ -439,7 +457,7 @@ def typescript_bench(name, *, srcs, main = None, node_modules, data = None, args
         runner = "node",
         main = Label("//javascript/private:bench_driver"),
         data = list(data or []) + [node_modules],
-        args = [_compiled_path(main or srcs[0])] + list(args or []),
+        args = [_entry_path("typescript_bench", main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),
         **with_default_size(kwargs)
     )
@@ -447,7 +465,7 @@ def typescript_bench(name, *, srcs, main = None, node_modules, data = None, args
 def typescript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, deps = None, visibility = None, tags = None, **kwargs):
     """A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core."""
     kwargs = dict(kwargs)
-    fixed_args = [_compiled_path(main or srcs[0])] + list(kwargs.pop("fixed_args", []))
+    fixed_args = [_entry_path("typescript_fuzz_test", main or srcs[0])] + list(kwargs.pop("fixed_args", []))
     dx_fuzz_test(
         name,
         typescript_library,
@@ -463,6 +481,8 @@ def typescript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, 
         **kwargs
     )
 
+_PLAYWRIGHT_BROWSER = [Label("@dx_playwright_chromium//:" + name) for name in ("browsers", "closure", "marker")]
+
 _playwright_test = node_test_forward_rule("typescript_playwright_test", _DX_TS_SOURCE_EXTS, _DX_TS_SOURCE_SPECS)
 
 def typescript_playwright_test(name, *, srcs, config, node_modules, app = None, data = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
@@ -474,13 +494,17 @@ def typescript_playwright_test(name, *, srcs, config, node_modules, app = None, 
     env = kwargs["env"]
     env["DX_PLAYWRIGHT_CONFIG"] = "$(rlocationpath %s)" % config
     env["DX_PLAYWRIGHT_MARKER"] = "$(rlocationpath %s)" % Label("@dx_playwright_chromium//:marker")
-    upstream_data = [config, Label("@dx_playwright_chromium//:browsers"), Label("@dx_playwright_chromium//:marker"), node_modules] + list(srcs) + list(data or [])
+    env["DX_PLAYWRIGHT_CLOSURE_DIR"] = CLOSURE_DIR
+    env["DX_PLAYWRIGHT_CHROMIUM_REVISION"] = CHROMIUM_REVISION
+    env["DX_PLAYWRIGHT_VERSION"] = PLAYWRIGHT_VERSION
+    kwargs["target_compatible_with"] = (kwargs.pop("target_compatible_with", None) or []) + playwright_compatible_with()
+    upstream_data = [config, Label("//typescript/private/playwright:chromium_env"), Label("//typescript/private/playwright:pins")] + _PLAYWRIGHT_BROWSER + [node_modules] + list(srcs) + list(data or [])
     if app != None:
         env["DX_PLAYWRIGHT_APP"] = "$(rlocationpath %s)" % app
         upstream_data.append(app)
     upstream_kwargs = {
         "entry_point": Label("//typescript/private/playwright:runner"),
-        "no_copy_to_bin": [Label("@dx_playwright_chromium//:browsers"), Label("@dx_playwright_chromium//:marker")],
+        "no_copy_to_bin": _PLAYWRIGHT_BROWSER,
     }
     a = node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, kwargs)
     dx_wrap_test(name, _js_test, _playwright_test, None, visibility = visibility, quality_srcs = srcs, upstream_kwargs = a.upstream_kwargs, extra_forward_kwargs = a.extra_forward_kwargs, **a.kwargs)

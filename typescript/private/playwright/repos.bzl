@@ -1,8 +1,15 @@
 """Pinned Chromium headless shell for typescript_playwright_test."""
 
+load("//core:deb_closure.bzl", "deb_closure")
+load(":closure.bzl", "CHROMIUM_CLOSURE", "CLOSURE_DIR", "CLOSURE_MIRROR")
+
 visibility(["//..."])
 
+PLAYWRIGHT_VERSION = "1.65.0"
+
 CHROMIUM_REVISION = "1254"
+
+CHROMIUM_VERSION = "158.0.8127.18"
 
 ARTIFACTS = {
     "linux_arm64": struct(
@@ -26,6 +33,11 @@ _NO_MATCH = ("typescript_playwright_test has no pinned Chromium for this platfor
              "supported: " + ", ".join(sorted(ARTIFACTS.keys())) +
              ". Windows is not supported.")
 
+def playwright_compatible_with():
+    """Returns the target_compatible_with select that accepts only platforms with a pinned Chromium."""
+    cases = {Label("@dx_playwright_chromium//:" + platform): [] for platform in sorted(ARTIFACTS.keys())}
+    return select(cases | {"//conditions:default": [Label("@platforms//:incompatible")]})
+
 def repository_name(platform):
     """Returns the repository name one platform's Chromium is fetched into."""
     return "dx_playwright_chromium_" + platform
@@ -38,10 +50,11 @@ def hub_build():
             "config_setting(",
             '    name = "%s",' % platform,
             "    constraint_values = %s," % repr(ARTIFACTS[platform].constraints),
+            '    visibility = ["//visibility:public"],',
             ")",
             "",
         ]
-    for target, source in (("browsers", "browsers"), ("marker", "marker")):
+    for target, source in (("browsers", "browsers"), ("closure", "closure"), ("marker", "marker")):
         lines += ["alias(", '    name = "%s",' % target, "    actual = select({"]
         for platform in sorted(ARTIFACTS.keys()):
             lines.append('        ":%s": "@%s//:%s",' % (platform, repository_name(platform), source))
@@ -56,10 +69,17 @@ def _chromium_impl(rctx):
         type = "zip",
     )
     rctx.file("browsers/chromium_headless_shell-" + CHROMIUM_REVISION + "/INSTALLATION_COMPLETE", "")
+    deb_closure(rctx, CLOSURE_MIRROR, CHROMIUM_CLOSURE.get(rctx.attr.platform, []), CLOSURE_DIR)
     rctx.file("BUILD.bazel", "\n".join([
         "filegroup(",
         '    name = "browsers",',
         '    srcs = glob(["browsers/**"]),',
+        '    visibility = ["//visibility:public"],',
+        ")",
+        "",
+        "filegroup(",
+        '    name = "closure",',
+        '    srcs = glob(["%s/**"], allow_empty = True),' % CLOSURE_DIR,
         '    visibility = ["//visibility:public"],',
         ")",
         "",
@@ -75,6 +95,7 @@ def _chromium_impl(rctx):
 chromium_repo = repository_rule(
     implementation = _chromium_impl,
     attrs = {
+        "platform": attr.string(mandatory = True),
         "sha256": attr.string(mandatory = True),
         "url": attr.string(mandatory = True),
     },

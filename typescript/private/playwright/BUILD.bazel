@@ -7,3 +7,13 @@ js_library(
     name = "runner",
     srcs = ["runner.cjs"],
 )
+
+js_library(
+    name = "pins",
+    srcs = ["pins.cjs"],
+)
+
+js_library(
+    name = "chromium_env",
+    srcs = ["chromium_env.cjs"],
+)

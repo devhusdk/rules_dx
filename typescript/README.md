@@ -38,8 +38,9 @@ On Windows, Jest coverage uses the v8 provider.
 ## Browser tests
 
 `typescript_playwright_test` runs Playwright tests in a pinned headless Chromium. The
-browser is downloaded by Bazel, so none has to be installed. Add
-`@playwright/test` to the root `package.json`.
+browser and the Linux libraries it loads are downloaded by Bazel, so none has to be
+installed. Add `@playwright/test` 1.65.0 to the root `package.json`. Another version
+fails the test with the version to install.
 
 ```python
 load("@rules_dx//typescript:defs.bzl", "typescript_playwright_test")
@@ -67,10 +68,9 @@ export default defineConfig({
 
 `dx test` reads the JUnit `test.xml`. Traces and screenshots of failed tests are
 written to `playwright/` in the undeclared outputs. `dx test --output=json` lists
-the outputs zip as `outputs_path` on each failed `test_outcome`. Linux needs the system
-libraries Chromium links against, such as `libnss3` and `libnspr4`.
-Supported hosts are Linux x86_64, Linux arm64 and macOS arm64. Windows is not
-supported.
+the outputs zip as `outputs_path` on each failed `test_outcome`.
+Supported platforms are Linux x86_64, Linux arm64 and macOS arm64. On any other
+platform the test is skipped.
 
 ## Benchmarks and fuzzing
 

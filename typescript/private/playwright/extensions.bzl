@@ -1,12 +1,9 @@
 """Module extension for typescript/private/playwright."""
 
 load("//core:repo.bzl", "hub_repo")
-load(":repos.bzl", "ARTIFACTS", "chromium_repo", "hub_build", "repository_name")
+load(":repos.bzl", "ARTIFACTS", "CHROMIUM_VERSION", "chromium_repo", "hub_build", "repository_name")
 
 visibility(["//..."])
-
-CHROMIUM_VERSION = "158.0.8127.18"
-
 
 _BASE_URL = "https://storage.googleapis.com/chrome-for-testing-public/" + CHROMIUM_VERSION
 
@@ -16,6 +13,7 @@ def _playwright_impl(module_ctx):
         artifact = ARTIFACTS[platform]
         chromium_repo(
             name = repository_name(platform),
+            platform = platform,
             sha256 = artifact.sha256,
             url = _BASE_URL + "/" + artifact.path,
         )

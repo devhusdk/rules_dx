@@ -1,7 +1,7 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_binary_kwargs_rejection", "typescript_binary_forward_kwargs", "typescript_binary_main", "typescript_binary_rejection", "typescript_binary_upstream_kwargs", "typescript_compiled_entry", "typescript_declaration_srcs_rejection", "typescript_empty_library_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
+load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_binary_kwargs_rejection", "typescript_binary_forward_kwargs", "typescript_binary_main", "typescript_binary_rejection", "typescript_binary_upstream_kwargs", "typescript_compiled_entry", "typescript_compiled_path", "typescript_declaration_srcs_rejection", "typescript_empty_library_rejection", "typescript_entry_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 
 package(default_visibility = ["//typescript:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
@@ -261,6 +261,86 @@ dx_wrapper_contract_tests(
             "compiled entry rejects declarations",
             typescript_compiled_entry("a.d.ts"),
             None,
+        ),
+        expect_equal(
+            "compiled path maps ts",
+            typescript_compiled_path("pkg", "a.ts"),
+            "pkg/a.js",
+        ),
+        expect_equal(
+            "compiled path maps mts",
+            typescript_compiled_path("pkg", "a.mts"),
+            "pkg/a.mjs",
+        ),
+        expect_equal(
+            "compiled path maps cts",
+            typescript_compiled_path("pkg", "a.cts"),
+            "pkg/a.cjs",
+        ),
+        expect_equal(
+            "compiled path maps a label",
+            typescript_compiled_path("pkg", ":a.ts"),
+            "pkg/a.js",
+        ),
+        expect_equal(
+            "compiled path maps a subdirectory",
+            typescript_compiled_path("pkg", "sub/a.ts"),
+            "pkg/sub/a.js",
+        ),
+        expect_equal(
+            "compiled path maps the root package",
+            typescript_compiled_path("", "a.ts"),
+            "a.js",
+        ),
+        expect_equal(
+            "bench entry accepts a.ts",
+            typescript_entry_rejection("typescript_bench", "a.ts"),
+            None,
+        ),
+        expect_equal(
+            "bench entry accepts a.mts",
+            typescript_entry_rejection("typescript_bench", "a.mts"),
+            None,
+        ),
+        expect_equal(
+            "bench entry accepts a.cts",
+            typescript_entry_rejection("typescript_bench", "a.cts"),
+            None,
+        ),
+        expect_equal(
+            "bench entry accepts :a.ts",
+            typescript_entry_rejection("typescript_bench", ":a.ts"),
+            None,
+        ),
+        expect_equal(
+            "bench entry accepts sub/a.ts",
+            typescript_entry_rejection("typescript_bench", "sub/a.ts"),
+            None,
+        ),
+        expect_equal(
+            "bench entry rejects a.d.ts",
+            typescript_entry_rejection("typescript_bench", "a.d.ts"),
+            "typescript_bench main must end in .ts, .mts or .cts: a.d.ts",
+        ),
+        expect_equal(
+            "bench entry rejects a.js",
+            typescript_entry_rejection("typescript_bench", "a.js"),
+            "typescript_bench main must end in .ts, .mts or .cts: a.js",
+        ),
+        expect_equal(
+            "bench entry rejects //pkg:a.ts",
+            typescript_entry_rejection("typescript_bench", "//pkg:a.ts"),
+            "typescript_bench main must be a file in this package, not a label: //pkg:a.ts",
+        ),
+        expect_equal(
+            "bench entry rejects @repo//pkg:a.ts",
+            typescript_entry_rejection("typescript_bench", "@repo//pkg:a.ts"),
+            "typescript_bench main must be a file in this package, not a label: @repo//pkg:a.ts",
+        ),
+        expect_equal(
+            "fuzz entry rejection names typescript_fuzz_test",
+            typescript_entry_rejection("typescript_fuzz_test", "a.js"),
+            "typescript_fuzz_test main must end in .ts, .mts or .cts: a.js",
         ),
         expect_equal(
             "project with no srcs and no declarations is rejected",

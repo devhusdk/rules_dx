@@ -1,6 +1,9 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
-exports_files(["pins.bzl"])
+exports_files([
+    "pins.bzl",
+    "pins.json",
+])
 
 config_setting(
     name = "coverage_on",

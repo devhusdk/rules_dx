@@ -797,6 +797,14 @@ dx_pins.data(
     pins = "//haskell/toolchain:pins.json",
 )
 dx_pins.data(
+    name = "dx_lua_coverage",
+    pins = "//lua/private/coverage:pins.json",
+)
+dx_pins.data(
+    name = "dx_ruby_coverage",
+    pins = "//ruby/private/coverage:pins.json",
+)
+dx_pins.data(
     name = "dx_ocaml",
     pins = "//ocaml/toolchain:pins.json",
 )

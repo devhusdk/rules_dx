@@ -1,0 +1,46 @@
+{
+  "archives": {
+    "benchmark-ips": {
+      "sha256": "b72bc8a65d525d5906f8cd94270dccf73452ee3257a32b89fbd6684d3e8a9b1d",
+      "urls": [
+        "https://rubygems.org/downloads/benchmark-ips-2.14.0.gem"
+      ],
+      "version": "2.14.0"
+    },
+    "docile": {
+      "sha256": "96159be799bfa73cdb721b840e9802126e4e03dfc26863db73647204c727f21e",
+      "urls": [
+        "https://rubygems.org/downloads/docile-1.4.1.gem"
+      ],
+      "version": "1.4.1"
+    },
+    "simplecov": {
+      "sha256": "fe2622c7834ff23b98066bb0a854284b2729a569ac659f82621fc22ef36213a5",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov-0.22.0.gem"
+      ],
+      "version": "0.22.0"
+    },
+    "simplecov-html": {
+      "sha256": "bd0b8e54e7c2d7685927e8d6286466359b6f16b18cb0df47b508e8d73c777246",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov-html-0.13.2.gem"
+      ],
+      "version": "0.13.2"
+    },
+    "simplecov-lcov": {
+      "sha256": "7a77a31e200a595ed4b0249493056efd0c920601f53d2ef135ca34ee796346cd",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov-lcov-0.9.0.gem"
+      ],
+      "version": "0.9.0"
+    },
+    "simplecov_json_formatter": {
+      "sha256": "529418fbe8de1713ac2b2d612aa3daa56d316975d307244399fa4838c601b428",
+      "urls": [
+        "https://rubygems.org/downloads/simplecov_json_formatter-0.1.4.gem"
+      ],
+      "version": "0.1.4"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 """Pinned SimpleCov gems that Ruby tests load under `bazel coverage` (#3954)."""
 
 load("//core:repo.bzl", "gem_extract")
-load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_COVERAGE_GEMS", "gem_dir", "gem_url")
+load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_COVERAGE_GEMS", "gem_dir")
 
 def _build_file(gems):
     dirs = [gem_dir(gem) for gem in gems]
@@ -34,7 +34,7 @@ def _build_file(gems):
 
 def _download_gems(ctx, gems):
     for gem in gems:
-        url = gem_url(gem)
+        url = gem.urls[0]
         gem_extract(
             ctx,
             url = url,

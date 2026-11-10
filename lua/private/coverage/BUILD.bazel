@@ -7,7 +7,10 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(["pins.bzl"])
+exports_files([
+    "pins.bzl",
+    "pins.json",
+])
 
 config_setting(
     name = "coverage_on",

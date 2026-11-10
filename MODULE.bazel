@@ -772,7 +772,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_qt_sdk",
-    pins = "//qt/sdk:pins.json",
+    pins = "//qt/private/sdk:pins.json",
 )
 dx_pins.data(
     name = "dx_ruby_coverage",

@@ -65,13 +65,19 @@ index 9fbe27f..b09270f 100644
      if hs.toolchain.is_darwin:
          env["SDKROOT"] = "macosx"  # See haskell/private/actions/link.bzl
  
-@@ -277,6 +280,10 @@ def _prepare_cabal_inputs(
+@@ -277,6 +280,16 @@ def _prepare_cabal_inputs(
          extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
          extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
  
-+    if not (hs.toolchain.is_darwin or hs.toolchain.is_windows):
++    if not hs.toolchain.is_windows:
 +        extra_args.append("--ghc-option=-optl-fuse-ld=lld")
 +        extra_args.append("--ghc-option=-optlm-fuse-ld=lld")
++
++    if hs.toolchain.is_darwin:
++        extra_args.extend(["--ghc-option=-optc" + flag for flag in cc.compiler_flags])
++        extra_args.extend(["--ghc-option=-optl" + flag for flag in cc.linker_flags])
++        extra_args.append("--ghc-option=-pgmotool=" + paths.join(ar_bindir, "llvm-otool"))
++        extra_args.append("--ghc-option=-pgminstall_name_tool=" + paths.join(ar_bindir, "llvm-install-name-tool"))
 +
      ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
      if dynamic_file:
@@ -183,12 +189,13 @@ index 6e2a40e..271609e 100755
  os.environ["RULES_HASKELL_GHC_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PATH", ""))
  os.environ["RULES_HASKELL_GHC_PKG_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PKG_PATH", ""))
  os.environ["RULES_HASKELL_LIBDIR_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_LIBDIR_PATH", ""))
-@@ -295,6 +298,12 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
+@@ -295,6 +298,13 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
      if "RUNFILES_MANIFEST_FILE" in os.environ:
          del os.environ["RUNFILES_MANIFEST_FILE"]
 +    if "RUNFILES_DIR" in os.environ:
 +        del os.environ["RUNFILES_DIR"]
      runghc_args = [arg.replace("./", execroot + "/") for arg in runghc_args]
++    extra_args = [re.sub(r"^(--ghc-option=(?:-opt[cl](?:-[LBIF]|-isystem|-iframework|--sysroot=|-resource-dir=)?|-pgm(?:otool|install_name_tool)=))((?:external|bazel-out)/)", lambda m: m.group(1) + execroot + "/" + m.group(2), a) for a in extra_args]
 +    ghc_cc_args = toolchain_info["ghc_cc_args"]
 +    if "-pgmlm" in ghc_cc_args:
 +        ghc_cc_args = ghc_cc_args[:ghc_cc_args.index("-pgmlm")]

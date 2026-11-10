@@ -1,0 +1,14 @@
+diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.tpl
+--- a/haskell/private/cc_wrapper.py.tpl
++++ b/haskell/private/cc_wrapper.py.tpl
+@@ -163,6 +163,10 @@
+ 
+         self.args = list(self._handle_args(args))
+ 
++        if is_darwin() and "-isysroot" in self.args:
++            sysroot = self.args[self.args.index("-isysroot") + 1]
++            self.args.extend(["-isystem", os.path.join(sysroot, "usr", "include", "ffi")])
++
+         if self.linking:
+             if is_temporary_output(self.output):
+                 # GHC with Template Haskell or tools like hsc2hs builds

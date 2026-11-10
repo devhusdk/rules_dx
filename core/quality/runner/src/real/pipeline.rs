@@ -13,6 +13,7 @@ use super::real_fix::FixSession;
 use super::*;
 
 impl RealBackend {
+    #[cfg(test)]
     pub fn diagnose(
         &self,
         tool_id: &str,
@@ -22,6 +23,7 @@ impl RealBackend {
         self.diagnose_with_siblings(tool_id, capability, files, &BTreeMap::new())
     }
 
+    #[cfg(test)]
     pub fn diagnose_with_siblings(
         &self,
         tool_id: &str,
@@ -40,6 +42,7 @@ impl RealBackend {
         siblings: &BTreeMap<String, String>,
         resolve: &BTreeMap<String, String>,
     ) -> Result<Vec<Diagnostic>, RunnerError> {
+        self.last_stderr.borrow_mut().clear();
         let tool = self.tool(tool_id)?;
         let staged = self.stage_scratch(tool_id, tool, files, siblings, resolve)?;
         let collected = self.run_check(tool_id, tool, capability, &staged)?;
@@ -91,6 +94,7 @@ impl RealBackend {
     }
 }
 
+#[cfg(test)]
 pub fn run_real_pipeline(
     producer: &str,
     capability: &str,
@@ -101,6 +105,7 @@ pub fn run_real_pipeline(
     run_real_pipeline_with_siblings(producer, capability, stages, files, &[], backend)
 }
 
+#[cfg(test)]
 pub fn run_real_pipeline_with_siblings(
     producer: &str,
     capability: &str,

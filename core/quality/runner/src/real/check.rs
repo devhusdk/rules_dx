@@ -241,24 +241,11 @@ impl RealBackend {
             }
         }
         if findings.is_empty() && !reported.is_empty() {
-            let mut names: Vec<String> = staged
-                .resolve_pairs
-                .iter()
-                .filter(|(_, absolute)| {
-                    reported
-                        .iter()
-                        .any(|r| r.as_str() == absolute.to_string_lossy())
-                })
-                .map(|(ws, _)| ws.clone())
-                .collect();
-            names.sort();
-            names.dedup();
-            return Err(execution(
+            return Err(dependency_failure(
                 tool_id,
-                format!(
-                    "cue vet failed in dependencies before the owned files were checked: {}",
-                    names.join(", ")
-                ),
+                "cue vet failed in dependencies before the owned files were checked",
+                &staged.resolve_pairs,
+                &reported,
             ));
         }
         Ok(findings)
@@ -315,24 +302,11 @@ impl RealBackend {
             }
         }
         if findings.is_empty() && !reported.is_empty() {
-            let mut names: Vec<String> = staged
-                .resolve_pairs
-                .iter()
-                .filter(|(_, absolute)| {
-                    reported
-                        .iter()
-                        .any(|r| r.as_str() == absolute.to_string_lossy())
-                })
-                .map(|(ws, _)| ws.clone())
-                .collect();
-            names.sort();
-            names.dedup();
-            return Err(execution(
+            return Err(dependency_failure(
                 tool_id,
-                format!(
-                    "pkl eval failed in dependencies before the owned files were checked: {}",
-                    names.join(", ")
-                ),
+                "pkl eval failed in dependencies before the owned files were checked",
+                &staged.resolve_pairs,
+                &reported,
             ));
         }
         Ok(findings)
@@ -422,24 +396,11 @@ impl RealBackend {
             }
         }
         if findings.is_empty() && !reported.is_empty() {
-            let mut names: Vec<String> = staged
-                .resolve_pairs
-                .iter()
-                .filter(|(_, absolute)| {
-                    reported
-                        .iter()
-                        .any(|r| r.as_str() == absolute.to_string_lossy())
-                })
-                .map(|(ws, _)| ws.clone())
-                .collect();
-            names.sort();
-            names.dedup();
-            return Err(execution(
+            return Err(dependency_failure(
                 tool_id,
-                format!(
-                    "terraform reported errors in dependencies before the owned files were checked: {}",
-                    names.join(", ")
-                ),
+                "terraform reported errors in dependencies before the owned files were checked",
+                &staged.resolve_pairs,
+                &reported,
             ));
         }
         Ok(findings)

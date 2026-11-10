@@ -253,6 +253,26 @@ fn execution(tool_id: &str, detail: String) -> RunnerError {
     }
 }
 
+fn dependency_failure(
+    tool_id: &str,
+    what: &str,
+    resolve_pairs: &[(String, PathBuf)],
+    reported: &[String],
+) -> RunnerError {
+    let mut names: Vec<String> = resolve_pairs
+        .iter()
+        .filter(|(_, absolute)| {
+            reported
+                .iter()
+                .any(|r| r.as_str() == absolute.to_string_lossy())
+        })
+        .map(|(workspace, _)| workspace.clone())
+        .collect();
+    names.sort();
+    names.dedup();
+    execution(tool_id, format!("{what}: {}", names.join(", ")))
+}
+
 fn missing_tier_base(tool_id: &str) -> RunnerError {
     execution(
         tool_id,
@@ -709,9 +729,9 @@ mod tools_gen;
 mod web;
 mod weeder;
 
-pub use pipeline::{
-    run_real_pipeline, run_real_pipeline_with_resolve, run_real_pipeline_with_siblings,
-};
+#[cfg(test)]
+pub use pipeline::{run_real_pipeline, run_real_pipeline_with_siblings};
+pub use pipeline::run_real_pipeline_with_resolve;
 
 #[path = "real_fix.rs"]
 mod real_fix;

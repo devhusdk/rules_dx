@@ -183,9 +183,6 @@ enum ReplayParser {
     ByDriver { gnu: LogParser, msvc: LogParser },
 }
 
-type CompileLogParser =
-    fn(&[u8], Option<i32>, &[&str]) -> Result<Vec<FileFinding>, parsers::ParseError>;
-
 /// The unused `deps` entries the tool's upstream diagnostics name, as findings without a path.
 /// The CLI places them on the BUILD file line, which the runner never sees.
 pub(super) fn build_dep_diagnostics(
@@ -915,11 +912,7 @@ impl RealBackend {
         tool: &RealTool,
         pairs: &[(String, PathBuf)],
     ) -> Result<Vec<FileFinding>, RunnerError> {
-        let workspaces: Vec<&str> = pairs
-            .iter()
-            .map(|(workspace, _)| workspace.as_str())
-            .collect();
-        let parse: CompileLogParser = match tool_id {
+        let parse: LogParser = match tool_id {
             "flang" => parsers::parse_flang,
             "ghc" => parsers::parse_ghc,
             "ldc" => parsers::parse_ldc,
@@ -933,49 +926,13 @@ impl RealBackend {
                 ));
             }
         };
-        if tool.upstream_diagnostics.is_empty() {
-            return Err(execution(
-                tool_id,
-                format!(
-                    "{tool_id} requires upstream diagnostics from a declared delegated compile replay: direct execution without the authoritative compilation context is rejected"
-                ),
-            ));
-        }
-        let mut findings = Vec::new();
-        for path in &tool.upstream_diagnostics {
-            let bytes = std::fs::read(path)
-                .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
-            let stem = path
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .ok_or_else(|| {
-                    execution(
-                        tool_id,
-                        format!("{tool_id} log {} has no name", path.display()),
-                    )
-                })?;
-            let key = format!("dx-compile-check/{stem}/exit");
-            let code = tool
-                .tool_files
-                .iter()
-                .find(|(rel, _)| *rel == key)
-                .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
-                .and_then(|text| text.trim().parse::<i32>().ok())
-                .ok_or_else(|| {
-                    execution(
-                        tool_id,
-                        format!(
-                            "{tool_id} needs the compiler exit status for {stem}; the compile-check aspect did not supply it"
-                        ),
-                    )
-                })?;
-            findings.extend(parsed(tool_id, parse(&bytes, Some(code), &workspaces))?);
-        }
-        for found in &mut findings {
-            let absolute = reanchor(tool_id, pairs, &found.file)?;
-            found.file = absolute.to_string_lossy().into_owned();
-        }
-        Ok(findings)
+        self.check_compile_replay_delegated(
+            tool_id,
+            tool,
+            pairs,
+            "dx-compile-check",
+            ReplayParser::One(parse),
+        )
     }
 
     pub(super) fn check_staticcheck_delegated(
@@ -1090,8 +1047,9 @@ pub(super) fn merge_pivot_findings(pivots: Vec<(String, Vec<FileFinding>)>) -> V
     }
     merged
         .into_iter()
-        .map(|(mut found, seen_in)| {
+        .map(|(mut found, mut seen_in)| {
             if seen_in.len() < total {
+                seen_in.sort();
                 found.finding.message =
                     format!("{} [{}]", found.finding.message, seen_in.join(", "));
             }

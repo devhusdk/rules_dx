@@ -743,6 +743,7 @@ impl<'a> FixSession<'a> {
 }
 
 impl super::RealBackend {
+    #[cfg(test)]
     pub fn apply_fix(
         &self,
         tool_id: &str,
@@ -753,6 +754,7 @@ impl super::RealBackend {
         self.apply_fix_in_context(tool_id, path, text, capability, &BTreeSet::new())
     }
 
+    #[cfg(test)]
     pub fn apply_fix_in_context(
         &self,
         tool_id: &str,

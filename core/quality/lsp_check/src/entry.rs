@@ -49,14 +49,14 @@ fn parse(args: &[String]) -> Result<(Options, Vec<String>, Vec<PathBuf>), String
     Ok((options, server, files))
 }
 
-fn wait_briefly(child: &mut std::process::Child) -> Option<Option<std::process::ExitStatus>> {
+fn wait_briefly(child: &mut std::process::Child) -> Option<std::process::ExitStatus> {
     for _ in 0..40 {
         if let Ok(Some(status)) = child.try_wait() {
-            return Some(Some(status));
+            return Some(status);
         }
         std::thread::sleep(std::time::Duration::from_millis(50));
     }
-    Some(None)
+    None
 }
 
 fn run(args: &[String]) -> Result<bool, String> {
@@ -77,17 +77,12 @@ fn run(args: &[String]) -> Result<bool, String> {
         return Err("server pipes unavailable".to_string());
     };
     let result = check(stdout, stdin, &absolute, &options);
-    let exit = if result.is_err() {
-        wait_briefly(&mut child)
-    } else {
-        None
-    };
+    let exit = result.is_err().then(|| wait_briefly(&mut child));
     let _ = child.kill();
     let _ = child.wait();
-    let found = result.map_err(|error| match exit {
-        Some(Some(status)) => format!("{error} (server exit: {status})"),
-        Some(None) => format!("{error} (server still running)"),
-        None => error.to_string(),
+    let found = result.map_err(|error| match exit.flatten() {
+        Some(status) => format!("{error} (server exit: {status})"),
+        None => format!("{error} (server still running)"),
     })?;
     for (diagnostic, original) in found.iter().map(|d| {
         let original = absolute

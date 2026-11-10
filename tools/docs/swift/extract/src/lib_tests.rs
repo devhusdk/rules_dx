@@ -141,7 +141,7 @@ fn sources() -> (Vec<Source>, BTreeMap<String, String>) {
 
 fn shard(config: &str) -> DocIr {
     let (list, texts) = sources();
-    convert(GRAPH, "Shapes", &list, &texts, "shapes", config).expect("converts")
+    convert(GRAPH, &[], "Shapes", &list, &texts, "shapes", config).expect("converts")
 }
 
 fn find<'a>(shard: &'a DocIr, id: &str) -> &'a Symbol {
@@ -287,9 +287,9 @@ fn undocumented_symbol_has_empty_doc() {
 #[test]
 fn wrong_module_and_bad_json_are_rejected() {
     let (list, texts) = sources();
-    let error = convert(GRAPH, "Other", &list, &texts, "shapes", "").expect_err("rejected");
+    let error = convert(GRAPH, &[], "Other", &list, &texts, "shapes", "").expect_err("rejected");
     assert!(error.contains("not 'Other'"), "{error}");
-    let error = convert("{", "Shapes", &list, &texts, "shapes", "").expect_err("rejected");
+    let error = convert("{", &[], "Shapes", &list, &texts, "shapes", "").expect_err("rejected");
     assert!(error.contains("bad symbol graph"), "{error}");
 }
 
@@ -337,4 +337,59 @@ fn parse_rejects_bad_arguments() {
         "p",
     ]);
     assert_eq!(parse(&all).expect("parses").package, "p");
+}
+
+const EXTENSION_GRAPH: &str = r#"{
+  "metadata": {"formatVersion": {"major": 0, "minor": 6, "patch": 0}, "generator": "test"},
+  "module": {"name": "Shapes", "platform": {}},
+  "symbols": [
+    {
+      "kind": {"identifier": "swift.method", "displayName": "Instance Method"},
+      "identifier": {"precise": "s:SS6ShapesE5shoutSSyF", "interfaceLanguage": "swift"},
+      "pathComponents": ["String", "shout()"],
+      "docComment": {"lines": [{"text": "Upper-cases the string."}]},
+      "accessLevel": "public",
+      "declarationFragments": [{"kind": "text", "spelling": "func shout() -> String"}],
+      "functionSignature": {"returns": [{"kind": "typeIdentifier", "spelling": "String"}]}
+    },
+    {
+      "kind": {"identifier": "swift.method", "displayName": "Instance Method"},
+      "identifier": {"precise": "s:SS6ShapesE6quietyyF", "interfaceLanguage": "swift"},
+      "pathComponents": ["String", "quiet()"],
+      "accessLevel": "internal",
+      "declarationFragments": [{"kind": "text", "spelling": "func quiet()"}]
+    }
+  ],
+  "relationships": [
+    {"kind": "memberOf", "source": "s:SS6ShapesE5shoutSSyF", "target": "s:SS"},
+    {"kind": "memberOf", "source": "s:SS6ShapesE6quietyyF", "target": "s:SS"}
+  ]
+}"#;
+
+#[test]
+fn members_added_to_other_modules_types_are_documented() {
+    let (list, mut texts) = sources();
+    texts.insert(
+        "shapes/First.swift".to_owned(),
+        format!("{FIRST}public extension String {{\n    func shout() -> String {{ self }}\n}}\n"),
+    );
+    let extensions = vec![("Swift".to_owned(), EXTENSION_GRAPH.to_owned())];
+    let shard =
+        convert(GRAPH, &extensions, "Shapes", &list, &texts, "shapes", "").expect("converts");
+    let shout = find(&shard, "Swift.String.shout~28~29");
+    assert_eq!(shout.kind, SymbolKind::Method as i32);
+    assert_eq!(shout.doc_markdown, "Upper-cases the string.");
+    assert_eq!(shout.returns.clone().expect("returns").r#type, "String");
+    assert_eq!(
+        shout.relations.clone().expect("relations").member_of,
+        vec!["swift:shapes:Shapes".to_owned()]
+    );
+    let extends = shout
+        .extensions
+        .iter()
+        .find(|extension| extension.key == "swift.extends")
+        .expect("extends");
+    assert_eq!(extends.value, b"s:SS");
+    assert_eq!(at(&shard, "Swift.String.shout~28~29").1, 9);
+    assert!(!shard.symbols.iter().any(|s| s.id.contains("quiet")));
 }

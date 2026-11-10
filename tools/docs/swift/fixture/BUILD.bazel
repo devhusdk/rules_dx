@@ -15,6 +15,7 @@ swift_library(
     name = "shapes",
     srcs = [
         "src/Shape.swift",
+        "src/Text.swift",
         "src/Unit.swift",
     ],
     module_name = "Shapes",

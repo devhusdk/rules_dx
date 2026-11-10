@@ -23,6 +23,7 @@ use std::fs;
 
 const LANGUAGE: &str = "swift";
 const KEY_CONFIG: &str = "swift.config";
+const KEY_EXTENDS: &str = "swift.extends";
 
 /// One source file of the library: where the compiler read it, and where it lives in the repository.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -119,6 +120,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         "{}/{}.symbols.json",
         options.graphs, options.module
     ))?;
+    let extensions = read_extension_graphs(&options.graphs, &options.module)?;
     let sources = parse_sources(&read(&options.sources)?)?;
     let mut texts = BTreeMap::new();
     for source in &sources {
@@ -126,6 +128,7 @@ pub fn run(options: &Options) -> Result<(), String> {
     }
     let shard = convert(
         &graph,
+        &extensions,
         &options.module,
         &sources,
         &texts,
@@ -135,6 +138,29 @@ pub fn run(options: &Options) -> Result<(), String> {
     let bytes = documentation_ir::encode_shard(&shard)
         .map_err(|error| format!("cannot encode IR: {error:?}"))?;
     fs::write(&options.out, bytes).map_err(|error| format!("cannot write {}: {error}", options.out))
+}
+
+/// Reads every `<module>@<Other>.symbols.json` of `dir` as (Other, text), ordered by name.
+fn read_extension_graphs(dir: &str, module: &str) -> Result<Vec<(String, String)>, String> {
+    let prefix = format!("{module}@");
+    let mut found: Vec<(String, String)> = Vec::new();
+    let listing = fs::read_dir(dir).map_err(|error| format!("cannot read {dir}: {error}"))?;
+    for item in listing {
+        let item = item.map_err(|error| format!("cannot read {dir}: {error}"))?;
+        let name = item.file_name().to_string_lossy().into_owned();
+        let Some(other) = name
+            .strip_prefix(&prefix)
+            .and_then(|rest| rest.strip_suffix(".symbols.json"))
+        else {
+            continue;
+        };
+        let path = item.path();
+        let text = fs::read_to_string(&path)
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        found.push((other.to_owned(), text));
+    }
+    found.sort();
+    Ok(found)
 }
 
 /// The IR kind and the declaration keywords of a symbol graph kind, or None when it is not documented.
@@ -157,6 +183,10 @@ fn kind_of(identifier: &str) -> Option<(SymbolKind, &'static [&'static str])> {
 }
 
 struct Entry<'a> {
+    /// The module whose type this entry extends, or None for the library's own declarations.
+    other: Option<String>,
+    /// The precise identifier of the extended type.
+    extends: Option<String>,
     precise: String,
     path: Vec<String>,
     kind: SymbolKind,
@@ -167,9 +197,76 @@ struct Entry<'a> {
 /// A declaration's place in the sources: index into `sources` and 1-based line.
 type Place = (usize, usize);
 
-/// Converts one module's symbol graph into a validated IR shard. `texts` maps each exec path to its text.
+/// Collects the public documented declarations of one symbol graph.
+fn collect<'a>(root: &'a Value, other: Option<&str>, entries: &mut Vec<Entry<'a>>) {
+    let extended: BTreeMap<&str, &str> = root
+        .get("relationships")
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice)
+        .iter()
+        .filter(|relation| relation.get("kind").and_then(Value::as_str) == Some("memberOf"))
+        .filter_map(|relation| {
+            Some((
+                relation.get("source")?.as_str()?,
+                relation.get("target")?.as_str()?,
+            ))
+        })
+        .collect();
+    for node in root
+        .get("symbols")
+        .and_then(Value::as_array)
+        .map_or(&[][..], Vec::as_slice)
+    {
+        let access = node.get("accessLevel").and_then(Value::as_str);
+        if !matches!(access, Some("public" | "open")) {
+            continue;
+        }
+        let Some((kind, keywords)) = node
+            .pointer("/kind/identifier")
+            .and_then(Value::as_str)
+            .and_then(kind_of)
+        else {
+            continue;
+        };
+        let path: Vec<String> = node
+            .get("pathComponents")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(|item| item.as_str().map(str::to_owned))
+                    .collect()
+            })
+            .unwrap_or_default();
+        if path.is_empty() {
+            continue;
+        }
+        let precise = node
+            .pointer("/identifier/precise")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        let extends = other
+            .and_then(|_| extended.get(precise.as_str()))
+            .map(|target| (*target).to_owned());
+        entries.push(Entry {
+            other: other.map(str::to_owned),
+            extends,
+            precise,
+            path,
+            kind,
+            keywords,
+            node,
+        });
+    }
+}
+
+/// Converts one module's symbol graph, and the `<module>@<Other>` graphs of its extensions of other
+/// modules' types, into a validated IR shard. `texts` maps each exec path to its text.
 pub fn convert(
     graph: &str,
+    extension_graphs: &[(String, String)],
+
     module: &str,
     sources: &[Source],
     texts: &BTreeMap<String, String>,
@@ -205,47 +302,17 @@ pub fn convert(
         .collect();
 
     let mut entries: Vec<Entry<'_>> = Vec::new();
-    for node in root
-        .get("symbols")
-        .and_then(Value::as_array)
-        .map_or(&[][..], Vec::as_slice)
-    {
-        let access = node.get("accessLevel").and_then(Value::as_str);
-        if !matches!(access, Some("public" | "open")) {
-            continue;
-        }
-        let Some((kind, keywords)) = node
-            .pointer("/kind/identifier")
-            .and_then(Value::as_str)
-            .and_then(kind_of)
-        else {
-            continue;
-        };
-        let path: Vec<String> = node
-            .get("pathComponents")
-            .and_then(Value::as_array)
-            .map(|items| {
-                items
-                    .iter()
-                    .filter_map(|item| item.as_str().map(str::to_owned))
-                    .collect()
-            })
-            .unwrap_or_default();
-        if path.is_empty() {
-            continue;
-        }
-        let precise = node
-            .pointer("/identifier/precise")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .to_owned();
-        entries.push(Entry {
-            precise,
-            path,
-            kind,
-            keywords,
-            node,
-        });
+    collect(&root, None, &mut entries);
+    let extension_roots: Vec<(&str, Value)> = extension_graphs
+        .iter()
+        .map(|(other, text)| {
+            serde_json::from_str(text)
+                .map(|value| (other.as_str(), value))
+                .map_err(|error| format!("bad symbol graph for {module}@{other}: {error}"))
+        })
+        .collect::<Result<_, String>>()?;
+    for (other, value) in &extension_roots {
+        collect(value, Some(other), &mut entries);
     }
     entries.sort_by(|a, b| {
         a.path
@@ -275,7 +342,10 @@ pub fn convert(
     ));
 
     for entry in &entries {
-        let mut id = module_id.clone();
+        let mut id = entry.other.as_ref().map_or_else(
+            || module_id.clone(),
+            |other| documentation_ir::escape_id_segment(other),
+        );
         for segment in &entry.path {
             id.push('.');
             id.push_str(&documentation_ir::escape_id_segment(segment));
@@ -286,11 +356,16 @@ pub fn convert(
             id = format!("{id}@{count}");
         }
         let parent_path = &entry.path[..entry.path.len() - 1];
-        let parent_id = ids_by_path.get(parent_path).cloned();
+        let parent_id = match entry.other {
+            Some(_) => None,
+            None => ids_by_path.get(parent_path).cloned(),
+        };
         let member_of = parent_id.clone().unwrap_or_else(|| module_id.clone());
-        ids_by_path
-            .entry(entry.path.clone())
-            .or_insert_with(|| id.clone());
+        if entry.other.is_none() {
+            ids_by_path
+                .entry(entry.path.clone())
+                .or_insert_with(|| id.clone());
+        }
 
         let name = entry.path[entry.path.len() - 1].as_str();
         let base = name.split('(').next().unwrap_or(name);
@@ -313,6 +388,12 @@ pub fn convert(
             place.map(|place| source_ref(sources, place)),
             &config_text,
         );
+        if let Some(target) = &entry.extends {
+            symbol.extensions.push(Extension {
+                key: KEY_EXTENDS.to_owned(),
+                value: target.as_bytes().to_vec(),
+            });
+        }
         symbol.params = signature_params(entry.node, &mut params);
         let return_type = signature_returns(entry.node);
         if return_type.is_some() || returns.is_some() {

@@ -108,3 +108,20 @@ fn the_fixture_shard_documents_the_module() {
         "The grown circle."
     );
 }
+
+#[test]
+fn the_fixture_shard_documents_members_added_to_other_modules_types() {
+    let shard = shard();
+    let shout = symbol(&shard, "Swift.String.shout~28~29");
+    assert_eq!(shout.kind, SymbolKind::Method as i32);
+    assert_eq!(shout.doc_markdown, "Upper-cases the string.");
+    let source = shout.source.as_ref().expect("source");
+    assert_eq!(source.file, "tools/docs/swift/fixture/src/Text.swift");
+    assert_eq!(source.line, 3);
+    let extends = shout
+        .extensions
+        .iter()
+        .find(|extension| extension.key == "swift.extends")
+        .expect("extends");
+    assert_eq!(extends.value, b"s:SS");
+}

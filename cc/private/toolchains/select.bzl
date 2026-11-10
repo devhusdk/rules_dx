@@ -16,6 +16,7 @@ _MODE = "//command_line_option:compilation_mode"
 _LLVM_SANITIZERS = {
     "asan": str(Label("@llvm//config:asan")),
     "ubsan": str(Label("@llvm//config:ubsan")),
+    "tsan": str(Label("@llvm//config:tsan")),
 }
 
 def _features(inherited, extra):
@@ -83,7 +84,7 @@ cc_toolchain_test = rule(
         "extra_toolchains": attr.string_list(doc = "Toolchain labels to register ahead of the registered ones.", default = []),
         "compilation_mode": attr.string(doc = "Compilation mode to build with, or empty to keep the command line value.", values = ["", "dbg", "fastbuild", "opt"]),
         "extra_features": attr.string_list(doc = "Features to enable on top of the command line features, such as asan.", default = []),
-        "llvm_sanitizers": attr.string_list(doc = "Sanitizers to enable in the llvm toolchain: asan or ubsan.", default = [], allow_empty = True),
+        "llvm_sanitizers": attr.string_list(doc = "Sanitizers to enable in the llvm toolchain: asan, ubsan or tsan.", default = [], allow_empty = True),
         "test": attr.label(doc = "Test to rebuild.", executable = True, cfg = toolchain_transition, mandatory = True),
     } | dx_lcov_merger_attr(),
     test = True,

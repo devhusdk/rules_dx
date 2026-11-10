@@ -55,6 +55,14 @@ cc_test(
     target_compatible_with = _GCC_ONLY,
 )
 
+cc_test(
+    name = "tsan_test",
+    srcs = ["tsan_test.cc"],
+    linkopts = ["-pthread"],
+    tags = ["manual"],
+    target_compatible_with = _GCC_ONLY,
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

@@ -12,7 +12,7 @@ expect() {
     pattern="$3"
     shift 3
     set +e
-    out="$("$check" "$@" 2>&1)"
+    out="$("$check" check "$@" 2>&1)"
     code="$?"
     set -e
     [ "$code" = "$want" ] || { echo "$label exited $code, want $want: $out"; exit 1; }

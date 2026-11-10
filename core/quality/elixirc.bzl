@@ -25,6 +25,37 @@ def _targets(attrs, name):
         return []
     return value if type(value) == "list" else [value]
 
+def elixirc_script(maybe_install_erlang, elixir_home, erlang_home, coreutils_path, erl_libs_path, env, setup, elixirc_opts):
+    """Returns the shell script of one elixirc replay action."""
+    return """log="$1"; status="$2"; out="$3"; shift 3
+{maybe_install_erlang}
+case "{elixir_home}" in
+    /*) ABS_ELIXIR_HOME="{elixir_home}" ;;
+    *) ABS_ELIXIR_HOME="$PWD/{elixir_home}" ;;
+esac
+case "{coreutils_path}" in
+    /*) ABS_COREUTILS="{coreutils_path}" ;;
+    *) ABS_COREUTILS="$PWD/{coreutils_path}" ;;
+esac
+export PATH="$ABS_ELIXIR_HOME"/bin:"{erlang_home}"/bin:"$ABS_COREUTILS"
+if [ -n "{erl_libs_path}" ]; then
+    export ERL_LIBS="{erl_libs_path}"
+fi
+{env}
+{setup}
+"$ABS_ELIXIR_HOME"/bin/elixirc -o "$out" {elixirc_opts} "$@" > "$log" 2>&1
+echo "$?" > "$status"
+""".format(
+        maybe_install_erlang = maybe_install_erlang,
+        elixir_home = elixir_home,
+        erlang_home = erlang_home,
+        coreutils_path = coreutils_path,
+        erl_libs_path = erl_libs_path,
+        env = "\n".join(["export %s=%s" % (k, shell.quote(v)) for k, v in env.items()]),
+        setup = setup,
+        elixirc_opts = " ".join(elixirc_opts),
+    )
+
 def _elixirc_impl(target, ctx):
     attrs = ctx.rule.attr
     if ctx.rule.kind != "elixir_bytecode":
@@ -62,36 +93,21 @@ def _elixirc_impl(target, ctx):
     (erlang_home, _, erlang_runfiles) = erlang_dirs(elixir_ctx)
     (elixir_home, elixir_runfiles) = elixir_dirs(elixir_ctx)
     opts = [shell.quote(o) for o in attrs.elixirc_opts if o != "--warnings-as-errors"]
-    env = "\n".join(["export %s=%s" % (k, v) for k, v in attrs.env.items()])
 
     applets = coreutils(ctx)
     log = ctx.actions.declare_file("dx_elixirc/%s/%s.log" % (name, name))
     status = ctx.actions.declare_file("dx_elixirc/%s/%s.exit" % (name, name))
     out_tree = ctx.actions.declare_directory("dx_elixirc/%s/out" % name)
 
-    script = """log="$1"; status="$2"; out="$3"; shift 3
-{maybe_install_erlang}
-case "{elixir_home}" in
-    /*) ABS_ELIXIR_HOME="{elixir_home}" ;;
-    *) ABS_ELIXIR_HOME="$PWD/{elixir_home}" ;;
-esac
-export PATH="$ABS_ELIXIR_HOME"/bin:"{erlang_home}"/bin:"{coreutils_path}"
-if [ -n "{erl_libs_path}" ]; then
-    export ERL_LIBS="{erl_libs_path}"
-fi
-{env}
-{setup}
-"$ABS_ELIXIR_HOME"/bin/elixirc -o "$out" {elixirc_opts} "$@" > "$log" 2>&1
-echo "$?" > "$status"
-""".format(
+    script = elixirc_script(
         maybe_install_erlang = maybe_install_erlang(elixir_ctx),
         elixir_home = elixir_home,
         erlang_home = erlang_home,
         coreutils_path = applets.path,
         erl_libs_path = erl_libs_path,
-        env = env,
+        env = attrs.env,
         setup = attrs.setup,
-        elixirc_opts = " ".join(opts),
+        elixirc_opts = opts,
     )
     srcs = ctx.actions.args()
     srcs.add_all(ctx.rule.files.srcs)

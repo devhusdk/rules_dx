@@ -1,11 +1,11 @@
 """OCaml API reference shards read from typed trees by the pinned odoc."""
 
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
-load("//core/quality/artifacts:odoc.bzl", _ODOC = "SOURCE")
 load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
-ODOC_CONFIG = "odoc=" + _ODOC["version"]
+ODOC_CONFIG = "odoc=" + DATA["dx_quality_pins"]["sources"]["odoc"]["version"]
 
 def ocaml_typed_trees(info):
     """Returns the typed tree odoc reads for each module of an OCamlCmtInfo: the .cmti, else the .cmt, once per module name.

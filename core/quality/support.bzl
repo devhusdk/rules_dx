@@ -1,6 +1,6 @@
 """Explicit tool support records."""
 
-load("//core/quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core/quality/artifacts:hub.bzl", "EMULATED_TOOLS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load(":tool_defs.bzl", "is_canonical_token")
@@ -59,7 +59,7 @@ SUPPORT_PLATFORMS = TOOL_PLATFORMS + sorted(PLATFORM_FALLBACKS.keys())
 def _pinned_platforms():
     """Maps each tool to the platforms of its pinned artifacts."""
     pinned = {}
-    for artifact in TOOL_ARTIFACTS:
+    for artifact in [a for t in DATA["dx_quality_tools"].values() for a in t.values()]:
         pinned.setdefault(artifact["tool"], []).append(artifact["os"] + "_" + artifact["cpu"])
     return pinned
 

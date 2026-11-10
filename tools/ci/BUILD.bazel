@@ -589,7 +589,7 @@ rust_test(
         "//core/quality:corpus_vale.ini",
         "//core/quality:native_config.bzl",
         "//core/quality:native_config_tests.bzl",
-        "//core/quality/artifacts:scalafmt.bzl",
+        "//core/quality/artifacts:lock.json",
         "//core/quality/private:native_config_impl.bzl",
         "//core/quality/runner:real_srcs",
         "//core/quality/runner:src/real/staging.rs",

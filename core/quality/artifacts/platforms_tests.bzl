@@ -1,7 +1,7 @@
 """Unit tests for canonical platform identities."""
 
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":extension.bzl", "TOOL_ARTIFACTS")
 load(":hub.bzl", "ARTIFACT_PLATFORMS", "TOOL_PLATFORMS")
 load(
     ":platforms.bzl",
@@ -44,7 +44,7 @@ def platforms_tests(name):
         expect_equal("a remote executor differs from the cli host", [identity_key(host_identity("linux", "x86_64")), identity_key(execution_identity("windows", "x86_64"))], ["linux_x86_64", "windows_x86_64"]),
         expect_equal("windows arm64 stays unclaimed", is_supported_key("windows_arm64"), False),
     ]
-    for artifact in TOOL_ARTIFACTS:
+    for artifact in [a for t in DATA["dx_quality_tools"].values() for a in t.values()]:
         checks.append(expect_equal(
             artifact["tool"] + " " + artifact["os"] + "_" + artifact["cpu"] + " keys through the canonical mapping",
             artifact_platform_key(artifact),

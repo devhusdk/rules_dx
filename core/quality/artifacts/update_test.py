@@ -1,6 +1,6 @@
 """Unit tests for the hadolint/ShellCheck pin guard in update.py (no network)."""
 
-import ast
+import json
 import os
 import struct
 import sys
@@ -120,14 +120,7 @@ ae7ea358326960406b703c77b2ac490190797d80b306b5b50c2a27221da0a5b8  trivy_0.76.2_m
 
 def _pinned_artifacts(path):
     with open(path, encoding="utf-8") as handle:
-        module = ast.parse(handle.read())
-    for node in module.body:
-        if isinstance(node, ast.Assign) and any(
-            isinstance(target, ast.Name) and target.id == "ARTIFACTS"
-            for target in node.targets
-        ):
-            return ast.literal_eval(node.value)
-    raise AssertionError("no ARTIFACTS in %s" % path)
+        return json.load(handle)["trivy"]
 
 
 class TrivyPinTest(unittest.TestCase):
@@ -159,7 +152,7 @@ class TrivyPinTest(unittest.TestCase):
             for digest, name in (line.split() for line in TRIVY_CHECKSUMS.splitlines())
         }
         pinned = _pinned_artifacts(
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "trivy.bzl")
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "lock.json")
         )
         self.assertEqual(sorted(pinned), sorted(spec["platforms"]))
         for platform, artifact in pinned.items():
@@ -300,36 +293,64 @@ class VerifyOnlyPathTest(unittest.TestCase):
             tempfile.TemporaryDirectory() as empty,
             mock.patch.dict(os.environ, {"PATH": empty}),
             mock.patch.object(update, "TOOLS", {}),
+            mock.patch.object(update, "_source_dir", return_value=empty),
             mock.patch.object(update, "_check_hadolint_shellcheck"),
         ):
+            with open(os.path.join(empty, "lock.json"), "w", encoding="utf-8") as handle:
+                handle.write("{}\n")
             self.assertIsNone(update.main(["--verify-only"]))
 
 
-class EmitTest(unittest.TestCase):
-    def test_one_file_per_tool_keyed_by_platform(self):
-        path, content = update._emit(
-            "demo",
-            {
-                "windows_x86_64": {"tool": "demo", "size": 2},
-                "linux_x86_64": {"tool": "demo", "size": 1},
-            },
+class PinsTest(unittest.TestCase):
+    def test_version_expands_in_every_string(self):
+        self.assertEqual(
+            update.expand(
+                {"url": "https://x/v{version}/a-{version}.tgz", "n": 3, "l": ["{version}"]},
+                "1.2.3",
+            ),
+            {"url": "https://x/v1.2.3/a-1.2.3.tgz", "n": 3, "l": ["1.2.3"]},
         )
-        self.assertEqual(os.path.basename(path), "demo.bzl")
+
+    def test_load_tools_maps_pins_to_specs(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "pins.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "tools": {
+                            "demo": {
+                                "version": "4.5.6",
+                                "release_page": "https://x/tag/v{version}",
+                                "cells": {"linux_x86_64": {"url": "https://x/{version}/d"}},
+                            }
+                        }
+                    },
+                    handle,
+                )
+            self.assertEqual(
+                update.load_tools(path),
+                {
+                    "demo": {
+                        "upstream_version": "4.5.6",
+                        "release_page": "https://x/tag/v4.5.6",
+                        "platforms": {"linux_x86_64": {"url": "https://x/4.5.6/d"}},
+                    }
+                },
+            )
+
+
+class LockTest(unittest.TestCase):
+    def test_lock_is_sorted_json_keyed_by_tool_and_platform(self):
+        content = update._lock_content(
+            {"demo": {"windows_x86_64": {"tool": "demo", "size": 2}, "linux_x86_64": {"size": 1}}}
+        )
         self.assertEqual(
             content,
-            '"""demo standalone artifact metadata -- GENERATED, do not edit."""\n'
-            "\n"
-            "# buildifier: disable=attr-licenses\n"
-            "ARTIFACTS = {\n"
-            '    "linux_x86_64": {\n'
-            '        "size": 1,\n'
-            '        "tool": "demo",\n'
-            "    },\n"
-            '    "windows_x86_64": {\n'
-            '        "size": 2,\n'
-            '        "tool": "demo",\n'
-            "    },\n"
-            "}\n",
+            json.dumps(
+                {"demo": {"linux_x86_64": {"size": 1}, "windows_x86_64": {"size": 2, "tool": "demo"}}},
+                indent=1,
+            )
+            + "\n",
         )
 
 

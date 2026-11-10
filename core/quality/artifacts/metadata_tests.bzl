@@ -1,9 +1,22 @@
 """Load tests pinning standalone-artifact metadata."""
 
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//core:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
-load(":extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
 load(":hub.bzl", "artifact_metadata_errors")
+load(":ocaml_duniverse.bzl", "PACKAGES", "PATCHES", "REPO")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")
+
+TOOL_ARTIFACTS = [a for t in DATA["dx_quality_tools"].values() for a in t.values()]
+
+def _source(source):
+    source = json.decode(json.encode(source).replace("{version}", source["version"]))
+    if source["kind"] == "duniverse":
+        source["repo"] = REPO
+        source["packages"] = PACKAGES
+        source["patches"] = PATCHES
+    return source
+
+TOOL_SOURCES = [_source(s) for s in DATA["dx_quality_pins"]["sources"].values()]
 
 FROZEN_SCHEMA_KEYS = [
     "abi_floor",

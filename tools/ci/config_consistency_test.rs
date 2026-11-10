@@ -980,14 +980,21 @@ fn the_scalafmt_tiers_pin_the_version_the_toolchain_downloads() {
             .trim()
             .to_owned()
     };
-    let artifact = read_runfiles("core/quality/artifacts/scalafmt.bzl");
+    let lock: serde_json::Value = serde_json::from_str(&read_runfiles("core/quality/artifacts/lock.json"))
+        .expect("lock.json is JSON");
+    let shipped: Vec<&str> = lock["scalafmt"]
+        .as_object()
+        .expect("lock.json pins scalafmt")
+        .values()
+        .filter_map(|cell| cell["upstream_version"].as_str())
+        .collect();
     for tier in ["standard", "strict"] {
         let path = format!("core/quality/tiers/scalafmt/{tier}.conf");
         let pinned = version_of(&read_runfiles(&path));
         assert_eq!(pinned, version_of(&read_runfiles(".scalafmt.conf")), "{path}");
         assert!(
-            artifact.contains(&format!("\"upstream_version\": \"{pinned}\"")),
-            "{path} pins {pinned}, which core/quality/artifacts/scalafmt.bzl does not ship"
+            shipped.contains(&pinned.as_str()),
+            "{path} pins {pinned}, which core/quality/artifacts/lock.json does not ship"
         );
     }
 }

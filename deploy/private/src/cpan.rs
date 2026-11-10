@@ -2,11 +2,10 @@
 
 use crate::archive::basename;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, deploy_build_mode, env_or_empty, pages_redact, placeholder_refusal,
 };
 use crate::stage::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Owner approval gate for cpan_deploy.
 pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
@@ -16,11 +15,8 @@ pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
     approved: "CPAN_PUBLISH_APPROVED",
 };
 
-/// Extra env names `perl` needs to find its libraries.
-const PERL_CHILD_ENV_EXTRA: &[&str] = &["PERL5LIB", "PERL_LOCAL_LIB_ROOT", "PERL_MB_OPT", "PERL_MM_OPT"];
-
-/// Perl program that uploads the file in `$ARGV[0]` to PAUSE.
-const UPLOAD_SCRIPT: &str = "use CPAN::Uploader; CPAN::Uploader->upload_file($ARGV[0], { user => $ENV{PAUSE_USER}, password => $ENV{PAUSE_PASSWORD} });";
+/// PAUSE endpoint that takes authenticated uploads.
+const PAUSE_UPLOAD_URL: &str = "https://pause.perl.org/pause/authenquery?ACTION=add_uri";
 
 /// Reads the distribution name and version from a `<Dist>-<version>.tar.gz` file name and checks the archive.
 ///
@@ -79,37 +75,67 @@ pub fn cpan_check_identity(
     Ok(())
 }
 
-/// Uploads the dist to PAUSE with `CPAN::Uploader`; the credentials go through the env.
-fn cpan_live_upload(perl: &Path, dist: &Path, user: &str, token: &str) -> Result<(), String> {
-    let mut cmd = scrubbed_command(
-        perl,
-        &[PUBLISH_CHILD_ENV_KEEP, PERL_CHILD_ENV_EXTRA],
-        &[("PAUSE_USER", user), ("PAUSE_PASSWORD", token)],
+/// Uploads the dist to the PAUSE endpoint at `url` with HTTP basic auth.
+fn cpan_live_upload(
+    agent: &ureq::Agent,
+    url: &str,
+    dist: &Path,
+    user: &str,
+    token: &str,
+) -> Result<(), String> {
+    use std::io::Read as _;
+    let file_name = dist
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| format!("cpan_deploy: {} has no file name", dist.display()))?;
+    let bytes = std::fs::read(dist)
+        .map_err(|error| format!("cpan_deploy: cannot read {}: {error}", dist.display()))?;
+    let hidden_name = user.to_ascii_uppercase();
+    let (content_type, body) = crate::http::multipart_form(
+        &[
+            ("HIDDENNAME", hidden_name.as_str()),
+            ("CAN_MULTIPART", "1"),
+            ("pause99_add_uri_upload", file_name),
+            (
+                "SUBMIT_pause99_add_uri_httpupload",
+                " Upload this file from my disk ",
+            ),
+            ("pause99_add_uri_uri", ""),
+        ],
+        "pause99_add_uri_httpupload",
+        file_name,
+        &bytes,
     );
-    cmd.arg("-e").arg(UPLOAD_SCRIPT).arg(dist);
-    match run_publish(&mut cmd) {
-        Ok(out) if out.success() => {
-            print_redacted(&out, token);
-            Ok(())
-        }
-        Ok(out) => {
-            print_redacted(&out, token);
-            Err(format!("cpan_deploy: perl failed with {}", exit_text(&out)))
-        }
-        Err(error) => Err(format!("cpan_deploy: {error}")),
+    let mut response = agent
+        .post(url)
+        .header("Authorization", &crate::http::basic_auth(user, token))
+        .header("Content-Type", &content_type)
+        .send(&body[..])
+        .map_err(|error| {
+            format!(
+                "cpan_deploy: upload to {url} failed: {}",
+                pages_redact(&error.to_string(), token)
+            )
+        })?;
+    let status = response.status().as_u16();
+    if (200..300).contains(&status) {
+        return Ok(());
     }
-}
-
-/// Finds the pinned perl, or `perl` on PATH when none is pinned.
-fn find_perl(run: &DeployRun, perl_rloc: &str) -> Option<PathBuf> {
-    if perl_rloc.is_empty() {
-        let perl = which_on_path("perl");
-        if perl.is_none() {
-            eprintln!("cpan_deploy: 'perl' not found on PATH; set perl");
-        }
-        return perl;
+    if status == 401 || status == 403 {
+        return Err(format!(
+            "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP {status})"
+        ));
     }
-    run.resolve(perl_rloc)
+    let mut text = Vec::new();
+    let _ = response
+        .body_mut()
+        .as_reader()
+        .take(2048)
+        .read_to_end(&mut text);
+    Err(format!(
+        "cpan_deploy: upload to {url} failed with HTTP {status}: {}",
+        pages_redact(&String::from_utf8_lossy(&text), token).trim()
+    ))
 }
 
 /// Runs the CPAN deploy tool.
@@ -118,7 +144,6 @@ pub fn cpan_main(
     target_name: &str,
     expected_package: &str,
     expected_version: &str,
-    perl_rloc: &str,
     argv: &[String],
 ) -> i32 {
     let Some(run) = DeployRun::start(
@@ -153,11 +178,9 @@ pub fn cpan_main(
                 return 1;
             }
         };
-        let Some(perl) = find_perl(&run, perl_rloc) else {
-            return 1;
-        };
         return match cpan_live_upload(
-            &perl,
+            &crate::http::publish_agent(),
+            PAUSE_UPLOAD_URL,
             &dist,
             secrets.get("CPAN_API_USER"),
             secrets.get("CPAN_API_TOKEN"),
@@ -199,6 +222,7 @@ pub fn cpan_main(
 mod tests {
     use super::*;
     use crate::test_support::*;
+    use std::path::PathBuf;
 
     fn write_dist(dir: &Path, file_name: &str, entry: &str) -> PathBuf {
         let mut builder = tar::Builder::new(Vec::new());
@@ -285,11 +309,129 @@ mod tests {
                     ("CPAN_API_USER", None),
                     ("CPAN_API_TOKEN", None),
                 ],
-                || cpan_main("Demo-1.2.0.tar.gz", "demo", "Demo", "1.2.0", "", &argv),
+                || cpan_main("Demo-1.2.0.tar.gz", "demo", "Demo", "1.2.0", &argv),
             )
         };
         assert_eq!(launch(None), 0);
         assert!(outdir.join("demo-dist/Demo-1.2.0.tar.gz").is_file());
         assert_eq!(launch(Some("1")), 1);
+    }
+
+    const FAKE_PAUSE_USER: &str = "fakeuser";
+    const FAKE_PAUSE_TOKEN: &str = "fake-pause-token";
+
+    /// Serves one request on a loopback port with `status` and `body`, then hands back the raw request.
+    fn fake_pause(status: &str, body: &str) -> (String, std::sync::mpsc::Receiver<Vec<u8>>) {
+        use std::io::{Read as _, Write as _};
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+        let url = format!(
+            "http://{}{}",
+            listener.local_addr().expect("addr"),
+            PAUSE_UPLOAD_URL
+                .strip_prefix("https://pause.perl.org")
+                .expect("PAUSE origin")
+        );
+        let (send, request) = std::sync::mpsc::channel();
+        let reply = format!(
+            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept");
+            let mut seen = Vec::new();
+            let mut buf = [0u8; 8192];
+            loop {
+                let n = stream.read(&mut buf).expect("read");
+                if n == 0 {
+                    break;
+                }
+                seen.extend_from_slice(&buf[..n]);
+                let Some(end) = seen.windows(4).position(|w| w == b"\r\n\r\n") else {
+                    continue;
+                };
+                let length = String::from_utf8_lossy(&seen[..end])
+                    .lines()
+                    .find_map(|line| {
+                        line.to_ascii_lowercase()
+                            .strip_prefix("content-length:")
+                            .map(|value| value.trim().parse::<usize>().expect("length"))
+                    })
+                    .unwrap_or(0);
+                if seen.len() >= end + 4 + length {
+                    break;
+                }
+            }
+            stream.write_all(reply.as_bytes()).expect("reply");
+            send.send(seen).expect("send");
+        });
+        (url, request)
+    }
+
+    fn upload_to(url: &str, dist: &Path) -> Result<(), String> {
+        cpan_live_upload(
+            &crate::http::publish_agent_with_proxy(None),
+            url,
+            dist,
+            FAKE_PAUSE_USER,
+            FAKE_PAUSE_TOKEN,
+        )
+    }
+
+    #[test]
+    fn live_upload_posts_the_pause_form_with_basic_auth() {
+        let dir = scratch_dir();
+        let dist = write_dist(dir.path(), "Demo-1.2.0.tar.gz", "Demo-1.2.0/META.json");
+        let (url, request) = fake_pause("200 OK", "ok");
+        assert_eq!(upload_to(&url, &dist), Ok(()));
+        let seen = request.recv().expect("request");
+        let text = String::from_utf8_lossy(&seen).into_owned();
+        assert!(text.starts_with("POST /pause/authenquery?ACTION=add_uri HTTP/1.1\r\n"));
+        let lower = text.to_ascii_lowercase();
+        let auth = crate::http::basic_auth(FAKE_PAUSE_USER, FAKE_PAUSE_TOKEN).to_ascii_lowercase();
+        assert!(lower.contains(&format!("authorization: {auth}\r\n")));
+        assert!(lower.contains("content-type: multipart/form-data; boundary=dx-boundary-"));
+        assert!(!text.contains(FAKE_PAUSE_TOKEN));
+        for part in [
+            "name=\"HIDDENNAME\"\r\n\r\nFAKEUSER\r\n",
+            "name=\"CAN_MULTIPART\"\r\n\r\n1\r\n",
+            "name=\"pause99_add_uri_upload\"\r\n\r\nDemo-1.2.0.tar.gz\r\n",
+            "name=\"SUBMIT_pause99_add_uri_httpupload\"\r\n\r\n Upload this file from my disk \r\n",
+            "name=\"pause99_add_uri_uri\"\r\n\r\n\r\n",
+            "name=\"pause99_add_uri_httpupload\"; filename=\"Demo-1.2.0.tar.gz\"\r\n",
+        ] {
+            assert!(text.contains(part), "missing {part:?}");
+        }
+        let bytes = std::fs::read(&dist).expect("dist bytes");
+        assert!(seen.windows(bytes.len()).any(|window| window == &bytes[..]));
+    }
+
+    #[test]
+    fn live_upload_reports_rejected_credentials_and_server_errors() {
+        let dir = scratch_dir();
+        let dist = write_dist(dir.path(), "Demo-1.2.0.tar.gz", "Demo-1.2.0/META.json");
+        let (url, _request) = fake_pause("401 Unauthorized", "denied");
+        assert_eq!(
+            upload_to(&url, &dist),
+            Err(
+                "cpan_deploy: PAUSE rejected CPAN_API_USER and CPAN_API_TOKEN (HTTP 401)"
+                    .to_owned()
+            )
+        );
+        let (url, _request) = fake_pause(
+            "500 Internal Server Error",
+            &format!("boom {FAKE_PAUSE_TOKEN}\n"),
+        );
+        assert_eq!(
+            upload_to(&url, &dist),
+            Err(format!(
+                "cpan_deploy: upload to {url} failed with HTTP 500: boom [redacted]"
+            ))
+        );
+        let (url, _request) = fake_pause("302 Found", "");
+        assert!(
+            upload_to(&url, &dist)
+                .expect_err("redirect")
+                .contains("failed with HTTP 302")
+        );
     }
 }

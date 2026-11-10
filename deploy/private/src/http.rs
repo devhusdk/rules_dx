@@ -47,21 +47,43 @@ fn agent_config(
 
 /// Encodes one file as a single-part multipart/form-data body and returns its content type.
 pub fn multipart_single_file(field: &str, filename: &str, bytes: &[u8]) -> (String, Vec<u8>) {
+    multipart_form(&[], field, filename, bytes)
+}
+
+/// Encodes text fields followed by one file as a multipart/form-data body and returns its content type.
+pub fn multipart_form(
+    fields: &[(&str, &str)],
+    file_field: &str,
+    filename: &str,
+    bytes: &[u8],
+) -> (String, Vec<u8>) {
     use rand::Rng as _;
     let boundary = loop {
         let token: u128 = rand::thread_rng().r#gen();
         let candidate = format!("dx-boundary-{token:032x}");
-        if !bytes
-            .windows(candidate.len())
-            .any(|window| window == candidate.as_bytes())
-        {
+        let clash = |hay: &[u8]| {
+            hay.windows(candidate.len())
+                .any(|window| window == candidate.as_bytes())
+        };
+        if !clash(bytes) && !fields.iter().any(|(_, value)| clash(value.as_bytes())) {
             break candidate;
         }
     };
-    let mut body = format!(
-        "--{boundary}\r\nContent-Disposition: form-data; name=\"{field}\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
-    )
-    .into_bytes();
+    let mut body = Vec::new();
+    for (name, value) in fields {
+        body.extend_from_slice(
+            format!(
+                "--{boundary}\r\nContent-Disposition: form-data; name=\"{name}\"\r\n\r\n{value}\r\n"
+            )
+            .as_bytes(),
+        );
+    }
+    body.extend_from_slice(
+        format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"{file_field}\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+        )
+        .as_bytes(),
+    );
     body.extend_from_slice(bytes);
     body.extend_from_slice(format!("\r\n--{boundary}--\r\n").as_bytes());
     (format!("multipart/form-data; boundary={boundary}"), body)
@@ -115,6 +137,19 @@ mod tests {
         assert!(body.starts_with(head.as_bytes()));
         assert!(body.ends_with(tail.as_bytes()));
         assert_eq!(&body[head.len()..body.len() - tail.len()], &payload[..]);
+    }
+
+    #[test]
+    fn http_multipart_form_puts_fields_before_the_file() {
+        let (content_type, body) =
+            multipart_form(&[("a", "1"), ("b", "")], "file", "f.bin", b"payload");
+        let boundary = content_type
+            .strip_prefix("multipart/form-data; boundary=")
+            .expect("boundary");
+        let want = format!(
+            "--{boundary}\r\nContent-Disposition: form-data; name=\"a\"\r\n\r\n1\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"b\"\r\n\r\n\r\n--{boundary}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"f.bin\"\r\nContent-Type: application/octet-stream\r\n\r\npayload\r\n--{boundary}--\r\n"
+        );
+        assert_eq!(String::from_utf8(body).expect("utf8"), want);
     }
 
     #[test]

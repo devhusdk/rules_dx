@@ -124,7 +124,7 @@ load(
     "real_yaml_format_aspect",
     "real_yaml_lint_aspect",
 )
-load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_transition")
+load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_subject_rule", "config_transition")
 
 CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "consumer_shared", "default", "generated"]
 
@@ -364,9 +364,9 @@ def _policy_generated_impl(ctx):
 
 _policy_generated_test = analysistest.make(
     _policy_generated_impl,
-    config_settings = {str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/generated_policy:policy"))},
-    extra_target_under_test_aspects = [real_typecheck_probe_aspect],
 )
+
+_generated_subject = config_subject_rule([real_typecheck_probe_aspect])
 
 def _tier_base_inputs(env):
     paths = {}
@@ -438,10 +438,16 @@ def policy_config_tests(name):
         size = "small",
         target_under_test = "//core/quality/tests/fixtures/consumer_policy:policy_bound_c",
     )
+    _generated_subject(
+        name = name + "_generated_subject",
+        config = "generated",
+        tags = ["manual"],
+        target = "//core/quality/tests/fixtures/consumer_policy:policy_bound_py",
+    )
     _policy_generated_test(
         name = name + "_generated",
         size = "small",
-        target_under_test = "//core/quality/tests/fixtures/consumer_policy:policy_bound_py",
+        target_under_test = name + "_generated_subject",
     )
     for suffix, test, profile in [
         ("_tier_base_default", _tier_base_default_test, "standard"),

@@ -35,3 +35,30 @@ config_results = rule(
         "subject": attr.label(doc = "Subject that carries the results.", mandatory = True, cfg = config_transition),
     },
 )
+
+def config_subject_rule(aspects = [], providers = []):
+    """Returns a rule that builds its target under one TEST_CONFIGS entry and forwards the listed providers.
+
+    Args:
+        aspects: aspects applied to the target under the entry.
+        providers: providers of the target, with its aspects, that the subject forwards.
+
+    Returns:
+        A rule with the config and target attributes.
+    """
+
+    def _impl(ctx):
+        target = ctx.attr.target[0]
+        forwarded = [target[provider] for provider in providers if provider in target]
+        return [DefaultInfo(files = target[DefaultInfo].files)] + forwarded
+
+    return rule(
+        implementation = _impl,
+        doc = "Builds the target under one TEST_CONFIGS entry.",
+        attrs = {
+            "config": config_attr(),
+            "target": attr.label(doc = "Target built under the entry.", mandatory = True, cfg = config_transition, aspects = aspects),
+        },
+    )
+
+config_subject = config_subject_rule()

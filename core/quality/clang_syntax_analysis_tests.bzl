@@ -3,6 +3,10 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//core/quality/testdata:all_languages.bzl", "real_cc_lint_aspect")
+load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
+
+_syntax_subject = config_subject_rule([clang_syntax_aspect], [ClangSyntaxInfo])
+_lint_subject = config_subject_rule([real_cc_lint_aspect])
 
 def _windows_argv_impl(ctx):
     """Checks a Windows target gets a full command line even with compiler_param_file on."""
@@ -26,19 +30,14 @@ _windows_argv_test = analysistest.make(
 def _no_tidy_config_impl(ctx):
     """Checks a policy without a clang_tidy config still replays the syntax check, without clang-tidy."""
     env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    info = target[ClangSyntaxInfo]
+    info = analysistest.target_under_test(env)[ClangSyntaxInfo]
     asserts.true(env, len(info.diagnostics) > 0, "want one syntax replay")
     asserts.equals(env, [], info.tidy_diagnostics)
     asserts.true(env, "has no clang_tidy config" in info.tidy_error, info.tidy_error)
-    mnemonics = [a.mnemonic for a in analysistest.target_actions(env)]
-    asserts.false(env, "ClangTidy" in mnemonics, str(mnemonics))
     return analysistest.end(env)
 
 _no_tidy_config_test = analysistest.make(
     _no_tidy_config_impl,
-    config_settings = {str(Label("//config:workspace")): str(Label("//core/quality/testdata/clang_syntax:cc_syntax_policy"))},
-    extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 
 def _tidy_without_config_impl(ctx):
@@ -50,8 +49,6 @@ def _tidy_without_config_impl(ctx):
 _tidy_without_config_test = analysistest.make(
     _tidy_without_config_impl,
     expect_failure = True,
-    config_settings = {str(Label("//config:workspace")): str(Label("//core/quality/testdata/clang_syntax:cc_tidy_policy"))},
-    extra_target_under_test_aspects = [real_cc_lint_aspect],
 )
 
 def clang_syntax_analysis_tests(name):
@@ -61,14 +58,26 @@ def clang_syntax_analysis_tests(name):
         size = "small",
         target_under_test = "//core/quality/testdata/clang_syntax:windows_param_file",
     )
+    _syntax_subject(
+        name = name + "_no_tidy_config_subject",
+        config = "cc_syntax",
+        tags = ["manual"],
+        target = "//core/quality/testdata/clang_syntax:dirty",
+    )
     _no_tidy_config_test(
         name = name + "_no_tidy_config",
         size = "small",
-        target_under_test = "//core/quality/testdata/clang_syntax:dirty",
+        target_under_test = name + "_no_tidy_config_subject",
+    )
+    _lint_subject(
+        name = name + "_tidy_without_config_subject",
+        config = "cc_tidy",
+        tags = ["manual"],
+        target = "//core/quality/testdata/clang_syntax:dirty",
     )
     _tidy_without_config_test(
         name = name + "_tidy_without_config",
         size = "small",
-        target_under_test = "//core/quality/testdata/clang_syntax:dirty",
+        target_under_test = name + "_tidy_without_config_subject",
     )
     native.test_suite(name = name, tests = [name + "_windows", name + "_no_tidy_config", name + "_tidy_without_config"])

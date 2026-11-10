@@ -17,7 +17,6 @@ rst_no_converter_test = analysistest.make(
     expect_failure = True,
     config_settings = {
         "//command_line_option:collect_code_coverage": False,
-        str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:shared_policy")),
     },
 )
 
@@ -26,6 +25,5 @@ asciidoc_no_converter_test = analysistest.make(
     expect_failure = True,
     config_settings = {
         "//command_line_option:collect_code_coverage": False,
-        str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:shared_policy")),
     },
 )

@@ -21,6 +21,7 @@ load(":real_results.bzl", "check_args")
 load(":real_typecheck_subject.bzl", "real_typecheck_subject")
 load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "crate_no_pipelining_test", "pipelined_rmeta_paths_test", "rmeta_typecheck_test")
+load(":config_subject.bzl", "config_subject")
 load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
 load(":test_configs_test.bzl", "test_configs_test")
@@ -650,10 +651,17 @@ real_aspect_subject(
     target = ":fixture_real_asciidoc_no_converter",
 )
 
+config_subject(
+    name = "fixture_real_asciidoc_no_converter_config_subject",
+    config = "consumer_shared",
+    tags = ["manual"],
+    target = ":fixture_real_asciidoc_no_converter_subject",
+)
+
 asciidoc_no_converter_test(
     name = "fixture_real_asciidoc_no_converter_test",
     size = "small",
-    target_under_test = ":fixture_real_asciidoc_no_converter_subject",
+    target_under_test = ":fixture_real_asciidoc_no_converter_config_subject",
 )
 
 real_aspect_subject(
@@ -662,10 +670,17 @@ real_aspect_subject(
     target = ":fixture_real_rst_no_converter",
 )
 
+config_subject(
+    name = "fixture_real_rst_no_converter_config_subject",
+    config = "consumer_shared",
+    tags = ["manual"],
+    target = ":fixture_real_rst_no_converter_subject",
+)
+
 rst_no_converter_test(
     name = "fixture_real_rst_no_converter_test",
     size = "small",
-    target_under_test = ":fixture_real_rst_no_converter_subject",
+    target_under_test = ":fixture_real_rst_no_converter_config_subject",
 )
 
 real_aspect_subject(

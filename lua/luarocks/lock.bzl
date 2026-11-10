@@ -7,6 +7,8 @@ _NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 _MODULE_CHARS = _NAME_CHARS + "-"
 
+_HEX_CHARS = "0123456789abcdef"
+
 def spoke_name(hub, rock):
     """Returns the repository name of one rock: <hub>__<rock> with - and . written as _."""
     return hub + "__" + rock.replace("-", "_").replace(".", "_")
@@ -106,7 +108,7 @@ def _module_problem(module, path):
 
 def _pin_problem(pin):
     sha256 = (pin.get("source") or {}).get("sha256", "")
-    if len(sha256) != 64:
+    if type(sha256) != "string" or len(sha256) != 64 or not all([c in _HEX_CHARS for c in sha256.elems()]):
         return "has no 64 hex character sha256"
     return ""
 

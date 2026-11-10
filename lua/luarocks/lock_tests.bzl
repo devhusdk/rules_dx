@@ -39,6 +39,7 @@ def _checks():
     init = analyze("hub", _lock([("a", "1.0-1")]), _sidecar({"a": _pin(modules = {"x.init": "x/init.lua"})}))
     escape = analyze("hub", _lock([("a", "1.0-1")]), _sidecar({"a": _pin(modules = {"a": "../a.lua"})}))
     unpinned = analyze("hub", _lock([("a", "1.0-1")]), _sidecar({"a": _pin(sha256 = "")}))
+    not_hex = analyze("hub", _lock([("a", "1.0-1")]), _sidecar({"a": _pin(sha256 = "g" * 64)}))
     collision = analyze("hub", _lock([("a-b", "1.0-1"), ("a_b", "1.0-1")]), _sidecar({"a-b": _pin(), "a_b": _pin()}))
     return [
         expect_equal("bare and bracketed keys parse", [parsed, parse_errors], [{"a-b": "1.0-1", "inspect": "3.1.3-0"}, []]),
@@ -58,6 +59,8 @@ def _checks():
         expect_contains("escaping module paths are rejected", escape.errors[0], "relative path"),
         expect_contains("an empty digest is reported", unpinned.packages["a"].unpinned, "sha256"),
         expect_equal("an unpinned rock has no digest", unpinned.packages["a"].sha256, ""),
+        expect_contains("a digest that is not hex is reported", not_hex.packages["a"].unpinned, "sha256"),
+        expect_equal("a rock with a digest that is not hex has no digest", not_hex.packages["a"].sha256, ""),
         expect_contains("sanitised name collisions fail", collision.errors[0], "both map to"),
         expect_equal("spoke names", spoke_name("hub", "a-b.c"), "hub__a_b_c"),
         expect_equal("module paths", [module_path("a"), module_path("a.b.c")], ["a.lua", "a/b/c.lua"]),

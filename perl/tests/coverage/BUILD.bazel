@@ -4,8 +4,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
-# A child run of hello.pl under the collector must write LCOV that names the
-# script by its workspace path and counts its hits (#7324).
 # keep
 perl_test(
     name = "coverage_probe_test",

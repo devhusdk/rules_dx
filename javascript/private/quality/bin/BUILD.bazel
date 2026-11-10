@@ -165,7 +165,6 @@ js_binary(
     entry_point = "stylelint.mjs",
 )
 
-# Isolated launcher: never loads plugins or consumer typedocOptions.
 js_binary(
     name = "typedoc",
     data = [
@@ -176,7 +175,6 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
-# Isolated launcher: never loads vueCompilerOptions.plugins or any module outside its node_modules.
 js_binary(
     name = "vue_component_meta",
     data = [
@@ -188,7 +186,6 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
-# Isolated launcher: compiles and parses MDX, never runs it or loads any module outside its node_modules.
 js_binary(
     name = "mdx_component_meta",
     data = [
@@ -201,7 +198,6 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
-# Isolated launcher: never loads svelte.config.js or any module outside its node_modules.
 js_binary(
     name = "svelte_component_meta",
     data = [
@@ -215,7 +211,6 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
-# Isolated launcher: never loads astro.config.* or any module outside its node_modules.
 js_binary(
     name = "astro_component_meta",
     data = [
@@ -228,7 +223,6 @@ js_binary(
     visibility = ["//visibility:public"],
 )
 
-# The stock CLI, only for the isolation test's control build.
 typedoc_bin.typedoc_binary(
     name = "typedoc_stock",
     testonly = True,

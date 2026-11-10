@@ -38,7 +38,6 @@ php_test(
     deps = [":factory_deprecations"],
 )
 
-# A class of a package that is not in deps is not found at run time.
 php_binary(
     name = "missing",
     main = "bin/missing.php",

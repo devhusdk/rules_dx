@@ -11,7 +11,7 @@ _ASTRO_TOOL = Label("//astro/private:astro_tool")
 
 def astro_library(name, srcs, visibility = None, **kwargs):
     """Minimal wrapper over js_library for Astro components."""
-    dx_framework_library(name, srcs, _js_library, _astro_library_forward, skip = [], visibility = visibility, **kwargs)
+    dx_framework_library(name, srcs, _js_library, _astro_library_forward, visibility = visibility, **kwargs)
 
 def astro_build(name, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, **kwargs):
     """Builds one Astro site into a bundled web app tree and an optional SSR tree. The config is a package-relative file path."""

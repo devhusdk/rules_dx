@@ -15,8 +15,6 @@ filegroup(
     srcs = [],
 )
 
-# The pinned SimpleCov gems under `bazel coverage`, nothing otherwise, so
-# `bazel test` never fetches them (#3954).
 alias(
     name = "gems",
     actual = select({

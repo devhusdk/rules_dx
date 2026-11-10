@@ -6,7 +6,7 @@ load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_cand
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
-load("//ruby/private/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
+load("//ruby/private/coverage:pins.bzl", "RUBY_BENCH_GEMS", "RUBY_BENCH_REPOSITORY", "RUBY_COVERAGE_GEMS", "gem_dir")
 
 _DX_RUBY_LIBRARY_PROVIDES = [
     RubyFilesInfo,
@@ -52,7 +52,7 @@ def ruby_coverage_lib_dirs(short_paths):
     return dirs
 
 def _ruby_test_coverage(ctx, upstream):
-    """Puts the pinned SimpleCov gems on RUBYLIB so rules_ruby's coverage helper loads them (#3954)."""
+    """Puts the pinned SimpleCov gems on RUBYLIB so rules_ruby's coverage helper loads them."""
     if InstrumentedFilesInfo in upstream:
         instrumented = upstream[InstrumentedFilesInfo]
     else:
@@ -109,15 +109,17 @@ def ruby_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     upstream = dict(kwargs, main = main) if main != None else kwargs
     dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
+_RUBY_BENCH_IPS = Label("@%s//:%s/lib/%s" % (RUBY_BENCH_REPOSITORY, gem_dir(RUBY_BENCH_GEMS[0]), RUBY_BENCH_GEMS[0].entry))
+
 def ruby_bench(name, *, srcs = None, main = None, data = None, env = None, tags = None, **kwargs):
     """A ruby_test run by dx bench: `main` calls DxBench.run with a benchmark-ips block, which writes dx-bench.json. main is name.rb, else the single src."""
     main = dx_infer_main("ruby_bench", name, main, srcs, dx_main_candidates(name, ".rb"))
-    ips = Label("@dx_ruby_bench_gems//:benchmark-ips-2.14.0/lib/benchmark/ips.rb")
+    ips = _RUBY_BENCH_IPS
     ruby_test(
         name = name,
         srcs = (srcs or []) + [src for src in [main] if src not in (srcs or [])] + [Label("//ruby/private:bench_main.rb")],
         main = Label("//ruby/private:bench_main.rb"),
-        data = (data or []) + [ips, Label("@dx_ruby_bench_gems//:lib")],
+        data = (data or []) + [ips, Label("@%s//:lib" % RUBY_BENCH_REPOSITORY)],
         env = dict(
             env or {},
             DX_BENCH_IPS = "$(rlocationpath %s)" % ips,

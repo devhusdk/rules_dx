@@ -21,8 +21,6 @@ alias(
     actual = "@dx_perl_cpan//:Carton_bin_carton",
 )
 
-# Perl::Critic needs XS modules the cpan hub cannot build, so perlcritic.pl
-# shims them with pure-Perl stand-ins; see the comment there.
 perl_binary(
     name = "perlcritic",
     srcs = ["perlcritic.pl"],

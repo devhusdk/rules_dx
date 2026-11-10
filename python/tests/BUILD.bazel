@@ -7,10 +7,6 @@ load(":soabi_tests.bzl", "soabi_test")
 
 package(default_visibility = ["//:__subpackages__"])
 
-# Outcome: rpds-py 2026.9.1 builds from its sdist offline with rustc 1.99.1.
-# CARGO_HOME points at the vendored crates because maturin does not pass
-# --config to cargo metadata.
-# aspect-build/rules_py#1526 vendors crates upstream; drop sdist_cargo_vendor in #6817.
 python_test(
     name = "rust_sdist_test",
     srcs = ["rust_sdist_test.py"],
@@ -28,8 +24,6 @@ python_test(
     deps = ["@rust_sdist_pypi//rpds_py"],
 )
 
-# rustc's x86_64-pc-windows-msvc target links with link.exe from the MSVC env
-# that the sdist build action sets up.
 cc_toolchain_test(
     name = "rust_sdist_msvc_test",
     compiler = "msvc",

@@ -39,8 +39,6 @@ ruby_test(
     deps = [":hello_lib"],
 )
 
-# The cross-host SF check for Ruby coverage (#3954): a child run of
-# hello_test.rb must write LCOV naming hello.rb with hits.
 ruby_test(
     name = "coverage_probe_test",
     srcs = ["coverage_probe_test.rb"],

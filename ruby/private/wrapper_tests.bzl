@@ -49,7 +49,6 @@ def _coverage_env_impl(ctx):
         for entry in ["simplecov-0.22.0/lib/simplecov.rb", "simplecov-lcov-0.9.0/lib/simplecov-lcov.rb"]:
             asserts.true(env, [p for p in runfiles if p.endswith("/" + entry)] != [], "runfiles lack " + entry)
 
-        # Test targets stay uninstrumented without --instrument_test_targets, as before #3954.
         asserts.true(env, InstrumentedFilesInfo in target, "no InstrumentedFilesInfo")
     else:
         asserts.equals(env, "", rubylib)

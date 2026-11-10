@@ -1,4 +1,4 @@
-"""SimpleCov 0.22.0 pins for Ruby coverage under `bazel coverage` (#3954); the gem data is in pins.json."""
+"""SimpleCov and benchmark-ips gem pins read from pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
 
@@ -10,8 +10,6 @@ def _gem(name, entry):
 
 SIMPLECOV_VERSION = _ARCHIVES["simplecov"]["version"]
 
-# simplecov's runtime dependencies plus the LCOV formatter rules_ruby's coverage helper loads.
-# entry is the file under lib/ that `require` resolves.
 RUBY_COVERAGE_GEMS = [
     _gem("simplecov", "simplecov.rb"),
     _gem("simplecov-lcov", "simplecov-lcov.rb"),
@@ -22,7 +20,6 @@ RUBY_COVERAGE_GEMS = [
 
 RUBY_COVERAGE_REPOSITORY = "dx_ruby_coverage_gems"
 
-# benchmark-ips for ruby_bench; pure Ruby, no runtime dependencies.
 RUBY_BENCH_GEMS = [
     _gem("benchmark-ips", "benchmark/ips.rb"),
 ]

@@ -53,5 +53,5 @@ def _wrapper_action_impl(ctx):
 _wrapper_action_test = analysistest.make(_wrapper_action_impl)
 
 def julia_wrapper_action_test(name, target):
-    """Asserts the wrapper script is rendered by an action, not read at analysis time (#9952)."""
+    """Asserts the wrapper script is rendered by an action, not read at analysis time."""
     _wrapper_action_test(name = name, size = "small", target_under_test = target)

@@ -1,4 +1,3 @@
-# luacov modules are wired through :enabled.
 # gazelle:dx_ignore_import lua luacov.runner
 # gazelle:dx_ignore_import lua luacov.reporter
 # gazelle:dx_ignore_import lua luacov.reporter.lcov
@@ -45,7 +44,6 @@ lua_library(
 
 lua_library(name = "none")
 
-# luacov under `bazel coverage`, nothing otherwise, so `bazel test` never fetches it.
 alias(
     name = "libs",
     actual = select({

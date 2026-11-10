@@ -50,7 +50,6 @@ ts_config(
     )
     for profile, tags in [
         ("standard", []),
-        # strict fails on purpose (TS6133); strict_test diffs the tsc output instead.
         ("strict", ["manual"]),
     ]
 ]

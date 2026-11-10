@@ -20,14 +20,8 @@ def dx_framework_forward_rule(language, ext):
         upstream_providers = [[_JsInfo]],
     )
 
-def dx_framework_library(name, srcs, upstream_rule, forward_rule, skip, visibility = None, **kwargs):
-    """Instantiates one JS-framework library that skips the named quality capabilities."""
-    tags = list(kwargs.pop("tags", []))
-    for capability in skip:
-        tag = "no-" + capability
-        if tag not in tags:
-            tags.append(tag)
-    kwargs["tags"] = tags
+def dx_framework_library(name, srcs, upstream_rule, forward_rule, visibility = None, **kwargs):
+    """Instantiates one JS-framework library."""
     dx_wrap(name, upstream_rule, forward_rule, srcs, visibility = visibility, **kwargs)
 
 def dx_framework_test(name, srcs, config, transform, packages, node_modules, data = None, **kwargs):
@@ -84,10 +78,6 @@ _dx_framework_web_app = rule(
     },
 )
 
-def dx_framework_web_app(name, dist, what, **kwargs):
-    """Exposes one built framework dist directory as a JavascriptWebAppInfo web app."""
-    _dx_framework_web_app(name = name, dist = dist, what = what, **kwargs)
-
 _VITE_TOOL = Label("//javascript/private:vite_tool")
 
 def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, target_compatible_with, tool, ssr_entry = None, keep_entry_path = False):
@@ -118,6 +108,6 @@ def dx_framework_build(name, what, mnemonic, packages, srcs, config, node_module
     compatible = kwargs.get("target_compatible_with", None)
     dist = name + "_dist"
     _dx_framework_vite_run(dist, dist + ".out", srcs, config, node_modules, packages, mnemonic, package_json, public, deps, ["//visibility:private"], tags, testonly, compatible, tool, keep_entry_path = keep_entry_path)
-    dx_framework_web_app(name = name, dist = ":" + dist, what = what, visibility = visibility, **kwargs)
+    _dx_framework_web_app(name = name, dist = ":" + dist, what = what, visibility = visibility, **kwargs)
     if ssr_entry:
         _dx_framework_vite_run(name + "_ssr", name + "_ssr", srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, compatible, tool, ssr_entry = ssr_entry, keep_entry_path = keep_entry_path)

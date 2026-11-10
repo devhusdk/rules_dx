@@ -2,7 +2,6 @@ load("@rules_dx//julia:defs.bzl", "julia_library")
 
 package(default_visibility = ["//visibility:public"])
 
-# fails: ParseError
 julia_library(
     name = "Broken",
     srcs = ["src/Broken.jl"],
@@ -10,7 +9,6 @@ julia_library(
     testonly = True,
 )
 
-# fails: Package NotADependency not found
 julia_library(
     name = "Missing",
     srcs = ["src/Missing.jl"],

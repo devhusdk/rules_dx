@@ -17,7 +17,6 @@ TscInfo = provider(
 
 _RULES_TS = "aspect_rules_ts 3.10.1"
 
-# Flags rules_ts adds under --@aspect_rules_ts//ts:verbose that would corrupt the diagnostics.
 _VERBOSE_FLAGS = ["--listFiles", "--listEmittedFiles", "--traceResolution", "--diagnostics", "--extendedDiagnostics"]
 
 def _bin_relative(ctx, file):
@@ -73,7 +72,6 @@ def _tsc_js_run(ctx, target, name, framework, files, base, up):
     if framework == "mdx":
         options["jsx"] = "preserve"
 
-        # MDX elements are HTML tags with no React types, so declare them to keep strict mode quiet.
         jsx = ctx.actions.declare_file("dx_tsc/%s.jsx.d.ts" % name)
         ctx.actions.write(jsx, "declare namespace JSX { interface IntrinsicElements { [name: string]: any } }\n")
         extra.append(jsx)
@@ -110,7 +108,6 @@ def _tsc_js_impl(target, ctx):
         return []
     base = _project_tsconfig(target) or ctx.file._tier_tsconfig
 
-    # tsc runs with the bin directory as cwd; the tsconfig lives in <bin>/<pkg>/dx_tsc.
     depth = len(ctx.bin_dir.path.split("/")) + len(target.label.package.split("/")) + 1
     if target.label.package == "":
         depth = len(ctx.bin_dir.path.split("/")) + 1

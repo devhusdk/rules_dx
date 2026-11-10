@@ -9,7 +9,6 @@ _PLATFORM_PREFIXES = ("ext-", "lib-", "composer-")
 
 _PLATFORM_NAMES = ["php", "php-64bit", "php-ipv6", "php-zts", "php-debug", "hhvm"]
 
-# Fields of a lock entry that Composer's dump-autoload reads or the ext-* check needs.
 _MANIFEST_FIELDS = ["name", "version", "version_normalized", "type", "autoload", "require", "replace", "provide"]
 
 def is_platform(requirement):

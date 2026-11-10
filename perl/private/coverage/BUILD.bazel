@@ -13,7 +13,6 @@ filegroup(
     srcs = [],
 )
 
-# The LCOV collector under `bazel coverage`, nothing otherwise (#7324).
 alias(
     name = "collector",
     actual = select({

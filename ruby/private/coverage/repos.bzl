@@ -1,4 +1,4 @@
-"""Pinned SimpleCov gems that Ruby tests load under `bazel coverage` (#3954)."""
+"""Pinned SimpleCov gems that Ruby tests load under `bazel coverage`."""
 
 load("//core:repo.bzl", "gem_extract")
 load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_COVERAGE_GEMS", "gem_dir")

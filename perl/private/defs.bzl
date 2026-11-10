@@ -48,7 +48,7 @@ _perl_binary_forward = dx_executable_forward_rule(
 )
 
 def _perl_test_coverage(ctx, upstream):
-    """Loads the DxLcov collector in every perl the test starts (#7324)."""
+    """Loads the DxLcov collector in every perl the test starts."""
     instrumented = coverage_common.instrumented_files_info(
         ctx,
         source_attributes = ["srcs"],

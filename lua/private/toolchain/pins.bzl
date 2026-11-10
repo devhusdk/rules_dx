@@ -2,8 +2,6 @@
 
 LDOC_VERSION = "1.5.0"
 
-# LDoc runs on the pinned Lua. It needs Penlight and the C module LuaFileSystem, which
-# tools/docs/lua:ldoc_main links in, so nothing is loaded from the host.
 LDOC_PINS = [
     struct(
         name = "dx_ldoc",

@@ -48,7 +48,6 @@ cc_toolchain_test(
     test = ":geohash_test",
 )
 
-# Mirrors the build_tool of the sdist_build repo for the nodeps hub.
 py_binary(
     name = "nodeps_build_tool",
     srcs = ["@rules_py//uv/private/pep517_whl/tools:build_helper.py"],

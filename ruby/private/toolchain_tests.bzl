@@ -1,4 +1,4 @@
-"""Analysis tests for the rules_ruby toolchain contract (#3742)."""
+"""Analysis tests for the rules_ruby toolchain contract."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 

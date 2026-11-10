@@ -8,12 +8,10 @@ runfiles="${{RUNFILES_DIR:-}}"
 if [[ -z "$runfiles" ]]; then
   if [[ -d "$0.runfiles" ]]; then runfiles="$0.runfiles"; else runfiles="$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0").runfiles"; fi
 fi
-# LuaLS finds main.lua and script/ next to the real binary, so resolve the runfiles symlink.
 bin="$runfiles/{binary}"
 if command -v realpath >/dev/null 2>&1; then bin="$(realpath "$bin")"; fi
 exec "$bin" "$@"
 """
-
 
 def _luals_tool_impl(ctx):
     binary = ctx.file.binary

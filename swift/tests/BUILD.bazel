@@ -1,5 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//swift/private/toolchain:tests.bzl", "swift_windows_extract_test")
 
 real_source_target(
     name = "corpus_starlark",
@@ -9,6 +10,8 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+swift_windows_extract_test(name = "windows_extract_test")
 
 # The Swift toolchain binaries load nothing from the host except glibc.
 [

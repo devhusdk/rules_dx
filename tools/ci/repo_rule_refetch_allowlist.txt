@@ -9,7 +9,7 @@ core/quality/artifacts/acquire_test/repos.bzl environ 1
 core/quality/artifacts/acquire_test/repos.bzl not-reproducible 1
 core/toolchain.bzl not-reproducible 2
 ruby/private/coverage/repos.bzl not-reproducible 2
-swift/private/toolchain/repos.bzl not-reproducible 2
+swift/private/toolchain/repos.bzl not-reproducible 1
 swift/private/toolchain/repos.bzl watch 1
 terraform/extensions.bzl not-reproducible 1
 tools/ci/repos.bzl not-reproducible 1

@@ -28,6 +28,7 @@ swift_windows_toolchain(
 exports_files([
     "extract_windows.ps1",
     "pins.json",
+    "repos.bzl",
     "swift_format.build",
 ])
 

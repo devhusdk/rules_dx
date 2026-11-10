@@ -1,6 +1,7 @@
 """Module extension for the host `swift` command."""
 
 load("//core:host.bzl", "host_cell")
+load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 
 def _swift_host_impl(repository_ctx):
     host = host_cell(repository_ctx)
@@ -22,19 +23,6 @@ swift_host_repo = repository_rule(
     implementation = _swift_host_impl,
     doc = "A `swift` command that runs the managed toolchain on Linux and the Xcode one on macOS.",
 )
-
-_SWIFT_WINDOWS_VERSION = "6.4.2"
-_WINDOWS_CELL_CPU = {"aarch64": "arm64"}
-_SWIFT_WINDOWS = {
-    "x86_64": struct(
-        url = "https://download.swift.org/swift-6.4.2-release/windows10/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-windows10.exe",
-        sha256 = "8fe5d31ca1153dfe6be3a76de0b93347fd42a27599671e9f9ade23a3648e7184",
-    ),
-    "aarch64": struct(
-        url = "https://download.swift.org/swift-6.4.2-release/windows10-arm64/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-windows10-arm64.exe",
-        sha256 = "e4e5fdb6ca88b18ac430fbce3de35dd80e2249a84a484a02272d82d89f2c7969",
-    ),
-}
 
 _SWIFT_WINDOWS_BUILD = """load("@rules_swift//swift/toolchains:swift_tools.bzl", "swift_tools")
 
@@ -70,21 +58,35 @@ swift_tools(
 )
 """
 
+_SEVEN_ZIP = "_7zip"
+
 def _swift_windows_impl(repository_ctx):
-    cpu = repository_ctx.attr.cpu
-    pin = _SWIFT_WINDOWS[cpu]
+    cell = repository_ctx.attr.cell
+    version = repository_ctx.attr.version
     repository_ctx.file("BUILD.bazel", _SWIFT_WINDOWS_BUILD)
-    repository_ctx.file(".swift-version", _SWIFT_WINDOWS_VERSION + "\n")
-    cell = "windows_" + _WINDOWS_CELL_CPU.get(cpu, cpu)
+    repository_ctx.file(".swift-version", version + "\n")
     if host_cell(repository_ctx) != cell:
         for path in ["toolchain/usr/bin/swiftc.exe", "toolchain/usr/bin/swift-symbolgraph-extract.exe"]:
             repository_ctx.file(path, "")
-        return
+        return repository_ctx.repo_metadata(reproducible = True)
     repository_ctx.download(
-        url = pin.url,
+        url = repository_ctx.attr.installer_urls,
         output = "swift.exe",
-        sha256 = pin.sha256,
-        canonical_id = "swift-windows-" + _SWIFT_WINDOWS_VERSION + "-" + cpu,
+        sha256 = repository_ctx.attr.installer_sha256,
+        canonical_id = "swift-windows-" + version + "-" + cell,
+    )
+    repository_ctx.download(
+        url = repository_ctx.attr.seven_zip_urls,
+        output = _SEVEN_ZIP + "/installer.exe",
+        sha256 = repository_ctx.attr.seven_zip_sha256,
+        canonical_id = "swift-windows-7zip-" + cell,
+    )
+    seven_zip_extract(
+        repository_ctx,
+        seven_zip_fetch(repository_ctx, _SEVEN_ZIP + "/reduced"),
+        repository_ctx.path(_SEVEN_ZIP + "/installer.exe"),
+        _SEVEN_ZIP + "/full",
+        args = ["-t7z", "-i!7z.exe", "-i!7z.dll"],
     )
     pwsh = repository_ctx.path(Label("@dx_powershell_toolchains__{}//:pwsh.exe".format(cell)))
     script = repository_ctx.path(Label(":extract_windows.ps1"))
@@ -104,16 +106,27 @@ def _swift_windows_impl(repository_ctx):
             "-Work",
             repository_ctx.path("_work"),
             "-XCTestVersion",
-            _SWIFT_WINDOWS_VERSION,
+            version,
+            "-SevenZip",
+            repository_ctx.path(_SEVEN_ZIP + "/full/7z.exe"),
         ],
         timeout = 3600,
     )
     if result.return_code != 0:
         fail("extracting the Swift Windows installer failed ({}):\n{}\n{}".format(result.return_code, result.stdout, result.stderr))
     repository_ctx.delete("swift.exe")
+    repository_ctx.delete(_SEVEN_ZIP)
+    return repository_ctx.repo_metadata(reproducible = True)
 
 swift_windows_repo = repository_rule(
     implementation = _swift_windows_impl,
-    attrs = {"cpu": attr.string(mandatory = True, values = ["x86_64", "aarch64"])},
-    doc = "The sha256-pinned swift.org Windows toolchain, unpacked on a Windows host and stubbed elsewhere.",
+    attrs = {
+        "cell": attr.string(mandatory = True, values = ["windows_arm64", "windows_x86_64"]),
+        "installer_sha256": attr.string(mandatory = True),
+        "installer_urls": attr.string_list(mandatory = True),
+        "seven_zip_sha256": attr.string(mandatory = True),
+        "seven_zip_urls": attr.string_list(mandatory = True),
+        "version": attr.string(mandatory = True),
+    },
+    doc = "The sha256-pinned swift.org Windows toolchain, unpacked on a Windows host with the pinned 7-Zip and stubbed elsewhere.",
 )

@@ -40,3 +40,9 @@ exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
 )
+
+dockerfile_library(
+    name = "dirty",
+    srcs = ["fixtures/dirty.Dockerfile"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)

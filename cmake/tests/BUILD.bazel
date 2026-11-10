@@ -43,3 +43,9 @@ exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],
 )
+
+cmake_library(
+    name = "dirty",
+    srcs = ["fixtures/dirty/CMakeLists.txt"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)

@@ -62,3 +62,10 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+ansible_library(
+    name = "dirty",
+    srcs = ["fixtures/dirty/site.yml"],
+    playbooks = ["fixtures/dirty/site.yml"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)

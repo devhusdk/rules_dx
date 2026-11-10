@@ -77,3 +77,16 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+kubernetes_schemas(
+    name = "dirty_schemas",
+    kubernetes_version = "1.31.0",
+    schemas = ["//core/quality/testdata/kubernetes_schemas:configmap-v1.json"],
+)
+
+kubernetes_library(
+    name = "dirty",
+    srcs = ["fixtures/dirty.yaml"],
+    aspect_hints = [":dirty_schemas"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)

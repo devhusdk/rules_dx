@@ -39,6 +39,21 @@ def _cc_case(tool, capability, name, target, contains, absent, config = "cc_synt
         "windows_arm64": True,
     }
 
+def _iac_dirty_case(tool, cls, package, target, contains, config = "default"):
+    return {
+        "name": "real_result_%s_dirty" % tool,
+        "target": "//%s:%s" % (package, target),
+        "config": config,
+        "tool": tool,
+        "capability": "lint",
+        "class": cls,
+        "contains": contains,
+        "absent": [],
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
+    }
+
 def _ruff_tier_case(tier, name, contains, absent):
     return {
         "name": "real_result_ruff_%s_%s" % (tier, name),
@@ -215,6 +230,15 @@ REAL_RESULT_CASES = [
         "contains": ["core/quality/testdata/ocaml_owned/shadow.ml", "shadows"],
         "absent": [],
     },
+    _iac_dirty_case("ansible_lint", "ansible", "ansible/tests", "dirty", ["command-instead-of-shell"], "iac_tiers"),
+    _iac_dirty_case("bicep", "bicep", "bicep/tests", "dirty", ["no-unused-params", "BCP033"], "iac_tiers"),
+    _iac_dirty_case("cfn_lint", "cloudformation", "cloudformation/tests", "dirty", ["E3002"]),
+    _iac_dirty_case("cmakelint", "cmake", "cmake/tests", "dirty", ["readability/mixedcase"], "iac_tiers"),
+    _iac_dirty_case("hadolint", "dockerfile", "dockerfile/tests", "dirty", ["DL4006"]),
+    _iac_dirty_case("helm", "helm", "helm/tests/dirty", "dirty", ["got number, want string"]),
+    _iac_dirty_case("kubeconform", "kubernetes", "kubernetes/tests", "dirty", ["got number, want string"]),
+    _iac_dirty_case("checkmake", "make", "make/tests", "dirty", ["minphony"], "iac_tiers"),
+    _iac_dirty_case("tflint", "terraform", "terraform/tests", "dirty", ["terraform_unused_declarations"], "iac_tiers"),
     _ruff_tier_case("standard", "clean", ["python_tiers/clean.py"], ["D413", "D417", "F401", "Failed to"]),
     _ruff_tier_case("strict", "clean", ["python_tiers/clean.py"], ["D413", "D417", "F401", "Failed to"]),
     _ruff_tier_case("standard", "strict_only", ["python_tiers/strict_only.py"], ["D417"]),

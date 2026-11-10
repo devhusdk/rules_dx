@@ -1,0 +1,5 @@
+---
+- name: Dirty play
+  hosts: all
+  tasks:
+    - shell: echo hi

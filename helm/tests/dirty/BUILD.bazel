@@ -1,0 +1,15 @@
+load("//helm:defs.bzl", "helm_chart")
+load("//kubernetes:defs.bzl", "kubernetes_schemas")
+
+kubernetes_schemas(
+    name = "dirty_schemas",
+    kubernetes_version = "1.31.0",
+    schemas = ["//core/quality/testdata/kubernetes_schemas:configmap-v1.json"],
+)
+
+helm_chart(
+    name = "dirty",
+    srcs = glob(["Chart.yaml", "values.yaml", "templates/**"]),
+    aspect_hints = [":dirty_schemas"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)

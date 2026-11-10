@@ -79,3 +79,9 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+terraform_library(
+    name = "dirty",
+    srcs = ["fixtures/dirty/main.tf"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)

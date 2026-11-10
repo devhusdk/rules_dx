@@ -106,6 +106,7 @@ TEST_CONFIGS = {
     "go_owned_standard": _config(_GO, profile = "standard"),
     "haskell_owned": _config(_HASKELL),
     "haskell_owned_standard": _config(_HASKELL, profile = "standard"),
+    "iac_tiers": _config("//core/quality/testdata/iac_tiers:policy"),
     "jvm_owned": _config("//core/quality/testdata/jvm_owned:policy"),
     "nvcc_syntax": _config("//core/quality/testdata/nvcc_syntax:policy"),
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),

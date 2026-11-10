@@ -84,3 +84,9 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+bicep_library(
+    name = "dirty",
+    srcs = ["fixtures/dirty.bicep"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)

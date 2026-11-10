@@ -344,6 +344,15 @@ real_core_aspect_subject = _subject_rule(_CORE_ASPECTS)
 
 REAL_SUBJECT_BY_CLASS = {
     "asciidoc": real_core_aspect_subject,
+    "ansible": real_aspect_subject,
+    "bicep": real_aspect_subject,
+    "cloudformation": real_aspect_subject,
+    "cmake": real_aspect_subject,
+    "dockerfile": real_aspect_subject,
+    "helm": real_aspect_subject,
+    "kubernetes": real_aspect_subject,
+    "make": real_aspect_subject,
+    "terraform": real_aspect_subject,
     "c": real_cc_aspect_subject,
     "csharp": real_dotnet_aspect_subject,
     "cuda": real_cc_aspect_subject,

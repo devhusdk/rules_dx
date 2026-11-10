@@ -762,28 +762,17 @@ mod tests {
         }
     }
 
-    fn git(root: &Path, args: &[&str]) {
-        let status = Process::new("git")
-            .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
-            .args(["-c", "commit.gpgsign=false"])
-            .args(args)
-            .current_dir(root)
-            .status()
-            .expect("git runs");
-        assert!(status.success(), "git {args:?}");
-    }
-
     fn repo() -> tempfile::TempDir {
         let dir = tempfile::tempdir().expect("tempdir");
         let root = dir.path();
-        git(root, &["init", "--quiet", "--initial-branch=main"]);
+        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]);
         write(root, "MODULE.bazel", "module(name = \"x\")\n");
         write(root, "a/BUILD.bazel", "");
         write(root, "a/a.txt", "a\n");
         write(root, "a/b.txt", "b\n");
-        git(root, &["add", "."]);
-        git(root, &["commit", "--quiet", "-m", "base"]);
-        git(root, &["checkout", "--quiet", "-b", "topic"]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]);
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-b", "topic"]);
         dir
     }
 
@@ -936,12 +925,16 @@ mod tests {
     fn commits_repo(subject: &str) -> tempfile::TempDir {
         let dir = repo();
         let root = dir.path();
-        git(root, &["checkout", "--quiet", "main"]);
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "main"]);
         write(root, "dx.toml", COMMITS_ON);
-        git(root, &["add", "."]);
-        git(root, &["commit", "--quiet", "-m", "chore: config"]);
-        git(root, &["checkout", "--quiet", "-B", "topic"]);
-        git(root, &["commit", "--quiet", "--allow-empty", "-m", subject]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "chore: config"]);
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-B", "topic"]);
+        dx_test_scratch::git(
+            root,
+            root,
+            &["commit", "--quiet", "--allow-empty", "-m", subject],
+        );
         dir
     }
 
@@ -1035,7 +1028,7 @@ mod tests {
         let dir = repo();
         let root = dir.path();
         write(root, "a/a.txt", "committed\n");
-        git(root, &["commit", "--quiet", "-am", "topic"]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-am", "topic"]);
         write(root, "a/b.txt", "unstaged\n");
         write(root, "a/new.txt", "new\n");
         let graph = graph();
@@ -1051,9 +1044,9 @@ mod tests {
         let dir = repo();
         let root = dir.path();
         write(root, "a/a.txt", "first\n");
-        git(root, &["commit", "--quiet", "-am", "first"]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-am", "first"]);
         write(root, "a/b.txt", "second\n");
-        git(root, &["commit", "--quiet", "-am", "second"]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-am", "second"]);
         let runner = GitRunner::new(&[]);
         let base = since_base(root, &runner, "HEAD~1").ok().expect("base");
         let graph = graph();
@@ -1107,7 +1100,7 @@ mod tests {
     fn renames_count_both_paths_and_keep_owners() {
         let dir = repo();
         let root = dir.path();
-        git(root, &["mv", "a/a.txt", "a/c.txt"]);
+        dx_test_scratch::git(root, root, &["mv", "a/a.txt", "a/c.txt"]);
         let graph = graph();
         let (plan, _) = run(root, Command::Lint, &[&graph]);
         assert_eq!(plan.changed_files, ["a/a.txt", "a/c.txt"]);
@@ -1133,9 +1126,9 @@ mod tests {
         let root = dir.path();
         write(root, "defs.bzl", "x = 1\n");
         write(root, "a/BUILD.bazel", "load(\"//:defs.bzl\", \"x\")\n");
-        git(root, &["add", "."]);
-        git(root, &["commit", "--quiet", "-m", "defs"]);
-        git(root, &["branch", "--force", "main"]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "defs"]);
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]);
         write(root, "defs.bzl", "x = 2\n");
         let graph = graph();
         let (plan, runner) = run(root, Command::Build, &[&graph]);
@@ -1172,9 +1165,9 @@ mod tests {
         let root = dir.path();
         write(root, "defs.scl", "x = 1\n");
         write(root, "a/BUILD.bazel", "load(\"//:defs.scl\", \"x\")\n");
-        git(root, &["add", "."]);
-        git(root, &["commit", "--quiet", "-m", "defs"]);
-        git(root, &["branch", "--force", "main"]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "defs"]);
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]);
         write(root, "defs.scl", "x = 2\n");
         let graph = graph();
         let (plan, runner) = run(root, Command::Build, &[&graph]);
@@ -1235,7 +1228,7 @@ mod tests {
     fn a_change_only_under_an_excluded_package_selects_nothing() {
         let dir = tempfile::tempdir().expect("tempdir");
         let root = dir.path();
-        git(root, &["init", "--quiet", "--initial-branch=main"]);
+        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]);
         write(root, "MODULE.bazel", "module(name = \"x\")\n");
         write(
             root,
@@ -1244,9 +1237,9 @@ mod tests {
         );
         write(root, "a/BUILD.bazel", "");
         write(root, "a/a.txt", "a\n");
-        git(root, &["add", "."]);
-        git(root, &["commit", "--quiet", "-m", "base"]);
-        git(root, &["checkout", "--quiet", "-b", "topic"]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]);
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-b", "topic"]);
         write(root, "a/a.txt", "changed\n");
         let graph = graph();
         for command in [Command::Build, Command::Test, Command::Check, Command::Lint] {
@@ -1417,9 +1410,9 @@ mod tests {
             "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:Cargo.lock\")\n",
         );
         write(root, "Cargo.lock", &cargo_lock("1.0.1"));
-        git(root, &["add", "."]);
-        git(root, &["commit", "--quiet", "-m", "crates"]);
-        git(root, &["branch", "--force", "main"]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "crates"]);
+        dx_test_scratch::git(root, root, &["branch", "--force", "main"]);
         write(root, "Cargo.lock", &cargo_lock("1.0.2"));
         let graph = [
             json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),
@@ -1453,10 +1446,14 @@ mod tests {
     #[test]
     fn missing_default_branch_is_a_git_error() {
         let dir = tempfile::tempdir().expect("tempdir");
-        git(dir.path(), &["init", "--quiet", "--initial-branch=dev"]);
+        dx_test_scratch::git(
+            dir.path(),
+            dir.path(),
+            &["init", "--quiet", "--initial-branch=dev"],
+        );
         write(dir.path(), "x", "x");
-        git(dir.path(), &["add", "."]);
-        git(dir.path(), &["commit", "--quiet", "-m", "x"]);
+        dx_test_scratch::git(dir.path(), dir.path(), &["add", "."]);
+        dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]);
         let runner = GitRunner::new(&[]);
         assert!(matches!(
             affected_base(dir.path(), &runner),
@@ -1468,8 +1465,13 @@ mod tests {
     fn dangling_origin_head_falls_through_to_origin_main() {
         let dir = repo();
         let root = dir.path();
-        git(root, &["update-ref", "refs/remotes/origin/main", "HEAD"]);
-        git(
+        dx_test_scratch::git(
+            root,
+            root,
+            &["update-ref", "refs/remotes/origin/main", "HEAD"],
+        );
+        dx_test_scratch::git(
+            root,
             root,
             &[
                 "symbolic-ref",
@@ -1487,10 +1489,14 @@ mod tests {
     #[test]
     fn missing_default_branch_error_names_the_refs_tried() {
         let dir = tempfile::tempdir().expect("tempdir");
-        git(dir.path(), &["init", "--quiet", "--initial-branch=dev"]);
+        dx_test_scratch::git(
+            dir.path(),
+            dir.path(),
+            &["init", "--quiet", "--initial-branch=dev"],
+        );
         write(dir.path(), "x", "x");
-        git(dir.path(), &["add", "."]);
-        git(dir.path(), &["commit", "--quiet", "-m", "x"]);
+        dx_test_scratch::git(dir.path(), dir.path(), &["add", "."]);
+        dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]);
         let runner = GitRunner::new(&[]);
         let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner) else {
             panic!("expected a git error");
@@ -1501,10 +1507,14 @@ mod tests {
     #[test]
     fn missing_default_branch_in_a_shallow_clone_names_the_fix() {
         let dir = tempfile::tempdir().expect("tempdir");
-        git(dir.path(), &["init", "--quiet", "--initial-branch=dev"]);
+        dx_test_scratch::git(
+            dir.path(),
+            dir.path(),
+            &["init", "--quiet", "--initial-branch=dev"],
+        );
         write(dir.path(), "x", "x");
-        git(dir.path(), &["add", "."]);
-        git(dir.path(), &["commit", "--quiet", "-m", "x"]);
+        dx_test_scratch::git(dir.path(), dir.path(), &["add", "."]);
+        dx_test_scratch::git(dir.path(), dir.path(), &["commit", "--quiet", "-m", "x"]);
         write(dir.path(), ".git/shallow", "");
         let runner = GitRunner::new(&[]);
         let Err(PlanError::Git(message)) = affected_base(dir.path(), &runner) else {
@@ -1533,16 +1543,16 @@ mod tests {
     fn nested_repo(module: &str) -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().expect("tempdir");
         let root = dir.path();
-        git(root, &["init", "--quiet", "--initial-branch=main"]);
+        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]);
         write(root, "sub/MODULE.bazel", module);
         write(root, "sub/a/BUILD.bazel", "");
         write(root, "sub/a/a.txt", "a\n");
         write(root, "frontend/x.ts", "x\n");
         write(root, "lib/MODULE.bazel", "module(name = \"lib\")\n");
         write(root, "lib/l.txt", "l\n");
-        git(root, &["add", "."]);
-        git(root, &["commit", "--quiet", "-m", "base"]);
-        git(root, &["checkout", "--quiet", "-b", "topic"]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]);
+        dx_test_scratch::git(root, root, &["checkout", "--quiet", "-b", "topic"]);
         let workspace = root.join("sub");
         (dir, workspace)
     }

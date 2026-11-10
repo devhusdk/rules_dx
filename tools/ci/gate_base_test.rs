@@ -3,30 +3,11 @@ use std::process::{Command, Output};
 
 const ZEROS: &str = "0000000000000000000000000000000000000000";
 
-fn git(repo: &Path, args: &[&str]) -> String {
-    let done = Command::new("git")
-        .arg("-C")
-        .arg(repo)
-        .args(args)
-        .env("GIT_AUTHOR_NAME", "t")
-        .env("GIT_AUTHOR_EMAIL", "t@example.com")
-        .env("GIT_COMMITTER_NAME", "t")
-        .env("GIT_COMMITTER_EMAIL", "t@example.com")
-        .output()
-        .expect("run git");
-    assert!(
-        done.status.success(),
-        "git {args:?}: {}",
-        String::from_utf8_lossy(&done.stderr)
-    );
-    String::from_utf8_lossy(&done.stdout).trim().to_string()
-}
-
 fn commit(repo: &Path, name: &str) -> String {
     std::fs::write(repo.join(name), name).expect("write file");
-    git(repo, &["add", name]);
-    git(repo, &["commit", "-q", "-m", name]);
-    git(repo, &["rev-parse", "HEAD"])
+    dx_test_scratch::git(repo, repo, &["add", name]);
+    dx_test_scratch::git(repo, repo, &["commit", "-q", "-m", name]);
+    dx_test_scratch::git(repo, repo, &["rev-parse", "HEAD"])
 }
 
 struct Repo {
@@ -40,13 +21,13 @@ struct Repo {
 fn repo(name: &str) -> Repo {
     let path = dx_test_scratch::scratch(name).path().join("repo");
     std::fs::create_dir_all(&path).expect("repo directory");
-    git(&path, &["init", "-q", "-b", "main"]);
+    dx_test_scratch::git(&path, &path, &["init", "-q", "-b", "main"]);
     let a = commit(&path, "a");
     let b = commit(&path, "b");
     let c = commit(&path, "c");
-    git(&path, &["checkout", "-q", "-b", "other", &a]);
+    dx_test_scratch::git(&path, &path, &["checkout", "-q", "-b", "other", &a]);
     let x = commit(&path, "x");
-    git(&path, &["checkout", "-q", "main"]);
+    dx_test_scratch::git(&path, &path, &["checkout", "-q", "main"]);
     Repo { path, a, b, c, x }
 }
 
@@ -79,12 +60,16 @@ fn stderr(done: &Output) -> String {
 #[test]
 fn pull_request_uses_the_first_parent() {
     let r = repo("gate-base-pr");
-    git(&r.path, &["merge", "-q", "--no-ff", "-m", "m", "other"]);
+    dx_test_scratch::git(
+        &r.path,
+        &r.path,
+        &["merge", "-q", "--no-ff", "-m", "m", "other"],
+    );
     let (done, base) = run(&r, "pull_request", "", "");
     assert!(done.status.success(), "{}", stderr(&done));
     assert_eq!(base, r.c);
     assert_eq!(
-        git(&r.path, &["rev-parse", "refs/remotes/origin/main"]),
+        dx_test_scratch::git(&r.path, &r.path, &["rev-parse", "refs/remotes/origin/main"]),
         r.c
     );
 }

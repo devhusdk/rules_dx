@@ -1296,17 +1296,6 @@ impl dx_plan::resolve::QueryRunner for RealGit {
     }
 }
 
-fn git(root: &Path, args: &[&str]) {
-    dx_process::capture::run_checked(
-        dx_process::capture::git(root)
-            .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
-            .args(["-c", "commit.gpgsign=false"])
-            .args(args),
-        dx_process::capture::DEFAULT_TIMEOUT,
-    )
-    .unwrap_or_else(|error| panic!("{error}"));
-}
-
 fn real_secret_paths(harness: &Harness) -> (Vec<String>, Option<String>) {
     let tool = dx_testing::resolve_runfiles(
         &std::env::var("DX_TEST_GITLEAKS").expect("DX_TEST_GITLEAKS names the pinned gitleaks"),
@@ -1345,7 +1334,7 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
     for legacy_config in [false, true] {
         let harness = Harness::new(&format!("audit-real-gitleaks-{legacy_config}"));
         let root = harness.workspace.as_path();
-        git(root, &["init", "-q"]);
+        dx_test_scratch::git(root, root, &["init", "-q"]);
         harness.write_source(".gitignore", "ign/\nlocal.env\n");
         harness.write_source("ign/x.txt", &line);
         harness.write_source("ign/kept.txt", &line);
@@ -1357,8 +1346,8 @@ fn real_gitleaks_skips_git_ignored_paths_but_scans_tracked_and_untracked_files()
                 "[extend]\npath = \".dx/config/gitleaks/base.toml\"\n\n[allowlist]\ndescription = \"fixtures\"\nregexes = [\"never-matches-anything\"]\n",
             );
         }
-        git(root, &["add", ".gitignore"]);
-        git(root, &["add", "-f", "ign/kept.txt"]);
+        dx_test_scratch::git(root, root, &["add", ".gitignore"]);
+        dx_test_scratch::git(root, root, &["add", "-f", "ign/kept.txt"]);
         let (paths, incomplete) = real_secret_paths(&harness);
         assert_eq!(incomplete, None, "legacy={legacy_config}");
         assert_eq!(

@@ -318,7 +318,7 @@ impl QueryRunner for RealGit {
 fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     let repo = temp_dir("changed-real-git");
     let root = repo.path();
-    let git = |args: &[&str]| run_git(root, args);
+    let git = |args: &[&str]| dx_test_scratch::git(root, root, args);
     let write = |path: &str, text: &str| {
         let full = root.join(path);
         std::fs::create_dir_all(full.parent().expect("parent")).expect("mkdir");
@@ -349,23 +349,6 @@ fn real_git_counts_renames_untracked_files_and_a_nested_workspace() {
     assert_eq!(added["src/my file.py"], [1, 2].into_iter().collect());
 }
 
-fn run_git(root: &Path, args: &[&str]) {
-    dx_process::capture::run_checked(
-        dx_process::capture::git(root)
-            .args([
-                "-c",
-                "user.name=dx",
-                "-c",
-                "user.email=dx@example.com",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args),
-        dx_process::capture::DEFAULT_TIMEOUT,
-    )
-    .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
-}
-
 #[test]
 fn real_git_keys_modified_files_under_diff_prefix_config() {
     for key in ["diff.mnemonicPrefix", "diff.noprefix"] {
@@ -373,10 +356,10 @@ fn real_git_keys_modified_files_under_diff_prefix_config() {
         let root = repo.path();
         std::fs::create_dir_all(root.join("pkg")).expect("mkdir");
         std::fs::write(root.join("pkg/A.rs"), "a\nb\n").expect("write");
-        run_git(root, &["init", "--quiet", "--initial-branch=main"]);
-        run_git(root, &["add", "."]);
-        run_git(root, &["commit", "--quiet", "-m", "base"]);
-        run_git(root, &["config", key, "true"]);
+        dx_test_scratch::git(root, root, &["init", "--quiet", "--initial-branch=main"]);
+        dx_test_scratch::git(root, root, &["add", "."]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]);
+        dx_test_scratch::git(root, root, &["config", key, "true"]);
         std::fs::write(root.join("pkg/A.rs"), "a\nb\nc\n").expect("write");
         let added = changed_lines(root, &RealGit, "HEAD").expect("changed lines");
         assert_eq!(added["pkg/A.rs"], [3].into_iter().collect(), "{key}");

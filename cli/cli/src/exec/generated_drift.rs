@@ -114,17 +114,6 @@ mod tests {
         }
     }
 
-    fn git(root: &Path, args: &[&str]) {
-        dx_process::capture::run_checked(
-            dx_process::capture::git(root)
-                .args(["-c", "user.name=dx", "-c", "user.email=dx@example.com"])
-                .args(["-c", "commit.gpgsign=false"])
-                .args(args),
-            dx_process::capture::DEFAULT_TIMEOUT,
-        )
-        .unwrap_or_else(|error| panic!("{error}"));
-    }
-
     /// A workspace with a python file whose generated `.dx` is committed.
     fn committed() -> dx_test_scratch::TempDir {
         let scratch = dx_test_scratch::scratch("dx-drift-");
@@ -138,9 +127,13 @@ mod tests {
             &mut dx_adopt::detected_families,
         )
         .expect("sync");
-        git(root, &["init", "--quiet"]);
-        git(root, &["add", ".dx", "MODULE.bazel", "dx.toml", "pkg"]);
-        git(root, &["commit", "--quiet", "-m", "base"]);
+        dx_test_scratch::git(root, root, &["init", "--quiet"]);
+        dx_test_scratch::git(
+            root,
+            root,
+            &["add", ".dx", "MODULE.bazel", "dx.toml", "pkg"],
+        );
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "base"]);
         scratch
     }
 
@@ -171,8 +164,8 @@ mod tests {
         let scratch = committed();
         let root = scratch.path();
         dx_test_scratch::write(root, BASE, "edited\n");
-        git(root, &["add", BASE]);
-        git(root, &["commit", "--quiet", "-m", "edit"]);
+        dx_test_scratch::git(root, root, &["add", BASE]);
+        dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "edit"]);
         dx_generate::sync(
             root,
             dx_generate::Mode::Full,
@@ -187,7 +180,7 @@ mod tests {
     fn untracked_dx_is_not_drift() {
         let scratch = committed();
         let root = scratch.path();
-        git(root, &["rm", "--quiet", "--cached", "-r", ".dx"]);
+        dx_test_scratch::git(root, root, &["rm", "--quiet", "--cached", "-r", ".dx"]);
         dx_test_scratch::write(root, BASE, "edited\n");
         assert!(rules(root, &[BASE.to_owned()]).is_empty());
     }

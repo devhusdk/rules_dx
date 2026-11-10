@@ -42,8 +42,10 @@ dx_fuzz_binary = rule(
 )
 
 def dx_fuzz_binary_select(name, *, tags = None, visibility = None, testonly = True, target_compatible_with = None, **kwargs):
-    """Declares `<name>` as a `dx_fuzz_binary` with AddressSanitizer everywhere except Windows, where it is off."""
+    """Declares `<name>` as a `dx_fuzz_binary` with AddressSanitizer everywhere except Windows, where it is off and the pinned libFuzzer config is not applied."""
     inner_tags = merge_tags([tag for tag in (tags or []) if tag != "dx-fuzz"], "manual")
+    noasan_kwargs = dict(kwargs)
+    noasan_kwargs["pinned_libfuzzer"] = False
     dx_fuzz_binary(
         name = name + "_asan",
         asan = True,
@@ -60,7 +62,7 @@ def dx_fuzz_binary_select(name, *, tags = None, visibility = None, testonly = Tr
         tags = inner_tags,
         target_compatible_with = target_compatible_with,
         visibility = ["//visibility:private"],
-        **kwargs
+        **noasan_kwargs
     )
     native.alias(
         name = name,

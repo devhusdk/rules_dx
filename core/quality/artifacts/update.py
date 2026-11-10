@@ -2051,12 +2051,12 @@ TOOLS: dict[str, dict[str, Any]] = {
         },
     },
     "pkl": {
-        "upstream_version": "0.32.1",
-        "release_page": "https://github.com/apple/pkl/releases/tag/0.32.1",
+        "upstream_version": "0.33.0",
+        "release_page": "https://github.com/apple/pkl/releases/tag/0.33.0",
         "licenses": [
             {
                 "name": "Apache-2.0",
-                "source": "https://github.com/apple/pkl/blob/0.32.1/LICENSE.txt",
+                "source": "https://github.com/apple/pkl/blob/0.33.0/LICENSE.txt",
             }
         ],
         "platforms": {
@@ -2064,7 +2064,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "os": "linux",
                 "cpu": "x86_64",
                 "asset": "pkl-alpine-linux-amd64",
-                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-alpine-linux-amd64",
+                "url": "https://github.com/apple/pkl/releases/download/0.33.0/pkl-alpine-linux-amd64",
                 "kind": "raw",
                 "executable": "pkl-alpine-linux-amd64",
             },
@@ -2072,7 +2072,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "os": "linux",
                 "cpu": "arm64",
                 "asset": "pkl-linux-aarch64",
-                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-linux-aarch64",
+                "url": "https://github.com/apple/pkl/releases/download/0.33.0/pkl-linux-aarch64",
                 "kind": "raw",
                 "executable": "pkl-linux-aarch64",
             },
@@ -2080,7 +2080,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "os": "macos",
                 "cpu": "arm64",
                 "asset": "pkl-macos-aarch64",
-                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-macos-aarch64",
+                "url": "https://github.com/apple/pkl/releases/download/0.33.0/pkl-macos-aarch64",
                 "kind": "raw",
                 "executable": "pkl-macos-aarch64",
             },
@@ -2088,7 +2088,7 @@ TOOLS: dict[str, dict[str, Any]] = {
                 "os": "windows",
                 "cpu": "x86_64",
                 "asset": "pkl-windows-amd64.exe",
-                "url": "https://github.com/apple/pkl/releases/download/0.32.1/pkl-windows-amd64.exe",
+                "url": "https://github.com/apple/pkl/releases/download/0.33.0/pkl-windows-amd64.exe",
                 "kind": "raw",
                 "executable": "pkl-windows-amd64.exe",
             },

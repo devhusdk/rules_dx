@@ -90,11 +90,11 @@ fn format_errors(stderr: &str, files: &[&str]) -> Result<Vec<FileFinding>, Parse
     Ok(findings)
 }
 
-/// The message and the start of its trailing ` at (<row>:<col> - <row>:<col>)` range.
+/// The message and the start of its trailing ` at (<row>:<col>)` or ` at (<row>:<col> - <row>:<col>)` position.
 fn split_location(message: &str) -> (&str, u64, u64) {
     let located: Option<(&str, u64, u64)> = message.strip_suffix(')').and_then(|rest| {
         let (text, range) = rest.rsplit_once(" at (")?;
-        let (start, _) = range.split_once(" - ")?;
+        let start = range.split_once(" - ").map_or(range, |(start, _)| start);
         let (row, column) = start.split_once(':')?;
         Some((text, row.parse().ok()?, column.parse().ok()?))
     });
@@ -252,6 +252,15 @@ mod tests {
         assert_eq!(findings[1].finding.start.column, 5);
         assert_eq!(findings[2].file, "/s/open.pkl");
         assert_eq!(findings[2].finding.start.column, 1);
+    }
+
+    #[test]
+    fn pkl_locates_errors_with_a_single_position() {
+        let stderr = "Could not format `/s/bad.pkl`: Unexpected end of file. at (4:29)\nAn error occurred during formatting.\n";
+        let findings = parse_pkl(b"", stderr.as_bytes(), Some(1), &FILES).expect("ok");
+        assert_eq!(findings[0].finding.message, "Unexpected end of file");
+        assert_eq!(findings[0].finding.start.line, 4);
+        assert_eq!(findings[0].finding.start.column, 29);
     }
 
     #[test]

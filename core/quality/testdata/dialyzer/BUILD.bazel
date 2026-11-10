@@ -12,12 +12,10 @@ quality_family(
         "lint",
     ],
     family_id = "erlang",
-    typecheck = ["dialyzer"],
-)
-
-workspace_policy(
-    name = "erlang_policy",
-    families = [":erlang_family"],
+    typecheck = [
+        "dialyzer",
+        "erlc",
+    ],
 )
 
 quality_family(
@@ -28,12 +26,18 @@ quality_family(
         "lint",
     ],
     family_id = "elixir",
-    typecheck = ["dialyzer"],
+    typecheck = [
+        "dialyzer",
+        "elixirc",
+    ],
 )
 
 workspace_policy(
-    name = "elixir_policy",
-    families = [":elixir_family"],
+    name = "policy",
+    families = [
+        ":elixir_family",
+        ":erlang_family",
+    ],
 )
 
 erlang_app(

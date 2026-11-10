@@ -361,7 +361,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_elixirc_elixir_unused",
         "target": "//core/quality/testdata/elixirc:elixir_unused",
-        "policy": "//core/quality/testdata/elixirc:elixir_policy",
+        "policy": "//core/quality/testdata/dialyzer:policy",
         "tool": "elixirc",
         "capability": "typecheck",
         "class": "elixir",
@@ -373,7 +373,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_erlc_erlang_unused",
         "target": "//core/quality/testdata/erlc:erlang_unused",
-        "policy": "//core/quality/testdata/erlc:erlang_policy",
+        "policy": "//core/quality/testdata/dialyzer:policy",
         "tool": "erlc",
         "capability": "typecheck",
         "class": "erlang",
@@ -387,7 +387,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_erlang_clean",
         "target": "//core/quality/testdata/dialyzer_clean:erlang_clean",
-        "policy": "//core/quality/testdata/dialyzer:erlang_policy",
+        "policy": "//core/quality/testdata/dialyzer:policy",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "erlang",
@@ -400,7 +400,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_erlang_dirty",
         "target": "//core/quality/testdata/dialyzer:erlang_dirty",
-        "policy": "//core/quality/testdata/dialyzer:erlang_policy",
+        "policy": "//core/quality/testdata/dialyzer:policy",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "erlang",
@@ -415,7 +415,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_elixir_clean",
         "target": "//elixir/tests/runtime:erlang_app",
-        "policy": "//core/quality/testdata/dialyzer:elixir_policy",
+        "policy": "//core/quality/testdata/dialyzer:policy",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "elixir",
@@ -452,7 +452,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_elixir_dirty",
         "target": "//core/quality/testdata/dialyzer:elixir_dirty",
-        "policy": "//core/quality/testdata/dialyzer:elixir_policy",
+        "policy": "//core/quality/testdata/dialyzer:policy",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "elixir",
@@ -605,7 +605,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_javac_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:java_unused_dep",
-        "policy": "//core/quality/testdata/jvm_owned:java_policy",
+        "policy": "//core/quality/testdata/jvm_owned:policy",
         "tool": "javac",
         "capability": "typecheck",
         "class": "java",
@@ -617,7 +617,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_kotlinc_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:kotlin_unused_dep",
-        "policy": "//core/quality/testdata/jvm_owned:kotlin_policy",
+        "policy": "//core/quality/testdata/jvm_owned:policy",
         "tool": "kotlinc",
         "capability": "typecheck",
         "class": "kotlin",
@@ -629,7 +629,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_kotlinc_missing_dep",
         "target": "//core/quality/testdata/jvm_owned:kotlin_missing_dep",
-        "policy": "//core/quality/testdata/jvm_owned:kotlin_policy",
+        "policy": "//core/quality/testdata/jvm_owned:policy",
         "tool": "kotlinc",
         "capability": "typecheck",
         "class": "kotlin",
@@ -641,7 +641,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_scalac_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:scala_unused_dep",
-        "policy": "//core/quality/testdata/jvm_owned:scala_policy",
+        "policy": "//core/quality/testdata/jvm_owned:policy",
         "tool": "scalac",
         "capability": "typecheck",
         "class": "scala",
@@ -653,7 +653,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_scalac_missing_dep",
         "target": "//core/quality/testdata/jvm_owned:scala_missing_dep",
-        "policy": "//core/quality/testdata/jvm_owned:scala_policy",
+        "policy": "//core/quality/testdata/jvm_owned:policy",
         "tool": "scalac",
         "capability": "typecheck",
         "class": "scala",

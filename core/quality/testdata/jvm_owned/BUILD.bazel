@@ -38,16 +38,6 @@ quality_family(
     typecheck = ["scalac"],
 )
 
-workspace_policy(
-    name = "java_policy",
-    families = [":java_family"],
-)
-
-workspace_policy(
-    name = "kotlin_policy",
-    families = [":kotlin_family"],
-)
-
 java_library(
     name = "kept_helper",
     srcs = ["KeptHelper.java"],
@@ -99,8 +89,12 @@ kotlin_library(
 )
 
 workspace_policy(
-    name = "scala_policy",
-    families = [":scala_family"],
+    name = "policy",
+    families = [
+        ":java_family",
+        ":kotlin_family",
+        ":scala_family",
+    ],
 )
 
 scala_library(

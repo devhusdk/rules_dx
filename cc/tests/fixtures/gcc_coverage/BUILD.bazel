@@ -48,11 +48,11 @@ cc_test(
 cc_gcov_fixture(
     name = "gcov_fixture",
     tags = ["manual"],
-    libraries = ["//cc/tests/fixtures/gcc_shared:greet"],
+    libraries = ["//cc/tests/fixtures/shared:greet"],
     target_compatible_with = _GCC_ONLY,
     tests = [
         ":main_test",
-        "//cc/tests/fixtures/gcc_shared:shared_test",
+        "//cc/tests/fixtures/shared:shared_test",
     ],
 )
 

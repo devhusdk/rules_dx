@@ -11,31 +11,15 @@ quality_family(
     disabled = [
         "audit",
         "format",
-        "lint",
     ],
     family_id = "ocaml",
+    lint = ["zanuda"],
     typecheck = ["ocaml"],
 )
 
 workspace_policy(
     name = "policy",
     families = [":ocaml_family"],
-)
-
-quality_family(
-    name = "zanuda_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "ocaml",
-    lint = ["zanuda"],
-)
-
-workspace_policy(
-    name = "zanuda_policy",
-    families = [":zanuda_family"],
 )
 
 ocaml_module(

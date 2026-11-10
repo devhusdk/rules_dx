@@ -1,12 +1,12 @@
 {
-  "version": "1.20.4",
+  "version": "1.20.5",
   "otp_major": "29",
   "archives": {
     "elixir": {
-      "version": "1.20.4",
-      "sha256": "7863c546cda13fecc949e562e326042451dacf8fd8698a36783cb71eeb223b46",
+      "version": "1.20.5",
+      "sha256": "f424d6f0bb710a1d4898f2645d8ad6cab3f5eab8d71848c0dda2579d3a8e8a06",
       "urls": [
-        "https://builds.hex.pm/builds/elixir/v1.20.4-otp-29.zip"
+        "https://builds.hex.pm/builds/elixir/v1.20.5-otp-29.zip"
       ]
     },
     "rules_elixir": {

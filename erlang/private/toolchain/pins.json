@@ -88,11 +88,11 @@
       ]
     },
     "dx_katana_code": {
-      "version": "2.5.3",
-      "sha256": "da09a4b30d191bc000d3fbe8fd08e4161acc43a5cfc67c123c07b78b75562133",
-      "strip_prefix": "katana-code-2.5.3",
+      "version": "2.5.4",
+      "sha256": "fde8f5c3c007172b125517766ebed88e24a292a5c38e8ea93f6fbbd07a7bfb82",
+      "strip_prefix": "katana-code-2.5.4",
       "urls": [
-        "https://github.com/inaka/katana-code/archive/refs/tags/2.5.3.tar.gz"
+        "https://github.com/inaka/katana-code/archive/refs/tags/2.5.4.tar.gz"
       ]
     }
   },

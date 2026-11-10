@@ -9,6 +9,7 @@ const ALLOWED_REPOS: &[&str] = &[
     "bazel_lib",
     "bazel_skylib",
     "bazel_tools",
+    "dx_pins_data",
     "dx_prebuilt",
     "platforms",
     "rules_dx",
@@ -22,6 +23,14 @@ const LANGUAGE_HELPERS: &[&str] = &[
     "jvm_check",
     "nvcc_syntax",
     "roslyn",
+];
+
+/// Directories outside `core/quality/` whose `.bzl` files are roots.
+const CORE_DIRS: &[&str] = &["core", "core/codegen", "core/modules"];
+
+/// Core files outside `core/quality/` that load a language rule set; this list only shrinks.
+const PENDING_CORE_FILES: &[&str] = &[
+    "core/native_coverage.bzl", // #10085
 ];
 
 /// Packages of core tool defaults that load a language rule set; this list only shrinks.
@@ -38,7 +47,7 @@ const PENDING_TIER_PACKAGES: &[&str] = &[
 ];
 
 /// Top-level packages `core/` may load from or point labels into.
-const CORE_PACKAGES: &[&str] = &["config", "core", "tools"];
+const CORE_PACKAGES: &[&str] = &["cli", "config", "core", "tools"];
 
 /// Files whose `//` loads and labels may still reach a language package; this list only shrinks.
 const PENDING_LANGUAGE_REACH: &[&str] = &[
@@ -193,6 +202,15 @@ fn reaches_language(label: &str) -> bool {
 fn roots(source: &Path) -> Vec<String> {
     let mut roots = bzl_files(&source.join("config"), "config");
     roots.push("config/BUILD.bazel".to_owned());
+    for dir in CORE_DIRS {
+        roots.extend(
+            bzl_files(&source.join(dir), dir)
+                .into_iter()
+                .filter(|path| {
+                    !path.ends_with("_tests.bzl") && !PENDING_CORE_FILES.contains(&path.as_str())
+                }),
+        );
+    }
     roots.extend(
         bzl_files(&source.join("core/quality"), "core/quality")
             .into_iter()
@@ -261,6 +279,21 @@ fn language_helpers_exist() {
         assert!(
             source.join(format!("core/quality/{helper}.bzl")).is_file(),
             "core/quality/{helper}.bzl is gone; drop it from LANGUAGE_HELPERS"
+        );
+    }
+}
+
+#[test]
+fn pending_core_files_still_offend() {
+    let source = dx_testing::rules_dx_source();
+    for path in PENDING_CORE_FILES {
+        let found = dx_adopt::external_repos(&source, &[(*path).to_owned()]).expect("load graph");
+        assert!(
+            found
+                .values()
+                .flatten()
+                .any(|repo| !ALLOWED_REPOS.contains(&repo.as_str())),
+            "{path} reaches no language rule set; drop it from PENDING_CORE_FILES"
         );
     }
 }

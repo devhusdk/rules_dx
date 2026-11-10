@@ -1,4 +1,4 @@
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::{resolve_runfiles};
 use std::process::Command;
 
 fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
@@ -14,7 +14,8 @@ fn archiver(scratch: &std::path::Path, args: &[&str]) -> std::process::Output {
 #[test]
 fn missing_libstdcxx_member_fails_the_import_check() {
     let app = resolve_runfiles(&std::env::var("APP").expect("APP"));
-    let scratch = mkscratch("gcc-imports").expect("scratch");
+    let guard = dx_test_scratch::scratch("gcc-imports");
+    let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());
     let out = archiver(&scratch, &["--check", "hello_cxx_gcc", &member]);
     assert!(!out.status.success(), "unexpected success: {out:?}");
@@ -29,7 +30,8 @@ fn missing_libstdcxx_member_fails_the_import_check() {
 #[test]
 fn provided_libstdcxx_passes_the_import_check() {
     let app = resolve_runfiles(&std::env::var("APP").expect("APP"));
-    let scratch = mkscratch("gcc-imports-ok").expect("scratch");
+    let guard = dx_test_scratch::scratch("gcc-imports-ok");
+    let scratch = guard.path();
     let member = format!("hello_cxx_gcc={}", app.display());
     let out = archiver(&scratch, &["--provides", "libstdc++.so.6", &member]);
     assert!(out.status.success(), "failed: {out:?}");

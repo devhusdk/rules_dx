@@ -1,5 +1,5 @@
 use dx_deploy_tools::{archive_extract, archive_listing};
-use dx_testing::{mkscratch, resolve_runfiles};
+use dx_testing::{resolve_runfiles};
 use std::process::Command;
 
 #[test]
@@ -28,7 +28,8 @@ fn msvc_archive_ships_the_vc_runtime_and_runs_on_a_clean_path() {
         );
     }
 
-    let scratch = mkscratch("msvc-archive").expect("scratch");
+    let guard = dx_test_scratch::scratch("msvc-archive");
+    let scratch = guard.path();
     let dir = scratch.join("out");
     archive_extract(&archive, &dir).expect("extract archive");
 

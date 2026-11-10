@@ -115,17 +115,7 @@ pub(super) fn run_license(
             }
             continue;
         }
-        if matches!(
-            set.ecosystem,
-            dx_adopt::dependency_sets::Ecosystem::Npm
-                | dx_adopt::dependency_sets::Ecosystem::Ruby
-                | dx_adopt::dependency_sets::Ecosystem::PowerShell
-                | dx_adopt::dependency_sets::Ecosystem::LuaRocks
-                | dx_adopt::dependency_sets::Ecosystem::Cargo
-                | dx_adopt::dependency_sets::Ecosystem::Maven
-                | dx_adopt::dependency_sets::Ecosystem::Nuget
-                | dx_adopt::dependency_sets::Ecosystem::Go
-        ) {
+        if set.ecosystem.license_audit() {
             let ecosystem = set.ecosystem.name();
             let parsed = lock_texts_for_configured(workspace, set).and_then(|locks| {
                 parse_locked_for_configured(set, &locks).map(|parsed| (locks, parsed))
@@ -336,31 +326,10 @@ pub(super) fn run_license(
             dx_adopt::dependency_sets::Ecosystem::Bazel => {
                 selected_sets.insert(dx_audit::locks::BAZEL_SET);
             }
-            dx_adopt::dependency_sets::Ecosystem::Npm
-            | dx_adopt::dependency_sets::Ecosystem::Ruby
-            | dx_adopt::dependency_sets::Ecosystem::PowerShell
-            | dx_adopt::dependency_sets::Ecosystem::LuaRocks
-            | dx_adopt::dependency_sets::Ecosystem::Cargo
-            | dx_adopt::dependency_sets::Ecosystem::Maven
-            | dx_adopt::dependency_sets::Ecosystem::Nuget
-            | dx_adopt::dependency_sets::Ecosystem::Go => {
-                selected_sets.insert(set.ecosystem.name());
+            other if other.license_audit() => {
+                selected_sets.insert(other.name());
             }
-            dx_adopt::dependency_sets::Ecosystem::Uv
-            | dx_adopt::dependency_sets::Ecosystem::Cpan
-            | dx_adopt::dependency_sets::Ecosystem::Pub
-            | dx_adopt::dependency_sets::Ecosystem::Conan
-            | dx_adopt::dependency_sets::Ecosystem::Dub
-            | dx_adopt::dependency_sets::Ecosystem::Fpm
-            | dx_adopt::dependency_sets::Ecosystem::Zig
-            | dx_adopt::dependency_sets::Ecosystem::Julia
-            | dx_adopt::dependency_sets::Ecosystem::Hex
-            | dx_adopt::dependency_sets::Ecosystem::Composer
-            | dx_adopt::dependency_sets::Ecosystem::Opam
-            | dx_adopt::dependency_sets::Ecosystem::SwiftPm
-            | dx_adopt::dependency_sets::Ecosystem::Ansible
-            | dx_adopt::dependency_sets::Ecosystem::Bicep
-            | dx_adopt::dependency_sets::Ecosystem::Cabal => {}
+            _ => {}
         }
     }
     let mut exception_problems: Vec<String> = Vec::new();

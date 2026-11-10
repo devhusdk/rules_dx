@@ -207,29 +207,7 @@ fn run_configured_target(
             npm: std::env::var(dx_update::backend::NPM_BIN_VAR).ok(),
             ..Default::default()
         },
-        Ecosystem::Uv
-        | Ecosystem::Bazel
-        | Ecosystem::Ruby
-        | Ecosystem::PowerShell
-        | Ecosystem::Cargo
-        | Ecosystem::Maven
-        | Ecosystem::Nuget
-        | Ecosystem::Go
-        | Ecosystem::Cpan
-        | Ecosystem::Pub
-        | Ecosystem::Conan
-        | Ecosystem::Dub
-        | Ecosystem::Fpm
-        | Ecosystem::Zig
-        | Ecosystem::LuaRocks
-        | Ecosystem::Julia
-        | Ecosystem::Hex
-        | Ecosystem::Composer
-        | Ecosystem::Opam
-        | Ecosystem::SwiftPm
-        | Ecosystem::Ansible
-        | Ecosystem::Bicep
-        | Ecosystem::Cabal => dx_update::backend::UvClosure::default(),
+        _ => dx_update::backend::UvClosure::default(),
     };
     let head = invocation.bazel_head();
     let planned = match mode {

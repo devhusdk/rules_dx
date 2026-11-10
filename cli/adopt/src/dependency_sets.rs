@@ -888,25 +888,7 @@ fn validate_package(ecosystem: Ecosystem, package: &str) -> Result<(), &'static 
                 Err(CPAN_PACKAGE_CHARSET)
             }
         }
-        Ecosystem::Uv
-        | Ecosystem::Bazel
-        | Ecosystem::Ruby
-        | Ecosystem::PowerShell
-        | Ecosystem::Pub
-        | Ecosystem::Conan
-        | Ecosystem::Julia
-        | Ecosystem::Hex
-        | Ecosystem::Composer
-        | Ecosystem::Dub
-        | Ecosystem::Fpm
-        | Ecosystem::Zig
-        | Ecosystem::LuaRocks
-        | Ecosystem::Opam
-        | Ecosystem::Cabal
-        | Ecosystem::Ansible
-        | Ecosystem::Bicep
-        | Ecosystem::SwiftPm
-        | Ecosystem::Nuget => {
+        _ => {
             let charset = match ecosystem {
                 Ecosystem::Nuget => NUGET_PACKAGE_CHARSET,
                 Ecosystem::Bazel => BAZEL_PACKAGE_CHARSET,
@@ -1285,27 +1267,17 @@ pub fn check_backend_settings(
     match set.ecosystem {
         Ecosystem::Uv => check_uv_settings(workspace, set),
         Ecosystem::Npm => check_npm_layout(workspace, set),
-        Ecosystem::Bazel => Ok(()),
-        Ecosystem::Ruby => check_pinned_lock(set, GEMFILE_LOCK),
-        Ecosystem::PowerShell => check_pinned_lock(set, PSGALLERY_LOCK),
         Ecosystem::Cpan => check_cpan_layout(workspace, set),
-        Ecosystem::Pub => check_pinned_lock(set, PUBSPEC_LOCK),
         Ecosystem::Hex => match hex_backend(set) {
             Some(_) => Ok(()),
             None => check_pinned_lock(set, MIX_LOCK),
         },
-        Ecosystem::Conan => check_pinned_lock(set, CONAN_LOCK),
         Ecosystem::Julia => check_julia_layout(workspace, set),
         Ecosystem::Composer => check_composer_layout(workspace, set),
         Ecosystem::Dub => check_dub_layout(workspace, set),
-        Ecosystem::Fpm => check_pinned_lock(set, FPM_LOCK),
-        Ecosystem::Zig => check_pinned_lock(set, ZIG_DIGESTS),
-        Ecosystem::LuaRocks => check_pinned_lock(set, LUAROCKS_LOCK),
         Ecosystem::Opam => check_opam_layout(set),
         Ecosystem::Ansible => check_ansible_layout(set),
-        Ecosystem::Bicep => Ok(()),
         Ecosystem::Cabal => check_cabal_layout(workspace, set),
-        Ecosystem::SwiftPm => check_pinned_lock(set, PACKAGE_RESOLVED),
         Ecosystem::Cargo => {
             check_pinned_lock(set, CARGO_LOCK)?;
             check_cargo_hub(workspace, set).map(|_| ())
@@ -1313,6 +1285,10 @@ pub fn check_backend_settings(
         Ecosystem::Maven => check_maven_hub(workspace, set).map(|_| ()),
         Ecosystem::Nuget => check_nuget_layout(workspace, set),
         Ecosystem::Go => check_go_layout(workspace, set),
+        other => match other.lockfiles().first() {
+            Some(lock) if other.lock_required() => check_pinned_lock(set, lock),
+            _ => Ok(()),
+        },
     }
 }
 

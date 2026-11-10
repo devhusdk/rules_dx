@@ -188,33 +188,7 @@ pub(crate) fn configured_set(
                 repository: set.repository.clone(),
             }))
         }
-        (
-            dx_adopt::dependency_sets::Ecosystem::Bazel
-            | dx_adopt::dependency_sets::Ecosystem::Uv
-            | dx_adopt::dependency_sets::Ecosystem::Npm
-            | dx_adopt::dependency_sets::Ecosystem::Ruby
-            | dx_adopt::dependency_sets::Ecosystem::PowerShell
-            | dx_adopt::dependency_sets::Ecosystem::Cargo
-            | dx_adopt::dependency_sets::Ecosystem::Maven
-            | dx_adopt::dependency_sets::Ecosystem::Nuget
-            | dx_adopt::dependency_sets::Ecosystem::Go
-            | dx_adopt::dependency_sets::Ecosystem::Cpan
-            | dx_adopt::dependency_sets::Ecosystem::Pub
-            | dx_adopt::dependency_sets::Ecosystem::Conan
-            | dx_adopt::dependency_sets::Ecosystem::Dub
-            | dx_adopt::dependency_sets::Ecosystem::Fpm
-            | dx_adopt::dependency_sets::Ecosystem::Zig
-            | dx_adopt::dependency_sets::Ecosystem::LuaRocks
-            | dx_adopt::dependency_sets::Ecosystem::Julia
-            | dx_adopt::dependency_sets::Ecosystem::Hex
-            | dx_adopt::dependency_sets::Ecosystem::Composer
-            | dx_adopt::dependency_sets::Ecosystem::Opam
-            | dx_adopt::dependency_sets::Ecosystem::SwiftPm
-            | dx_adopt::dependency_sets::Ecosystem::Ansible
-            | dx_adopt::dependency_sets::Ecosystem::Bicep
-            | dx_adopt::dependency_sets::Ecosystem::Cabal,
-            _,
-        ) => Err(operational(
+        (_, None) => Err(operational(
             invocation,
             out,
             err,

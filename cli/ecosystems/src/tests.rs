@@ -15,11 +15,39 @@ fn rows_are_complete_and_unique() {
         assert!(!row.name.is_empty());
         assert!(!row.manifest.is_empty(), "{} has no manifest", row.name);
         assert!(
-            row.alt_manifests.iter().all(|alt| !alt.is_empty() && *alt != row.manifest),
+            row.alt_manifests
+                .iter()
+                .all(|alt| !alt.is_empty() && *alt != row.manifest),
             "{} has a bad alternate manifest",
             row.name
         );
         assert!(seen.insert(row.name.as_str()), "duplicate {}", row.name);
+        assert!(
+            row.plan_backend == "pinned"
+                || row.check_backend == "pinned"
+                || row.pinned_reason.is_none(),
+            "{} has a pinned reason but no pinned backend",
+            row.name
+        );
+        if row.plan_backend == "pinned" || row.check_backend == "pinned" {
+            assert!(
+                row.pinned_reason
+                    .as_deref()
+                    .is_some_and(|reason| !reason.is_empty()),
+                "{} is pinned without a reason",
+                row.name
+            );
+        }
+        assert!(
+            !row.lock_required || !row.lockfiles.is_empty(),
+            "{} requires a lock it does not name",
+            row.name
+        );
+        assert!(
+            !row.license_audit || row.audit,
+            "{} audits licenses but not advisories",
+            row.name
+        );
         assert!(
             Ecosystem::parse(&row.name).is_some(),
             "{} unparsed",
@@ -40,6 +68,27 @@ fn every_variant_has_a_row() {
 fn supported_list_matches_rows() {
     let names: Vec<&str> = rows().iter().map(|row| row.name.as_str()).collect();
     assert_eq!(SUPPORTED_ECOSYSTEMS, names.join(", "));
+}
+
+#[test]
+fn unknown_name_is_rejected() {
+    let text = TABLE.replacen("\"uv\"", "\"nope\"", 1);
+    assert!(parse_rows(&text).is_err());
+}
+
+#[test]
+fn row_columns_resolve() {
+    assert!(Ecosystem::Cargo.license_audit() && !Ecosystem::Uv.license_audit());
+    assert!(Ecosystem::Zig.lock_required() && !Ecosystem::Cargo.lock_required());
+    assert_eq!(Ecosystem::Uv.pinned_reason(), None);
+    assert!(
+        Ecosystem::Ruby
+            .pinned_reason()
+            .is_some_and(|reason| reason.contains("bundle lock"))
+    );
+    assert_eq!(Ecosystem::PowerShell.name(), "powershell");
+    assert_eq!(Ecosystem::parse("swiftpm"), Some(Ecosystem::SwiftPm));
+    assert_eq!(Ecosystem::parse("Uv"), None);
 }
 
 #[test]
@@ -103,7 +152,11 @@ fn languages_name_known_ecosystems() {
     for language in languages() {
         assert!(!language.depcheck.is_empty(), "{} unnamed", language.name);
         for id in &language.ecosystems {
-            assert!(Ecosystem::parse(id).is_some(), "{} lists {id}", language.name);
+            assert!(
+                Ecosystem::parse(id).is_some(),
+                "{} lists {id}",
+                language.name
+            );
         }
     }
 }
@@ -125,7 +178,9 @@ fn backend_columns_name_a_module_or_pinned() {
     for row in rows() {
         for backend in [&row.plan_backend, &row.check_backend] {
             assert!(
-                backend == "pinned" || backend == &row.name || (row.name == "pub" && backend == "pub_dev"),
+                backend == "pinned"
+                    || backend == &row.name
+                    || (row.name == "pub" && backend == "pub_dev"),
                 "{} names backend {backend}",
                 row.name
             );

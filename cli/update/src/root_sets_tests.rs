@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 51] = [
+const EXPECTED_NAMES: [&str; 52] = [
     "d_app_dub",
     "dart_apitool_deps",
     "dub_fixture",
@@ -58,6 +58,7 @@ const EXPECTED_NAMES: [&str; 51] = [
     "ocaml_fuzz",
     "rules_android_maven",
     "swiftpm",
+    "zig_deps_fixture",
 ];
 
 fn sets() -> Vec<DependencySet> {

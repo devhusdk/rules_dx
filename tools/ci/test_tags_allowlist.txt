@@ -30,9 +30,9 @@ d/tests/fixtures/bench/BUILD.bazel manual 1
 d/tests/fixtures/fuzz/BUILD.bazel manual 1
 dart/private/defs.bzl manual 1
 dart/tests/tags/BUILD.bazel manual 1
-deploy/private/release/tests/BUILD.bazel local 2
-deploy/private/release/tests/BUILD.bazel no-sandbox 2
-deploy/private/release/tests/BUILD.bazel requires-network 2
+deploy/private/release/tests/BUILD.bazel local 1
+deploy/private/release/tests/BUILD.bazel no-sandbox 1
+deploy/private/release/tests/BUILD.bazel requires-network 1
 elixir/private/defs.bzl manual 1
 erlang/private/defs.bzl manual 1
 erlang/tests/tags/BUILD.bazel manual 1

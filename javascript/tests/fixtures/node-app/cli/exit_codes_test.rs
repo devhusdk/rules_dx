@@ -28,8 +28,17 @@ fn registry_at(bin: &PathBuf, args: &[&str], working_dir: Option<&PathBuf>) -> O
     command.output().expect("registry runs")
 }
 
+fn registry_bin() -> PathBuf {
+    let rel = std::env::var("REGISTRY_BIN").expect("path env is set");
+    std::env::current_dir()
+        .map(|cwd| cwd.join(&rel))
+        .ok()
+        .filter(|candidate| candidate.exists())
+        .unwrap_or_else(|| path("REGISTRY_BIN"))
+}
+
 fn registry(args: &[&str], working_dir: Option<&PathBuf>) -> Output {
-    registry_at(&path("REGISTRY_BIN"), args, working_dir)
+    registry_at(&registry_bin(), args, working_dir)
 }
 
 fn stdout(run: &Output) -> String {
@@ -145,7 +154,7 @@ fn environment_file_is_used_when_no_flag_is_given() {
     let dir = scratch("env");
     let file = dir.join("mine.json");
     std::fs::write(&file, r#"[{"name":"solo","versions":["4.5.6"]}]"#).expect("write file");
-    let mut command = Command::new(path("REGISTRY_BIN"));
+    let mut command = Command::new(registry_bin());
     command.arg("list").env("REGISTRY_FILE", &file);
     let run = command.output().expect("registry runs");
     assert_eq!(stdout(&run), "solo 4.5.6\n");
@@ -187,7 +196,7 @@ fn staged_symlink_runs_the_same_entry() {
     let dir = scratch("staged");
     let link = dir.join("registry-link");
     let _ = std::fs::remove_file(&link);
-    std::os::unix::fs::symlink(path("REGISTRY_BIN").canonicalize().expect("bin"), &link)
+    std::os::unix::fs::symlink(registry_bin(), &link)
         .expect("symlink");
     let run = registry_at(&link, &["where"], Some(&dir));
     assert_eq!(run.status.code(), Some(0), "{}", stderr(&run));

@@ -225,6 +225,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_capnp_lint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_java_annotation_pass",
@@ -240,7 +242,9 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_java_annotation_pass.expected.txt",
+        "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_capnp_typecheck_pass",
@@ -260,6 +264,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_capnp_typecheck_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_typecheck_semantic_fail",
@@ -273,6 +279,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_capnp_typecheck_semantic_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_semantic_fail",
@@ -286,6 +294,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_capnp_lint_semantic_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_syntax_error",
@@ -297,7 +307,9 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_syntax_error.expected.txt",
+        "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_capnp_lint_missing_id",
@@ -309,7 +321,9 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_missing_id.expected.txt",
+        "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_capnp_lint_import_undeclared",
@@ -321,7 +335,9 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_import_undeclared.expected.txt",
+        "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_capnp_lint_import_escape_parent",
@@ -333,7 +349,9 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_import_escape_parent.expected.txt",
+        "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_capnp_lint_import_escape_absolute",
@@ -345,7 +363,9 @@ STRUCTURED_CASES = [
         "tool_names": ["capnp"],
         "tool_binaries": ["@dx_capnproto//src/capnp:capnp_tool"],
         "expected_file": ":matrix/matrix_capnp_lint_import_escape_absolute.expected.txt",
+        "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_avro_lint_avsc_pass",
@@ -468,6 +488,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_thrift_lint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_thrift_typecheck_pass",
@@ -484,6 +506,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_thrift_typecheck_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_thrift_typecheck_semantic_fail",
@@ -497,6 +521,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_thrift_typecheck_semantic_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_thrift_typecheck_warning_ignored",
@@ -508,6 +534,9 @@ STRUCTURED_CASES = [
         "tool_names": ["thrift"],
         "tool_binaries": ["@dx_thrift//:thrift_compiler"],
         "expected_file": ":matrix/matrix_thrift_typecheck_warning_ignored.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_thrift_lint_warning_fail",
@@ -519,6 +548,9 @@ STRUCTURED_CASES = [
         "tool_names": ["thrift"],
         "tool_binaries": ["@dx_thrift//:thrift_compiler"],
         "expected_file": ":matrix/matrix_thrift_lint_warning_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_thrift_lint_semantic_fail",
@@ -532,6 +564,8 @@ STRUCTURED_CASES = [
         "expected_file": ":matrix/matrix_thrift_lint_semantic_fail.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
+        "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_thrift_lint_syntax_error",
@@ -543,6 +577,9 @@ STRUCTURED_CASES = [
         "tool_names": ["thrift"],
         "tool_binaries": ["@dx_thrift//:thrift_compiler"],
         "expected_file": ":matrix/matrix_thrift_lint_syntax_error.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_thrift_lint_include_undeclared",
@@ -554,6 +591,9 @@ STRUCTURED_CASES = [
         "tool_names": ["thrift"],
         "tool_binaries": ["@dx_thrift//:thrift_compiler"],
         "expected_file": ":matrix/matrix_thrift_lint_include_undeclared.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_x86_64": True,
     },
     {
         "name": "matrix_qml_format_pass",

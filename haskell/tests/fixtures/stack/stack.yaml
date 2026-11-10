@@ -1,0 +1,5 @@
+snapshot: lts-24.15
+packages:
+- .
+extra-deps:
+- split-0.2.5

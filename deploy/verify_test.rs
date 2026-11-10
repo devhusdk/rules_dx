@@ -390,6 +390,21 @@ fn rubygems_case() {
     assert!(out.contains("staged rubygems_demo 0.0.0"), "{out}");
 }
 
+fn demo_case() {
+    let outdir = dx_testing::mkscratch("demo-dry-run").expect("scratch");
+    let want = std::env::var("DX_DEMO_WANT").expect("DX_DEMO_WANT must name the output line");
+    let run = run_deploy(
+        &data("DX_DEMO_PROG"),
+        "DX_DEMO_CONFIG",
+        &[outdir.to_string_lossy().as_ref()],
+        &[],
+    )
+    .expect("deploy launcher must execute");
+    let out = run.combined();
+    assert!(run.status.success(), "dry run failed\n{out}");
+    assert!(out.contains(&want), "output missing '{want}'\n{out}");
+}
+
 fn oci_stage(prog: &Path, config_var: &str, name: &str) -> PathBuf {
     let outdir = dx_testing::mkscratch(name).expect("scratch");
     let run = run_deploy(prog, config_var, &[outdir.to_string_lossy().as_ref()], &[])
@@ -1186,6 +1201,7 @@ fn deploy_verify() {
     match mode.as_str() {
         "archive" => archive_case(),
         "cloudflare" => cloudflare_case(),
+        "demo" => demo_case(),
         "github" => github_case(),
         "helm" => helm_case(),
         "homebrew" => homebrew_case(),

@@ -1018,6 +1018,18 @@ test_suite(
         ":rubygems_analysis",
         ":rubygems_unit",
         ":rubygems_verify",
+        ":crates_demo_verify",
+        ":hex_demo_verify",
+        ":maven_demo_verify",
+        ":npm_demo_verify",
+        ":nuget_demo_verify",
+        ":octopus_demo_verify",
+        ":conan_demo_verify",
+        ":cpan_demo_verify",
+        ":hackage_demo_verify",
+        ":luarocks_demo_verify",
+        ":opam_demo_verify",
+        ":packagist_demo_verify",
         ":validate_unit",
     ],
 )
@@ -2010,7 +2022,7 @@ deploy_analysis_test(
 genrule(
     name = "opam_demo_file",
     outs = ["opam_demo/opam"],
-    cmd = "printf 'opam-version: \"2.0\"\\n' > $@",
+    cmd = "printf 'opam-version: \"2.0\"\\nname: \"demo\"\\nversion: \"1.0.0\"\\nsynopsis: \"Demo\"\\nmaintainer: \"demo@example.com\"\\nauthors: \"demo\"\\nhomepage: \"https://example.com\"\\nbug-reports: \"https://example.com/issues\"\\nlicense: \"MIT\"\\n' > $@",
 )
 
 opam_deploy(
@@ -2428,4 +2440,256 @@ standard_attrs_unit_tests(
         "attrs_npm",
         "attrs_cloudflare",
     ],
+)
+
+rust_test(
+    name = "crates_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":crates_demo",
+        ":crates_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :crates_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :crates_demo)",
+        "DX_DEMO_WANT": "crates_deploy: staged crates_demo 0.0.0",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "hex_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":hex_demo",
+        ":hex_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :hex_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :hex_demo)",
+        "DX_DEMO_WANT": "hex_deploy: staged hex_demo ",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "maven_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":maven_demo",
+        ":maven_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :maven_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :maven_demo)",
+        "DX_DEMO_WANT": "maven_deploy: staged com.example:maven_demo:0.0.0",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "npm_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":npm_demo",
+        ":npm_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :npm_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :npm_demo)",
+        "DX_DEMO_WANT": "npm_deploy: released npm-demo ",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "nuget_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":nuget_demo",
+        ":nuget_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :nuget_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :nuget_demo)",
+        "DX_DEMO_WANT": "nuget_deploy: staged ",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "octopus_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":octopus_demo",
+        ":octopus_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :octopus_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :octopus_demo)",
+        "DX_DEMO_WANT": "octopus_deploy: staged octopus_demo 0.0.0",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "conan_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":conan_demo",
+        ":conan_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :conan_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :conan_demo)",
+        "DX_DEMO_WANT": "conan_deploy: staged conan_demo/0.0.0",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "cpan_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":cpan-demo",
+        ":cpan-demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :cpan-demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :cpan-demo)",
+        "DX_DEMO_WANT": "cpan_deploy: staged Cpan-Demo 0.01",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "hackage_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":hackage-demo",
+        ":hackage-demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :hackage-demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :hackage-demo)",
+        "DX_DEMO_WANT": "hackage_deploy: staged hackage-demo 0.0.0",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "luarocks_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":luarocks_demo",
+        ":luarocks_demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :luarocks_demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :luarocks_demo)",
+        "DX_DEMO_WANT": "luarocks_deploy: staged ",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "opam_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":opam-demo",
+        ":opam-demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :opam-demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :opam-demo)",
+        "DX_DEMO_WANT": "opam_deploy: would open a pull request",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "packagist_demo_verify",
+    srcs = ["//deploy:verify_test.rs"],
+    data = [
+        ":packagist-demo",
+        ":packagist-demo_config",
+    ],
+    env = {
+        "DX_DEMO_CONFIG": "$(rootpath :packagist-demo_config)",
+        "DX_DEMO_PROG": "$(rootpath :packagist-demo)",
+        "DX_DEMO_WANT": "packagist_deploy: would request an update of acme/demo",
+        "DX_VERIFY_MODE": "demo",
+    },
+    tags = [
+        "block-network",
+        "no-coverage",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
 )

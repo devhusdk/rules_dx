@@ -122,7 +122,12 @@ fn conan_publish(
         &["upload", &reference, "-r", spec.remote, "--confirm"],
     ];
     for args in steps {
-        conan_run(conan, &home, &source, args, secrets)?;
+        let step_secrets = if args.first() == Some(&"upload") {
+            secrets
+        } else {
+            &[]
+        };
+        conan_run(conan, &home, &source, args, step_secrets)?;
     }
     Ok(())
 }
@@ -299,5 +304,41 @@ mod tests {
         assert!(outdir.join("demo-recipe/conanfile.py").is_file());
         assert!(outdir.join("demo-recipe/src/demo.c").is_file());
         assert_eq!(launch(Some("1")), 1);
+    }
+
+    #[test]
+    fn credentials_reach_only_the_upload_step() {
+        use std::os::unix::fs::PermissionsExt;
+        let scratch = scratch_dir();
+        let log = scratch.path().join("log");
+        let conan = scratch.path().join("conan");
+        std::fs::write(
+            &conan,
+            format!(
+                "#!/bin/sh\necho \"$1:${{CONAN_PASSWORD:-none}}\" >> {}\n",
+                log.display()
+            ),
+        )
+        .expect("script");
+        std::fs::set_permissions(&conan, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        let source = scratch.path().join("staging/recipe");
+        std::fs::create_dir_all(&source).expect("recipe dir");
+        let spec = ConanLaunch {
+            recipe_rlocs: &[],
+            deploy_name: "demo",
+            package: "demo",
+            version: "1.2.0",
+            remote: "dx",
+            remote_url: "https://conan.invalid",
+            conan_rloc: "",
+        };
+        let secrets = [("CONAN_LOGIN_USERNAME", "user"), ("CONAN_PASSWORD", "fake-token")];
+        conan_publish(&conan, &scratch.path().join("staging"), &spec, "1.2.0", &secrets)
+            .expect("publish");
+        let seen = std::fs::read_to_string(&log).expect("log");
+        assert_eq!(
+            seen.lines().collect::<Vec<_>>(),
+            ["profile:none", "remote:none", "create:none", "upload:fake-token"]
+        );
     }
 }

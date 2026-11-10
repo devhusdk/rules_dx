@@ -731,7 +731,7 @@ DX_DEPLOY_LIVE=1 dx deploy --apply //pkg:conan_demo
 
 A live run uses a private `CONAN_HOME`, runs `conan profile detect`, `conan
 remote add`, `conan create` and `conan upload --confirm`. The credentials reach
-conan through the environment. A live run refuses version `0.0.0`.
+only the `conan upload` step, through the environment. A live run refuses version `0.0.0`.
 
 # hackage_deploy
 

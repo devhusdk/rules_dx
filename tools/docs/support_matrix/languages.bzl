@@ -611,7 +611,7 @@ LANGUAGES = [
     ),
     _language(
         "qt",
-        no_coverage = "no dx coverage wiring in the Qt rules",
+        coverage = ["llvm-cov"],
     ),
     _language(
         "ruby",

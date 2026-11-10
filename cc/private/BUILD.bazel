@@ -16,7 +16,7 @@ exports_files(
 
 cc_coverage_probe(
     name = "coverage_probe",
-    visibility = ["//visibility:private"],
+    visibility = ["//:__subpackages__"],
 )
 
 cc_wrapper_contract_tests(name = "wrapper_contract_tests")

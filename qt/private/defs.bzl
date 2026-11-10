@@ -17,6 +17,9 @@ load(
     "dx_test_upstream_kwargs",
     "dx_upstream_tags",
 )
+load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
+load("//cc/private:defs.bzl", "CC_COVERAGE_TRANSITION", "CcCoverageProbeInfo", "cc_coverage_mismatch", "cc_coverage_unsupported")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("//qt/private/sdk:pins.bzl", "RUNTIME_PLUGINS")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "QtInfo")
@@ -164,9 +167,24 @@ def _qt_executable_forward_impl(ctx):
     upstream = ctx.attr.upstream
     gui = _links_gui(upstream)
     extra = ctx.files.qml_imports + ctx.files.plugins + (ctx.files.fonts + ctx.files.platforms if gui else [])
+    run_environment = _run_environment(ctx, gui)
+    if ctx.configuration.coverage_enabled and hasattr(ctx.attr, "_collect_cc_coverage"):
+        toolchain = find_cc_toolchain(ctx, mandatory = False)
+        compiler = toolchain.compiler if toolchain else ""
+        reason = cc_coverage_unsupported(compiler) or cc_coverage_mismatch(compiler, ctx.attr._coverage_probe[0][CcCoverageProbeInfo].llvm)
+        if reason:
+            fail(reason.replace("cc_test", "qt_cc_test"))
+        coverage = dx_native_test_coverage(ctx, upstream)
+        environment = dict(run_environment.environment)
+        environment.update(coverage.env.environment)
+        return [
+            dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),
+            coverage.instrumented,
+            dx_run_environment(ctx, RunEnvironmentInfo(environment = environment, inherited_environment = coverage.env.inherited_environment)),
+        ] + ([upstream[OutputGroupInfo]] if OutputGroupInfo in upstream else [])
     out = [
         dx_symlink_default_info(ctx, "qt_*", ctx.runfiles(files = extra)),
-        dx_run_environment(ctx, _run_environment(ctx, gui)),
+        dx_run_environment(ctx, run_environment),
         dx_quality_sources(_quality_files(ctx), QT_SOURCE_SPECS, str(ctx.label)),
     ]
     if InstrumentedFilesInfo in upstream:
@@ -198,7 +216,8 @@ _qt_forward_test = rule(
     doc = "Forwards a Qt test and owns only its hand-written sources.",
     test = True,
     provides = [DefaultInfo, QualitySourcesInfo, RunEnvironmentInfo],
-    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), **(dx_lcov_merger_attr() | dx_forward_data_attr() | dx_run_env_attrs())),
+    attrs = dict(_EXECUTABLE_ATTRS, _headless = attr.bool(default = True), upstream = attr.label(mandatory = True, providers = [CcInfo], cfg = CC_COVERAGE_TRANSITION, doc = "Private rules_cc test."), _coverage_probe = attr.label(default = Label("//cc/private:coverage_probe"), cfg = CC_COVERAGE_TRANSITION), **(dx_lcov_merger_attr() | dx_native_coverage_attrs() | dx_forward_data_attr() | dx_run_env_attrs())),
+    toolchains = dx_native_coverage_toolchains(),
 )
 
 def _qt_frameworks_impl(ctx):

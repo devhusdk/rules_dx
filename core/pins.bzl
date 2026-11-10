@@ -7,10 +7,7 @@ def spoke_name(hub, package, replaced, replacement = "_"):
     return hub + "__" + package
 
 def pin_problem(sidecar, field, expected, found, pin):
-    """Returns why a package has no usable digest ("" when it is pinned).
-
-    `field` is the sidecar key that records `expected` and `found` is the label of its source file.
-    """
+    """Returns why a package has no usable digest ("" when it is pinned); `field` is the sidecar key recording `expected` and `found` is the label of its source file."""
     if not pin:
         return "has no entry in %s" % sidecar
     if pin.get(field, "") != expected:
@@ -24,10 +21,7 @@ def pin_entry_json(name, field, value, sha256):
     return json.encode_indent({name: {field: value, "sha256": sha256}}, indent = "  ")
 
 def download_pinned(rctx, archive, entry):
-    """Downloads the archive of a package repository from its `urls` or `url` attribute.
-
-    Fails with the digest to commit when the package is unpinned. `entry` is the sidecar entry to print.
-    """
+    """Downloads the archive of a package repository from its `urls` or `url` attribute, failing with the digest to commit when unpinned; `entry` is the sidecar entry to print."""
     attrs = rctx.attr
     kwargs = {"url": getattr(attrs, "urls", None) or [attrs.url], "output": archive}
     if attrs.sha256:
@@ -43,10 +37,7 @@ def download_pinned(rctx, archive, entry):
         ))
 
 def fetch_and_extract(rctx, archive, entry, type = ""):
-    """Downloads the archive of a package repository and extracts it with its single top directory stripped.
-
-    Fails like download_pinned when the package is unpinned. `type` is the archive type when the name of `archive` does not tell.
-    """
+    """Downloads the archive of a package repository and extracts it with its single top directory stripped, failing like download_pinned when unpinned; `type` is the archive type when the name of `archive` does not tell."""
     download_pinned(rctx, archive, entry)
     rctx.extract(archive, output = "_probe", type = type)
     top = rctx.path("_probe").readdir()

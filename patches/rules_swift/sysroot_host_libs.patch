@@ -1,7 +1,7 @@
 diff --git a/swift/internal/extensions/standalone_toolchain.bzl b/swift/internal/extensions/standalone_toolchain.bzl
 --- a/swift/internal/extensions/standalone_toolchain.bzl
 +++ b/swift/internal/extensions/standalone_toolchain.bzl
-@@ -122,6 +122,11 @@ def _standalone_toolchain_impl(repository_ctx):
+@@ -122,6 +122,13 @@ def _standalone_toolchain_impl(repository_ctx):
      if not repository_ctx.path("usr/bin/llvm-strip").exists:
          repository_ctx.symlink("usr/bin/llvm-objcopy", "usr/bin/llvm-strip")
  
@@ -9,6 +9,8 @@ diff --git a/swift/internal/extensions/standalone_toolchain.bzl b/swift/internal
 +        host_libs = repository_ctx.path(repository_ctx.attr.sysroot.same_package_label("REPO.bazel")).dirname.get_child("host_libs")
 +        for lib in host_libs.readdir():
 +            repository_ctx.symlink(lib, "usr/lib/swift/linux/" + lib.basename)
++        if not repository_ctx.path("usr/bin/ld").exists:
++            repository_ctx.symlink("usr/bin/ld.lld", "usr/bin/ld")
 +
      repository_ctx.file(".swift-version", repository_ctx.attr.swift_version)
  

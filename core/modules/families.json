@@ -407,6 +407,7 @@
         "//haskell/toolchain:extensions.bzl%haskell",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
         "//core:extensions.bzl%dx_pins",
+        "//core:extensions.bzl%dx_source_archives",
         "//lua:extensions.bzl%lua",
         "//msix:extensions.bzl%msix_tools",
         "//ocaml/toolchain:extensions.bzl%ocaml",

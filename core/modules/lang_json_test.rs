@@ -227,7 +227,7 @@ fn ecosystems_are_dx_ids_and_every_id_is_used() {
 #[test]
 fn languages_json_lists_every_depcheck_language() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("modules/families.json"))
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
         .expect("families.json");
     let mut rows = Vec::new();
     for dir in language_dirs(&root, &families) {

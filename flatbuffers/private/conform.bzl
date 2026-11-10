@@ -50,6 +50,8 @@ _flatbuffers_conform = rule(
     },
 )
 
+flatbuffers_conform = _flatbuffers_conform
+
 def flatbuffers_conform_test(name, library, baseline, root = None, baseline_root = None, **kwargs):
     """Fails the build when library breaks compatibility with baseline.
 

@@ -4,6 +4,8 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//flatbuffers:__subpackages__"])
 
+exports_files(["shape.fbs"])
+
 flatbuffers_library(
     name = "shape",
     srcs = ["shape.fbs"],

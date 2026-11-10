@@ -1,5 +1,6 @@
 # gazelle:ignore
 load("//cc:defs.bzl", "cc_test")
+load("//flatbuffers/private:conform.bzl", "flatbuffers_conform")
 load("//flatbuffers:defs.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard", "flatbuffers_conform_test", "flatbuffers_java_library", "flatbuffers_library", "flatbuffers_rust_library")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
@@ -209,25 +210,20 @@ flatbuffers_codegen_shard(
     tags = ["manual"],
 )
 
-flatbuffers_conform_test(
-    name = "foreign_root_conform",
+flatbuffers_conform(
+    name = "foreign_root_conform_conform",
+    testonly = True,
     baseline = "//flatbuffers/tests/conform/v1:shape",
     library = "//flatbuffers/tests/api",
     root = "//flatbuffers/tests/base:common.fbs",
     tags = ["manual"],
 )
 
-flatbuffers_conform_test(
-    name = "multi_baseline_conform",
+flatbuffers_conform(
+    name = "multi_baseline_conform_conform",
+    testonly = True,
     baseline = "//flatbuffers/tests/multi",
     library = "//flatbuffers/tests/conform/v1:shape",
-    tags = ["manual"],
-)
-
-flatbuffers_conform_test(
-    name = "deleted_field_conform",
-    baseline = "//flatbuffers/tests/conform/v2:shape",
-    library = "//flatbuffers/tests/conform/bad:shape",
     tags = ["manual"],
 )
 
@@ -376,4 +372,19 @@ rust_test(
         ":shapes_rs",
         "//flatbuffers:runtime_rust",
     ],
+)
+
+rust_test(
+    name = "conform_deleted_field_test",
+    srcs = ["conform_deleted_field_test.rs"],
+    data = [
+        "//flatbuffers/tests/conform/bad:shape.fbs",
+        "//flatbuffers/tests/conform/v2:shape.fbs",
+        "@dx_flatbuffers//:flatc",
+    ],
+    env = {
+        "BASELINE": "$(rootpath //flatbuffers/tests/conform/v2:shape.fbs)",
+        "FLATC": "$(rootpath @dx_flatbuffers//:flatc)",
+        "LIBRARY": "$(rootpath //flatbuffers/tests/conform/bad:shape.fbs)",
+    },
 )

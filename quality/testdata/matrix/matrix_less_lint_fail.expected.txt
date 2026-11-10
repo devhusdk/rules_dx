@@ -4,8 +4,10 @@ stages 1
 stage stylelint classes=less sources=matrix/stylelint_dirty.less
 completed_rounds 1
 convergence STABLE
-initial 1
-initial ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.less 19 19 fixable=false "Invalid hex color \"#zzz\" (color-no-invalid-hex)"
-terminal 1
-terminal ERROR stylelint color-no-invalid-hex matrix/stylelint_dirty.less 19 19 fixable=false "Invalid hex color \"#zzz\" (color-no-invalid-hex)"
+initial 2
+initial WARNING stylelint color-no-invalid-hex matrix/stylelint_dirty.less 19 19 fixable=false "Invalid hex color \"#zzz\" (color-no-invalid-hex)"
+initial WARNING stylelint declaration-property-value-no-unknown matrix/stylelint_dirty.less 19 19 fixable=false "Unknown value \"#zzz\" for property \"color\" (declaration-property-value-no-unknown)"
+terminal 2
+terminal WARNING stylelint color-no-invalid-hex matrix/stylelint_dirty.less 19 19 fixable=false "Invalid hex color \"#zzz\" (color-no-invalid-hex)"
+terminal WARNING stylelint declaration-property-value-no-unknown matrix/stylelint_dirty.less 19 19 fixable=false "Unknown value \"#zzz\" for property \"color\" (declaration-property-value-no-unknown)"
 replacements 0

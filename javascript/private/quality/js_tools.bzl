@@ -12,6 +12,7 @@ TOOLS = [
         config = config(
             suffixes = [".json"],
             files = ["biome.json"],
+            stage_native = True,
             tier_active = True,
             suppressions = ["biome-ignore"],
             suppression_extensions = [".cjs", ".css", ".cts", ".js", ".json", ".jsonc", ".jsx", ".mjs", ".mts", ".ts", ".tsx"],

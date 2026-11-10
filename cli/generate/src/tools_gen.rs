@@ -296,7 +296,7 @@ pub const TOOL_CONFIGS: &[ToolConfig] = &[
         kind: "file",
         tier_active: true,
         tier_base: true,
-        stage_native: false,
+        stage_native: true,
         tier_source: "dx",
         family: "",
         extensions: &[],

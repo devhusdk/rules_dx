@@ -2,9 +2,37 @@
 
 load("//deploy/private:config.bzl", "rlocation_path")
 load("//core:canonical.bzl", "is_canonical", "strip_canonical")
+load("//quality:native_config.bzl", "DxNativeConfigInfo")
 load("//quality:pipeline.bzl", "real_request_stage")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
+load("//quality/private:native_config_impl.bzl", "native_config_scratch_rel", "staged_config_rel", "tier_base_dirs")
 load("//rust/private/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
+
+# Mirrors TIER_BASE_TOOLS in quality/runner/src/real/staging.rs.
+RUNNER_TIER_BASE_TOOLS = [
+    "bicep",
+    "biome",
+    "checkmake",
+    "credo",
+    "detekt",
+    "docstrfmt",
+    "elvis",
+    "ffmt",
+    "gersemi",
+    "gplint",
+    "hadolint",
+    "hlint",
+    "mbake",
+    "pmd",
+    "redocly",
+    "regal",
+    "rustfmt",
+    "scalafix",
+    "scalafmt",
+    "selene",
+    "stylelint",
+    "tflint",
+]
 
 def _single_file(target):
     files = target[DefaultInfo].files.to_list()
@@ -87,6 +115,20 @@ def _runner_matrix_test_impl(ctx):
         configs[tool] = _single_file(ctx.attr.config_files[i]).short_path
         if i < len(ctx.attr.config_rels) and ctx.attr.config_rels[i]:
             configs[tool] = ctx.attr.config_rels[i]
+    for i, tool in enumerate(ctx.attr.tier_base_tools):
+        if tool in configs:
+            fail("runner_matrix_test: tool '" + tool + "' already has a config; tier base would bind it twice")
+        info = ctx.attr.tier_bases[i][DxNativeConfigInfo]
+        config_rel = native_config_scratch_rel(info.config.short_path)
+        if config_rel == None:
+            fail("runner_matrix_test: tier base config " + info.config.short_path + " escapes the scratch")
+        rel = staged_config_rel(tool, config_rel)
+        configs[tool] = rel
+        for f in sorted(info.closure.to_list(), key = lambda f: f.short_path):
+            closure_rel = native_config_scratch_rel(f.short_path)
+            if closure_rel == None:
+                fail("runner_matrix_test: tier base file " + f.short_path + " escapes the scratch")
+            tool_files.append((tool, rel if f == info.config else closure_rel, f))
     editions = {}
     for i, tool in enumerate(ctx.attr.edition_tools):
         editions[tool] = ctx.attr.edition_values[i]
@@ -314,6 +356,12 @@ _runner_matrix_test = rule(
         "config_files": attr.label_list(
             allow_files = True,
         ),
+        "tier_base_tools": attr.string_list(
+            doc = "Runner tier-base tools bound to their standard tier base.",
+        ),
+        "tier_bases": attr.label_list(
+            providers = [DxNativeConfigInfo],
+        ),
         "config_rels": attr.string_list(
             doc = "Optional mirror-relative config path per config_files entry; empty keeps the file's short path.",
         ),
@@ -419,10 +467,15 @@ def matrix_platform_case_names(cases, platform):
     """Returns the names of the cases that run on `platform`, per `matrix_case_platforms`."""
     return [case["name"] for case in cases if platform in matrix_case_platforms(case)]
 
+def _tier_base_tools(case):
+    bound = case.get("config_tools", []) + case.get("upstream_tools", [])
+    return [t for t in matrix_case_tools(case) if t in RUNNER_TIER_BASE_TOOLS and t not in bound]
+
 def runner_matrix_suite(name, cases, extra_cases = []):
     """Instantiates one _runner_matrix_test per matrix case plus a suite; extra_cases are existing tests."""
     tests = []
     for case in cases:
+        tier_base_tools = _tier_base_tools(case)
         _runner_matrix_test(
             name = case["name"],
             srcs = case.get("srcs", []),
@@ -446,6 +499,8 @@ def runner_matrix_suite(name, cases, extra_cases = []):
             config_tools = case.get("config_tools", []),
             config_files = case.get("config_files", []),
             config_rels = case.get("config_rels", []),
+            tier_base_tools = tier_base_tools,
+            tier_bases = ["//quality/tiers/%s:standard" % tier_base_dirs()[t] for t in tier_base_tools],
             edition_tools = case.get("edition_tools", []),
             edition_values = case.get("edition_values", []),
             dialect_tools = case.get("dialect_tools", []),

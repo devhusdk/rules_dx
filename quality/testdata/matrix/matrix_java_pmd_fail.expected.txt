@@ -4,8 +4,12 @@ stages 1
 stage pmd classes=java sources=quality/testdata/real_unused.java
 completed_rounds 1
 convergence STABLE
-initial 1
-initial INFO pmd UnusedPrivateMethod quality/testdata/real_unused.java 66 72 fixable=false "Avoid unused private methods such as 'helper()'."
-terminal 1
-terminal INFO pmd UnusedPrivateMethod quality/testdata/real_unused.java 66 72 fixable=false "Avoid unused private methods such as 'helper()'."
+initial 3
+initial WARNING pmd InstantiableUtilityClass quality/testdata/real_unused.java 35 41 fixable=false "All members are static. Consider adding a private no-args constructor to prevent instantiation."
+initial WARNING pmd UnusedPrivateMethod quality/testdata/real_unused.java 66 72 fixable=false "Avoid unused private methods such as 'helper()'."
+initial WARNING pmd UncommentedEmptyMethodBody quality/testdata/real_unused.java 75 77 fixable=false "Document empty method body"
+terminal 3
+terminal WARNING pmd InstantiableUtilityClass quality/testdata/real_unused.java 35 41 fixable=false "All members are static. Consider adding a private no-args constructor to prevent instantiation."
+terminal WARNING pmd UnusedPrivateMethod quality/testdata/real_unused.java 66 72 fixable=false "Avoid unused private methods such as 'helper()'."
+terminal WARNING pmd UncommentedEmptyMethodBody quality/testdata/real_unused.java 75 77 fixable=false "Document empty method body"
 replacements 0

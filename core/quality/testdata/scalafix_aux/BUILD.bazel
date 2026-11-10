@@ -69,7 +69,6 @@ scala_test(
     name = "core_test",
     srcs = ["CoreTest.scala"],
     aspect_hints = [":types"],
-    tags = ["manual"],
     deps = [
         ":core",
         "@maven//:org_scalactic_scalactic_2_13",

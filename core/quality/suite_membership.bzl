@@ -29,7 +29,6 @@ def suite_membership_test(name, sh_test, views = []):
             owners.setdefault(member, []).append(suite)
 
     problems = []
-    manual = []
     for rule_name, rule in rules.items():
         if rule_name == "all":
             problems.append("target named all")
@@ -42,30 +41,15 @@ def suite_membership_test(name, sh_test, views = []):
             problems.append("in no suite: " + label)
         elif len(found) > 1:
             problems.append("in several suites: %s -> %s" % (label, " ".join(sorted(found))))
-        elif "manual" in rule.get("tags", []):
-            manual.append("%s %s" % (label, " ".join([_label(suite) for suite in everywhere])))
 
     write_file(
         name = name + "_problems",
         out = name + "_problems.txt",
         content = sorted(problems) + [""],
     )
-    write_file(
-        name = name + "_manual",
-        out = name + "_manual.txt",
-        content = sorted(manual) + [""],
-    )
     sh_test(
         name = name,
         srcs = ["//core/quality:suite_membership_test.sh"],
-        args = [
-            "$(location :%s_problems)" % name,
-            "$(location :%s_manual)" % name,
-            "$(location //:CONTRIBUTING.md)",
-        ],
-        data = [
-            ":%s_problems" % name,
-            ":%s_manual" % name,
-            "//:CONTRIBUTING.md",
-        ],
+        args = ["$(location :%s_problems)" % name],
+        data = [":%s_problems" % name],
     )

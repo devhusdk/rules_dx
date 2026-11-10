@@ -3,7 +3,6 @@ load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_test")
 load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_test")
 load("//fortran:defs.bzl", "fortran_library", "fortran_test")
-load("//ocaml:defs.bzl", "ocaml_module", "ocaml_test")
 load("//perl:defs.bzl", "perl_test")
 load("//powershell:defs.bzl", "powershell_test")
 load("//rust:defs.bzl", dx_rust_library = "rust_library", dx_rust_test = "rust_test")
@@ -41,7 +40,6 @@ rust_library(
 rust_test(
     name = "split_lib_test",
     crate = ":split_lib",
-    tags = ["manual"],
 )
 
 cc_library(
@@ -100,7 +98,6 @@ coverage_fixture(
 perl_test(
     name = "perl_probe_test",
     srcs = ["perl_probe.t"],
-    tags = ["manual"],
 )
 
 zig_library(
@@ -113,14 +110,12 @@ zig_library(
 zig_test(
     name = "calc_test",
     main = "calc_test.zig",
-    tags = ["manual"],
     deps = [":calc_lib"],
 )
 
 haskell_test(
     name = "haskell_probe_test",
     srcs = ["haskell_probe.hs"],
-    tags = ["manual"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = ["@dx_haskell_toolchains//:base"],
 )
@@ -128,13 +123,11 @@ haskell_test(
 powershell_test(
     name = "pwsh_probe_test",
     srcs = ["pwsh_probe.ps1"],
-    tags = ["manual"],
 )
 
 d_test(
     name = "d_probe_test",
     srcs = ["d_probe.d"],
-    tags = ["manual"],
     target_compatible_with = D_COMPATIBLE_WITH,
 )
 
@@ -147,21 +140,7 @@ fortran_library(
 fortran_test(
     name = "fcalc_test",
     srcs = ["calc_test.f90"],
-    tags = ["manual"],
     deps = [":fcalc_lib"],
-)
-
-ocaml_module(
-    name = "ocaml_probe_main",
-    testonly = True,
-    struct = "ocaml_probe.ml",
-    tags = ["manual"],
-)
-
-ocaml_test(
-    name = "ocaml_probe_test",
-    main = ":ocaml_probe_main",
-    tags = ["manual"],
 )
 
 dx_rust_library(

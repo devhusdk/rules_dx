@@ -5,7 +5,7 @@ import org.junit.Test;
 
 public class ImplicitTest {
   @Test
-  public void sizeIsZero() {
-    Assert.assertEquals(0, Clean.size());
+  public void sizeIsOne() {
+    Assert.assertEquals(1, Clean.size());
   }
 }

@@ -82,7 +82,8 @@ def haskell_shard_action(ctx, info, package, config, stem, extract_tool):
     extract.add("--hoogle", hoogle.path)
     extract.add("--sources", manifest)
     extract.add("--package", package)
-    extract.add("--config", config)
+    if config:
+        extract.add("--config", config)
     extract.add("--out", shard)
     ctx.actions.run(
         executable = extract_tool,

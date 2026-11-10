@@ -12,7 +12,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
-use std::path::Path;
 
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
@@ -39,42 +38,17 @@ pub fn usage() -> &'static str {
 
 /// Parses argv into inputs, or returns the rejection text.
 pub fn parse(args: &[String]) -> Result<Options, String> {
-    let mut options = Options::default();
-    let mut index = 0;
-    while index < args.len() {
-        let flag = args[index].as_str();
-        let slot = match flag {
-            "--xml" => &mut options.xml,
-            "--srcs" => &mut options.srcs,
-            "--package" => &mut options.package,
-            "--language" => &mut options.language,
-            "--out" => &mut options.out,
-            _ => return Err(format!("unknown argument '{flag}'")),
-        };
-        let Some(value) = args.get(index + 1) else {
-            return Err(format!("{flag} needs a value"));
-        };
-        if !slot.is_empty() {
-            return Err(format!("{flag} given more than once"));
-        }
-        if value.is_empty() {
-            return Err(format!("{flag} must not be empty"));
-        }
-        *slot = value.clone();
-        index += 2;
-    }
-    for (flag, value) in [
-        ("--xml", &options.xml),
-        ("--srcs", &options.srcs),
-        ("--package", &options.package),
-        ("--language", &options.language),
-        ("--out", &options.out),
-    ] {
-        if value.is_empty() {
-            return Err(format!("{flag} is required"));
-        }
-    }
-    Ok(options)
+    let mut flags = documentation_ir::tool::flags(
+        args,
+        &["--xml", "--srcs", "--package", "--language", "--out"],
+    )?;
+    Ok(Options {
+        xml: flags.one("--xml")?,
+        srcs: flags.one("--srcs")?,
+        package: flags.one("--package")?,
+        language: flags.one("--language")?,
+        out: flags.one("--out")?,
+    })
 }
 
 /// Reads, converts, validates and writes one shard, returning the failure text on error.
@@ -103,10 +77,7 @@ pub fn run(options: &Options) -> Result<(), String> {
         .map_err(|error| format!("cannot read {}: {error}", options.srcs))?;
     let docs: Vec<&str> = documents.iter().map(|(_, text)| text.as_str()).collect();
     let shard = convert(&docs, &manifest, &options.package, &options.language)?;
-    let bytes = documentation_ir::encode_shard(&shard)
-        .map_err(|error| format!("cannot encode IR: {error:?}"))?;
-    fs::write(Path::new(&options.out), bytes)
-        .map_err(|error| format!("cannot write {}: {error}", options.out))
+    documentation_ir::tool::write_shard(&options.out, &shard)
 }
 
 pub use documentation_ir::escape_segment;

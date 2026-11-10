@@ -1,5 +1,6 @@
 """Lua rules for dx: the core Lua rules plus dx quality source ownership."""
 
+load("//libs/starlark:fuzz_bench.bzl", "merge_tags")
 load("//libs/starlark:wrapper.bzl", "dx_quality_sources", "dx_quality_srcs")
 load(
     "//lua/private:lua.bzl",
@@ -63,3 +64,13 @@ def lua_test(name, *, srcs = None, visibility = None, **kwargs):
     """A Lua test; it passes when main returns or calls os.exit(0)."""
     kwargs.setdefault("size", "small")
     _lua_test(name = name, srcs = srcs or [], visibility = visibility, **kwargs)
+
+def lua_bench(name, *, main, deps = None, tags = None, **kwargs):
+    """A lua_test run by dx bench: main calls require("dx_bench").run({{name, fn}, ...}), which times each function with os.clock and writes dx-bench.json."""
+    lua_test(
+        name = name,
+        main = main,
+        deps = (deps or []) + [Label("//lua/rules:bench")],
+        tags = merge_tags(tags, "dx-bench", "manual"),
+        **kwargs
+    )

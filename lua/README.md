@@ -49,6 +49,7 @@ lua_binary(
 | `lua_library` | Lua modules other Lua targets can require |
 | `lua_binary` | A Lua program that `bazel run` starts through the shared launcher |
 | `lua_test` | A Lua test; it passes when `main` returns or calls `os.exit(0)` |
+| `lua_bench` | `lua_test` for `dx bench`. `main` calls `require("dx_bench").run({{name, fn}, ...})`, timed with `os.clock`; seconds per call |
 
 | Attribute | Rules | Meaning |
 | --- | --- | --- |

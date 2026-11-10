@@ -10,13 +10,21 @@ load(
     "module_name",
 )
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "LUA_ENTRY_SUFFIX")
+load(":defs.bzl", "LUA_ENTRY_SUFFIX", "lua_library")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
 ])
+
+lua_library(
+    name = "bench",
+    srcs = ["bench/dx_bench.lua"],
+    strip_import_prefix = "/lua/rules/bench",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
 
 dx_wrapper_contract_tests(
     name = "wrapper_contract_tests",

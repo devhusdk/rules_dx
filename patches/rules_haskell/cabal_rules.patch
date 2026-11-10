@@ -65,12 +65,13 @@ index 9fbe27f..b09270f 100644
      if hs.toolchain.is_darwin:
          env["SDKROOT"] = "macosx"  # See haskell/private/actions/link.bzl
  
-@@ -277,6 +280,9 @@ def _prepare_cabal_inputs(
+@@ -277,6 +280,10 @@ def _prepare_cabal_inputs(
          extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
          extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
  
 +    if not (hs.toolchain.is_darwin or hs.toolchain.is_windows):
 +        extra_args.append("--ghc-option=-optl-fuse-ld=lld")
++        extra_args.append("--ghc-option=-optlm-fuse-ld=lld")
 +
      ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
      if dynamic_file:

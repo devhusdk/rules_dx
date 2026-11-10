@@ -225,7 +225,7 @@ fn roots(source: &Path) -> Vec<String> {
 
 #[test]
 fn core_loads_only_allowed_external_repos() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::source_snapshot();
     let roots = roots(&source);
     let found = dx_adopt::external_repos(&source, &roots).expect("load graph");
     let mut aliased: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
@@ -264,7 +264,7 @@ fn core_loads_only_allowed_external_repos() {
 
 #[test]
 fn language_helpers_exist() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::source_snapshot();
     for helper in LANGUAGE_HELPERS {
         assert!(
             source.join(format!("core/quality/{helper}.bzl")).is_file(),
@@ -275,7 +275,7 @@ fn language_helpers_exist() {
 
 #[test]
 fn pending_core_files_still_offend() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::source_snapshot();
     for path in PENDING_CORE_FILES {
         let found = dx_adopt::external_repos(&source, &[(*path).to_owned()]).expect("load graph");
         assert!(
@@ -290,7 +290,7 @@ fn pending_core_files_still_offend() {
 
 #[test]
 fn pending_tool_packages_still_offend() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::source_snapshot();
     for package in PENDING_TOOL_PACKAGES {
         let root = format!("{package}/BUILD.bazel");
         let found = dx_adopt::external_repos(&source, &[root.clone()]).expect("load graph");
@@ -310,7 +310,7 @@ fn pending_tool_packages_still_offend() {
 
 #[test]
 fn core_reaches_no_language_package() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::source_snapshot();
     let mut offenders: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let paths = roots(&source);
     for path in paths {
@@ -330,7 +330,7 @@ fn core_reaches_no_language_package() {
 
 #[test]
 fn pending_language_reach_still_offends() {
-    let source = dx_testing::rules_dx_source();
+    let source = dx_testing::source_snapshot();
     for path in PENDING_LANGUAGE_REACH {
         let found = loaded_labels(&dx_testing::read_text(&source.join(path)));
         assert!(

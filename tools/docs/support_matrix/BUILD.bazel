@@ -107,14 +107,16 @@ rust_binary(
 python_test(
     name = "macro_rows_test",
     srcs = ["macro_rows.py"],
-    data = [":languages.bzl"],
+    data = [
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
     main = "macro_rows.py",
     runner = "plain",
-    tags = [
-        "external",
-        "local",
-        "no-sandbox",
-    ],
 )
 
 real_source_target(

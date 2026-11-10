@@ -157,7 +157,7 @@ fn parse(source: &str) -> ModuleFile {
 
 #[test]
 fn every_non_dev_bazel_dep_has_a_consumer() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::source_snapshot();
     let module = parse(&dx_testing::read_runfiles("MODULE.bazel"));
     let mut starlark = Vec::new();
     shipped_starlark(&root, &root, &mut starlark);

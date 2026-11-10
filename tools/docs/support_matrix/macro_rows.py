@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Check that each bench and fuzz macro in a private/defs.bzl has a language row."""
 
+import json
 import os
 import re
 import sys
+import tempfile
 
 LANGUAGES = os.path.join("tools", "docs", "support_matrix", "languages.bzl")
 FIELDS = {"bench": "bench", "fuzz_test": "fuzz"}
@@ -12,15 +14,29 @@ ROW = re.compile(r'^    _language\(\n        "(\w+)",\n(.*?)^    \),$', re.M | r
 FIELD = re.compile(r'^        (bench|fuzz) = "(\w+)",$', re.M)
 
 
-def checkout_root():
-    # Unsandboxed, so the runfiles copy of languages.bzl links into the checkout.
-    linked = os.path.join(
-        os.environ["TEST_SRCDIR"], os.environ["TEST_WORKSPACE"], LANGUAGES
-    )
-    real = os.path.realpath(linked)
-    if not real.endswith(LANGUAGES):
-        sys.exit("cannot find the checkout from %s" % linked)
-    return real[: -len(LANGUAGES)]
+def runfile(key):
+    manifest = os.environ.get("RUNFILES_MANIFEST_FILE")
+    if manifest and os.path.isfile(manifest):
+        with open(manifest, encoding="utf-8") as handle:
+            for line in handle:
+                name, _, value = line.rstrip("\n").partition(" ")
+                if name == key:
+                    return value
+    return os.path.join(os.environ["TEST_SRCDIR"], key)
+
+
+def snapshot_root():
+    """Writes the declared source snapshots into a scratch tree and returns its root."""
+    root = tempfile.mkdtemp(dir=os.environ.get("TEST_TMPDIR"))
+    for variable in ("DX_SOURCES_JSON", "DX_FILES_JSON"):
+        with open(runfile(os.environ[variable]), encoding="utf-8") as handle:
+            files = json.load(handle)
+        for rel, text in files.items():
+            path = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8", newline="\n") as out:
+                out.write(text)
+    return root
 
 
 def macros(root):
@@ -66,7 +82,7 @@ def problems(root):
 
 
 def main():
-    bad = problems(checkout_root())
+    bad = problems(snapshot_root())
     for line in bad:
         print(line, file=sys.stderr)
     if bad:

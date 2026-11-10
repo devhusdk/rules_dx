@@ -38,6 +38,11 @@ Builds a NIF shared library from declared C or C++ sources and places it at priv
 
 Assembles a release tree with lib/<app>/ebin and lib/<app>/priv, carrying each app's NIF libraries in priv.
 
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `apps` | `label_list` | yes | erlang_app targets to include, with their dependencies. |
+| `_release_tree` | `label` | no |  |
+
 ### `erlang_app`
 
 ```python

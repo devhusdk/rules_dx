@@ -294,7 +294,7 @@ fn module_problems_are_reported() {
 
 #[test]
 fn every_item_is_in_exactly_one_family() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::source_snapshot();
     let module =
         ModuleFile::parse(&dx_testing::read_runfiles("MODULE.bazel")).expect("MODULE.bazel");
     let kinds = families(&dx_testing::read_runfiles("core/modules/families.json"));
@@ -493,7 +493,7 @@ fn without_corpus(dir: &std::path::Path) -> Vec<String> {
 
 #[test]
 fn moved_families_have_corpus_starlark_in_every_package() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::source_snapshot();
     let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     for (family, path) in &paths {
         let dir = root.join(path);
@@ -760,7 +760,7 @@ fn missing_check_targets(family: &str, build_file: Option<&str>) -> Vec<String> 
 
 #[test]
 fn moved_families_declare_the_source_check_targets() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::source_snapshot();
     let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     let mut problems = Vec::new();
     for (family, path) in &paths {
@@ -845,7 +845,7 @@ fn package_list_problems(family: &str, build_file: &str, packages: &[String]) ->
 
 #[test]
 fn moved_families_list_every_package_in_the_source_checks() {
-    let root = dx_testing::rules_dx_source();
+    let root = dx_testing::source_snapshot();
     let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     let mut problems = Vec::new();
     for (family, path) in &paths {

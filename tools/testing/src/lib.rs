@@ -410,6 +410,26 @@ pub fn rules_dx_source() -> PathBuf {
         .to_path_buf()
 }
 
+/// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON` and `DX_FILES_JSON` into a scratch tree and names its root.
+pub fn source_snapshot() -> PathBuf {
+    static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    ROOT.get_or_init(|| {
+        let root = mkscratch("source-snapshot").expect("snapshot scratch dir");
+        for variable in ["DX_SOURCES_JSON", "DX_FILES_JSON"] {
+            let key = env_text(variable);
+            let path = rlocation(key.trim()).unwrap_or_else(|error| panic!("{variable}: {error}"));
+            let files: std::collections::BTreeMap<String, String> =
+                serde_json::from_str(&read_text(&path))
+                    .unwrap_or_else(|error| panic!("{variable}: {error}"));
+            for (rel, text) in files {
+                write_text(&root.join(rel), &text);
+            }
+        }
+        root
+    })
+    .clone()
+}
+
 /// Writes `text` to `path`, creating its parent directories, and panics with the path on failure.
 pub fn write_text(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {

@@ -11,14 +11,16 @@ python_binary(
 python_test(
     name = "rule_names_test",
     srcs = ["rule_names.py"],
-    data = ["//docs:cli/commands/README.md"],
+    data = [
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
     main = "rule_names.py",
     runner = "plain",
-    tags = [
-        "external",
-        "local",
-        "no-sandbox",
-    ],
 )
 
 real_source_target(

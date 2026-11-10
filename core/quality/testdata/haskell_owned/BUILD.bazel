@@ -1,29 +1,22 @@
 load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
-load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality:policy.bzl", "quality_family")
 
-package(default_visibility = ["//core/quality:__pkg__", "//core/quality/testdata:__pkg__"])
+package(default_visibility = [
+    "//core/quality:__pkg__",
+    "//core/quality/testdata:__pkg__",
+    "//core/quality/tests/fixtures/consumer_policy:__pkg__",
+])
 
 quality_family(
     name = "haskell_family",
-    disabled = [
-        "audit",
-        "format",
-    ],
+    disabled = ["audit"],
     family_id = "haskell",
+    format = ["ormolu"],
     lint = [
         "hlint",
         "weeder",
     ],
     typecheck = ["ghc"],
-)
-
-workspace_policy(
-    name = "policy",
-    bases = select({
-        "//config:config_profile_strict": ["//core/quality/tiers/hlint:strict"],
-        "//conditions:default": ["//core/quality/tiers/hlint:standard"],
-    }),
-    families = [":haskell_family"],
 )
 
 haskell_library(

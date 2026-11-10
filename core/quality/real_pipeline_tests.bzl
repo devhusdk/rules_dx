@@ -1222,7 +1222,7 @@ def unsupported_platform_analysis_tests(name):
     """Instantiates the forced unsupported platform analysis test as one suite."""
     _haskell_subject(
         name = name + "_hlint_macos_subject",
-        config = "haskell_owned",
+        config = "shared",
         tags = ["manual"],
         target = "//core/quality/testdata/haskell_owned:clean",
     )
@@ -1243,7 +1243,7 @@ def unsupported_platform_analysis_tests(name):
     )
     _ocaml_subject(
         name = name + "_zanuda_windows_subject",
-        config = "ocaml_owned",
+        config = "shared",
         tags = ["manual"],
         target = "//core/quality/testdata/ocaml_owned:clean",
     )

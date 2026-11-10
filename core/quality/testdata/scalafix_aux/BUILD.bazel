@@ -11,10 +11,10 @@ quality_family(
     disabled = [
         "audit",
         "format",
-        "typecheck",
     ],
     family_id = "scala",
     lint = ["scalafix"],
+    typecheck = ["scalac"],
 )
 
 scalafix_config(

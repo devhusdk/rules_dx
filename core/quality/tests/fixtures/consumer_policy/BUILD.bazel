@@ -42,6 +42,10 @@ workspace_policy(
             "//config:config_profile_strict": ["//core/quality/tiers/yamllint:strict"],
             "//conditions:default": ["//core/quality/tiers/yamllint:standard"],
         }),
+    bases = select({
+        "//config:config_profile_strict": ["//core/quality/tiers/hlint:strict"],
+        "//conditions:default": ["//core/quality/tiers/hlint:standard"],
+    }),
     families = [
         ":ansible_family",
         ":api_spec_family",
@@ -50,16 +54,19 @@ workspace_policy(
         ":biome_json_family",
         ":cloudformation_family",
         ":cmake_family",
+        "//core/quality/testdata/dialyzer:elixir_family",
+        "//core/quality/testdata/dialyzer:erlang_family",
         "//core/quality/testdata/dotnet_owned:csharp_family",
         "//core/quality/testdata/go_owned:go_family",
         "//core/quality/testdata/nvcc_syntax:cuda_family",
+        "//core/quality/testdata/ocaml_owned:ocaml_family",
         "//core/quality/testdata/rust_owned:rust_family",
         "//core/quality/testdata/scalafix_aux:scala_family",
         ":cue_family",
         ":eslint_js_family",
         ":eslint_ts_family",
         ":formatted_toml_family",
-        ":haskell_family",
+        "//core/quality/testdata/haskell_owned:haskell_family",
         ":helm_family",
         ":html_template_family",
         ":jsonnet_family",
@@ -72,6 +79,7 @@ workspace_policy(
         ":make_family",
         ":nix_family",
         ":pkl_family",
+        ":python_ruff_family",
         ":rego_family",
         ":rst_family",
         ":sql_family",
@@ -117,10 +125,10 @@ quality_family(
     disabled = [
         "audit",
         "format",
-        "typecheck",
     ],
     family_id = "java",
     lint = ["pmd"],
+    typecheck = ["javac"],
 )
 
 quality_family(
@@ -128,10 +136,10 @@ quality_family(
     disabled = [
         "audit",
         "format",
-        "typecheck",
     ],
     family_id = "kotlin",
     lint = ["detekt"],
+    typecheck = ["kotlinc"],
 )
 
 quality_family(
@@ -610,16 +618,6 @@ filegroup(
 real_source_target(
     name = "clean_html_template",
     html_template_srcs = [":html_template_module"],
-)
-
-quality_family(
-    name = "haskell_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
-    family_id = "haskell",
-    format = ["ormolu"],
 )
 
 filegroup(

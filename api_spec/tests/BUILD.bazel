@@ -3,8 +3,9 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//api_spec:defs.bzl", "api_spec_library", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//go:defs.bzl", "go_library")
+load("//python:defs.bzl", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//typescript:defs.bzl", "typescript_library")
+load("//typescript:defs.bzl", "typescript_library", "typescript_test")
 load(":failure_tests.bzl", "openapi_codegen_failure_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -47,9 +48,21 @@ typescript_library(
     name = "client_ts",
     testonly = True,
     srcs = [":client"],
+    declaration = True,
     isolated_typecheck = False,
     transpiler = "tsc",
     tsconfig = "tsconfig.json",
+)
+
+typescript_test(
+    name = "client_ts_test",
+    srcs = ["client_ts_test.ts"],
+    declaration = True,
+    main = "client_ts_test.js",
+    package_json = "//:package_json",
+    runner = "node",
+    tsconfig = "tsconfig_test.json",
+    deps = [":client_ts"],
 )
 
 genrule(
@@ -146,6 +159,19 @@ genrule(
 build_test(
     name = "petstore_py_check_test",
     targets = [":petstore_py_check"],
+)
+
+python_test(
+    name = "client_python_test",
+    srcs = ["client_python_test.py"],
+    data = [":petstore_py"],
+    dep_group = "dx-python-tools",
+    main = "client_python_test.py",
+    runner = "plain",
+    deps = [
+        "@pypi//attrs",
+        "@pypi//httpx",
+    ],
 )
 
 openapi_rust_client(

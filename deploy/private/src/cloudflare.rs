@@ -732,7 +732,7 @@ mod tests {
         PagesEnv {
             token: token.to_owned(),
             account_id: None,
-            passthrough: vec![("PATH".to_owned(), "/usr/bin:/bin".to_owned())],
+            passthrough: vec![("PATH".to_owned(), String::new())],
             build_mode: "release".to_owned(),
         }
     }
@@ -754,7 +754,8 @@ mod tests {
   echo "home: $HOME"
   echo "leak: ${AMBIENT_SECRET:-unset}"
   echo "closure:"
-  (cd "$3" && find . -type f | sort)
+  walk() { for p in "$1"/* "$1"/.[!.]*; do [ -e "$p" ] || continue; if [ -d "$p" ]; then walk "$p"; else echo "$p"; fi; done; }
+  cd "$3" && walk .
 } > "$RECORD"
 printf '%s\n' '{"type":"wrangler-session","version":1}' > "$WRANGLER_OUTPUT_FILE_PATH"
 printf '%s\n' "{\"type\":\"pages-deploy-detailed\",\"version\":1,\"pages_project\":\"my-site\",\"deployment_id\":\"dep-123\",\"url\":\"https://abc.my-site.pages.dev\",\"environment\":\"$ENVIRONMENT\"}" >> "$WRANGLER_OUTPUT_FILE_PATH"

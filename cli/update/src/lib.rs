@@ -15,6 +15,7 @@ pub mod conventional;
 pub mod discover;
 pub mod edit;
 pub mod outcome;
+pub mod pins;
 pub mod policy;
 pub mod pr;
 pub mod recovery;

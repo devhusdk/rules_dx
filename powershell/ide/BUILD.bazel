@@ -1,4 +1,4 @@
-load("//modules:versions.bzl", "PWSH_VERSION")
+load("@dx_pins_data//:pins.bzl", "PINS")
 load("//powershell/rules:defs.bzl", "powershell_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
@@ -13,7 +13,7 @@ powershell_binary(
 ide_acquisition_test(
     name = "ide_acquisition_test",
     binary = ":version",
-    expected = PWSH_VERSION,
+    expected = PINS["dx_powershell_toolchains"]["version"],
 )
 
 real_source_target(

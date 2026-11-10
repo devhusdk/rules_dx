@@ -189,6 +189,13 @@ pub fn commit_sha(
     resolve_sha_from_commit_response(&body).map_err(|error| DxError::failure(error.to_string()))
 }
 
+/// The tag of the newest non-prerelease GitHub release of `package` (`owner/repo`).
+pub fn latest_tag(package: &str, base: &str, fetch: &dyn Fetch) -> Result<String, DxError> {
+    latest_release(package, base, fetch)
+        .map(|release| release.tag)
+        .map_err(|error| DxError::failure(error.reason))
+}
+
 fn latest_release(package: &str, base: &str, fetch: &dyn Fetch) -> Result<Release, LookupError> {
     let fail = |reason: String| problem("", package, reason);
     let body = fetch

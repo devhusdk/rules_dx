@@ -111,7 +111,7 @@ fn unquote(text: &str) -> Option<&str> {
     inner.split_once(quote).map(|(inside, _)| inside)
 }
 
-fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool), DxError> {
+pub(crate) fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool), DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     json.as_array()

@@ -2478,7 +2478,7 @@ _http_archive(
     urls = ["https://github.com/fmtlib/fmt/archive/refs/tags/12.1.0.tar.gz"],
 )
 
-dx_source_archives = use_extension("//libs/starlark:extensions.bzl", "dx_source_archives")
+dx_source_archives = use_extension("//core:extensions.bzl", "dx_source_archives")
 dx_source_archives.archive(
     name = "dx_flatbuffers",
     pins = "//flatbuffers:pins.json",

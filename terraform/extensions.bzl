@@ -80,7 +80,7 @@ def _repo_impl(ctx):
         sha256 = ctx.attr.sha256,
         output = "%s/%s/%s" % (ctx.attr.source, ctx.attr.version, ctx.attr.target),
     )
-    ctx.file("BUILD.bazel", """load("@rules_dx//terraform/rules:providers.bzl", "terraform_provider")
+    ctx.file("BUILD.bazel", """load("@rules_dx//terraform:defs.bzl", "terraform_provider")
 
 terraform_provider(
     name = "provider",
@@ -106,7 +106,7 @@ _provider_repo = repository_rule(
 
 def hub_build(providers):
     """Returns the hub BUILD file aliasing each provider to its platform repository."""
-    lines = ['load("@rules_dx//terraform/rules:providers.bzl", "terraform_provider")', "", 'package(default_visibility = ["//visibility:public"])', ""]
+    lines = ['load("@rules_dx//terraform:defs.bzl", "terraform_provider")', "", 'package(default_visibility = ["//visibility:public"])', ""]
     for target, (os, cpu) in sorted(TARGETS.items()):
         lines.append('config_setting(name = "%s", constraint_values = ["%s", "%s"])' % (target, os, cpu))
     lines.append("")

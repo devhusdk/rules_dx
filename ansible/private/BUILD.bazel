@@ -1,12 +1,26 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//ansible/private:layout_tests.bzl", "layout_unit_tests")
+load("//quality:fixtures.bzl", "real_source_target")
 
-exports_files(["lock.bzl"])
+package(default_visibility = ["//ansible:__subpackages__", "//tools/ci:__pkg__"])
+
+exports_files([
+    "defs.bzl",
+    "lock.bzl",
+    "update.bzl",
+])
+
+layout_unit_tests(name = "layout_unit")
 
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "defs.bzl",
+        "layout.bzl",
+        "layout_corpus.bzl",
+        "layout_tests.bzl",
         "lock.bzl",
+        "update.bzl",
     ],
     tags = ["corpus"],
 )

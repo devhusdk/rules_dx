@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//helm/rules:defs.bzl", "helm_chart")
+load("//helm:defs.bzl", "helm_chart")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "chart_provider_test", "owns_helm_class_test")
 

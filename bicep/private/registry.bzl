@@ -5,15 +5,7 @@ load("//quality/artifacts:bicep.bzl", "ARTIFACTS")
 _HEX = "0123456789abcdef"
 
 def registry_errors(ref, digest):
-    """Validates a registry module declaration.
-
-    Args:
-      ref: Module reference, br:HOST/PATH:TAG.
-      digest: Manifest digest, sha256: and 64 lowercase hex characters.
-
-    Returns:
-      A list of error strings.
-    """
+    """Returns the errors in a registry module declaration, ref and digest."""
     errors = []
     if not ref.startswith("br:"):
         errors.append("ref %r must start with br:" % ref)
@@ -91,7 +83,7 @@ def _impl(rctx):
     if actual != rctx.attr.digest:
         fail("bicep registry module %s: manifest digest mismatch\n  expected %s\n  actual   %s" % (rctx.attr.ref, rctx.attr.digest, actual))
     rctx.delete("home/dotnet")
-    rctx.file("BUILD.bazel", """load("@rules_dx//bicep/rules:defs.bzl", "bicep_registry_module")
+    rctx.file("BUILD.bazel", """load("@rules_dx//bicep:defs.bzl", "bicep_registry_module")
 
 bicep_registry_module(
     name = "module",

@@ -1,7 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//terraform/rules:defs.bzl", "terraform_library")
-load("//terraform/rules:providers.bzl", "terraform_provider")
+load("//terraform:defs.bzl", "terraform_library", "terraform_provider")
 load(":provider_tests.bzl", "collects_providers_test", "provider_unit_tests")
 
 provider_unit_tests(name = "provider_unit")

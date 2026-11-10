@@ -1,6 +1,6 @@
 """Prints the manifest digest to pin a Bicep registry module.
 
-Run through the bicep_pin target: bazel run //bicep/tools:pin -- br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0
+Run through the bicep_pin target: bazel run //bicep/private/tools:pin -- br:mcr.microsoft.com/bicep/avm/res/storage/storage-account:0.14.0
 It needs network access to the registry and uses anonymous access.
 """
 

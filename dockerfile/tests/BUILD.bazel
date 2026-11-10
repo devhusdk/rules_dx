@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//dockerfile/rules:defs.bzl", "dockerfile_library")
+load("//dockerfile:defs.bzl", "dockerfile_library")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "owns_dockerfile_class_test")
 

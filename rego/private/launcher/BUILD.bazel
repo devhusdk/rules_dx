@@ -1,7 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//rego:__subpackages__"])
 
 exports_files([
     "src/main.rs",

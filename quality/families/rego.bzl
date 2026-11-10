@@ -1,7 +1,7 @@
 """Rego real quality aspects."""
 
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
-load("//rego/rules:providers.bzl", "RegoInfo")
+load("//rego/private:providers.bzl", "RegoInfo")
 
 TOOLS = {
     "opa": {

@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//kubernetes:__subpackages__", "//tools/ci:__pkg__"])
 
 exports_files(["defs.bzl"])
 
@@ -9,7 +9,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "providers.bzl",
     ],
     tags = ["corpus"],
 )

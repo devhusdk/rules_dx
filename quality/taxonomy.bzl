@@ -2,7 +2,7 @@
 
 TAXONOMY = {
     "ansible": struct(
-        owner = "//ansible/rules:defs.bzl",
+        owner = "//ansible:defs.bzl",
         classes = ["ansible"],
     ),
     "api_spec": struct(
@@ -22,7 +22,7 @@ TAXONOMY = {
         classes = ["avro"],
     ),
     "bicep": struct(
-        owner = "//bicep/rules:defs.bzl",
+        owner = "//bicep:defs.bzl",
         classes = ["bicep"],
     ),
     "capnp": struct(
@@ -34,7 +34,7 @@ TAXONOMY = {
         classes = ["c", "cpp"],
     ),
     "cloudformation": struct(
-        owner = "//cloudformation/rules:defs.bzl",
+        owner = "//cloudformation:defs.bzl",
         classes = ["cloudformation"],
     ),
     "cmake": struct(
@@ -70,7 +70,7 @@ TAXONOMY = {
         classes = ["dart"],
     ),
     "dockerfile": struct(
-        owner = "//dockerfile/rules:defs.bzl",
+        owner = "//dockerfile:defs.bzl",
         classes = ["dockerfile"],
     ),
     "elixir": struct(
@@ -114,7 +114,7 @@ TAXONOMY = {
         classes = ["haskell"],
     ),
     "helm": struct(
-        owner = "//helm/rules:defs.bzl",
+        owner = "//helm:defs.bzl",
         classes = ["helm"],
     ),
     "html": struct(
@@ -154,7 +154,7 @@ TAXONOMY = {
         classes = ["kotlin"],
     ),
     "kubernetes": struct(
-        owner = "//kubernetes/rules:defs.bzl",
+        owner = "//kubernetes:defs.bzl",
         classes = ["kubernetes"],
     ),
     "latex": struct(
@@ -218,7 +218,7 @@ TAXONOMY = {
         classes = ["qml"],
     ),
     "rego": struct(
-        owner = "//rego/rules:defs.bzl",
+        owner = "//rego:defs.bzl",
         classes = ["rego"],
     ),
     "rst": struct(
@@ -258,7 +258,7 @@ TAXONOMY = {
         classes = ["swift"],
     ),
     "terraform": struct(
-        owner = "//terraform/rules:defs.bzl",
+        owner = "//terraform:defs.bzl",
         classes = ["terraform"],
     ),
     "text": struct(

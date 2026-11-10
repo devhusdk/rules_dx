@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//bicep/private:registry.bzl", "registry_errors")
-load("//bicep/rules:providers.bzl", "BicepInfo")
+load("//bicep/private:providers.bzl", "BicepInfo")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 

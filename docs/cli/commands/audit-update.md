@@ -718,7 +718,7 @@ bicep.registry_module(name = "storage", ref = "br:mcr.microsoft.com/bicep/avm/re
 ```
 
 - The manifest is `MODULE.bazel`; the digest in the tag is the pin, so the set has no lock. A check and an update report `pinned`.
-- To move a module, edit `ref` and set `digest` from `bazel run @rules_dx//bicep/tools:pin -- <ref>`. Dx never picks a registry tag.
+- To move a module, edit `ref` and set `digest` from `bazel run @rules_dx//bicep/private/tools:pin -- <ref>`. Dx never picks a registry tag.
 
 ### uv
 

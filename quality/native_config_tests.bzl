@@ -351,7 +351,7 @@ def native_config_unit_tests(name):
             expect_equal(
                 "missing_required_config_error uses the tool hint for kubeconform",
                 missing_required_config_error("kubeconform", "lint", {}, "//q:t"),
-                "kubeconform needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
+                "kubeconform needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint.",
             ),
             expect_equal(
                 "collect_native_configs resolves helm through the kubeconform hint",
@@ -366,7 +366,7 @@ def native_config_unit_tests(name):
             expect_equal(
                 "missing_required_config_error names kubernetes_schemas for helm",
                 missing_required_config_error("helm", "lint", {}, "//q:t"),
-                "helm needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes/rules:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
+                "helm needs a config. Declare kubernetes_schemas(name = \"kubernetes_schemas\", kubernetes_version = \"1.32.0\", schemas = [...]) from @rules_dx//kubernetes:defs.bzl and add aspect_hints = [\":kubernetes_schemas\"], or tag the target no-lint. helm validates its rendered manifests with the same schemas.",
             ),
             expect_equal(
                 "native_config rejects helm as a tool id",

@@ -594,7 +594,7 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
                 "dx does not resolve opam packages; edit the .opam file and regenerate the .opam.locked file with `opam lock`"
             }
             Ecosystem::Bicep => {
-                "dx does not pick Bicep module versions; edit the ref in MODULE.bazel and set digest from `bazel run //bicep/tools:pin -- <ref>`"
+                "dx does not pick Bicep module versions; edit the ref in MODULE.bazel and set digest from `bazel run //bicep/private/tools:pin -- <ref>`"
             }
             Ecosystem::SwiftPm => {
                 "dx does not resolve Swift packages; edit Package.swift and regenerate Package.resolved with `swift package resolve`"

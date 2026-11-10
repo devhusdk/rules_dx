@@ -3,7 +3,7 @@
 load("//quality:family_hooks.bzl", "default_files_hook")
 load("//quality:pipeline.bzl", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
-load("//terraform/rules:providers.bzl", "TerraformModuleInfo")
+load("//terraform/private:providers.bzl", "TerraformModuleInfo")
 
 TOOLS = {
     "terraform": {

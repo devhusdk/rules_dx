@@ -1,7 +1,7 @@
 """helm_chart proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//helm/rules:providers.bzl", "HelmChartInfo")
+load("//helm/private:providers.bzl", "HelmChartInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _owns_helm_class_impl(ctx):

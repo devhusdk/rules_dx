@@ -223,7 +223,7 @@ Language rules:
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
 - `@rules_dx_dotnet//csharp/rules:defs.bzl`: C#.
 - `@rules_dx_cuda//rules:defs.bzl`: CUDA.
-- `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
+- `@rules_dx//dockerfile:defs.bzl`: Dockerfiles.
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
 - `@rules_dx//cmake/rules:defs.bzl`: CMake files.
 - `@rules_dx//d:defs.bzl`: D.
@@ -234,13 +234,13 @@ Language rules:
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
 - `@rules_dx//java:defs.bzl`: Java.
 - `@rules_dx//javascript:defs.bzl`: JavaScript.
-- `@rules_dx//ansible/rules:defs.bzl`: Ansible.
-- `@rules_dx//bicep/rules:defs.bzl`: Bicep.
-- `@rules_dx//cloudformation/rules:defs.bzl`: CloudFormation.
+- `@rules_dx//ansible:defs.bzl`: Ansible.
+- `@rules_dx//bicep:defs.bzl`: Bicep.
+- `@rules_dx//cloudformation:defs.bzl`: CloudFormation.
 - `@rules_dx//julia:defs.bzl`: Julia.
 - `@rules_dx//kotlin:defs.bzl`: Kotlin.
 - `@rules_dx//lua:defs.bzl`: Lua.
-- `@rules_dx//kubernetes/rules:defs.bzl`: Kubernetes.
+- `@rules_dx//kubernetes:defs.bzl`: Kubernetes.
 - `@rules_dx//perl:defs.bzl`: Perl.
 - `@rules_dx//php:defs.bzl`: PHP.
 - `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
@@ -248,12 +248,12 @@ Language rules:
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
 - `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
 - `@rules_dx//quality/rules:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
-- `@rules_dx//rego/rules:defs.bzl`: Rego.
+- `@rules_dx//rego:defs.bzl`: Rego.
 - `@rules_dx//ruby:defs.bzl`: Ruby.
 - `@rules_dx//rust/rules:defs.bzl`: Rust.
 - `@rules_dx//scala:defs.bzl`: Scala.
 - `@rules_dx//sql/rules:defs.bzl`: SQL.
-- `@rules_dx//terraform/rules:defs.bzl`: Terraform.
+- `@rules_dx//terraform:defs.bzl`: Terraform.
 - `@rules_dx//typescript:defs.bzl`: TypeScript.
 - `@rules_dx//vue:defs.bzl`: Vue.
 - `@rules_dx//zig:defs.bzl`: Zig.
@@ -307,7 +307,7 @@ dx rule that wraps it.
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//vue:defs.bzl` | `vue_library` |
 | `@rules_zig//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` | `@rules_dx//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` |
-|  |  | `@rules_dx//ansible/rules:defs.bzl` | `ansible_library` |
+|  |  | `@rules_dx//ansible:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec/rules:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
 |  |  | `@rules_dx//asciidoc/rules:defs.bzl` | `asciidoc_library` |
@@ -315,8 +315,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_test` |
 |  |  | `@rules_dx//avro/rules:defs.bzl` | `avro_library` |
-|  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_library` |
-|  |  | `@rules_dx//bicep/rules:defs.bzl` | `bicep_registry_module` |
+|  |  | `@rules_dx//bicep:defs.bzl` | `bicep_library` |
+|  |  | `@rules_dx//bicep:defs.bzl` | `bicep_registry_module` |
 |  |  | `@rules_dx//capnproto/rules:defs.bzl` | `capnp_library` |
 |  |  | `@rules_dx//capnproto/rules:defs.bzl` | `std_import_path` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_bench` |
@@ -327,7 +327,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
-|  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_library` |
+|  |  | `@rules_dx//cloudformation:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_bench` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_binary` |
@@ -343,7 +343,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_test` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_wasm_binary` |
 |  |  | `@rules_dx//deploy/tests/cross:defs.bzl` | `cross_deployment` |
-|  |  | `@rules_dx//dockerfile/rules:defs.bzl` | `dockerfile_library` |
+|  |  | `@rules_dx//dockerfile:defs.bzl` | `dockerfile_library` |
 |  |  | `@rules_dx//elixir/private:defs.bzl` | `app_sources` |
 |  |  | `@rules_dx//elixir/private:defs.bzl` | `cover_sources` |
 |  |  | `@rules_dx//elixir/private:defs.bzl` | `elixir_app` |
@@ -459,7 +459,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_bench` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
-|  |  | `@rules_dx//helm/rules:defs.bzl` | `helm_chart` |
+|  |  | `@rules_dx//helm:defs.bzl` | `helm_chart` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_bench` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_binary` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_fuzz_test` |
@@ -484,8 +484,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_library` |
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_test` |
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_warnings_as_errors_opts` |
-|  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_library` |
-|  |  | `@rules_dx//kubernetes/rules:defs.bzl` | `kubernetes_schemas` |
+|  |  | `@rules_dx//kubernetes:defs.bzl` | `kubernetes_library` |
+|  |  | `@rules_dx//kubernetes:defs.bzl` | `kubernetes_schemas` |
 |  |  | `@rules_dx//libs/exec_os:defs.bzl` | `exec_os` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `native_launch_descriptor_path` |
 |  |  | `@rules_dx//libs/launcher:defs.bzl` | `target_is_windows` |
@@ -544,8 +544,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_runtime` |
 |  |  | `@rules_dx//quality/tools/javascript:defs.bzl` | `js_tool` |
 |  |  | `@rules_dx//quality/tools/javascript:defs.bzl` | `js_tool_binary` |
-|  |  | `@rules_dx//rego/rules:defs.bzl` | `rego_library` |
-|  |  | `@rules_dx//rego/rules:defs.bzl` | `rego_test` |
+|  |  | `@rules_dx//rego:defs.bzl` | `rego_library` |
+|  |  | `@rules_dx//rego:defs.bzl` | `rego_test` |
 |  |  | `@rules_dx//rst/rules:defs.bzl` | `rst_library` |
 |  |  | `@rules_dx//ruby:defs.bzl` | `ruby_bench` |
 |  |  | `@rules_dx//ruby:defs.bzl` | `ruby_coverage_lib_dirs` |
@@ -571,8 +571,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_fuzz_test` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_library` |
 |  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_test` |
-|  |  | `@rules_dx//terraform/rules:defs.bzl` | `collect_providers` |
-|  |  | `@rules_dx//terraform/rules:defs.bzl` | `terraform_library` |
+|  |  | `@rules_dx//terraform:defs.bzl` | `collect_providers` |
+|  |  | `@rules_dx//terraform:defs.bzl` | `terraform_library` |
 |  |  | `@rules_dx//thrift/rules:defs.bzl` | `thrift_library` |
 |  |  | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_doc_shard` |
 |  |  | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_shard_action` |

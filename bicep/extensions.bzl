@@ -22,7 +22,7 @@ def _impl(ctx):
 _registry_module = tag_class(
     doc = "Restores one br: module into a repository.",
     attrs = {
-        "digest": attr.string(mandatory = True, doc = "sha256: and 64 hex characters of the module manifest. Print it with `bazel run //bicep/tools:pin -- <ref>`."),
+        "digest": attr.string(mandatory = True, doc = "sha256: and 64 hex characters of the module manifest. Print it with `bazel run //bicep/private/tools:pin -- <ref>`."),
         "name": attr.string(mandatory = True, doc = "Repository name."),
         "ref": attr.string(mandatory = True, doc = "Module reference, br:HOST/PATH:TAG."),
     },

@@ -1,4 +1,4 @@
-load("@rules_dx//dockerfile/rules:defs.bzl", "dockerfile_library")
+load("@rules_dx//dockerfile:defs.bzl", "dockerfile_library")
 
 dockerfile_library(
     name = "dockerfile",

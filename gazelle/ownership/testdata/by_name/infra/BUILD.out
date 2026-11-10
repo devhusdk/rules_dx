@@ -1,4 +1,4 @@
-load("@rules_dx//bicep/rules:defs.bzl", "bicep_library")
+load("@rules_dx//bicep:defs.bzl", "bicep_library")
 
 bicep_library(
     name = "bicep",

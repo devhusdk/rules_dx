@@ -145,11 +145,11 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"ownership": {
 		files: map[string]string{"Dockerfile": "FROM scratch\n", "CMakeLists.txt": "project(demo)\n", "main.bicep": "targetScope = 'subscription'\n", "guide.adoc": "= Guide\n"},
-		kind:  "dockerfile_library", target: "dockerfile", defs: "dockerfile/rules:defs.bzl",
+		kind:  "dockerfile_library", target: "dockerfile", defs: "dockerfile:defs.bzl",
 		symbols: []string{"dockerfile_library"},
 		extraLoads: map[string][]string{
 			"@rules_dx//cmake/rules:defs.bzl":    {"cmake_library"},
-			"@rules_dx//bicep/rules:defs.bzl":    {"bicep_library"},
+			"@rules_dx//bicep:defs.bzl":    {"bicep_library"},
 			"@rules_dx//asciidoc/rules:defs.bzl": {"asciidoc_library"},
 		},
 	},

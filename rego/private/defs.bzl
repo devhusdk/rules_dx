@@ -93,7 +93,7 @@ _rego_test = rule(
         "data": attr.label_list(allow_files = [".json", ".yaml", ".yml"], doc = "Data files loaded with the Rego files."),
         "deps": attr.label_list(providers = [RegoInfo], doc = "Rego libraries the tests import."),
         "_opa": attr.label(default = "//config:tool_opa", allow_single_file = True, cfg = "target"),
-        "_launcher": attr.label(default = "//rego/launcher:opa_test_launcher", executable = True, cfg = "target"),
+        "_launcher": attr.label(default = "//rego/private/launcher:opa_test_launcher", executable = True, cfg = "target"),
         "_windows_os": attr.label(default = "@platforms//os:windows"),
     },
 )

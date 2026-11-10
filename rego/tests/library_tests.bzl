@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//quality:sources.bzl", "QualitySourcesInfo")
-load("//rego/rules:providers.bzl", "RegoInfo")
+load("//rego/private:providers.bzl", "RegoInfo")
 
 def _owns_rego_class_impl(ctx):
     env = analysistest.begin(ctx)

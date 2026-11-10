@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//terraform:extensions.bzl", "default_url", "provider_conflict_message", "provider_errors")
-load("//terraform/rules:providers.bzl", "TerraformModuleInfo", "provider_mirror_root")
+load("//terraform/private:providers.bzl", "TerraformModuleInfo", "provider_mirror_root")
 
 _SHA = "a" * 64
 _SRC = "registry.terraform.io/hashicorp/null"

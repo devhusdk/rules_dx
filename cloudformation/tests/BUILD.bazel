@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//cloudformation/rules:defs.bzl", "cloudformation_library")
+load("//cloudformation:defs.bzl", "cloudformation_library")
 load(":library_tests.bzl", "owns_cloudformation_class_test")
 
 cloudformation_library(

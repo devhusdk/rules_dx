@@ -1,14 +1,18 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//rego:__subpackages__", "//tools/ci:__pkg__"])
 
-exports_files(["defs.bzl"])
+exports_files([
+    "defs.bzl",
+    "providers.bzl",
+])
 
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "providers.bzl",
     ],
     tags = ["corpus"],
 )

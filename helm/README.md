@@ -1,6 +1,6 @@
 # Helm
 
-`helm_chart` (`//helm/rules:defs.bzl`) packages a chart and exposes its files to the quality
+`helm_chart` (`//helm:defs.bzl`) packages a chart and exposes its files to the quality
 pipeline as the `helm` class.
 
 ## Formatting

@@ -1,6 +1,6 @@
 """Bicep real quality aspects."""
 
-load("//bicep/rules:providers.bzl", "BicepInfo")
+load("//bicep/private:providers.bzl", "BicepInfo")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 

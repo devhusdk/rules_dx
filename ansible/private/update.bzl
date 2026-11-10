@@ -2,7 +2,7 @@
 
 load("@rules_py//py:defs.bzl", "py_binary")
 
-_SCRIPT = Label("//ansible/tools:lock.py")
+_SCRIPT = Label("//ansible/private/tools:lock.py")
 
 def ansible_lock(name, lock = "lock.json", **kwargs):
     """Adds a collection and its transitive dependencies to lock.json.

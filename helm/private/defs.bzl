@@ -1,6 +1,6 @@
 """Helm chart ownership for dx lint."""
 
-load("//helm/rules:providers.bzl", "HelmChartInfo")
+load("//helm/private:providers.bzl", "HelmChartInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
 # Helm's maxReleaseNameLen, pkg/chart/v2/util/validate_name.go.

@@ -22,9 +22,9 @@ type family struct {
 }
 
 var families = []family{
-	{"dockerfile_library", "dockerfile", "dockerfile/rules:defs.bzl", isDockerfile},
+	{"dockerfile_library", "dockerfile", "dockerfile:defs.bzl", isDockerfile},
 	{"cmake_library", "cmake", "cmake/rules:defs.bzl", isCMake},
-	{"bicep_library", "bicep", "bicep/rules:defs.bzl", isBicep},
+	{"bicep_library", "bicep", "bicep:defs.bzl", isBicep},
 	{"asciidoc_library", "asciidoc", "asciidoc/rules:defs.bzl", isAsciiDoc},
 }
 

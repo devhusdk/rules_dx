@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//helm:__subpackages__", "//tools/ci:__pkg__"])
 
 exports_files([
     "defs.bzl",
@@ -15,4 +15,10 @@ real_source_target(
         "providers.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//deploy/rules:__pkg__"],
 )

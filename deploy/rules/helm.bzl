@@ -1,6 +1,6 @@
 """Local-first Helm chart publisher for dx deploy."""
 
-load("//helm/rules:providers.bzl", "HelmChartInfo")
+load("//helm/private:providers.bzl", "HelmChartInfo")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_helm.bzl", "helm_version_error")

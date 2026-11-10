@@ -451,6 +451,7 @@ See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-str
 | `gplint` | catalog | `*.gplintrc`, `*.json` | none | dx |  |
 | `graphql_eslint` | catalog | `*.json` | none | dx |  |
 | `hadolint` | curated | `*.yaml`, `*.yml` | none | dx |  |
+| `helmfmt` | catalog | `.helmfmt` | none | dx |  |
 | `hlint` | catalog | `.hlint.yaml` | override copy | dx |  |
 | `julialint` | curated | `*.toml` | none | dx |  |
 | `kubeconform` | curated | `kubernetes.kubeconform.json` | none | dx |  |

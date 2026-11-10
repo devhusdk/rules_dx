@@ -114,7 +114,7 @@ index 9fbe27f..b09270f 100644
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
 -        inputs = depset([json_args], transitive = [c.inputs]),
-+        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files]),
          tools = attr_tools +
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
@@ -155,7 +155,7 @@ index 9fbe27f..b09270f 100644
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
 -        inputs = depset([json_args], transitive = [c.inputs]),
-+        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files]),
++        inputs = depset([json_args], transitive = [c.inputs, find_cc_toolchain(ctx).all_files, ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.files]),
          outputs = [
              package_database,
              binary,

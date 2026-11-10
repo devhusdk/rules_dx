@@ -48,4 +48,4 @@ Sign a copy with a test certificate:
 bazel run //msix/tests/fixtures/msix-app/app:app_sign -- -Pfx C:\certs\test.pfx -Out C:\out\dxmsix.msix
 ```
 
-`//tests` builds, inspects, installs and signs this example.
+`//msix/tests` builds, inspects, installs and signs this example.

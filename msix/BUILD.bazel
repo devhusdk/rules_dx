@@ -1,3 +1,5 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
@@ -31,4 +33,11 @@ platform(
         "@platforms//cpu:x86_32",
         "@platforms//os:windows",
     ],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_siblings = ["//msix/tests/fixtures/msix-app:README.md"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
 )

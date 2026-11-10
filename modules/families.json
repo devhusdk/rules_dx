@@ -363,6 +363,7 @@
         "make",
         "mdx",
         "modules",
+        "msix",
         "ocaml",
         "patches",
         "perl",
@@ -408,6 +409,7 @@
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
         "//libs/starlark:extensions.bzl%dx_pins",
         "//lua:extensions.bzl%lua",
+        "//msix:extensions.bzl%msix_tools",
         "//ocaml/toolchain:extensions.bzl%ocaml",
         "//php:extensions.bzl%php",
         "//powershell/toolchain:extensions.bzl%powershell",
@@ -569,6 +571,7 @@
         "//cc/toolchains:msvc_windows_x86_64",
         "//cc/toolchains:msvc_windows_x86_64_to_arm64",
         "//lua/private/toolchain:all",
+        "//msix/private/toolchains:all",
         "//tools/platforms:protoc_windows_arm64",
         "@dotnet_toolchains//:all",
         "@dx_d_toolchains//:all",
@@ -698,36 +701,6 @@
       "toolchains": [],
       "module": "rules_dx_js",
       "path": "families/js"
-    },
-    "msix": {
-      "aspects": [],
-      "bazel_deps": [
-        "bazel_skylib",
-        "llvm",
-        "platforms",
-        "rules_cc",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "platforms",
-        "tests",
-        "third_party",
-        "toolchains"
-      ],
-      "extensions": [
-        "//:extensions.bzl%msix_tools",
-        "@rules_dx//powershell/toolchain:extensions.bzl%powershell"
-      ],
-      "file_extensions": [],
-      "gazelle": [],
-      "module": "rules_dx_msix",
-      "path": "families/msix",
-      "repo_rules": [],
-      "toolchains": [
-        "//toolchains:all"
-      ]
     },
     "ocaml": {
       "aspects": [

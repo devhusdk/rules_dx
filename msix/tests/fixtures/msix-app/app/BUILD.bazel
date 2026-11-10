@@ -1,4 +1,4 @@
-# gazelle:resolve cc greet.h //tests/fixtures/msix-app/greet:greet
+# gazelle:resolve cc greet.h //msix/tests/fixtures/msix-app/greet:greet
 load("//cc/rules:defs.bzl", "cc_binary")
 load("//msix:defs.bzl", "msix_package", "msix_sign")
 load("//quality:fixtures.bzl", "real_source_target")

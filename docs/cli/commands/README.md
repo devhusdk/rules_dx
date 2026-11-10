@@ -439,10 +439,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
 |  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
-|  |  | `@rules_dx_msix//:defs.bzl` | `compatible_with` |
-|  |  | `@rules_dx_msix//:defs.bzl` | `msix_package` |
-|  |  | `@rules_dx_msix//:defs.bzl` | `msix_sign` |
-|  |  | `@rules_dx_msix//:defs.bzl` | `publisher_cn` |
 |  |  | `@rules_dx//flatbuffers/private:defs.bzl` | `flatbuffers_library` |
 |  |  | `@rules_dx//flatbuffers/private:defs.bzl` | `resolve_root` |
 |  |  | `@rules_dx//flutter/private:defs.bzl` | `flutter_android_app` |
@@ -516,6 +512,10 @@ dx rule that wraps it.
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_build` |
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_library` |
 |  |  | `@rules_dx//mdx/private:defs.bzl` | `mdx_test` |
+|  |  | `@rules_dx//msix/private:defs.bzl` | `compatible_with` |
+|  |  | `@rules_dx//msix/private:defs.bzl` | `msix_package` |
+|  |  | `@rules_dx//msix/private:defs.bzl` | `msix_sign` |
+|  |  | `@rules_dx//msix/private:defs.bzl` | `publisher_cn` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `launcher_script` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_bench` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_binary` |
@@ -711,7 +711,7 @@ Packaging and deploy:
 - `@rules_dx//deploy/rules:octopus.bzl`: Octopus Deploy.
 - `@rules_dx//deploy/rules:pub.bzl`: pub.dev publish.
 - `@rules_dx//deploy/rules:pypi.bzl`: PyPI publish.
-- `@rules_dx_msix//:defs.bzl`: MSIX packages.
+- `@rules_dx//msix:defs.bzl`: MSIX packages.
 
 SDK and toolchain extensions:
 
@@ -721,7 +721,7 @@ SDK and toolchain extensions:
 - `@rules_dx_cuda//toolchain:extensions.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell/toolchain:gallery.bzl`: PowerShell Gallery modules.
-- `@rules_dx_msix//:extensions.bzl`: MSIX tools.
+- `@rules_dx//msix:extensions.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:extensions.bzl`: Qt SDK.
 
 API docs:

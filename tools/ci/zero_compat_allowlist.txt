@@ -38,7 +38,6 @@ cli/codegen_shard/src/writer.rs compat-word 2
 cli/depcheck/src/main.rs compat-word 2
 cli/depcheck/src/tests.rs compat-word 2
 cli/entrypoint/BUILD.bazel compat-word 3
-cli/entrypoint/consumer_completion/repo/BUILD.bazel compat-word 4
 cli/entrypoint/surface.bzl compat-word 5
 cli/entrypoint/surface_test.rs compat-word 6
 cli/env/src/main.rs compat-word 2

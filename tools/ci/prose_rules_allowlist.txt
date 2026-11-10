@@ -47,7 +47,6 @@ qt/README.md issue-number 1
 tools/ci/prose_rules_test.rs link-chain 1
 tools/docs/jvm/fixture/jvm_prose.md not-linted 1
 tools/docs/python/fixture/guide.md not-linted 1
-tools/docs/rust/fixture/consumer/repo/guide.md not-linted 1
 tools/docs/support_matrix/facts_tests.bzl issue-number 1
 tools/testing/BUILD.bazel issue-number 1
 tools/testing/floor/src/lib.rs issue-number 1

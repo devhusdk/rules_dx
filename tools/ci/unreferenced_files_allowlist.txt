@@ -43,7 +43,6 @@ dart/tests/fixtures/dart-app/model/BUILD.bazel orphan-target 1
 deploy/private/pins/BUILD.bazel orphan-target 1
 deploy/private/pins/repos.bzl unloaded-bzl 1
 deploy/private/release/repos.bzl unloaded-bzl 1
-deploy/tests/fixtures/consumer_resources/repo/BUILD.bazel orphan-target 1
 dockerfile/BUILD.bazel orphan-target 1
 dotnet/BUILD.bazel orphan-target 1
 elixir/BUILD.bazel orphan-target 1
@@ -120,8 +119,6 @@ rego/BUILD.bazel orphan-target 1
 rst/BUILD.bazel orphan-target 1
 ruby/BUILD.bazel orphan-target 1
 rust/BUILD.bazel orphan-target 1
-rust/tests/fixtures/consumer_hub/repo/BUILD.bazel orphan-target 1
-rust/tests/fixtures/consumer_hub/repo/crates.bzl unloaded-bzl 1
 scala/BUILD.bazel orphan-target 1
 scala/tests/fixtures/adopt-scala/build.sbt unreferenced-fixture 1
 scala/tests/fixtures/scalafmt/BUILD.bazel orphan-target 1

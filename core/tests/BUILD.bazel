@@ -159,10 +159,10 @@ wrapper_shape_kwargs_tests(name = "wrapper_shape_kwargs")
 
 wrapper_symlink_naming_tests(name = "wrapper_symlink_naming")
 
-genrule(
+write_file(
     name = "thin_demo_plain",
-    outs = ["thin_demo_plain.txt"],
-    cmd = "echo demo > $@",
+    out = "thin_demo_plain.txt",
+    content = ["demo", ""],
 )
 
 thin_demo_library_forward(

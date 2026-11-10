@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_cc//cc:cc_binary.bzl", "cc_binary")
 load("//cc:defs.bzl", "cc_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
@@ -13,11 +14,17 @@ cc_binary(
     ],
 )
 
-genrule(
+write_file(
     name = "launcher_test_entry",
     testonly = True,
-    outs = ["launcher_test.luaentry"],
-    cmd = "printf '_main/lua/private/runtime/launcher_test.lua\\n\\nhelper\\t_main/lua/private/runtime/launcher_test_helper.lua\\n' > $@",
+    out = "launcher_test.luaentry",
+    content = [
+        "_main/lua/private/runtime/launcher_test.lua",
+        "",
+        "helper\t_main/lua/private/runtime/launcher_test_helper.lua",
+        "",
+    ],
+    newline = "unix",
 )
 
 cc_test(

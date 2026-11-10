@@ -1,22 +1,17 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//api_spec/rules:__pkg__"])
 
-# keep
 rust_binary(
     name = "preflight",
     srcs = ["preflight_main.rs"],
-    crate_name = "openapi_codegen_preflight",
-    crate_root = "preflight_main.rs",
-    deps = ["//quality/adapter:quality_adapter"],
-)
-
-# keep
-rust_test(
-    name = "preflight_test",
-    srcs = ["preflight_main.rs"],
-    crate_name = "openapi_codegen_preflight",
+    aliases = aliases(
+        package_name = "api_spec/openapi_codegen_preflight",
+        normal = True,
+    ),
+    crate_name = "preflight",
     crate_root = "preflight_main.rs",
     deps = ["//quality/adapter:quality_adapter"],
 )
@@ -30,4 +25,21 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+rust_test(
+    name = "preflight_test",
+    aliases = aliases(
+        package_name = "api_spec/openapi_codegen_preflight",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":preflight",
+    deps = [],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

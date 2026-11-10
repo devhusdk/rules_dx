@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "openapi_codegen_preflight"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "preflight"
+path = "preflight_main.rs"

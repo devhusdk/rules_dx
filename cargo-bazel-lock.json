@@ -1,5 +1,5 @@
 {
-  "checksum": "2cabb0f89efdf52b4eb877210e3769441535a2cc122f4120983c0c752eedbb94",
+  "checksum": "a7b49024d54245f275205ee31a163535e8d5ffd4ad62725ae7157f4d27004215",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -16438,6 +16438,19 @@
       ],
       "version": "0.3.1"
     },
+    "openapi_codegen_preflight 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "openapi_codegen_preflight",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "openssl-probe 0.2.2": {
       "common_attrs": {
         "edition": "2021"
@@ -29106,6 +29119,7 @@
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
     "modules_tests 0.0.0": "modules_tests",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",
+    "openapi_codegen_preflight 0.0.0": "api_spec/openapi_codegen_preflight",
     "perl_extract 0.0.0": "tools/docs/perl/perl_extract",
     "php_extract 0.0.0": "tools/docs/php/php_extract",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",

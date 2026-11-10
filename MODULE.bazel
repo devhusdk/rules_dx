@@ -1940,6 +1940,7 @@ crate.from_cargo(
         "//tools/testing/starters:Cargo.toml",
         "//modules:Cargo.toml",
         "//wasi/testing:Cargo.toml",
+        "//api_spec/codegen:Cargo.toml",
         "//appimage/packer:Cargo.toml",
         "//qt/rust:Cargo.toml",
     ],

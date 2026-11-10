@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load(":defs.bzl", "avro_library")
+load(":missing.bzl", "dx_missing_avro_cpp")
 load(":providers.bzl", "AvroInfo")
 
 def _closure_impl(ctx):
@@ -22,6 +23,13 @@ def _extension_impl(ctx):
 
 _extension_test = analysistest.make(_extension_impl, expect_failure = True)
 
+def _missing_impl(ctx):
+    env = analysistest.begin(ctx)
+    asserts.expect_failure(env, "override_repo")
+    return analysistest.end(env)
+
+_missing_test = analysistest.make(_missing_impl, expect_failure = True)
+
 def avro_library_tests(name):
     """Instantiates the avro_library analysis tests.
 
@@ -33,4 +41,6 @@ def avro_library_tests(name):
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top")
     avro_library(name = name + "_wrong", srcs = ["testdata/wrong.txt"], tags = ["manual"])
     _extension_test(name = name + "_extension_test", target_under_test = ":" + name + "_wrong")
-    native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_extension_test"])
+    dx_missing_avro_cpp(name = name + "_missing", tags = ["manual"])
+    _missing_test(name = name + "_missing_test", target_under_test = ":" + name + "_missing")
+    native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_extension_test", ":" + name + "_missing_test"])

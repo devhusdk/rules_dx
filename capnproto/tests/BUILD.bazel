@@ -24,6 +24,10 @@ cc_test(
         "//conditions:default": ["-std=c++17"],
     }),
     deps = [":shapes_cc"],
+    target_compatible_with = select({
+        "@platforms//os:macos": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 # A second library over the same schemas must share the one compile per library.
@@ -46,6 +50,10 @@ cc_test(
         ":shapes_cc",
         ":shapes_cc_again",
     ],
+    target_compatible_with = select({
+        "@platforms//os:macos": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 capnp_codegen_shard(
@@ -168,6 +176,10 @@ java_test(
     test_class = "JavaRoundtripTest",
     use_testrunner = False,
     deps = [":shapes_java"],
+    target_compatible_with = select({
+        "@platforms//os:macos": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 capnp_codegen_shard(

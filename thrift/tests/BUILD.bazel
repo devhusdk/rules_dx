@@ -27,6 +27,10 @@ cc_test(
     }),
     linkstatic = True,
     deps = [":shapes_cc"],  # keep
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 thrift_codegen_shard(
@@ -144,6 +148,10 @@ sh_test(
         "undeclared.thrift",
         "//thrift:thrift_compiler",
     ],
+    target_compatible_with = select({
+        "@platforms//os:windows": ["@platforms//:incompatible"],
+        "//conditions:default": [],
+    }),
 )
 
 real_source_target(

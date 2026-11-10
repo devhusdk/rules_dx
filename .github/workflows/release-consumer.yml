@@ -45,7 +45,11 @@ jobs:
       TAG: ${{ inputs.tag || github.event.release.tag_name }}
       CELL: ${{ matrix.name }}
       KEY: ${{ matrix.key }}
+      BAZELISK_VERSION: "1.29.0"
     steps:
+      - uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # v0.19.1
+        with:
+          bazelisk-version: ${{ env.BAZELISK_VERSION }}
       - name: Write the quickstart consumer from the published source.json
         run: |
           set -euo pipefail
@@ -53,7 +57,7 @@ jobs:
           mkdir "$RUNNER_TEMP/consumer"
           cd "$RUNNER_TEMP/consumer"
           gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern source.json
-          echo "9.2.0" > .bazelversion
+          echo "9.3.1" > .bazelversion
           echo "# Empty on purpose." > BUILD.bazel
           echo "common --repo_env=DO_NOT_TRACK=1" > .bazelrc
           {

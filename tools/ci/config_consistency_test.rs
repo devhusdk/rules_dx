@@ -235,6 +235,24 @@ fn bazel_compatibility_floor_matches_bazelversion() {
 }
 
 #[test]
+fn release_consumer_writes_the_bazelversion_floor() {
+    let workflow = read_runfiles(".github/workflows/release-consumer.yml");
+    let written = workflow
+        .lines()
+        .find_map(|line| {
+            line.trim()
+                .strip_prefix("echo \"")?
+                .strip_suffix("\" > .bazelversion")
+        })
+        .expect("release-consumer.yml writes no .bazelversion");
+    assert_eq!(
+        written,
+        read_runfiles(".bazelversion").trim(),
+        "release-consumer.yml .bazelversion and the repo .bazelversion disagree"
+    );
+}
+
+#[test]
 fn docs_name_the_bazel_floor() {
     let floor = bazel_floor(&read_runfiles("MODULE.bazel"));
     let quickstart = format!("`.bazelversion`:\n\n```text\n{floor}\n```");

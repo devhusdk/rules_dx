@@ -387,6 +387,22 @@ pub(super) fn collect(
                     .filter(|lock| lock.ends_with("cabal.project.freeze"))
                     .cloned()
                     .collect();
+                if freezes.is_empty() {
+                    for lock in target
+                        .set
+                        .locks
+                        .iter()
+                        .filter(|l| l.ends_with("stack.yaml.lock"))
+                    {
+                        read_errors.push(dx_update::discover::LookupError {
+                            set: name.to_owned(),
+                            package: lock.clone(),
+                            reason: format!(
+                                "dx does not run stack; resolve {lock} with haskell_deps_resolve(stack_lock = ...) to write cabal.project.freeze"
+                            ),
+                        });
+                    }
+                }
                 merge(
                     &mut found,
                     cabal::outdated(

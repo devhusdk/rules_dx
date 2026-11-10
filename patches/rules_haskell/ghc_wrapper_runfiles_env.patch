@@ -1,0 +1,11 @@
+diff --git a/haskell/private/ghc_wrapper.sh b/haskell/private/ghc_wrapper.sh
+--- a/haskell/private/ghc_wrapper.sh
++++ b/haskell/private/ghc_wrapper.sh
+@@ -1,6 +1,7 @@
+ #!/usr/bin/env bash
+ set -ueo pipefail
+ export PATH=${PATH:-} # otherwise GCC fails on Windows
++unset RUNFILES_DIR RUNFILES_MANIFEST_FILE RUNFILES_MANIFEST_ONLY
+ 
+ drop_loaded_and_warning () {
+     # Drop messages that GHC produces on features that we rely upon.

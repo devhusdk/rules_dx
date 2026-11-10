@@ -1,0 +1,30 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+load("//rust/private:wrapper_tests.bzl", "dx_wasi_test_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_test(
+    name = "wasi_guest_test",
+    srcs = ["wasi_guest_test.rs"],
+    crate_root = "wasi_guest_test.rs",
+    env = {"DX_WASI_DECLARED": "declared"},
+    preopens = {"/data": ":input.txt"},
+    wasm = "wasi",
+)
+
+dx_wasi_test_tests(
+    name = "wasi_guest_analysis_test",
+    target = ":wasi_guest_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

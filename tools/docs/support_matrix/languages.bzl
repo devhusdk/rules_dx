@@ -273,7 +273,7 @@ ROWS = [
         "section": "targets",
         "title": "Qt",
     },
-    {"ci_tests": ["//wasi/private/testing:wasi_run_unit_test", "//wasi/private/testing:wasi_guest_test", "//wasi/private/testing:wasi_guest_analysis_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
+    {"ci_tests": ["//wasi/private/testing:wasi_run_unit_test", "//wasi/tests:wasi_guest_test", "//wasi/tests:wasi_guest_analysis_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "css", "section": "formats", "title": "CSS"},
     {"name": "graphql", "section": "formats", "title": "GraphQL"},
     {"name": "markdown", "section": "formats", "title": "Markdown"},

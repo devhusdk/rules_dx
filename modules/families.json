@@ -499,6 +499,7 @@
         ".rb",
         ".rbs",
         ".rego",
+        ".rs",
         ".rst",
         ".scala",
         ".sh",

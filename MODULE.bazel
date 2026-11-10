@@ -2104,6 +2104,7 @@ crate.from_cargo(
         "//tools/docs/protobuf:Cargo.toml",
         "//tools/docs/swift:Cargo.toml",
         "//.devcontainer:Cargo.toml",
+        "//capnproto/private/tools/capnpc_rust_dx:Cargo.toml",
         "//appimage/packer:Cargo.toml",
         "//qt/rust:Cargo.toml",
     ],

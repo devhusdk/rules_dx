@@ -1,5 +1,5 @@
 {
-  "checksum": "27014171c609b1d97d4a16c1bd519e7ae45393b70df653f88aac4fbe4d9d3e3f",
+  "checksum": "f5c3245f08238a6eb8cedc8d9f17972f87abbafca252e1aed3cb5ca6d9f19c70",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2632,6 +2632,19 @@
         }
       ],
       "version": "0.1.0"
+    },
+    "capnpc_rust_dx 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "capnpc_rust_dx",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "cargo-lock 11.1.0": {
       "common_attrs": {
@@ -29161,6 +29174,7 @@
     "appimage_packer 0.0.0": "appimage/appimage_packer",
     "avro_extract 0.0.0": "tools/docs/avro/avro_extract",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
+    "capnpc_rust_dx 0.0.0": "capnproto/private/tools/capnpc_rust_dx",
     "cc_context 0.0.0": "cc/cc_context",
     "cc_extract 0.0.0": "tools/docs/cc/cc_extract",
     "cc_tests 0.0.0": "cc/cc_tests",

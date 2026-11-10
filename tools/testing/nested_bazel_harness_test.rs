@@ -14,9 +14,13 @@ const PYTHON_FACTS: &str = "@@rules_py+//py:extensions.bzl%python_interpreters";
 #[cfg(target_os = "linux")]
 /// Starts the harness consumer with its checked-in lock.
 fn locked_consumer(name: &str) -> (Case, String) {
-    let lock = dx_testing::read_text(&dx_testing::env_file("DX_NESTED_HARNESS_LOCK"));
     let case = nested::harness_consumer(name);
-    case.write("MODULE.bazel.lock", &lock);
+    case.use_lock("harness");
+    let lock = if nested::recording() {
+        String::new()
+    } else {
+        dx_testing::read_text(&case.root().join("MODULE.bazel.lock"))
+    };
     (case, lock)
 }
 
@@ -26,6 +30,9 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
     let (case, lock) = locked_consumer("seed");
     let run = case.bazel(nested::HARNESS_QUERY);
     assert!(run.status.success(), "{}", run.combined());
+    if nested::recording() {
+        return;
+    }
 
     assert_eq!(
         dx_testing::read_text(&case.root().join("MODULE.bazel.lock")),
@@ -42,6 +49,9 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
 #[cfg(target_os = "linux")]
 #[test]
 fn a_download_outside_the_cache_sets_fails_with_its_url() {
+    if nested::recording() {
+        return;
+    }
     let (case, _) = locked_consumer("undeclared");
     let rules_py = "4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd";
     let entry = nested::cache::entry(&case.repository_cache(), rules_py);

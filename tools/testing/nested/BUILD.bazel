@@ -13,6 +13,7 @@ rust_library(
         "src/compose.rs",
         "src/footprint.rs",
         "src/lib.rs",
+        "src/record.rs",
     ],
     aliases = aliases(
         package_name = "tools/testing/dx_nested",

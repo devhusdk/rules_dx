@@ -191,14 +191,23 @@ def hermetic_qualification(
         **kwargs
     )
 
-def nested_bazel_test(name, *, network = False, repository_caches = None, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
-    """Declares a rust_test that runs a nested Bazel with the shared tags, env and repository cache sets."""
+def nested_bazel_test(name, *, network = False, cache = None, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
+    """Declares a rust_test that runs a nested Bazel with the shared tags, env and the cache set `cache`."""
     target_compatible_with = target_compatible_with or []
-    repository_caches = repository_caches or []
-    cache_env = {"DX_NESTED_REPOSITORY_CACHE": " ".join(["$(rlocationpath %s)" % cache for cache in repository_caches])} if repository_caches else {}
+    cache_data = []
+    cache_env = {}
+    if cache:
+        repository_cache = "@nested_cache_%s//:cache" % cache
+        locks = "//tools/testing/nested_cache:%s_locks" % cache
+        cache_data = [repository_cache, locks]
+        cache_env = {
+            "DX_NESTED_CACHE_SET": cache,
+            "DX_NESTED_LOCKS": "$(rlocationpaths %s)" % locks,
+            "DX_NESTED_REPOSITORY_CACHE": "$(rlocationpath %s)" % repository_cache,
+        }
     rust_test(
         name = name,
-        data = (data or []) + repository_caches + NESTED_BAZEL_DATA,
+        data = (data or []) + cache_data + NESTED_BAZEL_DATA,
         env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else NESTED_BAZEL_ENV) | cache_env | (env or {}),
         tags = (NESTED_BAZEL_NETWORK_TAGS if network else NESTED_BAZEL_TAGS) + (tags or []),
         target_compatible_with = target_compatible_with,

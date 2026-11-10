@@ -149,7 +149,7 @@ def python_bench(name, *, srcs = None, args = None, tags = None, deps = None, **
         name = name,
         srcs = srcs,
         args = ["-p", "dx_bench_plugin", "--benchmark-only"] + (args or []),
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         deps = (deps or []) + [Label("//python/private:bench_plugin")],
         **with_default_size(kwargs)
     )

@@ -98,7 +98,7 @@ def fsharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
         name = name,
         srcs = srcs + [Label("//fsharp/private:BenchMain.fs")],
         deps = (deps or []) + BENCHMARKDOTNET + [Label("@paket.main//fsharp.core")],
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )
 

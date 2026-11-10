@@ -38,7 +38,7 @@ real_source_target(
 
 dx_runner_attr_test(
     name = "parse_fuzz_attrs",
-    expected = {"tags": ["dx-fuzz", "manual"]},
+    expected = {"tags": ["dx-fuzz"]},
     runner = "parse_fuzz",
 )
 

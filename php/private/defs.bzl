@@ -82,6 +82,6 @@ def php_bench(name, *, srcs, data = None, env = None, tags = None, **kwargs):
             DX_BENCH_FILES = " ".join(["$(rlocationpath %s)" % bench for bench in srcs]),
             DX_PHPBENCH = "$(rlocationpath %s)" % phar,
         ),
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )

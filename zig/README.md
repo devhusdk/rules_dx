@@ -75,7 +75,7 @@ A package without a matching entry fails the fetch and prints the entry to commi
 
 ## Benchmarks
 
-`zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
+`zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
 
 ```python
 load("@rules_dx//zig:defs.bzl", "zig_bench")

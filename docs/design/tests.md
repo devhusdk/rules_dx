@@ -115,6 +115,15 @@ A test is the first of four kinds that can prove the behaviour.
 - A tag-forwarding probe uses a tag that is not banned.
 - A test whose tags a probe reads runs in the default set.
 
+## Bench and fuzz
+
+- A bench target is a test tagged `dx-bench`. It runs in the default set with a bounded run that fits its size.
+- `dx bench` runs the same test and reads its `dx-bench.json`.
+- A fuzz target is a `testonly` binary tagged `dx-fuzz`. `dx fuzz` runs its `<name>_run` runner for a time budget.
+- A fuzz target that is a test runs a bounded number of cases in the default set.
+- No bench or fuzz macro adds `manual` to a target it declares.
+- A bench or fuzz target for only some platforms says so with `target_compatible_with`.
+
 ## Duplicates
 
 - A test that proves what another test already proves is deleted.

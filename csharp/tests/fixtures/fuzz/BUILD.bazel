@@ -96,7 +96,7 @@ dx_runner_attr_test(
     name = "args_fuzz_attrs",
     expected = {
         "args": ["-max_total_time=1"],
-        "tags": ["dx-fuzz", "manual"],
+        "tags": ["dx-fuzz"],
     },
     runner = "args_fuzz",
 )

@@ -20,19 +20,19 @@ dx bench [--compare <path|ref>] [--max-regression <pct>] [--here] [scope ...] [-
 | `-o, --output text\|json` | Choose the output format. |
 | `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
-Tag a test `dx-bench`. Add `manual` so `dx test //...` skips it:
+Tag a test `dx-bench`. `dx test //...` runs it too:
 
 ```starlark
 sh_test(
     name = "parse_bench",
     srcs = ["parse_bench.sh"],
-    tags = ["dx-bench", "manual"],
+    tags = ["dx-bench"],
 )
 ```
 
 `dx bench` selects the `dx-bench` tests inside the scope with `attr(tags, ...)` over `tests(<scope>)`, then runs them with `--runs_per_test=1 --nocache_test_results --local_test_jobs=1 --test_output=errors --test_env=DX_BENCH=1`. Bazel flags after `--` are forwarded, except the ones dx owns.
 
-Every `<lang>_bench` macro declares `<name>` as the manual `dx-bench` test dx runs, and merges `tags` with `dx-bench` and `manual`. How attributes are split depends on the macro:
+Every `<lang>_bench` macro declares `<name>` as the `dx-bench` test dx runs, and merges `tags` with `dx-bench`. How attributes are split depends on the macro:
 
 - `cc_bench`, `d_bench`, `go_bench`, `haskell_bench`, `ocaml_bench`, `rust_bench`, `swift_bench` and `zig_bench` declare a private `<name>_bin` plus a `<name>` runner. Test attributes such as `size` (default `small`), `timeout`, `env`, `args`, `data`, `flaky` and `shard_count` go to `<name>`, the other attributes go to `<name>_bin`.
 - `java_bench`, `kotlin_bench` and `scala_bench` declare a JMH library `<name>_bin` plus a `<name>` runner, with the same split and the same `size` default.

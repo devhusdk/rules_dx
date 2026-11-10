@@ -42,8 +42,16 @@ dx_fuzz_binary = rule(
 )
 
 def dx_fuzz_binary_select(name, *, tags = None, visibility = None, testonly = True, target_compatible_with = None, **kwargs):
-    """Declares `<name>` as a `dx_fuzz_binary` with AddressSanitizer everywhere except Windows, where it is off and the pinned libFuzzer config is not applied."""
-    inner_tags = merge_tags([tag for tag in (tags or []) if tag != "dx-fuzz"], "manual")
+    """Declares `<name>` as a `dx_fuzz_binary` with AddressSanitizer everywhere except Windows, where it is off and the pinned libFuzzer config is not applied. `<name>_asan` is incompatible on Windows and `<name>_noasan` everywhere else."""
+    inner_tags = [tag for tag in (tags or []) if tag != "dx-fuzz"]
+    windows = select({
+        Label("@platforms//os:windows"): [],
+        "//conditions:default": [Label("@platforms//:incompatible")],
+    })
+    not_windows = select({
+        Label("@platforms//os:windows"): [Label("@platforms//:incompatible")],
+        "//conditions:default": [],
+    })
     noasan_kwargs = dict(kwargs)
     noasan_kwargs["pinned_libfuzzer"] = False
     dx_fuzz_binary(
@@ -51,7 +59,7 @@ def dx_fuzz_binary_select(name, *, tags = None, visibility = None, testonly = Tr
         asan = True,
         testonly = testonly,
         tags = inner_tags,
-        target_compatible_with = target_compatible_with,
+        target_compatible_with = (target_compatible_with or []) + not_windows,
         visibility = ["//visibility:private"],
         **kwargs
     )
@@ -60,7 +68,7 @@ def dx_fuzz_binary_select(name, *, tags = None, visibility = None, testonly = Tr
         asan = False,
         testonly = testonly,
         tags = inner_tags,
-        target_compatible_with = target_compatible_with,
+        target_compatible_with = (target_compatible_with or []) + windows,
         visibility = ["//visibility:private"],
         **noasan_kwargs
     )
@@ -110,7 +118,7 @@ def dx_fuzz_target(name, rule, *, tags = None, visibility = None, engine = "libf
     rule(
         name = name,
         testonly = True,
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        tags = merge_tags(tags, "dx-fuzz"),
         visibility = visibility,
         **attrs
     )
@@ -139,7 +147,7 @@ def dx_fuzz_test(
         name = name + "_bin",
         visibility = ["//visibility:private"],
         testonly = True,
-        tags = merge_tags(tags, "manual"),
+        tags = tags,
         **(build | binary_kwargs)
     )
     if fuzz_rule == None:

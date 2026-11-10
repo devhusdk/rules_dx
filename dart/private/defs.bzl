@@ -124,6 +124,6 @@ def dart_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kw
         main = main,
         srcs = srcs,
         deps = (deps or []) + [Label("//dart/private/bench")],
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )

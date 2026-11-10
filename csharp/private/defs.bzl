@@ -124,7 +124,7 @@ def csharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
         name = name,
         srcs = srcs + [Label("//csharp/private:BenchMain.cs")],
         deps = (deps or []) + BENCHMARKDOTNET,
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )
 

@@ -54,7 +54,7 @@ def dx_bench_test(
         name = binary,
         visibility = ["//visibility:private"],
         testonly = True,
-        tags = merge_tags(tags, "manual"),
+        tags = tags,
         **build
     )
     args = (["$(rootpath :" + binary + ")"] if pass_binary else []) + (argv or []) + run.pop("args", [])
@@ -63,7 +63,7 @@ def dx_bench_test(
     runner(
         name = name,
         data = run.pop("data", []) + [":" + binary],
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         testonly = True,
         visibility = visibility,
         **(dict(runner_kwargs or {}) | run)

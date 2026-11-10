@@ -118,6 +118,6 @@ def perl_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kw
         srcs = srcs,
         main = main,
         deps = (deps or []) + [Label("//perl/private:bench")],
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )

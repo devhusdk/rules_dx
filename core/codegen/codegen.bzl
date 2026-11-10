@@ -384,44 +384,94 @@ def codegen_bound_shard_providers(ctx, rule_kind, schema_kind, upstream_label, g
 
 CODEGEN_SHARD_WRITER_LABEL = Label("@dx_prebuilt//:codegen_shard_writer")
 
-def _prost_codegen_shard_impl(ctx):
-    generated = ctx.attr.generated
-    if OutputGroupInfo not in generated or "rust_generated_srcs" not in generated[OutputGroupInfo]:
-        fail(
-            "prost_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(generated.label) + " has no rust_generated_srcs output group (not a rust_prost_library)",
+def codegen_shard_rule(rule_kind, schema_kind, group, want, languages_doc, doc, generated_doc, codegen_info = None, languages = ()):
+    """Returns the shard rule for one schema family.
+
+    Args:
+      rule_kind: name of the rule, used in messages.
+      schema_kind: schema kind passed to the pairing check.
+      group: output group of the generated target that lists its files.
+      want: text in the parentheses of the missing output group message.
+      languages_doc: doc of the language attribute.
+      doc: doc of the rule.
+      generated_doc: doc of the generated attribute.
+      codegen_info: optional provider with a `language` field; when set, a
+        shard whose `language` differs from the generated target's fails.
+      languages: languages the codegen_info check applies to.
+
+    Returns:
+      The shard rule.
+    """
+
+    def _impl(ctx):
+        generated = ctx.attr.generated
+        producer = display_label(ctx.label)
+        if codegen_info != None and ctx.attr.language in languages and codegen_info in generated and generated[codegen_info].language != ctx.attr.language:
+            fail(
+                rule_kind + " " + producer + ": language " + ctx.attr.language +
+                " does not match " + display_label(generated.label) + ", which generates " +
+                generated[codegen_info].language + ". Point generated at a " + schema_kind + "_cc_library for cpp, " +
+                "at NAME_generated of a " + schema_kind + "_rust_library for rust, " +
+                "or at a " + schema_kind + "_java_library for java",
+            )
+        if OutputGroupInfo not in generated or group not in generated[OutputGroupInfo]:
+            fail(
+                rule_kind + " " + producer + ": " +
+                display_label(generated.label) + " has no " + group +
+                " output group (" + want + ")",
+            )
+        return codegen_bound_shard_providers(
+            ctx,
+            rule_kind,
+            schema_kind,
+            display_label(generated.label),
+            group,
+            generated[OutputGroupInfo][group].to_list(),
         )
-    return codegen_bound_shard_providers(
-        ctx,
-        "prost_codegen_shard",
-        "protobuf",
-        display_label(generated.label),
-        "rust_generated_srcs",
-        generated[OutputGroupInfo]["rust_generated_srcs"].to_list(),
+
+    return rule(
+        implementation = _impl,
+        doc = doc,
+        attrs = {
+            "entries": attr.string_list(
+                doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
+                mandatory = True,
+            ),
+            "generated": attr.label(doc = generated_doc, mandatory = True),
+            "language": attr.string(doc = languages_doc, mandatory = True),
+            "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
+        },
     )
 
-prost_codegen_shard = rule(
-    implementation = _prost_codegen_shard_impl,
-    doc = "Declares codegen plan entries for the sources prost generates.",
-    attrs = {
-        "entries": attr.string_list(
-            doc = "Codegen entry specs for the sources prost generates.",
-            mandatory = True,
-        ),
-        "generated": attr.label(
-            doc = "rust_prost_library whose generated Rust sources the entries bind.",
-            mandatory = True,
-        ),
-        "language": attr.string(
-            doc = "rust.",
-            mandatory = True,
-        ),
-        "_writer": attr.label(
-            default = "@dx_prebuilt//:codegen_shard_writer",
-            executable = True,
-            cfg = "exec",
-        ),
-    },
+def codegen_srcjar(ctx, tree, srcjar_name, mnemonic):
+    """Packs one generated tree artifact into a .srcjar and returns the File."""
+    srcjar = ctx.actions.declare_file(srcjar_name)
+    zip_args = ctx.actions.args()
+    zip_args.add("c")
+    zip_args.add(srcjar)
+    zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
+    ctx.actions.run(
+        executable = ctx.executable._zipper,
+        toolchain = None,
+        inputs = [tree],
+        outputs = [srcjar],
+        arguments = [zip_args],
+        mnemonic = mnemonic,
+        progress_message = "Packing " + srcjar.short_path,
+    )
+    return srcjar
+
+def _zip_entry(f):
+    return f.tree_relative_path + "=" + f.path
+
+prost_codegen_shard = codegen_shard_rule(
+    "prost_codegen_shard",
+    "protobuf",
+    "rust_generated_srcs",
+    "not a rust_prost_library",
+    "rust.",
+    "Declares codegen plan entries for the sources prost generates.",
+    "rust_prost_library whose generated Rust sources the entries bind.",
 )
 
 def _codegen_plan_subject_impl(ctx):

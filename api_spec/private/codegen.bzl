@@ -1,6 +1,6 @@
 """OpenAPI client generation: TypeScript (Redocly generate-client), Go (oapi-codegen), Python (openapi-python-client) and Rust (progenitor)."""
 
-load("//core/codegen:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
+load("//core/codegen:codegen.bzl", "codegen_shard_rule")
 load("//core:defs.bzl", "display_label")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
@@ -190,33 +190,12 @@ openapi_rust_client = rule(
     },
 )
 
-def _shard_impl(ctx):
-    generated = ctx.attr.generated
-    if OutputGroupInfo not in generated or OPENAPI_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
-        fail(
-            "openapi_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(generated.label) + " has no " + OPENAPI_GENERATED_SRCS_GROUP +
-            " output group (want an openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client)",
-        )
-    return codegen_bound_shard_providers(
-        ctx,
-        "openapi_codegen_shard",
-        "openapi",
-        display_label(generated.label),
-        OPENAPI_GENERATED_SRCS_GROUP,
-        generated[OutputGroupInfo][OPENAPI_GENERATED_SRCS_GROUP].to_list(),
-    )
-
-openapi_codegen_shard = rule(
-    implementation = _shard_impl,
-    doc = "Declares codegen plan entries for the file an openapi client rule generates. The file needs one entry with an EXEC_PATH suffix.",
-    attrs = {
-        "generated": attr.label(doc = "openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client whose output the entries bind.", mandatory = True),
-        "entries": attr.string_list(
-            doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
-            mandatory = True,
-        ),
-        "language": attr.string(doc = "typescript, go, python or rust.", mandatory = True),
-        "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
-    },
+openapi_codegen_shard = codegen_shard_rule(
+    "openapi_codegen_shard",
+    "openapi",
+    OPENAPI_GENERATED_SRCS_GROUP,
+    "want an openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client",
+    "typescript, go, python or rust.",
+    "Declares codegen plan entries for the file an openapi client rule generates. The file needs one entry with an EXEC_PATH suffix.",
+    "openapi_typescript_client, openapi_go_client, openapi_python_client or openapi_rust_client whose output the entries bind.",
 )

@@ -359,7 +359,7 @@ def _policy_clang_tidy_impl(ctx):
 
 _policy_clang_tidy_test = analysistest.make(
     _policy_clang_tidy_impl,
-    config_settings = {str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:cc_clang_tidy_bound_policy"))},
+    config_settings = {str(Label("//config:workspace")): str(Label("//core/quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy"))},
     extra_target_under_test_aspects = [clang_syntax_aspect],
 )
 

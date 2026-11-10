@@ -1,6 +1,7 @@
 """Erlang API reference shards read by the pinned edoc from the pinned OTP on the registered OTP toolchain."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/beam:shard.bzl", "OTP_TOOLCHAIN", "beam_shard_action", "beam_sources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
@@ -8,7 +9,7 @@ def erlang_shard_action(ctx, app, package, stem, driver, extract_tool):
     """Runs edoc from the pinned OTP and the extractor for one Erlang app.
 
     Args:
-      ctx: The rule or aspect context; it must carry the OTP toolchain.
+      ctx: The rule or aspect context; it must carry the OTP and coreutils toolchains.
       app: The documented app, which provides ErlangAppInfo.
       package: Package segment of the shard's symbol ids.
       stem: Output name prefix, relative to the target's package.
@@ -45,7 +46,7 @@ docs_erlang_shard = rule(
         "_extract": attr.label(cfg = "exec", default = Label("//tools/docs/beam/extract:beam_extract"), executable = True),
     },
     provides = [DocsShardInfo],
-    toolchains = [OTP_TOOLCHAIN],
+    toolchains = [OTP_TOOLCHAIN, COREUTILS_TOOLCHAIN_TYPE],
 )
 
 def erlang_doc_shard(name, app, package = "", **kwargs):

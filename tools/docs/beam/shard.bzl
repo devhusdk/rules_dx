@@ -8,7 +8,7 @@ OTP_TOOLCHAIN = "@rules_erlang//tools:toolchain_type"
 ELIXIR_TOOLCHAIN = "@rules_elixir//:toolchain_type"
 
 _ELIXIR_COMMAND = """set -eu
-PATH="$1"
+PATH="$PWD/$1"
 export PATH
 shift
 otp="$(cd "$(dirname "$1")" && pwd)"
@@ -21,7 +21,7 @@ exec "$elixir/bin/elixir" "$@"
 """
 
 _ERLANG_COMMAND = """set -eu
-PATH="$1"
+PATH="$PWD/$1"
 export PATH
 shift
 otp="$(cd "$(dirname "$1")" && pwd)"
@@ -53,7 +53,7 @@ def beam_shard_action(ctx, language, srcs, dep_beams, package, stem, driver, ext
     """Runs the pinned runtime over the sources and the extractor over its JSON.
 
     Args:
-      ctx: The rule or aspect context carrying the OTP toolchain, and the Elixir one for Elixir.
+      ctx: The rule or aspect context carrying the OTP and coreutils toolchains, and the Elixir one for Elixir.
       language: "elixir" or "erlang".
       srcs: The .ex or .erl files the shard documents.
       dep_beams: Compiled dependency files and ebin directories the Elixir compiler loads.

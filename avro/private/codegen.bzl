@@ -79,8 +79,8 @@ avro_cc_library = rule(
         "deps": attr.label_list(providers = [AvroInfo], doc = "avro_library targets to generate C++ for."),
         "namespace": attr.string(doc = "C++ namespace passed to avrogencpp."),
         "_avdl_union": attr.label(default = Label("//avro/private/tools/avdl_union"), executable = True, cfg = "exec"),
-        "_avrogencpp": attr.label(default = Label("@avro-cpp//:avrogencpp"), executable = True, cfg = "exec"),
-        "_runtime": attr.label(default = Label("@avro-cpp//:avro_cpp"), providers = [CcInfo]),
+        "_avrogencpp": attr.label(default = Label("@dx_avro_cpp//:avrogencpp"), executable = True, cfg = "exec"),
+        "_runtime": attr.label(default = Label("@dx_avro_cpp//:avro_cpp"), providers = [CcInfo]),
     },
     provides = [CcInfo],
 )

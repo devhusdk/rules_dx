@@ -255,7 +255,6 @@
         "aspect_rules_jest",
         "aspect_rules_js",
         "aspect_rules_ts",
-        "avro-cpp",
         "bazel_features",
         "bazel_lib",
         "bazel_linux_packages",
@@ -371,6 +370,7 @@
         "zig"
       ],
       "extensions": [
+        "//avro:extensions.bzl%avro_cc",
         "//cc:extensions.bzl%msvc",
         "//cc:extensions.bzl%gcc",
         "//cli/prebuilt:extension.bzl%dx_prebuilt",

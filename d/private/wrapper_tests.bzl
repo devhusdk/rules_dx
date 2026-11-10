@@ -1,6 +1,7 @@
 """Coverage analysis tests for D test wrappers."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:conformance.bzl", "coverage_env_tests")
 
 def _coverage_env_impl(ctx):
     env = analysistest.begin(ctx)
@@ -14,22 +15,9 @@ def _coverage_env_impl(ctx):
         asserts.false(env, "DX_D_COVERAGE_UPSTREAM" in run_env, "launcher env set without coverage")
     return analysistest.end(env)
 
-_ATTRS = {
-    "coverage": attr.bool(),
-    "upstream": attr.string(),
-}
-
-_cov_on_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = _ATTRS,
-    config_settings = {"//command_line_option:collect_code_coverage": True},
-)
-
-_cov_off_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = _ATTRS,
-    config_settings = {"//command_line_option:collect_code_coverage": False},
-)
+_COVERAGE = coverage_env_tests(_coverage_env_impl, attrs = {"upstream": attr.string()})
+_cov_on_test = _COVERAGE.on
+_cov_off_test = _COVERAGE.off
 
 def d_coverage_env_test(name, target, upstream, **kwargs):
     """Asserts a D test runs under the LCOV launcher with coverage on, and only then."""

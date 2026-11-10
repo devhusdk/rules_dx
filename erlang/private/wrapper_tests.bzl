@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
-load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//erlang/private/toolchain:cells.bzl", "cell_cases")
@@ -119,16 +119,9 @@ def _coverage_env_impl(ctx):
     asserts.equals(env, native, len([m for m in metadata if m.endswith("runtime_objects_list.txt")]) > 0)
     return analysistest.end(env)
 
-_coverage_env_on_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()},
-    config_settings = {"//command_line_option:collect_code_coverage": True},
-)
-
-_coverage_env_off_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()},
-)
+_COVERAGE = coverage_env_tests(_coverage_env_impl, attrs = {"apps_dirs": attr.string(), "native": attr.bool(), "source": attr.string()})
+_coverage_env_on_test = _COVERAGE.on
+_coverage_env_off_test = _COVERAGE.off
 
 def erlang_coverage_env_test(name, target, apps_dirs, source, native = False):
     """Asserts an Erlang test points coverdata_to_lcov at its app sources under coverage, and only then.

@@ -6,7 +6,6 @@ android/private/packaging/defs.bzl
 android/private/packaging/sign_aab.sh
 android/private/packaging/sign_apk.sh
 android/tests/fixtures/adopt-android/app/inspect_apk.sh
-android/tests/fixtures/native_lib/arch_test.sh
 android/tests/fixtures/rust_apk/adapter_test.sh
 android/tests/fixtures/rust_apk/apk_set_rejects.sh
 android/tests/fixtures/rust_apk/check_aab_rejects_one.sh
@@ -40,10 +39,6 @@ apple/tests/fixtures/swift_app/check_ipa.sh
 bcr_test_module/BUILD.bazel
 bcr_test_module/hello_test.sh
 cc/private/bench_run.sh
-cc/private/BUILD.bazel
-cc/private/clang_syntax.bzl
-cc/private/clang_tidy_run.sh
-cc/private/clang_tidy_run_test.sh
 cc/tests/fixtures/bench/run_test.sh
 cc/tests/fixtures/foreign_cmake/transition.bzl
 cc/tests/fixtures/fuzz/run_test.sh
@@ -60,9 +55,6 @@ core/quality/buildifier_config_test.sh
 core/quality/compile_check_exec.sh
 core/quality/compile_check_exec_test.sh
 core/quality/elixirc.bzl
-core/quality/fsc.bzl
-core/quality/nvcc_syntax.bzl
-core/quality/roslyn.bzl
 core/quality/suite_membership.bzl
 core/quality/suite_membership_test.sh
 core/quality/testdata/BUILD.bazel

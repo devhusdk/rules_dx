@@ -36,16 +36,7 @@ _CUDA_PASS_THROUGH = ["-Xcompiler", "--compiler-options", "-Xcudafe"]
 _DROP = ["-MD", "-MMD", "-MG", "-MP", "-fcolor-diagnostics", "-fdiagnostics-color"]
 _DROP_WITH_VALUE = ["-o", "-MF", "-MT", "-MQ", "--serialize-diagnostics"]
 _GCC_ONLY = ["-fno-canonical-system-headers", "-fcanonical-system-headers", "-fno-diagnostics-show-caret", "-fdiagnostics-color=never"]
-# bash on Windows rewrites /I-style arguments and INCLUDE-style variables as paths.
-_MSYS_NO_CONVERSION = {"MSYS_NO_PATHCONV": "1", "MSYS2_ARG_CONV_EXCL": "*", "MSYS2_ENV_CONV_EXCL": "*"}
 _MSVC_DROP_PREFIXES = ["Fo", "Fd", "Fe", "Fa", "Fp", "Fi", "showIncludes", "sourceDependencies"]
-
-def clang_action_env(env, driver):
-    """Returns a copy of env, with MSYS path conversion off for the msvc driver."""
-    out = dict(env)
-    if driver == "msvc":
-        out.update(_MSYS_NO_CONVERSION)
-    return out
 
 def _msvc_dropped(arg):
     return len(arg) > 1 and arg[0] in "/-" and arg[1:].startswith(tuple(_MSVC_DROP_PREFIXES))
@@ -231,14 +222,16 @@ def cuda_tidy_argv(tidy, argv, src, config = ""):
     return struct(argv = [tidy] + _config_flag(config) + [src, "--"] + flags, error = "")
 
 def _failing_tidy(ctx, log, src, error):
-    # run_shell: The shell redirects output or runs the bash runner script.
-    ctx.actions.run_shell(
+    ctx.actions.run(
         mnemonic = "ClangTidy",
         progress_message = "clang-tidy %{label}: " + src,
-        command = 'echo "$2" > "$1"; echo "$2" >&2; exit 1',
-        arguments = [log.path, error],
+        executable = ctx.executable._capture,
+        arguments = ["--fail", error],
         outputs = [log],
     )
+
+def _tidy_capture(log):
+    return ["--stdout", log.path, "--stderr", log.path, "--ignore-exit", "--expand-bazel", "--"]
 
 def _first(value):
     return value[0] if type(value) == "list" else value
@@ -292,7 +285,6 @@ def _clang_syntax_impl(target, ctx):
         tidy_closure = tidy_target[DxNativeConfigInfo].closure
     else:
         tidy_error = "clang_syntax: %s has no clang_tidy config; bind a clang_tidy_config or a policy with the tier base" % target.label
-    runner = ctx.file._clang_tidy_run
     argvs = []
     envs = []
     inputs = []
@@ -320,13 +312,12 @@ def _clang_syntax_impl(target, ctx):
                 _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
                 tidy_diagnostics.append(tidy_log)
                 continue
-            # run_shell: The shell redirects output or runs the bash runner script.
-            ctx.actions.run_shell(
+            ctx.actions.run(
                 mnemonic = "ClangTidy",
                 progress_message = "clang-tidy %{label}: " + src,
-                command = 'bash "$@"',
-                arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
-                inputs = depset([tidy, runner], transitive = [action.inputs, headers, tidy_closure]),
+                executable = ctx.executable._capture,
+                arguments = _tidy_capture(tidy_log) + tidy_argv.argv,
+                inputs = depset([tidy], transitive = [action.inputs, headers, tidy_closure]),
                 outputs = [tidy_log],
                 env = action.env,
                 resource_set = dx_heavy_resources,
@@ -347,19 +338,17 @@ def _clang_syntax_impl(target, ctx):
         requirements = {}
         if action.mnemonic == "ObjcCompile":
             requirements = dict(xcode_config.execution_info())
-        capture = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"'
+        capture = ["--stderr", log.path, "--status", status.path, "--"]
         if identity.driver == "msvc":
-            capture = 'log="$1"; status="$2"; shift 2; "$@" > "$log" 2>&1; echo "$?" > "$status"'
-        syntax_env = clang_action_env(base_env, identity.driver)
-        # run_shell: The shell redirects output or runs the bash runner script.
-        ctx.actions.run_shell(
+            capture = ["--stdout", log.path] + capture
+        ctx.actions.run(
             mnemonic = "ClangSyntax",
             progress_message = "Syntax check %{label}: " + src,
-            command = capture,
-            arguments = [log.path, status.path] + rewritten.argv,
+            executable = ctx.executable._capture,
+            arguments = capture + rewritten.argv,
             inputs = all_inputs,
             outputs = [log, status],
-            env = syntax_env,
+            env = base_env,
             execution_requirements = requirements,
             resource_set = dx_heavy_resources,
         )
@@ -369,15 +358,14 @@ def _clang_syntax_impl(target, ctx):
             if tidy_argv.error != "":
                 _failing_tidy(ctx, tidy_log, src, tidy_argv.error)
             else:
-                # run_shell: The shell redirects output or runs the bash runner script.
-                ctx.actions.run_shell(
+                ctx.actions.run(
                     mnemonic = "ClangTidy",
                     progress_message = "clang-tidy %{label}: " + src,
-                    command = 'bash "$@"',
-                    arguments = [runner.path, tidy_log.path] + tidy_argv.argv,
-                    inputs = depset([tidy, runner], transitive = [all_inputs, tidy_closure]),
+                    executable = ctx.executable._capture,
+                    arguments = _tidy_capture(tidy_log) + tidy_argv.argv,
+                    inputs = depset([tidy], transitive = [all_inputs, tidy_closure]),
                     outputs = [tidy_log],
-                    env = syntax_env,
+                    env = base_env,
                     execution_requirements = requirements,
                     resource_set = dx_heavy_resources,
                 )
@@ -406,6 +394,6 @@ clang_syntax_aspect = aspect(
             providers = [QualityPolicyInfo],
         ),
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
-        "_clang_tidy_run": attr.label(default = "//cc/private:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),
+        "_capture": attr.label(default = "//core/quality/capture", executable = True, cfg = "exec"),
     },
 )

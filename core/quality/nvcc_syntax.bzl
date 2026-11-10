@@ -141,12 +141,11 @@ def _nvcc_syntax_impl(target, ctx):
         log = ctx.actions.declare_file("dx_nvcc_syntax/%s.log" % stem)
         status = ctx.actions.declare_file("dx_nvcc_syntax/%s.exit" % stem)
         all_inputs = depset(transitive = [action.inputs, headers])
-        # run_shell: Redirects keep the log and the exit status of the command.
-        ctx.actions.run_shell(
+        ctx.actions.run(
             mnemonic = "NvccSyntax",
             progress_message = "CUDA front-end check %{label}: " + src,
-            command = 'log="$1"; status="$2"; shift 2; "$@" 2> "$log"; echo "$?" > "$status"',
-            arguments = [log.path, status.path] + rewritten.argv,
+            executable = ctx.executable._capture,
+            arguments = ["--stderr", log.path, "--status", status.path, "--"] + rewritten.argv,
             inputs = all_inputs,
             outputs = [log, status],
             # nvcc.profile leaves CICC_PATH and NVVMIR_LIBRARY_DIR to the environment.
@@ -168,4 +167,12 @@ nvcc_syntax_aspect = aspect(
     implementation = _nvcc_syntax_impl,
     doc = "Replays the CudaCompile actions of a CUDA target up to nvcc's -cuda stage.",
     attr_aspects = ["upstream"],
+    attrs = {
+        "_capture": attr.label(
+            default = "//core/quality/capture",
+            executable = True,
+            cfg = "exec",
+            doc = "Runs one program with its streams and exit code written to files.",
+        ),
+    },
 )

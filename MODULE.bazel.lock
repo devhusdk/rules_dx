@@ -7435,19 +7435,6 @@
         }
       }
     },
-    "@@cgrindel_bazel_starlib+//tools/git:extensions.bzl%local_git_ext": {
-      "general": {
-        "bzlTransitiveDigest": "Q/NQyKFI2DljjsevKbLpWlOrT/bOsP3m/A8uvcXQb40=",
-        "usagesDigest": "4Cm7oj9uqLvdpjcsuReczgtCIDAeyjWJKek8KeJsZEk=",
-        "recordedInputs": [],
-        "generatedRepoSpecs": {
-          "bazel_starlib_git_toolchains": {
-            "repoRuleId": "@@cgrindel_bazel_starlib+//tools/git:local_git.bzl%local_git",
-            "attributes": {}
-          }
-        }
-      }
-    },
     "@@envoy_api+//bazel:extensions.bzl%non_module_deps": {
       "general": {
         "bzlTransitiveDigest": "ymFxRKT8VYZB7bl2LdEEetpVTAF/Vaa9uW9sSZFWzzo=",

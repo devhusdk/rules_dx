@@ -1025,6 +1025,13 @@ single_version_override(
     version = "1.25.0",
 )
 
+single_version_override(
+    module_name = "cgrindel_bazel_starlib",
+    patch_strip = 1,
+    patches = ["//patches/cgrindel_bazel_starlib:no_host_git.patch"],
+    version = "0.30.0",
+)
+
 swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swift_deps", dev_dependency = True)
 swift_deps.from_package(
     resolved = "//swift/tests/fixtures/swift-app:Package.resolved",

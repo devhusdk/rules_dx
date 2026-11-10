@@ -927,6 +927,7 @@ single_version_override(
     patches = [
         "//patches/rules_swift:toolchain_sysroot_env.patch",
         "//patches/rules_swift:non_root_toolchain.patch",
+        "//patches/rules_swift:target_runtime_root.patch",
     ],
     version = "4.2.2",
 )

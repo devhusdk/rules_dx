@@ -24,6 +24,8 @@ swift_binary(
 You need no `--platforms` or `--extra_execution_platforms` flags. To build for another
 platform, pass `platforms = ["//your:platform"]` to the wrapper; it takes one label, and
 empty uses the current target platform.
+On a Linux host the Swift tools run on the host cpu and build for `aarch64` and `x86_64` Linux
+platforms alike.
 Binaries and tests link the Swift runtime statically and need only the system C library.
 
 ```sh

@@ -17,6 +17,7 @@ swift_format_tool(
 
 swift_format_copy_test(
     name = "swift_format_copy_test",
+    size = "small",
     target_compatible_with = ["@platforms//os:linux"],
     target_under_test = ":swift_format_linux",
 )

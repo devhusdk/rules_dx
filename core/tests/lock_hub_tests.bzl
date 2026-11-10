@@ -26,10 +26,11 @@ def _checks():
         expect_equal("another set is <hub>_<dir>", hub_name("composer", "tools/web"), "composer_tools.web"),
     ]
 
-def lock_hub_tests(name):
+def lock_hub_tests(name, size):
     """Declares the test that runs the lock hub checks."""
     starlark_test(
         name = name,
         mode = "load",
         checks = _checks(),
+        size = size,
     )

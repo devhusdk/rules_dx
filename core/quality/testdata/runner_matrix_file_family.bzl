@@ -3887,7 +3887,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_github_workflow_actionlint_run_fail",
         "generated": {
-            "matrix/actionlint_run.yml": "name: ci\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $HOME_DIR\n",
+            "matrix/actionlint_run.yml": "name: ci\non: push\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo $OUT_DIR\n",
         },
         "capability": "lint",
         "stages": ["actionlint;github_workflow;matrix/actionlint_run.yml"],

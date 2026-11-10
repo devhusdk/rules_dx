@@ -22,6 +22,7 @@ rust_test(
     ],
     crate_name = "hpc_coverage",
     crate_root = "src/main.rs",
+    size = "small",
 )
 
 real_source_target(

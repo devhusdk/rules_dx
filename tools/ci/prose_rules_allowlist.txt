@@ -9,7 +9,6 @@ cli/cli/src/exec/quality.rs issue-number 1
 cli/cli/tests/agents/tests/dev_launcher.rs issue-number 2
 cli/output/src/lifecycle.rs issue-number 1
 cli/plan/src/args/invocation.rs link-chain 2
-cli/prebuilt/hub.bzl issue-number 1
 cli/process/src/runner_tests.rs issue-number 1
 cli/worktree/src/ops.rs issue-number 1
 core/modules/consumer_deps_test.rs issue-number 1

@@ -27,6 +27,7 @@ build_test(
 beam_shard_path_test(
     name = "shard_path_test",
     language = "erlang",
+    size = "small",
     target = ":geometry_docs",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
 )

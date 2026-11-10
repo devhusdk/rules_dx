@@ -1,7 +1,7 @@
 //! Reads a launch descriptor, resolves its runfiles and runs the program it names.
 //!
 //! The descriptor sits beside the executable as `<stem>.launch`, one entry per line:
-//! `program=<key>`, `arg=<literal>`, `path=<key>`,
+//! `program=<key>` or `real_program=<key>` (the program with symlinks resolved), `arg=<literal>`, `path=<key>`,
 //! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
 //! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>` and `unset=<VAR>`.
 //! The user's arguments follow the listed ones; `unset` names variables removed
@@ -34,6 +34,8 @@ pub enum Item {
 pub struct Descriptor {
     /// Runfiles key of the program.
     pub program: String,
+    /// Whether the program path is resolved through symlinks before it runs.
+    pub real_program: bool,
     /// The arguments before the user's.
     pub items: Vec<Item>,
     /// Environment variables removed before the program starts.
@@ -70,16 +72,21 @@ fn pair(line: &str, value: &str) -> io::Result<(String, String)> {
 /// Parses the line-based descriptor, rejecting anything unexpected.
 pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut program: Option<String> = None;
+    let mut real_program = false;
     let mut items = Vec::new();
     let mut unset = Vec::new();
     let mut env = Vec::new();
     let mut env_dir = Vec::new();
     let mut env_default = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
-        if let Some(value) = line.strip_prefix("program=") {
+        if let Some(value) = line
+            .strip_prefix("program=")
+            .or_else(|| line.strip_prefix("real_program="))
+        {
             if value.is_empty() || program.is_some() {
                 return Err(bad("descriptor needs exactly one program line"));
             }
+            real_program = line.starts_with("real_program=");
             program = Some(value.to_owned());
         } else if let Some(value) = line.strip_prefix("arg=") {
             items.push(Item::Arg(value.to_owned()));
@@ -127,6 +134,7 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
     let program = program.ok_or_else(|| bad("descriptor needs exactly one program line"))?;
     Ok(Descriptor {
         program,
+        real_program,
         items,
         unset,
         env,
@@ -217,7 +225,10 @@ pub fn plan(
     descriptor: &Descriptor,
     env: &dyn Fn(&str) -> Option<OsString>,
 ) -> io::Result<Plan> {
-    let program = locate(resolver, &descriptor.program)?;
+    let mut program = locate(resolver, &descriptor.program)?;
+    if descriptor.real_program {
+        program = program.canonicalize()?;
+    }
     let mut args: Vec<OsString> = Vec::new();
     for item in &descriptor.items {
         match item {

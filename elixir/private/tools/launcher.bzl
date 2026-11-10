@@ -23,36 +23,15 @@ def _mix_env(home):
 
 MIX_FORMAT_ENV = _mix_env(MIX_HOME)
 
-_PREAMBLE = """#!/usr/bin/env bash
-set -euo pipefail
-if [[ -d "$0.runfiles" ]]; then
-    runfiles="$0.runfiles"
-elif [[ -n "${{RUNFILES_DIR:-}}" ]]; then
-    runfiles="$RUNFILES_DIR"
-elif [[ "$0" == *.runfiles/* ]]; then
-    runfiles="${{0%%.runfiles/*}}.runfiles"
-else
-    echo "$0: no runfiles tree" >&2
-    exit 2
-fi
-otp="$(cd "$runfiles/{otp}" && pwd)"
-elixir="$(cd "$runfiles/{elixir}" && pwd)"
-{env}
-"""
+def launcher_key(ctx, version_file):
+    """Returns the runfiles key of one toolchain version file."""
+    return runfiles_path(ctx.workspace_name, version_file.short_path)
 
-def launcher_preamble(otp, elixir, inherit_env = False):
-    """Returns the launcher text up to the exec line for runfiles-relative OTP and Elixir roots."""
-    env = "" if inherit_env else "\n".join(["export {}='{}'".format(key, value) for key, value in sorted(MIX_FORMAT_ENV.items())])
-    return _PREAMBLE.format(otp = otp, elixir = elixir, env = env)
-
-def launcher_root(ctx, version_file):
-    """Returns the runfiles-relative directory that holds one toolchain version file."""
-    return runfiles_path(ctx.workspace_name, version_file.short_path).rpartition("/")[0]
-
-def windows_descriptor(otp, elixir, ebins, script, script_args = [], inherit_env = False):
-    """Returns the native launcher descriptor that runs `script` on the pinned Elixir with erl.exe."""
+def elixir_descriptor(otp_key, elixir, ebins, script, windows, script_args = [], inherit_env = False):
+    """Returns the native launcher descriptor that runs `script` on the pinned Elixir with erl."""
+    otp = otp_key.rpartition("/")[0]
     lines = [
-        "program=" + otp + "/bin/erl.exe",
+        "program=" + otp + "/bin/erl" + (".exe" if windows else ""),
         "arg=-noshell",
         "arg=-elixir_root",
         "path=" + elixir + "/lib",
@@ -61,8 +40,15 @@ def windows_descriptor(otp, elixir, ebins, script, script_args = [], inherit_env
     ]
     for ebin in ebins:
         lines += ["arg=-pa", "path=" + ebin]
-    lines += ["arg=+pc", "arg=unicode", "arg=-s", "arg=elixir", "arg=start_cli", "arg=-extra", "path=" + script]
+    lines += ["arg=+pc", "arg=unicode"]
+    if not windows:
+        lines += ["arg=+fnu", "arg=-kernel", "arg=standard_io_encoding", "arg=unicode"]
+    lines += ["arg=-s", "arg=elixir", "arg=start_cli", "arg=-extra", "path=" + script]
     lines += ["arg=" + arg for arg in script_args]
-    env = {"PATH": WINDOWS_PATH} if inherit_env else _mix_env(WINDOWS_MIX_HOME) | {"PATH": WINDOWS_PATH}
+    if windows:
+        env = {"PATH": WINDOWS_PATH} if inherit_env else _mix_env(WINDOWS_MIX_HOME) | {"PATH": WINDOWS_PATH}
+    else:
+        env = {} if inherit_env else _mix_env(MIX_HOME)
+        lines.append("env_dir=ERL_ROOTDIR\t" + otp_key)
     lines += ["env={}\t{}".format(key, value) for key, value in sorted(env.items())]
     return "\n".join(lines) + "\n"

@@ -2,13 +2,12 @@ use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-
 use super::WorktreeError;
 use super::cache;
 use super::git;
 use super::host::{
-    DiskSpace, Download, Host, OutputBase, Server, download_used, same_path,
-    scan_downloads, scan_output_bases,
+    DiskSpace, Download, Host, OutputBase, Server, download_used, same_path, scan_downloads,
+    scan_output_bases,
 };
 use super::pool::{Pool, Record, Who};
 
@@ -2109,9 +2108,10 @@ fn reclaim_host_wide(
     let mut orphans = 0usize;
     let mut slots: Vec<u32> = Vec::new();
     let mut kept: Vec<u32> = Vec::new();
-    for base in bases.iter().filter(|base| {
-        !base.workspace.exists() && !base_in_use(&servers, base)
-    }) {
+    for base in bases
+        .iter()
+        .filter(|base| !base.workspace.exists() && !base_in_use(&servers, base))
+    {
         if !disk_low(host, &base.dir) {
             continue;
         }

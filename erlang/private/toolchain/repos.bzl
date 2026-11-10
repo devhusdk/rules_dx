@@ -80,6 +80,7 @@ erlang_toolchain(
 cc_library(
     name = "erl_nif",
     hdrs = glob(["{include}/*.h"], allow_empty = False),
+    features = ["external_include_paths"],
     includes = ["{include}"],
 )
 """

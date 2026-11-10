@@ -31,6 +31,7 @@ load(
     _oci_deploy = "oci_deploy",
     _oci_image_from_binary = "oci_image_from_binary",
     _octopus_deploy = "octopus_deploy",
+    _opam_deploy = "opam_deploy",
     _packagist_deploy = "packagist_deploy",
     _pub_deploy = "pub_deploy",
     _pypi_deploy = "pypi_deploy",
@@ -67,6 +68,7 @@ nuget_deploy = _nuget_deploy
 oci_deploy = _oci_deploy
 oci_image_from_binary = _oci_image_from_binary
 octopus_deploy = _octopus_deploy
+opam_deploy = _opam_deploy
 offline_bundle = _offline_bundle
 packagist_deploy = _packagist_deploy
 pub_deploy = _pub_deploy

@@ -11,17 +11,18 @@ def _opam_config_impl(ctx):
     if file_error != "":
         fail(file_error + " (in " + str(ctx.label) + ")")
 
+    opam_files = ctx.attr.opam[DefaultInfo].files.to_list()
     return deploy_config(
         ctx,
         "opam",
         {
             "deploy_name": ctx.attr.deploy_name,
-            "opam_rloc": rlocation_path(ctx, ctx.file.opam),
+            "opam_rloc": rlocation_path(ctx, opam_files[0]) if opam_files else "",
             "opam_file_rloc": rlocation_path(ctx, opam_file),
             "package": ctx.attr.package,
             "version": ctx.attr.version,
         },
-        ctx.runfiles(files = [ctx.file.opam, opam_file]),
+        ctx.runfiles(files = opam_files + [opam_file]),
     )
 
 _opam_config = rule(
@@ -31,7 +32,7 @@ _opam_config = rule(
         "deploy_name": attr.string(doc = "Deploy target name.", mandatory = True),
         "opam": attr.label(
             doc = "Pinned opam executable.",
-            allow_single_file = True,
+            allow_files = True,
             cfg = "exec",
             mandatory = True,
         ),

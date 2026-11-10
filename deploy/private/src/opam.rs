@@ -149,12 +149,16 @@ fn opam_live_pull_request(
         token,
     };
     let login = text_field(&github.call("GET", "/user", None)?.1, "/login")?;
-    github.call(
-        "POST",
-        &format!("/repos/{UPSTREAM}/forks"),
-        Some(serde_json::json!({})),
+    let fork = text_field(
+        &github
+            .call(
+                "POST",
+                &format!("/repos/{UPSTREAM}/forks"),
+                Some(serde_json::json!({})),
+            )?
+            .1,
+        "/full_name",
     )?;
-    let fork = format!("{login}/opam-repository");
     let mut ready = false;
     for _ in 0..30 {
         if github.call("GET", &format!("/repos/{fork}"), None).is_ok() {
@@ -166,6 +170,11 @@ fn opam_live_pull_request(
     if !ready {
         return Err(format!("fork {fork} did not become available"));
     }
+    github.call(
+        "POST",
+        &format!("/repos/{fork}/merge-upstream"),
+        Some(serde_json::json!({"branch": UPSTREAM_BASE})),
+    )?;
     let base = text_field(
         &github
             .call(
@@ -177,11 +186,15 @@ fn opam_live_pull_request(
         "/object/sha",
     )?;
     let branch = format!("{package}.{version}");
-    github.call(
+    match github.call(
         "POST",
         &format!("/repos/{fork}/git/refs"),
         Some(serde_json::json!({"ref": format!("refs/heads/{branch}"), "sha": base})),
-    )?;
+    ) {
+        Ok(_) => {}
+        Err(error) if error.contains("HTTP 422") && error.contains("already exists") => {}
+        Err(error) => return Err(error),
+    }
     let path = opam_repository_path(package, version);
     github.call(
         "PUT",
@@ -221,6 +234,10 @@ pub fn opam_main(
     ) else {
         return 1;
     };
+    if opam_rloc.is_empty() {
+        eprintln!("opam_deploy: {target_name}: no opam is pinned for this platform");
+        return 1;
+    }
     let (Some(opam), Some(file)) = (run.resolve(opam_rloc), run.resolve(opam_file_rloc)) else {
         return 1;
     };

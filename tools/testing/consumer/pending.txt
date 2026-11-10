@@ -60,7 +60,6 @@ fixture dart
 fixture dockerfile
 fixture elixir
 fixture env
-fixture erlang
 fixture flatbuffers
 fixture flutter
 fixture fortran
@@ -89,6 +88,7 @@ fixture thrift
 fixture typescript
 fixture vue
 init d
+init erlang
 init go
 init julia
 init lua

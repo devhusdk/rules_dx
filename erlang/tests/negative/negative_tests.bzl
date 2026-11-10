@@ -1,7 +1,9 @@
 """Analysis tests for the inputs and flags that make Erlang builds fail on bad code."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//core/quality:families/cc.bzl", "real_cc_lint_aspect")
 
 _LINUX = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 
@@ -54,6 +56,18 @@ _has_attrs = {
 _has_test = analysistest.make(_has_impl, attrs = _has_attrs)
 _header_test = analysistest.make(_header_impl, attrs = _has_attrs)
 
+def _nif_lint_results_impl(ctx):
+    results = ctx.attr.target[OutputGroupInfo].dx_results
+    if not results.to_list():
+        fail("no lint result for " + str(ctx.attr.target.label))
+    return [DefaultInfo(files = results)]
+
+_nif_lint_results = rule(
+    implementation = _nif_lint_results_impl,
+    doc = "Builds the C lint result of one target.",
+    attrs = {"target": attr.label(doc = "Target to lint.", aspects = [real_cc_lint_aspect], mandatory = True)},
+)
+
 def erlc_warnings_as_errors_test(name, target, expected = True):
     _warnings_as_errors_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = _LINUX)
 
@@ -68,3 +82,7 @@ def nif_header_test(name, target, file, present):
 
 def nif_define_test(name, target, define):
     _define_test(name = name, size = "small", target_under_test = target, define = define, target_compatible_with = _LINUX)
+
+def nif_lint_test(name, target):
+    _nif_lint_results(name = name + "_results", testonly = True, target = target, tags = ["manual"], target_compatible_with = _LINUX)
+    build_test(name = name, size = "small", targets = [name + "_results"], target_compatible_with = _LINUX)

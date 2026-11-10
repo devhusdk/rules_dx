@@ -11,15 +11,7 @@ nothing, so consumers never fetch the hub or its link repos.
 visibility(["//..."])
 
 def dev_hub_defs(hub, forward):
-    """Returns the defs.bzl text for the shim repo.
-
-    Args:
-      hub: The apparent name of the dev hub repo.
-      forward: Whether to load the real hub (root module) or stub it.
-
-    Returns:
-      The defs.bzl file content.
-    """
+    """Returns the defs.bzl text for the shim repo."""
     if forward:
         return "\n".join([
             '"""Forwards npm_link_all_packages from @{}."""'.format(hub),

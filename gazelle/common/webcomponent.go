@@ -12,7 +12,7 @@ func NewWebComponentLang(name string, exts []string, parseImports func([]byte, s
 		LanguageName:   name,
 		LibraryKind:    kind,
 		Kinds:          map[string]rule.KindInfo{kind: LibraryKindInfo()},
-		DefsPackage:    name + "/rules:defs.bzl",
+		DefsPackage:    name + ":defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       func(n string) string { return Stem(n, exts) },
 		PathIdentity:   true,

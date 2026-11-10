@@ -1,7 +1,6 @@
 ansible
 api_spec
 asciidoc
-astro
 avro
 bicep
 capnproto
@@ -26,7 +25,6 @@ kotlin
 kubernetes
 lua
 make
-mdx
 ocaml
 perl
 php
@@ -40,10 +38,7 @@ ruby
 rust
 scala
 sql
-svelte
 swift
 terraform
 thrift
-typescript
-vue
 zig

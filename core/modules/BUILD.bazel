@@ -213,6 +213,18 @@ rust_test(
 )
 
 rust_test(
+    name = "npm_hub_test",
+    srcs = ["npm_hub_test.rs"],
+    crate_name = "npm_hub_test",
+    crate_root = "npm_hub_test.rs",
+    data = ["//:MODULE.bazel"],
+    deps = [
+        "//cli/module_bazel:dx_module_bazel",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
     name = "python_budget_test",
     srcs = ["python_budget_test.rs"],
     aliases = aliases(
@@ -248,6 +260,7 @@ test_suite(
         ":families_test",
         ":lang_json_test",
         ":loaders_test",
+        ":npm_hub_test",
         ":python_budget_test",
         ":versions_contract",
     ],

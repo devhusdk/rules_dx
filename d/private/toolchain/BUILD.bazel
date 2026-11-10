@@ -35,8 +35,6 @@ real_source_target(
     tags = ["corpus"],
 )
 
-# D's runtime calls printf, fprintf, vfprintf, vsnprintf and sscanf, which the UCRT headers only
-# define inline. Defining them out of line keeps D off legacy_stdio_definitions.lib (#6948).
 cc_library(
     name = "msvc_iso_stdio",
     srcs = ["msvc_iso_stdio.c"],

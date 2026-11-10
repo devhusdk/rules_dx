@@ -93,9 +93,12 @@ def refresh(zon_text, old_text, names, download):
     packages = {}
     for name in sorted(dependencies):
         url, package_hash = dependencies[name]
-        if names and name not in names and name in old:
-            packages[name] = old[name]
+        if names and name not in names:
+            if name in old:
+                packages[name] = old[name]
             continue
+        if not package_hash:
+            raise DigestsError("%s has no .hash in build.zig.zon" % name)
         packages[name] = {"hash": package_hash, "sha256": hashlib.sha256(download(url)).hexdigest()}
     return json.dumps({"packages": packages}, indent=2, sort_keys=True) + "\n"
 

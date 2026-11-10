@@ -46,6 +46,22 @@ class DigestsTest(unittest.TestCase):
         self.assertEqual(out["packages"]["a-b"]["sha256"], "old")
         self.assertEqual(out["packages"]["xxhash"]["sha256"], hashlib.sha256(b"x").hexdigest())
 
+    def test_unnamed_missing_package_is_skipped(self):
+        seen = []
+
+        def download(url):
+            seen.append(url)
+            return b"x"
+
+        out = json.loads(digests.refresh(ZON, "", {"xxhash"}, download))
+        self.assertEqual(seen, ["https://example.com/xxhash.tar.gz"])
+        self.assertEqual(list(out["packages"]), ["xxhash"])
+
+    def test_empty_hash_is_refused(self):
+        zon = '.{ .dependencies = .{ .a = .{ .url = "https://example.com/a.tar.gz" } } }'
+        with self.assertRaises(digests.DigestsError):
+            digests.refresh(zon, "", set(), lambda url: b"x")
+
     def test_unknown_package_is_refused(self):
         with self.assertRaises(digests.DigestsError):
             digests.refresh(ZON, "", {"nope"}, lambda url: b"")

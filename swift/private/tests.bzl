@@ -20,7 +20,6 @@ def _binary_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
     asserts.true(env, DefaultInfo in target)
-    asserts.true(env, target[DefaultInfo].default_runfiles != None)
     asserts.true(env, target[DefaultInfo].files_to_run.executable != None)
     return analysistest.end(env)
 

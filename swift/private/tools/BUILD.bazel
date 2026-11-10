@@ -19,8 +19,6 @@ dx_unavailable_tool(
     tool = "swift_format",
 )
 
-# The Swift archives are Linux builds. On macOS arm64 swift-format is the
-# sha256-pinned release build.
 config_setting(
     name = "is_macos_arm64",
     constraint_values = [
@@ -35,7 +33,6 @@ native_binary(
     out = "swift_format_macos_bin",
 )
 
-# Elsewhere the alias is a marked stub and the aspect skips the stage with a note.
 alias(
     name = "swift_format",
     actual = select({
@@ -45,8 +42,6 @@ alias(
     }),
 )
 
-# The llvm-cov and llvm-profdata that ship with the Swift toolchain read the profiles and coverage maps swiftc writes.
-# Elsewhere the pinned LLVM pair is used.
 [
     alias(
         name = "llvm_" + tool,

@@ -9,7 +9,7 @@ load(":toolchain.bzl", "toolchain_fields")
 
 _FPM_LOCK = """# comment
 [dependencies.stdlib]
-version = "0.7.0"
+version = "0.7.0" # pinned
 url = "https://example.com/stdlib.tar.gz"
 sha256 = "AAAA"
 strip_prefix = "stdlib-0.7.0"

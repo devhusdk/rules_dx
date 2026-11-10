@@ -14,12 +14,8 @@ RULES_D_URLS = _ARCHIVES["rules_d"]["urls"]
 
 LDC_VERSION = _PINS["version"]
 
-# LDC ships no native Windows arm64 compiler: that cell runs the x64 compiler under emulation and
-# takes its arm64 runtime libraries from the addon package. LDC's prebuilt libraries are MSVC-ABI, so
-# both cells constrain on the msvc ABI of the hermetic cc toolchain.
 _MSVC_ABI = "@llvm//constraints/windows/abi:msvc"
 
-# druntime links legacy_stdio_definitions.lib; drop it and use //d/private/toolchain:msvc_iso_stdio instead (#6948).
 _WINDOWS_LINKOPTS = ["/NODEFAULTLIB:legacy_stdio_definitions.lib"]
 
 _WINDOWS_ADDON = struct(
@@ -149,7 +145,6 @@ TOOL_SOURCES = {
         urls = _ARCHIVES["dx_d_containers"]["urls"],
     ),
     "dx_d_dcd": struct(
-        # Only the BSL-1.0 dsymbol subpackage is kept; the GPL-3.0 client and server never reach a build.
         dropped = [
             "CHANGELOG.md",
             "README.md",

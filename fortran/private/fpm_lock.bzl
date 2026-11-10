@@ -13,13 +13,23 @@ def _strings(value, where):
     inner = value[1:-1].strip()
     return [_string(item.strip(), where) for item in inner.split(",") if item.strip()]
 
+def _strip_comment(line):
+    quoted = False
+    for i in range(len(line)):
+        ch = line[i]
+        if ch == '"':
+            quoted = not quoted
+        elif ch == "#" and not quoted:
+            return line[:i]
+    return line
+
 def fpm_lock_packages(text):
     """Returns one dict per [dependencies.<name>] table: name, version, url, sha256, strip_prefix and deps."""
     tables = {}
     order = []
     current = None
     for raw in text.split("\n"):
-        line = raw.strip()
+        line = _strip_comment(raw).strip()
         if not line or line.startswith("#"):
             continue
         if line.startswith("["):

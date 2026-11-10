@@ -132,4 +132,5 @@ tools/testing/nested/src/cache.rs digest-outside-pins 2
 tools/testing/nested/src/cache.rs duplicate-pin 1
 tools/testing/nested/src/compose.rs digest-outside-pins 1
 tools/testing/nested/src/compose.rs duplicate-pin 1
+typescript/private/playwright/closure.bzl digest-outside-pins 84
 typescript/private/playwright/repos.bzl digest-outside-pins 3

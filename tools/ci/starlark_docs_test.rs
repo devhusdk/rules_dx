@@ -18,7 +18,7 @@ const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_par
 const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test", "_application"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 112] = [
+const PACKAGES: &[&str] = &[
     "android/platforms",
     "android/private/library",
     "android/private/packaging",

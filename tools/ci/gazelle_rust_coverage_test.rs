@@ -4,9 +4,6 @@ const MODULE: &str = "MODULE.bazel";
 const ROOT_BUILD: &str = "BUILD.bazel";
 const EXCLUDE: &str = "# gazelle:exclude ";
 
-/// Root excludes that still hide a dx_crates package.
-const ALLOWED: &[&str] = &["cli/depcheck", "deploy/rules", "core/quality/tiers"];
-
 fn root_excludes() -> Vec<String> {
     read_runfiles(ROOT_BUILD)
         .lines()
@@ -56,24 +53,6 @@ fn root_excludes_do_not_hide_dx_crates_packages() {
                 .filter(|dir| hides(exclude, dir))
                 .map(move |dir| format!("gazelle:exclude {exclude} hides //{dir}:Cargo.toml"))
         })
-        .filter(|pair| {
-            !ALLOWED
-                .iter()
-                .any(|allowed| pair.contains(&format!("exclude {allowed} ")))
-        })
         .collect();
     assert!(offenders.is_empty(), "{}", offenders.join("\n"));
-}
-
-#[test]
-fn allowlist_entries_still_hide_a_package() {
-    let excludes = root_excludes();
-    let dirs = dx_crates_manifest_dirs();
-    for allowed in ALLOWED {
-        assert!(
-            excludes.iter().any(|exclude| exclude == allowed)
-                && dirs.iter().any(|dir| hides(allowed, dir)),
-            "{allowed} no longer hides a dx_crates package and must leave ALLOWED"
-        );
-    }
 }

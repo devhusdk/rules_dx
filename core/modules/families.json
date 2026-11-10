@@ -559,7 +559,6 @@
       ],
       "repo_rules": [
         "//powershell:extensions.bzl%psgallery_module",
-        "//core/quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_jar",

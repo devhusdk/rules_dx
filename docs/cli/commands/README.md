@@ -394,6 +394,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_bench` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_fuzz_test` |
 |  |  | `@rules_dx//javascript:defs.bzl` | `javascript_wasm_bindgen_library` |
+|  |  | `@rules_dx//julia:defs.bzl` | `julia_bench` |
 |  |  | `@rules_dx//julia:defs.bzl` | `julia_standalone_binary` |
 |  |  | `@rules_dx//kotlin:defs.bzl` | `kotlin_bench` |
 |  |  | `@rules_dx//kotlin:defs.bzl` | `kotlin_fuzz_test` |

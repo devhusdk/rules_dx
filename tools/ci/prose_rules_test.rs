@@ -29,7 +29,7 @@ const WORD_LIMIT_KIND: &str = "word-limit";
 const WORD_LIMIT: usize = 1300;
 
 /// The design pages over the limit, each with the word count it may not pass.
-const OVER_LIMIT: [(&str, usize); 1] = [("docs/design/tests.md", 1611)];
+const OVER_LIMIT: [(&str, usize); 0] = [];
 
 /// Words that tell history instead of a rule.
 const HISTORY_WORDS: [&str; 7] = [

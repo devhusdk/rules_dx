@@ -28,11 +28,7 @@ def launcher_key(ctx, version_file):
     return runfiles_path(ctx.workspace_name, version_file.short_path)
 
 def elixir_descriptor(otp_key, elixir, ebins, script, windows, script_args = [], caller_homes = False):
-    """Returns the native launcher descriptor that runs `script` on the pinned Elixir with erl.
-
-    With `caller_homes` the launcher keeps the caller's `HOME`, `MIX_HOME` and `HEX_HOME`, defaults
-    them to a directory that does not exist, and leaves Hex online.
-    """
+    """Returns the native launcher descriptor that runs `script` on the pinned Elixir with erl."""
     otp = otp_key.rpartition("/")[0]
     program = otp + "/bin/erl" + (".exe" if windows else "")
     lines = [

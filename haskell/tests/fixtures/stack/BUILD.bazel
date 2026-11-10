@@ -1,5 +1,5 @@
-load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_deps_resolve", "haskell_deps_resolve_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -9,7 +9,10 @@ _PROJECT = [
     "stack_app.cabal",
 ]
 
-exports_files(["cabal.project.freeze", "haskell_deps.json"])
+exports_files([
+    "cabal.project.freeze",
+    "haskell_deps.json",
+])
 
 exports_files(
     ["stack.yaml.lock"],
@@ -39,12 +42,14 @@ haskell_binary(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_markdown",
+    testonly = True,
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

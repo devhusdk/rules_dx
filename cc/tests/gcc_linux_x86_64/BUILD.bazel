@@ -1,8 +1,9 @@
+load("@crates//:crates.bzl", "aliases")
 load("//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
-load("//deploy:defs.bzl", "consumer_archive")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//deploy:defs.bzl", "consumer_archive")
 load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)
@@ -16,8 +17,8 @@ cc_toolchain_files(
     name = "gcc_x86_64",
     srcs = [
         ":hello_c",
+        "//cc/tests/fixtures/hello",
         "//cc/tests/fixtures/shared:greet_shared",
-        "//cc/tests/fixtures/hello:hello",
     ],
     compiler = "gcc",
     platforms = ["//tools/platforms:linux_x86_64"],
@@ -79,7 +80,15 @@ consumer_archive(
 
 rust_test(
     name = "libstdcxx_archive_test",
+    testonly = True,
     srcs = ["libstdcxx_archive_test.rs"],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_gcc_linux_x86_64",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "libstdcxx_archive_test",
+    crate_root = "libstdcxx_archive_test.rs",
     data = [":hello_cxx_release"],
     env = {"ARCHIVE": "$(rootpath :hello_cxx_release)"},
     target_compatible_with = [
@@ -87,15 +96,23 @@ rust_test(
         "@platforms//cpu:x86_64",
     ],
     deps = [
-        "//deploy/private:dx_deploy_tools",
         "//cli/test_scratch:dx_test_scratch",
+        "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
 )
 
 rust_test(
     name = "imports_test",
+    testonly = True,
     srcs = ["imports_test.rs"],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_gcc_linux_x86_64",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "imports_test",
+    crate_root = "imports_test.rs",
     data = [
         ":hello_cxx_gcc",
         "//deploy/private:archiver",
@@ -116,7 +133,15 @@ rust_test(
 
 rust_test(
     name = "archive_test",
+    testonly = True,
     srcs = ["archive_test.rs"],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_gcc_linux_x86_64",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "archive_test",
+    crate_root = "archive_test.rs",
     data = [":hello_gcc_release"],
     env = {"ARCHIVE": "$(rootpath :hello_gcc_release)"},
     target_compatible_with = [
@@ -124,15 +149,23 @@ rust_test(
         "@platforms//cpu:x86_64",
     ],
     deps = [
-        "//deploy/private:dx_deploy_tools",
         "//cli/test_scratch:dx_test_scratch",
+        "//deploy/private:dx_deploy_tools",
         "//tools/testing:dx_testing",
     ],
 )
 
 rust_test(
     name = "artifacts_test",
+    testonly = True,
     srcs = ["artifacts_test.rs"],
+    aliases = aliases(
+        package_name = "cc/tests/cc_tests_gcc_linux_x86_64",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "artifacts_test",
+    crate_root = "artifacts_test.rs",
     data = [
         ":gcc_x86_64",
         "//cc/private/toolchains:pins.bzl",
@@ -151,12 +184,14 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )
 
 real_source_target(
     name = "corpus_toml",
+    testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )

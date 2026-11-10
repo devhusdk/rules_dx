@@ -1,5 +1,5 @@
 {
-  "checksum": "67d46b244b058bdee8698f0cf34bfc74040e909265e1d244a0e0f53c8b3cde05",
+  "checksum": "5239de4af2539d114678c33d732ef0c93e8caa0290d39195ab59743cbd67a59b",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1161,6 +1161,6 @@
   ],
   "direct_dev_deps": [],
   "workspace_members": {
-    "dx_thrift_crates 0.0.0": "thrift/crates"
+    "dx_thrift_crates 0.0.0": "thrift/private/crates"
   }
 }

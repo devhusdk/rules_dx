@@ -1,7 +1,5 @@
-"""Renders patches/README.md with the Version column taken from MODULE.bazel and the registry."""
+"""Renders patches/README.md with the Version column taken from MODULE.bazel."""
 
-import json
-import os
 import re
 import sys
 
@@ -10,14 +8,9 @@ _DEP = re.compile(r'bazel_dep\(name = "([^"]+)", version = "([^"]+)"')
 _PATCH = re.compile(r'"//patches/[^:"]+:([^"]+\.patch)"')
 
 
-def overrides(module_text, sources=()):
-    """Returns {module: (version, [patch names])} for each override and registry source.json."""
+def overrides(module_text):
+    """Returns {module: (version, [patch names])} for each override."""
     found = {}
-    for path in sources:
-        directory = os.path.dirname(path)
-        with open(path, encoding="utf-8") as handle:
-            patches = list(json.load(handle).get("patches", {}))
-        found[os.path.basename(os.path.dirname(directory))] = (os.path.basename(directory), patches)
     deps = dict(_DEP.findall(module_text))
     for body in _OVERRIDE.findall(module_text):
         name = re.search(r'module_name = "([^"]+)"', body)
@@ -31,9 +24,9 @@ def overrides(module_text, sources=()):
     return found
 
 
-def render(module_text, readme_text, sources=()):
+def render(module_text, readme_text):
     """Returns the README with each table row's Version set from MODULE.bazel."""
-    known = overrides(module_text, sources)
+    known = overrides(module_text)
     listed = {}
     out = []
     for line in readme_text.split("\n"):
@@ -41,11 +34,11 @@ def render(module_text, readme_text, sources=()):
         if len(cells) == 4 and cells[0].startswith("| `") and not cells[0].startswith("| `---"):
             module = cells[0][3:].split("`", 1)[0]
             if module not in known:
-                raise SystemExit("patches/README.md: %s has no override in MODULE.bazel or registry" % module)
+                raise SystemExit("patches/README.md: %s has no override in MODULE.bazel" % module)
             version, patches = known[module]
             for patch in re.findall(r"`([^`]+\.patch)`", cells[2]):
                 if patch not in patches:
-                    raise SystemExit("patches/README.md: %s lists %s, which is not applied" % (module, patch))
+                    raise SystemExit("patches/README.md: %s lists %s, which MODULE.bazel does not apply" % (module, patch))
             listed.setdefault(module, set()).update(re.findall(r"`([^`]+\.patch)`", cells[2]))
             cells[1] = version
             line = " | ".join(cells)
@@ -53,7 +46,7 @@ def render(module_text, readme_text, sources=()):
     for module, (_, patches) in known.items():
         for patch in patches:
             if patch not in listed.get(module, ()):
-                raise SystemExit("patches/README.md: %s does not list %s, which is applied" % (module, patch))
+                raise SystemExit("patches/README.md: %s does not list %s, which MODULE.bazel applies" % (module, patch))
     return "\n".join(out)
 
 
@@ -62,7 +55,7 @@ def main(argv):
         module_text = handle.read()
     with open(argv[2], encoding="utf-8") as handle:
         readme_text = handle.read()
-    sys.stdout.write(render(module_text, readme_text, argv[3:]))
+    sys.stdout.write(render(module_text, readme_text))
 
 
 if __name__ == "__main__":

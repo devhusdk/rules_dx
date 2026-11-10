@@ -9,7 +9,7 @@ http_archive(
     urls = ["https://static.crates.io/crates/adler2/adler2-2.0.1.crate"],
 )
 
-bazel_dep(name = "rules_rust", version = "0.75.0.dx.1")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(

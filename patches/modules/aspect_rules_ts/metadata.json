@@ -1,9 +1,0 @@
-{
-    "homepage": "https://github.com/aspect-build/rules_ts",
-    "maintainers": [],
-    "repository": ["github:aspect-build/rules_ts"],
-    "versions": [
-        "3.10.1.dx.1"
-    ],
-    "yanked_versions": {}
-}

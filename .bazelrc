@@ -11,7 +11,6 @@ common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_HEAP
 test --test_env=BAZELISK_BASE_URL
 test --test_env=BAZELISK_HOME
-common --registry=file://%workspace%/patches
 common --registry=https://bcr.bazel.build
 
 common --incompatible_exclude_starlark_flags_from_exec_config

@@ -53,6 +53,16 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             )),
         }
     }
+    for call in module.calls_named("bazel_dep") {
+        if let Some(version) = call.str("version")
+            && version.contains(".dx.")
+        {
+            problems.push(format!(
+                "bazel_dep at line {} has the version {version:?}; a consumer resolves BCR versions only",
+                call.line
+            ));
+        }
+    }
     for name in &declared {
         if !table.contains_key(name) && !UNPINNED.contains(&name.as_str()) {
             problems.push(format!(
@@ -83,7 +93,7 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
             .calls_named("archive_override")
             .any(|call| call.str("module_name") == Some(name.as_str()));
         match module.override_version(name) {
-            Err(_) if archived || is_registry_patched(floor) => {}
+            Err(_) if archived => {}
             Ok(version) if &version.value == tested => {}
             Ok(version) => problems.push(format!(
                 "single_version_override {name:?} is {} but its tested version is {tested}",
@@ -111,28 +121,13 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
     for family in SAME_FLOOR {
         let floors: Vec<&str> = family
             .iter()
-            .filter_map(|name| table.get(*name).map(|(floor, _)| base_version(floor)))
+            .filter_map(|name| table.get(*name).map(|(floor, _)| floor.as_str()))
             .collect();
         if floors.windows(2).any(|pair| pair[0] != pair[1]) {
             problems.push(format!("{family:?} must share one floor, got {floors:?}"));
         }
     }
     problems
-}
-
-/// The version without a `.dx.<digits>` registry suffix.
-fn base_version(version: &str) -> &str {
-    match version.rsplit_once(".dx.") {
-        Some((base, _)) if is_registry_patched(version) => base,
-        _ => version,
-    }
-}
-
-/// A version ending in `.dx.<digits>` is served by the rules_dx registry and needs no override.
-fn is_registry_patched(version: &str) -> bool {
-    version.rsplit_once(".dx.").is_some_and(|(_, build)| {
-        !build.is_empty() && build.bytes().all(|byte| byte.is_ascii_digit())
-    })
 }
 
 /// Every `bazel_dep` in `source` on a table module that is not at its floor.
@@ -330,14 +325,13 @@ fn a_matching_fixture_passes() {
 }
 
 #[test]
-fn a_registry_patched_floor_needs_no_override() {
-    let source = "# floor: equals tested\nbazel_dep(name = \"demo\", version = \"1.2.0.dx.1\")\n";
-    let table = fixture_table(&[("demo", "1.2.0.dx.1", "1.2.0.dx.1")]);
-    assert_eq!(violations(source, &table), Vec::<String>::new());
-    assert!(is_registry_patched("1.2.0.dx.12"));
-    assert!(!is_registry_patched("1.2.0.dx."));
-    assert!(!is_registry_patched("1.2.0.dx.a"));
-    assert!(!is_registry_patched("1.2.0"));
+fn a_dx_version_is_rejected() {
+    let demo = fixture_table(&[("demo", "1.2.0.dx.1", "1.2.0.dx.1")]);
+    let problems = violations(&good("1.2.0.dx.1", "1.2.0.dx.1"), &demo);
+    assert!(
+        problems.iter().any(|problem| problem.contains("BCR versions only")),
+        "{problems:?}"
+    );
 }
 
 #[test]

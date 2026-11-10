@@ -116,7 +116,7 @@ pub(super) fn run_with(
 }
 
 const HUBS_MODULE: &str = r#"
-bazel_dep(name = "rules_rust", version = "0.75.0.dx.1")
+bazel_dep(name = "rules_rust", version = "0.75.0")
 bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_jvm_external", version = "7.1")
 bazel_dep(name = "aspect_rules_js", version = "2.0.0")

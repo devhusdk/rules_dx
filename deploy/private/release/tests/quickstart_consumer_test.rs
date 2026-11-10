@@ -130,12 +130,9 @@ fn the_readme_quickstart_runs_as_written() {
     for (name, text) in &files {
         let mut text = text.replace("<release>", "0.0.0");
         if name == "MODULE.bazel" {
-            let start = text
-                .find("archive_override(")
-                .expect("README rules_py override");
-            let end = start + text[start..].find("\n)\n").expect("override end") + 3;
-            text.replace_range(start..end, rules_py_override().trim_end_matches('\n'));
+            assert_eq!(text.lines().filter(|l| !l.trim().is_empty()).count(), 1);
             text.push('\n');
+            text.push_str(&rules_py_override());
             text.push_str(&rules_dx_override(&source));
         }
         write_text(&case.root().join(name), &text);

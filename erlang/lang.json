@@ -83,5 +83,15 @@
         "real_beam_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/beam:aspect.bzl",
+    "file_extensions": [
+      ".erl",
+      ".hrl"
+    ],
+    "aspects": [
+      "real_beam_docs_aspect"
+    ]
   }
 }

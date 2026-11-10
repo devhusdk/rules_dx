@@ -84,6 +84,7 @@ load("//tools/docs/go:aspect.bzl", _real_go_docs_aspect = "real_go_docs_aspect")
 load("//tools/docs/haskell:aspect.bzl", _real_haskell_docs_aspect = "real_haskell_docs_aspect")
 load("//tools/docs/javascript:aspect.bzl", _real_javascript_docs_aspect = "real_javascript_docs_aspect")
 load("//tools/docs/julia:aspect.bzl", _real_julia_docs_aspect = "real_julia_docs_aspect")
+load("//tools/docs/beam:aspect.bzl", _real_beam_docs_aspect = "real_beam_docs_aspect")
 load("//tools/docs/jvm:aspect.bzl", _real_jvm_docs_aspect = "real_jvm_docs_aspect")
 load("//tools/docs/lua:aspect.bzl", _real_lua_docs_aspect = "real_lua_docs_aspect")
 load("//tools/docs/ocaml:aspect.bzl", _real_ocaml_docs_aspect = "real_ocaml_docs_aspect")
@@ -400,6 +401,7 @@ real_javascript_docs_aspect = _real_javascript_docs_aspect
 
 real_julia_docs_aspect = _real_julia_docs_aspect
 
+real_beam_docs_aspect = _real_beam_docs_aspect
 real_jvm_docs_aspect = _real_jvm_docs_aspect
 
 real_lua_docs_aspect = _real_lua_docs_aspect
@@ -439,6 +441,7 @@ real_docs_aspects = [
     real_haskell_docs_aspect,
     real_javascript_docs_aspect,
     real_julia_docs_aspect,
+    real_beam_docs_aspect,
     real_jvm_docs_aspect,
     real_lua_docs_aspect,
     real_ocaml_docs_aspect,

@@ -174,3 +174,8 @@ kernel and stdlib go to `extra_apps`. Sources under `c_src` become one
 at a deeper level. Git entries are refused. The lock also becomes a `hex`
 dependency set for `dx audit` and `dx update`; `dx update` refreshes it with
 the pinned rebar3.
+
+## API docs
+
+`dx docs` documents an `erlang_app` with `erlang_doc_shard(name, app, package)` from
+`@rules_dx//tools/docs/erlang:defs.bzl`. It runs `edoc` from the pinned OTP over the app's `srcs` and writes a DocIr shard. Functions that are not exported are left out. Windows execution platforms are not covered.

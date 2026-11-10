@@ -37,6 +37,7 @@
         "real_avro_docs_aspect",
         "real_avro_lint_aspect",
         "real_avro_typecheck_aspect",
+        "real_beam_docs_aspect",
         "real_beam_format_probe_aspect",
         "real_beam_lint_probe_aspect",
         "real_beam_typecheck_probe_aspect",

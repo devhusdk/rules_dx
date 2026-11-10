@@ -1,0 +1,24 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
+load("//tools/docs/erlang:defs.bzl", "erlang_doc_shard")
+
+erlang_app(
+    name = "geometry",
+    srcs = ["src/geometry.erl"],
+    app_description = "Area helpers for simple shapes.",
+    app_name = "geometry",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_doc_shard(
+    name = "geometry_docs",
+    app = ":geometry",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

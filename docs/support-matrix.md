@@ -86,8 +86,8 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | CUDA | `clang_tidy`, `typos` | `clang_format` | `nvcc_syntax` | `doxygen` | no: cuda_test has no dx coverage wiring | none |
 | D | `typos` | no | `ldc` | `ldc ddoc` | `ldc --coverage` | none |
 | Dart | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `package:test` | `dart unused_element` |
-| Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321), `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | no | `cover` | `elixirc unused variable, unused function` |
-| Erlang | `elvis`, `typos` | `erlfmt` | `dialyzer`, `erlc` | no | `cover` | `erlc warn_unused_vars, warn_unused_function` |
+| Elixir | `credo`, `typos` | `mix_format` | `dialyzer` (not on `windows_x86_64`: dialyzer on Windows is pending #6008; `windows_arm64`: dialyzer on Windows is pending #6321), `elixirc` (not on `windows_x86_64`: The elixirc replay needs a POSIX shell; `windows_arm64`: The elixirc replay needs a POSIX shell) | `Code.fetch_docs` | `cover` | `elixirc unused variable, unused function` |
+| Erlang | `elvis`, `typos` | `erlfmt` | `dialyzer`, `erlc` | `edoc` | `cover` | `erlc warn_unused_vars, warn_unused_function` |
 | Flutter | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK), `typos` | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart` (not on `windows_arm64`: rules_dart ships no windows_arm64 SDK) | `dart doc` | `flutter_tester` | `dart unused_element` |
 | Fortran | `fortitude`, `typos` | `ffmt` | `flang` | `ford` | `kcov` (kcov runs on Linux only) | `fortitude C191 unreachable-statement` |
 | F# | `fsharplint`, `typos` | `fantomas` | `fsc` | `fsharp doc driver` | `coverlet` | `fsc FS1182 (--warnon:1182)` |

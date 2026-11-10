@@ -211,3 +211,8 @@ On other platforms Elixir targets fail toolchain resolution.
 ## Coverage
 
 `elixir_test` writes LCOV under `dx coverage`. A script cover-compiles the workspace apps in the test's `deps` and writes their line hits when the VM exits. Apps from other repositories are not counted. Tag a test `no-coverage` to skip it.
+
+## API docs
+
+`dx docs` documents an `elixir_app` with `elixir_doc_shard(name, app, package)` from
+`@rules_dx//tools/docs/elixir:defs.bzl`. It reads each module's docs chunk with `Code.fetch_docs/1` on the pinned Elixir and writes a DocIr shard. Modules marked `@moduledoc false` and functions marked `@doc false` are left out. Windows execution platforms are not covered.

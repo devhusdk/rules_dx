@@ -1,0 +1,19 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    ["shard.bzl"],
+    visibility = VIS_TOOLS,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "aspect.bzl",
+        "shard.bzl",
+    ],
+    tags = ["corpus"],
+)

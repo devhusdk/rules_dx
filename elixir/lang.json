@@ -55,5 +55,15 @@
         "real_elixir_lint_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/beam:aspect.bzl",
+    "file_extensions": [
+      ".ex",
+      ".exs"
+    ],
+    "aspects": [
+      "real_beam_docs_aspect"
+    ]
   }
 }

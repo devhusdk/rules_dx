@@ -95,6 +95,8 @@ tools/dx docs //lib:site
 | Fortran | `@rules_dx//tools/docs/fortran:defs.bzl` | `fortran_doc_shard` | `lib`, `package` |
 | PHP | `@rules_dx//tools/docs/php:defs.bzl` | `php_doc_shard` | `lib`, `package` |
 | Lua | `@rules_dx//tools/docs/lua:defs.bzl` | `lua_doc_shard` | `lib`, `package` |
+| Elixir | `@rules_dx//tools/docs/elixir:defs.bzl` | `elixir_doc_shard` | `app`, `package` |
+| Erlang | `@rules_dx//tools/docs/erlang:defs.bzl` | `erlang_doc_shard` | `app`, `package` |
 | Python | `@rules_dx//tools/docs/python:defs.bzl` | `python_doc_shard` | `library`, `package`, `docstyle` (`google`, `numpy` or `sphinx`) |
 | C and C++ | `@rules_dx//tools/docs/cc:defs.bzl` | `cc_doc_shard` | `lib`, `package` |
 | CUDA | `@rules_dx//tools/docs/cc:defs.bzl` | `cuda_doc_shard` | `lib`, `package` |
@@ -115,6 +117,14 @@ tools/dx docs //lib:site
 Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Swift, Zig, Dart, C#, F#, Perl and PHP libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
 an F# library needs `generate_documentation_file = True`; others are skipped. A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files gets one when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
+
+An `elixir_app` or `erlang_app` that lists its sources in `srcs` also gets a shard
+automatically. Elixir reads each module's docs chunk with `Code.fetch_docs/1` on
+the pinned Elixir. Erlang runs `edoc` from the pinned OTP. Both read `@doc` or
+`%% @doc` text only; Elixir modules marked `@moduledoc false` and functions
+marked `@doc false` are skipped, and Erlang functions that are not exported are
+skipped. The drivers run through `sh`, so Windows execution platforms get no
+Elixir or Erlang API docs.
 
 C, C++ and CUDA shards document the public `hdrs` of a `cc_library` or
 `cuda_library` with the pinned Doxygen 1.18.0 (XML output, no host install).

@@ -81,6 +81,10 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/protobuf/fixture
 # gazelle:exclude tools/docs/avro/fixture
 # gazelle:exclude tools/docs/lua/fixture
+# gazelle:exclude tools/docs/elixir/fixture
+# gazelle:exclude tools/docs/erlang/fixture
+# gazelle:exclude tools/docs/elixir/elixir_dump.exs
+# gazelle:exclude tools/docs/erlang/edoc_dump.escript
 # gazelle:exclude tools/docs/lua/dx_ldoc_json.lua
 # gazelle:exclude tools/docs/go/godoc
 # gazelle:exclude cli/depcheck/testdata

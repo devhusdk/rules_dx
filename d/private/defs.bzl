@@ -5,6 +5,7 @@ load("@rules_d//d:defs.bzl", _d_binary = "d_binary", _d_library = "d_library", _
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
+load("//core:rlocation.bzl", "rlocation_path")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "d_kwargs", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH")
@@ -57,8 +58,7 @@ def _d_test_coverage(ctx, upstream):
     if RunEnvironmentInfo in upstream:
         env.update(upstream[RunEnvironmentInfo].environment)
         inherited = upstream[RunEnvironmentInfo].inherited_environment
-    short = exe.short_path
-    env["DX_D_COVERAGE_UPSTREAM"] = short[3:] if short.startswith("../") else ctx.workspace_name + "/" + short
+    env["DX_D_COVERAGE_UPSTREAM"] = rlocation_path(ctx, exe)
     return struct(
         instrumented = instrumented,
         env = RunEnvironmentInfo(environment = env, inherited_environment = inherited),

@@ -1,7 +1,7 @@
 """Layer-2 full-matrix runner tests (snapshot workflow)."""
 
-load("//deploy/private:config.bzl", "rlocation_path")
 load("//core:canonical.bzl", "is_canonical", "strip_canonical")
+load("//core:rlocation.bzl", "rlocation_path", "runfiles_path")
 load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load("//core/quality:pipeline.bzl", "real_request_stage")
 load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
@@ -248,8 +248,7 @@ def _runner_matrix_test_impl(ctx):
         beside = "_main/" + exe.short_path + ".runfiles/"
         tool_runfiles = info.default_runfiles
         for f in tool_runfiles.files.to_list():
-            path = f.short_path
-            path_tool_trees[beside + (path[3:] if path.startswith("../") else "_main/" + path)] = f
+            path_tool_trees[beside + runfiles_path("_main", f.short_path)] = f
         for entry in tool_runfiles.symlinks.to_list():
             path_tool_trees[beside + "_main/" + entry.path] = entry.target_file
         for entry in tool_runfiles.root_symlinks.to_list():

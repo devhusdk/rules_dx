@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_java//java:java_binary.bzl", "java_binary")
@@ -23,11 +24,10 @@ exports_files([
 
 android_packaging_tests(name = "metadata")
 
-genrule(
+copy_file(
     name = "rotated_second_key",
-    srcs = ["@rules_android//tools/android:debug_keystore"],
-    outs = ["rotated_second.keystore"],
-    cmd = "cp $< $@",
+    src = "@rules_android//tools/android:debug_keystore",
+    out = "rotated_second.keystore",
 )
 
 rust_android_apk(

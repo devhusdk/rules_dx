@@ -3,6 +3,7 @@
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:packaging.bzl", "claim_dest", "data_path")
 load("//core:platform.bzl", "single_platform_error")
+load("//core:rlocation.bzl", "rlocation_path", "runfiles_path")
 
 def _data_path_checks():
     root = struct(repo_name = "", package = "")
@@ -53,10 +54,19 @@ def _single_platform_checks():
         expect_equal("two platforms", single_platform_error("dx_x", ["//p:a", "//p:b"]), "dx_x: platforms takes exactly one platform label, got 2"),
     ]
 
+def _rlocation_checks():
+    ctx = struct(workspace_name = "_main")
+    return [
+        expect_equal("main repository path", runfiles_path("_main", "pkg/x.txt"), "_main/pkg/x.txt"),
+        expect_equal("external repository path", runfiles_path("_main", "../repo+/pkg/x.txt"), "repo+/pkg/x.txt"),
+        expect_equal("main repository file", rlocation_path(ctx, struct(short_path = "pkg/x.txt")), "_main/pkg/x.txt"),
+        expect_equal("external repository file", rlocation_path(ctx, struct(short_path = "../repo+/pkg/x.txt")), "repo+/pkg/x.txt"),
+    ]
+
 def packaging_unit_tests(name):
     """Declares unit tests for the shared packaging helpers."""
     starlark_test(
         name = name,
         mode = "unit",
-        checks = _data_path_checks() + _claim_checks() + _single_platform_checks(),
+        checks = _data_path_checks() + _claim_checks() + _single_platform_checks() + _rlocation_checks(),
     )

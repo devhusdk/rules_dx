@@ -373,6 +373,13 @@ fn object_device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {
     }
 }
 
+/// Sorts and deduplicates device-code entries for comparison.
+pub fn sorted(mut entries: Vec<Entry>) -> Vec<Entry> {
+    entries.sort();
+    entries.dedup();
+    entries
+}
+
 /// Returns the device code embedded in an ELF, COFF or PE file, or in every object member of an
 /// ar archive.
 pub fn device_code(bytes: &[u8]) -> Result<Vec<Entry>, String> {

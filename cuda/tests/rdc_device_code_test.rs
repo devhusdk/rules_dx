@@ -1,4 +1,4 @@
-use dx_testing::fatbin::{self, Entry, Kind};
+use dx_testing::fatbin::{self, Entry, Kind, sorted};
 
 fn expected() -> Vec<Entry> {
     vec![
@@ -11,12 +11,6 @@ fn expected() -> Vec<Entry> {
             arch: 120,
         },
     ]
-}
-
-fn sorted(mut entries: Vec<Entry>) -> Vec<Entry> {
-    entries.sort();
-    entries.dedup();
-    entries
 }
 
 #[test]

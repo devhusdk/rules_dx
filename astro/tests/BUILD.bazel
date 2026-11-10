@@ -1,0 +1,11 @@
+# gazelle:ignore
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//astro/tests/fixtures/hello:coverage_test",
+        "//astro/tests/fixtures/hello:hello_aggregate_test",
+        "//astro/tests/fixtures/hello:hello_test",
+    ],
+)

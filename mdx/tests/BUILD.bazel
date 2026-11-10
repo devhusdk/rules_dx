@@ -1,0 +1,11 @@
+# gazelle:ignore
+
+test_suite(
+    name = "fixture_tests",
+    testonly = True,
+    tests = [
+        "//mdx/tests/fixtures/hello:coverage_test",
+        "//mdx/tests/fixtures/hello:hello_aggregate_test",
+        "//mdx/tests/fixtures/hello:hello_test",
+    ],
+)

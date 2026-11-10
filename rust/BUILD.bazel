@@ -3,3 +3,12 @@ exports_files([
     "defs.bzl",
     "lang.json",
 ])
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    visibility = ["//:__subpackages__"],
+)

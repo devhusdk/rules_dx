@@ -1,38 +1,38 @@
-load("@rules_cc//cc/private/toolchains:args.bzl", "cc_args")
-load("@rules_cc//cc/private/toolchains:feature.bzl", "cc_feature")
-load("@rules_cc//cc/private/toolchains:feature_constraint.bzl", "cc_feature_constraint")
-load("@rules_cc//cc/private/toolchains:nested_args.bzl", "cc_nested_args")
+load("@rules_cc//cc/toolchains:args.bzl", "cc_args")
+load("@rules_cc//cc/toolchains:feature.bzl", "cc_feature")
+load("@rules_cc//cc/toolchains:feature_constraint.bzl", "cc_feature_constraint")
+load("@rules_cc//cc/toolchains:nested_args.bzl", "cc_nested_args")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
 _LINK_ACTIONS = [
-    "@rules_cc//cc/private/toolchains/actions:cpp_link_executable",
-    "@rules_cc//cc/private/toolchains/actions:cpp_link_dynamic_library",
-    "@rules_cc//cc/private/toolchains/actions:cpp_link_nodeps_dynamic_library",
+    "@rules_cc//cc/toolchains/actions:cpp_link_executable",
+    "@rules_cc//cc/toolchains/actions:cpp_link_dynamic_library",
+    "@rules_cc//cc/toolchains/actions:cpp_link_nodeps_dynamic_library",
 ]
 
 cc_feature(
     name = "static_link_cpp_runtimes",
-    overrides = "@rules_cc//cc/private/toolchains/features:static_link_cpp_runtimes",
+    overrides = "@rules_cc//cc/toolchains/features:static_link_cpp_runtimes",
 )
 
 cc_feature(
     name = "static_linking_mode",
-    overrides = "@rules_cc//cc/private/toolchains/features:static_linking_mode",
+    overrides = "@rules_cc//cc/toolchains/features:static_linking_mode",
 )
 
 cc_feature(
     name = "dynamic_linking_mode",
-    overrides = "@rules_cc//cc/private/toolchains/features:dynamic_linking_mode",
+    overrides = "@rules_cc//cc/toolchains/features:dynamic_linking_mode",
 )
 
 # Bazel's own rpath flags use $EXEC_ORIGIN for tests, which the loader ignores.
 cc_args(
     name = "origin_rpath",
-    actions = ["@rules_cc//cc/private/toolchains/actions:link_actions"],
+    actions = ["@rules_cc//cc/toolchains/actions:link_actions"],
     nested = [":origin_rpath_dir"],
-    requires_not_none = "@rules_cc//cc/private/toolchains/variables:runtime_library_search_directories",
+    requires_not_none = "@rules_cc//cc/toolchains/variables:runtime_library_search_directories",
 )
 
 cc_nested_args(
@@ -43,8 +43,8 @@ cc_nested_args(
         "-Xlinker",
         "$ORIGIN/{dir}",
     ],
-    format = {"dir": "@rules_cc//cc/private/toolchains/variables:runtime_library_search_directories"},
-    iterate_over = "@rules_cc//cc/private/toolchains/variables:runtime_library_search_directories",
+    format = {"dir": "@rules_cc//cc/toolchains/variables:runtime_library_search_directories"},
+    iterate_over = "@rules_cc//cc/toolchains/variables:runtime_library_search_directories",
 )
 
 cc_args(

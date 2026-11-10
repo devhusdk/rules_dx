@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_python_typecheck_return_type_fail
+capability TYPECHECK
+stages 1
+stage ty classes=python sources=matrix/invalid_return_type.py
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR ty invalid-return-type matrix/invalid_return_type.py 55 55 fixable=false "Return type does not match returned value: expected `int`, found `Literal[\"text\"]`"
+terminal 1
+terminal ERROR ty invalid-return-type matrix/invalid_return_type.py 55 55 fixable=false "Return type does not match returned value: expected `int`, found `Literal[\"text\"]`"
+replacements 0

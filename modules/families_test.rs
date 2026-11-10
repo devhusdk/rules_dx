@@ -563,13 +563,14 @@ const FAMILY_FILES: [&str; 43] = [
 ];
 
 /// Family files that sit in their language directory instead of `quality/families`.
-const LANGUAGE_FAMILY_FILES: [&str; 7] = [
+const LANGUAGE_FAMILY_FILES: [&str; 8] = [
     "ansible",
     "bicep",
     "cloudformation",
     "dockerfile",
     "kubernetes",
     "rego",
+    "rust",
     "terraform",
 ];
 

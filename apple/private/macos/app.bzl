@@ -10,7 +10,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core:rlocation.bzl", "rlocation_path")
-load("//apple/private/bundle:defs.bzl", "TOOL_PATH", "adhoc_signing_transition", "archives", "check_cell", "display", "flat_resources", "label_text", "resolved_xcode")
+load("//apple/private/bundle:defs.bzl", "NO_PATH", "adhoc_signing_transition", "archives", "check_cell", "display", "flat_resources", "label_text", "resolved_xcode")
 load(":validate.bzl", "macos_app_errors")
 
 _CELL = "macos/arm64"
@@ -222,7 +222,7 @@ def _macos_app_check_impl(ctx):
         _lines(_plugin_names(ctx.attr.plugins)),
         _lines(flat_resources(ctx.files.resources)),
     ])
-    env = {"PATH": TOOL_PATH}
+    env = {"PATH": NO_PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     ctx.actions.run(
         executable = ctx.executable._check,

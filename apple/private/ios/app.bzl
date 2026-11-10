@@ -10,7 +10,7 @@ load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
-load("//apple/private/bundle:defs.bzl", "SIGNING_CERTIFICATE", "TOOL_PATH", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
+load("//apple/private/bundle:defs.bzl", "NO_PATH", "SIGNING_CERTIFICATE", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
 load(
     ":cell.bzl",
     "APPLE_HOSTS",
@@ -704,7 +704,7 @@ def _xcframework_check_impl(ctx):
     if len(header_failures) > 0:
         fail("; ".join(header_failures))
     args.add_all(header_names)
-    env = {"PATH": TOOL_PATH}
+    env = {"PATH": NO_PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     ctx.actions.run(
         executable = ctx.executable._check,

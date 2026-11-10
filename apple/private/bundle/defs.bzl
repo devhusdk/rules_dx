@@ -3,7 +3,7 @@
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//apple/private/provisioning:defs.bzl", "version_matches")
 
-TOOL_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
+NO_PATH = "/dx_no_path"
 
 _COMPILED_RESOURCES = ["metal", "mlmodel", "mlpackage", "storyboard", "xcstrings", "xib"]
 
@@ -86,7 +86,7 @@ def check_cell(ctx, kind, cell, sdk, mach_o_platform, platform, platform_type, m
         str(xcode_config.sdk_version_for_platform(platform)),
     ])
     args.add_all(inputs)
-    env = {"PATH": TOOL_PATH}
+    env = {"PATH": NO_PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     env.update(apple_common.target_apple_env(xcode_config, platform))
     ctx.actions.run(

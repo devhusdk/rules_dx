@@ -13,6 +13,10 @@ name = "macos_app_script_test"
 path = "macos_app_script_test.rs"
 
 [[test]]
+name = "path_test"
+path = "path_test.rs"
+
+[[test]]
 name = "probe_script_test"
 path = "probe_script_test.rs"
 

@@ -480,7 +480,7 @@ fn check_kind(
         &script("DX_LIBRARY_CHECK"),
         &args,
         &[
-            ("PATH", path.as_str()),
+            ("DX_APPLE_TOOL_PATH", path.as_str()),
             ("FAKE_LOG", log.as_str()),
             ("FAKE_ARCHS", archs),
             ("FAKE_LOADS", loads_path.as_str()),

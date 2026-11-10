@@ -20,7 +20,7 @@ MINIMUM_OS_FLAGS = {
     "macosx": "--macos_minimum_os",
 }
 
-_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
+_NO_PATH = "/dx_no_path"
 
 def _has(ctx, constraint):
     return ctx.target_platform_has_constraint(constraint[platform_common.ConstraintValueInfo])
@@ -111,7 +111,7 @@ def _apple_toolchain_probe_impl(ctx):
         compiler,
         tooling.endpoint,
     ])
-    env = {"PATH": _PATH}
+    env = {"PATH": _NO_PATH}
     env.update(apple_common.apple_host_system_env(xcode_config))
     env.update(apple_common.target_apple_env(xcode_config, platform))
     requirements = dict(xcode_config.execution_info())

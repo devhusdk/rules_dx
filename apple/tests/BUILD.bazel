@@ -20,6 +20,27 @@ rust_test(
 )
 
 rust_test(
+    name = "path_test",
+    testonly = True,
+    srcs = ["path_test.rs"],
+    aliases = aliases(
+        package_name = "apple/apple_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "path_test",
+    crate_root = "path_test.rs",
+    data = [
+        "//apple/private/bundle:defs.bzl",
+        "//apple/private/ios:app.bzl",
+        "//apple/private/macos:app.bzl",
+        "//apple/private/provisioning:probe.bzl",
+    ],
+    env = {"DX_APPLE_PATH_SOURCES": "$(rootpath //apple/private/bundle:defs.bzl) $(rootpath //apple/private/ios:app.bzl) $(rootpath //apple/private/macos:app.bzl) $(rootpath //apple/private/provisioning:probe.bzl)"},
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "probe_script_test",
     testonly = True,
     srcs = ["probe_script_test.rs"],

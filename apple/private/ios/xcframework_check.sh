@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+PATH=${DX_APPLE_TOOL_PATH:-/usr/bin:/bin:/usr/sbin:/sbin}
 
 report="$1"
 out="$2"

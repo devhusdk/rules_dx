@@ -166,7 +166,7 @@ impl Case {
             .to_string_lossy()
             .into_owned();
         let tree = self.tree.to_string_lossy().into_owned();
-        let mut all = vec![("PATH", path.as_str()), ("FAKE_TREE", tree.as_str())];
+        let mut all = vec![("DX_APPLE_TOOL_PATH", path.as_str()), ("FAKE_TREE", tree.as_str())];
         all.extend_from_slice(envs);
         let script = resolve_runfiles(
             &std::env::var("DX_XCFRAMEWORK_CHECK")

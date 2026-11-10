@@ -1,5 +1,6 @@
 #!/bin/sh
 set -eu
+PATH=${DX_APPLE_TOOL_PATH:-/usr/bin:/bin:/usr/sbin:/sbin}
 
 # Arguments, in order: identity zip archive name extension executable bundle_id
 # version deployment arch xcode sdk_version frameworks plugins resources

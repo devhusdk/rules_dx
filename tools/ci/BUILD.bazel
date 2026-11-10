@@ -918,6 +918,27 @@ rust_test(
 )
 
 rust_test(
+    name = "gazelle_rust_coverage_test",
+    srcs = ["gazelle_rust_coverage_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "gazelle_rust_coverage_test",
+    crate_root = "gazelle_rust_coverage_test.rs",
+    data = [
+        "//:BUILD.bazel",
+        "//:MODULE.bazel",
+    ],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "gitlab_example_test",
     srcs = ["gitlab_example_test.rs"],
     aliases = aliases(

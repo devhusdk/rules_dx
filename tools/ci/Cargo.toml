@@ -82,6 +82,10 @@ name = "gate_base_test"
 path = "gate_base_test.rs"
 
 [[test]]
+name = "gazelle_rust_coverage_test"
+path = "gazelle_rust_coverage_test.rs"
+
+[[test]]
 name = "gitlab_example_test"
 path = "gitlab_example_test.rs"
 

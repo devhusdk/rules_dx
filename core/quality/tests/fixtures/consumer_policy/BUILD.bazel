@@ -79,6 +79,15 @@ workspace_policy(
         ":terraform_family",
         ":typst_family",
         ":yaml_family",
+        "//core/quality/testdata:qml_family",
+        "//core/quality/testdata:tool_override_dart_family",
+        "//core/quality/testdata:tool_override_elixir_family",
+        "//core/quality/testdata:tool_override_erlang_family",
+        "//core/quality/testdata:tool_override_julia_family",
+        "//core/quality/testdata:tool_override_perl_family",
+        "//core/quality/testdata:tool_override_php_family",
+        "//core/quality/testdata:tool_override_ruby_family",
+        "//core/quality/testdata:tool_override_zig_family",
     ],
     visibility = [
         "//core/quality:__pkg__",
@@ -651,10 +660,11 @@ real_source_target(
 
 quality_family(
     name = "lua_family",
-    disabled = ["typecheck"],
+    disabled = ["audit"],
     family_id = "lua",
     format = ["stylua"],
     lint = ["selene"],
+    typecheck = ["luals"],
 )
 
 real_source_target(

@@ -81,7 +81,6 @@ _FSHARP = "//core/quality/testdata/fsharp_owned:policy"
 _HASKELL = "//core/quality/testdata/haskell_owned:policy"
 _OCAML = "//core/quality/testdata/ocaml_owned:policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
-_TOOL_OVERRIDE_POLICY = "//core/quality/testdata:tool_override_policy"
 _ZIG = "//core/quality/testdata/zig_owned:policy"
 _RUBY = "//core/quality/testdata/ruby_owned:policy"
 
@@ -120,8 +119,7 @@ TEST_CONFIGS = {
     "ruff_policy": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality:fixture_policy"}),
     "shared_clippy_standard": _config(_SHARED, clippy_flags = _CLIPPY_STANDARD),
     "shared_clippy_strict": _config(_SHARED, clippy_flags = _CLIPPY_STRICT),
-    "tool_defaults": _config(_TOOL_OVERRIDE_POLICY),
-    "tool_overrides": _config(_TOOL_OVERRIDE_POLICY, tools = _TOOL_OVERRIDES),
+    "tool_overrides": _config(_SHARED, tools = _TOOL_OVERRIDES),
     "workspace": _config("//.dx:policy"),
     "zanuda_owned": _config("//core/quality/testdata/zanuda_owned:policy"),
 }

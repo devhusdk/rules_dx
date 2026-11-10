@@ -1329,23 +1329,6 @@ quality_family(
     typecheck = ["sorbet"],
 )
 
-workspace_policy(
-    name = "tool_override_policy",
-    families = [
-        ":qml_family",
-        ":tool_override_dart_family",
-        ":tool_override_elixir_family",
-        ":tool_override_erlang_family",
-        ":tool_override_julia_family",
-        ":tool_override_lua_family",
-        ":tool_override_perl_family",
-        ":tool_override_php_family",
-        ":tool_override_ruby_family",
-        ":tool_override_zig_family",
-        "//core/quality/testdata/go_owned:go_family",
-    ],
-)
-
 qml_sources(
     name = "qml_fixture",
     srcs = ["Fixture.qml"],

@@ -34,7 +34,7 @@ load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 _TOOL_FLAG = "//config:tool_ruff"
 _ALTERNATE_SHORT = "core/quality/testdata/alternate_ruff_bin"
-TOOL_OVERRIDE_CONFIGS = ["ruff_alternate", "ruff_empty", "ruff_pair", "ruff_policy", "tool_defaults", "tool_overrides"]
+TOOL_OVERRIDE_CONFIGS = ["ruff_alternate", "ruff_empty", "ruff_pair", "ruff_policy", "shared", "tool_overrides"]
 
 _override_subject = config_subject_rule([], [DxSubjectInfo])
 
@@ -497,7 +497,7 @@ def perlcritic_flag_tests(name, subject):
         size = "small",
         tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults", PERL_COMPATIBLE_WITH),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared", PERL_COMPATIBLE_WITH),
     )
     _perlcritic_set_test(
         name = name + "_set_test",
@@ -539,7 +539,7 @@ def perltidy_flag_tests(name, subject):
         size = "small",
         tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults", PERL_COMPATIBLE_WITH),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared", PERL_COMPATIBLE_WITH),
     )
     _perltidy_set_test(
         name = name + "_set_test",
@@ -580,7 +580,7 @@ def zig_fmt_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _zig_fmt_set_test(
         name = name + "_set_test",
@@ -620,7 +620,7 @@ def zig_ast_check_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _zig_ast_check_set_test(
         name = name + "_set_test",
@@ -660,7 +660,7 @@ def dart_format_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _dart_format_set_test(
         name = name + "_set_test",
@@ -700,7 +700,7 @@ def julia_format_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _julia_format_set_test(
         name = name + "_set_test",
@@ -731,7 +731,7 @@ def erlfmt_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _erlfmt_set_test(
         name = name + "_set_test",
@@ -783,7 +783,7 @@ def credo_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _credo_set_test(
         name = name + "_set_test",
@@ -814,7 +814,7 @@ def elvis_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _elvis_set_test(
         name = name + "_set_test",
@@ -845,7 +845,7 @@ def mix_format_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _mix_format_set_test(
         name = name + "_set_test",
@@ -864,7 +864,7 @@ def qmllint_flag_tests(name, subject):
         name = name + "_unset_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_unset_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_unset_test_subject", subject, "shared"),
         expected_failure_substring = "--@rules_dx//config:tool_qmllint",
     )
     return [
@@ -877,7 +877,7 @@ def qmlformat_flag_tests(name, subject):
         name = name + "_unset_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_unset_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_unset_test_subject", subject, "shared"),
         expected_failure_substring = "--@rules_dx//config:tool_qmlformat",
     )
     return [
@@ -944,7 +944,7 @@ def dialyzer_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _dialyzer_set_test(
         name = name + "_set_test",
@@ -967,7 +967,7 @@ def dialyzer_elixir_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _dialyzer_elixir_set_test(
         name = name + "_set_test",
@@ -997,7 +997,7 @@ def phpcs_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _phpcs_set_test(
         name = name + "_set_test",
@@ -1027,7 +1027,7 @@ def phpstan_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _phpstan_set_test(
         name = name + "_set_test",
@@ -1057,7 +1057,7 @@ def luals_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _luals_set_test(
         name = name + "_set_test",
@@ -1087,7 +1087,7 @@ def jet_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _jet_set_test(
         name = name + "_set_test",
@@ -1117,7 +1117,7 @@ def sorbet_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
+        target_under_test = _subject(name + "_default_test_subject", subject, "shared"),
     )
     _sorbet_set_test(
         name = name + "_set_test",

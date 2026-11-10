@@ -1,5 +1,7 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//rust:defs.bzl", "rust_test")
 load("//api_spec:defs.bzl", "api_spec_library", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//go:defs.bzl", "go_library")
@@ -213,6 +215,26 @@ genrule(
 build_test(
     name = "petstore_rs_check_test",
     targets = [":petstore_rs_check"],
+)
+
+rust_test(
+    name = "client_rust_test",
+    srcs = [
+        "client_rust_test.rs",
+        ":petstore_rs",
+    ],
+    aliases = aliases(
+        package_name = "api_spec/api_spec_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "client_rust_test",
+    crate_root = "client_rust_test.rs",
+    deps = all_crate_deps(
+        package_name = "api_spec/api_spec_tests",
+        normal = True,
+        normal_dev = True,
+    ),
 )
 
 openapi_codegen_shard(

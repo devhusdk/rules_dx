@@ -2207,6 +2207,7 @@ crate.from_cargo(
         "//core/modules:Cargo.toml",
         "//wasi/private/testing:Cargo.toml",
         "//api_spec/private/codegen:Cargo.toml",
+        "//api_spec/tests:Cargo.toml",
         "//capnproto/private/tools/capnpc_rust_dx:Cargo.toml",
         "//cc/tests:Cargo.toml",
         "//dart/private/tools:Cargo.toml",

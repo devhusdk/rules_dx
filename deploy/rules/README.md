@@ -668,6 +668,71 @@ A default run checks the nuspec id and version against `package` and
 skipped, the run prints `nuget_deploy: skipped <id> <version>: already on
 <source>` and exits 0.
 
+# cpan_deploy
+
+Stages one distribution tarball locally and uploads it to PAUSE.
+
+```starlark
+load("@rules_dx//deploy/rules:defs.bzl", "cpan_deploy")
+
+cpan_deploy(
+    name = "cpan-demo",
+    dist = ":cpan_demo_dist",
+    package = "Cpan-Demo",
+)
+```
+
+- `dist`: required. One `<Dist>-<version>.tar.gz` holding `<Dist>-<version>/META.json` or `META.yml`.
+- `package`: the distribution name. Defaults to `name`. Must match the file name.
+- `version`: optional. Must match the version in the file name.
+- `perl`, `perl_files`: optional pinned perl with `CPAN::Uploader` and the files it needs. Empty takes `perl` from `PATH`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+
+A default run checks the identity and stages `<name>-dist/` with the tarball.
+No credentials needed.
+
+```sh
+CPAN_PUBLISH_APPROVED=1 CPAN_API_USER=... CPAN_API_TOKEN=... \
+DX_DEPLOY_LIVE=1 dx deploy --apply //pkg:cpan-demo
+```
+
+This runs `CPAN::Uploader->upload_file` under `perl`. The PAUSE user and
+password reach it through the environment, never the command line. A live run
+refuses version `0.0.0`.
+
+# conan_deploy
+
+Stages one Conan recipe locally, then creates and uploads it to a remote.
+
+```starlark
+load("@rules_dx//deploy/rules:defs.bzl", "conan_deploy")
+
+conan_deploy(
+    name = "conan_demo",
+    recipe = ":conan_demo_recipe",
+    remote = "center2",
+    remote_url = "https://center2.conan.io",
+)
+```
+
+- `recipe`: required. Files including `conanfile.py` and its sources.
+- `remote`, `remote_url`: required. The remote name and its https URL.
+- `package`: the package name. Defaults to `name`. Must match `name` in `conanfile.py` when it sets one.
+- `version`: optional. Must match `version` in `conanfile.py`; required when the recipe sets none.
+- `conan`, `conan_files`: optional pinned conan and the files it needs. Empty takes `conan` from `PATH`.
+- `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
+
+A default run checks the recipe and stages `<name>-recipe/`. No credentials needed.
+
+```sh
+CONAN_PUBLISH_APPROVED=1 CONAN_LOGIN_USERNAME=... CONAN_PASSWORD=... \
+DX_DEPLOY_LIVE=1 dx deploy --apply //pkg:conan_demo
+```
+
+A live run uses a private `CONAN_HOME`, runs `conan profile detect`, `conan
+remote add`, `conan create` and `conan upload --confirm`. The credentials reach
+conan through the environment. A live run refuses version `0.0.0`.
+
 # hackage_deploy
 
 Stages one cabal sdist locally and uploads it to Hackage.

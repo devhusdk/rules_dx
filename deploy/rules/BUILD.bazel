@@ -11,6 +11,10 @@ load(":archive.bzl", "archive_deploy")
 load(":archive_tests.bzl", "archive_unit_tests", "consumer_archive_unit_tests")
 load(":cloudflare.bzl", "cloudflare_pages_deploy")
 load(":cloudflare_tests.bzl", "cloudflare_program_closure_tests", "cloudflare_unit_tests", "site_dir")
+load(":conan.bzl", "conan_deploy")
+load(":conan_tests.bzl", "conan_unit_tests")
+load(":cpan.bzl", "cpan_deploy")
+load(":cpan_tests.bzl", "cpan_unit_tests")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_config_content_tests", "crates_unit_tests")
 load(":deployment.bzl", "dx_deployment")
@@ -65,6 +69,10 @@ exports_files([
     "cloudflare.bzl",
     "cloudflare_tests.bzl",
     "config.bzl",
+    "conan.bzl",
+    "conan_tests.bzl",
+    "cpan.bzl",
+    "cpan_tests.bzl",
     "crates.bzl",
     "crates_tests.bzl",
     "defs.bzl",
@@ -119,6 +127,8 @@ exports_files([
     "src/bin_size_checker.rs",
     "src/cloudflare.rs",
     "src/config.rs",
+    "src/conan.rs",
+    "src/cpan.rs",
     "src/crates.rs",
     "src/github.rs",
     "src/go_api.rs",
@@ -146,6 +156,8 @@ exports_files([
     "validate.bzl",
     "validate_archive.bzl",
     "validate_cloudflare.bzl",
+    "validate_conan.bzl",
+    "validate_cpan.bzl",
     "validate_crates.bzl",
     "validate_github.bzl",
     "validate_hackage.bzl",
@@ -182,6 +194,8 @@ rust_library(
         "src/archive.rs",
         "src/cloudflare.rs",
         "src/config.rs",
+        "src/conan.rs",
+        "src/cpan.rs",
         "src/crates.rs",
         "src/github.rs",
         "src/go_api.rs",
@@ -859,6 +873,10 @@ test_suite(
         ":github_duplicate_basename_fails",
         ":github_sbom_demo_verify",
         ":github_unit",
+        ":conan_analysis",
+        ":conan_unit",
+        ":cpan_analysis",
+        ":cpan_unit",
         ":hackage_alias_analysis",
         ":hackage_analysis",
         ":hackage_unit",
@@ -1828,6 +1846,47 @@ deploy_analysis_test(
 )
 
 genrule(
+    name = "cpan_demo_dist",
+    outs = ["Cpan-Demo-0.01.tar.gz"],
+    cmd = "mkdir -p $(@D)/stage/Cpan-Demo-0.01 && printf '{}' > $(@D)/stage/Cpan-Demo-0.01/META.json && tar -czf $@ -C $(@D)/stage Cpan-Demo-0.01",
+)
+
+cpan_deploy(
+    name = "cpan-demo",
+    dist = ":cpan_demo_dist",
+    package = "Cpan-Demo",
+)
+
+cpan_unit_tests(name = "cpan_unit")
+
+deploy_analysis_test(
+    name = "cpan_analysis",
+    artifacts = ["//deploy/rules:cpan_demo_dist"],
+    subject = "cpan-demo",
+)
+
+genrule(
+    name = "conan_demo_recipe",
+    outs = ["conanfile.py"],
+    cmd = "printf 'from conan import ConanFile\\n\\nclass Demo(ConanFile):\\n    name = \"conan_demo\"\\n    version = \"0.0.0\"\\n' > $@",
+)
+
+conan_deploy(
+    name = "conan_demo",
+    recipe = ":conan_demo_recipe",
+    remote = "center2",
+    remote_url = "https://center2.conan.io",
+)
+
+conan_unit_tests(name = "conan_unit")
+
+deploy_analysis_test(
+    name = "conan_analysis",
+    artifacts = ["//deploy/rules:conan_demo_recipe"],
+    subject = "conan_demo",
+)
+
+genrule(
     name = "hackage_demo_sdist",
     outs = ["hackage-demo-0.0.0.tar.gz"],
     cmd = "mkdir -p $(@D)/stage/hackage-demo-0.0.0 && printf 'name: hackage-demo\\nversion: 0.0.0\\n' > $(@D)/stage/hackage-demo-0.0.0/hackage-demo.cabal && tar -czf $@ -C $(@D)/stage hackage-demo-0.0.0",
@@ -2140,6 +2199,8 @@ real_source_target(
         "validate.bzl",
         "validate_archive.bzl",
         "validate_cloudflare.bzl",
+        "validate_conan.bzl",
+        "validate_cpan.bzl",
         "validate_crates.bzl",
         "validate_github.bzl",
         "validate_hackage.bzl",

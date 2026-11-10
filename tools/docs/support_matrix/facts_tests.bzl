@@ -244,7 +244,7 @@ def support_matrix_facts_tests(name):
             expect_equal(
                 "rules without an api compat tool are an explicit snapshot",
                 sorted([rule for rule, tool in facts["api_compat_tools"].items() if tool == "not available"]),
-                ["hackage_deploy", "hex_deploy", "luarocks_deploy", "rubygems_deploy"],
+                ["conan_deploy", "cpan_deploy", "hackage_deploy", "hex_deploy", "luarocks_deploy", "rubygems_deploy"],
             ),
             expect_equal("bench macros name a language row each", _macro_problems(facts, BENCH, "_bench"), []),
             expect_equal("fuzz macros name a language row each", _macro_problems(facts, FUZZ, "_fuzz_test"), []),

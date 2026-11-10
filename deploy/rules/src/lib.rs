@@ -15,6 +15,8 @@ mod config;
 mod crates;
 mod github;
 mod go_api;
+mod conan;
+mod cpan;
 mod hackage;
 mod helm;
 mod hex;
@@ -44,6 +46,8 @@ pub use cloudflare::*;
 pub use config::*;
 pub use crates::*;
 pub use github::*;
+pub use conan::*;
+pub use cpan::*;
 pub use hackage::*;
 pub use helm::*;
 pub use hex::*;
@@ -224,6 +228,8 @@ mod tests {
         let gates = [
             &PYPI_GATE,
             &NUGET_GATE,
+            &conan::CONAN_GATE,
+            &cpan::CPAN_GATE,
             &hackage::HACKAGE_GATE,
             &luarocks::LUAROCKS_GATE,
             &packagist::PACKAGIST_GATE,

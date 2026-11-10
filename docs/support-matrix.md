@@ -201,6 +201,8 @@ The tool each publishing rule runs for `api_compat`, or `not available` when no 
 
 | Rule | Tool |
 | --- | --- |
+| `conan_deploy` | not available |
+| `cpan_deploy` | not available |
 | `crates_deploy` | `cargo-semver-checks` |
 | `github_deploy` | `apidiff` |
 | `hackage_deploy` | not available |

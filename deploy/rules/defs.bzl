@@ -2,6 +2,8 @@
 
 load(":archive.bzl", _archive_deploy = "archive_deploy", _consumer_archive = "consumer_archive")
 load(":cloudflare.bzl", _cloudflare_pages_deploy = "cloudflare_pages_deploy")
+load(":conan.bzl", _conan_deploy = "conan_deploy")
+load(":cpan.bzl", _cpan_deploy = "cpan_deploy")
 load(":crates.bzl", _crates_deploy = "crates_deploy")
 load(":debug_info.bzl", _dx_dsym = "dx_dsym", _dx_pdb = "dx_pdb", _dx_split_debug_info = "dx_split_debug_info")
 load(":deployment.bzl", _DxDeployInfo = "DxDeployInfo", _VALID_DEPLOY_BUILD_MODES = "VALID_DEPLOY_BUILD_MODES", _dx_deployment = "dx_deployment")
@@ -32,6 +34,8 @@ VALID_DEPLOY_BUILD_MODES = _VALID_DEPLOY_BUILD_MODES
 archive_deploy = _archive_deploy
 cloudflare_pages_deploy = _cloudflare_pages_deploy
 consumer_archive = _consumer_archive
+conan_deploy = _conan_deploy
+cpan_deploy = _cpan_deploy
 crates_deploy = _crates_deploy
 dx_deployment = _dx_deployment
 dx_dsym = _dx_dsym

@@ -62,6 +62,8 @@ COMPUTED_CONSTRAINTS = {
 
 # The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.
 API_COMPAT_TOOLS = {
+    "conan_deploy": "not available",
+    "cpan_deploy": "not available",
     "crates_deploy": "cargo-semver-checks",
     "github_deploy": "apidiff",
     "hackage_deploy": "not available",

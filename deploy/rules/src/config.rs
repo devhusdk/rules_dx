@@ -130,6 +130,32 @@ pub struct NugetConfig {
     pub apicompat_rloc: String,
 }
 
+/// Pins one CPAN upload: the dist, its expected package and version, and the optional pinned perl.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CpanConfig {
+    pub dist_rloc: String,
+    pub deploy_name: String,
+    pub package: String,
+    pub version: String,
+    #[serde(default)]
+    pub perl_rloc: String,
+}
+
+/// Pins one Conan upload: the recipe files, reference, remote and the optional pinned conan.
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConanConfig {
+    pub recipe_rlocs: Vec<String>,
+    pub deploy_name: String,
+    pub package: String,
+    pub version: String,
+    pub remote: String,
+    pub remote_url: String,
+    #[serde(default)]
+    pub conan_rloc: String,
+}
+
 /// Pins one Hackage upload: the sdist and its expected package and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -311,6 +337,8 @@ pub enum DeployConfig {
     HelmChart(HelmChartConfig),
     Npm(NpmConfig),
     Nuget(NugetConfig),
+    Cpan(CpanConfig),
+    Conan(ConanConfig),
     Hackage(HackageConfig),
     Luarocks(LuarocksConfig),
     Packagist(PackagistConfig),
@@ -456,6 +484,26 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
                 baseline: &nuget.api_baseline,
                 dotnet_rloc: &nuget.dotnet_rloc,
                 apicompat_rloc: &nuget.apicompat_rloc,
+            },
+            argv,
+        ),
+        DeployConfig::Cpan(cpan) => crate::cpan_main(
+            &cpan.dist_rloc,
+            &cpan.deploy_name,
+            &cpan.package,
+            &cpan.version,
+            &cpan.perl_rloc,
+            argv,
+        ),
+        DeployConfig::Conan(conan) => crate::conan_main(
+            &crate::ConanLaunch {
+                recipe_rlocs: &conan.recipe_rlocs,
+                deploy_name: &conan.deploy_name,
+                package: &conan.package,
+                version: &conan.version,
+                remote: &conan.remote,
+                remote_url: &conan.remote_url,
+                conan_rloc: &conan.conan_rloc,
             },
             argv,
         ),
@@ -1048,6 +1096,22 @@ mod tests {
                 api_baseline: "registry".to_owned(),
                 dotnet_rloc: String::new(),
                 apicompat_rloc: String::new(),
+            }),
+            DeployConfig::Cpan(CpanConfig {
+                dist_rloc: "a".to_owned(),
+                deploy_name: "demo".to_owned(),
+                package: String::new(),
+                version: String::new(),
+                perl_rloc: String::new(),
+            }),
+            DeployConfig::Conan(ConanConfig {
+                recipe_rlocs: vec!["a".to_owned()],
+                deploy_name: "demo".to_owned(),
+                package: "demo".to_owned(),
+                version: String::new(),
+                remote: "dx".to_owned(),
+                remote_url: "https://conan.invalid".to_owned(),
+                conan_rloc: String::new(),
             }),
             DeployConfig::Hackage(HackageConfig {
                 sdist_rloc: "a".to_owned(),

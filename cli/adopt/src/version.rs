@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use dx_error::DxError;
 use dx_module_bazel::ModuleFile;
 
 use super::AdoptError;
@@ -164,15 +165,17 @@ impl ModuleDependency {
 /// Reads the rules_dx dependency from MODULE.bazel and every file it includes.
 pub fn parse_module_dependency(
     text: &str,
-    read_include: &dyn Fn(&str) -> Result<String, String>,
-) -> Result<ModuleDependency, String> {
+    read_include: &dyn Fn(&str) -> Result<String, DxError>,
+) -> Result<ModuleDependency, DxError> {
     let mut dependency = ModuleDependency {
         workspace_module: None,
         declared: None,
         override_kind: None,
         override_source: None,
     };
-    let modules = dx_module_bazel::load_with_includes(text, read_include)?;
+    let read_text = |label: &str| read_include(label).map_err(|error| error.message().to_owned());
+    let modules =
+        dx_module_bazel::load_with_includes(text, &read_text).map_err(DxError::failure)?;
     for call in modules.iter().flat_map(ModuleFile::calls) {
         let name = call.name.as_str();
         if name == "module" {
@@ -228,13 +231,14 @@ pub fn read_module_dependency(root: &Path) -> Result<ModuleDependency, AdoptErro
             detail: e.to_string(),
         }
     })?;
-    let read_include = |label: &str| -> Result<String, String> {
-        let rel = dx_module_bazel::include_rel("", label)?;
+    let read_include = |label: &str| -> Result<String, DxError> {
+        let rel = dx_module_bazel::include_rel("", label).map_err(DxError::failure)?;
         std::fs::read_to_string(root.join(rel))
-            .map_err(|e| format!("cannot read included {label}: {e}"))
+            .map_err(|e| DxError::infra(format!("cannot read included {label}: {e}")))
     };
-    parse_module_dependency(&text, &read_include)
-        .map_err(|detail| AdoptError::LoadModuleFile { detail })
+    parse_module_dependency(&text, &read_include).map_err(|error| AdoptError::LoadModuleFile {
+        detail: error.message().to_owned(),
+    })
 }
 
 /// The rules_dx version `MODULE.bazel` asks for; `None` without a usable version.
@@ -511,8 +515,8 @@ mod tests {
         assert!(version_pin_matches_module(DX_VERSION, MODULE_VERSION));
     }
 
-    fn no_includes(label: &str) -> Result<String, String> {
-        Err(format!("unexpected include {label}"))
+    fn no_includes(label: &str) -> Result<String, DxError> {
+        Err(DxError::failure(format!("unexpected include {label}")))
     }
 
     fn dep(text: &str) -> ModuleDependency {
@@ -521,7 +525,7 @@ mod tests {
 
     #[test]
     fn module_dependency_reads_includes_and_fails_loudly() {
-        let read = |_: &str| -> Result<String, String> {
+        let read = |_: &str| -> Result<String, DxError> {
             Ok("bazel_dep(name = \"rules_dx\", version = \"1.2.3\")\ngit_override(module_name = \"rules_dx\", remote = \"https://example.test/dx\", commit = \"abc123\")\n".to_owned())
         };
         let included =
@@ -530,12 +534,12 @@ mod tests {
             render_module_dependency(&included),
             "rules_dx 1.2.3 via git_override https://example.test/dx@abc123"
         );
-        let failing = |label: &str| -> Result<String, String> {
-            Err(format!("cannot read included {label}: gone"))
+        let failing = |label: &str| -> Result<String, DxError> {
+            Err(DxError::infra(format!("cannot read included {label}: gone")))
         };
         let error = parse_module_dependency("include(\"//:dx.MODULE.bazel\")\n", &failing)
             .expect_err("fails");
-        assert!(error.contains("cannot read included"), "{error}");
+        assert!(error.message().contains("cannot read included"), "{error}");
     }
 
     #[test]

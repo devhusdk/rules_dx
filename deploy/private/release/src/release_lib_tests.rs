@@ -213,15 +213,6 @@ fn bcr_bytes_match_python_golden() {
 }
 
 #[test]
-fn bcr_family_source_points_at_the_core_archive() {
-    let text = render_bcr_source("rules_dx_rust", "1.2.3");
-    assert_eq!(
-        text,
-        "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3/families/rust\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
-    );
-}
-
-#[test]
 fn render_escapes_non_ascii_like_python() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
     let text = render_spdx("artifact.bin", digest, "dx", "caf\u{e9}");
@@ -289,15 +280,10 @@ fn bcr_dry_run_matches_shell() {
 }
 
 #[test]
-fn bcr_run_accepts_family_modules_and_rejects_other_names() {
-    let ok = bcr_run("rules_dx_rust", "0.0.0", &[], true, false).expect("family dry run");
-    assert!(ok.contains("  module: rules_dx_rust\n"));
-    for module in ["rules_dxx", "rules_dx_", "rules_dx-android", "other"] {
+fn bcr_run_rejects_other_names() {
+    for module in ["rules_dxx", "rules_dx_", "rules_dx_rust", "other"] {
         let err = bcr_run(module, "0.0.0", &[], true, false).expect_err(module);
-        assert!(
-            err.contains("want 'rules_dx' or 'rules_dx_<family>'"),
-            "{module}: {err}"
-        );
+        assert!(err.contains("want 'rules_dx'"), "{module}: {err}");
     }
 }
 
@@ -613,26 +599,16 @@ fn write_candidate_source_round_trips_the_archive() {
     let src = write_artifact(scratch.path(), "candidate.tar.gz", b"candidate bytes\n");
     let digest = dx_digest::sha256_file_hex(&src).expect("digest");
     let dst = scratch.path().join("candidate.source.json");
-    let integrity =
-        write_bcr_source_for_archive(&dst, &modules::ReleaseModule::core(), "1.2.3-rc1", &src)
-            .expect("write");
+    let integrity = write_bcr_source_for_archive(&dst, "1.2.3-rc1", &src).expect("write");
     assert_eq!(
         integrity,
         bcr_integrity_of_digest(&digest).expect("integrity")
     );
     let text = std::fs::read_to_string(&dst).expect("read");
     bcr_candidate_error(&text, "rules_dx", "1.2.3-rc1", &digest).expect("validates");
+    assert!(write_bcr_source_for_archive(&dst, "0.0.0", &src).is_err());
     assert!(
-        write_bcr_source_for_archive(&dst, &modules::ReleaseModule::core(), "0.0.0", &src).is_err()
-    );
-    assert!(
-        write_bcr_source_for_archive(
-            &dst,
-            &modules::ReleaseModule::core(),
-            "1.2.3-rc1",
-            &scratch.path().join("missing")
-        )
-        .is_err()
+        write_bcr_source_for_archive(&dst, "1.2.3-rc1", &scratch.path().join("missing")).is_err()
     );
 }
 

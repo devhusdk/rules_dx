@@ -7,9 +7,9 @@ load("//deploy/private:validate.bzl", "genrule_arg")
 
 def bcr_source_error(module_name, version):
     """Validates the BCR module name + version pair."""
-    if module_name != "rules_dx" and not (type(module_name) == "string" and module_name.startswith("rules_dx_") and len(module_name) > len("rules_dx_")):
+    if module_name != "rules_dx":
         return ("bcr: invalid module '" + str(module_name) +
-                "': want 'rules_dx' or 'rules_dx_<family>'")
+                "': want 'rules_dx'")
     if type(version) != "string" or version == "":
         return ("bcr: invalid version '" + str(version) +
                 "': want SemVer MAJOR.MINOR.PATCH (for example '1.0.0')")
@@ -58,7 +58,7 @@ _bcr_config = rule(
             mandatory = True,
         ),
         "module_name": attr.string(
-            doc = "Bazel module name being submitted: rules_dx or rules_dx_<family>.",
+            doc = "Bazel module name being submitted: rules_dx.",
             mandatory = True,
         ),
         "version": attr.string(

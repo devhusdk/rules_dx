@@ -410,11 +410,6 @@ mod tests {
             "https://tuf-repo-cdn.sigstore.dev\ncosign sign-blob\nsbom_demo.spdx.json\nsbom_demo.provenance.json\nnotice_demo.NOTICE\n",
         );
         let bcr_log = write_text(dir, "bcr-dry-run.log", "would submit, submitting nothing\n");
-        let bcr_family_log = write_text(
-            dir,
-            "bcr-dry-run-android.log",
-            "would submit, submitting nothing\n",
-        );
         let human_run_log = write_text(
             dir,
             "human-run-dry-run.log",
@@ -445,7 +440,7 @@ mod tests {
             release_artifacts_list,
             draft_log,
             signing_log,
-            bcr_logs: vec![bcr_log, bcr_family_log],
+            bcr_logs: vec![bcr_log],
             human_run_log,
             release_tests_log,
             module_bazel,
@@ -715,11 +710,11 @@ mod tests {
     }
 
     #[test]
-    fn family_bcr_log_without_dry_run_marker_fails() {
+    fn unmarked_bcr_log_without_dry_run_marker_fails() {
         let dir = scratch();
         let release = release();
         let mut inputs = valid_inputs(dir.path(), &release);
-        let submitted = write_text(dir.path(), "bcr-apple.log", "submitted\n");
+        let submitted = write_text(dir.path(), "bcr-unmarked.log", "submitted\n");
         inputs.bcr_logs.push(submitted);
         let error = publish_dry_run_check(&inputs).expect_err("unmarked BCR log must fail");
         assert!(error.contains("BCR dry-run log"), "got {error}");

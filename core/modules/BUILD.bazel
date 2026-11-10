@@ -183,6 +183,7 @@ rust_test(
     data = [
         "families.json",
         "lang.schema.json",
+        "langs.bzl",
         "//:MODULE.bazel",
         "//cli/ecosystems:ecosystems.json",
         "//cli/ecosystems:languages.json",
@@ -244,6 +245,7 @@ exports_files([
     "rust.bzl",
     "python.bzl",
     "families.json",
+    "langs.bzl",
     "pins.bzl",
     "python_budget.json",
     "versions.bzl",
@@ -255,6 +257,7 @@ real_source_target(
         "BUILD.bazel",
         "consumer_deps.bzl",
         "cuda.bzl",
+        "langs.bzl",
         "pins.bzl",
         "python.bzl",
         "rust.bzl",

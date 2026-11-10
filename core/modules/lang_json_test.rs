@@ -294,3 +294,29 @@ fn every_quality_bzl_exists_and_feeds_families_test() {
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+#[test]
+fn langs_bzl_is_generated_from_every_lang_json() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+        .expect("families.json");
+    let mut langs = serde_json::Map::new();
+    for dir in language_dirs(&root, &families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let mut manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        manifest.as_object_mut().expect("object").remove("$schema");
+        let name = manifest["name"].as_str().expect("name").to_owned();
+        langs.insert(name, manifest);
+    }
+    let body = serde_json::to_string_pretty(&Value::Object(langs)).expect("serializes");
+    assert!(!body.contains('\\') && !body.contains("\"\"\""), "langs.bzl cannot embed escapes");
+    let text = format!(
+        "\"\"\"Generated from every <lang>/lang.json by //core/modules:lang_json_test; refresh with UPDATE_EXPECT=1.\"\"\"\n\nLANGS = json.decode(\"\"\"{body}\"\"\")\n"
+    );
+    let scratch = dx_testing::mkscratch("langs_bzl").expect("scratch");
+    let actual = scratch.join("langs.bzl");
+    dx_testing::write_text(&actual, &text);
+    let expected = dx_testing::resolve_runfiles("core/modules/langs.bzl");
+    dx_testing::snapshot_diff(&expected, &actual, Some("core/modules/langs.bzl"))
+        .expect("core/modules/langs.bzl is generated from every lang.json");
+}

@@ -1,5 +1,10 @@
 use dx_testing::{read_runfiles, runfiles_root, sha256_file};
 
+#[path = "workflow_rules/actions.rs"]
+mod actions;
+#[path = "workflow_rules/permissions.rs"]
+mod permissions;
+
 const CALLERS: [(&str, &str); 1] = [("examples/docs-ci/caller.yml", "reusable-docs.yml")];
 
 const REUSABLE: [&str; 3] = [

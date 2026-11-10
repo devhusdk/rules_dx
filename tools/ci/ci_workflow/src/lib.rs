@@ -19,16 +19,21 @@ pub fn document(path: &str) -> Value {
     parse(path, &read_runfiles(path))
 }
 
-/// Returns (path, document) for every workflow in `DX_WORKFLOWS`, parsed once.
+/// Returns (path, document) for every workflow in `DX_WORKFLOWS`, parsed once per process.
 #[track_caller]
 pub fn all() -> Vec<(String, Value)> {
-    dx_testing::workflow_files()
-        .into_iter()
-        .map(|path| {
-            let document = document(&path);
-            (path, document)
+    static PARSED: std::sync::OnceLock<Vec<(String, Value)>> = std::sync::OnceLock::new();
+    PARSED
+        .get_or_init(|| {
+            dx_testing::workflow_files()
+                .into_iter()
+                .map(|path| {
+                    let document = document(&path);
+                    (path, document)
+                })
+                .collect()
         })
-        .collect()
+        .clone()
 }
 
 /// Returns (id, job) for every job of `document`, or none when it declares no jobs.

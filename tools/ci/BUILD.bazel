@@ -349,33 +349,6 @@ rust_test(
 )
 
 rust_test(
-    name = "workflow_permissions_test",
-    srcs = ["workflow_permissions_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "workflow_permissions_test",
-    crate_root = "workflow_permissions_test.rs",
-    data = [
-        "//.github:workflows",
-        "//examples:docs-ci/caller.yml",
-    ],
-    env = {"DX_WORKFLOWS": "$(rootpaths //.github:workflows)"},
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/ci/ci_workflow",
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-        "@crates//:yaml_serde",
-    ],
-)
-
-rust_test(
     name = "advisory_launch_test",
     srcs = ["advisory_launch_test.rs"],
     aliases = aliases(
@@ -421,31 +394,6 @@ rust_test(
         "//tools/ci/ci_workflow",
         "@crates//:serde_json",
     ],
-)
-
-rust_test(
-    name = "action_pins_test",
-    srcs = ["action_pins_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "action_pins_test",
-    crate_root = "action_pins_test.rs",
-    data = [
-        "//.github:actions",
-        "//.github:workflows",
-    ],
-    env = {
-        "DX_ACTIONS": "$(rootpaths //.github:actions)",
-        "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
-    },
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
 )
 
 rust_test(
@@ -1019,7 +967,11 @@ rust_test(
 
 rust_test(
     name = "workflow_pins_test",
-    srcs = ["workflow_pins_test.rs"],
+    srcs = [
+        "workflow_pins_test.rs",
+        "workflow_rules/actions.rs",
+        "workflow_rules/permissions.rs",
+    ],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -1029,18 +981,26 @@ rust_test(
     crate_root = "workflow_pins_test.rs",
     data = [
         "starter_pin.sha256",
-        "//.github:workflows/reusable-consumer.yml",
-        "//.github:workflows/reusable-docs.yml",
-        "//.github:workflows/reusable-release.yml",
+        "//.github:actions",
+        "//.github:workflows",
         "//examples:docs-ci/caller.yml",
         "//tools/ci/docs_scope:src/lib.rs",
         "//tools/ci/input_validation:src/lib.rs",
     ],
+    env = {
+        "DX_ACTIONS": "$(rootpaths //.github:actions)",
+        "DX_WORKFLOWS": "$(rootpaths //.github:workflows)",
+    },
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,
         normal_dev = True,
-    ) + ["//tools/testing:dx_testing"],
+    ) + [
+        "//tools/ci/ci_workflow",
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:yaml_serde",
+    ],
 )
 
 real_source_target(

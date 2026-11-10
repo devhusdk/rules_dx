@@ -10,10 +10,6 @@ starlark_syntax = "0.14"
 yaml_serde = "0.10"
 
 [[test]]
-name = "action_pins_test"
-path = "action_pins_test.rs"
-
-[[test]]
 name = "actionlint_test"
 path = "actionlint_test.rs"
 
@@ -140,10 +136,6 @@ path = "tool_resolve_test.rs"
 [[test]]
 name = "workflow_expressions_test"
 path = "workflow_expressions_test.rs"
-
-[[test]]
-name = "workflow_permissions_test"
-path = "workflow_permissions_test.rs"
 
 [[test]]
 name = "workflow_pins_test"

@@ -74,7 +74,7 @@ fn finding(
 /// Parses `tflint --format=json` for one module directory.
 ///
 /// `files` are the checked paths in the spelling tflint reports (it runs with `--chdir`
-/// from the scratch root, so they are root-relative). Exit codes follow tflint v0.65.0:
+/// from the scratch root, so they are root-relative). Exit codes follow tflint v0.66.0:
 /// 0 clean, 1 failure with the reason in JSON `errors`, 2 issues found. An `errors` entry
 /// with a range (HCL diagnostics) is an error finding on that file; one without a range
 /// (config, plugin or internal failure) fails the run, so it is never read as clean.

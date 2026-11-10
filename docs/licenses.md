@@ -11,10 +11,10 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | appimage runtime | 20251108 | MIT |
 | appimagetool | 1.9.1 | MIT |
 | avro_tools | 1.12.2 | Apache-2.0 |
-| bicep | 0.48.1 | MIT |
+| bicep | 0.49.2 | MIT |
 | biome | 2.6.6 | Apache-2.0, MIT |
 | bisect_ppx | 2.8.3 | MIT |
-| buf | 1.72.0 | Apache-2.0 |
+| buf | 1.75.0 | Apache-2.0 |
 | buildifier | 10.2.0 | Apache-2.0 |
 | checkmake | 0.3.2 | MIT |
 | chktex | 2025 | GPL-2.0-or-later, LGPL-2.1-or-later |
@@ -44,17 +44,17 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | opa | 1.22.2 | Apache-2.0 |
 | ormolu | 0.9.0.0 | BSD-3-Clause, LGPL-2.1-or-later, LGPL-3.0-or-later OR GPL-2.0-or-later, MIT |
 | pkl | 0.32.1 | Apache-2.0 |
-| pkl-lsp | 0.8.0 | Apache-2.0 |
-| pmd | 7.27.0 | BSD-3-Clause |
+| pkl-lsp | 0.9.0 | Apache-2.0 |
+| pmd | 7.29.0 | BSD-3-Clause |
 | regal | 0.43.0 | Apache-2.0 |
 | ruff | 0.17.4 | MIT |
-| scalafmt | 3.11.4 | Apache-2.0 |
+| scalafmt | 3.11.5 | Apache-2.0 |
 | shellcheck | 0.11.0 | GPL-3.0 |
 | shfmt | 3.14.1 | BSD-3-Clause |
-| spotbugs | 4.10.4 | LGPL-2.1-only |
+| spotbugs | 4.10.5 | LGPL-2.1-only |
 | stylua | 2.6.0 | MPL-2.0 |
 | taplo | 0.10.0 | MIT |
-| terraform | 1.16.1 | BUSL-1.1 |
+| terraform | 1.17.1 | BUSL-1.1 |
 | tflint | 0.66.0 | MPL-2.0 |
 | tinymist | 0.15.12 | Apache-2.0 |
 | trivy | 0.76.2 | Apache-2.0 |
@@ -63,7 +63,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | typstyle | 0.15.2 | Apache-2.0 |
 | uv | 0.13.7 | Apache-2.0, MIT |
 | vale | 3.20.0 | MIT |
-| wasmtime | 49.0.5 | Apache-2.0 WITH LLVM-exception |
+| wasmtime | 50.0.1 | Apache-2.0 WITH LLVM-exception |
 | write-good (vale style) | 0.4.1 | MIT |
 | xmllint | 2.15.4 | MIT |
 | yamlfmt | 0.21.0 | Apache-2.0 |

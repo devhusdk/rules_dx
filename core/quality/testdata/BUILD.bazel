@@ -74,6 +74,7 @@ exports_files(
         "dart_cfg/lints_options.yaml",
         "dart_cfg/lints_package_config.json",
         "dart_cfg/package_config.json",
+        "runner_matrix_tests.bzl",
         "ruff.toml",
         "stylelint_cfg/standard.stylelintrc.json",
         "stylelint_cfg/strict.stylelintrc.json",

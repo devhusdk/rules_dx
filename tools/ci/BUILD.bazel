@@ -603,6 +603,7 @@ rust_test(
         "//core/quality/testdata:biome_cfg/biome.json",
         "//core/quality/testdata:buildifier_cfg/.buildifier.json",
         "//core/quality/testdata:ruff.toml",
+        "//core/quality/testdata:runner_matrix_tests.bzl",
         "//core/quality/testdata:styles/Dx/Markers.yml",
         "//core/quality/testdata:vale_test.ini",
         "//core/quality/tiers/scalafmt:standard.conf",

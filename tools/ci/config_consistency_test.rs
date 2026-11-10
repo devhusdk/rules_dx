@@ -153,6 +153,29 @@ fn runner_config_refusals(source: &str) -> Vec<String> {
     found
 }
 
+/// Quoted ids in the `TIER_BASE_TOOLS` const of `staging.rs`.
+fn runner_tier_base_tools(source: &str) -> Vec<String> {
+    let marker = "const TIER_BASE_TOOLS: &[&str] = &[";
+    let open = source.find(marker).expect("TIER_BASE_TOOLS is missing") + marker.len();
+    let close = open + source[open..].find(']').expect("TIER_BASE_TOOLS is unterminated");
+    json_strings(&source[open..close])
+}
+
+#[test]
+fn the_matrix_tier_base_list_matches_the_runner_tier_base_tools() {
+    let runner = runner_tier_base_tools(&read_runfiles("core/quality/runner/src/real/staging.rs"));
+    assert!(!runner.is_empty(), "no tier base tools parsed");
+    assert_eq!(
+        runner,
+        starlark_list_items(
+            &read_runfiles("core/quality/testdata/runner_matrix_tests.bzl"),
+            "RUNNER_TIER_BASE_TOOLS",
+        ),
+        "RUNNER_TIER_BASE_TOOLS in core/quality/testdata/runner_matrix_tests.bzl no longer \
+         matches TIER_BASE_TOOLS in core/quality/runner/src/real/staging.rs"
+    );
+}
+
 #[test]
 fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default() {
     let refusals = runner_config_refusals(&read_runfiles("core/quality/runner/real_sources.txt"));

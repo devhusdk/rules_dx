@@ -8,7 +8,6 @@ load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel", "staged_config_rel", "tier_base_dirs")
 load("//rust/private/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
-# Mirrors TIER_BASE_TOOLS in core/quality/runner/src/real/staging.rs.
 RUNNER_TIER_BASE_TOOLS = [
     "bicep",
     "biome",

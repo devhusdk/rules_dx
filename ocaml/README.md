@@ -214,9 +214,10 @@ dependencies are supported. A package that is not built with dune needs
 `ocaml_fuzz_test` builds the module `main` that registers
 [Crowbar](https://github.com/stedolan/crowbar) tests and runs it in quickcheck
 mode as a test. Crowbar's flags, such as `-r 5000` or `-s <seed>`, go in `args`.
-The target is `manual`, takes the `ocaml_test` size and timeout, and does not
-define a `<name>_run` runner: quickcheck mode cannot report crashes to
-`dx fuzz`. Opam sets crowbar, cmdliner and afl-persistent with the BUILD files
+The target is `manual`, tagged `dx-fuzz`, and takes the `ocaml_test` size and
+timeout. `<name>_run` runs `-s <seed> -r 500` rounds with fresh seeds until
+`--time` is up; a failing seed is written to `crash-<hash>` and replays with
+`--repro`. Opam sets crowbar, cmdliner and afl-persistent with the BUILD files
 in `//ocaml/packages`; `{hub}` in them becomes the hub name.
 
 ```python

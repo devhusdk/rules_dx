@@ -23,6 +23,7 @@ load(
     _ocamllex = "ocamllex",
 )
 load("//cc/rules:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
+load("//libs/starlark:fuzz.bzl", "dx_fuzz_runner")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_forward_attrs", "dx_forward_data_attr", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream", "dx_warnings_as_errors", "dx_wrap_forward_kwargs")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -353,7 +354,7 @@ def _test_shape(name, forward_rule, visibility, kwargs):
     forward_rule(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))
 
 def ocaml_fuzz_test(name, *, main, deps = None, visibility = None, tags = None, **kwargs):
-    """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual and not driven by `dx fuzz`."""
+    """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual, tagged `dx-fuzz`, and `<name>_run` drives it for `dx fuzz`."""
     build, run = split_test_kwargs(kwargs)
     ocaml_module(
         name = name + "_bin",
@@ -367,10 +368,11 @@ def ocaml_fuzz_test(name, *, main, deps = None, visibility = None, tags = None, 
     ocaml_test(
         name = name,
         main = ":" + name + "_bin",
-        tags = merge_tags(tags, "manual"),
+        tags = merge_tags(tags, "dx-fuzz", "manual"),
         visibility = visibility,
         **with_default_size(run)
     )
+    dx_fuzz_runner(name, ":" + name, engine = "crowbar", visibility = visibility)
 
 def ocaml_bench(name, *, struct, deps = None, visibility = None, tags = None, **kwargs):
     """A benchmark `dx bench` runs: `struct` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`."""

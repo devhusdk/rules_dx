@@ -14,6 +14,7 @@ pub enum Engine {
     Jazzer,
     Go,
     Dotnet,
+    Crowbar,
 }
 
 impl Engine {
@@ -23,12 +24,13 @@ impl Engine {
             "jazzer" => Some(Engine::Jazzer),
             "go" => Some(Engine::Go),
             "dotnet" => Some(Engine::Dotnet),
+            "crowbar" => Some(Engine::Crowbar),
             _ => None,
         }
     }
 
     fn takes_target(self) -> bool {
-        !matches!(self, Engine::Libfuzzer)
+        !matches!(self, Engine::Libfuzzer | Engine::Crowbar)
     }
 }
 
@@ -95,6 +97,7 @@ pub fn fuzz_args(
             args.extend(fork);
             args.push(corpus);
         }
+        Engine::Crowbar => {}
         Engine::Go => {
             args.push(format!("-test.fuzz=^{target}$"));
             args.push("-test.run=^$".to_owned());
@@ -122,6 +125,54 @@ pub fn repro_args(engine: Engine, target: &str, repro: &Path) -> Vec<String> {
         Engine::Dotnet => vec![format!("--target_path={target}"), repro],
         Engine::Jazzer => vec![format!("--target_class={target}"), repro],
         Engine::Go => vec![format!("-test.run=^{target}$")],
+        Engine::Crowbar => crowbar_args(&fs::read_to_string(repro).unwrap_or_default()),
+    }
+}
+
+const CROWBAR_RUNS: &str = "500";
+
+/// The command line for one Crowbar round with the seed given as text.
+pub fn crowbar_args(seed: &str) -> Vec<String> {
+    vec![
+        "-s".to_owned(),
+        seed.trim().to_owned(),
+        "-r".to_owned(),
+        CROWBAR_RUNS.to_owned(),
+    ]
+}
+
+fn random_seed() -> i64 {
+    use std::hash::{BuildHasher, Hasher};
+    let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+    hasher.write_u32(std::process::id());
+    hasher.write_u128(
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| elapsed.as_nanos()),
+    );
+    (hasher.finish() >> 1) as i64
+}
+
+/// Runs Crowbar rounds with fresh seeds until the time is up; a failing seed is written to `crashes`.
+fn crowbar_rounds(
+    spawn: &dyn Fn(Vec<String>, Option<&Path>) -> Result<i32, Failure>,
+    options: &Options,
+    crashes: &Path,
+) -> Result<i32, Failure> {
+    let seconds: u64 = options.seconds.parse().map_err(|_| usage())?;
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(seconds);
+    loop {
+        let seed = random_seed();
+        let status = spawn(crowbar_args(&seed.to_string()), None)?;
+        if status != 0 {
+            let name = format!("{:016x}", seed.unsigned_abs());
+            fs::write(crashes.join(name), seed.to_string())
+                .map_err(|e| (1, format!("fuzz runner: seed: {e}")))?;
+            return Ok(status);
+        }
+        if std::time::Instant::now() >= deadline {
+            return Ok(0);
+        }
     }
 }
 
@@ -266,10 +317,14 @@ fn execute(
     let out = options.out.as_deref().ok_or_else(usage)?;
     let out = from_user(out);
     fs::create_dir_all(&out).map_err(|e| io_error("out", e))?;
-    let status = spawn(
-        fuzz_args(engine, target, options, work, &crashes),
-        in_work.then_some(work),
-    )?;
+    let status = if engine == Engine::Crowbar {
+        crowbar_rounds(&spawn, options, &crashes)?
+    } else {
+        spawn(
+            fuzz_args(engine, target, options, work, &crashes),
+            in_work.then_some(work),
+        )?
+    };
 
     let mut found = false;
     for entry in fs::read_dir(&crashes)

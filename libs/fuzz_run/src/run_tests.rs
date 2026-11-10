@@ -70,3 +70,24 @@ fn repro_replays_the_file() {
         strings(&["-test.run=^FuzzX$"])
     );
 }
+
+#[test]
+fn crowbar_runs_five_hundred_cases_from_one_seed() {
+    assert_eq!(crowbar_args("42\n"), strings(&["-s", "42", "-r", "500"]));
+}
+
+#[test]
+fn crowbar_repro_reads_the_seed_file() {
+    let file = std::env::temp_dir().join(format!("dx-crowbar-seed-{}", std::process::id()));
+    std::fs::write(&file, "123").expect("write");
+    let args = repro_args(Engine::Crowbar, "", &file);
+    let _ = std::fs::remove_file(&file);
+    assert_eq!(args, strings(&["-s", "123", "-r", "500"]));
+}
+
+#[test]
+fn crowbar_takes_no_fuzz_flags_of_its_own() {
+    let options = parse_options(&[]).expect("options");
+    let args = fuzz_args(Engine::Crowbar, "", &options, Path::new("/w"), Path::new("/c"));
+    assert!(args.is_empty());
+}

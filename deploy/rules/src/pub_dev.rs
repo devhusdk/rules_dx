@@ -6,7 +6,7 @@ use crate::api_compat::{
 };
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, resolve_version, scrubbed_command,
+    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -128,7 +128,7 @@ fn tool_name(flutter: bool) -> &'static str {
 
 fn failure_message(
     step: &str,
-    status: std::process::ExitStatus,
+    status: &str,
     out: &[u8],
     token: &str,
 ) -> String {
@@ -147,17 +147,16 @@ fn pub_dry_run(program: &Path, staging: &Path) -> Result<(), String> {
     let mut cmd = scrubbed_command(program, &[PUBLISH_CHILD_ENV_KEEP, PUB_CHILD_ENV_EXTRA], &[]);
     cmd.current_dir(staging)
         .args(["pub", "publish", "--dry-run"]);
-    let output = cmd
-        .output()
-        .map_err(|error| format!("pub_deploy: {error}"))?;
-    if output.status.success() {
+    let output = run_publish(&mut cmd).map_err(|error| format!("pub_deploy: {error}"))?;
+    if output.success() {
         return Ok(());
     }
+    let status = exit_text(&output);
     let mut both = output.stdout;
     both.extend_from_slice(&output.stderr);
     Err(failure_message(
         "pub publish --dry-run",
-        output.status,
+        &status,
         &both,
         "",
     ))
@@ -185,25 +184,24 @@ fn pub_publish(
     };
     let mut add = command();
     add.args(["pub", "token", "add", registry_url, "--env-var", "PUB_TOKEN"]);
-    let added = add
-        .output()
-        .map_err(|error| format!("pub_deploy: {error}"))?;
-    if !added.status.success() {
+    let added = run_publish(&mut add).map_err(|error| format!("pub_deploy: {error}"))?;
+    if !added.success() {
+        let status = exit_text(&added);
         let mut both = added.stdout;
         both.extend_from_slice(&added.stderr);
-        return Err(failure_message("pub token add", added.status, &both, token));
+        return Err(failure_message("pub token add", &status, &both, token));
     }
     let mut publish = command();
     publish.args(["pub", "publish", "--force"]);
-    let output = publish
-        .output()
-        .map_err(|error| format!("pub_deploy: {error}"))?;
+    let output = run_publish(&mut publish).map_err(|error| format!("pub_deploy: {error}"))?;
+    let status = exit_text(&output);
+    let success = output.success();
     let mut both = output.stdout;
     both.extend_from_slice(&output.stderr);
-    if output.status.success() {
+    if success {
         return Ok(());
     }
-    Err(failure_message("pub publish", output.status, &both, token))
+    Err(failure_message("pub publish", &status, &both, token))
 }
 
 /// Copies the package files into `<name>-package` under the output directory.
@@ -418,16 +416,17 @@ fn pub_api_compare(
     if let Some(root) = flutter_root {
         env.push(("FLUTTER_ROOT", root.to_str().unwrap_or("")));
     }
-    let output = scrubbed_command(dart, &[PUBLISH_CHILD_ENV_KEEP], &env)
-        .current_dir(work)
-        .arg(apitool)
-        .args(["diff", "--old", &old, "--new"])
-        .arg(staging)
-        .args(["--version-check-mode", "none", "--report-format", "json"])
-        .arg("--report-file-path")
-        .arg(&report)
-        .output()
-        .map_err(|error| format!("pub_deploy: dart_apitool: {error}"))?;
+    let output = run_publish(
+        scrubbed_command(dart, &[PUBLISH_CHILD_ENV_KEEP], &env)
+            .current_dir(work)
+            .arg(apitool)
+            .args(["diff", "--old", &old, "--new"])
+            .arg(staging)
+            .args(["--version-check-mode", "none", "--report-format", "json"])
+            .arg("--report-file-path")
+            .arg(&report),
+    )
+    .map_err(|error| format!("pub_deploy: dart_apitool: {error}"))?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
@@ -436,7 +435,7 @@ fn pub_api_compare(
     let parsed = std::fs::read_to_string(&report)
         .ok()
         .and_then(|report| apitool_changes(&report));
-    let success = output.status.success() && parsed.is_some();
+    let success = output.success() && parsed.is_some();
     Ok(Outcome::Compared {
         previous,
         changes: changes_or_failure(parsed.unwrap_or_default(), success, "dart_apitool", &text),

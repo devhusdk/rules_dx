@@ -1,0 +1,97 @@
+{
+  "freeze_sha256": "fe96825e71fcdec23d7c419eea81d903adb57911b789f1b1ae762e2c872bb003",
+  "index_state": "2026-10-01T00:00:00Z",
+  "inputs_sha256": "42d52ee2c9876a782477b18e411a758bbc972006ace3694bc9d9dcc9f3a95ac1",
+  "packages": [
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ghc-internal",
+        "ghc-prim"
+      ],
+      "name": "base",
+      "source": "ghc",
+      "tools": [],
+      "version": "4.20.2.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ghc-prim"
+      ],
+      "name": "ghc-bignum",
+      "source": "ghc",
+      "tools": [],
+      "version": "1.3"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "ghc-bignum",
+        "ghc-prim",
+        "rts"
+      ],
+      "name": "ghc-internal",
+      "source": "ghc",
+      "tools": [],
+      "version": "9.1003.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "rts"
+      ],
+      "name": "ghc-prim",
+      "source": "ghc",
+      "tools": [],
+      "version": "0.12.0"
+    },
+    {
+      "components": [
+        "lib"
+      ],
+      "dependencies": [],
+      "name": "rts",
+      "source": "ghc",
+      "tools": [],
+      "version": "1.0.2"
+    },
+    {
+      "cabal_revision": 1,
+      "cabal_sha256": "b928ea1645876788155b38ce85c7e46d157a1bb41d2b05f5770b13d60bc6a3f7",
+      "components": [
+        "lib"
+      ],
+      "dependencies": [
+        "base"
+      ],
+      "name": "safe",
+      "sdist_sha256": "2c81fea42bbe79ec488774043c1ec54f30efba059df9a4f3681ce83d85007f01",
+      "source": "hackage",
+      "tools": [],
+      "version": "0.3.21"
+    },
+    {
+      "components": [
+        "exe:stack-app"
+      ],
+      "dependencies": [
+        "base",
+        "safe"
+      ],
+      "name": "stack-app",
+      "source": "local",
+      "tools": [],
+      "version": "0.1.0.0"
+    }
+  ],
+  "version": 1
+}

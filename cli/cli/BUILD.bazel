@@ -371,6 +371,7 @@ rust_test(
         "src/exec/unsupported.json",
         "//docs:cli/commands/init.md",
         "//docs:support-matrix.md",
+        "//haskell/tests/fixtures/stack:stack.yaml.lock",
     ],
     coverage_lib = ":dx_cli",
     crate_name = "dx_cli",

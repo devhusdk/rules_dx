@@ -376,6 +376,7 @@
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
         "//dart:extensions.bzl%pub",
         "//deploy/private/pins:extensions.bzl%apicompat",
+        "//deploy/private/pins:extensions.bzl%conan",
         "//deploy/private/pins:extensions.bzl%japicmp",
         "//deploy/private/pins:extensions.bzl%opam",
         "//deploy/private/pins:extensions.bzl%semver_checks",

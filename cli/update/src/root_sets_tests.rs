@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 50] = [
+const EXPECTED_NAMES: [&str; 51] = [
     "d_app_dub",
     "dart_apitool_deps",
     "dub_fixture",
@@ -19,6 +19,7 @@ const EXPECTED_NAMES: [&str; 50] = [
     "dx_dokka",
     "dx_flutter_app_deps",
     "dx_flutter_deps",
+    "dx_js_node_app",
     "dx_julia_coverage",
     "dx_julia_docs",
     "dx_julia_format",

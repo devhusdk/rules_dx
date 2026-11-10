@@ -919,7 +919,7 @@ fn zig_and_fpm_updates_run_the_rehash_target() {
     let BackendPlan::Run { argv, .. } = run(&zig, &Selection::Full, false).expect("plan") else {
         panic!("expected a run");
     };
-    assert_eq!(argv[argv.len() - 2..].join(" "), "//native:digests --");
+    assert_eq!(argv[argv.len() - 2..].join(" "), "run //native:digests");
     let named = Selection::Packages(vec!["xxhash".to_owned()]);
     let BackendPlan::Run { argv, .. } = run(&zig, &named, false).expect("plan") else {
         panic!("expected a run");

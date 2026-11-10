@@ -331,17 +331,38 @@ def ocaml_fuzz_test(name, *, main, deps = None, visibility = None, tags = None, 
     """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual and not driven by `dx fuzz`."""
     build, run = split_test_kwargs(kwargs)
     ocaml_module(
-        name = name + "_main",
+        name = name + "_bin",
         testonly = True,
         struct = main,
         deps = deps,
+        tags = merge_tags(tags, "manual"),
         visibility = ["//visibility:private"],
         **build
     )
     ocaml_test(
         name = name,
-        main = ":" + name + "_main",
+        main = ":" + name + "_bin",
         tags = merge_tags(tags, "manual"),
+        visibility = visibility,
+        **with_default_size(run)
+    )
+
+def ocaml_bench(name, *, struct, deps = None, visibility = None, tags = None, **kwargs):
+    """A benchmark `dx bench` runs: `struct` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`."""
+    build, run = split_test_kwargs(kwargs)
+    ocaml_module(
+        name = name + "_bin",
+        testonly = True,
+        struct = struct,
+        deps = (deps or []) + [Label("//ocaml/bench:dx_bench")],
+        tags = merge_tags(tags, "manual"),
+        visibility = ["//visibility:private"],
+        **build
+    )
+    ocaml_test(
+        name = name,
+        main = ":" + name + "_bin",
+        tags = merge_tags(tags, "dx-bench", "manual"),
         visibility = visibility,
         **with_default_size(run)
     )

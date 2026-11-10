@@ -26,7 +26,7 @@ sh_test(
 
 Every `<lang>_bench` macro declares `<name>` as the manual `dx-bench` test dx runs, and merges `tags` with `dx-bench` and `manual`. How attributes are split depends on the macro:
 
-- `cc_bench`, `d_bench`, `go_bench`, `haskell_bench`, `rust_bench`, `swift_bench` and `zig_bench` declare a private `<name>_bin` plus a `<name>` runner. Test attributes such as `size` (default `small`), `timeout`, `env`, `args`, `data`, `flaky` and `shard_count` go to `<name>`, the other attributes go to `<name>_bin`.
+- `cc_bench`, `d_bench`, `go_bench`, `haskell_bench`, `ocaml_bench`, `rust_bench`, `swift_bench` and `zig_bench` declare a private `<name>_bin` plus a `<name>` runner. Test attributes such as `size` (default `small`), `timeout`, `env`, `args`, `data`, `flaky` and `shard_count` go to `<name>`, the other attributes go to `<name>_bin`.
 - `java_bench`, `kotlin_bench` and `scala_bench` declare a JMH library `<name>_bin` plus a `<name>` runner, with the same split and the same `size` default.
 - `csharp_bench`, `fsharp_bench`, `dart_bench`, `elixir_bench`, `erlang_bench`, `javascript_bench`, `lua_bench`, `perl_bench`, `php_bench`, `python_bench`, `ruby_bench` and `typescript_bench` declare only the `<name>` test, which takes every attribute. They declare no `_bin` and set no `size` default, so Bazel's default applies.
 

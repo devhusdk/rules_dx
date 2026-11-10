@@ -240,8 +240,29 @@ ocaml_fuzz_test(
 )
 ```
 
-`ocaml_bench` is not provided: core_bench needs about 100 opam packages and
-ppx rewriters, which the opam hub cannot build.
+### Benchmarks
+
+`ocaml_bench(name, struct, deps)` builds the module `struct` and runs it as the
+manual `dx-bench` test `dx bench` runs. `struct` calls `Dx_bench.run` from
+`//ocaml/bench:dx_bench` with a list of named jobs. Each job runs once to warm
+up, then in 10 timed samples of `iterations` calls (default 1000), and the
+results go to `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json` in ns/iter.
+
+```python
+load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_bench")
+
+ocaml_bench(
+    name = "sum_bench",
+    struct = "sum_bench.ml",
+)
+```
+
+```ocaml
+let () = Dx_bench.run [ ("sum", fun () -> ignore (Sys.opaque_identity (1 + 2))) ]
+```
+
+Under the default bytecode emitter the numbers time the interpreter. Build with
+`--//ocaml/toolchain:emitter=sys` for native code.
 
 ## Platforms
 

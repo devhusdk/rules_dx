@@ -565,6 +565,7 @@ LANGUAGES = [
     ),
     _language(
         "ocaml",
+        bench = "ocaml_bench",
         fuzz = "ocaml_fuzz_test",
         deps = "`opam`",
         doc = struct(tool = "odoc", shard = "ocaml_doc_shard"),

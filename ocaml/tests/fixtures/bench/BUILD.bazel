@@ -1,0 +1,48 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_bench")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+ocaml_bench(
+    name = "sum_bench",
+    struct = "sum_bench.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+sh_test(
+    name = "sum_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = ["$(rootpath :sum_bench)"],
+    data = [":sum_bench"],
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    timeout = "short",
+)
+
+ocaml_bench(
+    name = "sized_bench",
+    size = "large",
+    struct = "sum_bench.ml",
+    target_compatible_with = OCAML_COMPATIBLE_WITH,
+    timeout = "long",
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "size": "large",
+        "timeout": "long",
+    },
+    runner = "sized_bench",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

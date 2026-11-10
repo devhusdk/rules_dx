@@ -481,6 +481,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_build` |
 |  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_library` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `launcher_script` |
+|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_bench` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_binary` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_fuzz_test` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_library` |

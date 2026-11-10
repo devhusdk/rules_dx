@@ -36,7 +36,8 @@
     "ocaml_library",
     "ocaml_binary",
     "ocaml_test",
-    "ocaml_fuzz_test"
+    "ocaml_fuzz_test",
+    "ocaml_bench"
   ],
   "quality": {
     "bzl": "quality:families/ocaml.bzl",

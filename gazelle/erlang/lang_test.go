@@ -25,6 +25,39 @@ func TestParseAppSrc(t *testing.T) {
 	}
 }
 
+func TestParseAppSrcPercentInLiterals(t *testing.T) {
+	got := ParseAppSrc([]byte("{application, demo, [\n    {description, \"100% Erlang\"}, % note\n    {vsn, \"1.0\"}\n]}.\n"))
+	want := AppSrc{Name: "demo", Version: "1.0", Description: "100% Erlang"}
+	if got != want {
+		t.Fatalf("ParseAppSrc = %+v, want %+v", got, want)
+	}
+}
+
+func TestRootAppWithoutRepoName(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "checkout")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "src"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "src", "demo.erl"), []byte("-module(demo).\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, RebarConfig), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	result := NewLanguage().GenerateRules(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: dir},
+		Dir:          dir,
+		RegularFiles: []string{RebarConfig},
+	})
+	if len(result.Gen) != 1 || result.Gen[0].AttrString("app_name") != "lib" {
+		t.Fatalf("GenerateRules gave %v, want one app named lib", result.Gen)
+	}
+}
+
 func TestStdLib(t *testing.T) {
 	for mod, app := range map[string]string{"lists": "stdlib", "gen_server": "stdlib", "crypto": "crypto", "ssl": "ssl"} {
 		if got, ok := OTPApp(mod); !ok || got != app {

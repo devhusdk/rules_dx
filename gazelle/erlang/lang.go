@@ -159,8 +159,8 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	if meta.Name == "" {
 		meta.Name = filepath.Base(args.Dir)
-		if args.Rel == "" && args.Config.RepoName != "" {
-			meta.Name = args.Config.RepoName
+		if args.Rel == "" {
+			meta.Name = common.RootTargetName(args.Config.RepoName)
 		}
 	}
 	erls, err := listSources(args.Dir, SrcDir, func(s string) bool { return IsAppSource(s) })

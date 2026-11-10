@@ -144,11 +144,9 @@ pub fn scan_layout(
 /// The real trivy: `DX_TRIVY` or `trivy` on the PATH, offline.
 pub fn run_trivy(args: &[OsString]) -> Result<String, String> {
     let binary = std::env::var_os("DX_TRIVY").unwrap_or_else(|| "trivy".into());
-    let output = Command::new(&binary)
-        .args(args)
-        .output()
+    let output = crate::run::run_publish(Command::new(&binary).args(args))
         .map_err(|error| format!("cannot run {}: {error}", Path::new(&binary).display()))?;
-    if !output.status.success() {
+    if !output.success() {
         return Err(format!(
             "trivy failed: {}",
             String::from_utf8_lossy(&output.stderr).trim()

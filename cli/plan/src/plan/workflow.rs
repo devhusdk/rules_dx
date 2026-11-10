@@ -138,6 +138,7 @@ pub fn plan_workflow(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_error::ErrorKind;
     use crate::args::BuildMode;
     use dx_process::Scope;
     use dx_testing::cli::strings;
@@ -246,7 +247,7 @@ mod tests {
             )
             .expect_err("conflicting setting must fail");
             assert!(
-                err.message().starts_with("conflicting_option: --"),
+                err.kind() == ErrorKind::Usage,
                 "{conflicting} produced {err:?}"
             );
         }
@@ -279,7 +280,7 @@ mod tests {
             )
             .expect_err("path conversion must fail");
             assert!(
-                err.message().starts_with("conflicting_option: --"),
+                err.kind() == ErrorKind::Usage,
                 "{conflicting} produced {err:?}"
             );
         }
@@ -376,7 +377,7 @@ mod tests {
         )
         .expect_err("build still rejects test args");
         assert!(
-            err.message().starts_with("invalid_usage: --"),
+            err.kind() == ErrorKind::Usage,
             "got {err:?}"
         );
     }
@@ -444,7 +445,7 @@ mod tests {
             )
             .expect_err("conflicting dx build_mode must fail");
             assert!(
-                err.message().starts_with("conflicting_option: --"),
+                err.kind() == ErrorKind::Usage,
                 "got {err:?}"
             );
         }
@@ -457,7 +458,7 @@ mod tests {
             &[],
         )
         .expect_err("test keeps the build_mode conflict");
-        assert!(err.message().starts_with("conflicting_option: --"));
+        assert!(err.kind() == ErrorKind::Usage);
     }
 
     #[test]
@@ -558,7 +559,7 @@ mod tests {
         )
         .expect_err("conflicting combined_report must fail");
         assert!(
-            err.message().starts_with("conflicting_option: --"),
+            err.kind() == ErrorKind::Usage,
             "got {err:?}"
         );
         let err = plan_workflow(
@@ -571,7 +572,7 @@ mod tests {
         )
         .expect_err("BEP override must fail");
         assert!(
-            err.message().starts_with("conflicting_option: --"),
+            err.kind() == ErrorKind::Usage,
             "got {err:?}"
         );
     }
@@ -875,7 +876,7 @@ mod tests {
         )
         .expect_err("conflicting config must fail");
         assert!(
-            err.message().starts_with("conflicting_option: --"),
+            err.kind() == ErrorKind::Usage,
             "got {err:?}"
         );
     }

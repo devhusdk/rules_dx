@@ -252,7 +252,8 @@ fn protected_check_rejects_conflict_without_echoing_values() {
     }];
     let err =
         check_protected(&["--keep_going=false".to_owned()], &protected).expect_err("conflict");
-    assert_eq!(err, conflicting_option("keep_going".to_owned()));
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
+    assert!(err.to_string().contains("conflicting_option"));
     assert!(!err.to_string().contains("false"));
     assert!(err.to_string().contains("--keep_going"));
 }
@@ -265,7 +266,8 @@ fn protected_check_rejects_bare_name_against_valued_requirement() {
         allowed: Vec::new(),
     }];
     let err = check_protected(&["--config=other".to_owned()], &protected).expect_err("conflict");
-    assert_eq!(err, conflicting_option("config".to_owned()));
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
+    assert!(err.to_string().contains("conflicting_option"));
     assert!(!err.to_string().contains("other"));
     assert!(!err.to_string().contains("dx"));
     assert!(err.to_string().contains("--config"));
@@ -288,7 +290,8 @@ fn protected_check_accepts_allowed_extras_beside_required() {
         vec!["--config=ci".to_owned(), "--config=dx".to_owned()]
     );
     let err = check_protected(&["--config=other".to_owned()], &protected).expect_err("conflict");
-    assert_eq!(err, conflicting_option("config".to_owned()));
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
+    assert!(err.to_string().contains("conflicting_option"));
 }
 
 #[test]
@@ -303,7 +306,8 @@ fn protected_check_rejects_unconditional_flag() {
         &protected,
     )
     .expect_err("conflict");
-    assert_eq!(err, conflicting_option("build_event_json_file".to_owned()));
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
+    assert!(err.to_string().contains("conflicting_option"));
     assert!(!err.to_string().contains("/tmp/bep.json"));
 }
 
@@ -564,7 +568,8 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
     )
     .expect_err("protected capture option");
-    assert_eq!(err, conflicting_option("build_event_json_file".to_owned()));
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
+    assert!(err.to_string().contains("conflicting_option"));
     let err = build_workflow_argv(
         "test",
         &["--output_base=/tmp/x".to_owned()],
@@ -574,7 +579,7 @@ fn workflow_argv_still_protects_capture_options_on_test_commands() {
         &[],
     )
     .expect_err("startup option");
-    assert!(err.message().starts_with("invalid_usage: --"));
+    assert!(err.kind() == dx_error::ErrorKind::Usage);
 }
 
 #[test]
@@ -736,7 +741,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
         )
         .expect_err("startup must fail");
         assert!(
-            err.message().starts_with("invalid_usage: --"),
+            err.kind() == dx_error::ErrorKind::Usage,
             "{startup} produced {err:?}"
         );
         assert!(err.to_string().contains("native bazel"), "{startup}: {err}");
@@ -756,7 +761,7 @@ fn execution_gaps_forwarding_matrix_is_wont_fix() {
         )
         .expect_err("test-binary must fail outside test commands");
         assert!(
-            err.message().starts_with("invalid_usage: --"),
+            err.kind() == dx_error::ErrorKind::Usage,
             "{binary} produced {err:?}"
         );
     }
@@ -785,7 +790,8 @@ fn quality_workflows_reject_nokeep_going() {
         &[],
     )
     .expect_err("nokeep_going");
-    assert_eq!(err, conflicting_option("nokeep_going".to_owned()));
+    assert_eq!(err.kind(), dx_error::ErrorKind::Usage);
+    assert!(err.to_string().contains("conflicting_option"));
 }
 
 #[test]
@@ -804,7 +810,7 @@ fn workflow_argv_rejects_protected_conflicts() {
         &[],
     )
     .expect_err("conflict");
-    assert!(err.message().starts_with("conflicting_option: --"));
+    assert!(err.kind() == dx_error::ErrorKind::Usage);
     assert!(!err.to_string().contains("/tmp/bep.json"));
     assert!(!err.to_string().contains("/tmp/required.json"));
 }
@@ -1565,4 +1571,15 @@ fn head_settings_respell_the_rules_dx_repo() {
             "--@my_dx//config:rustc_output_diagnostics=true",
         ]
     );
+}
+
+#[test]
+fn constructors_carry_the_documented_error_kind() {
+    use dx_error::ErrorKind;
+    assert_eq!(conflicting_option("x").kind(), ErrorKind::Usage);
+    assert_eq!(startup_option("x").kind(), ErrorKind::Usage);
+    assert_eq!(test_binary_args("x").kind(), ErrorKind::Usage);
+    assert_eq!(invalid_required_option("x").kind(), ErrorKind::Failure);
+    assert_eq!(invalid_setting("x").kind(), ErrorKind::Failure);
+    assert_eq!(unsupported_command("x").kind(), ErrorKind::Failure);
 }

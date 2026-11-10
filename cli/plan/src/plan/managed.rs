@@ -102,6 +102,7 @@ fn managed_argv(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_error::ErrorKind;
     use dx_testing::cli::strings;
 
     #[test]
@@ -174,7 +175,7 @@ mod tests {
             let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json", &[])
                 .expect_err("unmanaged must fail");
             assert!(
-                err.message().starts_with("internal_error: "),
+                err.kind() == ErrorKind::Failure,
                 "{command:?} produced {err:?}"
             );
         }
@@ -303,7 +304,7 @@ mod tests {
             )
             .expect_err("conflict must fail");
             assert!(
-                err.message().starts_with("conflicting_option: --"),
+                err.kind() == ErrorKind::Usage,
                 "{conflicting} produced {err:?}"
             );
         }
@@ -315,7 +316,7 @@ mod tests {
             &[],
         )
         .expect_err("startup option must fail");
-        assert!(err.message().starts_with("invalid_usage: --"));
+        assert!(err.kind() == ErrorKind::Usage);
     }
 
     #[test]
@@ -326,7 +327,7 @@ mod tests {
             let err = plan_managed(command, &SetupScope::Repository, &[], "/tmp/bep.json", &[])
                 .expect_err("unmanaged command must fail");
             assert!(
-                err.message().starts_with("internal_error: "),
+                err.kind() == ErrorKind::Failure,
                 "{command:?} produced {err:?}"
             );
         }

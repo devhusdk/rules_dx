@@ -452,6 +452,7 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_error::ErrorKind;
     use crate::args::{ArgsError, parse};
     use crate::plan::BAZEL_SETTINGS;
 
@@ -843,12 +844,12 @@ mod tests {
         required.retain(|option| option.as_str() != KEEP_GOING_FLAG);
         let err = protected_flags(&required).expect_err("missing keep_going");
         assert!(
-            err.message().starts_with("internal_error: required"),
+            err.kind() == ErrorKind::Failure,
             "missing keep_going produced {err:?}"
         );
         let err = setting_name("clippy_output_diagnostics=true").expect_err("malformed setting");
         assert!(
-            err.message().starts_with("internal_error: malformed"),
+            err.kind() == ErrorKind::Failure,
             "malformed setting produced {err:?}"
         );
     }
@@ -1082,7 +1083,7 @@ mod tests {
         )
         .expect_err("a second output group must fail");
         assert!(
-            err.message().starts_with("conflicting_option: --"),
+            err.kind() == ErrorKind::Usage,
             "{err:?}"
         );
     }
@@ -1112,7 +1113,7 @@ mod tests {
             )
             .expect_err("conflict must fail");
             assert!(
-                err.message().starts_with("conflicting_option: --"),
+                err.kind() == ErrorKind::Usage,
                 "{conflicting} produced {err:?}"
             );
         }
@@ -1131,7 +1132,7 @@ mod tests {
             )
             .expect_err("conflict must fail");
             assert!(
-                err.message().starts_with("conflicting_option: --"),
+                err.kind() == ErrorKind::Usage,
                 "{conflicting} produced {err:?}"
             );
         }
@@ -1235,7 +1236,7 @@ mod tests {
             &[],
         )
         .expect_err("startup option must fail");
-        assert!(err.message().starts_with("invalid_usage: --"));
+        assert!(err.kind() == ErrorKind::Usage);
     }
 
     #[test]

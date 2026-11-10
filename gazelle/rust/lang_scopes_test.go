@@ -70,7 +70,7 @@ func TestResolveDeferred(t *testing.T) {
 		t.Errorf("indexed deferred import deps = %q errors = %v", got, l.errors)
 	}
 	l, r = resolveDeferred(cfg, "missing")
-	if r.Attr("deps") != nil || len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `unresolved import "missing"; undeclared import: declare it in Cargo.toml, add a local rust_library with crate_name "missing"`) {
+	if r.Attr("deps") != nil || len(l.errors) != 1 || !strings.Contains(l.errors[0].Message, `unresolved import "missing"; undeclared import: declare it in the crate manifest, add a local rust_library with crate_name "missing"`) {
 		t.Errorf("unindexed deferred import deps = %v errors = %v", r.Attr("deps"), l.errors)
 	}
 	l, _ = resolveDeferred(cfg, "twice")

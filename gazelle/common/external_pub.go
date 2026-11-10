@@ -8,18 +8,18 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
-// pubPackage is one entry of a pubspec.lock.
+// pubPackage is one entry of the pub lock.
 type pubPackage struct {
 	dependency string
 	source     string
 }
 
-// pubLockManifest holds the packages a pubspec.lock records.
+// pubLockManifest holds the packages the pub lock records.
 type pubLockManifest struct {
 	packages map[string]pubPackage
 }
 
-// parsePubLockManifest reads a pubspec.lock. The file is machine written with
+// parsePubLockManifest reads the pub lock. The file is machine written with
 // a fixed shape, so the reader accepts only that shape and fails on anything
 // else instead of guessing.
 func parsePubLockManifest(content []byte, _ string) (externalManifest, error) {
@@ -91,11 +91,11 @@ func (m *pubLockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	pkg, ok := m.packages[name]
 	switch {
 	case !ok:
-		return nil, "package " + name + " is not in the lock; declare it in pubspec.yaml and run pub get"
+		return nil, "package " + name + " is not in the lock; declare it in the pub manifest and run pub get"
 	case pkg.source == "path" || pkg.source == "sdk":
 		return nil, "package " + name + " comes from a " + pkg.source + " source, not the pub hub"
 	case pkg.dependency == "transitive":
-		return nil, "package " + name + " is only a transitive dependency; declare it in pubspec.yaml"
+		return nil, "package " + name + " is only a transitive dependency; declare it in the pub manifest"
 	}
 	return []label.Label{{Repo: repo, Name: name}}, ""
 }

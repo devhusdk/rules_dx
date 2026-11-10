@@ -480,7 +480,7 @@ func TestPubLockLookup(t *testing.T) {
 		}
 	}
 	for name, want := range map[string]string{
-		"meta":    "declare it in pubspec.yaml",
+		"meta":    "declare it in the pub manifest",
 		"missing": "not in the lock",
 		"local":   "path source",
 	} {

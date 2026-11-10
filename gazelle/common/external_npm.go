@@ -8,7 +8,7 @@ import (
 	"github.com/bazel-contrib/bazel-gazelle/v2/label"
 )
 
-// npmManifest holds the packages a package.json declares.
+// npmManifest holds the packages a package manifest declares.
 type npmManifest struct {
 	packages map[string]bool
 	// dir is the package holding the pnpm lock the packages link from.

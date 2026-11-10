@@ -1,20 +1,20 @@
 # Tests design
 
-This page fixes how tests in this repository are declared and run. Every test target and test macro follows it.
+Every test target and test macro follows these rules.
 
 ## Default set
 
-- Every test runs in the default set: `bazel test` on its package pattern selects it.
+- Every test runs in the default set: `bazel test` on its package pattern selects it. A conformance subject is the one exception.
 - No test carries the `manual` tag.
-- A test that cannot run in the default set is fixed or deleted.
-- A test that runs only on some platforms says so with `target_compatible_with`, not with a tag.
+- A test that cannot run there is fixed or deleted.
+- A test for only some platforms says so with `target_compatible_with`, not a tag.
 
 ## Sandbox, remote execution and cache
 
 - Every test runs sandboxed, can run on a remote executor, and has its result cached.
 - No test carries `local`, `no-sandbox`, `no-cache`, `no-remote`, `external` or `requires-network`.
 - No test sets `local = True`.
-- A test reads only its declared inputs. It never reads the checkout, the home directory or the network.
+- A test reads only its declared inputs: never the checkout, the home directory or the network.
 - A test writes only under `TEST_TMPDIR` and its declared outputs.
 
 ## Host tools
@@ -32,33 +32,31 @@ This page fixes how tests in this repository are declared and run. Every test ta
 
 ## Test kinds
 
-A test is one of four kinds. Pick the first kind that can prove the behaviour.
+A test is the first of four kinds that can prove the behaviour.
 
 | Kind | What it is | Allowed when |
 | --- | --- | --- |
 | Unit | A `rust_test`, or a Starlark unit test over pure functions. | The behaviour is a function of its arguments or of declared files. |
 | Analysis | A Starlark analysis test over providers, actions and failures. | The behaviour is what a rule declares: providers, action arguments, inputs, outputs or an analysis error. |
 | In-graph fixture | A test that depends on real fixture targets in this workspace and checks their built outputs. | The behaviour needs an action to run: a compiler, a linter, a packager. |
-| Nested | A test that runs a second Bazel in a consumer workspace. | No unit, analysis or in-graph test can prove the same thing. |
+| Nested | A test that runs a second Bazel in a consumer workspace. | No other kind can prove the same thing. |
 
 - A test that only checks rule behaviour is an analysis test or an in-graph fixture test.
-- A fixture target that must fail to build is the subject of an analysis failure test. It is not a test target.
-- A fixture is a library, binary or file target. A test target is the fixture of another test only as a conformance subject.
+- A fixture target that must fail to build is the subject of an analysis failure test, not a test target.
+- A fixture is a library, binary or file target, or a conformance subject.
 
 ## Nested Bazel
 
 - Every test that needs Bazel uses the one shared harness in `tools/testing/nested`.
 - The harness runs the pinned Bazel from runfiles.
-- The nested build is offline. It downloads nothing.
+- The nested build is offline.
 - Every repository the nested build reads is a declared input of the test.
 - The nested build sees no host `PATH`.
-- The result is cached like any other test.
-- No test starts Bazel any other way.
 - Each nested test is listed with its measured time.
 
 ## Speed
 
-- The target is under 1 second per test, with no server startup.
+- The target is under 1 second per test.
 - A unit, analysis or in-graph fixture test starts no Bazel server.
 - A change that adds a nested test states its measured time.
 
@@ -72,7 +70,7 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 ## Conformance
 
 - Every directory with a `lang.json` calls `dx_conformance_suite` from `//tools/testing/conformance:defs.bzl` once, in `<lang>/tests/conformance/BUILD.bazel`.
-- The package declares fixtures with the macros of `<lang>/defs.bzl`. The suite declares every test and holds every assertion.
+- The package declares fixtures: files and targets of the `lang.json` `entry_points`. The suite declares every test and holds every assertion.
 
 | Test | Passes when |
 | --- | --- |
@@ -88,14 +86,15 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 | `cross_test` | The fixture binary, built for another platform of the language, has that platform's object format, OS and CPU. |
 | `runfiles_test` | The fixture binary reads a `data` file through the language's runfiles library and prints it. |
 
-- A subject test is a `<lang>_test` fixture that is incompatible outside the suite's transition. A package pattern skips it.
-- A suite test runs a subject from runfiles with Bazel's test environment.
-- A suite test is an in-graph fixture test with `size = "small"`.
-- A suite test runs on every platform in `lang.json` `platforms`.
-- `not_applicable` maps a capability, or a capability and platform, to a reason. Nothing else omits a suite test.
-- `tools/testing/conformance/pending.txt` holds one line per suite test that does not pass yet: `<lang> <test> <platform>`. Such a test is incompatible on that platform. The list only shrinks.
-- `//tools/testing/conformance:manifest` depends on every suite test of every language in `core/modules/langs.bzl`. A missing test fails its build.
-- `docs/support-matrix.md` takes each capability cell from the manifest: the test label, the reason or `pending`. No hand-written table states a capability.
+- A subject test is a fixture declared with the suite's `subject_rule`: a `lang.json` `entry_points` name that declares a test target. Outside the suite's transition it is incompatible, so a pattern skips it.
+- A language without one lists `pass_test`, `fail_test` and `coverage_test` in `not_applicable`.
+- A suite test is an in-graph fixture test with `size = "small"`. It runs a subject from runfiles with Bazel's test environment.
+- `lang.json` `platforms` is never empty. A suite test runs on each of them and is incompatible on any other.
+- The suite's `not_applicable` maps a test, or a test and platform, to a reason. Nothing else omits a suite test.
+- `tools/testing/conformance/pending.txt` holds a `<lang> <test> <platform>` line per suite test that does not pass yet. Such a test is incompatible on that platform. The list only shrinks.
+- The suite declares `:manifest`, compatible on every platform, with no dependency on a suite test. It records the label, the reason or `pending` of each test on each platform.
+- `//tools/testing/conformance:manifest` depends on the `:manifest` of every language in `core/modules/langs.bzl`. A language without a suite fails its build.
+- `docs/support-matrix.md` takes each suite test cell from the manifest. No hand-written table states one.
 
 ## Duplicates
 

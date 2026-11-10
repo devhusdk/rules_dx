@@ -112,7 +112,7 @@ if (templates.length > 0) {
   }
   parser.push(`--parser=${[...parsers][0]}`);
 }
-const options = `--config=${dxConfig ?? fileURLToPath(new URL("../../../tiers/prettier/standard.json", import.meta.url))}`;
+const options = `--config=${dxConfig ?? fileURLToPath(new URL("../../../../core/quality/tiers/prettier/standard.json", import.meta.url))}`;
 const ignore = `--ignore-path=${fileURLToPath(new URL("./prettier_ignore", import.meta.url))}`;
 process.argv.splice(2, args.length, ...plugins, ...parser, options, ignore, ...forwarded);
 createRequire(import.meta.url)("prettier/bin/prettier.cjs");

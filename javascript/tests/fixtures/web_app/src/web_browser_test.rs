@@ -121,11 +121,11 @@ fn relocated_app_runs_wasm_in_a_browser() {
     assert!(
         wait_for(
             &mut browser,
-            "return document.getElementById('proof').textContent !== 'loading'",
+            "return document.getElementById('proof').textContent !== 'loading' && document.getElementById('asset').textContent !== 'loading'",
             30,
         )
         .expect("poll the wasm proof"),
-        "the wasm application never ran",
+        "the wasm application or asset fetch never finished",
     );
     assert_eq!(
         browser

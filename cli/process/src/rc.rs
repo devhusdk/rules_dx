@@ -311,7 +311,6 @@ impl RcPolicy {
             return RcPolicy::hermetic();
         }
         let ci = is_ci_value(env_get("CI").as_deref());
-        let roots = rc_roots(env_get, workspace);
         let lines = sections::load_rc(env_get, workspace, read_file, true, &[]);
         // Any rc line naming a disk cache flag, in any section, means dx adds no cache.
         let (disk_cache, bazel_disk_cache) =
@@ -334,13 +333,13 @@ impl RcPolicy {
                 )
             };
         let disk_cache_gc =
-            disk_cache.is_some() && !rc_sets_disk_cache_gc(&roots, workspace, read_file);
+            disk_cache.is_some() && !rc_sets_disk_cache_gc(&lines);
         let slot_idle_secs = slot_idle_secs.filter(|secs| *secs > 0 && !ci);
         let gc_idle_delay_secs =
-            if ci || rc_sets_flag(&roots, workspace, read_file, GC_IDLE_DELAY_FLAG) {
+            if ci || sections::any_line_sets(&lines, &[GC_IDLE_DELAY_FLAG]) {
                 None
             } else {
-                let rc_idle = rc_min_max_idle_secs(&roots, workspace, read_file);
+                let rc_idle = rc_min_max_idle_secs(&lines);
                 let idle = match (rc_idle, slot_idle_secs) {
                     (Some(rc), Some(slot)) => Some(rc.min(slot)),
                     (rc, slot) => rc.or(slot),
@@ -545,7 +544,7 @@ fn home_dir(env_get: &dyn Fn(&str) -> Option<String>) -> Option<PathBuf> {
 }
 
 /// The system rc file: under `ProgramData` on Windows, else `/etc`.
-fn system_rc(env_get: &dyn Fn(&str) -> Option<String>, windows: bool) -> Option<PathBuf> {
+pub(crate) fn system_rc(env_get: &dyn Fn(&str) -> Option<String>, windows: bool) -> Option<PathBuf> {
     if windows {
         env_get("ProgramData")
             .filter(|value| !value.is_empty())
@@ -555,16 +554,6 @@ fn system_rc(env_get: &dyn Fn(&str) -> Option<String>, windows: bool) -> Option<
     }
 }
 
-/// The rc files in the order Bazel reads them: system, workspace, then home. Later files win.
-fn rc_roots(env_get: &dyn Fn(&str) -> Option<String>, workspace: &Path) -> Vec<PathBuf> {
-    let mut roots: Vec<PathBuf> = system_rc(env_get, cfg!(windows)).into_iter().collect();
-    roots.push(workspace.join(".bazelrc"));
-    if let Some(home) = home_dir(env_get) {
-        roots.push(home.join(".bazelrc"));
-    }
-    roots
-}
-
 /// The repository cache directories Bazel may use, most likely first, without duplicates.
 pub fn repository_caches(
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -572,16 +561,14 @@ pub fn repository_caches(
     read_file: &dyn Fn(&Path) -> Option<String>,
     startup_options: &[String],
 ) -> Vec<PathBuf> {
-    let roots = rc_roots(env_get, workspace);
+    let lines = sections::load_rc(env_get, workspace, read_file, true, startup_options);
     let mut flagged = Vec::new();
     let mut rc_user_roots = Vec::new();
-    let mut visit = |tokens: &[&str]| {
-        let startup = tokens
-            .first()
-            .is_some_and(|command| *command == "startup" || command.starts_with("startup:"));
-        for (index, token) in tokens.iter().enumerate().skip(1) {
-            let next = tokens.get(index + 1).copied();
-            if startup {
+    for line in &lines {
+        let tokens = line.tokens();
+        for (index, token) in tokens.iter().enumerate() {
+            let next = tokens.get(index + 1).map(String::as_str);
+            if line.is_startup_any() {
                 if let Some(value) = flag_value(token, next, "--output_user_root") {
                     rc_user_roots.push(value.to_owned());
                 }
@@ -589,9 +576,7 @@ pub fn repository_caches(
                 flagged.push(value.to_owned());
             }
         }
-        false
-    };
-    visit_roots(&roots, workspace, read_file, &mut visit);
+    }
     let expand = |value: &str| expand_path(value, env_get, workspace);
     let mut candidates: Vec<PathBuf> = flagged
         .iter()
@@ -652,117 +637,25 @@ fn expand_path(value: &str, env_get: &dyn Fn(&str) -> Option<String>, workspace:
     import_path(&expanded.to_string_lossy(), workspace)
 }
 
-/// Whether any rc file reachable from `roots` sets the gc max size or max age.
-pub fn rc_sets_disk_cache_gc(
-    roots: &[PathBuf],
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-) -> bool {
-    rc_sets_flag(roots, workspace, read_file, GC_MAX_SIZE_FLAG)
-        || rc_sets_flag(roots, workspace, read_file, GC_MAX_AGE_FLAG)
+/// Whether any rc line sets the gc max size or max age.
+fn rc_sets_disk_cache_gc(lines: &[sections::Line]) -> bool {
+    sections::any_line_sets(lines, &[GC_MAX_SIZE_FLAG, GC_MAX_AGE_FLAG])
 }
 
-fn rc_sets_flag(
-    roots: &[PathBuf],
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-    name: &str,
-) -> bool {
-    let sets = |token: &str, _: Option<&str>| sets_flag(token, name);
-    scan_roots(roots, workspace, read_file, &sets)
-}
-
-/// The smallest `startup --max_idle_secs` any rc file reachable from `roots` sets.
-fn rc_min_max_idle_secs(
-    roots: &[PathBuf],
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-) -> Option<u64> {
+/// The smallest `startup --max_idle_secs` any rc line sets.
+fn rc_min_max_idle_secs(lines: &[sections::Line]) -> Option<u64> {
     let mut least: Option<u64> = None;
-    let mut visit = |tokens: &[&str]| {
-        if tokens.first() != Some(&"startup") {
-            return false;
-        }
+    for line in lines.iter().filter(|line| line.is_startup()) {
+        let tokens = line.tokens();
         for (index, token) in tokens.iter().enumerate() {
-            let flag = token.trim_start_matches(['"', '\'']);
-            let value = flag_value(flag, tokens.get(index + 1).copied(), "--max_idle_secs");
+            let next = tokens.get(index + 1).map(String::as_str);
+            let value = flag_value(token, next, "--max_idle_secs");
             if let Some(secs) = value.and_then(|value| value.parse::<u64>().ok()) {
                 least = Some(least.map_or(secs, |least| least.min(secs)));
             }
         }
-        false
-    };
-    visit_roots(roots, workspace, read_file, &mut visit);
+    }
     least
-}
-
-type Matcher<'a> = dyn Fn(&str, Option<&str>) -> bool + 'a;
-
-/// Visits the tokens of each rc line; returning `true` stops the walk.
-type LineVisitor<'a> = dyn FnMut(&[&str]) -> bool + 'a;
-
-fn scan_roots(
-    roots: &[PathBuf],
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-    matches: &Matcher<'_>,
-) -> bool {
-    let mut visit = |tokens: &[&str]| {
-        tokens.iter().enumerate().any(|(index, token)| {
-            let flag = token.trim_start_matches(['"', '\'']);
-            matches(flag, tokens.get(index + 1).copied())
-        })
-    };
-    visit_roots(roots, workspace, read_file, &mut visit)
-}
-
-fn visit_roots(
-    roots: &[PathBuf],
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-    visit: &mut LineVisitor<'_>,
-) -> bool {
-    let mut seen = HashSet::new();
-    roots
-        .iter()
-        .any(|root| scan(root, workspace, read_file, visit, &mut seen, 0))
-}
-
-fn scan(
-    path: &Path,
-    workspace: &Path,
-    read_file: &dyn Fn(&Path) -> Option<String>,
-    visit: &mut LineVisitor<'_>,
-    seen: &mut HashSet<PathBuf>,
-    depth: usize,
-) -> bool {
-    if depth > MAX_IMPORT_DEPTH || !seen.insert(path.to_path_buf()) {
-        return false;
-    }
-    let Some(text) = read_file(path) else {
-        return false;
-    };
-    for line in text.lines() {
-        let line = line.trim();
-        if line.starts_with('#') {
-            continue;
-        }
-        let owned = tokenize(line);
-        let tokens: Vec<&str> = owned.iter().map(String::as_str).collect();
-        let first = tokens.first().copied().unwrap_or_default();
-        if matches!(first, "import" | "try-import") {
-            let rest = line[first.len()..].trim();
-            let target = import_path(unquote(rest), workspace);
-            if scan(&target, workspace, read_file, visit, seen, depth + 1) {
-                return true;
-            }
-            continue;
-        }
-        if visit(&tokens) {
-            return true;
-        }
-    }
-    false
 }
 
 /// Splits an rc line on whitespace outside quotes, removing the quotes.

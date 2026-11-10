@@ -24,6 +24,49 @@ pub(super) struct Line {
     tokens: Vec<String>,
 }
 
+impl Line {
+    /// The flag tokens after the command.
+    pub(super) fn tokens(&self) -> &[String] {
+        &self.tokens
+    }
+
+    /// Whether this is a plain `startup` line.
+    pub(super) fn is_startup(&self) -> bool {
+        self.command == "startup" && self.config.is_none()
+    }
+
+    /// Whether this is a `startup` line, with or without a `:config`.
+    pub(super) fn is_startup_any(&self) -> bool {
+        self.command == "startup"
+    }
+}
+
+/// The logical rc lines in `text`: backslash-newline joins lines and an unquoted `#` ends one.
+fn logical_lines(text: &str) -> Vec<String> {
+    let joined = text.replace("\\\r\n", "").replace("\\\n", "");
+    joined
+        .lines()
+        .map(|line| {
+            let mut quote: Option<char> = None;
+            let mut end = line.len();
+            for (at, ch) in line.char_indices() {
+                match quote {
+                    Some(open) if ch == open => quote = None,
+                    Some(_) => {}
+                    None if ch == '"' || ch == '\'' => quote = Some(ch),
+                    None if ch == '#' => {
+                        end = at;
+                        break;
+                    }
+                    None => {}
+                }
+            }
+            line[..end].trim().to_owned()
+        })
+        .filter(|line| !line.is_empty())
+        .collect()
+}
+
 /// Whether the effective `build` options set a non-empty `--remote_executor`.
 pub fn remote_execution(
     env_get: &dyn Fn(&str) -> Option<String>,
@@ -217,15 +260,14 @@ fn rc_files(
     read_user_rc: bool,
     startup: &[String],
 ) -> Vec<PathBuf> {
-    let non_empty = |name: &str| env_get(name).filter(|value| !value.is_empty());
     let mut files = Vec::new();
     if read_user_rc {
         files.extend(super::system_rc(env_get, cfg!(windows)));
     }
     files.push(workspace.join(".bazelrc"));
     if read_user_rc {
-        if let Some(home) = non_empty("HOME").or_else(|| non_empty("USERPROFILE")) {
-            files.push(PathBuf::from(home).join(".bazelrc"));
+        if let Some(home) = super::home_dir(env_get) {
+            files.push(home.join(".bazelrc"));
         }
         files.extend(explicit_rc_files(env_get, startup));
     }
@@ -280,11 +322,8 @@ fn load(
     let Some(text) = read_file(path) else {
         return;
     };
-    for line in text.lines() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
+    for line in logical_lines(&text) {
+        let line = line.as_str();
         let words = tokenize(line);
         let first = words[0].as_str();
         if matches!(first, "import" | "try-import") {
@@ -381,13 +420,9 @@ fn platform_config_enabled(options: &[String]) -> bool {
 pub(super) fn last_value<'a>(options: &'a [String], flag: &str) -> Option<&'a str> {
     let mut value = None;
     for (index, option) in options.iter().enumerate() {
-        let Some(rest) = option.strip_prefix(flag) else {
-            continue;
-        };
-        if rest.is_empty() {
-            value = Some(options.get(index + 1).map_or("", String::as_str));
-        } else if let Some(set) = rest.strip_prefix('=') {
-            value = Some(set);
+        let next = options.get(index + 1).map(String::as_str);
+        if let Some(found) = flag_value(option, next, flag) {
+            value = Some(found);
         }
     }
     value

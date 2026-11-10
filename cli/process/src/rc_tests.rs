@@ -1226,3 +1226,34 @@ fn read_only_remote_cache_turns_uploads_off() {
     );
     assert!(!Machine::local().policy().remote_cache_read_only);
 }
+
+#[test]
+fn bazelrc_env_file_counts_for_the_gc_bound() {
+    let policy = Machine::local()
+        .env("BAZELRC", "/x/extra.bazelrc")
+        .file(
+            "/x/extra.bazelrc",
+            "build --experimental_disk_cache_gc_max_size=50G\n",
+        )
+        .policy();
+    assert!(!policy.disk_cache_gc);
+}
+
+#[test]
+fn mid_line_comment_does_not_set_a_flag() {
+    let policy = Machine::local()
+        .file("/ws/.bazelrc", "build --jobs=4 # --disk_cache=/x\n")
+        .policy();
+    assert_eq!(policy.disk_cache, local_cache());
+}
+
+#[test]
+fn continued_line_flag_is_seen() {
+    let policy = Machine::local()
+        .file(
+            "/ws/.bazelrc",
+            "build --jobs=4 \\\n  --experimental_disk_cache_gc_max_age=3d\n",
+        )
+        .policy();
+    assert!(!policy.disk_cache_gc);
+}

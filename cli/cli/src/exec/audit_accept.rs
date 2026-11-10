@@ -1,4 +1,5 @@
 use super::*;
+use dx_error::DxError;
 
 const OWNER_NOTE: &str =
     "# dx: yours to edit; `dx security --accept` and `dx license --accept` append here";
@@ -31,9 +32,9 @@ pub(super) struct Acceptance<'a> {
 }
 
 impl Acceptance<'_> {
-    fn check(&self) -> Result<(), String> {
+    fn check(&self) -> Result<(), DxError> {
         dx_config::conventions::check_exception(self.reason, self.expires, self.today)
-            .map_err(|problem| format!("--accept: {problem}"))
+            .map_err(|problem| DxError::usage(format!("--accept: {problem}")))
     }
 
     fn rest(&self) -> Vec<(&'static str, String)> {
@@ -50,14 +51,16 @@ pub(super) fn accept_security(
     accept: &Acceptance<'_>,
     candidates: &[VulnCandidate],
     uncovered_sets: &[String],
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, DxError> {
     accept.check()?;
     let mut entries: Vec<dx_update::accept::Entry> = Vec::new();
     let mut lines: Vec<String> = Vec::new();
     for spec in accept.specs {
         if let Some(set) = spec.strip_prefix("uncovered:") {
             if !uncovered_sets.iter().any(|name| name == set) {
-                return Err(format!("--accept {spec} matches no uncovered set"));
+                return Err(DxError::usage(format!(
+                    "--accept {spec} matches no uncovered set"
+                )));
             }
             entries.push(dx_update::accept::Entry {
                 table: "uncovered",
@@ -96,7 +99,9 @@ pub(super) fn accept_security(
             ));
         }
         if !matched {
-            return Err(format!("--accept {spec} matches no finding"));
+            return Err(DxError::usage(format!(
+                "--accept {spec} matches no finding"
+            )));
         }
     }
     write_entries(workspace, "security.toml", SECURITY_SCHEMA, &entries)?;
@@ -108,7 +113,7 @@ pub(super) fn accept_license(
     workspace: &Path,
     accept: &Acceptance<'_>,
     candidates: &[LicenseCandidate],
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, DxError> {
     accept.check()?;
     let mut entries: Vec<dx_update::accept::Entry> = Vec::new();
     let mut lines: Vec<String> = Vec::new();
@@ -138,7 +143,9 @@ pub(super) fn accept_license(
             ));
         }
         if !matched {
-            return Err(format!("--accept {spec} matches no finding"));
+            return Err(DxError::usage(format!(
+                "--accept {spec} matches no finding"
+            )));
         }
     }
     write_entries(workspace, "license.toml", LICENSE_SCHEMA, &entries)?;
@@ -150,19 +157,24 @@ fn write_entries(
     rel: &str,
     header: &str,
     entries: &[dx_update::accept::Entry],
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let path = workspace.join(rel);
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => Some(text),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
-        Err(error) => return Err(format!("could not read {rel}: {error}")),
+        Err(error) => {
+            return Err(DxError::from_io(
+                format!("could not read {rel}: {error}"),
+                &error,
+            ));
+        }
     };
     let header = format!("{OWNER_NOTE}\n{header}");
     let updated = dx_update::accept::append_entries(text.as_deref(), &header, entries)
-        .map_err(|error| format!("{rel}: {error}"))?;
+        .map_err(|error| DxError::new(error.kind(), format!("{rel}: {}", error.message())))?;
     if let Some(updated) = updated {
         std::fs::write(&path, updated)
-            .map_err(|error| format!("could not write {rel}: {error}"))?;
+            .map_err(|error| DxError::from_io(format!("could not write {rel}: {error}"), &error))?;
     }
     Ok(())
 }

@@ -1,6 +1,7 @@
 use super::common::*;
 use super::pinned_tool::QueryBazel;
 use dx_audit::secrets::CONFIG_FILE_NAME;
+use dx_error::DxError;
 use dx_output::{
     DiagnosticEvent, FindingRecord, FinishedCounts, NoticeEvent, OutputMode, PackageRef, Severity,
     Threshold, command_finished, command_started, diagnostic_event, error_event, notice_event,
@@ -265,7 +266,8 @@ fn load_pinned(
                     pin.cache_rel()
                 )));
             }
-            let bytes = fetch_pinned(&pin.url).map_err(fetch_error)?;
+            let bytes =
+                fetch_pinned(&pin.url).map_err(|error| fetch_error(error.message().to_owned()))?;
             check_pin_sha(&pin, label, &bytes)?;
             store_cached(&cache, &bytes).map_err(|error| fetch_error(error.to_string()))?;
             bytes
@@ -310,27 +312,28 @@ fn store_cached(cache: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::rename(&partial, cache)
 }
 
-fn fetch_pinned(url: &str) -> Result<Vec<u8>, String> {
+fn fetch_pinned(url: &str) -> Result<Vec<u8>, DxError> {
     if let Some(path) = dx_audit::advisory::file_url_path(url) {
-        return std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()));
+        return std::fs::read(&path)
+            .map_err(|error| DxError::from_io(format!("{}: {error}", path.display()), &error));
     }
     let scratch = tempfile::Builder::new()
         .prefix("dx-advisory-pin-")
         .tempdir()
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| DxError::from_io(error.to_string(), &error))?;
     let file = scratch.path().join("snapshot");
     let plan = dx_audit::advisory_prep::fetch_many_plan(
         &[(url.to_owned(), file.clone())],
         dx_audit::advisory_prep::DEFAULT_LIMITS,
         1,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| DxError::failure(error.to_string()))?;
     dx_process::capture::run_checked(
         std::process::Command::new(&plan.program).args(&plan.argv),
         FETCH_TIMEOUT,
     )
-    .map_err(|error| format!("{url}: {error}"))?;
-    std::fs::read(&file).map_err(|error| format!("{url}: {error}"))
+    .map_err(|error| DxError::infra(format!("{url}: {error}")))?;
+    std::fs::read(&file).map_err(|error| DxError::from_io(format!("{url}: {error}"), &error))
 }
 
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
@@ -408,9 +411,7 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Conan => dx_audit::locks::parse_conan_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Fpm => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::FPM_LOCK) => {
-                    dx_audit::locks::parse_fpm_lock(text).map_err(dx_error::DxError::failure)
-                }
+                Some(dx_adopt::dependency_sets::FPM_LOCK) => dx_audit::locks::parse_fpm_lock(text),
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
@@ -437,7 +438,7 @@ fn parse_locked_for_configured(
                     dx_audit::locks::parse_cabal_freeze(text)
                 }
                 Some(dx_adopt::dependency_sets::STACK_LOCK) => {
-                    dx_audit::locks::parse_stack_lock(text).map_err(dx_error::DxError::failure)
+                    dx_audit::locks::parse_stack_lock(text)
                 }
                 _ => Ok(Vec::new()),
             },
@@ -624,10 +625,10 @@ fn package_ref(
 }
 
 /// The tier from the dx.toml `profile`; standard without one.
-fn audit_profile(workspace: &Path) -> Result<dx_audit::profile_base::Profile, String> {
+fn audit_profile(workspace: &Path) -> Result<dx_audit::profile_base::Profile, DxError> {
     match dx_config::load(workspace) {
         Ok(config) => Ok(config.and_then(|config| config.profile).unwrap_or_default()),
-        Err(problem) => Err(format!("dx.toml: {problem}")),
+        Err(problem) => Err(DxError::failure(format!("dx.toml: {problem}"))),
     }
 }
 
@@ -646,8 +647,11 @@ fn load_license_policy(
 ) -> Result<dx_audit::license_policy::LicensePolicy, AuditError> {
     use dx_audit::license_policy::{PolicyProblem, load_licenses};
     let invalid = |error| AuditError::LicenseInvalid { error };
-    let profile = audit_profile(workspace)
-        .map_err(|message| invalid(PolicyProblem::InvalidLicensesToml { message }))?;
+    let profile = audit_profile(workspace).map_err(|error| {
+        invalid(PolicyProblem::InvalidLicensesToml {
+            message: error.message().to_owned(),
+        })
+    })?;
     let text = read_policy_text(workspace, "license.toml")?;
     load_licenses(text.as_deref(), profile).map_err(invalid)
 }
@@ -656,8 +660,11 @@ pub(super) fn load_security_policy(
     workspace: &Path,
 ) -> Result<dx_audit::exception::SecurityPolicy, AuditError> {
     use dx_audit::exception::{SecurityProblem, load_security};
-    let profile = audit_profile(workspace)
-        .map_err(|message| AuditError::SecurityInvalid(SecurityProblem::InvalidToml { message }))?;
+    let profile = audit_profile(workspace).map_err(|error| {
+        AuditError::SecurityInvalid(SecurityProblem::InvalidToml {
+            message: error.message().to_owned(),
+        })
+    })?;
     let text = read_policy_text(workspace, "security.toml")?;
     load_security(text.as_deref(), profile).map_err(AuditError::SecurityInvalid)
 }
@@ -718,7 +725,7 @@ fn gitleaks_path(
     runner: &dyn dx_process::Runner,
     bazel: &dyn dx_tool_resolve::Bazel,
     offline: bool,
-) -> Result<PathBuf, String> {
+) -> Result<PathBuf, DxError> {
     use super::pinned_tool::{PinnedTool, PinnedToolError, resolve_pinned};
     use dx_audit::secrets::{RESOLVE_COMMAND, TOOL_ENV_VAR, TOOL_LABEL};
     let tool = PinnedTool {
@@ -726,12 +733,12 @@ fn gitleaks_path(
         label: TOOL_LABEL,
     };
     resolve_pinned(runner, bazel, &tool, offline).map_err(|error| match error {
-        PinnedToolError::Invalid => format!(
+        PinnedToolError::Invalid => DxError::failure(format!(
             "secrets auditor unavailable: {TOOL_ENV_VAR} must be an absolute path to the pinned {TOOL_LABEL} artifact; ambient PATH lookup is rejected; set it with: {RESOLVE_COMMAND}"
-        ),
-        PinnedToolError::Unresolved { detail } => format!(
+        )),
+        PinnedToolError::Unresolved { detail } => DxError::failure(format!(
             "secrets auditor unavailable: could not resolve {TOOL_LABEL} through Bazel ({detail}); ambient PATH lookup is rejected; set {TOOL_ENV_VAR} with: {RESOLVE_COMMAND}"
-        ),
+        )),
     })
 }
 
@@ -757,7 +764,7 @@ fn scoped_secrets_config(
     temp_dir: &Path,
     pid: u32,
     nonce: u64,
-) -> Result<String, String> {
+) -> Result<String, DxError> {
     use dx_audit::secrets::{
         BASE_CONFIG_PATH, IGNORED_QUERY, ignored_path_patterns, parse_ignored, scoped_config,
     };
@@ -767,30 +774,33 @@ fn scoped_secrets_config(
         Ok(result) if result.code == Some(0) => parse_ignored(&result.stdout),
         _ => Vec::new(),
     };
-    let excludes = dx_plan::resolve::exclude::load(workspace).map_err(|error| error.to_string())?;
+    let excludes = dx_plan::resolve::exclude::load(workspace)
+        .map_err(|error| DxError::failure(error.to_string()))?;
     ignored.extend(excluded_dirs(&excludes));
     let patterns = ignored_path_patterns(&ignored);
     let base = workspace.join(BASE_CONFIG_PATH);
     if !base.is_file() {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "{BASE_CONFIG_PATH} is missing; run `dx generate` to render it"
-        ));
+        )));
     }
     let base = std::path::absolute(&base).unwrap_or(base);
     let user_path = workspace.join(CONFIG_FILE_NAME);
     let user = if user_path.is_file() {
-        Some(
-            std::fs::read_to_string(&user_path)
-                .map_err(|error| format!("cannot read {CONFIG_FILE_NAME}: {error}"))?,
-        )
+        Some(std::fs::read_to_string(&user_path).map_err(|error| {
+            DxError::from_io(format!("cannot read {CONFIG_FILE_NAME}: {error}"), &error)
+        })?)
     } else {
         None
     };
-    let text = scoped_config(user.as_deref(), &patterns, &base.to_string_lossy())
-        .map_err(|e| e.to_string())?;
+    let text = scoped_config(user.as_deref(), &patterns, &base.to_string_lossy())?;
     let path = temp_dir.join(format!("audit-gitleaks-{pid}-{nonce}.toml"));
-    std::fs::write(&path, text)
-        .map_err(|error| format!("failed to write secrets scan config: {error}"))?;
+    std::fs::write(&path, text).map_err(|error| {
+        DxError::from_io(
+            format!("failed to write secrets scan config: {error}"),
+            &error,
+        )
+    })?;
     let path = std::path::absolute(&path).unwrap_or(path);
     Ok(path.to_string_lossy().into_owned())
 }
@@ -830,11 +840,11 @@ fn run_secrets(
     };
     let tool_path = match gitleaks_path(runner, bazel, offline) {
         Ok(path) => path.to_string_lossy().into_owned(),
-        Err(error) => return (Vec::new(), Some(error), Vec::new()),
+        Err(error) => return (Vec::new(), Some(error.message().to_owned()), Vec::new()),
     };
     let scoped = match scoped_secrets_config(workspace, query_runner, temp_dir, pid, nonce) {
         Ok(scoped) => scoped,
-        Err(error) => return (Vec::new(), Some(error), Vec::new()),
+        Err(error) => return (Vec::new(), Some(error.message().to_owned()), Vec::new()),
     };
     let config = Some(scoped.as_str());
     let temp_arg = temp_dir.to_string_lossy().into_owned();
@@ -1438,11 +1448,13 @@ fn report_accepted(
     invocation: &Invocation,
     out: &mut dyn Write,
     err: &mut dyn Write,
-    accepted: Result<Vec<String>, String>,
+    accepted: Result<Vec<String>, DxError>,
 ) -> i32 {
     let lines = match accepted {
         Ok(lines) => lines,
-        Err(message) => return refusal(invocation.output, out, err, &message),
+        Err(error) => {
+            return report_dx_error(invocation.output, out, err, CODE_INVALID_ARGUMENTS, &error);
+        }
     };
     if invocation.output == OutputMode::Json {
         for line in lines {
@@ -1583,7 +1595,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
     let mut family_codes: BTreeMap<String, &'static str> = BTreeMap::new();
     let mut licensed: Vec<dx_audit::locks::LicensedPackage> = Vec::new();
     let mut any_incomplete = false;
-    let mut accepted: Option<Result<Vec<String>, String>> = None;
+    let mut accepted: Option<Result<Vec<String>, DxError>> = None;
     for family in &request.families {
         match *family {
             dx_audit::AuditFamily::Security => {

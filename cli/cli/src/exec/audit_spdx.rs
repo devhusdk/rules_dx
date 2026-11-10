@@ -6,7 +6,7 @@ pub(super) fn license_spdx(
     scopes: &[String],
     packages: &[LicensedPackage],
     created: &str,
-) -> Result<String, String> {
+) -> Result<String, dx_error::DxError> {
     let scope = if scopes.is_empty() {
         "workspace".to_owned()
     } else {
@@ -53,9 +53,10 @@ pub(super) fn license_spdx(
     }
     let errors = dx_sbom::reference_errors(&document);
     if !errors.is_empty() {
-        return Err(errors.join("; "));
+        return Err(dx_error::DxError::failure(errors.join("; ")));
     }
-    serde_json::to_string_pretty(&document).map_err(|error| error.to_string())
+    serde_json::to_string_pretty(&document)
+        .map_err(|error| dx_error::DxError::failure(error.to_string()))
 }
 
 /// Formats `SOURCE_DATE_EPOCH` seconds, else the audit date, as the document creation time.

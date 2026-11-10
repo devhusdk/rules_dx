@@ -7,6 +7,7 @@ use dx_audit::exception::{RiskException, SecurityPolicy};
 use dx_audit::image_scan::{
     IMAGE_SET, ImageFinding, covers, parse_report, severity_list, trivy_args,
 };
+use dx_error::DxError;
 use dx_output::{DiagnosticEvent, Severity, Threshold};
 use dx_tool_resolve::Bazel;
 use std::path::Path;
@@ -50,7 +51,7 @@ pub(super) fn run_images(inputs: &ImagesInputs<'_>) -> ImagesResult {
     let configs = match image_configs(inputs) {
         Ok(configs) => configs,
         Err(error) => {
-            result.incomplete = Some(error);
+            result.incomplete = Some(error.message().to_owned());
             return result;
         }
     };
@@ -58,7 +59,7 @@ pub(super) fn run_images(inputs: &ImagesInputs<'_>) -> ImagesResult {
         return result;
     }
     if let Err(error) = build_images(inputs, &configs) {
-        result.incomplete = Some(error);
+        result.incomplete = Some(error.message().to_owned());
         return result;
     }
     let trivy = match resolve_pinned(inputs.runner, inputs.bazel, &TRIVY, inputs.offline) {
@@ -92,7 +93,7 @@ pub(super) fn run_images(inputs: &ImagesInputs<'_>) -> ImagesResult {
     result
 }
 
-fn image_configs(inputs: &ImagesInputs<'_>) -> Result<Vec<String>, String> {
+fn image_configs(inputs: &ImagesInputs<'_>) -> Result<Vec<String>, DxError> {
     let scopes: Vec<&str> = inputs
         .scopes
         .iter()
@@ -110,31 +111,33 @@ fn image_configs(inputs: &ImagesInputs<'_>) -> Result<Vec<String>, String> {
         inputs.bazel.query_runner,
         inputs.bazel.startup,
     )
-    .map_err(|error| format!("failed to find images: {error}"))?;
+    .map_err(|error| DxError::failure(format!("failed to find images: {error}")))?;
     Ok(labels
         .into_iter()
         .filter(|label| !dx_plan::resolve::exclude::covered(inputs.excludes, label))
         .collect())
 }
 
-fn build_images(inputs: &ImagesInputs<'_>, configs: &[String]) -> Result<(), String> {
+fn build_images(inputs: &ImagesInputs<'_>, configs: &[String]) -> Result<(), DxError> {
     let mut required = vec![IMAGE_GROUP.to_owned()];
     if inputs.offline {
         required.push("--repository_disable_download".to_owned());
     }
     let argv =
         dx_plan::plan::bazel_argv("build", &[], &required, &[], configs, inputs.bazel.startup)
-            .map_err(|error| format!("failed to plan the image build: {error}"))?;
+            .map_err(|error| {
+                DxError::failure(format!("failed to plan the image build: {error}"))
+            })?;
     let status = inputs
         .runner
         .run(&argv, inputs.workspace, &[])
-        .map_err(|error| format!("failed to build images: {error}"))?;
+        .map_err(|error| DxError::infra(format!("failed to build images: {error}")))?;
     match status.code {
         Some(0) => Ok(()),
-        code => Err(format!(
+        code => Err(DxError::failure(format!(
             "failed to build images: bazel build exited with {}",
             code.map_or_else(|| "a signal".to_owned(), |code| code.to_string())
-        )),
+        ))),
     }
 }
 
@@ -142,31 +145,30 @@ fn scan_image(
     inputs: &ImagesInputs<'_>,
     trivy: &Path,
     config: &str,
-) -> Result<Vec<ImageFinding>, String> {
+) -> Result<Vec<ImageFinding>, DxError> {
     let files = inputs
         .bazel
         .cquery_files(config, &[IMAGE_GROUP.to_owned()])
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| DxError::infra(error.to_string()))?;
     let image = files
         .lines()
         .map(str::trim)
         .find(|line| !line.is_empty())
-        .ok_or("the image output group is empty")?;
+        .ok_or_else(|| DxError::failure("the image output group is empty"))?;
     let root = inputs
         .bazel
         .execution_root()
-        .map_err(|error| error.to_string())?;
+        .map_err(|error| DxError::infra(error.to_string()))?;
     let image = Path::new(&root).join(image);
     let cache =
-        dx_audit::image_scan::trivy_cache(Some(inputs.workspace), inputs.today, inputs.offline)
-            .map_err(|e| e.to_string())?;
+        dx_audit::image_scan::trivy_cache(Some(inputs.workspace), inputs.today, inputs.offline)?;
     let report = inputs.temp_dir.join(format!(
         "audit-trivy-{}-{}-{}.json",
         inputs.pid,
         inputs.nonce,
         config.replace(['/', ':', '@'], "_")
     ));
-    let severities = severity_list("LOW").map_err(|e| e.to_string())?;
+    let severities = severity_list("LOW")?;
     let mut argv = vec![trivy.to_string_lossy().into_owned()];
     argv.extend(
         trivy_args(&image, &severities, cache.as_deref(), Some(&report))
@@ -176,14 +178,16 @@ fn scan_image(
     let status = inputs
         .runner
         .run_hermetic(&argv, inputs.workspace, &[])
-        .map_err(|error| format!("cannot run trivy: {error}"))?;
+        .map_err(|error| DxError::infra(format!("cannot run trivy: {error}")))?;
     let text = std::fs::read_to_string(&report);
     let _ = std::fs::remove_file(&report);
     if status.code != Some(0) {
-        return Err(format!("trivy exited with {:?}", status.code));
+        return Err(DxError::failure(format!(
+            "trivy exited with {:?}",
+            status.code
+        )));
     }
-    parse_report(&text.map_err(|error| format!("trivy report: {error}"))?)
-        .map_err(|e| e.to_string())
+    parse_report(&text.map_err(|error| DxError::from_io(format!("trivy report: {error}"), &error))?)
 }
 
 fn image_severity(trivy: &str, policy: &SecurityPolicy) -> Severity {

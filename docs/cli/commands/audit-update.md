@@ -149,7 +149,7 @@ tools/dx security --accept GHSA-aaaa-bbbb-cccc:some-package --reason "Reviewed; 
 tools/dx license --accept some-package --reason "Reviewed by legal." --expires 2027-03-01
 ```
 
-An `--accept` that matches no finding fails and leaves the file unchanged. An entry that is already there is not added again.
+An `--accept` that matches no finding fails and leaves the file unchanged. An entry that is already there is not added again. A `security.toml` or `license.toml` that cannot be read or written exits `3`.
 
 Add `#:schema https://raw.githubusercontent.com/devhusdk/rules_dx/main/cli/audit/schema/security.schema.json` (or `license.schema.json`) at the top of the file for editor checks.
 

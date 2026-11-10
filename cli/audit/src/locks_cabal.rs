@@ -42,7 +42,7 @@ pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, DxError> {
 }
 
 /// Reads the `hackage:` entries a `stack.yaml.lock` completes under `packages:`.
-pub fn parse_stack_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+pub fn parse_stack_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
     let mut in_packages = false;
     let mut completed = false;
     let mut out = Vec::new();
@@ -63,7 +63,9 @@ pub fn parse_stack_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
                 if let Some(rest) = trimmed.strip_prefix("hackage:") {
                     let spec = rest.trim().split('@').next().unwrap_or_default();
                     let Some((name, version)) = split_package_version(spec) else {
-                        return Err(format!("invalid stack.yaml.lock: hackage entry {spec:?}"));
+                        return Err(DxError::failure(format!(
+                            "invalid stack.yaml.lock: hackage entry {spec:?}"
+                        )));
                     };
                     out.push(LockedPackage::new("hackage", name, version));
                 }
@@ -77,13 +79,10 @@ pub fn parse_stack_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
 }
 
 fn split_package_version(spec: &str) -> Option<(&str, &str)> {
-    let at = spec
-        .rmatch_indices('-')
-        .map(|(at, _)| at)
-        .find(|&at| {
-            let version = &spec[at + 1..];
-            !version.is_empty() && version.chars().all(|c| c.is_ascii_digit() || c == '.')
-        })?;
+    let at = spec.rmatch_indices('-').map(|(at, _)| at).find(|&at| {
+        let version = &spec[at + 1..];
+        !version.is_empty() && version.chars().all(|c| c.is_ascii_digit() || c == '.')
+    })?;
     (at > 0).then(|| (&spec[..at], &spec[at + 1..]))
 }
 

@@ -1,6 +1,4 @@
-bazel_dep(name = "rules_flutter", version = "0.0.8")
-
-flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
+flutter = use_extension("@rules_dx//flutter:extensions.bzl", "flutter")
 flutter.pub(
     name = "demo_flutter_deps",
     lock = "//:pubspec.lock",

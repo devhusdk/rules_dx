@@ -1,5 +1,6 @@
 """Module extension for php/private/toolchain."""
 
+load("@dx_pins_data//:pins.bzl", "PINS")
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":cells.bzl", "PHP_CELLS")
 load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "RUNTIME_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "runtime_build")
@@ -9,7 +10,7 @@ _PHP_INCLUDES = ["include/php", "include/php/main", "include/php/Zend", "include
 
 
 def _php_impl(mctx):
-    pins = json.decode(mctx.read(Label("//php/private/toolchain:pins.json")))
+    pins = PINS["dx_php"]
     php_version = pins["version"]
     pcov = pins["pcov"]
     pcre2 = pins["pcre2"]

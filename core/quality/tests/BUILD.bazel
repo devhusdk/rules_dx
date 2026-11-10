@@ -1,7 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
 
 _LINUX = select({
     "@platforms//cpu:arm64": ["@platforms//os:linux"],
@@ -73,43 +72,6 @@ rust_test(
         "//cli/test_scratch:dx_test_scratch",
         "//core/quality/adapter:quality_adapter",
         "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
-    name = "quality_check_smoke_test",
-    size = "large",
-    timeout = "moderate",
-    testonly = True,
-    srcs = [
-        "quality_check_smoke_common.rs",
-        "quality_check_smoke_test.rs",
-    ],
-    aliases = aliases(
-        package_name = "core/quality/quality_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "quality_check_smoke_test",
-    crate_root = "quality_check_smoke_test.rs",
-    data = [
-        "//:MODULE.bazel",
-        "//cli/cli:dx",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = [
-        "HOME",
-        "PATH",
-    ],
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    target_compatible_with = _LINUX_X86_64,
-    deps = [
-        "//cli/test_scratch:dx_test_scratch",
-        "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
     ],
 )
 

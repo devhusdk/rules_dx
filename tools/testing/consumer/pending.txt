@@ -58,7 +58,6 @@ fixture csharp
 fixture cuda
 fixture dart
 fixture dockerfile
-fixture elixir
 fixture env
 fixture flatbuffers
 fixture flutter
@@ -88,6 +87,7 @@ fixture thrift
 fixture typescript
 fixture vue
 init d
+init elixir
 init erlang
 init go
 init julia
@@ -110,7 +110,6 @@ override single_version_override avro-cpp
 override single_version_override bazel_lib
 override single_version_override bazel_linux_packages
 override single_version_override bazel_skylib
-override single_version_override cgrindel_bazel_starlib
 override single_version_override elfutils
 override single_version_override envoy_api
 override single_version_override fmt

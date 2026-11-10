@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality/testdata:all_languages.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_haskell_lint_aspect", "real_ocaml_lint_aspect", "real_quality_resource_set", "real_rust_typecheck_aspect", "real_skip_notes", "real_tool_table_error", "real_tool_table_shape_error", "real_typecheck_aspect", "real_unavailable_tools", "real_wired_tools", "rustc_diagnostics_group")
+load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
 load("//go/private:go_analysis.bzl", "go_lang_version")
 load("//sql/private:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
@@ -1191,12 +1192,11 @@ def _unsupported_platform_impl(ctx):
 
 _unsupported_platform_test = analysistest.make(
     _unsupported_platform_impl,
-    config_settings = {
-        "//command_line_option:extra_execution_platforms": str(Label("//qt:macos_arm64")),
-        str(Label("//config:workspace")): str(Label("//core/quality/testdata/haskell_owned:policy")),
-    },
-    extra_target_under_test_aspects = [real_haskell_lint_aspect],
+    config_settings = {"//command_line_option:extra_execution_platforms": str(Label("//qt:macos_arm64"))},
 )
+
+_haskell_subject = config_subject_rule([real_haskell_lint_aspect], [OutputGroupInfo])
+_ocaml_subject = config_subject_rule([real_ocaml_lint_aspect], [OutputGroupInfo])
 
 def _marked_tool_impl(ctx):
     """Checks the tool alias resolves to the unavailable stub on the forced platform."""
@@ -1215,19 +1215,21 @@ _swift_format_marked_test = _marked_tool_test("//qt:windows_x86_64")
 
 _zanuda_policy_test = analysistest.make(
     _unsupported_platform_impl,
-    config_settings = {
-        "//command_line_option:extra_execution_platforms": str(Label("//qt:windows_x86_64")),
-        str(Label("//config:workspace")): str(Label("//core/quality/testdata/ocaml_owned:policy")),
-    },
-    extra_target_under_test_aspects = [real_ocaml_lint_aspect],
+    config_settings = {"//command_line_option:extra_execution_platforms": str(Label("//qt:windows_x86_64"))},
 )
 
 def unsupported_platform_analysis_tests(name):
     """Instantiates the forced unsupported platform analysis test as one suite."""
+    _haskell_subject(
+        name = name + "_hlint_macos_subject",
+        config = "haskell_owned",
+        tags = ["manual"],
+        target = "//core/quality/testdata/haskell_owned:clean",
+    )
     _unsupported_platform_test(
         name = name + "_hlint_macos",
         size = "small",
-        target_under_test = "//core/quality/testdata/haskell_owned:clean",
+        target_under_test = name + "_hlint_macos_subject",
     )
     _zanuda_marked_test(
         name = name + "_zanuda_tool",
@@ -1239,9 +1241,15 @@ def unsupported_platform_analysis_tests(name):
         size = "small",
         target_under_test = "//swift/private/tools:swift_format",
     )
+    _ocaml_subject(
+        name = name + "_zanuda_windows_subject",
+        config = "ocaml_owned",
+        tags = ["manual"],
+        target = "//core/quality/testdata/ocaml_owned:clean",
+    )
     _zanuda_policy_test(
         name = name + "_zanuda_windows",
         size = "small",
-        target_under_test = "//core/quality/testdata/ocaml_owned:clean",
+        target_under_test = name + "_zanuda_windows_subject",
     )
     native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_windows"])

@@ -174,8 +174,8 @@ fn exports(text: &str) -> (Vec<Export>, Option<String>) {
         }
         match call(&tokens[at + 2..]) {
             Ok(export) => out.push(export),
-            Err(argument) => {
-                non_literal.get_or_insert(argument);
+            Err(error) => {
+                non_literal.get_or_insert(error.message().to_owned());
             }
         }
     }
@@ -184,12 +184,14 @@ fn exports(text: &str) -> (Vec<Export>, Option<String>) {
 
 /// Parses the arguments of one call, up to its closing parenthesis, or names the first
 /// argument that is not literal.
-fn call(tokens: &[Token]) -> Result<Export, String> {
-    let non_literal = |at: usize| match tokens.get(at) {
-        Some(Token::Word(word)) => word.clone(),
-        Some(Token::Str(value)) => format!("\"{value}\""),
-        Some(Token::Punct(c)) => c.to_string(),
-        None => "end of file".to_owned(),
+fn call(tokens: &[Token]) -> Result<Export, dx_error::DxError> {
+    let non_literal = |at: usize| {
+        dx_error::DxError::failure(match tokens.get(at) {
+            Some(Token::Word(word)) => word.clone(),
+            Some(Token::Str(value)) => format!("\"{value}\""),
+            Some(Token::Punct(c)) => c.to_string(),
+            None => "end of file".to_owned(),
+        })
     };
     let mut export = Export {
         files: Vec::new(),

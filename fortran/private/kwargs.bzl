@@ -1,8 +1,10 @@
 load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
-load("//core:cells.bzl", "cells_compatible_with")
+load("//core:platform_support.bzl", "cells_support", "compatible_with")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_flags")
 
-FORTRAN_COMPATIBLE_WITH = cells_compatible_with(FORTRAN_CELLS, "//fortran/private/toolchain", sorted(FORTRAN_CELLS.keys()))
+PLATFORM_SUPPORT = cells_support("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH", FORTRAN_CELLS, sorted(FORTRAN_CELLS.keys()), "//fortran/private/toolchain", "constraints", unsupported = False)
+
+FORTRAN_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 SKIP_TAGS = []
 

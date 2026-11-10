@@ -5,7 +5,7 @@ load("//cc/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COMPUTED_CONSTRAINTS", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "NO_COVERAGE", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "NO_COVERAGE", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "PLATFORM_SUPPORT", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -202,7 +202,7 @@ def support_matrix_facts_dict():
         "api_compat_tools": API_COMPAT_TOOLS,
         "bench": BENCH,
         "compiler_blockers": COMPILER_BLOCKERS,
-        "computed_constraints": COMPUTED_CONSTRAINTS,
+        "computed_constraints": {support.key: support.any_of for support in PLATFORM_SUPPORT},
         "dependencies": DEPENDENCIES,
         "fuzz": FUZZ,
         "deferred_families": sorted(deferred.keys()),

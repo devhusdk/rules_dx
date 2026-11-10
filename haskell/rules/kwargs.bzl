@@ -1,10 +1,12 @@
 load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
-load("//core:cells.bzl", "cells_compatible_with")
+load("//core:platform_support.bzl", "cells_support", "compatible_with")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 
 HASKELL_CELLS = qualified_cells()
 
-HASKELL_COMPATIBLE_WITH = cells_compatible_with(CELLS, "//haskell/toolchain", HASKELL_CELLS, unsupported = True)
+PLATFORM_SUPPORT = cells_support("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", CELLS, HASKELL_CELLS, "//haskell/toolchain")
+
+HASKELL_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 STANDARD_GHCOPTS = ["-Wall"]
 

@@ -1,24 +1,22 @@
 """The language list behind docs/support-matrix.md."""
 
+load("@rules_dx_apple//ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
 load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
-load("//d:defs.bzl", "D_CELLS")
-load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
-load("//dart/private:platforms.bzl", "DART_PLATFORMS")
-load("//elixir:defs.bzl", "ELIXIR_CELLS")
-load("//erlang:defs.bzl", "ERLANG_CELLS")
-load("//erlang/private/toolchain:pins.bzl", OTP_CELLS = "CELLS")
-load("//flutter/private:platforms.bzl", "FLUTTER_PLATFORMS")
-load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
-load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
-load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
-load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
-load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
-load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
-load("//perl/private:platforms.bzl", "PERL_PLATFORMS")
-load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
-load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
-load("//qt/sdk:repos.bzl", "qualified_cells")
+load("//core/modules:cuda.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
+load("//d/private:kwargs.bzl", D_SUPPORT = "PLATFORM_SUPPORT")
+load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
+load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")
+load("//erlang/private:kwargs.bzl", ERLANG_SUPPORT = "PLATFORM_SUPPORT")
+load("//flutter/private:platforms.bzl", FLUTTER_SUPPORT = "PLATFORM_SUPPORT")
+load("//fortran/private:kwargs.bzl", FORTRAN_SUPPORT = "PLATFORM_SUPPORT")
+load("//haskell/rules:kwargs.bzl", HASKELL_SUPPORT = "PLATFORM_SUPPORT")
+load("//julia/private:platforms.bzl", JULIA_SUPPORT = "PLATFORM_SUPPORT")
+load("//ocaml/rules:kwargs.bzl", OCAML_SUPPORT = "PLATFORM_SUPPORT")
+load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
+load("//php/private:defs.bzl", PHP_SUPPORT = "PLATFORM_SUPPORT")
+load("//qt/sdk:repos.bzl", QT_SUPPORT = "PLATFORM_SUPPORT")
 load("//tools/platforms:defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
+load("//tools/testing/hermetic:defs.bzl", HERMETIC_SUPPORT = "PLATFORM_SUPPORT")
 
 PLATFORMS = [
     {"constraints": [], "cpu": "x86_64", "id": "linux_x86_64", "os": "linux"},
@@ -30,35 +28,23 @@ PLATFORMS = [
 
 SECTIONS = ["languages", "targets", "compilers", "formats"]
 
-def _os_cpu_pairs(platforms):
-    return [["@platforms//os:" + os, "@platforms//cpu:" + cpu] for os, cpu in sorted(platforms.values())]
-
-def _cells(pinned, cells):
-    return [pinned[cell].exec_compatible_with for cell in cells]
-
-COMPUTED_CONSTRAINTS = {
-    "@rules_dx_apple//ios:cell.bzl%APPLE_HOSTS": [["@platforms//os:ios"], ["@platforms//os:macos"]],
-    "@rules_dx_cuda//rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
-    "//d:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
-    "//dart:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(DART_PLATFORMS),
-    "//elixir:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
-    "//erlang:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
-    "//flutter:defs.bzl%FLUTTER_COMPATIBLE_WITH": _os_cpu_pairs(FLUTTER_PLATFORMS),
-    "//fortran:defs.bzl%FORTRAN_COMPATIBLE_WITH": [FORTRAN_CELLS[cell].constraints for cell in sorted(FORTRAN_CELLS.keys())],
-    "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
-    # Mirrors HERMETIC_COMPATIBLE_WITH in //tools/testing/hermetic:defs.bzl.
-    "//tools/testing/hermetic:defs.bzl%HERMETIC_COMPATIBLE_WITH": [["@platforms//os:linux"], ["@platforms//os:macos"], ["@platforms//os:windows"]],
-    "//julia:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
-    "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _cells(OCAML_CELLS, sorted(OCAML_CELLS.keys())),
-    # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
-    "//perl:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(PERL_PLATFORMS),
-    "//php:defs.bzl%PHP_COMPATIBLE_WITH": _cells(PHP_CELLS, sorted(PHP_CELLS.keys())),
-    "//qt/rules:defs.bzl%QT_COMPATIBLE_WITH": [QT_CELLS[c].constraints for c in qualified_cells()],
-}
-
-
-
-
+PLATFORM_SUPPORT = [
+    APPLE_SUPPORT,
+    CUDA_SUPPORT,
+    D_SUPPORT,
+    DART_SUPPORT,
+    ELIXIR_SUPPORT,
+    ERLANG_SUPPORT,
+    FLUTTER_SUPPORT,
+    FORTRAN_SUPPORT,
+    HASKELL_SUPPORT,
+    HERMETIC_SUPPORT,
+    JULIA_SUPPORT,
+    OCAML_SUPPORT,
+    PERL_SUPPORT,
+    PHP_SUPPORT,
+    QT_SUPPORT,
+]
 
 # The tool api_compat runs per publishing rule; "not available" where no maintained free API diff tool exists.
 API_COMPAT_TOOLS = {

@@ -1,8 +1,10 @@
-load("//core:cells.bzl", "cells_compatible_with")
+load("//core:platform_support.bzl", "cells_support", "compatible_with")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_upstream_tags")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 
-OCAML_COMPATIBLE_WITH = cells_compatible_with(OCAML_CELLS, "//ocaml/toolchain", sorted(OCAML_CELLS.keys()))
+PLATFORM_SUPPORT = cells_support("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH", OCAML_CELLS, sorted(OCAML_CELLS.keys()), "//ocaml/toolchain", unsupported = False)
+
+OCAML_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 COVERAGE_ACTIVE = str(Label("//tools/coverage/ocaml:coverage_active"))
 

@@ -1,6 +1,7 @@
 """No-install, network-denied consumer qualification targets."""
 
 load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
+load("//core:platform_support.bzl", "compatible_with", "platform_support")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
@@ -85,20 +86,14 @@ hermetic_manifest = rule(
 
 # Read by the support matrix (tools/docs/support_matrix) for the hermetic_qualification kind.
 # Targets that cannot run on Windows (AppImage, GCC) pass their own compatible_with.
-HERMETIC_COMPATIBLE_WITH = select({
-    "@platforms//os:linux": [],
-    "@platforms//os:macos": [],
-    "@platforms//os:windows": [],
-    "//conditions:default": ["@platforms//:incompatible"],
-})
+PLATFORM_SUPPORT = platform_support(
+    "//tools/testing/hermetic:defs.bzl",
+    "HERMETIC_COMPATIBLE_WITH",
+    [["@platforms//os:linux"], ["@platforms//os:macos"], ["@platforms//os:windows"]],
+    [Label("@platforms//os:linux"), Label("@platforms//os:macos"), Label("@platforms//os:windows")],
+)
 
-# The manifest only lists the consumer; the unit tests read it on macOS and Windows too.
-MANIFEST_COMPATIBLE_WITH = select({
-    "@platforms//os:linux": [],
-    "@platforms//os:macos": [],
-    "@platforms//os:windows": [],
-    "//conditions:default": ["@platforms//:incompatible"],
-})
+HERMETIC_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 QUALIFICATION_TAGS = [
     "exclusive",
@@ -153,7 +148,7 @@ def hermetic_qualification(
         qualification = "//%s:%s" % (native.package_name(), name),
         repo_name = repo_name,
         srcs = srcs,
-        target_compatible_with = MANIFEST_COMPATIBLE_WITH,
+        target_compatible_with = HERMETIC_COMPATIBLE_WITH,
         workspace_dir = workspace_dir,
     )
     if not smoke:

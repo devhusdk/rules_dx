@@ -8,9 +8,10 @@ load("@rules_flutter//flutter:ios.bzl", _flutter_ios_app = "flutter_ios_app")
 load("@rules_flutter//flutter:providers.bzl", "FlutterApplicationInfo", "FlutterInfo")
 load("@rules_flutter//flutter:web.bzl", _flutter_web_app = "flutter_web_app", _flutter_web_bundle = "flutter_web_bundle")
 load("//dart/private:defs.bzl", "DART_QUALITY_TOOLS", "DART_SOURCE_SPECS")
-load("//core:cells.bzl", "unsupported_constraint")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//core:platform_support.bzl", "compatible_with")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//flutter/private:platforms.bzl", FLUTTER_SUPPORT = "PLATFORM_SUPPORT")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 flutter_gen_l10n = _flutter_gen_l10n
@@ -19,12 +20,7 @@ FLUTTER_SOURCE_EXTS = [".dart"]
 
 FLUTTER_DEFERRED_SKIP_TAGS = []
 
-FLUTTER_COMPATIBLE_WITH = select({
-    Label("//flutter/private:rules_flutter_platform"): [],
-    Label("@platforms//os:android"): [],
-    Label("@platforms//os:ios"): [],
-    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//flutter/private")],
-})
+FLUTTER_COMPATIBLE_WITH = compatible_with(FLUTTER_SUPPORT)
 
 FLUTTER_ANDROID_ABIS = ["arm64", "x64"]
 

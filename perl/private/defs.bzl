@@ -1,10 +1,11 @@
 """Thin Perl wrappers over rules_perl."""
 
 load("@rules_perl//perl:defs.bzl", _PerlInfo = "PerlInfo", _perl_binary = "perl_binary", _perl_library = "perl_library", _perl_test = "perl_test")
-load("//core:cells.bzl", "unsupported_constraint")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
+load("//core:platform_support.bzl", "compatible_with")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 PerlInfo = _PerlInfo
@@ -20,10 +21,7 @@ PERL_SOURCE_SPECS = [("perl", ["pl", "pm", "t"])]
 
 PERL_SOURCE_EXTS = [".pl", ".pm", ".t"]
 
-PERL_COMPATIBLE_WITH = select({
-    Label("//perl/private:rules_perl_platform"): [],
-    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//perl/private")],
-})
+PERL_COMPATIBLE_WITH = compatible_with(PERL_SUPPORT)
 
 _perl_library_forward = dx_library_forward_rule(
     provides = [_PerlInfo, DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo, QualityToolsInfo],

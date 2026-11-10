@@ -3,7 +3,7 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
-load(":defs.bzl", "MANIFEST_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
+load("//tools/testing/hermetic:defs.bzl", "HERMETIC_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
@@ -33,7 +33,7 @@ LINUX_MACOS_WINDOWS = select({
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
-MANIFEST_HOSTS = MANIFEST_COMPATIBLE_WITH
+MANIFEST_HOSTS = HERMETIC_COMPATIBLE_WITH
 
 # The fragments of the hermetic consumers, read by //core/modules:consumer_deps_test.
 filegroup(

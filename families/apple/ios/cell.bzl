@@ -1,5 +1,7 @@
 """Shared iOS library cell constants and helpers for apps, frameworks and libraries."""
 
+load("@rules_dx//core:platform_support.bzl", "compatible_with", "platform_support")
+
 MULTI_CPUS = {
     "device/arm64": "arm64",
     "simulator/arm64": "sim_arm64",
@@ -11,11 +13,14 @@ MACH_O_PLATFORMS = {
     "simulator": "7",
 }
 
-APPLE_HOSTS = select({
-    Label("@platforms//os:ios"): [],
-    Label("@platforms//os:macos"): [],
-    "//conditions:default": [Label("@platforms//:incompatible")],
-})
+PLATFORM_SUPPORT = platform_support(
+    "@rules_dx_apple//ios:cell.bzl",
+    "APPLE_HOSTS",
+    [["@platforms//os:ios"], ["@platforms//os:macos"]],
+    [Label("@platforms//os:ios"), Label("@platforms//os:macos")],
+)
+
+APPLE_HOSTS = compatible_with(PLATFORM_SUPPORT)
 
 def has(ctx, constraint):
     """Returns whether the target platform has one constraint value."""

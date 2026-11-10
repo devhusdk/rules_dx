@@ -3,10 +3,11 @@
 load("@rules_dart//dart:defs.bzl", _dart_binary = "dart_binary", _dart_codegen = "dart_codegen", _dart_js_binary = "dart_js_binary", _dart_library = "dart_library", _dart_test = "dart_test", _dart_wasm_binary = "dart_wasm_binary")
 load("@rules_dart//dart:providers.bzl", "DartAnalyzableInfo", "DartCompileInfo", "DartInfo")
 load("//dart/private:dart_config.bzl", _DxDartConfigInfo = "DxDartConfigInfo", _dart_config = "dart_config")
-load("//core:cells.bzl", "unsupported_constraint")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
+load("//core:platform_support.bzl", "compatible_with")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 DxDartConfigInfo = _DxDartConfigInfo
@@ -17,10 +18,7 @@ DART_SOURCE_SPECS = [("dart", "dart")]
 
 DART_SOURCE_EXTS = [".dart"]
 
-DART_COMPATIBLE_WITH = select({
-    Label("//dart/private:rules_dart_platform"): [],
-    "//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//dart/private")],
-})
+DART_COMPATIBLE_WITH = compatible_with(DART_SUPPORT)
 
 DART_DEFERRED_SKIP_TAGS = []
 

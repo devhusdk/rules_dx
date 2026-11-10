@@ -1,10 +1,12 @@
-load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_UNPORTED_CELLS")
+load("//core:platform_support.bzl", "cells_support", "compatible_with")
 load("//core:wrapper.bzl", "dx_language_kwargs", "dx_without_warnings_attr")
 
 ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
 
-ERLANG_COMPATIBLE_WITH = otp_compatible_with(ERLANG_CELLS)
+PLATFORM_SUPPORT = cells_support("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", CELLS, ERLANG_CELLS, "//erlang/private/toolchain")
+
+ERLANG_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 def erlang_app_forward_kwargs(testonly, nifs, tags, kwargs):
     """Returns the kwargs the public erlang_app forwarder keeps."""

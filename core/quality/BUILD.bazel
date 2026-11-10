@@ -223,7 +223,7 @@ consumer_policy_tests(
                 "policy_bound_py-real-lint-text.pb",
                 "policy_bound_py-real-typecheck-py.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/generated_policy:policy",
+            "config": "generated",
             "subject": "//core/quality/tests/fixtures/consumer_policy:policy_bound_py",
         },
         {
@@ -232,7 +232,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "greet-real-lint-text.pb",
             ],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//d/tests/fixtures/hello:greet",
         },
         {
@@ -242,7 +242,7 @@ consumer_policy_tests(
                 "calc-real-lint-fortran.pb",
                 "calc-real-lint-text.pb",
             ],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//fortran/tests/fixtures/calc:calc",
         },
         {
@@ -253,7 +253,7 @@ consumer_policy_tests(
                 "inventory_cli-real-lint-text.pb",
                 "inventory_cli-real-typecheck-dart.pb",
             ],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//dart/tests/fixtures/dart-app/cli:inventory_cli",
         },
         {
@@ -262,21 +262,21 @@ consumer_policy_tests(
                 "clean-real-format-ocaml.pb",
                 "clean-real-lint-text.pb",
             ],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//core/quality/testdata/ocaml_owned:clean",
         },
         {
             "case": "default_powershell",
             "absent_keys": ["format-powershell", "lint-powershell"],
             "expected_dx_results": [],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//powershell/tests/fixtures/hello:hello",
         },
         {
             "case": "default_swift",
             "absent_keys": ["format-swift", "lint-swift"],
             "expected_dx_results": ["greet-real-lint-text.pb"],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//swift/tests/fixtures/hello:greet",
         },
         {
@@ -284,7 +284,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "cli-real-lint-text.pb",
             ],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//haskell/tests/fixtures/haskell-app/cli:cli",
         },
         {
@@ -293,7 +293,7 @@ consumer_policy_tests(
                 "clean_nix-real-lint-nix.pb",
                 "clean_nix-real-lint-text.pb",
             ],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_nix",
         },
         {
@@ -303,7 +303,7 @@ consumer_policy_tests(
                 "greet-real-lint-text.pb",
                 "greet-real-lint-zig.pb",
             ],
-            "policy": "//config:default_workspace_policy",
+            "config": "default",
             "subject": "//zig/tests/fixtures/hello:greet",
         },
         {
@@ -312,7 +312,7 @@ consumer_policy_tests(
                 "clean_toml-real-format.pb",
                 "clean_toml-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_toml",
         },
         {
@@ -321,7 +321,7 @@ consumer_policy_tests(
                 "clean_cue-real-format-cue.pb",
                 "clean_cue-real-typecheck-cue.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_cue",
         },
         {
@@ -329,7 +329,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_jsonnet-real-format-jsonnet.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_jsonnet",
         },
         {
@@ -337,7 +337,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_typst-real-format-typst.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_typst",
         },
         {
@@ -346,7 +346,7 @@ consumer_policy_tests(
                 "clean_bicep-real-format-bicep.pb",
                 "clean_bicep-real-lint-bicep.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_bicep",
         },
         {
@@ -356,7 +356,7 @@ consumer_policy_tests(
                 "clean_rego-real-lint-rego.pb",
                 "clean_rego-real-typecheck-rego.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_rego",
         },
         {
@@ -365,7 +365,7 @@ consumer_policy_tests(
                 "clean_latex-real-format-latex.pb",
                 "clean_latex-real-lint-latex.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_latex",
         },
         {
@@ -373,7 +373,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_asciidoc-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_asciidoc",
         },
         {
@@ -381,7 +381,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_rst-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_rst",
         },
         {
@@ -390,7 +390,7 @@ consumer_policy_tests(
                 "clean_lua-real-format-lua.pb",
                 "clean_lua-real-lint-lua.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_lua",
           },
           {
@@ -398,7 +398,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_haskell-real-format-haskell.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_haskell",
         },
         {
@@ -407,7 +407,7 @@ consumer_policy_tests(
                 "clean_pkl-real-format-pkl.pb",
                 "clean_pkl-real-typecheck-pkl.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_pkl",
         },
         {
@@ -415,7 +415,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_terraform-real-format-terraform.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_terraform",
         },
         {
@@ -424,7 +424,7 @@ consumer_policy_tests(
                 "clean_html_template-real-format-html-template.pb",
                 "clean_html_template-real-lint-html-template.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_html_template",
         },
         {
@@ -433,7 +433,7 @@ consumer_policy_tests(
                 "clean_yaml-real-format-yaml.pb",
                 "clean_yaml-real-lint-yaml.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_yaml",
         },
         {
@@ -442,7 +442,7 @@ consumer_policy_tests(
                 "clean_cmake-real-format-cmake.pb",
                 "clean_cmake-real-lint-cmake.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_cmake",
         },
         {
@@ -451,7 +451,7 @@ consumer_policy_tests(
                 "clean_make-real-format-make.pb",
                 "clean_make-real-lint-make.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_make",
         },
         {
@@ -461,7 +461,7 @@ consumer_policy_tests(
                 "clean_jupyter-real-lint-py.pb",
                 "clean_jupyter-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_jupyter",
         },
         {
@@ -470,7 +470,7 @@ consumer_policy_tests(
                 "clean_nix-real-format-nix.pb",
                 "clean_nix-real-lint-nix.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_nix",
         },
         {
@@ -478,7 +478,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_kubernetes-real-lint-kubernetes.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_kubernetes",
         },
         {
@@ -486,7 +486,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_helm-real-lint-kubernetes.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy/helm_chart:clean_helm",
         },
         {
@@ -494,7 +494,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_ansible-real-lint-ansible.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_ansible",
         },
         {
@@ -502,7 +502,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_cloudformation-real-lint-cloudformation.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_cloudformation",
         },
         {
@@ -511,7 +511,7 @@ consumer_policy_tests(
                 "clean_api_spec-real-format-js.pb",
                 "clean_api_spec-real-lint-js.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_api_spec",
         },
         {
@@ -519,7 +519,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_toml-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:format_off_policy",
+            "config": "consumer_format_off",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_toml",
         },
         {
@@ -528,7 +528,7 @@ consumer_policy_tests(
                 "clean_json-real-format.pb",
                 "clean_json-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_json",
         },
         {
@@ -536,7 +536,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_js-real-lint-js.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_js",
         },
         {
@@ -544,7 +544,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "typed_ts-real-lint-js.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:shared_policy",
+            "config": "consumer_shared",
             "subject": "//core/quality/tests/fixtures/consumer_policy/typed_ts:typed_ts",
         },
         {
@@ -552,7 +552,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "policy_bound_c-real-lint-cc.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy",
+            "config": "consumer_cc_clang_tidy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:policy_bound_c",
         },
     ],

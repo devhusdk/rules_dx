@@ -2,66 +2,32 @@
 
 load(":real_results.bzl", "real_result_test")
 
-_ZANUDA_POLICY = "//core/quality/testdata/zanuda_owned:policy"
-_RUST_POLICY = "//core/quality/testdata/rust_owned:policy"
-_HASKELL_POLICY = "//core/quality/testdata/haskell_owned:policy"
-_OCAML_POLICY = "//core/quality/testdata/ocaml_owned:policy"
-
-_DIALYZER = "//erlang/private/tools:dialyzer"
-
-_CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
-
-_CLIPPY_STRICT = [
-    "-Wclippy::all",
-    "-Wclippy::pedantic",
-    "-Wclippy::dbg_macro",
-    "-Wclippy::todo",
-    "-Wclippy::unimplemented",
-    "-Wclippy::allow_attributes_without_reason",
-    "-Wclippy::allow_attributes",
-    "-Wrust_2018_idioms",
-    "-Wunused_qualifications",
-    "-Dwarnings",
-]
-
-_GO_POLICY = "//core/quality/testdata/go_owned:policy"
-
-_TIER_POLICY = "//core/quality/testdata/tier_clean:policy"
-
-_TIER_STRICT_POLICY = "//core/quality/testdata/tier_clean:strict_policy"
-
-_NVCC_POLICY = "//core/quality/testdata/nvcc_syntax:policy"
-
-_CC_POLICY = "//core/quality/testdata/clang_syntax:cc_syntax_policy"
-_OBJC_POLICY = "//core/quality/testdata/clang_syntax:objc_policy"
-_CC_TIDY_POLICY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
 _MACOS_ONLY = ["@platforms//os:macos"]
 
-def _gcc_case(tool, capability, name, target, contains, absent, policy = _CC_POLICY):
+def _gcc_case(tool, capability, name, target, contains, absent, config = "cc_syntax"):
     return {
         "name": "real_result_" + tool + "_cc_gcc_" + name,
         "target": "//core/quality/testdata/clang_syntax:" + target,
-        "policy": policy,
+        "config": config + "_gcc",
         "tool": tool,
         "capability": capability,
         "class": "c",
-        "compiler": "gcc",
         "contains": contains,
         "absent": absent,
     }
 
-def _msvc_case(name, target, contains, absent, tool = "clang_syntax", capability = "typecheck", policy = _CC_POLICY):
-    case = _gcc_case(tool, capability, name, target, contains, absent, policy)
+def _msvc_case(name, target, contains, absent, tool = "clang_syntax", capability = "typecheck", config = "cc_syntax"):
+    case = _gcc_case(tool, capability, name, target, contains, absent, config)
     case["name"] = "real_result_" + tool + "_cc_msvc_" + name
-    case["compiler"] = "msvc"
+    case["config"] = config + "_msvc"
     case["target_compatible_with"] = ["@platforms//os:windows", "@platforms//cpu:x86_64"]
     return case
 
-def _cc_case(tool, capability, name, target, contains, absent, policy = _CC_POLICY):
+def _cc_case(tool, capability, name, target, contains, absent, config = "cc_syntax"):
     return {
         "name": "real_result_" + tool + "_cc_" + name,
         "target": "//core/quality/testdata/clang_syntax:" + target,
-        "policy": policy,
+        "config": config,
         "tool": tool,
         "capability": capability,
         "class": "c",
@@ -77,7 +43,7 @@ def _ruff_tier_case(tier, name, contains, absent):
     return {
         "name": "real_result_ruff_%s_%s" % (tier, name),
         "target": "//core/quality/testdata/python_tiers:%s_%s" % (tier, name),
-        "policy": "//core/quality/testdata/python_tiers:ruff_policy",
+        "config": "python_tiers_ruff",
         "tool": "ruff",
         "capability": "lint",
         "class": "python",
@@ -89,7 +55,7 @@ def _objc_case(name, contains, absent):
     return {
         "name": "real_result_clang_syntax_objc_" + name,
         "target": "//core/quality/testdata/clang_syntax:" + name + "_objc",
-        "policy": _OBJC_POLICY,
+        "config": "objc",
         "tool": "clang_syntax",
         "capability": "typecheck",
         "class": "objc",
@@ -103,7 +69,7 @@ def _nvcc_case(name, contains, absent):
     return {
         "name": "real_result_nvcc_syntax_" + name,
         "target": "//core/quality/testdata/nvcc_syntax:" + name,
-        "policy": _NVCC_POLICY,
+        "config": "nvcc_syntax",
         "tool": "nvcc_syntax",
         "capability": "typecheck",
         "class": "cuda",
@@ -113,11 +79,11 @@ def _nvcc_case(name, contains, absent):
         "windows_x86_64": True,
     }
 
-def _go_case(tool, capability, kind, target, contains, absent, policy = _GO_POLICY, **extra):
+def _go_case(tool, capability, kind, target, contains, absent, config = "go_owned", **extra):
     return extra | {
         "name": "real_result_" + tool + "_" + kind,
         "target": target,
-        "policy": policy,
+        "config": config,
         "tool": tool,
         "capability": capability,
         "class": "go",
@@ -132,23 +98,23 @@ def _go_case(tool, capability, kind, target, contains, absent, policy = _GO_POLI
 REAL_RESULT_CASES = [
     _cc_case("clang_syntax", "typecheck", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["undeclared_name", "Fatal error"]),
     _cc_case("clang_syntax", "typecheck", "dirty", "dirty", ["undeclared identifier 'undeclared_name'"], []),
-    _cc_case("clang_tidy", "lint", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
-    _cc_case("clang_tidy", "lint", "dirty", "tidy_dirty", ["readability-else-after-return"], [], _CC_TIDY_POLICY),
+    _cc_case("clang_tidy", "lint", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], "cc_tidy"),
+    _cc_case("clang_tidy", "lint", "dirty", "tidy_dirty", ["readability-else-after-return"], [], "cc_tidy"),
     _gcc_case("clang_syntax", "typecheck", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["undeclared_name", "Fatal error"]),
     _gcc_case("clang_syntax", "typecheck", "dirty", "dirty", ["'undeclared_name' undeclared"], []),
     _msvc_case("clean", "clean", ["clean.c"], ["undeclared_name", "C2065"]),
     _msvc_case("dirty", "dirty", ["C2065", "undeclared_name"], []),
     _msvc_case("crt", "tidy_crt", ["tidy_crt.c"], ["C1083", "Cannot open include file"]),
-    _msvc_case("clean", "clean", ["clean.c"], ["readability-else-after-return", "file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),
-    _msvc_case("dirty", "tidy_dirty", ["readability-else-after-return"], ["file not found", "clang-diagnostic-error", "TIDY_DEFINE"], "clang_tidy", "lint", _CC_TIDY_POLICY),
-    _msvc_case("crt", "tidy_crt", ["tidy_crt.c"], ["file not found", "clang-diagnostic-error"], "clang_tidy", "lint", _CC_TIDY_POLICY),
-    _gcc_case("clang_tidy", "lint", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], _CC_TIDY_POLICY),
+    _msvc_case("clean", "clean", ["clean.c"], ["readability-else-after-return", "file not found", "clang-diagnostic-error"], "clang_tidy", "lint", "cc_tidy"),
+    _msvc_case("dirty", "tidy_dirty", ["readability-else-after-return"], ["file not found", "clang-diagnostic-error", "TIDY_DEFINE"], "clang_tidy", "lint", "cc_tidy"),
+    _msvc_case("crt", "tidy_crt", ["tidy_crt.c"], ["file not found", "clang-diagnostic-error"], "clang_tidy", "lint", "cc_tidy"),
+    _gcc_case("clang_tidy", "lint", "clean", "clean", ["core/quality/testdata/clang_syntax/clean.c"], ["readability-else-after-return", "Error"], "cc_tidy"),
     _objc_case("clean", ["clean.m"], ["undeclared_name", "Fatal error"]),
     _objc_case("dirty", ["undeclared identifier 'undeclared_name'"], []),
     {
         "name": "real_result_zanuda_clean",
         "target": "//core/quality/testdata/zanuda_owned:clean",
-        "policy": _ZANUDA_POLICY,
+        "config": "zanuda_owned",
         "tool": "zanuda",
         "capability": "lint",
         "class": "ocaml",
@@ -160,7 +126,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_zanuda_dirty",
         "target": "//core/quality/testdata/zanuda_owned:dirty",
-        "policy": _ZANUDA_POLICY,
+        "config": "zanuda_owned",
         "tool": "zanuda",
         "capability": "lint",
         "class": "ocaml",
@@ -172,7 +138,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ocaml_clean",
         "target": "//core/quality/testdata/ocaml_owned:clean",
-        "policy": _OCAML_POLICY,
+        "config": "ocaml_owned",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
@@ -182,7 +148,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ocaml_dirty",
         "target": "//core/quality/testdata/ocaml_owned:dirty",
-        "policy": _OCAML_POLICY,
+        "config": "ocaml_owned",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
@@ -192,7 +158,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ghc_clean",
         "target": "//core/quality/testdata/haskell_owned:clean",
-        "policy": _HASKELL_POLICY,
+        "config": "haskell_owned",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
@@ -202,7 +168,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ghc_dirty",
         "target": "//core/quality/testdata/haskell_owned:dirty",
-        "policy": _HASKELL_POLICY,
+        "config": "haskell_owned",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
@@ -212,44 +178,40 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ghc_redundant_standard",
         "target": "//core/quality/testdata/haskell_owned:redundant",
-        "policy": _HASKELL_POLICY,
+        "config": "haskell_owned_standard",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
-        "config_profile": "standard",
         "contains": ["core/quality/testdata/haskell_owned/Redundant.hs"],
         "absent": ["GHC-30606", "Fatal error"],
     },
     {
         "name": "real_result_ghc_redundant_strict",
         "target": "//core/quality/testdata/haskell_owned:redundant",
-        "policy": _HASKELL_POLICY,
+        "config": "haskell_owned",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
-        "config_profile": "strict",
         "contains": ["core/quality/testdata/haskell_owned/Redundant.hs", "GHC-30606"],
         "absent": [],
     },
     {
         "name": "real_result_ocaml_shadow_standard",
         "target": "//core/quality/testdata/ocaml_owned:shadow",
-        "policy": _OCAML_POLICY,
+        "config": "ocaml_owned_standard",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
-        "config_profile": "standard",
         "contains": ["core/quality/testdata/ocaml_owned/shadow.ml"],
         "absent": ["shadows", "Fatal error"],
     },
     {
         "name": "real_result_ocaml_shadow_strict",
         "target": "//core/quality/testdata/ocaml_owned:shadow",
-        "policy": _OCAML_POLICY,
+        "config": "ocaml_owned",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
-        "config_profile": "strict",
         "contains": ["core/quality/testdata/ocaml_owned/shadow.ml", "shadows"],
         "absent": [],
     },
@@ -260,7 +222,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_yamllint_tier_standard_clean",
         "target": "//core/quality/testdata/tier_clean:yaml",
-        "policy": _TIER_POLICY,
+        "config": "tier_clean",
         "tool": "yamllint",
         "capability": "lint",
         "class": "yaml",
@@ -273,7 +235,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_yamllint_tier_strict_clean",
         "target": "//core/quality/testdata/tier_clean:yaml",
-        "policy": _TIER_STRICT_POLICY,
+        "config": "tier_clean_strict",
         "tool": "yamllint",
         "capability": "lint",
         "class": "yaml",
@@ -286,7 +248,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_buildifier_tier_standard_clean",
         "target": "//core/quality/testdata/tier_clean:starlark",
-        "policy": _TIER_POLICY,
+        "config": "tier_clean",
         "tool": "buildifier",
         "capability": "lint",
         "class": "starlark",
@@ -299,7 +261,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_buildifier_tier_strict_clean",
         "target": "//core/quality/testdata/tier_clean:starlark",
-        "policy": _TIER_STRICT_POLICY,
+        "config": "tier_clean_strict",
         "tool": "buildifier",
         "capability": "lint",
         "class": "starlark",
@@ -312,7 +274,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_sqlfluff_tier_standard_clean",
         "target": "//core/quality/testdata/tier_clean:sql",
-        "policy": _TIER_POLICY,
+        "config": "tier_clean",
         "tool": "sqlfluff",
         "capability": "lint",
         "class": "sql",
@@ -325,7 +287,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_sqlfluff_tier_strict_clean",
         "target": "//core/quality/testdata/tier_clean:sql",
-        "policy": _TIER_STRICT_POLICY,
+        "config": "tier_clean_strict",
         "tool": "sqlfluff",
         "capability": "lint",
         "class": "sql",
@@ -346,22 +308,22 @@ REAL_RESULT_CASES = [
     _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:strict_only_standard", ["staticcheck"], ["ST1003"]),
     _go_case("staticcheck", "lint", "strict_profile", "//go/tests/fixtures/staticcheck:strict_only_strict", ["ST1003", "HttpServer"], []),
     _go_case("staticcheck", "lint", "initialisms", "//go/tests/fixtures/staticcheck:strict_only_initialisms", ["staticcheck"], ["ST1003"]),
-    _go_case("govet", "lint", "shadow", "//go/tests/fixtures/govet:shadowed", ["declaration of"], [], config_profile = "strict"),
-    _go_case("govet", "lint", "shadow_excluded", "//go/tests/fixtures/govet:shadowed_excluded", ["govet"], ["declaration of"], config_profile = "strict"),
-    _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], config_profile = "standard"),
-    _go_case("errcheck", "lint", "blank", "//go/tests/fixtures/errcheck:blank", ["unchecked error"], [], config_profile = "strict"),
-    _go_case("errcheck", "lint", "blank_excluded", "//go/tests/fixtures/errcheck:blank_excluded", ["errcheck"], ["unchecked error"], config_profile = "strict"),
-    _go_case("errcheck", "lint", "blank_off", "//go/tests/fixtures/errcheck:blank", ["errcheck"], ["unchecked error"], config_profile = "standard"),
+    _go_case("govet", "lint", "shadow", "//go/tests/fixtures/govet:shadowed", ["declaration of"], []),
+    _go_case("govet", "lint", "shadow_excluded", "//go/tests/fixtures/govet:shadowed_excluded", ["govet"], ["declaration of"]),
+    _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], config = "go_owned_standard"),
+    _go_case("errcheck", "lint", "blank", "//go/tests/fixtures/errcheck:blank", ["unchecked error"], []),
+    _go_case("errcheck", "lint", "blank_excluded", "//go/tests/fixtures/errcheck:blank_excluded", ["errcheck"], ["unchecked error"]),
+    _go_case("errcheck", "lint", "blank_off", "//go/tests/fixtures/errcheck:blank", ["errcheck"], ["unchecked error"], config = "go_owned_standard"),
     _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"]),
     _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["gen.go"]),
-    _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], tool_govet = "//go/private/tools/analysis/cmd/dx_errcheck"),
+    _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], config = "go_owned_govet_errcheck"),
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),
     {
         "name": "real_result_elixirc_elixir_unused",
         "target": "//core/quality/testdata/elixirc:elixir_unused",
-        "policy": "//core/quality/testdata/dialyzer:policy",
+        "config": "dialyzer",
         "tool": "elixirc",
         "capability": "typecheck",
         "class": "elixir",
@@ -373,7 +335,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_erlc_erlang_unused",
         "target": "//core/quality/testdata/erlc:erlang_unused",
-        "policy": "//core/quality/testdata/dialyzer:policy",
+        "config": "dialyzer",
         "tool": "erlc",
         "capability": "typecheck",
         "class": "erlang",
@@ -387,11 +349,10 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_erlang_clean",
         "target": "//core/quality/testdata/dialyzer_clean:erlang_clean",
-        "policy": "//core/quality/testdata/dialyzer:policy",
+        "config": "dialyzer",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "erlang",
-        "tool_dialyzer": _DIALYZER,
         "linux_arm64": True,
         "macos_arm64": True,
         "contains": [],
@@ -400,11 +361,10 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_erlang_dirty",
         "target": "//core/quality/testdata/dialyzer:erlang_dirty",
-        "policy": "//core/quality/testdata/dialyzer:policy",
+        "config": "dialyzer",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "erlang",
-        "tool_dialyzer": _DIALYZER,
         "windows_x86_64": True,
         "windows_arm64": True,
         "linux_arm64": True,
@@ -415,11 +375,10 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_elixir_clean",
         "target": "//elixir/tests/runtime:erlang_app",
-        "policy": "//core/quality/testdata/dialyzer:policy",
+        "config": "dialyzer",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "elixir",
-        "tool_dialyzer": _DIALYZER,
         "linux_arm64": True,
         "macos_arm64": True,
         "contains": [],
@@ -428,7 +387,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_eslint_typed_standard",
         "target": "//core/quality/testdata/eslint_typed_owned/standard:app",
-        "policy": "//core/quality/testdata/eslint_typed_owned/standard:ts_policy",
+        "config": "eslint_typed_standard",
         "tool": "eslint",
         "capability": "lint",
         "class": "typescript",
@@ -440,7 +399,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_eslint_typed_strict",
         "target": "//core/quality/testdata/eslint_typed_owned/strict:app",
-        "policy": "//core/quality/testdata/eslint_typed_owned/strict:ts_policy",
+        "config": "eslint_typed_strict",
         "tool": "eslint",
         "capability": "lint",
         "class": "typescript",
@@ -452,11 +411,10 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_elixir_dirty",
         "target": "//core/quality/testdata/dialyzer:elixir_dirty",
-        "policy": "//core/quality/testdata/dialyzer:policy",
+        "config": "dialyzer",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "elixir",
-        "tool_dialyzer": _DIALYZER,
         "linux_arm64": True,
         "macos_arm64": True,
         "contains": ["dialyzer/", "invalid_contract"],
@@ -465,7 +423,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_clean",
         "target": "//core/quality/testdata/rust_owned:clean",
-        "policy": _RUST_POLICY,
+        "config": "rust_owned",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -479,7 +437,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_dirty",
         "target": "//core/quality/testdata/rust_owned:dirty",
-        "policy": _RUST_POLICY,
+        "config": "rust_owned",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -493,11 +451,10 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_pedantic_standard",
         "target": "//core/quality/testdata/rust_owned:pedantic",
-        "policy": _RUST_POLICY,
+        "config": "rust_owned_clippy_standard",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
-        "clippy_flags": _CLIPPY_STANDARD,
         "contains": ["core/quality/testdata/rust_owned/pedantic.rs"],
         "absent": ["doc_markdown", "Fatal error"],
         "linux_arm64": True,
@@ -508,11 +465,10 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_pedantic_strict",
         "target": "//core/quality/testdata/rust_owned:pedantic",
-        "policy": _RUST_POLICY,
+        "config": "rust_owned_clippy_strict",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
-        "clippy_flags": _CLIPPY_STRICT,
         "contains": ["core/quality/testdata/rust_owned/pedantic.rs", "doc_markdown"],
         "absent": [],
         "linux_arm64": True,
@@ -523,7 +479,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_unused_dep",
         "target": "//core/quality/testdata/rust_owned:unused_dep",
-        "policy": _RUST_POLICY,
+        "config": "rust_owned",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -537,7 +493,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_rustc_clean",
         "target": "//core/quality/testdata/rust_owned:clean",
-        "policy": _RUST_POLICY,
+        "config": "rust_owned",
         "tool": "rustc",
         "capability": "typecheck",
         "class": "rust",
@@ -551,7 +507,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_rustc_dirty",
         "target": "//core/quality/testdata/rust_owned:dirty",
-        "policy": _RUST_POLICY,
+        "config": "rust_owned",
         "tool": "rustc",
         "capability": "typecheck",
         "class": "rust",
@@ -565,7 +521,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_pmd_clean_standard",
         "target": "//core/quality/testdata/jvmclean:java_clean",
-        "policy": "//core/quality/testdata/jvmclean:pmd_standard_policy",
+        "config": "pmd_standard",
         "tool": "pmd",
         "capability": "lint",
         "class": "java",
@@ -575,7 +531,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_pmd_clean_strict",
         "target": "//core/quality/testdata/jvmclean:java_clean",
-        "policy": "//core/quality/testdata/jvmclean:pmd_strict_policy",
+        "config": "pmd_strict",
         "tool": "pmd",
         "capability": "lint",
         "class": "java",
@@ -585,7 +541,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_detekt_clean_standard",
         "target": "//core/quality/testdata/jvmclean:kotlin_clean",
-        "policy": "//core/quality/testdata/jvmclean:detekt_standard_policy",
+        "config": "detekt_standard",
         "tool": "detekt",
         "capability": "lint",
         "class": "kotlin",
@@ -595,7 +551,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_detekt_clean_strict",
         "target": "//core/quality/testdata/jvmclean:kotlin_clean",
-        "policy": "//core/quality/testdata/jvmclean:detekt_strict_policy",
+        "config": "detekt_strict",
         "tool": "detekt",
         "capability": "lint",
         "class": "kotlin",
@@ -605,7 +561,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_javac_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:java_unused_dep",
-        "policy": "//core/quality/testdata/jvm_owned:policy",
+        "config": "jvm_owned",
         "tool": "javac",
         "capability": "typecheck",
         "class": "java",
@@ -617,7 +573,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_kotlinc_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:kotlin_unused_dep",
-        "policy": "//core/quality/testdata/jvm_owned:policy",
+        "config": "jvm_owned",
         "tool": "kotlinc",
         "capability": "typecheck",
         "class": "kotlin",
@@ -629,7 +585,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_kotlinc_missing_dep",
         "target": "//core/quality/testdata/jvm_owned:kotlin_missing_dep",
-        "policy": "//core/quality/testdata/jvm_owned:policy",
+        "config": "jvm_owned",
         "tool": "kotlinc",
         "capability": "typecheck",
         "class": "kotlin",
@@ -641,7 +597,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_scalac_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:scala_unused_dep",
-        "policy": "//core/quality/testdata/jvm_owned:policy",
+        "config": "jvm_owned",
         "tool": "scalac",
         "capability": "typecheck",
         "class": "scala",
@@ -653,7 +609,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_scalac_missing_dep",
         "target": "//core/quality/testdata/jvm_owned:scala_missing_dep",
-        "policy": "//core/quality/testdata/jvm_owned:policy",
+        "config": "jvm_owned",
         "tool": "scalac",
         "capability": "typecheck",
         "class": "scala",
@@ -665,7 +621,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_roslyn_unused_dep",
         "target": "//core/quality/testdata/dotnet_owned:unused_dep",
-        "policy": "//core/quality/testdata/dotnet_owned:policy",
+        "config": "dotnet_owned",
         "tool": "roslyn",
         "capability": "lint",
         "class": "csharp",
@@ -675,22 +631,20 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_roslyn_clean_standard",
         "target": "//core/quality/testdata/dotnet_owned:clean",
-        "policy": "//core/quality/testdata/dotnet_owned:policy",
+        "config": "dotnet_owned_standard",
         "tool": "roslyn",
         "capability": "lint",
         "class": "csharp",
-        "config_profile": "standard",
         "contains": [],
         "absent": ["CA1", "CA2", "IDE0", "Fatal error"],
     },
     {
         "name": "real_result_roslyn_clean_strict",
         "target": "//core/quality/testdata/dotnet_owned:clean",
-        "policy": "//core/quality/testdata/dotnet_owned:policy",
+        "config": "dotnet_owned",
         "tool": "roslyn",
         "capability": "lint",
         "class": "csharp",
-        "config_profile": "strict",
         "contains": [],
         "absent": ["CA1", "CA2", "IDE0", "Fatal error"],
     },
@@ -717,16 +671,10 @@ def real_result_cases(name):
             name = case["name"],
             target = case["target"],
             file_class = case["class"],
-            policy = case["policy"],
+            config = case["config"],
             contains = case["contains"],
             absent = case["absent"],
-            tool_dialyzer = case.get("tool_dialyzer"),
-            tool_govet = case.get("tool_govet"),
-            compiler = case.get("compiler", ""),
             typecheck_subject = case.get("typecheck_subject", False),
-            rustc_flags = case.get("rustc_flags", []),
-            clippy_flags = case.get("clippy_flags", []),
-            config_profile = case.get("config_profile", ""),
             target_compatible_with = case.get("target_compatible_with"),
             linux_arm64 = case.get("linux_arm64", False),
             macos_arm64 = case.get("macos_arm64", False),

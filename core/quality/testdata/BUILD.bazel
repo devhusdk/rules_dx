@@ -23,6 +23,7 @@ load(":real_typecheck_tests.bzl", "real_typecheck_fixture_tests")
 load(":rmeta_typecheck_tests.bzl", "clippy_rmeta_inputs_test", "crate_no_pipelining_test", "pipelined_rmeta_paths_test", "rmeta_typecheck_test")
 load(":rst_converter_tests.bzl", "asciidoc_no_converter_test", "rst_no_converter_test")
 load(":runner_matrix_cases.bzl", "runner_matrix_cases")
+load(":test_configs_test.bzl", "test_configs_test")
 load(
     ":tool_override_tests.bzl",
     "dart_subject",
@@ -1560,6 +1561,8 @@ java_library(
 )
 
 real_result_cases(name = "real_results")
+
+test_configs_test(name = "test_configs_test")
 
 sh_test(
     name = "real_result_check_spaces_test",

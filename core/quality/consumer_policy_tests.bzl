@@ -124,16 +124,9 @@ load(
     "real_yaml_format_aspect",
     "real_yaml_lint_aspect",
 )
+load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_transition")
 
-def _policy_transition_impl(_settings, attr):
-    """Selects the workspace policy named by another attribute of the same rule."""
-    return {"//config:workspace": str(attr.policy_target)}
-
-_policy_transition = transition(
-    implementation = _policy_transition_impl,
-    inputs = [],
-    outputs = ["//config:workspace"],
-)
+CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "consumer_shared", "default", "generated"]
 
 _ASPECTS_BY_RESULT = {
     "format-cc": real_cc_format_aspect,
@@ -282,7 +275,7 @@ def _consumer_policy_impl(ctx):
             results[name] = True
     results = sorted(results)
     if results != ctx.attr.expected_dx_results:
-        fail("consumer policy " + str(ctx.attr.policy_target) + " publishes " +
+        fail("consumer policy config " + ctx.attr.config + " publishes " +
              str(results) + " real result(s) for " + str(subjects) +
              ", want " + str(ctx.attr.expected_dx_results))
     windows = ctx.target_platform_has_constraint(ctx.attr._windows_os[platform_common.ConstraintValueInfo])
@@ -302,9 +295,7 @@ _consumer_policy_test = rule(
             "expected_dx_results": attr.string_list(
                 mandatory = True,
             ),
-            "policy_target": attr.label(
-                mandatory = True,
-            ),
+            "config": config_attr(),
             "_windows_os": attr.label(
                 default = "@platforms//os:windows",
             ),
@@ -312,7 +303,7 @@ _consumer_policy_test = rule(
         **{
             _subject_attr(key): attr.label(
                 aspects = [aspect],
-                cfg = _policy_transition,
+                cfg = config_transition,
             )
             for key, aspect in _ASPECTS_BY_RESULT.items()
         }
@@ -476,11 +467,14 @@ def policy_config_tests(name):
 def consumer_policy_tests(name, cases, **kwargs):
     """Instantiates one proof per consumer policy selection."""
     kwargs.setdefault("size", "small")
+    configs = sorted({case["config"]: True for case in cases}.keys())
+    if configs != CONSUMER_POLICY_CONFIGS:
+        fail("%s: cases use configs %s, want %s" % (name, configs, CONSUMER_POLICY_CONFIGS))
     for case in cases:
         subjects = {_subject_attr(key): case["subject"] for key in _result_keys(case["expected_dx_results"], case.get("absent_keys", []))}
         _consumer_policy_test(
             name = name + "_" + case["case"] + "_test",
             expected_dx_results = case["expected_dx_results"],
-            policy_target = case["policy"],
+            config = case["config"],
             **dict(kwargs, **subjects)
         )

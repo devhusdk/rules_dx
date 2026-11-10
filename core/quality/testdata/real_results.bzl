@@ -1,64 +1,10 @@
 """Runs the real aspect on a target and checks the result file for strings."""
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//core/quality/testdata:config_subject.bzl", "config_results")
 load("//core/quality/testdata:real_aspect_subject.bzl", "REAL_SUBJECT_BY_CLASS")
 load("//core/quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
 load("//core/quality/testdata:runner_matrix_tests.bzl", "compatible")
-
-_COMPILER = str(Label("//cc:compiler"))
-_PROFILE = str(Label("//config:config_profile"))
-
-def _policy_transition_impl(settings, attr):
-    """Selects the workspace policy and, when set, the C++ compiler."""
-    return {
-        _COMPILER: attr.compiler or settings[_COMPILER],
-        _PROFILE: attr.config_profile or settings[_PROFILE],
-        "@rules_rust//rust/settings:clippy_flag": attr.clippy_flags,
-        "//config:tool_dialyzer": attr.tool_dialyzer,
-        "//config:tool_govet": attr.tool_govet,
-        "//config:workspace": attr.policy,
-        "@rules_rust//rust/settings:clippy_output_diagnostics": True,
-        "@rules_rust//rust/settings:extra_rustc_flags": [],
-        "@rules_rust//rust/settings:extra_rustc_flag": attr.rustc_flags,
-        "@rules_rust//rust/settings:rustc_output_diagnostics": True,
-    }
-
-_policy_transition = transition(
-    implementation = _policy_transition_impl,
-    inputs = [_COMPILER, _PROFILE],
-    outputs = [
-        _COMPILER,
-        _PROFILE,
-        "@rules_rust//rust/settings:clippy_flag",
-        "//config:tool_dialyzer",
-        "//config:tool_govet",
-        "//config:workspace",
-        "@rules_rust//rust/settings:clippy_output_diagnostics",
-        "@rules_rust//rust/settings:extra_rustc_flags",
-        "@rules_rust//rust/settings:extra_rustc_flag",
-        "@rules_rust//rust/settings:rustc_output_diagnostics",
-    ],
-)
-
-def _results_impl(ctx):
-    files = depset(transitive = [subject[OutputGroupInfo].dx_results for subject in ctx.attr.subject])
-    if not files.to_list():
-        fail("%s: no result files" % ctx.label)
-    return [DefaultInfo(files = files, runfiles = ctx.runfiles(transitive_files = files))]
-
-_results = rule(
-    implementation = _results_impl,
-    attrs = {
-        "clippy_flags": attr.string_list(),
-        "compiler": attr.string(),
-        "config_profile": attr.string(),
-        "policy": attr.string(mandatory = True),
-        "rustc_flags": attr.string_list(),
-        "tool_dialyzer": attr.string(default = str(Label("//erlang/private/tools:dialyzer"))),
-        "tool_govet": attr.string(default = str(Label("//go/private/tools/analysis/cmd/dx_govet"))),
-        "subject": attr.label(mandatory = True, cfg = _policy_transition),
-    },
-)
 
 def _quote(s):
     return "'" + s.replace("'", "'\\''") + "'"
@@ -67,21 +13,15 @@ def check_args(contains, absent):
     """Returns real_result_check.sh args; quoted because Bazel shell-tokenizes args."""
     return [_quote("+" + s) for s in contains] + [_quote("-" + s) for s in absent]
 
-def real_result_test(name, target, file_class, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, rustc_flags = [], clippy_flags = [], config_profile = "", target_compatible_with = None, **flags):
-    """Declares a test that greps the real aspect result of target under policy."""
+def real_result_test(name, target, file_class, config, contains = [], absent = [], typecheck_subject = False, target_compatible_with = None, **flags):
+    """Declares a test that greps the real aspect result of target under config."""
     if file_class not in REAL_SUBJECT_BY_CLASS:
         fail("%s: unknown file class %s" % (name, file_class))
     subject_rule = real_typecheck_subject if typecheck_subject else REAL_SUBJECT_BY_CLASS[file_class]
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
-    _results(
+    config_results(
         name = name + "_results",
-        clippy_flags = clippy_flags,
-        compiler = compiler,
-        config_profile = config_profile,
-        rustc_flags = rustc_flags,
-        policy = str(native.package_relative_label(policy)),
-        tool_dialyzer = str(native.package_relative_label(tool_dialyzer or "//erlang/private/tools:dialyzer")),
-        tool_govet = str(native.package_relative_label(tool_govet or "//go/private/tools/analysis/cmd/dx_govet")),
+        config = config,
         subject = name + "_subject",
         tags = ["manual"],
         testonly = True,

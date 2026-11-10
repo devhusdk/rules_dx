@@ -1130,7 +1130,7 @@ archive_override(
 
     #[test]
     fn the_shipped_families_keep_every_row_once_installed() {
-        let deps = BTreeSet::from(["rules_dx_cuda".to_owned()]);
+        let deps = BTreeSet::from(["rules_dx_rust".to_owned()]);
         let all = render_in(dx_families::families(), &deps);
         assert_eq!(all, render_in(&[], &BTreeSet::new()));
         assert!(paths(&all).iter().any(|p| p.contains("rules_rust.")));
@@ -1144,13 +1144,10 @@ archive_override(
     }
 
     #[test]
-    fn rules_cuda_patches_render_only_for_cuda_consumers() {
-        let without = render_in(dx_families::families(), &BTreeSet::new());
-        assert!(!paths(&without).iter().any(|p| p.contains("rules_cuda.")));
-        assert!(!without[0].1.contains("rules_cuda"));
-        let deps = BTreeSet::from(["rules_dx_cuda".to_owned()]);
-        let with = render_in(dx_families::families(), &deps);
-        assert!(paths(&with).iter().any(|p| p.contains("rules_cuda.")));
+    fn rules_cuda_patches_render_without_any_family_module() {
+        let files = render_in(dx_families::families(), &BTreeSet::new());
+        assert!(paths(&files).iter().any(|p| p.contains("rules_cuda.")));
+        assert!(files[0].1.contains("rules_cuda"));
     }
 
     #[test]
@@ -1163,14 +1160,14 @@ archive_override(
         };
         let families = vec![
             family("rust", None),
-            family("apple", Some("rules_dx_apple")),
+            family("swift", Some("rules_dx_swift")),
         ];
         let files = render_in(&families, &BTreeSet::new());
         assert!(paths(&files).iter().any(|p| p.contains("rules_rust.")));
     }
 
     #[test]
-    fn the_shipped_families_keep_rules_rust_without_apple() {
+    fn the_shipped_families_keep_rules_rust_with_the_dep() {
         let deps = BTreeSet::from(["rules_rust".to_owned()]);
         let files = render_in(dx_families::families(), &deps);
         assert!(paths(&files).iter().any(|p| p.contains("rules_rust.")));
@@ -1212,14 +1209,14 @@ archive_override(
     #[test]
     fn module_deps_count_the_module_itself() {
         let family = consumer(
-            "module(name = \"rules_dx_cuda\")\nbazel_dep(name = \"rules_cuda\", version = \"1\")\n",
+            "module(name = \"rules_dx_rust\")\nbazel_dep(name = \"rules_rust\", version = \"1\")\n",
         );
         let deps = module_deps(family.path());
-        assert!(deps.contains("rules_dx_cuda") && deps.contains("rules_cuda"));
+        assert!(deps.contains("rules_dx_rust") && deps.contains("rules_rust"));
         assert!(
             paths(&render_overrides(&deps))
                 .iter()
-                .any(|p| p.contains("rules_cuda."))
+                .any(|p| p.contains("rules_rust."))
         );
     }
 

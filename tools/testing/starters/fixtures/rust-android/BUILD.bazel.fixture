@@ -1,5 +1,5 @@
 # gazelle:ignore
-load("@rules_dx_android//packaging:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_sign", "rust_android_apk")
+load("@rules_dx//android:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_sign", "rust_android_apk")
 load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx//rust:defs.bzl", "rust_static_library", "rust_test")
 
@@ -31,8 +31,8 @@ cc_library(
 rust_android_apk(
     name = "demo-app_apk",
     platforms = [
-        "@rules_dx_android//platforms:arm64-v8a",
-        "@rules_dx_android//platforms:x86_64",
+        "@rules_dx//android/platforms:arm64-v8a",
+        "@rules_dx//android/platforms:x86_64",
     ],
     api_level = 31,
     app_id = "com.example.demo_app",

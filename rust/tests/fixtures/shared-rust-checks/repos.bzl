@@ -145,7 +145,7 @@ shift
 exec "$DX_WASI_MANAGED_RUNTIME" "$subcommand" --env CONSUMER_RUNTIME=wrapped "$@"
 """
 
-_BUILD_BAZEL = '''load("@rules_dx_android//packaging:defs.bzl", "rust_android_apk")
+_BUILD_BAZEL = '''load("@rules_dx//android:defs.bzl", "rust_android_apk")
 load("@rules_dx//examples/shared-rust:release.bzl", "release_artifact")
 load("@rules_dx//javascript:defs.bzl", "javascript_web_app")
 load("@rules_dx//cli/web_server:server.bzl", "javascript_web_server")
@@ -236,7 +236,7 @@ rust_android_apk(
     name = "consumer_apk",
     testonly = True,
     app_id = "org.example.consumer.tasks",
-    platforms = ["@rules_dx_android//platforms:x86_64"],
+    platforms = ["@rules_dx//android/platforms:x86_64"],
     api_level = 33,
     assets = [
         ":assets/board.txt",

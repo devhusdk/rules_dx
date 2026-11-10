@@ -1,0 +1,24 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "android",
+  "title": "Android",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [],
+  "pins": [],
+  "entry_points": [
+    "java_android_library",
+    "kotlin_android_library",
+    "android_native_library",
+    "rust_android_apk",
+    "android_apk_set",
+    "android_check",
+    "android_sign",
+    "android_adb_install",
+    "android_adb_start",
+    "android_adb_log"
+  ]
+}

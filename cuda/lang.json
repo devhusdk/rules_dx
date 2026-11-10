@@ -1,0 +1,20 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "cuda",
+  "title": "CUDA",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [],
+  "pins": [],
+  "entry_points": [
+    "cuda_library",
+    "cuda_binary",
+    "cuda_test",
+    "cuda_objects",
+    "cuda_component_library",
+    "cuda_gpu_env"
+  ]
+}

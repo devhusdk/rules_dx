@@ -152,7 +152,7 @@ use_repo(pip, "pypi")
 Gazelle sets these attributes only when the rule lacks them. Set one yourself to keep your value. Gazelle never removes them.
 
 - Java and Kotlin: each `*Test.java` or `*Test.kt` gets its own test named in snake case, such as `greet_test`. A handwritten rule that lists a test source in `srcs` owns it. Mark a dependency no import gives with `# keep`.
-- Java and Kotlin: an `android.*` or `dalvik.*` import selects `java_android_library` or `kotlin_android_library` from `@rules_dx_android//rules:defs.bzl`. Gazelle also sets `custom_package` and `tags = ["manual"]`. It never derives resources, the `R` class, or manifests.
+- Java and Kotlin: an `android.*` or `dalvik.*` import selects `java_android_library` or `kotlin_android_library` from `@rules_dx//android:defs.bzl`. Gazelle also sets `custom_package` and `tags = ["manual"]`. It never derives resources, the `R` class, or manifests.
 - C and C++: an `<android/*.h>` include sets `target_compatible_with = ["@platforms//os:android"]` and `linkopts` (`-llog`, `-landroid`). Under `__ANDROID__`, `linkopts` becomes a `select`. `ANativeActivity_onCreate`, `JNI_OnLoad`, or a `Java_*` function sets `alwayslink = True`.
 - D: a directory with `.d` files gets a `d_library`. A module-scope `main` gets a `d_binary`. A `unittest` block gets a `d_test` named `<library>_test`.
 - Dart: a `pubspec.yaml` gets a `dart_library`, a `dart_binary` per `bin/*.dart`, and a `dart_test` per `test/**/*_test.dart`. With a `flutter` dependency they become `flutter_library` and `flutter_test`. A `package:` import must name a `pubspec.yaml` dependency.

@@ -17,6 +17,7 @@ pub const RULES_DX_DEPS: &[(&str, &str)] = &[
     ("libxml2", "2.15.4"),
     ("gcc_toolchain", "0.13.0"),
     ("llvm", "0.8.26"),
+    ("rules_cuda", "0.4.0-beta1"),
     ("windows_support", "0.4.1"),
     ("google_benchmark", "1.9.5"),
     ("rules_python", "2.4.6"),

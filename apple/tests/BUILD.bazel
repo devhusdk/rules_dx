@@ -1,0 +1,97 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+# keep
+rust_test(
+    name = "device_script_test",
+    srcs = ["device_script_test.rs"],
+    data = ["//apple/private/ios:export_ops.sh"],
+    env = {"DX_EXPORT_OPS": "$(rootpath //apple/private/ios:export_ops.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "probe_script_test",
+    srcs = ["probe_script_test.rs"],
+    data = ["//apple/private/provisioning:probe.sh"],
+    env = {"DX_APPLE_PROBE": "$(rootpath //apple/private/provisioning:probe.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "simulator_script_test",
+    srcs = ["simulator_script_test.rs"],
+    data = [
+        "//apple/private/bundle:library_check.sh",
+        "//apple/private/ios:create_test_simulator.sh",
+        "//apple/private/ios:delete_test_simulator.sh",
+        "//apple/private/ios:simctl_ops.sh",
+    ],
+    env = {
+        "DX_CREATE_TEST_SIMULATOR": "$(rootpath //apple/private/ios:create_test_simulator.sh)",
+        "DX_DELETE_TEST_SIMULATOR": "$(rootpath //apple/private/ios:delete_test_simulator.sh)",
+        "DX_LIBRARY_CHECK": "$(rootpath //apple/private/bundle:library_check.sh)",
+        "DX_SIMCTL_OPS": "$(rootpath //apple/private/ios:simctl_ops.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "xcframework_script_test",
+    srcs = ["xcframework_script_test.rs"],
+    data = ["//apple/private/ios:xcframework_check.sh"],
+    env = {"DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/private/ios:xcframework_check.sh)"},
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "signing_script_test",
+    srcs = ["signing_script_test.rs"],
+    data = [
+        "//apple/private/signing:codesign_app.sh",
+        "//apple/private/signing:notarize_app.sh",
+    ],
+    env = {
+        "DX_CODESIGN_APP": "$(rootpath //apple/private/signing:codesign_app.sh)",
+        "DX_NOTARIZE_APP": "$(rootpath //apple/private/signing:notarize_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+# keep
+rust_test(
+    name = "macos_app_script_test",
+    srcs = ["macos_app_script_test.rs"],
+    data = [
+        "//apple/private/macos:app_check.sh",
+        "//apple/private/macos:run_app.sh",
+    ],
+    env = {
+        "DX_MACOS_APP_CHECK": "$(rootpath //apple/private/macos:app_check.sh)",
+        "DX_MACOS_RUN_APP": "$(rootpath //apple/private/macos:run_app.sh)",
+    },
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)

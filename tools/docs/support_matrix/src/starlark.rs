@@ -583,7 +583,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("android_check", Constraint::AsWritten),
     (
         "apple_ios_app_test",
-        Constraint::DefaultIfUnset("@rules_dx_apple//ios:cell.bzl", "APPLE_HOSTS"),
+        Constraint::DefaultIfUnset("//apple:defs.bzl", "APPLE_HOSTS"),
     ),
     ("cc_test", Constraint::AsWritten),
     ("codegen_shard_argv_test", Constraint::AsWritten),
@@ -591,7 +591,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("csharp_test", Constraint::AsWritten),
     (
         "cuda_test",
-        Constraint::Appended("@rules_dx_cuda//rules:defs.bzl", "CUDA_TARGET"),
+        Constraint::Appended("//cuda:defs.bzl", "CUDA_TARGET"),
     ),
     (
         "d_test",

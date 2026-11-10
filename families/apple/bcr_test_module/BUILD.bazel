@@ -1,3 +1,0 @@
-load("@rules_dx_apple//ios:defs.bzl", "apple_ios_lib")
-
-filegroup(name = "loads")

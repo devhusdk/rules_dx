@@ -1,5 +1,5 @@
-load("@rules_dx_apple//ios:simulator.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
-load("@rules_dx//flutter:defs.bzl", "flutter_ios_app")
+load("@rules_dx//apple:defs.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
+load("@rules_dx//flutter/rules:defs.bzl", "flutter_ios_app")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
 

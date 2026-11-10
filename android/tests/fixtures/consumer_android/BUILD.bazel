@@ -1,0 +1,76 @@
+# gazelle:dx_rust_corpus false
+# gazelle:ignore
+load("//android:defs.bzl", "android_check", "android_adb_install", "android_adb_log", "android_adb_start", "android_sign", "rust_android_apk")
+load("//cc:defs.bzl", "cc_library")
+load("//rust:defs.bzl", "rust_static_library", "rust_test")
+
+package(
+    default_visibility = ["//android:__subpackages__"],
+)
+
+rust_static_library(
+    name = "consumer_android",
+    srcs = ["src/lib.rs"],
+    crate_name = "consumer_android",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_test(
+    name = "consumer_android_test",
+    crate = ":consumer_android",
+)
+
+cc_library(
+    name = "consumer_android_activity",
+    srcs = ["activity.c"],
+    linkopts = [
+        "-landroid",
+        "-llog",
+    ],
+    tags = ["manual"],
+    deps = [":consumer_android"],
+    alwayslink = True,
+)
+
+rust_android_apk(
+    name = "consumer_android_apk",
+    platforms = [
+        "//android/platforms:arm64-v8a",
+        "//android/platforms:x86_64",
+    ],
+    api_level = 31,
+    app_id = "com.example.consumer_android",
+    resource_files = ["res/values/strings.xml"],
+    version_code = 1,
+    version_name = "1.0",
+    deps = [":consumer_android_activity"],
+)
+
+android_check(
+    name = "consumer_android_check_test",
+    package = ":consumer_android_apk_unsigned_file",
+    tags = ["manual"],
+)
+
+android_sign(
+    name = "consumer_android_release_sign",
+    package = ":consumer_android_apk_unsigned_file",
+)
+
+android_adb_install(
+    name = "consumer_android_install",
+    apk = ":consumer_android_apk_file",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "consumer_android_start",
+    app_id = "com.example.consumer_android",
+    serial = "emulator-5554",
+)
+
+android_adb_log(
+    name = "consumer_android_log",
+    serial = "emulator-5554",
+)

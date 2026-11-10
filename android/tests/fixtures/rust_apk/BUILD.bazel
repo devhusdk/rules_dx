@@ -1,0 +1,818 @@
+# gazelle:ignore
+
+load("//cc:defs.bzl", "cc_library")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_static_library", "rust_test")
+load("@rules_java//java:java_binary.bzl", "java_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//android:defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check", "android_sign", "rust_android_apk")
+load(":starlark_platforms.bzl", "starlark_platforms")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//android:__subpackages__"],
+)
+
+rust_static_library(
+    name = "app_rust",
+    srcs = ["src/lib.rs"],
+    crate_name = "rust_apk",
+)
+
+rust_test(
+    name = "app_rust_test",
+    crate = ":app_rust",
+)
+
+cc_library(
+    name = "app_jni",
+    srcs = ["activity.c"],
+    linkopts = [
+        "-landroid",
+        "-llog",
+    ],
+    target_compatible_with = ["@platforms//os:android"],
+    deps = [":app_rust"],
+    alwayslink = True,
+)
+
+rust_android_apk(
+    name = "app_apk",
+    testonly = True,
+    app_id = "com.example.dxrustapk",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = ["android.permission.INTERNET"],
+    resource_files = glob(["res/**"]),
+    visibility = ["//visibility:public"],
+    deps = [":app_jni"],
+)
+
+rust_android_apk(
+    name = "arm_apk",
+    testonly = True,
+    app_id = "com.example.dxrustapk",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = ["android.permission.INTERNET"],
+    platforms = ["//android/platforms:arm64-v8a"],
+    resource_files = glob(["res/**"]),
+    deps = [":app_jni"],
+)
+
+android_adb_install(
+    name = "install",
+    apk = ":app_apk_file",
+    serial = "emulator-5554",
+)
+
+android_adb_install(
+    name = "install_probe",
+    apk = ":dummy.apk",
+    serial = "emulator-5554",
+)
+
+java_binary(
+    name = "test_bundle_module",
+    srcs = ["TestBundleModule.java"],
+    main_class = "TestBundleModule",
+    deps = ["//android/private/packaging:bundletool_jar"],
+)
+
+genrule(
+    name = "test_bundle",
+    outs = ["test_bundle.aab"],
+    cmd = "work=$$(mktemp -d) && " +
+          "$(execpath :test_bundle_module) $$work/base.zip com.example.dxbundle 31 x86_64 && " +
+          "$(execpath //android/private/packaging:bundletool) build-bundle --modules=$$work/base.zip --output=$@ && " +
+          "rm -rf $$work",
+    tools = [
+        ":test_bundle_module",
+        "//android/private/packaging:bundletool",
+    ],
+)
+
+android_check(
+    name = "check_test_bundle_test",
+    package = ":test_bundle.aab",
+    platforms = ["//android/platforms:x86_64"],
+)
+
+android_apk_set(
+    name = "test_bundle_set",
+    aab = ":test_bundle.aab",
+    device_spec = ":device_x86_64.json",
+)
+
+android_adb_install(
+    name = "install_set_probe",
+    apk_set = ":test_bundle_set",
+    serial = "emulator-5554",
+)
+
+android_apk_set(
+    name = "app_apk_set",
+    aab = ":app_apk_aab_file",
+    device_spec = ":device_x86_64.json",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+android_adb_install(
+    name = "install_set",
+    apk_set = ":app_apk_set",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "start",
+    app_id = "com.example.dxrustapk",
+    serial = "emulator-5554",
+)
+
+android_adb_log(
+    name = "log",
+    serial = "emulator-5554",
+)
+
+rust_android_apk(
+    name = "custom_apk",
+    testonly = True,
+    api_level = 33,
+    app_id = "org.example.custom.dxrustapk",
+    assets = glob(["assets/**"]),
+    assets_dir = "assets",
+    permissions = [
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.VIBRATE",
+    ],
+    platforms = ["//android/platforms:x86_64"],
+    resource_files = glob(["res/**"]),
+    version_code = 7,
+    version_name = "2.3",
+    visibility = ["//visibility:public"],
+    deps = [":app_jni"],
+)
+
+android_adb_install(
+    name = "install_custom",
+    apk = ":custom_apk_file",
+    serial = "emulator-5554",
+)
+
+android_adb_start(
+    name = "start_custom",
+    app_id = "org.example.custom.dxrustapk",
+    serial = "emulator-5554",
+)
+
+sh_binary(
+    name = "device_check",
+    srcs = ["device_check.sh"],
+    tags = ["manual"],
+)
+
+sh_binary(
+    name = "device_run",
+    srcs = ["device_run.sh"],
+    tags = ["manual"],
+)
+
+android_sign(
+    name = "sign",
+    package = ":unsigned.apk",
+)
+
+android_sign(
+    name = "sign_app",
+    package = ":app_apk_unsigned_file",
+)
+
+android_check(
+    name = "check_unsigned_test",
+    package = ":unsigned.apk",
+)
+
+android_check(
+    name = "check_app_unsigned_test",
+    package = ":app_apk_unsigned_file",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+sh_test(
+    name = "check_rejects_test",
+    srcs = ["check_rejects.sh"],
+    args = [
+        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(rootpath :unsigned.apk)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpath :signed_fixture.apk)",
+        "$(rootpath :v2_only_fixture.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":signed_fixture.apk",
+        ":unsigned.apk",
+        ":v2_only_fixture.apk",
+        "//android/private/packaging:bundletool",
+        "//android/private/packaging:check_package.sh",
+    ],
+)
+
+sh_test(
+    name = "check_aab_rejects_test",
+    size = "small",
+    srcs = ["check_aab_rejects.sh"],
+    args = [
+        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpath :unsigned.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":unsigned.apk",
+        "//android/private/packaging:bundletool",
+        "//android/private/packaging:check_package.sh",
+    ],
+)
+
+android_check(
+    name = "check_app_aab_test",
+    package = ":app_apk_aab_file",
+    platforms = [
+        "//android/platforms:arm64-v8a",
+        "//android/platforms:x86_64",
+    ],
+    resources = ["string/app_name"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+# rules_android 0.8.0 prefers its Starlark android_platforms flag over the native option.
+# A narrower Starlark value from outside must not drop the bundle's own ABIs.
+starlark_platforms(
+    name = "app_apk_aab_file_x86_64_flag",
+    src = ":app_apk_aab_file",
+    platforms = ["//android/platforms:x86_64"],
+)
+
+android_check(
+    name = "check_app_aab_starlark_flag_test",
+    package = ":app_apk_aab_file_x86_64_flag",
+    platforms = [
+        "//android/platforms:arm64-v8a",
+        "//android/platforms:x86_64",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+sh_test(
+    name = "check_aab_missing_abi_test",
+    srcs = ["check_aab_rejects_one.sh"],
+    args = [
+        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(rootpath :custom_apk_aab_file)",
+        "'packages no base/lib/arm64-v8a/'",
+        "--abi",
+        "arm64-v8a",
+    ],
+    data = [
+        ":custom_apk_aab_file",
+        "//android/private/packaging:bundletool",
+        "//android/private/packaging:check_package.sh",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+sh_test(
+    name = "check_aab_missing_resource_test",
+    srcs = ["check_aab_rejects_one.sh"],
+    args = [
+        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(rootpath :custom_apk_aab_file)",
+        "'does not resolve resource string/missing'",
+        "--resource",
+        "string/missing",
+    ],
+    data = [
+        ":custom_apk_aab_file",
+        "//android/private/packaging:bundletool",
+        "//android/private/packaging:check_package.sh",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+sh_test(
+    name = "inspect_aab_test",
+    srcs = ["inspect_aab.sh"],
+    args = [
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(rootpath :app_apk_aab_file)",
+        "com.example.dxrustapk",
+        "app_apk_bin",
+        "arm64-v8a,x86_64",
+        "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
+        "31",
+        "1",
+        "1.0",
+    ],
+    data = [
+        ":app_apk_aab_file",
+        "//android/private/packaging:bundletool",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+sh_test(
+    name = "inspect_custom_aab_test",
+    srcs = ["inspect_aab.sh"],
+    args = [
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(rootpath :custom_apk_aab_file)",
+        "org.example.custom.dxrustapk",
+        "custom_apk_bin",
+        "x86_64",
+        "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
+        "33",
+        "7",
+        "2.3",
+    ],
+    data = [
+        ":custom_apk_aab_file",
+        "//android/private/packaging:bundletool",
+        "@android_ndk_toolchain//:llvm_readelf",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+)
+
+sh_test(
+    name = "sign_test",
+    srcs = ["sign_test.sh"],
+    args = [
+        "$(rootpath :sign)",
+        "$(rootpath :unsigned.apk)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpaths @dx_android_sdk//:zipalign)",
+        "$(rootpaths @dx_android_sdk//:apksigner_jar)",
+        "$(JAVA_ROOTPATH)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":sign",
+        ":unsigned.apk",
+        "@dx_android_sdk//:apksigner_jar",
+        "@dx_android_sdk//:zipalign",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+sh_test(
+    name = "sign_app_test",
+    srcs = ["sign_test.sh"],
+    args = [
+        "$(rootpath :sign_app)",
+        "$(rootpath :app_apk_unsigned_file)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpaths @dx_android_sdk//:zipalign)",
+        "$(rootpaths @dx_android_sdk//:apksigner_jar)",
+        "$(JAVA_ROOTPATH)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":app_apk_unsigned_file",
+        ":dummy.apk",
+        ":sign_app",
+        "@dx_android_sdk//:apksigner_jar",
+        "@dx_android_sdk//:zipalign",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+sh_test(
+    name = "consumer_sign_test",
+    srcs = ["sign_test.sh"],
+    args = [
+        "$(rootpath //android/tests/fixtures/consumer_android:consumer_android_release_sign)",
+        "$(rootpath //android/tests/fixtures/consumer_android:consumer_android_apk_unsigned_file)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpaths @dx_android_sdk//:zipalign)",
+        "$(rootpaths @dx_android_sdk//:apksigner_jar)",
+        "$(JAVA_ROOTPATH)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":dummy.apk",
+        "//android/tests/fixtures/consumer_android:consumer_android_apk_unsigned_file",
+        "//android/tests/fixtures/consumer_android:consumer_android_release_sign",
+        "@dx_android_sdk//:apksigner_jar",
+        "@dx_android_sdk//:zipalign",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+android_sign(
+    name = "sign_test_bundle",
+    package = ":test_bundle.aab",
+)
+
+android_sign(
+    name = "sign_app_aab",
+    package = ":app_apk_aab_file",
+)
+
+sh_test(
+    name = "sign_aab_test",
+    size = "small",
+    srcs = ["sign_aab_test.sh"],
+    args = [
+        "$(rootpath :sign_test_bundle)",
+        "$(rootpath :test_bundle.aab)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":sign_test_bundle",
+        ":test_bundle.aab",
+        "//android/private/packaging:bundletool",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+sh_test(
+    name = "sign_app_aab_test",
+    srcs = ["sign_aab_test.sh"],
+    args = [
+        "$(rootpath :sign_app_aab)",
+        "$(rootpath :app_apk_aab_file)",
+        "$(rootpath :dummy.apk)",
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(JAVABASE_ROOTPATH)",
+    ],
+    data = [
+        ":app_apk_aab_file",
+        ":dummy.apk",
+        ":sign_app_aab",
+        "//android/private/packaging:bundletool",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+sh_test(
+    name = "inspect_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :app_apk_file)",
+        "com.example.dxrustapk",
+        "app_apk_bin",
+        "arm64-v8a,x86_64",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "31",
+        "android.permission.INTERNET",
+        "1",
+        "1.0",
+    ],
+    data = [
+        ":app_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
+        "@dx_android_sdk//:apksigner_jar",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    env = {
+        "DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)",
+        "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
+        "DX_JAVA": "$(JAVA_ROOTPATH)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+sh_test(
+    name = "inspect_custom_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :custom_apk_file)",
+        "org.example.custom.dxrustapk",
+        "custom_apk_bin",
+        "x86_64",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "33",
+        "android.permission.VIBRATE",
+        "7",
+        "2.3",
+        "android.permission.ACCESS_NETWORK_STATE",
+    ],
+    data = [
+        ":custom_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
+        "@dx_android_sdk//:apksigner_jar",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    env = {
+        "DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)",
+        "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
+        "DX_JAVA": "$(JAVA_ROOTPATH)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+sh_test(
+    name = "install_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install",
+        "$(location :install_probe)",
+        "$(location :fake_adb.sh)",
+        "$(location :dummy.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":fake_adb.sh",
+        ":install_probe",
+    ],
+)
+
+sh_test(
+    name = "install_exit_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install",
+        "$(location :install_probe)",
+        "$(location :fake_adb.sh)",
+        "$(location :dummy.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":fake_adb.sh",
+        ":install_probe",
+    ],
+    env = {"ADB_EXIT": "3"},
+)
+
+sh_test(
+    name = "install_missing_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "missing",
+        "$(location :install_probe)",
+        "$(location :fake_adb.sh)",
+        "$(location :dummy.apk)",
+    ],
+    data = [
+        ":dummy.apk",
+        ":fake_adb.sh",
+        ":install_probe",
+    ],
+)
+
+sh_test(
+    name = "start_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "start",
+        "$(location :start)",
+        "$(location :fake_adb.sh)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":start",
+    ],
+)
+
+sh_test(
+    name = "start_exit_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "start",
+        "$(location :start)",
+        "$(location :fake_adb.sh)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":start",
+    ],
+    env = {"ADB_EXIT": "5"},
+)
+
+sh_test(
+    name = "start_custom_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "start",
+        "$(location :start_custom)",
+        "$(location :fake_adb.sh)",
+        "org.example.custom.dxrustapk",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":start_custom",
+    ],
+)
+
+sh_test(
+    name = "log_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "log",
+        "$(location :log)",
+        "$(location :fake_adb.sh)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":log",
+    ],
+)
+
+sh_test(
+    name = "log_exit_test",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "log",
+        "$(location :log)",
+        "$(location :fake_adb.sh)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":log",
+    ],
+    env = {"ADB_EXIT": "7"},
+)
+
+sh_test(
+    name = "device_check_test",
+    size = "small",
+    srcs = ["device_check_test.sh"],
+    args = [
+        "ok",
+        "$(rootpath device_check.sh)",
+        "$(rootpath testdata/logcat_ok.txt)",
+    ],
+    data = ["device_check.sh"] + glob(["testdata/**"]),
+)
+
+sh_test(
+    name = "device_check_rejects_test",
+    size = "small",
+    srcs = ["device_check_test.sh"],
+    args = [
+        "rejects",
+        "$(rootpath device_check.sh)",
+        "$(rootpath testdata/logcat_ok.txt)",
+    ],
+    data = ["device_check.sh"] + glob(["testdata/**"]),
+)
+
+sh_test(
+    name = "install_set_test",
+    size = "small",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install-multiple",
+        "$(rootpath :install_set_probe)",
+        "$(rootpath :fake_adb.sh)",
+        "$(rootpath :test_bundle_set)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":install_set_probe",
+        ":test_bundle_set",
+    ],
+)
+
+sh_test(
+    name = "install_set_exit_test",
+    size = "small",
+    srcs = ["adapter_test.sh"],
+    args = [
+        "install-multiple",
+        "$(rootpath :install_set_probe)",
+        "$(rootpath :fake_adb.sh)",
+        "$(rootpath :test_bundle_set)",
+    ],
+    data = [
+        ":fake_adb.sh",
+        ":install_set_probe",
+        ":test_bundle_set",
+    ],
+    env = {"ADB_EXIT": "4"},
+)
+
+sh_test(
+    name = "apk_set_mismatch_test",
+    size = "small",
+    srcs = ["apk_set_rejects.sh"],
+    args = [
+        "$(rootpath //android/private/packaging:build_apk_set.sh)",
+        "$(rootpath //android/private/packaging:bundletool)",
+        "$(rootpath :test_bundle.aab)",
+        "$(rootpath :device_arm64.json)",
+        "$(rootpath @rules_android//tools/android:debug_keystore)",
+    ],
+    data = [
+        ":device_arm64.json",
+        ":test_bundle.aab",
+        "//android/private/packaging:build_apk_set.sh",
+        "//android/private/packaging:bundletool",
+        "@rules_android//tools/android:debug_keystore",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "starlark_platforms.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+sh_test(
+    name = "inspect_arm_apk_test",
+    srcs = ["inspect_apk.sh"],
+    args = [
+        "$(location :arm_apk_file)",
+        "com.example.dxrustapk",
+        "arm_apk_bin",
+        "arm64-v8a",
+        "$(location @android_ndk_toolchain//:llvm_readelf)",
+        "31",
+        "android.permission.INTERNET",
+        "1",
+        "1.0",
+    ],
+    data = [
+        ":arm_apk_file",
+        "@android_ndk_toolchain//:llvm_readelf",
+        "@dx_android_sdk//:aapt",
+        "@dx_android_sdk//:apksigner_jar",
+        "@rules_java//toolchains:current_java_runtime",
+    ],
+    env = {
+        "DX_AAPT": "$(rootpath @dx_android_sdk//:aapt)",
+        "DX_APKSIGNER_JAR": "$(rootpath @dx_android_sdk//:apksigner_jar)",
+        "DX_JAVA": "$(JAVA_ROOTPATH)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchains = ["@rules_java//toolchains:current_java_runtime"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

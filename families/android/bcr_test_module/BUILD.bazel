@@ -1,4 +1,0 @@
-alias(
-    name = "device",
-    actual = "@rules_dx_android//platforms:android_device",
-)

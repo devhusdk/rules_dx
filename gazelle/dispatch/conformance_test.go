@@ -43,7 +43,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.cc": "#include <string>\n"},
 		kind:  "cc_library", target: "demo", defs: "cc:defs.bzl",
 		symbols:    []string{"cc_library", "cc_test"},
-		extraLoads: map[string][]string{"@rules_dx_cuda//rules:defs.bzl": {"cuda_library"}},
+		extraLoads: map[string][]string{"@rules_dx//cuda:defs.bzl": {"cuda_library"}},
 	},
 	"csharp": {
 		files: map[string]string{"Demo.cs": "namespace Demo;\n\nclass Demo\n"},
@@ -104,7 +104,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"Demo.java": "package demo;\n\npublic class Demo {}\n"},
 		kind:  "java_library", target: "demo", defs: "java:defs.bzl",
 		symbols:    []string{"java_library", "java_test"},
-		extraLoads: map[string][]string{"@rules_dx_android//rules:defs.bzl": {"java_android_library"}},
+		extraLoads: map[string][]string{"@rules_dx//android:defs.bzl": {"java_android_library"}},
 	},
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
@@ -130,7 +130,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"Demo.kt": "package demo\n\nclass Demo\n"},
 		kind:  "kotlin_library", target: "demo", defs: "kotlin:defs.bzl",
 		symbols:    []string{"kotlin_library", "kotlin_test"},
-		extraLoads: map[string][]string{"@rules_dx_android//rules:defs.bzl": {"kotlin_android_library"}},
+		extraLoads: map[string][]string{"@rules_dx//android:defs.bzl": {"kotlin_android_library"}},
 	},
 	"lua": {
 		files: map[string]string{"demo.lua": "return {}\n"},

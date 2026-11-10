@@ -214,10 +214,10 @@ fn bcr_bytes_match_python_golden() {
 
 #[test]
 fn bcr_family_source_points_at_the_core_archive() {
-    let text = render_bcr_source("rules_dx_android", "1.2.3");
+    let text = render_bcr_source("rules_dx_rust", "1.2.3");
     assert_eq!(
         text,
-        "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3/families/android\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
+        "{\n  \"integrity\": \"<integrity-filled-at-release>\",\n  \"strip_prefix\": \"rules_dx-1.2.3/families/rust\",\n  \"url\": \"https://github.com/devhusdk/rules_dx/releases/download/v1.2.3/rules_dx-1.2.3.tar.gz\"\n}\n"
     );
 }
 
@@ -290,8 +290,8 @@ fn bcr_dry_run_matches_shell() {
 
 #[test]
 fn bcr_run_accepts_family_modules_and_rejects_other_names() {
-    let ok = bcr_run("rules_dx_android", "0.0.0", &[], true, false).expect("family dry run");
-    assert!(ok.contains("  module: rules_dx_android\n"));
+    let ok = bcr_run("rules_dx_rust", "0.0.0", &[], true, false).expect("family dry run");
+    assert!(ok.contains("  module: rules_dx_rust\n"));
     for module in ["rules_dxx", "rules_dx_", "rules_dx-android", "other"] {
         let err = bcr_run(module, "0.0.0", &[], true, false).expect_err(module);
         assert!(

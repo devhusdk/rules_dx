@@ -1,0 +1,922 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//core:failure_test.bzl", "failure_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//apple/private/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
+load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_xcframework")
+load(":app_tests.bzl", "apple_ios_app_tests")
+load(":defs.bzl", "apple_ios_lib", "ios_lib", "ios_lib_cell")
+load(":device.bzl", "apple_ios_export")
+load(":lib_tests.bzl", "ios_lib_test", "stub_archive", "stub_ios_lib")
+load(":metadata_tests.bzl", "apple_ios_tests")
+load(":simulator.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "app.bzl",
+    "app_tests.bzl",
+    "app_validate.bzl",
+    "cell.bzl",
+    "create_test_simulator.sh",
+    "defs.bzl",
+    "delete_test_simulator.sh",
+    "device.bzl",
+    "export_ops.sh",
+    "lib_tests.bzl",
+    "metadata_tests.bzl",
+    "simctl_ops.sh",
+    "simulator.bzl",
+    "validate.bzl",
+    "xcframework_check.sh",
+])
+
+sh_binary(
+    name = "create_test_simulator",
+    srcs = ["create_test_simulator.sh"],
+)
+
+sh_binary(
+    name = "delete_test_simulator",
+    srcs = ["delete_test_simulator.sh"],
+)
+
+apple_ios_tests(name = "metadata")
+
+apple_ios_app_tests(name = "app_metadata")
+
+apple_ios_lib(
+    name = "no_platforms",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_platforms_test",
+    expected_failure_substring = "apple_ios_lib: platform takes one of",
+    target = ":no_platforms_selection",
+)
+
+apple_ios_lib(
+    name = "bad_platform",
+    platform = "@apple_support//platforms:macos_arm64",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_platform_test",
+    expected_failure_substring = "apple_ios_lib: platform takes one of",
+    target = ":bad_platform_selection",
+)
+
+apple_ios_lib(
+    name = "device_x86",
+    platform = "@apple_support//platforms:macos_arm64",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "device_x86_test",
+    expected_failure_substring = "apple_ios_lib: platform takes one of",
+    target = ":device_x86_selection",
+)
+
+apple_ios_lib(
+    name = "device_triple_on_simulator",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    triple = "aarch64-apple-ios",
+)
+
+failure_test(
+    name = "device_triple_on_simulator_test",
+    expected_failure_substring = "disagrees with simulator/arm64",
+    target = ":device_triple_on_simulator_selection",
+)
+
+apple_ios_lib(
+    name = "simulator_sdk_on_device",
+    platform = "@apple_support//platforms:ios_arm64",
+    sdk = "iphonesimulator",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "simulator_sdk_on_device_test",
+    expected_failure_substring = "disagrees with 'device'",
+    target = ":simulator_sdk_on_device_selection",
+)
+
+apple_ios_lib(
+    name = "old_deployment",
+    deployment = "16.0",
+    platform = "@apple_support//platforms:ios_arm64",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "old_deployment_test",
+    expected_failure_substring = "is below 17.0",
+    target = ":old_deployment_selection",
+)
+
+apple_ios_lib(
+    name = "new_deployment",
+    deployment = "19.0",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "new_deployment_test",
+    expected_failure_substring = "is above the Xcode 16",
+    target = ":new_deployment_selection",
+)
+
+apple_ios_lib(
+    name = "old_xcode",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    xcode_version = "15.4",
+)
+
+failure_test(
+    name = "old_xcode_test",
+    expected_failure_substring = "is outside 16",
+    target = ":old_xcode_selection",
+)
+
+apple_ios_lib(
+    name = "empty_framework",
+    frameworks = [
+        "Foundation",
+        "",
+    ],
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "empty_framework_test",
+    expected_failure_substring = "framework names must not be empty",
+    target = ":empty_framework_selection",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "app.bzl",
+        "app_tests.bzl",
+        "app_validate.bzl",
+        "cell.bzl",
+        "defs.bzl",
+        "device.bzl",
+        "lib_tests.bzl",
+        "metadata_tests.bzl",
+        "simulator.bzl",
+        "validate.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+stub_library(
+    name = "share_stub",
+    tags = ["manual"],
+)
+
+write_file(
+    name = "share_header",
+    out = "share_api.h",
+    content = ["int share_total(const char *text);"],
+    tags = ["manual"],
+)
+
+filegroup(
+    name = "share_files",
+    srcs = ["BUILD.bazel"],
+    tags = ["manual"],
+)
+
+apple_ios_app(
+    name = "no_bundle_id",
+    bundle_id = "",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_bundle_id_test",
+    expected_failure_substring = "bundle_id must not be empty",
+    target = ":no_bundle_id_selection",
+)
+
+apple_ios_app(
+    name = "flat_bundle_id",
+    bundle_id = "share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "flat_bundle_id_test",
+    expected_failure_substring = "is not reverse-DNS",
+    target = ":flat_bundle_id_selection",
+)
+
+apple_ios_app(
+    name = "freeform_version",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "one",
+)
+
+failure_test(
+    name = "freeform_version_test",
+    expected_failure_substring = "is not a dotted version",
+    target = ":freeform_version_selection",
+)
+
+apple_ios_app(
+    name = "no_library",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_library_test",
+    expected_failure_substring = "composes one qualified Rust library cell",
+    target = ":no_library",
+)
+
+apple_ios_app(
+    name = "no_entry",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_entry_test",
+    expected_failure_substring = "srcs needs the native entry point",
+    target = ":no_entry_selection",
+)
+
+apple_ios_app(
+    name = "entry_and_srcs",
+    srcs = ["main.m"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    entry = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "entry_and_srcs_test",
+    expected_failure_substring = "set srcs or entry for the app entry point, not both",
+    target = ":entry_and_srcs_selection",
+)
+
+apple_ios_app(
+    name = "swift_entry_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    entry = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.4",
+)
+
+cell_failure_test(
+    name = "swift_entry_app_on_device_test",
+    config = "device",
+    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; pass --ios_multi_cpus=sim_arm64",
+    target = ":swift_entry_app_library",
+)
+
+cell_failure_test(
+    name = "swift_entry_app_without_xcode_test",
+    config = "simulator_no_xcode",
+    expected_failure_substring = "no Xcode resolved for this build",
+    target = ":swift_entry_app_library",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+apple_ios_app(
+    name = "no_deployment",
+    bundle_id = "com.example.share",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_deployment_test",
+    expected_failure_substring = "deployment names the minimum iOS version",
+    target = ":no_deployment_selection",
+)
+
+apple_ios_app(
+    name = "device_no_provisioning",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "device_no_provisioning_test",
+    expected_failure_substring = "device builds need provisioning_profile",
+    target = ":device_no_provisioning_selection",
+)
+
+apple_ios_app(
+    name = "device_plist_profile",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_arm64",
+    provisioning_profile = "share.plist",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "device_plist_profile_test",
+    expected_failure_substring = "must be a .mobileprovision file",
+    target = ":device_plist_profile_selection",
+)
+
+apple_ios_app(
+    name = "simulator_signed",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    provisioning_profile = "share.mobileprovision",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "simulator_signed_test",
+    expected_failure_substring = "simulator builds sign ad hoc",
+    target = ":simulator_signed_selection",
+)
+
+apple_ios_app(
+    name = "plist_entitlements",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    entitlements = "Share.plist",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "plist_entitlements_test",
+    expected_failure_substring = "must be an .entitlements file",
+    target = ":plist_entitlements_selection",
+)
+
+apple_ios_app(
+    name = "simulator_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.4",
+)
+
+cell_failure_test(
+    name = "simulator_app_on_host_test",
+    config = "host",
+    expected_failure_substring = "library cell simulator/arm64 builds for no iOS platform here",
+    target = ":simulator_app_library",
+)
+
+cell_failure_test(
+    name = "simulator_app_on_device_test",
+    config = "device",
+    expected_failure_substring = "app declares simulator/arm64 but this build targets device/arm64; pass --ios_multi_cpus=sim_arm64",
+    target = ":simulator_app_library",
+)
+
+cell_failure_test(
+    name = "simulator_app_without_xcode_test",
+    config = "simulator_no_xcode",
+    expected_failure_substring = "no Xcode resolved for this build",
+    target = ":simulator_app_library",
+    target_compatible_with = ["@platforms//os:linux"],
+)
+
+cell_failure_test(
+    name = "simulator_app_without_archive_test",
+    config = "simulator",
+    expected_failure_substring = "//apple/private/ios:share_stub links no static archive",
+    target = ":simulator_app_library",
+)
+
+apple_ios_app(
+    name = "older_xcode_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.2",
+)
+
+cell_failure_test(
+    name = "older_xcode_app_test",
+    config = "simulator",
+    expected_failure_substring = "app selects Xcode 16.2 but Bazel resolved 16.4",
+    target = ":older_xcode_app_library",
+)
+
+apple_ios_app(
+    name = "device_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platform = "@apple_support//platforms:ios_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "device_app_on_simulator_test",
+    config = "simulator",
+    expected_failure_substring = "app declares device/arm64 but this build targets simulator/arm64; pass --ios_multi_cpus=arm64",
+    target = ":device_app_library",
+)
+
+apple_ios_app(
+    name = "files_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_files",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "files_app_test",
+    config = "simulator",
+    expected_failure_substring = "does not have mandatory providers: 'CcInfo'",
+    target = ":files_app_library",
+)
+
+apple_ios_app_test(
+    name = "no_runtime_test_app",
+    srcs = [],
+    app = ":simulator_app",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_runtime_test",
+    expected_failure_substring = "os_version names the installed simulator runtime",
+    target = ":no_runtime_test_app_selection",
+)
+
+apple_ios_app_test(
+    name = "no_device_type_app",
+    srcs = [],
+    app = ":simulator_app",
+    deployment = "17.0",
+    os_version = "18.5",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "no_device_type_test",
+    expected_failure_substring = "device_type names the simulator device",
+    target = ":no_device_type_app_selection",
+)
+
+apple_ios_app_test(
+    name = "test_no_sources_app",
+    app = ":simulator_app",
+    deployment = "17.0",
+    device_type = "iPhone 16",
+    os_version = "18.5",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "test_no_sources_test",
+    expected_failure_substring = "srcs or deps needs the XCTest cases",
+    target = ":test_no_sources_app_selection",
+)
+
+apple_simulator_boot(name = "boot_nowhere")
+
+failure_test(
+    name = "boot_nowhere_test",
+    expected_failure_substring = "simulator names the target simulator by name or UDID",
+    target = ":boot_nowhere_selection",
+)
+
+apple_simulator_launch(
+    name = "launch_flat",
+    bundle_id = "share",
+    simulator = "iPhone 16",
+)
+
+failure_test(
+    name = "launch_flat_test",
+    expected_failure_substring = "apple_simulator: bundle_id 'share' is not reverse-DNS",
+    target = ":launch_flat_selection",
+)
+
+apple_simulator_install(
+    name = "install_files",
+    app = ":share_files",
+    simulator = "iPhone 16",
+)
+
+failure_test(
+    name = "install_files_test",
+    expected_failure_substring = "built 0 .ipa or .app outputs, want exactly one",
+    target = ":install_files_app",
+)
+
+apple_ios_export(
+    name = "export_simulator",
+    app = "//apple/tests/fixtures/swift_app:ledger_app",
+)
+
+failure_test(
+    name = "export_simulator_test",
+    expected_failure_substring = "is not a device apple_ios_app",
+    target = ":export_simulator_meta",
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
+apple_ios_export(
+    name = "export_files",
+    app = ":share_files",
+)
+
+failure_test(
+    name = "export_files_test",
+    expected_failure_substring = "is not a device apple_ios_app",
+    target = ":export_files_meta",
+)
+
+signing_probe(
+    name = "signing_probe",
+    tags = ["manual"],
+)
+
+signing_probe_device(
+    name = "signing_probe_device",
+    probe = ":signing_probe",
+    tags = ["manual"],
+)
+
+adhoc_signing_test(
+    name = "adhoc_signing_test",
+    target_under_test = ":signing_probe_device",
+)
+
+apple_ios_xcframework(
+    name = "no_slices",
+    bundle_id = "com.example.share",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_slices_test",
+    expected_failure_substring = "needs at least one iOS platform label",
+    target = ":no_slices",
+)
+
+apple_ios_xcframework(
+    name = "non_ios_platform",
+    bundle_id = "com.example.share",
+    platforms = ["@apple_support//platforms:macos_arm64"],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "non_ios_platform_test",
+    expected_failure_substring = "is not an iOS platform",
+    target = ":non_ios_platform",
+)
+
+apple_ios_xcframework(
+    name = "simulator_only",
+    bundle_id = "com.example.share",
+    platforms = ["@apple_support//platforms:ios_sim_arm64"],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "simulator_only_test",
+    expected_failure_substring = "needs the device platform",
+    target = ":simulator_only",
+)
+
+apple_ios_xcframework(
+    name = "device_only",
+    bundle_id = "com.example.share",
+    platforms = ["@apple_support//platforms:ios_arm64"],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "device_only_test",
+    expected_failure_substring = "needs at least one simulator platform",
+    target = ":device_only",
+)
+
+apple_ios_xcframework(
+    name = "absolute_resource",
+    bundle_id = "com.example.share",
+    platforms = [
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+    ],
+    resources = ["/abs/Assets.xcassets"],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "absolute_resource_test",
+    expected_failure_substring = "must be a relative workspace path",
+    target = ":absolute_resource",
+)
+
+apple_ios_xcframework(
+    name = "no_headers",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platforms = [
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_headers_test",
+    expected_failure_substring = "hdrs needs at least one public header for the framework module map",
+    target = ":no_headers_selection",
+)
+
+apple_ios_xcframework(
+    name = "no_framework_deployment",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    library = ":share_stub",
+    platforms = [
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_framework_deployment_test",
+    expected_failure_substring = "apple_framework: deployment names the minimum iOS version",
+    target = ":no_framework_deployment_selection",
+)
+
+apple_ios_xcframework(
+    name = "duplicate_slice",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platforms = [
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "duplicate_slice_test",
+    expected_failure_substring = "apple_framework: duplicate platform",
+    target = ":duplicate_slice_selection",
+)
+
+apple_ios_xcframework(
+    name = "no_framework_library",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    platforms = [
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+failure_test(
+    name = "no_framework_library_test",
+    expected_failure_substring = "apple_framework: framework composes one Rust static library in library",
+    target = ":no_framework_library",
+)
+
+apple_ios_xcframework(
+    name = "share_framework",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    bundle_name = "Share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platforms = [
+        "@apple_support//platforms:ios_arm64",
+        "@apple_support//platforms:ios_sim_arm64",
+        "@apple_support//platforms:ios_x86_64",
+    ],
+    tags = ["manual"],
+    version = "1.0",
+    xcode_version = "16.4",
+)
+
+cell_failure_test(
+    name = "share_framework_without_archive_test",
+    config = "simulator",
+    expected_failure_substring = "//apple/private/ios:share_stub links no static archive",
+    target = ":share_framework_library",
+)
+
+cell_failure_test(
+    name = "share_framework_on_host_test",
+    config = "host",
+    expected_failure_substring = "apple_ios_xcframework: framework slices build for no iOS platform here",
+    target = ":share_framework_library",
+)
+
+cell_failure_test(
+    name = "share_framework_outside_slices_test",
+    config = "simulator",
+    expected_failure_substring = "apple_ios_xcframework: this build targets simulator/arm64, outside the framework slices device/arm64",
+    target = ":device_framework_library",
+)
+
+apple_ios_xcframework(
+    name = "device_framework",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":share_stub",
+    platforms = ["@apple_support//platforms:ios_arm64"],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+stub_archive(
+    name = "share_archive",
+    tags = ["manual"],
+)
+
+stub_ios_lib(
+    name = "device_share",
+    tags = ["manual"],
+)
+
+ios_lib_cell(
+    name = "share_lib_cell",
+    arch = "arm64",
+    environment = "simulator",
+    frameworks = ["Foundation"],
+    library = ":share_archive",
+    tags = ["manual"],
+)
+
+ios_lib(
+    name = "share_lib",
+    arch = "arm64",
+    cell = ":share_lib_cell",
+    environment = "simulator",
+    tags = ["manual"],
+)
+
+ios_lib_test(
+    name = "share_lib_test",
+    report = "share_lib_cell.txt",
+    target_under_test = ":share_lib",
+)
+
+apple_ios_app(
+    name = "device_lib_app",
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":device_share",
+    platform = "@apple_support//platforms:ios_sim_arm64",
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "device_lib_app_test",
+    config = "simulator",
+    expected_failure_substring = "//apple/private/ios:device_share declares device/arm64 but the app builds simulator/arm64",
+    target = ":device_lib_app_library",
+)
+
+apple_ios_xcframework(
+    name = "device_lib_framework",
+    hdrs = ["share_api.h"],
+    bundle_id = "com.example.share",
+    deployment = "17.0",
+    library = ":device_share",
+    platforms = ["@apple_support//platforms:ios_sim_arm64"],
+    tags = ["manual"],
+    version = "1.0",
+)
+
+cell_failure_test(
+    name = "device_lib_framework_test",
+    config = "simulator",
+    expected_failure_substring = "//apple/private/ios:device_share declares device/arm64 but this slice builds simulator/arm64",
+    target = ":device_lib_framework_library",
+)
+
+ios_lib_cell(
+    name = "device_lib_cell",
+    arch = "arm64",
+    environment = "device",
+    library = ":share_archive",
+    tags = ["manual"],
+)
+
+cell_failure_test(
+    name = "device_lib_cell_on_simulator_test",
+    config = "simulator",
+    expected_failure_substring = "declares device/arm64 but this build targets simulator/arm64",
+    target = ":device_lib_cell",
+)
+
+ios_lib_cell(
+    name = "newer_lib_cell",
+    arch = "arm64",
+    deployment = "18.0",
+    environment = "simulator",
+    library = ":share_archive",
+    tags = ["manual"],
+)
+
+cell_failure_test(
+    name = "newer_lib_cell_test",
+    config = "simulator",
+    expected_failure_substring = "deploys to 18.0 but this build targets iOS 17.0",
+    target = ":newer_lib_cell",
+)
+
+ios_lib_cell(
+    name = "empty_lib_cell",
+    arch = "arm64",
+    environment = "simulator",
+    library = ":share_stub",
+    tags = ["manual"],
+)
+
+cell_failure_test(
+    name = "empty_lib_cell_test",
+    config = "simulator",
+    expected_failure_substring = "//apple/private/ios:share_stub links no static archive",
+    target = ":empty_lib_cell",
+)

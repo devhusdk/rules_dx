@@ -1,8 +1,8 @@
 """The language list behind docs/support-matrix.md."""
 
-load("@rules_dx_apple//ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
-load("@rules_dx_cuda//toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
+load("//apple/private/ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
+load("//cuda/private/toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
 load("//d/private:kwargs.bzl", D_SUPPORT = "PLATFORM_SUPPORT")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")
@@ -140,7 +140,7 @@ ROWS = [
     },
     {"ci_tests": _hello("csharp"), "consumer_tests": _starter_consumers("csharp"), "name": "csharp", "section": "languages", "title": "C#"},
     {
-        "ci_tests": ["@rules_dx_cuda//tests:saxpy_device_code_test", "@rules_dx_cuda//tests:saxpy_gpu_test"],
+        "ci_tests": ["//cuda/tests:saxpy_device_code_test", "//cuda/tests:saxpy_gpu_test"],
         "consumer_tests": _starter_consumers("cuda"),
         "name": "cuda",
         "section": "languages",
@@ -210,8 +210,8 @@ ROWS = [
     {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": "Zig"},
     {
         "ci_tests": [
-            "@rules_dx_android//tests/fixtures/rust_apk:check_unsigned_test",
-            "@rules_dx_android//tests/fixtures/rust_apk:sign_test",
+            "//android/tests/fixtures/rust_apk:check_unsigned_test",
+            "//android/tests/fixtures/rust_apk:sign_test",
         ],
         "consumer_tests": _starter_consumers("rust-android"),
         "families": [],
@@ -229,10 +229,10 @@ ROWS = [
     },
     {
         "ci_tests": [
-            "@rules_dx_apple//provisioning:managed_without_xcode_config_test",
-            "@rules_dx_apple//tests/fixtures/macos_ledger:ledger_test",
-            "@rules_dx_apple//tests/fixtures/swift_app:ledger_app_test",
-            "@rules_dx_apple//tests/fixtures/swift_app:ledger_device_ipa_test",
+            "//apple/private/provisioning:managed_without_xcode_config_test",
+            "//apple/tests/fixtures/macos_ledger:ledger_test",
+            "//apple/tests/fixtures/swift_app:ledger_app_test",
+            "//apple/tests/fixtures/swift_app:ledger_device_ipa_test",
             "//swift/tests/fixtures/hello:xctest",
         ],
         "consumer_tests": [],

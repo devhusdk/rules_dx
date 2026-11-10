@@ -167,7 +167,7 @@ _foreign_cc_tools.pkgconfig(
 )
 
 # floor: equals tested; 0.4.0-beta1 carries the device link include fix; patched to read CCCL from CUDA 13.3+ manifests (#5975; upstream bazel-contrib/rules_cuda#523, drop in #8365) to pass the dynamic CRT flag to nvcc -dlink (#4704) and to support windows-arm64 toolkits (#5969; upstream bazel-contrib/rules_cuda#528)
-bazel_dep(name = "rules_cuda", version = "0.4.0-beta1", dev_dependency = True)
+bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
 single_version_override(
     module_name = "rules_cuda",
     patch_strip = 1,
@@ -272,18 +272,6 @@ bazel_dep(name = "rules_apple", version = "5.4.0")
 single_version_override(
     module_name = "rules_apple",
     version = "5.4.0",
-)
-
-bazel_dep(name = "rules_dx_apple", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_apple",
-    path = "families/apple",
-)
-
-bazel_dep(name = "rules_dx_cuda", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_cuda",
-    path = "families/cuda",
 )
 
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
@@ -1183,8 +1171,11 @@ cpan.lock(
 )
 use_repo(cpan, perl_cpan = "perl_app_cpan")
 
-cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain", dev_dependency = True)
-cuda.redist_json(
+cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+use_repo(cuda, "cuda")
+
+cuda_dev = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain", dev_dependency = True)
+cuda_dev.redist_json(
     name = "cuda_redist",
     components = [
         "cccl",
@@ -1205,11 +1196,10 @@ cuda.redist_json(
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     version = "13.4.2",
 )
-cuda.toolkit(
+cuda_dev.toolkit(
     name = "cuda",
     nvcc_version = "13.4",
 )
-use_repo(cuda, "cuda")
 
 erlang = use_extension("//erlang:extensions.bzl", "erlang")
 use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_rebar3", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
@@ -2304,13 +2294,7 @@ _consumer_wasm_bindgen_repo(
     dev_dependency = True,
 )
 
-bazel_dep(name = "rules_dx_android", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_android",
-    path = "families/android",
-)
-
-_android_ndk_toolchain_repo = use_repo_rule("@rules_dx_android//toolchain:repos.bzl", "android_ndk_toolchain_repo")
+_android_ndk_toolchain_repo = use_repo_rule("//android:repos.bzl", "android_ndk_toolchain_repo")
 
 _android_ndk_toolchain_repo(
     name = "android_ndk_toolchain",
@@ -2325,9 +2309,9 @@ register_toolchains(
     dev_dependency = True,
 )
 
-_android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension", dev_dependency = True)
+_android_sdk_extension = use_extension("@rules_android//rules/android_sdk_repository:rule.bzl", "android_sdk_repository_extension")
 
-android_sdk = use_extension("@rules_dx_android//sdk:extensions.bzl", "android_sdk", dev_dependency = True)
+android_sdk = use_extension("//android:extensions.bzl", "android_sdk")
 use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
 
 override_repo(
@@ -2343,7 +2327,7 @@ use_repo(
     "remotejdk21_linux_aarch64",
 )
 
-android_sdk_dev = use_extension("@rules_dx_android//sdk:extensions.bzl", "android_sdk", dev_dependency = True)
+android_sdk_dev = use_extension("//android:extensions.bzl", "android_sdk", dev_dependency = True)
 android_sdk_dev.license(accept = ["android-sdk-license"])
 android_sdk_dev.configure()
 use_repo(android_sdk_dev, "dx_android_ndk_linux_x86_64")
@@ -2972,7 +2956,10 @@ use_repo(msvc, "dx_msvc")
 msvc_dev = use_extension("//cc:extensions.bzl", "msvc", dev_dependency = True)
 msvc_dev.license(accept = ["visual-studio-build-tools"])
 
-cuda_license_dev = use_extension("@rules_dx_cuda//toolchain:extensions.bzl", "cuda_license", dev_dependency = True)
+cuda_license = use_extension("//cuda:extensions.bzl", "cuda_license")
+use_repo(cuda_license, "dx_cuda_license")
+
+cuda_license_dev = use_extension("//cuda:extensions.bzl", "cuda_license", dev_dependency = True)
 cuda_license_dev.license(accept = ["cuda-eula"])
 
 qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk", dev_dependency = True)

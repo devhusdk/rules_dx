@@ -1,0 +1,276 @@
+load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "gpu_requirement_errors", "toolkit_errors")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal", "expect_true")
+load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "components.bzl",
+    "defs.bzl",
+])
+
+_SAXPY_ARCHS = [
+    "compute_89:compute_89,sm_89",
+    "sm_120",
+]
+
+_TOOLCHAIN = "external/rules_cuda++toolchain"
+
+_NVCC = _TOOLCHAIN + component_markers("nvcc")[0] + "nvcc/bin/nvcc"
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "device and host sources split",
+            cuda_split_srcs([
+                "k.cu",
+                "k.cuh",
+                "main.cc",
+                "api.h",
+            ]),
+            (
+                [
+                    "k.cu",
+                    "k.cuh",
+                ],
+                [
+                    "main.cc",
+                    "api.h",
+                ],
+            ),
+        ),
+        expect_equal(
+            "cuda cells",
+            sorted(CUDA_CELLS.keys()),
+            [
+                "linux_arm64",
+                "linux_x86_64",
+                "windows_arm64",
+                "windows_x86_64",
+            ],
+        ),
+        expect_equal(
+            "every cell is qualified",
+            cuda_qualified_cells(),
+            [
+                "linux_x86_64",
+                "linux_arm64",
+                "windows_x86_64",
+                "windows_arm64",
+            ],
+        ),
+        expect_equal(
+            "windows x86_64 is qualified",
+            CUDA_CELLS["windows_x86_64"].blocker,
+            "",
+        ),
+        expect_equal(
+            "linux arm64 is qualified",
+            CUDA_CELLS["linux_arm64"].blocker,
+            "",
+        ),
+        expect_equal(
+            "linux arm64 pins the linux x86_64 component versions",
+            {k: c.version for k, c in CUDA_CELLS["linux_arm64"].components.items()},
+            {k: c.version for k, c in CUDA_CELLS["linux_x86_64"].components.items()},
+        ),
+        expect_true(
+            "linux arm64 archives are tarballs from the linux-sbsa redist",
+            all([
+                "/linux-sbsa/" in c.url and c.url.endswith(".tar.xz")
+                for c in CUDA_CELLS["linux_arm64"].components.values()
+            ]),
+        ),
+        expect_true(
+            "linux arm64 sha256 values are 64 characters",
+            all([len(c.sha256) == 64 for c in CUDA_CELLS["linux_arm64"].components.values()]),
+        ),
+        expect_equal(
+            "cells pin the same component versions",
+            {k: c.version for k, c in CUDA_CELLS["windows_x86_64"].components.items()},
+            {k: c.version for k, c in CUDA_CELLS["linux_x86_64"].components.items()},
+        ),
+        expect_true(
+            "windows archives are zips from the windows-x86_64 redist",
+            all([
+                "/windows-x86_64/" in c.url and c.url.endswith(".zip")
+                for c in CUDA_CELLS["windows_x86_64"].components.values()
+            ]),
+        ),
+        expect_true(
+            "windows sha256 values are 64 characters",
+            all([len(c.sha256) == 64 for c in CUDA_CELLS["windows_x86_64"].components.values()]),
+        ),
+        expect_equal(
+            "windows arm64 is qualified",
+            CUDA_CELLS["windows_arm64"].blocker,
+            "",
+        ),
+        expect_equal(
+            "windows arm64 pins the linux x86_64 component versions",
+            {k: c.version for k, c in CUDA_CELLS["windows_arm64"].components.items()},
+            {k: c.version for k, c in CUDA_CELLS["linux_x86_64"].components.items()},
+        ),
+        expect_true(
+            "windows arm64 archives are zips from the windows-arm64 redist",
+            all([
+                "/windows-arm64/" in c.url and c.url.endswith(".zip")
+                for c in CUDA_CELLS["windows_arm64"].components.values()
+            ]),
+        ),
+        expect_true(
+            "windows arm64 sha256 values are 64 characters",
+            all([len(c.sha256) == 64 for c in CUDA_CELLS["windows_arm64"].components.values()]),
+        ),
+        expect_true(
+            "CUDA_TARGET is a select",
+            type(CUDA_TARGET) == "select",
+        ),
+        expect_true(
+            "no extra is a select",
+            type(cuda_target_compatible_with(None)) == "select",
+        ),
+        expect_true(
+            "list extra is a select",
+            type(cuda_target_compatible_with(["//x:y"])) == "select",
+        ),
+        expect_true(
+            "select extra is a select",
+            type(cuda_target_compatible_with(select({"//conditions:default": []}))) == "select",
+        ),
+        expect_equal(
+            "pinned archs pass",
+            arch_errors([
+                "compute_89:compute_89,sm_89",
+                "sm_120",
+            ]),
+            [],
+        ),
+        expect_true(
+            "empty cuda_archs fail",
+            "cuda_archs is empty" in arch_errors([])[0],
+        ),
+        expect_true(
+            "sm_70 fails",
+            "'sm_70' is not supported" in arch_errors(["sm_70"])[0],
+        ),
+        expect_equal(
+            "pinned toolkit passes",
+            toolkit_errors(
+                _NVCC,
+                _TOOLCHAIN + component_markers("nvcc")[0] + "nvcc",
+                "13.4",
+            ),
+            [],
+        ),
+        expect_equal(
+            "pinned component passes",
+            component_errors(
+                "cublas",
+                [_TOOLCHAIN + component_markers("cublas")[0] + "lib/libcublas.so.13"],
+            ),
+            [],
+        ),
+        expect_true(
+            "local component fails",
+            "not the pinned redistributable" in component_errors(
+                "cublas",
+                ["/usr/lib/libcublas.so"],
+            )[0],
+        ),
+        expect_true(
+            "other component fails",
+            "not the pinned redistributable" in component_errors(
+                "cublas",
+                [_TOOLCHAIN + component_markers("cufft")[0] + "lib/libcufft.so"],
+            )[0],
+        ),
+        expect_true(
+            "empty component fails",
+            "has no files" in component_errors("cublas", [])[0],
+        ),
+        expect_true(
+            "clang fails",
+            "dx CUDA targets compile with nvcc only" in compiler_errors("clang")[0],
+        ),
+        expect_equal(
+            "nvcc passes",
+            compiler_errors("nvcc"),
+            [],
+        ),
+        expect_true(
+            "local toolkit fails",
+            "not the pinned redistributable" in toolkit_errors("/usr/local/cuda/bin/nvcc", "/usr/local/cuda", "13.4")[0],
+        ),
+        expect_true(
+            "other version fails",
+            "dx CUDA targets need 13.4" in toolkit_errors(_NVCC, "", "12.9")[0],
+        ),
+        expect_equal(
+            "gpu requirements pass",
+            gpu_requirement_errors(_SAXPY_ARCHS, "8.9", "13.0"),
+            [],
+        ),
+        expect_equal(
+            "gpu requirements at the pinned driver pass",
+            gpu_requirement_errors(
+                ["sm_120"],
+                "12.0",
+                "13.4",
+            ),
+            [],
+        ),
+        expect_true(
+            "cc below the lowest arch fails",
+            "below the lowest arch in cuda_archs (8.9)" in gpu_requirement_errors(_SAXPY_ARCHS, "8.6", "13.0")[0],
+        ),
+        expect_true(
+            "malformed cc fails",
+            "min_compute_capability '89' is not X.Y" in gpu_requirement_errors(_SAXPY_ARCHS, "89", "13.0")[0],
+        ),
+        expect_true(
+            "malformed driver fails",
+            "min_driver '13' is not X.Y" in gpu_requirement_errors(_SAXPY_ARCHS, "8.9", "13")[0],
+        ),
+        expect_true(
+            "driver above the pin fails",
+            "min_driver 13.5 is outside 13.0 to 13.4" in gpu_requirement_errors(_SAXPY_ARCHS, "8.9", "13.5")[0],
+        ),
+        expect_true(
+            "driver below the pin major fails",
+            "min_driver 12.9 is outside 13.0 to 13.4" in gpu_requirement_errors(_SAXPY_ARCHS, "8.9", "12.9")[0],
+        ),
+        expect_true(
+            "gpu errors carry the dx_cuda prefix",
+            all([e.startswith("dx_cuda: ") for e in gpu_requirement_errors(
+                ["sm_89"],
+                "x",
+                "y",
+            )]),
+        ),
+        expect_equal(
+            "gpu env pins the runtime",
+            cuda_gpu_env("8.9", "13.0"),
+            {
+                "DX_GPU_MIN_CC": "8.9",
+                "DX_GPU_MIN_DRIVER": "13.0",
+                "DX_GPU_RUNTIME": "13.4",
+            },
+        ),
+    ],
+    file_classes = ["cuda"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "components.bzl",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

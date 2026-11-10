@@ -1,3 +1,0 @@
-load("@rules_dx_cuda//rules:defs.bzl", "cuda_library")
-
-filegroup(name = "loads")

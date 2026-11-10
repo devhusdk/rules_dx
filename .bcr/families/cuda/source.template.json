@@ -1,5 +1,0 @@
-{
-  "integrity": "",
-  "strip_prefix": "rules_dx_cuda-{VERSION}",
-  "url": "https://github.com/{OWNER}/{REPO}/releases/download/{TAG}/rules_dx_cuda-{VERSION}.tar.gz"
-}

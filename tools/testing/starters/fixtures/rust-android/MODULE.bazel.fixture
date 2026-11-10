@@ -17,7 +17,7 @@ use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
 
-android_ndk_toolchain_repo = use_repo_rule("@rules_dx_android//toolchain:repos.bzl", "android_ndk_toolchain_repo")
+android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:repos.bzl", "android_ndk_toolchain_repo")
 
 android_ndk_toolchain_repo(
     name = "android_ndk_toolchain",
@@ -30,7 +30,7 @@ register_toolchains(
     "@android_ndk_toolchain//:ndk_cc_toolchain_emulator",
 )
 
-android_sdk = use_extension("@rules_dx_android//sdk:extensions.bzl", "android_sdk")
+android_sdk = use_extension("@rules_dx//android:extensions.bzl", "android_sdk")
 android_sdk.configure(accept_licenses = ["android-sdk-license"])
 use_repo(android_sdk, "dx_android_sdk", "dx_androidsdk")
 

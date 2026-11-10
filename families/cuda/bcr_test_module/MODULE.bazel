@@ -1,3 +1,0 @@
-module(name = "bcr_test_module")
-
-bazel_dep(name = "rules_dx_cuda", version = "0.0.0")

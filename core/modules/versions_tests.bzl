@@ -93,7 +93,7 @@ def versions_contract_tests(name):
         },
         file_checks = {
             "//:.bazelrc": "common --check_direct_dependencies=error",
-            "@rules_dx_cuda//:README.md": cuda_stanza,
+            "//cuda:README.md": cuda_stanza,
             "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//javascript/private/quality:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",

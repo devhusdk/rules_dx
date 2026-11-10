@@ -1,4 +1,4 @@
-load("@rules_dx_android//rules:defs.bzl", "kotlin_android_library")
+load("@rules_dx//android:defs.bzl", "kotlin_android_library")
 
 kotlin_android_library(
     name = "ui",

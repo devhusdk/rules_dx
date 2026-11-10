@@ -3,7 +3,7 @@
 use dx_nested::Case;
 use dx_testing::serde_json::Value;
 
-const KERNELS_BUILD: &str = r#"load("@rules_dx_cuda//rules:defs.bzl", "cuda_library")
+const KERNELS_BUILD: &str = r#"load("@rules_dx//cuda:defs.bzl", "cuda_library")
 
 cuda_library(
     name = "kernels",
@@ -49,9 +49,7 @@ fn gpu_test_runs_on_the_device_through_a_nested_consumer() {
         &std::env::var("DX_CUDA_FRAGMENT").expect("fragment path"),
     ))
     .replace("@my_dx", "@rules_dx");
-    let family =
-        dx_nested::compose::family_modules(&["cuda".to_owned()], &dx_testing::rules_dx_source());
-    let case = Case::consumer("cuda_gpu", &format!("\n{fragment}{family}"));
+    let case = Case::consumer("cuda_gpu", &format!("\n{fragment}"));
     for entry in std::env::var("DX_CUDA_FILES").expect("files").split(' ') {
         let (src, dest) = entry.split_once('=').expect("src=dest");
         case.write(

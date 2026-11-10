@@ -56,12 +56,12 @@ go_test(
         "wrapper_exts_test.go",
     ],
     data = [
-        "@rules_dx_cuda//rules:defs.bzl",
+        "//cuda/private:defs.bzl",
         "//quality:sources.bzl",
     ],
     embed = [":cc"],
     env = {
-        "CUDA_DEFS_BZL": "$(rlocationpath @rules_dx_cuda//rules:defs.bzl)",
+        "CUDA_DEFS_BZL": "$(rlocationpath //cuda/private:defs.bzl)",
         "QUALITY_SOURCES_BZL": "$(rlocationpath //quality:sources.bzl)",
     },
     pure = "on",

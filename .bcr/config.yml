@@ -1,5 +1,2 @@
 moduleRoots:
   - "."
-  - "families/android"
-  - "families/apple"
-  - "families/cuda"

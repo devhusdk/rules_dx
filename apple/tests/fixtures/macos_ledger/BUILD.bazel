@@ -1,0 +1,33 @@
+# gazelle:ignore
+load("//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
+
+_MACOS_ARM64 = [
+    "@platforms//os:macos",
+    "@platforms//cpu:arm64",
+]
+
+cc_library(
+    name = "ledger",
+    srcs = ["ledger.c"],
+    hdrs = ["ledger.h"],
+    target_compatible_with = _MACOS_ARM64,
+)
+
+cc_binary(
+    name = "ledger_cli",
+    srcs = ["main.c"],
+    target_compatible_with = _MACOS_ARM64,
+    deps = [":ledger"],
+)
+
+cc_test(
+    name = "ledger_test",
+    srcs = ["ledger_test.c"],
+    target_compatible_with = _MACOS_ARM64,
+    deps = [":ledger"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)

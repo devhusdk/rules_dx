@@ -1,4 +1,4 @@
-load("@rules_dx_cuda//rules:defs.bzl", "cuda_library")
+load("@rules_dx//cuda:defs.bzl", "cuda_library")
 
 # gazelle:dx_cuda_archs compute_89:compute_89,sm_89 sm_120
 

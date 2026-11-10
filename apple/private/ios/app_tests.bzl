@@ -1,0 +1,366 @@
+"""Simulator application, app test, and XCFramework selection coverage."""
+
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//apple/private/bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
+load(
+    ":app_validate.bzl",
+    "ios_app_errors",
+    "ios_app_resource_errors",
+    "ios_default_app",
+    "ios_default_xcframework",
+    "ios_entitlement_errors",
+    "ios_entry_errors",
+    "ios_signing_errors",
+    "ios_slice_errors",
+    "ios_test_coverage_kwargs",
+    "ios_test_errors",
+    "ios_test_source_errors",
+    "ios_xcframework_errors",
+    "ios_xcframework_header_errors",
+    "ios_xcframework_header_name_errors",
+    "ios_xcframework_resource_errors",
+)
+load(":simulator.bzl", "simulator_errors")
+
+def _app(**kwargs):
+    base = ios_default_app(kwargs.get("environment", "simulator"))
+    fields = [
+        "arch",
+        "bundle_id",
+        "deployment",
+        "entitlements",
+        "entry",
+        "environment",
+        "frameworks",
+        "library",
+        "provisioning_profile",
+        "resources",
+        "srcs",
+        "version",
+        "xcode_version",
+    ]
+    values = {key: kwargs.get(key, getattr(base, key)) for key in fields}
+    if "bundle_id" not in kwargs:
+        values["bundle_id"] = "com.example.share"
+    if "version" not in kwargs:
+        values["version"] = "1.0"
+    if "library" not in kwargs:
+        values["library"] = "//share:share_rust"
+    if "srcs" not in kwargs:
+        values["srcs"] = ["main.m"]
+    if "deployment" not in kwargs:
+        values["deployment"] = "17.0"
+    if "xcode_version" not in kwargs:
+        values["xcode_version"] = "16.2"
+    return struct(**values)
+
+def _framework(**kwargs):
+    base = ios_default_xcframework()
+    fields = ["bundle_id", "bundle_name", "deployment", "hdrs", "library", "resources", "slices", "version", "xcode_version"]
+    values = {key: kwargs.get(key, getattr(base, key)) for key in fields}
+    defaults = {
+        "bundle_id": "com.example.share",
+        "bundle_name": "Share",
+        "deployment": "17.0",
+        "hdrs": ["share_api.h"],
+        "library": "//share:share_rust",
+        "slices": ["device/arm64", "simulator/arm64"],
+        "version": "1.0",
+        "xcode_version": "16.4",
+    }
+    for key, value in defaults.items():
+        if key not in kwargs:
+            values[key] = value
+    return struct(**values)
+
+def _app_checks():
+    checks = []
+    checks.append(expect_equal("empty app bundle id fails", bundle_id_errors("apple_app", ""), ["apple_app: bundle_id must not be empty"]))
+    checks.append(expect_equal(
+        "flat app bundle id fails",
+        bundle_id_errors("apple_app", "share"),
+        ["apple_app: bundle_id 'share' is not reverse-DNS: want like 'com.example.app'"],
+    ))
+    checks.append(expect_equal(
+        "dotted app bundle id with empty part fails",
+        bundle_id_errors("apple_app", "com..app"),
+        ["apple_app: bundle_id 'com..app' is not reverse-DNS: want like 'com.example.app'"],
+    ))
+    checks.append(expect_equal(
+        "app bundle id with space fails",
+        bundle_id_errors("apple_app", "com.exa mple.app"),
+        ["apple_app: bundle_id 'com.exa mple.app' uses ' ': want letters, digits, '-', '_', '.'"],
+    ))
+    checks.append(expect_equal("reverse-DNS app bundle id is clean", bundle_id_errors("apple_app", "com.example.share"), []))
+    checks.append(expect_equal("framework kind names the owner", bundle_id_errors("apple_framework", ""), ["apple_framework: bundle_id must not be empty"]))
+    checks.append(expect_equal("empty bundle version fails", bundle_version_errors("apple_app", ""), ["apple_app: bundle version must not be empty"]))
+    checks.append(expect_equal(
+        "freeform bundle version fails",
+        bundle_version_errors("apple_app", "one"),
+        ["apple_app: bundle version 'one' is not a dotted version"],
+    ))
+    checks.append(expect_equal("dotted bundle version is clean", bundle_version_errors("apple_app", "1.0"), []))
+    checks.append(expect_equal("no app resources are clean", ios_app_resource_errors([]), []))
+    checks.append(expect_equal("named app resources are clean", ios_app_resource_errors(["Assets.xcassets"]), []))
+    checks.append(expect_equal(
+        "empty app resource fails",
+        ios_app_resource_errors(["Assets.xcassets", ""]),
+        ["apple_app: resource names must not be empty"],
+    ))
+    checks.append(expect_equal("empty entitlements are clean", ios_entitlement_errors(""), []))
+    checks.append(expect_equal("entitlements file is clean", ios_entitlement_errors("Share.entitlements"), []))
+    checks.append(expect_equal(
+        "plist entitlements fail",
+        ios_entitlement_errors("Share.plist"),
+        ["apple_app: entitlements 'Share.plist' must be an .entitlements file"],
+    ))
+    checks.append(expect_equal("unsigned simulator is clean", ios_signing_errors("simulator", ""), []))
+    checks.append(expect_equal(
+        "provisioned simulator fails",
+        ios_signing_errors("simulator", "share.mobileprovision"),
+        ["apple_app: simulator builds sign ad hoc; leave provisioning_profile empty"],
+    ))
+    checks.append(expect_equal(
+        "unprovisioned device fails",
+        ios_signing_errors("device", ""),
+        ["apple_app: device builds need provisioning_profile, a .mobileprovision file"],
+    ))
+    checks.append(expect_equal("provisioned device is clean", ios_signing_errors("device", "share.mobileprovision"), []))
+    checks.append(expect_equal(
+        "plist profile on device fails",
+        ios_signing_errors("device", "share.plist"),
+        ["apple_app: provisioning_profile 'share.plist' must be a .mobileprovision file"],
+    ))
+    checks.append(expect_equal(
+        "profile label on device fails",
+        ios_signing_errors("device", "//share:profile"),
+        ["apple_app: provisioning_profile '//share:profile' must be a .mobileprovision file"],
+    ))
+    checks.append(expect_equal(
+        "app without entry source fails",
+        ios_entry_errors([], ""),
+        ["apple_app: srcs needs the native entry point that calls UIApplicationMain, or entry names a Swift @main module"],
+    ))
+    checks.append(expect_equal(
+        "app with srcs and entry fails",
+        ios_entry_errors(["main.m"], "//app:main"),
+        ["apple_app: set srcs or entry for the app entry point, not both"],
+    ))
+    checks.append(expect_equal("app entry source is clean", ios_entry_errors(["main.m"], ""), []))
+    checks.append(expect_equal("app entry module is clean", ios_entry_errors([], "//app:main"), []))
+    checks.append(expect_equal("test without sources fails", ios_test_source_errors([], []), ["apple_app_test: srcs or deps needs the XCTest cases"]))
+    checks.append(expect_equal("test with srcs is clean", ios_test_source_errors(["t.m"], []), []))
+    checks.append(expect_equal("test with deps is clean", ios_test_source_errors([], ["//app:tests"]), []))
+    checks.append(expect_equal(
+        "entry alone composes the app",
+        ios_app_errors(_app(library = "", srcs = [], entry = "//app:main")),
+        [],
+    ))
+    checks.append(expect_equal("clean simulator app", ios_app_errors(_app()), []))
+    checks.append(expect_equal(
+        "clean signed device app",
+        ios_app_errors(_app(
+            environment = "device",
+            provisioning_profile = "share.mobileprovision",
+        )),
+        [],
+    ))
+    checks.append(expect_contains(
+        "missing bundle id fails the app",
+        ios_app_errors(_app(bundle_id = "")),
+        "apple_app: bundle_id must not be empty",
+    ))
+    checks.append(expect_contains(
+        "missing library fails the app",
+        ios_app_errors(_app(library = "")),
+        "apple_app: app composes one qualified Rust library cell in library or XCFramework imports in frameworks, or a Swift @main module in entry",
+    ))
+    checks.append(expect_equal(
+        "framework imports alone compose the app",
+        ios_app_errors(_app(library = "", frameworks = ["//vendor:share"])),
+        [],
+    ))
+    checks.append(expect_contains(
+        "unsigned device fails the app",
+        ios_app_errors(_app(environment = "device")),
+        "apple_app: device builds need provisioning_profile, a .mobileprovision file",
+    ))
+    checks.append(expect_contains(
+        "plist profile fails the device app",
+        ios_app_errors(_app(environment = "device", provisioning_profile = "share.plist")),
+        "apple_app: provisioning_profile 'share.plist' must be a .mobileprovision file",
+    ))
+    checks.append(expect_contains(
+        "missing deployment fails the app",
+        ios_app_errors(_app(deployment = "")),
+        "apple_app: deployment names the minimum iOS version",
+    ))
+    checks.append(expect_contains(
+        "deployment above the Xcode 16 ceiling fails the app",
+        ios_app_errors(_app(deployment = "19.0")),
+        "apple_ios: deployment_target '19.0' is above the Xcode 16 'iphonesimulator' ceiling 18.0",
+    ))
+    checks.append(expect_contains(
+        "missing entry fails the app",
+        ios_app_errors(_app(srcs = [])),
+        "apple_app: srcs needs the native entry point that calls UIApplicationMain, or entry names a Swift @main module",
+    ))
+    checks.append(expect_contains(
+        "device x86_64 names the simulator cell",
+        ios_app_errors(_app(environment = "device", arch = "x86_64")),
+        "apple_ios: device builds need arch 'arm64'; 'x86_64' runs on the simulator",
+    ))
+    _dev = str(Label("@apple_support//platforms:ios_arm64"))
+    _sim = str(Label("@apple_support//platforms:ios_sim_arm64"))
+    _sim_x86 = str(Label("@apple_support//platforms:ios_x86_64"))
+    _want = ", ".join([_dev, _sim, _sim_x86])
+    _need_device = "apple_framework: framework needs the device platform " + _dev
+    _need_sim = "apple_framework: framework needs at least one simulator platform"
+    _host = str(Label("@platforms//host"))
+    checks.append(expect_equal(
+        "no slices fail",
+        ios_slice_errors([]),
+        ["apple_framework: platforms needs at least one iOS platform label"],
+    ))
+    checks.append(expect_equal(
+        "non-iOS platform fails",
+        ios_slice_errors([_host]),
+        [
+            "apple_framework: platform '" + _host + "' is not an iOS platform: want " + _want,
+            _need_device,
+            _need_sim,
+        ],
+    ))
+    checks.append(expect_equal(
+        "duplicate slices fail",
+        ios_slice_errors(["device/arm64", "simulator/arm64", "simulator/arm64"]),
+        ["apple_framework: duplicate platform '" + _sim + "'"],
+    ))
+    checks.append(expect_equal(
+        "device-only slices fail",
+        ios_slice_errors(["device/arm64"]),
+        [_need_sim],
+    ))
+    checks.append(expect_equal(
+        "simulator-only slices fail",
+        ios_slice_errors(["simulator/arm64", "simulator/x86_64"]),
+        [_need_device],
+    ))
+    checks.append(expect_equal(
+        "device plus simulator slices are clean",
+        ios_slice_errors(["device/arm64", "simulator/arm64", "simulator/x86_64"]),
+        [],
+    ))
+    checks.append(expect_equal("no framework resources are clean", ios_xcframework_resource_errors([]), []))
+    checks.append(expect_equal(
+        "absolute framework resource fails",
+        ios_xcframework_resource_errors(["/abs/Assets.xcassets"]),
+        ["apple_framework: resource '/abs/Assets.xcassets' must be a relative workspace path"],
+    ))
+    checks.append(expect_equal(
+        "empty framework resource fails",
+        ios_xcframework_resource_errors([""]),
+        ["apple_framework: resource names must not be empty"],
+    ))
+    checks.append(expect_equal("clean framework", ios_xcframework_errors(_framework()), []))
+    checks.append(expect_contains(
+        "missing framework bundle id fails",
+        ios_xcframework_errors(_framework(bundle_id = "")),
+        "apple_framework: bundle_id must not be empty",
+    ))
+    checks.append(expect_equal("one public header is clean", ios_xcframework_header_name_errors(["share_api.h"], "Share"), []))
+    checks.append(expect_equal(
+        "no public headers fail",
+        ios_xcframework_header_errors([]),
+        ["apple_framework: hdrs needs at least one public header for the framework module map"],
+    ))
+    checks.append(expect_equal(
+        "non-header public file fails",
+        ios_xcframework_header_name_errors(["share.m"], "Share"),
+        ["apple_framework: public header 'share.m' must be a .h file"],
+    ))
+    checks.append(expect_equal(
+        "public header named like the umbrella fails on case-insensitive volumes",
+        ios_xcframework_header_name_errors(["share.h"], "Share"),
+        ["apple_framework: public header 'share.h' clashes with the umbrella header Share.h"],
+    ))
+    checks.append(expect_contains(
+        "missing framework library fails",
+        ios_xcframework_errors(_framework(library = "")),
+        "apple_framework: framework composes one Rust static library in library",
+    ))
+    checks.append(expect_contains(
+        "missing framework deployment fails",
+        ios_xcframework_errors(_framework(deployment = "")),
+        "apple_framework: deployment names the minimum iOS version",
+    ))
+    checks.append(expect_contains(
+        "framework deployment above the Xcode 16 ceiling fails",
+        ios_xcframework_errors(_framework(deployment = "18.1")),
+        "apple_ios: deployment_target '18.1' is above the Xcode 16 'iphoneos' ceiling 18.0",
+    ))
+    checks.append(expect_contains(
+        "framework deployment below the floor fails",
+        ios_xcframework_errors(_framework(deployment = "16.4")),
+        "apple_ios: deployment_target '16.4' is below 17.0",
+    ))
+    checks.append(expect_contains(
+        "framework Xcode outside the lineage fails",
+        ios_xcframework_errors(_framework(xcode_version = "15.4")),
+        "apple_ios: xcode '15.4' is outside 16",
+    ))
+    checks.append(expect_contains(
+        "duplicate framework slice fails",
+        ios_xcframework_errors(_framework(slices = ["device/arm64", "simulator/arm64", "device/arm64"])),
+        "apple_framework: duplicate platform '" + str(Label("@apple_support//platforms:ios_arm64")) + "'",
+    ))
+    checks.append(expect_contains(
+        "non-iOS framework platform fails",
+        ios_xcframework_errors(_framework(slices = ["device/arm64", str(Label("@platforms//host"))])),
+        "apple_framework: platform '" + str(Label("@platforms//host")) + "' is not an iOS platform: want " + ", ".join([str(Label("@apple_support//platforms:" + n)) for n in ["ios_arm64", "ios_sim_arm64", "ios_x86_64"]]),
+    ))
+    checks.append(expect_equal("declared simulator test is clean", ios_test_errors("iPhone 16", "18.5", "17.0"), []))
+    checks.append(expect_equal(
+        "undeclared simulator test fails",
+        ios_test_errors("", "", ""),
+        [
+            "apple_app_test: device_type names the simulator device, like 'iPhone 16'",
+            "apple_app_test: os_version names the installed simulator runtime, like '18.5'",
+            "apple_app_test: deployment names the minimum iOS version of the host app",
+        ],
+    ))
+    checks.append(expect_equal(
+        "freeform runtime fails",
+        ios_test_errors("iPhone 16", "latest", "17.0"),
+        ["apple_app_test: os_version 'latest' is not a dotted version"],
+    ))
+    checks.append(expect_equal(
+        "test deployment below the floor fails",
+        ios_test_errors("iPhone 16", "18.5", "16.0"),
+        ["apple_ios: deployment_target '16.0' is below 17.0"],
+    ))
+    checks.append(expect_equal(
+        "runtime below the app deployment fails",
+        ios_test_errors("iPhone 16", "17.4", "18.0"),
+        ["apple_app_test: simulator runtime iOS 17.4 is below the app deployment 18.0"],
+    ))
+    checks.append(expect_equal("named simulator is clean", simulator_errors("iPhone 16"), []))
+    checks.append(expect_equal(
+        "unnamed simulator fails",
+        simulator_errors(""),
+        ["apple_simulator: simulator names the target simulator by name or UDID"],
+    ))
+    checks.append(expect_equal(
+        "app tests export coverage through the post action",
+        ios_test_coverage_kwargs({"A": "1"}),
+        {"collect_code_coverage": False, "env": {"A": "1", "COLLECT_PROFDATA": "1"}},
+    ))
+    return checks
+
+def apple_ios_app_tests(name):
+    """Declares the simulator app and framework inventory pin test."""
+    starlark_test(
+        name = name,
+        mode = "load",
+        checks = _app_checks(),
+    )

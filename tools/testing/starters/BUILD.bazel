@@ -34,7 +34,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "cuda",
-    bazel_deps = ["rules_dx", "rules_cuda", "rules_dx_cuda"],
+    bazel_deps = ["rules_dx", "rules_cuda"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
@@ -153,7 +153,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "rust-android",
-    bazel_deps = ["rules_dx", "platforms", "rules_rust", "rules_android", "rules_dx_android"],
+    bazel_deps = ["rules_dx", "platforms", "rules_rust", "rules_android"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

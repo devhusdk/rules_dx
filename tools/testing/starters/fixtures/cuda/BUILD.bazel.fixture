@@ -1,5 +1,5 @@
 load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_test")
-load("@rules_dx_cuda//rules:defs.bzl", "CUDA_TARGET", "cuda_library")
+load("@rules_dx//cuda:defs.bzl", "CUDA_TARGET", "cuda_library")
 
 cuda_library(
     name = "demo-app",

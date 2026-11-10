@@ -1,0 +1,28 @@
+# gazelle:dx_rust_corpus false
+
+load("//cuda/private:defs.bzl", "CUDA_TARGET", "cuda_component_library")
+
+package(default_visibility = ["//visibility:public"])
+
+cuda_component_library(
+    name = "cublas",
+    component = "@cuda//:cublas",
+    component_name = "cublas",
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_component_library(
+    name = "cufft",
+    component = "@cuda//:cufft",
+    component_name = "cufft",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)
+
+cuda_component_library(
+    name = "curand",
+    component = "@cuda//:curand",
+    component_name = "curand",
+    tags = ["manual"],
+    target_compatible_with = CUDA_TARGET,
+)

@@ -1,41 +1,5 @@
 {
   "families": {
-    "android": {
-      "aspects": [],
-      "bazel_deps": [
-        "bazel_skylib",
-        "platforms",
-        "rules_android",
-        "rules_cc",
-        "rules_dx",
-        "rules_java",
-        "rules_kotlin",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "packaging",
-        "platforms",
-        "rules",
-        "sdk",
-        "tests",
-        "third_party",
-        "toolchain"
-      ],
-      "extensions": [
-        "//sdk:extensions.bzl%android_sdk",
-        "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension",
-        "@rules_java//java:extensions.bzl%toolchains"
-      ],
-      "file_extensions": [
-        ".aidl"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_android",
-      "path": "families/android",
-      "repo_rules": [],
-      "toolchains": []
-    },
     "appimage": {
       "aspects": [],
       "bazel_deps": [],
@@ -47,42 +11,6 @@
       ],
       "file_extensions": [],
       "gazelle": [],
-      "repo_rules": [],
-      "toolchains": []
-    },
-    "apple": {
-      "aspects": [],
-      "bazel_deps": [
-        "apple_support",
-        "bazel_skylib",
-        "platforms",
-        "rules_apple",
-        "rules_cc",
-        "rules_dx",
-        "rules_rust",
-        "rules_shell",
-        "rules_swift"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "bundle",
-        "ios",
-        "macos",
-        "platforms",
-        "provisioning",
-        "signing",
-        "tests",
-        "third_party"
-      ],
-      "extensions": [],
-      "file_extensions": [
-        ".m",
-        ".mm",
-        ".plist"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_apple",
-      "path": "families/apple",
       "repo_rules": [],
       "toolchains": []
     },
@@ -343,6 +271,7 @@
         "rules_apple",
         "rules_batch",
         "rules_cc",
+        "rules_cuda",
         "rules_dart",
         "rules_flutter",
         "rules_go",
@@ -367,8 +296,10 @@
         "zlib"
       ],
       "dirs": [
+        "android",
         "ansible",
         "api_spec",
+        "apple",
         "asciidoc",
         "astro",
         "avro",
@@ -383,6 +314,7 @@
         "config",
         "core",
         "csharp",
+        "cuda",
         "d",
         "dart",
         "deploy",
@@ -502,7 +434,11 @@
         "//ocaml:extensions.bzl%ocaml",
         "//powershell:extensions.bzl%powershell",
         "//swift:extensions.bzl%swift_host",
-        "//swift:extensions.bzl%swift_windows"
+        "//swift:extensions.bzl%swift_windows",
+        "//cuda:extensions.bzl%cuda_license",
+        "@rules_cuda//cuda:extensions.bzl%toolchain",
+        "//android:extensions.bzl%android_sdk",
+        "@rules_android//rules/android_sdk_repository:rule.bzl%android_sdk_repository_extension"
       ],
       "file_extensions": [
         ".adoc",
@@ -579,7 +515,13 @@
         ".xml",
         ".yaml",
         ".yml",
-        ".zig"
+        ".zig",
+        ".cu",
+        ".cuh",
+        ".aidl",
+        ".m",
+        ".mm",
+        ".plist"
       ],
       "gazelle": [
         "//gazelle/astro",
@@ -654,40 +596,6 @@
         "@ruby_toolchains//:all",
         "@rust_toolchains//:all"
       ]
-    },
-    "cuda": {
-      "aspects": [],
-      "bazel_deps": [
-        "bazel_skylib",
-        "llvm",
-        "platforms",
-        "rules_cc",
-        "rules_cuda",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "components",
-        "rules",
-        "testing",
-        "tests",
-        "third_party",
-        "toolchain"
-      ],
-      "extensions": [
-        "//toolchain:extensions.bzl%cuda_license",
-        "@rules_cuda//cuda:extensions.bzl%toolchain"
-      ],
-      "file_extensions": [
-        ".cu",
-        ".cuh"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_cuda",
-      "path": "families/cuda",
-      "repo_rules": [],
-      "toolchains": []
     }
   }
 }

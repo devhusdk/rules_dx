@@ -54,7 +54,7 @@ TAXONOMY = {
         classes = ["css", "less", "scss"],
     ),
     "cuda": struct(
-        owner = "@rules_dx_cuda//rules:defs.bzl",
+        owner = "//cuda:defs.bzl",
         classes = ["cuda"],
     ),
     "cue": struct(

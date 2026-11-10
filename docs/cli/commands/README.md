@@ -215,14 +215,14 @@ external label.
 
 Language rules:
 
-- `@rules_dx_android//rules:defs.bzl`: Android libraries.
+- `@rules_dx//android:defs.bzl`: Android libraries.
 - `@rules_dx//api_spec:defs.bzl`: OpenAPI and AsyncAPI specs.
-- `@rules_dx_apple//ios:app.bzl`: iOS apps, tests and frameworks.
-- `@rules_dx_apple//ios:defs.bzl`: iOS libraries.
-- `@rules_dx_apple//macos:app.bzl`: macOS apps.
+- `@rules_dx//apple:defs.bzl`: iOS apps, tests and frameworks.
+- `@rules_dx//apple:defs.bzl`: iOS libraries.
+- `@rules_dx//apple:defs.bzl`: macOS apps.
 - `@rules_dx//cc:defs.bzl`: C and C++.
 - `@rules_dx//csharp:defs.bzl`: C#.
-- `@rules_dx_cuda//rules:defs.bzl`: CUDA.
+- `@rules_dx//cuda:defs.bzl`: CUDA.
 - `@rules_dx//dockerfile:defs.bzl`: Dockerfiles.
 - `@rules_dx//make:defs.bzl`: Makefiles.
 - `@rules_dx//cmake:defs.bzl`: CMake files.
@@ -264,16 +264,16 @@ dx rule that wraps it.
 
 | Upstream load | Upstream rule | dx load | dx rule |
 | --- | --- | --- | --- |
-| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx_android//rules:defs.bzl` | `java_android_library` |
-| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx_android//rules:defs.bzl` | `kotlin_android_library` |
-| `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_app` |
-| `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_app_test` |
-| `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_xcframework` |
-| `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx_apple//macos:app.bzl` | `apple_macos_app` |
+| `@rules_android//rules:rules.bzl` | `android_library` | `@rules_dx//android:defs.bzl` | `java_android_library` |
+| `@rules_kotlin//kotlin:android.bzl` | `kt_android_library` | `@rules_dx//android:defs.bzl` | `kotlin_android_library` |
+| `@rules_apple//apple:ios.bzl` | `ios_application` | `@rules_dx//apple:defs.bzl` | `apple_ios_app` |
+| `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx//apple:defs.bzl` | `apple_ios_app_test` |
+| `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx//apple:defs.bzl` | `apple_ios_xcframework` |
+| `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx//apple:defs.bzl` | `apple_macos_app` |
 | `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
 | `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc:defs.bzl` | `objc_library` |
 | `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx//csharp:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
-| `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx_cuda//rules:defs.bzl` | `cuda_library`, `cuda_objects` |
+| `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx//cuda:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d:defs.bzl` | `d_binary`, `d_library`, `d_test` |
 | `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir:defs.bzl` | `elixir_app` |
 | `@rules_elixir//:ex_unit_test.bzl` | `ex_unit_test` | `@rules_dx//elixir:defs.bzl` | `elixir_test` |
@@ -306,9 +306,62 @@ dx rule that wraps it.
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//vue:defs.bzl` | `vue_library` |
 | `@rules_zig//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` | `@rules_dx//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `api_floor` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `clang_target` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `constraint_list` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `cpu_for` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `effective_api_level` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `ndk_prebuilt_dir` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `platform_label` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `rust_triples` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `sysroot_api_dir` |
+|  |  | `@rules_dx//android/platforms:defs.bzl` | `triple_for` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `abi_transition_settings` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `abis_for_platforms` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `android_adb_install` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `android_adb_log` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `android_adb_start` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `android_apk_set` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `android_check` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `android_sign` |
+|  |  | `@rules_dx//android/private/packaging:defs.bzl` | `rust_android_apk` |
+|  |  | `@rules_dx//android/private/rules:defs.bzl` | `android_native_library` |
+|  |  | `@rules_dx//android/private/rules:defs.bzl` | `java_android_library` |
+|  |  | `@rules_dx//android/private/rules:defs.bzl` | `kotlin_android_library` |
 |  |  | `@rules_dx//ansible/private:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec/private:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
+|  |  | `@rules_dx//apple/private/bundle:defs.bzl` | `archives` |
+|  |  | `@rules_dx//apple/private/bundle:defs.bzl` | `check_cell` |
+|  |  | `@rules_dx//apple/private/bundle:defs.bzl` | `display` |
+|  |  | `@rules_dx//apple/private/bundle:defs.bzl` | `flat_resources` |
+|  |  | `@rules_dx//apple/private/bundle:defs.bzl` | `framework_binaries` |
+|  |  | `@rules_dx//apple/private/bundle:defs.bzl` | `label_text` |
+|  |  | `@rules_dx//apple/private/bundle:defs.bzl` | `resolved_xcode` |
+|  |  | `@rules_dx//apple/private/ios:app.bzl` | `apple_ios_app` |
+|  |  | `@rules_dx//apple/private/ios:app.bzl` | `apple_ios_app_test` |
+|  |  | `@rules_dx//apple/private/ios:app.bzl` | `apple_ios_xcframework` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `apple_ios_lib` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `cell_settings` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `deployment_env` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `framework_linkopts` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `ios_lib` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `ios_lib_cell` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `ios_platform_errors` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `ios_platforms` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `ios_slice` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `platform_for` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `platform_slice` |
+|  |  | `@rules_dx//apple/private/ios:defs.bzl` | `split_platform` |
+|  |  | `@rules_dx//apple/private/macos:app.bzl` | `apple_macos_app` |
+|  |  | `@rules_dx//apple/private/macos:app.bzl` | `owner_relative_path` |
+|  |  | `@rules_dx//apple/private/provisioning:defs.bzl` | `apple_provisioning` |
+|  |  | `@rules_dx//apple/private/provisioning:defs.bzl` | `ceiling_for` |
+|  |  | `@rules_dx//apple/private/provisioning:defs.bzl` | `deployment_floor` |
+|  |  | `@rules_dx//apple/private/provisioning:defs.bzl` | `host_constraints` |
+|  |  | `@rules_dx//apple/private/provisioning:defs.bzl` | `version_matches` |
+|  |  | `@rules_dx//apple/private/signing:defs.bzl` | `apple_macos_notarize` |
+|  |  | `@rules_dx//apple/private/signing:defs.bzl` | `apple_macos_sign` |
 |  |  | `@rules_dx//asciidoc/private:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_build` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_library` |
@@ -334,6 +387,14 @@ dx rule that wraps it.
 |  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_library` |
 |  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_proto_library` |
 |  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_test` |
+|  |  | `@rules_dx//cuda/private:defs.bzl` | `cuda_binary` |
+|  |  | `@rules_dx//cuda/private:defs.bzl` | `cuda_gpu_env` |
+|  |  | `@rules_dx//cuda/private:defs.bzl` | `cuda_library` |
+|  |  | `@rules_dx//cuda/private:defs.bzl` | `cuda_objects` |
+|  |  | `@rules_dx//cuda/private:defs.bzl` | `cuda_split_srcs` |
+|  |  | `@rules_dx//cuda/private:defs.bzl` | `cuda_target_compatible_with` |
+|  |  | `@rules_dx//cuda/private:defs.bzl` | `cuda_test` |
+|  |  | `@rules_dx//cuda/tests:defs.bzl` | `with_clang_compiler` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_bench` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_binary` |
 |  |  | `@rules_dx//d/private:defs.bzl` | `d_fuzz_test` |
@@ -385,59 +446,6 @@ dx rule that wraps it.
 |  |  | `@rules_dx//erlang/private:defs.bzl` | `otp_launcher_text` |
 |  |  | `@rules_dx//erlang/private:defs.bzl` | `otp_tool_binary_impl` |
 |  |  | `@rules_dx//erlang/private:defs.bzl` | `runfiles_path` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `abi_transition_settings` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `abis_for_platforms` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_install` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_log` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_start` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_apk_set` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_check` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `android_sign` |
-|  |  | `@rules_dx_android//packaging:defs.bzl` | `rust_android_apk` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `api_floor` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `clang_target` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `constraint_list` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `cpu_for` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `effective_api_level` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `ndk_prebuilt_dir` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `platform_label` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `rust_triples` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `sysroot_api_dir` |
-|  |  | `@rules_dx_android//platforms:defs.bzl` | `triple_for` |
-|  |  | `@rules_dx_android//rules:defs.bzl` | `android_native_library` |
-|  |  | `@rules_dx_apple//bundle:defs.bzl` | `archives` |
-|  |  | `@rules_dx_apple//bundle:defs.bzl` | `check_cell` |
-|  |  | `@rules_dx_apple//bundle:defs.bzl` | `display` |
-|  |  | `@rules_dx_apple//bundle:defs.bzl` | `flat_resources` |
-|  |  | `@rules_dx_apple//bundle:defs.bzl` | `framework_binaries` |
-|  |  | `@rules_dx_apple//bundle:defs.bzl` | `label_text` |
-|  |  | `@rules_dx_apple//bundle:defs.bzl` | `resolved_xcode` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `apple_ios_lib` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `cell_settings` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `deployment_env` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `framework_linkopts` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `ios_lib` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `ios_lib_cell` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `ios_platform_errors` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `ios_platforms` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `ios_slice` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `platform_for` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `platform_slice` |
-|  |  | `@rules_dx_apple//ios:defs.bzl` | `split_platform` |
-|  |  | `@rules_dx_apple//macos:app.bzl` | `owner_relative_path` |
-|  |  | `@rules_dx_apple//provisioning:defs.bzl` | `apple_provisioning` |
-|  |  | `@rules_dx_apple//provisioning:defs.bzl` | `ceiling_for` |
-|  |  | `@rules_dx_apple//provisioning:defs.bzl` | `deployment_floor` |
-|  |  | `@rules_dx_apple//provisioning:defs.bzl` | `host_constraints` |
-|  |  | `@rules_dx_apple//provisioning:defs.bzl` | `version_matches` |
-|  |  | `@rules_dx_apple//signing:defs.bzl` | `apple_macos_notarize` |
-|  |  | `@rules_dx_apple//signing:defs.bzl` | `apple_macos_sign` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_binary` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_gpu_env` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_split_srcs` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
-|  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
-|  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
 |  |  | `@rules_dx//flatbuffers/private:defs.bzl` | `flatbuffers_library` |
 |  |  | `@rules_dx//flatbuffers/private:defs.bzl` | `resolve_root` |
 |  |  | `@rules_dx//flutter/private:defs.bzl` | `flutter_android_app` |
@@ -692,21 +700,21 @@ dx rule that wraps it.
 
 Packaging and deploy:
 
-- `@rules_dx_android//packaging:defs.bzl`: APKs, App Bundles and adb.
+- `@rules_dx//android:defs.bzl`: APKs, App Bundles and adb.
 - `@rules_dx//appimage:defs.bzl`: AppImage bundles.
-- `@rules_dx_apple//ios:device.bzl`: signed iOS IPA export.
-- `@rules_dx_apple//provisioning:defs.bzl`: Apple provisioning.
-- `@rules_dx_apple//provisioning:probe.bzl`: Apple toolchain probe.
-- `@rules_dx_apple//signing:defs.bzl`: macOS app signing and notarization.
+- `@rules_dx//apple/private/ios:device.bzl`: signed iOS IPA export.
+- `@rules_dx//apple/private/provisioning:defs.bzl`: Apple provisioning.
+- `@rules_dx//apple/private/provisioning:probe.bzl`: Apple toolchain probe.
+- `@rules_dx//apple/private/signing:defs.bzl`: macOS app signing and notarization.
 - `@rules_dx//deploy:defs.bzl`: deploy rules, release archives and offline bundles.
 - `@rules_dx//msix:defs.bzl`: MSIX packages.
 
 SDK and toolchain extensions:
 
-- `@rules_dx_android//sdk:extensions.bzl`: Android SDK.
-- `@rules_dx_android//toolchain:repos.bzl`: Android NDK toolchain.
-- `@rules_dx_apple//ios:simulator.bzl`: iOS simulator.
-- `@rules_dx_cuda//toolchain:extensions.bzl`: CUDA license acceptance.
+- `@rules_dx//android:extensions.bzl`: Android SDK.
+- `@rules_dx//android:repos.bzl`: Android NDK toolchain.
+- `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
+- `@rules_dx//cuda:extensions.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell:extensions.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:extensions.bzl`: MSIX tools.

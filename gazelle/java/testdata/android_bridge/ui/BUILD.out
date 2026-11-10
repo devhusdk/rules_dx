@@ -1,4 +1,4 @@
-load("@rules_dx_android//rules:defs.bzl", "java_android_library")
+load("@rules_dx//android:defs.bzl", "java_android_library")
 
 java_android_library(
     name = "ui",

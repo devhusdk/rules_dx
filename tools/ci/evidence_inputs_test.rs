@@ -94,8 +94,8 @@ fn accepts_whitespace_separated_patterns() {
         ),
         ("//a/...\t//b:t\n//c:*", "//a/... //b:t //c:*"),
         (
-            "@rules_dx_apple//ios/... //a:t",
-            "@rules_dx_apple//ios/... //a:t",
+            "//apple/private/ios/... //a:t",
+            "//apple/private/ios/... //a:t",
         ),
     ];
     for (scope, expected) in cases {

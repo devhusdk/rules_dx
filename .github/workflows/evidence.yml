@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: @rules_dx_apple//... @rules_dx_apple//tests/fixtures/macos_ledger/... @rules_dx_apple//tests/fixtures/macos_bundle/... @rules_dx_apple//tests/fixtures/swift_app/.... Android on linux_x86_64: @rules_dx_android//sdk:androidsdk_build_test."
+        description: "Space-separated Bazel target patterns such as //cli/cli/... or //pkg:target. Apple on macos_arm64: //apple/... //apple/tests/fixtures/macos_ledger/... //apple/tests/fixtures/macos_bundle/... //apple/tests/fixtures/swift_app/... Android on linux_x86_64: //android/private/sdk:androidsdk_build_test."
         required: true
       task:
         description: "One of test, build or coverage."
@@ -412,7 +412,7 @@ jobs:
           cat "$RUNNER_TEMP/evidence/android-versions.txt"
       - name: Run the device scenario
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
-        run: cd families/android && sh tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
+        run: sh android/tests/fixtures/rust_apk/device_run.sh emulator-5554 "$RUNNER_TEMP/evidence"
       - name: Run the rust-android fixture on the emulator
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

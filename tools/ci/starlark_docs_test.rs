@@ -18,9 +18,20 @@ const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_par
 const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test", "_application"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 99] = [
+const PACKAGES: [&str; 112] = [
+    "android/platforms",
+    "android/private/packaging",
+    "android/private/rules",
+    "android/private/sdk",
+    "android/private/toolchain",
     "api_spec/private",
     "appimage",
+    "apple/platforms",
+    "apple/private/bundle",
+    "apple/private/ios",
+    "apple/private/macos",
+    "apple/private/provisioning",
+    "apple/private/signing",
     "asciidoc/private",
     "astro/private",
     "avro/private",
@@ -34,6 +45,8 @@ const PACKAGES: [&str; 99] = [
     "config",
     "core/codegen",
     "core/modules",
+    "cuda/private",
+    "cuda/private/toolchain",
     "d/private",
     "dart/private",
     "deploy/private",
@@ -58,6 +71,7 @@ const PACKAGES: [&str; 99] = [
     "java/private/ide",
     "java/private/toolchains",
     "javascript/private",
+    "javascript/private/quality",
     "julia/private",
     "julia/private/tools",
     "kotlin/private",
@@ -87,7 +101,6 @@ const PACKAGES: [&str; 99] = [
     "quality/artifacts",
     "quality/artifacts/acquire_test",
     "quality/artifacts/hub_test",
-    "javascript/private/quality",
     "quality/tools/jvm",
     "rego/private",
     "rst/private",

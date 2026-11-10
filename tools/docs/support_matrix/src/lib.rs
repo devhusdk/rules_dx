@@ -152,7 +152,7 @@ struct BuildLoader<'a> {
 }
 
 /// `label` as written in a file of `package`, with a `//` label of a family package given its
-/// family repo, so `//rules:defs.bzl` in `@rules_dx_cuda/tests` reads `@rules_dx_cuda//rules:defs.bzl`.
+/// family repo, so `//rules:defs.bzl` in `@rules_dx_js/tests` reads `@rules_dx_js//rules:defs.bzl`.
 fn absolute_label(package: &str, label: &str) -> String {
     match package
         .split_once('/')
@@ -207,19 +207,9 @@ impl starlark::Loader for BuildLoader<'_> {
 }
 
 fn split_label(label: &str) -> Result<(String, &str), String> {
-    let external = [
-        "@rules_dx_android",
-        "@rules_dx_apple",
-        "@rules_dx_cuda",
-    ]
-    .into_iter()
-    .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));
-    let (prefix, rest) = match external {
-        Some((repo, rest)) => (format!("{repo}/"), rest),
-        None => (String::new(), label.strip_prefix("//").unwrap_or("")),
-    };
+    let rest = label.strip_prefix("//").unwrap_or("");
     rest.split_once(':')
-        .map(|(package, name)| (format!("{prefix}{package}"), name))
+        .map(|(package, name)| (package.to_string(), name))
         .ok_or_else(|| format!("test label {label} is not //package:name"))
 }
 
@@ -452,11 +442,11 @@ mod tests {
         );
         assert!(bzl_path("a", "@platforms//os:BUILD").is_err());
         assert_eq!(
-            bzl_path("@rules_dx_cuda/tests", "//rules:defs.bzl").expect("path"),
-            "@rules_dx_cuda/rules/defs.bzl"
+            bzl_path("@rules_dx_js/tests", "//rules:defs.bzl").expect("path"),
+            "@rules_dx_js/rules/defs.bzl"
         );
         assert_eq!(
-            bzl_path("@rules_dx_cuda/tests", "@rules_dx//rust:defs.bzl").expect("path"),
+            bzl_path("@rules_dx_js/tests", "@rules_dx//rust:defs.bzl").expect("path"),
             "rust/defs.bzl"
         );
     }

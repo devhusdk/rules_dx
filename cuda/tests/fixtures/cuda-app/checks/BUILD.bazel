@@ -1,0 +1,45 @@
+load("//cuda:defs.bzl", "CUDA_TARGET")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+package(default_visibility = ["//visibility:private"])
+
+rust_test(
+    name = "device_code_test",
+    srcs = ["device_code_test.rs"],
+    data = [
+        "//cuda/tests/fixtures/cuda-app/app:cuda_app",
+        "//cuda/tests/fixtures/cuda-app/kernels",
+    ],
+    env = {
+        "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/cuda-app/kernels)",
+        "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/cuda-app/app:cuda_app)",
+    },
+    target_compatible_with = CUDA_TARGET,
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "format_test",
+    srcs = ["//tools/testing:clang_format_test.rs"],
+    data = [
+        "//:.clang-format",
+        "//cuda/tests/fixtures/cuda-app/app:format_srcs",
+        "//cuda/tests/fixtures/cuda-app/gpu:format_srcs",
+        "//cuda/tests/fixtures/cuda-app/kernels:format_srcs",
+        "@llvm//tools:clang-format",
+    ],
+    env = {
+        "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
+        "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
+        "DX_FORMAT_SRCS": "$(rootpaths //cuda/tests/fixtures/cuda-app/app:format_srcs) $(rootpaths //cuda/tests/fixtures/cuda-app/gpu:format_srcs) $(rootpaths //cuda/tests/fixtures/cuda-app/kernels:format_srcs)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//cuda:__pkg__"],
+)

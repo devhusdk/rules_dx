@@ -148,7 +148,7 @@ func IsAndroidPlatformImport(spec string) bool {
 func AndroidVariant(kind string) *KindVariant {
 	return &KindVariant{
 		Kind:         kind,
-		DefsPackage:  "@rules_dx_android//rules:defs.bzl",
+		DefsPackage:  "@rules_dx//android:defs.bzl",
 		Selects:      IsAndroidSDKPlatform,
 		IsPlatform:   IsAndroidPlatformImport,
 		NeedsPackage: "Android sources need a package declaration to set custom_package",

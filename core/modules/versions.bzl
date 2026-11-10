@@ -122,6 +122,7 @@ CONSUMER_BAZEL_DEPS = {
     "elfutils": struct(floor = "0.195", tested = "0.195"),
     "zlib": struct(floor = "1.3.2.bcr.3", tested = "1.3.2.bcr.3"),
     "rules_rust_prost": struct(floor = "0.75.0", tested = "0.75.0"),
+    "rules_cuda": struct(floor = RULES_CUDA_VERSION, tested = RULES_CUDA_VERSION),
 }
 
 NPM_HUBS = ["dx_npm_tools"]

@@ -1,12 +1,12 @@
 """Schema and code generation real quality aspects (Protocol Buffers, Cap'n Proto, FlatBuffers, Avro, Thrift)."""
 
 load("@rules_proto//proto:defs.bzl", "ProtoInfo")
-load("//avro/rules:providers.bzl", "AvroInfo")
-load("//capnproto/rules:providers.bzl", "CapnpInfo")
-load("//flatbuffers/rules:defs.bzl", "FlatBuffersInfo")
+load("//avro/private:providers.bzl", "AvroInfo")
+load("//capnproto/private:providers.bzl", "CapnpInfo")
+load("//flatbuffers:defs.bzl", "FlatBuffersInfo")
 load("//quality:family_hooks.bzl", "upstream_files")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//thrift/rules:defs.bzl", "ThriftInfo")
+load("//thrift:defs.bzl", "ThriftInfo")
 
 TOOLS = {
     "buf": {

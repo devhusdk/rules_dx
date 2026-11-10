@@ -1,4 +1,4 @@
-load("@rules_dx//capnproto/rules:defs.bzl", "capnp_library")
+load("@rules_dx//capnproto:defs.bzl", "capnp_library")
 
 capnp_library(
     name = "lib",

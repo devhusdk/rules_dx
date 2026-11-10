@@ -1,5 +1,5 @@
 ansible:defs.bzl
-api_spec/rules:defs.bzl
+api_spec:defs.bzl
 appimage:defs.bzl
 astro:defs.bzl
 bicep:defs.bzl
@@ -27,10 +27,10 @@ erlang:defs.bzl
 go/rules:defs.bzl
 haskell/rules:defs.bzl
 helm:defs.bzl
-java/private:defs.bzl
+java:defs.bzl
 javascript:defs.bzl
 julia:defs.bzl
-kotlin/private:defs.bzl
+kotlin:defs.bzl
 kubernetes:defs.bzl
 libs/web_server:server.bzl
 lua:defs.bzl
@@ -95,7 +95,7 @@ quality:native_config.bzl
 rego:defs.bzl
 ruby:defs.bzl
 rust/rules:defs.bzl
-scala/private:defs.bzl
+scala:defs.bzl
 sql/rules:defs.bzl
 svelte:defs.bzl
 terraform:defs.bzl
@@ -117,3 +117,7 @@ tools/docs:aspect.bzl
 typescript:defs.bzl
 vue:defs.bzl
 zig:defs.bzl
+avro:defs.bzl
+capnproto:defs.bzl
+flatbuffers:defs.bzl
+thrift:defs.bzl

@@ -179,35 +179,23 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"avro": {
 		files: map[string]string{"demo.avdl": "protocol Demo {\n}\n"},
-		kind:  "avro_library", target: "demo", defs: "avro/rules:defs.bzl",
-		symbols: []string{"avro_library"},
-		extraLoads: map[string][]string{
-			"@rules_dx//avro/rules:codegen.bzl": {"avro_cc_library", "avro_java_library"},
-		},
+		kind:  "avro_library", target: "demo", defs: "avro:defs.bzl",
+		symbols: []string{"avro_library", "avro_cc_library", "avro_java_library"},
 	},
 	"capnproto": {
 		files: map[string]string{"demo.capnp": "@0xdbb9ad1f14bf0b36;\n"},
-		kind:  "capnp_library", target: "demo", defs: "capnproto/rules:defs.bzl",
-		symbols: []string{"capnp_library"},
-		extraLoads: map[string][]string{
-			"@rules_dx//capnproto/rules:codegen.bzl": {"capnp_cc_library", "capnp_java_library"},
-		},
+		kind:  "capnp_library", target: "demo", defs: "capnproto:defs.bzl",
+		symbols: []string{"capnp_library", "capnp_cc_library", "capnp_java_library"},
 	},
 	"flatbuffers": {
 		files: map[string]string{"demo.fbs": "table Demo {}\n"},
-		kind:  "flatbuffers_library", target: "demo", defs: "flatbuffers/rules:defs.bzl",
-		symbols: []string{"flatbuffers_library"},
-		extraLoads: map[string][]string{
-			"@rules_dx//flatbuffers/rules:codegen.bzl": {"flatbuffers_cc_library", "flatbuffers_java_library", "flatbuffers_rust_library"},
-		},
+		kind:  "flatbuffers_library", target: "demo", defs: "flatbuffers:defs.bzl",
+		symbols: []string{"flatbuffers_library", "flatbuffers_cc_library", "flatbuffers_java_library", "flatbuffers_rust_library"},
 	},
 	"thrift": {
 		files: map[string]string{"demo.thrift": "struct Demo {}\n"},
-		kind:  "thrift_library", target: "demo", defs: "thrift/rules:defs.bzl",
-		symbols: []string{"thrift_library"},
-		extraLoads: map[string][]string{
-			"@rules_dx//thrift/rules:codegen.bzl": {"thrift_cc_library", "thrift_java_library", "thrift_rust_library"},
-		},
+		kind:  "thrift_library", target: "demo", defs: "thrift:defs.bzl",
+		symbols: []string{"thrift_library", "thrift_cc_library", "thrift_java_library", "thrift_rust_library"},
 	},
 	"python": {
 		files: map[string]string{"demo.py": "x = 1\n"},

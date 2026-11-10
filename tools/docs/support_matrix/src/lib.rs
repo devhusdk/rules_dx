@@ -213,7 +213,6 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_cuda",
         "@rules_dx_dart",
         "@rules_dx_dotnet",
-        "@rules_dx_generation",
         "@rules_dx_js",
         "@rules_dx_msix",
         "@rules_dx_python",

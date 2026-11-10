@@ -27,7 +27,7 @@ func NewLanguage() language.Language {
 	return common.NewIDLLanguage(common.IDLSpec{
 		Name:        languageName,
 		Kind:        LibraryKind,
-		Defs:        "flatbuffers/rules:defs.bzl",
+		Defs:        "flatbuffers:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "",
 		Bindings:    common.IDLBindings("flatbuffers", "library", true),

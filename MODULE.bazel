@@ -297,12 +297,6 @@ local_path_override(
     path = "families/js",
 )
 
-bazel_dep(name = "rules_dx_generation", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_generation",
-    path = "families/generation",
-)
-
 bazel_dep(name = "rules_dx_haskell", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_haskell",
@@ -2057,9 +2051,9 @@ use_repo(crate, "dx_quality_crates")
 
 crate.from_cargo(
     name = "dx_thrift_crates",
-    cargo_lockfile = "//thrift/crates:Cargo.lock",
-    lockfile = "//thrift/crates:cargo-bazel-lock.json",
-    manifests = ["//thrift/crates:Cargo.toml"],
+    cargo_lockfile = "//thrift/private/crates:Cargo.lock",
+    lockfile = "//thrift/private/crates:cargo-bazel-lock.json",
+    manifests = ["//thrift/private/crates:Cargo.toml"],
     supported_platform_triples = [
         "aarch64-apple-darwin",
         "aarch64-unknown-linux-gnu",

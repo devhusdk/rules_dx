@@ -164,7 +164,7 @@ py_binary(
     ],
     dep_group = "dx-python-tools",
     main = "openapi_python_client_main.py",
-    visibility = ["//api_spec/rules:__pkg__"],
+    visibility = ["//api_spec/private:__pkg__"],
     deps = ["@pypi//openapi_python_client"],
 )
 

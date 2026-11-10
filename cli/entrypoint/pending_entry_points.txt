@@ -1,7 +1,4 @@
-api_spec
 asciidoc
-avro
-capnproto
 cc
 cmake
 d
@@ -9,14 +6,11 @@ dart
 deploy
 elixir
 erlang
-flatbuffers
 flutter
 fortran
 go
 haskell
-java
 julia
-kotlin
 lua
 make
 ocaml
@@ -28,8 +22,6 @@ quality
 rst
 ruby
 rust
-scala
 sql
 swift
-thrift
 zig

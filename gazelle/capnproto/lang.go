@@ -27,7 +27,7 @@ func NewLanguage() language.Language {
 	return common.NewIDLLanguage(common.IDLSpec{
 		Name:        languageName,
 		Kind:        LibraryKind,
-		Defs:        "capnproto/rules:defs.bzl",
+		Defs:        "capnproto:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "/capnp/",
 		Bindings:    common.IDLBindings("capnp", "", false),

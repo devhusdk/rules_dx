@@ -6,7 +6,7 @@ TAXONOMY = {
         classes = ["ansible"],
     ),
     "api_spec": struct(
-        owner = "//api_spec/rules:defs.bzl",
+        owner = "//api_spec:defs.bzl",
         classes = ["api_spec", "api_spec_ref"],
     ),
     "asciidoc": struct(
@@ -18,7 +18,7 @@ TAXONOMY = {
         classes = ["astro"],
     ),
     "avro": struct(
-        owner = "//avro/rules:defs.bzl",
+        owner = "//avro:defs.bzl",
         classes = ["avro"],
     ),
     "bicep": struct(
@@ -26,7 +26,7 @@ TAXONOMY = {
         classes = ["bicep"],
     ),
     "capnp": struct(
-        owner = "//capnproto/rules:defs.bzl",
+        owner = "//capnproto:defs.bzl",
         classes = ["capnp"],
     ),
     "cc": struct(
@@ -82,7 +82,7 @@ TAXONOMY = {
         classes = ["erlang"],
     ),
     "flatbuffers": struct(
-        owner = "//flatbuffers/rules:defs.bzl",
+        owner = "//flatbuffers:defs.bzl",
         classes = ["flatbuffers"],
     ),
     "fortran": struct(
@@ -266,7 +266,7 @@ TAXONOMY = {
         classes = ["text"],
     ),
     "thrift": struct(
-        owner = "//thrift/rules:defs.bzl",
+        owner = "//thrift:defs.bzl",
         classes = ["thrift"],
     ),
     "toml": struct(

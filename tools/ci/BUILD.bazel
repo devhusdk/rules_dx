@@ -717,11 +717,11 @@ rust_test(
     crate_name = "starlark_docs_test",
     crate_root = "starlark_docs_test.rs",
     data = [
-        "//api_spec/rules:corpus_starlark",
+        "//api_spec/private:corpus_starlark",
         "//appimage:corpus_starlark",
         "//asciidoc/rules:corpus_starlark",
         "//astro/private:corpus_starlark",
-        "//avro/rules:corpus_starlark",
+        "//avro/private:corpus_starlark",
         "//bicep/private:corpus_starlark",
         "//cc/rules:corpus_starlark",
         "//cc/toolchains:corpus_starlark",

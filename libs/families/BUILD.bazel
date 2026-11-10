@@ -26,7 +26,7 @@ rust_library(
     ),
     compile_data = [
         "//modules:families.json",
-        "//:api_spec/lang.json",
+        "//api_spec:lang.json",
         "//astro:lang.json",
         "//avro:lang.json",
         "//capnproto:lang.json",
@@ -85,7 +85,7 @@ rust_test(
     ),
     compile_data = [
         "//modules:families.json",
-        "//:api_spec/lang.json",
+        "//api_spec:lang.json",
         "//astro:lang.json",
         "//avro:lang.json",
         "//capnproto:lang.json",

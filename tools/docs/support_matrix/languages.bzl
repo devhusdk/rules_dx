@@ -293,7 +293,7 @@ ROWS = [
     {"name": "toml", "section": "formats", "title": "TOML"},
     {"name": "api_spec", "section": "formats", "title": "API specs"},
     {"name": "ansible", "section": "formats", "title": "Ansible"},
-    {"ci_tests": ["@rules_dx_generation//avro/tests:cc_roundtrip_test", "@rules_dx_generation//avro/tests:RoundtripTest"], "families": ["avro"], "name": "avro", "section": "languages", "title": "Avro"},
+    {"ci_tests": ["//avro/tests:cc_roundtrip_test", "//avro/tests:RoundtripTest"], "families": ["avro"], "name": "avro", "section": "languages", "title": "Avro"},
     {"families": ["capnp"], "name": "capnproto", "section": "formats", "title": "Cap'n Proto"},
     {"name": "bicep", "section": "formats", "title": "Bicep"},
     {"name": "cloudformation", "section": "formats", "title": "CloudFormation"},

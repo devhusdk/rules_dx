@@ -1,4 +1,4 @@
-load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+load("@rules_dx//flatbuffers:defs.bzl", "flatbuffers_library")
 
 flatbuffers_library(
     name = "lib",

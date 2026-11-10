@@ -375,7 +375,7 @@ lint = ["flatc"]
 ```
 
 ```python
-load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+load("@rules_dx//flatbuffers:defs.bzl", "flatbuffers_library")
 
 flatbuffers_library(
     name = "order",
@@ -395,7 +395,7 @@ List the package files in `srcs` and the libraries they include in `deps`. An in
 `flatbuffers_conform_test` runs `flatc --conform` of a `library` against a `baseline`. Both are `flatbuffers_library` targets. A breaking change fails `bazel test` with flatc's message, for example `schemas don't conform: field deleted: Shape.name`.
 
 ```python
-load("@rules_dx//flatbuffers/rules:conform.bzl", "flatbuffers_conform_test")
+load("@rules_dx//flatbuffers:defs.bzl", "flatbuffers_conform_test")
 
 flatbuffers_conform_test(
     name = "order_conform_test",

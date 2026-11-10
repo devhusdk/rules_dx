@@ -1,6 +1,6 @@
 """Avro schema reference shards read from the `doc` attribute of the schemas."""
 
-load("//avro/rules:providers.bzl", "AvroInfo")
+load("//avro/private:providers.bzl", "AvroInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 
 def avro_shard_action(ctx, srcs, imports, avro_tools, package, stem, extract_tool):

@@ -1,0 +1,33 @@
+# gazelle:ignore
+load("//flatbuffers:defs.bzl", "flatbuffers_java_library", "flatbuffers_library", "flatbuffers_rust_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//flatbuffers:__subpackages__"])
+
+exports_files(["hidden.fbs"])
+
+flatbuffers_library(
+    name = "lost",
+    srcs = ["lost.fbs"],
+    tags = ["manual"],
+)
+
+flatbuffers_java_library(
+    name = "lost_java",
+    tags = ["manual"],
+    deps = [":lost"],
+)
+
+flatbuffers_rust_library(
+    name = "lost_rs",
+    library = ":lost",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

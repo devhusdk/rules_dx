@@ -1,7 +1,0 @@
-@namespace("dx.test")
-protocol Top {
-  import schema "avro/rules/testdata/base.avsc";
-  record Wrapper {
-    Base base;
-  }
-}

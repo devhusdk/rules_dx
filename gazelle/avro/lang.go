@@ -27,7 +27,7 @@ func NewLanguage() language.Language {
 	return common.NewIDLLanguage(common.IDLSpec{
 		Name:        languageName,
 		Kind:        LibraryKind,
-		Defs:        "avro/rules:defs.bzl",
+		Defs:        "avro:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "",
 		Bindings:    common.IDLBindings("avro", "", false),

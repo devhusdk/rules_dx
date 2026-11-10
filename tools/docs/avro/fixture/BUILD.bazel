@@ -1,4 +1,4 @@
-load("//avro/rules:defs.bzl", "avro_library")
+load("//avro:defs.bzl", "avro_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/avro:defs.bzl", "avro_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")

@@ -55,7 +55,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/dotnet/fsharp
 # gazelle:exclude tools/docs/jvm/record
 # gazelle:exclude quality/tools/jvm/javac_check
-# gazelle:exclude avro/tools/avdl_union
+# gazelle:exclude avro/private/tools/avdl_union
 # gazelle:exclude quality/tools/jvm/kotlinc_check
 # gazelle:exclude quality/tools/jvm/scalac_check
 # gazelle:exclude quality/tools/javascript/bin
@@ -94,9 +94,9 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cc/ide
 # gazelle:exclude deploy/symbols/fixture
 # gazelle:exclude lua/private/runtime
-# gazelle:exclude avro/rules/testdata
-# gazelle:exclude capnproto/rules/testdata
-# gazelle:exclude thrift/rules/testdata
+# gazelle:exclude avro/private/testdata
+# gazelle:exclude capnproto/private/testdata
+# gazelle:exclude thrift/private/testdata
 # gazelle:exclude ocaml/tests/fixtures/dune-lib/src
 # gazelle:exclude php/private/tools/digests/bin
 # gazelle:exclude gazelle/cc/testdata

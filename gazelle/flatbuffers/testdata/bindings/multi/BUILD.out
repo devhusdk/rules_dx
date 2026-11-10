@@ -1,5 +1,4 @@
-load("@rules_dx//flatbuffers/rules:codegen.bzl", "flatbuffers_cc_library", "flatbuffers_java_library")
-load("@rules_dx//flatbuffers/rules:defs.bzl", "flatbuffers_library")
+load("@rules_dx//flatbuffers:defs.bzl", "flatbuffers_cc_library", "flatbuffers_java_library", "flatbuffers_library")
 
 flatbuffers_library(
     name = "multi",

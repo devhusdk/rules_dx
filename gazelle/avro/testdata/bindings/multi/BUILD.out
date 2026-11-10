@@ -1,5 +1,4 @@
-load("@rules_dx//avro/rules:codegen.bzl", "avro_cc_library", "avro_java_library")
-load("@rules_dx//avro/rules:defs.bzl", "avro_library")
+load("@rules_dx//avro:defs.bzl", "avro_cc_library", "avro_java_library", "avro_library")
 
 avro_library(
     name = "multi",

@@ -1,5 +1,4 @@
-load("@rules_dx//thrift/rules:codegen.bzl", "thrift_cc_library", "thrift_java_library", "thrift_rust_library")
-load("@rules_dx//thrift/rules:defs.bzl", "thrift_library")
+load("@rules_dx//thrift:defs.bzl", "thrift_cc_library", "thrift_java_library", "thrift_library", "thrift_rust_library")
 
 thrift_library(
     name = "api",

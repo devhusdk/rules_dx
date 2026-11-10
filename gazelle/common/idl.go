@@ -215,9 +215,8 @@ func bindingKindNames(spec IDLSpec) []string {
 
 func bindingKindDefs(spec IDLSpec) map[string]string {
 	defs := make(map[string]string)
-	family, _, _ := strings.Cut(spec.Defs, "/")
 	for _, b := range spec.Bindings {
-		defs[b.Kind] = family + "/rules:codegen.bzl"
+		defs[b.Kind] = spec.Defs
 	}
 	return defs
 }

@@ -163,7 +163,7 @@ rust_library(
     ),
     crate_name = "quality_adapter",
     crate_root = "src/lib.rs",
-    visibility = VIS_QUALITY + ["//api_spec/codegen:__pkg__"],
+    visibility = VIS_QUALITY + ["//api_spec/private/codegen:__pkg__"],
     deps = all_crate_deps(
         package_name = "quality/quality_adapter",
         normal = True,

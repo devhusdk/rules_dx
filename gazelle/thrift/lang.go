@@ -27,7 +27,7 @@ func NewLanguage() language.Language {
 	return common.NewIDLLanguage(common.IDLSpec{
 		Name:        languageName,
 		Kind:        LibraryKind,
-		Defs:        "thrift/rules:defs.bzl",
+		Defs:        "thrift:defs.bzl",
 		Exts:        SupportedExts,
 		StdPrefix:   "",
 		Bindings:    common.IDLBindings("thrift", "library", false),

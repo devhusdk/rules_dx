@@ -1,3 +1,0 @@
-load("@rules_dx//avro/rules:defs.bzl", "avro_library")
-
-filegroup(name = "loads")

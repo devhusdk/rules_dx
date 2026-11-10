@@ -1,0 +1,19 @@
+# gazelle:ignore
+load("//flatbuffers:defs.bzl", "flatbuffers_library")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//flatbuffers:__subpackages__"])
+
+flatbuffers_library(
+    name = "api",
+    srcs = ["shape.fbs"],
+    deps = ["//flatbuffers/tests/base"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
+)

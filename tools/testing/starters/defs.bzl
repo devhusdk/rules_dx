@@ -1,31 +1,25 @@
 """Starter test macros."""
 
 load("//rust:defs.bzl", "rust_test")
-load("//tools/testing:nested_bazel.bzl", "STARTER_CONSUMER_TAGS")
 
-def starter_consumer_test(name, *, fixture = None, target_compatible_with = None, bazel_deps = ["rules_dx"]):
-    """Declares a test that checks one starter fixture's generated files and its MODULE.bazel bazel_dep names."""
-    target_compatible_with = target_compatible_with or []
-    fixture = fixture or name
-    files = "//tools/testing/starters/fixtures:" + fixture
+def starter_consumer_test(name, *, bazel_deps):
+    """Declares one test that checks every starter fixture's generated files and its MODULE.bazel bazel_dep names."""
+    fixtures = sorted(bazel_deps)
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "DX_STARTERS": ";".join([fixture + ":" + " ".join(bazel_deps[fixture]) for fixture in fixtures]),
+    }
+    for fixture in fixtures:
+        env["DX_FIXTURE_FILES_" + fixture.replace("-", "_")] = "$(rootpaths //tools/testing/starters/fixtures:%s)" % fixture
     rust_test(
         name = name,
         srcs = ["//tools/testing/starters:starter_template_test.rs"],
         crate_root = "//tools/testing/starters:starter_template_test.rs",
-        data = [
-            "//cli/cli:dx",
-            files,
-        ],
-        env = {
-            "DX_BIN": "$(rootpath //cli/cli:dx)",
-            "DX_FIXTURE": fixture,
-            "DX_FIXTURE_FILES": "$(rootpaths %s)" % files,
-            "DX_BAZEL_DEPS": " ".join(bazel_deps),
-        },
+        data = ["//cli/cli:dx"] + ["//tools/testing/starters/fixtures:" + fixture for fixture in fixtures],
+        env = env,
         size = "small",
-        tags = STARTER_CONSUMER_TAGS,
-        target_compatible_with = target_compatible_with,
         deps = [
+            "//cli/test_scratch:dx_test_scratch",
             "//tools/testing/starters:starter_scaffold",
         ],
     )

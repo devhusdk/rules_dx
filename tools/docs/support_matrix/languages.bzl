@@ -71,8 +71,8 @@ API_COMPAT_TOOLS = {
 def _hello(lang, repo = ""):
     return [repo + "//" + lang + "/tests/fixtures/hello:hello_test"]
 
-def _starter_consumers(*starters):
-    return ["//tools/testing/starters:" + starter for starter in starters]
+def _starter_consumers(*_starters):
+    return ["//tools/testing/starters:starters_test"]
 
 # consumer_tests: golden checks of dx init output and hermetic manifests, or tests that
 # build a target in another module. CI selects the hermetic ones by the hermetic-consumer tag.

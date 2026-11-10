@@ -7,9 +7,9 @@ use std::process::Command;
 pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 
 /// Starts `scratch/<name>` the way a user does: `dx init --apply <name>` with the dx named by
-/// `DX_BIN`, then the hello-world sources of `fixture`, read from the runfiles that
-/// `DX_FIXTURE_FILES` lists (`$(rootpaths //tools/testing/starters/fixtures:<fixture>)`; files of
-/// other fixtures in the list are skipped).
+/// `DX_BIN`, then the hello-world sources of `fixture`, read from the runfiles that `files` lists
+/// (`$(rootpaths //tools/testing/starters/fixtures:<fixture>)`; files of other fixtures in the
+/// list are skipped).
 ///
 /// Files under `common/<layer>/` of the fixtures directory are shared layers the fixture lists in
 /// `starter_fixture(layers = ...)`; they are written like the fixture's own files, and a fixture
@@ -17,7 +17,7 @@ pub const FIXTURES_DIR: &str = "tools/testing/starters/fixtures";
 ///
 /// Each fixture file drops its `.fixture` suffix. `MODULE.bazel` and `.bazelrc` are appended to
 /// what `dx init` wrote; every other file is written as is. Returns the project root.
-pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
+pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) -> PathBuf {
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let output = Command::new(dx_testing::resolve_runfiles(&rel))
         .current_dir(scratch)
@@ -33,8 +33,6 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
     );
     assert_eq!(output.status.code(), Some(0), "dx init {name}: {text}");
     let root = scratch.join(name);
-    let files = std::env::var("DX_FIXTURE_FILES")
-        .unwrap_or_else(|_| panic!("DX_FIXTURE_FILES must list the {fixture} fixture"));
     let prefix = format!("{FIXTURES_DIR}/{fixture}/");
     let common = format!("{FIXTURES_DIR}/common/");
     let mut copied = 0;
@@ -86,7 +84,7 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str) -> PathBuf {
     );
     assert!(
         copied > 0,
-        "DX_FIXTURE_FILES lists no {fixture} files: {files}"
+        "no {fixture} files in the list: {files}"
     );
     root
 }

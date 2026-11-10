@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//cc/private:wrapper_tests.bzl", "cc_gcov_coverage_env_test")
 load("//cc/private/toolchains/msvc:toolchains.bzl", "msvc_toolchains")
 load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
@@ -651,11 +652,10 @@ dx_native_runtime(
     visibility = ["//visibility:public"],
 )
 
-genrule(
+copy_file(
     name = "msvc_vcruntime_notice",
-    srcs = ["notices/MSVC_REDISTRIBUTABLE.txt"],
-    outs = ["msvc_vcruntime_NOTICE.txt"],
-    cmd = "cp $< $@",
+    src = "notices/MSVC_REDISTRIBUTABLE.txt",
+    out = "msvc_vcruntime_NOTICE.txt",
     visibility = ["//visibility:public"],
 )
 

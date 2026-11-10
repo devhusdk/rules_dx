@@ -10,11 +10,13 @@ Cells: `linux_x86_64` and `linux_arm64`. Any other target fails analysis with
 
 ## Pins
 
-| Tool | Version | License |
-| --- | --- | --- |
-| appimagetool | 1.9.1 | MIT |
-| type 2 runtime (x86_64, aarch64) | 20251108 | MIT |
-| mksquashfs | 4.6.1 | GPL-2.0-or-later |
+| Tool | License |
+| --- | --- |
+| appimagetool | MIT |
+| type 2 runtime (x86_64, aarch64) | MIT |
+| mksquashfs | GPL-2.0-or-later |
+
+Versions are in `private/pins.json`.
 
 ## Use
 

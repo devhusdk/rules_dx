@@ -6,7 +6,7 @@ _BUILDTOOLS = DATA["dx_msix"]["archives"]["buildtools"]
 
 BUILDTOOLS_VERSION = _BUILDTOOLS["version"]
 
-BUILDTOOLS_BIN = "10.0.28000.0"
+BUILDTOOLS_BIN = ".".join(BUILDTOOLS_VERSION.split(".")[:3]) + ".0"
 
 BUILDTOOLS_URL = _BUILDTOOLS["urls"][0]
 

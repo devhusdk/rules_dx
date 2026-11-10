@@ -1,10 +1,11 @@
 $ErrorActionPreference = 'Stop'
 
 function Set-ModuleSearchPath {
+    # Returns the version of the PSScriptAnalyzer module the build declared.
     $separator = [System.IO.Path]::PathSeparator
-    $analyzer = Get-Module -ListAvailable -Name PSScriptAnalyzer | Where-Object { $_.Version -eq [version]'1.25.0' } | Select-Object -First 1
+    $analyzer = Get-Module -ListAvailable -Name PSScriptAnalyzer | Sort-Object -Property Version -Descending | Select-Object -First 1
     if (-not $analyzer) {
-        throw 'PSScriptAnalyzer 1.25.0 is not on the declared module path'
+        throw 'PSScriptAnalyzer is not on the declared module path'
     }
     $roots = [System.Collections.Generic.List[string]]::new()
     $roots.Add((Split-Path -Parent (Split-Path -Parent $analyzer.Path)))
@@ -14,6 +15,7 @@ function Set-ModuleSearchPath {
     $roots.Add((Join-Path $PSHOME 'Modules'))
     $env:PSModulePath = $roots -join $separator
     $global:PSModuleAutoLoadingPreference = 'None'
+    return $analyzer.Version.ToString()
 }
 
 # The rules Invoke-Formatter runs, in its own order; it skips every rule the settings leave out.
@@ -105,7 +107,7 @@ function Format-One([string]$Path, [string]$Settings, [bool]$Write) {
     return [ordered]@{ path = $Path; formatted = $same }
 }
 
-function Format-Files($Paths, [string]$Settings, [bool]$Write) {
+function Format-Files($Paths, [string]$Settings, [bool]$Write, [string]$Version) {
     Assert-FormatterSettings $Settings
     $failed = $false
     $files = foreach ($path in $Paths) {
@@ -119,7 +121,7 @@ function Format-Files($Paths, [string]$Settings, [bool]$Write) {
         }
         $entry
     }
-    return @{ Failed = $failed; Report = [ordered]@{ analyzer = '1.25.0'; files = @($files) } }
+    return @{ Failed = $failed; Report = [ordered]@{ analyzer = $Version; files = @($files) } }
 }
 
 function Main {
@@ -139,8 +141,7 @@ function Main {
         }
     }
     try {
-        $version = '1.25.0'
-        Set-ModuleSearchPath
+        $version = Set-ModuleSearchPath
         Import-Module Microsoft.PowerShell.Utility, Microsoft.PowerShell.Management -ErrorAction Stop
         Import-Module PSScriptAnalyzer -RequiredVersion $version -ErrorAction Stop
         if ($settings) {
@@ -163,7 +164,7 @@ function Main {
             }
         }
         if ($mode -ne 'lint') {
-            $report = Format-Files -Paths $paths -Settings $settings -Write ($mode -eq 'write')
+            $report = Format-Files -Paths $paths -Settings $settings -Write ($mode -eq 'write') -Version $version
             [Console]::Out.Write((ConvertTo-Json -InputObject $report.Report -Depth 6 -Compress))
             [Console]::Out.Flush()
             if ($report.Failed -and $mode -eq 'write') {

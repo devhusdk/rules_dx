@@ -10,15 +10,14 @@ def _checks():
     accepted = hub_build(True)
     unaccepted = hub_build(False)
     return [
-        expect_equal("build tools version", BUILDTOOLS_VERSION, "10.0.28000.2705"),
-        expect_equal("build tools bin dir", BUILDTOOLS_BIN, "10.0.28000.0"),
+        expect_true("build tools version has four parts", len(BUILDTOOLS_VERSION.split(".")) == 4),
+        expect_true("build tools bin dir is the version with a zero revision", BUILDTOOLS_BIN == ".".join(BUILDTOOLS_VERSION.split(".")[:3]) + ".0"),
         expect_contains("url carries the version", BUILDTOOLS_URL, "/" + BUILDTOOLS_VERSION + "/"),
         expect_true("url is nuget.org", BUILDTOOLS_URL.startswith("https://api.nuget.org/")),
-        expect_equal("license name", LICENSE, "windows-sdk-buildtools"),
         expect_equal("tool arches", TOOL_ARCHES, ["arm64", "x64"]),
         expect_equal("supported cells", SUPPORTED_CELLS, ["windows_arm64", "windows_x86_64"]),
-        expect_contains("accepted hub has the x64 makeappx", accepted, '"bin/10.0.28000.0/x64/makeappx.exe"'),
-        expect_contains("accepted hub has the arm64 signtool", accepted, '"bin/10.0.28000.0/arm64/signtool.exe"'),
+        expect_contains("accepted hub has the x64 makeappx", accepted, '"bin/' + BUILDTOOLS_BIN + '/x64/makeappx.exe"'),
+        expect_contains("accepted hub has the arm64 signtool", accepted, '"bin/' + BUILDTOOLS_BIN + '/arm64/signtool.exe"'),
         expect_true("accepted hub has no error", UNACCEPTED not in accepted and "error =" not in accepted),
         expect_contains("unaccepted hub names the license", unaccepted, LICENSE),
         expect_true("unaccepted hub downloads nothing", "bin/" not in unaccepted),

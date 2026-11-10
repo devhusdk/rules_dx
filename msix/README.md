@@ -13,9 +13,11 @@ Windows execution platform fails analysis with
 
 ## Pins
 
-| Tool | Version | License |
-| --- | --- | --- |
-| Microsoft.Windows.SDK.BuildTools (NuGet) | 10.0.28000.2705 | [Windows SDK license](https://aka.ms/WinSDKLicenseURL) |
+| Tool | License |
+| --- | --- |
+| Microsoft.Windows.SDK.BuildTools (NuGet) | [Windows SDK license](https://aka.ms/WinSDKLicenseURL) |
+
+The version is in `private/pins.json`.
 
 The package has `makeappx.exe` and `signtool.exe` for x64 and arm64 hosts.
 Its SHA-256 is pinned in `msix/private/pins.bzl`.

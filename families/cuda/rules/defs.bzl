@@ -6,16 +6,16 @@ load("@rules_cuda//cuda/private:providers.bzl", "CudaInfo")
 load("@rules_dx//cc/rules:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("//rules:components.bzl", _cuda_component_library = "cuda_component_library")
 load("//toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
-load("//toolchain:settings.bzl", "CUDA_CELL_SETTINGS")
+load("//toolchain:settings.bzl", "PLATFORM_SUPPORT")
 load("//toolchain:transition.bzl", "cuda_host_transition")
-load("@rules_dx//core:cells.bzl", "cells_compatible_with")
+load("@rules_dx//core:platform_support.bzl", "compatible_with")
 load("@rules_dx//core:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
-load("@rules_dx//core/modules:cuda.bzl", "CUDA_CELLS", "CUDA_VERSION", "cuda_qualified_cells")
+load("@rules_dx//core/modules:cuda.bzl", "CUDA_VERSION")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 
 cuda_component_library = _cuda_component_library
 
-CUDA_TARGET = cells_compatible_with(CUDA_CELLS, "//toolchain", cuda_qualified_cells(), settings = CUDA_CELL_SETTINGS)
+CUDA_TARGET = compatible_with(PLATFORM_SUPPORT)
 
 _CUDA_SRCS = [".cu"]
 _CUDA_HDRS = [".cuh", ".h", ".hh", ".hpp", ".hxx"]

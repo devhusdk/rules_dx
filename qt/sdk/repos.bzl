@@ -141,7 +141,7 @@ def qualified_cells(cells = CELLS):
     """Returns the cells with pinned archives and probe evidence."""
     return [cell for cell in sorted(cells.keys()) if cells[cell].blocker == ""]
 
-PLATFORM_SUPPORT = cells_support("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", CELLS, qualified_cells(), "//qt/platforms", "constraints")
+PLATFORM_SUPPORT = cells_support("//qt/rules:defs.bzl", "QT_COMPATIBLE_WITH", CELLS, qualified_cells(), "//qt/rules", "constraints", settings = {cell: Label("//qt/platforms:cell_" + cell) for cell in CELLS})
 
 def hub_targets():
     """Returns every target name the hub repository exposes."""

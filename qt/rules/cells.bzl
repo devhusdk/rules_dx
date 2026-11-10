@@ -1,8 +1,9 @@
 """Qualified Qt cells as target compatibility and consumer archive settings."""
 
 load("//core:cells.bzl", "unsupported_constraint")
+load("//core:platform_support.bzl", "compatible_with")
 load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES")
-load("//qt/sdk:repos.bzl", "qualified_cells")
+load("//qt/sdk:repos.bzl", "PLATFORM_SUPPORT", "qualified_cells")
 
 def qt_consumer_identity(cell):
     """Returns the consumer_archive arch, os and min_runtime of one qualified Qt cell."""
@@ -19,10 +20,7 @@ def _cell_setting(cell):
 
 # target_compatible_with for targets that build against @dx_qt or run: every
 # consumer cell, including macOS. Packaging has its own gate, QT_BUNDLE_COMPATIBLE_WITH.
-QT_COMPATIBLE_WITH = select(
-    {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
-)
+QT_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 
 # target_compatible_with added to every qt_bundle: cells with a needs table.
 QT_BUNDLE_COMPATIBLE_WITH = select(

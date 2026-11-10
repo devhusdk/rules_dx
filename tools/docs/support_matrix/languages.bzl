@@ -1,8 +1,8 @@
 """The language list behind docs/support-matrix.md."""
 
 load("@rules_dx_apple//ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
+load("@rules_dx_cuda//toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
 load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
-load("//core/modules:cuda.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
 load("//d/private:kwargs.bzl", D_SUPPORT = "PLATFORM_SUPPORT")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")

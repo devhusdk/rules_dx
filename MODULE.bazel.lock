@@ -7384,9 +7384,12 @@
     },
     "//qt/sdk:extensions.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "8I1vmb3k1pT8uRlkqshnsnp5+/FlyqcsEoug4swfgko=",
+        "bzlTransitiveDigest": "9LFMjqRaxCmrl+6unRYm/CIANFUcVDt0O4PjduzbF78=",
         "usagesDigest": "HRmJHBhAllRM7yd3/3jSXN8KuMksqbmGdvKd1+Ak7Wk=",
-        "recordedInputs": [],
+        "recordedInputs": [
+          "REPO_MAPPING:,dx_pins_data +dx_pins+dx_pins_data",
+          "REPO_MAPPING:,platforms platforms"
+        ],
         "generatedRepoSpecs": {
           "dx_qt_linux_arm64": {
             "repoRuleId": "@@//qt/sdk:repos.bzl%qt_cell_repo",

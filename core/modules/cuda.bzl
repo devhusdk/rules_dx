@@ -1,6 +1,5 @@
 """Pinned CUDA Toolkit components and the archs the pinned nvcc accepts."""
 
-load("//core:platform_support.bzl", "cells_support")
 load(":versions.bzl", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _CUDA_VERSION = "CUDA_VERSION", _RULES_CUDA_VERSION = "RULES_CUDA_VERSION")
 
 CUDA_VERSION = _CUDA_VERSION
@@ -257,8 +256,6 @@ CUDA_CELLS = {
 
 def cuda_qualified_cells():
     return [cell for cell, pin in CUDA_CELLS.items() if not pin.blocker]
-
-PLATFORM_SUPPORT = cells_support("@rules_dx_cuda//rules:defs.bzl", "CUDA_TARGET", CUDA_CELLS, cuda_qualified_cells(), "//toolchain", unsupported = False)
 
 CUDA_COMPONENTS = CUDA_CELLS["linux_x86_64"].components
 

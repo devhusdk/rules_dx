@@ -365,7 +365,6 @@ name cli/update/src/recovery.rs uv.lock
 name core/modules/langs.bzl .terraform.lock.hcl
 name core/modules/langs.bzl Cargo.lock
 name core/modules/langs.bzl Cargo.toml
-name core/modules/langs.bzl Chart.lock
 name core/modules/langs.bzl Gemfile
 name core/modules/langs.bzl Gemfile.lock
 name core/modules/langs.bzl Manifest.toml
@@ -464,7 +463,6 @@ name go/lang.json go.sum
 name haskell/lang.json cabal.project
 name haskell/lang.json cabal.project.freeze
 name haskell/private/deps_resolve.bzl cabal.project.freeze
-name helm/lang.json Chart.lock
 name java/lang.json MODULE.bazel
 name java/lang.json maven_install.json
 name javascript/private/quality/js_tools.bzl tsconfig.json

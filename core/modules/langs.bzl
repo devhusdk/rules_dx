@@ -1312,9 +1312,7 @@ LANGS = json.decode("""{
       "helm_chart"
     ],
     "family": "core",
-    "lockfiles": [
-      "Chart.lock"
-    ],
+    "lockfiles": [],
     "manifests": [
       "Chart.yaml"
     ],

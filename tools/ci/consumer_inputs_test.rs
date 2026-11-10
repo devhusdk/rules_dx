@@ -1,4 +1,4 @@
-use ci_workflow::{job, text_at};
+use ci_workflow::{document, job, jobs_of, steps_of, text_at};
 use serde_json::Value;
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
@@ -108,4 +108,36 @@ fn each_invocation_has_its_own_coverage_marker() {
             );
         }
     }
+}
+
+#[test]
+fn piped_status_capture_steps_run_under_bash() {
+    let workflow = document(WORKFLOW);
+    let mut checked = 0;
+    for (id, job) in jobs_of(&workflow) {
+        let default = job
+            .pointer("/defaults/run/shell")
+            .or_else(|| workflow.pointer("/defaults/run/shell"))
+            .and_then(Value::as_str);
+        for step in steps_of(job) {
+            let Some(run) = step["run"].as_str() else {
+                continue;
+            };
+            let captures = run
+                .lines()
+                .any(|line| line.contains(" | ") && line.contains("|| status=$?"));
+            if !captures {
+                continue;
+            }
+            checked += 1;
+            let shell = step["shell"].as_str().or(default);
+            assert_eq!(
+                shell,
+                Some("bash"),
+                "{WORKFLOW} job {id} step {:?} pipes into a status capture without pipefail",
+                step["name"]
+            );
+        }
+    }
+    assert!(checked > 0, "{WORKFLOW} has no piped status-capture step");
 }

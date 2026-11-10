@@ -1320,6 +1320,7 @@ jobs:
             bazel run --lockfile_mode=error @rules_dx//:dx -- completion bash > /dev/null
           fi
       - name: Run the benchmarks
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

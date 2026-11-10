@@ -27,7 +27,7 @@ Owns one Helm chart, the package holding Chart.yaml, for dx lint.
 | `subcharts` | `label_list` | no | Vendored subchart archives under charts/; never fetched. |
 | `namespace` | `string` | no | Namespace passed to helm template. |
 | `release_name` | `string` | no | Release name passed to helm template; at most 53 characters. |
-| `srcs` | `label_list` | no | Chart files, including Chart.yaml and templates. |
+| `srcs` | `label_list` | no | Chart files of this package, including Chart.yaml and templates. |
 | `values` | `label_list` | no | Values files in order; later files override earlier ones. |
 
 ## Tools

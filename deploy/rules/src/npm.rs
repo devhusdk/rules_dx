@@ -7,7 +7,7 @@ use crate::api_compat::{
 use crate::archive::*;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, print_redacted,
-    scrubbed_command,
+    exit_text, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -379,21 +379,22 @@ pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::Os
             return 1;
         }
     };
-    let output = scrubbed_command(npm, &[PUBLISH_CHILD_ENV_KEEP, NPM_CHILD_ENV_EXTRA], &[])
-        .args(args)
-        .arg("--userconfig")
-        .arg(&npmrc)
-        .output();
+    let output = run_publish(
+        scrubbed_command(npm, &[PUBLISH_CHILD_ENV_KEEP, NPM_CHILD_ENV_EXTRA], &[])
+            .args(args)
+            .arg("--userconfig")
+            .arg(&npmrc),
+    );
     if let Some(dir) = npmrc.parent() {
         let _ = std::fs::remove_dir_all(dir);
     }
     match output {
         Ok(out) => {
             print_redacted(&out, token);
-            if out.status.success() {
+            if out.success() {
                 0
             } else {
-                out.status.code().unwrap_or(1)
+                out.code.unwrap_or(1)
             }
         }
         Err(error) => {
@@ -477,16 +478,17 @@ fn extract_api_report(
     });
     let config_path = work.join("api-extractor.json");
     std::fs::write(&config_path, config.to_string()).map_err(|error| error.to_string())?;
-    let output = scrubbed_command(api_extractor, &[PUBLISH_CHILD_ENV_KEEP], &[])
-        .args(["run", "--local", "--config"])
-        .arg(&config_path)
-        .current_dir(package_dir)
-        .output()
-        .map_err(|error| format!("api-extractor: {error}"))?;
-    if !output.status.success() {
+    let output = run_publish(
+        scrubbed_command(api_extractor, &[PUBLISH_CHILD_ENV_KEEP], &[])
+            .args(["run", "--local", "--config"])
+            .arg(&config_path)
+            .current_dir(package_dir),
+    )
+    .map_err(|error| format!("api-extractor: {error}"))?;
+    if !output.success() {
         return Err(format!(
             "api-extractor failed with {}: {}",
-            output.status,
+            exit_text(&output),
             String::from_utf8_lossy(&output.stdout)
         ));
     }

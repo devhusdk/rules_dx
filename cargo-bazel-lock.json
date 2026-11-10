@@ -1,5 +1,5 @@
 {
-  "checksum": "ddd5c2bc19a2984f414611b753c75ed321adac5de1f3d5f73a8d1a16a0a4915e",
+  "checksum": "350b3973764ac943e1c981e1bd859dc70f64830f2a73ec6c712d2d6feebe2e78",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -23885,6 +23885,33 @@
       ],
       "version": "0.0.0"
     },
+    "swift_extract 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_docs_swift_extract",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "swift_extract",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_docs_swift_extract",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "syn 1.0.109": {
       "build_script_attrs": {},
       "common_attrs": {
@@ -29066,6 +29093,7 @@
     "site_tests 0.0.0": "tools/docs/site_tests",
     "starter_scaffold 0.0.0": "tools/testing/starter_scaffold",
     "support_matrix 0.0.0": "tools/docs/support_matrix",
+    "swift_extract 0.0.0": "tools/docs/swift/swift_extract",
     "tiers 0.0.0": "tools/docs/tiers",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",

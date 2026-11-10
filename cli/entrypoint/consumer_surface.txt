@@ -107,6 +107,7 @@ tools/docs/powershell:defs.bzl
 tools/docs/ruby:defs.bzl
 tools/docs/rust:defs.bzl
 tools/docs/site:site.bzl
+tools/docs/swift:defs.bzl
 tools/docs/typescript:defs.bzl
 tools/docs/zig:defs.bzl
 tools/docs:aspect.bzl

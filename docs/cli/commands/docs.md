@@ -103,6 +103,7 @@ tools/dx docs //lib:site
 | Scala | `@rules_dx//tools/docs/jvm:defs.bzl` | `scala_doc_shard` | `lib`, `package`, `deps` |
 | D | `@rules_dx//tools/docs/d:defs.bzl` | `d_doc_shard` | `lib`, `package`, `config` |
 | Haskell | `@rules_dx//tools/docs/haskell:defs.bzl` | `haskell_doc_shard` | `lib`, `package`, `config` |
+| Swift | `@rules_dx//tools/docs/swift:defs.bzl` | `swift_doc_shard` | `lib`, `package`, `config` |
 | Zig | `@rules_dx//tools/docs/zig:defs.bzl` | `zig_doc_shard` | `lib`, `package`, `config` |
 | PowerShell | `@rules_dx//tools/docs/powershell:defs.bzl` | `powershell_doc_shard` | `srcs`, `manifest`, `package`, `config` |
 | Dart | `@rules_dx//tools/docs/dart:defs.bzl` | `dart_doc_shard` | `lib`, `package` |
@@ -111,7 +112,7 @@ tools/dx docs //lib:site
 | Protobuf | `@rules_dx//tools/docs/protobuf:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
 | Avro | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_doc_shard` | `avro`, `package` |
 
-Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Zig, Dart, C#, F#, Perl and PHP libraries in scope that have
+Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Swift, Zig, Dart, C#, F#, Perl and PHP libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
 an F# library needs `generate_documentation_file = True`; others are skipped. A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files gets one when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
 

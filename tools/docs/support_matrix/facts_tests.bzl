@@ -25,6 +25,7 @@ load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
 load("//tools/docs/site:site.bzl", "docs_site")
 load("//tools/docs/julia:defs.bzl", "julia_doc_shard")
 load("//tools/docs/ocaml:defs.bzl", "ocaml_doc_shard")
+load("//tools/docs/swift:defs.bzl", "swift_doc_shard")
 load("//tools/docs/typescript:defs.bzl", "typescript_doc_shard")
 load("//tools/docs/zig:defs.bzl", "zig_doc_shard")
 load(":facts.bzl", "compiler_blocker_problems", "support_matrix_facts_dict", "tool_not_applicable")
@@ -59,6 +60,7 @@ _SHARD_RULES = {
     "docs_site": docs_site,
     "scala_doc_shard": scala_doc_shard,
     "svelte_doc_shard": svelte_doc_shard,
+    "swift_doc_shard": swift_doc_shard,
     "typescript_doc_shard": typescript_doc_shard,
     "vue_doc_shard": vue_doc_shard,
     "zig_doc_shard": zig_doc_shard,

@@ -1,0 +1,37 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust/rules:defs.bzl", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
+
+package(default_visibility = VIS_TOOLS_PUBLIC)
+
+exports_files(
+    ["defs.bzl"],
+    visibility = VIS_TOOLS,
+)
+
+rust_test(
+    name = "shard_test",
+    srcs = ["shard_test.rs"],
+    crate_name = "shard_test",
+    crate_root = "shard_test.rs",
+    data = ["//tools/docs/swift/fixture:shapes_docs"],
+    env = {"DX_FIXTURE_SHARD": "$(rootpath //tools/docs/swift/fixture:shapes_docs)"},
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:macos": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    deps = [
+        "//tools/docs/ir/ir:documentation_ir",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)

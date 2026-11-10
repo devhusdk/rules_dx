@@ -669,7 +669,7 @@ LANGUAGES = [
         bench = "swift_bench",
         fuzz = "swift_fuzz_test",
         deps = "`swiftpm`",
-        doc = NO_DOC,
+        doc = struct(tool = "swift-symbolgraph-extract", shard = "swift_doc_shard"),
         coverage = ["llvm-cov"],
         not_applicable = {
             "windows_arm64": "rules_dx registers no Swift toolchain for Windows",

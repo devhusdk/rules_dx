@@ -17,6 +17,7 @@ load("//lua/private:providers.bzl", _LuaInfo = "LuaInfo")
 load("@rules_go//go:def.bzl", "GoInfo")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_haskell//haskell:providers.bzl", _HaskellInfo = "HaskellInfo")
+load("//swift/rules:providers.bzl", "SwiftDocsInfo")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
@@ -36,6 +37,7 @@ load("//tools/docs/go:defs.bzl", "go_shard_action")
 load("//tools/docs/julia:defs.bzl", "julia_shard_action")
 load("//tools/docs/ocaml:defs.bzl", "ODOC_CONFIG", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
 load("//tools/docs/haskell:defs.bzl", "HASKELL_TOOLCHAIN", "haskell_shard_action")
+load("//tools/docs/swift:defs.bzl", "swift_shard_action")
 load("//tools/docs/zig:defs.bzl", "zig_shard_action")
 load("//tools/docs/lua:defs.bzl", "lua_shard_action")
 load("//tools/docs/jvm:shard.bzl", "JAVA_TOOLCHAIN", "JVM_LANGUAGES", "KOTLIN_TOOLCHAIN", "jvm_shard_action")
@@ -140,6 +142,14 @@ def _haskell_docs_shard(target, ctx):
     if ctx.toolchains[HASKELL_TOOLCHAIN] == None or not target[_HaskellInfo].source_files.to_list():
         return None
     return haskell_shard_action(ctx, target[_HaskellInfo], ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._haskell_extract).shard
+
+def _swift_docs_shard(target, ctx):
+    if SwiftDocsInfo not in target or DocsShardInfo in target or ctx.label.name.endswith("_upstream"):
+        return None
+    info = target[SwiftDocsInfo]
+    if len(info.graphs) != 1 or not info.srcs:
+        return None
+    return swift_shard_action(ctx, info, ctx.label.name, "", "_dx_docs/" + ctx.label.name, ctx.executable._swift_extract).shard
 
 def _zig_docs_shard(target, ctx):
     if _ZigModuleInfo not in target or DocsShardInfo in target:
@@ -438,6 +448,9 @@ def _real_docs_aspect_impl(target, ctx):
     haskell_shard = _haskell_docs_shard(target, ctx)
     if haskell_shard:
         parts.append({"dx_results": [haskell_shard], "dx_docs_shards": [haskell_shard]})
+    swift_shard = _swift_docs_shard(target, ctx)
+    if swift_shard:
+        parts.append({"dx_results": [swift_shard], "dx_docs_shards": [swift_shard]})
     zig_shard = _zig_docs_shard(target, ctx)
     if zig_shard:
         parts.append({"dx_results": [zig_shard], "dx_docs_shards": [zig_shard]})
@@ -493,7 +506,7 @@ def _real_docs_aspect_impl(target, ctx):
 
 real_docs_aspect = aspect(
     implementation = _real_docs_aspect_impl,
-    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Haskell, Zig, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Lua, Julia, OCaml, Fortran, PHP, Avro, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The Avro branch reads the `doc` attributes of an avro_library's own .avsc srcs and of the schemas the pinned avro-tools (//config:tool_avro) writes for its .avdl srcs with idl2schemata, with the DocIr extractor (//tools/docs/avro/extract:avro_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
+    doc = "Puts the docs sites, shards and API trees of a target in dx_results and a manifest naming each site tree in dx_docs_sites. Rust, Go, Python, JVM, C, C++, CUDA, D, Haskell, Swift, Zig, Dart, C#, F#, PowerShell, Perl, Protobuf, Ruby, Lua, Julia, OCaml, Fortran, PHP, Avro, TypeScript, JavaScript, Vue, Svelte, Astro and MDX library shards. The PHP branch runs the pinned phpDocumentor (@dx_phpdocumentor) on the pinned PHP and the DocIr extractor (//tools/docs/php/extract:php_extract) over a library's own .php srcs. The Perl branch runs the pinned perl over the POD driver (//tools/docs/perl:pod_dump.pl) and the DocIr extractor (//tools/docs/perl/extract:perl_extract) over a library's own .pm and .pl srcs. The Ruby branch runs the pinned YARD (@dx_yard) and the DocIr extractor (//tools/docs/ruby/extract:ruby_extract) over a library's own .rb srcs go in dx_docs_shards. The Protobuf branch runs the protoc of the proto toolchain with --include_source_info over a proto_library's own .proto srcs and the DocIr extractor (//tools/docs/protobuf/extract:protobuf_extract). The Avro branch reads the `doc` attributes of an avro_library's own .avsc srcs and of the schemas the pinned avro-tools (//config:tool_avro) writes for its .avdl srcs with idl2schemata, with the DocIr extractor (//tools/docs/avro/extract:avro_extract). The TypeScript branch runs the pinned TypeDoc (//quality/tools/javascript/bin:typedoc) and the DocIr extractor (//tools/docs/typescript/extract:typescript_extract) over each non-test ts_project. The JavaScript branch runs the same TypeDoc over a js_library of .js, .mjs, .cjs or .jsx srcs that has exactly one tsconfig.json (with allowJs) in its package. The Fortran branch runs the pinned FORD (//quality/tools/python:ford_dump) and the DocIr extractor (//tools/docs/fortran/extract:fortran_extract) over a library's own Fortran srcs. The Swift branch runs the DocIr extractor (//tools/docs/swift/extract:swift_extract) over the symbol graph of swift-symbolgraph-extract and a swift_library's own .swift srcs. Rust shards also put their rustdoc JSON and source manifest in rustdoc_json and srcs_manifest.",
     attrs = {
         "_astro_meta": _component_meta_attr("astro"),
         "_avro_extract": attr.label(
@@ -529,6 +542,11 @@ real_docs_aspect = aspect(
         "_haskell_extract": attr.label(
             cfg = "exec",
             default = Label("//tools/docs/haskell/extract:haskell_extract"),
+            executable = True,
+        ),
+        "_swift_extract": attr.label(
+            cfg = "exec",
+            default = Label("//tools/docs/swift/extract:swift_extract"),
             executable = True,
         ),
         "_dotnet_extract": attr.label(

@@ -72,6 +72,10 @@ dx format --apply
 dx lint
 ```
 
+## API docs
+
+`dx docs` documents every `swift_library` in scope from the symbol graph that `swift-symbolgraph-extract` of the Swift toolchain writes for its public declarations. `swift_doc_shard` (`@rules_dx//tools/docs/swift:defs.bzl`) turns the graph and the library's own `.swift` files into the API reference. Nothing needs to be installed. Members that an extension adds to a type of another module are not documented.
+
 ## macOS arm64
 
 On macOS the same rules build with the Xcode installed on the host. Install

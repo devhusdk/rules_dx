@@ -5250,6 +5250,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "swift_extract"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"

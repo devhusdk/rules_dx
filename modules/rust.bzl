@@ -73,6 +73,7 @@ RUST_CRATE_MANIFESTS = [
     "//tools/docs/powershell/extract:Cargo.toml",
     "//tools/docs/d/extract:Cargo.toml",
     "//tools/docs/haskell/extract:Cargo.toml",
+    "//tools/docs/swift/extract:Cargo.toml",
     "//tools/docs/zig/extract:Cargo.toml",
     "//tools/docs/jvm/convert:Cargo.toml",
     "//tools/docs/dotnet/extract:Cargo.toml",

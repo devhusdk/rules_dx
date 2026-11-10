@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_swift//swift:providers.bzl", "SwiftInfo")
+load("//swift/rules:providers.bzl", "SwiftDocsInfo")
 
 def _library_impl(ctx):
     env = analysistest.begin(ctx)
@@ -10,6 +11,9 @@ def _library_impl(ctx):
     asserts.true(env, SwiftInfo in target)
     asserts.true(env, CcInfo in target)
     asserts.true(env, DefaultInfo in target)
+    asserts.true(env, SwiftDocsInfo in target)
+    asserts.equals(env, 1, len(target[SwiftDocsInfo].graphs))
+    asserts.equals(env, ["greet.swift"], [f.basename for f in target[SwiftDocsInfo].srcs])
     return analysistest.end(env)
 
 def _binary_impl(ctx):

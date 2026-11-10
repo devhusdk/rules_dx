@@ -1,10 +1,11 @@
 """Swift wrappers that build for Linux and macOS."""
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_swift//swift:providers.bzl", "SwiftInfo")
+load("@rules_swift//swift:providers.bzl", "SwiftInfo", "SwiftSymbolGraphInfo")
 load("@rules_swift//swift:swift_binary.bzl", _swift_binary = "swift_binary")
 load("@rules_swift//swift:swift_interop_hint.bzl", _swift_interop_hint = "swift_interop_hint")
 load("@rules_swift//swift:swift_library.bzl", _swift_library = "swift_library")
+load("@rules_swift//swift:swift_symbol_graph_aspect.bzl", "swift_symbol_graph_aspect")
 load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
@@ -12,6 +13,7 @@ load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
+load("//swift/rules:providers.bzl", "SwiftDocsInfo")
 
 # Re-exported unchanged: BUILD files need it to expose C modules to Swift.
 swift_interop_hint = _swift_interop_hint
@@ -34,8 +36,14 @@ SWIFT_QUALITY_TOOLS = {
 }
 _EXEC_PROVIDES = DX_EXEC_PROVIDES + [QualityToolsInfo]
 
+def _swift_docs_providers(ctx, upstream):
+    graphs = upstream[SwiftSymbolGraphInfo].direct_symbol_graphs if SwiftSymbolGraphInfo in upstream else []
+    return [SwiftDocsInfo(graphs = graphs, srcs = [f for f in ctx.files.srcs if f.extension == "swift"])]
+
 _swift_library_forward = dx_library_forward_rule(
-    provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo, QualityToolsInfo],
+    provides = [SwiftInfo, CcInfo, DefaultInfo, QualitySourcesInfo, QualityToolsInfo, SwiftDocsInfo],
+    extra_providers = _swift_docs_providers,
+    upstream_aspects = [swift_symbol_graph_aspect],
     required_providers = [(SwiftInfo, "SwiftInfo"), (CcInfo, "CcInfo")],
     quality_specs = _SPECS,
     what = "swift_*",

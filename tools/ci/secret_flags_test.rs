@@ -64,9 +64,8 @@ fn is_upload(step: &Value) -> bool {
 #[test]
 fn no_remote_header_carries_a_secret() {
     for path in ci_files() {
-        let text = read_runfiles(&path);
-        for (index, line) in text.lines().enumerate() {
-            let at = format!("{path}:{}", index + 1);
+        for line in ci_workflow::strings(&path).iter().flat_map(|text| text.lines()) {
+            let at = path.as_str();
             if line.contains("remote_header") {
                 assert!(
                     !line.contains("secrets.") && !line.contains("BUILDBUDDY_API_KEY"),

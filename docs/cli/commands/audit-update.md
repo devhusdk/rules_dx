@@ -557,7 +557,7 @@ fortran.fpm(
 ```
 
 - `fpm.toml` must sit beside `fpm.lock`.
-- An fpm set is pinned: `dx update` does not resolve packages. Edit `fpm.toml` and regenerate `fpm.lock` by hand.
+- An fpm set: `dx update` runs the `fpm_lock` target next to `fpm.lock`, which re-hashes each package archive and rewrites its `sha256`; `<set>:<package>` re-hashes one. It does not move versions, and `dx update --outdated` checks no registry. Without the target it refuses.
 - `dx security` and `dx license` list the packages of `fpm.lock`. OSV and the GitHub Advisory Database have no fpm ecosystem, so there is no advisory source.
 
 ### zig
@@ -572,7 +572,7 @@ zig_deps.lock(
 ```
 
 - `build.zig.zon` is `lock` and the manifest; `zig.digests.json` must sit beside it.
-- A zig set is pinned: `dx update` does not resolve packages and `dx update --outdated` does not check a registry. Edit `build.zig.zon` and refresh `zig.digests.json` by hand.
+- A zig set: `dx update` runs the `zig_digests` target next to `build.zig.zon`, which re-hashes each archive dependency into `zig.digests.json`; `<set>:<package>` re-hashes one. It does not move versions, and `dx update --outdated` checks no registry. Without the target it refuses.
 - OSV and the GitHub Advisory Database have no Zig ecosystem, so `dx security` has no advisory source.
 
 ### opam

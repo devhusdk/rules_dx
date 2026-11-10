@@ -8,6 +8,7 @@ mod cabal;
 mod cargo;
 mod composer;
 mod cpan;
+mod fpm;
 mod go;
 mod hex;
 mod julia;
@@ -18,8 +19,10 @@ mod nuget;
 mod opam;
 mod pinned;
 mod pub_dev;
+mod rehash;
 mod swiftpm;
 mod uv;
+mod zig;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BackendPlan {
@@ -701,9 +704,9 @@ pub fn plan_configured(
         | Ecosystem::PowerShell
         | Ecosystem::Conan
         | Ecosystem::Dub
-        | Ecosystem::Fpm
-        | Ecosystem::Zig
         | Ecosystem::Bicep => pinned::plan(set, request),
+        Ecosystem::Fpm => fpm::plan(workspace, set, request, offline, frozen, head),
+        Ecosystem::Zig => zig::plan(workspace, set, request, offline, frozen, head),
     }
 }
 
@@ -1163,9 +1166,9 @@ fn backend_module(ecosystem: Ecosystem) -> &'static str {
         | Ecosystem::PowerShell
         | Ecosystem::Conan
         | Ecosystem::Dub
-        | Ecosystem::Fpm
-        | Ecosystem::Zig
         | Ecosystem::Bicep => "pinned",
+        Ecosystem::Fpm => "fpm",
+        Ecosystem::Zig => "zig",
         Ecosystem::Uv => "uv",
         Ecosystem::Npm => "npm",
         Ecosystem::Bazel => "bazel",

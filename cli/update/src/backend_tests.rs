@@ -879,6 +879,74 @@ fn luarocks_update_runs_the_lock_target_with_the_rocks() {
     assert!(error.to_string().contains("add a luarocks_lock"));
 }
 
+fn rehash_set(name: &str, ecosystem: Ecosystem, manifest: &str, lock: &str) -> ResolvedSet {
+    ResolvedSet {
+        name: name.to_owned(),
+        ecosystem,
+        dir: "native".to_owned(),
+        manifests: vec![manifest.to_owned()],
+        locks: vec![lock.to_owned()],
+        repository: None,
+    }
+}
+
+#[test]
+fn zig_and_fpm_updates_run_the_rehash_target() {
+    let dir = dx_test_scratch::scratch("rehash_backend");
+    dx_test_scratch::write(
+        dir.path(),
+        "native/BUILD.bazel",
+        "zig_digests(name = \"digests\")\nfpm_lock(name = \"lock\")\n",
+    );
+    let zig = rehash_set(
+        "zig",
+        Ecosystem::Zig,
+        "native/build.zig.zon",
+        "native/zig.digests.json",
+    );
+    let fpm = rehash_set("fpm", Ecosystem::Fpm, "native/fpm.toml", "native/fpm.lock");
+    let run = |set: &ResolvedSet, request: &Selection, offline: bool| {
+        plan_configured(
+            dir.path(),
+            set,
+            request,
+            offline,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let BackendPlan::Run { argv, .. } = run(&zig, &Selection::Full, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(argv[argv.len() - 2..].join(" "), "//native:digests --");
+    let named = Selection::Packages(vec!["xxhash".to_owned()]);
+    let BackendPlan::Run { argv, .. } = run(&zig, &named, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(argv[argv.len() - 3..].join(" "), "//native:digests -- xxhash");
+    let BackendPlan::Run { argv, .. } = run(&fpm, &named, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(argv[argv.len() - 3..].join(" "), "//native:lock -- xxhash");
+    assert!(matches!(
+        run(&fpm, &Selection::Full, true),
+        Err(BackendError::OfflineRequired { .. })
+    ));
+    let bare = dx_test_scratch::scratch("rehash_backend_bare");
+    let error = plan_configured(
+        bare.path(),
+        &fpm,
+        &Selection::Full,
+        false,
+        false,
+        &no_head(),
+        &UvClosure::default(),
+    )
+    .expect_err("refused");
+    assert!(error.to_string().contains("add an fpm_lock"));
+}
+
 fn cabal_set() -> ResolvedSet {
     ResolvedSet {
         name: "hackage".to_owned(),

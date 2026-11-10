@@ -71,6 +71,8 @@ The `.hash` of a dependency is not the archive digest, so `zig.digests.json` pin
 
 A package without a matching entry fails the fetch and prints the entry to commit.
 
+`zig_digests(name)` from `@rules_dx//zig:defs.bzl` next to `build.zig.zon` is the target `dx update` runs. It downloads each archive dependency and rewrites `zig.digests.json`; `dx update <set>:<package>` re-hashes one package.
+
 ## Benchmarks
 
 `zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.

@@ -138,4 +138,4 @@ named `name` with one `fortran_library` alias per package. Each table needs
 `version`, `url` and `sha256`, and may set `strip_prefix` and
 `dependencies`, a list of other locked packages. Each package compiles the
 Fortran sources under its `src` tree. `dx security` and `dx license` list the
-locked packages; `dx update` does not resolve them.
+locked packages. `fpm_lock(name)` from `@rules_dx//fortran:defs.bzl` next to `fpm.lock` is the target `dx update` runs; it downloads each archive and rewrites its `sha256`, and `dx update <set>:<package>` re-hashes one package.

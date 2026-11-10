@@ -18,7 +18,7 @@ const SKIPPED_SEGMENTS: [&str; 4] = ["tests", "testdata", "fixtures", "third_par
 const WRAPPER_SUFFIXES: [&str; 5] = ["_binary", "_test", "_bench", "_fuzz_test", "_application"];
 
 /// Packages whose :corpus_starlark is in the test data.
-const PACKAGES: [&str; 99] = [
+const PACKAGES: [&str; 100] = [
     "api_spec/private",
     "appimage",
     "asciidoc/private",
@@ -50,6 +50,7 @@ const PACKAGES: [&str; 99] = [
     "examples/shared-rust",
     "flutter/private",
     "fortran/private",
+    "fortran/private/tools",
     "go/rules",
     "haskell/rules",
     "helm/private",

@@ -1,5 +1,6 @@
 """Public Zig API."""
 
+load("//zig/private/tools:digests.bzl", _zig_digests = "zig_digests")
 load(
     "//zig/private:defs.bzl",
     _zig_bench = "zig_bench",
@@ -14,3 +15,4 @@ zig_library = _zig_library
 zig_binary = _zig_binary
 zig_test = _zig_test
 zig_bench = _zig_bench
+zig_digests = _zig_digests

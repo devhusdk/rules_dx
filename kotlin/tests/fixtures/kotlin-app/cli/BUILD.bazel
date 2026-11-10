@@ -1,8 +1,13 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 
 # gazelle:resolve kotlin grades.BuildInfo //kotlin/tests/fixtures/kotlin-app/grades
+# gazelle:resolve kotlin org.junit.Assert.assertEquals @maven//:junit_junit
+# gazelle:resolve kotlin org.junit.Rule @maven//:junit_junit
+# gazelle:resolve kotlin org.junit.Test @maven//:junit_junit
+# gazelle:resolve kotlin org.junit.rules.TemporaryFolder @maven//:junit_junit
 
 package(
     default_testonly = True,
@@ -43,10 +48,17 @@ kotlin_test(
     ],
 )
 
-# keep
 rust_test(
     name = "exit_codes_test",
+    testonly = True,
     srcs = ["exit_codes_test.rs"],
+    aliases = aliases(
+        package_name = "kotlin/tests/fixtures/kotlin-app/kotlin_app_cli_fixture",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "exit_codes_test",
+    crate_root = "exit_codes_test.rs",
     data = [
         ":grades",
         "//kotlin/tests/fixtures/kotlin-app/grades:grades.json",
@@ -78,4 +90,11 @@ real_source_target(
     visibility = [
         "//:__pkg__",
     ],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

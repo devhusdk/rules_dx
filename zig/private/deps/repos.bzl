@@ -37,7 +37,10 @@ def _package_impl(rctx):
     if not main:
         fail("%s has no root source file; expected one of %s" % (attrs.package, ", ".join(main_candidates(attrs.package))))
     zon = rctx.read("build.zig.zon") if rctx.path("build.zig.zon").exists else ""
-    deps = [attrs.selected[name] for name in dependency_names(zon, attrs.selected)]
+    names, problems = dependency_names(zon, attrs.selected_hashes)
+    if problems:
+        fail("%s %s" % (attrs.package, ("\n" + attrs.package + " ").join(problems)))
+    deps = [attrs.selected[name] for name in names]
     rctx.file("REPO.bazel", "")
     rctx.file("BUILD.bazel", spoke_build(attrs.package, main, deps, _DEFS_BZL))
     return rctx.repo_metadata(reproducible = True)
@@ -49,6 +52,7 @@ zig_package = repository_rule(
         "hash": attr.string(mandatory = True, doc = "The .hash of the dependency in build.zig.zon."),
         "package": attr.string(mandatory = True, doc = "The dependency name."),
         "selected": attr.string_dict(doc = "Repository name of every dependency, by name."),
+        "selected_hashes": attr.string_dict(doc = "The .hash of every dependency, by name."),
         "sha256": attr.string(doc = "The archive digest; empty means unpinned and the fetch fails after printing the digest."),
         "unpinned": attr.string(doc = "Why the package has no usable digest; empty when pinned."),
         "url": attr.string(mandatory = True, doc = "The archive URL."),
@@ -61,6 +65,7 @@ def declare(hub, zon_text, digests_text):
     if result.errors:
         fail("build.zig.zon for %s is unusable:\n  %s" % (hub, "\n  ".join(result.errors)))
     selected = {name: package.spoke for name, package in result.packages.items()}
+    hashes = {name: package.hash for name, package in result.packages.items()}
     for name in sorted(result.packages.keys()):
         package = result.packages[name]
         zig_package(
@@ -68,6 +73,7 @@ def declare(hub, zon_text, digests_text):
             hash = package.hash,
             package = name,
             selected = selected,
+            selected_hashes = hashes,
             sha256 = package.sha256,
             unpinned = package.unpinned,
             url = package.url,

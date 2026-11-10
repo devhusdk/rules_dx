@@ -173,6 +173,12 @@ def analyze(hub, zon_text, digests_text):
             sha256 = "" if problem else pins[name]["sha256"],
             unpinned = problem,
         )
+    owners = {}
+    for name in sorted(packages.keys()):
+        spoke = packages[name].spoke
+        if spoke in owners:
+            errors.append("%s and %s both map to the repository name %s; rename one" % (owners[spoke], name, spoke))
+        owners[spoke] = name
     for name in sorted(pins.keys()):
         if name not in deps:
             errors.append("zig.digests.json pins %s, which is not in build.zig.zon; remove it" % name)
@@ -190,9 +196,22 @@ def main_file(name, existing):
     return ""
 
 def dependency_names(zon_text, selected):
-    """Returns the sorted selected packages that a package's build.zig.zon depends on."""
+    """Returns (sorted dependency names, errors) of a package's build.zig.zon.
+
+    `selected` maps each root package name to its hash. A dependency that is absent from it,
+    or whose hash differs, is an error.
+    """
     deps, _ = parse_dependencies(zon_text)
-    return sorted([name for name in deps.keys() if name in selected])
+    names = []
+    errors = []
+    for name in sorted(deps.keys()):
+        if name not in selected:
+            errors.append("depends on %s, which the root build.zig.zon does not list; add it there" % name)
+        elif selected[name] != deps[name].hash:
+            errors.append("depends on %s with hash %r but the root build.zig.zon has %r" % (name, deps[name].hash, selected[name]))
+        else:
+            names.append(name)
+    return names, errors
 
 def spoke_build(name, main, dep_spokes, defs_bzl):
     """Returns the BUILD file of one package repository."""

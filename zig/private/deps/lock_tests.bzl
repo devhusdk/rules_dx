@@ -51,6 +51,7 @@ def _checks():
     stale = analyze("hub", _ZON, _digests({"xxhash": "other", "wire-fmt": "N-V-__8AAB"}))
     orphan = analyze("hub", _ZON, _digests({"xxhash": "N-V-__8AAA", "wire-fmt": "N-V-__8AAB", "z": "h"}))
     git = analyze("hub", ".{ .dependencies = .{ .a = .{ .url = \"git+https://x/y#abc\", .hash = \"h\" } } }", "")
+    collide = analyze("hub", ".{ .dependencies = .{ .@\"a-b\" = .{ .url = \"https://x/a.tar.gz\", .hash = \"h\" }, .a_b = .{ .url = \"https://x/b.tar.gz\", .hash = \"h\" } } }", "")
     bad_sidecar = analyze("hub", _ZON, "{\"version\": 1}")
     build = spoke_build("a", "src/a.zig", ["hub__b"], "//zig/private:defs.bzl")
     return [
@@ -75,7 +76,10 @@ def _checks():
         expect_equal("named root wins", main_file("a", ["src/a.zig", "src/root.zig"]), "src/a.zig"),
         expect_equal("root.zig is the fallback", main_file("a", ["src/root.zig"]), "src/root.zig"),
         expect_equal("no root", main_file("a", ["build.zig"]), ""),
-        expect_equal("dependency edges keep selected packages", dependency_names(_ZON, {"xxhash": "x"}), ["xxhash"]),
+        expect_equal("dependency edges keep selected packages", dependency_names(_ZON, {"xxhash": "N-V-__8AAA", "wire-fmt": "N-V-__8AAB"}), (["wire-fmt", "xxhash"], [])),
+        expect_contains("an unlisted dependency is named", dependency_names(_ZON, {"xxhash": "N-V-__8AAA"})[1][0], "depends on wire-fmt, which the root build.zig.zon does not list"),
+        expect_contains("a hash mismatch is reported", dependency_names(_ZON, {"xxhash": "other", "wire-fmt": "N-V-__8AAB"})[1][0], "depends on xxhash with hash \"N-V-__8AAA\""),
+        expect_contains("colliding spoke names are reported", collide.errors[0], "both map to the repository name hub__a_b"),
         expect_contains("dependency edges are labels", build, "\"@hub__b//:pkg\""),
         expect_contains("the import name is the package name", build, "import_name = \"a\""),
         expect_contains("the hub aliases the spoke", hub_package_build("a", "hub__a"), "actual = \"@hub__a//:pkg\""),

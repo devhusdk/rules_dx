@@ -410,6 +410,8 @@ pub fn build_request(
     })
 }
 
+const CHILD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3600);
+
 pub struct ChildOutput {
     pub status: String,
     pub stdout: Vec<u8>,
@@ -417,25 +419,23 @@ pub struct ChildOutput {
 }
 
 pub fn run_child(program: &Path, argv: &[String], role: &str) -> Result<ChildOutput, HarnessError> {
+    let mut command = Command::new(program);
+    command.args(argv);
     let output =
-        Command::new(program)
-            .args(argv)
-            .output()
-            .map_err(|error| HarnessError::RunnerFailed {
+        dx_process::capture::run_captured(&mut command, CHILD_TIMEOUT).map_err(|error| {
+            HarnessError::RunnerFailed {
                 detail: format!("cannot launch {role} {}: {error}", program.display()),
-            })?;
+            }
+        })?;
     Ok(ChildOutput {
-        status: status_text(&output.status),
+        status: status_text(output.code),
         stdout: output.stdout,
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     })
 }
 
-fn status_text(status: &std::process::ExitStatus) -> String {
-    if status.success() {
-        return "exit 0".to_owned();
-    }
-    match status.code() {
+fn status_text(code: Option<i32>) -> String {
+    match code {
         Some(code) => format!("exit {code}"),
         None => "terminated by signal".to_owned(),
     }
@@ -873,7 +873,10 @@ pub fn runner_error_text(stderr: &str) -> Option<String> {
 /// spelling the rest of the path with forward slashes.
 pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
     let flat = text.replace('\\', "/");
-    let prefix = format!("{}/", scratch_parent.replace('\\', "/").trim_end_matches('/'));
+    let prefix = format!(
+        "{}/",
+        scratch_parent.replace('\\', "/").trim_end_matches('/')
+    );
     let mut out = String::with_capacity(text.len());
     let mut at = 0;
     while let Some(found) = flat[at..].find(&prefix) {
@@ -882,7 +885,9 @@ pub fn normalize_scratch(text: &str, scratch_parent: &str) -> String {
         out.push_str(SCRATCH_TOKEN);
         let after = start + prefix.len();
         let dir_end = flat[after..].find('/').map_or(flat.len(), |i| after + i);
-        let path_end = flat[dir_end..].find([' ', ':', '\n']).map_or(flat.len(), |i| dir_end + i);
+        let path_end = flat[dir_end..]
+            .find([' ', ':', '\n'])
+            .map_or(flat.len(), |i| dir_end + i);
         out.push_str(&flat[dir_end..path_end]);
         at = path_end;
     }

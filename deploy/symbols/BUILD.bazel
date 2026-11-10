@@ -16,7 +16,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/dx_symbols",
         normal = True,
-    ) + [":dx_symbols"],
+    ) + [
+        ":dx_symbols",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_binary(
@@ -31,7 +34,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/dx_symbols",
         normal = True,
-    ) + [":dx_symbols"],
+    ) + [
+        ":dx_symbols",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_binary(

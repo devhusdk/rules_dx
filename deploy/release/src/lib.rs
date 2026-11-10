@@ -811,12 +811,16 @@ fn signing_bundle_for(asset: &str, outdir: &Path) -> String {
         .into_owned()
 }
 
+const SIGN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
 /// Runs `argv` with the inherited environment and working directory.
-fn run_output(argv: &[String]) -> io::Result<std::process::Output> {
+fn run_output(argv: &[String]) -> Result<dx_process::capture::Captured, String> {
     let (binary, args) = argv
         .split_first()
-        .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "invocation needs a binary"))?;
-    std::process::Command::new(binary).args(args).output()
+        .ok_or_else(|| "invocation needs a binary".to_owned())?;
+    let mut command = std::process::Command::new(binary);
+    command.args(args);
+    dx_process::capture::run_captured(&mut command, SIGN_TIMEOUT).map_err(|error| error.to_string())
 }
 
 fn signing_live(
@@ -837,9 +841,8 @@ fn signing_live(
     let version_argv = vec![pin.path.to_owned(), "version".to_owned()];
     let version_out = run_output(&version_argv)
         .map_err(|error| format!("signing: cannot run '{} version': {error}", pin.path))?;
-    let version_text = String::from_utf8_lossy(&version_out.stdout).into_owned()
-        + &String::from_utf8_lossy(&version_out.stderr);
-    if !version_out.status.success() || !signing_version_ok(&version_text, pin.version) {
+    let version_text = version_out.stdout_text() + &String::from_utf8_lossy(&version_out.stderr);
+    if !version_out.success() || !signing_version_ok(&version_text, pin.version) {
         return Err(format!(
             "signing: cosign GitVersion must be {} (pinned per deploy/release/cosign_pins.bzl); got: {}",
             pin.version,
@@ -925,7 +928,7 @@ fn signing_sign_one(
     let sign_argv = signing_sign_argv(pin.path, asset, bundle);
     let sign_out = run_output(&sign_argv)
         .map_err(|error| format!("signing: cannot run '{}': {error}", sign_argv.join(" ")))?;
-    if !sign_out.status.success() {
+    if !sign_out.success() {
         return Err(format!(
             "signing: '{}' failed for {asset}; publishing nothing",
             sign_argv.join(" ")
@@ -934,7 +937,7 @@ fn signing_sign_one(
     let verify_argv = signing_verify_argv(pin.path, asset, bundle, identity, issuer);
     let verify_out = run_output(&verify_argv)
         .map_err(|error| format!("signing: cannot run '{}': {error}", verify_argv.join(" ")))?;
-    if !verify_out.status.success() {
+    if !verify_out.success() {
         return Err(format!(
             "signing: '{}' failed for {asset}; bundle rejected, publishing nothing",
             verify_argv.join(" ")

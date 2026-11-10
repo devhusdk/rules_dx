@@ -32,6 +32,8 @@ fn qualify_outcome(record: &CellRecord) -> (i32, String) {
 }
 
 // LCOV_EXCL_START - reason: process shim with the real command runner, issue: 1386, policy: docs/cli/commands/build-test-coverage.md
+const CELL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
+
 struct CommandRunner;
 
 impl cell::Runner for CommandRunner {
@@ -41,14 +43,12 @@ impl cell::Runner for CommandRunner {
         args: &[&str],
         cwd: &std::path::Path,
     ) -> cell::RunOutput {
-        match std::process::Command::new(program)
-            .args(args)
-            .current_dir(cwd)
-            .output()
-        {
+        let mut command = std::process::Command::new(program);
+        command.args(args).current_dir(cwd);
+        match dx_process::capture::run_captured(&mut command, CELL_TIMEOUT) {
             Ok(out) => cell::RunOutput {
-                success: out.status.success(),
-                stdout: String::from_utf8_lossy(&out.stdout).into_owned(),
+                success: out.success(),
+                stdout: out.stdout_text(),
                 stderr: String::from_utf8_lossy(&out.stderr).into_owned(),
             },
             Err(error) => cell::RunOutput {

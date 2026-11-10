@@ -35,15 +35,17 @@ fn parse(args: &[String]) -> Result<Args, String> {
     })
 }
 
+const TOOL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
 fn version(dsymutil: &Path) -> Result<String, String> {
-    let out = Command::new(dsymutil)
-        .arg("--version")
-        .output()
+    let mut command = Command::new(dsymutil);
+    command.arg("--version");
+    let out = dx_process::capture::run_captured(&mut command, TOOL_TIMEOUT)
         .map_err(|e| format!("cannot run {}: {e}", dsymutil.display()))?;
-    if !out.status.success() {
+    if !out.success() {
         return Err(format!("{} --version failed", dsymutil.display()));
     }
-    let text = String::from_utf8_lossy(&out.stdout).into_owned();
+    let text = out.stdout_text();
     Ok(text
         .lines()
         .find(|l| l.contains("version"))

@@ -284,7 +284,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "deploy/dx_release_tools",
         normal = True,
-    ) + [":dx_release_tools"],
+    ) + [
+        ":dx_release_tools",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_binary(
@@ -317,6 +320,7 @@ rust_binary(
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
     ],
 )
 
@@ -381,7 +385,10 @@ rust_test(
         package_name = "deploy/dx_release_tools",
         normal = True,
         normal_dev = True,
-    ) + [":dx_release_tools"],
+    ) + [
+        ":dx_release_tools",
+        "//cli/process:dx_process",
+    ],
 )
 
 rust_test(
@@ -414,6 +421,7 @@ rust_test(
     ) + [
         ":dx_release_tools",
         "//cli/digest:dx_digest",
+        "//cli/process:dx_process",
         "//tools/testing:dx_testing",
     ],
 )

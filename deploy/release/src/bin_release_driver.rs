@@ -33,6 +33,8 @@ fn resolve_assets(argv: &[String]) -> &[String] {
     argv.get(3..).unwrap_or(&[])
 }
 
+const GH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(300);
+
 struct GhBackend {
     program: String,
     token: Option<String>,
@@ -41,15 +43,14 @@ struct GhBackend {
 
 impl GhBackend {
     fn call(&self, args: &[&str]) -> Result<String, String> {
-        let output = Command::new(&self.program)
-            .args(args)
-            .output()
+        let mut command = Command::new(&self.program);
+        command.args(args);
+        let output = dx_process::capture::run_captured(&mut command, GH_TIMEOUT)
             .map_err(|err| format!("cannot run gh: {err}"))?;
-        if output.status.success() {
-            return Ok(String::from_utf8_lossy(&output.stdout).into_owned());
+        if output.success() {
+            return Ok(output.stdout_text());
         }
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        Err(scrub(stderr.trim(), self.token.as_deref()))
+        Err(scrub(&output.stderr_text(), self.token.as_deref()))
     }
 }
 

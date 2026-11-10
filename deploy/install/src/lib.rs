@@ -238,14 +238,15 @@ pub trait Verifier {
 
 pub struct SystemVerifier;
 
+const SPAWN_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(120);
+
 fn spawn_success(argv: &[String]) -> bool {
     let Some((binary, args)) = argv.split_first() else {
         return false;
     };
-    std::process::Command::new(binary)
-        .args(args)
-        .output()
-        .is_ok_and(|out| out.status.success())
+    let mut command = std::process::Command::new(binary);
+    command.args(args);
+    dx_process::capture::run_captured(&mut command, SPAWN_TIMEOUT).is_ok_and(|out| out.success())
 }
 
 /// True when `bin` names a file inside one of the `path` directories, trying

@@ -17,6 +17,7 @@ rust_library(
     deps = [
         "//cli/digest:dx_digest",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//deploy/release:dx_release_tools",
     ],
 )

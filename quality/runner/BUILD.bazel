@@ -66,6 +66,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//quality/adapter:quality_adapter",
         "//quality/notebook:quality_notebook_lib",
         "//quality/result:quality_result",
@@ -104,6 +105,7 @@ rust_binary(
     ) + [
         ":quality_runner_lib",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//quality/result:quality_result",
     ],
 )
@@ -200,6 +202,7 @@ rust_test(
         "//cli/digest:dx_digest",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//quality/adapter:quality_adapter",
         "//quality/notebook:quality_notebook_lib",
         "//quality/result:quality_result",
@@ -223,6 +226,7 @@ rust_test(
     ) + [
         ":quality_runner_lib",
         "//cli/path:dx_path",
+        "//cli/process:dx_process",
         "//quality/result:quality_result",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],

@@ -38,19 +38,21 @@ fn parse(args: &[String]) -> Result<Args, String> {
     })
 }
 
+const TOOL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
+
 fn run(objcopy: &Path, args: &[&std::ffi::OsStr]) -> Result<String, String> {
-    let out = Command::new(objcopy)
-        .args(args)
-        .output()
+    let mut command = Command::new(objcopy);
+    command.args(args);
+    let out = dx_process::capture::run_captured(&mut command, TOOL_TIMEOUT)
         .map_err(|e| format!("cannot run {}: {e}", objcopy.display()))?;
-    if !out.status.success() {
+    if !out.success() {
         return Err(format!(
             "{} failed: {}",
             objcopy.display(),
-            String::from_utf8_lossy(&out.stderr).trim()
+            out.stderr_text()
         ));
     }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    Ok(out.stdout_text())
 }
 
 fn split(a: &Args) -> Result<(), String> {

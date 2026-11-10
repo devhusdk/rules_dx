@@ -65,6 +65,7 @@ fn run(args: &[String]) -> Result<bool, String> {
         .iter()
         .map(|file| std::path::absolute(file).map_err(|error| error.to_string()))
         .collect::<Result<_, _>>()?;
+    // Streams LSP over piped stdio for the whole session, so it is not a capture launch.
     let mut child = Command::new(&server[0])
         .args(&server[1..])
         .stdin(Stdio::piped())

@@ -5,7 +5,7 @@ load("@rules_zig//zig:defs.bzl", _zig_binary = "zig_binary", _zig_configure_bina
 load("@rules_zig//zig/private/providers:zig_module_info.bzl", _ZigModuleInfo = "ZigModuleInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 
@@ -114,16 +114,19 @@ def zig_import_name(name, import_name):
 
 def zig_library(name, main, *, srcs = None, import_name = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_library; @import uses the public name."""
+    kwargs = dx_without_warnings_attr(kwargs)
     dx_wrap(name, _zig_library, _zig_library_forward, srcs, visibility = visibility, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, import_name = zig_import_name(name, import_name), **kwargs)
 
 def zig_binary(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_binary. main is name.zig, else the single src."""
+    kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_binary", name, main, srcs, dx_main_candidates(name, ".zig"))
     upstream = dict(kwargs, main = main, tags = dx_upstream_tags(kwargs.get("tags", None)))
     dx_wrap_binary(name, _zig_binary, _zig_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), main = main, **kwargs)
 
 def zig_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over zig_test. main is name.zig, else the single src; kcov builds add -fllvm."""
+    kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("zig_test", name, main, srcs, dx_main_candidates(name, ".zig"))
     upstream = dict(kwargs, main = main, zigopts = kwargs.get("zigopts", []) + select({
         Label("//zig/private:kcov_build"): ["-fllvm"],

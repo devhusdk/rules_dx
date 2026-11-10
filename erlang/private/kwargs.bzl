@@ -1,6 +1,6 @@
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_UNPORTED_CELLS")
-load("//core:wrapper.bzl", "dx_language_kwargs")
+load("//core:wrapper.bzl", "dx_language_kwargs", "dx_without_warnings_attr")
 
 ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
 
@@ -19,4 +19,4 @@ def erlang_app_forward_kwargs(testonly, nifs, tags, kwargs):
 
 def erlang_kwargs(kwargs):
     """Returns kwargs with the Erlang platform guard appended."""
-    return dx_language_kwargs(kwargs, [], ERLANG_COMPATIBLE_WITH)
+    return dx_language_kwargs(dx_without_warnings_attr(kwargs), [], ERLANG_COMPATIBLE_WITH)

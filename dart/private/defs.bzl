@@ -6,7 +6,7 @@ load("//dart/private:dart_config.bzl", _DxDartConfigInfo = "DxDartConfigInfo", _
 load("//core:cells.bzl", "unsupported_constraint")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 DxDartConfigInfo = _DxDartConfigInfo
@@ -84,6 +84,7 @@ def dart_root_package_name(package, name, kwargs):
 
 def dart_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_library."""
+    kwargs = dx_without_warnings_attr(kwargs)
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     root_name = dart_root_package_name(native.package_name(), name, kwargs)
     if root_name != None:
@@ -92,11 +93,13 @@ def dart_library(name, srcs = None, visibility = None, **kwargs):
 
 def dart_binary(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_binary. main is name.dart, then bin/name.dart, else the single src."""
+    kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("dart_binary", name, main, srcs, dx_main_candidates(name, ".dart", ["bin"]))
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_binary(name, _dart_binary, _dart_binary_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
 def _dart_web_binary(kind, upstream_rule, name, main, srcs, visibility, kwargs):
+    kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main(kind, name, main, srcs, dx_main_candidates(name, ".dart", ["bin"]))
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_binary(name, upstream_rule, _dart_web_forward, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
@@ -111,6 +114,7 @@ def dart_wasm_binary(name, *, main = None, srcs = None, visibility = None, **kwa
 
 def dart_test(name, *, main = None, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over dart_test. main is name.dart, then test/name.dart, else the single src."""
+    kwargs = dx_without_warnings_attr(kwargs)
     main = dx_infer_main("dart_test", name, main, srcs, dx_main_candidates(name, ".dart", ["test"]))
     kwargs = dx_language_kwargs(kwargs, DART_DEFERRED_SKIP_TAGS, DART_COMPATIBLE_WITH)
     dx_wrap_test(name, _dart_test, _dart_forward_test, srcs, visibility = visibility, upstream_kwargs = dict(kwargs, main = main), quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)

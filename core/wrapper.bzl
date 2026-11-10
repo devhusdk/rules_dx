@@ -537,6 +537,11 @@ def dx_warnings_as_errors(kwargs, on, off = []):
         })
     return out, (on if setting else off)
 
+def dx_warnings_flags(kwargs, attr, on, off = []):
+    """Returns kwargs without warnings_as_errors and with the on or off flags appended at attr."""
+    rest, flag = dx_warnings_as_errors(kwargs, on, off)
+    return dx_append_flags(rest, attr, flag)
+
 def dx_without_warnings_attr(kwargs):
     """Returns kwargs without warnings_as_errors."""
     return {key: value for key, value in kwargs.items() if key != "warnings_as_errors"}

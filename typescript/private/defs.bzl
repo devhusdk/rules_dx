@@ -8,7 +8,7 @@ load("//javascript:defs.bzl", "javascript_binary")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_upstream_tags", "dx_without_warnings_attr", "dx_wrap_test")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
@@ -262,6 +262,7 @@ def _typescript_wrap_library(name, srcs = None, declaration_srcs = None, visibil
 
 def typescript_library(name, srcs = None, declaration_srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over ts_project, isolated typecheck on by default, transpiler defaults to tsc; srcs may be omitted for a declaration-only project, declaration_srcs holds declaration inputs outside quality ownership the upstream is manual with the rewritten tags."""
+    kwargs = dx_without_warnings_attr(kwargs)
     _typescript_wrap_library(name, srcs, declaration_srcs = declaration_srcs, visibility = visibility, **kwargs)
 
 def typescript_proto_library(name, proto, deps = None, visibility = None, **kwargs):
@@ -347,6 +348,7 @@ def typescript_binary_forward_kwargs(data, kwargs):
 
 def typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, visibility = None, **kwargs):
     """Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src."""
+    kwargs = dx_without_warnings_attr(kwargs)
     srcs = list(srcs or [])
     rejection = typescript_binary_kwargs_rejection(kwargs)
     if rejection != None:
@@ -402,6 +404,7 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
 
 def typescript_test(name, *, srcs = None, runner = "jest", node_modules = None, main = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources. runner defaults to "jest"; declaration_srcs are outside quality ownership."""
+    kwargs = dx_without_warnings_attr(kwargs)
     srcs = srcs or []
     rejection = typescript_srcs_rejection(srcs, "typescript_test")
     if rejection != None:

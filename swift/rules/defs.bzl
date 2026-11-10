@@ -10,7 +10,7 @@ load("@rules_swift//swift:swift_test.bzl", _swift_test = "swift_test")
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
 load("//swift/rules:providers.bzl", "SwiftDocsInfo")
@@ -98,13 +98,17 @@ _swift_forward_test = dx_executable_forward_rule(
     toolchains = dx_native_coverage_toolchains(),
 )
 
+def _swift_upstream_kwargs(kwargs):
+    """Returns the swift upstream kwargs with the static, index and warnings-as-errors settings."""
+    return dx_append_flags(dx_warnings_flags(kwargs, "copts", ["-warnings-as-errors"]), "features", _STATIC + _INDEX)
+
 def swift_library(name, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_library and builds it for Linux, or with Xcode on macOS."""
-    dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
+    dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = _swift_upstream_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
 def swift_binary(name, *, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_binary and builds it for Linux, or with Xcode on macOS."""
-    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
+    dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = _swift_upstream_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
 def _swift_runtime_kwargs(kwargs, platforms):
     """Returns the forwarder kwargs that ship the sysroot's shared libraries with a swift_test and point the loader at them, so no host library is needed."""
@@ -125,7 +129,7 @@ def _swift_runtime_kwargs(kwargs, platforms):
 
 def _swift_coverage_kwargs(kwargs):
     """Links Swift's own profile runtime into a swift_test under bazel coverage."""
-    out = dx_append_flags(kwargs, "features", _STATIC + _INDEX)
+    out = _swift_upstream_kwargs(kwargs)
     out = dx_append_flags(out, "features", select({
         Label("//swift/rules:coverage_linux"): ["-llvm_coverage_map_format"],
         "//conditions:default": [],

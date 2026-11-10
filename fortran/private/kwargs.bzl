@@ -1,6 +1,6 @@
 load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//core:cells.bzl", "cells_compatible_with")
-load("//core:wrapper.bzl", "dx_language_kwargs")
+load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_flags")
 
 FORTRAN_COMPATIBLE_WITH = cells_compatible_with(FORTRAN_CELLS, "//fortran/private/toolchain", sorted(FORTRAN_CELLS.keys()))
 
@@ -12,7 +12,7 @@ SHARED_ATTRS = ["tags", "target_compatible_with", "testonly"]
 
 def fortran_with_defaults(kwargs):
     """Returns kwargs with the qualified Fortran cell appended to target_compatible_with and the quality skip tags."""
-    out = dx_language_kwargs(kwargs, SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
+    out = dx_language_kwargs(dx_warnings_flags(kwargs, "copts", ["-Werror"]), SKIP_TAGS, FORTRAN_COMPATIBLE_WITH)
     out["copts"] = (out.get("copts") or []) + select({
         Label("//fortran/private:kcov_build"): ["-g"],
         "//conditions:default": [],

@@ -9,7 +9,7 @@ load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings")
 load("//core:resources.bzl", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
+load("//core:wrapper.bzl", "dx_warnings_flags", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs")
 load("//quality:pipeline.bzl", "upstream_tags")
 load("//quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
@@ -101,7 +101,7 @@ def _libstdcxx_forward(rustc_flags = None):
 
 def _libstdcxx_upstream(kwargs, link):
     """Returns upstream kwargs that build only below the forwarder on libstdc++ platforms."""
-    out = dict(kwargs)
+    out = dx_warnings_flags(kwargs, "rustc_flags", ["-Dwarnings"])
     out["target_compatible_with"] = (out.get("target_compatible_with") or []) + select({
         _LIBSTDCXX_READY: [],
         _LIBSTDCXX: [_INCOMPATIBLE],
@@ -371,7 +371,7 @@ def rust_bench(
 
 def _rust_wasi_test(name, srcs, crate, edition, visibility, preopens, runtime, **kwargs):
     """Builds the test crate for WASI preview 1 and runs it under Wasmtime."""
-    upstream_kwargs = {key: value for key, value in kwargs.items() if key not in ("args", "env", "data")}
+    upstream_kwargs = dx_warnings_flags({key: value for key, value in kwargs.items() if key not in ("args", "env", "data")}, "rustc_flags", ["-Dwarnings"])
     upstream_kwargs["crate"] = crate
     upstream_kwargs["edition"] = edition
     upstream_kwargs["crate_name"] = _crate_name(name, kwargs.get("crate_name"))

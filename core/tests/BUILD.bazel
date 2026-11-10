@@ -1,4 +1,5 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", "cc_test")
 load("//core:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
@@ -107,6 +108,31 @@ packaging_unit_tests(name = "packaging_unit")
 harness_link_tests(name = "harness_link")
 
 warnings_tests(name = "warnings")
+
+sh_test(
+    name = "warnings_parity",
+    srcs = ["warnings_parity_test.sh"],
+    data = [
+        "//cc/rules:defs.bzl",
+        "//csharp/private:kwargs.bzl",
+        "//dart/private:defs.bzl",
+        "//d/private:kwargs.bzl",
+        "//elixir/private:kwargs.bzl",
+        "//erlang/private:kwargs.bzl",
+        "//fortran/private:kwargs.bzl",
+        "//fsharp/private:kwargs.bzl",
+        "//go/rules:defs.bzl",
+        "//haskell/rules:kwargs.bzl",
+        "//java/private:kwargs.bzl",
+        "//kotlin/private:defs.bzl",
+        "//ocaml/rules:defs.bzl",
+        "//rust/private:defs.bzl",
+        "//scala/private:validate.bzl",
+        "//swift/rules:defs.bzl",
+        "//typescript/private:defs.bzl",
+        "//zig/private:defs.bzl",
+    ],
+)
 
 wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
 

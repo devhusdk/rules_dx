@@ -6,7 +6,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/toolchains:bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_toolchain_info")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_without_warnings_attr", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "UPSTREAM_CC_CLASS_EXTENSIONS")
 load(":cgo.bzl", "cgo_toolchain_error")
 
@@ -79,14 +79,17 @@ def _cgo_kwargs(kwargs):
 
 def go_library(name, srcs, importpath, visibility = None, **kwargs):
     """Minimal wrapper over go_library."""
+    kwargs = dx_without_warnings_attr(kwargs)
     dx_wrap(name, _go_library, _go_library_forward, srcs, visibility = visibility, importpath = importpath, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
 def go_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_binary. cgo is off unless set."""
+    kwargs = dx_without_warnings_attr(kwargs)
     dx_wrap_binary(name, _go_binary, _go_binary_forward, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
 def go_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_test. cgo is off unless set."""
+    kwargs = dx_without_warnings_attr(kwargs)
     dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
 def go_fuzz_test(name, *, target, srcs = None, visibility = None, tags = None, **kwargs):

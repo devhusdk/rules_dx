@@ -88,7 +88,7 @@ label_flag(
 label_flag(
     name = "tool_nixfmt",
     scope = "universal",
-    build_setting_default = "//core/quality/tools/nixfmt",
+    build_setting_default = "//core/quality/tools/nixfmt/bin",
 )
 
 label_flag(

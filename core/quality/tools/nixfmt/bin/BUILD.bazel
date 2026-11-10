@@ -1,0 +1,12 @@
+package(default_visibility = ["//visibility:public"])
+
+# The upstream static binary exists for linux_x86_64 only. The linux_arm64 cell
+# builds the tagged source with the managed GHC. macos_arm64 is not yet supported: the managed GHC cabal path needs libffi headers and an ar the hermetic macOS toolchain lacks. Windows does not build: the
+# nixfmt executable requires the unix package.
+alias(
+    name = "nixfmt",
+    actual = select({
+        "//haskell/private/toolchain:cell_linux_arm64": "@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt",
+        "//conditions:default": "@dx_tools//:nixfmt",
+    }),
+)

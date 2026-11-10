@@ -94,7 +94,7 @@ copy_current() {
 }
 # A run killed before its trap ran leaves its pid's temp files behind. A pid that still answers kill -0 belongs to a live run.
 sweep_temps() {
-  for t in "$state/dx$exe".[0-9]* "$state/built".[0-9]* "$state/inputs".[0-9]*; do
+  for t in "$state/dx$exe".[0-9]* "$state/built".[0-9]* "$state/inputs".[0-9]* "$state/query".[0-9]*; do
     [ -e "$t" ] || continue
     kill -0 "${t##*.}" 2>/dev/null || rm -f "$t"
   done

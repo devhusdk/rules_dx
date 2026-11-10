@@ -33,18 +33,22 @@ archive_name="$(basename "$built")"
 cp "$built" "$out/$archive_name"
 sbom="$root/$(bazel cquery --config=dx_build_release --output=files //deploy/private/release:dx_host_cell_sbom)"
 cp "$sbom" "$out/$archive_name.spdx.json"
-if command -v sha256sum >/dev/null 2>&1; then
-  digest="$(cd "$out" && sha256sum -- "$archive_name" | cut -d' ' -f1)"
-  digest="${digest#\\}"
-else
-  digest="$(cd "$out" && shasum -a 256 -- "$archive_name" | cut -d' ' -f1)"
-fi
-printf '%s  %s\n' "$digest" "$archive_name" > "$out/$archive_name.sha256"
+write_sha256() {
+  local digest
+  if command -v sha256sum >/dev/null 2>&1; then
+    digest="$(cd "$out" && sha256sum -- "$1" | cut -d' ' -f1)"
+    digest="${digest#\\}"
+  else
+    digest="$(cd "$out" && shasum -a 256 -- "$1" | cut -d' ' -f1)"
+  fi
+  printf '%s  %s\n' "$digest" "$1" > "$out/$1.sha256"
+}
+write_sha256 "$archive_name"
 if [ -n "$symbols" ]; then
   built_pdb="$root/$(bazel cquery --config=dx_build_release --output=files //deploy/private/release:dx_host_cell_pdb)"
   cp "$built_pdb" "$out/$symbols"
   cp "$root/$(bazel cquery --config=dx_build_release --output=files //deploy/private/release:dx_host_cell_pdb_sbom)" "$out/$symbols.spdx.json"
-  printf '%s  %s\n' "$(sha256sum -- "$out/$symbols" | cut -d' ' -f1)" "$symbols" > "$out/$symbols.sha256"
+  write_sha256 "$symbols"
 fi
 # The determinism input is a second, independent build: its own output base, no caches.
 rebuild_base="$RUNNER_TEMP/rebuild-base"

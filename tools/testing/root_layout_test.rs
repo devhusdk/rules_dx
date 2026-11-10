@@ -15,14 +15,11 @@ const SHARED: &[&str] = &[
 
 /// Root directories that have not moved into the layout yet; later changes shrink this list.
 const PENDING: &[&str] = &[
-    "appimage",
     "bcr_test_module",
     "ci",
     "containers",
     "deploy",
     "dx",
-    "env",
-    "families",
 ];
 
 /// Root directories that are build or tool output, not sources.
@@ -69,4 +66,15 @@ fn pending_directories_still_exist() {
         .filter(|name| !present.iter().any(|dir| dir == name))
         .collect();
     assert!(gone.is_empty(), "drop these from PENDING: {gone:?}");
+}
+
+#[test]
+fn pending_directories_are_not_languages() {
+    let root = dx_testing::rules_dx_source();
+    let moved: Vec<&str> = PENDING
+        .iter()
+        .copied()
+        .filter(|name| root.join(name).join("lang.json").is_file())
+        .collect();
+    assert!(moved.is_empty(), "drop these from PENDING: {moved:?}");
 }

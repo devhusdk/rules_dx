@@ -8,7 +8,6 @@ const ROOTS: &[&str] = &["cli", "deploy"];
 const ALLOWED: &[&str] = &[
     "cli/process/",
     "cli/test_scratch/src/lib.rs",
-    "cli/worktree/src/host.rs",
 ];
 
 fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -67,4 +66,28 @@ fn git_is_spawned_only_through_the_dx_process_launcher() {
         "direct {NEEDLE} outside the allowlist; use dx_process::capture::git instead:\n{}",
         hits.join("\n"),
     );
+}
+
+#[test]
+fn every_allowlist_entry_still_spawns_git() {
+    let root = dx_testing::rules_dx_source();
+    let mut stale = Vec::new();
+    for entry in ALLOWED {
+        let path = root.join(entry);
+        let mut sources = Vec::new();
+        if path.is_dir() {
+            rust_sources(&path, &mut sources);
+        } else if path.is_file() {
+            sources.push(path);
+        }
+        let spawns = sources.iter().any(|source| {
+            std::fs::read_to_string(source)
+                .unwrap_or_else(|error| panic!("read {}: {error}", source.display()))
+                .contains(NEEDLE)
+        });
+        if !spawns {
+            stale.push(*entry);
+        }
+    }
+    assert!(stale.is_empty(), "drop these from ALLOWED: {stale:?}");
 }

@@ -26,21 +26,39 @@ dx_dune_build(
 
 # The aspect's tool attribute. The hermetic OCaml toolchain has no cell for most
 # exec platforms, so the real zanuda resolves only where it is supported
-# (linux_x86_64); elsewhere the alias selects a marked stub and the aspect skips
+# (linux_x86_64, linux_arm64, macos_arm64); elsewhere the alias selects a marked stub and the aspect skips
 # the stage with a note.
 alias(
     name = "zanuda_tool",
     actual = select({
-        ":zanuda_platform": ":zanuda",
+        ":zanuda_linux_x86_64": ":zanuda",
+        ":zanuda_linux_arm64": ":zanuda",
+        ":zanuda_macos_arm64": ":zanuda",
         "//conditions:default": ":zanuda_unsupported",
     }),
 )
 
 config_setting(
-    name = "zanuda_platform",
+    name = "zanuda_linux_x86_64",
     constraint_values = [
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "zanuda_linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "zanuda_macos_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
     ],
 )
 

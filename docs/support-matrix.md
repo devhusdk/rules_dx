@@ -99,7 +99,7 @@ Each cell names the tools `dx lint`, `dx format`, or `dx typecheck` runs, and th
 | Kotlin | `detekt`, `typos` | `ktfmt` | `kotlinc` | `dokka` | `jacoco` | `detekt` |
 | Lua | `selene`, `typos` | `stylua` | `luals` | `ldoc` | `luacov` | `selene unused_variable` |
 | MDX | `eslint`, `lychee`, `typos` | `remark` | `tsc` | `mdx` | `jest` | `eslint no-unused-vars` |
-| OCaml | `typos`, `zanuda` (not on `linux_arm64`: zanuda is built only for Linux x86_64; `macos_arm64`: zanuda is built only for Linux x86_64; `windows_x86_64`: zanuda is built only for Linux x86_64; `windows_arm64`: zanuda is built only for Linux x86_64) | `topiary` | `ocaml` | `odoc` | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
+| OCaml | `typos`, `zanuda` (not on `windows_x86_64`: zanuda has no Windows build; `windows_arm64`: zanuda has no Windows build) | `topiary` | `ocaml` | `odoc` | `bisect_ppx` | `ocamlc warnings 26, 27, 32 to 39` |
 | Perl | `perlcritic` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build), `typos` | `perltidy` (not on `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build) | n/a | `pod (perl)` | `DxLcov` | `perlcritic ProhibitUnusedVariables` |
 | PHP | `phpcs` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build), `typos` | `prettier` | `phpstan` (not on `windows_arm64`: static-php-cli and windows.php.net ship no Windows arm64 PHP 8.5 build) | `phpdocumentor` | `pcov (Linux only)` | `phpcs Generic.CodeAnalysis.UnusedFunctionParameter` |
 | PowerShell | `psscriptanalyzer`, `typos` | `psscriptanalyzer` | n/a | `pwsh` | `pester` | `psscriptanalyzer PSUseDeclaredVarsMoreThanAssignments` |

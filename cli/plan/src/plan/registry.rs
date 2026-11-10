@@ -381,7 +381,8 @@ const LANGUAGES: &[(&str, &[&str])] = &[
     (
         "quality:families/cc.bzl",
         &[
-            ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl", ".ipp",
+            ".c", ".cc", ".cpp", ".cu", ".cuh", ".cxx", ".h", ".hh", ".hpp", ".hxx", ".inl",
+            ".ipp", ".m", ".mm", ".qml",
         ],
     ),
     ("quality:families/d.bzl", &[".d"]),
@@ -688,20 +689,25 @@ mod tests {
         );
     }
 
+    /// Family extensions no aspect file checks.
+    const UNCHECKED_EXTENSIONS: &[&str] = &[".aidl", ".plist"];
+
     #[test]
     fn language_rows_cover_family_extensions() {
         for family in dx_families::families() {
             if family.module.is_none() {
                 continue;
             }
-            let file = format!("quality:families/{}.bzl", family.name);
-            let Some((_, row)) = LANGUAGES.iter().find(|(bzl, _)| *bzl == file) else {
-                continue;
-            };
             for extension in &family.file_extensions {
+                if UNCHECKED_EXTENSIONS.contains(&extension.as_str()) {
+                    continue;
+                }
                 assert!(
-                    row.contains(&extension.as_str()),
-                    "{file} lacks {extension}"
+                    LANGUAGES
+                        .iter()
+                        .any(|(_, row)| row.contains(&extension.as_str())),
+                    "{} extension {extension} is in no LANGUAGES row",
+                    family.name
                 );
             }
         }

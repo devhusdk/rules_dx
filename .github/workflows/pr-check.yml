@@ -18,7 +18,7 @@ concurrency:
 jobs:
   analysis:
     name: analysis (PR-time checks on linux_x86_64)
-    timeout-minutes: 15
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,6 +26,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          fetch-depth: 2
       - uses: ./.github/actions/setup-bazel
         with:
           cache-save: false
@@ -61,3 +62,24 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           tools/ci/pr_check.sh cli $BAZEL_CONFIG $BB_ARGS
+      - name: affected tests
+        if: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        timeout-minutes: 18
+        run: |
+          if [ -z "$BUILDBUDDY_API_KEY" ]; then
+            echo "::notice::affected tests skipped: no remote cache secret on this PR"
+            exit 0
+          fi
+          # shellcheck disable=SC2086
+          set -- $BAZEL_CONFIG $BB_ARGS --test_tag_filters=-resources:nested_bazel:1,-starter-consumer,-network-consumer
+          log="${RUNNER_TEMP:-/tmp}/affected-tests.log"
+          set -o pipefail
+          status=0
+          timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" 2>&1 | tee "$log" || status=$?
+          if [ "$status" -ne 0 ] && grep -qE '^(WARNING|ERROR): .*[Rr]emote([ _][Cc]ache| [Ee]xecution)' "$log"; then
+            echo "::warning::remote cache failed; retrying without it"
+            timeout 480 tools/dx test --affected --since 'HEAD^1' -- "$@" --remote_cache= --noremote_accept_cached
+          else
+            exit "$status"
+          fi

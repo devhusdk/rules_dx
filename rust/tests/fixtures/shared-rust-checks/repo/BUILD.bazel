@@ -76,11 +76,17 @@ rust_test(
     deps = ["@rules_dx//wasi:wasi_run"],
 )
 
+rust_binary(
+    name = "wrapped_runtime",
+    srcs = ["wrapped_runtime.rs"],
+    crate_root = "wrapped_runtime.rs",
+)
+
 rust_test(
     name = "consumer_wasi_runtime_test",
     srcs = ["wasi_runtime_test.rs"],
     crate_root = "wasi_runtime_test.rs",
-    runtime = "wrapped_runtime.sh",
+    runtime = ":wrapped_runtime",
     tags = ["block-network"],
     wasm = "wasi",
 )

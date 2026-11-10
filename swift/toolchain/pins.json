@@ -1,0 +1,15 @@
+{
+  "cells": {
+    "macos_arm64": {
+      "binary": "bin/swift-format",
+      "ghcr_scope": "repository:homebrew/core/swift-format:pull",
+      "sha256": "a4890bc578594b94782ec0e434097a467a1a8e94271b504e0430326a6db55fb2",
+      "strip_prefix": "swift-format/604.0.0",
+      "type": "tar.gz",
+      "urls": [
+        "https://ghcr.io/v2/homebrew/core/swift-format/blobs/sha256:a4890bc578594b94782ec0e434097a467a1a8e94271b504e0430326a6db55fb2"
+      ]
+    }
+  },
+  "version": "604.0.0"
+}

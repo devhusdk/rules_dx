@@ -417,7 +417,6 @@
         "//ruby/private/coverage:extensions.bzl%ruby_coverage",
         "//ruby/private/toolchain:extensions.bzl%ruby_tools",
         "//ruby:extensions.bzl%ruby",
-        "//swift/toolchain:extensions.bzl%swift_format_macos",
         "//swift/toolchain:extensions.bzl%swift_host",
         "//swift/toolchain:extensions.bzl%swift_windows",
         "//third_party/dotnet:extension.bzl%paket",

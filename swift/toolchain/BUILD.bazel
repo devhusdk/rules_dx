@@ -26,7 +26,11 @@ swift_windows_toolchain(
     cpu = "aarch64",
 )
 
-exports_files(["extract_windows.ps1"])
+exports_files([
+    "extract_windows.ps1",
+    "pins.json",
+    "swift_format.build",
+])
 
 # The shared libraries a Swift test binary loads that the sysroot ships, so it runs without host libraries.
 filegroup(

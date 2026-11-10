@@ -27,7 +27,12 @@ def _fetch(rctx, tool, pin, build):
             required = [binary],
         )
     else:
-        rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], stripPrefix = pin.get("strip_prefix", ""))
+        headers = {}
+        if pin.get("ghcr_scope"):
+            rctx.download(url = "https://ghcr.io/token?service=ghcr.io&scope=" + pin["ghcr_scope"], output = "token.json")
+            headers["Authorization"] = ["Bearer " + json.decode(rctx.read("token.json"))["token"]]
+            rctx.delete("token.json")
+        rctx.download_and_extract(url = pin["urls"], sha256 = pin["sha256"], type = pin.get("type", ""), stripPrefix = pin.get("strip_prefix", ""), headers = headers)
         if not rctx.path(binary).exists:
             fail("{} archive {} has no {}".format(tool, pin["urls"][0], binary))
         if pin.get("executable"):
@@ -49,7 +54,7 @@ host_archive_rule = repository_rule(
     attrs = {
         "aliases": attr.string_dict(doc = "Host cell to the pinned cell that serves it."),
         "build": attr.string(mandatory = True, doc = "BUILD file content; {binary} is replaced by the cell's binary path."),
-        "cells": attr.string(mandatory = True, doc = "JSON object of cell to {urls, sha256, binary, strip_prefix}."),
+        "cells": attr.string(mandatory = True, doc = "JSON object of cell to {urls, sha256, binary, strip_prefix, type, ghcr_scope}."),
         "tool": attr.string(mandatory = True, doc = "Tool name used in failure messages."),
     },
 )
@@ -62,7 +67,7 @@ cell_archive_rule = repository_rule(
     doc = "Downloads the pinned archive of one cell and writes its BUILD file.",
     attrs = {
         "build": attr.string(mandatory = True, doc = "BUILD file content; {binary} is replaced by the cell's binary path."),
-        "pin": attr.string(mandatory = True, doc = "JSON object of the cell's urls, sha256, binary and optional strip_prefix."),
+        "pin": attr.string(mandatory = True, doc = "JSON object of the cell's urls, sha256, binary and optional strip_prefix, type and ghcr_scope."),
         "tool": attr.string(mandatory = True, doc = "Tool name used in failure messages."),
     },
 )

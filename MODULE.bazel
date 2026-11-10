@@ -787,6 +787,11 @@ dx_pins.data(
     name = "dx_fortran",
     pins = "//fortran/private/toolchain:pins.json",
 )
+dx_pins.pin(
+    name = "dx_swift_format_macos_arm64",
+    build = "//swift/toolchain:swift_format.build",
+    pins = "//swift/toolchain:pins.json",
+)
 use_repo(
     dx_pins,
     "dx_pins_data",
@@ -798,6 +803,7 @@ use_repo(
     "dx_powershell_toolchains__windows_arm64",
     "dx_powershell_toolchains__windows_x86_64",
     "dx_sorbet",
+    "dx_swift_format_macos_arm64",
 )
 
 ruby = use_extension("//ruby:extensions.bzl", "ruby")
@@ -947,9 +953,6 @@ use_repo(
 
 swift_host = use_extension("//swift/toolchain:extensions.bzl", "swift_host")
 use_repo(swift_host, "dx_swift_host")
-
-swift_format_macos = use_extension("//swift/toolchain:extensions.bzl", "swift_format_macos")
-use_repo(swift_format_macos, "dx_swift_format_macos_arm64")
 
 swift_windows = use_extension("//swift/toolchain:extensions.bzl", "swift_windows")
 use_repo(swift_windows, "dx_swift_windows_aarch64", "dx_swift_windows_x86_64")

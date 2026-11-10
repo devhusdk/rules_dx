@@ -18,10 +18,11 @@ def _checks():
         checks += [
             expect_true(name + " has cells", len(cells) > 0),
             expect_true(name + " binaries are set", all([pin["binary"] != "" for pin in pins["cells"].values()])),
-        ] + [
-            check
-            for check in pin_checks(cells, pins["version"])
         ]
+        for cell, pin in pins["cells"].items():
+            if "ghcr_scope" in pin:
+                checks += pin_checks({cell: cells[cell]}, "sha256:" + pin["sha256"])
+        checks += pin_checks({c: v for c, v in cells.items() if "ghcr_scope" not in pins["cells"][c]}, pins["version"])
     for name, pins in DATA.items():
         entries = pins.get("cells", {}).values() + pins.get("archives", {}).values() + pins.get("hex", {}).values()
         archives = [entry for entry in entries if "urls" in entry]

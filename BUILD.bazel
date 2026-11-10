@@ -262,6 +262,7 @@ filegroup(
         "//rust/private:module_srcs",
         "//rust/private/quality:module_srcs",
         "//terraform/private/quality:module_srcs",
+        "//typescript/private/quality:module_srcs",
     ],
     visibility = ["//visibility:public"],
 )

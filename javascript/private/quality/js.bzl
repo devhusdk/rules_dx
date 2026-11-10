@@ -3,7 +3,7 @@
 load("//core/quality:family_hooks.bzl", "default_files_hook", "without")
 load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//javascript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
+load("//typescript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
 
 TOOLS = {
     "eslint": {

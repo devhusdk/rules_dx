@@ -777,6 +777,7 @@ rust_test(
         "//tools/testing:corpus_starlark",
         "//tools/visibility:corpus_starlark",
         "//typescript/private:corpus_starlark",
+        "//typescript/private/quality:corpus_starlark",
         "//vue/private:corpus_starlark",
         "//wasi:corpus_starlark",
         "//zig/private/tools:corpus_starlark",

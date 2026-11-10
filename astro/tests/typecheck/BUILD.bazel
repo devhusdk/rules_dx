@@ -2,7 +2,7 @@ load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("//astro:defs.bzl", "astro_library")
 load("//javascript:defs.bzl", "javascript_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//javascript/private/quality:tsc_report.bzl", "tsc_report")
+load("//typescript/private/quality:tsc_report.bzl", "tsc_report")
 
 package(
     default_testonly = True,

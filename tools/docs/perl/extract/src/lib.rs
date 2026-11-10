@@ -12,10 +12,11 @@
 
 use std::fs;
 
+use documentation_ir::json::{boolean, number, string};
 use documentation_ir::proto::{
     DocIr, Extension, Relations, SourceRef, Symbol, SymbolKind, Visibility,
 };
-use serde_json::{Map, Value};
+use serde_json::Value;
 
 const LANGUAGE: &str = "perl";
 const FORMAT: u64 = 1;
@@ -54,31 +55,6 @@ pub fn run(options: &Options) -> Result<(), String> {
 }
 
 pub use documentation_ir::escape_segment;
-
-fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))?
-        .as_str()
-        .map(str::to_owned)
-        .ok_or_else(|| format!("{at} '{key}' is not a string"))
-}
-
-fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))?
-        .as_u64()
-        .ok_or_else(|| format!("{at} '{key}' is not a number"))
-}
-
-fn boolean(object: &Map<String, Value>, key: &str, at: &str) -> Result<bool, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))?
-        .as_bool()
-        .ok_or_else(|| format!("{at} '{key}' is not a boolean"))
-}
 
 fn extension(key: &str, value: &str) -> Extension {
     Extension {

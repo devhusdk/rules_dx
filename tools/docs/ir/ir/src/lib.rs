@@ -8,6 +8,7 @@
     )
 )]
 
+pub mod json;
 pub mod tool;
 
 pub use doc_ir_proto::dx::documentation::v1 as proto;

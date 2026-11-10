@@ -13,6 +13,7 @@
 use std::collections::BTreeSet;
 use std::fs;
 
+use documentation_ir::json::{boolean, field, number, string, strings};
 use documentation_ir::proto::{
     DocIr, Extension, Param, Relations, Returns, SourceRef, Symbol, SymbolKind, Visibility,
 };
@@ -55,45 +56,6 @@ pub fn run(options: &Options) -> Result<(), String> {
 }
 
 pub use documentation_ir::escape_segment;
-
-fn field<'a>(object: &'a Map<String, Value>, key: &str, at: &str) -> Result<&'a Value, String> {
-    object
-        .get(key)
-        .ok_or_else(|| format!("{at} has no '{key}'"))
-}
-
-fn string(object: &Map<String, Value>, key: &str, at: &str) -> Result<String, String> {
-    field(object, key, at)?
-        .as_str()
-        .map(str::to_owned)
-        .ok_or_else(|| format!("{at} '{key}' is not a string"))
-}
-
-fn number(object: &Map<String, Value>, key: &str, at: &str) -> Result<u64, String> {
-    field(object, key, at)?
-        .as_u64()
-        .ok_or_else(|| format!("{at} '{key}' is not a number"))
-}
-
-fn boolean(object: &Map<String, Value>, key: &str, at: &str) -> Result<bool, String> {
-    field(object, key, at)?
-        .as_bool()
-        .ok_or_else(|| format!("{at} '{key}' is not a boolean"))
-}
-
-fn strings(object: &Map<String, Value>, key: &str, at: &str) -> Result<Vec<String>, String> {
-    field(object, key, at)?
-        .as_array()
-        .ok_or_else(|| format!("{at} '{key}' is not a list"))?
-        .iter()
-        .map(|value| {
-            value
-                .as_str()
-                .map(str::to_owned)
-                .ok_or_else(|| format!("{at} '{key}' holds a non-string"))
-        })
-        .collect()
-}
 
 /// One docblock tag.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -591,9 +553,17 @@ pub fn convert(json: &str, package: &str) -> Result<DocIr, String> {
             relations,
             extensions,
             display_name: if element.parent.is_empty() {
-                element.fqsen.trim_matches('\\').trim_end_matches("()").to_owned()
+                element
+                    .fqsen
+                    .trim_matches('\\')
+                    .trim_end_matches("()")
+                    .to_owned()
             } else {
-                let sep = if element.kind == "property" { "::$" } else { "::" };
+                let sep = if element.kind == "property" {
+                    "::$"
+                } else {
+                    "::"
+                };
                 format!("{}{sep}{}", element.parent.trim_matches('\\'), element.name)
             },
             ..Symbol::default()

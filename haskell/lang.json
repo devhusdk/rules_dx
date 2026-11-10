@@ -29,7 +29,6 @@
     "private/toolchain/pins.json"
   ],
   "entry_points": [
-    "with_gmp",
     "haskell_library",
     "haskell_binary",
     "haskell_test",

@@ -6,7 +6,7 @@ load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal")
 load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")
-load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs")
+load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path")
 load(":providers.bzl", "BeamInfo")
 load(":rebar_lock.bzl", "rebar_lock_packages")
 
@@ -58,6 +58,12 @@ def erlang_wrapper_contract_tests(name):
                 ["src/**/*.erl", "src/**/*.hrl", "include/**/*.hrl"],
             ),
             expect_equal("nifs land in the app priv directory", nif_priv_path("kv_checksum_nif"), "priv/kv_checksum_nif.so"),
+            expect_equal("the nif rule finds the library the macro links", nif_library_name("kv_checksum_nif"), "_libkv_checksum_nif.so"),
+            expect_equal("release priv keeps subdirectories", release_priv_path("apps/web", "apps/web/priv/static/app.js"), "static/app.js"),
+            expect_equal("release priv keeps top-level files", release_priv_path("apps/web", "apps/web/priv/schema.sql"), "schema.sql"),
+            expect_equal("root package priv keeps subdirectories", release_priv_path("", "priv/static/app.js"), "static/app.js"),
+            expect_equal("external app priv keeps subdirectories", release_priv_path("../+hex+cowboy", "../+hex+cowboy/priv/a/b.txt"), "a/b.txt"),
+            expect_equal("priv files of other packages land by name", release_priv_path("apps/web", "nifs/priv/web_nif.so"), "web_nif.so"),
             expect_equal("windows nifs are dlls", nif_priv_path("kv_checksum_nif", True), "priv/kv_checksum_nif.dll"),
             expect_equal("windows nifs add no link options", nif_linkopt_cases("//x:s")[str(Label("@platforms//os:windows"))], []),
             expect_equal("macos nifs resolve erts symbols at load", nif_linkopt_cases("//x:s")[str(Label("@platforms//os:macos"))], ["-Wl,-undefined,dynamic_lookup", "-Wl,-exported_symbol,_nif_init"]),
@@ -157,6 +163,24 @@ _nif_refusal_test = analysistest.make(
 def erlang_escript_nif_refusal_test(name, target, message, **kwargs):
     """Asserts an erlang_escript_archive that bundles a NIF app fails analysis with `message`."""
     _nif_refusal_test(name = name, size = "small", target_under_test = target, message = message, **kwargs)
+
+def _release_layout_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "ErlangRelease"]
+    asserts.equals(env, 1, len(actions), "expected one ErlangRelease action")
+    script = "\n".join(actions[0].argv)
+    for path in ctx.attr.paths:
+        asserts.true(env, ('/' + path + '"\n') in script + "\n", "release does not write " + path + ":\n" + script)
+    return analysistest.end(env)
+
+_release_layout_test = analysistest.make(
+    _release_layout_impl,
+    attrs = {"paths": attr.string_list(mandatory = True)},
+)
+
+def erlang_release_layout_test(name, target, paths, **kwargs):
+    """Asserts an erlang_release copies files to the given paths below its tree."""
+    _release_layout_test(name = name, size = "small", target_under_test = target, paths = paths, **kwargs)
 
 def _plt_needs_input_impl(ctx):
     env = analysistest.begin(ctx)

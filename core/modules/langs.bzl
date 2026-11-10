@@ -827,11 +827,7 @@ LANGS = json.decode("""{
     "entry_points": [
       "escript_archive",
       "escript_headers",
-      "cover_sources",
-      "app_sources",
-      "nif_priv",
       "elixir_app",
-      "helper_first",
       "elixir_test",
       "elixir_bench"
     ],
@@ -895,17 +891,6 @@ LANGS = json.decode("""{
     "entry_points": [
       "erlc_opts",
       "erlang_xrl_yrl",
-      "otp_launcher_text",
-      "runfiles_path",
-      "otp_launch_descriptor",
-      "otp_tool_binary_impl",
-      "native_priv_files",
-      "escript_nif_message",
-      "lcov_apps_dirs",
-      "ct_suite_source",
-      "app_sources",
-      "nif_priv_path",
-      "nif_linkopt_cases",
       "erlang_nif",
       "erlang_release",
       "erlang_app",
@@ -913,7 +898,6 @@ LANGS = json.decode("""{
       "erlang_bytecode",
       "erlang_escript_archive",
       "erlang_eunit_test",
-      "ct_run_args",
       "erlang_ct_suite_test",
       "erlang_bench"
     ],
@@ -1240,7 +1224,6 @@ LANGS = json.decode("""{
       "cabal"
     ],
     "entry_points": [
-      "with_gmp",
       "haskell_library",
       "haskell_binary",
       "haskell_test",
@@ -1831,11 +1814,6 @@ LANGS = json.decode("""{
     ],
     "entry_points": [
       "ocamllex",
-      "toolchain_choice",
-      "toolchain_settings",
-      "launcher_script",
-      "runfiles_path",
-      "owned_sources",
       "ocaml_module",
       "ocaml_signature",
       "ocaml_library",

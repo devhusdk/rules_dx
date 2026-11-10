@@ -19,7 +19,7 @@ load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
-load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH")
+load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH")
 
 ERLANG_CELLS = _ERLANG_CELLS
 ERLANG_COMPATIBLE_WITH = _ERLANG_COMPATIBLE_WITH
@@ -350,7 +350,7 @@ _nif_x64_lib = rule(
 )
 
 def _erlang_nif_impl(ctx):
-    wanted = "lib" + ctx.label.name + ".so"
+    wanted = nif_library_name(ctx.label.name)
     libraries = [f for f in ctx.attr.lib[0][DefaultInfo].files.to_list() if f.basename == wanted]
     if len(libraries) != 1:
         fail(str(ctx.label) + ": lib must build exactly one " + wanted)
@@ -389,7 +389,7 @@ def erlang_nif(name, srcs, hdrs = [], deps = None, copts = [], visibility = None
     tags = kwargs.get("tags", None)
     testonly = kwargs.get("testonly", False)
     c_name = "_" + name + "_c"
-    so_name = "_lib" + name + ".so"
+    so_name = nif_library_name(name)
     x64_name = "_lib" + name + "_x64"
     _cc_library(
         name = c_name,
@@ -435,6 +435,10 @@ def erlang_nif(name, srcs, hdrs = [], deps = None, copts = [], visibility = None
         visibility = visibility,
     )
 
+def _package_path(label):
+    root = label.workspace_root.replace("external/", "../", 1)
+    return "/".join([part for part in [root, label.package] if part])
+
 def _erlang_release_impl(ctx):
     apps = []
     for app in ctx.attr.apps + flat_deps(ctx.attr.apps):
@@ -446,6 +450,7 @@ def _erlang_release_impl(ctx):
     for app in apps:
         info = app[_ErlangAppInfo]
         base = '"$out/lib/' + info.app_name + '"'
+        priv = '"$out/lib/' + info.app_name + "/priv/"
         lines.append("mkdir -p " + base + "/ebin " + base + "/priv")
         for f in info.beam:
             inputs.append(f)
@@ -453,13 +458,17 @@ def _erlang_release_impl(ctx):
                 lines.append('cp -R "' + f.path + '"/. ' + base + "/ebin/")
             else:
                 lines.append('cp -f "' + f.path + '" ' + base + "/ebin/")
+        placed = {}
         for f in info.priv:
-            inputs.append(f)
-            lines.append('cp -f "' + f.path + '" ' + base + "/priv/")
+            placed[release_priv_path(_package_path(app.label), f.short_path)] = f
         if ErlangNifInfo in app:
             for f in app[ErlangNifInfo].libraries.to_list():
-                inputs.append(f)
-                lines.append('cp -f "' + f.path + '" ' + base + "/priv/" + f.basename)
+                placed[f.basename] = f
+        for rel, f in placed.items():
+            inputs.append(f)
+            if "/" in rel:
+                lines.append("mkdir -p " + priv + rel.rpartition("/")[0] + '"')
+            lines.append('cp -f "' + f.path + '" ' + priv + rel + '"')
 
     # run_shell: The script copies files into the release tree.
     ctx.actions.run_shell(

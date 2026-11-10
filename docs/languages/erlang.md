@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//erlang:defs.bzl`:
 
 ```python
-load("@rules_dx//erlang:defs.bzl", "erlc_opts", "erlang_xrl_yrl", "otp_launcher_text")
+load("@rules_dx//erlang:defs.bzl", "erlc_opts", "erlang_xrl_yrl", "erlang_nif")
 ```
 
 ## Rules
@@ -25,94 +25,6 @@ No documentation.
 ### `erlang_xrl_yrl`
 
 No documentation.
-
-### `otp_launcher_text`
-
-```python
-otp_launcher_text(root, tool, args = "", prelude = "")
-```
-
-Returns the shared launcher script that runs `bin/<tool>` of the resolved OTP tree.
-
-### `runfiles_path`
-
-```python
-runfiles_path(workspace_name, short_path)
-```
-
-Returns one file's path below the runfiles root.
-
-### `otp_launch_descriptor`
-
-```python
-otp_launch_descriptor(root, tool, archive_key = None)
-```
-
-Returns the native launcher descriptor that runs `bin/<tool>.exe` of the OTP tree at `root`.
-
-### `otp_tool_binary_impl`
-
-```python
-otp_tool_binary_impl(ctx)
-```
-
-Implements `otp_tool_binary`: a launcher for one `bin/<tool>` of the resolved OTP tree.
-
-### `native_priv_files`
-
-```python
-native_priv_files(paths)
-```
-
-Returns the entries of `paths` that are shared libraries.
-
-### `escript_nif_message`
-
-```python
-escript_nif_message(label, offenders)
-```
-
-Returns the error for an escript that bundles native libraries; offenders are (app, path) pairs.
-
-### `lcov_apps_dirs`
-
-```python
-lcov_apps_dirs(short_paths)
-```
-
-Returns the COVERDATA_TO_LCOV_APPS_DIRS value for `<root>/<app>/src/<mod>.erl` paths.
-
-### `ct_suite_source`
-
-```python
-ct_suite_source(suite_name)
-```
-
-Returns the source file one Common Test suite compiles.
-
-### `app_sources`
-
-```python
-app_sources(kwargs, glob = None)
-```
-
-Returns the source files one erlang_app owns for its attributes.
-
-### `nif_priv_path`
-
-```python
-nif_priv_path(name, windows = False)
-```
-
-Returns the package-relative path one NIF library is placed at.
-
-### `nif_linkopt_cases`
-
-```python
-nif_linkopt_cases(version_script)
-```
-
-Returns the select cases for the link options a NIF shared library needs.
 
 ### `erlang_nif`
 
@@ -165,14 +77,6 @@ erlang_eunit_test(name = "eunit", *, visibility = None, **kwargs)
 ```
 
 Thin wrapper over the rules_erlang eunit test. target and deps are the apps under test.
-
-### `ct_run_args`
-
-```python
-ct_run_args(extra_args)
-```
-
-Returns ct_run arguments that keep a suite off the shared epmd unless it names its node.
 
 ### `erlang_ct_suite_test`
 

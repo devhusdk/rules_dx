@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//elixir:defs.bzl`:
 
 ```python
-load("@rules_dx//elixir:defs.bzl", "escript_archive", "escript_headers", "cover_sources")
+load("@rules_dx//elixir:defs.bzl", "escript_archive", "escript_headers", "elixir_app")
 ```
 
 ## Rules
@@ -34,30 +34,6 @@ escript_headers(module)
 
 Returns escript_archive headers that start one Elixir module in a UTF-8 VM.
 
-### `cover_sources`
-
-```python
-cover_sources(apps)
-```
-
-Returns the app names and `.ex` paths of the workspace apps a test covers.
-
-### `app_sources`
-
-```python
-app_sources(kwargs, glob = None)
-```
-
-Returns the source files one elixir_app owns for its attributes.
-
-### `nif_priv`
-
-```python
-nif_priv(kwargs, nifs, glob = None)
-```
-
-Returns the full priv list: globbed priv files, extra_priv, then the NIF libraries.
-
 ### `elixir_app`
 
 ```python
@@ -65,14 +41,6 @@ elixir_app(name, visibility = None, testonly = False, **kwargs)
 ```
 
 Thin wrapper over the rules_elixir elixir_app macro.
-
-### `helper_first`
-
-```python
-helper_first(srcs)
-```
-
-Returns test srcs with test_helper.exs files required first.
 
 ### `elixir_test`
 

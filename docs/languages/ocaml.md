@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//ocaml:defs.bzl`:
 
 ```python
-load("@rules_dx//ocaml:defs.bzl", "ocamllex", "toolchain_choice", "toolchain_settings")
+load("@rules_dx//ocaml:defs.bzl", "ocamllex", "ocaml_module", "ocaml_signature")
 ```
 
 ## Rules
@@ -21,46 +21,6 @@ load("@rules_dx//ocaml:defs.bzl", "ocamllex", "toolchain_choice", "toolchain_set
 ### `ocamllex`
 
 No documentation.
-
-### `toolchain_choice`
-
-```python
-toolchain_choice(current, emitter)
-```
-
-Returns the rules_ocaml toolchain to build with: the emitter flag picks the native or the bytecode cell, and an explicit toolchain is kept.
-
-### `toolchain_settings`
-
-```python
-toolchain_settings(settings)
-```
-
-Returns the toolchain choice, plus LLVM coverage features for the C stubs a native link takes in.
-
-### `launcher_script`
-
-```python
-launcher_script(ocamlrun, bytecode)
-```
-
-Returns the launcher that runs one bytecode file on the runfiles ocamlrun.
-
-### `runfiles_path`
-
-```python
-runfiles_path(workspace_name, short_path)
-```
-
-Returns one file's path below the runfiles root.
-
-### `owned_sources`
-
-```python
-owned_sources(*files)
-```
-
-Returns the hand-written .ml and .mli files among the given labels.
 
 ### `ocaml_module`
 

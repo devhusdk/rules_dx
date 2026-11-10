@@ -29,11 +29,6 @@
   ],
   "entry_points": [
     "ocamllex",
-    "toolchain_choice",
-    "toolchain_settings",
-    "launcher_script",
-    "runfiles_path",
-    "owned_sources",
     "ocaml_module",
     "ocaml_signature",
     "ocaml_library",

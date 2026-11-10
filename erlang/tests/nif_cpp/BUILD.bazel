@@ -1,6 +1,7 @@
 # gazelle:dx_rust_corpus false
 
 load("@rules_dx//erlang:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_eunit_test", "erlang_nif", "erlang_release", "erlang_test_app", "erlc_opts")
+load("@rules_dx//erlang/private:wrapper_tests.bzl", "erlang_release_layout_test")
 
 exports_files(
     ["BUILD.bazel"],
@@ -32,6 +33,17 @@ erlang_release(
     name = "release",
     apps = [":erlang_app"],
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_release_layout_test(
+    name = "nif_cpp_release_layout_test",
+    paths = [
+        "lib/dx_cpp/priv/dx_cpp_a_nif.so",
+        "lib/dx_cpp/priv/dx_cpp_b_nif.so",
+        "lib/dx_cpp/priv/static/note.txt",
+    ],
+    target = ":release",
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 erlang_test_app(

@@ -33,11 +33,7 @@
   "entry_points": [
     "escript_archive",
     "escript_headers",
-    "cover_sources",
-    "app_sources",
-    "nif_priv",
     "elixir_app",
-    "helper_first",
     "elixir_test",
     "elixir_bench"
   ],

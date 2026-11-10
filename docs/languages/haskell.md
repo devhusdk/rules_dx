@@ -13,18 +13,10 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//haskell:defs.bzl`:
 
 ```python
-load("@rules_dx//haskell:defs.bzl", "with_gmp", "haskell_library", "haskell_binary")
+load("@rules_dx//haskell:defs.bzl", "haskell_library", "haskell_binary", "haskell_test")
 ```
 
 ## Rules
-
-### `with_gmp`
-
-```python
-with_gmp(deps, gmp = GMP)
-```
-
-Returns executable deps with the GMP runtime that ghc-bignum links added once.
 
 ### `haskell_library`
 

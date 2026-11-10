@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn shipped_table_has_every_ecosystem() {
-    assert_eq!(rows().len(), 22);
+    assert_eq!(rows().len(), 24);
     assert_eq!(rows().len(), Ecosystem::ALL.len());
 }
 

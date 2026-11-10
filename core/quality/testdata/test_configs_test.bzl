@@ -6,6 +6,7 @@ load("//core/quality/testdata/scalafix_aux:results.bzl", "SCALAFIX_CONFIG")
 load("//core/quality/testdata/spotbugs_owned:results.bzl", "SPOTBUGS_CONFIG")
 load(":real_result_cases.bzl", "REAL_RESULT_CASES")
 load(":test_configs.bzl", "MAX_TEST_CONFIGS", "TEST_CONFIGS", "TEST_CONFIG_SETTINGS")
+load(":tool_override_tests.bzl", "TOOL_OVERRIDE_CONFIGS")
 
 def _table_impl(ctx):
     env = unittest.begin(ctx)
@@ -20,7 +21,7 @@ def _table_impl(ctx):
     ]
     asserts.equals(env, [], equal)
     used = {case["config"]: True for case in REAL_RESULT_CASES}
-    for name in CONSUMER_POLICY_CONFIGS + [SCALAFIX_CONFIG, SPOTBUGS_CONFIG]:
+    for name in CONSUMER_POLICY_CONFIGS + TOOL_OVERRIDE_CONFIGS + [SCALAFIX_CONFIG, SPOTBUGS_CONFIG]:
         used[name] = True
     asserts.equals(env, names, sorted(used.keys()))
     return unittest.end(env)

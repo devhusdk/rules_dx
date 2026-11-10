@@ -29,75 +29,26 @@ load(
     "real_zig_format_aspect",
     "real_zig_lint_aspect",
 )
+load("//core/quality/testdata:config_subject.bzl", "config_subject_rule")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
-_CANONICAL = "@@"  # buildifier: disable=canonical-repository
-
 _TOOL_FLAG = "//config:tool_ruff"
-_TOOL_SETTING = _CANONICAL + "//config:tool_ruff"
-_ALTERNATE = _CANONICAL + "//core/quality/testdata:alternate_ruff"
 _ALTERNATE_SHORT = "core/quality/testdata/alternate_ruff_bin"
-_PAIR = _CANONICAL + "//core/quality/testdata:two_ruffs"
-_EMPTY = _CANONICAL + "//core/quality/testdata:no_ruff"
-_POLICY = _CANONICAL + "//core/quality:fixture_policy"
-_QML_POLICY = _CANONICAL + "//core/quality/testdata:qml_policy"
-_QML_LINT_POLICY = _CANONICAL + "//core/quality/testdata:qml_lint_policy"
-_TOOL_OVERRIDE_POLICY = _CANONICAL + "//core/quality/testdata:tool_override_policy"
-_WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
-_ZIG_AST_CHECK_SETTING = _CANONICAL + "//config:tool_zig_ast_check"
-_ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
-_ZIG_FMT_TOOL = _CANONICAL + "//zig/private/tools:zig"
-_PERLCRITIC_SETTING = _CANONICAL + "//config:tool_perlcritic"
-_PERLCRITIC_TOOL = _CANONICAL + "//perl/private/tools:perlcritic"
-_DART_SETTING = _CANONICAL + "//config:tool_dart"
-_DART_TOOL = _CANONICAL + "//dart/private/tools:dart"
-_JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
-_JULIA_FORMAT_TOOL = _CANONICAL + "//julia/private/tools:julia_format"
-_JET_SETTING = _CANONICAL + "//config:tool_jet"
-_JET_TOOL = _CANONICAL + "//julia/private/tools/jet:jet"
-_PERLTIDY_SETTING = _CANONICAL + "//config:tool_perltidy"
-_PERLTIDY_TOOL = _CANONICAL + "//perl/private/tools:perltidy"
-_ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
-_ERLFMT_TOOL = _CANONICAL + "//erlang/private/tools:erlfmt"
-_ELVIS_SETTING = _CANONICAL + "//config:tool_elvis"
-_ELVIS_TOOL = _CANONICAL + "//erlang/private/tools:elvis"
-_DIALYZER_SETTING = _CANONICAL + "//config:tool_dialyzer"
-_DIALYZER_TOOL = _CANONICAL + "//erlang/private/tools:dialyzer"
-_LUALS_SETTING = _CANONICAL + "//config:tool_luals"
-_LUALS_TOOL = _CANONICAL + "//lua/private/tools:luals"
-_SORBET_SETTING = _CANONICAL + "//config:tool_sorbet"
-_SORBET_TOOL = _CANONICAL + "//ruby/private/tools:sorbet"
-_PHPCS_SETTING = _CANONICAL + "//config:tool_phpcs"
-_PHPCS_TOOL = _CANONICAL + "//php/private/tools:phpcs"
-_PHPSTAN_SETTING = _CANONICAL + "//config:tool_phpstan"
-_PHPSTAN_TOOL = _CANONICAL + "//php/private/tools:phpstan"
-_MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
-_MIX_FORMAT_TOOL = _CANONICAL + "//elixir/private/tools:mix_format"
-_CREDO_SETTING = _CANONICAL + "//config:tool_credo"
-_CREDO_TOOL = _CANONICAL + "//elixir/private/tools:credo"
+TOOL_OVERRIDE_CONFIGS = ["ruff_alternate", "ruff_empty", "ruff_pair", "ruff_policy", "tool_defaults", "tool_overrides"]
 
-_TOOL_OVERRIDES = {
-    _CREDO_SETTING: _CREDO_TOOL,
-    _DART_SETTING: _DART_TOOL,
-    _DIALYZER_SETTING: _DIALYZER_TOOL,
-    _ELVIS_SETTING: _ELVIS_TOOL,
-    _ERLFMT_SETTING: _ERLFMT_TOOL,
-    _JET_SETTING: _JET_TOOL,
-    _JULIA_FORMAT_SETTING: _JULIA_FORMAT_TOOL,
-    _LUALS_SETTING: _LUALS_TOOL,
-    _MIX_FORMAT_SETTING: _MIX_FORMAT_TOOL,
-    _PERLCRITIC_SETTING: _PERLCRITIC_TOOL,
-    _PERLTIDY_SETTING: _PERLTIDY_TOOL,
-    _PHPCS_SETTING: _PHPCS_TOOL,
-    _PHPSTAN_SETTING: _PHPSTAN_TOOL,
-    _SORBET_SETTING: _SORBET_TOOL,
-    _ZIG_AST_CHECK_SETTING: _ZIG_FMT_TOOL,
-    _ZIG_FMT_SETTING: _ZIG_FMT_TOOL,
-}
+_override_subject = config_subject_rule([], [DxSubjectInfo])
 
-def _with_tool_overrides(policy):
-    """Returns the shared tool overrides plus the workspace policy, so every case shares one exec configuration."""
-    return dict(_TOOL_OVERRIDES, **{_WORKSPACE_SETTING: policy})
+def _subject(name, target, config, target_compatible_with = None):
+    """Declares a subject that builds target under config and returns its label."""
+    _override_subject(
+        name = name,
+        config = config,
+        tags = ["manual"],
+        target = target,
+        target_compatible_with = target_compatible_with,
+        testonly = True,
+    )
+    return ":" + name
 
 def _tool_override_subject_impl(ctx):
     """Exposes the resolved ruff binary path beside the real aspect results."""
@@ -457,10 +408,7 @@ def _selected_impl(ctx):
     asserts.true(env, ruff == _ALTERNATE_SHORT, "want the declared alternate ruff, got " + ruff)
     return analysistest.end(env)
 
-_tool_override_selected_test = analysistest.make(
-    _selected_impl,
-    config_settings = {_TOOL_SETTING: _ALTERNATE},
-)
+_tool_override_selected_test = analysistest.make(_selected_impl)
 
 def _rejected_impl(ctx):
     """Asserts the expected override rejection diagnostic."""
@@ -472,35 +420,30 @@ _tool_override_rejects_pair_test = analysistest.make(
     _rejected_impl,
     expect_failure = True,
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_TOOL_SETTING: _PAIR},
 )
 
 _tool_override_rejects_empty_test = analysistest.make(
     _rejected_impl,
     expect_failure = True,
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_TOOL_SETTING: _EMPTY},
 )
 
 _tool_override_rejects_policy_test = analysistest.make(
     _rejected_impl,
     expect_failure = True,
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_TOOL_SETTING: _POLICY},
 )
 
 _qmlformat_unset_test = analysistest.make(
     _rejected_impl,
     expect_failure = True,
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _QML_POLICY},
 )
 
 _qmllint_unset_test = analysistest.make(
     _rejected_impl,
     expect_failure = True,
     attrs = {"expected_failure_substring": attr.string(mandatory = True)},
-    config_settings = {_WORKSPACE_SETTING: _QML_LINT_POLICY},
 )
 
 def _perl_lint_subject_impl(ctx):
@@ -535,10 +478,7 @@ def _perlcritic_default_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
     return analysistest.end(env)
 
-_perlcritic_default_test = analysistest.make(
-    _perlcritic_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_perlcritic_default_test = analysistest.make(_perlcritic_default_impl)
 
 def _perlcritic_wired_impl(ctx):
     """Asserts the flag wires perlcritic and a lint stage result."""
@@ -548,10 +488,7 @@ def _perlcritic_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a lint stage result for the D target")
     return analysistest.end(env)
 
-_perlcritic_set_test = analysistest.make(
-    _perlcritic_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_perlcritic_set_test = analysistest.make(_perlcritic_wired_impl)
 
 def perlcritic_flag_tests(name, subject):
     """Instantiates the perlcritic flag proofs; Perl targets build only on rules_perl platforms."""
@@ -560,14 +497,14 @@ def perlcritic_flag_tests(name, subject):
         size = "small",
         tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults", PERL_COMPATIBLE_WITH),
     )
     _perlcritic_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides", PERL_COMPATIBLE_WITH),
     )
     return [
         ":" + name + "_default_test",
@@ -583,10 +520,7 @@ def _perltidy_default_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
     return analysistest.end(env)
 
-_perltidy_default_test = analysistest.make(
-    _perltidy_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_perltidy_default_test = analysistest.make(_perltidy_default_impl)
 
 def _perltidy_wired_impl(ctx):
     """Asserts the flag wires perltidy and a format stage result."""
@@ -596,10 +530,7 @@ def _perltidy_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
     return analysistest.end(env)
 
-_perltidy_set_test = analysistest.make(
-    _perltidy_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_perltidy_set_test = analysistest.make(_perltidy_wired_impl)
 
 def perltidy_flag_tests(name, subject):
     """Instantiates the perltidy flag proofs; Perl targets build only on rules_perl platforms."""
@@ -608,14 +539,14 @@ def perltidy_flag_tests(name, subject):
         size = "small",
         tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults", PERL_COMPATIBLE_WITH),
     )
     _perltidy_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
         target_compatible_with = PERL_COMPATIBLE_WITH,
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides", PERL_COMPATIBLE_WITH),
     )
     return [
         ":" + name + "_default_test",
@@ -631,10 +562,7 @@ def _zig_default_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the zig target")
     return analysistest.end(env)
 
-_zig_fmt_default_test = analysistest.make(
-    _zig_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_zig_fmt_default_test = analysistest.make(_zig_default_impl)
 
 def _zig_wired_impl(ctx):
     """Asserts the flag wires the Zig compiler and a format stage result."""
@@ -644,10 +572,7 @@ def _zig_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the zig target")
     return analysistest.end(env)
 
-_zig_fmt_set_test = analysistest.make(
-    _zig_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_zig_fmt_set_test = analysistest.make(_zig_wired_impl)
 
 def zig_fmt_flag_tests(name, subject):
     """Instantiates the zig_fmt flag proofs."""
@@ -655,13 +580,13 @@ def zig_fmt_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _zig_fmt_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -677,10 +602,7 @@ def _zig_ast_check_default_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a lint stage result for the zig target")
     return analysistest.end(env)
 
-_zig_ast_check_default_test = analysistest.make(
-    _zig_ast_check_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_zig_ast_check_default_test = analysistest.make(_zig_ast_check_default_impl)
 
 def _zig_ast_check_wired_impl(ctx):
     """Asserts the flag wires the Zig compiler and a lint stage result."""
@@ -690,10 +612,7 @@ def _zig_ast_check_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a lint stage result for the zig target")
     return analysistest.end(env)
 
-_zig_ast_check_set_test = analysistest.make(
-    _zig_ast_check_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_zig_ast_check_set_test = analysistest.make(_zig_ast_check_wired_impl)
 
 def zig_ast_check_flag_tests(name, subject):
     """Instantiates the zig_ast_check flag proofs."""
@@ -701,13 +620,13 @@ def zig_ast_check_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _zig_ast_check_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -723,10 +642,7 @@ def _dart_default_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the dart target")
     return analysistest.end(env)
 
-_dart_format_default_test = analysistest.make(
-    _dart_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_dart_format_default_test = analysistest.make(_dart_default_impl)
 
 def _dart_wired_impl(ctx):
     """Asserts the flag wires the dart binary and a format stage result."""
@@ -736,10 +652,7 @@ def _dart_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the dart target")
     return analysistest.end(env)
 
-_dart_format_set_test = analysistest.make(
-    _dart_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_dart_format_set_test = analysistest.make(_dart_wired_impl)
 
 def dart_format_flag_tests(name, subject):
     """Instantiates the dart flag proofs."""
@@ -747,13 +660,13 @@ def dart_format_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _dart_format_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -769,10 +682,7 @@ def _julia_default_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the julia target")
     return analysistest.end(env)
 
-_julia_format_default_test = analysistest.make(
-    _julia_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_julia_format_default_test = analysistest.make(_julia_default_impl)
 
 def _julia_wired_impl(ctx):
     """Asserts the flag wires the Julia formatter and a format stage result."""
@@ -782,10 +692,7 @@ def _julia_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the julia target")
     return analysistest.end(env)
 
-_julia_format_set_test = analysistest.make(
-    _julia_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_julia_format_set_test = analysistest.make(_julia_wired_impl)
 
 def julia_format_flag_tests(name, subject):
     """Instantiates the julia_format flag proofs."""
@@ -793,13 +700,13 @@ def julia_format_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _julia_format_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -814,15 +721,9 @@ def _erlfmt_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the erlang target")
     return analysistest.end(env)
 
-_erlfmt_default_test = analysistest.make(
-    _erlfmt_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_erlfmt_default_test = analysistest.make(_erlfmt_wired_impl)
 
-_erlfmt_set_test = analysistest.make(
-    _erlfmt_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_erlfmt_set_test = analysistest.make(_erlfmt_wired_impl)
 
 def erlfmt_flag_tests(name, subject):
     """Instantiates the erlfmt flag proofs."""
@@ -830,13 +731,13 @@ def erlfmt_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _erlfmt_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -872,15 +773,9 @@ def _credo_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a lint stage result for the elixir target")
     return analysistest.end(env)
 
-_credo_default_test = analysistest.make(
-    _credo_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_credo_default_test = analysistest.make(_credo_wired_impl)
 
-_credo_set_test = analysistest.make(
-    _credo_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_credo_set_test = analysistest.make(_credo_wired_impl)
 
 def credo_flag_tests(name, subject):
     """Instantiates the credo flag proofs."""
@@ -888,13 +783,13 @@ def credo_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _credo_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -909,15 +804,9 @@ def _elvis_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a lint stage result for the erlang target")
     return analysistest.end(env)
 
-_elvis_default_test = analysistest.make(
-    _elvis_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_elvis_default_test = analysistest.make(_elvis_wired_impl)
 
-_elvis_set_test = analysistest.make(
-    _elvis_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_elvis_set_test = analysistest.make(_elvis_wired_impl)
 
 def elvis_flag_tests(name, subject):
     """Instantiates the elvis flag proofs."""
@@ -925,13 +814,13 @@ def elvis_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _elvis_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -946,15 +835,9 @@ def _mix_format_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a format stage result for the elixir target")
     return analysistest.end(env)
 
-_mix_format_default_test = analysistest.make(
-    _mix_format_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_mix_format_default_test = analysistest.make(_mix_format_wired_impl)
 
-_mix_format_set_test = analysistest.make(
-    _mix_format_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_mix_format_set_test = analysistest.make(_mix_format_wired_impl)
 
 def mix_format_flag_tests(name, subject):
     """Instantiates the mix format flag proofs."""
@@ -962,13 +845,13 @@ def mix_format_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _mix_format_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -981,7 +864,7 @@ def qmllint_flag_tests(name, subject):
         name = name + "_unset_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_unset_test_subject", subject, "tool_defaults"),
         expected_failure_substring = "--@rules_dx//config:tool_qmllint",
     )
     return [
@@ -994,7 +877,7 @@ def qmlformat_flag_tests(name, subject):
         name = name + "_unset_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_unset_test_subject", subject, "tool_defaults"),
         expected_failure_substring = "--@rules_dx//config:tool_qmlformat",
     )
     return [
@@ -1007,33 +890,33 @@ def tool_override_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "default"),
     )
     _tool_override_selected_test(
         name = name + "_selected_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_selected_test_subject", subject, "ruff_alternate"),
     )
     _tool_override_rejects_pair_test(
         name = name + "_rejects_pair_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_rejects_pair_test_subject", subject, "ruff_pair"),
         expected_failure_substring = "two_ruffs' must produce a single file",
     )
     _tool_override_rejects_empty_test(
         name = name + "_rejects_empty_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_rejects_empty_test_subject", subject, "ruff_empty"),
         expected_failure_substring = "no_ruff' must produce a single file",
     )
     _tool_override_rejects_policy_test(
         name = name + "_rejects_policy_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_rejects_policy_test_subject", subject, "ruff_policy"),
         expected_failure_substring = "fixture_policy' must produce a single file",
     )
     return [
@@ -1051,15 +934,9 @@ def _dialyzer_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the erlang target")
     return analysistest.end(env)
 
-_dialyzer_default_test = analysistest.make(
-    _dialyzer_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_dialyzer_default_test = analysistest.make(_dialyzer_wired_impl)
 
-_dialyzer_set_test = analysistest.make(
-    _dialyzer_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_dialyzer_set_test = analysistest.make(_dialyzer_wired_impl)
 
 def dialyzer_flag_tests(name, subject):
     """Instantiates the dialyzer flag proofs."""
@@ -1067,28 +944,22 @@ def dialyzer_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _dialyzer_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
         ":" + name + "_set_test",
     ]
 
-_dialyzer_elixir_default_test = analysistest.make(
-    _dialyzer_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_dialyzer_elixir_default_test = analysistest.make(_dialyzer_wired_impl)
 
-_dialyzer_elixir_set_test = analysistest.make(
-    _dialyzer_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_dialyzer_elixir_set_test = analysistest.make(_dialyzer_wired_impl)
 
 def dialyzer_elixir_flag_tests(name, subject):
     """Instantiates the dialyzer flag proofs for an elixir_app."""
@@ -1096,13 +967,13 @@ def dialyzer_elixir_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _dialyzer_elixir_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -1116,15 +987,9 @@ def _phpcs_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a lint stage result for the php target")
     return analysistest.end(env)
 
-_phpcs_default_test = analysistest.make(
-    _phpcs_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_phpcs_default_test = analysistest.make(_phpcs_wired_impl)
 
-_phpcs_set_test = analysistest.make(
-    _phpcs_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_phpcs_set_test = analysistest.make(_phpcs_wired_impl)
 
 def phpcs_flag_tests(name, subject):
     """Instantiates the phpcs flag proofs."""
@@ -1132,13 +997,13 @@ def phpcs_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _phpcs_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -1152,15 +1017,9 @@ def _phpstan_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the php target")
     return analysistest.end(env)
 
-_phpstan_default_test = analysistest.make(
-    _phpstan_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_phpstan_default_test = analysistest.make(_phpstan_wired_impl)
 
-_phpstan_set_test = analysistest.make(
-    _phpstan_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_phpstan_set_test = analysistest.make(_phpstan_wired_impl)
 
 def phpstan_flag_tests(name, subject):
     """Instantiates the phpstan flag proofs."""
@@ -1168,13 +1027,13 @@ def phpstan_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _phpstan_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -1188,15 +1047,9 @@ def _luals_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the lua target")
     return analysistest.end(env)
 
-_luals_default_test = analysistest.make(
-    _luals_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_luals_default_test = analysistest.make(_luals_wired_impl)
 
-_luals_set_test = analysistest.make(
-    _luals_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_luals_set_test = analysistest.make(_luals_wired_impl)
 
 def luals_flag_tests(name, subject):
     """Instantiates the luals flag proofs."""
@@ -1204,13 +1057,13 @@ def luals_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _luals_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -1224,15 +1077,9 @@ def _jet_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the julia target")
     return analysistest.end(env)
 
-_jet_default_test = analysistest.make(
-    _jet_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_jet_default_test = analysistest.make(_jet_wired_impl)
 
-_jet_set_test = analysistest.make(
-    _jet_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_jet_set_test = analysistest.make(_jet_wired_impl)
 
 def jet_flag_tests(name, subject):
     """Instantiates the jet flag proofs."""
@@ -1240,13 +1087,13 @@ def jet_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _jet_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",
@@ -1260,15 +1107,9 @@ def _sorbet_wired_impl(ctx):
     asserts.true(env, fields["results"] != "", "want a typecheck stage result for the ruby target")
     return analysistest.end(env)
 
-_sorbet_default_test = analysistest.make(
-    _sorbet_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
-)
+_sorbet_default_test = analysistest.make(_sorbet_wired_impl)
 
-_sorbet_set_test = analysistest.make(
-    _sorbet_wired_impl,
-    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
-)
+_sorbet_set_test = analysistest.make(_sorbet_wired_impl)
 
 def sorbet_flag_tests(name, subject):
     """Instantiates the sorbet flag proofs."""
@@ -1276,13 +1117,13 @@ def sorbet_flag_tests(name, subject):
         name = name + "_default_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_default_test_subject", subject, "tool_defaults"),
     )
     _sorbet_set_test(
         name = name + "_set_test",
         size = "small",
         tags = ["manual"],
-        target_under_test = subject,
+        target_under_test = _subject(name + "_set_test_subject", subject, "tool_overrides"),
     )
     return [
         ":" + name + "_default_test",

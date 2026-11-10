@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 34
+MAX_TEST_CONFIGS = 37
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -17,13 +17,52 @@ _CLIPPY_STRICT = [
     "-Dwarnings",
 ]
 
-def _config(policy, compiler = "llvm", profile = "strict", clippy_flags = [], tool_govet = "//go/private/tools/analysis/cmd/dx_govet"):
+_TOOL_DEFAULTS = {
+    "//config:tool_credo": "//elixir/private/tools:credo",
+    "//config:tool_dart": "//config:no_dart",
+    "//config:tool_dialyzer": "//erlang/private/tools:dialyzer",
+    "//config:tool_elvis": "//erlang/private/tools:elvis",
+    "//config:tool_erlfmt": "//erlang/private/tools:erlfmt",
+    "//config:tool_govet": "//go/private/tools/analysis/cmd/dx_govet",
+    "//config:tool_jet": "//julia/private/tools/jet:jet",
+    "//config:tool_julia_format": "//config:no_julia_format",
+    "//config:tool_luals": "//lua/private/tools:luals",
+    "//config:tool_mix_format": "//elixir/private/tools:mix_format",
+    "//config:tool_perlcritic": "//config:no_perlcritic",
+    "//config:tool_perltidy": "//config:no_perltidy",
+    "//config:tool_phpcs": "//php/private/tools:phpcs",
+    "//config:tool_phpstan": "//php/private/tools:phpstan",
+    "//config:tool_ruff": "@dx_tools//:ruff",
+    "//config:tool_sorbet": "//ruby/private/tools:sorbet",
+    "//config:tool_zig_ast_check": "//config:no_zig_ast_check",
+    "//config:tool_zig_fmt": "//config:no_zig_fmt",
+}
+
+_TOOL_OVERRIDES = {
+    "//config:tool_credo": "//elixir/private/tools:credo",
+    "//config:tool_dart": "//dart/private/tools:dart",
+    "//config:tool_dialyzer": "//erlang/private/tools:dialyzer",
+    "//config:tool_elvis": "//erlang/private/tools:elvis",
+    "//config:tool_erlfmt": "//erlang/private/tools:erlfmt",
+    "//config:tool_govet": "//go/private/tools/analysis/cmd/dx_errcheck",
+    "//config:tool_jet": "//julia/private/tools/jet:jet",
+    "//config:tool_julia_format": "//julia/private/tools:julia_format",
+    "//config:tool_luals": "//lua/private/tools:luals",
+    "//config:tool_mix_format": "//elixir/private/tools:mix_format",
+    "//config:tool_perlcritic": "//perl/private/tools:perlcritic",
+    "//config:tool_perltidy": "//perl/private/tools:perltidy",
+    "//config:tool_phpcs": "//php/private/tools:phpcs",
+    "//config:tool_phpstan": "//php/private/tools:phpstan",
+    "//config:tool_sorbet": "//ruby/private/tools:sorbet",
+    "//config:tool_zig_ast_check": "//zig/private/tools:zig",
+    "//config:tool_zig_fmt": "//zig/private/tools:zig",
+}
+
+def _config(policy, compiler = "llvm", profile = "strict", clippy_flags = [], tools = {}):
     """Returns the full settings of one configuration."""
-    return {
+    settings = {
         "//cc:compiler": compiler,
         "//config:config_profile": profile,
-        "//config:tool_dialyzer": str(Label("//erlang/private/tools:dialyzer")),
-        "//config:tool_govet": str(Label(tool_govet)),
         "//config:workspace": str(Label(policy)),
         "@rules_rust//rust/settings:clippy_flag": clippy_flags,
         "@rules_rust//rust/settings:clippy_output_diagnostics": True,
@@ -31,6 +70,9 @@ def _config(policy, compiler = "llvm", profile = "strict", clippy_flags = [], to
         "@rules_rust//rust/settings:extra_rustc_flags": [],
         "@rules_rust//rust/settings:rustc_output_diagnostics": True,
     }
+    for flag, tool in dict(_TOOL_DEFAULTS, **tools).items():
+        settings[flag] = str(Label(tool))
+    return settings
 
 _CC_SYNTAX = "//core/quality/testdata/clang_syntax:cc_syntax_policy"
 _CC_TIDY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
@@ -39,6 +81,7 @@ _GO = "//core/quality/testdata/go_owned:policy"
 _HASKELL = "//core/quality/testdata/haskell_owned:policy"
 _OCAML = "//core/quality/testdata/ocaml_owned:policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
+_TOOL_OVERRIDE_POLICY = "//core/quality/testdata:tool_override_policy"
 _RUST = "//core/quality/testdata/rust_owned:policy"
 
 TEST_CONFIGS = {
@@ -60,7 +103,6 @@ TEST_CONFIGS = {
     "eslint_typed_strict": _config("//core/quality/testdata/eslint_typed_owned/strict:ts_policy"),
     "generated": _config("//core/quality/tests/fixtures/generated_policy:policy"),
     "go_owned": _config(_GO),
-    "go_owned_govet_errcheck": _config(_GO, tool_govet = "//go/private/tools/analysis/cmd/dx_errcheck"),
     "go_owned_standard": _config(_GO, profile = "standard"),
     "haskell_owned": _config(_HASKELL),
     "haskell_owned_standard": _config(_HASKELL, profile = "standard"),
@@ -70,12 +112,13 @@ TEST_CONFIGS = {
     "ocaml_owned": _config(_OCAML),
     "ocaml_owned_standard": _config(_OCAML, profile = "standard"),
     "python_tiers_ruff": _config("//core/quality/testdata/python_tiers:ruff_policy"),
+    "ruff_alternate": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:alternate_ruff"}),
+    "ruff_empty": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:no_ruff"}),
+    "ruff_pair": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:two_ruffs"}),
+    "ruff_policy": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality:fixture_policy"}),
     "rust_owned": _config(_RUST),
     "rust_owned_clippy_standard": _config(_RUST, clippy_flags = _CLIPPY_STANDARD),
     "rust_owned_clippy_strict": _config(_RUST, clippy_flags = _CLIPPY_STRICT),
     "scalafix_aux": _config("//core/quality/testdata/scalafix_aux:policy"),
-    "workspace": _config("//.dx:policy"),
-    "zanuda_owned": _config("//core/quality/testdata/zanuda_owned:policy"),
-}
-
-TEST_CONFIG_SETTINGS = sorted(TEST_CONFIGS["default"].keys())
+    "tool_defaults": _config(_TOOL_OVERRIDE_POLICY),
+    "tool_overrides": _config(_TOOL_OVERRIDE_POLICY, tools = _TOOL_OVERRIDES),

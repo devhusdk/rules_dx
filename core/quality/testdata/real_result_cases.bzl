@@ -316,7 +316,7 @@ REAL_RESULT_CASES = [
     _go_case("errcheck", "lint", "blank_off", "//go/tests/fixtures/errcheck:blank", ["errcheck"], ["unchecked error"], config = "go_owned_standard"),
     _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"]),
     _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["gen.go"]),
-    _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], config = "go_owned_govet_errcheck"),
+    _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], config = "tool_overrides"),
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),

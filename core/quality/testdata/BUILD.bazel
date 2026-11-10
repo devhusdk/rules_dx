@@ -1227,16 +1227,11 @@ quality_family(
     name = "qml_family",
     disabled = [
         "audit",
-        "lint",
         "typecheck",
     ],
     family_id = "qml",
     format = ["qmlformat"],
-)
-
-workspace_policy(
-    name = "qml_policy",
-    families = [":qml_family"],
+    lint = ["qmllint"],
 )
 
 quality_family(
@@ -1337,6 +1332,7 @@ quality_family(
 workspace_policy(
     name = "tool_override_policy",
     families = [
+        ":qml_family",
         ":tool_override_dart_family",
         ":tool_override_elixir_family",
         ":tool_override_erlang_family",
@@ -1346,6 +1342,7 @@ workspace_policy(
         ":tool_override_php_family",
         ":tool_override_ruby_family",
         ":tool_override_zig_family",
+        "//core/quality/testdata/go_owned:go_family",
     ],
 )
 
@@ -1483,22 +1480,6 @@ julia_typecheck_subject(
     tags = ["manual"],
     testonly = True,
     target = "//julia/tests/fixtures/hello:Greet",
-)
-
-quality_family(
-    name = "qml_lint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "qml",
-    lint = ["qmllint"],
-)
-
-workspace_policy(
-    name = "qml_lint_policy",
-    families = [":qml_lint_family"],
 )
 
 qml_lint_subject(

@@ -835,43 +835,51 @@ fn remote_repo_contents_cache_comes_from_the_preset() {
     );
 }
 
+const PLAIN_GIT_CHECKOUT: &str = "-c checkout.workers=0 checkout --force FETCH_HEAD";
+
+fn step_runs(step: &serde_json::Value) -> &str {
+    step.get("run").and_then(serde_json::Value::as_str).unwrap_or("")
+}
+
+fn uses_actions_checkout(step: &serde_json::Value) -> bool {
+    step.get("uses")
+        .and_then(serde_json::Value::as_str)
+        .is_some_and(|uses| uses.starts_with("actions/checkout@"))
+}
+
 #[test]
 fn evidence_checks_out_in_parallel_without_actions_checkout() {
-    let evidence = read_runfiles(".github/workflows/evidence.yml");
-    let step = evidence
-        .find("- name: Check out files in parallel\n")
-        .expect("evidence.yml has no parallel checkout step");
-    let body: String = evidence[step..].lines().skip(1).take_while(|line| !line.trim_start().starts_with("- ")).collect();
-    assert!(!body.contains("if:"), "the parallel checkout must run on every OS");
-    assert!(
-        body.contains("-c checkout.workers=0 checkout --force FETCH_HEAD"),
-        "the checkout must run with checkout.workers=0"
-    );
-    assert!(
-        !evidence.contains("actions/checkout@"),
-        "evidence.yml checks out with git, not actions/checkout"
-    );
+    const EVIDENCE: &str = ".github/workflows/evidence.yml";
+    let mut parallel = 0;
+    for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(EVIDENCE)) {
+        for step in ci_workflow::steps_of(job) {
+            assert!(!uses_actions_checkout(step), "{EVIDENCE} {id} checks out with git, not actions/checkout");
+            if step.get("name").and_then(serde_json::Value::as_str) == Some("Check out files in parallel") {
+                parallel += 1;
+                assert!(step.get("if").is_none(), "the parallel checkout must run on every OS");
+                assert!(
+                    step_runs(step).contains(PLAIN_GIT_CHECKOUT),
+                    "the checkout must run with checkout.workers=0"
+                );
+            }
+        }
+    }
+    assert!(parallel > 0, "{EVIDENCE} has no parallel checkout step");
 }
 
 #[test]
 fn ci_windows_jobs_check_out_with_git() {
-    let ci = read_runfiles(".github/workflows/ci.yml");
-    for job in ["hermetic-windows", "starter-consumer", "preflight"] {
-        let start = ci
-            .find(&format!("\n  {job}:\n"))
-            .unwrap_or_else(|| panic!("ci.yml has no {job} job"))
-            + 1;
-        let end = ci[start..]
-            .lines()
-            .skip(1)
-            .find(|line| line.starts_with("  ") && !line.starts_with("   ") && line.trim_end().ends_with(':'))
-            .map_or(ci.len(), |next| start + ci[start..].find(&format!("\n{next}\n")).unwrap());
-        let body = &ci[start..end];
+    const CI: &str = ".github/workflows/ci.yml";
+    for name in ["hermetic-windows", "starter-consumer", "preflight"] {
+        let steps = ci_workflow::steps(CI, name);
         assert!(
-            body.contains("-c checkout.workers=0 checkout --force FETCH_HEAD"),
-            "ci.yml {job} must check out with git and checkout.workers=0"
+            steps.iter().any(|step| step_runs(step).contains(PLAIN_GIT_CHECKOUT)),
+            "ci.yml {name} must check out with git and checkout.workers=0"
         );
-        assert!(!body.contains("actions/checkout@"), "ci.yml {job} checks out with git, not actions/checkout");
+        assert!(
+            !steps.iter().any(uses_actions_checkout),
+            "ci.yml {name} checks out with git, not actions/checkout"
+        );
     }
 }
 
@@ -882,30 +890,22 @@ fn windows_capable_jobs_check_out_in_parallel() {
         ".github/workflows/ci.yml",
         ".github/workflows/reusable-consumer.yml",
     ] {
-        let text = read_runfiles(path);
-        let mut job = "";
-        let mut windows_capable = false;
-        let mut plain_git = false;
-        for line in text.lines().chain(std::iter::once("  end:")) {
-            if line.starts_with("  ") && !line.starts_with("   ") && line.trim_end().ends_with(':') {
-                assert!(
-                    !windows_capable || plain_git,
-                    "{path} {job} can run on Windows but does not check out with plain git and -c checkout.workers=0"
-                );
-                job = line.trim();
-                windows_capable = false;
-                plain_git = false;
-            } else if let Some(runner) = line.strip_prefix("    runs-on:") {
-                let runner = runner.trim();
-                windows_capable = !(runner.starts_with("ubuntu-") || runner.starts_with("macos-"));
-            } else if line.contains("-c checkout.workers=0 checkout --force FETCH_HEAD") {
-                plain_git = true;
-            } else if line.contains("actions/checkout@") {
-                assert!(
-                    !windows_capable,
-                    "{path} {job} can run on Windows but uses actions/checkout"
-                );
+        for (id, job) in ci_workflow::jobs_of(&ci_workflow::document(path)) {
+            let runner = job.get("runs-on").map_or_else(String::new, ToString::to_string);
+            let runner = runner.trim_matches('"');
+            let windows_capable = !(runner.starts_with("ubuntu-") || runner.starts_with("macos-"));
+            let steps = ci_workflow::steps_of(job);
+            if !windows_capable || steps.is_empty() {
+                continue;
             }
+            assert!(
+                steps.iter().any(|step| step_runs(step).contains(PLAIN_GIT_CHECKOUT)),
+                "{path} {id} can run on Windows but does not check out with plain git and -c checkout.workers=0"
+            );
+            assert!(
+                !steps.iter().any(uses_actions_checkout),
+                "{path} {id} can run on Windows but uses actions/checkout"
+            );
         }
     }
 }

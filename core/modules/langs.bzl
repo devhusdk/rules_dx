@@ -1664,7 +1664,7 @@ LANGS = json.decode("""{
           "real_lua_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/lua.bzl",
+      "bzl": "lua/private/quality:lua.bzl",
       "file_extensions": [
         ".lua"
       ],
@@ -1840,7 +1840,7 @@ LANGS = json.decode("""{
           "real_ocaml_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/ocaml.bzl",
+      "bzl": "ocaml/private/quality:ocaml.bzl",
       "file_extensions": [
         ".ml",
         ".mli"
@@ -1909,7 +1909,7 @@ LANGS = json.decode("""{
           "real_perl_lint_aspect"
         ]
       },
-      "bzl": "core/quality:families/perl.bzl",
+      "bzl": "perl/private/quality:perl.bzl",
       "file_extensions": [
         ".pl",
         ".pm"
@@ -1977,7 +1977,7 @@ LANGS = json.decode("""{
           "real_php_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/php.bzl",
+      "bzl": "php/private/quality:php.bzl",
       "file_extensions": [
         ".php"
       ],
@@ -2024,7 +2024,7 @@ LANGS = json.decode("""{
           "real_pkl_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/pkl.bzl",
+      "bzl": "pkl/private/quality:pkl.bzl",
       "file_extensions": [
         ".pkl"
       ],
@@ -2093,7 +2093,7 @@ LANGS = json.decode("""{
           "real_powershell_lint_aspect"
         ]
       },
-      "bzl": "core/quality:families/powershell.bzl",
+      "bzl": "powershell/private/quality:powershell.bzl",
       "file_extensions": [
         ".ps1",
         ".psd1",
@@ -2165,7 +2165,7 @@ LANGS = json.decode("""{
           "real_python_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/python.bzl",
+      "bzl": "python/private/quality:python.bzl",
       "file_extensions": [
         ".py",
         ".pyi"
@@ -2326,7 +2326,7 @@ LANGS = json.decode("""{
           "real_ruby_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/ruby.bzl",
+      "bzl": "ruby/private/quality:ruby.bzl",
       "file_extensions": [
         ".rb",
         ".rbs"
@@ -2509,7 +2509,7 @@ LANGS = json.decode("""{
           "real_sql_lint_aspect"
         ]
       },
-      "bzl": "core/quality:families/sql.bzl",
+      "bzl": "sql/private/quality:sql.bzl",
       "file_extensions": [
         ".sql"
       ]
@@ -2610,7 +2610,7 @@ LANGS = json.decode("""{
           "real_swift_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/swift.bzl",
+      "bzl": "swift/private/quality:swift.bzl",
       "file_extensions": [
         ".swift"
       ],
@@ -2878,7 +2878,7 @@ LANGS = json.decode("""{
           "real_zig_typecheck_aspect"
         ]
       },
-      "bzl": "core/quality:families/zig.bzl",
+      "bzl": "zig/private/quality:zig.bzl",
       "file_extensions": [
         ".zig"
       ],

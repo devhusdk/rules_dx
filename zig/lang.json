@@ -30,7 +30,7 @@
     "zig_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/zig.bzl",
+    "bzl": "zig/private/quality:zig.bzl",
     "file_extensions": [
       ".zig"
     ],

@@ -33,7 +33,7 @@
     "swift_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/swift.bzl",
+    "bzl": "swift/private/quality:swift.bzl",
     "file_extensions": [
       ".swift"
     ],

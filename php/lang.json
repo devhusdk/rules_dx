@@ -36,7 +36,7 @@
     "php_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/php.bzl",
+    "bzl": "php/private/quality:php.bzl",
     "file_extensions": [
       ".php"
     ],

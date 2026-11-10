@@ -16,10 +16,26 @@ alias(
 
 exports_files(["Invoke-Analyzer.ps1"])
 
+exports_files([
+    "powershell.bzl",
+    "powershell_tools.bzl",
+])
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "powershell.bzl",
+        "powershell_tools.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
 )

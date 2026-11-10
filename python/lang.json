@@ -36,7 +36,7 @@
     "python_grpc_library"
   ],
   "quality": {
-    "bzl": "core/quality:families/python.bzl",
+    "bzl": "python/private/quality:python.bzl",
     "file_extensions": [
       ".py",
       ".pyi"

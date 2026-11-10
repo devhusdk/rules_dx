@@ -15,7 +15,7 @@ load("//make/private/quality:make.bzl", _MAKE_SHARD_SPECS = "SHARD_SPECS", _MAKE
 load("//core/quality:families/nix.bzl", _NIX_SHARD_SPECS = "SHARD_SPECS", _NIX_TOOLS = "TOOLS")
 load("//rego/private/quality:rego.bzl", _REGO_HOOKS = "HOOKS", _REGO_HOOK_ORDER = "HOOK_ORDER", _REGO_SHARD_SPECS = "SHARD_SPECS", _REGO_TOOLS = "TOOLS")
 load("//core/quality:families/shell.bzl", _SHELL_SHARD_SPECS = "SHARD_SPECS", _SHELL_TOOLS = "TOOLS")
-load("//core/quality:families/sql.bzl", _SQL_HOOKS = "HOOKS", _SQL_HOOK_ORDER = "HOOK_ORDER", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
+load("//sql/private/quality:sql.bzl", _SQL_HOOKS = "HOOKS", _SQL_HOOK_ORDER = "HOOK_ORDER", _SQL_SHARD_SPECS = "SHARD_SPECS", _SQL_TOOLS = "TOOLS")
 load("//terraform/private/quality:terraform.bzl", _TERRAFORM_HOOKS = "HOOKS", _TERRAFORM_HOOK_ORDER = "HOOK_ORDER", _TERRAFORM_SHARD_SPECS = "SHARD_SPECS", _TERRAFORM_TOOLS = "TOOLS")
 load("//core/quality:families/text.bzl", _TEXT_SHARD_SPECS = "SHARD_SPECS", _TEXT_TOOLS = "TOOLS")
 load("//core/quality:families/typst.bzl", _TYPST_SHARD_SPECS = "SHARD_SPECS", _TYPST_TOOLS = "TOOLS")

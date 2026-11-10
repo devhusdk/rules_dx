@@ -32,7 +32,7 @@
     "perl_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/perl.bzl",
+    "bzl": "perl/private/quality:perl.bzl",
     "file_extensions": [
       ".pl",
       ".pm"

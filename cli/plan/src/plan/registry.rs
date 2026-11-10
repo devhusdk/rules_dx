@@ -336,9 +336,9 @@ mod tests {
         assert!(
             probes.contains(&"core/quality:families/core_probe.bzl%real_core_lint_probe_aspect")
         );
-        assert!(probes.contains(&"core/quality:families/python.bzl%real_python_lint_probe_aspect"));
+        assert!(probes.contains(&"python/private/quality:python.bzl%real_python_lint_probe_aspect"));
         assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
-        assert!(probes.contains(&"core/quality:families/swift.bzl%real_swift_lint_probe_aspect"));
+        assert!(probes.contains(&"swift/private/quality:swift.bzl%real_swift_lint_probe_aspect"));
         assert!(probes_for(Command::Docs, consumer(&extensions)).is_empty());
     }
 

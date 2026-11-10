@@ -34,7 +34,7 @@
     "ruby_bench"
   ],
   "quality": {
-    "bzl": "core/quality:families/ruby.bzl",
+    "bzl": "ruby/private/quality:ruby.bzl",
     "file_extensions": [
       ".rb",
       ".rbs"

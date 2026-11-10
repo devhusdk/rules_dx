@@ -14,11 +14,27 @@ label_flag(
     build_setting_default = ":rubocop_unconfigured",
 )
 
+exports_files([
+    "ruby.bzl",
+    "ruby_tools.bzl",
+])
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "ruby.bzl",
+        "ruby_tools.bzl",
         "unconfigured.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
 )

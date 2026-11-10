@@ -10,6 +10,8 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files(glob(["patches/*.patch"]) + [
     "cmt_list.bzl",
+    "ocaml.bzl",
+    "ocaml_tools.bzl",
     "repos.bzl",
     "tools_tests.bzl",
 ])
@@ -109,9 +111,20 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "ocaml.bzl",
+        "ocaml_tools.bzl",
         "cmt_list.bzl",
         "repos.bzl",
         "tools_tests.bzl",
     ],
     tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
 )

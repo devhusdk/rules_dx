@@ -35,9 +35,18 @@ sh_test(
     ],
 )
 
+exports_files([
+    "lua.bzl",
+    "lua_tools.bzl",
+])
+
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "lua.bzl",
+        "lua_tools.bzl",
+    ],
     tags = ["corpus"],
 )
 
@@ -45,4 +54,13 @@ real_source_target(
     name = "corpus_toml",
     tags = ["corpus"],
     toml_srcs = ["selene.toml"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob([
+        "*.bzl",
+        "BUILD.bazel",
+    ]),
+    visibility = ["//:__subpackages__"],
 )

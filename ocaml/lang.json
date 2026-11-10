@@ -39,7 +39,7 @@
     "dx_dune_library"
   ],
   "quality": {
-    "bzl": "core/quality:families/ocaml.bzl",
+    "bzl": "ocaml/private/quality:ocaml.bzl",
     "file_extensions": [
       ".ml",
       ".mli"

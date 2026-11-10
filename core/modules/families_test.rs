@@ -553,7 +553,7 @@ const FAMILY_FILES: [&str; 44] = [
 ];
 
 /// Family files that sit in their language directory instead of `core/quality/families`.
-const LANGUAGE_FAMILY_FILES: [&str; 16] = [
+const LANGUAGE_FAMILY_FILES: [&str; 27] = [
     "ansible",
     "bicep",
     "cloudformation",
@@ -566,10 +566,21 @@ const LANGUAGE_FAMILY_FILES: [&str; 16] = [
     "haskell",
     "julia",
     "kubernetes",
+    "lua",
     "make",
+    "ocaml",
+    "perl",
+    "php",
+    "pkl",
+    "powershell",
+    "python",
     "rego",
+    "ruby",
     "rust",
+    "sql",
+    "swift",
     "terraform",
+    "zig",
 ];
 
 fn family_file(family: &str) -> String {

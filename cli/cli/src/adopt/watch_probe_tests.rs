@@ -9,23 +9,31 @@ const MODULE: &str = "module(name = \"sample\", version = \"0.0.0\")\nbazel_dep(
 const FAKE_BAZEL: &str = r#"#!/bin/sh
 case " $* " in *" build "*|*" run "*) ;; *) exit 0 ;; esac
 log="$FAKE_BAZEL_LOG"
-for pid in $(sed -nE 's/^(start|child) ([0-9]+).*/\2/p' "$log"); do
-  kill -0 "$pid" 2>/dev/null && echo "overlap $pid" >> "$log"
-done
+starts=0
+while read -r word pid _; do
+  case "$word" in
+    start | child) kill -0 "$pid" 2>/dev/null && echo "overlap $pid" >> "$log" ;;
+  esac
+  case "$word" in start) starts=$((starts + 1)) ;; esac
+done < "$log"
 echo "start $$ $*" >> "$log"
-n=$(grep -c '^start ' "$log")
+n=$((starts + 1))
 trap 'echo "interrupted $$" >> "$log"; kill "$child" 2>/dev/null; wait "$child"; exit 8' INT TERM
-pause="${FAKE_BAZEL_SLEEP:-0}"
-case " $* " in *" build "*) pause="${FAKE_BAZEL_BUILD_SLEEP:-$pause}" ;; esac
-sleep "$pause" &
+pause="${FAKE_BAZEL_SLEEP_MS:-0}"
+case " $* " in *" build "*) pause="${FAKE_BAZEL_BUILD_SLEEP_MS:-$pause}" ;; esac
+"$FAKE_PROBE" --sleep-ms="$pause" &
 child=$!
 echo "child $child" >> "$log"
 wait "$child"
 for path in $FAKE_BAZEL_TOUCH; do
-  mkdir -p "$(dirname "$path")"
   echo "$n" > "$path"
 done
-code=$(echo "$FAKE_BAZEL_CODES" | cut -d' ' -f"$n")
+i=0
+code=
+for c in $FAKE_BAZEL_CODES; do
+  i=$((i + 1))
+  [ "$i" = "$n" ] && code=$c
+done
 echo "end $$ ${code:-0}" >> "$log"
 exit "${code:-0}"
 "#;
@@ -81,7 +89,8 @@ impl Probe {
             .args(words)
             .current_dir(&workspace)
             .env_clear()
-            .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+            .env("PATH", bin.as_os_str())
+            .env("FAKE_PROBE", dx_testing::process_probe())
             .env("HOME", &base)
             .env("TMPDIR", &tmp)
             .env("FAKE_BAZEL_LOG", &log)
@@ -90,6 +99,12 @@ impl Probe {
             .stderr(fs::File::create(&stderr).expect("stderr file"))
             .process_group(0);
         for (key, value) in fake {
+            if *key == "FAKE_BAZEL_TOUCH" {
+                for path in value.split_whitespace() {
+                    let parent = workspace.join(path).parent().expect("touch parent").to_owned();
+                    fs::create_dir_all(parent).expect("touch dir");
+                }
+            }
             command.env(key, value);
         }
         let child = command.spawn().expect("dx starts");
@@ -263,7 +278,7 @@ fn edits_during_a_slow_command_queue_exactly_one_more_iteration() {
     let mut probe = Probe::start(
         "dx-watch-probe-slow-",
         &["watch", "build", "//...", "--", "--jobs=4", "--apply"],
-        &[("FAKE_BAZEL_SLEEP", "1.5")],
+        &[("FAKE_BAZEL_SLEEP_MS", "1500")],
     );
     probe.until("the first command", |probe| probe.count("child ") == 1);
     for name in ["one.rs", "two.rs", "three.rs"] {
@@ -414,7 +429,7 @@ fn ctrl_c_during_a_command_stops_it_its_descendants_and_the_watch() {
         let mut probe = Probe::start(
             "dx-watch-probe-ctrl-c-",
             &["watch", "build", "//..."],
-            &[("FAKE_BAZEL_SLEEP", "30")],
+            &[("FAKE_BAZEL_SLEEP_MS", "30000")],
         );
         probe.until("the command's descendant", |probe| {
             probe.count("child ") == 1
@@ -502,7 +517,7 @@ fn watch_run_stops_the_running_app_tree_before_each_relaunch() {
     let mut probe = Probe::start(
         "dx-watch-probe-run-",
         &["watch", "run", "//app:bin", "--", "--help"],
-        &[("FAKE_BAZEL_SLEEP", "30"), ("FAKE_BAZEL_BUILD_SLEEP", "0")],
+        &[("FAKE_BAZEL_SLEEP_MS", "30000"), ("FAKE_BAZEL_BUILD_SLEEP_MS", "0")],
     );
     probe.until("the app", |probe| probe.count("child ") == 2);
     for round in 2..=3 {

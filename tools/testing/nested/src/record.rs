@@ -4,6 +4,8 @@ use std::collections::BTreeSet;
 
 use crate::cache;
 
+/// The `WorkspaceEvent` field of the rule context.
+const CONTEXT: u64 = 2;
 /// The `WorkspaceEvent` field of a `DownloadEvent`.
 const DOWNLOAD: u64 = 4;
 /// The `WorkspaceEvent` field of a `DownloadAndExtractEvent`.
@@ -105,6 +107,26 @@ pub fn downloads(log: &[u8]) -> Vec<(String, String)> {
     found.into_iter().collect()
 }
 
+/// The sorted, unique `WorkspaceEvent.context` values of a delimited log: the repository rules that ran.
+pub fn contexts(log: &[u8]) -> Vec<String> {
+    let mut found = BTreeSet::new();
+    let mut reader = Reader { bytes: log };
+    while !reader.bytes.is_empty() {
+        let Some(len) = reader.varint() else { break };
+        let Some(event) = reader.take(len) else { break };
+        let mut fields = Reader { bytes: event };
+        while !fields.bytes.is_empty() {
+            let Some((number, payload)) = fields.field() else {
+                break;
+            };
+            if number == CONTEXT {
+                found.insert(String::from_utf8_lossy(payload).into_owned());
+            }
+        }
+    }
+    found.into_iter().collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -125,6 +147,22 @@ mod tests {
 
     fn sha() -> String {
         "4e50948f".repeat(8)
+    }
+
+    #[test]
+    fn reads_the_sorted_unique_contexts() {
+        let with = |context: &[u8]| {
+            let mut inner = field(1, b"location");
+            inner.extend(field(2, context));
+            let mut out = vec![u8::try_from(inner.len()).expect("short")];
+            out.extend(inner);
+            out
+        };
+        let mut log = with(b"@@x//:r");
+        log.extend(with(b"@@a//:r"));
+        log.extend(with(b"@@x//:r"));
+        assert_eq!(contexts(&log), ["@@a//:r", "@@x//:r"]);
+        assert!(contexts(&[]).is_empty());
     }
 
     #[test]

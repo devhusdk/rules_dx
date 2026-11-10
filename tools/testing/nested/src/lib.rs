@@ -1,4 +1,4 @@
-//! Runs nested Bazel servers for tests: slot leasing, hermetic environments and the fake Bazel.
+//! Runs nested Bazel servers for tests: one server under `TEST_TMPDIR`, hermetic environments and the fake Bazel.
 #![cfg_attr(
     not(test),
     deny(
@@ -9,29 +9,33 @@
     )
 )]
 
+pub mod cache;
 pub mod compose;
 pub mod footprint;
 
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
-use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command};
 use std::rc::{Rc, Weak};
 use std::sync::{Mutex, MutexGuard, Once, PoisonError};
 use std::time::{Duration, Instant};
 
-use dx_path::nested_bazel;
-
 use dx_testing::Run;
 
 pub const MAX_IDLE_SECS: u32 = 5;
 pub const DEFAULT_HEAP: &str = "1536m";
-pub const DEFAULT_SLOTS: usize = nested_bazel::DEFAULT_SLOTS as usize;
-pub use dx_path::nested_bazel::SLOTS_ENV;
 pub const PINNED_ENV: &str = "DX_NESTED_BAZEL_PINNED";
 pub const SHIM_ENV: &str = "DX_NESTED_BAZEL_SHIM";
 pub const CPUS: u32 = 2;
+/// The variable naming the test's private temp directory; everything the harness writes is below it.
+pub const TMPDIR_ENV: &str = "TEST_TMPDIR";
+/// The `PATH` every nested command gets after the harness `bin` directory.
+pub const NO_PATH: &str = "/dx_no_path";
+const USER_ROOT: &str = "u";
+const WORKSPACES: &str = "w";
+const HOME_DIR: &str = "home";
+const REPOSITORY_CACHE: &str = "repository-cache";
 
 /// Environment variable naming the runfiles key of the pinned consumer Maven lock.
 pub const CONSUMER_MAVEN_LOCK_ENV: &str = "DX_CONSUMER_MAVEN_LOCK";
@@ -74,57 +78,32 @@ const STRIPPED: &[&str] = &[
 /// Settings for the nested Bazel server of one test binary.
 #[derive(Clone, Debug)]
 pub struct Config {
-    pub base: PathBuf,
-    pub slots: usize,
+    /// The directory under `TEST_TMPDIR` holding the home, the output user root and the workspaces.
+    pub root: PathBuf,
     pub bazel: PathBuf,
     pub heap: String,
-    pub disk_cache: PathBuf,
-    pub repository_cache: PathBuf,
     pub offline: bool,
-    /// The native `bazel` shim installed in each slot; without it Unix falls back to a sh wrapper.
+    /// The native `bazel` shim installed in the root; without it Unix falls back to a sh wrapper.
     pub shim: Option<PathBuf>,
-    /// The dx slot directory and the slot indices this harness keeps back from consumer dx runs.
-    pub reserve: Option<(PathBuf, std::ops::Range<usize>)>,
+    /// The declared downloads, as sha256 and file, that make up the repository cache.
+    pub cache: Vec<(String, PathBuf)>,
 }
 
 impl Config {
-    /// Reads the settings from the environment and the outer `~/.bazelrc`.
+    /// Reads the settings from the test environment.
     pub fn from_env() -> Result<Config, String> {
-        let home = pick_home(&|name| std::env::var_os(name));
-        let rc = home
-            .as_ref()
-            .and_then(|home| std::fs::read_to_string(home.join(".bazelrc")).ok())
-            .unwrap_or_default();
-        Self::from_parts(
-            &|name| std::env::var_os(name),
-            &resolve_runfile,
-            &rc,
-            home.as_deref(),
-        )
+        Self::from_parts(&|name| std::env::var_os(name), &resolve_runfile)
     }
 
-    /// Builds the settings from an environment lookup, the outer bazelrc text and the home.
-    fn from_parts(
+    /// Builds the settings from an environment lookup and a runfiles resolver.
+    pub fn from_parts(
         lookup: &dyn Fn(&str) -> Option<OsString>,
         resolve: &dyn Fn(&str, &str) -> Result<PathBuf, String>,
-        rc: &str,
-        home: Option<&Path>,
     ) -> Result<Config, String> {
         let text = |name: &str| lookup(name).and_then(|v| v.to_str().map(str::to_owned));
-        let base = match env_path(lookup, nested_bazel::ROOT_ENV) {
-            Some(base) => base,
-            None => default_base()?,
-        };
-        let servers = nested_bazel::servers(text(SLOTS_ENV).as_deref());
-        let slots = usize::from(servers);
-        let reserve = dx_process::user_cache_dir(&|name| text(name))
-            .zip(dx_process::slot_pool::available_memory())
-            .map(|(cache, memory)| {
-                (
-                    cache.join("dx").join("slots"),
-                    dx_process::slot_pool::reserve_range(memory, u64::from(servers)),
-                )
-            });
+        let root = env_path(lookup, TMPDIR_ENV)
+            .ok_or_else(|| format!("{TMPDIR_ENV} is not set; a nested Bazel runs only inside a test"))?
+            .join("nested");
         let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
@@ -134,130 +113,42 @@ impl Config {
             Some(key) if chosen.is_none() => Some(resolve(PINNED_ENV, &key)?),
             _ => None,
         };
-        let bazel = find_bazel(chosen, pinned, &path, &base)?;
+        let bazel = find_bazel(chosen, pinned, &path, &root)?;
         let shim = match text(SHIM_ENV).filter(|key| !key.is_empty()) {
             Some(key) => Some(resolve(SHIM_ENV, &key)?),
             None => None,
         };
-        let disk_cache = disk_cache(
-            env_path(lookup, "DX_NESTED_BAZEL_DISK_CACHE"),
-            rc,
-            home,
-            &base,
-        );
-        let repository_cache = env_path(lookup, "DX_NESTED_BAZEL_REPOSITORY_CACHE")
-            .or_else(|| bazelrc_path(rc, "repository_cache", home))
-            .or_else(|| home.and_then(default_repository_cache))
-            .unwrap_or_else(|| base.join("repository-cache"));
+        let mut cache = Vec::new();
+        for key in text(cache::MANIFESTS_ENV).unwrap_or_default().split_whitespace() {
+            let manifest = resolve(cache::MANIFESTS_ENV, key)?;
+            let listed = std::fs::read_to_string(&manifest)
+                .map_err(|error| format!("cannot read {}: {error}", manifest.display()))?;
+            for (sha256, file) in cache::parse_manifest(&listed)? {
+                cache.push((sha256, resolve(cache::MANIFESTS_ENV, &file)?));
+            }
+        }
         Ok(Config {
-            base,
-            slots,
+            root,
             bazel,
             heap,
-            disk_cache,
-            repository_cache,
             offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
             shim,
-            reserve,
+            cache,
         })
     }
 }
 
 /// Resolves the runfiles key in the variable `name` to an absolute path.
-fn resolve_runfile(name: &str, key: &str) -> Result<PathBuf, String> {
+pub fn resolve_runfile(name: &str, key: &str) -> Result<PathBuf, String> {
     let found = dx_testing::rlocation(key)
         .map_err(|error| format!("{name} {key} is not in the runfiles: {error}"))?;
     std::path::absolute(&found).map_err(|error| format!("{name} {}: {error}", found.display()))
-}
-
-/// Returns `HOME`, else `USERPROFILE` (Windows), ignoring empty values.
-fn pick_home(lookup: &dyn Fn(&str) -> Option<OsString>) -> Option<PathBuf> {
-    env_path(lookup, "HOME").or_else(|| env_path(lookup, "USERPROFILE"))
 }
 
 fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<PathBuf> {
     lookup(name)
         .filter(|value| !value.is_empty())
         .map(PathBuf::from)
-}
-
-/// Returns our effective uid, read from a file we create exclusively so a pre-made path cannot lie.
-#[cfg(unix)]
-fn current_uid() -> Result<u32, String> {
-    use std::os::unix::fs::MetadataExt;
-    let dir = dx_test_scratch::scratch("nested-bazel-uid");
-    let probe = dir.path().join("uid");
-    File::options()
-        .write(true)
-        .create_new(true)
-        .open(&probe)
-        .and_then(|file| file.metadata())
-        .map(|meta| meta.uid())
-        .map_err(|error| {
-            format!(
-                "cannot probe the current uid at {}: {error}",
-                probe.display()
-            )
-        })
-}
-
-#[cfg(unix)]
-fn default_base() -> Result<PathBuf, String> {
-    Ok(nested_bazel::root(None, Some(current_uid()?), None))
-}
-
-#[cfg(not(unix))]
-fn default_base() -> Result<PathBuf, String> {
-    let profile = env_path(&|name| std::env::var_os(name), "USERPROFILE");
-    Ok(nested_bazel::root(None, None, profile.as_deref()))
-}
-
-/// Returns the configured disk cache, or one cache shared by every slot under the base.
-pub fn disk_cache(env: Option<PathBuf>, rc: &str, home: Option<&Path>, base: &Path) -> PathBuf {
-    env.or_else(|| bazelrc_path(rc, "disk_cache", home))
-        .unwrap_or_else(|| base.join("disk-cache"))
-}
-
-/// Returns the last `--<flag>=<path>` value in a bazelrc, expanding `~/`.
-pub fn bazelrc_path(rc: &str, flag: &str, home: Option<&Path>) -> Option<PathBuf> {
-    let prefix = format!("--{flag}=");
-    let mut found = None;
-    for line in rc.lines() {
-        let line = line.trim();
-        if line.starts_with('#') {
-            continue;
-        }
-        for token in line.split_whitespace() {
-            let Some(value) = token.strip_prefix(prefix.as_str()) else {
-                continue;
-            };
-            let path = match value.strip_prefix("~/") {
-                Some(rest) => home.map(|home| home.join(rest)),
-                None => Some(PathBuf::from(value)),
-            };
-            if let Some(path) = path.filter(|path| path.is_absolute()) {
-                found = Some(path);
-            }
-        }
-    }
-    found
-}
-
-/// Finds the repository cache under the default output roots: `~/.cache/bazel` (Unix), then the home (Windows).
-fn default_repository_cache(home: &Path) -> Option<PathBuf> {
-    [home.join(".cache/bazel"), home.to_path_buf()]
-        .iter()
-        .find_map(|dir| {
-            let mut roots: Vec<PathBuf> = std::fs::read_dir(dir)
-                .ok()?
-                .filter_map(Result::ok)
-                .filter(|entry| entry.file_name().to_string_lossy().starts_with("_bazel_"))
-                .map(|entry| entry.path().join("cache/repos/v1"))
-                .filter(|path| path.is_dir())
-                .collect();
-            roots.sort();
-            roots.into_iter().next()
-        })
 }
 
 /// Returns the `DX_NESTED_BAZEL` override, else the pinned binary, else `bazel` or `bazelisk` on `path`.
@@ -525,24 +416,23 @@ fn make_file_writable(path: &Path) {
 }
 
 /// Renders the bazelrc every nested command reads last.
-pub fn bazelrc(config: &Config, downloader: &Path) -> String {
+pub fn bazelrc(config: &Config, downloader: &Path, repository_cache: &Path) -> String {
     let mut text = format!("common --local_resources=cpu={CPUS}\n");
     if config.offline {
         text.push_str(&format!(
             "common --downloader_config={}\n",
             slashed(downloader)
         ));
+        text.push_str("common --lockfile_mode=error\n");
     }
+    text.push_str("common --disk_cache=\n");
+    text.push_str("common --remote_cache=\n");
     text.push_str(&format!(
-        "common --disk_cache={}\n",
-        slashed(&config.disk_cache)
+        "common --repository_cache={}\n",
+        slashed(repository_cache)
     ));
-    let cache = &config.repository_cache;
-    text.push_str(&format!("common --repository_cache={}\n", slashed(cache)));
-    text.push_str(&format!(
-        "common --repo_contents_cache={}\n",
-        slashed(&cache.join("contents"))
-    ));
+    text.push_str("common --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\n");
+    text.push_str("build --spawn_strategy=local\n");
     text
 }
 
@@ -1070,97 +960,36 @@ fn stripped(key: &str) -> bool {
             .any(|prefix| key.starts_with(prefix))
 }
 
-/// Takes shared locks on the dx slot files in the configured reserve, so consumer dx runs leave
-/// those build slots to the nested servers. Busy indices are reported and never fail the test.
-fn hold_dx_reserve(config: &Config) -> Vec<File> {
-    let Some((dir, range)) = &config.reserve else {
-        return Vec::new();
-    };
-    let reserve = dx_process::slot_pool::hold_reserve(dir, range.clone());
-    if !reserve.busy.is_empty() {
-        eprintln!(
-            "dx build slots {:?} under {} are busy; continuing without them",
-            reserve.busy,
-            dir.display()
-        );
-    }
-    reserve.held
-}
-
-/// One nested Bazel server: a locked slot, its output user root and its workspace.
+/// One nested Bazel server: its root under `TEST_TMPDIR`, its output user root and its workspace.
 pub struct Server {
     config: Config,
     home: PathBuf,
     workspace: Option<PathBuf>,
-    _slot: File,
     reaper: Option<Child>,
-    /// Shared locks on the dx slot files kept for nested servers; released after the servers stop.
-    _reserve: Vec<File>,
 }
 
 impl Server {
-    /// Takes the first free slot under the configured base, waiting while all are busy.
+    /// Lays out the configured root: the wrapper, the rc file and the repository cache.
     pub fn acquire(config: Config) -> Result<Server, String> {
-        create_private(&config.base)?;
-        let mut waiting = false;
-        loop {
-            for index in 0..config.slots {
-                let home = config.base.join(index.to_string());
-                std::fs::create_dir_all(&home)
-                    .map_err(|error| format!("cannot create {}: {error}", home.display()))?;
-                let lock = home.join(nested_bazel::LOCK);
-                let file = File::options()
-                    .create(true)
-                    .truncate(false)
-                    .write(true)
-                    .open(&lock)
-                    .map_err(|error| format!("cannot open {}: {error}", lock.display()))?;
-                match file.try_lock() {
-                    Ok(()) => {
-                        let reserve = hold_dx_reserve(&config);
-                        return Server::claim(config, home, file, reserve);
-                    }
-                    Err(std::fs::TryLockError::WouldBlock) => {}
-                    Err(std::fs::TryLockError::Error(error)) => {
-                        return Err(format!("cannot lock {}: {error}", lock.display()));
-                    }
-                }
-            }
-            if !waiting {
-                eprintln!(
-                    "waiting for one of {} nested Bazel slots under {}",
-                    config.slots,
-                    config.base.display()
-                );
-                waiting = true;
-            }
-            std::thread::sleep(Duration::from_secs(1));
-        }
-    }
-
-    fn claim(
-        config: Config,
-        home: PathBuf,
-        slot: File,
-        reserve: Vec<File>,
-    ) -> Result<Server, String> {
+        let home = config.root.clone();
         let mut server = Server {
             config,
             home,
             workspace: None,
-            _slot: slot,
             reaper: None,
-            _reserve: reserve,
         };
-        kill_slot_servers(
-            &server.user_root(),
-            &server.home.join(nested_bazel::WORKSPACES),
-        );
-        server.reaper = spawn_reaper(std::process::id(), &server.home, &server._slot);
+        for dir in [server.home.join(WORKSPACES), server.home.join(HOME_DIR)] {
+            std::fs::create_dir_all(&dir)
+                .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
+        }
+        kill_slot_servers(&server.user_root(), &server.home.join(WORKSPACES));
+        server.reaper = spawn_reaper(std::process::id(), &server.home);
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
+        let repository_cache = server.repository_cache();
+        cache::install(&repository_cache, &server.config.cache)?;
         write(&downloader, DOWNLOADER)?;
-        write(&rc, &bazelrc(&server.config, &downloader))?;
+        write(&rc, &bazelrc(&server.config, &downloader, &repository_cache))?;
         let wrapper = server.wrapper();
         let argv = wrapper_argv(&server.config, &server.user_root(), &rc);
         match &server.config.shim {
@@ -1190,12 +1019,17 @@ impl Server {
         Ok(server)
     }
 
+    /// The repository cache built from the declared downloads.
+    pub fn repository_cache(&self) -> PathBuf {
+        self.home.join(REPOSITORY_CACHE)
+    }
+
     pub fn home(&self) -> &Path {
         &self.home
     }
 
     pub fn user_root(&self) -> PathBuf {
-        self.home.join(nested_bazel::USER_ROOT)
+        self.home.join(USER_ROOT)
     }
 
     /// Names the append-only log of every argument line the wrapper receives.
@@ -1217,7 +1051,7 @@ impl Server {
 
     /// Empties the workspace `name` and makes it current, stopping the server of any other one.
     pub fn enter(&mut self, name: &str) -> Result<PathBuf, String> {
-        let root = self.home.join(nested_bazel::WORKSPACES).join(name);
+        let root = self.home.join(WORKSPACES).join(name);
         if self.workspace.as_ref() != Some(&root) {
             self.shutdown();
             self.workspace = Some(root.clone());
@@ -1229,7 +1063,7 @@ impl Server {
 
     /// Lists the live servers this slot owns.
     pub fn servers(&self) -> Vec<u32> {
-        slot_servers(&self.user_root(), &self.home.join(nested_bazel::WORKSPACES))
+        slot_servers(&self.user_root(), &self.home.join(WORKSPACES))
     }
 
     /// Stops the server and returns any that survive.
@@ -1239,7 +1073,7 @@ impl Server {
         {
             let _ = self.bazel_command(root, &["shutdown"]).output();
         }
-        kill_slot_servers(&self.user_root(), &self.home.join(nested_bazel::WORKSPACES))
+        kill_slot_servers(&self.user_root(), &self.home.join(WORKSPACES))
     }
 
     /// Builds a command for `bin` that reaches Bazel only through this server.
@@ -1277,6 +1111,9 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front
             command.env_remove(&key);
         }
     }
+    let user_home = home.join(HOME_DIR);
+    command.env("HOME", &user_home);
+    command.env("USERPROFILE", &user_home);
     let mut path = None;
     for (key, value) in envs {
         if *key == "PATH" {
@@ -1285,9 +1122,7 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front
             command.env(key, value);
         }
     }
-    let path = path
-        .or_else(|| std::env::var_os("PATH"))
-        .unwrap_or_default();
+    let path = path.unwrap_or_else(|| OsString::from(NO_PATH));
     let mut dirs: Vec<PathBuf> = front.iter().map(|dir| dir.to_path_buf()).collect();
     dirs.push(home.join("bin"));
     dirs.extend(std::env::split_paths(&path));
@@ -1321,11 +1156,10 @@ done
 
 /// Starts a detached watcher that sweeps the slot's workspaces once `owner` is gone, however it died.
 #[cfg(unix)]
-fn spawn_reaper(owner: u32, home: &Path, slot: &File) -> Option<Child> {
+fn spawn_reaper(owner: u32, home: &Path) -> Option<Child> {
     use std::os::unix::process::CommandExt;
-    let workspaces = home.join(nested_bazel::WORKSPACES);
+    let workspaces = home.join(WORKSPACES);
     let real = std::fs::canonicalize(&workspaces).unwrap_or_else(|_| workspaces.clone());
-    let lock = slot.try_clone().ok()?;
     Command::new("sh")
         .arg("-c")
         .arg(REAPER)
@@ -1333,7 +1167,7 @@ fn spawn_reaper(owner: u32, home: &Path, slot: &File) -> Option<Child> {
         .arg(owner.to_string())
         .arg(&workspaces)
         .arg(&real)
-        .stdin(std::process::Stdio::from(lock))
+        .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
         .process_group(0)
@@ -1342,7 +1176,7 @@ fn spawn_reaper(owner: u32, home: &Path, slot: &File) -> Option<Child> {
 }
 
 #[cfg(not(unix))]
-fn spawn_reaper(_owner: u32, _home: &Path, _slot: &File) -> Option<Child> {
+fn spawn_reaper(_owner: u32, _home: &Path) -> Option<Child> {
     None
 }
 
@@ -1359,99 +1193,23 @@ impl Drop for Server {
     }
 }
 
-/// Explains why `path` is not a private directory of `me`, or returns None when it is.
-#[cfg(unix)]
-fn private_dir_error(
-    path: &Path,
-    is_symlink: bool,
-    is_dir: bool,
-    owner: u32,
-    mode: u32,
-    me: u32,
-) -> Option<String> {
-    let fix = format!(
-        "remove it or point {} at a directory you own",
-        nested_bazel::ROOT_ENV
-    );
-    let shown = path.display();
-    if is_symlink {
-        Some(format!("{shown} is a symlink; {fix}"))
-    } else if !is_dir {
-        Some(format!("{shown} is not a directory; {fix}"))
-    } else if owner != me {
-        Some(format!(
-            "{shown} is owned by uid {owner}, not uid {me}; {fix}"
-        ))
-    } else if mode & 0o077 != 0 {
-        Some(format!(
-            "{shown} is accessible by other users (mode {:04o}); {fix}",
-            mode & 0o7777
-        ))
-    } else {
-        None
-    }
-}
-
-#[cfg(unix)]
-fn create_private(base: &Path) -> Result<(), String> {
-    use std::os::unix::fs::{DirBuilderExt, MetadataExt};
-    if let Some(parent) = base.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|error| format!("cannot create {}: {error}", parent.display()))?;
-    }
-    match std::fs::DirBuilder::new().mode(0o700).create(base) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(error) => return Err(format!("cannot create {}: {error}", base.display())),
-    }
-    let meta = std::fs::symlink_metadata(base)
-        .map_err(|error| format!("cannot stat {}: {error}", base.display()))?;
-    let kind = meta.file_type();
-    match private_dir_error(
-        base,
-        kind.is_symlink(),
-        kind.is_dir(),
-        meta.uid(),
-        meta.mode(),
-        current_uid()?,
-    ) {
-        Some(reason) => Err(reason),
-        None => Ok(()),
-    }
-}
-
-#[cfg(not(unix))]
-fn create_private(base: &Path) -> Result<(), String> {
-    std::fs::create_dir_all(base)
-        .map_err(|error| format!("cannot create {}: {error}", base.display()))
-}
-
-const DOWNLOADER: &str = "allow bcr.bazel.build\nblock *\n";
+const DOWNLOADER: &str = "block *\n";
 const BLOCKED: &str = "Configured URL rewriter blocked all URLs:";
 
 /// Explains a failed offline run whose download the nested downloader blocked.
-fn blocked_download(offline: bool, run: &Run, module: Option<&str>) -> Option<String> {
+fn blocked_download(offline: bool, run: &Run) -> Option<String> {
     if !offline || run.status.success() {
         return None;
     }
     let combined = run.combined();
     let line = combined.lines().find(|line| line.contains(BLOCKED))?;
-    let mut message = format!(
-        "{}\nthe offline nested downloader allows only bcr.bazel.build; set DX_NESTED_BAZEL_NETWORK=1 (nested_bazel_test(network = True) or NESTED_BAZEL_NETWORK_ENV with NESTED_BAZEL_NETWORK_TAGS)",
+    Some(format!(
+        "{}\nthe URL is not in the test's nested_repository_cache sets; add the set or regenerate its list with `bazel run //tools/testing:nested_cache_update`",
         line.trim()
-    );
-    let compact: String = module
-        .unwrap_or_default()
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect();
-    if compact.contains("local_path_override(module_name=\"rules_dx\"") {
-        message.push_str(" or drop local_path_override(module_name = \"rules_dx\")");
-    }
-    Some(message)
+    ))
 }
 
-fn capture(mut command: Command, what: &str, offline: bool, root: &Path) -> Run {
+fn capture(mut command: Command, what: &str, offline: bool) -> Run {
     let output = command
         .output()
         .unwrap_or_else(|error| panic!("run {what}: {error}"));
@@ -1460,8 +1218,7 @@ fn capture(mut command: Command, what: &str, offline: bool, root: &Path) -> Run 
         stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
         stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     };
-    let module = std::fs::read_to_string(root.join("MODULE.bazel")).ok();
-    if let Some(message) = blocked_download(offline, &run, module.as_deref()) {
+    if let Some(message) = blocked_download(offline, &run) {
         panic!("nested bazel: {message}");
     }
     run
@@ -1504,6 +1261,37 @@ thread_local! {
 }
 
 static HOME: Mutex<Option<(PathBuf, bool)>> = Mutex::new(None);
+static CONFIG: Mutex<Option<Config>> = Mutex::new(None);
+
+/// Sets the settings the shared server of this process starts with, in place of the test environment.
+pub fn configure(config: Config) {
+    *CONFIG.lock().unwrap_or_else(PoisonError::into_inner) = Some(config);
+}
+
+/// The query the harness consumer answers offline, and the cache update tool runs online.
+pub const HARNESS_QUERY: &[&str] = &[
+    "query",
+    "--color=no",
+    "--curses=no",
+    "@@rules_py++python_interpreters+python_interpreters//:all",
+];
+
+/// Starts the consumer of the harness self-test: rules_dx from the `module_srcs` runfiles, with
+/// the rules_py override and its patches.
+pub fn harness_consumer(name: &str) -> Case {
+    let module = dx_testing::resolve_runfiles("MODULE.bazel");
+    let module = std::path::absolute(&module).unwrap_or_else(|error| panic!("{module:?}: {error}"));
+    let rules = module
+        .parent()
+        .unwrap_or_else(|| panic!("no directory above {module:?}"));
+    let case = Case::consumer_at(name, rules, &compose::rules_py_override());
+    case.write("patches/rules_py/BUILD.bazel", "");
+    for patch in compose::RULES_PY_PATCHES {
+        let rel = format!("patches/rules_py/{patch}.patch");
+        case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
+    }
+    case
+}
 
 /// Shared settings of `@rules_dx//config` that dx passes to Bazel, as `(name, default)`.
 ///
@@ -1603,7 +1391,11 @@ pub fn case(name: &str) -> Case {
     let lease = held.unwrap_or_else(|| {
         let mut guard = SERVER.lock().unwrap_or_else(PoisonError::into_inner);
         if guard.is_none() {
-            let config = Config::from_env().unwrap_or_else(|error| panic!("nested bazel: {error}"));
+            let configured = CONFIG.lock().unwrap_or_else(PoisonError::into_inner).take();
+            let config = match configured {
+                Some(config) => config,
+                None => Config::from_env().unwrap_or_else(|error| panic!("nested bazel: {error}")),
+            };
             let server =
                 Server::acquire(config).unwrap_or_else(|error| panic!("nested bazel: {error}"));
             *HOME.lock().unwrap_or_else(PoisonError::into_inner) =
@@ -1634,9 +1426,7 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
     capture(
         bazel_command_at(&home, root, args, &[]),
         "nested bazel",
-        offline,
-        root,
-    )
+        offline)
 }
 
 impl Case {
@@ -1658,6 +1448,11 @@ impl Case {
 
     pub fn user_root(&self) -> PathBuf {
         self.server().user_root()
+    }
+
+    /// The repository cache the server reads, built from the declared downloads.
+    pub fn repository_cache(&self) -> PathBuf {
+        self.server().repository_cache()
     }
 
     pub fn servers(&self) -> Vec<u32> {
@@ -1695,7 +1490,7 @@ impl Case {
         let mut command = self.command(bin, envs);
         command.args(args);
         let offline = self.server().config.offline;
-        capture(command, &bin.display().to_string(), offline, &self.root)
+        capture(command, &bin.display().to_string(), offline)
     }
 
     /// The server's real `bazel` wrapper. A shim must call it by absolute path, because a bare
@@ -1723,7 +1518,7 @@ impl Case {
         let mut command = self.command_with_shim(bin, envs, shim_dir);
         command.args(args);
         let offline = self.server().config.offline;
-        capture(command, &bin.display().to_string(), offline, &self.root)
+        capture(command, &bin.display().to_string(), offline)
     }
 
     /// Runs `bazel` in the workspace with the startup options dx uses.
@@ -1735,7 +1530,7 @@ impl Case {
     pub fn bazel_with(&self, args: &[&str], envs: &[(&str, &str)]) -> Run {
         let command = bazel_command_at(self.server().home(), &self.root, args, envs);
         let offline = self.server().config.offline;
-        capture(command, "nested bazel", offline, &self.root)
+        capture(command, "nested bazel", offline)
     }
 
     /// Builds an unspawned `bazel` command in the workspace with the startup options dx uses.
@@ -1747,14 +1542,18 @@ impl Case {
     ///
     /// The workspace imports the preset layers from `.dx/bazelrc`, the way `dx init` lays them out.
     pub fn consumer(name: &str, extra_module: &str) -> Case {
-        let rules = dx_testing::rules_dx_source();
+        Case::consumer_at(name, &dx_testing::rules_dx_source(), extra_module)
+    }
+
+    /// Like `consumer`, with rules_dx read from `rules`.
+    pub fn consumer_at(name: &str, rules: &Path, extra_module: &str) -> Case {
         let case = case(name);
         case.write(
             ".bazelversion",
             &dx_testing::read_text(&rules.join(".bazelversion")),
         );
-        case.write("MODULE.bazel", &consumer_module(&rules, extra_module));
-        seed_rules_dx_lock(case.root(), &rules);
+        case.write("MODULE.bazel", &consumer_module(rules, extra_module));
+        seed_rules_dx_lock(case.root(), rules);
         let mut imports = String::new();
         for layer in dx_preset::Layer::ALL {
             let file = layer.file_name();
@@ -1912,6 +1711,7 @@ impl FakeBazel {
 #[cfg(unix)]
 mod tests {
     use super::*;
+    use std::ffi::OsStr;
 
     fn scratch(prefix: &str) -> tempfile::TempDir {
         use std::os::unix::fs::PermissionsExt;
@@ -1924,17 +1724,14 @@ mod tests {
         dir
     }
 
-    fn config(base: &Path, bazel: &Path) -> Config {
+    fn config(root: &Path, bazel: &Path) -> Config {
         Config {
-            base: base.to_path_buf(),
-            slots: 2,
+            root: root.to_path_buf(),
             bazel: bazel.to_path_buf(),
             heap: DEFAULT_HEAP.to_owned(),
-            disk_cache: PathBuf::from("/caches/disk"),
-            repository_cache: PathBuf::from("/caches/repos"),
             offline: false,
             shim: None,
-            reserve: None,
+            cache: Vec::new(),
         }
     }
 
@@ -1976,13 +1773,13 @@ mod tests {
             Fixture { dir }
         }
 
-        fn base(&self) -> PathBuf {
-            self.dir.path().join("base")
+        fn tmpdir(&self) -> PathBuf {
+            self.dir.path().join("tmp")
         }
 
-        fn config(&self, vars: &[(&'static str, &str)], rc: &str, home: Option<&Path>) -> Config {
+        fn config(&self, vars: &[(&'static str, &str)]) -> Config {
             let mut all = vec![
-                ("DX_NESTED_BAZEL_ROOT", self.base().into_os_string()),
+                (TMPDIR_ENV, self.tmpdir().into_os_string()),
                 (
                     "DX_NESTED_BAZEL",
                     self.dir.path().join("bazel").into_os_string(),
@@ -1992,7 +1789,7 @@ mod tests {
                 vars.iter()
                     .map(|(key, value)| (*key, OsString::from(value))),
             );
-            Config::from_parts(&lookup(all), &resolve, rc, home).expect("config")
+            Config::from_parts(&lookup(all), &resolve).expect("config")
         }
     }
 
@@ -2077,151 +1874,101 @@ mod tests {
     }
 
     #[test]
-    fn blocked_download_names_the_network_and_the_override() {
+    fn blocked_download_names_the_url_and_the_cache_sets() {
         let run = finished(1, &format!("Loading\n{BLOCKED_LINE}\nFAILED\n"));
-        let module = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nlocal_path_override(module_name = \"rules_dx\", path = \"/r\")\n";
-        let message = blocked_download(true, &run, Some(module)).expect("message");
+        let message = blocked_download(true, &run).expect("message");
         assert!(message.starts_with(BLOCKED_LINE.trim()), "{message}");
         assert!(message.contains("SHA256SUMS"), "{message}");
-        assert!(message.contains("DX_NESTED_BAZEL_NETWORK=1"), "{message}");
+        assert!(message.contains("nested_repository_cache"), "{message}");
         assert!(
-            message.contains("drop local_path_override(module_name = \"rules_dx\")"),
+            message.contains("bazel run //tools/testing:nested_cache_update"),
             "{message}"
         );
     }
 
     #[test]
-    fn blocked_download_follows_the_module_for_the_override_hint() {
-        let run = finished(1, BLOCKED_LINE);
-        let plain = blocked_download(true, &run, Some("module(name = \"c\")\n")).expect("plain");
-        assert!(plain.contains("DX_NESTED_BAZEL_NETWORK=1"), "{plain}");
-        assert!(!plain.contains("local_path_override"), "{plain}");
-        let missing = blocked_download(true, &run, None).expect("missing");
-        assert!(!missing.contains("local_path_override"), "{missing}");
-        let multi =
-            "local_path_override(\n    module_name = \"rules_dx\",\n    path = \"/r\",\n)\n";
-        let multi = blocked_download(true, &run, Some(multi)).expect("multi");
-        assert!(multi.contains("DX_NESTED_BAZEL_NETWORK=1"), "{multi}");
-        assert!(multi.contains("drop local_path_override"), "{multi}");
-        let other = "local_path_override(module_name = \"rules_go\", path = \"/g\")\n";
-        let other = blocked_download(true, &run, Some(other)).expect("other");
-        assert!(!other.contains("local_path_override"), "{other}");
-    }
-
-    #[test]
     fn blocked_download_is_silent_online_on_success_and_without_the_marker() {
-        let module = Some("local_path_override(module_name = \"rules_dx\", path = \"/r\")\n");
+        assert_eq!(blocked_download(false, &finished(1, BLOCKED_LINE)), None);
+        assert_eq!(blocked_download(true, &finished(0, BLOCKED_LINE)), None);
         assert_eq!(
-            blocked_download(false, &finished(1, BLOCKED_LINE), module),
-            None
-        );
-        assert_eq!(
-            blocked_download(true, &finished(0, BLOCKED_LINE), module),
-            None
-        );
-        assert_eq!(
-            blocked_download(true, &finished(1, "ERROR: no such target\n"), module),
+            blocked_download(true, &finished(1, "ERROR: no such target\n")),
             None
         );
     }
 
     #[test]
     fn capture_panics_on_an_offline_blocked_download() {
-        let dir = scratch("nested-blocked-");
-        std::fs::write(
-            dir.path().join("MODULE.bazel"),
-            "local_path_override(module_name = \"rules_dx\", path = \"/r\")\n",
-        )
-        .expect("module");
         let mut command = Command::new("/bin/sh");
         command.args(["-c", &format!("echo '{BLOCKED_LINE}' >&2; exit 1")]);
         let message = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            capture(command, "sh", true, dir.path())
+            capture(command, "sh", true)
         })) {
             Ok(run) => panic!("no panic: {}", run.combined()),
             Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
         };
         assert!(message.starts_with("nested bazel: "), "{message}");
-        assert!(message.contains("DX_NESTED_BAZEL_NETWORK=1"), "{message}");
+        assert!(message.contains("nested_repository_cache"), "{message}");
         let mut online = Command::new("/bin/sh");
         online.args(["-c", &format!("echo '{BLOCKED_LINE}' >&2; exit 1")]);
-        let run = capture(online, "sh", false, dir.path());
+        let run = capture(online, "sh", false);
         assert!(!run.status.success());
+    }
+
+    #[test]
+    fn the_config_puts_the_root_under_the_test_tmpdir_and_fails_without_one() {
+        let fixture = Fixture::new();
+        assert_eq!(fixture.config(&[]).root, fixture.tmpdir().join("nested"));
+        let bazel = fixture.dir.path().join("bazel").into_os_string();
+        let error = Config::from_parts(&lookup(vec![("DX_NESTED_BAZEL", bazel)]), &resolve)
+            .expect_err("no tmpdir");
+        assert_eq!(
+            error,
+            "TEST_TMPDIR is not set; a nested Bazel runs only inside a test"
+        );
+    }
+
+    #[test]
+    fn the_config_reads_each_cache_manifest_and_resolves_its_files() {
+        let fixture = Fixture::new();
+        let sha256 = "a".repeat(64);
+        let manifest = fixture.dir.path().join("set.manifest");
+        std::fs::write(&manifest, format!("{sha256} repo/file/file\n")).expect("manifest");
+        let config = fixture.config(&[(cache::MANIFESTS_ENV, &manifest.to_string_lossy())]);
+        assert_eq!(config.cache, vec![(sha256, PathBuf::from("repo/file/file"))]);
+        assert!(fixture.config(&[]).cache.is_empty());
     }
 
     #[test]
     fn the_config_is_offline_unless_the_network_is_asked_for() {
         let fixture = Fixture::new();
-        assert!(fixture.config(&[], "", None).offline);
+        assert!(fixture.config(&[]).offline);
         assert!(
             fixture
-                .config(&[("DX_NESTED_BAZEL_NETWORK", "")], "", None)
+                .config(&[("DX_NESTED_BAZEL_NETWORK", "")])
                 .offline
         );
         assert!(
             !fixture
-                .config(&[("DX_NESTED_BAZEL_NETWORK", "1")], "", None)
+                .config(&[("DX_NESTED_BAZEL_NETWORK", "1")])
                 .offline
         );
-    }
-
-    #[test]
-    fn the_config_falls_back_to_three_slots_on_zero_or_garbage() {
-        let fixture = Fixture::new();
-        assert_eq!(fixture.config(&[], "", None).slots, 3);
-        assert_eq!(fixture.config(&[(SLOTS_ENV, "0")], "", None).slots, 3);
-        assert_eq!(fixture.config(&[(SLOTS_ENV, "abc")], "", None).slots, 3);
-        assert_eq!(fixture.config(&[(SLOTS_ENV, "2")], "", None).slots, 2);
     }
 
     #[test]
     fn the_config_takes_the_heap_override() {
         let fixture = Fixture::new();
-        assert_eq!(fixture.config(&[], "", None).heap, "1536m");
+        assert_eq!(fixture.config(&[]).heap, "1536m");
         assert_eq!(
             fixture
-                .config(&[("DX_NESTED_BAZEL_HEAP", "")], "", None)
+                .config(&[("DX_NESTED_BAZEL_HEAP", "")])
                 .heap,
             "1536m"
         );
         assert_eq!(
             fixture
-                .config(&[("DX_NESTED_BAZEL_HEAP", "4g")], "", None)
+                .config(&[("DX_NESTED_BAZEL_HEAP", "4g")])
                 .heap,
             "4g"
-        );
-    }
-
-    #[test]
-    fn the_config_caches_prefer_the_environment_then_the_rc_then_the_home() {
-        let fixture = Fixture::new();
-        let home = fixture.dir.path().join("home");
-        let repos = home.join(".cache/bazel/_bazel_x/cache/repos/v1");
-        std::fs::create_dir_all(&repos).expect("mkdir repos");
-        let rc = "common --disk_cache=~/rc
-common --repository_cache=/rc/repos
-";
-        let env = [
-            ("DX_NESTED_BAZEL_DISK_CACHE", "/env/disk"),
-            ("DX_NESTED_BAZEL_REPOSITORY_CACHE", "/env/repos"),
-        ];
-
-        let chosen = fixture.config(&env, rc, Some(&home));
-        assert_eq!(chosen.disk_cache, PathBuf::from("/env/disk"));
-        assert_eq!(chosen.repository_cache, PathBuf::from("/env/repos"));
-
-        let chosen = fixture.config(&[], rc, Some(&home));
-        assert_eq!(chosen.disk_cache, home.join("rc"));
-        assert_eq!(chosen.repository_cache, PathBuf::from("/rc/repos"));
-
-        let chosen = fixture.config(&[], "", Some(&home));
-        assert_eq!(chosen.disk_cache, fixture.base().join("disk-cache"));
-        assert_eq!(chosen.repository_cache, repos);
-
-        std::fs::remove_dir_all(home.join(".cache")).expect("remove cache");
-        assert_eq!(
-            fixture.config(&[], "", Some(&home)).repository_cache,
-            fixture.base().join("repository-cache")
         );
     }
 
@@ -2248,42 +1995,30 @@ common --repository_cache=/rc/repos
         assert!(!owned_by(pid, root));
     }
 
-    #[test]
-    fn rc_paths_take_the_last_value_and_expand_home() {
-        let rc = "# common --disk_cache=/ignored\ncommon --disk_cache=/one\nbuild --disk_cache=~/two --jobs=2\ncommon --repository_cache=relative\n";
-        let home = Path::new("/home/me");
-        assert_eq!(
-            bazelrc_path(rc, "disk_cache", Some(home)),
-            Some(PathBuf::from("/home/me/two"))
-        );
-        assert_eq!(bazelrc_path(rc, "repository_cache", Some(home)), None);
-        assert_eq!(
-            bazelrc_path(rc, "disk_cache", None),
-            Some(PathBuf::from("/one"))
-        );
+    fn env_of(command: &Command, key: &str) -> Option<OsString> {
+        command
+            .get_envs()
+            .find(|(name, _)| *name == OsStr::new(key))
+            .and_then(|(_, value)| value.map(OsStr::to_owned))
     }
 
     #[test]
-    fn the_disk_cache_prefers_the_environment_then_the_rc_then_the_base() {
-        let rc = "common --disk_cache=~/rc\n";
-        let home = Some(Path::new("/home/me"));
-        let base = Path::new("/b");
-        assert_eq!(
-            disk_cache(Some(PathBuf::from("/env")), rc, home, base),
-            PathBuf::from("/env")
-        );
-        assert_eq!(
-            disk_cache(None, rc, home, base),
-            PathBuf::from("/home/me/rc")
-        );
-        assert_eq!(
-            disk_cache(None, "", home, base),
-            PathBuf::from("/b/disk-cache")
-        );
+    fn the_command_home_is_the_slot_home_unless_the_caller_names_one() {
+        let slot = Path::new("slot");
+        let mut command = Command::new("dx");
+        apply_env_at(slot, &mut command, &[], &[]);
+        let slot_home = Some(slot.join(HOME_DIR).into_os_string());
+        assert_eq!(env_of(&command, "HOME"), slot_home);
+        assert_eq!(env_of(&command, "USERPROFILE"), slot_home);
+
+        let mut command = Command::new("dx");
+        apply_env_at(slot, &mut command, &[("HOME", "caller-home")], &[]);
+        assert_eq!(env_of(&command, "HOME"), Some(OsString::from("caller-home")));
+        assert_eq!(env_of(&command, "USERPROFILE"), slot_home);
     }
 
     #[test]
-    fn the_wrapper_pins_the_startup_options_and_the_rc_names_the_caches() {
+    fn the_wrapper_pins_the_startup_options_and_the_rc_names_the_repository_cache() {
         let config = config(Path::new("/b"), Path::new("/usr/bin/bazel"));
         let script = wrapper_script(
             &config,
@@ -2295,17 +2030,18 @@ common --repository_cache=/rc/repos
             script,
             "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '/b/0/calls.log'\nexec '/usr/bin/bazel' '--output_user_root=/b/0/u' '--max_idle_secs=5' '--host_jvm_args=-Xmx1536m' '--bazelrc=/b/0/bazelrc' \"$@\"\n"
         );
+        let cache = Path::new("/b/repository-cache");
         assert_eq!(
-            bazelrc(&config, Path::new("/b/0/downloader.cfg")),
-            "common --local_resources=cpu=2\ncommon --disk_cache=/caches/disk\ncommon --repository_cache=/caches/repos\ncommon --repo_contents_cache=/caches/repos/contents\n"
+            bazelrc(&config, Path::new("/b/downloader.cfg"), cache),
+            "common --local_resources=cpu=2\ncommon --disk_cache=\ncommon --remote_cache=\ncommon --repository_cache=/b/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
         );
         let offline = Config {
             offline: true,
             ..config
         };
         assert_eq!(
-            bazelrc(&offline, Path::new("/b/0/downloader.cfg")),
-            "common --local_resources=cpu=2\ncommon --downloader_config=/b/0/downloader.cfg\ncommon --disk_cache=/caches/disk\ncommon --repository_cache=/caches/repos\ncommon --repo_contents_cache=/caches/repos/contents\n"
+            bazelrc(&offline, Path::new("/b/downloader.cfg"), cache),
+            "common --local_resources=cpu=2\ncommon --downloader_config=/b/downloader.cfg\ncommon --lockfile_mode=error\ncommon --disk_cache=\ncommon --remote_cache=\ncommon --repository_cache=/b/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
         );
     }
 
@@ -2414,14 +2150,12 @@ common --repository_cache=/rc/repos
     fn config_reports_a_pinned_key_missing_from_the_runfiles() {
         let fixture = Fixture::new();
         let all = vec![
-            ("DX_NESTED_BAZEL_ROOT", fixture.base().into_os_string()),
+            (TMPDIR_ENV, fixture.tmpdir().into_os_string()),
             (PINNED_ENV, OsString::from("nested_bazel_x/file/bazel")),
         ];
         let error = Config::from_parts(
             &lookup(all),
             &|name, key| Err(format!("{name} {key} is not in the runfiles")),
-            "",
-            None,
         )
         .expect_err("unresolved pinned");
         assert_eq!(
@@ -2435,11 +2169,11 @@ common --repository_cache=/rc/repos
         let fixture = Fixture::new();
         let pinned = fixture.dir.path().join("bazel");
         let all = vec![
-            ("DX_NESTED_BAZEL_ROOT", fixture.base().into_os_string()),
+            (TMPDIR_ENV, fixture.tmpdir().into_os_string()),
             (PINNED_ENV, pinned.clone().into_os_string()),
             ("PATH", OsString::new()),
         ];
-        let config = Config::from_parts(&lookup(all), &resolve, "", None).expect("config");
+        let config = Config::from_parts(&lookup(all), &resolve).expect("config");
         assert_eq!(config.bazel, pinned);
     }
 
@@ -2478,188 +2212,37 @@ common --repository_cache=/rc/repos
     }
 
     #[test]
-    fn acquire_refuses_a_base_other_users_can_write() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = scratch("base-open");
-        let base = dir.path().join("base");
-        std::fs::create_dir(&base).unwrap();
-        std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o777)).unwrap();
-        let cfg = config(&base, Path::new("/bin/true"));
-        assert!(Server::acquire(cfg).is_err());
-        assert!(!base.join("0").exists());
-        let mode = std::fs::metadata(&base).unwrap().permissions().mode();
-        assert_eq!(mode & 0o777, 0o777);
-    }
-
-    #[test]
-    fn acquire_refuses_a_base_that_is_a_symlink() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = scratch("base-link");
-        let target = dir.path().join("target");
-        std::fs::create_dir(&target).unwrap();
-        std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o700)).unwrap();
-        let base = dir.path().join("base");
-        std::os::unix::fs::symlink(&target, &base).unwrap();
-        let cfg = config(&base, Path::new("/bin/true"));
-        assert!(Server::acquire(cfg).is_err());
-        assert_eq!(std::fs::read_dir(&target).unwrap().count(), 0);
-    }
-
-    #[test]
-    fn acquire_refuses_a_base_that_is_a_file() {
-        let dir = scratch("base-file");
-        let base = dir.path().join("base");
-        std::fs::write(&base, "x").unwrap();
-        let cfg = config(&base, Path::new("/bin/true"));
-        assert!(Server::acquire(cfg).is_err());
-    }
-
-    #[test]
-    fn acquire_creates_a_missing_base_private() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = scratch("base-new");
-        let base = dir.path().join("missing").join("base");
-        create_private(&base).unwrap();
-        let mode = std::fs::metadata(&base).unwrap().permissions().mode();
-        assert_eq!(mode & 0o777, 0o700);
-    }
-
-    #[test]
-    fn acquire_reuses_an_existing_private_base() {
-        use std::os::unix::fs::PermissionsExt;
-        let dir = scratch("base-reuse");
-        let base = dir.path().join("base");
-        std::fs::create_dir(&base).unwrap();
-        std::fs::set_permissions(&base, std::fs::Permissions::from_mode(0o700)).unwrap();
-        create_private(&base).unwrap();
-        create_private(&base).unwrap();
-    }
-
-    #[test]
-    fn private_dir_error_cases() {
-        let p = Path::new("/tmp/dxnb-1");
-        assert!(private_dir_error(p, false, true, 5, 0o40700, 5).is_none());
-        assert!(private_dir_error(p, false, true, 6, 0o40700, 5).is_some());
-        assert!(private_dir_error(p, false, true, 5, 0o40750, 5).is_some());
-        assert!(private_dir_error(p, false, true, 5, 0o40705, 5).is_some());
-        assert!(private_dir_error(p, true, false, 5, 0o40700, 5).is_some());
-        assert!(private_dir_error(p, false, false, 5, 0o100600, 5).is_some());
-        let msg = private_dir_error(p, false, true, 5, 0o40777, 5).unwrap();
-        assert!(msg.contains(nested_bazel::ROOT_ENV), "{msg}");
-    }
-
-    #[test]
-    fn current_uid_matches_a_fresh_dir_owner() {
-        use std::os::unix::fs::MetadataExt;
-        let dir = scratch("uid");
-        assert_eq!(
-            current_uid().unwrap(),
-            std::fs::metadata(dir.path()).unwrap().uid()
-        );
-    }
-
-    fn exclusive_is_blocked(path: &Path) -> bool {
-        let file = File::options().write(true).open(path).expect("slot file");
-        matches!(file.try_lock(), Err(std::fs::TryLockError::WouldBlock))
-    }
-
-    #[test]
-    fn from_parts_plans_the_reserve_in_the_dx_slots_dir() {
-        let fixture = Fixture::new();
-        let cache = fixture.dir.path().join("cache");
-        let cache_text = cache.to_str().expect("utf8");
-        let config = fixture.config(&[("XDG_CACHE_HOME", cache_text)], "", None);
-        let Some(memory) = dx_process::slot_pool::available_memory() else {
-            return;
-        };
-        assert_eq!(
-            config.reserve,
-            Some((
-                cache.join("dx").join("slots"),
-                dx_process::slot_pool::reserve_range(memory, 3)
-            ))
-        );
-        let five = fixture.config(
-            &[("XDG_CACHE_HOME", cache_text), (SLOTS_ENV, "5")],
-            "",
-            None,
-        );
-        assert_eq!(five.slots, 5);
-        assert_eq!(
-            five.reserve.map(|(_, range)| range),
-            Some(dx_process::slot_pool::reserve_range(memory, 5))
-        );
-    }
-
-    #[test]
-    fn an_acquired_server_holds_the_reserve_shared_until_it_drops() {
-        let dir = scratch("nested-reserve-");
-        let (bazel, _log) = recorder(dir.path());
-        let slots = dir.path().join("dx-slots");
-        let mut cfg = config(&dir.path().join("base"), &bazel);
-        cfg.reserve = Some((slots.clone(), 0..2));
-        let server = Server::acquire(cfg).expect("slot");
-        for index in 0..2 {
-            let path = dx_process::slot_pool::slot_path(&slots, index);
-            assert!(exclusive_is_blocked(&path), "slot {index} is held");
-            assert!(matches!(
-                dx_process::slot_pool::lock_slot(&path, true),
-                Ok(Some(_))
-            ));
-        }
-        drop(server);
-        for index in 0..2 {
-            let path = dx_process::slot_pool::slot_path(&slots, index);
-            let deadline = std::time::Instant::now() + Duration::from_secs(10);
-            while exclusive_is_blocked(&path) && std::time::Instant::now() < deadline {
-                std::thread::sleep(Duration::from_millis(20));
-            }
-            assert!(!exclusive_is_blocked(&path), "slot {index} is free");
-        }
-    }
-
-    #[test]
-    fn a_busy_reserve_index_does_not_block_acquire() {
-        let dir = scratch("nested-reserve-busy-");
-        let (bazel, _log) = recorder(dir.path());
-        let slots = dir.path().join("dx-slots");
-        std::fs::create_dir_all(&slots).expect("dir");
-        let _other =
-            dx_process::slot_pool::lock_slot(&dx_process::slot_pool::slot_path(&slots, 0), false)
-                .expect("lock")
-                .expect("free");
-        let mut cfg = config(&dir.path().join("base"), &bazel);
-        cfg.reserve = Some((slots, 0..2));
-        let server = Server::acquire(cfg).expect("slot");
-        assert_eq!(server._reserve.len(), 1);
-    }
-
-    #[test]
-    fn no_reserve_plan_takes_no_locks() {
-        let dir = scratch("nested-no-reserve-");
-        let (bazel, _log) = recorder(dir.path());
-        let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
-        assert!(server._reserve.is_empty());
-    }
-
-    #[test]
-    fn slots_are_exclusive_and_commands_go_through_the_wrapper() {
-        let dir = scratch("nested-slot-");
+    fn the_server_lives_in_its_root_and_commands_go_through_the_wrapper() {
+        let dir = scratch("nested-root-");
         let (bazel, log) = recorder(dir.path());
         let base = dir.path().join("base");
-        let mut first = Server::acquire(config(&base, &bazel)).expect("first slot");
-        let second = Server::acquire(config(&base, &bazel)).expect("second slot");
-        assert_ne!(first.home(), second.home());
-        drop(second);
-        let third = Server::acquire(config(&base, &bazel)).expect("freed slot");
-        assert_ne!(first.home(), third.home());
+        let download = dir.path().join("download");
+        std::fs::write(&download, "bytes").expect("download");
+        let sha256 = "b".repeat(64);
+        let declared = Config {
+            cache: vec![(sha256.clone(), download)],
+            ..config(&base, &bazel)
+        };
+        let mut first = Server::acquire(declared).expect("server");
+        assert_eq!(first.home(), base);
+        assert_eq!(first.user_root(), base.join("u"));
+        assert!(base.join("home").is_dir());
+        assert_eq!(
+            std::fs::read_to_string(cache::entry(&first.repository_cache(), &sha256))
+                .expect("cache entry"),
+            "bytes"
+        );
         assert_eq!(
             std::fs::read_to_string(first.home().join("downloader.cfg")).expect("downloader"),
             DOWNLOADER
         );
         assert_eq!(
             std::fs::read_to_string(first.home().join("bazelrc")).expect("bazelrc"),
-            bazelrc(&first.config, &first.home().join("downloader.cfg"))
+            bazelrc(
+                &first.config,
+                &first.home().join("downloader.cfg"),
+                &first.repository_cache()
+            )
         );
 
         let root = first.enter("ws").expect("enter");
@@ -2667,9 +2250,7 @@ common --repository_cache=/rc/repos
         let run = capture(
             first.bazel_command(&root, &["info", "release"]),
             "bazel",
-            true,
-            &root,
-        );
+            true);
         assert!(run.status.success(), "{}", run.combined());
         let calls = std::fs::read_to_string(&log).expect("log");
         let user_root = first.user_root();
@@ -2701,7 +2282,6 @@ common --repository_cache=/rc/repos
         let (bazel, log) = recorder(dir.path());
         let shimmed = Config {
             shim: Some(shim.clone()),
-            reserve: None,
             ..config(&dir.path().join("base"), &bazel)
         };
         let mut server = Server::acquire(shimmed).expect("slot");
@@ -2713,9 +2293,7 @@ common --repository_cache=/rc/repos
         let run = capture(
             server.bazel_command(&root, &["info", "release"]),
             "bazel",
-            true,
-            &root,
-        );
+            true);
         assert!(run.status.success(), "{}", run.combined());
         assert_eq!(
             std::fs::read_to_string(&log).expect("log"),
@@ -2737,7 +2315,7 @@ common --repository_cache=/rc/repos
         let command = server
             .command(env, &[("PATH", "/custom"), ("KEEP", "1")])
             .expect("command");
-        let run = capture(command, "env", false, dir.path());
+        let run = capture(command, "env", false);
         let lines: Vec<&str> = run.stdout.lines().collect();
         assert!(lines.contains(&"KEEP=1"), "{}", run.stdout);
         let wrapper_dir = server.home().join("bin");
@@ -2754,6 +2332,22 @@ common --repository_cache=/rc/repos
     }
 
     #[test]
+    fn commands_get_no_host_path_and_a_home_in_the_root() {
+        let dir = scratch("nested-nopath-");
+        let (bazel, _) = recorder(dir.path());
+        let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("server");
+        let command = server
+            .command(Path::new("/usr/bin/env"), &[])
+            .expect("command");
+        let run = capture(command, "env", false);
+        let lines: Vec<&str> = run.stdout.lines().collect();
+        let want_path = format!("PATH={}:/dx_no_path", server.home().join("bin").display());
+        let want_home = format!("HOME={}", server.home().join("home").display());
+        assert!(lines.contains(&want_path.as_str()), "{}", run.stdout);
+        assert!(lines.contains(&want_home.as_str()), "{}", run.stdout);
+    }
+
+    #[test]
     fn front_directories_go_ahead_of_the_wrapper_on_path() {
         let dir = scratch("nested-front-");
         let (bazel, _) = recorder(dir.path());
@@ -2762,7 +2356,7 @@ common --repository_cache=/rc/repos
         let command = server
             .command_with_front(Path::new("/usr/bin/env"), &[("PATH", "/custom")], &[&shim])
             .expect("command");
-        let run = capture(command, "env", false, dir.path());
+        let run = capture(command, "env", false);
         let wrapper_dir = server.home().join("bin");
         let want = format!("PATH={}:{}:/custom", shim.display(), wrapper_dir.display());
         assert!(
@@ -2842,7 +2436,7 @@ common --repository_cache=/rc/repos
     #[test]
     fn servers_with_a_foreign_output_root_are_found_and_stopped_by_workspace() {
         let dir = scratch("nested-stray-");
-        let workspaces = dir.path().join("0/w");
+        let workspaces = dir.path().join("w");
         let outside_root = dir.path().join("1/w");
         let mut stray = stand_in(&workspaces.join("consumer"));
         let other = stand_in(&outside_root.join("consumer"));
@@ -2886,12 +2480,12 @@ common --repository_cache=/rc/repos
     #[test]
     fn claiming_a_slot_stops_a_server_left_outside_the_pinned_output_root() {
         let dir = scratch("nested-claim-");
-        let workspace = dir.path().join("0/w/consumer");
+        let workspace = dir.path().join("w/consumer");
         std::fs::create_dir_all(&workspace).expect("mkdir");
         let mut stray = stand_in(&workspace);
         let pid = stray.id();
         wait_until("the stand-in", || {
-            servers_in_workspaces(&dir.path().join("0/w")) == vec![pid]
+            servers_in_workspaces(&dir.path().join("w")) == vec![pid]
         });
         let server = Server::acquire(config(dir.path(), Path::new("/bin/true"))).expect("acquire");
         let _ = stray.wait();
@@ -2903,17 +2497,16 @@ common --repository_cache=/rc/repos
     #[test]
     fn the_reaper_stops_servers_after_the_owner_is_killed() {
         let dir = scratch("nested-reaper-");
-        let home = dir.path().join("0");
+        let home = dir.path().to_path_buf();
         let workspaces = home.join("w");
         std::fs::create_dir_all(&workspaces).expect("mkdir");
-        let lock = File::create(home.join("lock")).expect("lock");
         let mut owner = Command::new("sleep").arg("60").spawn().expect("owner");
         let mut stray = stand_in(&workspaces.join("consumer"));
         let pid = stray.id();
         wait_until("the stand-in", || {
             servers_in_workspaces(&workspaces) == vec![pid]
         });
-        let mut reaper = spawn_reaper(owner.id(), &home, &lock).expect("reaper");
+        let mut reaper = spawn_reaper(owner.id(), &home).expect("reaper");
         std::thread::sleep(Duration::from_millis(1500));
         assert!(alive(pid));
         owner.kill().expect("kill owner");
@@ -2927,7 +2520,7 @@ common --repository_cache=/rc/repos
     #[test]
     fn ps_snapshot_finds_servers_by_workspace() {
         let dir = scratch("nested-ps-");
-        let workspaces = dir.path().join("0/w");
+        let workspaces = dir.path().join("w");
         let child = stand_in(&workspaces.join("consumer"));
         let pid = child.id();
         wait_until("stand-in in ps", || {
@@ -3020,44 +2613,6 @@ mod portable_tests {
         );
     }
 
-    #[test]
-    fn home_falls_back_to_userprofile() {
-        let vars = |pairs: &'static [(&'static str, &'static str)]| {
-            move |name: &str| {
-                pairs
-                    .iter()
-                    .find(|(key, _)| *key == name)
-                    .map(|(_, value)| OsString::from(value))
-            }
-        };
-        assert_eq!(
-            pick_home(&vars(&[("HOME", "/h"), ("USERPROFILE", "C:/u")])),
-            Some(PathBuf::from("/h"))
-        );
-        assert_eq!(
-            pick_home(&vars(&[("HOME", ""), ("USERPROFILE", "C:/u")])),
-            Some(PathBuf::from("C:/u"))
-        );
-        assert_eq!(
-            pick_home(&vars(&[("USERPROFILE", "C:/u")])),
-            Some(PathBuf::from("C:/u"))
-        );
-        assert_eq!(pick_home(&vars(&[("USERPROFILE", "")])), None);
-    }
-
-    #[test]
-    fn repository_cache_scans_the_windows_root() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let home = dir.path();
-        assert_eq!(default_repository_cache(home), None);
-        let windows = home.join("_bazel_me/cache/repos/v1");
-        std::fs::create_dir_all(&windows).expect("mkdir");
-        assert_eq!(default_repository_cache(home), Some(windows));
-        let unix = home.join(".cache/bazel/_bazel_me/cache/repos/v1");
-        std::fs::create_dir_all(&unix).expect("mkdir");
-        assert_eq!(default_repository_cache(home), Some(unix));
-    }
-
     fn os(args: &[&str]) -> Vec<OsString> {
         args.iter().map(OsString::from).collect()
     }
@@ -3084,15 +2639,12 @@ mod portable_tests {
     #[test]
     fn shim_args_round_trip_and_reject_newlines() {
         let config = Config {
-            base: PathBuf::from("/b"),
-            slots: 1,
+            root: PathBuf::from("/b"),
             bazel: PathBuf::from("/r/bazel"),
             heap: DEFAULT_HEAP.to_owned(),
-            disk_cache: PathBuf::from("/d"),
-            repository_cache: PathBuf::from("/caches/repos"),
             offline: true,
             shim: None,
-            reserve: None,
+            cache: Vec::new(),
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");
@@ -3248,16 +2800,13 @@ mod portable_tests {
         "DX_NESTED_BAZEL_SHIM",
     ];
 
-    /// The `DX_NESTED_BAZEL*` names read by `from_parts`, including the ones held in path-crate constants.
+    /// The `DX_NESTED_BAZEL*` names read by `from_parts`.
     fn env_names_from_parts() -> Vec<String> {
         let code = include_str!("lib.rs")
             .split("#[cfg(test)]")
             .next()
             .unwrap_or_default();
-        let mut names = vec![
-            nested_bazel::ROOT_ENV.to_owned(),
-            nested_bazel::SLOTS_ENV.to_owned(),
-        ];
+        let mut names = Vec::new();
         for (at, _) in code.match_indices("\"DX_NESTED_BAZEL") {
             let rest = &code[at + 1..];
             if let Some(end) = rest.find('"') {
@@ -3287,7 +2836,7 @@ mod portable_tests {
             .collect();
         let names = env_names_from_parts();
         assert!(
-            names.iter().any(|name| name == nested_bazel::ROOT_ENV),
+            names.iter().any(|name| name == "DX_NESTED_BAZEL_HEAP"),
             "no env names found in from_parts: {names:?}"
         );
         for name in names

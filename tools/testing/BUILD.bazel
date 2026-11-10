@@ -3,7 +3,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST", "VIS_TOOLS_PUBLIC")
 load(":child_runfiles.bzl", "child_runfiles")
-load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_TAGS")
+load(":nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_TAGS")
 load(":test.bzl", "testing_rust_test")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
@@ -220,6 +220,16 @@ testing_rust_test(
     ],
 )
 
+_HARNESS_CONSUMER_DATA = [
+    "//:module_srcs",
+    "//patches/rules_py:external_repo_pytest_paths.patch",
+    "//patches/rules_py:host_interpreter_windows_arm64.patch",
+    "//patches/rules_py:native_sdist_toolchain_flags.patch",
+    "//patches/rules_py:pep517_msvc.patch",
+    "//patches/rules_py:py_cc_toolchain_platform.patch",
+    "//patches/rules_py:venv_bin_files.patch",
+]
+
 # size: large, nested Bazel consumer build, see #5689
 testing_rust_test(
     name = "nested_bazel_harness_test",
@@ -228,25 +238,40 @@ testing_rust_test(
     data = [
         ":nested_bazel_probe",
         "//:.bazelversion",
-        "//:module_srcs",
-    ] + NESTED_BAZEL_DATA,
-    env = select({
-        "@platforms//os:linux": NESTED_BAZEL_ENV | {
-            "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
-            "PATH": "/dx_no_path",
-            "RUST_TEST_THREADS": "1",
-        },
-        "//conditions:default": NESTED_BAZEL_ENV | {
-            "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
-            "RUST_TEST_THREADS": "1",
-        },
-    }),
-    env_inherit = select({
-        "@platforms//os:linux": [],
-        "//conditions:default": NESTED_BAZEL_ENV_INHERIT,
-    }),
+        "//tools/testing/nested_cache:harness.MODULE.bazel.lock",
+        "@nested_cache_harness//:cache",
+    ] + _HARNESS_CONSUMER_DATA + NESTED_BAZEL_DATA,
+    env = NESTED_BAZEL_ENV | {
+        "DX_NESTED_HARNESS_LOCK": "$(rootpath //tools/testing/nested_cache:harness.MODULE.bazel.lock)",
+        "DX_NESTED_PROBE": "$(rootpath :nested_bazel_probe)",
+        "DX_NESTED_REPOSITORY_CACHE": "$(rlocationpath @nested_cache_harness//:cache)",
+        "RUST_TEST_THREADS": "1",
+    },
     tags = NESTED_BAZEL_TAGS,
     deps = [
+        ":dx_testing",
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing/nested:dx_nested",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_binary(
+    name = "nested_cache_update",
+    testonly = True,
+    srcs = ["nested_cache_update.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ),
+    crate_name = "nested_cache_update",
+    crate_root = "nested_cache_update.rs",
+    data = _HARNESS_CONSUMER_DATA + NESTED_BAZEL_DATA,
+    env = NESTED_BAZEL_NETWORK_ENV,
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+    ) + [
         ":dx_testing",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing/nested:dx_nested",
@@ -333,6 +358,7 @@ real_source_target(
         "child_runfiles.bzl",
         "hello_output.bzl",
         "nested_bazel.bzl",
+        "nested_repository_cache.bzl",
         "repos.bzl",
         "extensions.bzl",
     ],

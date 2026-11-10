@@ -2044,19 +2044,19 @@ deploy_analysis_test(
 
 dx_go_binary_file(name = "go_binary")
 
-# keep: sources live in the Gazelle-excluded testdata directory.
+# keep
 java_library(
     name = "maven_api_old_lib",
     srcs = ["testdata/maven/api_old/Api.java"],
 )
 
-# keep: sources live in the Gazelle-excluded testdata directory.
+# keep
 java_library(
     name = "maven_api_new_lib",
     srcs = ["testdata/maven/api_new/Api.java"],
 )
 
-# keep: sources live in the Gazelle-excluded testdata directory.
+# keep
 java_library(
     name = "maven_demo_lib",
     srcs = ["testdata/maven/Demo.java"],

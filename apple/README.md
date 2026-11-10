@@ -281,7 +281,7 @@ apple_ios_app_test(
 ```
 
 `apple_ios_app_test` takes `srcs` for native XCTest sources, `deps` for
-Swift XCTest modules, or both. Device execution stays pending.
+Swift XCTest modules, or both. It runs on the simulator only.
 
 Simulator builds sign ad hoc; `provisioning_profile` fails there. On
 non-Apple hosts the app targets are incompatible and skip.
@@ -552,7 +552,7 @@ apple_macos_app(
 platform the selection and check rules read the arch from; only `macos_arm64` is
 accepted. It does not change the platform the bundle is built for: build with
 `--platforms` or `--macos_cpus`. An x86_64 macOS target platform fails with
-"arch 'x86_64' is outside macos", where the app used to default to arm64.
+"arch 'x86_64' is outside macos".
 
 `srcs` holds the native entry point. `library` is any target with
 `CcInfo` that links one static archive, such as `rust_static_library`.

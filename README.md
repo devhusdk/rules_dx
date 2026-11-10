@@ -4,8 +4,6 @@
 build, test, lint, typecheck, format, generate, audit, and release tasks.
 Language toolchains come from Bazel. No separate installs.
 
-Status: rules_dx is not released yet. Install starts with the first BCR release.
-
 ## Quickstart
 
 Bazel via Bazelisk is required. In an empty directory, create three files.
@@ -29,7 +27,7 @@ archive_override(
 )
 ```
 
-The `rules_py` override is needed until rules_py 2.0.0-alpha.11 is in the Bazel Central Registry (#6537).
+The `rules_py` override is needed until rules_py 2.0.0-alpha.11 is in the Bazel Central Registry.
 
 `BUILD.bazel`:
 
@@ -57,10 +55,10 @@ Behind a proxy or a company CA? See [Corporate proxy and custom CA](docs/proxy-a
 
 ## Which dx binary runs
 
-In your module, `@rules_dx//:dx` will run the `dx` binary for the target
+In your module, `@rules_dx//:dx` runs the `dx` binary for the target
 platform, checked against the sha256 in `cli/prebuilt/pins.bzl`.
-Release binaries are planned for linux x86_64, linux aarch64, macos aarch64,
-windows x86_64 and windows aarch64. Until a release ships, a version with no
+A release pins binaries for linux x86_64, linux aarch64, macos aarch64,
+windows x86_64 and windows aarch64. A version with no
 pinned sha256 builds `dx` from source, with the Rust and C toolchains
 `dx init` sets up. Once some binary is pinned, platforms with no release
 binary fail the build. To pick a binary yourself, add this to your root
@@ -95,8 +93,8 @@ A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
 
 ## C and C++ toolchains
 
-- Microsoft `cl.exe` (`--//cc:compiler=msvc`): the Visual Studio Build Tools come from the hermetic `@dx_msvc` repo, not an installed Visual Studio. The download needs the Visual Studio Build Tools license, accepted with `msvc.license(accept = ["visual-studio-build-tools"])`. Qualified on `windows_x86_64`: [run 42188542802](https://github.com/devhusdk/rules_dx/actions/runs/42188542802) passed `msvc_spaced_test` and `msvc_shared_test` with `_MSC_FULL_VER=195035728`, and [run 42171584868](https://github.com/devhusdk/rules_dx/actions/runs/42171584868) passed `msvc_hello_test`. The hermetic harness hides the preinstalled Visual Studio and Windows Kits from `c_fixture_msvc` and `cpp_fixture_msvc`, which qualified on `windows_x86_64` at e76d6f5dd in ci.yml [run 42372644803](https://github.com/devhusdk/rules_dx/actions/runs/42372644803). On `windows_arm64` they qualified at 2660a4b8d in ci.yml [run 42375312749](https://github.com/devhusdk/rules_dx/actions/runs/42375312749), and `msvc_arm64_hello_test` and `msvc_arm64_pe_machine_test` passed in [run 42183869292](https://github.com/devhusdk/rules_dx/actions/runs/42183869292). See the [support matrix](docs/support-matrix.md).
-- GCC (`--//cc:compiler=gcc`): `c_fixture_gcc` and `cpp_fixture_gcc` qualified with `GCC: (GNU) 16.2.0` on native `linux_x86_64` and `linux_arm64` at e76d6f5dd in ci.yml [run 42372644803](https://github.com/devhusdk/rules_dx/actions/runs/42372644803), with no install and the network denied.
+- Microsoft `cl.exe` (`--//cc:compiler=msvc`): the Visual Studio Build Tools come from the hermetic `@dx_msvc` repo, not an installed Visual Studio. The download needs the Visual Studio Build Tools license, accepted with `msvc.license(accept = ["visual-studio-build-tools"])`. See the [support matrix](docs/support-matrix.md).
+- GCC (`--//cc:compiler=gcc`): GCC 16.2.0 on `linux_x86_64` and `linux_arm64`, with no install.
 
 ## Next
 

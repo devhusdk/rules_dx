@@ -9,7 +9,7 @@ dx check --output json --report sarif=out.sarif //pkg/...
 ## `dx check`
 
 ```text
-dx check [--here] [--affected] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings n] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
+dx check [--here] [--affected [--since <ref>]] [--no-retry] [--apply] [--diff] [--unsafe] [--include-edits] [--max-findings n] [--fail-on info|warning|error] [--report sarif=<dest>] [scope...] [-- bazel-options...]
 ```
 
 Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `--apply` writes validated fixes, then re-checks read-only.
@@ -20,6 +20,7 @@ Runs `generate`, `format`, `lint`, and `typecheck` in order. It only reports. `-
 | `--no-retry` | Do not run Bazel again without the remote cache after a remote cache error. |
 | `--here` | Use the current directory tree. |
 | `--affected` | Use the targets your git changes reach, then run the affected tests as a last phase. |
+| `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. Without `--affected`, exit `2`. |
 | `--diff` | Print the edits as a patch. |
 | `--unsafe` | With `--apply` or `--diff`, also include the fixes tools mark unsafe. Without either, exit `2`. The read-only re-check after `--apply` runs without it. |
 | `--include-edits` | Add full edits to JSON change records. Needs `--output json`. |

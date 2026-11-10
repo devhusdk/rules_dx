@@ -145,14 +145,10 @@ The `wx` application, sources and docs are dropped on every cell.
 
 ## Platforms
 
-| Cell | Status | Reason |
-| --- | --- | --- |
-| `linux_x86_64` | Qualified | |
-| `linux_arm64` | Qualified | |
-| `macos_arm64` | Qualified | |
-| `macos_x86_64` | Not qualified | No CI cell. |
-| `windows_x86_64` | Qualified | Tools and escripts run through the native launcher, including dialyzer. |
-| `windows_arm64` | Qualified | x64 OTP under emulation; NIFs are built for x64 Windows. |
+See the [support matrix](../docs/support-matrix.md).
+
+- `windows_x86_64`: tools and escripts run through the native launcher.
+- `windows_arm64`: x64 OTP runs under emulation; NIFs are built for x64 Windows.
 
 On other platforms Erlang and Elixir targets are skipped.
 
@@ -174,7 +170,7 @@ kernel and stdlib go to `extra_apps`. Sources under `c_src` become one
 `pkg_hash_ext` sha256, plus a hub repository named `name` with one
 `erlang_app` alias per package. Each package depends on every package locked
 at a deeper level. Git entries are refused. The lock also becomes a `hex`
-dependency set for `dx audit` and `dx update`; `dx update` refreshes it with
+dependency set for `dx security`, `dx license` and `dx update`; `dx update` refreshes it with
 the pinned rebar3.
 
 ## API docs

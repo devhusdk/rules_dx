@@ -205,7 +205,7 @@ unsigned App Bundle `<name>_bundle_unsigned.aab` from the same
 ABIs, resources, assets and native library of the APK. For the fixture,
 `:app_apk_aab_file` builds `app_apk_bundle_unsigned.aab`.
 
-Key rotation works with `debug_signing_lineage_file`; a patch carries the `rules_android` fix until upstream ships it (#3739).
+Key rotation works with `debug_signing_lineage_file`.
 
 Check an App Bundle with a test:
 
@@ -359,9 +359,7 @@ override_repo(android_sdk_repository, androidsdk = "dx_androidsdk")
 
 `rules_android` 0.8.1 needs build-tools 35.0.0 or newer; the pinned ones are 35.0.0.
 
-Breaking change for consumers (#3739): the `rules_android` floor is 0.8.1, the
-patch and its `single_version_override` are gone (remove them from your
-`MODULE.bazel`), and any repo not set up by `dx init --apply` must add
+The `rules_android` floor is 0.8.1. A repo not set up by `dx init --apply` must add
 `build --tool_java_runtime_version=remotejdk_21` and
 `build --tool_java_language_version=17` to its `.bazelrc`.
 `dx build`, `dx test` and `dx check` never install or sign an APK on a
@@ -409,9 +407,7 @@ whole scenario from the repository root and writes logs, `logcat-default.txt`,
 Packaging stays on the upstream backend: `rust_android_apk` composes
 `android_binary` from `rules_android` 0.8.1, so manifest merge,
 resources, native ABI placement, DEX, and signing come from the
-upstream rules plus the installed SDK. There is no owned APK
-packager: a native-only reimplementation would still need the same
-package and signature semantics without shedding supported behavior.
+upstream rules plus the installed SDK.
 App Bundles come from the upstream `android_application` rule.
 
 APK assembly and device install/launch need a qualified SDK host (see

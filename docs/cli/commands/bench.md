@@ -12,6 +12,14 @@ dx bench --compare main --max-regression=20
 dx bench [--compare <path|ref>] [--max-regression <pct>] [--here] [scope ...] [-- bazel-options ...]
 ```
 
+| Flag | What it does |
+| --- | --- |
+| `--compare <path\|ref>` | Compare with a `dx-bench/v1` document or the latest run on a git ref. |
+| `--max-regression <pct>` | With `--compare`: exit `1` when a result is slower than its baseline by more than this percent. |
+| `--here` | Use the current directory tree. |
+| `-o, --output text\|json` | Choose the output format. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+
 Tag a test `dx-bench`. Add `manual` so `dx test //...` skips it:
 
 ```starlark
@@ -61,3 +69,12 @@ Ruby: `ruby_bench` from `//ruby:defs.bzl` takes `main`, a script (name.rb, else 
 Dart: `dart_bench` from `//dart:defs.bzl` takes `main`, a program that calls `runBenchmarks([...])` from `package:dx_bench` with benchmark_harness `BenchmarkBase` objects. The pinned benchmark_harness comes from the `@dx_dart_bench_deps` hub of rules_dx. Results are in seconds per run.
 
 PHP: `php_bench` from `//php:defs.bzl` takes `srcs`, phpbench files with one class per file named like the file, with `#[Revs]` and `#[Iterations]` attributes. The pinned phpbench phar comes with rules_dx and runs on the pinned PHP. Results are in seconds per revolution.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| `0` | Success. |
+| `1` | Operational failure, `no_tests`, `bench_regression`, or a missing or invalid `dx-bench.json`. |
+| `2` | Usage, scope, or owner error. |
+| Bazel's code | Bazel failed. `3` means a benchmark test failed. |

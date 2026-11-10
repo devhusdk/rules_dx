@@ -32,6 +32,7 @@ dx format [flags] [scope...] [-- bazel-options ...]
 | `--max-findings <n>` | Print at most `n` `diagnostic` events per tool in JSON output. Default `50`; `0` prints all. Needs `--output json`, else exit `2`. A `findings_truncated` notice says how many were left out, and `command_finished` carries `findings.omitted`, `findings.by_tool` and `findings.by_rule` with exact counts. |
 | `--here` | Scope to the current directory tree. |
 | `--affected` | Scope to targets your changes reach. With none, prints `no affected targets` and exits `0`. With `--diff`, the line goes to stderr and stdout stays empty. |
+| `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. Without `--affected`, exit `2`. |
 | `--workspace <dir>` | Use this workspace dir. |
 | `-q, --quiet` | Hide summaries. Findings and failures still print. |
 | `-v, --verbose` | Show more logs. |

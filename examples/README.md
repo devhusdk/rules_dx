@@ -1,7 +1,6 @@
 # Examples
 
-Copy one of these into your own repository. Each has its own `README.md`
-listing its commands with expected output.
+Copy one of these into your own repository.
 
 - [consumer-ci](https://github.com/devhusdk/rules_dx/tree/main/examples/consumer-ci) GitHub Actions caller for the consumer workflow.
 - [docs-ci](docs-ci/) GitHub Actions caller for the docs workflow.

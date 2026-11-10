@@ -44,10 +44,11 @@ USER_BOOK = [
         "//docs:cli/commands/README.md",
     ),
     mdbook_page(
-        "Build, Test, Coverage, Run, Deploy",
+        "Build, Test, Coverage, Run",
         "docs/cli/commands/build-test-coverage.md",
         "//docs:cli/commands/build-test-coverage.md",
     ),
+    mdbook_page("Deploy", "docs/cli/commands/deploy.md", "//docs:cli/commands/deploy.md"),
     mdbook_page(
         "Quality",
         "docs/cli/commands/quality.md",

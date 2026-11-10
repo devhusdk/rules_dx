@@ -14,19 +14,19 @@ dx deploy --apply //app:deploy
 ## `dx build`
 
 ```text
-dx build [--here] [--affected] [--debug|--release] [--timings] [--no-retry] [--report failures=<path>] [scope...] [-- bazel-options...]
+dx build [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [--report failures=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx test`
 
 ```text
-dx test [--here] [--affected] [--debug|--release] [--timings] [--no-retry] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
+dx test [--here] [--affected [--since <ref>]] [--debug|--release] [--timings] [--no-retry] [--report junit|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## `dx coverage`
 
 ```text
-dx coverage [--here] [--affected] [--timings] [--no-retry] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
+dx coverage [--here] [--affected [--since <ref>]] [--timings] [--no-retry] [--min-coverage <percent>] [--min-changed-line-coverage <percent>] [--report lcov|sources|failures|results=<path>] [scope...] [-- bazel-options...]
 ```
 
 ## Flags
@@ -35,6 +35,7 @@ dx coverage [--here] [--affected] [--timings] [--no-retry] [--min-coverage <perc
 | --- | --- |
 | `--here` | Use the current directory tree. |
 | `--affected` | Use the targets your git changes reach. |
+| `--since <ref>` | With `--affected`: diff from this ref instead of the merge-base. Without `--affected`, exit `2`. |
 | `--debug` | Compile with the `dx_build_debug` build mode (`build`, `test`, `run`, `deploy`). |
 | `--release` | Compile with the `dx_build_release` build mode. No flag uses `dx_build_dev`. |
 | `--timings` | (`build`, `test`, `coverage`, `run`; `run` reports on its build step.) Pass `--profile` to Bazel and print where build time went: wall time, critical path with its top five actions (with Bazel mnemonics when the trace has them), cache hit rate (disk, remote, local), bytes downloaded, Bazel peak heap and CPU time per action mnemonic (from the build event stream, absent for `run`), the ten slowest actions and repository fetch time. The trace is `.dx/local/timings/<run id>.json.gz` (the last five are kept) and the report `.dx/local/timings/report.json`; with `--output=json` the report is the message of a `timings_report` notice. |
@@ -148,23 +149,7 @@ Builds the runnable targets, then runs them in order. Args after `--` go to the 
 
 ## `dx deploy`
 
-```text
-dx deploy [--apply] [--debug|--release] <label> [-- args...]
-```
-
-Builds one deployable target and runs its dry run with `DX_DEPLOY_LIVE=0`: the launcher stages, validates and prints what it would publish, and contacts no registry. A plain executable without a deploy launcher is only built. `--apply` publishes with `DX_DEPLOY_LIVE=1`; the launcher still needs its `<X>_APPROVED=1` and credentials from the shell or CI, for example `NPM_PUBLISH_APPROVED=1 tools/dx deploy --apply //pkg:npm`. Both runs set `DX_BUILD_MODE`. Without a flag the build mode comes from the target's `build_mode` attribute. Args after `--` reach the app. Output: text only. When the label is missing or is a pattern, the error lists the repo's `dx_deployment` labels and marks the ones tagged `release`.
-
-In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID` and the other agent variables), `--apply` without `CI=true` exits `1` with `deploy_needs_human`: a human or CI publishes. `dx init --agents=claude` also adds `permissions.ask` rules for `tools/dx deploy --apply` to `.claude/settings.json`. The agent guard hook also asks first (Claude, Copilot) or refuses (Codex, Gemini, Cursor) when a command runs `dx deploy` with `--apply`, in any word order; run the dry run and let a human or CI publish.
-
-### Registries released by tag
-
-Go, Julia, Swift, PHP, opam and CPAN have no `dx deploy` target. Release them by hand:
-
-- Go, Swift: push a tag (`vX.Y.Z` for Go, a semver tag for Swift).
-- PHP: run `composer validate`, then push a tag.
-- Julia: push a tag, then comment `@JuliaRegistrator register` on the commit.
-- opam: open a pull request to the opam repository.
-- CPAN: upload the tarball to PAUSE.
+`dx deploy` has its own page: [Deploy](deploy.md).
 
 ## Signals
 

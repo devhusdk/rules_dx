@@ -198,6 +198,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "apple_tests"
+version = "0.0.0"
+
+[[package]]
 name = "argon2"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

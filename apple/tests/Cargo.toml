@@ -1,0 +1,29 @@
+[package]
+license = "Apache-2.0"
+name = "apple_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "device_script_test"
+path = "device_script_test.rs"
+
+[[test]]
+name = "macos_app_script_test"
+path = "macos_app_script_test.rs"
+
+[[test]]
+name = "probe_script_test"
+path = "probe_script_test.rs"
+
+[[test]]
+name = "signing_script_test"
+path = "signing_script_test.rs"
+
+[[test]]
+name = "simulator_script_test"
+path = "simulator_script_test.rs"
+
+[[test]]
+name = "xcframework_script_test"
+path = "xcframework_script_test.rs"

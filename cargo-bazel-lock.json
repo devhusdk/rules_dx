@@ -1,5 +1,5 @@
 {
-  "checksum": "dcf1dc90ddecd0f013a52253eaafe0e87638db2e756a2b8dc0f0e3171ba0dea5",
+  "checksum": "811d86244861ff4194325fba9b37b19fe8f31be712c4c0a65c8bd85f0cbf11ea",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -1140,6 +1140,19 @@
           }
         }
       ],
+      "version": "0.0.0"
+    },
+    "apple_tests 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "apple_tests",
+      "repository": null,
+      "targets": [],
       "version": "0.0.0"
     },
     "argon2 0.5.3": {
@@ -29252,6 +29265,7 @@
   ],
   "workspace_members": {
     "appimage_packer 0.0.0": "appimage/private/appimage_packer",
+    "apple_tests 0.0.0": "apple/apple_tests",
     "avro_extract 0.0.0": "tools/docs/avro/avro_extract",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "beam_extract 0.0.0": "tools/docs/beam/beam_extract",

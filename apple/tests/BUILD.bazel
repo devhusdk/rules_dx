@@ -1,30 +1,52 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
-# keep
 rust_test(
     name = "device_script_test",
+    testonly = True,
     srcs = ["device_script_test.rs"],
+    aliases = aliases(
+        package_name = "apple/apple_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "device_script_test",
+    crate_root = "device_script_test.rs",
     data = ["//apple/private/ios:export_ops.sh"],
     env = {"DX_EXPORT_OPS": "$(rootpath //apple/private/ios:export_ops.sh)"},
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "probe_script_test",
+    testonly = True,
     srcs = ["probe_script_test.rs"],
+    aliases = aliases(
+        package_name = "apple/apple_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "probe_script_test",
+    crate_root = "probe_script_test.rs",
     data = ["//apple/private/provisioning:probe.sh"],
     env = {"DX_APPLE_PROBE": "$(rootpath //apple/private/provisioning:probe.sh)"},
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "simulator_script_test",
+    testonly = True,
     srcs = ["simulator_script_test.rs"],
+    aliases = aliases(
+        package_name = "apple/apple_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "simulator_script_test",
+    crate_root = "simulator_script_test.rs",
     data = [
         "//apple/private/bundle:library_check.sh",
         "//apple/private/ios:create_test_simulator.sh",
@@ -41,20 +63,34 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "xcframework_script_test",
+    testonly = True,
     srcs = ["xcframework_script_test.rs"],
+    aliases = aliases(
+        package_name = "apple/apple_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "xcframework_script_test",
+    crate_root = "xcframework_script_test.rs",
     data = ["//apple/private/ios:xcframework_check.sh"],
     env = {"DX_XCFRAMEWORK_CHECK": "$(rootpath //apple/private/ios:xcframework_check.sh)"},
     target_compatible_with = ["@platforms//os:linux"],
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "signing_script_test",
+    testonly = True,
     srcs = ["signing_script_test.rs"],
+    aliases = aliases(
+        package_name = "apple/apple_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "signing_script_test",
+    crate_root = "signing_script_test.rs",
     data = [
         "//apple/private/signing:codesign_app.sh",
         "//apple/private/signing:notarize_app.sh",
@@ -67,10 +103,17 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-# keep
 rust_test(
     name = "macos_app_script_test",
+    testonly = True,
     srcs = ["macos_app_script_test.rs"],
+    aliases = aliases(
+        package_name = "apple/apple_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "macos_app_script_test",
+    crate_root = "macos_app_script_test.rs",
     data = [
         "//apple/private/macos:app_check.sh",
         "//apple/private/macos:run_app.sh",
@@ -94,4 +137,11 @@ real_source_target(
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

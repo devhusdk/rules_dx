@@ -2100,6 +2100,7 @@ crate.from_cargo(
         "//tools/docs/components:Cargo.toml",
         "//tools/docs/powershell:Cargo.toml",
         "//tools/docs/rust:Cargo.toml",
+        "//apple/tests:Cargo.toml",
         "//tools/ci:Cargo.toml",
         "//tools/ci/input_validation:Cargo.toml",
         "//tools/ci/evidence_inputs:Cargo.toml",

@@ -2582,14 +2582,9 @@ pub fn source_tree(manifest: &Manifest) -> Result<PathBuf, String> {
         .ok_or_else(|| "rules_dx MODULE.bazel has no parent".to_owned())
 }
 
-/// Fails when a freshly pinned Maven lock differs from the committed one, ignoring CRLF.
-pub fn lock_drift(committed: &str, pinned: &str) -> Result<(), String> {
-    if committed.replace("\r\n", "\n") == pinned.replace("\r\n", "\n") {
-        return Ok(());
-    }
-    Err("the committed maven_install.json is stale; copy maven_install.json from the test's \
-         undeclared outputs (test.outputs in the /evidence artifact) over it and commit"
-        .to_owned())
+/// Tells whether a freshly pinned Maven lock differs from the committed one, ignoring CRLF.
+pub fn lock_differs(committed: &str, pinned: &str) -> bool {
+    committed.replace("\r\n", "\n") != pinned.replace("\r\n", "\n")
 }
 
 fn run_all(

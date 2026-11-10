@@ -10,7 +10,7 @@ exports_files([
     "gpu_test.cu",
 ])
 
-# Runs only on a host with a GPU; //tools/testing/hermetic:cuda_gpu_nested_test drives it through a nested consumer.
+# Runs only on a host with a GPU.
 cuda_test(
     name = "gpu_test",
     srcs = ["gpu_test.cu"],

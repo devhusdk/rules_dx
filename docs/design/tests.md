@@ -105,6 +105,7 @@ A test is the first of four kinds that can prove the behaviour.
 - Expected-tag data names the upstream tag as `DX_UPSTREAM_TAG`, never as a string.
 - A tag-forwarding probe uses a tag that is not banned.
 - A test whose tags a probe reads runs in the default set.
+- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`. An action replays the compile action of the fixture library and writes the exit code and the output to a file. A passing test asserts both.
 
 ## Duplicates
 

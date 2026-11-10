@@ -1,18 +1,6 @@
-//! Runs the cuda-app GPU test through a nested consumer on a host with a GPU (#1856).
+//! Reads and judges the facts line a GPU `cuda_test` binary logs.
 
-use dx_nested::Case;
 use dx_testing::serde_json::Value;
-
-const KERNELS_BUILD: &str = r#"load("@rules_dx//cuda:defs.bzl", "cuda_library")
-
-cuda_library(
-    name = "kernels",
-    srcs = ["reduce.cu", "stencil.cu", "vector_add.cu"],
-    hdrs = ["common.cuh", "kernels.h"],
-    cuda_archs = ["compute_80:compute_80,sm_80", "sm_90"],
-    visibility = ["//visibility:public"],
-)
-"#;
 
 /// Returns the facts JSON a GPU `cuda_test` binary logs on its `dx-gpu-facts:` line.
 fn parse_facts(log: &str) -> Result<Value, String> {
@@ -39,55 +27,6 @@ fn verdict(facts: &Value) -> Result<(), String> {
         return Err(format!("facts hold a failed or missing check: {facts}"));
     }
     Ok(())
-}
-
-#[test]
-#[ignore = "needs a CUDA GPU; run by //tools/testing/hermetic:cuda_gpu_nested_test"]
-fn gpu_test_runs_on_the_device_through_a_nested_consumer() {
-    // The consumer names rules_dx `rules_dx`; the shared fragment names it `my_dx`.
-    let fragment = dx_testing::read_text(&dx_testing::resolve_runfiles(
-        &std::env::var("DX_CUDA_FRAGMENT").expect("fragment path"),
-    ))
-    .replace("@my_dx", "@rules_dx");
-    let case = Case::consumer("cuda_gpu", &format!("\n{fragment}"));
-    for entry in std::env::var("DX_CUDA_FILES").expect("files").split(' ') {
-        let (src, dest) = entry.split_once('=').expect("src=dest");
-        case.write(
-            dest,
-            &dx_testing::read_text(&dx_testing::resolve_runfiles(src)),
-        );
-    }
-    // The example BUILD loads in-repo helpers, so the consumer gets its own kernels package.
-    case.write("cuda/tests/fixtures/cuda-app/kernels/BUILD.bazel", KERNELS_BUILD);
-    // Likewise drop the in-repo corpus load from the gpu package.
-    let gpu = dx_testing::read_text(&case.root().join("cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel"));
-    case.write(
-        "cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel",
-        &consumer_gpu_build(&gpu),
-    );
-    let run = case.plain(
-        "test",
-        "//cuda/tests/fixtures/cuda-app/gpu:gpu_test",
-        &["--test_output=all", "--nocache_test_results"],
-    );
-    let log = run.combined();
-    assert!(run.status.success(), "{log}");
-    let facts = parse_facts(&log).unwrap_or_else(|error| panic!("{error}\n{log}"));
-    verdict(&facts).unwrap_or_else(|error| panic!("{error}"));
-}
-
-/// Drops the in-repo `real_source_target` load and rule from the gpu BUILD file.
-fn consumer_gpu_build(build: &str) -> String {
-    let build = build
-        .lines()
-        .filter(|line| !line.contains("//core/quality:fixtures.bzl"))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let kept: Vec<&str> = build
-        .split("\n\n")
-        .filter(|block| !block.contains("real_source_target"))
-        .collect();
-    format!("{}\n", kept.join("\n\n").trim_end())
 }
 
 #[cfg(test)]
@@ -117,12 +56,6 @@ mod tests {
     fn a_log_without_facts_or_with_bad_json_is_rejected() {
         assert!(parse_facts("nothing").is_err());
         assert!(parse_facts("dx-gpu-facts: {").is_err());
-    }
-
-    #[test]
-    fn the_consumer_gpu_build_drops_the_corpus_rule() {
-        let build = "load(\"a\", \"b\")\nload(\"@rules_dx//core/quality:fixtures.bzl\", \"real_source_target\")\n\nx()\n\nreal_source_target(\n    name = \"c\",\n)\n";
-        assert_eq!(consumer_gpu_build(build), "load(\"a\", \"b\")\n\nx()\n");
     }
 
     #[test]

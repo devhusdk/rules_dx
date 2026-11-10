@@ -136,7 +136,7 @@ fn reusable_workflows_launch_dx_through_the_public_label() {
     const CRATE_LABEL: &str = "//cli/cli:dx";
     const PUBLIC_LABEL: &str = "@rules_dx//:dx";
     for (workflow, _) in PAIRS {
-        let text = read_runfiles(&workflow_path(workflow));
+        let text = ci_workflow::strings(&workflow_path(workflow)).join("\n");
         assert!(
             text.contains(PUBLIC_LABEL),
             "{workflow} must launch dx through {PUBLIC_LABEL}"

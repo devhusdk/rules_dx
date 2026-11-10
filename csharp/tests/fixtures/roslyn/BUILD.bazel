@@ -1,0 +1,78 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
+load("//csharp:defs.bzl", "csharp_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+exports_files([
+    "Sample.cs",
+    "net8.sarif",
+    "net10.sarif",
+    "aggregated.sarif",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)
+
+csharp_library(
+    name = "roslyn",
+    testonly = True,
+    srcs = ["Sample.cs"],
+)
+
+csharp_library(
+    name = "roslyn_net8",
+    testonly = True,
+    srcs = ["Sample.cs"],
+    target_frameworks = ["net8.0"],
+)
+
+csharp_library(
+    name = "roslyn_net10",
+    testonly = True,
+    srcs = ["Sample.cs"],
+    target_frameworks = ["net10.0"],
+)
+
+# keep
+rust_test(
+    name = "roslyn_aggregation_test",
+    srcs = ["roslyn_aggregation_test.rs"],
+    data = [
+        ":aggregated.sarif",
+        ":net10.sarif",
+        ":net8.sarif",
+        ":roslyn_net10",
+        ":roslyn_net8",
+    ],
+    env = {
+        "DX_AGG_SARIF": "$(rootpath :aggregated.sarif)",
+        "DX_NET8_SARIF": "$(rootpath :net8.sarif)",
+        "DX_NET10_SARIF": "$(rootpath :net10.sarif)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+csharp_library(
+    name = "roslyn_dep",
+    testonly = True,
+    srcs = ["Dep.cs"],
+)
+
+csharp_library(
+    name = "roslyn_unused_dep",
+    testonly = True,
+    srcs = ["Sample.cs"],
+    deps = [":roslyn_dep"],
+)

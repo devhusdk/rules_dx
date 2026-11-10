@@ -46,7 +46,7 @@ TAXONOMY = {
         classes = ["github_workflow"],
     ),
     "csharp": struct(
-        owner = "@rules_dx_dotnet//csharp/rules:defs.bzl",
+        owner = "@rules_dx//csharp:defs.bzl",
         classes = ["csharp"],
     ),
     "css": struct(
@@ -90,7 +90,7 @@ TAXONOMY = {
         classes = ["fortran"],
     ),
     "fsharp": struct(
-        owner = "@rules_dx_dotnet//fsharp/rules:defs.bzl",
+        owner = "@rules_dx//fsharp:defs.bzl",
         classes = ["fsharp"],
     ),
     "gherkin": struct(

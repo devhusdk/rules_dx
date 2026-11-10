@@ -7261,7 +7261,7 @@
     "//dotnet:rules_dotnet.bzl%dotnet": {
       "general": {
         "bzlTransitiveDigest": "TY3p2T9O4wQEDjKHmm6jRocuy7/SL/AKyW61FJOC3kE=",
-        "usagesDigest": "M9HcQwvdkHRXAxXph2lrJLSfgNbtjqsFU0CyJuTjDyo=",
+        "usagesDigest": "lksutUrDL3EO6rE8orKbr4Vipe1ryfb4+qFi7dT7JbU=",
         "recordedInputs": [
           "REPO_MAPPING:,rules_dotnet +dotnet_tools+rules_dotnet"
         ],

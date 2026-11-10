@@ -1,4 +1,4 @@
-load("@rules_dx_dotnet//csharp/rules:defs.bzl", "csharp_library", "csharp_test")
+load("@rules_dx//csharp:defs.bzl", "csharp_library", "csharp_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(

@@ -1,4 +1,4 @@
-load("@rules_dx_dotnet//fsharp/rules:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
+load("@rules_dx//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
 
 fsharp_library(
     name = "demo-app",

@@ -221,7 +221,7 @@ Language rules:
 - `@rules_dx_apple//ios:defs.bzl`: iOS libraries.
 - `@rules_dx_apple//macos:app.bzl`: macOS apps.
 - `@rules_dx//cc/rules:defs.bzl`: C and C++.
-- `@rules_dx_dotnet//csharp/rules:defs.bzl`: C#.
+- `@rules_dx//csharp:defs.bzl`: C#.
 - `@rules_dx_cuda//rules:defs.bzl`: CUDA.
 - `@rules_dx//dockerfile:defs.bzl`: Dockerfiles.
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
@@ -229,7 +229,7 @@ Language rules:
 - `@rules_dx//d:defs.bzl`: D.
 - `@rules_dx//elixir:defs.bzl`: Elixir.
 - `@rules_dx//erlang:defs.bzl`: Erlang.
-- `@rules_dx_dotnet//fsharp/rules:defs.bzl`: F#.
+- `@rules_dx//fsharp:defs.bzl`: F#.
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
 - `@rules_dx//java:defs.bzl`: Java.
@@ -273,7 +273,7 @@ dx rule that wraps it.
 | `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx_apple//macos:app.bzl` | `apple_macos_app` |
 | `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc/rules:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
 | `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc/rules:defs.bzl` | `objc_library` |
-| `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
+| `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx//csharp:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
 | `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx_cuda//rules:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d:defs.bzl` | `d_binary`, `d_library`, `d_test` |
 | `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir:defs.bzl` | `elixir_app` |
@@ -283,7 +283,7 @@ dx rule that wraps it.
 | `@rules_erlang//:erlang_bytecode2.bzl` | `erlang_bytecode` | `@rules_dx//erlang:defs.bzl` | `erlang_bytecode` |
 | `@rules_erlang//:escript.bzl` | `escript_archive` | `@rules_dx//erlang:defs.bzl` | `erlang_escript_archive` |
 | `@rules_erlang//:eunit2.bzl` | `eunit` | `@rules_dx//erlang:defs.bzl` | `erlang_eunit_test` |
-| `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
+| `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx//fsharp:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
 | `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go/rules:defs.bzl` | `go_binary`, `go_library`, `go_test` |
 | `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell/rules:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
 | `@rules_java//java:defs.bzl` | `java_binary`, `java_library`, `java_test` | `@rules_dx//java:defs.bzl` | `java_binary`, `java_library`, `java_test` |
@@ -433,11 +433,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_target_compatible_with` |
 |  |  | `@rules_dx_cuda//rules:defs.bzl` | `cuda_test` |
 |  |  | `@rules_dx_cuda//tests:defs.bzl` | `with_clang_compiler` |
-|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_bench` |
-|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_fuzz_test` |
-|  |  | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_proto_library` |
-|  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_bench` |
-|  |  | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_fuzz_test` |
+|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_bench` |
+|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_fuzz_test` |
+|  |  | `@rules_dx//csharp:defs.bzl` | `csharp_proto_library` |
+|  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_bench` |
+|  |  | `@rules_dx//fsharp:defs.bzl` | `fsharp_fuzz_test` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `compatible_with` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_package` |
 |  |  | `@rules_dx_msix//:defs.bzl` | `msix_sign` |

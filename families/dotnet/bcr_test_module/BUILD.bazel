@@ -1,4 +1,0 @@
-load("@rules_dx_dotnet//csharp/rules:defs.bzl", "csharp_library")
-load("@rules_dx_dotnet//fsharp/rules:defs.bzl", "fsharp_library")
-
-filegroup(name = "loads")

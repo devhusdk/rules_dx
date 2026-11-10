@@ -30,7 +30,6 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "csharp",
-    bazel_deps = ["rules_dx", "rules_dx_dotnet"],
 )
 
 starter_consumer_test(
@@ -79,7 +78,6 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "fsharp",
-    bazel_deps = ["rules_dx", "rules_dx_dotnet"],
 )
 
 starter_consumer_test(

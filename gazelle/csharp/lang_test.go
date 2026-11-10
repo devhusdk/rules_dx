@@ -271,7 +271,7 @@ func TestAspectHintsSurviveRegen(t *testing.T) {
 	} {
 		writeFixture(t, root, name, content)
 	}
-	build := `load("@rules_dx_dotnet//csharp/rules:defs.bzl", "csharp_library")
+	build := `load("@rules_dx//csharp:defs.bzl", "csharp_library")
 
 csharp_library(
     name = "demo",

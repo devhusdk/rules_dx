@@ -1,1 +1,3 @@
-bazel_dep(name = "rules_dx_dotnet", version = "0.0.0")
+bazel_dep(name = "rules_dx", version = "0.0.0")
+
+use_repo(use_extension("@rules_dx//third_party/dotnet:extension.bzl", "paket"), "paket.main")

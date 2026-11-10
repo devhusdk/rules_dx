@@ -5,8 +5,8 @@ pub const PLUGIN: Plugin = Plugin {
     name: "dotnet",
     extensions: &["cs", "fs", "fsi", "fsx"],
     labels: &[
-        "families/dotnet/csharp/ide:dotnet_tool",
-        "families/dotnet/fsharp/ide:dotnet_tool",
+        "csharp/private/ide:dotnet_tool",
+        "fsharp/private/ide:dotnet_tool",
     ],
     outputs: &["root"],
     write,

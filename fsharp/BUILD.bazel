@@ -1,0 +1,32 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "defs.bzl",
+        "//:module_srcs",
+        "//fsharp/private:module_srcs",
+        "//fsharp/private/ide:module_srcs",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+exports_files([
+    "README.md",
+    "defs.bzl",
+    "lang.json",
+])

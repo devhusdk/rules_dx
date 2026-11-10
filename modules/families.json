@@ -137,6 +137,12 @@
         "real_d_typecheck_probe_aspect",
         "real_dockerfile_lint_aspect",
         "real_docs_aspect",
+        "real_dotnet_format_aspect",
+        "real_dotnet_format_probe_aspect",
+        "real_dotnet_lint_aspect",
+        "real_dotnet_lint_probe_aspect",
+        "real_dotnet_typecheck_aspect",
+        "real_dotnet_typecheck_probe_aspect",
         "real_elixir_format_aspect",
         "real_elixir_lint_aspect",
         "real_erlang_format_aspect",
@@ -307,6 +313,7 @@
         "cloudformation",
         "cmake",
         "config",
+        "csharp",
         "d",
         "dart",
         "deploy",
@@ -322,6 +329,7 @@
         "flatbuffers",
         "flutter",
         "fortran",
+        "fsharp",
         "gazelle",
         "generation",
         "go",
@@ -439,12 +447,17 @@
         ".cc",
         ".cmake",
         ".cpp",
+        ".cs",
+        ".csproj",
         ".d",
         ".erl",
         ".ex",
         ".exs",
         ".f90",
         ".fbs",
+        ".fs",
+        ".fsproj",
+        ".fsx",
         ".go",
         ".h",
         ".hpp",
@@ -454,10 +467,16 @@
         ".json",
         ".kt",
         ".kts",
+        ".lua",
         ".md",
         ".mk",
+        ".php",
+        ".pl",
+        ".pm",
         ".proto",
         ".qml",
+        ".rb",
+        ".rbs",
         ".rego",
         ".rst",
         ".scala",
@@ -471,13 +490,7 @@
         ".xml",
         ".yaml",
         ".yml",
-        ".zig",
-        ".lua",
-        ".pl",
-        ".pm",
-        ".php",
-        ".rb",
-        ".rbs"
+        ".zig"
       ],
       "gazelle": [
         "//gazelle/astro",
@@ -535,6 +548,7 @@
         "//cc/toolchains:msvc_windows_x86_64_to_arm64",
         "//lua/private/toolchain:all",
         "//tools/platforms:protoc_windows_arm64",
+        "@dotnet_toolchains//:all",
         "@dx_d_toolchains//:all",
         "@dx_elixir_toolchains//:all",
         "@dx_erlang_toolchains//:all",
@@ -619,49 +633,6 @@
       "toolchains": [],
       "module": "rules_dx_dart",
       "path": "families/dart"
-    },
-    "dotnet": {
-      "aspects": [
-        "real_dotnet_format_aspect",
-        "real_dotnet_format_probe_aspect",
-        "real_dotnet_lint_aspect",
-        "real_dotnet_lint_probe_aspect",
-        "real_dotnet_typecheck_aspect",
-        "real_dotnet_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_skylib",
-        "platforms",
-        "protobuf",
-        "rules_cc",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "csharp",
-        "fsharp",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dx//dotnet:rules_dotnet.bzl%dotnet",
-        "@rules_dx//dotnet:extensions.bzl%dotnet_tools",
-        "@rules_dx//third_party/dotnet:extension.bzl%paket"
-      ],
-      "file_extensions": [
-        ".cs",
-        ".csproj",
-        ".fs",
-        ".fsproj",
-        ".fsx"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_dotnet",
-      "path": "families/dotnet",
-      "repo_rules": [],
-      "toolchains": [
-        "@dotnet_toolchains//:all"
-      ]
     },
     "haskell": {
       "aspects": [

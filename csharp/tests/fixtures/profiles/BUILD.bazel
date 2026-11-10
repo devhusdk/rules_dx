@@ -1,0 +1,80 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//quality:native_config.bzl", "roslyn_config")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
+load("//csharp:defs.bzl", "csharp_library")
+load(":sarif.bzl", "roslyn_sarif", "sdk_recommended")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "sarif.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+roslyn_config(
+    name = "standard_config",
+    src = "@rules_dx//quality/tiers/roslyn:standard.globalconfig",
+)
+
+roslyn_config(
+    name = "strict_config",
+    src = "@rules_dx//quality/tiers/roslyn:strict.globalconfig",
+)
+
+csharp_library(
+    name = "standard",
+    testonly = True,
+    srcs = ["Strict.cs"],
+    out = "Strict",
+    aspect_hints = [":standard_config"],
+)
+
+csharp_library(
+    name = "strict",
+    testonly = True,
+    srcs = ["Strict.cs"],
+    out = "Strict",
+    aspect_hints = [":strict_config"],
+)
+
+roslyn_sarif(
+    name = "standard_sarif",
+    dep = ":standard",
+)
+
+roslyn_sarif(
+    name = "strict_sarif",
+    dep = ":strict",
+)
+
+sdk_recommended(
+    name = "sdk_recommended",
+)
+
+rust_test(
+    name = "profiles_test",
+    srcs = ["profiles_test.rs"],
+    data = [
+        ":sdk_recommended",
+        ":standard_sarif",
+        ":strict_sarif",
+        "@rules_dx//quality/tiers/roslyn:standard.globalconfig",
+    ],
+    env = {
+        "DX_SDK_RECOMMENDED": "$(rootpath :sdk_recommended)",
+        "DX_STANDARD_TEMPLATE": "$(rootpath @rules_dx//quality/tiers/roslyn:standard.globalconfig)",
+        "DX_STANDARD_SARIF": "$(rootpath :standard_sarif)",
+        "DX_STRICT_SARIF": "$(rootpath :strict_sarif)",
+    },
+    tags = ["no-coverage"],
+    target_compatible_with = ["@platforms//os:linux"],
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)

@@ -1,0 +1,26 @@
+load("//fsharp:defs.bzl", "fsharp_bench")
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+fsharp_bench(
+    name = "sum_bench",
+    srcs = ["Sum.fs"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+dx_runner_attr_test(
+    name = "sum_bench_default_size",
+    expected = {"size": "small"},
+    runner = "sum_bench",
+)

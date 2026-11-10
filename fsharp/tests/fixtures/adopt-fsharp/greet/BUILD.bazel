@@ -1,0 +1,28 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//fsharp:defs.bzl", "fsharp_library", "fsharp_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+fsharp_test(
+    name = "greet_test",
+    srcs = ["GreetTest.fs"],
+    deps = [
+        ":greet",
+        "@paket.main//fsharp.core",
+    ],
+)
+
+fsharp_library(
+    name = "greet",
+    srcs = [
+        "Greet.fs",
+        "Helper.fs",
+    ],
+    deps = ["@paket.main//fsharp.core"],  # keep
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

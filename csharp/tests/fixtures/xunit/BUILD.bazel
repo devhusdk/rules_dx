@@ -1,0 +1,52 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("//csharp/private:coverage_check.bzl", "dx_dotnet_coverage_tests")
+load("//csharp:defs.bzl", "csharp_library", "csharp_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+csharp_library(
+    name = "greeter_lib",
+    srcs = ["Greeter.cs"],
+)
+
+csharp_test(
+    name = "greeter_test",
+    srcs = [
+        "GreeterTest.cs",
+        "SelfRegisteredExtensions.cs",
+        "XunitEntryPoint.cs",
+    ],
+    deps = [
+        ":greeter_lib",
+        "@paket.main//microsoft.testing.extensions.telemetry",
+        "@paket.main//microsoft.testing.extensions.trxreport.abstractions",
+        "@paket.main//microsoft.testing.platform",
+        "@paket.main//microsoft.testing.platform.msbuild",
+        "@paket.main//xunit.analyzers",
+        "@paket.main//xunit.v3",
+        "@paket.main//xunit.v3.assert",
+        "@paket.main//xunit.v3.common",
+        "@paket.main//xunit.v3.core.mtp-v2",
+        "@paket.main//xunit.v3.extensibility.core",
+        "@paket.main//xunit.v3.mtp-v2",
+        "@paket.main//xunit.v3.runner.common",
+        "@paket.main//xunit.v3.runner.inproc.console",
+    ],
+)
+
+dx_dotnet_coverage_tests(
+    name = "csharp_coverage_test",
+    library = "greeter_lib_upstream",
+    source = "csharp/tests/fixtures/xunit/Greeter.cs",
+    target = ":greeter_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1125,7 +1125,7 @@ fn bazel_argv_pins_startup_and_build_flags_before_the_targets() {
             "/usr/bin/env",
             "-i",
             "HOME=/q/home",
-            "PATH=/usr/bin:/bin",
+            format!("PATH={ACTION_PATH}").as_str(),
             "BAZELISK_HOME=/q/bazelisk",
             "XDG_CACHE_HOME=/q/cold_cache",
         ]

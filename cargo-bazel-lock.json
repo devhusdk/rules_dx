@@ -1,5 +1,5 @@
 {
-  "checksum": "34c6766662603339aff8dbdf6036796c4e9d0778f5c0194bc1f69dfa31ac1249",
+  "checksum": "ddd5c2bc19a2984f414611b753c75ed321adac5de1f3d5f73a8d1a16a0a4915e",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7709,6 +7709,37 @@
         {
           "Library": {
             "crate_name": "dx_docs_serve",
+            "crate_root": "src/lib.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
+    "dx_ecosystems 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "dx_ecosystems",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "dx_ecosystems",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "dx_ecosystems",
             "crate_root": "src/lib.rs"
           }
         }
@@ -28957,6 +28988,7 @@
     "dx_diff 0.0.0": "cli/dx_diff",
     "dx_digest 0.0.0": "cli/dx_digest",
     "dx_docs_serve 0.0.0": "cli/dx_docs_serve",
+    "dx_ecosystems 0.0.0": "cli/dx_ecosystems",
     "dx_env 0.0.0": "cli/dx_env",
     "dx_env_plan 0.0.0": "cli/dx_env_plan",
     "dx_error 0.0.0": "cli/dx_error",

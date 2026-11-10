@@ -1701,6 +1701,14 @@ name = "dx_docs_serve"
 version = "0.0.0"
 
 [[package]]
+name = "dx_ecosystems"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "dx_env"
 version = "0.0.0"
 dependencies = [

@@ -1,0 +1,220 @@
+{
+  "ecosystems": [
+    {
+      "name": "uv",
+      "manifest": "pyproject.toml",
+      "check": true,
+      "update": true,
+      "audit": true,
+      "advisory_family": "pypi",
+      "uses_repository": false
+    },
+    {
+      "name": "npm",
+      "manifest": "package.json",
+      "check": true,
+      "update": true,
+      "audit": true,
+      "advisory_family": "npm",
+      "uses_repository": false
+    },
+    {
+      "name": "bazel",
+      "manifest": "MODULE.bazel",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "ruby",
+      "manifest": "Gemfile",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "rubygems",
+      "uses_repository": false
+    },
+    {
+      "name": "powershell",
+      "manifest": "PSGallery.requirements.psd1",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "cargo",
+      "manifest": "Cargo.toml",
+      "check": true,
+      "update": true,
+      "audit": true,
+      "advisory_family": "cargo",
+      "uses_repository": true
+    },
+    {
+      "name": "maven",
+      "manifest": "MODULE.bazel",
+      "check": true,
+      "update": true,
+      "audit": true,
+      "advisory_family": "maven",
+      "uses_repository": true
+    },
+    {
+      "name": "nuget",
+      "manifest": "paket.dependencies",
+      "check": true,
+      "update": true,
+      "audit": true,
+      "advisory_family": "nuget",
+      "uses_repository": false
+    },
+    {
+      "name": "go",
+      "manifest": "go.mod",
+      "check": true,
+      "update": true,
+      "audit": true,
+      "advisory_family": "go",
+      "uses_repository": false
+    },
+    {
+      "name": "cpan",
+      "manifest": "cpanfile",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "cpan",
+      "uses_repository": false
+    },
+    {
+      "name": "pub",
+      "manifest": "pubspec.yaml",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "pub",
+      "uses_repository": false
+    },
+    {
+      "name": "conan",
+      "manifest": "conanfile.txt",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "julia",
+      "manifest": "Project.toml",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "julia",
+      "uses_repository": false
+    },
+    {
+      "name": "hex",
+      "manifest": "mix.exs",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "hex",
+      "uses_repository": false
+    },
+    {
+      "name": "composer",
+      "manifest": "composer.json",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "packagist",
+      "uses_repository": false
+    },
+    {
+      "name": "opam",
+      "manifest": "<name>.opam",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "opam",
+      "uses_repository": false
+    },
+    {
+      "name": "swiftpm",
+      "manifest": "Package.swift",
+      "check": true,
+      "update": true,
+      "audit": true,
+      "advisory_family": "swifturl",
+      "uses_repository": false
+    },
+    {
+      "name": "cabal",
+      "manifest": "cabal.project",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": "hackage",
+      "uses_repository": false
+    },
+    {
+      "name": "dub",
+      "manifest": "dub.json",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "fpm",
+      "manifest": "fpm.toml",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "zig",
+      "manifest": "build.zig.zon",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "luarocks",
+      "manifest": "luarocks.lock",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "ansible",
+      "manifest": "MODULE.bazel",
+      "check": false,
+      "update": true,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    },
+    {
+      "name": "bicep",
+      "manifest": "MODULE.bazel",
+      "check": false,
+      "update": false,
+      "audit": true,
+      "advisory_family": null,
+      "uses_repository": false
+    }
+  ]
+}

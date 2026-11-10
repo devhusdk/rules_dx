@@ -571,6 +571,7 @@ rust_test(
     crate_name = "config_consistency_test",
     crate_root = "config_consistency_test.rs",
     data = [
+        "//.github:workflows/release-consumer.yml",
         "//:.bazelignore",
         "//:.bazelrc",
         "//:.bazelversion",

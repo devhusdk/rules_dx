@@ -75,12 +75,12 @@ rust_library(
         normal = True,
     ) + [
         "//cli/audit:dx_audit",
+        "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//deploy/private:dx_deploy_tools",
-        "//cli/binfmt:dx_binfmt",
         "@crates//:serde",
     ],
 )
@@ -132,13 +132,13 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/audit:dx_audit",
+        "//cli/binfmt:dx_binfmt",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/process:dx_process",
         "//cli/sbom:dx_sbom",
         "//cli/sbom/schema:dx_sbom_schema",
         "//deploy/private:dx_deploy_tools",
-        "//cli/binfmt:dx_binfmt",
         "//tools/testing:dx_testing",
         "@crates//:serde",
     ],

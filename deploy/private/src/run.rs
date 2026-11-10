@@ -359,7 +359,8 @@ impl DeployRun {
     }
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use super::*;
     use crate::test_support::{env_test_in_child, scratch_dir, with_env};

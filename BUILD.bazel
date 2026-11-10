@@ -133,7 +133,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude deploy/private/pypi_probe
 # gazelle:exclude deploy/private/resources_demo
 # gazelle:exclude deploy/private/sbom_demo
-# gazelle:exclude deploy/private/src
 # gazelle:exclude deploy/private/testdata
 # gazelle:exclude deploy/private/typed_probe
 # gazelle:exclude deploy/private/web_demo

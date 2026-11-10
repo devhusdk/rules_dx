@@ -1,10 +1,9 @@
-# gazelle:ignore
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//java:defs.bzl", "java_library")
 load("//core:failure_test.bzl", "failure_test")
+load("//java:defs.bzl", "java_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load(":api_compat_tests.bzl", "api_compat_unit_tests")
@@ -18,8 +17,8 @@ load(":cpan.bzl", "cpan_deploy")
 load(":cpan_tests.bzl", "cpan_unit_tests")
 load(":crates.bzl", "crates_deploy")
 load(":crates_tests.bzl", "crates_config_content_tests", "crates_unit_tests")
-load(":deployment.bzl", "dx_deployment")
 load(":deploy_tests.bzl", "config_runfiles_tests", "deploy_analysis_test", "deploy_config_tests", "deploy_unit_tests")
+load(":deployment.bzl", "dx_deployment")
 load(":github.bzl", "github_deploy")
 load(":github_tests.bzl", "github_unit_tests")
 load(":go_sdk.bzl", "dx_go_binary_file")
@@ -192,8 +191,146 @@ rust_library(
         "src/api_compat.rs",
         "src/archive.rs",
         "src/cloudflare.rs",
-        "src/config.rs",
         "src/conan.rs",
+        "src/config.rs",
+        "src/cpan.rs",
+        "src/crates.rs",
+        "src/github.rs",
+        "src/go_api.rs",
+        "src/hackage.rs",
+        "src/helm.rs",
+        "src/hex.rs",
+        "src/homebrew.rs",
+        "src/http.rs",
+        "src/imports.rs",
+        "src/lib.rs",
+        "src/luarocks.rs",
+        "src/maven.rs",
+        "src/npm.rs",
+        "src/nuget.rs",
+        "src/oci.rs",
+        "src/oci_scan.rs",
+        "src/octopus.rs",
+        "src/packagist.rs",
+        "src/pub_dev.rs",
+        "src/pypi.rs",
+        "src/registry.rs",
+        "src/rubygems.rs",
+        "src/run.rs",
+        "src/stage.rs",
+    ],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "dx_deploy_tools",
+    crate_root = "src/lib.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/audit:dx_audit",
+        "//cli/binfmt:dx_binfmt",
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
+        "//cli/update:dx_update",
+        "@crates//:serde",
+        "@rules_rust//rust/runfiles",
+    ],
+)
+
+rust_binary(
+    name = "archiver",
+    srcs = ["src/bin_archiver.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "archiver",
+    crate_root = "src/bin_archiver.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
+)
+
+rust_binary(
+    name = "cloudflare_verify",
+    srcs = ["src/bin_cloudflare_verify.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "cloudflare_verify",
+    crate_root = "src/bin_cloudflare_verify.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
+)
+
+rust_binary(
+    name = "deploy_tool",
+    srcs = ["src/bin_deploy_tool.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "deploy_tool",
+    crate_root = "src/bin_deploy_tool.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
+)
+
+rust_binary(
+    name = "hasher",
+    srcs = ["src/bin_hasher.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "hasher",
+    crate_root = "src/bin_hasher.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
+)
+
+rust_binary(
+    name = "size_checker",
+    srcs = ["src/bin_size_checker.rs"],
+    aliases = aliases(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ),
+    crate_name = "size_checker",
+    crate_root = "src/bin_size_checker.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
+)
+
+rust_test(
+    name = "dx_deploy_tools_test",
+    srcs = [
+        "src/api_compat.rs",
+        "src/archive.rs",
+        "src/cloudflare.rs",
+        "src/conan.rs",
+        "src/config.rs",
         "src/cpan.rs",
         "src/crates.rs",
         "src/github.rs",
@@ -225,100 +362,12 @@ rust_library(
     aliases = aliases(
         package_name = "deploy/dx_deploy_tools",
         normal = True,
-    ),
-    crate_name = "dx_deploy_tools",
-    crate_root = "src/lib.rs",
-    visibility = ["//visibility:public"],
-    deps = all_crate_deps(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ) + [
-        "//cli/atomic_fs:dx_atomic_fs",
-        "//cli/audit:dx_audit",
-        "//cli/digest:dx_digest",
-        "//cli/path:dx_path",
-        "//cli/process:dx_process",
-        "//cli/sbom:dx_sbom",
-        "//cli/update:dx_update",
-        "//cli/binfmt:dx_binfmt",
-        "@rules_rust//rust/runfiles",
-    ],
-)
-
-rust_binary(
-    name = "archiver",
-    srcs = ["src/bin_archiver.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "archiver",
-    crate_root = "src/bin_archiver.rs",
-    visibility = ["//visibility:public"],
-    deps = [":dx_deploy_tools"],
-)
-
-rust_binary(
-    name = "cloudflare_verify",
-    srcs = ["src/bin_cloudflare_verify.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "cloudflare_verify",
-    crate_root = "src/bin_cloudflare_verify.rs",
-    visibility = ["//visibility:public"],
-    deps = [":dx_deploy_tools"],
-)
-
-rust_binary(
-    name = "deploy_tool",
-    srcs = ["src/bin_deploy_tool.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "deploy_tool",
-    crate_root = "src/bin_deploy_tool.rs",
-    visibility = ["//visibility:public"],
-    deps = [":dx_deploy_tools"],
-)
-
-rust_binary(
-    name = "hasher",
-    srcs = ["src/bin_hasher.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "hasher",
-    crate_root = "src/bin_hasher.rs",
-    visibility = ["//visibility:public"],
-    deps = [":dx_deploy_tools"],
-)
-
-rust_binary(
-    name = "size_checker",
-    srcs = ["src/bin_size_checker.rs"],
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
-    ),
-    crate_name = "size_checker",
-    crate_root = "src/bin_size_checker.rs",
-    visibility = ["//visibility:public"],
-    deps = [":dx_deploy_tools"],
-)
-
-rust_test(
-    name = "dx_deploy_tools_test",
-    aliases = aliases(
-        package_name = "deploy/dx_deploy_tools",
-        normal = True,
         normal_dev = True,
     ),
     compile_data = ["testdata/pub/apitool_report.json"],
-    crate = ":dx_deploy_tools",
+    coverage_lib = ":dx_deploy_tools",
+    crate_name = "dx_deploy_tools",
+    crate_root = "src/lib.rs",
     data = [
         "testdata/maven/gnupg/payload.txt",
         "testdata/maven/gnupg/payload.txt.asc",
@@ -359,8 +408,17 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/audit:dx_audit",
+        "//cli/binfmt:dx_binfmt",
+        "//cli/digest:dx_digest",
+        "//cli/path:dx_path",
         "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
+        "//cli/update:dx_update",
         "//tools/testing:dx_testing",
+        "@crates//:serde",
+        "@rules_rust//rust/runfiles",
     ],
 )
 
@@ -376,7 +434,10 @@ rust_binary(
     crate_name = "npm_packer",
     crate_root = "src/bin_npm_pack.rs",
     visibility = ["//visibility:public"],
-    deps = [":dx_deploy_tools"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
 )
 
 rust_binary(
@@ -388,7 +449,10 @@ rust_binary(
     ),
     crate_name = "deploy_program",
     crate_root = "src/bin_deploy_program.rs",
-    deps = [":dx_deploy_tools"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
 )
 
 rust_binary(
@@ -400,7 +464,10 @@ rust_binary(
     ),
     crate_name = "deploy_app",
     crate_root = "src/bin_deploy_app.rs",
-    deps = [":dx_deploy_tools"],
+    deps = all_crate_deps(
+        package_name = "deploy/dx_deploy_tools",
+        normal = True,
+    ) + [":dx_deploy_tools"],
 )
 
 dx_deployment(
@@ -727,19 +794,19 @@ native_runtime_unit_tests(name = "native_runtime_unit")
 
 deploy_analysis_test(
     name = "archive_analysis",
+    app = "//deploy/private:deploy_program",
     artifacts = [
         "//deploy/private:release_demo_archive",
     ],
-    app = "//deploy/private:deploy_program",
     subject = "release_demo",
 )
 
 deploy_analysis_test(
     name = "archive_debug_analysis",
+    app = "//deploy/private:deploy_program",
     artifacts = [
         "//deploy/private:release_demo_debug_archive",
     ],
-    app = "//deploy/private:deploy_program",
     build_mode = "debug",
     subject = "release_demo_debug",
 )
@@ -852,8 +919,12 @@ test_suite(
         ":cloudflare_not_a_directory_fails",
         ":cloudflare_program_closure",
         ":cloudflare_unit",
+        ":conan_analysis",
+        ":conan_unit",
         ":config_runfiles",
         ":consumer_archive_unit",
+        ":cpan_analysis",
+        ":cpan_unit",
         ":crates_analysis",
         ":crates_config_content",
         ":crates_unit",
@@ -872,10 +943,6 @@ test_suite(
         ":github_duplicate_basename_fails",
         ":github_sbom_demo_verify",
         ":github_unit",
-        ":conan_analysis",
-        ":conan_unit",
-        ":cpan_analysis",
-        ":cpan_unit",
         ":hackage_alias_analysis",
         ":hackage_analysis",
         ":hackage_unit",
@@ -1126,8 +1193,8 @@ genrule(
 
 pypi_deploy(
     name = "pypi_demo",
-    size_budget = "25MB",
     sdist = ":pypi_demo_sdist",
+    size_budget = "25MB",
     wheel = ":pypi_demo_wheel",
 )
 
@@ -1777,9 +1844,9 @@ deploy_analysis_test(
 
 npm_deploy(
     name = "npm_demo",
-    size_budget = "25MB",
     srcs = ["npm_demo/package.json"],
     package = "npm-demo",
+    size_budget = "25MB",
 )
 
 npm_unit_tests(name = "npm_unit")
@@ -1975,18 +2042,21 @@ deploy_analysis_test(
     subject = "luarocks+alias",
 )
 
+dx_go_binary_file(name = "go_binary")
+
+# keep: sources live in the Gazelle-excluded testdata directory.
 java_library(
     name = "maven_api_old_lib",
     srcs = ["testdata/maven/api_old/Api.java"],
 )
 
-dx_go_binary_file(name = "go_binary")
-
+# keep: sources live in the Gazelle-excluded testdata directory.
 java_library(
     name = "maven_api_new_lib",
     srcs = ["testdata/maven/api_new/Api.java"],
 )
 
+# keep: sources live in the Gazelle-excluded testdata directory.
 java_library(
     name = "maven_demo_lib",
     srcs = ["testdata/maven/Demo.java"],
@@ -2014,12 +2084,12 @@ genrule(
 
 maven_deploy(
     name = "maven_demo",
-    size_budget = "25MB",
     artifact = "maven_demo",
     group = "com.example",
     jar = ":maven_demo_lib",
     javadoc = ":maven_demo_javadoc_jar",
     pom = "testdata/maven/maven_demo-0.0.0.pom",
+    size_budget = "25MB",
     sources = ":maven_demo_sources_jar",
 )
 
@@ -2138,10 +2208,10 @@ genrule(
 
 octopus_deploy(
     name = "octopus_demo",
+    srcs = ":octopus_demo_package",
     channel = "Default",
     deploy_to = ["Production"],
     project = "octopus_demo",
-    srcs = ":octopus_demo_package",
     version = "0.0.0",
 )
 
@@ -2224,6 +2294,26 @@ real_source_target(
         "validate_resources.bzl",
         "validate_rubygems.bzl",
         "validate_tests.bzl",
+        "api_compat.bzl",
+        "api_compat_tests.bzl",
+        "conan.bzl",
+        "conan_tests.bzl",
+        "cpan.bzl",
+        "cpan_tests.bzl",
+        "debug_info.bzl",
+        "go_sdk.bzl",
+        "hackage.bzl",
+        "hackage_tests.bzl",
+        "image.bzl",
+        "image_tests.bzl",
+        "linux_package.bzl",
+        "linux_package_tests.bzl",
+        "luarocks.bzl",
+        "luarocks_tests.bzl",
+        "packagist.bzl",
+        "packagist_tests.bzl",
+        "sbom.bzl",
+        "standard_attrs_tests.bzl",
     ],
     tags = ["corpus"],
 )
@@ -2257,38 +2347,42 @@ filegroup(
 
 archive_deploy(
     name = "attrs_archive",
+    testonly = True,
     app = ":deploy_program",
     tags = [PROBE_TAG],
     target_compatible_with = PROBE_COMPATIBLE,
-    testonly = True,
     visibility = PROBE_VISIBILITY,
 )
 
 npm_deploy(
     name = "attrs_npm",
+    testonly = True,
     srcs = ["npm_demo/package.json"],
     package = "npm-demo",
     tags = [PROBE_TAG],
     target_compatible_with = PROBE_COMPATIBLE,
-    testonly = True,
     visibility = PROBE_VISIBILITY,
 )
 
 cloudflare_pages_deploy(
     name = "attrs_cloudflare",
+    testonly = True,
     account_id = "0123456789abcdef0123456789abcdef",
     branch = "feature/demo",
     production_branch = "main",
     project = "dx-demo",
     site = ":cloudflare_demo_site",
-    wrangler = ":cloudflare_demo_wrangler",
     tags = [PROBE_TAG],
     target_compatible_with = PROBE_COMPATIBLE,
-    testonly = True,
     visibility = PROBE_VISIBILITY,
+    wrangler = ":cloudflare_demo_wrangler",
 )
 
 standard_attrs_unit_tests(
     name = "standard_attrs_unit",
-    prefixes = ["attrs_archive", "attrs_npm", "attrs_cloudflare"],
+    prefixes = [
+        "attrs_archive",
+        "attrs_npm",
+        "attrs_cloudflare",
+    ],
 )

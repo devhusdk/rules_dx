@@ -305,7 +305,8 @@ pub fn helm_main(launch: &HelmLaunch<'_>, argv: &[String]) -> i32 {
     )
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
+#[cfg(unix)]
 mod tests {
     use super::*;
     use crate::test_support::scratch_dir;

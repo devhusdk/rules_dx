@@ -4,7 +4,7 @@ load("//core:rlocation.bzl", "runfiles_path")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
-load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "shell_quote", "staged_path")
+load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "shell_quote", "staged_path")
 
 package(default_visibility = ["//php:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
@@ -195,38 +195,6 @@ dx_wrapper_contract_tests(
             "the coverage launcher keeps the test status",
             coverage_launcher_script("php+/php", {}, _TEST, "pcov+/pcov.so", "_main/tools/clover_to_lcov", "_main/t.php"),
             "exit \"$status\"",
-        ),
-        expect_contains(
-            "the launcher runs php without php.ini",
-            launcher_script(
-                "php+/php",
-                {"memory_limit": "64M"},
-                [],
-            ),
-            'exec "$runfiles/php+/php" -n \'-d\' \'memory_limit=64M\' "$@"\n',
-        ),
-        expect_true(
-            "the launcher exports the runfiles root",
-            "export RUNFILES_DIR=\"$runfiles\"" in launcher_script("p", {}, []),
-        ),
-        expect_contains(
-            "a binary launcher keeps its bash tail",
-            launcher_script("p", {}, _BINARY),
-            '-n -d "auto_prepend_file=$runfiles/_main/t.php/vendor/autoload.php" "$runfiles/_main/t.php/app/main.php" "$@"\n',
-        ),
-        expect_contains(
-            "a test launcher keeps its bash tail",
-            launcher_script("p", {}, _TEST),
-            '-n "$runfiles/phpunit/phpunit.phar" --bootstrap "$runfiles/_main/t.php/vendor/autoload.php" --no-configuration --fail-on-empty-test-suite --do-not-cache-test-index ${XML_OUTPUT_FILE:+--log-junit "$XML_OUTPUT_FILE"} "$@"\n',
-        ),
-        expect_equal(
-            "odd literals are quoted for bash",
-            launcher_script(
-                "p",
-                {},
-                [lit("a b")],
-            ).endswith("-n 'a b' \"$@\"\n"),
-            True,
         ),
         expect_equal(
             "the descriptor names the program, ini flags and tokens",

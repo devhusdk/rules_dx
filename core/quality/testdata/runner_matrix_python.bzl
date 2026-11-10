@@ -80,6 +80,21 @@ PYTHON_CASES = [
         "windows_x86_64": True,
     },
     {
+        "name": "matrix_python_typecheck_return_type_fail",
+        "generated": {
+            "matrix/invalid_return_type.py": "\"\"\"Matrix fixture.\"\"\"\n\n\ndef label() -> int:\n    return \"text\"\n",
+        },
+        "capability": "typecheck",
+        "stages": ["ty;python;matrix/invalid_return_type.py"],
+        "tool_names": ["ty"],
+        "tool_binaries": ["@dx_tools//:ty"],
+        "expected_file": ":matrix/matrix_python_typecheck_return_type_fail.expected.txt",
+        "linux_arm64": True,
+        "macos_arm64": True,
+        "windows_arm64": True,
+        "windows_x86_64": True,
+    },
+    {
         "name": "matrix_python_typecheck_standard_profile",
         "generated": {
             "matrix/possibly_unbound.py": "\"\"\"Matrix fixture.\"\"\"\n\nimport random\n\nif random.random() > 0.5:\n    value = 1\nprint(value)\n",

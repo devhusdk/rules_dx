@@ -443,7 +443,7 @@ go/tests/fixtures/cgo/toolchain_test.bzl no-size 2
 go/tests/fixtures/fuzz/BUILD.bazel no-size 3
 go/tests/fixtures/godeps/BUILD.bazel no-size 1
 go/tests/fixtures/gotype/BUILD.bazel no-size 1
-go/tests/fixtures/hello/BUILD.bazel no-size 3
+go/tests/fixtures/hello/BUILD.bazel no-size 2
 go/tests/fixtures/no_srcs/BUILD.bazel no-size 2
 go/tests/fixtures/samepkg/BUILD.bazel no-size 1
 go/tests/fixtures/testonly_binary/BUILD.bazel no-size 1

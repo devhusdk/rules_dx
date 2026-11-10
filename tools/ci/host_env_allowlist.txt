@@ -308,9 +308,6 @@ julia/tests/fixtures/julia-app/data/BUILD.bazel genrule 1
 julia/tests/fixtures/julia-app/diagnostics/BUILD.bazel genrule 1
 kotlin/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel genrule 1
-lua/private/quality/BUILD.bazel sh-rule 1
-lua/private/quality/selene_smoke_test.sh host-path 1
-lua/private/quality/selene_smoke_test.sh shebang 1
 lua/private/runtime/BUILD.bazel genrule 1
 ocaml/private/BUILD.bazel env-inherit 3
 ocaml/private/BUILD.bazel home 3

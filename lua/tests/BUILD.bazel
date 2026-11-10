@@ -1,0 +1,30 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+rust_test(
+    name = "selene_smoke_test",
+    size = "small",
+    srcs = ["selene_smoke_test.rs"],
+    data = [
+        "//lua/private/quality:lua54.yml",
+        "//lua/private/quality:selene.toml",
+        "//lua/private/quality/testdata:lua54_valid.lua",
+        "//lua/private/quality/testdata:undefined_variable.lua",
+        "//rust/private/quality/tools:selene",
+    ],
+    env = {
+        "LUA54_VALID": "$(rootpath //lua/private/quality/testdata:lua54_valid.lua)",
+        "SELENE": "$(rootpath //rust/private/quality/tools:selene)",
+        "SELENE_CONFIG": "$(rootpath //lua/private/quality:selene.toml)",
+        "UNDEFINED_VARIABLE": "$(rootpath //lua/private/quality/testdata:undefined_variable.lua)",
+    },
+    tags = ["no-coverage"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

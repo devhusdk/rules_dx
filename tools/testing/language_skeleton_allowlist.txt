@@ -690,13 +690,10 @@ test-location julia/tests/BUILD.bazel
 test-location kotlin/private/BUILD.bazel
 test-location kotlin/tests/BUILD.bazel
 test-location lua/private/BUILD.bazel
-test-location lua/private/quality/BUILD.bazel
-test-location lua/private/quality/selene_smoke_test.sh
 test-location lua/private/runtime/BUILD.bazel
 test-location lua/private/runtime/launcher_test.lua
 test-location lua/private/toolchain/BUILD.bazel
 test-location lua/private/toolchain/metadata_tests.bzl
-test-location lua/tests/BUILD.bazel
 test-location mdx/tests/BUILD.bazel
 test-location msix/private/BUILD.bazel
 test-location msix/private/metadata_tests.bzl

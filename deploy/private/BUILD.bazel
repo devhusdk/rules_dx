@@ -127,6 +127,8 @@ exports_files([
     "src/bin_archiver.rs",
     "src/bin_cloudflare_verify.rs",
     "src/bin_deploy_tool.rs",
+    "src/bin_deploy_app.rs",
+    "src/bin_deploy_program.rs",
     "src/bin_hasher.rs",
     "src/bin_npm_pack.rs",
     "src/bin_size_checker.rs",

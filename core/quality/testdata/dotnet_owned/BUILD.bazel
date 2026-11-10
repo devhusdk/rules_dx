@@ -1,7 +1,10 @@
 load("@rules_dx//csharp:defs.bzl", "csharp_library")
-load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality:policy.bzl", "quality_family")
 
-package(default_visibility = ["//core/quality/testdata:__pkg__"])
+package(default_visibility = [
+    "//core/quality/testdata:__pkg__",
+    "//core/quality/tests/fixtures/consumer_policy:__pkg__",
+])
 
 quality_family(
     name = "csharp_family",
@@ -11,15 +14,6 @@ quality_family(
     ],
     family_id = "csharp",
     lint = ["roslyn"],
-)
-
-workspace_policy(
-    name = "policy",
-    bases = select({
-        "//config:config_profile_strict": ["//core/quality/tiers/roslyn:strict"],
-        "//conditions:default": ["//core/quality/tiers/roslyn:standard"],
-    }),
-    families = [":csharp_family"],
 )
 
 csharp_library(

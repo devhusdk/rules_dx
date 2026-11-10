@@ -84,7 +84,7 @@ def _nvcc_case(name, contains, absent):
     return {
         "name": "real_result_nvcc_syntax_" + name,
         "target": "//core/quality/testdata/nvcc_syntax:" + name,
-        "config": "nvcc_syntax",
+        "config": "shared",
         "tool": "nvcc_syntax",
         "capability": "typecheck",
         "class": "cuda",
@@ -94,7 +94,7 @@ def _nvcc_case(name, contains, absent):
         "windows_x86_64": True,
     }
 
-def _go_case(tool, capability, kind, target, contains, absent, config = "go_owned", **extra):
+def _go_case(tool, capability, kind, target, contains, absent, config = "shared", **extra):
     return extra | {
         "name": "real_result_" + tool + "_" + kind,
         "target": target,
@@ -356,10 +356,10 @@ REAL_RESULT_CASES = [
     _go_case("staticcheck", "lint", "initialisms", "//go/tests/fixtures/staticcheck:strict_only_initialisms", ["staticcheck"], ["ST1003"]),
     _go_case("govet", "lint", "shadow", "//go/tests/fixtures/govet:shadowed", ["declaration of"], []),
     _go_case("govet", "lint", "shadow_excluded", "//go/tests/fixtures/govet:shadowed_excluded", ["govet"], ["declaration of"]),
-    _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], config = "go_owned_standard"),
+    _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], config = "shared_standard"),
     _go_case("errcheck", "lint", "blank", "//go/tests/fixtures/errcheck:blank", ["unchecked error"], []),
     _go_case("errcheck", "lint", "blank_excluded", "//go/tests/fixtures/errcheck:blank_excluded", ["errcheck"], ["unchecked error"]),
-    _go_case("errcheck", "lint", "blank_off", "//go/tests/fixtures/errcheck:blank", ["errcheck"], ["unchecked error"], config = "go_owned_standard"),
+    _go_case("errcheck", "lint", "blank_off", "//go/tests/fixtures/errcheck:blank", ["errcheck"], ["unchecked error"], config = "shared_standard"),
     _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"]),
     _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["gen.go"]),
     _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], config = "tool_overrides"),
@@ -489,7 +489,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_clean",
         "target": "//core/quality/testdata/rust_owned:clean",
-        "config": "rust_owned",
+        "config": "shared",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -503,7 +503,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_dirty",
         "target": "//core/quality/testdata/rust_owned:dirty",
-        "config": "rust_owned",
+        "config": "shared",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -517,7 +517,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_pedantic_standard",
         "target": "//core/quality/testdata/rust_owned:pedantic",
-        "config": "rust_owned_clippy_standard",
+        "config": "shared_clippy_standard",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -531,7 +531,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_pedantic_strict",
         "target": "//core/quality/testdata/rust_owned:pedantic",
-        "config": "rust_owned_clippy_strict",
+        "config": "shared_clippy_strict",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -545,7 +545,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_clippy_unused_dep",
         "target": "//core/quality/testdata/rust_owned:unused_dep",
-        "config": "rust_owned",
+        "config": "shared",
         "tool": "clippy",
         "capability": "lint",
         "class": "rust",
@@ -559,7 +559,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_rustc_clean",
         "target": "//core/quality/testdata/rust_owned:clean",
-        "config": "rust_owned",
+        "config": "shared",
         "tool": "rustc",
         "capability": "typecheck",
         "class": "rust",
@@ -573,7 +573,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_rustc_dirty",
         "target": "//core/quality/testdata/rust_owned:dirty",
-        "config": "rust_owned",
+        "config": "shared",
         "tool": "rustc",
         "capability": "typecheck",
         "class": "rust",
@@ -687,7 +687,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_roslyn_unused_dep",
         "target": "//core/quality/testdata/dotnet_owned:unused_dep",
-        "config": "dotnet_owned",
+        "config": "shared",
         "tool": "roslyn",
         "capability": "lint",
         "class": "csharp",
@@ -697,7 +697,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_roslyn_clean_standard",
         "target": "//core/quality/testdata/dotnet_owned:clean",
-        "config": "dotnet_owned_standard",
+        "config": "shared_standard",
         "tool": "roslyn",
         "capability": "lint",
         "class": "csharp",
@@ -707,7 +707,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_roslyn_clean_strict",
         "target": "//core/quality/testdata/dotnet_owned:clean",
-        "config": "dotnet_owned",
+        "config": "shared",
         "tool": "roslyn",
         "capability": "lint",
         "class": "csharp",

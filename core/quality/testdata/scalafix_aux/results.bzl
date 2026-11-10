@@ -3,7 +3,7 @@
 load("//core/quality/testdata:config_subject.bzl", "config_results")
 load("//core/quality/testdata:real_aspect_subject.bzl", "real_aspect_subject")
 
-SCALAFIX_CONFIG = "scalafix_aux"
+SCALAFIX_CONFIG = "shared"
 
 def scalafix_results(name, target):
     """Declares the scalafix lint results of target."""

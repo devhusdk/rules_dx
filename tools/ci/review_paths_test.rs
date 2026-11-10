@@ -40,6 +40,10 @@ fn list_holds_the_review_prefixes() {
             "cli/atomic_fs/",
             "deploy/release/",
             ".github/workflows/release",
+            "core/",
+            "MODULE.bazel",
+            "tools/testing/root_layout_test.rs",
+            "docs/design/layout.md",
         ]
     );
 }

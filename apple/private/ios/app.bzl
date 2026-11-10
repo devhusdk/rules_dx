@@ -519,15 +519,15 @@ def apple_ios_app(
         visibility = visibility,
     )
 
-def _test_selection_impl(ctx):
+def _xctest_selection_impl(ctx):
     failures = ios_test_errors(ctx.attr.device_type, ctx.attr.os_version, ctx.attr.deployment)
     failures.extend(ios_test_source_errors(ctx.attr.srcs, ctx.attr.dep_labels))
     if len(failures) > 0:
         fail("; ".join(failures))
     return [CcInfo()]
 
-_test_selection = rule(
-    implementation = _test_selection_impl,
+_xctest_selection = rule(
+    implementation = _xctest_selection_impl,
     doc = "Fails analysis when an iOS app test declaration is invalid.",
     attrs = {
         "deployment": attr.string(
@@ -553,6 +553,20 @@ _test_selection = rule(
     },
 )
 
+def ios_xctest_selection(name, deployment, device_type, os_version, srcs, deps):
+    """Fails analysis when an iOS app test declaration is invalid."""
+    _xctest_selection(
+        name = name,
+        deployment = deployment,
+        device_type = device_type,
+        os_version = os_version,
+        srcs = [label_text(src) for src in srcs],
+        dep_labels = [label_text(dep) for dep in deps],
+        tags = ["manual"],
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
+
 def apple_ios_app_test(
         name,
         app,
@@ -568,16 +582,13 @@ def apple_ios_app_test(
     srcs = srcs or []
     deps = deps or []
     tags = tags or []
-    _test_selection(
+    ios_xctest_selection(
         name = name + "_selection",
         deployment = deployment,
         device_type = device_type,
         os_version = os_version,
-        srcs = [label_text(src) for src in srcs],
-        dep_labels = [label_text(dep) for dep in deps],
-        tags = ["manual"],
-        testonly = True,
-        visibility = ["//visibility:private"],
+        srcs = srcs,
+        deps = deps,
     )
     if len(srcs) > 0:
         objc_library(

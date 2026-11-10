@@ -1017,7 +1017,7 @@
         "third_party"
       ],
       "extensions": [
-        "@rules_dx//python/rules:sdist_cargo_vendor.bzl%sdist_cargo_vendor",
+        "@rules_dx//python:extensions.bzl%sdist_cargo_vendor",
         "@rules_py//py:extensions.bzl%python_interpreters",
         "@rules_py//uv:extensions.bzl%uv",
         "@windows_support//windows:extensions.bzl%msvc_runtime"

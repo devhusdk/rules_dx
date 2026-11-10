@@ -3,7 +3,7 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_py//py/private/toolchain:tools.bzl", "dummy_toolchain")
 load("@rules_python//python:py_runtime.bzl", "py_runtime")
 load("@rules_python//python:py_runtime_pair.bzl", "py_runtime_pair")
-load("@rules_dx//python/rules:defs.bzl", "python_test")
+load("@rules_dx//python:defs.bzl", "python_test")
 load(":msvc_sdist_tests.bzl", "msvc_sdist_tests")
 
 package(default_visibility = ["//visibility:private"])

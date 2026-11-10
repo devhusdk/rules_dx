@@ -76,7 +76,7 @@ uv_rust.override_package(
 )
 use_repo(uv_rust, rust_sdist_pypi = "dx_pypi_rust_sdist")
 
-sdist_cargo_vendor = use_extension("@rules_dx//python/rules:sdist_cargo_vendor.bzl", "sdist_cargo_vendor")
+sdist_cargo_vendor = use_extension("@rules_dx//python:extensions.bzl", "sdist_cargo_vendor")
 sdist_cargo_vendor.crates(
     name = "dx_rust_sdist_crates",
     lock = "//python/tests/fixtures/rust_sdist:uv.lock",

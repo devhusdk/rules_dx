@@ -210,7 +210,7 @@ TAXONOMY = {
         classes = ["protobuf"],
     ),
     "python": struct(
-        owner = "//python/rules:defs.bzl",
+        owner = "//python:defs.bzl",
         classes = ["python", "python_stub"],
     ),
     "qml": struct(

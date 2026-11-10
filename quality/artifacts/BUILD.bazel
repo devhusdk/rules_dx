@@ -1,4 +1,4 @@
-load("//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
+load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
 load(":corpus_tests.bzl", "corpus_coverage_test")

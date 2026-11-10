@@ -1,7 +1,7 @@
 """Development server for staged browser applications."""
 
 load("//libs/starlark:defs.bzl", "display_label")
-load("//python/rules:defs.bzl", "python_binary")
+load("//python:defs.bzl", "python_binary")
 
 JavascriptWebAppInfo = provider(
     doc = "Staged browser application identity for dx web servers and bundlers.",

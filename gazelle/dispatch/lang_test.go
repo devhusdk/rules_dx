@@ -118,7 +118,7 @@ func TestUnionLoadsCoverAllExtensions(t *testing.T) {
 		"//elixir:defs.bzl",
 		"//erlang:defs.bzl",
 		"//powershell/rules:defs.bzl",
-		"//python/rules:defs.bzl",
+		"//python:defs.bzl",
 		"//rust/rules:defs.bzl",
 	} {
 		found := false

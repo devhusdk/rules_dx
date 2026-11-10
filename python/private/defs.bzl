@@ -150,7 +150,7 @@ def python_bench(name, *, srcs = None, args = None, tags = None, deps = None, **
         srcs = srcs,
         args = ["-p", "dx_bench_plugin", "--benchmark-only"] + (args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),
-        deps = (deps or []) + [Label("//python/rules:bench_plugin")],
+        deps = (deps or []) + [Label("//python/private:bench_plugin")],
         **with_default_size(kwargs)
     )
 
@@ -218,8 +218,8 @@ def python_grpc_library(name, proto, py_proto, grpc_tools = "@pypi//grpcio_tools
     """Compiles the services of proto into <name>_pb2_grpc.py."""
     python_binary(
         name = name + "_protoc",
-        srcs = ["@rules_dx//python/rules:grpc_protoc.py"],
-        main = "@rules_dx//python/rules:grpc_protoc.py",
+        srcs = ["@rules_dx//python/private:grpc_protoc.py"],
+        main = "@rules_dx//python/private:grpc_protoc.py",
         deps = [grpc_tools],
         dep_group = dep_group,
         tags = ["manual"],

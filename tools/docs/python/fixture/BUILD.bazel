@@ -1,4 +1,4 @@
-load("//python/rules:defs.bzl", "python_library")
+load("//python:defs.bzl", "python_library")
 load("//tools/docs/python:defs.bzl", "python_doc_shard", "python_docs")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

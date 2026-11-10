@@ -39,7 +39,7 @@ perl/rules:defs.bzl
 php/rules:defs.bzl
 powershell/rules:defs.bzl
 powershell/toolchain:gallery.bzl
-python/rules:defs.bzl
+python:defs.bzl
 qt/rules:defs.bzl
 qt/rules:rust.bzl
 qt/sdk:repos.bzl

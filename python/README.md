@@ -3,7 +3,7 @@
 Build, test, format, lint and typecheck Python with `rules_python`.
 
 ```python
-load("@rules_dx//python/rules:defs.bzl", "python_binary", "python_library", "python_test")
+load("@rules_dx//python:defs.bzl", "python_binary", "python_library", "python_test")
 
 python_library(
     name = "greet",

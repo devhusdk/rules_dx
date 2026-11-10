@@ -175,7 +175,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"demo.proto": "syntax = \"proto3\";\n"},
 		kind:  "proto_library", target: "demo_proto", defs: "@protobuf//bazel:proto_library.bzl",
 		symbols:    []string{"proto_library"},
-		extraLoads: map[string][]string{"@rules_rust_prost//:defs.bzl": {"rust_prost_library"}, "@rules_dx//typescript:defs.bzl": {"typescript_proto_library"}, "@rules_dx_dotnet//csharp/rules:defs.bzl": {"csharp_proto_library"}, "@grpc-java//:java_grpc_library.bzl": {"java_grpc_library"}, "@grpc//bazel:cc_grpc_library.bzl": {"cc_grpc_library"}, "@protobuf//bazel:cc_proto_library.bzl": {"cc_proto_library"}, "@protobuf//bazel:java_proto_library.bzl": {"java_proto_library"}, "@protobuf//bazel:py_proto_library.bzl": {"py_proto_library"}, "@rules_dx//python/rules:defs.bzl": {"python_grpc_library"}, "@rules_go//proto:def.bzl": {"go_proto_library"}},
+		extraLoads: map[string][]string{"@rules_rust_prost//:defs.bzl": {"rust_prost_library"}, "@rules_dx//typescript:defs.bzl": {"typescript_proto_library"}, "@rules_dx_dotnet//csharp/rules:defs.bzl": {"csharp_proto_library"}, "@grpc-java//:java_grpc_library.bzl": {"java_grpc_library"}, "@grpc//bazel:cc_grpc_library.bzl": {"cc_grpc_library"}, "@protobuf//bazel:cc_proto_library.bzl": {"cc_proto_library"}, "@protobuf//bazel:java_proto_library.bzl": {"java_proto_library"}, "@protobuf//bazel:py_proto_library.bzl": {"py_proto_library"}, "@rules_dx//python:defs.bzl": {"python_grpc_library"}, "@rules_go//proto:def.bzl": {"go_proto_library"}},
 	},
 	"avro": {
 		files: map[string]string{"demo.avdl": "protocol Demo {\n}\n"},
@@ -211,7 +211,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"python": {
 		files: map[string]string{"demo.py": "x = 1\n"},
-		kind:  "python_library", target: "demo", defs: "python/rules:defs.bzl",
+		kind:  "python_library", target: "demo", defs: "python:defs.bzl",
 		symbols: []string{"python_library", "python_test", "python_binary"},
 		inert:   []string{"notes.txt", "orphan.pyi"},
 		extraLoads: map[string][]string{

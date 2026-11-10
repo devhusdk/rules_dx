@@ -29,7 +29,6 @@ ocaml
 perl
 php
 powershell
-python
 qt
 quality
 rego

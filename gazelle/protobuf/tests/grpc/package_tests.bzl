@@ -1,7 +1,7 @@
 """Analysis tests for protos outside the package of the generating rule."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//python/rules:defs.bzl", "python_grpc_library")
+load("//python:defs.bzl", "python_grpc_library")
 load("//typescript/private:proto.bzl", "ts_proto_srcs")
 
 def _other_package_impl(ctx):

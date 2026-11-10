@@ -775,7 +775,7 @@ rust_test(
         "//perl/rules:corpus_starlark",
         "//php/rules:corpus_starlark",
         "//powershell/rules:corpus_starlark",
-        "//python/rules:corpus_starlark",
+        "//python/private:corpus_starlark",
         "//qt/rules:corpus_starlark",
         "//qt/sdk:corpus_starlark",
         "//quality/artifacts/acquire_test:corpus_starlark",

@@ -1,4 +1,4 @@
-load("//python/rules:defs.bzl", "python_library", "python_test")
+load("//python:defs.bzl", "python_library", "python_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 # gazelle:resolve python pytest @pypi//pytest

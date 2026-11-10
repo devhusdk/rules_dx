@@ -1,6 +1,6 @@
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
 load("@protobuf//bazel:py_proto_library.bzl", "py_proto_library")
-load("@rules_dx//python/rules:defs.bzl", "python_grpc_library")
+load("@rules_dx//python:defs.bzl", "python_grpc_library")
 
 proto_library(
     name = "api_proto",

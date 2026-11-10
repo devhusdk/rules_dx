@@ -1,4 +1,4 @@
-load("@rules_dx//python/rules:defs.bzl", "python_library")
+load("@rules_dx//python:defs.bzl", "python_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(

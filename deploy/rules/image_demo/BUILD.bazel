@@ -5,7 +5,7 @@ load("//deploy/rules:image.bzl", "oci_image_from_binary")
 load("//deploy/rules:oci.bzl", "oci_deploy")
 load("//go/rules:defs.bzl", "go_binary")
 load("//java:defs.bzl", "java_binary")
-load("//python/rules:defs.bzl", "python_binary")
+load("//python:defs.bzl", "python_binary")
 load("//rust/rules:defs.bzl", "rust_binary")
 load("//zig/rules:defs.bzl", "zig_binary")
 

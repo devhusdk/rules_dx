@@ -56,7 +56,7 @@ const PACKAGES: [&str; 92] = [
     "perl/cpan",
     "perl/rules",
     "powershell/rules",
-    "python/rules",
+    "python/private",
     "qt/rules",
     "qt/sdk",
     "quality",

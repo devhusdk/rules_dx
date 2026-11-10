@@ -244,7 +244,7 @@ Language rules:
 - `@rules_dx//perl/rules:defs.bzl`: Perl.
 - `@rules_dx//php/rules:defs.bzl`: PHP.
 - `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
-- `@rules_dx//python/rules:defs.bzl`: Python.
+- `@rules_dx//python:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
 - `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
 - `@rules_dx//quality/rules:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
@@ -295,9 +295,9 @@ dx rule that wraps it.
 | `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
 | `@rules_perl//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` | `@rules_dx//perl/rules:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` |
 | `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell/rules:defs.bzl` | `powershell_binary`, `powershell_library`, `powershell_test` |
-| `@rules_py//py:defs.bzl` | `py_binary` | `@rules_dx//python/rules:defs.bzl` | `python_binary` |
-| `@rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python/rules:defs.bzl` | `python_library` |
-| `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python/rules:defs.bzl` | `python_test` |
+| `@rules_py//py:defs.bzl` | `py_binary` | `@rules_dx//python:defs.bzl` | `python_binary` |
+| `@rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python:defs.bzl` | `python_library` |
+| `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python:defs.bzl` | `python_test` |
 | `@rules_ruby//ruby:defs.bzl` | `rb_binary`, `rb_library`, `rb_test` | `@rules_dx//ruby/rules:defs.bzl` | `ruby_binary`, `ruby_library`, `ruby_test` |
 | `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
 | `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |
@@ -511,12 +511,15 @@ dx rule that wraps it.
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_binary` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_library` |
 |  |  | `@rules_dx//php/rules:defs.bzl` | `php_test` |
-|  |  | `@rules_dx//python/rules:defs.bzl` | `python_bench` |
-|  |  | `@rules_dx//python/rules:defs.bzl` | `python_fuzz_test` |
-|  |  | `@rules_dx//python/rules:defs.bzl` | `python_grpc_library` |
-|  |  | `@rules_dx//python/rules:defs.bzl` | `python_main` |
-|  |  | `@rules_dx//python/rules:defs.bzl` | `python_main_rejection` |
-|  |  | `@rules_dx//python/rules:defs.bzl` | `python_test_rejection` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_bench` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_binary` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_fuzz_test` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_grpc_library` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_library` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_main` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_main_rejection` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_test` |
+|  |  | `@rules_dx//python/private:defs.bzl` | `python_test_rejection` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_cc_binary` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_cc_library` |
 |  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_cc_test` |

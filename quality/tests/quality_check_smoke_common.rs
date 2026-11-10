@@ -67,7 +67,7 @@ pub fn library(name: &str) -> String {
 pub fn package(names: &[&str]) -> String {
     let libraries: Vec<String> = names.iter().map(|name| library(name)).collect();
     format!(
-        "load(\"@rules_dx//python/rules:defs.bzl\", \"python_library\")\n\n{}",
+        "load(\"@rules_dx//python:defs.bzl\", \"python_library\")\n\n{}",
         libraries.join("\n")
     )
 }

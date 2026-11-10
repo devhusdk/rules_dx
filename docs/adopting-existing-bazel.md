@@ -36,7 +36,7 @@
    Python changes names:
 
    ```starlark
-   load("@rules_dx//python/rules:defs.bzl", "python_library", "python_test")
+   load("@rules_dx//python:defs.bzl", "python_library", "python_test")
    ```
 
    Other languages: see [Rule names](cli/commands/README.md#rule-names).

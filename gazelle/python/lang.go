@@ -78,7 +78,7 @@ func newLang() *pythonLang {
 		KindDefs:       map[string]string{ruffKind: nativeDefs},
 		ConfigureExt:   configureRuff,
 		Kinds:          pythonKinds,
-		DefsPackage:    "python/rules:defs.bzl",
+		DefsPackage:    "python:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: func(name string) bool { return strings.HasSuffix(name, ".py") },
 		IsStdLib:       IsStdLib,

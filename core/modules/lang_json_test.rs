@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-const NON_LANGUAGE: [&str; 33] = [
+const NON_LANGUAGE: [&str; 32] = [
     "appimage",
     "bcr_test_module",
     "bundle",

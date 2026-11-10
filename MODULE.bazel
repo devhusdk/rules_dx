@@ -1623,9 +1623,6 @@ use_repo(
     npm_node_app = "dx_js_node_app",
 )
 
-# The root package links the dev hub @dx_npm. Consumers load that package
-# through @rules_dx//:dx, so it loads this shim, which only forwards to
-# @dx_npm when rules_dx is the root module.
 dx_dev_hub = use_extension("//javascript/private:dev_hub.bzl", "dx_dev_hub")
 dx_dev_hub.link(
     name = "dx_npm_link",

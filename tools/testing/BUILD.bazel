@@ -15,7 +15,6 @@ FAMILY_MODULES = [
     "apple",
     "cuda",
     "haskell",
-    "js",
     "ocaml",
     "powershell",
     "swift",

@@ -4,7 +4,6 @@ moduleRoots:
   - "families/apple"
   - "families/cuda"
   - "families/haskell"
-  - "families/js"
   - "families/ocaml"
   - "families/powershell"
   - "families/swift"

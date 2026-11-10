@@ -17,3 +17,19 @@ settings_subject = rule(
         "_workspace": attr.label(default = "//config:workspace"),
     },
 )
+
+def _exec_settings_subject_impl(ctx):
+    return [
+        DefaultInfo(files = depset([])),
+        DxSubjectInfo(fields = {
+            "exec_workspace": ctx.attr._probe[DxSubjectInfo].fields["workspace"],
+        }),
+    ]
+
+exec_settings_subject = rule(
+    implementation = _exec_settings_subject_impl,
+    doc = "Analysis subject reporting the workspace policy seen in the exec configuration.",
+    attrs = {
+        "_probe": attr.label(cfg = "exec", default = "//config:settings_under_test"),
+    },
+)

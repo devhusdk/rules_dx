@@ -22,6 +22,22 @@ def settings_tests(name):
         expected_observations = EXPECTED_OBSERVATIONS,
     )
 
+EXEC_EXPECTED_OBSERVATIONS = """subject //config:exec_settings_under_test
+field exec_workspace={prefix}//config:default_workspace_policy
+aspect_field aspect_seen=True
+aspect_field field_count=1
+aspect_field has_subject=True
+aspect_field subject_label=//config:exec_settings_under_test
+aspect_field transitive_count=0""".format(prefix = _CANONICAL_PREFIX)
+
+def exec_settings_tests(name):
+    starlark_test(
+        name = name,
+        mode = "analysis",
+        subjects = [":exec_settings_under_test"],
+        expected_observations = EXEC_EXPECTED_OBSERVATIONS,
+    )
+
 EXPECTED_WORKSPACE_POLICY_OBSERVATIONS = """subject //config:workspace_policy_under_test
 field config.ansible_lint=quality/tiers/ansible_lint/strict.yaml
 field config.bicep=quality/tiers/bicep/strict.bicepconfig.json

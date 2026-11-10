@@ -12,7 +12,7 @@ exports_files(
 
 starter_fixture(
     name = "astro",
-    layers = ["bazelrc", "readme-web", "js"],
+    layers = ["bazelrc", "readme-web", "js", "module-web"],
 )
 
 starter_fixture(
@@ -27,7 +27,7 @@ starter_fixture(
 
 starter_fixture(
     name = "csharp",
-    layers = ["readme"],
+    layers = ["readme", "dotnet"],
 )
 
 starter_fixture(
@@ -42,7 +42,7 @@ starter_fixture(
 
 starter_fixture(
     name = "dart",
-    layers = ["readme-web"],
+    layers = ["readme-web", "dart"],
 )
 
 starter_fixture(
@@ -57,7 +57,7 @@ starter_fixture(
 
 starter_fixture(
     name = "flutter",
-    layers = ["readme-web"],
+    layers = ["readme-web", "dart"],
 )
 
 starter_fixture(
@@ -67,7 +67,7 @@ starter_fixture(
 
 starter_fixture(
     name = "fsharp",
-    layers = ["readme"],
+    layers = ["readme", "dotnet"],
 )
 
 starter_fixture(
@@ -87,7 +87,7 @@ starter_fixture(
 
 starter_fixture(
     name = "javascript",
-    layers = ["bazelrc", "readme"],
+    layers = ["bazelrc", "readme", "node"],
 )
 
 starter_fixture(
@@ -107,7 +107,7 @@ starter_fixture(
 
 starter_fixture(
     name = "mdx",
-    layers = ["bazelrc", "readme-web", "js"],
+    layers = ["bazelrc", "readme-web", "js", "module-web"],
 )
 
 starter_fixture(
@@ -157,7 +157,7 @@ starter_fixture(
 
 starter_fixture(
     name = "svelte",
-    layers = ["bazelrc", "readme-web", "js"],
+    layers = ["bazelrc", "readme-web", "js", "module-web"],
 )
 
 starter_fixture(
@@ -167,12 +167,12 @@ starter_fixture(
 
 starter_fixture(
     name = "typescript",
-    layers = ["bazelrc", "readme"],
+    layers = ["bazelrc", "readme", "node"],
 )
 
 starter_fixture(
     name = "vue",
-    layers = ["bazelrc", "readme-web", "js"],
+    layers = ["bazelrc", "readme-web", "js", "module-web"],
 )
 
 starter_fixture(

@@ -285,7 +285,6 @@ qt_cc_binary(
         "test",
         "widgets",
     ],
-    tags = ["manual"],
 )
 
 platform_transition_binary(
@@ -348,16 +347,14 @@ alias(
     tags = ["manual"],
 )
 
-qt_cc_test(
+qt_cc_binary(
     name = "console_fixture",
     testonly = True,
     srcs = ["fixtures/console_app.cc"],
-    env = {"QT_QPA_PLATFORM": "xcb"},
     modules = [
         "core",
         "gui",
     ],
-    tags = ["manual"],
     target_compatible_with = _WINDOWS_X86_64,
 )
 
@@ -419,13 +416,11 @@ qt_rust_library(
 qt_cc_binary(
     name = "plain_app",
     srcs = ["fixtures/app.cc"],
-    tags = ["manual"],
 )
 
 qt_cc_test(
     name = "plain_test",
     srcs = ["fixtures/app.cc"],
-    tags = ["manual"],
 )
 
 qt_cc_library(
@@ -440,9 +435,8 @@ qt_cc_library(
     translations = ["fixtures/i18n/de.ts"],
 )
 
-qt_cc_binary(
+qt_cc_library(
     name = "clashing_translations",
-    srcs = ["fixtures/app.cc"],
     tags = ["manual"],
     deps = [
         ":translated",

@@ -3,13 +3,14 @@
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load(":pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION", "TOOL_SOURCES")
-load(":repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "WRAPPER", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
+load(":ldmd2.bzl", "ldmd2_descriptor")
+load(":repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
 
 def _checks():
     linux = LDC_CELLS["linux_x86_64"]
     windows = [LDC_CELLS["windows_x86_64"], LDC_CELLS["windows_arm64"]]
-    windows_build = ldc_build(LDC_CELLS["windows_x86_64"], "bin/ldmd2.exe")
-    arm64_build = ldc_build(LDC_CELLS["windows_arm64"], "bin/ldmd2.exe")
+    windows_build = ldc_build(LDC_CELLS["windows_x86_64"])
+    arm64_build = ldc_build(LDC_CELLS["windows_arm64"])
     hub = hub_build()
     return hub_checks(hub, "//d:toolchain_type", len(LDC_CELLS), ["@rules_d//"]) + [
         expect_equal("rules_d version", RULES_D_VERSION, "0.12.1"),
@@ -38,17 +39,21 @@ def _checks():
         expect_contains("windows arm64 targets arm64", LDC_CELLS["windows_arm64"].compiler_flags, "-mtriple=aarch64-windows-msvc"),
         expect_true("windows has no launcher", not any([cell.wrapper for cell in windows]) and linux.wrapper),
         expect_contains("windows names the exe compiler", windows_build, '"bin/ldmd2.exe"'),
-        expect_true("windows never names the launcher", "dx_ldmd2" not in windows_build),
+        expect_true("windows never names the launcher", "dx_ldmd2(" not in windows_build),
         expect_contains("windows links the msvc runtime", windows_build, 'static_library = "lib/druntime-ldc.lib"'),
         expect_contains("windows shims iso stdio", windows_build, 'deps = [":druntime_import"] + ["@@'),
         expect_equal("linux has no runtime deps", linux.runtime_deps, []),
         expect_contains("windows refuses legacy stdio", LDC_CELLS["windows_x86_64"].linkopts, "/NODEFAULTLIB:legacy_stdio_definitions.lib"),
         expect_contains("windows arm64 links the addon runtime", arm64_build, 'static_library = "lib-windows-arm64/phobos2-ldc.lib"'),
-        expect_contains("linux ldmd2 sees the real compiler", ldc_build(linux, "bin/dx_ldmd2"), '"bin/ldc2"'),
+        expect_contains("linux ldmd2 sees the real compiler", ldc_build(linux), '"bin/ldc2"'),
         expect_contains("ldmd2 sees the compiler config", LDC_BUILD, '"etc/ldc2.conf/**"'),
         expect_contains("ldmd2 sees the runtime closure", LDC_BUILD, "{closure_glob}"),
-        expect_true("the macos build has no closure glob", "/lib/**" not in ldc_build(LDC_CELLS["macos_arm64"], "w")),
-        expect_contains("the wrapper loads the closure", WRAPPER, "/lib${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}"),
+        expect_true("the macos build has no closure glob", "/lib/**" not in ldc_build(LDC_CELLS["macos_arm64"])),
+        expect_contains("linux launches ldmd2 natively", ldc_build(linux), "dx_ldmd2("),
+        expect_contains("linux marks the closure", ldc_build(linux), "DX_CLOSURE"),
+        expect_true("the macos build has no closure marker", "closure_marker = None" in ldc_build(LDC_CELLS["macos_arm64"])),
+        expect_equal("descriptor with closure", ldmd2_descriptor("k", "c"), "program=k\nenv_dir=LD_LIBRARY_PATH\tc\n"),
+        expect_equal("descriptor without closure", ldmd2_descriptor("k", ""), "program=k\n"),
         expect_equal("libdparse version", LIBDPARSE_VERSION, "0.25.1"),
         expect_equal("tool sources", sorted(TOOL_SOURCES.keys()), ["dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
         expect_equal("dcd version", DCD_VERSION, "0.19.4"),
@@ -58,7 +63,6 @@ def _checks():
         expect_true("only dsymbol of the GPL-3.0 dcd is compiled", "src/dcd" not in TOOL_BUILDS["dx_d_dcd"] and "dsymbol/src/**" in TOOL_BUILDS["dx_d_dcd"]),
         expect_true("the dcd client and server sources are dropped", "src" in TOOL_SOURCES["dx_d_dcd"].dropped),
         expect_equal("one libdparse source", len([name for name in TOOL_SOURCES if "libdparse" in name]), 1),
-        expect_contains("the wrapper runs ldmd2", WRAPPER, 'exec "$bin/ldmd2" "$@"'),
     ]
 
 def d_metadata_tests(name):

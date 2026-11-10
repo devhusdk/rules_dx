@@ -14,7 +14,7 @@ LDC_PREFIX = "dx_d_ldc_"
 
 VERSION_FILE = "DX_LDC_VERSION"
 
-COMPILER_WRAPPER = "bin/dx_ldmd2"
+CLOSURE_MARKER = CLOSURE_DIR + "/lib/DX_CLOSURE"
 
 SEVEN_ZIP_DIR = "_dx_7zip"
 
@@ -52,15 +52,22 @@ DROPPED_PATHS = [
 ROOT_BUILD = """exports_files(["LICENSE"])
 """
 
-WRAPPER = """#!/bin/sh
-bin="${{0%/*}}"
-LD_LIBRARY_PATH="$bin/../{closure}/lib${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}"
-export LD_LIBRARY_PATH
-exec "$bin/ldmd2" "$@"
-"""
+DMD_FILEGROUP = """filegroup(
+    name = "dmd",
+    srcs = ["{compiler}"],
+    data = [":compiler_files"],
+)"""
+
+DMD_LAUNCHER = """dx_ldmd2(
+    name = "dmd",
+    closure_marker = {closure_marker},
+    compiler = "{compiler}",
+    data = [":compiler_files"],
+)"""
 
 LDC_BUILD = """load("@rules_cc//cc:defs.bzl", "cc_import", "cc_library")
 load("@rules_d//d:toolchain.bzl", "d_toolchain")
+load("@rules_dx//d/private/toolchain:ldmd2.bzl", "dx_ldmd2")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -96,11 +103,7 @@ cc_import(
     static_library = "{phobos}",
 )
 
-filegroup(
-    name = "dmd",
-    srcs = ["{wrapper}"],
-    data = [":compiler_files"],
-)
+{dmd}
 
 filegroup(
     name = "dub",
@@ -266,17 +269,22 @@ def _ldc_impl(rctx):
         if not rctx.path(path).exists:
             fail("LDC archive " + cell.archive + " has no " + path)
     deb_closure(rctx, JAMMY_RUNTIME_MIRROR, ldc_runtime(rctx.attr.cell), CLOSURE_DIR)
-    compiler = cell.compiler
-    if cell.wrapper:
-        compiler = COMPILER_WRAPPER
-        rctx.file(COMPILER_WRAPPER, WRAPPER.format(closure = CLOSURE_DIR), executable = True)
+    if cell.wrapper and cell.runtime:
+        rctx.file(CLOSURE_MARKER, "")
     rctx.file(VERSION_FILE, LDC_VERSION + "\n")
     rctx.file("REPO.bazel", "")
-    rctx.file("BUILD.bazel", ldc_build(cell, compiler))
+    rctx.file("BUILD.bazel", ldc_build(cell))
     return rctx.repo_metadata(reproducible = True)
 
-def ldc_build(cell, wrapper):
-    """Renders the BUILD file of one LDC cell; wrapper is the d_compiler launcher or the compiler itself."""
+def ldc_build(cell):
+    """Renders the BUILD file of one LDC cell."""
+    if cell.wrapper:
+        dmd = DMD_LAUNCHER.format(
+            compiler = cell.compiler,
+            closure_marker = repr(CLOSURE_MARKER) if cell.runtime else "None",
+        )
+    else:
+        dmd = DMD_FILEGROUP.format(compiler = cell.compiler)
     return LDC_BUILD.format(
         closure_glob = '        "' + CLOSURE_DIR + '/lib/**",\n' if cell.runtime else "",
         compiler = cell.compiler,
@@ -289,7 +297,7 @@ def ldc_build(cell, wrapper):
         phobos = cell.phobos,
         runtime_deps = repr([str(Label(dep)) for dep in cell.runtime_deps]),
         version_file = VERSION_FILE,
-        wrapper = wrapper,
+        dmd = dmd,
     )
 
 ldc_repo = repository_rule(

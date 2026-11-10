@@ -1,5 +1,5 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
-load("@rules_dx//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_module")
+load("@rules_dx//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
@@ -29,7 +29,7 @@ ocaml_module(
     sig = "//ocaml/tests/fixtures/ocaml-app/checksum:checksum_sig",
     struct = "checksum.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH + select({
-        "@rules_dx//ocaml/toolchain:emitter_sys": [],
+        "@rules_dx//ocaml/private/toolchain:emitter_sys": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
 )

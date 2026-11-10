@@ -1285,7 +1285,7 @@ fn cpan_installs_follow_the_rules_perl_extension() {
 #[test]
 fn opam_packages_follow_the_ocaml_extension() {
     let file = parse(
-        "ocaml = use_extension(\"//ocaml/toolchain:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"app\", lock = \"//app:app.opam.locked\")\nocaml.annotation(package = \"x\", build_file = \"//x:BUILD\")\n",
+        "ocaml = use_extension(\"//ocaml:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"app\", lock = \"//app:app.opam.locked\")\nocaml.annotation(package = \"x\", build_file = \"//x:BUILD\")\n",
     );
     let found: Vec<_> = file
         .opam_packages()
@@ -1299,7 +1299,7 @@ fn opam_packages_follow_the_ocaml_extension() {
 #[test]
 fn haskell_packages_follow_the_haskell_extension() {
     let file = parse(
-        "haskell = use_extension(\"//haskell/toolchain:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//app:haskell_deps.json\")\n",
+        "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//app:haskell_deps.json\")\n",
     );
     let found: Vec<_> = file
         .haskell_packages()

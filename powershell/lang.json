@@ -25,7 +25,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "toolchain/pins.json"
+    "private/toolchain/pins.json"
   ],
   "entry_points": [
     "powershell_library",

@@ -1158,13 +1158,13 @@ impl ModuleFile {
     pub fn opam_packages(&self) -> Result<Vec<OpamPackages<'_>>, ModuleError> {
         const TAG: &str = "ocaml.lock";
         let own = self.tags_of(
-            "//ocaml/toolchain:extensions.bzl".to_owned(),
+            "//ocaml:extensions.bzl".to_owned(),
             "ocaml",
             "lock",
         );
         self.tags(
             RUBY_MODULE,
-            "ocaml/toolchain:extensions.bzl",
+            "ocaml:extensions.bzl",
             "ocaml",
             "lock",
         )
@@ -1183,13 +1183,13 @@ impl ModuleFile {
     pub fn haskell_packages(&self) -> Result<Vec<HaskellPackages<'_>>, ModuleError> {
         const TAG: &str = "haskell.lock";
         let own = self.tags_of(
-            "//haskell/toolchain:extensions.bzl".to_owned(),
+            "//haskell:extensions.bzl".to_owned(),
             "haskell",
             "lock",
         );
         self.tags(
             RUBY_MODULE,
-            "haskell/toolchain:extensions.bzl",
+            "haskell:extensions.bzl",
             "haskell",
             "lock",
         )

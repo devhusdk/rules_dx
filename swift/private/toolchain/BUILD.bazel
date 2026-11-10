@@ -1,0 +1,164 @@
+load("//quality:fixtures.bzl", "real_source_target")
+load("@rules_cc//cc:cc_library.bzl", "cc_library")
+load(":toolchain.bzl", "swift_linux_toolchain")
+load(":windows.bzl", "swift_windows_toolchain")
+
+package(default_visibility = ["//visibility:public"])
+
+[
+    swift_linux_toolchain(
+        name = "toolchain_" + cpu,
+        cpu = cpu,
+    )
+    for cpu in [
+        "aarch64",
+        "x86_64",
+    ]
+]
+
+swift_windows_toolchain(
+    name = "toolchain_windows_x86_64",
+    cpu = "x86_64",
+)
+
+swift_windows_toolchain(
+    name = "toolchain_windows_aarch64",
+    cpu = "aarch64",
+)
+
+exports_files([
+    "extract_windows.ps1",
+    "pins.json",
+    "swift_format.build",
+])
+
+# The shared libraries a Swift test binary loads that the sysroot ships, so it runs without host libraries.
+filegroup(
+    name = "runtime_libs",
+    testonly = True,
+    srcs = select({
+        "//swift/private/platforms:is_linux_aarch64": [
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libbrotlicommon.so.1",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libbrotlidec.so.1",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libbsd.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libcom_err.so.2",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libcrypto.so.3",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libcurl.so.4",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libedit.so.2",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libffi.so.8",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libgmp.so.10",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libgnutls.so.30",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libgssapi_krb5.so.2",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libhogweed.so.6",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libicudata.so.70",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libicuuc.so.70",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libidn2.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libk5crypto.so.3",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libkeyutils.so.1",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libkrb5.so.3",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libkrb5support.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/liblber-2.5.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libldap-2.5.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/liblzma.so.5",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libmd.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libncurses.so.6",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libnettle.so.8",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libnghttp2.so.14",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libp11-kit.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libpsl.so.5",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/librtmp.so.1",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libsasl2.so.2",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libsqlite3.so.0",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libssh.so.4",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libssl.so.3",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libtasn1.so.6",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libtinfo.so.6",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libunistring.so.2",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libuuid.so.1",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libxml2.so.2",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libz.so.1",
+            "@dx_swift_sysroot_linux_aarch64//:host_libs/libzstd.so.1",
+        ],
+        "//swift/private/platforms:is_linux_x86_64": [
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libbrotlicommon.so.1",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libbrotlidec.so.1",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libbsd.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libcom_err.so.2",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libcrypto.so.3",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libcurl.so.4",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libedit.so.2",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libffi.so.8",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libgmp.so.10",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libgnutls.so.30",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libgssapi_krb5.so.2",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libhogweed.so.6",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libicudata.so.70",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libicuuc.so.70",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libidn2.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libk5crypto.so.3",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libkeyutils.so.1",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libkrb5.so.3",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libkrb5support.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/liblber-2.5.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libldap-2.5.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/liblzma.so.5",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libmd.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libncurses.so.6",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libnettle.so.8",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libnghttp2.so.14",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libp11-kit.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libpsl.so.5",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/librtmp.so.1",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libsasl2.so.2",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libsqlite3.so.0",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libssh.so.4",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libssl.so.3",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libtasn1.so.6",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libtinfo.so.6",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libunistring.so.2",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libuuid.so.1",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libxml2.so.2",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libz.so.1",
+            "@dx_swift_sysroot_linux_x86_64//:host_libs/libzstd.so.1",
+        ],
+        "//conditions:default": [],
+    }),
+)
+
+# The Swift archive's libFuzzer is built for libstdc++, which Swift binaries link;
+# the pinned LLVM's libFuzzer is built for libc++.
+cc_library(
+    name = "libfuzzer",
+    srcs = select({
+        "//swift/private/platforms:is_linux_aarch64": ["@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.fuzzer-aarch64.a"],
+        "//swift/private/platforms:is_linux_x86_64": ["@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.fuzzer-x86_64.a"],
+        "//conditions:default": [],
+    }),
+    target_compatible_with = ["@platforms//os:linux"],
+    testonly = True,
+)
+
+# The profile runtime of the Swift archive, which reads the raw profile layout swiftc emits.
+# A swift_test links it under bazel coverage in place of the pinned cc toolchain's.
+cc_library(
+    name = "profile_runtime",
+    testonly = True,
+    srcs = select({
+        "//swift/private/platforms:is_linux_aarch64": ["@dx_swift_linux_aarch64//:usr/lib/clang/21/lib/linux/libclang_rt.profile-aarch64.a"],
+        "//swift/private/platforms:is_linux_x86_64": ["@dx_swift_linux_x86_64//:usr/lib/clang/21/lib/linux/libclang_rt.profile-x86_64.a"],
+        "//conditions:default": [],
+    }),
+    alwayslink = True,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "repos.bzl",
+        "extensions.bzl",
+        "toolchain.bzl",
+        "windows.bzl",
+    ],
+    tags = ["corpus"],
+)

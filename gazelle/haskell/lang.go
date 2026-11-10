@@ -32,7 +32,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		Kinds:          haskellKinds,
-		DefsPackage:    "haskell/rules:defs.bzl",
+		DefsPackage:    "haskell:defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       Identity,
 		IsImportSource: isSupported,

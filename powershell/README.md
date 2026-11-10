@@ -19,12 +19,12 @@ The targets are Linux only. They set `target_compatible_with` to
 
 ## Rules
 
-Load the rules from `@rules_dx//powershell/rules:defs.bzl`. They wrap
+Load the rules from `@rules_dx//powershell:defs.bzl`. They wrap
 [rules_powershell](https://github.com/bazel-contrib/rules_powershell) and take
 the same attributes.
 
 ```python
-load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
+load("@rules_dx//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 
 powershell_library(
     name = "hello_lib",
@@ -61,7 +61,7 @@ Pin each PowerShell Gallery module to a package URL and its digest. Nothing
 runs `Install-Module`.
 
 ```python
-psgallery_module = use_repo_rule("@rules_dx//powershell/toolchain:gallery.bzl", "psgallery_module")
+psgallery_module = use_repo_rule("@rules_dx//powershell:extensions.bzl", "psgallery_module")
 
 psgallery_module(
     name = "psgallery_pester",
@@ -76,7 +76,7 @@ module name. A wrong digest fails the fetch.
 
 ## Pester
 
-To test with the pinned Pester 5.7.1, add `@rules_dx//powershell/gallery:pester`
+To test with the pinned Pester 5.7.1, add `@rules_dx//powershell:pester`
 to the `deps` of a `powershell_test` and import it by version:
 
 ```powershell
@@ -107,7 +107,7 @@ bazel run @rules_dx//:dx -- lint //scripts/...
 
 `dx generate --apply` writes a `powershell_library` per directory of `.psm1`
 modules and a `powershell_test` per `*.Tests.ps1` script. The
-`tests/fixtures/adopt-powershell` tree in `rules_dx_powershell` shows a full layout.
+`powershell/tests/fixtures/adopt-powershell` tree shows a full layout.
 
 ## Platforms
 
@@ -118,4 +118,4 @@ modules and a `powershell_test` per `*.Tests.ps1` script. The
 
 ## Coverage
 
-Pester tests write LCOV under `bazel coverage` and `dx coverage`. Depend on `//powershell/coverage:dx_coverage` and build the Pester configuration with `New-DxPesterConfiguration`. After `Invoke-Pester`, call `Write-DxPesterCoverage -Result $result`. Only the first-party `.ps1` and `.psm1` sources the test depends on are measured, and a line counts as covered when Pester ran a command on it. A test that does not call these functions writes no coverage.
+Pester tests write LCOV under `bazel coverage` and `dx coverage`. Depend on `//powershell:dx_coverage` and build the Pester configuration with `New-DxPesterConfiguration`. After `Invoke-Pester`, call `Write-DxPesterCoverage -Result $result`. Only the first-party `.ps1` and `.psm1` sources the test depends on are measured, and a line counts as covered when Pester ran a command on it. A test that does not call these functions writes no coverage.

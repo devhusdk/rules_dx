@@ -3,7 +3,3 @@ moduleRoots:
   - "families/android"
   - "families/apple"
   - "families/cuda"
-  - "families/haskell"
-  - "families/ocaml"
-  - "families/powershell"
-  - "families/swift"

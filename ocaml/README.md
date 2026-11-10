@@ -2,19 +2,19 @@
 
 Build, run and test OCaml with a pinned OCaml 5.5.2 from conda-forge.
 Programs compile to bytecode by default and run on the pinned `ocamlrun`;
-`--@rules_dx//ocaml/toolchain:emitter=sys` builds native executables instead
+`--@rules_dx//ocaml:emitter=sys` builds native executables instead
 (see [Native code](#native-code)). Nothing is
 installed on the host and nothing is fetched until a target needs it.
 rules_dx registers the toolchain, so there is no setup in `MODULE.bazel`.
 
 ## Rules
 
-Load the rules from `@rules_dx//ocaml/rules:defs.bzl`. They wrap
+Load the rules from `@rules_dx//ocaml:defs.bzl`. They wrap
 [rules_ocaml](https://github.com/obazl/rules_ocaml) and take the same
 attributes.
 
 ```python
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_signature", "ocaml_test")
+load("@rules_dx//ocaml:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_signature", "ocaml_test")
 
 ocaml_module(
     name = "stock",
@@ -78,7 +78,7 @@ ocaml_test(
 - `ocamllex` is re-exported unchanged, because lexers need it to build.
 - Modules and signatures compile with `-bin-annot` (opt out with
   `-no-bin-annot`) and expose their `.cmt` and `.cmti` files through
-  `OCamlCmtInfo` (`//ocaml/rules:providers.bzl`) and the `cmt` and `cmti`
+  `OCamlCmtInfo` (`//ocaml/private:providers.bzl`) and the `cmt` and `cmti`
   output groups.
 - Modules and signatures warn on unused variables and values (`-w +26+27+32..39`)
   unless their opts set `-w`.
@@ -86,7 +86,7 @@ ocaml_test(
 
 ## Native code
 
-`--@rules_dx//ocaml/toolchain:emitter=sys` switches every OCaml target to the
+`--@rules_dx//ocaml:emitter=sys` switches every OCaml target to the
 native `ocamlopt` of the pinned install. The default, `vm`, builds bytecode.
 `ocaml_binary` and `ocaml_test` run the native executable directly.
 
@@ -139,12 +139,12 @@ scratch directory. Modules that use a ppx rewriter are not checked.
 
 ### Dune libraries
 
-`dx_dune_library` (`ocaml/rules/dune.bzl`) runs `dune build -p <package> @install`
+`dx_dune_library` (`ocaml/private/dune.bzl`) runs `dune build -p <package> @install`
 on a dune workspace and returns the package as rules_ocaml providers, so
 `ocaml_module` and `ocaml_test` take it in `deps`. The package is copied to the
 tree artifact `<name>_ocamlpath/<package>` (a findlib layout); the archive named
 by `library` (`.cma`, or `.cmxa` plus `.a` under the native emitter) is exposed
-as its own file. `dune` is a label, for example `//ocaml/toolchain:dune`.
+as its own file. `dune` is a label, for example `@rules_dx//ocaml:dune`.
 `deps` names other `dx_dune_library` targets; their trees go on `OCAMLPATH`.
 A package with `lib<library>_stubs.a` needs `stubs = True`, which links the
 archive natively (the bytecode cell does not support C stubs). See
@@ -155,26 +155,26 @@ archive natively (the bytecode cell does not support C stubs). See
 Under `bazel coverage` on Linux x86_64, Linux arm64 and macOS arm64,
 `ocaml_module` runs the bisect_ppx instrumenter on hand-written `.ml` files. A module that sets its own `ppx` is
 left alone, because rules_ocaml takes one ppx executable per module. To cover
-such a module, link `//tools/coverage/ocaml:bisect_ppx_rewriter` (the
+such a module, link `@rules_dx//ocaml:bisect_ppx_rewriter` (the
 bisect_ppx rewriter as a library) into your ppxlib driver and set
 `coverage_ppx = True`. Under coverage the macro then adds only
 `-loc-filename <package>/<file>` and the `BISECT_RUNTIME` dependency.
 
 ### Internal tool: zanuda
 
-`//quality/tools/ocaml:zanuda` is the zanuda 2.1.0 linter, built from source
+`//ocaml/private/quality:zanuda` is the zanuda 2.1.0 linter, built from source
 and wired into `dx lint` (#4621) as the `zanuda` lint tool of the `ocaml` family.
 The lint aspect reads the typed trees (`.cmt`/`.cmti`) that `ocaml_module` and
 `ocaml_signature` expose through `OCamlCmtInfo`, so a target compiled with
 `-no-bin-annot` fails closed. A source-alias patch makes typed and untyped
 findings report the same workspace path.
 
-- **Build.** `dx_dune_build` (`ocaml/rules/dune.bzl`) builds zanuda with the
-  shared `//ocaml/toolchain:dune` bootstrap (`dx_dune_bootstrap`) using the pinned native OCaml,
+- **Build.** `dx_dune_build` (`ocaml/private/dune.bzl`) builds zanuda with the
+  shared `//ocaml/private/toolchain:dune` bootstrap (`dx_dune_bootstrap`) using the pinned native OCaml,
   the resolved C toolchain, no network and no dune cache. The 22 source
   archives are pinned in `quality/artifacts/zanuda.bzl` and unpacked side by
   side by `@dx_ocaml_tools_duniverse`. The rule is generic over sources and target.
-- **Patches.** `quality/tools/ocaml/patches/` removes zanuda's dynamic plugin
+- **Patches.** `ocaml/private/quality/patches/` removes zanuda's dynamic plugin
   loading, adds `-cmt-list FILE` (analyze listed sources and `.cmt` files
   without loading a dune project, and exit non-zero for a skipped or
   unreadable file), makes ppx_expect_nobase's version check static, and adds
@@ -184,7 +184,7 @@ findings report the same workspace path.
   and writes them to `-ordjsonl FILE`; `-version` prints `2.0.0` because the
   upstream dune-project still says so.
 - **License.** zanuda is LGPL-3.0-only and runs as a separate process; the
-  licenses of the whole closure are in `//quality/tools/ocaml:zanuda_licenses`.
+  licenses of the whole closure are in `//ocaml/private/quality:zanuda_licenses`.
 - **Updating.** Change the pins in `zanuda.bzl` and keep the OCaml version inside
   `ZANUDA_OCAML_RANGES`; `pins_test` fails if the toolchain leaves the range,
   because `.cmt` files only load with the compiler that wrote them.
@@ -194,10 +194,10 @@ findings report the same workspace path.
 `ocaml.lock(name, lock)` reads the pinned versions from the `depends:` list
 of a `.opam.locked` file and creates a hub with one alias per package. Sources
 and sha256 digests (sha512 when an opam file has no sha256) come from the opam-repository snapshot pinned in
-`ocaml/toolchain/pins.json`; nothing runs opam. Compiler and `base-*` packages
+`ocaml/private/toolchain/pins.json`; nothing runs opam. Compiler and `base-*` packages
 and `dune` come from the toolchain and get no alias. A package without an
 `ocaml.annotation` is a dune package: it is built with `dx_dune_library` and
-`//ocaml/toolchain:dune` (dune 3.24.2 from `ocaml/toolchain/pins.json`), and its
+`//ocaml:dune` (dune 3.24.2 from `ocaml/private/toolchain/pins.json`), and its
 library is the package name with `-` and `.` as `_`. Set
 `ocaml.annotation(package, library = ...)` for another library name. A dune
 package that depends on another non-toolchain package fails until dune package
@@ -218,11 +218,11 @@ The target is `manual`, tagged `dx-fuzz`, and takes the `ocaml_test` size and
 timeout. `<name>_run` runs `-s <seed> -r 500` rounds with fresh seeds until
 `--time` is up; a failing seed is written to `crash-<hash>` and replays with
 `--repro`. Opam sets crowbar, cmdliner and afl-persistent with the BUILD files
-in `//ocaml/packages`; `{hub}` in them becomes the hub name.
+in `@rules_dx//ocaml/packages`; `{hub}` in them becomes the hub name.
 
 ```python
 # MODULE.bazel
-ocaml = use_extension("@rules_dx//ocaml/toolchain:extensions.bzl", "ocaml")
+ocaml = use_extension("@rules_dx//ocaml:extensions.bzl", "ocaml")
 ocaml.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
 ocaml.annotation(
     package = "afl-persistent",
@@ -250,7 +250,7 @@ up, then in 10 timed samples of `iterations` calls (default 1000), and the
 results go to `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json` in ns/iter.
 
 ```python
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_bench")
+load("@rules_dx//ocaml:defs.bzl", "ocaml_bench")
 
 ocaml_bench(
     name = "sum_bench",

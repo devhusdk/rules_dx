@@ -5,9 +5,9 @@ load("//dart:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH")
 load("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
-load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
+load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 load("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH")
-load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
+load("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//rust:defs.bzl", "rust_library")
@@ -86,7 +86,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "haskell",
-    bazel_deps = ["rules_dx", "rules_dx_haskell"],
+    bazel_deps = ["rules_dx"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
 )
 
@@ -118,7 +118,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "ocaml",
-    bazel_deps = ["rules_dx", "rules_dx_ocaml"],
+    bazel_deps = ["rules_dx"],
     target_compatible_with = OCAML_COMPATIBLE_WITH,
 )
 
@@ -171,7 +171,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "swift",
-    bazel_deps = ["rules_dx", "rules_dx_swift"],
+    bazel_deps = ["rules_dx"],
     target_compatible_with = ["@platforms//os:linux"],
 )
 

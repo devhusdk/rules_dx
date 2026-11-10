@@ -1,10 +1,10 @@
-load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+load("@rules_dx//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
 
 haskell_library(
     name = "demo-app",
     srcs = ["src/Hello.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
-    deps = ["@rules_dx//haskell/toolchain:base"],
+    deps = ["@rules_dx//haskell:base"],
 )
 
 haskell_binary(
@@ -13,7 +13,7 @@ haskell_binary(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":demo-app",
-        "@rules_dx//haskell/toolchain:base",
+        "@rules_dx//haskell:base",
     ],
 )
 
@@ -23,6 +23,6 @@ haskell_test(
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = [
         ":demo-app",
-        "@rules_dx//haskell/toolchain:base",
+        "@rules_dx//haskell:base",
     ],
 )

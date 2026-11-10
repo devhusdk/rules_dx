@@ -181,6 +181,13 @@
         "real_go_lint_probe_aspect",
         "real_go_typecheck_aspect",
         "real_go_typecheck_probe_aspect",
+        "real_haskell_docs_aspect",
+        "real_haskell_format_aspect",
+        "real_haskell_format_probe_aspect",
+        "real_haskell_lint_aspect",
+        "real_haskell_lint_probe_aspect",
+        "real_haskell_typecheck_aspect",
+        "real_haskell_typecheck_probe_aspect",
         "real_html_template_format_aspect",
         "real_html_template_lint_aspect",
         "real_javascript_docs_aspect",
@@ -223,6 +230,13 @@
         "real_make_lint_aspect",
         "real_nix_format_aspect",
         "real_nix_lint_aspect",
+        "real_ocaml_docs_aspect",
+        "real_ocaml_format_aspect",
+        "real_ocaml_format_probe_aspect",
+        "real_ocaml_lint_aspect",
+        "real_ocaml_lint_probe_aspect",
+        "real_ocaml_typecheck_aspect",
+        "real_ocaml_typecheck_probe_aspect",
         "real_perl_docs_aspect",
         "real_perl_format_aspect",
         "real_perl_format_probe_aspect",
@@ -239,6 +253,11 @@
         "real_pkl_lint_probe_aspect",
         "real_pkl_typecheck_aspect",
         "real_pkl_typecheck_probe_aspect",
+        "real_powershell_docs_aspect",
+        "real_powershell_format_aspect",
+        "real_powershell_format_probe_aspect",
+        "real_powershell_lint_aspect",
+        "real_powershell_lint_probe_aspect",
         "real_protobuf_docs_aspect",
         "real_protobuf_format_aspect",
         "real_protobuf_lint_aspect",
@@ -273,6 +292,11 @@
         "real_shell_lint_aspect",
         "real_sql_format_aspect",
         "real_sql_lint_aspect",
+        "real_swift_docs_aspect",
+        "real_swift_format_aspect",
+        "real_swift_format_probe_aspect",
+        "real_swift_lint_aspect",
+        "real_swift_lint_probe_aspect",
         "real_terraform_format_aspect",
         "real_terraform_lint_aspect",
         "real_terraform_typecheck_aspect",
@@ -430,21 +454,16 @@
         "//erlang:extensions.bzl%erlang",
         "//fortran:extensions.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
-        "//haskell/toolchain:extensions.bzl%haskell",
         "//javascript/private:dev_hub.bzl%dx_dev_hub",
         "//core:extensions.bzl%dx_pins",
         "//core:extensions.bzl%dx_source_archives",
         "//lua:extensions.bzl%lua",
         "//msix:extensions.bzl%msix_tools",
-        "//ocaml/toolchain:extensions.bzl%ocaml",
         "//php:extensions.bzl%php",
-        "//powershell/toolchain:extensions.bzl%powershell",
         "//quality/artifacts:extension.bzl%dx_tools",
         "//ruby/private/coverage:extensions.bzl%ruby_coverage",
         "//ruby/private/toolchain:extensions.bzl%ruby_tools",
         "//ruby:extensions.bzl%ruby",
-        "//swift/toolchain:extensions.bzl%swift_host",
-        "//swift/toolchain:extensions.bzl%swift_windows",
         "//third_party/dotnet:extension.bzl%paket",
         "//tools/bazelrc:extensions.bzl%bazel_version",
         "//typescript/private/playwright:extensions.bzl%playwright",
@@ -478,7 +497,12 @@
         "@windows_support//windows:extensions.bzl%windows_sdk",
         "//d:extensions.bzl%d",
         "@rules_julia//julia:extensions.bzl%julia",
-        "@rules_zig//zig:extensions.bzl%zig"
+        "@rules_zig//zig:extensions.bzl%zig",
+        "//haskell:extensions.bzl%haskell",
+        "//ocaml:extensions.bzl%ocaml",
+        "//powershell:extensions.bzl%powershell",
+        "//swift:extensions.bzl%swift_host",
+        "//swift:extensions.bzl%swift_windows"
       ],
       "file_extensions": [
         ".adoc",
@@ -510,6 +534,7 @@
         ".h",
         ".hpp",
         ".hrl",
+        ".hs",
         ".java",
         ".jl",
         ".js",
@@ -522,10 +547,14 @@
         ".mdx",
         ".mjs",
         ".mk",
+        ".ml",
+        ".mli",
         ".php",
         ".pl",
         ".pm",
         ".proto",
+        ".ps1",
+        ".psm1",
         ".py",
         ".pyi",
         ".qml",
@@ -538,6 +567,7 @@
         ".sh",
         ".sql",
         ".svelte",
+        ".swift",
         ".tf",
         ".tfvars",
         ".thrift",
@@ -589,7 +619,7 @@
         "//gazelle/zig"
       ],
       "repo_rules": [
-        "//powershell/toolchain:gallery.bzl%psgallery_module",
+        "//powershell:extensions.bzl%psgallery_module",
         "//quality/artifacts/hub_test:repos.bzl%hub_fixture_repo",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
@@ -607,6 +637,7 @@
         "//cc/toolchains:msvc_windows_x86_64_to_arm64",
         "//lua/private/toolchain:all",
         "//msix/private/toolchains:all",
+        "//swift/private/toolchain:all",
         "//tools/platforms:protoc_windows_arm64",
         "@dotnet_toolchains//:all",
         "@dx_d_toolchains//:all",
@@ -614,6 +645,8 @@
         "@dx_erlang_toolchains//:all",
         "@dx_fortran_toolchains//:all",
         "@dx_haskell_toolchains//cc:all",
+        "@dx_haskell_toolchains//toolchains:all",
+        "@dx_ocaml_toolchains//:all",
         "@dx_php_toolchains//:all",
         "@dx_powershell_toolchains//:all",
         "@llvm//toolchain:all",
@@ -655,125 +688,6 @@
       "path": "families/cuda",
       "repo_rules": [],
       "toolchains": []
-    },
-    "haskell": {
-      "aspects": [
-        "real_haskell_docs_aspect",
-        "real_haskell_format_aspect",
-        "real_haskell_format_probe_aspect",
-        "real_haskell_lint_aspect",
-        "real_haskell_lint_probe_aspect",
-        "real_haskell_typecheck_aspect",
-        "real_haskell_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "rules_dx"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dx//haskell/toolchain:extensions.bzl%haskell"
-      ],
-      "file_extensions": [
-        ".hs"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_haskell",
-      "path": "families/haskell",
-      "repo_rules": [],
-      "toolchains": [
-        "@dx_haskell_toolchains//toolchains:all"
-      ]
-    },
-    "ocaml": {
-      "aspects": [
-        "real_ocaml_docs_aspect",
-        "real_ocaml_format_aspect",
-        "real_ocaml_format_probe_aspect",
-        "real_ocaml_lint_aspect",
-        "real_ocaml_lint_probe_aspect",
-        "real_ocaml_typecheck_aspect",
-        "real_ocaml_typecheck_probe_aspect"
-      ],
-      "bazel_deps": [
-        "rules_dx"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dx//ocaml/toolchain:extensions.bzl%ocaml"
-      ],
-      "file_extensions": [
-        ".ml",
-        ".mli"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_ocaml",
-      "path": "families/ocaml",
-      "repo_rules": [],
-      "toolchains": [
-        "@dx_ocaml_toolchains//:all"
-      ]
-    },
-    "powershell": {
-      "aspects": [
-        "real_powershell_docs_aspect",
-        "real_powershell_format_aspect",
-        "real_powershell_format_probe_aspect",
-        "real_powershell_lint_aspect",
-        "real_powershell_lint_probe_aspect"
-      ],
-      "bazel_deps": [
-        "platforms",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "tests",
-        "third_party"
-      ],
-      "extensions": [],
-      "file_extensions": [
-        ".ps1",
-        ".psm1"
-      ],
-      "gazelle": [],
-      "repo_rules": [],
-      "toolchains": [],
-      "module": "rules_dx_powershell",
-      "path": "families/powershell"
-    },
-    "swift": {
-      "aspects": [
-        "real_swift_docs_aspect",
-        "real_swift_format_aspect",
-        "real_swift_format_probe_aspect",
-        "real_swift_lint_aspect",
-        "real_swift_lint_probe_aspect"
-      ],
-      "bazel_deps": [
-        "rules_dx"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "third_party"
-      ],
-      "extensions": [],
-      "file_extensions": [
-        ".swift"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_swift",
-      "path": "families/swift",
-      "repo_rules": [],
-      "toolchains": [
-        "@rules_dx//swift/toolchain:all"
-      ]
     }
   }
 }

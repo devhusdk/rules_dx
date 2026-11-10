@@ -6,7 +6,7 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 
 TOOLS = {
     "psscriptanalyzer": {
-        "attr": attr.label(default = "//quality/tools/powershell:psscriptanalyzer_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//powershell/private/quality:psscriptanalyzer_tool", cfg = "exec", executable = True),
         "env": [["DOTNET_CLI_TELEMETRY_OPTOUT", "1"], ["POWERSHELL_TELEMETRY_OPTOUT", "1"], ["POWERSHELL_UPDATECHECK", "Off"]],
         "kind": "executable",
         "resources": "heavy",

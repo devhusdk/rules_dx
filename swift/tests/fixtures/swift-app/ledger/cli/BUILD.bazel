@@ -1,7 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//swift/rules:defs.bzl", "swift_binary")
-load("//swift/rules:tests.bzl", "swift_binary_provider_test")
+load("//swift:defs.bzl", "swift_binary")
+load("//swift/private:tests.bzl", "swift_binary_provider_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(

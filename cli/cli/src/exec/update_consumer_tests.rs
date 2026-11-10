@@ -1716,7 +1716,7 @@ fn consumer_rebar_check_reports_drift_and_apply_writes_only_rebar_lock() {
     );
 }
 
-const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";
+const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//ocaml/app:ocaml_app.opam.locked\")\n";
 
 const OPAM_FILE: &str = "opam-version: \"2.0\"\ndepends: [\n  \"astring\" {>= \"0.8.5\"}\n  \"ocaml\" {>= \"5.5\"}\n]\n";
 
@@ -2377,7 +2377,7 @@ fn consumer_cpan_refusals_launch_nothing() {
     assert_eq!(cpan_bytes(&harness), before);
 }
 
-const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
 const CABAL_FILES: [&str; 4] = [
     "hs/cabal.project",
     "hs/cabal.project.freeze",

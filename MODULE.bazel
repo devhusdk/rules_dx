@@ -286,30 +286,6 @@ local_path_override(
     path = "families/cuda",
 )
 
-bazel_dep(name = "rules_dx_haskell", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_haskell",
-    path = "families/haskell",
-)
-
-bazel_dep(name = "rules_dx_ocaml", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_ocaml",
-    path = "families/ocaml",
-)
-
-bazel_dep(name = "rules_dx_swift", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_swift",
-    path = "families/swift",
-)
-
-bazel_dep(name = "rules_dx_powershell", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_powershell",
-    path = "families/powershell",
-)
-
 gazelle_go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 gazelle_go_deps.from_file(go_mod = "//third_party/go:go.mod")
 
@@ -756,9 +732,9 @@ dx_pins.pin(
 )
 dx_pins.pin(
     name = "dx_powershell_toolchains",
-    build = "//powershell/toolchain:pwsh.build",
+    build = "//powershell/private/toolchain:pwsh.build",
     compatible_with = "target",
-    pins = "//powershell/toolchain:pins.json",
+    pins = "//powershell/private/toolchain:pins.json",
     toolchain_type = "@rules_powershell//powershell:toolchain_type",
 )
 dx_pins.pin(
@@ -783,12 +759,12 @@ dx_pins.data(
 )
 dx_pins.pin(
     name = "dx_swift_format_macos_arm64",
-    build = "//swift/toolchain:swift_format.build",
-    pins = "//swift/toolchain:pins.json",
+    build = "//swift/private/toolchain:swift_format.build",
+    pins = "//swift/private/toolchain:pins.json",
 )
 dx_pins.data(
     name = "dx_haskell",
-    pins = "//haskell/toolchain:pins.json",
+    pins = "//haskell/private/toolchain:pins.json",
 )
 dx_pins.data(
     name = "dx_lua_coverage",
@@ -804,7 +780,7 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_ocaml",
-    pins = "//ocaml/toolchain:pins.json",
+    pins = "//ocaml/private/toolchain:pins.json",
 )
 use_repo(
     dx_pins,
@@ -909,7 +885,7 @@ apt.index_integrity(
         name = "dx_swift_sysroot_linux_" + cpu,
         architectures = [arch],
         glob_excludes = ["usr/share/man/**"],
-        lockfile = "//swift/toolchain:ubuntu22.04_%s_sysroot.lock.json" % arch,
+        lockfile = "//swift/private/toolchain:ubuntu22.04_%s_sysroot.lock.json" % arch,
         packages = [
             "libc6-dev",
             "libcurl4-openssl-dev",
@@ -965,10 +941,12 @@ use_repo(
     dx_swift_linux_x86_64 = "dx_swift_ubuntu22.04",
 )
 
-swift_host = use_extension("//swift/toolchain:extensions.bzl", "swift_host")
+swift_host = use_extension("//swift:extensions.bzl", "swift_host")
 use_repo(swift_host, "dx_swift_host")
 
-swift_windows = use_extension("//swift/toolchain:extensions.bzl", "swift_windows")
+register_toolchains("//swift/private/toolchain:all")
+
+swift_windows = use_extension("//swift:extensions.bzl", "swift_windows")
 use_repo(swift_windows, "dx_swift_windows_aarch64", "dx_swift_windows_x86_64")
 
 # floor: equals tested; dev only, for the swift-app fixture packages
@@ -1269,37 +1247,42 @@ register_toolchains(
 # needed: @rules_powershell (powershell extension) loads @rules_batch
 bazel_dep(name = "rules_batch", version = "0.1.1")
 
-powershell = use_extension("//powershell/toolchain:extensions.bzl", "powershell")
+powershell = use_extension("//powershell:extensions.bzl", "powershell")
 use_repo(powershell, "rules_powershell")
 
-ocaml = use_extension("//ocaml/toolchain:extensions.bzl", "ocaml")
-ocaml.lock(
+ocaml = use_extension("//ocaml:extensions.bzl", "ocaml")
+use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "rules_ocaml")
+
+ocaml_dev = use_extension("//ocaml:extensions.bzl", "ocaml", dev_dependency = True)
+ocaml_dev.lock(
     name = "ocaml_app",
     lock = "//ocaml/tests/fixtures/ocaml-app:ocaml_app.opam.locked",
 )
-ocaml.annotation(
+ocaml_dev.annotation(
     build_file = "//ocaml/tests/fixtures/ocaml-app:astring.BUILD.bazel",
     package = "astring",
     strip_prefix = "astring-0.8.5",
 )
-ocaml.lock(
+ocaml_dev.lock(
     name = "ocaml_fuzz",
     lock = "//ocaml/tests/fixtures/fuzz:ocaml_fuzz.opam.locked",
 )
-ocaml.annotation(
+ocaml_dev.annotation(
     build_file = "//ocaml/packages:afl-persistent.BUILD.bazel",
     package = "afl-persistent",
     strip_prefix = "ocaml-afl-persistent-1.4",
 )
-ocaml.annotation(
+ocaml_dev.annotation(
     build_file = "//ocaml/packages:cmdliner.BUILD.bazel",
     package = "cmdliner",
 )
-ocaml.annotation(
+ocaml_dev.annotation(
     build_file = "//ocaml/packages:crowbar.BUILD.bazel",
     package = "crowbar",
 )
-use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "ocaml_fuzz", "rules_ocaml")
+use_repo(ocaml_dev, "ocaml_app", "ocaml_fuzz")
+
+register_toolchains("@dx_ocaml_toolchains//:all")
 
 fortran = use_extension("//fortran:extensions.bzl", "fortran")
 use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
@@ -1390,22 +1373,10 @@ composer.lock(
 )
 use_repo(composer, php_fixture_vendor = "php_composer_fixture")
 
-haskell = use_extension("//haskell/toolchain:extensions.bzl", "haskell")
-haskell.lock(
-    name = "haskell_app_hackage",
-    lock = "//haskell/tests/fixtures/haskell-app/third_party:haskell_deps.json",
-)
+haskell = use_extension("//haskell:extensions.bzl", "haskell")
 haskell.lock(
     name = "haskell_weeder_hackage",
-    lock = "//haskell/tools/weeder:haskell_deps.json",
-)
-haskell.lock(
-    name = "haskell_exe_hackage",
-    lock = "//haskell/tests/fixtures/hackage-exe:haskell_deps.json",
-)
-haskell.lock(
-    name = "haskell_bench_hackage",
-    lock = "//haskell/tests/fixtures/bench:haskell_deps.json",
+    lock = "//haskell/private/tools/weeder:haskell_deps.json",
 )
 haskell.lock(
     name = "haskell_nixfmt_hackage",
@@ -1413,13 +1384,30 @@ haskell.lock(
 )
 haskell.lock(
     name = "haskell_hlint_hackage",
-    lock = "//quality/tools/hlint:haskell_deps.json",
+    lock = "//haskell/private/tools/hlint:haskell_deps.json",
 )
 haskell.lock(
     name = "haskell_ormolu_hackage",
-    lock = "//quality/tools/ormolu:haskell_deps.json",
+    lock = "//haskell/private/tools/ormolu:haskell_deps.json",
 )
-use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_hlint_hackage", "haskell_nixfmt_hackage", "haskell_ormolu_hackage", "haskell_weeder_hackage", "rules_haskell")
+use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_hlint_hackage", "haskell_nixfmt_hackage", "haskell_ormolu_hackage", "haskell_weeder_hackage", "rules_haskell")
+
+haskell_dev = use_extension("//haskell:extensions.bzl", "haskell", dev_dependency = True)
+haskell_dev.lock(
+    name = "haskell_app_hackage",
+    lock = "//haskell/tests/fixtures/haskell-app/third_party:haskell_deps.json",
+)
+haskell_dev.lock(
+    name = "haskell_exe_hackage",
+    lock = "//haskell/tests/fixtures/hackage-exe:haskell_deps.json",
+)
+haskell_dev.lock(
+    name = "haskell_bench_hackage",
+    lock = "//haskell/tests/fixtures/bench:haskell_deps.json",
+)
+use_repo(haskell_dev, "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage")
+
+register_toolchains("@dx_haskell_toolchains//toolchains:all")
 
 d = use_extension("//d:extensions.bzl", "d")
 use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_x86_64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
@@ -2657,7 +2645,7 @@ _http_jar(
     urls = ["https://repo1.maven.org/maven2/org/ow2/asm/asm/9.0/asm-9.0.jar"],
 )
 
-_psgallery_module = use_repo_rule("//powershell/toolchain:gallery.bzl", "psgallery_module")
+_psgallery_module = use_repo_rule("//powershell:extensions.bzl", "psgallery_module")
 
 _psgallery_module(
     name = "psgallery_pester",

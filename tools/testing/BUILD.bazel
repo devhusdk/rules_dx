@@ -14,10 +14,6 @@ FAMILY_MODULES = [
     "android",
     "apple",
     "cuda",
-    "haskell",
-    "ocaml",
-    "powershell",
-    "swift",
 ]
 
 exports_files(

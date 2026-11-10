@@ -5,7 +5,7 @@ toolchain. Nothing needs to be installed. `dx` registers the toolchain for
 Linux x86_64 and aarch64 hosts.
 
 ```python
-load("@rules_dx//swift/rules:defs.bzl", "swift_binary", "swift_library")
+load("@rules_dx//swift:defs.bzl", "swift_binary", "swift_library")
 
 swift_library(
     name = "greet",
@@ -39,7 +39,7 @@ dx test //app:tests
 pinned LLVM's libFuzzer needs libc++ and Swift binaries link libstdc++. Linux only.
 
 ```python
-load("@rules_dx//swift/rules:defs.bzl", "swift_fuzz_test")
+load("@rules_dx//swift:defs.bzl", "swift_fuzz_test")
 
 swift_fuzz_test(
     name = "parse_fuzz",
@@ -52,7 +52,7 @@ swift_fuzz_test(
 package-benchmark download. The sources need a `main.swift` for top-level code.
 
 ```python
-load("@rules_dx//swift/rules:defs.bzl", "swift_bench")
+load("@rules_dx//swift:defs.bzl", "swift_bench")
 
 swift_bench(
     name = "parse_bench",

@@ -8,14 +8,14 @@ diff -ruN a/platform/emitter/BUILD.bazel b/platform/emitter/BUILD.bazel
  
 -constraint_setting(name = "emitter",
 -                   default_constraint_value = ":sys")
-+alias(name = "emitter", actual = "@rules_dx//ocaml/toolchain/platform/emitter:emitter")
++alias(name = "emitter", actual = "@rules_dx//ocaml/private/toolchain/platform/emitter:emitter")
  
 -constraint_value(name = "vm",  constraint_setting = ":emitter")
 -constraint_value(name = "sys", constraint_setting = ":emitter")
-+alias(name = "sys", actual = "@rules_dx//ocaml/toolchain/platform/emitter:sys")
++alias(name = "sys", actual = "@rules_dx//ocaml/private/toolchain/platform/emitter:sys")
  
 -config_setting(name = "vm?", constraint_values = [":vm"])
-+alias(name = "vm", actual = "@rules_dx//ocaml/toolchain/platform/emitter:vm")
++alias(name = "vm", actual = "@rules_dx//ocaml/private/toolchain/platform/emitter:vm")
  
 -# not currently supported:
 -constraint_value(name = "x86_64", constraint_setting = ":emitter")
@@ -32,15 +32,15 @@ diff -ruN a/platform/executor/BUILD.bazel b/platform/executor/BUILD.bazel
  
 -constraint_setting(name = "executor",
 -                   default_constraint_value = ":sys")
-+alias(name = "executor", actual = "@rules_dx//ocaml/toolchain/platform/executor:executor")
++alias(name = "executor", actual = "@rules_dx//ocaml/private/toolchain/platform/executor:executor")
  
 -constraint_value(name = "sys", constraint_setting = ":executor")
 -config_setting(name = "sys?", constraint_values = [":sys"])
-+alias(name = "sys", actual = "@rules_dx//ocaml/toolchain/platform/executor:sys")
++alias(name = "sys", actual = "@rules_dx//ocaml/private/toolchain/platform/executor:sys")
  
 -constraint_value(name = "vm",  constraint_setting = ":executor")
 -config_setting(name = "vm?", constraint_values = [":vm"])
-+alias(name = "vm", actual = "@rules_dx//ocaml/toolchain/platform/executor:vm")
++alias(name = "vm", actual = "@rules_dx//ocaml/private/toolchain/platform/executor:vm")
  
 +config_setting(name = "vm?", constraint_values = [":vm"])
 +config_setting(name = "sys?", constraint_values = [":sys"])

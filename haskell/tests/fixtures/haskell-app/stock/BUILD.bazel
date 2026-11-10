@@ -1,5 +1,5 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
-load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library", "haskell_test")
+load("@rules_dx//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library", "haskell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//haskell/tests/fixtures/haskell-app:__subpackages__"])

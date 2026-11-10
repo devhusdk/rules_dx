@@ -2,7 +2,7 @@
 
 load("//core:wrapper.bzl", "dx_lcov_merger_attr")
 
-_EMITTER = str(Label("//ocaml/toolchain:emitter"))
+_EMITTER = str(Label("//ocaml/private/toolchain:emitter"))
 
 def _sys_impl(_settings, _attr):
     return {_EMITTER: "sys"}

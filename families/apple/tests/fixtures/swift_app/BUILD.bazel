@@ -5,7 +5,7 @@ load("//ios:app.bzl", "apple_ios_app", "apple_ios_app_test")
 load("//ios:cell.bzl", "APPLE_HOSTS")
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
 load("@rules_dx//rust:defs.bzl", "rust_static_library")
-load("@rules_dx//swift/rules:defs.bzl", "swift_library")
+load("@rules_dx//swift:defs.bzl", "swift_library")
 
 _MACOS_ARM64 = [
     "@platforms//os:macos",

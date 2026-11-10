@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//ocaml/rules:defs.bzl", "ocaml_library", "ocaml_module", "ocaml_signature")
+load("//ocaml:defs.bzl", "ocaml_library", "ocaml_module", "ocaml_signature")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/ocaml:defs.bzl", "ocaml_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")

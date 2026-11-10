@@ -26,7 +26,8 @@ flatbuffers:defs.bzl
 fortran:defs.bzl
 fsharp:defs.bzl
 go/rules:defs.bzl
-haskell/rules:defs.bzl
+haskell:defs.bzl
+haskell:extensions.bzl
 helm:defs.bzl
 java:defs.bzl
 javascript:defs.bzl
@@ -40,10 +41,12 @@ make:defs.bzl
 mdx:defs.bzl
 msix:defs.bzl
 msix:extensions.bzl
+ocaml:defs.bzl
+ocaml:extensions.bzl
 perl:defs.bzl
 php:defs.bzl
-powershell/rules:defs.bzl
-powershell/toolchain:gallery.bzl
+powershell:defs.bzl
+powershell:extensions.bzl
 python:defs.bzl
 qt/rules:defs.bzl
 qt/rules:rust.bzl
@@ -102,6 +105,8 @@ rust:defs.bzl
 scala:defs.bzl
 sql:defs.bzl
 svelte:defs.bzl
+swift:defs.bzl
+swift:extensions.bzl
 terraform:defs.bzl
 thrift:defs.bzl
 tools/docs/d:defs.bzl

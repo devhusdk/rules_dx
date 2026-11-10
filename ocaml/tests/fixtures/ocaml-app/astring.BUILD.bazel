@@ -1,4 +1,4 @@
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature")
+load("@rules_dx//ocaml:defs.bzl", "ocaml_module", "ocaml_signature")
 
 _PUBLIC = ["//visibility:public"]
 

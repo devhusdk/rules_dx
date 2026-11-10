@@ -1,6 +1,6 @@
 bazel_dep(name = "bazel_skylib", version = "1.9.2")
 
-haskell = use_extension("@my_dx//haskell/toolchain:extensions.bzl", "haskell")
+haskell = use_extension("@my_dx//haskell:extensions.bzl", "haskell")
 haskell.lock(
     name = "haskell_app_hackage",
     lock = "//haskell/tests/fixtures/haskell-app/stock:haskell_deps.json",

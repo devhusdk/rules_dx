@@ -1,6 +1,6 @@
 """OCaml real quality aspects."""
 
-load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
+load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
 load("//quality:compile_check.bzl", "compile_check_aspect", "compile_check_hook")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:pipeline.bzl", "real_request_tool_env")
@@ -13,7 +13,7 @@ TOOLS = {
         "shard": "ocaml",
     },
     "zanuda": {
-        "attr": attr.label(default = "//quality/tools/ocaml:zanuda_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//ocaml/private/quality:zanuda_tool", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "shard": "ocaml",

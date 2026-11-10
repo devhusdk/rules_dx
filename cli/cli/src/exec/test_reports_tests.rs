@@ -297,11 +297,11 @@ fn coverage_merges_the_lcov_a_julia_test_writes() {
 #[test]
 fn coverage_merges_the_lcov_a_haskell_test_writes() {
     let lcov =
-        "SF:tools/coverage/haskell/fixture/Greeter.hs\nDA:4,1\nDA:7,0\nLF:2\nLH:1\nend_of_record\n";
+        "SF:haskell/private/coverage/fixture/Greeter.hs\nDA:4,1\nDA:7,0\nLF:2\nLH:1\nend_of_record\n";
     let harness = coverage_harness("cov-haskell-hpc", lcov.as_bytes());
     let harness = with_sources(
         harness,
-        "v1 cell linux_x86_64\nprod source tools/coverage/haskell/fixture/Greeter.hs\n",
+        "v1 cell linux_x86_64\nprod source haskell/private/coverage/fixture/Greeter.hs\n",
     );
     let (code, _, err) = harness.run(&["coverage", "--output=text", "--min-coverage=50"]);
     assert_eq!(code, 0, "{err}");

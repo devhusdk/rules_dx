@@ -682,7 +682,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(out.contains("apps/php/composer.lock"), "{out}");
     }
 
-    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml/toolchain:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
+    const OPAM_MODULE: &str = "ocaml = use_extension(\"//ocaml:extensions.bzl\", \"ocaml\")\nocaml.lock(name = \"ocaml_app\", lock = \"//apps/ml:ocaml_app.opam.locked\")\n";
 
     const OPAM_ADVISORY: &str = r#"[{
         "id": "OSV-OPAM-0001",
@@ -1213,7 +1213,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/CPANSA"), "{out}");
     }
 
-    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell/toolchain:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
 
     const HACKAGE_ADVISORY: &str = r#"[{
         "id": "HSEC-2026-0001",

@@ -61,7 +61,7 @@ load("//quality/artifacts:wasmtime.bzl", _wasmtime = "ARTIFACTS")
 load("//quality/artifacts:yamlfmt.bzl", _yamlfmt = "ARTIFACTS")
 load("//quality/artifacts:zanuda.bzl", _zanuda = "SOURCE")
 load("//quality/artifacts:zizmor.bzl", _zizmor = "ARTIFACTS")
-load("//quality/tools/ocaml:repos.bzl", "dx_ocaml_duniverse")
+load("//ocaml/private/quality:repos.bzl", "dx_ocaml_duniverse")
 
 _ARTIFACTS = [
     artifact

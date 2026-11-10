@@ -21555,45 +21555,6 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "notice_version": "3"
     },
-    "@@rules_dx+//ocaml/toolchain:extensions.bzl%ocaml": {
-      "691408b00730fcedbd3e30ccdb42c388a83fd304/afl-persistent.1.4": {
-        "integrity": "sha512-aLd59n0+TiX2S0z+kCoYO5dxWOR2q9lpHmWmWwIgWV3oAqf9s6xHPFN54S4uGkzZbMX1HkB8cviSvbh9s2TdLA==",
-        "needs": [],
-        "sha256": "",
-        "src": "https://github.com/stedolan/ocaml-afl-persistent/archive/refs/tags/v1.4.tar.gz"
-      },
-      "691408b00730fcedbd3e30ccdb42c388a83fd304/astring.0.8.5": {
-        "integrity": "",
-        "needs": [
-          "ocamlfind",
-          "ocamlbuild",
-          "topkg"
-        ],
-        "sha256": "865692630c07c3ab87c66cdfc2734c0fdfc9c34a57f8e89ffec7c7d15e7a70fa",
-        "src": "https://erratique.ch/software/astring/releases/astring-0.8.5.tbz"
-      },
-      "691408b00730fcedbd3e30ccdb42c388a83fd304/cmdliner.2.1.1": {
-        "integrity": "sha512-zcM4ri5Wpyt8ddrpVkxXzKTh+/rEVKq7+DA/y2EjRihK7eWYTf3n6KeklsyHC71X3fKMqzo4ZnJ5sxZX+FwV3Q==",
-        "needs": [],
-        "sha256": "",
-        "src": "https://erratique.ch/software/cmdliner/releases/cmdliner-2.1.1.tbz"
-      },
-      "691408b00730fcedbd3e30ccdb42c388a83fd304/crowbar.0.2.2": {
-        "integrity": "",
-        "needs": [
-          "cmdliner",
-          "afl-persistent"
-        ],
-        "sha256": "debd1345ac0116232390af64552d15948b5dc7200e287730235f7ff42098f3c5",
-        "src": "https://github.com/stedolan/crowbar/archive/v0.2.2.tar.gz"
-      },
-      "691408b00730fcedbd3e30ccdb42c388a83fd304/either.1.0.0": {
-        "integrity": "",
-        "needs": [],
-        "sha256": "bf674de3312dee7b7215f07df1e8a96eb3d679164b8a918cdd95b8d97e505884",
-        "src": "https://github.com/mirage/either/releases/download/1.0.0/either-1.0.0.tbz"
-      }
-    },
     "@@rules_go+//go:extensions.bzl%go_sdk": {
       "1.22.4": {
         "aix_ppc64": [

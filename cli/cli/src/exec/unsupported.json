@@ -11,7 +11,7 @@
     },
     "title": "Flutter"
   },
-  "//haskell/toolchain:unsupported": {
+  "//haskell/private/toolchain:unsupported": {
     "platforms": {
       "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
     },

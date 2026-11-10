@@ -1,0 +1,63 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("//core:cells.bzl", "cell_settings")
+load("//ocaml/private:dune.bzl", "dx_dune_bootstrap")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":metadata_tests.bzl", "ocaml_metadata_tests")
+load(":pins.bzl", "OCAML_CELLS")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "extensions.bzl",
+    "libtool_ar.sh",
+    "metadata_tests.bzl",
+    "ocaml.bzl",
+    "pins.bzl",
+    "pins.json",
+    "repos.bzl",
+])
+
+ocaml_metadata_tests(name = "metadata")
+
+cell_settings(
+    name = "cell",
+    cells = OCAML_CELLS,
+)
+
+string_flag(
+    name = "emitter",
+    build_setting_default = "vm",
+    values = [
+        "sys",
+        "vm",
+    ],
+)
+
+config_setting(
+    name = "emitter_sys",
+    flag_values = {":emitter": "sys"},
+)
+
+config_setting(
+    name = "emitter_vm",
+    flag_values = {":emitter": "vm"},
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "extensions.bzl",
+        "metadata_tests.bzl",
+        "ocaml.bzl",
+        "pins.bzl",
+        "repos.bzl",
+        "opam.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+dx_dune_bootstrap(
+    name = "dune",
+    srcs = ["@dx_ocaml_dune//:srcs"],
+)

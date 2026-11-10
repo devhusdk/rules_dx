@@ -110,7 +110,7 @@ TAXONOMY = {
         classes = ["graphql"],
     ),
     "haskell": struct(
-        owner = "//haskell/rules:defs.bzl",
+        owner = "//haskell:defs.bzl",
         classes = ["haskell"],
     ),
     "helm": struct(
@@ -186,7 +186,7 @@ TAXONOMY = {
         classes = ["objc", "objcpp"],
     ),
     "ocaml": struct(
-        owner = "//ocaml/rules:defs.bzl",
+        owner = "//ocaml:defs.bzl",
         classes = ["ocaml"],
     ),
     "perl": struct(
@@ -202,7 +202,7 @@ TAXONOMY = {
         classes = ["pkl"],
     ),
     "powershell": struct(
-        owner = "//powershell/rules:defs.bzl",
+        owner = "//powershell:defs.bzl",
         classes = ["powershell"],
     ),
     "protobuf": struct(
@@ -254,7 +254,7 @@ TAXONOMY = {
         classes = ["svelte"],
     ),
     "swift": struct(
-        owner = "//swift/rules:defs.bzl",
+        owner = "//swift:defs.bzl",
         classes = ["swift"],
     ),
     "terraform": struct(

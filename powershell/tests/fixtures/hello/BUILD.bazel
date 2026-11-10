@@ -1,0 +1,39 @@
+load("//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+powershell_library(
+    name = "hello_lib",
+    srcs = [
+        "Greet.psd1",
+        "Greet.psm1",
+    ],
+)
+
+powershell_binary(
+    name = "hello",
+    srcs = ["Hello.ps1"],
+    deps = [":hello_lib"],
+)
+
+powershell_test(
+    name = "hello_test",
+    srcs = ["HelloTest.ps1"],
+    deps = [":hello_lib"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

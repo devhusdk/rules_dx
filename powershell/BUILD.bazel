@@ -1,0 +1,18 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "README.md",
+    "defs.bzl",
+    "extensions.bzl",
+    "lang.json",
+])
+
+alias(
+    name = "pester",
+    actual = "//powershell/private/gallery:pester",
+)
+
+alias(
+    name = "dx_coverage",
+    actual = "//powershell/private/coverage:dx_coverage",
+)

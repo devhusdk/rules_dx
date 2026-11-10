@@ -1,7 +1,3 @@
 cc
 go
-haskell
-ocaml
-powershell
 qt
-swift

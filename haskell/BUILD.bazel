@@ -1,17 +1,64 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = ["//visibility:public"])
 
-exports_files(["README.md"])
+exports_files([
+    "README.md",
+    "defs.bzl",
+    "extensions.bzl",
+    "lang.json",
+])
 
 filegroup(
     name = "module_srcs",
     srcs = [
+        "defs.bzl",
+        "extensions.bzl",
         "//:module_srcs",
-        "//haskell/rules:module_srcs",
-        "//haskell/toolchain:module_srcs",
+        "//haskell/private:module_srcs",
+        "//haskell/private/toolchain:module_srcs",
     ],
 )
+
+alias(
+    name = "base",
+    actual = "@dx_haskell_toolchains//:base",
+)
+
+[
+    alias(
+        name = name,
+        actual = "@dx_haskell_toolchains//:" + name,
+    )
+    for name in [
+        "array",
+        "binary",
+        "bytestring",
+        "cabal",
+        "containers",
+        "deepseq",
+        "directory",
+        "exceptions",
+        "filepath",
+        "ghc-bignum",
+        "ghc-internal",
+        "ghc-prim",
+        "ghc_exe",
+        "ghc_files",
+        "licenses",
+        "mtl",
+        "parsec",
+        "pretty",
+        "process",
+        "stm",
+        "template-haskell",
+        "text",
+        "time",
+        "transformers",
+        "unix",
+        "Win32",
+    ]
+]
 
 real_source_target(
     name = "corpus_starlark",
@@ -24,5 +71,3 @@ real_source_target(
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )
-
-exports_files(["lang.json"])

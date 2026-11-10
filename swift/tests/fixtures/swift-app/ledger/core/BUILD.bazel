@@ -1,7 +1,7 @@
 load("//core:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//swift/rules:defs.bzl", "swift_library", "swift_test")
-load("//swift/rules:tests.bzl", "swift_library_provider_test")
+load("//swift:defs.bzl", "swift_library", "swift_test")
+load("//swift/private:tests.bzl", "swift_library_provider_test")
 
 package(
     default_testonly = True,

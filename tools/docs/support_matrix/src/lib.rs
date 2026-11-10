@@ -211,7 +211,6 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_android",
         "@rules_dx_apple",
         "@rules_dx_cuda",
-        "@rules_dx_powershell",
     ]
     .into_iter()
     .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));
@@ -476,14 +475,14 @@ mod tests {
               ],
               "quality": {}, "support": [], "deferred_families": [],
               "platform_not_applicable": {"hs": {"b": "no bindist"}, "go": {"a": "x"}},
-              "unsupported_constraints": {"hs": "//haskell/toolchain:unsupported"},
+              "unsupported_constraints": {"hs": "//haskell/private/toolchain:unsupported"},
               "not_languages": [], "computed_constraints": {}
             }"#,
         )
         .expect("facts");
         assert_eq!(
             unsupported_json(&facts),
-            "{\n  \"//haskell/toolchain:unsupported\": {\n    \"platforms\": {\n      \"b\": \"no bindist\"\n    },\n    \"title\": \"Haskell\"\n  }\n}\n"
+            "{\n  \"//haskell/private/toolchain:unsupported\": {\n    \"platforms\": {\n      \"b\": \"no bindist\"\n    },\n    \"title\": \"Haskell\"\n  }\n}\n"
         );
     }
 

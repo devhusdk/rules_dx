@@ -1,0 +1,161 @@
+load("//haskell/private/toolchain:pins.bzl", "qualified_cells")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "with_gmp")
+load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs")
+load(":profile_tests.bzl", "profile_ghcopts_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "bench_run.sh",
+    "defs.bzl",
+    "kwargs.bzl",
+])
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "the standard ghcopts are -Wall",
+            STANDARD_GHCOPTS,
+            ["-Wall"],
+        ),
+        expect_equal(
+            "the strict ghcopts add the extra warnings",
+            STRICT_GHCOPTS,
+            [
+                "-Wall",
+                "-Wcompat",
+                "-Wredundant-constraints",
+                "-Wpartial-fields",
+                "-Widentities",
+            ],
+        ),
+        expect_equal(
+            "the default ghcopts follow the profile",
+            type(DEFAULT_GHCOPTS),
+            "select",
+        ),
+        expect_equal(
+            "warnings follow the repo flag by default",
+            type(haskell_upstream_kwargs({})["ghcopts"]),
+            "select",
+        ),
+        expect_equal(
+            "-Werror can be forced on",
+            haskell_upstream_kwargs({
+                "ghcopts": ["-Wall"],
+                "warnings_as_errors": True,
+            })["ghcopts"],
+            [
+                "-Wall",
+                "-Werror",
+            ],
+        ),
+        expect_equal(
+            "-Werror can be forced off",
+            haskell_upstream_kwargs({
+                "ghcopts": ["-Wall"],
+                "warnings_as_errors": False,
+            })["ghcopts"],
+            ["-Wall"],
+        ),
+        expect_equal(
+            "user ghcopts keep -Werror",
+            haskell_upstream_kwargs({
+                "ghcopts": ["-O2"],
+                "warnings_as_errors": True,
+            })["ghcopts"],
+            [
+                "-O2",
+                "-Werror",
+            ],
+        ),
+        expect_equal(
+            "the attribute is not passed upstream",
+            "warnings_as_errors" in haskell_upstream_kwargs({"warnings_as_errors": False}),
+            False,
+        ),
+        expect_equal(
+            "other kwargs pass through",
+            haskell_upstream_kwargs({"deps": [":a"]})["deps"],
+            [":a"],
+        ),
+        expect_equal(
+            "executables get gmp once",
+            [str(dep) for dep in with_gmp([":a"])],
+            [
+                ":a",
+                str(GMP),
+            ],
+        ),
+        expect_equal(
+            "a listed gmp is kept",
+            [str(dep) for dep in with_gmp([str(GMP)])],
+            [str(GMP)],
+        ),
+        expect_equal(
+            "select deps get gmp appended",
+            type(with_gmp([":a"] + select({"//conditions:default": []}))),
+            "select",
+        ),
+        expect_equal(
+            "no deps still links gmp",
+            [str(dep) for dep in with_gmp(None)],
+            [str(GMP)],
+        ),
+        expect_equal(
+            "packages compile on every pinned GHC cell",
+            HASKELL_CELLS,
+            qualified_cells(),
+        ),
+        expect_equal(
+            "compatibility is a select over the cells",
+            type(HASKELL_COMPATIBLE_WITH),
+            "select",
+        ),
+        expect_equal(
+            "haskell guard is a select by default",
+            type(haskell_kwargs({})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "haskell guard stays with a user list",
+            type(haskell_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "haskell guard stays with an empty list",
+            type(haskell_kwargs({"target_compatible_with": []})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "haskell keeps user tags",
+            haskell_kwargs({"tags": ["t"]})["tags"],
+            ["t"],
+        ),
+    ],
+    file_classes = ["haskell"],
+)
+
+profile_ghcopts_tests(name = "ghcopts_profile_test")
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "kwargs.bzl",
+        "profile_tests.bzl",
+        "deps_resolve.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

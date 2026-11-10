@@ -1,0 +1,23 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "README.md",
+    "defs.bzl",
+    "extensions.bzl",
+    "lang.json",
+])
+
+alias(
+    name = "bisect_ppx_rewriter",
+    actual = "//ocaml/private/coverage:bisect_ppx_rewriter",
+)
+
+alias(
+    name = "dune",
+    actual = "//ocaml/private/toolchain:dune",
+)
+
+alias(
+    name = "emitter",
+    actual = "//ocaml/private/toolchain:emitter",
+)

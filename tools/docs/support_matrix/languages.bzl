@@ -9,9 +9,9 @@ load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")
 load("//erlang/private:kwargs.bzl", ERLANG_SUPPORT = "PLATFORM_SUPPORT")
 load("//flutter/private:platforms.bzl", FLUTTER_SUPPORT = "PLATFORM_SUPPORT")
 load("//fortran/private:kwargs.bzl", FORTRAN_SUPPORT = "PLATFORM_SUPPORT")
-load("//haskell/rules:kwargs.bzl", HASKELL_SUPPORT = "PLATFORM_SUPPORT")
+load("//haskell/private:kwargs.bzl", HASKELL_SUPPORT = "PLATFORM_SUPPORT")
 load("//julia/private:platforms.bzl", JULIA_SUPPORT = "PLATFORM_SUPPORT")
-load("//ocaml/rules:kwargs.bzl", OCAML_SUPPORT = "PLATFORM_SUPPORT")
+load("//ocaml/private:kwargs.bzl", OCAML_SUPPORT = "PLATFORM_SUPPORT")
 load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
 load("//php/private:defs.bzl", PHP_SUPPORT = "PLATFORM_SUPPORT")
 load("//qt/sdk:repos.bzl", QT_SUPPORT = "PLATFORM_SUPPORT")
@@ -183,7 +183,7 @@ ROWS = [
     {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "title": "OCaml"},
     {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": "Perl"},
     {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": "PHP"},
-    {"ci_tests": ["@rules_dx_powershell//tests/fixtures/hello:hello_test"], "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": "PowerShell"},
+    {"ci_tests": ["//powershell/tests/fixtures/hello:hello_test"], "consumer_tests": _starter_consumers("powershell"), "name": "powershell", "section": "languages", "title": "PowerShell"},
     {"ci_tests": ["//core/codegen:codegen_prost_fixture_argv_test"], "name": "protobuf", "section": "languages", "title": "Protobuf"},
     {
         "ci_tests": ["//python/tests/fixtures/entries:helper_test"],
@@ -489,7 +489,7 @@ LANGUAGES = [
         doc = struct(tool = "haddock", shard = "haskell_doc_shard"),
         dead_code = ["ghc -Wunused-local-binds, -Wunused-matches (-Wall)"],
         coverage = ["hpc"],
-        unsupported = "//haskell/toolchain:unsupported",
+        unsupported = "//haskell/private/toolchain:unsupported",
         not_applicable = {
             "windows_arm64": "GHC 9.10.3 ships no Windows arm64 bindist"
         },

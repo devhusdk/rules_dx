@@ -1097,7 +1097,7 @@ fn swift_check_resolves_in_a_copy_and_compares() {
         && arg.ends_with(&format!("sh '{}' check", dir_arg("app")))));
     assert_eq!(
         argv[argv.len() - 4..],
-        ["@rules_dx//swift/tools:swift", "--", "package", "resolve"]
+        ["@rules_dx//swift/private/tools:swift", "--", "package", "resolve"]
     );
     for (request, offline) in [
         (Selection::Full, true),
@@ -1159,7 +1159,7 @@ fn opam_update_upgrades_then_relocks() {
     assert!(
         runs[1]
             .argv
-            .contains(&"@rules_dx//ocaml/tools:opam".to_owned())
+            .contains(&"@rules_dx//ocaml/private/tools:opam".to_owned())
     );
     assert_eq!(runs[0].env[0].0, "OPAMROOT");
 }

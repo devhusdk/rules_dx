@@ -1,5 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_library")
-load("//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_module")
+load("//ocaml:defs.bzl", "ocaml_binary", "ocaml_module")
 load("//ocaml/tests/negative:negative_tests.bzl", "ocaml_compile_input_test", "ocaml_hermetic_link_test", "ocaml_link_archive_test")
 load("//quality:fixtures.bzl", "real_source_target")
 

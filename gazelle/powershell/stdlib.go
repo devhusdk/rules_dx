@@ -3,7 +3,7 @@ package powershell
 import "strings"
 
 // stdlibModules ships in $PSHOME/Modules of the pinned pwsh 7.5.13
-// (version in powershell/toolchain/pins.json), linux_x64 and win_x64 together, plus
+// (version in powershell/private/toolchain/pins.json), linux_x64 and win_x64 together, plus
 // the Microsoft.PowerShell.Core snap-in. Pester is a Gallery module, not here.
 var stdlibModules = map[string]bool{
 	"cimcmdlets":                         true,

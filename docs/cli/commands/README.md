@@ -231,7 +231,7 @@ Language rules:
 - `@rules_dx//erlang:defs.bzl`: Erlang.
 - `@rules_dx//fsharp:defs.bzl`: F#.
 - `@rules_dx//go/rules:defs.bzl`: Go.
-- `@rules_dx//haskell/rules:defs.bzl`: Haskell.
+- `@rules_dx//haskell:defs.bzl`: Haskell.
 - `@rules_dx//java:defs.bzl`: Java.
 - `@rules_dx//javascript:defs.bzl`: JavaScript.
 - `@rules_dx//ansible:defs.bzl`: Ansible.
@@ -243,7 +243,7 @@ Language rules:
 - `@rules_dx//kubernetes:defs.bzl`: Kubernetes.
 - `@rules_dx//perl:defs.bzl`: Perl.
 - `@rules_dx//php:defs.bzl`: PHP.
-- `@rules_dx//powershell/rules:defs.bzl`: PowerShell.
+- `@rules_dx//powershell:defs.bzl`: PowerShell.
 - `@rules_dx//python:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
 - `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
@@ -285,7 +285,7 @@ dx rule that wraps it.
 | `@rules_erlang//:eunit2.bzl` | `eunit` | `@rules_dx//erlang:defs.bzl` | `erlang_eunit_test` |
 | `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx//fsharp:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
 | `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go/rules:defs.bzl` | `go_binary`, `go_library`, `go_test` |
-| `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell/rules:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
+| `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
 | `@rules_java//java:defs.bzl` | `java_binary`, `java_library`, `java_test` | `@rules_dx//java:defs.bzl` | `java_binary`, `java_library`, `java_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//javascript:defs.bzl` | `javascript_binary` |
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//javascript:defs.bzl` | `javascript_library` |
@@ -294,7 +294,7 @@ dx rule that wraps it.
 | `@rules_julia//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` | `@rules_dx//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` |
 | `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
 | `@rules_perl//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` | `@rules_dx//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` |
-| `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell/rules:defs.bzl` | `powershell_binary`, `powershell_library`, `powershell_test` |
+| `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell:defs.bzl` | `powershell_binary`, `powershell_library`, `powershell_test` |
 | `@rules_py//py:defs.bzl` | `py_binary` | `@rules_dx//python:defs.bzl` | `python_binary` |
 | `@rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python:defs.bzl` | `python_library` |
 | `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python:defs.bzl` | `python_test` |
@@ -459,8 +459,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_test` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_bench` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
-|  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_bench` |
-|  |  | `@rules_dx//haskell/rules:defs.bzl` | `with_gmp` |
+|  |  | `@rules_dx//haskell:defs.bzl` | `haskell_bench` |
+|  |  | `@rules_dx//haskell:defs.bzl` | `with_gmp` |
 |  |  | `@rules_dx//helm/private:defs.bzl` | `helm_chart` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_bench` |
 |  |  | `@rules_dx//java/private:defs.bzl` | `java_binary` |
@@ -516,18 +516,18 @@ dx rule that wraps it.
 |  |  | `@rules_dx//msix/private:defs.bzl` | `msix_package` |
 |  |  | `@rules_dx//msix/private:defs.bzl` | `msix_sign` |
 |  |  | `@rules_dx//msix/private:defs.bzl` | `publisher_cn` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `launcher_script` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_bench` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_binary` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_fuzz_test` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_library` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_module` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_signature` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_test` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `owned_sources` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `runfiles_path` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `toolchain_choice` |
-|  |  | `@rules_dx//ocaml/rules:defs.bzl` | `toolchain_settings` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `launcher_script` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_bench` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_binary` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_fuzz_test` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_library` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_module` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_signature` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `ocaml_test` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `owned_sources` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `runfiles_path` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `toolchain_choice` |
+|  |  | `@rules_dx//ocaml:defs.bzl` | `toolchain_settings` |
 |  |  | `@rules_dx//ocaml/tests/native:defs.bzl` | `sys_cell_test` |
 |  |  | `@rules_dx//perl/private:defs.bzl` | `perl_bench` |
 |  |  | `@rules_dx//perl/private:defs.bzl` | `perl_binary` |
@@ -579,11 +579,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_build` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_library` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_test` |
-|  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_bench` |
-|  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_binary` |
-|  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_fuzz_test` |
-|  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_library` |
-|  |  | `@rules_dx//swift/rules:defs.bzl` | `swift_test` |
+|  |  | `@rules_dx//swift:defs.bzl` | `swift_bench` |
+|  |  | `@rules_dx//swift:defs.bzl` | `swift_binary` |
+|  |  | `@rules_dx//swift:defs.bzl` | `swift_fuzz_test` |
+|  |  | `@rules_dx//swift:defs.bzl` | `swift_library` |
+|  |  | `@rules_dx//swift:defs.bzl` | `swift_test` |
 |  |  | `@rules_dx//terraform/private:defs.bzl` | `collect_providers` |
 |  |  | `@rules_dx//terraform/private:defs.bzl` | `terraform_library` |
 |  |  | `@rules_dx//thrift/private:defs.bzl` | `thrift_library` |
@@ -709,7 +709,7 @@ SDK and toolchain extensions:
 - `@rules_dx_apple//ios:simulator.bzl`: iOS simulator.
 - `@rules_dx_cuda//toolchain:extensions.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
-- `@rules_dx//powershell/toolchain:gallery.bzl`: PowerShell Gallery modules.
+- `@rules_dx//powershell:extensions.bzl`: PowerShell Gallery modules.
 - `@rules_dx//msix:extensions.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:extensions.bzl`: Qt SDK.
 

@@ -188,7 +188,7 @@ fn area_module_srcs_carry_the_load_closure_of_their_entry_points() {
 
 const FAMILY_ENV: &str = "MODULE_SRCS_";
 
-/// The runfiles paths each family `module_srcs` ships, keyed by module name such as `rules_dx_swift`.
+/// The runfiles paths each family `module_srcs` ships, keyed by module name such as `rules_dx_apple`.
 fn family_sources() -> BTreeMap<String, BTreeSet<String>> {
     std::env::vars()
         .filter_map(|(name, value)| {

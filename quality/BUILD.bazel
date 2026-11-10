@@ -270,7 +270,7 @@ consumer_policy_tests(
             "case": "default_powershell",
             "expected_dx_results": [],
             "policy": "//config:default_workspace_policy",
-            "subject": "@rules_dx_powershell//tests/fixtures/hello:hello",
+            "subject": "//powershell/tests/fixtures/hello:hello",
         },
         {
             "case": "default_swift",

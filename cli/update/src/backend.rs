@@ -1073,7 +1073,7 @@ fn swift_argv(
         "--run_under=sh -c '{SWIFT_SCRIPT}' sh '{}' {mode}",
         dir.replace('\'', "'\\''")
     );
-    let mut argv = bazel(head, "run", &[&under, "@rules_dx//swift/tools:swift", "--"]);
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//swift/private/tools:swift", "--"]);
     argv.extend(command.iter().cloned());
     Ok(argv)
 }
@@ -1105,7 +1105,7 @@ fn opam_argv(
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
     let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
-    let mut argv = bazel(head, "run", &[&under, "@rules_dx//ocaml/tools:opam", "--"]);
+    let mut argv = bazel(head, "run", &[&under, "@rules_dx//ocaml/private/tools:opam", "--"]);
     argv.extend(strings(command));
     Ok(argv)
 }

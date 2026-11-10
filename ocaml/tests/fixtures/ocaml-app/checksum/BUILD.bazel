@@ -1,4 +1,4 @@
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_module", "ocaml_signature", "ocaml_test")
+load("@rules_dx//ocaml:defs.bzl", "ocaml_module", "ocaml_signature", "ocaml_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
@@ -15,7 +15,7 @@ exports_files(
 )
 
 # C stubs need the native (sys) cell; the bytecode cell links no C code.
-# `//ocaml/toolchain:emitter` picks the C-backed module or the portable one.
+# `//ocaml/private/toolchain:emitter` picks the C-backed module or the portable one.
 
 ocaml_signature(
     name = "checksum_sig",
@@ -25,7 +25,7 @@ ocaml_signature(
 alias(
     name = "checksum",
     actual = select({
-        "@rules_dx//ocaml/toolchain:emitter_sys": "//ocaml/tests/fixtures/ocaml-app/checksum/native",
+        "@rules_dx//ocaml/private/toolchain:emitter_sys": "//ocaml/tests/fixtures/ocaml-app/checksum/native",
         "//conditions:default": "//ocaml/tests/fixtures/ocaml-app/checksum/portable",
     }),
 )

@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
-load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_bench")
+load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_bench")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(default_visibility = ["//visibility:private"])
@@ -38,7 +38,7 @@ sh_test(
     args = ["$(rootpath :sum_bench_bin)"],
     data = [
         ":sum_bench_bin",
-        "//haskell/rules:bench_run.sh",
+        "//haskell/private:bench_run.sh",
     ],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     timeout = "short",

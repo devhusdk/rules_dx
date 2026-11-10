@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//swift/rules:defs.bzl", "swift_library")
+load("//swift:defs.bzl", "swift_library")
 load("//tools/docs/swift:defs.bzl", "swift_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

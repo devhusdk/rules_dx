@@ -58,13 +58,13 @@ label_flag(
 label_flag(
     name = "tool_hlint",
     scope = "universal",
-    build_setting_default = "//quality/tools/hlint",
+    build_setting_default = "//haskell/private/tools/hlint",
 )
 
 label_flag(
     name = "tool_weeder",
     scope = "universal",
-    build_setting_default = "//haskell/tools/weeder:weeder",
+    build_setting_default = "//haskell/private/tools/weeder:weeder",
 )
 
 label_flag(
@@ -94,7 +94,7 @@ label_flag(
 label_flag(
     name = "tool_ormolu",
     scope = "universal",
-    build_setting_default = "//quality/tools/ormolu",
+    build_setting_default = "//haskell/private/tools/ormolu",
 )
 
 label_flag(

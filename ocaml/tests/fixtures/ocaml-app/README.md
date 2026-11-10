@@ -21,13 +21,13 @@ bazel run //ocaml/tests/fixtures/ocaml-app/cli:stockctl -- ocaml/tests/fixtures/
 ```
 
 The default cell compiles to bytecode and runs on the pinned `ocamlrun`.
-Pass `--@rules_dx//ocaml/toolchain:emitter=sys` to build native executables.
+Pass `--@rules_dx//ocaml:emitter=sys` to build native executables.
 The same flag picks the checksum module: the native cell links the C stub in
 `checksum/native`, the bytecode cell uses `checksum/portable`, because the
 bytecode cell links no C code. Both must pass the same test vectors.
 
 ```sh
-bazel test //ocaml/tests/fixtures/ocaml-app/... --@rules_dx//ocaml/toolchain:emitter=sys
+bazel test //ocaml/tests/fixtures/ocaml-app/... --@rules_dx//ocaml:emitter=sys
 ```
 
 ## Exit codes

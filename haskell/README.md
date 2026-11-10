@@ -6,17 +6,17 @@ the toolchain, so there is no setup in `MODULE.bazel`.
 
 ## Rules
 
-Load the rules from `@rules_dx//haskell/rules:defs.bzl`. They wrap
+Load the rules from `@rules_dx//haskell:defs.bzl`. They wrap
 [rules_haskell](https://github.com/tweag/rules_haskell) and take the same
 attributes.
 
 ```python
-load("@rules_dx//haskell/rules:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
+load("@rules_dx//haskell:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
 
 haskell_library(
     name = "stock",
     srcs = ["src/Stock.hs"],
-    deps = ["//haskell/toolchain:base"],
+    deps = ["//haskell:base"],
 )
 
 haskell_test(
@@ -24,7 +24,7 @@ haskell_test(
     srcs = ["test/StockTest.hs"],
     deps = [
         ":stock",
-        "//haskell/toolchain:base",
+        "//haskell:base",
     ],
 )
 
@@ -33,7 +33,7 @@ haskell_binary(
     srcs = ["src/Main.hs"],
     deps = [
         ":stock",
-        "//haskell/toolchain:base",
+        "//haskell:base",
     ],
 )
 ```
@@ -49,7 +49,7 @@ haskell_binary(
   `--@rules_dx//config:warnings_as_errors=false`, to turn it off.
 - Library `tags` reach the library; the generated upstream target is
   `manual`, so `//...` builds only the library.
-- `//haskell/toolchain:<package>` has the GHC boot packages: `array`,
+- `//haskell:<package>` has the GHC boot packages: `array`,
   `base`, `binary`, `bytestring`, `containers`, `deepseq`, `directory`,
   `exceptions`, `filepath`, `ghc-prim`, `mtl`, `parsec`, `pretty`, `process`,
   `stm`, `template-haskell`, `text`, `time`, `transformers` and `unix`.
@@ -77,7 +77,7 @@ their license texts in `dx_closure/licenses`:
 
 `haskell_binary` and `haskell_test` link GMP dynamically and carry
 `libgmp.so.10` in their runfiles. Ship it with a binary you distribute.
-`//haskell/toolchain:licenses` has the license texts.
+`//haskell:licenses` has the license texts.
 
 The host needs glibc 2.28 or newer.
 
@@ -119,7 +119,7 @@ On other platforms Haskell targets fail toolchain resolution.
 The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale. With `stack_lock = "stack.yaml.lock"` (listed in `srcs`), `haskell_deps_resolve` pins every version named by the lock's sha256-checked snapshot and extra-deps, and writes the same two files; `dx audit` and `dx update` read the resulting `cabal.project.freeze`. It does not run `stack`; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
 
 ```starlark
-load("@rules_dx//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("@rules_dx//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 haskell_deps_resolve(name = "resolve", srcs = ["cabal.project", "app.cabal"])
 
@@ -133,7 +133,7 @@ The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC 
 The `haskell.lock` tag turns a `haskell_deps.json` into a hub repository:
 
 ```starlark
-haskell = use_extension("@rules_dx//haskell/toolchain:extensions.bzl", "haskell")
+haskell = use_extension("@rules_dx//haskell:extensions.bzl", "haskell")
 haskell.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
 use_repo(haskell, "hackage")
 ```

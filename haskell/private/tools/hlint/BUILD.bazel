@@ -1,0 +1,36 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+
+package(default_visibility = ["//visibility:public"])
+
+_PROJECT = ["cabal.project"]
+
+exports_files(_PROJECT + ["haskell_deps.json"])
+
+haskell_deps_resolve(
+    name = "resolve",
+    srcs = _PROJECT,
+    target = "exe:hlint",
+)
+
+haskell_deps_resolve_test(
+    name = "resolve_test",
+    srcs = _PROJECT,
+)
+
+alias(
+    name = "hlint",
+    actual = select({
+        "//haskell/private/toolchain:cell_linux_arm64": "@haskell_hlint_hackage//:hlint-exe-hlint",
+        "//conditions:default": "@dx_tools//:hlint",
+    }),
+)
+
+build_test(
+    name = "hlint_build_test",
+    target_compatible_with = select({
+        "//haskell/private/toolchain:cell_linux_arm64": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
+    targets = ["@haskell_hlint_hackage//:hlint-exe-hlint"],
+)

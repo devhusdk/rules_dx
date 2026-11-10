@@ -1213,12 +1213,12 @@ def unsupported_platform_analysis_tests(name):
     _zanuda_marked_test(
         name = name + "_zanuda_tool",
         size = "small",
-        target_under_test = "//quality/tools/ocaml:zanuda_tool",
+        target_under_test = "//ocaml/private/quality:zanuda_tool",
     )
     _swift_format_marked_test(
         name = name + "_swift_format_tool",
         size = "small",
-        target_under_test = "//swift/tools:swift_format",
+        target_under_test = "//swift/private/tools:swift_format",
     )
     _zanuda_policy_test(
         name = name + "_zanuda_macos",

@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 
 _LINUX = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
-_EMITTER = str(Label("//ocaml/toolchain:emitter"))
+_EMITTER = str(Label("//ocaml/private/toolchain:emitter"))
 
 def _inputs_impl(ctx):
     env = analysistest.begin(ctx)

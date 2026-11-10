@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("//ios:cell.bzl", "APPLE_HOSTS")
-load("@rules_dx//swift/rules:defs.bzl", "swift_library")
+load("@rules_dx//swift:defs.bzl", "swift_library")
 
 swift_library(
     name = "ledger_main",

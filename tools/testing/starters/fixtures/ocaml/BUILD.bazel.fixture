@@ -1,4 +1,4 @@
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_test")
+load("@rules_dx//ocaml:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_test")
 
 ocaml_module(
     name = "hello",

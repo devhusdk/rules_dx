@@ -43,7 +43,7 @@ func NewLanguage() language.Language {
 		LanguageName: languageName,
 		LibraryKind:  ModuleKind,
 		Kinds:        ocamlKinds,
-		DefsPackage:  "ocaml/rules:defs.bzl",
+		DefsPackage:  "ocaml:defs.bzl",
 		ImportAttr:   "struct",
 		Generate:     generateRules,
 	})}

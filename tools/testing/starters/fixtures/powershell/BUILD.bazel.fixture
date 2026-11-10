@@ -1,4 +1,4 @@
-load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
+load("@rules_dx//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 
 powershell_library(
     name = "demo-app",

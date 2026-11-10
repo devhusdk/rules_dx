@@ -1,5 +1,5 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
-load("//ocaml/rules:dune.bzl", "dx_dune_build")
+load("//ocaml/private:dune.bzl", "dx_dune_build")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -15,7 +15,7 @@ exports_files(
 dx_dune_build(
     name = "odoc",
     srcs = ["@dx_ocaml_tools_duniverse//:srcs"],
-    dune = "//ocaml/toolchain:dune",
+    dune = "//ocaml/private/toolchain:dune",
     target = "odoc/src/odoc/bin/main.exe",
     workspace = "@dx_ocaml_tools_duniverse//:dune-project",
 )

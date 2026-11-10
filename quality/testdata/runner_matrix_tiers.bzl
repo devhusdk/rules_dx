@@ -130,7 +130,7 @@ def _lint_cases(tier):
             _SWIFT_CLEAN,
             "swift_lint;swift;matrix/swift_lint_tier/add.swift",
             "swift_lint",
-            "//swift/tools:swift_format",
+            "//swift/private/tools:swift_format",
             "//quality/tiers/swift_lint:%s.json" % tier,
             **_NO_PLATFORMS
         ),

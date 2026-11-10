@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -24,7 +24,7 @@ haskell_deps_resolve_test(
 alias(
     name = "nixfmt",
     actual = select({
-        "//haskell/toolchain:cell_linux_arm64": "@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt",
+        "//haskell/private/toolchain:cell_linux_arm64": "@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt",
         "//conditions:default": "@dx_tools//:nixfmt",
     }),
 )
@@ -32,7 +32,7 @@ alias(
 build_test(
     name = "nixfmt_build_test",
     target_compatible_with = select({
-        "//haskell/toolchain:cell_linux_arm64": [],
+        "//haskell/private/toolchain:cell_linux_arm64": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
     targets = ["@haskell_nixfmt_hackage//:nixfmt-exe-nixfmt"],

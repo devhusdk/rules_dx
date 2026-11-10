@@ -1059,6 +1059,11 @@ filegroup(
 )
 
 
+toolchain_type(
+    name = "compile_check_sh_toolchain_type",
+    visibility = ["//visibility:public"],
+)
+
 dx_sh_toolchain(
     name = "busybox_sh",
     executable = "@dx_busybox_sh//file",
@@ -1073,7 +1078,7 @@ toolchain(
         "@platforms//cpu:x86_64",
     ],
     toolchain = ":busybox_sh",
-    toolchain_type = "@bazel_tools//tools/sh:toolchain_type",
+    toolchain_type = ":compile_check_sh_toolchain_type",
 )
 
 suite_membership_test(name = "suite_membership_test", sh_test = sh_test)

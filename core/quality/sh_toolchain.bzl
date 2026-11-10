@@ -15,5 +15,5 @@ dx_sh_toolchain = rule(
         "launcher": attr.label(allow_single_file = True, executable = True, cfg = "target"),
         "launcher_maker": attr.label(allow_single_file = True, executable = True, cfg = "exec"),
     },
-    doc = "A bazel_tools sh toolchain whose shell is a declared input.",
+    doc = "A compile check sh toolchain whose shell is a declared input.",
 )

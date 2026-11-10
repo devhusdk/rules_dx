@@ -47,6 +47,7 @@ A read-only key makes Bazel warn on every build that it cannot upload results. U
 - `bazel test //core/quality/testdata:real_results`
 - `bazel test //core/quality/testdata:tool_overrides`
 - `bazel test //core/quality/testdata:runner_matrix`
+- `bazel test //core/quality/testdata:aspects`
 - `bazel test //core/quality:all`
 
 ## Evidence status

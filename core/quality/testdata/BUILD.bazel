@@ -1827,3 +1827,33 @@ real_docs_shard_files(
     target = "//tools/docs/rust/fixture:docs_fixture",
     visibility = ["//tools/docs/rust:__pkg__"],
 )
+
+test_suite(
+    name = "aspects",
+    tests = [
+        ":ambiguous_node_test",
+        ":fake_format_test",
+        ":fake_format_test_upstream",
+        ":fixture_real_asciidoc_no_converter_test",
+        ":fixture_real_javascript_bad_config_test",
+        ":fixture_real_markdown_sibling_only_test",
+        ":fixture_real_python_dup_config_test",
+        ":fixture_real_python_generated_data_no_optin_test",
+        ":fixture_real_python_generated_no_optin_test",
+        ":fixture_real_python_malformed_config_test",
+        ":fixture_real_rst_no_converter_test",
+        ":fixture_upstream_rust_clippy_rmeta_inputs_test",
+        ":fixture_upstream_rust_rmeta_paths_test",
+        ":fixture_upstream_rust_rmeta_typecheck_test",
+        ":pulldown_cmark_no_pipelining_test",
+        ":real_aspect_presence",
+        ":real_docs_shards",
+        ":real_family_probe",
+        ":real_result_check_spaces_test",
+        ":real_shard_probe",
+        ":real_typecheck_presence",
+        ":scalafmt_errors_test",
+        ":upstream_cc_no_context_test",
+        ":upstream_ownership_presence",
+    ],
+)

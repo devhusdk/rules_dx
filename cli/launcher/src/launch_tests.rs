@@ -68,6 +68,17 @@ fn names_the_descriptor_beside_the_executable() {
         descriptor_path(Path::new("out/app.test.exe")),
         PathBuf::from("out/app.test.launch")
     );
+    assert_eq!(
+        descriptor_path(Path::new("out/app.run")),
+        PathBuf::from("out/app.run.launch")
+    );
+    assert_eq!(
+        descriptor_candidates(Path::new("out/app.run.EXE")),
+        [
+            PathBuf::from("out/app.run.launch"),
+            PathBuf::from("out/app.run_upstream.launch")
+        ]
+    );
 }
 
 #[test]

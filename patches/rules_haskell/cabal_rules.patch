@@ -69,7 +69,7 @@ index 9fbe27f..b09270f 100644
          extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
          extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
  
-+    if not (hs.toolchain.is_darwin or hs.toolchain.is_windows):
++    if not hs.toolchain.is_windows:
 +        extra_args.append("--ghc-option=-optl-fuse-ld=lld")
 +
 +    if hs.toolchain.is_darwin:

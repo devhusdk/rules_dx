@@ -1,6 +1,6 @@
 """Fail-closed v1 parity gate."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load(":tool_defs.bzl", "is_canonical_token")
 

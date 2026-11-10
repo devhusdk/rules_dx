@@ -1,6 +1,6 @@
 """Identity tests pinning the authoritative toolchain binding."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//modules:versions.bzl", "RUSTFMT_VERSION")
 load(":bindings.bzl", "RUSTFMT_TOOLCHAIN_TYPE", "RUST_TOOLCHAIN_TYPE")
 

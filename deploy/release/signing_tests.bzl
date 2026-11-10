@@ -1,6 +1,6 @@
 """Unit tests for signing selection (live successor to closed /)."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:hub.bzl", "TOOL_PLATFORMS")
 load(":cosign_pins.bzl", "COSIGN_PLATFORMS")
 load(":signing.bzl", "SIGNING_BUNDLE_MEDIA_TYPE", "SIGNING_COSIGN_VERSION", "SIGNING_ISSUER", "SIGNING_TRUST_ROOT", "signing_bundle_media_error", "signing_bundle_names", "signing_cosign_error", "signing_identity_error")

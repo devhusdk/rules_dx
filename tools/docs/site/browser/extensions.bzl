@@ -1,6 +1,6 @@
 """Module extension for tools/docs/site/browser."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":repos.bzl", "ARTIFACTS", "artifact_errors", "firefox_repo", "hub_build", "repository_name", "url_for")
 
 

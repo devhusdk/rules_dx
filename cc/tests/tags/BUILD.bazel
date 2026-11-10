@@ -1,6 +1,6 @@
 load("//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load("//libs/starlark:defs.bzl", "starlark_test")
-load("//libs/starlark:tag_probe.bzl", "tag_subject")
+load("//core:defs.bzl", "starlark_test")
+load("//core:tag_probe.bzl", "tag_subject")
 load("//quality:fixtures.bzl", "real_source_target")
 
 cc_library(

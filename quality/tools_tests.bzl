@@ -1,6 +1,6 @@
 """Gate: the combined tool list keeps its tool ids, and each family file owns distinct tools."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":tools.bzl", "FAMILY_TOOLS", "TOOLS")
 
 EXPECTED_IDS = [

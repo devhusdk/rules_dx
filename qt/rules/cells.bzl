@@ -1,6 +1,6 @@
 """Qualified Qt cells as target compatibility and consumer archive settings."""
 
-load("//libs/starlark:cells.bzl", "unsupported_constraint")
+load("//core:cells.bzl", "unsupported_constraint")
 load("//qt/sdk:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/sdk:repos.bzl", "qualified_cells")
 

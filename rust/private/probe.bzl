@@ -2,8 +2,8 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
-load("//libs/starlark:canonical.bzl", "strip_canonical")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//core:canonical.bzl", "strip_canonical")
+load("//core:defs.bzl", "DxSubjectInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _label_text(label):

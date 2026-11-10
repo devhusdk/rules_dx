@@ -1,8 +1,8 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal")
-load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
-load("//libs/starlark:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//core:entry.bzl", "dx_entry_quality_srcs")
+load("//core:wrapper.bzl", "DX_NO_COVERAGE_COLLECTOR_TAG", "dx_with_tag")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "ZIG_COVERAGE_COLLECTOR", "ZIG_QUALITY_TOOLS", "zig_import_name")
 

@@ -1,6 +1,6 @@
 """Hermetic OCaml acquisition and toolchain registration."""
 
-load("//libs/starlark:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
 
 HUB_NAME = "dx_ocaml_toolchains"

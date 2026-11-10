@@ -1,6 +1,6 @@
 """JVM test coverage shared by the java, kotlin and scala wrappers."""
 
-load("//libs/starlark:wrapper.bzl", "dx_forwarded_run_environment")
+load("//core:wrapper.bzl", "dx_forwarded_run_environment")
 
 DX_JVM_TEST_RUNNER = "com.google.testing.junit.runner.BazelTestRunner"
 

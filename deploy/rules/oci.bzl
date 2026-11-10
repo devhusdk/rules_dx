@@ -1,6 +1,6 @@
 """Local-first OCI publisher for dx deploy."""
 
-load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
+load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deployment_budget", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_oci.bzl", "OCI_DEFAULT_REGISTRY", "oci_image_error", "oci_platform", "oci_platform_error", "oci_registry_error", "oci_repository_error", "oci_tag_error")

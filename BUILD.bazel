@@ -212,7 +212,7 @@ filegroup(
         "//elixir/private:module_srcs",
         "//libs/fuzz_run:module_srcs",
         "//libs/launcher:module_srcs",
-        "//libs/starlark:module_srcs",
+        "//core:module_srcs",
         "//modules:module_srcs",
         "//quality:module_srcs",
         "//quality/private:module_srcs",

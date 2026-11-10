@@ -5,7 +5,7 @@ load("@rules_elixir//private:elixir_toolchain.bzl", "elixir_dirs", "erlang_dirs"
 load("@rules_erlang//:erlang_app_info.bzl", "flat_deps")
 load("@rules_erlang//:util.bzl", "path_join")
 load("@rules_erlang//private:util.bzl", "erl_libs_contents")
-load("//libs/starlark:resources.bzl", "dx_medium_resources")
+load("//core:resources.bzl", "dx_medium_resources")
 
 _TOOLCHAIN = Label("@rules_elixir//:toolchain_type")
 

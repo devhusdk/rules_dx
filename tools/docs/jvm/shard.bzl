@@ -1,6 +1,6 @@
 """The JVM API reference shard action shared by the rules and the docs aspect."""
 
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//core:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
 
 JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"

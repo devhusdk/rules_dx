@@ -1,6 +1,6 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//bicep:defs.bzl", "bicep_library", "bicep_registry_module")
-load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//core:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "owns_bicep_class_test", "registry_deps_test", "registry_unit_tests", "transitive_context_test")
 
 bicep_library(

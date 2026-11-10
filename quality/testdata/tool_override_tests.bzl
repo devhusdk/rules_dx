@@ -1,8 +1,8 @@
 """Analysis proofs for the declared ruff tool override."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:canonical.bzl", "strip_canonical")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//core:canonical.bzl", "strip_canonical")
+load("//core:defs.bzl", "DxSubjectInfo")
 load("//perl:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//dart/private:dart_config.bzl", "DxDartConfigInfo")
 load(

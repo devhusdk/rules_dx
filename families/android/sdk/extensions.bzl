@@ -1,8 +1,8 @@
 """The android_sdk module extension."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load("@rules_dx//libs/starlark:license.bzl", "license_tag", "root_accepts")
-load("@rules_dx//libs/starlark:repo.bzl", "hub_repo")
+load("@rules_dx//core:license.bzl", "license_tag", "root_accepts")
+load("@rules_dx//core:repo.bzl", "hub_repo")
 load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "android_sdk_local_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "hub_build", "package_repositories", "request_errors", "sdk_level", "url_for")
 
 def _configure_tag(request, accept_licenses):

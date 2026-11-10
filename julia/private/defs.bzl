@@ -3,9 +3,9 @@
 load("@rules_julia//julia:defs.bzl", _julia_binary = "julia_binary", _julia_library = "julia_library", _julia_standalone_binary = "julia_standalone_binary", _julia_test = "julia_test")
 load("@rules_julia//julia:julia_info.bzl", _JuliaInfo = "JuliaInfo")
 load("//julia/private/coverage:coverage.bzl", "dx_julia_coverage_aspect", "dx_julia_coverage_attrs", "dx_julia_test_coverage")
-load("//libs/starlark:cells.bzl", "unsupported_constraint")
-load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:cells.bzl", "unsupported_constraint")
+load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 JuliaInfo = _JuliaInfo

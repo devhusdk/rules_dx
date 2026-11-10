@@ -1,6 +1,6 @@
 """Unit plus execution tests for docs site execution."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//quality/artifacts:mdbook.bzl", _MDBOOK = "ARTIFACTS")
 load(":render.bzl", "mdbook_chapters_error", "mdbook_index", "mdbook_index_text", "mdbook_page", "mdbook_page_list", "mdbook_route_error", "mdbook_section", "mdbook_summary_text")
 load(":site.bzl", "site_api_name", "site_api_path", "site_guide_step_error", "site_is_external_link", "site_is_known_guide", "site_link_target_error", "site_prose_error", "site_records_name", "site_search_record", "site_summary_name", "site_symbol_id", "site_symbol_id_error", "site_url_for_symbol")

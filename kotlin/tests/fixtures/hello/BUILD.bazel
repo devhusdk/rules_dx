@@ -1,6 +1,6 @@
 load("@rules_dx//java/private:coverage_tests.bzl", "jvm_coverage_env_test")
 load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
-load("@rules_dx//libs/starlark/tests:direct_sources.bzl", "dx_direct_sources_test")
+load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")

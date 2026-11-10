@@ -1,4 +1,4 @@
-load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_java//java:java_binary.bzl", "java_binary")
 load("@rules_java//java:java_import.bzl", "java_import")

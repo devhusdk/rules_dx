@@ -1,6 +1,6 @@
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal")
-load("//libs/starlark:wrapper.bzl", "dx_quality_srcs")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//core:wrapper.bzl", "dx_quality_srcs")
 load(
     "//lua/private:lua.bzl",
     "LUA_SOURCE_SPECS",

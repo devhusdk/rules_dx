@@ -769,7 +769,7 @@ rust_test(
         "//kubernetes/private:corpus_starlark",
         "//kubernetes/private/quality:corpus_starlark",
         "//libs/exec_os:corpus_starlark",
-        "//libs/starlark:corpus_starlark",
+        "//core:corpus_starlark",
         "//libs/testing:corpus_starlark",
         "//libs/web_server:corpus_starlark",
         "//lua/luarocks:corpus_starlark",

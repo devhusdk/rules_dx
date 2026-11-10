@@ -1,0 +1,280 @@
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("//cc/rules:defs.bzl", "cc_test")
+load("//core:defs.bzl", "starlark_test")
+load("//core:failure_test.bzl", "failure_test")
+load("//core/tests/fixtures/starlark_futures:aspect_subjects.bzl", "aspect_group", "aspect_leaf")
+load("//core/tests/fixtures/starlark_futures:config_subjects.bzl", "config_group", "config_leaf")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":analysis_tests.bzl", "observations_only_tests", "runner_shape_tests", "subject_analysis_tests")
+load(":arithmetic_tests.bzl", "arithmetic_load_tests", "arithmetic_unit_tests")
+load(":aspect_tests.bzl", "aspect_subject_tests")
+load(":cells_tests.bzl", "cells_tests")
+load(":config_tests.bzl", "config_subject_tests")
+load(":entry_tests.bzl", "entry_tests")
+load(":execution_tests.bzl", "fixture_execution_tests")
+load(":harness_link_tests.bzl", "harness_link_tests")
+load(":license_tests.bzl", "license_tests")
+load(":packaging_tests.bzl", "packaging_unit_tests")
+load(":pins_tests.bzl", "pins_tests")
+load(":platform_tests.bzl", "platform_probe_tests")
+load(":repo_tests.bzl", "repo_unit_tests")
+load(":seven_zip_tests.bzl", "seven_zip_tests")
+load(":subject.bzl", "example_subject")
+load(":toolchain_tests.bzl", "toolchain_tests")
+load(":thin_compare.bzl", "thin_demo_executable_forward", "thin_demo_library_forward")
+load(":warnings_tests.bzl", "warnings_tests")
+load(":wrapper_forward_fixture.bzl", "wrapper_forward_fixtures", "wrapper_forward_tests")
+load(":wrapper_tests.bzl", "wrapper_kwarg_hooks_tests", "wrapper_optional_forward_tests", "wrapper_resource_tags_tests", "wrapper_shape_kwargs_tests", "wrapper_symlink_naming_tests")
+
+example_subject(
+    name = "subject_under_test",
+    left = 40,
+    right = 2,
+)
+
+aspect_leaf(
+    name = "aspect_leaf_under_test",
+    left = 19,
+    right = 23,
+)
+
+aspect_group(
+    name = "aspect_group_under_test",
+    note = "group-note",
+    deps = [
+        ":aspect_leaf_under_test",
+        ":subject_under_test",
+    ],
+)
+
+config_leaf(
+    name = "config_leaf_under_test",
+    testonly = True,
+    note = select({
+        "//core/tests/fixtures/starlark_futures:is_flipped": "flipped-note",
+        "//conditions:default": "plain-note",
+    }),
+)
+
+config_group(
+    name = "config_group_under_test",
+    testonly = True,
+    note = select({
+        "//core/tests/fixtures/starlark_futures:is_flipped": "flipped-note",
+        "//conditions:default": "plain-note",
+    }),
+    deps = [":config_leaf_under_test"],
+)
+
+arithmetic_unit_tests(name = "arithmetic_unit")
+
+repo_unit_tests(name = "repo_unit")
+
+arithmetic_load_tests(name = "arithmetic_load")
+
+cells_tests(name = "cells")
+
+pins_tests(name = "pins")
+
+entry_tests(name = "entry")
+
+license_tests(name = "license")
+
+seven_zip_tests(name = "seven_zip")
+
+toolchain_tests(name = "toolchain")
+
+
+subject_analysis_tests(name = "subject_analysis")
+
+runner_shape_tests(name = "runner_shape_analysis")
+
+observations_only_tests(name = "observations_only_analysis")
+
+aspect_subject_tests(name = "aspect_subject_analysis")
+
+config_subject_tests(name = "config_subject_analysis")
+
+platform_probe_tests(name = "platform_probe_analysis")
+
+fixture_execution_tests(name = "fixture_execution")
+
+
+
+
+packaging_unit_tests(name = "packaging_unit")
+
+harness_link_tests(name = "harness_link")
+
+warnings_tests(name = "warnings")
+
+wrapper_kwarg_hooks_tests(name = "wrapper_kwarg_hooks")
+
+wrapper_optional_forward_tests(name = "wrapper_optional_forward")
+
+wrapper_resource_tags_tests(name = "wrapper_resource_tags")
+
+wrapper_shape_kwargs_tests(name = "wrapper_shape_kwargs")
+
+wrapper_symlink_naming_tests(name = "wrapper_symlink_naming")
+
+genrule(
+    name = "thin_demo_plain",
+    outs = ["thin_demo_plain.txt"],
+    cmd = "echo demo > $@",
+)
+
+thin_demo_library_forward(
+    name = "thin_demo_missing_provider",
+    tags = ["manual"],
+    upstream = ":thin_demo_plain",
+)
+
+thin_demo_executable_forward(
+    name = "thin_demo_missing_executable",
+    tags = ["manual"],
+    upstream = ":thin_demo_plain",
+)
+
+failure_test(
+    name = "thin_demo_missing_provider_test",
+    expected_failure_substring = "upstream target has no QualitySourcesInfo",
+    target = ":thin_demo_missing_provider",
+)
+
+failure_test(
+    name = "thin_demo_missing_executable_test",
+    expected_failure_substring = "upstream target has no executable",
+    target = ":thin_demo_missing_executable",
+)
+
+filegroup(
+    name = "wrapper_forward_hint",
+    srcs = [],
+)
+
+wrapper_forward_fixtures(
+    name = "wrapper_forward",
+    hint = ":wrapper_forward_hint",
+)
+
+wrapper_forward_tests(
+    name = "wrapper_forward_contract",
+    fixture = "wrapper_forward",
+)
+
+test_suite(
+    name = "all",
+    tests = [
+        ":arithmetic_load",
+        ":arithmetic_unit",
+        ":aspect_subject_analysis",
+        ":config_subject_analysis",
+        ":exec_group_forwarder_analysis",
+        ":fixture_execution",
+        ":harness_link",
+        ":license",
+        ":observations_only_analysis",
+        ":packaging_unit",
+        ":repo_unit",
+        ":runner_shape_analysis",
+        ":subject_analysis",
+        ":thin_demo_missing_executable_test",
+        ":thin_demo_missing_provider_test",
+        ":warnings",
+        ":wrapper_forward_contract",
+        ":wrapper_forward_contract_forward",
+        ":wrapper_forward_contract_golden_pin",
+        ":wrapper_forward_contract_lossy",
+        ":wrapper_kwarg_hooks",
+        ":wrapper_optional_forward",
+        ":wrapper_resource_tags",
+        ":wrapper_shape_kwargs",
+        ":wrapper_symlink_naming",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "analysis_tests.bzl",
+        "arithmetic.bzl",
+        "arithmetic_tests.bzl",
+        "aspect_tests.bzl",
+        "cells_tests.bzl",
+        "config_tests.bzl",
+        "direct_sources.bzl",
+        "entry_tests.bzl",
+        "execution_tests.bzl",
+        "license_tests.bzl",
+        "packaging_tests.bzl",
+        "pins_tests.bzl",
+        "repo_tests.bzl",
+        "seven_zip_tests.bzl",
+        "subject.bzl",
+        "thin_compare.bzl",
+        "toolchain_tests.bzl",
+        "warnings_tests.bzl",
+        "wrapper_forward_fixture.bzl",
+        "wrapper_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+starlark_test(
+    name = "resource_set_wiring",
+    file_checks = {
+        "@rules_dx_apple//bundle:defs.bzl": "resource_set = dx_heavy_resources",
+        "@rules_dx_apple//ios:app.bzl": "resource_set = dx_heavy_resources",
+        "@rules_dx_apple//macos:app.bzl": "resource_set = dx_heavy_resources",
+        "//javascript/private:web.bzl": "resource_set = dx_bundler_resources",
+        "//quality:elixirc.bzl": "resource_set = dx_medium_resources",
+        "//quality:erlc.bzl": "resource_set = dx_medium_resources",
+        "//quality:fsc.bzl": "resource_set = dx_heavy_resources",
+        "//quality:roslyn.bzl": "resource_set = dx_heavy_resources",
+        "//quality:real_core.bzl": "resource_set = real_quality_resource_set(",
+    },
+    mode = "execution",
+)
+
+constraint_setting(
+    name = "exec_group_universal_setting",
+    default_constraint_value = ":exec_group_universal",
+)
+
+constraint_value(
+    name = "exec_group_universal",
+    constraint_setting = ":exec_group_universal_setting",
+)
+
+write_file(
+    name = "exec_group_forwarder_src",
+    out = "exec_group_forwarder_src.cc",
+    content = [
+        "int main() { return 0; }",
+        "",
+    ],
+)
+
+cc_test(
+    name = "exec_group_forwarder",
+    srcs = [":exec_group_forwarder_src"],
+    exec_group_compatible_with = {
+        "test": [":exec_group_universal"],
+        "cpp_link": [":exec_group_universal"],
+    },
+    exec_properties = {
+        "Pool": "a",
+        "test.Pool": "b",
+        "cpp_link.Pool": "c",
+    },
+    tags = ["manual"],
+)
+
+starlark_test(
+    name = "exec_group_forwarder_analysis",
+    mode = "analysis",
+    subjects = [":exec_group_forwarder"],
+)

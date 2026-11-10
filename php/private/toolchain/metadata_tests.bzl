@@ -1,8 +1,8 @@
 """PHP toolchain pin and acquisition tests."""
 
 load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
-load("//libs/starlark:cells.bzl", "cell_cases", "cell_setting")
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core:cells.bzl", "cell_cases", "cell_setting")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
 load(":php.bzl", "TOOLCHAIN_TYPE")

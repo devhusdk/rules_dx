@@ -1,6 +1,6 @@
 """The Python API reference shard action shared by the rule and the docs aspect."""
 
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "rlocation_path")
 load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
 
 

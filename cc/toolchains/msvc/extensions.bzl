@@ -1,8 +1,8 @@
 """Module extension for cc/toolchains/msvc."""
 
 load("//cc/toolchains:pins.bzl", "MSVC_TOOLSET_VERSION", "WINDOWS_SDK_INCLUDE_VERSION")
-load("//libs/starlark:license.bzl", "accepted", "license_tag")
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:license.bzl", "accepted", "license_tag")
+load("//core:repo.bzl", "hub_repo")
 load(":repos.bzl", "HUB_NAME", "LICENSE", "LICENSE_URL", "hub_build")
 
 

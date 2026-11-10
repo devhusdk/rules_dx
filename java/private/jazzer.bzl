@@ -1,8 +1,8 @@
 """Private Jazzer helper for java_fuzz_test, kotlin_fuzz_test and scala_fuzz_test."""
 
 load("@rules_java//java:defs.bzl", _java_binary = "java_binary")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
-load("//libs/starlark:wrapper.bzl", "dx_src_path")
+load("//core:fuzz.bzl", "dx_fuzz_test")
+load("//core:wrapper.bzl", "dx_src_path")
 
 _ROOTS = [
     ["src", "main", "java"],

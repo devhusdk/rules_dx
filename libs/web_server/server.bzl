@@ -1,6 +1,6 @@
 """Development server for staged browser applications."""
 
-load("//libs/starlark:defs.bzl", "display_label")
+load("//core:defs.bzl", "display_label")
 load("//python:defs.bzl", "python_binary")
 
 JavascriptWebAppInfo = provider(

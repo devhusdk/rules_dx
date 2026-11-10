@@ -1,6 +1,6 @@
 """Repository rule and hub for Zig packages fetched from build.zig.zon."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "hub_root_build", "main_file", "pin_entry_json", "spoke_build")
 
 _DEFS_BZL = str(Label("//zig/private:defs.bzl"))

@@ -72,7 +72,7 @@ pub struct TestEvents {
 
 /// The tag dx test macros put on a test whose language has no coverage
 /// collector; it mirrors `DX_NO_COVERAGE_COLLECTOR_TAG` in
-/// `libs/starlark/wrapper.bzl`.
+/// `core/wrapper.bzl`.
 pub const NO_COVERAGE_COLLECTOR_TAG: &str = "dx-no-coverage-collector";
 
 struct TestResultId<'a> {

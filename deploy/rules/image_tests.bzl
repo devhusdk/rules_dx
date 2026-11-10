@@ -1,6 +1,6 @@
 """Unit tests for oci_image_from_binary."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":image.bzl", "image_binary_name", "image_default_main", "image_entrypoint", "image_runtime_dest")
 load(":validate_image.bzl", "image_options_error")
 

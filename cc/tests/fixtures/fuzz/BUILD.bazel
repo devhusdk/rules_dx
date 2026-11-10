@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", "cc_fuzz_test")
-load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(
     default_testonly = True,

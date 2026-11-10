@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("//libs/starlark:cells.bzl", "cell_settings")
+load("//core:cells.bzl", "cell_settings")
 load("//ocaml/rules:dune.bzl", "dx_dune_bootstrap")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "ocaml_metadata_tests")

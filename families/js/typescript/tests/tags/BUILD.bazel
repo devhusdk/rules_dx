@@ -1,5 +1,5 @@
-load("@rules_dx//libs/starlark:defs.bzl", "starlark_test")
-load("@rules_dx//libs/starlark:tag_probe.bzl", "tag_subject")
+load("@rules_dx//core:defs.bzl", "starlark_test")
+load("@rules_dx//core:tag_probe.bzl", "tag_subject")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//typescript:defs.bzl", "typescript_library")
 

@@ -1,6 +1,6 @@
 """Pinned upstream Doxygen acquisition for C, C++ and CUDA API reference shards."""
 
-load("//libs/starlark:host.bzl", "host_cell")
+load("//core:host.bzl", "host_cell")
 
 DOXYGEN_VERSION = "1.18.0"
 

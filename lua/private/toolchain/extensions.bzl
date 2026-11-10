@@ -1,7 +1,7 @@
 """Module extension for lua/private/toolchain."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("//libs/starlark:toolchain.bzl", "host_archive")
+load("//core:toolchain.bzl", "host_archive")
 load("//lua/private/coverage:pins.bzl", "LUACOV_BUILD", "LUACOV_PINS")
 load(":pins.bzl", "LDOC_PINS", "LUALS_CELLS")
 load(":repos.bzl", "LUALS_BUILD")

@@ -1,7 +1,7 @@
 """Run a test or build a binary under an explicitly selected C++ toolchain."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
-load("//libs/starlark:wrapper.bzl", "dx_gcov_tool", "dx_lcov_merger_attr", "dx_symlink_executable", "dx_symlink_executable_name")
+load("//core:wrapper.bzl", "dx_gcov_tool", "dx_lcov_merger_attr", "dx_symlink_executable", "dx_symlink_executable_name")
 
 _COMPILER = str(Label("//cc/toolchains:compiler"))
 

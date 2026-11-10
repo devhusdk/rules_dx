@@ -1,4 +1,4 @@
-load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 

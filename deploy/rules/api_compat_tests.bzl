@@ -1,6 +1,6 @@
 """Unit tests for the shared api_compat attributes."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 
 def api_compat_unit_tests(name):

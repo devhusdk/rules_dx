@@ -1,6 +1,6 @@
 """Hermetic AppImage tool acquisition."""
 
-load("//libs/starlark:host.bzl", "host_cell")
+load("//core:host.bzl", "host_cell")
 load(":pins.bzl", "ARCHES", "RUNTIMES", "TOOLS", "TOOL_BINARIES")
 
 HUB_NAME = "dx_appimage_tools"

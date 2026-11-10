@@ -1,6 +1,6 @@
 """Unit tests for the release matrix."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":matrix.bzl", "release_cell_archive", "release_cell_symbols", "release_matrix_cell", "release_matrix_error", "release_matrix_json", "release_matrix_names")
 
 def _field(field):

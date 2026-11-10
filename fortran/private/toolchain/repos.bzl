@@ -1,6 +1,6 @@
 """Hermetic Flang acquisition and Fortran toolchain registration."""
 
-load("//libs/starlark:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "toolchain_target")
 load(
     ":pins.bzl",
     "FLANG_RT_PREFIX",

@@ -1,6 +1,6 @@
 """Application packaging selection coverage."""
 
-load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("@rules_dx//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load(":defs.bzl", "abi_transition_settings")
 load(":validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
 load(

@@ -1,5 +1,5 @@
 load("@rules_dx//php:defs.bzl", "php_library")
-load("//libs/starlark:cells.bzl", "cell_settings", "unsupported_value")
+load("//core:cells.bzl", "cell_settings", "unsupported_value")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "php_metadata_tests", "php_version_test")
 load(":pins.bzl", "PHP_CELLS")

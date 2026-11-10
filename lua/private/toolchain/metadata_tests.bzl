@@ -1,8 +1,8 @@
 """LuaLS pin tests."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
-load("//libs/starlark:host.bzl", "host_cell_of")
-load("//libs/starlark:toolchain.bzl", "pin_checks")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core:host.bzl", "host_cell_of")
+load("//core:toolchain.bzl", "pin_checks")
 load(":pins.bzl", "LUALS_CELLS", "LUALS_VERSION")
 load(":repos.bzl", "LUALS_BUILD")
 

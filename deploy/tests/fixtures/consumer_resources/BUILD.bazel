@@ -1,6 +1,6 @@
 load("@rules_dx//deploy/rules:resources.bzl", "dx_resources")
 load("@rules_dx//deploy/rules:resources_tests.bzl", "resources_consumer_analysis_tests")
-load("@rules_dx//libs/starlark:defs.bzl", "starlark_test")
+load("@rules_dx//core:defs.bzl", "starlark_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(

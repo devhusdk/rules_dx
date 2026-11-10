@@ -4,7 +4,7 @@ A consumer platform whose release asset has no pinned sha256 falls back to the s
 """
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "SOURCE_LABEL", "alias_build", "consumer_build", "plan_assets", "plan_root")
 load(":pins.bzl", "DX_VERSION", "SHA256", "URL_TEMPLATE")
 

@@ -1,6 +1,6 @@
 """Runs a native test under kcov and writes its LCOV report for Bazel coverage."""
 
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "rlocation_path")
 
 def dx_kcov_attrs():
     """Returns the attributes kcov coverage needs."""

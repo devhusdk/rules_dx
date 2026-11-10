@@ -1,8 +1,8 @@
 """Sorbet pin tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load("//libs/starlark:host.bzl", "host_cell_of")
+load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core:host.bzl", "host_cell_of")
 
 def _checks():
     return [

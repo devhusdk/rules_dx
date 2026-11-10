@@ -1,6 +1,6 @@
 """Unit tests for the Linux package deploy helpers."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":linux_package.bzl", "linux_package_filename")
 load(":validate_linux_package.bzl", "linux_package_arch_error", "linux_package_dst_error", "linux_package_formats_error", "linux_package_name_error", "linux_package_version_error")
 

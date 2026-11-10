@@ -1,4 +1,4 @@
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])

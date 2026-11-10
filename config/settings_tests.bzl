@@ -2,7 +2,7 @@
 
 The workspace flag reads rules_dx's own policy because .bazelrc selects it."""
 
-load("//libs/starlark:defs.bzl", "starlark_test")
+load("//core:defs.bzl", "starlark_test")
 
 _CANONICAL_PREFIX = "@@"  # buildifier: disable=canonical-repository
 

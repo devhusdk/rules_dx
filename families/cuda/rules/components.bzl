@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//toolchain:check.bzl", "CudaLicenseInfo", "component_errors")
-load("@rules_dx//libs/starlark:wrapper.bzl", "dx_preserved_providers")
+load("@rules_dx//core:wrapper.bzl", "dx_preserved_providers")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 
 def _library_paths(cc_info):

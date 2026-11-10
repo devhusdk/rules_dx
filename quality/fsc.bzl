@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_dotnet//dotnet/private:common.bzl", "collect_compile_info", "framework_preprocessor_symbols", "is_core_framework", "is_standard_framework")
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//core:resources.bzl", "dx_heavy_resources")
 load("//quality:roslyn.bzl", "tfm_sort_key")
 
 _TOOLCHAIN = "@rules_dotnet//dotnet:toolchain_type"

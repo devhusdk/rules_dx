@@ -1,4 +1,4 @@
-load("//libs/starlark:wrapper.bzl", "dx_append_flags", "dx_src_path", "dx_warnings_as_errors")
+load("//core:wrapper.bzl", "dx_append_flags", "dx_src_path", "dx_warnings_as_errors")
 load("@rules_java//java/common/rules:java_helper.bzl", "helper")
 
 def java_javacopts_with_warnings_as_errors(kwargs):

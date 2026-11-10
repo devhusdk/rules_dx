@@ -1,6 +1,6 @@
 """Pinned SimpleCov gems that Ruby tests load under `bazel coverage` (#3954)."""
 
-load("//libs/starlark:repo.bzl", "gem_extract")
+load("//core:repo.bzl", "gem_extract")
 load(":pins.bzl", "RUBY_BENCH_GEMS", "RUBY_COVERAGE_GEMS", "gem_dir", "gem_url")
 
 def _build_file(gems):

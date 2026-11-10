@@ -6,7 +6,7 @@ sha256 is the hash of the zip, the same value as the `zh:` lock file entry.
 Nothing resolves over the network except the pinned download.
 """
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 
 TARGETS = {
     "darwin_arm64": ("@platforms//os:macos", "@platforms//cpu:arm64"),

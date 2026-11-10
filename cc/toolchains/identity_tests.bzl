@@ -1,6 +1,6 @@
 """Identity tests pinning the hermetic C++ toolchain binding."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
 load(":pins.bzl", "LLVM_CLANG_VERSION")
 

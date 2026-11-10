@@ -6,7 +6,7 @@ load("@rules_java//java/common:java_plugin_info.bzl", "JavaPluginInfo")
 load("@rules_kotlin//kotlin/internal:defs.bzl", "KspPluginInfo", "KtCompilerPluginInfo", "KtJvmInfo", "KtPluginConfiguration")
 load("@rules_kotlin//kotlin/internal:opts.bzl", "KotlincOptions", "kotlinc_options_to_flags")
 load("@rules_scala//scala:providers.bzl", "DepsInfo", "ScalaInfo")
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//core:resources.bzl", "dx_heavy_resources")
 
 _KT_TOOLCHAIN_TYPE = "@rules_kotlin//kotlin/internal:kt_toolchain_type"
 _SCALA_TOOLCHAIN_TYPE = "@rules_scala//scala:toolchain_type"

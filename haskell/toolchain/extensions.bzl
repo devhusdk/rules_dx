@@ -1,6 +1,6 @@
 """The haskell module extension."""
 
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":packages.bzl", "declare_packages")
 load(":pins.bzl", "CELLS", "RULES_HASKELL_COMMIT", "RULES_HASKELL_SHA256", "RULES_HASKELL_URL")
 load(":repos.bzl", "DROPPED_PATHS", "HUB_NAME", "ROOT_BUILD", "cell_repository_name", "ghc_repo", "hub_files")

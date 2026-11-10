@@ -4,7 +4,7 @@ LUALS_VERSION = "3.19.2"
 
 _RELEASE = "https://github.com/LuaLS/lua-language-server/releases/download/" + LUALS_VERSION + "/lua-language-server-" + LUALS_VERSION + "-"
 
-# Keyed by the host cell of //libs/starlark:host.bzl.
+# Keyed by the host cell of //core:host.bzl.
 LUALS_CELLS = {
     "macos_arm64": struct(
         archive = "darwin-arm64.tar.gz",

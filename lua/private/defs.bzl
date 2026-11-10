@@ -1,7 +1,7 @@
 """Lua rules for dx: the core Lua rules plus dx quality source ownership."""
 
-load("//libs/starlark:fuzz_bench.bzl", "merge_tags")
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources", "dx_quality_srcs")
+load("//core:fuzz_bench.bzl", "merge_tags")
+load("//core:wrapper.bzl", "dx_quality_sources", "dx_quality_srcs")
 load(
     "//lua/private:lua.bzl",
     "LUA_EXECUTABLE_ATTRS",

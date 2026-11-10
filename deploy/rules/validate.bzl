@@ -1,7 +1,7 @@
 """Shared charset validators for dx deploy providers."""
 
 load("@bazel_skylib//lib:shell.bzl", "shell")
-load("//libs/starlark:packaging.bzl", _only_chars = "only_chars")
+load("//core:packaging.bzl", _only_chars = "only_chars")
 
 ALNUM = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
 

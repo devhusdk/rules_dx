@@ -1,6 +1,6 @@
 """Analysis subject proving rustfmt/Clippy/rustc bind to the toolchain."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//core:defs.bzl", "DxSubjectInfo")
 load(":bindings.bzl", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _toolchain_identity_subject_impl(ctx):

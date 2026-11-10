@@ -6,7 +6,7 @@ a sandboxed action that records stderr and the exit code. The runner only parses
 """
 
 load("//fortran/private/toolchain:flags.bzl", "MODULE_FLAG_FORMAT")
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//core:resources.bzl", "dx_heavy_resources")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_context")
 

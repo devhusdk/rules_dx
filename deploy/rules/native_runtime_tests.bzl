@@ -1,6 +1,6 @@
 """Unit tests for native runtime declarations."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_native_runtime.bzl", "native_runtime_error")
 
 def native_runtime_unit_tests(name):

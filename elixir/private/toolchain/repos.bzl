@@ -2,7 +2,7 @@
 
 load("//elixir/private:hex.bzl", "hex_extract")
 load("//erlang/private/toolchain:pins.bzl", "CELLS")
-load("//libs/starlark:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION")
 
 HUB_NAME = "dx_elixir_toolchains"

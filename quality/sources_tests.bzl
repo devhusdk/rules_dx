@@ -1,6 +1,6 @@
 """Versioned semantic-class registry tests (freeze)."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":sources.bzl", "DOCKERFILE_NAME_PATTERNS", "RUST", "dockerfile_name_error", "is_dockerfile_name", "is_known_semantic_class", "is_named_source", "named_source_class_error", "path_source_class", "sources_schema_error", "upstream_source_class")
 
 FROZEN_SEMANTIC_FILE_CLASSES = [

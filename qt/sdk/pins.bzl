@@ -1,6 +1,6 @@
 """Pinned Qt SDK, runtime closure and extractor identities."""
 
-load("//libs/starlark:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
+load("//core:seven_zip.bzl", "SEVEN_ZIP_EXTRACTORS")
 load(":layout_linux.bzl", LINUX_LAYOUT = "LAYOUT")
 load(":layout_macos.bzl", MACOS_LAYOUT = "LAYOUT")
 load(":layout_windows.bzl", WINDOWS_LAYOUT = "LAYOUT")

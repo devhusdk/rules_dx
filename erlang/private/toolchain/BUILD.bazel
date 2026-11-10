@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//libs/starlark:cells.bzl", "unsupported_value")
+load("//core:cells.bzl", "unsupported_value")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":cells.bzl", "otp_cell_settings", "otp_compatible_with")
 load(":cells_tests.bzl", "erlang_cell_tests")

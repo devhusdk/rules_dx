@@ -1,7 +1,7 @@
 """Private JMH helpers for java_bench, kotlin_bench and scala_bench."""
 
 load("@rules_java//java:defs.bzl", "JavaInfo", "java_import", _java_library = "java_library", _java_plugin = "java_plugin")
-load("//libs/starlark:fuzz_bench.bzl", "DEFAULT_SIZE", "merge_tags")
+load("//core:fuzz_bench.bzl", "DEFAULT_SIZE", "merge_tags")
 
 _JMH = [Label("@dx_jmh_core//jar"), Label("@dx_jmh_jopt_simple//jar"), Label("@dx_jmh_commons_math3//jar")]
 _GENERATOR = Label("//java/private/jmh:jmh_generate")

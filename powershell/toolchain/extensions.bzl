@@ -1,6 +1,6 @@
 """The powershell module extension."""
 
-load("//libs/starlark:repo.bzl", "pinned_archive")
+load("//core:repo.bzl", "pinned_archive")
 
 _VERSION = "0.3.1"
 

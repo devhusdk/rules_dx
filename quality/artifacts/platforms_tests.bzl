@@ -1,6 +1,6 @@
 """Unit tests for canonical platform identities."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":extension.bzl", "TOOL_ARTIFACTS")
 load(":hub.bzl", "ARTIFACT_PLATFORMS", "TOOL_PLATFORMS")
 load(

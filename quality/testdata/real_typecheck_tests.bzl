@@ -1,6 +1,6 @@
 """Real typecheck aspect evidence tests."""
 
-load("//libs/starlark:defs.bzl", "starlark_test")
+load("//core:defs.bzl", "starlark_test")
 
 EXPECTED_TYPECHECK_OBSERVATIONS = """subject //quality/testdata:fixture_real_python_no_typecheck_subject
 field dx_count=0

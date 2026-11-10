@@ -1,7 +1,7 @@
 # gazelle:ignore
 
 load("//flutter:defs.bzl", "flutter_library")
-load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//core:failure_test.bzl", "failure_test")
 load("//quality/private:generated_policy.bzl", "dx_generated_policy")
 
 flutter_library(

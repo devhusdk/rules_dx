@@ -1,7 +1,7 @@
 """Opt-in platform acquisition observations for the wasm consumer."""
 
-load("@rules_dx//libs/starlark:canonical.bzl", "strip_canonical")
-load("@rules_dx//libs/starlark:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("@rules_dx//core:canonical.bzl", "strip_canonical")
+load("@rules_dx//core:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("@rules_dx//rust/private/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
 
 _DISABLED_PLATFORM_REPOS = [

@@ -1,7 +1,7 @@
 """Analysis subject observing real-aspect dx_results."""
 
-load("//libs/starlark:canonical.bzl", "strip_canonical")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//core:canonical.bzl", "strip_canonical")
+load("//core:defs.bzl", "DxSubjectInfo")
 load(
     "//quality/testdata:all_languages.bzl",
     "RealShardProbeInfo",

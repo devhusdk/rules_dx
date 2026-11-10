@@ -131,7 +131,7 @@ A package without a matching entry fails the fetch and prints the entry to commi
 | Windows arm64 | via emulation | yes |
 
 The Windows archives are `.7z` files that use BCJ2, which Bazel cannot unpack, so they are
-extracted with the pinned 7-Zip in `//libs/starlark:seven_zip.bzl`. LDC has no native Windows
+extracted with the pinned 7-Zip in `//core:seven_zip.bzl`. LDC has no native Windows
 arm64 compiler: that cell runs the x64 LDC under emulation with the arm64 runtime libraries of the
 LDC addon package, and compiles with `-mtriple=aarch64-windows-msvc`.
 

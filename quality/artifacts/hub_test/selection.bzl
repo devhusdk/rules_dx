@@ -1,6 +1,6 @@
 """Selection tests for standalone tool artifact repositories."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core:defs.bzl", "DxSubjectInfo", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")
 load("//quality/artifacts:hub.bzl", "ARTIFACT_PLATFORMS", "EMULATED_TOOLS", "PARTIAL_TOOL_PLATFORMS", "PLATFORM_CONSTRAINTS", "PLATFORM_FALLBACKS", "TOOL_PLATFORMS", "UNAVAILABLE_TARGET", "artifact_map_errors", "artifact_metadata_errors", "branch_labels", "hub_build", "no_match_error", "ordered_platforms", "resolved_entries")
 

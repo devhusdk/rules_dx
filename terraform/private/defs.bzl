@@ -1,6 +1,6 @@
 """Terraform source ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "TerraformModuleInfo", "TerraformProviderInfo")
 
 def collect_providers(label, own, deps):

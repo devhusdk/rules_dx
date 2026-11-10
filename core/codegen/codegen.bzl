@@ -1,8 +1,8 @@
 """Normalized codegen plan records."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core:defs.bzl", "DxSubjectInfo", "display_label")
 load(
-    "//libs/starlark:plan_shard.bzl",
+    "//core:plan_shard.bzl",
     "plan_shard_aspect_inputs",
     "plan_shard_conflict_error",
     "plan_shard_edge_targets",

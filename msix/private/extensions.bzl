@@ -1,7 +1,7 @@
 """The msix_tools module extension."""
 
-load("//libs/starlark:license.bzl", "accepted", "license_tag")
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:license.bzl", "accepted", "license_tag")
+load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "BUILDTOOLS_SHA256", "BUILDTOOLS_URL", "LICENSE")
 load(":repos.bzl", "HUB_NAME", "hub_build")
 

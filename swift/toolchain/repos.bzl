@@ -1,6 +1,6 @@
 """Module extension for the host `swift` command."""
 
-load("//libs/starlark:host.bzl", "host_cell")
+load("//core:host.bzl", "host_cell")
 
 def _swift_host_impl(repository_ctx):
     host = host_cell(repository_ctx)

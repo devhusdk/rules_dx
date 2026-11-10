@@ -1,6 +1,6 @@
 """Unit tests for the single-sourced registry."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "not_applicable_error")
 load(":taxonomy.bzl", "CLASS_TO_FAMILY", "FAMILY_OWNERS", "TAXONOMY", "TAXONOMY_CLASSES", "taxonomy_schema_error")
 load(":registry.bzl", "is_curated_family", "is_registry_class", "is_registry_tool", "registry_classes", "registry_curated_families", "registry_families", "registry_schema_error", "registry_tools")

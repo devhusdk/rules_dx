@@ -1,6 +1,6 @@
 """Windows SDK Build Tools acquisition behind an explicit license acceptance."""
 
-load("//libs/starlark:license.bzl", "unaccepted")
+load("//core:license.bzl", "unaccepted")
 load(":pins.bzl", "BUILDTOOLS_BIN", "BUILDTOOLS_VERSION", "LICENSE", "LICENSE_URL", "TOOL_ARCHES")
 
 HUB_NAME = "dx_msix_tools"

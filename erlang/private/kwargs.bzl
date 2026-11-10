@@ -1,6 +1,6 @@
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_UNPORTED_CELLS")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
+load("//core:wrapper.bzl", "dx_language_kwargs")
 
 ERLANG_CELLS = sorted([cell for cell in CELLS.keys() if cell not in OTP_UNPORTED_CELLS])
 

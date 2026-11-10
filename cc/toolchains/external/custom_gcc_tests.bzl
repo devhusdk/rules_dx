@@ -1,6 +1,6 @@
 """Identity test for the consumer-declared GCC distribution."""
 
-load("//libs/starlark:defs.bzl", "starlark_test")
+load("//core:defs.bzl", "starlark_test")
 
 EXPECTED_OBSERVATIONS = """subject //cc/toolchains/external:custom_gcc_subject
 field cc.abi=itanium

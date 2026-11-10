@@ -1,6 +1,6 @@
 """Real aspect evidence tests."""
 
-load("//libs/starlark:defs.bzl", "starlark_test")
+load("//core:defs.bzl", "starlark_test")
 
 EXPECTED_OBSERVATIONS = """subject //quality/testdata:fixture_real_cc_hinted_subject
 field dx_count=1

@@ -2,7 +2,7 @@
 
 load("//elixir/private:hex.bzl", "hex_package")
 load("//elixir/private:mix_lock.bzl", "mix_lock_packages")
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "ELIXIR_CELLS", "RULES_ELIXIR_COMMIT", "RULES_ELIXIR_DROPPED", "RULES_ELIXIR_SHA256", "RULES_ELIXIR_URL")
 load(":repos.bzl", "CREDO_NAME", "DIST_NAME", "HUB_NAME", "credo_repo", "dist_repo", "hub_build", "mix_build", "mix_hub_build")
 

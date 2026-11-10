@@ -1,6 +1,6 @@
 """Tests for the pure dub.selections.json logic."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(":lock.bzl", "analyze", "default_source_dir", "dependency_names", "hub_package_build", "hub_root_build", "package_url", "parse_selections", "spoke_build")
 
 _SHA = "a" * 64

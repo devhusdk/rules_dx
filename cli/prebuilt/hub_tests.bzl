@@ -1,6 +1,6 @@
 """Tests for the @dx_prebuilt plan, pins and hub BUILD text."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":hub.bzl", "ASSET_PLATFORMS", "SOURCE_LABEL", "SOURCE_TOOLS", "alias_build", "consumer_build", "plan_assets", "plan_root", "repo_name", "valid_sha256")
 load(":pins.bzl", "DX_VERSION", "SHA256", "URL_TEMPLATE")
 

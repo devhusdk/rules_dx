@@ -1,7 +1,7 @@
 """Hermetic GHC acquisition and toolchain registration."""
 
-load("//libs/starlark:deb_closure.bzl", "deb_closure")
-load("//libs/starlark:toolchain.bzl", "toolchain_target")
+load("//core:deb_closure.bzl", "deb_closure")
+load("//core:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "CELLS", "GHC_VERSION", "RUNTIME_MIRROR", "qualified_cells")
 
 HUB_NAME = "dx_haskell_toolchains"

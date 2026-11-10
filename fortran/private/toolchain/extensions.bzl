@@ -1,7 +1,7 @@
 """Module extension for fortran/private/toolchain."""
 
 load("//fortran/private:fpm_lock.bzl", "fpm_lock_packages")
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "FORTRAN_CELLS", "RULES_FORTRAN_COMMIT", "RULES_FORTRAN_SHA256", "RULES_FORTRAN_URL")
 load(":repos.bzl", "DROPPED_PATHS", "FLANG_PREFIX", "FLANG_RT_NAME", "HUB_NAME", "flang_build", "flang_rt_repo", "fpm_build", "fpm_hub_build", "hub_build")
 

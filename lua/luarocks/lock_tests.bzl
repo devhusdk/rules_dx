@@ -1,6 +1,6 @@
 """Tests for the pure luarocks.lock logic."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(":lock.bzl", "analyze", "hub_package_build", "hub_root_build", "module_path", "parse_lock", "spoke_build", "spoke_name")
 
 _SHA = "a" * 64

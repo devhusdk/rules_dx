@@ -1,7 +1,7 @@
 """Unit and analysis tests for the normalized codegen plans."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":codegen.bzl",
     "DX_CODEGEN_PLAN_OUTPUT_GROUP",

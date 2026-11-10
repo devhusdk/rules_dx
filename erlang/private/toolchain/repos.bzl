@@ -1,7 +1,7 @@
 """Hermetic Erlang/OTP acquisition and toolchain registration."""
 
-load("//libs/starlark:deb_closure.bzl", "deb_closure")
-load("//libs/starlark:toolchain.bzl", "toolchain_target")
+load("//core:deb_closure.bzl", "deb_closure")
+load("//core:toolchain.bzl", "toolchain_target")
 load(
     ":pins.bzl",
     "CELLS",

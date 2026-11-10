@@ -1,6 +1,6 @@
 """CUDA toolkit license acceptance."""
 
-load("@rules_dx//libs/starlark:license.bzl", "accepted", "unaccepted")
+load("@rules_dx//core:license.bzl", "accepted", "unaccepted")
 HUB_NAME = "dx_cuda_license"
 
 LICENSE = "cuda-eula"

@@ -1,6 +1,6 @@
 """Tests for the pure composer.lock logic."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":lock.bzl", "analyze", "archive_type", "expand_mirror", "hub_package_build", "hub_root_build", "is_platform", "package_urls", "spoke_name")
 
 _SHA = "a" * 64

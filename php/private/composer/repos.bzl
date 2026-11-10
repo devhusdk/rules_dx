@@ -1,6 +1,6 @@
 """Repository rule and hub for Composer packages fetched from composer.lock."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":lock.bzl", "analyze", "hub_package_build", "hub_root_build", "pin_entry_json", "spoke_build")
 
 _PACKAGE_BZL = str(Label("//php/private:php.bzl"))

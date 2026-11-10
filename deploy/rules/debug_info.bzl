@@ -1,7 +1,7 @@
 """Splits Linux ELF debug info from a binary and pairs macOS dSYM bundles and Windows PDBs with it."""
 
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolchain")
-load("//libs/starlark:wrapper.bzl", "dx_toolchain_tool")
+load("//core:wrapper.bzl", "dx_toolchain_tool")
 
 def _split_impl(ctx):
     cc_toolchain = find_cc_toolchain(ctx, mandatory = False)

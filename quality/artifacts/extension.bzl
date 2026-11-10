@@ -1,7 +1,7 @@
 """Standalone tool acquisition."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive", "http_file")
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load("//quality/artifacts:acquire.bzl", "ACQUIRE_ATTRS", "acquire_tool")
 load("//quality/artifacts:actionlint.bzl", _actionlint = "ARTIFACTS")
 load("//quality/artifacts:avro_tools.bzl", _avro_tools = "SOURCE")

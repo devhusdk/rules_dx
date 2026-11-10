@@ -1,6 +1,6 @@
 """Gate: one owner per concern and class, one formatter per class."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":adapters.bzl", "REAL_CLASS_TO_FAMILY")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS")
 load(":overlaps.bzl", "owners")

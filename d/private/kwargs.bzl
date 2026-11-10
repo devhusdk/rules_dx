@@ -1,6 +1,6 @@
 load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
+load("//core:cells.bzl", "cells_compatible_with")
+load("//core:wrapper.bzl", "dx_language_kwargs")
 
 D_CELLS = sorted(LDC_CELLS.keys())
 

@@ -1,6 +1,6 @@
 """Unit tests for aggregated NOTICE bundling."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":notice.bzl", "notice_filenames", "notice_manifest_error", "notice_root_error")
 
 def notice_unit_tests(name):

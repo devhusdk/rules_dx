@@ -1,6 +1,6 @@
 """Test-only rules that build a target under the native OCaml emitter."""
 
-load("//libs/starlark:wrapper.bzl", "dx_lcov_merger_attr")
+load("//core:wrapper.bzl", "dx_lcov_merger_attr")
 
 _EMITTER = str(Label("//ocaml/toolchain:emitter"))
 

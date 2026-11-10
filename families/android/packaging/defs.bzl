@@ -3,7 +3,7 @@
 load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
-load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("@rules_dx//core:resources.bzl", "dx_heavy_resources")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")

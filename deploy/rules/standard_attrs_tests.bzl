@@ -1,6 +1,6 @@
 """Tests that the standard attributes of a *_deploy macro land on every generated target."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":config.bzl", "deploy_attrs")
 
 PROBE_TAG = "dx_attrs_probe"

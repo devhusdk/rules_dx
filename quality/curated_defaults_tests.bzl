@@ -1,6 +1,6 @@
 """Unit tests for the curated defaults."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
 
 def curated_defaults_unit_tests(name):

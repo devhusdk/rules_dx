@@ -1,6 +1,6 @@
 """Bootstrap environment tool registry."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core:defs.bzl", "DxSubjectInfo", "display_label")
 load(":validate.bzl", "env_collision_error", "env_tool_error")
 
 EnvironmentInfo = provider(

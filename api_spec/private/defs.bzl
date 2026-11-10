@@ -1,6 +1,6 @@
 """OpenAPI and AsyncAPI source ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 
 ApiSpecInfo = provider(
     doc = "The root documents and the full document closure of an api_spec_library.",

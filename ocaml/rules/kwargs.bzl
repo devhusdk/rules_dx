@@ -1,5 +1,5 @@
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs", "dx_upstream_tags")
+load("//core:cells.bzl", "cells_compatible_with")
+load("//core:wrapper.bzl", "dx_language_kwargs", "dx_upstream_tags")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 
 OCAML_COMPATIBLE_WITH = cells_compatible_with(OCAML_CELLS, "//ocaml/toolchain", sorted(OCAML_CELLS.keys()))

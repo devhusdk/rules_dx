@@ -1,5 +1,5 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//core:failure_test.bzl", "failure_test")
 load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 load(":json_schema_tests.bzl", "schemas_config_test")
 

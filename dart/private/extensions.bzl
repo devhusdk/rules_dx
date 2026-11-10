@@ -1,6 +1,6 @@
 """Fetches the patched rules_dart copy that provides the pub extension."""
 
-load("//libs/starlark:repo.bzl", "pinned_archive")
+load("//core:repo.bzl", "pinned_archive")
 load(":pins.bzl", "RULES_DART_SHA256", "RULES_DART_STRIP_PREFIX", "RULES_DART_URL")
 
 def _dart_tools_impl(mctx):

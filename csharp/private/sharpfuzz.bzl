@@ -1,7 +1,7 @@
 """SharpFuzz instrumentation and the `<name>` harness plus `<name>_run` runner shared by the .NET fuzz macros."""
 
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyCompileInfo", "DotnetAssemblyRuntimeInfo")
-load("@rules_dx//libs/starlark:fuzz.bzl", "dx_fuzz_target")
+load("@rules_dx//core:fuzz.bzl", "dx_fuzz_target")
 
 SHARPFUZZ = [
     Label("@paket.main//sharpfuzz"),

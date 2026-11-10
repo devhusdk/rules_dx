@@ -2,7 +2,7 @@
 
 load("//cli/prebuilt:hub.bzl", "GAZELLE_ASSET_PLATFORMS", "plan_assets", "plan_root", "valid_sha256")
 load("//cli/prebuilt:pins.bzl", "GAZELLE_SHA256", "SHA256", "URL_TEMPLATE")
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":hub.bzl", "DISPATCH", "builds_from_source", "hub_languages", "prebuilt_build", "render_hub_build")
 
 _HASH = "0123456789abcdef" * 4

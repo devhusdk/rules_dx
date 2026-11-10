@@ -1,6 +1,6 @@
 """Module extension for ruby/private/toolchain."""
 
-load("//libs/starlark:repo.bzl", "pinned_archive")
+load("//core:repo.bzl", "pinned_archive")
 
 _VERSION = "0.29.0"
 

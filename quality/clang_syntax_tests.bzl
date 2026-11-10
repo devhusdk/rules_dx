@@ -1,6 +1,6 @@
 """Unit tests for the clang_syntax argv rewrite."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//cc/toolchains:bindings.bzl", "cc_compiler_identity")
 load(":clang_syntax.bzl", "clang_action_env", "clang_syntax_argv", "clang_tidy_argv", "clang_syntax_source", "cuda_tidy_argv")
 

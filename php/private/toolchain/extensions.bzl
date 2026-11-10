@@ -1,6 +1,6 @@
 """Module extension for php/private/toolchain."""
 
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "COMPOSER", "PCOV", "PCRE2_HEADERS", "PHPBENCH", "PHPCS", "PHPDOCUMENTOR", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
 load(":repos.bzl", "HEADERS_BUILD", "HUB_NAME", "RUNTIME_PREFIX", "SOURCES_BUILD", "VERSION_FILE", "hub_build", "phar_build", "runtime_build")
 

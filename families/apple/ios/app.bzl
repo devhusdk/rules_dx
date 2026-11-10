@@ -9,7 +9,7 @@ load("@rules_apple//apple/testing/default_runner:ios_xctestrun_runner.bzl", "ios
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("@rules_dx//core:resources.bzl", "dx_heavy_resources")
 load("//bundle:defs.bzl", "SIGNING_CERTIFICATE", "TOOL_PATH", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
 load(
     ":cell.bzl",

@@ -1,7 +1,7 @@
 # gazelle:exclude *.d
 
 load("//d:defs.bzl", "D_COMPATIBLE_WITH")
-load("//libs/starlark:cells.bzl", "cell_setting")
+load("//core:cells.bzl", "cell_setting")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 

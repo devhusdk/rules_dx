@@ -1,6 +1,6 @@
 """Analysis subject reporting the selected C++ toolchain."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//core:defs.bzl", "DxSubjectInfo")
 load(":bindings.bzl", "cc_toolchain_identity", "cc_toolchain_info", "cc_toolchain_toolchains")
 load(":select.bzl", "toolchain_transition")
 

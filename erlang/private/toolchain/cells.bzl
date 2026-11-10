@@ -1,6 +1,6 @@
 """Per-cell OTP platform settings and compatibility selects."""
 
-load("//libs/starlark:cells.bzl", "unsupported_constraint")
+load("//core:cells.bzl", "unsupported_constraint")
 load(":pins.bzl", "CELLS")
 
 _INCOMPATIBLE = Label("@platforms//:incompatible")

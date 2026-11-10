@@ -1,6 +1,6 @@
 """Unit tests for the warnings the fsc typecheck turns on."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":fsc.bzl", "fsc_warnon_args")
 
 def fsc_unit_tests(name):

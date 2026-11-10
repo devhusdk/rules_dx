@@ -1,7 +1,7 @@
 """Unit tests for the Ansible collections lock validation."""
 
 load("//ansible/private:lock.bzl", "ansible_file_url", "ansible_lock_error", "ansible_manifest_error", "ansible_missing_deps")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 
 _SHA = "0" * 64
 

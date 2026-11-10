@@ -1,6 +1,6 @@
 """Unit tests for source-fixture shape."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":fixtures.bzl", "converter_attrs", "fixture_class_error", "markdown_sibling_error")
 
 def fixtures_unit_tests(name):

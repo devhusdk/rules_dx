@@ -3,7 +3,7 @@
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
 load("@rules_erlang//:util.bzl", "path_join")
 load("@rules_erlang//private:util.bzl", "erl_libs_contents")
-load("//libs/starlark:resources.bzl", "dx_medium_resources")
+load("//core:resources.bzl", "dx_medium_resources")
 
 _TOOLCHAIN = "@rules_erlang//tools:toolchain_type"
 

@@ -1,8 +1,8 @@
 """Windows MSIX packaging for target binaries."""
 
 load("//powershell/rules:defs.bzl", "powershell_binary")
-load("//libs/starlark:packaging.bzl", "claim_dest", "data_path")
-load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
+load("//core:packaging.bzl", "claim_dest", "data_path")
+load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")
 load(":validate.bzl", "msix_alias_errors", "msix_application_errors", "msix_identity_errors", "msix_named_version_errors", "msix_publisher_errors", "msix_version_errors")
 

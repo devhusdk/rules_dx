@@ -1,6 +1,6 @@
 """Unit tests for the LuaRocks publisher."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_luarocks.bzl", "luarocks_name_error", "luarocks_rockspec_error", "luarocks_version_error")
 
 def luarocks_unit_tests(name):

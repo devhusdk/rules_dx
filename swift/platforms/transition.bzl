@@ -1,6 +1,6 @@
 """Builds Swift targets for the Swift Linux platform."""
 
-load("//libs/starlark:platform.bzl", "single_platform_error")
+load("//core:platform.bzl", "single_platform_error")
 
 _PLATFORMS = "//command_line_option:platforms"
 _EXEC = "//command_line_option:extra_execution_platforms"

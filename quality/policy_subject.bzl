@@ -1,6 +1,6 @@
 """Analysis subject exposing an aggregate workspace policy."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//core:defs.bzl", "DxSubjectInfo")
 load("//quality:native_config.bzl", "DxNativeConfigInfo")
 load(":policy.bzl", "CAPABILITIES", "QualityPolicyInfo")
 

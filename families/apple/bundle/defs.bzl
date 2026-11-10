@@ -1,6 +1,6 @@
 """Shared Apple bundle checks for iOS and macOS rules."""
 
-load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("@rules_dx//core:resources.bzl", "dx_heavy_resources")
 load("//provisioning:defs.bzl", "version_matches")
 
 TOOL_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"

@@ -1,6 +1,6 @@
 """AsciiDoc source ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load("//quality:sources.bzl", "QualityToolsInfo")
 
 def _asciidoc_library_impl(ctx):

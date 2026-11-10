@@ -1,6 +1,6 @@
 """Apache Avro schema ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "AvroInfo")
 
 def _avro_library_impl(ctx):

@@ -20,9 +20,9 @@ load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 load("//core/codegen:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers", "codegen_rust_library_kwargs")
-load("//libs/starlark:defs.bzl", "display_label")
-load("//libs/starlark:stage.bzl", "stage_closure")
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:defs.bzl", "display_label")
+load("//core:stage.bzl", "stage_closure")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "CapnpInfo")
 
 CAPNP_GENERATED_SRCS_GROUP = "capnp_generated_srcs"

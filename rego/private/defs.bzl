@@ -1,6 +1,6 @@
 """Rego source ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "RegoInfo")
 
 def _rego_library_impl(ctx):

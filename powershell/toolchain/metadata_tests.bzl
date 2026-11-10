@@ -1,8 +1,8 @@
 """PowerShell toolchain hub tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
-load("//libs/starlark:toolchain.bzl", "cell_repo", "hub_checks", "pins_hub")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core:toolchain.bzl", "cell_repo", "hub_checks", "pins_hub")
 
 def _checks():
     cells = PINS["dx_powershell_toolchains"]["cells"].keys()

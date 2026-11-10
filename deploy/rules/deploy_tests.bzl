@@ -1,7 +1,7 @@
 """Unit and analysis tests for the deploy boundary."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":deployment.bzl", "VALID_DEPLOY_BUILD_MODES")
 
 def deploy_observations(label, app = "", artifacts = [], build_mode = "release"):

@@ -1,7 +1,7 @@
 """OCaml toolchain pin and acquisition tests."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load("//libs/starlark:toolchain.bzl", "hub_checks")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core:toolchain.bzl", "hub_checks")
 load(":ocaml.bzl", "COMPILERS", "TOOLS", "native_cc_env", "toolchain_fields")
 load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
 load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION", "OPAM_REPOSITORY_COMMIT", "OPAM_REPOSITORY_SHA256", "OPAM_REPOSITORY_URL", "RULES_OCAML_COMMIT", "RULES_OCAML_SHA256", "RULES_OCAML_URL")

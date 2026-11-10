@@ -1,6 +1,6 @@
 """Unit tests for the Packagist publisher."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_packagist.bzl", "packagist_composer_error", "packagist_name_error", "packagist_repository_error")
 
 def packagist_unit_tests(name):

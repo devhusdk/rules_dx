@@ -1,6 +1,6 @@
 """Source ownership rules for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_source_library")
+load("//core:wrapper.bzl", "dx_source_library")
 
 cue_library = dx_source_library("cue", ["cue"], "CUE")
 gherkin_library = dx_source_library("gherkin", ["feature"], "Gherkin")

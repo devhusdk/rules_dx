@@ -1,6 +1,6 @@
 load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
+load("//core:cells.bzl", "cells_compatible_with")
+load("//core:wrapper.bzl", "dx_language_kwargs")
 
 FORTRAN_COMPATIBLE_WITH = cells_compatible_with(FORTRAN_CELLS, "//fortran/private/toolchain", sorted(FORTRAN_CELLS.keys()))
 

@@ -63,7 +63,7 @@ const PACKAGES: [&str; 99] = [
     "kotlin/private/toolchain/impl",
     "kubernetes/private",
     "libs/exec_os",
-    "libs/starlark",
+    "core",
     "libs/testing",
     "lua/private",
     "lua/private/toolchain",

@@ -1,6 +1,6 @@
 """The qt_sdk module extension."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":pins.bzl", "DEFAULT_MODULES", "QT_VERSION")
 load(":repos.bzl", "HUB_NAME", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
 

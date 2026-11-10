@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("//quality/testdata:all_languages.bzl", "upstream_direct_sources")
 
 def _render_ownership(direct_sources):

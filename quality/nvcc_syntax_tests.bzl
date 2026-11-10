@@ -1,6 +1,6 @@
 """Unit tests for the nvcc_syntax argv rewrite."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":nvcc_syntax.bzl", "nvcc_syntax_argv", "nvcc_syntax_select", "nvcc_syntax_source")
 
 _NVCC = "external/cuda/bin/nvcc"

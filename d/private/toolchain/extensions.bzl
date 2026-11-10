@@ -1,6 +1,6 @@
 """Module extension for d/private/toolchain."""
 
-load("//libs/starlark:repo.bzl", "hub_repo", "pinned_archive")
+load("//core:repo.bzl", "hub_repo", "pinned_archive")
 load(":pins.bzl", "LDC_CELLS", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
 load(":repos.bzl", "DROPPED_PATHS", "HUB_NAME", "ROOT_BUILD", "hub_build", "ldc_repo", "ldc_repository_name", "tool_build")
 

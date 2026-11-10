@@ -14,7 +14,7 @@ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolcha
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_ocaml//build:providers.bzl", "OCamlArchiveProvider", "OCamlCcInfo", "OCamlDepsProvider", "OCamlImportProvider")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
+load("//core:wrapper.bzl", "dx_language_kwargs")
 load("//ocaml/toolchain:ocaml.bzl", "native_cc_env")
 load(":defs.bzl", "OCAML_COMPATIBLE_WITH")
 

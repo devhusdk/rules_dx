@@ -1,6 +1,6 @@
 """Coverage.jl-style LCOV for Julia test forwarders."""
 
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "rlocation_path")
 
 DxJuliaCoverageInfo = provider(
     doc = "Instrumented first-party Julia sources under one target.",

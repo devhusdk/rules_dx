@@ -1,6 +1,6 @@
 """Repository rule and hub for DUB packages fetched from dub.selections.json."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":lock.bzl", "analyze", "dependency_names", "hub_package_build", "hub_root_build", "pin_entry_json", "spoke_build")
 
 _DEFS_BZL = str(Label("//d/private:defs.bzl"))

@@ -1,6 +1,6 @@
 """Analysis subject exposing the canonical quality settings."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo")
+load("//core:defs.bzl", "DxSubjectInfo")
 
 def _settings_subject_impl(ctx):
     return [

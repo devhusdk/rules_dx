@@ -1,4 +1,4 @@
-load("//libs/starlark:packaging.bzl", "only_chars")
+load("//core:packaging.bzl", "only_chars")
 
 _LETTERS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 

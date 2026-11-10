@@ -1,7 +1,7 @@
 """FlatBuffers schema ownership for dx quality."""
 
-load("//libs/starlark:defs.bzl", "display_label")
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:defs.bzl", "display_label")
+load("//core:wrapper.bzl", "dx_quality_sources")
 
 FlatBuffersInfo = provider(
     doc = "FlatBuffers schemas of one library and its transitive dependencies.",

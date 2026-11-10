@@ -1,7 +1,7 @@
 """Tests for the shipped crate inventory."""
 
 load("//deploy/rules:native_runtime.bzl", "dx_native_runtime")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":inventory.bzl", "ShippedCratesInfo", "crate_name_tag", "inventory_text_path", "license_text_member", "license_text_name", "shipped_crates_aspect", "shipped_inventory")
 
 def inventory_unit_tests(name):

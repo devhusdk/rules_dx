@@ -5,7 +5,7 @@ previous release. Both closures are declared inputs, so the check is hermetic.
 """
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
 
 def _roots(files):

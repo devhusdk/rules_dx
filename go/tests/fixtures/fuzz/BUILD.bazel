@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//go/rules:defs.bzl", "go_fuzz_test", "go_library")
-load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(
     default_testonly = True,

@@ -1,6 +1,6 @@
 """Android native tuple and configuration coverage."""
 
-load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("@rules_dx//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":defs.bzl", "api_floor", "clang_target", "constraint_list", "cpu_for", "effective_api_level", "ndk_prebuilt_dir", "platform_label", "rust_triples", "sysroot_api_dir", "triple_for")
 load(":validate.bzl", "android_cxx_runtime_errors", "android_default_library_config", "android_library_config_errors", "android_ndk_revision_errors", "android_tuple_errors", "android_tuples")
 

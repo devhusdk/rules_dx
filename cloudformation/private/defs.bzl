@@ -1,6 +1,6 @@
 """CloudFormation template ownership for dx lint."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 def _cloudformation_library_impl(ctx):

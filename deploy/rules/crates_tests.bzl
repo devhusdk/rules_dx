@@ -1,7 +1,7 @@
 """Unit and analysis tests for the crates.io publisher."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":validate_crates.bzl", "crates_name_error", "crates_version_error")
 
 def crates_unit_tests(name):

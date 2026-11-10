@@ -1,6 +1,6 @@
 """The sorbet_tool rule: the pinned Sorbet binary as one executable."""
 
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "rlocation_path")
 
 _LAUNCHER = """#!/usr/bin/env bash
 set -euo pipefail

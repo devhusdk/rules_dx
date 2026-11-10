@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//ansible:defs.bzl", "ansible_library")
-load("//libs/starlark:failure_test.bzl", "failure_test")
+load("//core:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":library_tests.bzl", "mixed_split_test", "plain_yaml_test")
 load(":lock_tests.bzl", "lock_unit_tests")

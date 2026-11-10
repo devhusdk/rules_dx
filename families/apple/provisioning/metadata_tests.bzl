@@ -1,6 +1,6 @@
 """Apple provisioning pin and selection coverage."""
 
-load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("@rules_dx//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":defs.bzl", "LOCAL_ROUTE", "MANAGED_ROUTE", "MINIMUM_MACOS", "MINIMUM_XCODE", "QUALIFIED_HOST", "REQUIRED_LICENSES", "XCODE_LINEAGE", "ceiling_for", "deployment_floor", "host_constraints")
 load(":validate.bzl", "provisioning_default_selection", "provisioning_errors", "provisioning_host_errors", "provisioning_hosts", "provisioning_license_errors", "provisioning_route_errors", "provisioning_routes", "provisioning_sdk_errors", "provisioning_sdk_names", "provisioning_version_errors", "provisioning_xcode_errors")
 

@@ -1,6 +1,6 @@
 # gazelle:ignore
 
-load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")

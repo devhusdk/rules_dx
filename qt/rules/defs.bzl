@@ -4,7 +4,7 @@ load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_library = "cc_libra
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load(
-    "//libs/starlark:wrapper.bzl",
+    "//core:wrapper.bzl",
     "dx_binary_forward_kwargs",
     "dx_forward_data_attr",
     "dx_forwarded_runtime_providers",

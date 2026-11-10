@@ -1,6 +1,6 @@
 """OTP cell setting tests."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":cells.bzl", "cell_cases", "cell_setting", "unknown_cells")
 load(":pins.bzl", "CELLS")
 

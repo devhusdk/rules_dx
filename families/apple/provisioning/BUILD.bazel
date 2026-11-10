@@ -1,6 +1,6 @@
 load("@apple_support//xcode:xcode_config.bzl", "xcode_config")
 load("@apple_support//xcode:xcode_version.bzl", "xcode_version")
-load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "apple_provisioning")
 load(":metadata_tests.bzl", "apple_provisioning_tests")

@@ -1,6 +1,6 @@
 """AppImage pin, host and name-rule coverage."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":validate.bzl", "appimage_name_errors")
 load(
     ":pins.bzl",
@@ -9,7 +9,7 @@ load(
     "TOOLS",
     "TOOL_BINARIES",
 )
-load("//libs/starlark:host.bzl", "host_cell_of")
+load("//core:host.bzl", "host_cell_of")
 load(":repos.bzl", "host_arch", "host_error", "hub_build", "unsupported_build")
 
 def _pin_checks():

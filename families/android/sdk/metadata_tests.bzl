@@ -1,6 +1,6 @@
 """Android acquisition pin and request coverage."""
 
-load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
+load("@rules_dx//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(
     ":repos.bzl",
     "ANDROID_API_LEVEL",

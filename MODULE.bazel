@@ -752,7 +752,7 @@ use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 ruby_tools = use_extension("//ruby/private/toolchain:extensions.bzl", "ruby_tools")
 use_repo(ruby_tools, "rules_ruby")
 
-dx_pins = use_extension("//libs/starlark:extensions.bzl", "dx_pins")
+dx_pins = use_extension("//core:extensions.bzl", "dx_pins")
 dx_pins.pin(
     name = "dx_sorbet",
     aliases = {"windows_arm64": "windows_x86_64"},

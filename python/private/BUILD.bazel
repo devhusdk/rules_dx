@@ -1,7 +1,7 @@
 # gazelle:dx_ignore_import python pytest
 
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "python_library", "python_main", "python_main_rejection", "python_test_rejection")
 load(":runtime_tests.bzl", "python_runtime_unit_tests")

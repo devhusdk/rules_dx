@@ -1,6 +1,6 @@
 """Analysis tests for an ordinary rules_cc toolchain supplied by the user."""
 
-load("//libs/starlark:defs.bzl", "starlark_test")
+load("//core:defs.bzl", "starlark_test")
 
 def _expected(subject, compiler, target, family, driver, abi, coverage, syntax_only):
     return """subject //cc/toolchains/external:{subject}

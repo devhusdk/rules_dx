@@ -1,6 +1,6 @@
 """Load tests pinning standalone-artifact metadata."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "expect_match", "expect_true", "starlark_test")
 load(":extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
 load(":hub.bzl", "artifact_metadata_errors")
 load(":repos.bzl", "DX_TOOL_HUB", "DX_TOOL_REPOS")

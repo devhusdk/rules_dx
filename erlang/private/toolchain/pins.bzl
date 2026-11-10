@@ -1,6 +1,6 @@
 """Pinned Erlang/OTP runtime, native closure and rules_erlang identities."""
 
-load("//libs/starlark:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
+load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
 
 OTP_VERSION = "29.1.2"
 

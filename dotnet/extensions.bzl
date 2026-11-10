@@ -1,6 +1,6 @@
 """Fetches the patched rules_dotnet copy."""
 
-load("//libs/starlark:repo.bzl", "pinned_archive")
+load("//core:repo.bzl", "pinned_archive")
 load(":pins.bzl", "LIBFUZZER_DOTNET_SHA256", "LIBFUZZER_DOTNET_STRIP_PREFIX", "LIBFUZZER_DOTNET_URL", "RULES_DOTNET_SHA256", "RULES_DOTNET_STRIP_PREFIX", "RULES_DOTNET_URL")
 
 def _dotnet_tools_impl(mctx):

@@ -1,7 +1,7 @@
 """Module extension for families/cuda/toolchain."""
 
-load("@rules_dx//libs/starlark:license.bzl", "accepted", "license_tag")
-load("@rules_dx//libs/starlark:repo.bzl", "hub_repo")
+load("@rules_dx//core:license.bzl", "accepted", "license_tag")
+load("@rules_dx//core:repo.bzl", "hub_repo")
 load(":repos.bzl", "HUB_NAME", "LICENSE", "hub_build")
 
 

@@ -1,7 +1,7 @@
 """The real aspect engine: request building and shard aspects. Families reach it through hooks."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("//libs/starlark:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
+load("//core:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//quality:execution_requirements.bzl", "dx_stage_execution_requirements")
 load("//quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel", "staged_config_rel")

@@ -1,4 +1,4 @@
-load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 load("//perl/tests/negative:negative_tests.bzl", "perl_runfile_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")

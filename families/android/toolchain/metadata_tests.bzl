@@ -1,6 +1,6 @@
 """Android NDK toolchain selection coverage."""
 
-load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
+load("@rules_dx//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load(":repos.bzl", "required_files", "toolchain_build", "toolchain_repo_errors")
 
 _SDK = "/opt/android-sdk"

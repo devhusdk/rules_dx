@@ -1,5 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_library")
-load("//libs/starlark:cells.bzl", "cell_settings", "unsupported_value")
+load("//core:cells.bzl", "cell_settings", "unsupported_value")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "d_metadata_tests")
 load(":pins.bzl", "LDC_CELLS")

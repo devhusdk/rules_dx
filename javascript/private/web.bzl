@@ -2,9 +2,9 @@
 
 load("@rules_rust_wasm_bindgen//:providers.bzl", _RustWasmBindgenInfo = "RustWasmBindgenInfo")
 load("//deploy/rules:validate_resources.bzl", "resource_mapping_error", "resource_path_error")
-load("//libs/starlark:defs.bzl", "display_label")
-load("//libs/starlark:resources.bzl", "dx_bundler_resources")
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:defs.bzl", "display_label")
+load("//core:resources.bzl", "dx_bundler_resources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load("//libs/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 

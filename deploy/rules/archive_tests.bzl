@@ -1,6 +1,6 @@
 """Unit and analysis tests for the archive releaser."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":archive.bzl", "archive_filenames", "consumer_identity_text", "consumer_resource_member", "native_library_name")
 load(":validate_archive.bzl", "consumer_identity_error")
 

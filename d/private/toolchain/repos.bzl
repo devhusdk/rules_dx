@@ -1,9 +1,9 @@
 """Hermetic LDC acquisition, the pinned rules_d sources and toolchain registration."""
 
-load("//libs/starlark:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
-load("//libs/starlark:deb_closure.bzl", "deb_closure")
-load("//libs/starlark:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
-load("//libs/starlark:toolchain.bzl", "toolchain_target")
+load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
+load("//core:deb_closure.bzl", "deb_closure")
+load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
+load("//core:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION")
 
 HUB_NAME = "dx_d_toolchains"

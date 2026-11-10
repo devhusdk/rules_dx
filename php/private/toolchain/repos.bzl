@@ -1,6 +1,6 @@
 """Hermetic PHP, Composer and PHPUnit acquisition and toolchain registration."""
 
-load("//libs/starlark:toolchain.bzl", "toolchain_target")
+load("//core:toolchain.bzl", "toolchain_target")
 load(":pins.bzl", "PCOV", "PHP_CELLS")
 
 HUB_NAME = "dx_php_toolchains"

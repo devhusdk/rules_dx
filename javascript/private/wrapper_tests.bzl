@@ -1,11 +1,11 @@
 """Wrapper-contract tests for the JavaScript wrappers (item 2)."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal")
-load("//libs/starlark:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//core:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
 load(":defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
-load("//libs/starlark:node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")
+load("//core:node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")
 
 def _wrap_args(kwargs):
     return node_test_wrap_args("t", ["a.js"], ["a.js"], None, {}, None, kwargs)

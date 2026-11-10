@@ -1,6 +1,6 @@
 """Julia real quality aspects."""
 
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "rlocation_path")
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
 load("//quality:family_hooks.bzl", "stage", "without")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")

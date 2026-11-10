@@ -1,6 +1,6 @@
 """macOS signing bundle checks."""
 
-load("@rules_dx//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("@rules_dx//core:defs.bzl", "expect_equal", "starlark_test")
 load(":validate.bzl", "macos_bundle_errors")
 
 def _checks():

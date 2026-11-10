@@ -3,7 +3,7 @@
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("@aspect_rules_js//js:providers.bzl", "JsInfo")
 load("@aspect_rules_ts//ts/private:options.bzl", "OptionsInfo")
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//core:resources.bzl", "dx_heavy_resources")
 
 TscInfo = provider(
     doc = "Output of one non-failing tsc run over a TypeScript project.",

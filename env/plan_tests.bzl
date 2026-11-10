@@ -1,7 +1,7 @@
 """Unit tests for the normalized environment plans."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(
     ":plan.bzl",
     "DX_ENV_ADMITTED_INTEGRATIONS",

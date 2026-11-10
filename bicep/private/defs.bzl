@@ -1,6 +1,6 @@
 """Bicep source ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "BicepInfo", "BicepRegistryInfo")
 
 def _bicep_library_impl(ctx):

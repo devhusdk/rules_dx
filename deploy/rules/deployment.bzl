@@ -1,7 +1,7 @@
 """The dx_deployment rule that dx deploy runs."""
 
-load("//libs/starlark:defs.bzl", "DxSubjectInfo", "display_label")
-load("//libs/starlark:wrapper.bzl", "dx_symlink_executable")
+load("//core:defs.bzl", "DxSubjectInfo", "display_label")
+load("//core:wrapper.bzl", "dx_symlink_executable")
 load(":sbom.bzl", "DxSbomFileInfo")
 load(":config.bzl", "DxDeployConfigInfo", "rlocation_path")
 load(":validate.bzl", "parse_size_budget", "size_budget_error")

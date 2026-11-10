@@ -1,6 +1,6 @@
 """Hackage packages from the resolved sidecar: one repository each and a hub of aliases."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 
 _DEFS = str(Label("//haskell/rules:defs.bzl"))
 

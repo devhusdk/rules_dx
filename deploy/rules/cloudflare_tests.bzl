@@ -1,7 +1,7 @@
 """Unit and analysis tests for the Cloudflare Pages publisher."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":cloudflare.bzl", "cloudflare_pages_intent")
 load(":validate_cloudflare.bzl", "cloudflare_pages_error")
 

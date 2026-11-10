@@ -1,7 +1,7 @@
 """LCOV coverage for Haskell test forwarders, converted from hpc."""
 
 load("//haskell/toolchain:transition.bzl", "ghc_mingw_transition")
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "rlocation_path")
 
 _SCRIPT = """#!/usr/bin/env bash
 set -uo pipefail

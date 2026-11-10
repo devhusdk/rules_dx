@@ -1,6 +1,6 @@
 """Tested-stack manifest contract tests."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//modules:versions.bzl", "ASPECT_RULES_JS_VERSION", "DOTNET_VERSION", "GO_SDK_VERSION", "PNPM_VERSION", "PYTHON_VERSION", "RULES_CC_VERSION", "RULES_DOTNET_VERSION", "RULES_JAVA_VERSION", "RULES_RUST_VERSION", "RUST_VERSION", "SCALA_VERSION", "TYPESCRIPT_VERSION")
 
 def _lines(lines):

@@ -1,6 +1,6 @@
 """Coverlet coverage for .NET test forwarders."""
 
-load("//libs/starlark:rlocation.bzl", "rlocation_path")
+load("//core:rlocation.bzl", "rlocation_path")
 load("@rules_dotnet//dotnet/private:providers.bzl", "DotnetAssemblyRuntimeInfo")
 
 DxDotnetCoverageInfo = provider(

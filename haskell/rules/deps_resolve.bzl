@@ -2,7 +2,7 @@
 
 load("@rules_py//py:defs.bzl", "py_binary", "py_test")
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs")
+load("//core:wrapper.bzl", "dx_language_kwargs")
 
 _SCRIPT = Label("//haskell/tools:deps_resolve.py")
 

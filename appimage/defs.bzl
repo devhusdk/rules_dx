@@ -1,8 +1,8 @@
 """Linux AppImage packaging for target binaries."""
 
 load("//appimage:pins.bzl", "MKSQUASHFS_VERSION", "RUNTIME_VERSION", "TOOL_VERSION")
-load("//libs/starlark:packaging.bzl", "claim_dest", "data_path")
-load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
+load("//core:packaging.bzl", "claim_dest", "data_path")
+load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
 load(":validate.bzl", "appimage_name_errors")
 
 AppImageInfo = provider(

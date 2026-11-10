@@ -1,6 +1,6 @@
 """reStructuredText source ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load("//quality:sources.bzl", "QualityToolsInfo")
 
 def _rst_library_impl(ctx):

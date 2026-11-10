@@ -1,6 +1,6 @@
 """SQL source ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "SQL_DIALECTS", "SqlDialectInfo", "sql_dialect_error")
 

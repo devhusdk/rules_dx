@@ -1,6 +1,6 @@
 load("//haskell/toolchain:pins.bzl", "CELLS", "qualified_cells")
-load("//libs/starlark:cells.bzl", "cells_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
+load("//core:cells.bzl", "cells_compatible_with")
+load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 
 HASKELL_CELLS = qualified_cells()
 

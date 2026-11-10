@@ -1,6 +1,6 @@
 """Cap'n Proto schema ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "CapnpInfo")
 
 _STD_MARKER = "/src/capnp/"

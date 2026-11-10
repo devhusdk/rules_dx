@@ -1,7 +1,7 @@
 load("@dx_rust_fixture_crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_rust//rust:defs.bzl", "rust_lint_config")
 load("@rules_dx//deploy/rules:archive.bzl", "archive_deploy")
-load("@rules_dx//libs/starlark/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
+load("@rules_dx//core/tests:thin_compare.bzl", "thin_compare_rust_tests", "thin_compare_subject")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_bench", "rust_library", "rust_proc_macro", "rust_shared_library", "rust_static_library", "rust_test")
 load("@rules_dx//rust/private:probe.bzl", "dx_wrapper_cc_subject", "dx_wrapper_subject")

@@ -1,6 +1,6 @@
 """Apache Thrift schema ownership for dx quality."""
 
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 
 ThriftInfo = provider(
     doc = "Thrift schemas of one library and its transitive dependencies.",

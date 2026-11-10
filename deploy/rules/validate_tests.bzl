@@ -1,6 +1,6 @@
 """Unit tests for the shared deploy charset validators."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":validate.bzl", "NAME_CHARS", "genrule_arg", "only_chars", "parse_size_budget", "size_budget_error")
 
 def validate_unit_tests(name):

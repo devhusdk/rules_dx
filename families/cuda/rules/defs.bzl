@@ -8,8 +8,8 @@ load("//rules:components.bzl", _cuda_component_library = "cuda_component_library
 load("//toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//toolchain:settings.bzl", "CUDA_CELL_SETTINGS")
 load("//toolchain:transition.bzl", "cuda_host_transition")
-load("@rules_dx//libs/starlark:cells.bzl", "cells_compatible_with")
-load("@rules_dx//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
+load("@rules_dx//core:cells.bzl", "cells_compatible_with")
+load("@rules_dx//core:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("@rules_dx//modules:cuda.bzl", "CUDA_CELLS", "CUDA_VERSION", "cuda_qualified_cells")
 load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
 

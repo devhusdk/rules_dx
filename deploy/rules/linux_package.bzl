@@ -1,6 +1,6 @@
 """Builds deb, rpm and apk packages with nfpm and attaches them to a GitHub release."""
 
-load("//libs/starlark:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
+load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity")
 load(":config.bzl", "deploy_attrs", "deploy_identity")
 load(":github.bzl", "github_deploy")
 load(":validate_linux_package.bzl", "LINUX_PACKAGE_ARCHES", "LINUX_PACKAGE_FORMATS", "linux_package_arch_error", "linux_package_dst_error", "linux_package_formats_error", "linux_package_name_error", "linux_package_version_error")

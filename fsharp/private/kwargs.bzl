@@ -1,4 +1,4 @@
-load("@rules_dx//libs/starlark:wrapper.bzl", "dx_setdefaults", "dx_warnings_as_errors")
+load("@rules_dx//core:wrapper.bzl", "dx_setdefaults", "dx_warnings_as_errors")
 
 def fsharp_tfm_with_defaults(kwargs):
     """Returns kwargs defaulting target_frameworks and the upstream treat_warnings_as_errors, which follows //config:warnings_as_errors when unset."""

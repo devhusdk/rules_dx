@@ -1,9 +1,9 @@
 """Wrapper conformance tests for Ruby."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
-load("//libs/starlark:defs.bzl", "expect_equal")
-load("//libs/starlark:entry.bzl", "dx_infer_main", "dx_main_candidates")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//ruby/private/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
 load(":defs.bzl", "ruby_coverage_lib_dirs")
 

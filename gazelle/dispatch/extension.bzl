@@ -8,7 +8,7 @@ module registers a language, or when the release has no pins.
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//cli/prebuilt:hub.bzl", "GAZELLE_ASSET_PLATFORMS", "plan_assets", "plan_root")
 load("//cli/prebuilt:pins.bzl", "DX_VERSION", "GAZELLE_SHA256", "URL_TEMPLATE")
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":hub.bzl", "builds_from_source", "prebuilt_build", "render_hub_build")
 
 _language = tag_class(

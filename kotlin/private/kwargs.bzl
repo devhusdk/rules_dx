@@ -1,4 +1,4 @@
-load("//libs/starlark:wrapper.bzl", "dx_src_path", "dx_without_warnings_attr")
+load("//core:wrapper.bzl", "dx_src_path", "dx_without_warnings_attr")
 
 _KOTLIN_TEST_ROOTS = [
     "src/test/java/",

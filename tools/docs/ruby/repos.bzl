@@ -1,6 +1,6 @@
 """Pinned upstream YARD acquisition for Ruby API reference shards."""
 
-load("//libs/starlark:repo.bzl", "gem_extract")
+load("//core:repo.bzl", "gem_extract")
 
 _LIB_BUILD = """\
 filegroup(

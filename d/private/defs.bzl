@@ -3,9 +3,9 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_d//d:defs.bzl", _d_binary = "d_binary", _d_library = "d_library", _d_test = "d_test")
 load("@rules_d//d/private:providers.bzl", _DInfo = "DInfo")
-load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
-load("//libs/starlark:fuzz_bench.bzl", "dx_bench_test")
-load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
+load("//core:fuzz.bzl", "dx_fuzz_test")
+load("//core:fuzz_bench.bzl", "dx_bench_test")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "d_kwargs", _D_CELLS = "D_CELLS", _D_COMPATIBLE_WITH = "D_COMPATIBLE_WITH")
 

@@ -1,6 +1,6 @@
 """Module extension for typescript/private/playwright."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":repos.bzl", "ARTIFACTS", "chromium_repo", "hub_build", "repository_name")
 
 visibility(["//..."])

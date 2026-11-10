@@ -1,6 +1,6 @@
 """Repository rule and hub for LuaRocks packages fetched from luarocks.lock."""
 
-load("//libs/starlark:repo.bzl", "hub_repo")
+load("//core:repo.bzl", "hub_repo")
 load(":lock.bzl", "analyze", "hub_package_build", "hub_root_build", "module_path", "pin_entry_json", "spoke_build")
 
 _RULES_BZL = str(Label("//lua:defs.bzl"))

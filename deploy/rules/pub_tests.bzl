@@ -1,7 +1,7 @@
 """Unit and analysis tests for the pub.dev publisher."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":api_compat.bzl", "api_compat_error")
 load(":validate_pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_registry_url_error", "pub_name_error", "pub_version_error")
 

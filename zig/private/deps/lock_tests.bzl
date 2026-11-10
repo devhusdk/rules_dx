@@ -1,6 +1,6 @@
 """Tests for the pure build.zig.zon logic."""
 
-load("//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "main_file", "parse_dependencies", "spoke_build")
 
 _SHA = "a" * 64

@@ -1,6 +1,6 @@
 """Opt-in WASI acquisition observations for the wasi consumer."""
 
-load("@rules_dx//libs/starlark:defs.bzl", "DxSubjectInfo", "starlark_test")
+load("@rules_dx//core:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("//rust/tests/fixtures/consumer_wasm:acquisition.bzl", "acquisition_subject", "host_select", "own_repo", "rust_owner", "wasi_runtime_subject")
 
 _WASIP1_PLATFORM = Label("@rules_rust//rust/platform:wasip1")

@@ -1,7 +1,7 @@
 """Compiles a C# target with the SDK analyzers and records the SARIF log."""
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
+load("//core:resources.bzl", "dx_heavy_resources")
 load("//quality:native_config.bzl", "DxNativeConfigInfo")
 load("//quality:policy.bzl", "QualityPolicyInfo")
 load("//quality/private:native_config_impl.bzl", "bound_config_targets")

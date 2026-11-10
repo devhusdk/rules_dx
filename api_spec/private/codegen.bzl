@@ -1,9 +1,9 @@
 """OpenAPI client generation: TypeScript (Redocly generate-client), Go (oapi-codegen), Python (openapi-python-client) and Rust (progenitor)."""
 
 load("//core/codegen:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
-load("//libs/starlark:defs.bzl", "display_label")
-load("//libs/starlark:resources.bzl", "dx_heavy_resources")
-load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
+load("//core:defs.bzl", "display_label")
+load("//core:resources.bzl", "dx_heavy_resources")
+load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "ApiSpecInfo")
 
 OPENAPI_GENERATED_SRCS_GROUP = "openapi_generated_srcs"

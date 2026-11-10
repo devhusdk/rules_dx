@@ -1,6 +1,6 @@
 load("//elixir/private/toolchain:pins.bzl", _ELIXIR_CELLS = "ELIXIR_CELLS")
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
-load("//libs/starlark:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
+load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 
 ELIXIR_CELLS = _ELIXIR_CELLS
 

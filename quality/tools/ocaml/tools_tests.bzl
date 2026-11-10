@@ -1,6 +1,6 @@
 """Pin tests for the OCaml source-built tools."""
 
-load("//libs/starlark:defs.bzl", "expect_equal", "expect_true", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 load("//ocaml/toolchain:pins.bzl", "OCAML_VERSION")
 load("//quality/artifacts:zanuda.bzl", "SOURCE", "ZANUDA_OCAML_RANGES")
 load(":repos.bzl", "patch_package")

@@ -9,11 +9,6 @@ pub const RESERVED_STEMS: &[&str] = &[
     "com9", "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
 ];
 
-/// Maps one logical tool name to its host-native filename.
-pub fn host_filename(name: &str) -> String {
-    host_filename_for(name, cfg!(windows))
-}
-
 /// Maps one logical tool name to its filename on the named platform.
 pub fn host_filename_for(name: &str, windows: bool) -> String {
     if windows {
@@ -32,11 +27,6 @@ pub fn executable_suffix(name: &str) -> Option<&'static str> {
         .find(|suffix| lower.ends_with(suffix))
 }
 
-/// Reports whether one name carries an executable suffix.
-pub fn has_executable_suffix(name: &str) -> bool {
-    executable_suffix(name).is_some()
-}
-
 /// Reports whether one name is a device Windows reserves.
 pub fn is_reserved_device(name: &str) -> bool {
     let stem = name.split('.').next().unwrap_or(name).to_ascii_lowercase();
@@ -48,18 +38,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_tool_name_carries_no_suffix() {
-        assert!(has_executable_suffix("python.exe"));
-        assert!(!has_executable_suffix("python"));
-        assert!(has_executable_suffix("prettier.EXE"));
-        assert!(has_executable_suffix("build.bat"));
-        assert!(!has_executable_suffix("pydoclint"));
-    }
-
-    #[test]
     fn a_matched_suffix_is_named() {
+        assert_eq!(executable_suffix("python.exe"), Some(".exe"));
         assert_eq!(executable_suffix("prettier.EXE"), Some(".exe"));
         assert_eq!(executable_suffix("build.bat"), Some(".bat"));
+        assert_eq!(executable_suffix("python"), None);
         assert_eq!(executable_suffix("pydoclint"), None);
     }
 
@@ -70,14 +53,6 @@ mod tests {
         assert!(is_reserved_device("com1.log"));
         assert!(!is_reserved_device("console"));
         assert!(!is_reserved_device("pydoclint"));
-    }
-
-    #[test]
-    fn the_host_filename_follows_the_host() {
-        assert_eq!(
-            host_filename("python"),
-            host_filename_for("python", cfg!(windows))
-        );
     }
 
     #[test]

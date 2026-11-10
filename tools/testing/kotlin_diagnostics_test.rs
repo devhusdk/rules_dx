@@ -1,18 +1,9 @@
+use dx_testing::env_file as file;
 use std::path::PathBuf;
 
-fn file(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} is set")))
-}
-
 fn compile(label: &str, sources: &[PathBuf], vars: &[&str]) -> dx_testing::Run {
-    let out = PathBuf::from(std::env::var("TEST_TMPDIR").expect("TEST_TMPDIR is set"))
-        .join(format!("classes-{label}"));
-    std::fs::create_dir_all(&out).expect("create output directory");
-    let out = out.to_string_lossy().into_owned();
-    let classpath = std::env::join_paths(vars.iter().map(|var| file(var)))
-        .expect("classpath entries join")
-        .to_string_lossy()
-        .into_owned();
+    let out = dx_testing::path_text(&dx_testing::scratch_dir(&format!("classes-{label}")));
+    let classpath = dx_testing::classpath(vars);
     let sources: Vec<String> = sources
         .iter()
         .map(|source| source.to_string_lossy().into_owned())
@@ -32,14 +23,6 @@ fn compile(label: &str, sources: &[PathBuf], vars: &[&str]) -> dx_testing::Run {
 
 fn kotlinc(label: &str, source: &str) -> dx_testing::Run {
     compile(label, &[file(source)], &["DX_STDLIB"])
-}
-
-fn app_sources() -> Vec<PathBuf> {
-    std::env::var("DX_APP_SRCS")
-        .expect("DX_APP_SRCS lists the app sources")
-        .split_whitespace()
-        .map(dx_testing::resolve_runfiles)
-        .collect()
 }
 
 fn ktfmt(source: &str) -> dx_testing::Run {
@@ -121,7 +104,11 @@ fn unformatted_source_is_rejected() {
 
 #[test]
 fn app_without_gson_is_rejected() {
-    let run = compile("no-gson", &app_sources(), &["DX_STDLIB", "DX_GUAVA"]);
+    let run = compile(
+        "no-gson",
+        &dx_testing::env_files("DX_APP_SRCS"),
+        &["DX_STDLIB", "DX_GUAVA"],
+    );
     assert!(!run.status.success());
     assert!(
         run.combined().contains("unresolved reference 'gson'"),
@@ -132,7 +119,11 @@ fn app_without_gson_is_rejected() {
 
 #[test]
 fn app_without_guava_is_rejected() {
-    let run = compile("no-guava", &app_sources(), &["DX_STDLIB", "DX_GSON"]);
+    let run = compile(
+        "no-guava",
+        &dx_testing::env_files("DX_APP_SRCS"),
+        &["DX_STDLIB", "DX_GSON"],
+    );
     assert!(!run.status.success());
     assert!(
         run.combined().contains("unresolved reference 'common'"),
@@ -145,7 +136,7 @@ fn app_without_guava_is_rejected() {
 fn app_with_declared_dependencies_compiles() {
     let run = compile(
         "declared",
-        &app_sources(),
+        &dx_testing::env_files("DX_APP_SRCS"),
         &["DX_STDLIB", "DX_GSON", "DX_GUAVA"],
     );
     assert!(run.status.success(), "{}", run.combined());

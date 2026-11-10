@@ -1,5 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust:defs.bzl", "rust_test")
+load("@rules_dx//tools/testing:test_macros.bzl", "dx_diagnostics_test", "dx_format_test")
 load("@rules_java//java:defs.bzl", "java_binary", "java_import")
 
 package(
@@ -28,9 +28,9 @@ java_binary(
     runtime_deps = [":kotlinc_jars"],
 )
 
-rust_test(
+dx_diagnostics_test(
     name = "diagnostics_test",
-    srcs = ["@rules_dx//tools/testing:kotlin_diagnostics_test.rs"],
+    language = "kotlin",
     data = [
         "Clean.kt",
         "SyntaxError.kt",
@@ -65,13 +65,11 @@ rust_test(
         "DX_TYPE": "$(rootpath TypeError.kt)",
         "DX_WARNING": "$(rootpath UncheckedCast.kt)",
     },
-    deps = ["@rules_dx//tools/testing:dx_testing"],
 )
 
-rust_test(
+dx_format_test(
     name = "format_test",
-    srcs = ["@rules_dx//tools/testing:jvm_format_test.rs"],
-    data = [
+    srcs = [
         "//kotlin/tests/fixtures/kotlin-app/cli:Cli.kt",
         "//kotlin/tests/fixtures/kotlin-app/cli:CliTest.kt",
         "//kotlin/tests/fixtures/kotlin-app/cli:Main.kt",
@@ -82,25 +80,14 @@ rust_test(
         "//kotlin/tests/fixtures/kotlin-app/grades:Stats.kt",
         "//kotlin/tests/fixtures/kotlin-app/grades:StatsTest.kt",
         "//kotlin/tests/fixtures/kotlin-app/grades:Student.kt",
-        "@rules_dx//core/quality/tools/jvm:ktfmt",
     ],
-    env = {
-        "DX_FORMATTER": "$(rootpath @rules_dx//core/quality/tools/jvm:ktfmt)",
-        "DX_FORMAT_ARGS": "--kotlinlang-style",
-        "DX_FORMAT_SRCS": " ".join([
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/cli:Cli.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/cli:CliTest.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/cli:Main.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:ClasspathTest.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeException.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeReader.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:GradeReaderTest.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:Stats.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:StatsTest.kt)",
-            "$(rootpath //kotlin/tests/fixtures/kotlin-app/grades:Student.kt)",
-        ]),
-    },
-    deps = ["@rules_dx//tools/testing:dx_testing"],
+    args = [
+        "--kotlinlang-style",
+        "--dry-run",
+        "--set-exit-if-changed",
+        "{src}",
+    ],
+    tool = "@rules_dx//core/quality/tools/jvm:ktfmt",
 )
 
 real_source_target(

@@ -78,7 +78,7 @@ ocaml_test(
 - `ocamllex` is re-exported unchanged, because lexers need it to build.
 - Modules and signatures compile with `-bin-annot` (opt out with
   `-no-bin-annot`) and expose their `.cmt` and `.cmti` files through
-  `OCamlCmtInfo` (`//ocaml/private:providers.bzl`) and the `cmt` and `cmti`
+  `OCamlCmtInfo` (`@rules_dx//ocaml:defs.bzl`) and the `cmt` and `cmti`
   output groups.
 - Modules and signatures warn on unused variables and values (`-w +26+27+32..39`)
   unless their opts set `-w`.
@@ -139,7 +139,7 @@ scratch directory. Modules that use a ppx rewriter are not checked.
 
 ### Dune libraries
 
-`dx_dune_library` (`ocaml/private/dune.bzl`) runs `dune build -p <package> @install`
+`dx_dune_library` (`@rules_dx//ocaml:defs.bzl`) runs `dune build -p <package> @install`
 on a dune workspace and returns the package as rules_ocaml providers, so
 `ocaml_module` and `ocaml_test` take it in `deps`. The package is copied to the
 tree artifact `<name>_ocamlpath/<package>` (a findlib layout); the archive named

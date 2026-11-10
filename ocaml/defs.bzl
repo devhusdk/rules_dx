@@ -17,8 +17,12 @@ load(
     _toolchain_choice = "toolchain_choice",
     _toolchain_settings = "toolchain_settings",
 )
+load("//ocaml/private:dune.bzl", _dx_dune_library = "dx_dune_library")
+load("//ocaml/private:providers.bzl", _OCamlCmtInfo = "OCamlCmtInfo")
 
 OCAML_COMPATIBLE_WITH = _OCAML_COMPATIBLE_WITH
+OCamlCmtInfo = _OCamlCmtInfo
+dx_dune_library = _dx_dune_library
 launcher_script = _launcher_script
 ocaml_bench = _ocaml_bench
 ocaml_binary = _ocaml_binary

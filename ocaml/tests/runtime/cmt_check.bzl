@@ -1,6 +1,6 @@
 """Analysis check that OCaml wrappers expose their typed-tree files."""
 
-load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
+load("//ocaml:defs.bzl", "OCamlCmtInfo")
 
 def _impl(ctx):
     entries = ctx.attr.target[OCamlCmtInfo].owned

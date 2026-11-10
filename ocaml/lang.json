@@ -40,7 +40,8 @@
     "ocaml_binary",
     "ocaml_test",
     "ocaml_fuzz_test",
-    "ocaml_bench"
+    "ocaml_bench",
+    "dx_dune_library"
   ],
   "quality": {
     "bzl": "quality:families/ocaml.bzl",

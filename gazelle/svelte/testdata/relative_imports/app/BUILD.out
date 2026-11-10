@@ -23,5 +23,7 @@ svelte_library(
 typescript_library(
     name = "store",
     srcs = ["store.ts"],
+    declaration = True,
+    tsconfig = "//:tsconfig",
     visibility = ["//visibility:public"],
 )

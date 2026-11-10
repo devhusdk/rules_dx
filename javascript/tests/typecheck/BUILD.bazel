@@ -1,7 +1,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//typescript/private/quality:tsc_report.bzl", "tsc_report")
+load("//typescript/private/quality:tsc_report.bzl", "tsc_report", "tsc_stdout_test")
 
 package(
     default_testonly = True,
@@ -43,12 +43,30 @@ js_library(
 
 [
     diff_test(
-        name = "%s_%s_test" % (case, kind),
-        file1 = "%s.%s.expected" % (case, kind),
-        file2 = ":%s_%s_report" % (case, kind),
+        name = "%s_exit_test" % case,
+        file1 = "%s.exit.expected" % case,
+        file2 = ":%s_exit_report" % case,
     )
     for case in ["tier", "loose", "mixed"]
-    for kind in ["stdout", "exit"]
+]
+
+[
+    tsc_stdout_test(
+        name = "%s_stdout_test" % case,
+        diagnostics = {
+            "tier": """implicit_any.js(1,26): error TS7006: Parameter 'value' implicitly has an 'any' type.
+""",
+            "mixed": """bad.vue(2,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+bad.vue(4,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+page.mdx(1,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+page.mdx(3,27): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+page.mdx(7,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+""",
+        }.get(case, ""),
+        expected = "%s.stdout.expected" % case,
+        report = ":%s_stdout_report" % case,
+    )
+    for case in ["tier", "loose", "mixed"]
 ]
 
 real_source_target(

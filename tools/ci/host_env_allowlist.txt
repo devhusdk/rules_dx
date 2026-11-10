@@ -444,7 +444,6 @@ tools/testing/nested/src/lib.rs shebang 4
 tools/testing/src/fatbin.rs shebang 1
 tools/testing/src/lib.rs shebang 2
 typescript/private/quality/tsc.bzl run-shell 1
-typescript/private/quality/tsc_report.bzl run-shell 1
 typescript/tests/fixtures/declarations/BUILD.bazel genrule 1
 typescript/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 typescript/tests/fixtures/fuzz/run_test.sh shebang 1

@@ -11,6 +11,13 @@ tsc_framework_cases(
     library_rule = svelte_library,
     ext = "svelte",
     deps = ["//:node_modules/svelte"],
+    diagnostics = {
+        "bad": """bad.svelte(2,20): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+bad.svelte(4,30): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+""",
+        "broken": """broken.svelte(5,1): error svelte/element_unclosed: `<div>` was left open https://svelte.dev/e/element_unclosed
+""",
+    },
 )
 
 real_source_target(

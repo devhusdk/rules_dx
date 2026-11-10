@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn shipped_table_parses() {
-    assert!(families().iter().any(|family| family.name == "swift"));
+    assert!(families().iter().any(|family| family.name == "core"));
     assert!(parse("{").is_err());
 }
 
@@ -23,7 +23,7 @@ fn every_extension_has_one_family() {
 fn extension_lookup_ignores_case() {
     assert_eq!(
         family_for_extension(".SWIFT").map(|family| family.name.as_str()),
-        Some("swift")
+        Some("core")
     );
     assert!(family_for_extension(".nope").is_none());
 }

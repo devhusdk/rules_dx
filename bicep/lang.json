@@ -10,6 +10,21 @@
     "MODULE.bazel"
   ],
   "lockfiles": [],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "bicep",
+        "manifest": "MODULE.bazel",
+        "lock": null,
+        "state": null,
+        "extension": "@rules_dx//bicep:extensions.bzl",
+        "tag": null,
+        "hub": "bicep_registry",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "bicep",
     "trivy_config"

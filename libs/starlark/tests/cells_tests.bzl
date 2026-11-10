@@ -2,7 +2,7 @@
 
 load("@dx_pins_data//:pins.bzl", "PINS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
-load("//erlang/toolchain:pins.bzl", erlang_cells = "CELLS")
+load("//erlang/private/toolchain:pins.bzl", erlang_cells = "CELLS")
 load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/toolchain:pins.bzl", haskell_cells = "CELLS")
 load("//libs/starlark:cells.bzl", "cell_cases", "cell_setting", "unknown_cells", "unsupported_constraint")

@@ -1277,7 +1277,7 @@ workspace_policy(
 erlang_subject(
     name = "erlang_subject",
     testonly = True,
-    target = "@rules_dx_beam//erlang/tests/runtime:erlang_app",
+    target = "//erlang/tests/runtime:erlang_app",
 )
 
 erlfmt_flag_tests(
@@ -1304,7 +1304,7 @@ workspace_policy(
 erlang_lint_subject(
     name = "erlang_lint_subject",
     testonly = True,
-    target = "@rules_dx_beam//erlang/tests/runtime:erlang_app",
+    target = "//erlang/tests/runtime:erlang_app",
 )
 
 elvis_flag_tests(
@@ -1331,7 +1331,7 @@ workspace_policy(
 erlang_typecheck_subject(
     name = "erlang_typecheck_subject",
     testonly = True,
-    target = "@rules_dx_beam//erlang/tests/runtime:erlang_app",
+    target = "//erlang/tests/runtime:erlang_app",
 )
 
 dialyzer_flag_tests(
@@ -1358,7 +1358,7 @@ workspace_policy(
 erlang_typecheck_subject(
     name = "elixir_typecheck_subject",
     testonly = True,
-    target = "@rules_dx_beam//elixir/tests/runtime:erlang_app",
+    target = "//elixir/tests/runtime:erlang_app",
 )
 
 dialyzer_elixir_flag_tests(
@@ -1493,7 +1493,7 @@ workspace_policy(
 elixir_subject(
     name = "elixir_subject",
     testonly = True,
-    target = "@rules_dx_beam//elixir/tests/runtime:erlang_app",
+    target = "//elixir/tests/runtime:erlang_app",
 )
 
 mix_format_flag_tests(
@@ -1520,7 +1520,7 @@ workspace_policy(
 elixir_lint_subject(
     name = "elixir_lint_subject",
     testonly = True,
-    target = "@rules_dx_beam//elixir/tests/runtime:erlang_app",
+    target = "//elixir/tests/runtime:erlang_app",
 )
 
 credo_flag_tests(

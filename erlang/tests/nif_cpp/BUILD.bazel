@@ -1,0 +1,68 @@
+# gazelle:dx_rust_corpus false
+
+load("@rules_dx//erlang:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_eunit_test", "erlang_nif", "erlang_release", "erlang_test_app", "erlc_opts")
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//erlang/tests/runtime:__pkg__"],
+)
+
+erlang_nif(
+    name = "dx_cpp_a_nif",
+    srcs = ["//erlang/tests/nif_cpp/c_src:dx_cpp_a_nif.cc"],
+)
+
+erlang_nif(
+    name = "dx_cpp_b_nif",
+    srcs = ["//erlang/tests/nif_cpp/c_src:dx_cpp_b_nif.cc"],
+)
+
+erlang_app(
+    app_description = "Two C++ NIFs that load in one VM.",
+    app_name = "dx_cpp",
+    app_version = "1.0.0",
+    nifs = [
+        ":dx_cpp_a_nif",
+        ":dx_cpp_b_nif",
+    ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_release(
+    name = "release",
+    apps = [":erlang_app"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlang_test_app(
+    app_name = "dx_cpp",
+    app_version = "1.0.0",
+    nifs = [
+        ":dx_cpp_a_nif",
+        ":dx_cpp_b_nif",
+    ],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)
+
+erlc_opts(
+    name = "test_erlc_opts",
+    values = DEFAULT_TEST_ERLC_OPTS,
+)
+
+erlang_bytecode(
+    name = "test_modules",
+    testonly = True,
+    srcs = ["test/dx_cpp_nif_tests.erl"],
+    outs = ["test/dx_cpp_nif_tests.beam"],
+    erlc_opts = ":test_erlc_opts",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = [":test_erlang_app"],
+)
+
+erlang_eunit_test(
+    name = "eunit",
+    compiled_suites = [":test_modules"],
+    target = ":test_erlang_app",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    visibility = ["//erlang/tests/runtime:__pkg__"],
+)

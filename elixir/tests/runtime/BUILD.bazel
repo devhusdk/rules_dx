@@ -1,0 +1,65 @@
+# gazelle:dx_rust_corpus false
+
+load("@rules_dx//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app", "elixir_test")
+load("@rules_dx//elixir/private:wrapper_tests.bzl", "elixir_coverage_env_test")
+load("@rules_dx//elixir/private/toolchain:pins.bzl", "ELIXIR_VERSION")
+load("@rules_dx//erlang/private:wrapper_tests.bzl", "erlang_beam_info_test")
+load("@rules_dx//erlang/private/toolchain:pins.bzl", "OTP_RELEASE")
+
+elixir_app(
+    name = "erlang_app",
+    app_name = "dx_runtime_probe",
+    app_version = "1.0.0",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    visibility = ["@rules_dx//quality/testdata:__pkg__"],
+)
+
+erlang_beam_info_test(
+    name = "beam_info_test",
+    app_name = "dx_runtime_probe",
+    owned = ["ebin"],
+    plts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["elixir_plt.plt"],
+    }),
+    target = ":erlang_app",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+elixir_app(
+    name = "test_support",
+    testonly = True,
+    srcs = ["support/dx_test_support.ex"],
+    app_name = "dx_test_support",
+    app_version = "1.0.0",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+elixir_test(
+    name = "probe_test",
+    srcs = [
+        "test/probe_test.exs",
+        "test/test_helper.exs",
+    ],
+    env = {
+        "DX_ELIXIR_VERSION": ELIXIR_VERSION,
+        "DX_OTP_RELEASE": OTP_RELEASE,
+    },
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+    deps = [
+        ":erlang_app",
+        ":test_support",
+    ],
+)
+
+elixir_coverage_env_test(
+    name = "probe_coverage_env_test",
+    apps = "dx_runtime_probe,dx_test_support",
+    sources = "elixir/tests/runtime/lib/dx_runtime_probe.ex,elixir/tests/runtime/support/dx_test_support.ex",
+    target = ":probe_test",
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//visibility:public"],
+)

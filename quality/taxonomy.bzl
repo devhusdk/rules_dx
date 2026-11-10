@@ -74,11 +74,11 @@ TAXONOMY = {
         classes = ["dockerfile"],
     ),
     "elixir": struct(
-        owner = "//elixir/rules:defs.bzl",
+        owner = "//elixir:defs.bzl",
         classes = ["elixir"],
     ),
     "erlang": struct(
-        owner = "//erlang/rules:defs.bzl",
+        owner = "//erlang:defs.bzl",
         classes = ["erlang"],
     ),
     "flatbuffers": struct(

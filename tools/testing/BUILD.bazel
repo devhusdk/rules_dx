@@ -13,7 +13,6 @@ package(default_visibility = VIS_TOOLS_CLI_TEST)
 FAMILY_MODULES = [
     "android",
     "apple",
-    "beam",
     "cuda",
     "dart",
     "dotnet",

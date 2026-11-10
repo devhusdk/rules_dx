@@ -1501,7 +1501,7 @@ fn build_files_parse_with_load_statements() {
 #[test]
 fn mix_locks_follow_the_elixir_mix_tag() {
     let file = parse(
-        "elixir = use_extension(\"//elixir/toolchain:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n",
+        "elixir = use_extension(\"//elixir:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//app:mix.lock\")\nother = use_extension(\"//other:repos.bzl\", \"elixir\")\nother.mix(name = \"x\", lock = \"//x:mix.lock\")\n",
     );
     let found: Vec<_> = file
         .mix_locks()
@@ -1515,7 +1515,7 @@ fn mix_locks_follow_the_elixir_mix_tag() {
 #[test]
 fn rebar_locks_follow_the_erlang_rebar_tag() {
     let file = parse(
-        "erlang = use_extension(\"//erlang/toolchain:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//app:rebar.lock\")\nother = use_extension(\"//other:repos.bzl\", \"erlang\")\nother.rebar(name = \"x\", lock = \"//x:rebar.lock\")\n",
+        "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//app:rebar.lock\")\nother = use_extension(\"//other:repos.bzl\", \"erlang\")\nother.rebar(name = \"x\", lock = \"//x:rebar.lock\")\n",
     );
     let found: Vec<_> = file
         .rebar_locks()

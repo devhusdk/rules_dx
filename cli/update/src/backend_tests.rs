@@ -2165,7 +2165,7 @@ fn hex_check_stages_deps_get_and_update_names_the_packages() {
         .expect("run_under");
     assert_eq!(
         argv[target + 1..],
-        strings(&["@rules_dx//elixir/tools:mix", "--", "deps.get"])
+        strings(&["@rules_dx//elixir/private/tools:mix", "--", "deps.get"])
     );
     assert_eq!(check.outputs, ["third_party/elixir/mix.lock"]);
     assert_eq!(

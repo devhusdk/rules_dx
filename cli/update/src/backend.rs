@@ -1581,7 +1581,7 @@ fn hex_staged(
     let mut argv_head = bazel(
         &pin_head,
         "run",
-        &["@rules_dx//elixir/tools:mix", "--", command],
+        &["@rules_dx//elixir/private/tools:mix", "--", command],
     );
     argv_head.extend(packages.iter().cloned());
     Ok(StagedRun {

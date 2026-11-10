@@ -1,4 +1,4 @@
-load("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
+load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality/testdata:__pkg__"])

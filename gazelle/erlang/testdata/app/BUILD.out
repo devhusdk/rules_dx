@@ -1,4 +1,4 @@
-load("@rules_dx//erlang/rules:defs.bzl", "erlang_app")
+load("@rules_dx//erlang:defs.bzl", "erlang_app")
 
 erlang_app(
     name = "erlang_app",

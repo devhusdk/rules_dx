@@ -1609,7 +1609,7 @@ fn consumer_nuget_apply_writes_only_differing_declared_files() {
     assert!(!scratch_out(&runner).exists());
 }
 
-const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+const HEX_MODULE: &str = "elixir = use_extension(\"//elixir:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
 
 fn hex_harness(name: &str) -> Harness {
     let harness = consumer_harness(name, HEX_MODULE, false);
@@ -1649,7 +1649,7 @@ fn consumer_hex_check_reports_drift_and_apply_writes_only_mix_lock() {
 #[test]
 fn consumer_mixed_mix_and_rebar_run_still_checks_the_mix_set() {
     let module = format!(
-        "{HEX_MODULE}erlang = use_extension(\"//erlang/toolchain:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
+        "{HEX_MODULE}erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"erl\", lock = \"//third_party/erlang:rebar.lock\")\n"
     );
     let harness = consumer_harness("hex-mixed", &module, false);
     harness.write_source("third_party/elixir/mix.exs", "defmodule App do\nend\n");

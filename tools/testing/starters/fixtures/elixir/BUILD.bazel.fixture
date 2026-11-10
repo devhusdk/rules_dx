@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
+load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test", "escript_archive", "escript_headers")
 
 elixir_app(
     name = "demo-app",

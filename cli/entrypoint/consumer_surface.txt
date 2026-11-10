@@ -19,11 +19,11 @@ deploy/rules:oci.bzl
 deploy/rules:octopus.bzl
 deploy/rules:pypi.bzl
 dockerfile/rules:defs.bzl
-elixir/rules:defs.bzl
+elixir:defs.bzl
 dotnet:defs.bzl
-elixir/rules:hex.bzl
+elixir:extensions.bzl
 env:defs.bzl
-erlang/rules:defs.bzl
+erlang:defs.bzl
 go/rules:defs.bzl
 haskell/rules:defs.bzl
 java/private:defs.bzl

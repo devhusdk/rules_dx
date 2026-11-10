@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "erlang",
   "title": "Erlang",
-  "family": "beam",
+  "family": "core",
   "ecosystems": [
     "hex"
   ],
@@ -26,7 +26,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "toolchain/pins.bzl"
+    "private/toolchain/pins.bzl"
   ],
   "entry_points": [
     "erlc_opts",

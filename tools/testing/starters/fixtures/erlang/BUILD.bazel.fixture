@@ -1,4 +1,4 @@
-load("@rules_dx//erlang/rules:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
+load("@rules_dx//erlang:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "erlang_app", "erlang_bytecode", "erlang_escript_archive", "erlang_eunit_test", "erlang_test_app", "erlc_opts")
 
 erlang_app(
     name = "demo-app",

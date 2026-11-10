@@ -49,7 +49,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    AppKind,
 		ExtraKinds:     []string{NifKind},
 		Kinds:          kinds(),
-		DefsPackage:    "erlang/rules:defs.bzl",
+		DefsPackage:    "erlang:defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       ModuleName,
 		IsImportSource: IsErlSource,

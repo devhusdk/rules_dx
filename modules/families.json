@@ -86,51 +86,6 @@
       "repo_rules": [],
       "toolchains": []
     },
-    "beam": {
-      "aspects": [
-        "real_beam_format_probe_aspect",
-        "real_beam_lint_probe_aspect",
-        "real_beam_typecheck_probe_aspect",
-        "real_elixir_format_aspect",
-        "real_elixir_lint_aspect",
-        "real_erlang_format_aspect",
-        "real_erlang_lint_aspect",
-        "real_erlang_typecheck_aspect"
-      ],
-      "bazel_deps": [
-        "bazel_skylib",
-        "platforms",
-        "rules_cc",
-        "rules_dx",
-        "rules_shell"
-      ],
-      "dirs": [
-        "bcr_test_module",
-        "elixir",
-        "erlang",
-        "third_party"
-      ],
-      "extensions": [
-        "@rules_dx//elixir/toolchain:extensions.bzl%elixir",
-        "@rules_dx//erlang/toolchain:extensions.bzl%erlang"
-      ],
-      "file_extensions": [
-        ".erl",
-        ".ex",
-        ".exs",
-        ".hrl"
-      ],
-      "gazelle": [],
-      "module": "rules_dx_beam",
-      "path": "families/beam",
-      "repo_rules": [
-        "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive"
-      ],
-      "toolchains": [
-        "@dx_elixir_toolchains//:all",
-        "@dx_erlang_toolchains//:all"
-      ]
-    },
     "containers": {
       "aspects": [],
       "bazel_deps": [
@@ -151,6 +106,9 @@
     "core": {
       "aspects": [
         "real_ansible_lint_aspect",
+        "real_beam_format_probe_aspect",
+        "real_beam_lint_probe_aspect",
+        "real_beam_typecheck_probe_aspect",
         "real_bicep_format_aspect",
         "real_bicep_lint_aspect",
         "real_cc_format_aspect",
@@ -169,6 +127,11 @@
         "real_cue_typecheck_aspect",
         "real_dockerfile_lint_aspect",
         "real_docs_aspect",
+        "real_elixir_format_aspect",
+        "real_elixir_lint_aspect",
+        "real_erlang_format_aspect",
+        "real_erlang_lint_aspect",
+        "real_erlang_typecheck_aspect",
         "real_format_aspect",
         "real_format_probe_aspect",
         "real_go_format_aspect",
@@ -352,8 +315,8 @@
         "//deploy/rules/pins:extensions.bzl%semver_checks",
         "//dotnet:rules_dotnet.bzl%dotnet",
         "//dotnet:extensions.bzl%dotnet_tools",
-        "//elixir/toolchain:extensions.bzl%elixir",
-        "//erlang/toolchain:extensions.bzl%erlang",
+        "//elixir:extensions.bzl%elixir",
+        "//erlang:extensions.bzl%erlang",
         "//fortran/toolchain:extensions.bzl%fortran",
         "//gazelle/dispatch:extension.bzl%dx_gazelle",
         "//haskell/toolchain:extensions.bzl%haskell",
@@ -411,10 +374,14 @@
         ".cc",
         ".cmake",
         ".cpp",
+        ".erl",
+        ".ex",
+        ".exs",
         ".go",
         ".h",
         ".hpp",
         ".java",
+        ".hrl",
         ".json",
         ".kt",
         ".kts",

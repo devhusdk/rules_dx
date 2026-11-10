@@ -1,4 +1,4 @@
-load("@rules_dx//erlang/rules:defs.bzl", "erlang_app", "erlang_nif")
+load("@rules_dx//erlang:defs.bzl", "erlang_app", "erlang_nif")
 
 erlang_nif(
     name = "fast_nif",

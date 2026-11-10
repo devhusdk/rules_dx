@@ -5,10 +5,12 @@ package(default_visibility = ["//:__subpackages__"])
 filegroup(
     name = "module_srcs",
     srcs = [
+        "defs.bzl",
+        "extensions.bzl",
         "//:module_srcs",
-        "//erlang/rules:module_srcs",
-        "//erlang/toolchain:module_srcs",
-        "//erlang/tools:module_srcs",
+        "//erlang/private:module_srcs",
+        "//erlang/private/toolchain:module_srcs",
+        "//erlang/private/tools:module_srcs",
     ],
 )
 
@@ -18,4 +20,16 @@ real_source_target(
     tags = ["corpus"],
 )
 
-exports_files(["lang.json"])
+real_source_target(
+    name = "corpus_markdown",
+    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+exports_files([
+    "README.md",
+    "defs.bzl",
+    "extensions.bzl",
+    "lang.json",
+])

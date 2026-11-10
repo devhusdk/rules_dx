@@ -273,12 +273,6 @@ local_path_override(
     path = "families/dotnet",
 )
 
-bazel_dep(name = "rules_dx_beam", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_beam",
-    path = "families/beam",
-)
-
 bazel_dep(name = "rules_dx_cuda", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_cuda",
@@ -1192,15 +1186,35 @@ cuda.toolkit(
 )
 use_repo(cuda, "cuda")
 
-erlang = use_extension("//erlang/toolchain:extensions.bzl", "erlang")
-use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
+erlang = use_extension("//erlang:extensions.bzl", "erlang")
+use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
 
-elixir = use_extension("//elixir/toolchain:extensions.bzl", "elixir")
+elixir = use_extension("//elixir:extensions.bzl", "elixir")
 elixir.lock(
     name = "dx_benchee",
     lock = "//elixir/bench:mix.lock",
 )
-use_repo(elixir, "dx_benchee", "dx_credo", "dx_elixir", "rules_elixir")
+elixir.lock(
+    name = "elixir_app_deps",
+    lock = "//elixir/tests/fixtures/elixir-app:mix.lock",
+)
+use_repo(elixir, "dx_benchee", "dx_credo", "dx_elixir", "dx_elixir_toolchains", "elixir_app_deps", "rules_elixir")
+
+_beam_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+_beam_http_archive(
+    name = "erlang_app_thoas",
+    build_file = "//erlang/tests/fixtures/erlang-app:thoas.BUILD.bazel",
+    sha256 = "9187a4a283a4cdb0640d9ab84575e2cbe47fe68366fd47ea4a8a983def415207",
+    strip_prefix = "thoas-1.2.1",
+    urls = ["https://github.com/lpil/thoas/archive/refs/tags/v1.2.1.tar.gz"],
+)
+
+register_toolchains(
+    "@dx_elixir_toolchains//:all",
+    "@dx_erlang_toolchains//:all",
+    dev_dependency = True,
+)
 
 # needed: @rules_powershell (powershell extension) loads @rules_batch
 bazel_dep(name = "rules_batch", version = "0.1.1")

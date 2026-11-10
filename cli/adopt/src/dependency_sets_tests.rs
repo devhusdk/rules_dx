@@ -538,7 +538,7 @@ fn pub_locks_become_pub_sets() {
 
 #[test]
 fn elixir_mix_tags_become_hex_sets() {
-    let module = "elixir = use_extension(\"//elixir/toolchain:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+    let module = "elixir = use_extension(\"//elixir:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");
@@ -550,7 +550,7 @@ fn elixir_mix_tags_become_hex_sets() {
 
 #[test]
 fn erlang_rebar_tags_become_rebar_hex_sets() {
-    let module = "erlang = use_extension(\"//erlang/toolchain:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
+    let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
     let registry = discover(module, &|_: &str| Err("none".to_owned()))
         .expect("discovers")
         .expect("registry");

@@ -7,7 +7,7 @@ _RUST_POLICY = "//quality/testdata/rust_owned:policy"
 _HASKELL_POLICY = "//quality/testdata/haskell_owned:policy"
 _OCAML_POLICY = "//quality/testdata/ocaml_owned:policy"
 
-_DIALYZER = "//erlang/tools:dialyzer"
+_DIALYZER = "//erlang/private/tools:dialyzer"
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -418,7 +418,7 @@ REAL_RESULT_CASES = [
     },
     {
         "name": "real_result_dialyzer_elixir_clean",
-        "target": "@rules_dx_beam//elixir/tests/runtime:erlang_app",
+        "target": "//elixir/tests/runtime:erlang_app",
         "policy": "//quality/testdata/dialyzer:elixir_policy",
         "tool": "dialyzer",
         "capability": "typecheck",

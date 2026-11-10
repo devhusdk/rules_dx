@@ -119,7 +119,7 @@ erlc_aspect = aspect(
     doc = "Replays the erlc compilation of a target and records the compiler warnings.",
     attr_aspects = ["upstream", "beam"],
     attrs = {
-        "_escript": attr.label(default = "//erlang/tools:escript_bin", cfg = "exec", executable = True),
+        "_escript": attr.label(default = "//erlang/private/tools:escript_bin", cfg = "exec", executable = True),
         "_replay": attr.label(default = "//quality:erlc_replay.escript", allow_single_file = True),
     },
     toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],

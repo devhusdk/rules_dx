@@ -4,9 +4,9 @@ load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//d/rules:defs.bzl", "D_CELLS")
 load("//d/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "DART_PLATFORMS")
-load("//elixir/rules:defs.bzl", "ELIXIR_CELLS")
-load("//erlang/rules:defs.bzl", "ERLANG_CELLS")
-load("//erlang/toolchain:pins.bzl", OTP_CELLS = "CELLS")
+load("//elixir:defs.bzl", "ELIXIR_CELLS")
+load("//erlang:defs.bzl", "ERLANG_CELLS")
+load("//erlang/private/toolchain:pins.bzl", OTP_CELLS = "CELLS")
 load("//flutter/rules:platforms.bzl", "FLUTTER_PLATFORMS")
 load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
@@ -41,8 +41,8 @@ COMPUTED_CONSTRAINTS = {
     "@rules_dx_cuda//rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
     "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(DART_PLATFORMS),
-    "//elixir/rules:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
-    "//erlang/rules:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
+    "//elixir:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
+    "//erlang:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
     "//flutter/rules:defs.bzl%FLUTTER_COMPATIBLE_WITH": _os_cpu_pairs(FLUTTER_PLATFORMS),
     "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": [FORTRAN_CELLS[cell].constraints for cell in sorted(FORTRAN_CELLS.keys())],
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
@@ -161,14 +161,14 @@ ROWS = [
     {"ci_tests": ["//d/tests/fixtures/hello:greet_test", "//d/tests/fixtures/d-app/diagnostics:diagnostics_test", "//d/tests/fixtures/d-app/source:app_output_test", "//d/tests/fixtures/d-app/source/base:base_test", "//d/tests/fixtures/d-app/source/cli:cli_test"], "consumer_tests": _starter_consumers("d"), "name": "d", "section": "languages", "title": "D"},
     {"ci_tests": ["@rules_dx_dart//dart/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:dart"] + _starter_consumers("dart"), "name": "dart", "section": "languages", "title": "Dart"},
     {
-        "ci_tests": ["@rules_dx_beam//elixir/tests/runtime:probe_test"],
+        "ci_tests": ["//elixir/tests/runtime:probe_test"],
         "consumer_tests": _starter_consumers("elixir"),
         "name": "elixir",
         "section": "languages",
         "title": "Elixir",
     },
     {
-        "ci_tests": ["@rules_dx_beam//erlang/tests/runtime:eunit"],
+        "ci_tests": ["//erlang/tests/runtime:eunit"],
         "consumer_tests": _starter_consumers("erlang"),
         "name": "erlang",
         "section": "languages",

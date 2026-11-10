@@ -227,8 +227,8 @@ Language rules:
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
 - `@rules_dx//cmake/rules:defs.bzl`: CMake files.
 - `@rules_dx//d/rules:defs.bzl`: D.
-- `@rules_dx//elixir/rules:defs.bzl`: Elixir.
-- `@rules_dx//erlang/rules:defs.bzl`: Erlang.
+- `@rules_dx//elixir:defs.bzl`: Elixir.
+- `@rules_dx//erlang:defs.bzl`: Erlang.
 - `@rules_dx_dotnet//fsharp/rules:defs.bzl`: F#.
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
@@ -276,13 +276,13 @@ dx rule that wraps it.
 | `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
 | `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx_cuda//rules:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d/rules:defs.bzl` | `d_binary`, `d_library`, `d_test` |
-| `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir/rules:defs.bzl` | `elixir_app` |
-| `@rules_elixir//:ex_unit_test.bzl` | `ex_unit_test` | `@rules_dx//elixir/rules:defs.bzl` | `elixir_test` |
-| `@rules_erlang//:erlang_app.bzl` | `erlang_app`, `test_erlang_app` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_app`, `erlang_test_app` |
-| `@rules_erlang//:ct.bzl` | `ct_suite` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_ct_suite_test` |
-| `@rules_erlang//:erlang_bytecode2.bzl` | `erlang_bytecode` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_bytecode` |
-| `@rules_erlang//:escript.bzl` | `escript_archive` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_escript_archive` |
-| `@rules_erlang//:eunit2.bzl` | `eunit` | `@rules_dx//erlang/rules:defs.bzl` | `erlang_eunit_test` |
+| `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir:defs.bzl` | `elixir_app` |
+| `@rules_elixir//:ex_unit_test.bzl` | `ex_unit_test` | `@rules_dx//elixir:defs.bzl` | `elixir_test` |
+| `@rules_erlang//:erlang_app.bzl` | `erlang_app`, `test_erlang_app` | `@rules_dx//erlang:defs.bzl` | `erlang_app`, `erlang_test_app` |
+| `@rules_erlang//:ct.bzl` | `ct_suite` | `@rules_dx//erlang:defs.bzl` | `erlang_ct_suite_test` |
+| `@rules_erlang//:erlang_bytecode2.bzl` | `erlang_bytecode` | `@rules_dx//erlang:defs.bzl` | `erlang_bytecode` |
+| `@rules_erlang//:escript.bzl` | `escript_archive` | `@rules_dx//erlang:defs.bzl` | `erlang_escript_archive` |
+| `@rules_erlang//:eunit2.bzl` | `eunit` | `@rules_dx//erlang:defs.bzl` | `erlang_eunit_test` |
 | `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx_dotnet//fsharp/rules:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
 | `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go/rules:defs.bzl` | `go_binary`, `go_library`, `go_test` |
 | `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell/rules:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
@@ -341,12 +341,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_wasm_binary` |
 |  |  | `@rules_dx//deploy/tests/cross:defs.bzl` | `cross_deployment` |
 |  |  | `@rules_dx//dockerfile/rules:defs.bzl` | `dockerfile_library` |
-|  |  | `@rules_dx//elixir/rules:defs.bzl` | `app_sources` |
-|  |  | `@rules_dx//elixir/rules:defs.bzl` | `cover_sources` |
-|  |  | `@rules_dx//elixir/rules:defs.bzl` | `elixir_bench` |
-|  |  | `@rules_dx//elixir/rules:defs.bzl` | `escript_headers` |
-|  |  | `@rules_dx//elixir/rules:defs.bzl` | `helper_first` |
-|  |  | `@rules_dx//elixir/rules:defs.bzl` | `nif_priv` |
+|  |  | `@rules_dx//elixir:defs.bzl` | `app_sources` |
+|  |  | `@rules_dx//elixir:defs.bzl` | `cover_sources` |
+|  |  | `@rules_dx//elixir:defs.bzl` | `elixir_bench` |
+|  |  | `@rules_dx//elixir:defs.bzl` | `escript_headers` |
+|  |  | `@rules_dx//elixir:defs.bzl` | `helper_first` |
+|  |  | `@rules_dx//elixir:defs.bzl` | `nif_priv` |
 |  |  | `@rules_dx//env:defs.bzl` | `env_host_filename` |
 |  |  | `@rules_dx//env:defs.bzl` | `env_tool_record` |
 |  |  | `@rules_dx//env:defs.bzl` | `env_tree_metadata` |
@@ -354,21 +354,21 @@ dx rule that wraps it.
 |  |  | `@rules_dx//env:defs.bzl` | `environment_metadata` |
 |  |  | `@rules_dx//env:defs.bzl` | `environment_tool` |
 |  |  | `@rules_dx//env:defs.bzl` | `environment_tree` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `app_sources` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `ct_run_args` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `ct_suite_source` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `erlang_bench` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `erlang_nif` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `erlang_release` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `escript_nif_message` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `lcov_apps_dirs` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `native_priv_files` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `nif_linkopt_cases` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `nif_priv_path` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `otp_launch_descriptor` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `otp_launcher_text` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `otp_tool_binary_impl` |
-|  |  | `@rules_dx//erlang/rules:defs.bzl` | `runfiles_path` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `app_sources` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `ct_run_args` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `ct_suite_source` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `erlang_bench` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `erlang_nif` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `erlang_release` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `escript_nif_message` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `lcov_apps_dirs` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `native_priv_files` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `nif_linkopt_cases` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `nif_priv_path` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `otp_launch_descriptor` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `otp_launcher_text` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `otp_tool_binary_impl` |
+|  |  | `@rules_dx//erlang:defs.bzl` | `runfiles_path` |
 |  |  | `@rules_dx_android//packaging:defs.bzl` | `abi_transition_settings` |
 |  |  | `@rules_dx_android//packaging:defs.bzl` | `abis_for_platforms` |
 |  |  | `@rules_dx_android//packaging:defs.bzl` | `android_adb_install` |
@@ -686,7 +686,7 @@ SDK and toolchain extensions:
 - `@rules_dx_android//toolchain:repos.bzl`: Android NDK toolchain.
 - `@rules_dx_apple//ios:simulator.bzl`: iOS simulator.
 - `@rules_dx_cuda//toolchain:extensions.bzl`: CUDA license acceptance.
-- `@rules_dx//elixir/rules:hex.bzl`: Hex packages for Elixir.
+- `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.
 - `@rules_dx//powershell/toolchain:gallery.bzl`: PowerShell Gallery modules.
 - `@rules_dx_msix//:extensions.bzl`: MSIX tools.
 - `@rules_dx//qt/sdk:extensions.bzl`: Qt SDK.

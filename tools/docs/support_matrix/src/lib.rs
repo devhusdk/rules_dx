@@ -210,7 +210,6 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
     let external = [
         "@rules_dx_android",
         "@rules_dx_apple",
-        "@rules_dx_beam",
         "@rules_dx_cuda",
         "@rules_dx_dart",
         "@rules_dx_dotnet",

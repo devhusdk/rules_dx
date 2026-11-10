@@ -1,4 +1,4 @@
-elixir = use_extension("@my_dx//elixir/toolchain:extensions.bzl", "elixir")
+elixir = use_extension("@my_dx//elixir:extensions.bzl", "elixir")
 elixir.lock(
     name = "elixir_app_deps",
     lock = "//elixir/tests/fixtures/elixir-app:mix.lock",

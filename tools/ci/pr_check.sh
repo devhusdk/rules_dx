@@ -25,7 +25,7 @@ preflight() {
 # shellcheck disable=SC2034
 # The labels in WINDOWS_ARM64_BLOCKED are left out; pr_check_test fails when a preflight label is in neither place.
 # Toolchain resolution for windows_arm64 only shows up when that platform is the target.
-# #7384: runner_matrix_windows_arm64 still fails: no erlang toolchain for windows_arm64 (//erlang/tools:dialyzer_bin)
+# #7384: runner_matrix_windows_arm64 still fails: no erlang toolchain for windows_arm64 (//erlang/private/tools:dialyzer_bin)
 WINDOWS_ARM64_BLOCKED='//quality/testdata:runner_matrix_windows_arm64'
 preflight-windows-arm64() {
   bazel build --nobuild --skip_incompatible_explicit_targets --lockfile_mode=error "$@" \

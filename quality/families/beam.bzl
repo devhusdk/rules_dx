@@ -1,6 +1,6 @@
 """Erlang and Elixir real quality aspects."""
 
-load("//erlang/rules:providers.bzl", "BeamInfo", "DialyzerToolInfo")
+load("//erlang/private:providers.bzl", "BeamInfo", "DialyzerToolInfo")
 load("//quality:elixirc.bzl", "ElixircInfo", "elixirc_aspect")
 load("//quality:erlc.bzl", "ErlcInfo", "erlc_aspect")
 load("//quality:family_hooks.bzl", "stage", "without")
@@ -9,14 +9,14 @@ load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect
 TOOLS = {
     "credo": {
         "attr": attr.label(default = "//config:tool_credo", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//elixir/tools:credo",
+        "fallback": "=@rules_dx//elixir/private/tools:credo",
         "kind": "setting",
         "resources": "medium",
         "shard": "elixir",
     },
     "dialyzer": {
         "attr": attr.label(default = "//config:tool_dialyzer", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//erlang/tools:dialyzer",
+        "fallback": "=@rules_dx//erlang/private/tools:dialyzer",
         "kind": "setting",
         "resources": "heavy",
         "shard": "erlang",
@@ -28,7 +28,7 @@ TOOLS = {
     },
     "elvis": {
         "attr": attr.label(default = "//config:tool_elvis", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//erlang/tools:elvis",
+        "fallback": "=@rules_dx//erlang/private/tools:elvis",
         "kind": "setting",
         "resources": "medium",
         "shard": "erlang",
@@ -40,14 +40,14 @@ TOOLS = {
     },
     "erlfmt": {
         "attr": attr.label(default = "//config:tool_erlfmt", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//erlang/tools:erlfmt",
+        "fallback": "=@rules_dx//erlang/private/tools:erlfmt",
         "kind": "setting",
         "resources": "medium",
         "shard": "erlang",
     },
     "mix_format": {
         "attr": attr.label(default = "//config:tool_mix_format", allow_files = True, cfg = "exec"),
-        "fallback": "=@rules_dx//elixir/tools:mix_format",
+        "fallback": "=@rules_dx//elixir/private/tools:mix_format",
         "kind": "setting",
         "resources": "medium",
         "shard": "elixir",
@@ -110,7 +110,7 @@ def _dialyzer_hook(target, ctx, resolved, _capability, what, _shared):
         return without(resolved, "dialyzer")
     tool_target = getattr(ctx.attr, "_dialyzer")
     if DialyzerToolInfo not in tool_target:
-        fail(what + ": dialyzer needs PLTs; set --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/tools:dialyzer")
+        fail(what + ": dialyzer needs PLTs; set --@rules_dx//config:tool_dialyzer=@rules_dx//erlang/private/tools:dialyzer")
 
     # The tool's PLTs come first; a language's own follow, without repeating one.
     plts = []

@@ -601,7 +601,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("dx_wasi_test_tests", Constraint::AsWritten),
     (
         "erlang_eunit_test",
-        Constraint::Appended("//erlang/rules:defs.bzl", "ERLANG_COMPATIBLE_WITH"),
+        Constraint::Appended("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH"),
     ),
     (
         "dart_test",
@@ -609,7 +609,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     (
         "elixir_test",
-        Constraint::Appended("//elixir/rules:defs.bzl", "ELIXIR_COMPATIBLE_WITH"),
+        Constraint::Appended("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH"),
     ),
     (
         "fortran_test",

@@ -908,7 +908,7 @@ source = { registry = "https://pypi.org/simple" }
         harness
     }
 
-    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir/toolchain:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+    const HEX_MODULE: &str = "elixir = use_extension(\"//elixir:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
 
     const HEX_ADVISORY: &str = r#"[{
         "id": "GHSA-hex-0001",
@@ -950,7 +950,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn consumer_rebar_set_reports_a_vulnerable_lock() {
-        let module = "erlang = use_extension(\"//erlang/toolchain:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
+        let module = "erlang = use_extension(\"//erlang:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
         let harness = consumer_harness("rebar-vuln", module, false);
         harness.write_source("third_party/erlang/rebar.config", "{deps, [plug]}.\n");
         harness.write_source(

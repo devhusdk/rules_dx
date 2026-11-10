@@ -1,0 +1,85 @@
+load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "ELIXIR_DIALYZER_COMPATIBLE_WITH")
+load("//erlang/private:dialyzer.bzl", "dialyzer_plt")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":credo.bzl", "credo")
+load(":mix_format.bzl", "mix_format")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "launcher.bzl",
+    "mix_format.bzl",
+])
+
+exports_files(["credo_driver.exs"])
+
+mix_format(
+    name = "mix_format",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+mix_format(
+    name = "mix",
+    inherit_env = True,
+    mix_args = [],
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+credo(
+    name = "credo",
+    apps = ["@dx_credo//credo:erlang_app"],
+    driver = "credo_driver.exs",
+    target_compatible_with = ELIXIR_COMPATIBLE_WITH,
+)
+
+filegroup(
+    name = "dialyzer_code",
+    srcs = ["@dx_elixir//:dialyzer_beams_elixir"],
+    target_compatible_with = ELIXIR_DIALYZER_COMPATIBLE_WITH,
+)
+
+# The Elixir standard library on top of the OTP core PLT. Every elixir_app brings it through
+# BeamInfo.plts, after the PLTs of the dialyzer tool.
+dialyzer_plt(
+    name = "elixir_plt",
+    beams = [
+        "@dx_elixir//:dialyzer_beams_elixir",
+        "@dx_elixir//:dialyzer_beams_logger",
+    ],
+    code = [":dialyzer_code"],
+    dialyzer = "//erlang/private/tools:dialyzer_bin",
+    escript = "//erlang/private/tools:escript_bin",
+    plts = ["//erlang/private/tools:otp_core_plt"],
+    target_compatible_with = ELIXIR_DIALYZER_COMPATIBLE_WITH,
+)
+
+filegroup(
+    name = "no_dialyzer",
+)
+
+alias(
+    name = "dialyzer_code_if_ported",
+    actual = select({
+        "@platforms//os:windows": ":no_dialyzer",
+        "//conditions:default": ":dialyzer_code",
+    }),
+)
+
+alias(
+    name = "elixir_plt_if_ported",
+    actual = select({
+        "@platforms//os:windows": ":no_dialyzer",
+        "//conditions:default": ":elixir_plt",
+    }),
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "credo.bzl",
+        "launcher.bzl",
+        "mix_format.bzl",
+    ],
+    tags = ["corpus"],
+)

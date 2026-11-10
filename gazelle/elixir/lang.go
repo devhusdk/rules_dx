@@ -47,7 +47,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    AppKind,
 		ExtraKinds:     []string{TestKind},
 		Kinds:          elixirKinds,
-		DefsPackage:    "elixir/rules:defs.bzl",
+		DefsPackage:    "elixir:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: func(src string) bool { return strings.HasSuffix(src, ".ex") },
 		QualifiedIDs:   definedModules,

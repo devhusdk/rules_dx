@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app", "elixir_test")
+load("@rules_dx//elixir:defs.bzl", "elixir_app", "elixir_test")
 
 elixir_app(
     name = "erlang_app",

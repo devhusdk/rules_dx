@@ -205,27 +205,27 @@ label_flag(
 
 label_flag(
     name = "tool_credo",
-    build_setting_default = "//elixir/tools:credo",
+    build_setting_default = "//elixir/private/tools:credo",
 )
 
 label_flag(
     name = "tool_dialyzer",
-    build_setting_default = "//erlang/tools:dialyzer",
+    build_setting_default = "//erlang/private/tools:dialyzer",
 )
 
 label_flag(
     name = "tool_elvis",
-    build_setting_default = "//erlang/tools:elvis",
+    build_setting_default = "//erlang/private/tools:elvis",
 )
 
 label_flag(
     name = "tool_erlfmt",
-    build_setting_default = "//erlang/tools:erlfmt",
+    build_setting_default = "//erlang/private/tools:erlfmt",
 )
 
 label_flag(
     name = "tool_mix_format",
-    build_setting_default = "//elixir/tools:mix_format",
+    build_setting_default = "//elixir/private/tools:mix_format",
 )
 
 label_flag(

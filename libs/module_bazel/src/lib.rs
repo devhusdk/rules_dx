@@ -927,17 +927,17 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `elixir.lock` tag of rules_dx or this repository's `//elixir/toolchain:extensions.bzl`.
+    /// Every `elixir.lock` tag of rules_dx or this repository's `//elixir:extensions.bzl`.
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
         const TAG: &str = "elixir.lock";
         let external = self.tags(
             RUBY_MODULE,
-            "elixir/toolchain:extensions.bzl",
+            "elixir:extensions.bzl",
             "elixir",
             "lock",
         );
         let own = self.tags_of(
-            "//elixir/toolchain:extensions.bzl".to_owned(),
+            "//elixir:extensions.bzl".to_owned(),
             "elixir",
             "lock",
         );
@@ -953,11 +953,11 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `erlang.rebar` tag of rules_dx or this repository's `//erlang/toolchain:extensions.bzl`.
+    /// Every `erlang.rebar` tag of rules_dx or this repository's `//erlang:extensions.bzl`.
     pub fn rebar_locks(&self) -> Result<Vec<RebarLock<'_>>, ModuleError> {
         const TAG: &str = "erlang.rebar";
-        let external = self.tags(RUBY_MODULE, "erlang/toolchain:extensions.bzl", "erlang", "rebar");
-        let own = self.tags_of("//erlang/toolchain:extensions.bzl".to_owned(), "erlang", "rebar");
+        let external = self.tags(RUBY_MODULE, "erlang:extensions.bzl", "erlang", "rebar");
+        let own = self.tags_of("//erlang:extensions.bzl".to_owned(), "erlang", "rebar");
         external
             .chain(own)
             .map(|call| {

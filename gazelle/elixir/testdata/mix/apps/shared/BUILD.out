@@ -1,4 +1,4 @@
-load("@rules_dx//elixir/rules:defs.bzl", "elixir_app")
+load("@rules_dx//elixir:defs.bzl", "elixir_app")
 
 elixir_app(
     name = "shared",

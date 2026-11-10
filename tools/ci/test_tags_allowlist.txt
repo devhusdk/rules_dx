@@ -16,9 +16,6 @@ core/quality/testdata/coverage_sources/BUILD.bazel manual 8
 core/quality/testdata/scalafix_aux/BUILD.bazel manual 1
 core/quality/testdata/spotbugs_owned/BUILD.bazel manual 2
 core/quality/testdata/tool_override_tests.bzl manual 43
-core/quality/tests/BUILD.bazel local 1
-core/quality/tests/BUILD.bazel no-sandbox 1
-core/quality/tests/BUILD.bazel requires-network 1
 core/tests/wrapper_forward_fixture.bzl manual 1
 core/tests/wrapper_tests.bzl manual 36
 core/tests/wrapper_tests.bzl requires-network 2

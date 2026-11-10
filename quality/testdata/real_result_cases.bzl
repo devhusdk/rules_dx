@@ -26,14 +26,6 @@ _CLIPPY_STRICT = [
 
 _GO_POLICY = "//quality/testdata/go_owned:policy"
 
-_GO_TYPECHECK_POLICY = "//quality/testdata/go_owned:typecheck_policy"
-
-_GO_STATICCHECK_POLICY = "//quality/testdata/go_owned:staticcheck_policy"
-
-_GO_LINT_ALL_POLICY = "//quality/testdata/go_owned:lint_all_policy"
-
-_GO_GOVET_POLICY = "//quality/testdata/go_owned:govet_policy"
-
 _TIER_POLICY = "//quality/testdata/tier_clean:policy"
 
 _TIER_STRICT_POLICY = "//quality/testdata/tier_clean:strict_policy"
@@ -343,22 +335,22 @@ REAL_RESULT_CASES = [
     _go_case("errcheck", "lint", "dirty", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], []),
     _go_case("govet", "lint", "clean", "//go/tests/fixtures/govet:clean", ["govet"], ["non-constant format string"]),
     _go_case("govet", "lint", "dirty", "//go/tests/fixtures/govet:dirty", ["non-constant format string"], []),
-    _go_case("gotype", "typecheck", "clean", "//go/tests/fixtures/gotype:clean", ["gotype"], ["cannot use"], _GO_TYPECHECK_POLICY),
-    _go_case("gotype", "typecheck", "dirty", "//go/tests/fixtures/gotype:broken", ["cannot use"], [], _GO_TYPECHECK_POLICY),
-    _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"], _GO_STATICCHECK_POLICY),
-    _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double", "U1000", "unusedHelper"], [], _GO_STATICCHECK_POLICY),
-    _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:strict_only_standard", ["staticcheck"], ["ST1003"], _GO_STATICCHECK_POLICY),
-    _go_case("staticcheck", "lint", "strict_profile", "//go/tests/fixtures/staticcheck:strict_only_strict", ["ST1003", "HttpServer"], [], _GO_STATICCHECK_POLICY),
-    _go_case("staticcheck", "lint", "initialisms", "//go/tests/fixtures/staticcheck:strict_only_initialisms", ["staticcheck"], ["ST1003"], _GO_STATICCHECK_POLICY),
-    _go_case("govet", "lint", "shadow", "//go/tests/fixtures/govet:shadowed", ["declaration of"], [], _GO_GOVET_POLICY, config_profile = "strict"),
-    _go_case("govet", "lint", "shadow_excluded", "//go/tests/fixtures/govet:shadowed_excluded", ["govet"], ["declaration of"], _GO_GOVET_POLICY, config_profile = "strict"),
-    _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], _GO_GOVET_POLICY, config_profile = "standard"),
+    _go_case("gotype", "typecheck", "clean", "//go/tests/fixtures/gotype:clean", ["gotype"], ["cannot use"]),
+    _go_case("gotype", "typecheck", "dirty", "//go/tests/fixtures/gotype:broken", ["cannot use"], []),
+    _go_case("staticcheck", "lint", "clean", "//go/tests/fixtures/staticcheck:clean", ["staticcheck"], ["SA4017"]),
+    _go_case("staticcheck", "lint", "dirty", "//go/tests/fixtures/staticcheck:dirty", ["SA4017", "double", "U1000", "unusedHelper"], []),
+    _go_case("staticcheck", "lint", "standard_profile", "//go/tests/fixtures/staticcheck:strict_only_standard", ["staticcheck"], ["ST1003"]),
+    _go_case("staticcheck", "lint", "strict_profile", "//go/tests/fixtures/staticcheck:strict_only_strict", ["ST1003", "HttpServer"], []),
+    _go_case("staticcheck", "lint", "initialisms", "//go/tests/fixtures/staticcheck:strict_only_initialisms", ["staticcheck"], ["ST1003"]),
+    _go_case("govet", "lint", "shadow", "//go/tests/fixtures/govet:shadowed", ["declaration of"], [], config_profile = "strict"),
+    _go_case("govet", "lint", "shadow_excluded", "//go/tests/fixtures/govet:shadowed_excluded", ["govet"], ["declaration of"], config_profile = "strict"),
+    _go_case("govet", "lint", "shadow_off", "//go/tests/fixtures/govet:shadowed", ["govet"], ["declaration of"], config_profile = "standard"),
     _go_case("errcheck", "lint", "blank", "//go/tests/fixtures/errcheck:blank", ["unchecked error"], [], config_profile = "strict"),
     _go_case("errcheck", "lint", "blank_excluded", "//go/tests/fixtures/errcheck:blank_excluded", ["errcheck"], ["unchecked error"], config_profile = "strict"),
     _go_case("errcheck", "lint", "blank_off", "//go/tests/fixtures/errcheck:blank", ["errcheck"], ["unchecked error"], config_profile = "standard"),
-    _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"], _GO_LINT_ALL_POLICY),
-    _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "Unmarshal", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["tagged_off.go", "gen.go"], _GO_LINT_ALL_POLICY),
-    _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], _GO_GOVET_POLICY, tool_govet = "//go/tools/analysis/cmd/dx_errcheck"),
+    _go_case("golint", "lint", "clean", "//go/tests/fixtures/golint:clean", ["errcheck", "govet", "staticcheck"], ["unchecked error", "non-constant format string", "SA4017"]),
+    _go_case("golint", "lint", "dirty", "//go/tests/fixtures/golint:app", ["unchecked error", "Unmarshal", "non-constant format string", "app.go", "SA4017", "tagged_on.go"], ["tagged_off.go", "gen.go"]),
+    _go_case("govet", "lint", "override", "//go/tests/fixtures/errcheck:dirty", ["unchecked error"], [], tool_govet = "//go/tools/analysis/cmd/dx_errcheck"),
     _nvcc_case("clean", ["nvcc_syntax/clean.cu"], ["__host__", "undefined", "declared but never"]),
     _nvcc_case("dirty", ["nvcc_syntax/dirty.cu", "__host__ function"], []),
     _nvcc_case("two_archs", ["nvcc_syntax/two_archs.cu", "177-D"], []),

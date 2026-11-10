@@ -16,17 +16,43 @@ exports_files([
     "ruff.toml",
 ])
 
+workspace_policy(
+    name = "shared_policy",
+    families = [
+        ":ansible_family",
+        ":asciidoc_family",
+        ":bicep_family",
+        ":biome_json_family",
+        ":cloudformation_family",
+        ":eslint_js_family",
+        ":eslint_ts_family",
+        ":formatted_toml_family",
+        ":haskell_family",
+        ":helm_family",
+        ":html_template_family",
+        ":jsonnet_family",
+        ":kubernetes_family",
+        ":latex_family",
+        ":lua_family",
+        ":nix_family",
+        ":rego_family",
+        ":rst_family",
+        ":terraform_family",
+        ":typst_family",
+        ":yaml_family",
+    ],
+    visibility = [
+        "//quality:__pkg__",
+        "//quality/testdata:__pkg__",
+    ],
+)
+
 quality_family(
     name = "formatted_toml_family",
     disabled = ["typecheck"],
     family_id = "toml",
     format = ["taplo"],
     lint = ["taplo"],
-)
-
-workspace_policy(
-    name = "format_taplo_policy",
-    families = [":formatted_toml_family"],
 )
 
 quality_family(
@@ -76,11 +102,6 @@ quality_family(
     lint = ["biome"],
 )
 
-workspace_policy(
-    name = "json_biome_policy",
-    families = [":biome_json_family"],
-)
-
 quality_family(
     name = "eslint_js_family",
     disabled = [
@@ -91,11 +112,6 @@ quality_family(
     lint = ["eslint"],
 )
 
-workspace_policy(
-    name = "js_eslint_policy",
-    families = [":eslint_js_family"],
-)
-
 quality_family(
     name = "eslint_ts_family",
     disabled = [
@@ -104,11 +120,6 @@ quality_family(
     ],
     family_id = "typescript",
     lint = ["eslint"],
-)
-
-workspace_policy(
-    name = "ts_eslint_policy",
-    families = [":eslint_ts_family"],
 )
 
 quality_family(
@@ -187,11 +198,6 @@ quality_family(
     format = ["terraform"],
 )
 
-workspace_policy(
-    name = "terraform_policy",
-    families = [":terraform_family"],
-)
-
 filegroup(
     name = "terraform_module",
     srcs = [
@@ -247,11 +253,6 @@ quality_family(
     format = ["jsonnetfmt"],
 )
 
-workspace_policy(
-    name = "jsonnet_policy",
-    families = [":jsonnet_family"],
-)
-
 filegroup(
     name = "jsonnet_module",
     srcs = [
@@ -276,11 +277,6 @@ quality_family(
     format = ["typstyle"],
 )
 
-workspace_policy(
-    name = "typst_policy",
-    families = [":typst_family"],
-)
-
 filegroup(
     name = "typst_module",
     srcs = [
@@ -303,11 +299,6 @@ quality_family(
     lint = ["chktex"],
 )
 
-workspace_policy(
-    name = "latex_policy",
-    families = [":latex_family"],
-)
-
 filegroup(
     name = "latex_module",
     srcs = [
@@ -328,11 +319,6 @@ quality_family(
     family_id = "yaml",
     format = ["yamlfmt"],
     lint = ["yamllint"],
-)
-
-workspace_policy(
-    name = "yaml_policy",
-    families = [":yaml_family"],
 )
 
 filegroup(
@@ -442,11 +428,6 @@ quality_family(
     lint = ["deadnix"],
 )
 
-workspace_policy(
-    name = "nix_policy",
-    families = [":nix_family"],
-)
-
 filegroup(
     name = "nix_module",
     srcs = [
@@ -516,11 +497,6 @@ quality_family(
     lint = ["kubeconform"],
 )
 
-workspace_policy(
-    name = "kubernetes_policy",
-    families = [":kubernetes_family"],
-)
-
 quality_family(
     name = "helm_family",
     disabled = [
@@ -529,11 +505,6 @@ quality_family(
     ],
     family_id = "helm",
     lint = ["helm"],
-)
-
-workspace_policy(
-    name = "helm_policy",
-    families = [":helm_family"],
 )
 
 kubernetes_schemas(
@@ -565,11 +536,6 @@ quality_family(
     lint = ["ansible_lint"],
 )
 
-workspace_policy(
-    name = "ansible_policy",
-    families = [":ansible_family"],
-)
-
 filegroup(
     name = "ansible_module",
     srcs = ["ansible_module/playbooks/site.yml"],
@@ -589,11 +555,6 @@ quality_family(
     lint = ["bicep"],
 )
 
-workspace_policy(
-    name = "bicep_policy",
-    families = [":bicep_family"],
-)
-
 real_source_target(
     name = "clean_bicep",
     bicep_srcs = ["bicep_module/main.bicep"],
@@ -607,11 +568,6 @@ quality_family(
     ],
     family_id = "cloudformation",
     lint = ["cfn_lint"],
-)
-
-workspace_policy(
-    name = "cloudformation_policy",
-    families = [":cloudformation_family"],
 )
 
 filegroup(
@@ -633,11 +589,6 @@ quality_family(
     lint = ["djlint"],
 )
 
-workspace_policy(
-    name = "html_template_policy",
-    families = [":html_template_family"],
-)
-
 filegroup(
     name = "html_template_module",
     srcs = ["html_template_module/clean.html"],
@@ -657,11 +608,6 @@ quality_family(
     ],
     family_id = "haskell",
     format = ["ormolu"],
-)
-
-workspace_policy(
-    name = "haskell_policy",
-    families = [":haskell_family"],
 )
 
 filegroup(
@@ -711,11 +657,6 @@ quality_family(
     family_id = "lua",
     format = ["stylua"],
     lint = ["selene"],
-)
-
-workspace_policy(
-    name = "lua_policy",
-    families = [":lua_family"],
 )
 
 real_source_target(
@@ -770,11 +711,6 @@ quality_family(
     typecheck = ["opa"],
 )
 
-workspace_policy(
-    name = "rego_policy",
-    families = [":rego_family"],
-)
-
 real_source_target(
     name = "clean_rego",
     rego_srcs = ["rego_module/greet.rego"],
@@ -788,15 +724,6 @@ quality_family(
     ],
     family_id = "rst",
     lint = ["vale"],
-)
-
-workspace_policy(
-    name = "rst_policy",
-    families = [":rst_family"],
-    visibility = [
-        "//quality:__pkg__",
-        "//quality/testdata:__pkg__",
-    ],
 )
 
 filegroup(
@@ -821,15 +748,6 @@ quality_family(
     ],
     family_id = "asciidoc",
     lint = ["vale"],
-)
-
-workspace_policy(
-    name = "asciidoc_policy",
-    families = [":asciidoc_family"],
-    visibility = [
-        "//quality:__pkg__",
-        "//quality/testdata:__pkg__",
-    ],
 )
 
 filegroup(

@@ -7,58 +7,6 @@ quality_family(
     disabled = [
         "audit",
         "format",
-        "typecheck",
-    ],
-    family_id = "go",
-    lint = [
-        "errcheck",
-        "govet",
-    ],
-)
-
-quality_family(
-    name = "go_typecheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
-    family_id = "go",
-    typecheck = ["gotype"],
-)
-
-quality_family(
-    name = "go_staticcheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "go",
-    lint = ["staticcheck"],
-)
-
-workspace_policy(
-    name = "policy",
-    families = [":go_family"],
-)
-
-workspace_policy(
-    name = "typecheck_policy",
-    families = [":go_typecheck_family"],
-)
-
-workspace_policy(
-    name = "staticcheck_policy",
-    families = [":go_staticcheck_family"],
-)
-
-quality_family(
-    name = "go_lint_all_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
     ],
     family_id = "go",
     lint = [
@@ -66,25 +14,10 @@ quality_family(
         "govet",
         "staticcheck",
     ],
-)
-
-quality_family(
-    name = "go_govet_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "go",
-    lint = ["govet"],
+    typecheck = ["gotype"],
 )
 
 workspace_policy(
-    name = "lint_all_policy",
-    families = [":go_lint_all_family"],
-)
-
-workspace_policy(
-    name = "govet_policy",
-    families = [":go_govet_family"],
+    name = "policy",
+    families = [":go_family"],
 )

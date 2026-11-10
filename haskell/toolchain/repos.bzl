@@ -262,7 +262,7 @@ haskell_toolchain(
     libdir = [":lib"],
     libraries = toolchain_libraries,
     locale = "{locale}",
-    static_runtime = False,
+    static_runtime = {static_runtime},
     tools = [":bin"],
     version = "{version}",
 )
@@ -505,6 +505,7 @@ def _ghc_repo_impl(rctx):
         libdir = LIBDIR,
         libraries = result["file_content"],
         locale = cell.locale,
+        static_runtime = cell.exe_suffix == ".exe",
         version = GHC_VERSION,
         version_file = VERSION_FILE,
     ))

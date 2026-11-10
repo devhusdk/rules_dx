@@ -21,7 +21,7 @@ filegroup(
 js_library(
     name = "standard_json",
     srcs = ["standard.json"],
-    visibility = ["//quality/tools/javascript/bin:__pkg__"],
+    visibility = ["//javascript/private/quality/bin:__pkg__"],
 )
 
 real_source_target(

@@ -143,7 +143,7 @@ def js_tool(name, js_binary, entry_point, **kwargs):
         entry_point = entry_point,
         js_binary = js_binary,
         windows_launcher = select({
-            "@platforms//os:windows": "//quality/tools/javascript/launcher:js_launcher",
+            "@platforms//os:windows": "//javascript/private/quality/launcher:js_launcher",
             "//conditions:default": None,
         }),
         **kwargs

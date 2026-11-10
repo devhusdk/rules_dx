@@ -8,6 +8,7 @@ exports_files(
 exports_files(
     ["native_config_impl.bzl"],
     visibility = [
+        "//javascript/private/quality:__pkg__",
         "//quality:__subpackages__",
         "//tools/ci:__pkg__",
     ],

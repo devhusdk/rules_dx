@@ -60,11 +60,11 @@ rust_test(
     crate_name = "column_units_test",
     crate_root = "column_units_test.rs",
     data = [
-        "//quality/tools/javascript/bin:eslint",
+        "//javascript/private/quality/bin:eslint",
         "//quality/tools/jvm:pmd",
     ],
     env = {
-        "DX_ESLINT": "$(rootpath //quality/tools/javascript/bin:eslint)",
+        "DX_ESLINT": "$(rootpath //javascript/private/quality/bin:eslint)",
         "DX_PMD": "$(rootpath //quality/tools/jvm:pmd)",
     },
     tags = ["block-network"],

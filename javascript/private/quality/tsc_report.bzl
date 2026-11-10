@@ -1,6 +1,6 @@
 """Test rule that exposes the tsc aspect output of one target."""
 
-load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
+load("//javascript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
 
 def _tsc_report_impl(ctx):
     info = ctx.attr.target[TscInfo]

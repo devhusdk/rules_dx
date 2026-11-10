@@ -3,11 +3,11 @@
 load("//quality:family_hooks.bzl", "default_files_hook", "without")
 load("//quality/private:native_config_impl.bzl", "native_config_scratch_rel")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//quality:tsc.bzl", "TscInfo", "tsc_aspect")
+load("//javascript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
 
 TOOLS = {
     "eslint": {
-        "attr": attr.label(default = "//quality/tools/javascript/bin:eslint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//javascript/private/quality/bin:eslint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -15,7 +15,7 @@ TOOLS = {
         "shard": "js",
     },
     "gplint": {
-        "attr": attr.label(default = "//quality/tools/javascript/bin:gplint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//javascript/private/quality/bin:gplint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -23,7 +23,7 @@ TOOLS = {
         "shard": "js",
     },
     "graphql_eslint": {
-        "attr": attr.label(default = "//quality/tools/javascript/bin:graphql_eslint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//javascript/private/quality/bin:graphql_eslint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -31,7 +31,7 @@ TOOLS = {
         "shard": "js",
     },
     "prettier": {
-        "attr": attr.label(default = "//quality/tools/javascript/bin:prettier", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//javascript/private/quality/bin:prettier", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -39,7 +39,7 @@ TOOLS = {
         "shard": "js",
     },
     "redocly": {
-        "attr": attr.label(default = "//quality/tools/javascript/bin:redocly", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//javascript/private/quality/bin:redocly", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -47,7 +47,7 @@ TOOLS = {
         "shard": "js",
     },
     "remark": {
-        "attr": attr.label(default = "//quality/tools/javascript/bin:remark", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//javascript/private/quality/bin:remark", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",
@@ -55,7 +55,7 @@ TOOLS = {
         "shard": "js",
     },
     "stylelint": {
-        "attr": attr.label(default = "//quality/tools/javascript/bin:stylelint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//javascript/private/quality/bin:stylelint", cfg = "exec", executable = True),
         "env": [["JS_BINARY__NO_CD_BINDIR", "1"]],
         "extra": "files",
         "kind": "executable",

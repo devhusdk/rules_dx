@@ -58,7 +58,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude avro/private/tools/avdl_union
 # gazelle:exclude quality/tools/jvm/kotlinc_check
 # gazelle:exclude quality/tools/jvm/scalac_check
-# gazelle:exclude quality/tools/javascript/bin
+# gazelle:exclude javascript/private/quality/bin
 # gazelle:exclude tools/docs/powershell/fixture
 # gazelle:exclude tools/docs/go/fixture
 # gazelle:exclude tools/docs/components/fixture/astro

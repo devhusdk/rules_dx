@@ -87,7 +87,7 @@ openapi_typescript_client = rule(
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_config": attr.label(default = Label("//api_spec/private/codegen:redocly.yaml"), allow_single_file = True),
         "_preflight": attr.label(default = Label("//api_spec/private/codegen:preflight"), executable = True, cfg = "exec"),
-        "_redocly": attr.label(default = Label("//quality/tools/javascript/bin:redocly"), executable = True, cfg = "exec"),
+        "_redocly": attr.label(default = Label("//javascript/private/quality/bin:redocly"), executable = True, cfg = "exec"),
     },
 )
 

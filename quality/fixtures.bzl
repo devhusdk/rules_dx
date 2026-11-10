@@ -187,7 +187,7 @@ _real_source_target = rule(
 
 _CONVERTERS = [
     ("rst_srcs", "rst_converter", "rst2html", Label("//quality/tools/python:rst2html")),
-    ("asciidoc_srcs", "asciidoc_converter", "asciidoctor", Label("//quality/tools/javascript/bin:asciidoctor")),
+    ("asciidoc_srcs", "asciidoc_converter", "asciidoctor", Label("//javascript/private/quality/bin:asciidoctor")),
 ]
 
 def converter_attrs(kwargs):

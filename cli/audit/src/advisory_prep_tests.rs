@@ -309,7 +309,7 @@ fn only_the_ecosystems_the_dependency_sets_need_are_prepared() {
     assert_eq!(families_of(bare.path()), Vec::<&str>::new());
     let npm = workspace_with(&["pnpm-lock.yaml"]);
     assert_eq!(families_of(npm.path()), vec!["npm"]);
-    let npm_family = workspace_with(&["quality/tools/javascript/pnpm-lock.yaml"]);
+    let npm_family = workspace_with(&["javascript/private/quality/pnpm-lock.yaml"]);
     assert_eq!(
         families_of(npm_family.path()),
         vec!["npm"],

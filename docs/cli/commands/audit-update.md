@@ -39,7 +39,7 @@ A scope selects sets by path. A `...` scope selects the nearest set above it in 
 //go/..., //third_party/go/...                                                         go
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
 //javascript/..., //typescript/..., //astro/..., //svelte/..., //vue/..., //mdx/...   npm
-//quality/tools/javascript/...                                                        npm-tools
+//javascript/private/quality/...                                                        npm-tools
 //python/...                                                                           uv
 //quality/tools/python/...                                                            uv-tools
 //examples/adopt-polyglot/...                                                         npm-adopt-polyglot, uv-adopt-polyglot

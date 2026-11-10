@@ -63,7 +63,7 @@ javascript_web_bundle(
 javascript_web_bundle(
     name = "bundle_esbuild",
     app = ":app_bundler",
-    bundler = "//quality/tools/javascript/bin:esbuild",
+    bundler = "//javascript/private/quality/bin:esbuild",
     bundler_args = [
         "{ENTRY}",
         "--bundle",

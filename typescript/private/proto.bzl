@@ -73,7 +73,7 @@ ts_proto_srcs = rule(
             cfg = "exec",
         ),
         "_plugin": attr.label(
-            default = "//quality/tools/javascript/bin:protoc_gen_es",
+            default = "//javascript/private/quality/bin:protoc_gen_es",
             executable = True,
             cfg = "exec",
         ),

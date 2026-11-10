@@ -165,7 +165,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_profile/a.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_standard.mjs",
@@ -192,7 +192,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_profile/a.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_strict.mjs",
@@ -219,7 +219,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;tsx;quality/testdata/eslint_profile/c.tsx"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_standard.mjs",
@@ -248,7 +248,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_typed/a.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "tool_env": ["eslint=DX_ESLINT_TYPED=1"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
@@ -280,7 +280,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_typed/a.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "tool_env": ["eslint=DX_ESLINT_TYPED=1"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
@@ -376,7 +376,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_tier/clean.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_standard.mjs",
@@ -403,7 +403,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_tier/clean.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_strict.mjs",
@@ -430,7 +430,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_tier/dirty.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_strict.mjs",
@@ -457,7 +457,7 @@ TS_CASES = [
         "capability": "lint",
         "stages": ["eslint;typescript;quality/testdata/eslint_tier/dirty.ts"],
         "tool_names": ["eslint"],
-        "tool_binaries": ["//quality/tools/javascript/bin:eslint"],
+        "tool_binaries": ["//javascript/private/quality/bin:eslint"],
         "toolfile_tools": ["eslint", "eslint", "eslint", "eslint"],
         "toolfile_srcs": [
             ":eslint_cfg/profile_standard.mjs",

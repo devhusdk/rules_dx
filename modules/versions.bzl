@@ -130,7 +130,7 @@ NPM_HUBS = ["dx_npm_tools"]
 NPM_DEV_HUBS = ["dx_npm"]
 NPM_LOCKS = [
     "//:pnpm-lock.yaml",
-    "//quality/tools/javascript:pnpm-lock.yaml",
+    "//javascript/private/quality:pnpm-lock.yaml",
 ]
 
 JVM_TOOL_VERSIONS = {

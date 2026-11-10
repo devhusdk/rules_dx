@@ -326,11 +326,9 @@ mod tests {
                     .find(|family| family.aspects.iter().any(|aspect| aspect == name));
                 match family {
                     Some(family) if family.name != "core" => {
-                        assert_eq!(
-                            file,
-                            format!("quality:families/{}.bzl", family.name),
-                            "{label}"
-                        );
+                        let in_quality = format!("quality:families/{}.bzl", family.name);
+                        let in_language = format!("javascript/private/quality:{}.bzl", family.name);
+                        assert!(file == in_quality || file == in_language, "{label}");
                     }
                     _ => assert!(
                         file.starts_with("quality:families/") || file == "tools/docs:aspect.bzl",

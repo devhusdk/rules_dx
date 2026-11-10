@@ -57,7 +57,7 @@ RUST_CRATE_MANIFESTS = [
     "//generation/codegen_shard:Cargo.toml",
     "//generation/result:Cargo.toml",
     "//quality/adapter:Cargo.toml",
-    "//quality/tools/javascript/launcher:Cargo.toml",
+    "//javascript/private/quality/launcher:Cargo.toml",
     "//quality/markdown:Cargo.toml",
     "//quality/notebook:Cargo.toml",
     "//quality/result:Cargo.toml",

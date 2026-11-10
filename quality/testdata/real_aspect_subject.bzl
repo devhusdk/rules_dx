@@ -144,7 +144,7 @@ load(
 )
 load("//quality:families/cc.bzl", "CcShardProbeInfo")
 load("//quality:families/core_probe.bzl", "CoreShardProbeInfo")
-load("//quality:families/js.bzl", "JsShardProbeInfo")
+load("//javascript/private/quality:js.bzl", "JsShardProbeInfo")
 load("//quality:families/python.bzl", "PythonShardProbeInfo")
 load("//quality:families/rust.bzl", "RustShardProbeInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")

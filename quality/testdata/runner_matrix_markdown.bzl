@@ -229,7 +229,7 @@ MARKDOWN_CASES = [
         "stages": ["vale;asciidoc;matrix/asciidoc_clean.adoc"],
         "path_tool_owners": ["vale"],
         "path_tool_names": ["asciidoctor"],
-        "path_tool_binaries": ["//quality/tools/javascript/bin:asciidoctor"],
+        "path_tool_binaries": ["//javascript/private/quality/bin:asciidoctor"],
         "expected_file": ":matrix/matrix_vale_asciidoc_lint_pass.expected.txt",
         "linux_arm64": True,
         "macos_arm64": True,
@@ -251,7 +251,7 @@ MARKDOWN_CASES = [
         "stages": ["vale;asciidoc;matrix/asciidoc_dirty.adoc"],
         "path_tool_owners": ["vale"],
         "path_tool_names": ["asciidoctor"],
-        "path_tool_binaries": ["//quality/tools/javascript/bin:asciidoctor"],
+        "path_tool_binaries": ["//javascript/private/quality/bin:asciidoctor"],
         "expected_file": ":matrix/matrix_vale_asciidoc_lint_fail.expected.txt",
     },
     {
@@ -270,7 +270,7 @@ MARKDOWN_CASES = [
         "stages": ["vale;asciidoc;matrix/asciidoc_a.adoc,matrix/asciidoc_b.adoc"],
         "path_tool_owners": ["vale"],
         "path_tool_names": ["asciidoctor"],
-        "path_tool_binaries": ["//quality/tools/javascript/bin:asciidoctor"],
+        "path_tool_binaries": ["//javascript/private/quality/bin:asciidoctor"],
         "expected_file": ":matrix/matrix_vale_asciidoc_lint_multi.expected.txt",
     },
     {
@@ -288,7 +288,7 @@ MARKDOWN_CASES = [
         "stages": ["vale;asciidoc;matrix/asciidoc_code.adoc"],
         "path_tool_owners": ["vale"],
         "path_tool_names": ["asciidoctor"],
-        "path_tool_binaries": ["//quality/tools/javascript/bin:asciidoctor"],
+        "path_tool_binaries": ["//javascript/private/quality/bin:asciidoctor"],
         "expected_file": ":matrix/matrix_vale_asciidoc_lint_code_block.expected.txt",
     },
     {

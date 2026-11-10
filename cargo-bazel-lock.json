@@ -29079,7 +29079,7 @@
     "dx_gomod 0.0.0": "libs/dx_gomod",
     "dx_ide 0.0.0": "cli/dx_ide",
     "dx_install_tools 0.0.0": "deploy/dx_install_tools",
-    "dx_js_launcher 0.0.0": "quality/tools/javascript/dx_js_launcher",
+    "dx_js_launcher 0.0.0": "javascript/private/quality/dx_js_launcher",
     "dx_lcov 0.0.0": "cli/dx_lcov",
     "dx_lsp 0.0.0": "tools/testing/dx_lsp",
     "dx_merge 0.0.0": "cli/dx_merge",

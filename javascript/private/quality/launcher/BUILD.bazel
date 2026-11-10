@@ -16,7 +16,7 @@ rust_library(
     name = "dx_js_launcher",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "quality/tools/javascript/dx_js_launcher",
+        package_name = "javascript/private/quality/dx_js_launcher",
         normal = True,
     ),
     crate_name = "dx_js_launcher",
@@ -28,13 +28,13 @@ rust_binary(
     name = "js_launcher",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "quality/tools/javascript/dx_js_launcher",
+        package_name = "javascript/private/quality/dx_js_launcher",
         normal = True,
     ),
     crate_name = "js_launcher",
     crate_root = "src/main.rs",
     deps = all_crate_deps(
-        package_name = "quality/tools/javascript/dx_js_launcher",
+        package_name = "javascript/private/quality/dx_js_launcher",
         normal = True,
     ) + [":dx_js_launcher"],
 )
@@ -46,7 +46,7 @@ rust_test(
         "src/lib_tests.rs",
     ],
     aliases = aliases(
-        package_name = "quality/tools/javascript/dx_js_launcher",
+        package_name = "javascript/private/quality/dx_js_launcher",
         normal = True,
         normal_dev = True,
     ),

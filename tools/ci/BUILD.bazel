@@ -784,7 +784,7 @@ rust_test(
         "//quality/rules:corpus_starlark",
         "//quality/tools/cc:corpus_starlark",
         "//quality/tools/dotnet/fsharplint:corpus_starlark",
-        "//quality/tools/javascript:corpus_starlark",
+        "//javascript/private/quality:corpus_starlark",
         "//quality/tools/jvm:corpus_starlark",
         "//ruby/private/quality:corpus_starlark",
         "//quality:corpus_starlark",

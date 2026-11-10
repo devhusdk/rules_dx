@@ -2,7 +2,7 @@
 
 load("//quality:tools.bzl", "TOOLS")
 
-visibility(["//quality/..."])
+visibility(["//quality/...", "//javascript/private/quality"])
 
 DxNativeConfigInfo = provider(
     doc = "One tool-owned native config file plus its checked-in closure.",

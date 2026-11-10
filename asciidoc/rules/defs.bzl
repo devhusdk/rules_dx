@@ -21,7 +21,7 @@ asciidoc_library = rule(
         "srcs": attr.label_list(allow_files = [".adoc", ".asciidoc", ".asc"], doc = "AsciiDoc files of this package."),
         "deps": attr.label_list(providers = [DefaultInfo], doc = "AsciiDoc libraries this package depends on."),
         "_asciidoctor": attr.label(
-            default = Label("//quality/tools/javascript/bin:asciidoctor"),
+            default = Label("//javascript/private/quality/bin:asciidoctor"),
             cfg = "exec",
             executable = True,
         ),

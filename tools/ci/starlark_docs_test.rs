@@ -63,7 +63,7 @@ const PACKAGES: [&str; 91] = [
     "quality/artifacts/acquire_test",
     "quality/artifacts/hub_test",
     "quality/rules",
-    "quality/tools/javascript",
+    "javascript/private/quality",
     "quality/tools/jvm",
     "ruby/private/quality",
     "ruby/private",

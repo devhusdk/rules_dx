@@ -131,7 +131,7 @@ impl ScriptRunner {
         } else if argv.contains(&"@pnpm//:pnpm".to_owned())
             && argv
                 .iter()
-                .any(|arg| arg.contains("quality/tools/javascript"))
+                .any(|arg| arg.contains("javascript/private/quality"))
         {
             "npm-tools".to_owned()
         } else if argv.contains(&"@pnpm//:pnpm".to_owned()) {

@@ -23,8 +23,6 @@ const LANGUAGE_HELPERS: &[&str] = &[
     "jvm_check",
     "nvcc_syntax",
     "roslyn",
-    "tsc",
-    "tsc_report",
 ];
 
 fn bzl_files(dir: &Path, prefix: &str) -> Vec<String> {

@@ -5,10 +5,10 @@ load("//modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2
 load("//tools/docs/components:shard.bzl", "component_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
-_VUE_COMPONENT_META = Label("//quality/tools/javascript/bin:vue_component_meta")
-_MDX_COMPONENT_META = Label("//quality/tools/javascript/bin:mdx_component_meta")
-_SVELTE_COMPONENT_META = Label("//quality/tools/javascript/bin:svelte_component_meta")
-_ASTRO_COMPONENT_META = Label("//quality/tools/javascript/bin:astro_component_meta")
+_VUE_COMPONENT_META = Label("//javascript/private/quality/bin:vue_component_meta")
+_MDX_COMPONENT_META = Label("//javascript/private/quality/bin:mdx_component_meta")
+_SVELTE_COMPONENT_META = Label("//javascript/private/quality/bin:svelte_component_meta")
+_ASTRO_COMPONENT_META = Label("//javascript/private/quality/bin:astro_component_meta")
 _META_SCHEMA = "dx-component-meta/1"
 
 def _component_doc_shard_impl(ctx):

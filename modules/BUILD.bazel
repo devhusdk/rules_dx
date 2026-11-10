@@ -124,7 +124,6 @@ rust_test(
         "//quality:families/go.bzl",
         "//quality:families/haskell.bzl",
         "//quality:families/html_template.bzl",
-        "//quality:families/js.bzl",
         "//quality:families/jsonnet.bzl",
         "//quality:families/julia.bzl",
         "//quality:families/jvm.bzl",

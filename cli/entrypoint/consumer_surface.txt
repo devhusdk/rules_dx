@@ -29,6 +29,7 @@ haskell/rules:defs.bzl
 helm:defs.bzl
 java:defs.bzl
 javascript:defs.bzl
+javascript/private/quality:js.bzl
 julia:defs.bzl
 kotlin:defs.bzl
 kubernetes:defs.bzl
@@ -64,7 +65,6 @@ quality:families/generation.bzl
 quality:families/go.bzl
 quality:families/haskell.bzl
 quality:families/html_template.bzl
-quality:families/js.bzl
 quality:families/jsonnet.bzl
 quality:families/julia.bzl
 quality:families/jvm.bzl

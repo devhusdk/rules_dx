@@ -55,7 +55,7 @@ _cloudflare_config = rule(
 def cloudflare_pages_deploy(name, account_id, project, branch, production_branch, site, wrangler = None, build_mode = "release", sbom = None, size_budget = None, tags = None, visibility = None, testonly = False, target_compatible_with = None):
     """Publishes a static bundle directory to an existing Cloudflare Pages project."""
     attrs = deploy_attrs(tags, visibility, testonly, target_compatible_with)
-    wrangler = wrangler or str(Label("//quality/tools/javascript/bin:wrangler"))
+    wrangler = wrangler or str(Label("//javascript/private/quality/bin:wrangler"))
     error = cloudflare_pages_error(account_id, project, branch, production_branch)
     if error != "":
         fail(error + " (in " + native.package_name() + ":" + name + ")")

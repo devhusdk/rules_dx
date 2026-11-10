@@ -38,7 +38,7 @@ _npm_config = rule(
     doc = "Writes the deploy config for one npm deployment.",
     attrs = API_COMPAT_ATTRS | {
         "_api_extractor": attr.label(
-            default = Label("//quality/tools/javascript/bin:api_extractor"),
+            default = Label("//javascript/private/quality/bin:api_extractor"),
             executable = True,
             cfg = "exec",
         ),

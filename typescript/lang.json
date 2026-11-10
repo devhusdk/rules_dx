@@ -52,7 +52,7 @@
     "typescript_playwright_test"
   ],
   "quality": {
-    "bzl": "quality:families/js.bzl",
+    "bzl": "javascript/private/quality:js.bzl",
     "file_extensions": [
       ".cts",
       ".mts",

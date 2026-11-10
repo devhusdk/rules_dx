@@ -138,7 +138,7 @@ def _lint_cases(tier):
 
 TIERS_CASES = _lint_cases("standard") + _lint_cases("strict") + [
     _fixpoint_case("matrix_tiers_javascript_format_pass", "biome", "@dx_tools//:biome", "javascript", TIER_JAVASCRIPT, "//:biome.json"),
-    _fixpoint_case("matrix_tiers_json_format_pass", "prettier", "//quality/tools/javascript/bin:prettier", "json", TIER_JSON),
+    _fixpoint_case("matrix_tiers_json_format_pass", "prettier", "//javascript/private/quality/bin:prettier", "json", TIER_JSON),
     _fixpoint_case("matrix_tiers_toml_format_pass", "taplo", "@dx_tools//:taplo", "toml", TIER_TOML),
     _fixpoint_case("matrix_tiers_yaml_format_pass", "yamlfmt", "@dx_tools//:yamlfmt", "yaml", TIER_YAML),
 ]

@@ -1590,7 +1590,7 @@ npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "dx_npm_tools",
     npmrc = "//:.npmrc",
-    pnpm_lock = "//quality/tools/javascript:pnpm-lock.yaml",
+    pnpm_lock = "//javascript/private/quality:pnpm-lock.yaml",
     verify_node_modules_ignored = "//:.bazelignore",
 )
 use_repo(npm, "dx_npm_tools")
@@ -1936,7 +1936,7 @@ crate.from_cargo(
         "//generation/codegen_shard:Cargo.toml",
         "//generation/result:Cargo.toml",
         "//quality/adapter:Cargo.toml",
-        "//quality/tools/javascript/launcher:Cargo.toml",
+        "//javascript/private/quality/launcher:Cargo.toml",
         "//quality/markdown:Cargo.toml",
         "//quality/notebook:Cargo.toml",
         "//quality/result:Cargo.toml",

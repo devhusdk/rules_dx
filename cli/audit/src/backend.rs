@@ -98,7 +98,7 @@ pub fn vuln_locks(set: &str) -> &'static [&'static str] {
         "npm" => &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
         "npm-adopt" => &["families/js/javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"],
         "npm-adopt-polyglot" => &["examples/adopt-polyglot/pnpm-lock.yaml"],
-        "npm-tools" => &["quality/tools/javascript/pnpm-lock.yaml"],
+        "npm-tools" => &["javascript/private/quality/pnpm-lock.yaml"],
         "maven" => &["third_party/jvm/maven_install.json"],
         "nuget" => &["third_party/dotnet/paket.lock"],
         "powershell" => &["third_party/powershell/PSGallery.lock.json"],
@@ -245,7 +245,7 @@ mod tests {
         );
         assert_eq!(
             vuln_locks("npm-tools"),
-            &["quality/tools/javascript/pnpm-lock.yaml"]
+            &["javascript/private/quality/pnpm-lock.yaml"]
         );
         assert_eq!(vuln_locks("maven"), &["third_party/jvm/maven_install.json"]);
         assert_eq!(vuln_locks("nuget"), &["third_party/dotnet/paket.lock"]);

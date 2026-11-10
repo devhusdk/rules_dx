@@ -4,6 +4,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
+    "js.bzl",
+    "js_tools.bzl",
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
@@ -16,6 +18,10 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "js.bzl",
+        "js_tools.bzl",
+        "tsc.bzl",
+        "tsc_report.bzl",
     ],
     tags = ["corpus"],
 )

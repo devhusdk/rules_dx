@@ -240,6 +240,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_typecheck_pass",
@@ -305,6 +306,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_missing_id",
@@ -319,6 +321,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_import_undeclared",
@@ -333,6 +336,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_import_escape_parent",
@@ -347,6 +351,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_capnp_lint_import_escape_absolute",
@@ -361,6 +366,7 @@ STRUCTURED_CASES = [
         "linux_arm64": True,
         "macos_arm64": True,
         "windows_x86_64": True,
+        "windows_arm64": True,
     },
     {
         "name": "matrix_avro_lint_avsc_pass",

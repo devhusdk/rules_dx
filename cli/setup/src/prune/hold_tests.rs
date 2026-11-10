@@ -9,13 +9,6 @@ use std::time::Instant;
 const WAIT: Duration = Duration::from_secs(10);
 const SENTINEL: &str = "sentinel";
 
-fn lease_env(held: &HeldSelection) -> String {
-    lease::inherit_value(&[
-        (GenerationUse::Environment, held.pair.environment.as_str()),
-        (GenerationUse::Generated, held.pair.generated.as_str()),
-    ])
-}
-
 fn workspace(prefix: &str) -> (dx_test_scratch::TempDir, PathBuf) {
     let scratch = dx_test_scratch::scratch(prefix);
     let workspace = workspace_of(scratch.path());
@@ -79,10 +72,6 @@ fn hold_current_leases_both_sides() {
         GenerationUse::Generated,
         &digest('2')
     ));
-    assert_eq!(
-        lease_env(&held),
-        format!("environments:{},generated:{}", digest('1'), digest('2'))
-    );
     let files = held.into_files();
     assert_eq!(files.len(), 2);
     assert!(!exclusive_free(
@@ -353,9 +342,7 @@ fn a_streamed_child_keeps_its_selection_through_cleanup() {
             format!("--alive-lock={}", alive.display()).into(),
         ],
         cwd: workspace.clone(),
-        env: EnvPolicy::Inherited {
-            extra: vec![(lease::LEASE_ENV_VAR.into(), lease_env(&held).into())],
-        },
+        env: EnvPolicy::Inherited { extra: vec![] },
         stdin: StreamStdin::Null,
         stdout: StreamOutput::Inherit,
         stderr: StreamOutput::Inherit,

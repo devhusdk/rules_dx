@@ -8,9 +8,6 @@ use std::time::Duration;
 /// Directory inside a managed root that holds generation lease files.
 pub const LEASES_DIR_NAME: &str = dx_path::state::LEASES;
 
-/// Variable carrying `kind:hex` lease entries to a controlled child.
-pub const LEASE_ENV_VAR: &str = "DX_MANAGED_LEASES";
-
 /// Suffix of every generation lease file.
 pub const LEASE_FILE_SUFFIX: &str = ".lock";
 
@@ -187,51 +184,9 @@ pub fn shared_held(root: &Path, kind: GenerationUse, hex: &str) -> io::Result<bo
     Ok(try_acquire_exclusive(root, kind, hex)?.is_none())
 }
 
-/// Renders lease entries for [`LEASE_ENV_VAR`].
-pub fn inherit_value(entries: &[(GenerationUse, &str)]) -> String {
-    entries
-        .iter()
-        .map(|(kind, hex)| format!("{}:{hex}", kind.dir_name()))
-        .collect::<Vec<_>>()
-        .join(",")
-}
-
-/// Holds one shared lease per [`LEASE_ENV_VAR`] entry; absent means none.
-pub fn acquire_shared_from_env(root: &Path, timeout: Duration) -> io::Result<Vec<SharedLease>> {
-    let Some(raw) = std::env::var_os(LEASE_ENV_VAR) else {
-        return Ok(Vec::new());
-    };
-    let Some(raw) = raw.to_str() else {
-        return Err(io::Error::new(
-            io::ErrorKind::InvalidInput,
-            format!("{LEASE_ENV_VAR} is not UTF-8"),
-        ));
-    };
-    let mut held = Vec::new();
-    for entry in raw.split(',') {
-        let Some((kind, hex)) = entry.split_once(':') else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("{LEASE_ENV_VAR} entry {entry:?} wants kind:hex"),
-            ));
-        };
-        let Some(parsed) = GenerationUse::parse(kind) else {
-            return Err(io::Error::new(
-                io::ErrorKind::InvalidInput,
-                format!("{LEASE_ENV_VAR} entry {entry:?} names no generation family"),
-            ));
-        };
-        held.push(acquire_shared(root, parsed, hex, timeout)?);
-    }
-    Ok(held)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
-
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     const HEX_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const HEX_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -442,80 +397,10 @@ mod tests {
         scratch.close().expect("cleanup");
     }
 
-    #[test]
-    fn inherit_value_round_trips_through_the_child_entry() {
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        for preset in [true, false] {
-            if preset {
-                // SAFETY: the process is single-threaded here or the env lock is held.
-                unsafe { std::env::set_var(LEASE_ENV_VAR, "preset") };
-            } else {
-                // SAFETY: the process is single-threaded here or the env lock is held.
-                unsafe { std::env::remove_var(LEASE_ENV_VAR) };
-            }
-            let saved = std::env::var_os(LEASE_ENV_VAR);
-            inherit_value_checks();
-            match saved {
-                Some(value) => unsafe { std::env::set_var(LEASE_ENV_VAR, value) },
-                None => unsafe { std::env::remove_var(LEASE_ENV_VAR) },
-            }
-        }
-    }
-
-    fn inherit_value_checks() {
-        assert_eq!(inherit_value(&[]), "");
-        let rendered = inherit_value(&[
-            (GenerationUse::Environment, HEX_A),
-            (GenerationUse::Generated, HEX_B),
-        ]);
-        assert_eq!(rendered, format!("environments:{HEX_A},generated:{HEX_B}"));
-        for bad in ["no-separator", "unknown-kind", "environments:short"] {
-            let entry = if bad == "unknown-kind" {
-                format!("unknown-kind:{HEX_A}")
-            } else {
-                bad.to_owned()
-            };
-            // SAFETY: the process is single-threaded here or the env lock is held.
-            unsafe { std::env::set_var(LEASE_ENV_VAR, entry) };
-            assert!(
-                acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO).is_err(),
-                "malformed inheritance fails closed"
-            );
-        }
-        // SAFETY: the process is single-threaded here or the env lock is held.
-        unsafe { std::env::remove_var(LEASE_ENV_VAR) };
-        assert!(
-            acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
-                .expect("absent inheritance")
-                .is_empty(),
-            "an absent inheritance entry holds no lease"
-        );
-        {
-            #[cfg(unix)]
-            let invalid = {
-                use std::os::unix::ffi::OsStrExt as _;
-                std::ffi::OsStr::from_bytes(b"environments:\xff\xfe").to_owned()
-            };
-            #[cfg(windows)]
-            let invalid = {
-                use std::os::windows::ffi::OsStringExt as _;
-                std::ffi::OsString::from_wide(&[0xD800])
-            };
-            // SAFETY: the env lock is held.
-            unsafe { std::env::set_var(LEASE_ENV_VAR, &invalid) };
-            let err = acquire_shared_from_env(Path::new("/nonexistent"), Duration::ZERO)
-                .expect_err("non-UTF-8 inheritance fails closed");
-            assert_eq!(err.kind(), io::ErrorKind::InvalidInput);
-            // SAFETY: the process is single-threaded here or the env lock is held.
-            unsafe { std::env::remove_var(LEASE_ENV_VAR) };
-        }
-    }
-
-    fn spawn_child(test: &str, root: &Path, entries: &str, mode: &str) -> std::process::Child {
+    fn spawn_child(test: &str, root: &Path, mode: &str) -> std::process::Child {
         std::process::Command::new(std::env::current_exe().expect("test binary"))
             .arg(format!("lease::tests::{test}"))
             .arg("--exact")
-            .env(LEASE_ENV_VAR, entries)
             .env("DX_LEASE_CHILD", mode)
             .env("DX_LEASE_ROOT", root)
             .spawn()
@@ -553,14 +438,6 @@ mod tests {
         let ready = root.join("child-ready");
         let release = root.join("child-release");
         match mode {
-            "hold" => {
-                let held = acquire_shared_from_env(root, Duration::from_secs(30))
-                    .expect("child acquires its inherited lease");
-                assert_eq!(held.len(), 1);
-                std::fs::write(&ready, b"ready").expect("signal ready");
-                wait_for(&release, "release");
-                drop(held);
-            }
             "die" => {
                 // LCOV_EXCL_START - reason: runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
                 let _held = acquire_shared(root, GenerationUse::Generated, HEX_B, Duration::ZERO)
@@ -605,7 +482,7 @@ mod tests {
         let _spawning = dx_testing::spawning();
         let scratch = dx_test_scratch::scratch("dx-lease-crash-");
         let root = root(scratch.path());
-        let mut child = spawn_child("killed_holder_releases_the_generation", &root, "", "die");
+        let mut child = spawn_child("killed_holder_releases_the_generation", &root, "die");
         wait_for(&root.join("child-ready"), "child ready");
         assert!(
             shared_held(&root, GenerationUse::Generated, HEX_B).expect("held probe"),
@@ -616,52 +493,6 @@ mod tests {
         assert!(!status.success(), "the holder dies abnormally");
         eventually("a killed holder must release its lease", || {
             (!shared_held(&root, GenerationUse::Generated, HEX_B).expect("release probe"))
-                .then_some(())
-        });
-        scratch.close().expect("cleanup");
-    }
-
-    #[test]
-    fn surviving_child_keeps_the_generation_after_its_parent_releases() {
-        // LCOV_EXCL_START - reason: runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        if let Some(mode) =
-            std::env::var_os("DX_LEASE_CHILD").and_then(|mode| mode.to_str().map(str::to_owned))
-        {
-            let root = std::env::var_os("DX_LEASE_ROOT")
-                .map(PathBuf::from)
-                .expect("child root");
-            child_main(&root, &mode);
-            return;
-        }
-        // LCOV_EXCL_STOP - reason: end runs only in the spawned child, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
-        let _spawning = dx_testing::spawning();
-        let scratch = dx_test_scratch::scratch("dx-lease-inherit-");
-        let root = root(scratch.path());
-        let parent = acquire_shared(
-            &root,
-            GenerationUse::Environment,
-            HEX_A,
-            Duration::from_secs(10),
-        )
-        .expect("parent acquires");
-        let entries = inherit_value(&[(GenerationUse::Environment, HEX_A)]);
-        let mut child = spawn_child(
-            "surviving_child_keeps_the_generation_after_its_parent_releases",
-            &root,
-            &entries,
-            "hold",
-        );
-        wait_for(&root.join("child-ready"), "child ready");
-        drop(parent);
-        assert!(
-            shared_held(&root, GenerationUse::Environment, HEX_A).expect("inherited probe"),
-            "the surviving child still protects the generation after its parent releases"
-        );
-        std::fs::write(root.join("child-release"), b"go").expect("release the child");
-        let status = child.wait().expect("reap the child");
-        assert!(status.success(), "the child exits cleanly");
-        eventually("the generation frees once every holder exits", || {
-            (!shared_held(&root, GenerationUse::Environment, HEX_A).expect("final probe"))
                 .then_some(())
         });
         scratch.close().expect("cleanup");
@@ -689,7 +520,6 @@ mod tests {
         let mut blocked = spawn_child(
             "shared_acquire_fails_closed_while_cleanup_holds_exclusive",
             &root,
-            "",
             "contend",
         );
         wait_for(&root.join("child-verdict"), "contention verdict");
@@ -709,7 +539,6 @@ mod tests {
         let mut admitted = spawn_child(
             "shared_acquire_fails_closed_while_cleanup_holds_exclusive",
             &root,
-            "",
             "contend",
         );
         wait_for(&root.join("child-verdict"), "admission verdict");

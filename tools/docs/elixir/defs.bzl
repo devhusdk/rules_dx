@@ -1,6 +1,7 @@
 """Elixir API reference shards read by the pinned Code.fetch_docs on the pinned Elixir on the registered Elixir and OTP toolchain."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/beam:shard.bzl", "ELIXIR_TOOLCHAIN", "OTP_TOOLCHAIN", "beam_dirs", "beam_shard_action", "beam_sources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
@@ -8,7 +9,7 @@ def elixir_shard_action(ctx, app, package, stem, driver, extract_tool):
     """Runs Code.fetch_docs on the pinned Elixir and the extractor for one Elixir app.
 
     Args:
-      ctx: The rule or aspect context; it must carry the OTP and Elixir toolchains.
+      ctx: The rule or aspect context; it must carry the OTP, Elixir and coreutils toolchains.
       app: The documented app, which provides ErlangAppInfo.
       package: Package segment of the shard's symbol ids.
       stem: Output name prefix, relative to the target's package.
@@ -45,7 +46,7 @@ docs_elixir_shard = rule(
         "_extract": attr.label(cfg = "exec", default = Label("//tools/docs/beam/extract:beam_extract"), executable = True),
     },
     provides = [DocsShardInfo],
-    toolchains = [OTP_TOOLCHAIN, ELIXIR_TOOLCHAIN],
+    toolchains = [OTP_TOOLCHAIN, ELIXIR_TOOLCHAIN, COREUTILS_TOOLCHAIN_TYPE],
 )
 
 def elixir_doc_shard(name, app, package = "", **kwargs):

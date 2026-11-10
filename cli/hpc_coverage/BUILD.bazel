@@ -1,0 +1,42 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "hpc_coverage",
+    srcs = [
+        "src/main.rs",
+        "src/run.rs",
+    ],
+    crate_name = "hpc_coverage",
+    crate_root = "src/main.rs",
+)
+
+rust_test(
+    name = "hpc_coverage_test",
+    srcs = [
+        "src/main.rs",
+        "src/run.rs",
+        "src/run_tests.rs",
+    ],
+    crate_name = "hpc_coverage",
+    crate_root = "src/main.rs",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    ["src/main.rs"],
+    visibility = ["//core/quality:__pkg__"],
+)

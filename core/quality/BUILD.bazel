@@ -855,6 +855,7 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
     "//cli/generate:src/lib.rs",
     "//cli/generation_result:src/lib.rs",
     "//cli/gomod:src/lib.rs",
+    "//cli/hpc_coverage:src/main.rs",
     "//cli/ide:src/lib.rs",
     "//cli/launcher:src/main.rs",
     "//cli/lcov:src/lib.rs",

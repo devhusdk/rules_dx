@@ -252,6 +252,7 @@ filegroup(
         "//cc/private:module_srcs",
         "//cc/private/toolchains:module_srcs",
         "//cli/fuzz_run:module_srcs",
+        "//cli/hpc_coverage:module_srcs",
         "//cli/launcher:module_srcs",
         "//cli/ocaml_cc_driver:module_srcs",
         "//cli/prebuilt:module_srcs",

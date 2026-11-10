@@ -5,6 +5,9 @@
 //! `program=<key>` or `real_program=<key>` (the program with symlinks resolved), `arg=<literal>`, `path=<key>`,
 //! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
 //! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>` and `unset=<VAR>`.
+//! A descriptor without a program holds either one `fail=<message>` line, which prints the
+//! message and exits 2, or `copy=<key>\t<path>` lines, which write runfiles files to paths
+//! below `BUILD_WORKSPACE_DIRECTORY`.
 //! The user's arguments follow the listed ones; `unset` names variables removed
 //! from the child's environment, `env` sets one, `env_dir` sets one to the
 //! absolute directory of a runfiles file and `env_default` sets one only when
@@ -33,8 +36,12 @@ pub enum Item {
 /// What one `<name>.launch` file describes.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Descriptor {
-    /// Runfiles key of the program.
+    /// Runfiles key of the program, empty when `fail` or `copy` stands in for it.
     pub program: String,
+    /// The message of a launcher that only refuses to run.
+    pub fail: Option<String>,
+    /// Runfiles keys written to paths below the workspace, as key and path.
+    pub copy: Vec<(String, String)>,
     /// Whether the program path is resolved through symlinks before it runs.
     pub real_program: bool,
     /// The arguments before the user's.
@@ -70,6 +77,14 @@ fn pair(line: &str, value: &str) -> io::Result<(String, String)> {
     Ok((first.to_owned(), second.to_owned()))
 }
 
+/// Whether `path` is relative and never leaves its root.
+fn below(path: &str) -> bool {
+    let path = Path::new(path);
+    path.components()
+        .all(|component| matches!(component, std::path::Component::Normal(_)))
+        && path.file_name().is_some()
+}
+
 /// Parses the line-based descriptor, rejecting anything unexpected.
 pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut program: Option<String> = None;
@@ -79,6 +94,8 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
     let mut env = Vec::new();
     let mut env_dir = Vec::new();
     let mut env_default = Vec::new();
+    let mut fail: Option<String> = None;
+    let mut copy = Vec::new();
     for line in text.lines().filter(|line| !line.is_empty()) {
         if let Some(value) = line
             .strip_prefix("program=")
@@ -128,13 +145,41 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
                 return Err(bad(format!("unset line has a bad name: {line}")));
             }
             unset.push(value.to_owned());
+        } else if let Some(value) = line.strip_prefix("fail=") {
+            if value.is_empty() || fail.is_some() {
+                return Err(bad("descriptor needs at most one fail line with a message"));
+            }
+            fail = Some(value.to_owned());
+        } else if let Some(value) = line.strip_prefix("copy=") {
+            let (key, path) = pair(line, value)?;
+            if key.is_empty() || !below(&path) {
+                return Err(bad(format!(
+                    "copy line needs a key and a path below the workspace: {line}"
+                )));
+            }
+            copy.push((key, path));
         } else {
             return Err(bad(format!("unknown descriptor line: {line}")));
         }
     }
-    let program = program.ok_or_else(|| bad("descriptor needs exactly one program line"))?;
+    let bare = items.is_empty()
+        && unset.is_empty()
+        && env.is_empty()
+        && env_dir.is_empty()
+        && env_default.is_empty();
+    let program = match (program, &fail, copy.is_empty()) {
+        (Some(program), None, true) => program,
+        (None, Some(_), true) | (None, None, false) if bare => String::new(),
+        _ => {
+            return Err(bad(
+                "descriptor needs exactly one program line, one fail line or only copy lines",
+            ));
+        }
+    };
     Ok(Descriptor {
         program,
+        fail,
+        copy,
         real_program,
         items,
         unset,
@@ -350,13 +395,51 @@ pub fn command(
     command
 }
 
+/// Writes every `copy` file of one descriptor below `workspace`, creating the directories.
+pub fn copy_into(
+    resolver: &Resolver,
+    copy: &[(String, String)],
+    workspace: &Path,
+) -> io::Result<()> {
+    for (key, path) in copy {
+        let source = locate(resolver, key)?;
+        let dest = workspace.join(path);
+        let describe = |error: io::Error| {
+            io::Error::new(error.kind(), format!("{}: {error}", dest.display()))
+        };
+        if let Some(parent) = dest.parent() {
+            std::fs::create_dir_all(parent).map_err(describe)?;
+        }
+        let bytes = std::fs::read(&source).map_err(|error| {
+            io::Error::new(error.kind(), format!("{}: {error}", source.display()))
+        })?;
+        std::fs::write(&dest, bytes).map_err(describe)?;
+    }
+    Ok(())
+}
+
 /// Runs the program named by the descriptor beside `exe` and returns its exit code.
 pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
-    let resolver = resolver_for(exe)?;
-    let path = descriptor_for(&resolver, exe);
+    let resolver = resolver_for(exe);
+    let path = match &resolver {
+        Ok(resolver) => descriptor_for(resolver, exe),
+        Err(_) => descriptor_path(exe),
+    };
     let text = std::fs::read_to_string(&path)
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
     let descriptor = parse(&text)?;
+    if let Some(message) = &descriptor.fail {
+        eprintln!("{message}");
+        return Ok(2);
+    }
+    let resolver = resolver?;
+    if !descriptor.copy.is_empty() {
+        let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY")
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| bad("BUILD_WORKSPACE_DIRECTORY is not set: start this with bazel run"))?;
+        copy_into(&resolver, &descriptor.copy, Path::new(&workspace))?;
+        return Ok(0);
+    }
     let plan = plan(&resolver, &descriptor, &|name| std::env::var_os(name))?;
     let child = child_env(&resolver, &descriptor, &|name| std::env::var_os(name))?;
     let status = command(

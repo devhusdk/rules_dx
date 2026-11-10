@@ -183,7 +183,6 @@ core/quality/tools/dotnet/fsharplint/fsharplint.sh shebang 1
 core/quality/tools/python_bundle/BUILD.bazel sh-rule 1
 core/quality/tools/python_bundle/build_bundle.sh host-path 1
 core/quality/tools/python_bundle/build_bundle.sh shebang 1
-core/quality/unavailable_tool.bzl shebang 1
 core/tests/BUILD.bazel genrule 1
 core/tests/execution_tests.bzl home 4
 core/tests/wrapper_forward_fixture.bzl env-inherit 1
@@ -287,8 +286,6 @@ go/tests/fixtures/bench/run_test.sh shebang 1
 go/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 go/tests/fixtures/fuzz/run_test.sh shebang 1
 haskell/private/bench_run.sh shebang 1
-haskell/private/coverage/coverage.bzl host-path 1
-haskell/private/coverage/coverage.bzl shebang 1
 haskell/private/toolchain/metadata_tests.bzl host-path 4
 haskell/tests/fixtures/bench/BUILD.bazel sh-rule 1
 haskell/tests/fixtures/bench/run_test.sh shebang 1
@@ -340,20 +337,16 @@ perl/private/tools/cpansa_dump_smoke_test.sh host-path 1
 perl/private/tools/cpansa_dump_smoke_test.sh shebang 1
 perl/private/tools/perlcritic_smoke_test.sh host-path 1
 perl/private/tools/perlcritic_smoke_test.sh shebang 1
-php/private/php.bzl host-path 1
-php/private/php.bzl shebang 1
 python/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 python/tests/fixtures/fuzz/run_test.sh shebang 1
 python/tests/fixtures/python-service/ledger/core/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel genrule 1
 python/tests/sdist_native/msvc/BUILD.bazel shebang 1
 qt/private/defs.bzl env-inherit 1
-qt/private/sdk/cell_json.bzl shebang 1
 qt/tests/fixtures/qt-rust/app/BUILD.bazel sh-rule 1
 qt/tests/fixtures/qt-rust/app/ledger_symbols_test.sh shebang 1
 qt/tests/qt_test.rs host-path 1
 rego/tests/BUILD.bazel genrule 1
-ruby/private/quality/unconfigured.bzl shebang 1
 rust/private/defs.bzl env-inherit 1
 rust/tests/fixtures/adopt-rust/crates/api/BUILD.bazel default-shell-env 1
 rust/tests/fixtures/bench/BUILD.bazel sh-rule 1

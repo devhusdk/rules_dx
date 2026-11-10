@@ -11,16 +11,9 @@ real_source_target(
 )
 
 rust_binary(
-    name = "clover_to_lcov",
+    name = "coverage_run",
     srcs = ["src/main.rs"],
-    crate_name = "clover_to_lcov",
-    crate_root = "src/main.rs",
-    deps = ["//cli/lcov:dx_lcov"],
-)
-
-rust_test(
-    name = "clover_to_lcov_test",
-    srcs = ["src/main.rs"],
+    crate_name = "coverage",
     crate_root = "src/main.rs",
     deps = ["//cli/lcov:dx_lcov"],
 )
@@ -30,4 +23,9 @@ exports_files(
         "src/main.rs",
     ],
     visibility = ["//core/quality:__pkg__"],
+)
+
+rust_test(
+    name = "coverage_test",
+    crate = ":coverage_run",
 )

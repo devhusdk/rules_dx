@@ -3,7 +3,7 @@ use dx_testing::{image_machine, read_runfiles, resolve_runfiles, starlark_const}
 #[test]
 fn gcc_x86_64_artifacts_carry_the_pinned_compiler_and_glibc_floor() {
     let pins = read_runfiles(&std::env::var("PINS").expect("PINS"));
-    let version = starlark_const(&pins, "GCC_VERSION", "pins.bzl");
+    let version = std::env::var("GCC_VERSION").expect("GCC_VERSION");
     let floor = glibc_version(&starlark_const(&pins, "GCC_GLIBC", "pins.bzl")["glibc_".len()..]);
     let stamp = format!("GCC: (GNU) {version}");
 

@@ -1,0 +1,26 @@
+{
+  "archives": {
+    "gcc_linux_aarch64": {
+      "sha256": "82a482d269cf75334cb969ef93593655f7e726e855043214e38b3672b10f97de",
+      "urls": [
+        "https://github.com/f0rmiga/gcc-builds/releases/download/10082026/gcc-toolchain-16.2.0-aarch64-host-aarch64.tar.xz"
+      ],
+      "version": "16.2.0"
+    },
+    "gcc_linux_x86_64": {
+      "sha256": "54af34c821e59b03ded8f82d3a1104426ec4baaf3b226233e1fd76ad5dcb78cf",
+      "urls": [
+        "https://github.com/f0rmiga/gcc-builds/releases/download/10082026/gcc-toolchain-16.2.0-x86_64.tar.xz"
+      ],
+      "version": "16.2.0"
+    },
+    "gcc_linux_x86_64_to_aarch64": {
+      "sha256": "6407b35116f21c59e98ab5ad68ddd8ff5f3e0469723a5d465ec08ed615b11a55",
+      "urls": [
+        "https://github.com/f0rmiga/gcc-builds/releases/download/10082026/gcc-toolchain-16.2.0-aarch64.tar.xz"
+      ],
+      "version": "16.2.0"
+    }
+  },
+  "version": "16.2.0"
+}

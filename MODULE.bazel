@@ -730,6 +730,10 @@ dx_pins.pin(
     pins = "//php/private/toolchain:pins.json",
 )
 dx_pins.data(
+    name = "dx_cc_gcc",
+    pins = "//cc/private/toolchains:pins.json",
+)
+dx_pins.data(
     name = "dx_d",
     pins = "//d/private/toolchain:pins.json",
 )

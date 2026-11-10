@@ -1,4 +1,5 @@
 load("//cc:defs.bzl", "cc_binary")
+load("//cc/private/toolchains:pins.bzl", "GCC_VERSION")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
 load("//deploy:defs.bzl", "consumer_archive")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -140,6 +141,7 @@ rust_test(
         "//cc/private/toolchains:pins.bzl",
     ],
     env = {
+        "GCC_VERSION": GCC_VERSION,
         "GCC_X86_64": "$(rootpaths :gcc_x86_64)",
         "PINS": "$(rootpath //cc/private/toolchains:pins.bzl)",
     },

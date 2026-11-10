@@ -533,6 +533,11 @@ exports_files(
 )
 
 exports_files(
+    ["pins.json"],
+    visibility = ["//:__subpackages__"],
+)
+
+exports_files(
     ["pins.bzl"],
     visibility = ["//cc/tests/gcc_linux_x86_64:__pkg__"],
 )

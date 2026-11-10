@@ -1,0 +1,40 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+
+package(default_visibility = ["//:__subpackages__"])
+
+bool_flag(
+    name = "subject",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "subject_on",
+    flag_values = {":subject": "True"},
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = ["@platforms//os:linux", "@platforms//cpu:arm64"],
+)
+
+config_setting(
+    name = "linux_x86_64",
+    constraint_values = ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+)
+
+config_setting(
+    name = "macos_arm64",
+    constraint_values = ["@platforms//os:macos", "@platforms//cpu:arm64"],
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = ["@platforms//os:windows", "@platforms//cpu:arm64"],
+)
+
+config_setting(
+    name = "windows_x86_64",
+    constraint_values = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+)
+
+exports_files(["runner_test.rs"])

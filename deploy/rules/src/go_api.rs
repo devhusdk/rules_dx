@@ -2,7 +2,7 @@
 
 use crate::api_compat::{Baseline, Outcome, fetch, highest_below, previous_git_tag};
 use crate::archive::archive_extract;
-use crate::run::{PUBLISH_CHILD_ENV_KEEP, scrubbed_command};
+use crate::run::{PUBLISH_CHILD_ENV_KEEP, exit_text, run_publish, scrubbed_command};
 use crate::stage::tempfile_stage_dir;
 use std::path::Path;
 
@@ -68,19 +68,18 @@ fn run_apidiff(
         extra,
     );
     cmd.args(args).current_dir(dir);
-    let output = cmd
-        .output()
-        .map_err(|error| format!("github_deploy: apidiff: {error}"))?;
+    let output =
+        run_publish(&mut cmd).map_err(|error| format!("github_deploy: apidiff: {error}"))?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    if !output.status.success() {
+    if !output.success() {
         return Err(format!(
             "github_deploy: apidiff failed in {} with {}\n{}",
             dir.display(),
-            output.status,
+            exit_text(&output),
             text.trim()
         ));
     }

@@ -199,6 +199,24 @@ pub(crate) fn scrubbed_command(
     cmd
 }
 
+/// Bound for one registry publisher child, long enough for a slow upload.
+pub(crate) const PUBLISH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
+
+/// Runs one publisher child under `PUBLISH_TIMEOUT`.
+pub(crate) fn run_publish(
+    cmd: &mut std::process::Command,
+) -> Result<dx_process::capture::Captured, dx_process::capture::RunError> {
+    dx_process::capture::run_captured(cmd, PUBLISH_TIMEOUT)
+}
+
+/// Describes how a captured child ended, like `std::process::ExitStatus`.
+pub(crate) fn exit_text(out: &dx_process::capture::Captured) -> String {
+    match out.code {
+        Some(code) => format!("exit status: {code}"),
+        None => "signal".to_owned(),
+    }
+}
+
 /// Removes the token and control characters from tool output.
 pub(crate) fn pages_redact(text: &str, token: &str) -> String {
     let cleaned: String = text
@@ -213,13 +231,13 @@ pub(crate) fn pages_redact(text: &str, token: &str) -> String {
 }
 
 /// Prints a publisher's captured stdout and stderr with the secret removed.
-pub(crate) fn print_redacted(out: &std::process::Output, secret: &str) {
+pub(crate) fn print_redacted(out: &dx_process::capture::Captured, secret: &str) {
     let (stdout, stderr) = redacted_streams(out, secret);
     print!("{stdout}");
     eprint!("{stderr}");
 }
 
-fn redacted_streams(out: &std::process::Output, secret: &str) -> (String, String) {
+fn redacted_streams(out: &dx_process::capture::Captured, secret: &str) -> (String, String) {
     (
         pages_redact(&String::from_utf8_lossy(&out.stdout), secret),
         pages_redact(&String::from_utf8_lossy(&out.stderr), secret),
@@ -395,10 +413,11 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn publisher_output_never_shows_the_secret() {
-        let out = std::process::Command::new("sh")
-            .args(["-c", "echo key-sekret; echo err key-sekret >&2"])
-            .output()
-            .expect("run sh");
+        let out = dx_process::capture::run_captured(
+            std::process::Command::new("sh").args(["-c", "echo key-sekret; echo err key-sekret >&2"]),
+            dx_process::capture::DEFAULT_TIMEOUT,
+        )
+        .expect("run sh");
         let (stdout, stderr) = redacted_streams(&out, "key-sekret");
         assert_eq!(stdout, "[redacted]\n");
         assert_eq!(stderr, "err [redacted]\n");

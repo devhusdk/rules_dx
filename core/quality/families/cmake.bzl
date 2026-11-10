@@ -4,7 +4,7 @@ load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "cmakelint": {
-        "attr": attr.label(default = "//core/quality/tools/python:cmakelint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "@dx_prebuilt//:python_tool_cmakelint", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "runfiles_env": True,

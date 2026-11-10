@@ -33,6 +33,17 @@ SOURCE_TOOLS = {
     "quality_runner": "@rules_dx//core/quality/runner:quality_runner",
 }
 
+PYTHON_TOOLS = {
+    "ansible_lint_tool": "@rules_dx//core/quality/tools/python:ansible_lint_tool",
+    "cfn_lint": "@rules_dx//core/quality/tools/python:cfn_lint",
+    "cmakelint": "@rules_dx//core/quality/tools/python:cmakelint",
+    "djlint": "@rules_dx//core/quality/tools/python:djlint",
+    "docstrfmt": "@rules_dx//core/quality/tools/python:docstrfmt",
+    "mbake": "@rules_dx//core/quality/tools/python:mbake",
+    "sqlfluff": "@rules_dx//core/quality/tools/python:sqlfluff",
+    "yamllint": "@rules_dx//core/quality/tools/python:yamllint",
+}
+
 _HEX = "0123456789abcdef"
 
 def valid_sha256(text):
@@ -138,7 +149,21 @@ def alias_build(actual):
             ")",
             "",
         ]
+    lines += _python_tool_aliases()
     return "\n".join(lines)
+
+def _python_tool_aliases():
+    lines = []
+    for name, label in sorted(PYTHON_TOOLS.items()):
+        lines += [
+            "alias(",
+            '    name = "python_tool_{}",'.format(name),
+            '    actual = "{}",'.format(label),
+            '    visibility = ["//visibility:public"],',
+            ")",
+            "",
+        ]
+    return lines
 
 def unsupported_message(assets):
     """Returns the failure text for a platform with no dx asset."""
@@ -175,6 +200,7 @@ def consumer_build(assets):
     """
     if not [a for a in assets if a.repo]:
         return alias_build(SOURCE_LABEL)
+    python_tools = _python_tool_aliases()
     lines = [
         'load("@bazel_skylib//rules:native_binary.bzl", "native_binary")',
         'load("@rules_dx//cli/prebuilt:fail.bzl", "dx_unavailable")',
@@ -223,6 +249,7 @@ def consumer_build(assets):
                     '    out = "{}/{}{}",'.format(a.key, tool, ".exe" if a.os == "windows" else ""),
                     ")",
                 ]
+    lines += [""] + python_tools[:-1]
     lines += [
         "",
         "dx_unavailable(",

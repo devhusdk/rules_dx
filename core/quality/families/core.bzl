@@ -24,7 +24,7 @@ TOOLS = {
         "shard": "core",
     },
     "docstrfmt": {
-        "attr": attr.label(default = "//core/quality/tools/python:docstrfmt", cfg = "exec", executable = True),
+        "attr": attr.label(default = "@dx_prebuilt//:python_tool_docstrfmt", cfg = "exec", executable = True),
         "capabilities": ["format"],
         "kind": "executable",
         "resources": "light",

@@ -10,7 +10,7 @@ TOOLS = {
         "shard": "make",
     },
     "mbake": {
-        "attr": attr.label(default = "//core/quality/tools/python:mbake", cfg = "exec", executable = True),
+        "attr": attr.label(default = "@dx_prebuilt//:python_tool_mbake", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "light",
         "runfiles_env": True,

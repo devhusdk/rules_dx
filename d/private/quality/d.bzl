@@ -17,19 +17,16 @@ SHARD_SPECS = {
         "doc": "Additive D typecheck family aspect (ldc replay of the compile action).",
         "requires": [compile_check_aspect],
         "shard": "d",
-        "suffix": "-d",
     },
     "real_d_format": {
         "capability": "format",
         "doc": "Additive D format family aspect (typos).",
         "shard": "d",
-        "suffix": "-d",
     },
     "real_d_lint": {
         "capability": "lint",
         "doc": "Additive D lint family aspect (typos).",
         "shard": "d",
-        "suffix": "-d",
     },
 }
 
@@ -38,10 +35,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = ["ldc"],
     context_hooks = {"ldc": compile_check_hook("ldc")},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_d_format_aspect = real_make_aspect(_CFG, "real_d_format")

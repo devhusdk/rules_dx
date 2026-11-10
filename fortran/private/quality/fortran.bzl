@@ -28,20 +28,17 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Fortran format family aspect (ffmt).",
         "shard": "fortran",
-        "suffix": "-fortran",
     },
     "real_fortran_lint": {
         "capability": "lint",
         "doc": "Additive Fortran lint family aspect (fortitude).",
         "shard": "fortran",
-        "suffix": "-fortran",
     },
     "real_fortran_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Fortran typecheck family aspect (flang replay of the compile action).",
         "requires": [compile_check_aspect],
         "shard": "fortran",
-        "suffix": "-fortran",
     },
 }
 
@@ -50,10 +47,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = ["flang"],
     context_hooks = {"flang": compile_check_hook("flang")},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_fortran_format_aspect = real_make_aspect(_CFG, "real_fortran_format")

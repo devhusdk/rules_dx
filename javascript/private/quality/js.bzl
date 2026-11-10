@@ -74,21 +74,18 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive JavaScript/JSON/MDX format family aspect (Prettier, remark).",
         "shard": "js",
-        "suffix": "-js",
     },
     "real_js_lint": {
         "capability": "lint",
         "doc": "Additive JavaScript lint family aspect (ESLint/Stylelint/graphql-eslint/Redocly opt-in).",
         "requires": [tsc_aspect],
         "shard": "js",
-        "suffix": "-js",
     },
     "real_js_typecheck": {
         "capability": "typecheck",
         "doc": "Additive TypeScript typecheck family aspect (delegated tsc over typescript_library and js_library).",
         "requires": [tsc_aspect],
         "shard": "js",
-        "suffix": "-js",
     },
 }
 
@@ -125,10 +122,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_js_format_aspect = real_make_aspect(_CFG, "real_js_format")

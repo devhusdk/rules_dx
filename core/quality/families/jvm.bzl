@@ -84,7 +84,6 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive JVM format family aspect (google-java-format/ktfmt).",
         "shard": "jvm",
-        "suffix": "-jvm",
     },
     "real_jvm_lint": {
         "capability": "lint",
@@ -98,26 +97,22 @@ SHARD_SPECS = {
             "_config_profile": attr.label(default = "//config:config_profile"),
         },
         "shard": "jvm",
-        "suffix": "-jvm",
     },
     "real_jvm_typecheck": {
         "capability": "typecheck",
         "doc": "Additive JVM typecheck family aspect (delegated javac over rules_java targets, kotlinc over rules_kotlin targets, scalac over Scala 2.13 rules_scala targets).",
         "requires": [jvm_check_aspect],
         "shard": "jvm",
-        "suffix": "-jvm",
     },
     "real_scala_format": {
         "capability": "format",
         "doc": "Additive Scala format family aspect (scalafmt).",
         "shard": "scala",
-        "suffix": "-scala",
     },
     "real_scala_lint": {
         "capability": "lint",
         "doc": "Additive Scala lint family aspect (Scalafix; target-coupled via SemanticdbInfo and JavaInfo).",
         "shard": "scala",
-        "suffix": "-scala",
     },
 }
 
@@ -237,10 +232,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_jvm_format_aspect = real_make_aspect(_CFG, "real_jvm_format")

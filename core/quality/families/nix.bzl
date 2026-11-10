@@ -23,25 +23,17 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Nix format family aspect (nixfmt).",
         "shard": "nix",
-        "suffix": "-nix",
     },
     "real_nix_lint": {
         "capability": "lint",
         "doc": "Additive Nix lint family aspect (deadnix).",
         "shard": "nix",
-        "suffix": "-nix",
     },
 }
 
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = [],
-    context_hooks = {},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_nix_format_aspect = real_make_aspect(_CFG, "real_nix_format")

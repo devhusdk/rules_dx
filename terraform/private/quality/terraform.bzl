@@ -33,19 +33,16 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Terraform format family aspect (terraform fmt).",
         "shard": "terraform",
-        "suffix": "-terraform",
     },
     "real_terraform_lint": {
         "capability": "lint",
         "doc": "Additive Terraform lint family aspect (tflint).",
         "shard": "terraform",
-        "suffix": "-terraform",
     },
     "real_terraform_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Terraform typecheck family aspect (terraform init and validate, offline).",
         "shard": "terraform",
-        "suffix": "-terraform",
     },
 }
 
@@ -79,10 +76,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_terraform_format_aspect = real_make_aspect(_CFG, "real_terraform_format")

@@ -548,6 +548,7 @@ _CFG = real_config(
     source_recognizers = _GENERATION_RECOGNIZERS + [_RUST_RECOGNIZER, _CC_RECOGNIZER],
     harness_sources = _RUST_HARNESS_SOURCES,
     toolchain = _RUST_TOOLCHAIN,
+    check_policy = True,
 )
 
 inherits_test_crate_sources = _inherits_test_crate_sources

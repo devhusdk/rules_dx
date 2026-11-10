@@ -47,7 +47,6 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Go format family aspect (gofumpt).",
         "shard": "go",
-        "suffix": "-go",
         "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
     },
     "real_go_lint": {
@@ -55,7 +54,6 @@ SHARD_SPECS = {
         "doc": "Additive Go lint family aspect (delegated dx_govet, dx_errcheck and dx_staticcheck over rules_go packages).",
         "requires": [go_analysis_aspect],
         "shard": "go",
-        "suffix": "-go",
         "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
     },
     "real_go_typecheck": {
@@ -63,7 +61,6 @@ SHARD_SPECS = {
         "doc": "Additive Go typecheck family aspect (delegated dx_gotype over rules_go packages).",
         "requires": [go_analysis_aspect],
         "shard": "go",
-        "suffix": "-go",
         "toolchains": [config_common.toolchain_type(GO_TOOLCHAIN_TYPE, mandatory = False)],
     },
 }
@@ -100,10 +97,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_go_format_aspect = real_make_aspect(_CFG, "real_go_format")

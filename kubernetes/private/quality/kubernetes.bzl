@@ -37,7 +37,6 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Kubernetes format family aspect (helmfmt).",
         "shard": "kubernetes",
-        "suffix": "-kubernetes",
     },
     "real_kubernetes_lint": {
         "capability": "lint",
@@ -46,7 +45,6 @@ SHARD_SPECS = {
             "_config_profile": attr.label(default = "//config:config_profile"),
         },
         "shard": "kubernetes",
-        "suffix": "-kubernetes",
     },
 }
 
@@ -119,10 +117,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_kubernetes_format_aspect = real_make_aspect(_CFG, "real_kubernetes_format")

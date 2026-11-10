@@ -31,19 +31,16 @@ SHARD_SPECS = {
         "capability": "typecheck",
         "doc": "Additive Lua typecheck family aspect (lua-language-server).",
         "shard": "lua",
-        "suffix": "-lua",
     },
     "real_lua_lint": {
         "capability": "lint",
         "doc": "Additive Lua lint family aspect (selene).",
         "shard": "lua",
-        "suffix": "-lua",
     },
     "real_lua_format": {
         "capability": "format",
         "doc": "Additive Lua format family aspect (stylua).",
         "shard": "lua",
-        "suffix": "-lua",
     },
 }
 
@@ -72,10 +69,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_lua_typecheck_aspect = real_make_aspect(_CFG, "real_lua_typecheck")

@@ -50,67 +50,56 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive Cap'n Proto lint family aspect (capnp).",
         "shard": "capnp",
-        "suffix": "-capnp",
     },
     "real_capnp_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Cap'n Proto typecheck family aspect (capnp errors only).",
         "shard": "capnp",
-        "suffix": "-capnp",
     },
     "real_flatbuffers_lint": {
         "capability": "lint",
         "doc": "Additive FlatBuffers lint family aspect (flatc).",
         "shard": "flatbuffers",
-        "suffix": "-flatbuffers",
     },
     "real_flatbuffers_typecheck": {
         "capability": "typecheck",
         "doc": "Additive FlatBuffers typecheck family aspect (flatc errors only).",
         "shard": "flatbuffers",
-        "suffix": "-flatbuffers",
     },
     "real_avro_lint": {
         "capability": "lint",
         "doc": "Additive Avro lint family aspect (avro-tools).",
         "shard": "avro",
-        "suffix": "-avro",
     },
     "real_avro_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Avro typecheck family aspect (avro-tools errors only).",
         "shard": "avro",
-        "suffix": "-avro",
     },
     "real_thrift_lint": {
         "capability": "lint",
         "doc": "Additive Thrift lint family aspect (thrift).",
         "shard": "thrift",
-        "suffix": "-thrift",
     },
     "real_thrift_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Thrift typecheck family aspect (thrift errors only).",
         "shard": "thrift",
-        "suffix": "-thrift",
     },
     "real_protobuf_format": {
         "capability": "format",
         "doc": "Additive Protocol Buffers format family aspect (buf format).",
         "shard": "protobuf",
-        "suffix": "-protobuf",
     },
     "real_protobuf_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Protocol Buffers typecheck family aspect (buf build).",
         "shard": "protobuf",
-        "suffix": "-protobuf",
     },
     "real_protobuf_lint": {
         "capability": "lint",
         "doc": "Additive Protocol Buffers lint family aspect (buf lint).",
         "shard": "protobuf",
-        "suffix": "-protobuf",
     },
 }
 
@@ -188,9 +177,6 @@ _CFG = real_config(
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
     source_recognizers = RECOGNIZERS,
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_avro_lint_aspect = real_make_aspect(_CFG, "real_avro_lint")

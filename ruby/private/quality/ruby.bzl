@@ -26,19 +26,16 @@ SHARD_SPECS = {
         "capability": "typecheck",
         "doc": "Additive Ruby typecheck family aspect (Sorbet).",
         "shard": "ruby",
-        "suffix": "-ruby",
     },
     "real_ruby_format": {
         "capability": "format",
         "doc": "Additive Ruby format family aspect (RuboCop).",
         "shard": "ruby",
-        "suffix": "-ruby",
     },
     "real_ruby_lint": {
         "capability": "lint",
         "doc": "Additive Ruby lint family aspect (RuboCop).",
         "shard": "ruby",
-        "suffix": "-ruby",
     },
 }
 
@@ -66,10 +63,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_ruby_format_aspect = real_make_aspect(_CFG, "real_ruby_format")

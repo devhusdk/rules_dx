@@ -31,19 +31,16 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Python format family aspect (ruff format).",
         "shard": "py",
-        "suffix": "-py",
     },
     "real_python_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Python typecheck family aspect (ty).",
         "shard": "py",
-        "suffix": "-py",
     },
     "real_python_lint": {
         "capability": "lint",
         "doc": "Additive Python lint family aspect (pydoclint).",
         "shard": "py",
-        "suffix": "-py",
     },
 }
 
@@ -73,10 +70,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_python_format_aspect = real_make_aspect(_CFG, "real_python_format")

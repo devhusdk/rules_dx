@@ -24,13 +24,11 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Bicep format family aspect (bicep format).",
         "shard": "bicep",
-        "suffix": "-bicep",
     },
     "real_bicep_lint": {
         "capability": "lint",
         "doc": "Additive Bicep lint family aspect (bicep lint).",
         "shard": "bicep",
-        "suffix": "-bicep",
     },
 }
 
@@ -74,10 +72,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_bicep_format_aspect = real_make_aspect(_CFG, "real_bicep_format")

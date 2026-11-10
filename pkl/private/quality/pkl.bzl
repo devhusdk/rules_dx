@@ -25,19 +25,16 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Pkl format family aspect (pkl format).",
         "shard": "pkl",
-        "suffix": "-pkl",
     },
     "real_pkl_lint": {
         "capability": "lint",
         "doc": "Additive Pkl lint family aspect (pkl-lsp diagnostics through lsp_check).",
         "shard": "pkl",
-        "suffix": "-pkl",
     },
     "real_pkl_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Pkl typecheck family aspect (pkl eval, offline, one module per run).",
         "shard": "pkl",
-        "suffix": "-pkl",
     },
 }
 
@@ -62,10 +59,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_pkl_format_aspect = real_make_aspect(_CFG, "real_pkl_format")

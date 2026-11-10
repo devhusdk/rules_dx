@@ -40,21 +40,18 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Haskell format family aspect (ormolu).",
         "shard": "haskell",
-        "suffix": "-haskell",
     },
     "real_haskell_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Haskell typecheck family aspect (ghc -fno-code replay of the compile action).",
         "requires": [compile_check_aspect],
         "shard": "haskell",
-        "suffix": "-haskell",
     },
     "real_haskell_lint": {
         "capability": "lint",
         "doc": "Additive Haskell lint family aspect (hlint, weeder).",
         "requires": [compile_check_aspect],
         "shard": "haskell",
-        "suffix": "-haskell",
     },
 }
 
@@ -72,10 +69,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = ["ghc", "weeder"],
     context_hooks = {"ghc": compile_check_hook("ghc"), "weeder": _weeder_hook},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_haskell_format_aspect = real_make_aspect(_CFG, "real_haskell_format")

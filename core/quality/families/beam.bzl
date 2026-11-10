@@ -59,32 +59,27 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Erlang format family aspect (erlfmt).",
         "shard": "erlang",
-        "suffix": "-erlang",
     },
     "real_erlang_lint": {
         "capability": "lint",
         "doc": "Additive Erlang lint family aspect (elvis).",
         "shard": "erlang",
-        "suffix": "-erlang",
     },
     "real_erlang_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Erlang typecheck family aspect (dialyzer, erlc and elixirc warnings).",
         "requires": [erlc_aspect, elixirc_aspect],
         "shard": "erlang",
-        "suffix": "-erlang",
     },
     "real_elixir_format": {
         "capability": "format",
         "doc": "Additive Elixir format family aspect (mix format).",
         "shard": "elixir",
-        "suffix": "-elixir",
     },
     "real_elixir_lint": {
         "capability": "lint",
         "doc": "Additive Elixir lint family aspect (credo).",
         "shard": "elixir",
-        "suffix": "-elixir",
     },
 }
 
@@ -157,10 +152,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_elixir_format_aspect = real_make_aspect(_CFG, "real_elixir_format")

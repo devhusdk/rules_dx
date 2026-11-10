@@ -22,25 +22,17 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive shell lint family aspect (ShellCheck).",
         "shard": "shell",
-        "suffix": "-shell",
     },
     "real_shell_format": {
         "capability": "format",
         "doc": "Additive shell format family aspect (shfmt).",
         "shard": "shell",
-        "suffix": "-shell",
     },
 }
 
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = [],
-    context_hooks = {},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_shell_format_aspect = real_make_aspect(_CFG, "real_shell_format")

@@ -1240,7 +1240,10 @@ quality_family(
     family_id = "erlang",
     format = ["erlfmt"],
     lint = ["elvis"],
-    typecheck = ["dialyzer"],
+    typecheck = [
+        "dialyzer",
+        "erlc",
+    ],
 )
 
 quality_family(
@@ -1249,7 +1252,10 @@ quality_family(
     family_id = "elixir",
     format = ["mix_format"],
     lint = ["credo"],
-    typecheck = ["dialyzer"],
+    typecheck = [
+        "dialyzer",
+        "elixirc",
+    ],
 )
 
 quality_family(

@@ -331,16 +331,27 @@ fn fails(ran: &Run, code: i32, stderr: &str) {
 }
 
 fn listing(ipa: &Path) -> Vec<String> {
-    let out = std::process::Command::new("unzip")
-        .args(["-Z1"])
-        .arg(ipa)
-        .output()
-        .unwrap_or_else(|error| panic!("unzip: {error}"));
-    let mut names: Vec<String> = String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .filter(|line| !line.ends_with('/'))
-        .map(str::to_owned)
-        .collect();
+    let bytes = std::fs::read(ipa).unwrap_or_else(|error| panic!("{}: {error}", ipa.display()));
+    let le16 = |at: usize| usize::from(u16::from_le_bytes([bytes[at], bytes[at + 1]]));
+    let le32 = |at: usize| {
+        u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]) as usize
+    };
+    let eocd = bytes
+        .windows(4)
+        .rposition(|window| window == [0x50, 0x4b, 0x05, 0x06])
+        .unwrap_or_else(|| panic!("{}: no zip end record", ipa.display()));
+    let mut at = le32(eocd + 16);
+    let mut names = Vec::new();
+    for _ in 0..le16(eocd + 10) {
+        let name_len = le16(at + 28);
+        let extra_len = le16(at + 30);
+        let comment_len = le16(at + 32);
+        let name = String::from_utf8_lossy(&bytes[at + 46..at + 46 + name_len]).into_owned();
+        if !name.ends_with('/') {
+            names.push(name);
+        }
+        at += 46 + name_len + extra_len + comment_len;
+    }
     names.sort();
     names
 }

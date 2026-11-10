@@ -6,7 +6,7 @@ This page fixes the repository layout. Directory moves, module files and generat
 
 - The repo is one Bazel module, `rules_dx`. Users add one `bazel_dep`.
 - Language rule sets are `bazel_dep`s of `rules_dx` at their `# floor:` versions. Bazel fetches a rule set only when a loaded `.bzl` file needs it.
-- Core never loads a language `.bzl` file. A test enforces it.
+- Core never loads a language `.bzl` file. One exception: `core/quality/tools.bzl` loads the `_tools.bzl` files. A test enforces it.
 - dx loads a language's quality aspects only when the workspace has that language's files.
 - There are no family modules. A family is a grouping label in the language manifest, used for CI sharding and docs.
 
@@ -75,10 +75,11 @@ examples/   tested examples
 
 - `core/quality/` holds the framework: runner, adapters, tiers, the tool table and the aspect factory.
 - A language's aspects, tool rows and tool packages live in `<lang>/private/quality/`.
-- A file family that has no rules gets no root directory. Its aspects and tool rows stay in `core/quality/families/`. Markdown, CSS, GraphQL, YAML, JSON, TOML, XML, shell and plain text are such families.
+- A file family that has no rules gets no root directory. Markdown, CSS, GraphQL, YAML, JSON, TOML, XML, shell and plain text are such families.
+- The aspects and tool rows of such a family's tools that do not run on Node stay in `core/quality/families/`. Its Node tools follow the Node tools section.
 - A shard that serves several languages lives with the language that owns its runtime: `js` in `javascript/`, `jvm` in `java/`, `beam` in `erlang/`, `dotnet` in `dotnet/`, `cc` in `cc/`.
 - A tool has all its rows in one `_tools.bzl` table. Moving a tool binary never moves its rows.
-- A `<name>_tools.bzl` file is data. It loads only `//core/quality:tool_defs.bzl`.
+- A `<name>_tools.bzl` file is data. It loads only the core data files `//core/quality:tool_defs.bzl` and `//core/quality:taxonomy.bzl`.
 - `core/quality/tools.bzl` loads every `_tools.bzl` file. It is the only core file that loads from a language directory.
 - A tier package `core/quality/tiers/<tool>/` loads only core `.bzl` files.
 - A tool shipped as a prebuilt binary or bundle has no runtime owner. Its package stays in `core/quality/tools/`.

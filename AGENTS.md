@@ -7,7 +7,7 @@ This repository uses Bazel.
 - Repo layout rules live in `docs/design/layout.md`. New language code goes in `<lang>/`. Never add a family module.
 - Public API only in `<lang>/defs.bzl` and `<lang>/extensions.bzl`. Implementation goes in `<lang>/private/`. Tests go in `<lang>/tests/`. No label points into `private/`.
 - Language facts live in `<lang>/lang.json` and `<lang>/pins.json`. Code reads them. Never repeat their values.
-- `core/` never loads a language `.bzl` file.
+- `core/` never loads a language `.bzl` file. One exception: `core/quality/tools.bzl` loads the `_tools.bzl` files.
 - Root holds only language directories and the shared directories in `docs/design/layout.md`.
 - Docs are for people who use or release rules_dx: command pages, guides, tutorials, the generated `docs/support-matrix.md`, READMEs, `examples/`, and runbooks like `RELEASING.md`. Never write design rationale, history, alternatives, or implementation notes. One exception: the "What rules_dx replaces" section in `README.md` may state what you get and what it costs. Keep it to those two lists.
 - User docs stay complete: every command page documents its flags, scopes, output, reports, exit codes, and examples. Match `dx <command> --help`. Keep them user-facing; still no rationale, history, or issue numbers.

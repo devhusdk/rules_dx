@@ -695,7 +695,7 @@ CPAN_PUBLISH_APPROVED=1 CPAN_API_USER=... CPAN_API_TOKEN=... \
 DX_DEPLOY_LIVE=1 dx deploy --apply //pkg:cpan-demo
 ```
 
-This posts the tarball to `https://pause.perl.org/pause/authenquery` with HTTP
+This posts the tarball to `https://pause.perl.org/pause/authenquery?ACTION=add_uri` with HTTP
 basic auth from the PAUSE user and password. No perl is needed. A live run
 refuses version `0.0.0`.
 

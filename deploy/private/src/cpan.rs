@@ -16,7 +16,7 @@ pub(crate) const CPAN_GATE: OwnerGate = OwnerGate {
 };
 
 /// PAUSE endpoint that takes authenticated uploads.
-const PAUSE_UPLOAD_URL: &str = "https://pause.perl.org/pause/authenquery";
+const PAUSE_UPLOAD_URL: &str = "https://pause.perl.org/pause/authenquery?ACTION=add_uri";
 
 /// Reads the distribution name and version from a `<Dist>-<version>.tar.gz` file name and checks the archive.
 ///
@@ -325,8 +325,11 @@ mod tests {
         use std::io::{Read as _, Write as _};
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let url = format!(
-            "http://{}/pause/authenquery",
-            listener.local_addr().expect("addr")
+            "http://{}{}",
+            listener.local_addr().expect("addr"),
+            PAUSE_UPLOAD_URL
+                .strip_prefix("https://pause.perl.org")
+                .expect("PAUSE origin")
         );
         let (send, request) = std::sync::mpsc::channel();
         let reply = format!(
@@ -382,7 +385,7 @@ mod tests {
         assert_eq!(upload_to(&url, &dist), Ok(()));
         let seen = request.recv().expect("request");
         let text = String::from_utf8_lossy(&seen).into_owned();
-        assert!(text.starts_with("POST /pause/authenquery HTTP/1.1\r\n"));
+        assert!(text.starts_with("POST /pause/authenquery?ACTION=add_uri HTTP/1.1\r\n"));
         let lower = text.to_ascii_lowercase();
         let auth = crate::http::basic_auth(FAKE_PAUSE_USER, FAKE_PAUSE_TOKEN).to_ascii_lowercase();
         assert!(lower.contains(&format!("authorization: {auth}\r\n")));

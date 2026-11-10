@@ -1,5 +1,15 @@
 //! Pins refs/remotes/origin/main to the commit the affected checks compare against.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::io::Write;
 use std::path::Path;
 

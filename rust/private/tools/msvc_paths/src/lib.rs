@@ -1,5 +1,15 @@
 //! Rewrites absolute execroot paths in MSVC linker and archiver arguments to relative ones.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};

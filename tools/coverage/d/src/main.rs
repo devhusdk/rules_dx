@@ -1,5 +1,15 @@
 //! Runs one D test built with `-cov` and writes its LCOV report into COVERAGE_DIR for Bazel.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 mod lst;
 
 use std::env;

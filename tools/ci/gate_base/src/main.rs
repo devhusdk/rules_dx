@@ -1,5 +1,15 @@
 //! `gate_base_bin` pins origin/main for the affected checks and writes GATE_BASE to GITHUB_ENV.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use gate_base::{Event, export, pin};
 use std::process::ExitCode;
 

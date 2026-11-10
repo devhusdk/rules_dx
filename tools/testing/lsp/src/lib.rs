@@ -1,5 +1,15 @@
 //! A small headless LSP client for tests: framing, a reader thread and deadline-based waits.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -41,6 +51,7 @@ impl std::error::Error for Error {}
 pub const MAX_HEADER_BYTES: usize = 65536;
 pub const MAX_BODY_BYTES: usize = 1 << 30;
 
+#[allow(clippy::expect_used)]
 pub fn encode(message: &serde_json::Value) -> Vec<u8> {
     let body = serde_json::to_vec(message).expect("lsp message serializes");
     let mut out = format!("Content-Length: {}\r\n\r\n", body.len()).into_bytes();
@@ -161,6 +172,7 @@ impl Session {
         Session::from_command(command)
     }
 
+    #[allow(clippy::expect_used)]
     pub fn from_command(mut command: Command) -> Result<Session, Error> {
         command
             .stdin(Stdio::piped())
@@ -248,6 +260,7 @@ impl Session {
         }))
     }
 
+    #[allow(clippy::expect_used)]
     fn stderr_tail(&self) -> String {
         let bytes = self.stderr.lock().expect("stderr lock").clone();
         let text = String::from_utf8_lossy(&bytes);
@@ -504,6 +517,7 @@ pub fn location_uri(result: &serde_json::Value) -> Option<String> {
         .map(str::to_owned)
 }
 
+#[allow(clippy::expect_used)]
 pub fn scoped_env(root: &Path) -> Vec<(String, String)> {
     let home = root.join("home");
     let tmp = root.join("tmp");

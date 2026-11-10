@@ -85,3 +85,10 @@ dx_unavailable_tool(
     name = "topiary_unsupported",
     tool = "topiary",
 )
+
+exports_files(
+    [
+        "src/lib.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

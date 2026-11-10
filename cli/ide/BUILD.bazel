@@ -75,3 +75,10 @@ exports_files(
     ["Cargo.toml"],
     visibility = ["//visibility:public"],
 )
+
+exports_files(
+    [
+        "src/lib.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

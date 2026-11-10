@@ -190,3 +190,11 @@ rust_binary(
         normal = True,
     ) + [":dx_shim"],
 )
+
+exports_files(
+    [
+        "src/lib.rs",
+        "src/main.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

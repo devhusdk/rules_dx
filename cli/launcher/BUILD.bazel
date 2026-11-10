@@ -43,3 +43,10 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
 )
+
+exports_files(
+    [
+        "src/main.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

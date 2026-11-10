@@ -1,5 +1,15 @@
 //! `coverage_cells_bin <cells.txt> <sha> <events.ndjson>...` exits 1 listing every failure.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::process::ExitCode;
 
 fn main() -> ExitCode {

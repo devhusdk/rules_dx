@@ -1,5 +1,15 @@
 //! Checks a Windows PDB against its PE file and writes the pdb manifest.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::path::PathBuf;
 
 struct Args {

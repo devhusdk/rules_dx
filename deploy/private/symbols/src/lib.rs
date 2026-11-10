@@ -1,6 +1,16 @@
 //! Checks that a binary and its debug info belong together: ELF build-ids and
 //! macOS dSYM UUIDs and Windows PDB GUIDs.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use object::{Architecture, Object};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};

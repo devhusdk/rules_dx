@@ -1,9 +1,19 @@
 //! `producers_bin` prints the compiler signatures of each file argument as a JSON object.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use dx_binfmt::producers;
 use std::collections::BTreeMap;
 
-fn main() {
+fn main() -> Result<(), serde_json::Error> {
     let mut found = BTreeMap::new();
     for path in std::env::args().skip(1) {
         let producers = std::fs::read(&path)
@@ -11,8 +21,6 @@ fn main() {
             .unwrap_or_default();
         found.insert(path, producers);
     }
-    println!(
-        "{}",
-        serde_json::to_string(&found).expect("serialize producers")
-    );
+    println!("{}", serde_json::to_string(&found)?);
+    Ok(())
 }

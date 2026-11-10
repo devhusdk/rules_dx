@@ -5,6 +5,16 @@
 //! once, at the expected SHA, with the same collector, and with covered equal to
 //! eligible over a non-empty denominator.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::collections::BTreeMap;
 
 use serde_json::Value;

@@ -1,5 +1,15 @@
 //! Reads GitHub Actions workflows from runfiles for the CI policy tests.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use serde_json::Value;
 
 use dx_testing::read_runfiles;

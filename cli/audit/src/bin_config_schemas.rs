@@ -1,10 +1,20 @@
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::path::PathBuf;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let root = std::env::var("BUILD_WORKSPACE_DIRECTORY")
-        .expect("run with `bazel run //cli/audit:config_schemas`");
+        .map_err(|_| "run with `bazel run //cli/audit:config_schemas`")?;
     let dir = PathBuf::from(root).join("cli/audit/schema");
-    std::fs::create_dir_all(&dir).expect("create schema dir");
+    std::fs::create_dir_all(&dir)?;
     let files = [
         (
             "security.schema.json",
@@ -16,6 +26,7 @@ fn main() {
         ),
     ];
     for (name, text) in files {
-        std::fs::write(dir.join(name), text).expect("write schema");
+        std::fs::write(dir.join(name), text)?;
     }
+    Ok(())
 }

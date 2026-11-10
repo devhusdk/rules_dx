@@ -1,5 +1,15 @@
 //! The language families of `core/modules/families.json`.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 

@@ -1,5 +1,15 @@
 //! Validates the docs scope input and builds the dx lint arguments for it.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 pub const SCOPE_ENV: &str = "DX_DOCS_SCOPE";
 
 fn is_package_char(c: char) -> bool {

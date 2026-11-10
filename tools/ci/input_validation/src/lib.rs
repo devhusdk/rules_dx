@@ -1,5 +1,15 @@
 //! Validates the consumer workflow inputs and renders the job outputs the matrix reads.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::collections::BTreeMap;
 
 pub const PLATFORMS_ENV: &str = "DX_PLATFORMS";

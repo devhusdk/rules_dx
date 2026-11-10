@@ -1,5 +1,15 @@
 //! Validates the evidence workflow dispatch inputs.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use serde_json::{Value, json};
 
 pub const PLATFORMS: [(&str, &str); 5] = [

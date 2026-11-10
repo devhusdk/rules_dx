@@ -1,5 +1,15 @@
 //! Checks a macOS dSYM bundle against its binary and writes the dsym manifest.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::path::{Path, PathBuf};
 use std::process::Command;
 

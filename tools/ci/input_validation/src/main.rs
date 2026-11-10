@@ -1,6 +1,16 @@
 //! `input_validation_bin` validates the consumer workflow inputs and writes them to `GITHUB_OUTPUT`.
 //! With the `deployables` argument it validates the release workflow list instead.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::io::Write;
 use std::process::ExitCode;
 

@@ -1,5 +1,15 @@
 //! Shapes and lengths for the docs site API reference.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 pub mod shapes;
 
 pub use shapes::Circle;

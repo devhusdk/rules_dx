@@ -231,3 +231,10 @@ real_source_target(
         "profiles/security/strict.toml",
     ],
 )
+
+exports_files(
+    [
+        "src/bin_config_schemas.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

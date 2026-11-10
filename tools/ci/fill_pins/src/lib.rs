@@ -1,6 +1,16 @@
 //! Rewrites the `SHA256` and `GAZELLE_SHA256` values in `cli/prebuilt/pins.bzl`
 //! from a verified `dx-sha256sums.txt` and `dx-gazelle-sha256sums.txt`.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use dx_adopt::{LauncherPins, RELEASE_ASSETS};
 use std::collections::BTreeMap;
 use std::path::Path;

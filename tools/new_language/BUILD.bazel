@@ -14,3 +14,10 @@ rust_test(
     name = "new_language_test",
     crate = ":new_language",
 )
+
+exports_files(
+    [
+        "src/main.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

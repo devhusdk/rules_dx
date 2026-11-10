@@ -1,5 +1,15 @@
 //! Collects LLVM coverage for tests with one llvm-profdata and llvm-cov pair.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 pub mod apple;
 mod collect;
 mod gcov;
@@ -45,7 +55,7 @@ impl Context {
                 }
                 let configuration: PathBuf = rd
                     .strip_prefix(&self.execroot)
-                    .expect("RUNFILES_DIR should be relative to ROOT")
+                    .unwrap_or(rd)
                     .components()
                     .take(3)
                     .collect();

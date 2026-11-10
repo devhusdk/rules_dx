@@ -1,5 +1,15 @@
 //! Builds an AppDir, runs appimagetool and writes the identity file.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::collections::BTreeMap;
 use std::fs;
 use std::io::Read;

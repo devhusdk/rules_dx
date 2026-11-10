@@ -5,6 +5,16 @@
 //! overrides (`DX_CONSUMER_OVERRIDES`), the MODULE.bazel edits they imply, and the comparison of
 //! a `bazel mod graph --output=json --verbose` result against the floors.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::collections::{BTreeMap, BTreeSet};
 
 use dx_module_bazel::{ModuleError, ModuleFile, compare_module_versions};

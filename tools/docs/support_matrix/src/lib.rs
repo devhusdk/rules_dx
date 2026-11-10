@@ -1,5 +1,15 @@
 //! Generates `docs/support-matrix.md` from CI workflows, test BUILD files and the quality registry.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 pub mod render;
 pub mod runfiles_source;
 pub mod starlark;

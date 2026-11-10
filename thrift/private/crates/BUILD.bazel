@@ -12,3 +12,10 @@ filegroup(
     name = "crate_carrier",
     srcs = ["src/lib.rs"],
 )
+
+exports_files(
+    [
+        "src/lib.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

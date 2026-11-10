@@ -25,3 +25,9 @@ rust_test(
     deps = ["//cli/lcov:dx_lcov"],
 )
 
+exports_files(
+    [
+        "src/main.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

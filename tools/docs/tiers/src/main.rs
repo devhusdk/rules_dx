@@ -1,5 +1,15 @@
 //! Usage: tiers MANIFEST STANDARD_OUT STRICT_OUT. Tier paths in the manifest resolve against the working directory.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::collections::BTreeMap;
 use std::process::ExitCode;
 

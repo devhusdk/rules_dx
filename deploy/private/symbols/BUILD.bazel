@@ -199,3 +199,13 @@ exports_files(
     ["Cargo.toml"],
     visibility = ["//visibility:public"],
 )
+
+exports_files(
+    [
+        "src/bin_dsym.rs",
+        "src/bin_pdb.rs",
+        "src/bin_split.rs",
+        "src/lib.rs",
+    ],
+    visibility = ["//core/quality:__pkg__"],
+)

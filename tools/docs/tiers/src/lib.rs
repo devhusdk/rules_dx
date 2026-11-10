@@ -1,5 +1,15 @@
 //! Renders the standard and strict tier pages from the tier files.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::collections::BTreeMap;
 
 use dx_diff::{FilePatch, PatchKind, render_patch};

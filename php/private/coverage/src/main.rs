@@ -1,5 +1,15 @@
 //! Turns the Clover report PHPUnit writes under coverage into the LCOV file Bazel collects.
 
+#![cfg_attr(
+    not(test),
+    deny(
+        clippy::expect_used,
+        clippy::unwrap_used,
+        clippy::unreachable,
+        clippy::todo
+    )
+)]
+
 use std::env;
 use std::fs;
 use std::process;

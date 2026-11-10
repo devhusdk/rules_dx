@@ -15,5 +15,22 @@
   "entry_points": [
     "rego_library",
     "rego_test"
-  ]
+  ],
+  "quality": {
+    "bzl": "rego/private/quality:rego.bzl",
+    "file_extensions": [
+      ".rego"
+    ],
+    "aspects": {
+      "format": [
+        "real_rego_format_aspect"
+      ],
+      "lint": [
+        "real_rego_lint_aspect"
+      ],
+      "typecheck": [
+        "real_rego_typecheck_aspect"
+      ]
+    }
+  }
 }

@@ -9,18 +9,14 @@ pub const FORMAT_ASPECTS: &[&str] = &[
     "quality:families/cue.bzl%real_cue_format_aspect",
     "quality:families/core.bzl%real_format_aspect",
     "quality:families/jsonnet.bzl%real_jsonnet_format_aspect",
-    "bicep/private/quality:bicep.bzl%real_bicep_format_aspect",
     "quality:families/cmake.bzl%real_cmake_format_aspect",
     "quality:families/make.bzl%real_make_format_aspect",
     "quality:families/nix.bzl%real_nix_format_aspect",
     "kubernetes/private/quality:kubernetes.bzl%real_kubernetes_format_aspect",
-    "rego/private/quality:rego.bzl%real_rego_format_aspect",
     "quality:families/shell.bzl%real_shell_format_aspect",
-    "terraform/private/quality:terraform.bzl%real_terraform_format_aspect",
     "quality:families/typst.bzl%real_typst_format_aspect",
     "quality:families/latex.bzl%real_latex_format_aspect",
     "quality:families/html_template.bzl%real_html_template_format_aspect",
-    "quality:families/sql.bzl%real_sql_format_aspect",
     "quality:families/yaml.bzl%real_yaml_format_aspect",
 ];
 
@@ -28,7 +24,6 @@ pub const LINT_ASPECTS: &[&str] = &[
     "dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect",
     "quality:families/make.bzl%real_make_lint_aspect",
     "quality:families/cmake.bzl%real_cmake_lint_aspect",
-    "terraform/private/quality:terraform.bzl%real_terraform_lint_aspect",
     "quality:families/core.bzl%real_lint_aspect",
     "quality:families/shell.bzl%real_shell_lint_aspect",
     "quality:families/text.bzl%real_text_lint_aspect",
@@ -38,9 +33,6 @@ pub const LINT_ASPECTS: &[&str] = &[
     "kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect",
     "ansible/private/quality:ansible.bzl%real_ansible_lint_aspect",
     "cloudformation/private/quality:cloudformation.bzl%real_cloudformation_lint_aspect",
-    "bicep/private/quality:bicep.bzl%real_bicep_lint_aspect",
-    "quality:families/sql.bzl%real_sql_lint_aspect",
-    "rego/private/quality:rego.bzl%real_rego_lint_aspect",
     "quality:families/jsonnet.bzl%real_jsonnet_lint_aspect",
     "quality:families/typst.bzl%real_typst_lint_aspect",
     "quality:families/xml.bzl%real_xml_lint_aspect",
@@ -49,9 +41,7 @@ pub const LINT_ASPECTS: &[&str] = &[
 
 pub const TYPECHECK_ASPECTS: &[&str] = &[
     "quality:families/core.bzl%real_typecheck_aspect",
-    "rego/private/quality:rego.bzl%real_rego_typecheck_aspect",
     "quality:families/cue.bzl%real_cue_typecheck_aspect",
-    "terraform/private/quality:terraform.bzl%real_terraform_typecheck_aspect",
 ];
 
 pub const FORMAT_PROBES: &[&str] = &[

@@ -25,5 +25,20 @@
   "entry_points": [
     "bicep_library",
     "bicep_registry_module"
-  ]
+  ],
+  "quality": {
+    "bzl": "bicep/private/quality:bicep.bzl",
+    "file_extensions": [
+      ".bicep",
+      ".bicepparam"
+    ],
+    "aspects": {
+      "format": [
+        "real_bicep_format_aspect"
+      ],
+      "lint": [
+        "real_bicep_lint_aspect"
+      ]
+    }
+  }
 }

@@ -26,5 +26,23 @@
   "entry_points": [
     "collect_providers",
     "terraform_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "terraform/private/quality:terraform.bzl",
+    "file_extensions": [
+      ".tf",
+      ".tfvars"
+    ],
+    "aspects": {
+      "format": [
+        "real_terraform_format_aspect"
+      ],
+      "lint": [
+        "real_terraform_lint_aspect"
+      ],
+      "typecheck": [
+        "real_terraform_typecheck_aspect"
+      ]
+    }
+  }
 }

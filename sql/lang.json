@@ -18,5 +18,19 @@
   "pins": [],
   "entry_points": [
     "sql_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "quality:families/sql.bzl",
+    "file_extensions": [
+      ".sql"
+    ],
+    "aspects": {
+      "format": [
+        "real_sql_format_aspect"
+      ],
+      "lint": [
+        "real_sql_lint_aspect"
+      ]
+    }
+  }
 }

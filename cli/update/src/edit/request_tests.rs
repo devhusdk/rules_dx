@@ -79,6 +79,7 @@ fn hand_built_requests_reject_wrong_version_kinds() {
             configured: None,
             dep_version: DepVersion::Tested,
             resolved_tag: None,
+            resolved_pins: None,
         };
         assert!(matches!(
             request.plan_edit(""),
@@ -622,6 +623,7 @@ fn refresh_selector_is_the_set_name_plus_the_package_for_npm_only() {
             "github-actions:actions/checkout",
             "3d3d42e5aac5ba805825da76410c181273ba90b1",
         ),
+        ("pins:ruby/private/toolchain/pins.json", "3.4.1"),
     ];
     assert_eq!(
         cases.len() + 7,
@@ -2252,4 +2254,36 @@ fn julia_edit_refuses_undeclared_packages_and_range_lists() {
         julia_edit("Dates", "2.0.0"),
         Err(EditError::UnsupportedManifest { .. })
     ));
+}
+
+#[test]
+fn pins_request_targets_the_file_and_plans_the_resolved_text() {
+    let update =
+        UpdateRequest::parse("pins:powershell/toolchain/pins.json", "v7.6.0").expect("pins");
+    assert_eq!(update.target_manifest(), "powershell/toolchain/pins.json");
+    assert_eq!(update.version, WidenVersion::Release("7.6.0".to_owned()));
+    assert!(matches!(
+        update.plan_edit("{}\n"),
+        Err(EditError::PinsUnresolved { .. })
+    ));
+    let resolved = update.with_resolved_pins("{\"version\": \"7.6.0\"}\n".to_owned());
+    assert_eq!(
+        resolved.plan_edit_outcome("powershell/toolchain/pins.json", "{}\n"),
+        Ok(EditPlanOutcome::Changed(
+            "{\"version\": \"7.6.0\"}\n".to_owned()
+        ))
+    );
+}
+
+#[test]
+fn pins_selectors_refuse_paths_outside_the_workspace() {
+    for bad in [
+        "pins:../pins.json",
+        "pins:/etc/pins.json",
+        "pins:a/b.json",
+        "pins:a//pins.json",
+    ] {
+        assert!(UpdateRequest::parse(bad, "1.0.0").is_err(), "{bad}");
+    }
+    assert!(UpdateRequest::parse("pins:a/pins.json", "latest").is_err());
 }

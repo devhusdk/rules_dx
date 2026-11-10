@@ -1,9 +1,84 @@
 //! Moves a `pins.json` to the newest release: version, urls and sha256 of every cell.
 
-use crate::discover::{Fetch, github, ruby};
+use crate::discover::{Candidate, Fetch, Findings, LookupError, github, ruby};
 use dx_error::DxError;
 use serde_json::{Map, Value};
 use std::collections::BTreeMap;
+use std::path::Path;
+
+pub const SET: &str = "pins";
+
+/// The `pins.json` files that the `pins` entries of the `<dir>/lang.json` files list, sorted.
+pub fn listed(workspace: &Path) -> Vec<String> {
+    let mut found = Vec::new();
+    let Ok(entries) = std::fs::read_dir(workspace) else {
+        return found;
+    };
+    for entry in entries.flatten() {
+        let dir = entry.file_name().to_string_lossy().into_owned();
+        let Ok(text) = std::fs::read_to_string(entry.path().join("lang.json")) else {
+            continue;
+        };
+        let Ok(lang) = serde_json::from_str::<Value>(&text) else {
+            continue;
+        };
+        let Some(pins) = lang["pins"].as_array() else {
+            continue;
+        };
+        for pin in pins.iter().filter_map(Value::as_str) {
+            if pin.ends_with(".json") {
+                found.push(format!("{dir}/{pin}"));
+            }
+        }
+    }
+    found.sort();
+    found
+}
+
+/// Checks the `pins.json` at `path` against the newest release of its tool.
+pub fn outdated(
+    path: &str,
+    text: &str,
+    github_base: &str,
+    rubygems_base: &str,
+    fetch: &dyn Fetch,
+) -> Findings {
+    let mut found = Findings::default();
+    let problem = |reason: String| LookupError {
+        set: SET.to_owned(),
+        package: path.to_owned(),
+        reason,
+    };
+    let pins: Value = match serde_json::from_str(text) {
+        Ok(pins) => pins,
+        Err(error) => {
+            found.errors.push(problem(error.to_string()));
+            return found;
+        }
+    };
+    let current = match version_of(&pins) {
+        Ok(version) => version.to_owned(),
+        Err(error) => {
+            found.errors.push(problem(error.to_string()));
+            return found;
+        }
+    };
+    match newest_version(&pins, github_base, rubygems_base, fetch) {
+        Ok(latest) if latest != current => found.candidates.push(Candidate {
+            set: SET.to_owned(),
+            package: path.to_owned(),
+            current,
+            latest,
+            published: None,
+            prerelease: false,
+            repo: None,
+            tags: None,
+        }),
+        Ok(_) => {}
+        Err(error) => found.errors.push(problem(error.to_string())),
+    }
+    found
+}
 
 /// Finds the newest version of the pinned tool, from GitHub releases or rubygems.
 pub fn newest_version(
@@ -34,7 +109,8 @@ pub fn rewrite(
     latest: &str,
     download: &dyn Fn(&str) -> Result<String, DxError>,
 ) -> Result<Option<String>, DxError> {
-    let mut pins: Value = serde_json::from_str(text).map_err(|e| DxError::failure(e.to_string()))?;
+    let mut pins: Value =
+        serde_json::from_str(text).map_err(|e| DxError::failure(e.to_string()))?;
     let old = version_of(&pins)?.to_owned();
     if old == latest {
         return Ok(None);
@@ -225,6 +301,57 @@ mod tests {
     fn rewrite_to_the_same_version_changes_nothing() {
         let download = |_: &str| Err(DxError::failure("no download"));
         assert_eq!(rewrite(PINS, "1.0.0", &download).unwrap(), None);
+    }
+
+    #[test]
+    fn outdated_reports_a_newer_release_once() {
+        let found = outdated(
+            "a/pins.json",
+            PINS,
+            "https://api.github.com",
+            "https://rubygems.org",
+            &fake,
+        );
+        assert_eq!(found.candidates.len(), 1);
+        assert_eq!(found.candidates[0].package, "a/pins.json");
+        assert_eq!(found.candidates[0].latest, "1.2.0");
+        let current = PINS.replace("1.0.0", "1.2.0");
+        let found = outdated(
+            "a/pins.json",
+            &current,
+            "https://api.github.com",
+            "https://rubygems.org",
+            &fake,
+        );
+        assert!(found.candidates.is_empty() && found.errors.is_empty());
+    }
+
+    #[test]
+    fn outdated_reports_a_failed_lookup() {
+        let found = outdated(
+            "a/pins.json",
+            PINS,
+            "https://api.github.com",
+            "https://rubygems.org",
+            &|_: &str| Err(DxError::failure("HTTP 500")),
+        );
+        assert_eq!(found.errors.len(), 1);
+    }
+
+    #[test]
+    fn listed_reads_json_pins_of_each_lang_json() {
+        let root = std::env::temp_dir().join(format!("dx-pins-listed-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("b")).unwrap();
+        std::fs::create_dir_all(root.join("a")).unwrap();
+        std::fs::write(
+            root.join("b/lang.json"),
+            r#"{"pins":["toolchain/pins.json","x/pins.bzl"]}"#,
+        )
+        .unwrap();
+        std::fs::write(root.join("a/lang.json"), r#"{"pins":["pins.json"]}"#).unwrap();
+        assert_eq!(listed(&root), vec!["a/pins.json", "b/toolchain/pins.json"]);
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

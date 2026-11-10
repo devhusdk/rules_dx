@@ -14,13 +14,14 @@ pub enum UpdateSet {
     Npm,
     NuGet,
     Opam,
+    Pins,
     Pub,
     Ruby,
     SwiftPm,
 }
 
 impl UpdateSet {
-    pub const ALL: [UpdateSet; 17] = [
+    pub const ALL: [UpdateSet; 18] = [
         UpdateSet::Bazel,
         UpdateSet::Cabal,
         UpdateSet::Cargo,
@@ -35,15 +36,17 @@ impl UpdateSet {
         UpdateSet::Npm,
         UpdateSet::NuGet,
         UpdateSet::Opam,
+        UpdateSet::Pins,
         UpdateSet::Pub,
         UpdateSet::Ruby,
         UpdateSet::SwiftPm,
     ];
 
-    pub const BUILTIN: [UpdateSet; 3] = [
+    pub const BUILTIN: [UpdateSet; 4] = [
         UpdateSet::Bazel,
         UpdateSet::Containers,
         UpdateSet::GithubActions,
+        UpdateSet::Pins,
     ];
 
     pub fn builtin_names() -> Vec<&'static str> {
@@ -66,6 +69,7 @@ impl UpdateSet {
             UpdateSet::Npm => "npm",
             UpdateSet::NuGet => "nuget",
             UpdateSet::Opam => "opam",
+            UpdateSet::Pins => "pins",
             UpdateSet::Pub => "pub",
             UpdateSet::Ruby => "ruby",
             UpdateSet::SwiftPm => "swiftpm",
@@ -88,6 +92,7 @@ impl UpdateSet {
             "npm" => Some(UpdateSet::Npm),
             "nuget" => Some(UpdateSet::NuGet),
             "opam" => Some(UpdateSet::Opam),
+            "pins" => Some(UpdateSet::Pins),
             "pub" => Some(UpdateSet::Pub),
             "ruby" => Some(UpdateSet::Ruby),
             "swiftpm" => Some(UpdateSet::SwiftPm),
@@ -111,7 +116,10 @@ impl UpdateSet {
     pub fn needs_update_refresh(self) -> bool {
         !matches!(
             self,
-            UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions
+            UpdateSet::Bazel
+                | UpdateSet::Containers
+                | UpdateSet::GithubActions
+                | UpdateSet::Pins
         )
     }
 }
@@ -128,17 +136,17 @@ mod tests {
             assert!(seen.insert(set.name()), "duplicate set name");
             assert_eq!(UpdateSet::parse(set.name()), Some(set));
         }
-        assert_eq!(seen.len(), 17);
+        assert_eq!(seen.len(), 18);
         assert_eq!(UpdateSet::parse("Cargo"), None);
         assert_eq!(UpdateSet::parse("cargo-lock"), None);
         assert_eq!(UpdateSet::parse(""), None);
     }
 
     #[test]
-    fn builtin_sets_are_bazel_containers_and_github_actions() {
+    fn builtin_sets_are_bazel_containers_github_actions_and_pins() {
         assert_eq!(
             UpdateSet::builtin_names(),
-            vec!["bazel", "containers", "github-actions"]
+            vec!["bazel", "containers", "github-actions", "pins"]
         );
     }
 
@@ -169,6 +177,7 @@ mod tests {
                 "npm",
                 "nuget",
                 "opam",
+                "pins",
                 "pub",
                 "ruby",
                 "swiftpm"
@@ -199,6 +208,7 @@ mod tests {
     fn resolver_sets_need_refresh_while_file_only_do_not() {
         assert!(!UpdateSet::Bazel.needs_update_refresh());
         assert!(!UpdateSet::GithubActions.needs_update_refresh());
+        assert!(!UpdateSet::Pins.needs_update_refresh());
         assert!(UpdateSet::Cargo.needs_update_refresh());
         assert!(UpdateSet::Composer.needs_update_refresh());
         assert!(UpdateSet::Npm.needs_update_refresh());

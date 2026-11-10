@@ -15,6 +15,7 @@ pub struct UpdateRequest {
     /// Which of a MODULE.bazel dep's two versions a bazel update edits.
     pub dep_version: DepVersion,
     resolved_tag: Option<String>,
+    resolved_pins: Option<String>,
 }
 
 /// The ecosystem of a dependency set an update edits.
@@ -162,6 +163,10 @@ pub enum EditError {
         "github-actions {package:?} tag {tag:?} needs SHA resolution via the upstream GitHub releases client; pass the resolved SHA as <version> (nothing widened)"
     )]
     NeedsSha { package: String, tag: String },
+    #[error(
+        "pins {package:?} needs its release downloaded before it can be rewritten (nothing widened)"
+    )]
+    PinsUnresolved { package: String },
     #[error(transparent)]
     Version(#[from] VersionError),
     #[error("--floor needs --reason <text> naming why this is the oldest supported version")]
@@ -299,12 +304,14 @@ fn configured_refresh_selector(
 fn refresh_selector(set: UpdateSet, package: &str) -> String {
     match set {
         UpdateSet::Npm => format!("{}:{}", set.name(), package),
-        UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions => String::new(),
+        UpdateSet::Bazel | UpdateSet::Containers | UpdateSet::GithubActions | UpdateSet::Pins => {
+            String::new()
+        }
         set => set.name().to_owned(),
     }
 }
 
-fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>) -> &'a str {
+fn target_manifest<'a>(set: UpdateSet, package: &'a str, manifest: Option<&'a str>) -> &'a str {
     if let Some(manifest) = manifest {
         return manifest;
     }
@@ -318,6 +325,7 @@ fn target_manifest<'a>(set: UpdateSet, package: &str, manifest: Option<&'a str>)
         }
         UpdateSet::GithubActions => WORKFLOW_DIR,
         UpdateSet::Containers => "MODULE.bazel",
+        UpdateSet::Pins => package,
         UpdateSet::Cargo
         | UpdateSet::Go
         | UpdateSet::Maven
@@ -363,6 +371,7 @@ impl UpdateRequest {
             configured: None,
             dep_version: DepVersion::Tested,
             resolved_tag: None,
+            resolved_pins: None,
         })
     }
 
@@ -440,6 +449,7 @@ impl UpdateRequest {
             }),
             dep_version: DepVersion::Tested,
             resolved_tag: None,
+            resolved_pins: None,
         })
     }
 
@@ -497,6 +507,7 @@ impl UpdateRequest {
             configured: target.configured.clone(),
             dep_version: DepVersion::Tested,
             resolved_tag: None,
+            resolved_pins: None,
         }
     }
 
@@ -523,6 +534,14 @@ impl UpdateRequest {
         let mut resolved = UpdateRequest::parse(&self.selector, sha)?;
         resolved.resolved_tag = Some(tag.clone());
         Ok(resolved)
+    }
+
+    /// This pins request carrying the rewritten `pins.json` text.
+    pub fn with_resolved_pins(&self, text: String) -> UpdateRequest {
+        UpdateRequest {
+            resolved_pins: Some(text),
+            ..self.clone()
+        }
     }
 
     pub fn summary(&self) -> String {
@@ -582,6 +601,9 @@ impl UpdateRequest {
                 }
             }
             UpdateSet::Containers => plan_oci_pull(content, &self.package, &self.version),
+            UpdateSet::Pins => self.resolved_pins.clone().ok_or(EditError::PinsUnresolved {
+                package: self.package.clone(),
+            }),
             UpdateSet::Cargo => plan_cargo_toml(manifest, content, &self.package, &self.version),
             UpdateSet::Npm => plan_package_json(content, &self.package, &self.version),
             UpdateSet::Go => plan_go_mod(manifest, content, &self.package, &self.version),

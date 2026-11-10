@@ -11,6 +11,8 @@ pub enum WidenVersion {
     Cpan(String),
     /// An opam version such as `1.2.0`, `0.9.0~rc1` or `2.0+dev`.
     Opam(String),
+    /// A release version such as `7.5.13` that a `pins.json` holds as text.
+    Release(String),
     /// An image digest such as `sha256:` followed by 64 hex digits.
     Digest(String),
 }
@@ -24,6 +26,7 @@ impl WidenVersion {
             WidenVersion::Gem(version) => version.clone(),
             WidenVersion::Cpan(version) => version.clone(),
             WidenVersion::Opam(version) => version.clone(),
+            WidenVersion::Release(version) => version.clone(),
             WidenVersion::Digest(digest) => digest.clone(),
         }
     }
@@ -45,6 +48,8 @@ pub enum VersionError {
     InvalidGit { set: &'static str, version: String },
     #[error("invalid digest {version:?} for set {set}: expected sha256: followed by 64 hex digits")]
     InvalidDigest { set: &'static str, version: String },
+    #[error("invalid release version {version:?} for set {set}: expected digits, letters, '.', '-', '_' or '+' starting with a digit")]
+    InvalidRelease { set: &'static str, version: String },
 }
 
 pub fn is_stable(version: &semver::Version) -> bool {
@@ -76,6 +81,23 @@ pub fn parse(set: UpdateSet, text: &str) -> Result<WidenVersion, VersionError> {
         UpdateSet::Cpan => parse_cpan(set.name(), trimmed),
         UpdateSet::Opam => parse_opam(set.name(), trimmed),
         UpdateSet::Containers => parse_digest(set.name(), trimmed),
+        UpdateSet::Pins => parse_release(set.name(), trimmed),
+    }
+}
+
+fn parse_release(set: &'static str, text: &str) -> Result<WidenVersion, VersionError> {
+    let text = text.strip_prefix('v').unwrap_or(text);
+    let valid = text.starts_with(|c: char| c.is_ascii_digit())
+        && text
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '+'));
+    if valid {
+        Ok(WidenVersion::Release(text.to_owned()))
+    } else {
+        Err(VersionError::InvalidRelease {
+            set,
+            version: text.to_owned(),
+        })
     }
 }
 

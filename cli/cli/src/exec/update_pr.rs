@@ -208,6 +208,9 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch, tools: &Tools) 
     if builtins.selects_all_containers() {
         full_sets.push(dx_update::discover::containers::SET.to_owned());
     }
+    if builtins.selects_all_pins() {
+        full_sets.push(dx_update::pins::SET.to_owned());
+    }
     let scope = Scope::new(full_sets);
     let mut step = |words: &[String]| -> Result<(), DxError> {
         let inner =
@@ -547,6 +550,7 @@ fn publish_one(
             "--apply".to_owned(),
         ])?;
         let builtin = c.set == dx_update::discover::github::ACTIONS_SET
+            || c.set == dx_update::pins::SET
             || c.set == dx_update::discover::containers::SET
             || (c.set == dx_update::discover::github::BAZELVERSION_SET
                 && c.package == dx_update::discover::github::BAZELVERSION_PACKAGE);

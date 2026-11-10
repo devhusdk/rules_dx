@@ -149,6 +149,10 @@ impl AddRequest {
                 selector: self.selector.clone(),
                 hint: GITHUB_ACTIONS_HINT,
             }),
+            UpdateSet::Pins => Err(AddError::UnsupportedSet {
+                selector: self.selector.clone(),
+                hint: "list the pins.json in the lang.json pins entry",
+            }),
             UpdateSet::Containers => Err(AddError::UnsupportedSet {
                 selector: self.selector.clone(),
                 hint: "add an oci.pull to MODULE.bazel",

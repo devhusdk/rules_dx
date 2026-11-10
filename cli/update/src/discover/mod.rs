@@ -28,6 +28,11 @@ pub trait Fetch {
     /// Returns the body, or a short reason the lookup failed.
     fn get(&self, url: &str) -> Result<String, DxError>;
 
+    /// Returns the sha256, as 64 hex digits, of the bytes a url serves.
+    fn download_sha256(&self, _url: &str) -> Result<String, DxError> {
+        Err(DxError::failure("this fetcher cannot download files"))
+    }
+
     /// Returns the `Docker-Content-Digest` a registry reports for a manifest URL.
     fn digest(&self, _url: &str) -> Result<String, DxError> {
         Err(DxError::failure("this fetcher cannot read image digests"))

@@ -28,12 +28,14 @@ pub(crate) const CODE_UPDATE_OUTDATED_OVERRIDDEN: &str = "update_outdated_overri
 const ACTIONS_SELECTOR: &str = "github-actions";
 const BAZELVERSION_SELECTOR: &str = "bazel:.bazelversion";
 const CONTAINERS_SELECTOR: &str = containers::SET;
+const PINS_SELECTOR: &str = dx_update::pins::SET;
 
 #[derive(Debug, Default, Eq, PartialEq)]
 pub(super) struct Builtins {
     actions: Option<Vec<String>>,
     bazelversion: bool,
     containers: Option<Vec<String>>,
+    pins: Option<Vec<String>>,
 }
 
 impl Builtins {
@@ -44,6 +46,10 @@ impl Builtins {
     pub(super) fn selects_all_containers(&self) -> bool {
         self.containers.as_ref().is_some_and(Vec::is_empty)
     }
+
+    pub(super) fn selects_all_pins(&self) -> bool {
+        self.pins.as_ref().is_some_and(Vec::is_empty)
+    }
 }
 
 pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
@@ -53,6 +59,7 @@ pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
         builtins.actions = Some(Vec::new());
         builtins.bazelversion = true;
         builtins.containers = Some(Vec::new());
+        builtins.pins = Some(Vec::new());
         return (builtins, rest);
     }
     for target in targets {
@@ -81,6 +88,19 @@ pub(super) fn split_builtin(targets: &[String]) -> (Builtins, Vec<String>) {
                 }
             } else {
                 builtins.containers = Some(vec![name.to_owned()]);
+            }
+        } else if target == PINS_SELECTOR {
+            builtins.pins = Some(Vec::new());
+        } else if let Some(path) = target
+            .strip_prefix(PINS_SELECTOR)
+            .and_then(|r| r.strip_prefix(':'))
+        {
+            if let Some(only) = builtins.pins.as_mut() {
+                if !only.is_empty() {
+                    only.push(path.to_owned());
+                }
+            } else {
+                builtins.pins = Some(vec![path.to_owned()]);
             }
         } else if target == BAZELVERSION_SELECTOR {
             builtins.bazelversion = true;
@@ -585,6 +605,9 @@ pub(super) fn registry_for(
     if candidate.set == dx_update::discover::github::ACTIONS_SET {
         return Some(Registry::GitHub);
     }
+    if candidate.set == dx_update::pins::SET {
+        return Some(Registry::GitHub);
+    }
     if candidate.set == "bazel" && candidate.package == ".bazelversion" {
         return Some(Registry::BazelReleases);
     }
@@ -659,6 +682,35 @@ fn run_builtins(builtins: &Builtins, workspace: &Path, fetch: &dyn Fetch, found:
                 package: "MODULE.bazel".to_owned(),
                 reason: error.to_string(),
             }),
+        }
+    }
+    if let Some(only) = &builtins.pins {
+        let listed = dx_update::pins::listed(workspace);
+        let paths: Vec<String> = if only.is_empty() {
+            listed
+        } else {
+            only.clone()
+        };
+        for path in paths {
+            let read = dx_path::workspace::resolve_in_workspace(workspace, &path)
+                .and_then(std::fs::read_to_string);
+            match read {
+                Ok(text) => merge(
+                    found,
+                    dx_update::pins::outdated(
+                        &path,
+                        &text,
+                        github::DEFAULT_BASE,
+                        dx_update::discover::ruby::DEFAULT_BASE,
+                        fetch,
+                    ),
+                ),
+                Err(error) => found.errors.push(dx_update::discover::LookupError {
+                    set: dx_update::pins::SET.to_owned(),
+                    package: path.clone(),
+                    reason: format!("cannot read {path}: {error}"),
+                }),
+            }
         }
     }
     if builtins.bazelversion
@@ -853,6 +905,13 @@ fn emit_text(
 pub(super) struct DirFetch(pub(super) PathBuf);
 
 impl Fetch for DirFetch {
+    fn download_sha256(&self, url: &str) -> Result<String, DxError> {
+        let rest = url.split_once("://").map_or(url, |(_, rest)| rest);
+        std::fs::read(self.0.join(rest))
+            .map(|bytes| dx_digest::sha256_hex(&bytes))
+            .map_err(|_| DxError::failure("HTTP 404"))
+    }
+
     fn digest(&self, url: &str) -> Result<String, DxError> {
         self.get(url).map(|text| text.trim().to_owned())
     }
@@ -894,6 +953,27 @@ impl HttpFetch {
 }
 
 impl Fetch for HttpFetch {
+    fn download_sha256(&self, url: &str) -> Result<String, DxError> {
+        let mut response = self
+            .0
+            .get(url)
+            .call()
+            .map_err(|e| DxError::infra(e.to_string()))?;
+        if response.status().as_u16() != 200 {
+            return Err(DxError::failure(format!(
+                "HTTP {} for {url}",
+                response.status().as_u16()
+            )));
+        }
+        let bytes = response
+            .body_mut()
+            .with_config()
+            .limit(2 * 1024 * 1024 * 1024)
+            .read_to_vec()
+            .map_err(|e| DxError::infra(e.to_string()))?;
+        Ok(dx_digest::sha256_hex(&bytes))
+    }
+
     fn digest(&self, url: &str) -> Result<String, DxError> {
         let response = self
             .0
@@ -1082,6 +1162,36 @@ mod tests {
             fetch.get("https://registry.npmjs.org/@scope/pkg"),
             Ok("{}".into())
         );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn pins_selectors_narrow_to_listed_files() {
+        let list = |words: &[&str]| words.iter().map(|w| (*w).to_owned()).collect::<Vec<_>>();
+        let (all, _) = split_builtin(&[]);
+        assert!(all.selects_all_pins());
+        let (one, rest) = split_builtin(&list(&["pins:ruby/private/toolchain/pins.json"]));
+        assert_eq!(
+            one.pins,
+            Some(vec!["ruby/private/toolchain/pins.json".to_owned()])
+        );
+        assert!(!one.selects_all_pins() && rest.is_empty());
+        let (whole, _) = split_builtin(&list(&["pins:a/pins.json", "pins"]));
+        assert!(whole.selects_all_pins());
+    }
+
+    #[test]
+    fn download_sha256_reads_the_file_a_dir_fetch_serves() {
+        let dir = std::env::temp_dir().join(format!("dx-pins-dl-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("host/p")).unwrap();
+        std::fs::write(dir.join("host/p/f.tgz"), b"abc").unwrap();
+        let fetch = DirFetch(dir.clone());
+        assert_eq!(
+            fetch.download_sha256("https://host/p/f.tgz").unwrap(),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert!(fetch.download_sha256("https://host/p/none.tgz").is_err());
         let _ = std::fs::remove_dir_all(dir);
     }
 

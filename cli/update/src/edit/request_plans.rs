@@ -1399,6 +1399,7 @@ pub(super) fn plan_github_workflow(
         | WidenVersion::Gem(_)
         | WidenVersion::Cpan(_)
         | WidenVersion::Opam(_)
+        | WidenVersion::Release(_)
         | WidenVersion::Digest(_) => Err(EditError::UnsupportedManifest {
             manifest: WORKFLOW_DIR.to_owned(),
             reason: "github-actions pins are tag/SHA-shaped, not semver".to_owned(),
@@ -1559,6 +1560,21 @@ pub(super) fn validate_package(set: UpdateSet, package: &str) -> Result<(), Edit
                 Ok(())
             } else {
                 Err("oci.pull names use letters, digits, '-', '_' and '.'")
+            }
+        }
+        UpdateSet::Pins => {
+            let ok = package.ends_with("pins.json")
+                && !package.starts_with('/')
+                && package
+                    .split('/')
+                    .all(|part| !part.is_empty() && part != "." && part != "..")
+                && package
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '-' | '_' | '.' | '/'));
+            if ok {
+                Ok(())
+            } else {
+                Err("pins identities are workspace-relative pins.json paths")
             }
         }
         UpdateSet::GithubActions => match package.split_once('/') {

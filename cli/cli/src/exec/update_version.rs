@@ -85,6 +85,12 @@ pub(crate) fn execute_update_version(invocation: &Invocation, env: Env<'_>) -> i
             return report_dx_error(invocation.output, out, err, code, &error);
         }
     };
+    let request = match resolve_pins_request(&request, workspace, invocation.offline) {
+        Ok(request) => request,
+        Err((code, error)) => {
+            return report_dx_error(invocation.output, out, err, code, &error);
+        }
+    };
     let summary = frozen_summary(
         offline_summary(request.summary(), invocation.offline),
         invocation.frozen,
@@ -433,6 +439,45 @@ fn plan_widens(
         )));
     }
     Ok(planned)
+}
+
+fn resolve_pins_request(
+    request: &dx_update::edit::UpdateRequest,
+    workspace: &std::path::Path,
+    offline: bool,
+) -> Result<dx_update::edit::UpdateRequest, (&'static str, DxError)> {
+    let dx_update::edit::WidenVersion::Release(version) = &request.version else {
+        return Ok(request.clone());
+    };
+    if request.set != dx_update::edit::UpdateSet::Pins {
+        return Ok(request.clone());
+    }
+    let failed = |kind: ErrorKind, reason: String| {
+        (
+            CODE_UPDATE_WIDEN_FAILED,
+            DxError::new(
+                kind,
+                format!("failed to widen {}: {reason}", request.selector),
+            ),
+        )
+    };
+    if offline {
+        return Err((
+            CODE_OFFLINE_REQUIRED,
+            DxError::failure(format!(
+                "failed to widen {}: hashing the downloads needs the network; drop --offline",
+                request.selector
+            )),
+        ));
+    }
+    let path = request.target_manifest();
+    let text = dx_path::workspace::resolve_in_workspace(workspace, path)
+        .and_then(std::fs::read_to_string)
+        .map_err(|error| failed(ErrorKind::Failure, format!("cannot read {path}: {error}")))?;
+    let fetch = super::update_outdated::registry_fetch();
+    let rewritten = dx_update::pins::rewrite(&text, version, &|url| fetch.download_sha256(url))
+        .map_err(|error| failed(error.kind(), format!("{error} (nothing widened)")))?;
+    Ok(request.with_resolved_pins(rewritten.unwrap_or(text)))
 }
 
 fn resolve_gha_tag_request(

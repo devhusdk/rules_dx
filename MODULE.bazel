@@ -2128,6 +2128,8 @@ crate.from_cargo(
         "//tools/docs/rust:Cargo.toml",
         "//apple/tests:Cargo.toml",
         "//kotlin/tests/fixtures/kotlin-app/cli:Cargo.toml",
+        "//java/tests/fixtures/java-app/cli:Cargo.toml",
+        "//typescript/tests/fixtures/scoped:Cargo.toml",
         "//tools/ci:Cargo.toml",
         "//tools/ci/input_validation:Cargo.toml",
         "//tools/ci/evidence_inputs:Cargo.toml",

@@ -1,5 +1,5 @@
 {
-  "checksum": "5ae8aaaa9229c1d3a7e63809c916710a4de00c8f98b0532e620de28017fb6b61",
+  "checksum": "2ad4baf5a40caeaf461f595826bb843f94bd262ff7257257bfb388e9488cda2e",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -13185,6 +13185,19 @@
       ],
       "version": "1.0.18"
     },
+    "java_app_cli_fixture 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "java_app_cli_fixture",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "jni 0.22.4": {
       "build_script_attrs": {
         "deps": [
@@ -25980,6 +25993,19 @@
       ],
       "version": "0.0.0"
     },
+    "typescript_scoped_fixture 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "typescript_scoped_fixture",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
     "unarray 0.1.4": {
       "common_attrs": {
         "edition": "2018"
@@ -29394,6 +29420,7 @@
     "haskell_extract 0.0.0": "tools/docs/haskell/haskell_extract",
     "hermetic 0.0.0": "tools/testing/hermetic",
     "ide_tests 0.0.0": "tools/ide_tests",
+    "java_app_cli_fixture 0.0.0": "java/tests/fixtures/java-app/java_app_cli_fixture",
     "julia_extract 0.0.0": "tools/docs/julia/julia_extract",
     "julia_jet 0.0.0": "julia/private/tools/julia_jet",
     "julia_lint 0.0.0": "julia/private/tools/julia_lint",
@@ -29438,6 +29465,7 @@
     "tiers 0.0.0": "tools/docs/tiers",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
+    "typescript_scoped_fixture 0.0.0": "typescript/tests/fixtures/typescript_scoped_fixture",
     "wasi_testing 0.0.0": "wasi/private/wasi_testing",
     "zig_extract 0.0.0": "tools/docs/zig/zig_extract"
   }

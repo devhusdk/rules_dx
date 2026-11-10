@@ -1,4 +1,5 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//typescript:defs.bzl", "typescript_library")
@@ -26,10 +27,17 @@ typescript_library(
     tsconfig = "tsconfig.json",
 )
 
-# keep
 rust_test(
     name = "scoped_boundary_test",
+    testonly = True,
     srcs = ["scoped_boundary_test.rs"],
+    aliases = aliases(
+        package_name = "typescript/tests/fixtures/typescript_scoped_fixture",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "scoped_boundary_test",
+    crate_root = "scoped_boundary_test.rs",
     data = [
         "bad.ts",
         "clean.ts",
@@ -73,4 +81,11 @@ ts_config(
     testonly = True,
     src = "tsconfig.json",
     visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

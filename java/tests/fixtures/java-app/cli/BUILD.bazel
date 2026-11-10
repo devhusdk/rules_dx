@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
@@ -38,10 +39,17 @@ java_test(
     deps = [":cli"],
 )
 
-# keep
 rust_test(
     name = "exit_codes_test",
+    testonly = True,
     srcs = ["exit_codes_test.rs"],
+    aliases = aliases(
+        package_name = "java/tests/fixtures/java-app/java_app_cli_fixture",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "exit_codes_test",
+    crate_root = "exit_codes_test.rs",
     data = [
         ":invoice",
         "//java/tests/fixtures/java-app/billing:invoices.json",
@@ -71,4 +79,11 @@ real_source_target(
     visibility = [
         "//:__pkg__",
     ],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "java_app_cli_fixture"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "exit_codes_test"
+path = "exit_codes_test.rs"

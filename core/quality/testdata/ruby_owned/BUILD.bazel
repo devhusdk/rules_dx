@@ -1,0 +1,35 @@
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//ruby:defs.bzl", "ruby_library")
+
+package(default_visibility = [
+    "//core/quality:__pkg__",
+    "//core/quality/testdata:__pkg__",
+])
+
+quality_family(
+    name = "ruby_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "ruby",
+    typecheck = ["sorbet"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":ruby_family"],
+)
+
+ruby_library(
+    name = "clean",
+    testonly = True,
+    srcs = ["clean.rb"],
+)
+
+ruby_library(
+    name = "dirty",
+    testonly = True,
+    srcs = ["dirty.rb"],
+)

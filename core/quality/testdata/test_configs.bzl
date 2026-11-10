@@ -78,12 +78,14 @@ _CC_SYNTAX = "//core/quality/testdata/clang_syntax:cc_syntax_policy"
 _CC_TIDY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
 _D = "//core/quality/testdata/d_owned:policy"
 _DOTNET = "//core/quality/testdata/dotnet_owned:policy"
+_FSHARP = "//core/quality/testdata/fsharp_owned:policy"
 _GO = "//core/quality/testdata/go_owned:policy"
 _HASKELL = "//core/quality/testdata/haskell_owned:policy"
 _OCAML = "//core/quality/testdata/ocaml_owned:policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
 _TOOL_OVERRIDE_POLICY = "//core/quality/testdata:tool_override_policy"
 _ZIG = "//core/quality/testdata/zig_owned:policy"
+_RUBY = "//core/quality/testdata/ruby_owned:policy"
 _RUST = "//core/quality/testdata/rust_owned:policy"
 
 TEST_CONFIGS = {
@@ -100,6 +102,8 @@ TEST_CONFIGS = {
     "default": _config("//config:default_workspace_policy"),
     "d_owned": _config(_D),
     "zig_owned": _config(_ZIG),
+    "fsharp_owned": _config(_FSHARP),
+    "ruby_owned": _config(_RUBY),
     "dialyzer": _config("//core/quality/testdata/dialyzer:policy"),
     "dotnet_owned": _config(_DOTNET),
     "dotnet_owned_standard": _config(_DOTNET, profile = "standard"),

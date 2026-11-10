@@ -366,6 +366,9 @@ pub(crate) fn plan(
     if command == Command::Check && !plan.targets.is_empty() {
         plan.tests = tests;
         plan.generate = generate_scope(workspace, &plan.changed_files);
+        if plan.generate.is_empty() {
+            plan.generate = dx_plan::plan::generate_package_scope(&plan.targets);
+        }
         plan.format = if owners.is_empty() {
             plan.targets.clone()
         } else {
@@ -379,11 +382,15 @@ pub(crate) fn plan(
     Ok(plan)
 }
 
+/// The lock file Bazel writes at the workspace root; generate does not read it.
+const BAZEL_LOCK: &str = "MODULE.bazel.lock";
+
 /// The package patterns generate must visit for these changed files: each
 /// file's nearest existing directory, so new and deleted files count.
 fn generate_scope(workspace: &Path, changed_files: &[String]) -> Vec<String> {
     let labels: Vec<String> = changed_files
         .iter()
+        .filter(|file| file.as_str() != BAZEL_LOCK)
         .map(|file| {
             let mut dir = Path::new(file).parent();
             while let Some(path) = dir {
@@ -801,6 +808,24 @@ mod tests {
         let plan = plan(command, root, &runner, &[], base).ok().expect("plan");
         assert!(runner.bazel.borrow().is_empty(), "unused bazel answers");
         (plan, runner)
+    }
+
+    #[test]
+    fn generate_scope_skips_the_bazel_lock() {
+        let dir = dx_test_scratch::scratch("dx-affected-generate-lock-");
+        write(dir.path(), "svc/a.py", "x = 1\n");
+        let files = |names: &[&str]| -> Vec<String> {
+            names.iter().map(|name| (*name).to_owned()).collect()
+        };
+        assert_eq!(
+            generate_scope(dir.path(), &files(&["MODULE.bazel.lock", "svc/a.py"])),
+            ["//svc/..."]
+        );
+        assert!(generate_scope(dir.path(), &files(&["MODULE.bazel.lock"])).is_empty());
+        assert_eq!(
+            generate_scope(dir.path(), &files(&["MODULE.bazel", "svc/a.py"])),
+            ["//..."]
+        );
     }
 
     #[test]

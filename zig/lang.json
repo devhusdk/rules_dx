@@ -12,6 +12,21 @@
     "build.zig.zon"
   ],
   "lockfiles": [],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "zig",
+        "manifest": "build.zig.zon",
+        "lock": "build.zig.zon",
+        "state": null,
+        "extension": "@rules_dx//zig:extensions.bzl",
+        "tag": "lock",
+        "hub": "zig_deps",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "zig_fmt"
   ],

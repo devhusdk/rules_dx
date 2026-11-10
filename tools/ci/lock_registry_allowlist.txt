@@ -510,8 +510,6 @@ name julia/lang.json Project.toml
 name julia/private/quality/julia.bzl Project.toml
 name kotlin/lang.json MODULE.bazel
 name kotlin/lang.json maven_install.json
-name lua/lang.json *.rockspec
-name lua/lang.json luarocks.lock
 name lua/luarocks/defs.bzl luarocks.lock
 name lua/luarocks/extensions.bzl luarocks.lock
 name lua/luarocks/lock.bzl luarocks.lock
@@ -549,7 +547,6 @@ name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
 name tools/testing/nested_bazel.bzl maven_install.json
 name typescript/private/quality/tsc.bzl tsconfig.json
-name zig/lang.json build.zig.zon
 name zig/private/deps/extensions.bzl build.zig.zon
 name zig/private/deps/lock.bzl build.zig.zon
 name zig/private/deps/repos.bzl build.zig.zon
@@ -573,14 +570,12 @@ registry fpm
 registry go
 registry hex
 registry julia
-registry luarocks
 registry maven
 registry nuget
 registry opam
 registry powershell
 registry ruby
 registry swiftpm
-registry zig
 resolve-doc csharp/README.md 1
 resolve-doc elixir/README.md 1
 resolve-doc lua/README.md 1

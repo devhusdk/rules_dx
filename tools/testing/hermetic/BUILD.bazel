@@ -4,9 +4,9 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV")
-load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 load("//tools/testing/hermetic:compilers.bzl", "compiler_fixture", "starter_sources")
 load("//tools/testing/hermetic:defs.bzl", "HERMETIC_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification")
+load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 
 package(default_visibility = VIS_TOOLS_CLI_TEST)
 
@@ -61,9 +61,9 @@ rust_library(
         package_name = "tools/testing/hermetic",
         normal = True,
     ) + [
+        "//cli/binfmt:dx_binfmt",
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
-        "//cli/binfmt:dx_binfmt",
         "//tools/testing:dx_testing",
         "//tools/testing/floor:dx_floor",
         "//tools/testing/nested:dx_nested",
@@ -98,9 +98,9 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/binfmt:dx_binfmt",
         "//cli/lcov:dx_lcov",
         "//cli/process:dx_process",
-        "//cli/binfmt:dx_binfmt",
         "//tools/testing:dx_testing",
         "//tools/testing/floor:dx_floor",
         "//tools/testing/nested:dx_nested",
@@ -243,6 +243,8 @@ rust_test(
 
 hermetic_qualification(
     name = "cpp_rust",
+    # macOS takes about 870s (run 42173489188), Linux 653s (run 42178777570).
+    timeout = "eternal",
     coverage = [
         "//java/tests/fixtures/java-app/...",
         "//kotlin/tests/fixtures/kotlin-app/...",
@@ -386,8 +388,6 @@ hermetic_qualification(
         "//javascript/tests/fixtures/node-app/registry/...",
     ],
     smoke = True,
-    # macOS takes about 870s (run 42173489188), Linux 653s (run 42178777570).
-    timeout = "eternal",
 )
 
 hermetic_qualification(
@@ -497,6 +497,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "proto_bindings",
+    timeout = "long",
     files = {
         "consumers/proto_bindings/root.BUILD.bazel": "BUILD.bazel",
         "consumers/proto_bindings/go.mod": "go.mod",
@@ -513,10 +514,14 @@ hermetic_qualification(
         "consumers/proto_bindings/roundtrip/produce.go": "roundtrip/produce.go",
     },
     generate = True,
-    languages = ["go", "python", "java", "cc"],
+    languages = [
+        "go",
+        "python",
+        "java",
+        "cc",
+    ],
     module_fragment = "consumers/proto_bindings/module_fragment.bazel",
     patterns = ["//..."],
-    timeout = "long",
 )
 
 hermetic_qualification(
@@ -997,6 +1002,7 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "appimage",
+    compatible_with = LINUX_MACOS,
     files = {
         "consumers/appimage/consumer.bazelrc": ".bazelrc",
         "//appimage/tests/fixtures/appimage-app/app:BUILD.bazel": "appimage/tests/fixtures/appimage-app/app/BUILD.bazel",
@@ -1010,7 +1016,6 @@ hermetic_qualification(
         "//appimage/tests/fixtures/appimage-app/greet:greet.c": "appimage/tests/fixtures/appimage-app/greet/greet.c",
         "//appimage/tests/fixtures/appimage-app/greet:greet.h": "appimage/tests/fixtures/appimage-app/greet/greet.h",
     },
-    compatible_with = LINUX_MACOS,
     languages = ["appimage"],
     module_fragment = "consumers/appimage/module_fragment.bazel",
     patterns = ["//..."],
@@ -1070,6 +1075,8 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "c_fixture_gcc",
+    timeout = "eternal",
+    compatible_with = LINUX_MACOS,
     compiler = "gcc",
     failures = {"//probe:cxx_in_c": "cxx_in_c.c:1:10: fatal error: string: No such file or directory"},
     files = {
@@ -1083,17 +1090,17 @@ hermetic_qualification(
         "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
     },
-    compatible_with = LINUX_MACOS,
     languages = ["c"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
     smoke = True,
-    timeout = "eternal",
 )
 
 hermetic_qualification(
     name = "c_fixture_msvc",
+    timeout = "eternal",
+    compatible_with = WINDOWS,
     compiler = "msvc",
     failures = {"//probe:cxx_in_c": "error STL1003: Unexpected compiler, expected C++ compiler"},
     files = {
@@ -1107,13 +1114,11 @@ hermetic_qualification(
         "consumers/cc_fixture/c_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_in_c.c": "probe/cxx_in_c.c",
     },
-    compatible_with = WINDOWS,
     languages = ["c"],
     module_fragment = "consumers/cc_fixture/msvc_module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
     smoke = True,
-    timeout = "eternal",
 )
 
 hermetic_qualification(
@@ -1138,6 +1143,8 @@ hermetic_qualification(
 
 hermetic_qualification(
     name = "cpp_fixture_gcc",
+    timeout = "eternal",
+    compatible_with = LINUX_MACOS,
     compiler = "gcc",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc:2:3: error: expected primary-expression before 'int'"},
     files = {
@@ -1151,17 +1158,17 @@ hermetic_qualification(
         "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },
-    compatible_with = LINUX_MACOS,
     languages = ["cpp"],
     module_fragment = "consumers/cc_fixture/module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
     smoke = True,
-    timeout = "eternal",
 )
 
 hermetic_qualification(
     name = "cpp_fixture_msvc",
+    timeout = "eternal",
+    compatible_with = WINDOWS,
     compiler = "msvc",
     failures = {"//probe:c_in_cxx": "c_in_cxx.cc(2): error C"},
     files = {
@@ -1175,15 +1182,14 @@ hermetic_qualification(
         "consumers/cc_fixture/cpp_probe.BUILD.bazel": "probe/BUILD.bazel",
         "consumers/cc_fixture/cxx_only.cc": "probe/cxx_only.cc",
     },
-    compatible_with = WINDOWS,
     languages = ["cpp"],
     module_fragment = "consumers/cc_fixture/msvc_module_fragment.bazel",
     patterns = ["//..."],
     repo_name = "rules_dx",
     smoke = True,
-    timeout = "eternal",
 )
 
+# keep
 rust_binary(
     name = "compile_capture",
     testonly = True,
@@ -1269,31 +1275,31 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "compilers.bzl",
-        "consumers/cc_fixture/c_probe.BUILD.bazel",
-        "consumers/cc_fixture/cpp_probe.BUILD.bazel",
-        "consumers/cpp_rust/apps/c_cli.BUILD.bazel",
-        "consumers/cpp_rust/apps/c_store.BUILD.bazel",
-        "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",
-        "consumers/cpp_rust/apps/cpp_core.BUILD.bazel",
-        "consumers/cpp_rust/apps/java_billing.BUILD.bazel",
-        "consumers/cpp_rust/apps/java_billing_without_gson.BUILD.bazel",
-        "consumers/cpp_rust/apps/java_cli.BUILD.bazel",
-        "consumers/cpp_rust/apps/java_cli_indirect.BUILD.bazel",
-        "consumers/cpp_rust/apps/kotlin_cli.BUILD.bazel",
-        "consumers/cpp_rust/apps/kotlin_grades.BUILD.bazel",
-        "consumers/cpp_rust/apps/kotlin_grades_without_gson.BUILD.bazel",
-        "consumers/cpp_rust/apps/node_app.BUILD.bazel",
-        "consumers/cpp_rust/apps/node_cli.BUILD.bazel",
-        "consumers/cpp_rust/apps/node_registry.BUILD.bazel",
-        "consumers/cpp_rust/root.BUILD.bazel",
-        "consumers/cuda/apps/format.BUILD.bazel",
-        "consumers/msix/apps/app.BUILD.bazel",
-        "consumers/msix/apps/greet.BUILD.bazel",
-        "consumers/qt_rust/root.BUILD.bazel",
-        "consumers/qt_tasks/root.BUILD.bazel",
-        "consumers/rust_wasi/app.BUILD.bazel",
-        "consumers/zig/apps/catalog.BUILD.bazel",
-        "consumers/zig/apps/digest.BUILD.bazel",
+        "consumers/cc_fixture/c_probe.BUILD.bazel",  # keep
+        "consumers/cc_fixture/cpp_probe.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/c_cli.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/c_store.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/cpp_app.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/cpp_core.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/java_billing.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/java_billing_without_gson.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/java_cli.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/java_cli_indirect.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/kotlin_cli.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/kotlin_grades.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/kotlin_grades_without_gson.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/node_app.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/node_cli.BUILD.bazel",  # keep
+        "consumers/cpp_rust/apps/node_registry.BUILD.bazel",  # keep
+        "consumers/cpp_rust/root.BUILD.bazel",  # keep
+        "consumers/cuda/apps/format.BUILD.bazel",  # keep
+        "consumers/msix/apps/app.BUILD.bazel",  # keep
+        "consumers/msix/apps/greet.BUILD.bazel",  # keep
+        "consumers/qt_rust/root.BUILD.bazel",  # keep
+        "consumers/qt_tasks/root.BUILD.bazel",  # keep
+        "consumers/rust_wasi/app.BUILD.bazel",  # keep
+        "consumers/zig/apps/catalog.BUILD.bazel",  # keep
+        "consumers/zig/apps/digest.BUILD.bazel",  # keep
         "defs.bzl",
     ],
     tags = ["corpus"],

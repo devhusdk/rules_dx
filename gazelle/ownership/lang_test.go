@@ -8,28 +8,62 @@ import (
 
 func TestNames(t *testing.T) {
 	for name, f := range map[string]func(string) bool{
-		"Dockerfile":         isDockerfile,
-		"Containerfile.dev":  isDockerfile,
-		"app.Dockerfile":     isDockerfile,
-		"Dockerfile.go":      isDockerfile,
-		"CMakeLists.txt":     isCMake,
-		"toolchain.cmake":    isCMake,
-		"main.bicep":         isBicep,
-		"prod.bicepparam":    isBicep,
-		"guide.adoc":         isAsciiDoc,
-		"guide.asciidoc":     isAsciiDoc,
+		"CMakeLists.txt":  isCMake,
+		"toolchain.cmake": isCMake,
+		"main.bicep":      isBicep,
+		"prod.bicepparam": isBicep,
+		"guide.adoc":      isAsciiDoc,
+		"guide.asciidoc":  isAsciiDoc,
 	} {
 		if !f(name) {
 			t.Errorf("%s should match", name)
 		}
 	}
 	for name, f := range map[string]func(string) bool{
-		"dockerfile_notes.md": isDockerfile,
-		"cmakelists.txt":      isCMake,
-		"main.bicep.json":     isBicep,
-		"key.asc":             isAsciiDoc,
+		"cmakelists.txt":  isCMake,
+		"main.bicep.json": isBicep,
+		"key.asc":         isAsciiDoc,
 	} {
 		if f(name) {
+			t.Errorf("%s should not match", name)
+		}
+	}
+}
+
+// The lists mirror _DOCKERFILE_ACCEPTED and _DOCKERFILE_REJECTED in core/quality/sources_tests.bzl.
+func TestDockerfileNames(t *testing.T) {
+	for _, name := range []string{
+		"Dockerfile",
+		"Containerfile",
+		"Dockerfile.dev",
+		"Dockerfile.go",
+		"Dockerfile.prebuilt",
+		"Containerfile.ci",
+		"app.Dockerfile",
+		"app.dockerfile",
+		"app.Containerfile",
+		"app.containerfile",
+	} {
+		if !isDockerfile(name) {
+			t.Errorf("%s should match", name)
+		}
+	}
+	for _, name := range []string{
+		"Dockerfile.dockerignore",
+		"app.dockerignore",
+		".dockerignore",
+		"Dockerfile-dev",
+		"dockerfile",
+		"Dockerfile.",
+		".Dockerfile",
+		"Dockerfiles",
+		"README.md",
+		"dockerfile.md",
+		"containerfile.md",
+		"dockerfile_notes.md",
+		"app.DOCKERFILE",
+	} {
+		if isDockerfile(name) {
 			t.Errorf("%s should not match", name)
 		}
 	}

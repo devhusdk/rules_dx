@@ -270,8 +270,8 @@ def pipeline_unit_tests(name):
             ),
             expect_equal(
                 "upstream_tags keeps user tags in order and rewrites skip tags in place",
-                upstream_tags(["manual", "no-format", "no-remote", "no-lint", "requires-network", "no-typecheck", "no-audit"]),
-                ["manual", "dx:no-format", "no-remote", "dx:no-lint", "requires-network", "dx:no-typecheck", "dx:no-audit"],
+                upstream_tags(["cpu:4", "no-format", "no-remote-exec", "no-lint", "block-network", "no-typecheck", "no-audit"]),
+                ["cpu:4", "dx:no-format", "no-remote-exec", "dx:no-lint", "block-network", "dx:no-typecheck", "dx:no-audit"],
             ),
             expect_equal(
                 "upstream_tags leaves no plain no-<capability> tag",

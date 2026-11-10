@@ -225,6 +225,7 @@ test_suite(
         ":wrapper_forward_contract_forward",
         ":wrapper_forward_contract_golden_pin",
         ":wrapper_forward_contract_lossy",
+        ":wrapper_forward_test",
         ":wrapper_kwarg_hooks",
         ":wrapper_optional_forward",
         ":wrapper_resource_tags",

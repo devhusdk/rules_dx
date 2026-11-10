@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest")
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:defs.bzl", "DxSubjectInfo", "expect_equal", "starlark_test")
-load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
+load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
 load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo")
 
 def dx_file_class_checks(classes):
@@ -16,7 +16,7 @@ def dx_file_class_checks(classes):
 def dx_forwarder_checks():
     """Builds shared visibility and test kwarg checks."""
     return [
-        expect_equal("test kwargs keep manual", dx_forwarded_test_kwargs({"tags": ["manual", "cpu:4"]}), {"tags": ["manual", "cpu:4"]}),
+        expect_equal("test kwargs keep manual", dx_forwarded_test_kwargs({"tags": [DX_UPSTREAM_TAG, "cpu:4"]}), {"tags": [DX_UPSTREAM_TAG, "cpu:4"]}),
         expect_equal("test kwargs forward timeout and flaky", dx_forwarded_test_kwargs({"timeout": "short", "flaky": True}), {"timeout": "short", "flaky": True}),
         expect_equal("test kwargs forward args", dx_forwarded_test_kwargs({"args": ["--x"]}), {"args": ["--x"]}),
         expect_equal("test kwargs forward data with args", dx_forwarded_test_kwargs({"args": ["--x"], "data": [":d"]}), {"args": ["--x"], "data": [":d"]}),

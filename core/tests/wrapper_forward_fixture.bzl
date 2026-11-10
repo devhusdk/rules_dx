@@ -130,7 +130,6 @@ def wrapper_forward_fixtures(name, hint):
         run_env_inherit = ["HOME"],
         env = {"DX_WRAP_ENV": "1"},
         env_inherit = ["USER"],
-        tags = ["manual"],
     )
 
     _fake_binary(

@@ -17,7 +17,6 @@ erlang_app(
 erlang_test_app(
     app_name = "dx_tags_probe",
     tags = [
-        "manual",
         "no-lint",
         "no-remote-exec",
     ],
@@ -46,7 +45,7 @@ field beam_files=dx:no-lint,manual,no-remote-exec
 field erlang_app=manual,no-lint,no-remote-exec
 field erlang_app_upstream=dx:no-lint,manual,no-remote-exec
 field test_beam_files=dx:no-lint,manual,no-remote-exec
-field test_erlang_app=manual,no-lint,no-remote-exec
+field test_erlang_app=no-lint,no-remote-exec
 field test_erlang_app_upstream=dx:no-lint,manual,no-remote-exec
 aspect_field aspect_seen=True
 aspect_field field_count=7

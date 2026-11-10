@@ -96,6 +96,16 @@ A test is the first of four kinds that can prove the behaviour.
 - `//tools/testing/conformance:manifest` depends on the `:manifest` of every language in `core/modules/langs.bzl`. A language without a suite fails its build.
 - `docs/support-matrix.md` takes each suite test cell from the manifest. No hand-written table states one.
 
+## Wrapper upstream
+
+- A public test wrapper is the test. Its private `<name>_upstream` target is the executable the wrapper runs.
+- `DX_UPSTREAM_TAG` in `core/wrapper.bzl` is `manual`. `dx_upstream_tags` is its only writer.
+- Every private upstream target carries `DX_UPSTREAM_TAG`. Nothing else does.
+- No BUILD file tags an upstream target.
+- Expected-tag data names the upstream tag as `DX_UPSTREAM_TAG`, never as a string.
+- A tag-forwarding probe uses a tag that is not banned.
+- A test whose tags a probe reads runs in the default set.
+
 ## Duplicates
 
 - A test that proves what another test already proves is deleted.
@@ -110,6 +120,7 @@ A test is the first of four kinds that can prove the behaviour.
 - It counts `manual`, `exclusive` and the tags banned under Sandbox, remote execution and cache.
 - It counts a tag in the `tags` of a test rule or test macro call, in `local = True` on such a call, and in a tags value built outside a call: a tags-named variable, a `"tags"` dict entry, or the arguments of a tags-named function.
 - It counts a loaded tags constant at each test call that uses it.
+- It counts `DX_UPSTREAM_TAG` in the `tags` of a test call as `manual`.
 - A call is a test call when its name has the word `test`, `tests`, `suite`, `bench` or `fuzz`, when the name is a `rule(test = True)`, or when the name is a macro that calls one of these.
 - It skips `tags` on a call that is not a test call.
 - `tools/ci/test_tags_allowlist.txt` holds one line per file and tag: `<path> <tag> <count>`. Lines are sorted.

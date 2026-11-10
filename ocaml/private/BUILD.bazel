@@ -3,7 +3,7 @@ load("//core:defs.bzl", "expect_equal", "fake_file", "label_string")
 load("//core:wrapper.bzl", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core:rlocation.bzl", "runfiles_path")
-load(":defs.bzl", "launcher_script", "owned_sources", "toolchain_choice")
+load(":defs.bzl", "launcher_descriptor", "owned_sources", "toolchain_choice")
 load(":kwargs.bzl", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults")
 load(":providers.bzl", "STANDARD_WARNING_OPTS", "STRICT_WARNING_OPTS", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
@@ -310,8 +310,8 @@ dx_wrapper_contract_tests(
         ),
         expect_equal(
             "launcher runs bytecode on ocamlrun",
-            launcher_script("r", "b").splitlines()[-1],
-            'exec "$runfiles/r" "$runfiles/b" "$@"',
+            launcher_descriptor("r", "b"),
+            "program=r\npath=b\n",
         ),
     ],
     file_classes = ["ocaml"],

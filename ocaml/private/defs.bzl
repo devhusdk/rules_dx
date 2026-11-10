@@ -22,6 +22,7 @@ load(
     _ocaml_signature = "ocaml_signature",
     _ocamllex = "ocamllex",
 )
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//cc:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//core:fuzz.bzl", "dx_fuzz_runner")
@@ -134,24 +135,9 @@ _signature_forward = _library_forward_rule(_OCamlSignatureProvider, "OCamlSignat
 
 _library_forward = _library_forward_rule(_OCamlLibraryProvider, "OCamlLibraryProvider", _library_cmt_providers, {"manifest": attr.label_list(cfg = _toolchain, doc = "The modules and libraries the library bundles; their typed trees are forwarded in OCamlCmtInfo.")})
 
-_LAUNCHER = """#!/usr/bin/env bash
-set -euo pipefail
-if [[ -d "$0.runfiles" ]]; then
-    runfiles="$0.runfiles"
-elif [[ -n "${{RUNFILES_DIR:-}}" ]]; then
-    runfiles="$RUNFILES_DIR"
-elif [[ "$0" == *.runfiles/* ]]; then
-    runfiles="${{0%%.runfiles/*}}.runfiles"
-else
-    echo "$0: no runfiles tree" >&2
-    exit 2
-fi
-exec "$runfiles/{ocamlrun}" "$runfiles/{bytecode}" "$@"
-"""
-
-def launcher_script(ocamlrun, bytecode):
-    """Returns the launcher that runs one bytecode file on the runfiles ocamlrun."""
-    return _LAUNCHER.format(ocamlrun = ocamlrun, bytecode = bytecode)
+def launcher_descriptor(ocamlrun, bytecode):
+    """Returns the native launcher descriptor that runs one bytecode file on the runfiles ocamlrun."""
+    return "program={}\npath={}\n".format(ocamlrun, bytecode)
 
 def _run_environment_info(ctx, upstream):
     return dx_run_environment(ctx, upstream[RunEnvironmentInfo] if RunEnvironmentInfo in upstream else None)
@@ -205,12 +191,10 @@ def _bytecode_coverage_launcher(ctx, upstream, bytecode):
     runtime = ctx.attr._ocamlrun[DefaultInfo]
     ocamlrun = runtime.files.to_list()[0]
     inner = ctx.actions.declare_file(ctx.label.name + ".run")
-    ctx.actions.write(
-        inner,
-        launcher_script(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)),
-        is_executable = True,
-    )
-    return _coverage_launcher(ctx, upstream, inner, [inner, bytecode, ocamlrun], _native_coverage(ctx, upstream, None), [runtime.default_runfiles])
+    descriptor = ctx.actions.declare_file(ctx.label.name + ".run.launch")
+    ctx.actions.write(descriptor, launcher_descriptor(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)))
+    ctx.actions.symlink(output = inner, target_file = ctx.executable._exec_launcher, is_executable = True)
+    return _coverage_launcher(ctx, upstream, inner, [inner, descriptor, bytecode, ocamlrun], _native_coverage(ctx, upstream, None), [runtime.default_runfiles, ctx.attr._exec_launcher[DefaultInfo].default_runfiles])
 
 def _launcher_impl(ctx):
     upstream = dx_upstream(ctx)
@@ -223,8 +207,8 @@ def _launcher_impl(ctx):
         if sys:
             return _coverage_launcher(ctx, upstream, bytecode, [bytecode], _native_coverage(ctx, upstream, bytecode))
         return _bytecode_coverage_launcher(ctx, upstream, bytecode)
-    launcher = ctx.actions.declare_file(ctx.label.name)
     if sys:
+        launcher = ctx.actions.declare_file(ctx.label.name)
         ctx.actions.symlink(output = launcher, target_file = bytecode, is_executable = True)
         runfiles = ctx.runfiles([launcher, bytecode]).merge_all(
             [info.default_runfiles] + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
@@ -237,13 +221,9 @@ def _launcher_impl(ctx):
         ]
     runtime = ctx.attr._ocamlrun[DefaultInfo]
     ocamlrun = runtime.files.to_list()[0]
-    ctx.actions.write(
-        launcher,
-        launcher_script(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)),
-        is_executable = True,
-    )
-    runfiles = ctx.runfiles([launcher, bytecode, ocamlrun]).merge_all(
-        [info.default_runfiles, runtime.default_runfiles] + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
+    launcher, descriptor, launcher_runfiles = write_native_launcher(ctx, launcher_descriptor(runfiles_path(ctx.workspace_name, ocamlrun.short_path), runfiles_path(ctx.workspace_name, bytecode.short_path)))
+    runfiles = ctx.runfiles([bytecode, ocamlrun]).merge_all(
+        [launcher_runfiles, info.default_runfiles, runtime.default_runfiles] + [dep[DefaultInfo].default_runfiles for dep in ctx.attr.data],
     )
     return [
         DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles),
@@ -256,6 +236,7 @@ def _launcher_attrs(extra = None, upstream_aspects = None):
     attrs = dx_forward_attrs(allow_files = _SOURCE_EXTS, upstream_providers = None, extra_attrs = extra, upstream_cfg = _toolchain, upstream_aspects = upstream_aspects)
     attrs.update(dx_forward_data_attr())
     attrs.update(dx_run_env_attrs())
+    attrs.update(NATIVE_LAUNCHER_ATTRS)
     attrs["_emitter"] = attr.label(default = OCAML_EMITTER_FLAG, providers = [BuildSettingInfo], doc = "The emitter flag: sys links native executables, vm bytecode.")
     attrs["_ocamlrun"] = attr.label(default = "@dx_ocaml_toolchains//:ocamlrun", allow_files = True)
     return attrs

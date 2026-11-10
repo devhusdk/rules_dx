@@ -142,12 +142,6 @@ def _bash_word(token):
         return '${{{var}:+{flag} "${var}"}}'.format(flag = token[1], var = token[2])
     fail("unknown launcher token " + kind)
 
-def launcher_script(php, ini, tokens):
-    """Returns the bash launcher that runs the runfiles php with -n, the ini flags, the tokens and the user's arguments."""
-    flags = "".join([shell_quote(flag) + " " for flag in ini_flags(ini)])
-    tail = " ".join([_bash_word(token) for token in tokens] + ['"$@"'])
-    return _LAUNCHER.format(body = 'exec "$runfiles/{php}" -n {flags}{tail}\n'.format(php = php, flags = flags, tail = tail))
-
 _COVERAGE_BODY = """tree="$(cd -P "$runfiles/{tree}" && pwd)"
 clover="$(mktemp "${{TEST_TMPDIR:-${{TMPDIR:-/tmp}}}}/clover.XXXXXX")"
 status=0
@@ -175,7 +169,7 @@ def _descriptor_line(token):
     return kind + "=" + token[1]
 
 def launcher_descriptor(php, ini, tokens):
-    """Returns the descriptor text the native launcher reads: the same program and arguments as launcher_script."""
+    """Returns the descriptor text the native launcher reads: the runfiles php with -n, the ini flags and the tokens."""
     lines = ["program=" + php, "arg=-n"]
     for flag in ini_flags(ini):
         lines.append("arg=" + flag)
@@ -183,14 +177,9 @@ def launcher_descriptor(php, ini, tokens):
     return "\n".join(lines) + "\n"
 
 def write_launcher(ctx, php, ini, tokens):
-    """Writes the launcher of a php program: a bash script, or the native launcher with a descriptor on Windows."""
+    """Writes the native launcher of a php program with its descriptor."""
     key = runfiles_path(ctx.workspace_name, php.interpreter.short_path)
-    if target_is_windows(ctx):
-        launcher, _, runfiles = write_native_launcher(ctx, launcher_descriptor(key, ini, tokens))
-    else:
-        launcher = ctx.actions.declare_file(ctx.label.name)
-        ctx.actions.write(launcher, launcher_script(key, ini, tokens), is_executable = True)
-        runfiles = ctx.runfiles(files = [launcher])
+    launcher, _, runfiles = write_native_launcher(ctx, launcher_descriptor(key, ini, tokens))
     return launcher, runfiles
 
 def _write_launcher(ctx, tokens):

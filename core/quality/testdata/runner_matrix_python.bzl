@@ -267,11 +267,11 @@ PYTHON_CASES = [
     {
         "name": "matrix_python_lint_ruff_first_party",
         "generated": {
-            "matrix_fp_helper.py": "\"\"\"First-party helper.\"\"\"\n\nVALUE = 1\n",
+            "core/quality/testdata/matrix_fp_helper.py": "\"\"\"First-party helper.\"\"\"\n\nVALUE = 1\n",
             "core/quality/testdata/matrix/ruff_first_party/app.py": "\"\"\"First-party import order.\"\"\"\n\nimport matrix_fp_helper\nimport os\n\nimport yaml\n\nprint(os.sep, yaml.__name__, matrix_fp_helper.VALUE)\n",
         },
         "capability": "lint",
-        "stages": ["ruff;python;core/quality/testdata/matrix/ruff_first_party/app.py,matrix_fp_helper.py"],
+        "stages": ["ruff;python;core/quality/testdata/matrix/ruff_first_party/app.py,core/quality/testdata/matrix_fp_helper.py"],
         "tool_names": ["ruff"],
         "tool_binaries": ["@dx_tools//:ruff"],
         "toolfile_tools": ["ruff"],

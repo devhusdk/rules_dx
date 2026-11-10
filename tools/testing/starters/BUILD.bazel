@@ -16,10 +16,7 @@ STARTER_BAZEL_DEPS = {
         "rules_cuda",
     ],
     "d": ["rules_dx"],
-    "dart": [
-        "rules_dx",
-        "rules_dart",
-    ],
+    "dart": ["rules_dx"],
     "elixir": ["rules_dx"],
     "erlang": ["rules_dx"],
     "flutter": [

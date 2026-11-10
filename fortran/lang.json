@@ -32,6 +32,28 @@
       ".f08",
       ".f90",
       ".f95"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_fortran_format_aspect"
+      ],
+      "lint": [
+        "real_fortran_lint_aspect"
+      ],
+      "typecheck": [
+        "real_fortran_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_fortran_format_probe_aspect"
+      ],
+      "lint": [
+        "real_fortran_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_fortran_typecheck_probe_aspect"
+      ]
+    }
   }
 }

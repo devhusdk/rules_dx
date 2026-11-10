@@ -35,6 +35,22 @@
     "file_extensions": [
       ".pl",
       ".pm"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_perl_format_aspect"
+      ],
+      "lint": [
+        "real_perl_lint_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_perl_format_probe_aspect"
+      ],
+      "lint": [
+        "real_perl_lint_probe_aspect"
+      ]
+    }
   }
 }

@@ -37,6 +37,14 @@
     "file_extensions": [
       ".sc",
       ".scala"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_scala_format_aspect"
+      ],
+      "lint": [
+        "real_scala_lint_aspect"
+      ]
+    }
   }
 }

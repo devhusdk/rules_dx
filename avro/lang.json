@@ -25,6 +25,14 @@
     "bzl": "quality:families/generation.bzl",
     "file_extensions": [
       ".avsc"
-    ]
+    ],
+    "aspects": {
+      "lint": [
+        "real_avro_lint_aspect"
+      ],
+      "typecheck": [
+        "real_avro_typecheck_aspect"
+      ]
+    }
   }
 }

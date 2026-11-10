@@ -21,6 +21,28 @@
     "bzl": "quality:families/pkl.bzl",
     "file_extensions": [
       ".pkl"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_pkl_format_aspect"
+      ],
+      "lint": [
+        "real_pkl_lint_aspect"
+      ],
+      "typecheck": [
+        "real_pkl_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_pkl_format_probe_aspect"
+      ],
+      "lint": [
+        "real_pkl_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_pkl_typecheck_probe_aspect"
+      ]
+    }
   }
 }

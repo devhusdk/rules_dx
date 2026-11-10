@@ -42,6 +42,28 @@
     "file_extensions": [
       ".py",
       ".pyi"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_python_format_aspect"
+      ],
+      "lint": [
+        "real_python_lint_aspect"
+      ],
+      "typecheck": [
+        "real_python_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_python_format_probe_aspect"
+      ],
+      "lint": [
+        "real_python_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_python_typecheck_probe_aspect"
+      ]
+    }
   }
 }

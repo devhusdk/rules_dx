@@ -25,6 +25,14 @@
     "bzl": "quality:families/generation.bzl",
     "file_extensions": [
       ".thrift"
-    ]
+    ],
+    "aspects": {
+      "lint": [
+        "real_thrift_lint_aspect"
+      ],
+      "typecheck": [
+        "real_thrift_typecheck_aspect"
+      ]
+    }
   }
 }

@@ -44,6 +44,14 @@
     "file_extensions": [
       ".ex",
       ".exs"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_elixir_format_aspect"
+      ],
+      "lint": [
+        "real_elixir_lint_aspect"
+      ]
+    }
   }
 }

@@ -33,6 +33,28 @@
     "bzl": "quality:families/julia.bzl",
     "file_extensions": [
       ".jl"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_julia_format_aspect"
+      ],
+      "lint": [
+        "real_julia_lint_aspect"
+      ],
+      "typecheck": [
+        "real_julia_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_julia_format_probe_aspect"
+      ],
+      "lint": [
+        "real_julia_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_julia_typecheck_probe_aspect"
+      ]
+    }
   }
 }

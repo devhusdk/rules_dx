@@ -26,11 +26,22 @@
       "required": ["bzl", "file_extensions"],
       "properties": {
         "bzl": {"type": "string", "minLength": 1},
-        "file_extensions": {"$ref": "#/$defs/strings"}
+        "file_extensions": {"$ref": "#/$defs/strings"},
+        "aspects": {"$ref": "#/$defs/commands"},
+        "probes": {"$ref": "#/$defs/commands"}
       }
     }
   },
   "$defs": {
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "format": {"$ref": "#/$defs/strings"},
+        "lint": {"$ref": "#/$defs/strings"},
+        "typecheck": {"$ref": "#/$defs/strings"}
+      }
+    },
     "strings": {
       "type": "array",
       "uniqueItems": true,

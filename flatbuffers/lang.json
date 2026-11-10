@@ -27,6 +27,14 @@
     "bzl": "quality:families/generation.bzl",
     "file_extensions": [
       ".fbs"
-    ]
+    ],
+    "aspects": {
+      "lint": [
+        "real_flatbuffers_lint_aspect"
+      ],
+      "typecheck": [
+        "real_flatbuffers_typecheck_aspect"
+      ]
+    }
   }
 }

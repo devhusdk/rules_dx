@@ -28,6 +28,28 @@
     "bzl": "quality:families/d.bzl",
     "file_extensions": [
       ".d"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_d_format_aspect"
+      ],
+      "lint": [
+        "real_d_lint_aspect"
+      ],
+      "typecheck": [
+        "real_d_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_d_format_probe_aspect"
+      ],
+      "lint": [
+        "real_d_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_d_typecheck_probe_aspect"
+      ]
+    }
   }
 }

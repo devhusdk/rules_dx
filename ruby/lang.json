@@ -38,6 +38,28 @@
     "file_extensions": [
       ".rb",
       ".rbs"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_ruby_format_aspect"
+      ],
+      "lint": [
+        "real_ruby_lint_aspect"
+      ],
+      "typecheck": [
+        "real_ruby_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_ruby_format_probe_aspect"
+      ],
+      "lint": [
+        "real_ruby_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_ruby_typecheck_probe_aspect"
+      ]
+    }
   }
 }

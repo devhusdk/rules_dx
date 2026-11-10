@@ -43,6 +43,28 @@
     "file_extensions": [
       ".ml",
       ".mli"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_ocaml_format_aspect"
+      ],
+      "lint": [
+        "real_ocaml_lint_aspect"
+      ],
+      "typecheck": [
+        "real_ocaml_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_ocaml_format_probe_aspect"
+      ],
+      "lint": [
+        "real_ocaml_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_ocaml_typecheck_probe_aspect"
+      ]
+    }
   }
 }

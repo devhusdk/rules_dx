@@ -66,10 +66,28 @@ pub fn installed(dep_names: &BTreeSet<String>) -> Vec<&'static Family> {
 
 /// The `quality` entry of one `<lang>/lang.json`.
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]
+#[serde(default)]
 pub struct QualityFiles {
     /// The aspect file, like `quality:families/go.bzl`.
     pub bzl: String,
     pub file_extensions: Vec<String>,
+    /// Aspect names defined in `bzl`, by command.
+    pub aspects: std::collections::BTreeMap<String, Vec<String>>,
+    /// Probe aspect names defined in `bzl`, by command.
+    pub probes: std::collections::BTreeMap<String, Vec<String>>,
+}
+
+impl QualityFiles {
+    /// The `bzl%name` labels of the aspects (or probes) of `command`.
+    pub fn labels(&self, command: &str, probes: bool) -> Vec<String> {
+        let table = if probes { &self.probes } else { &self.aspects };
+        table
+            .get(command)
+            .into_iter()
+            .flatten()
+            .map(|name| format!("{}%{name}", self.bzl))
+            .collect()
+    }
 }
 
 const LANGUAGE_MANIFESTS: &[&str] = &[
@@ -119,21 +137,29 @@ struct Manifest {
 /// Merges the `quality` entries of `lang.json` texts by aspect file, sorted by file. A text
 /// without a `quality` entry is skipped.
 pub fn parse_quality(texts: &[&str]) -> Result<Vec<QualityFiles>, serde_json::Error> {
-    let mut merged: std::collections::BTreeMap<String, BTreeSet<String>> = Default::default();
+    let mut merged: std::collections::BTreeMap<String, QualityFiles> = Default::default();
     for text in texts {
         let manifest: Manifest = serde_json::from_str(text)?;
         if let Some(quality) = manifest.quality {
-            merged
-                .entry(quality.bzl)
-                .or_default()
-                .extend(quality.file_extensions);
+            let entry = merged.entry(quality.bzl.clone()).or_default();
+            entry.bzl = quality.bzl;
+            entry.file_extensions.extend(quality.file_extensions);
+            for (target, source) in [
+                (&mut entry.aspects, quality.aspects),
+                (&mut entry.probes, quality.probes),
+            ] {
+                for (command, names) in source {
+                    target.entry(command).or_default().extend(names);
+                }
+            }
         }
     }
     Ok(merged
-        .into_iter()
-        .map(|(bzl, extensions)| QualityFiles {
-            bzl,
-            file_extensions: extensions.into_iter().collect(),
+        .into_values()
+        .map(|mut files| {
+            let extensions: BTreeSet<String> = files.file_extensions.drain(..).collect();
+            files.file_extensions = extensions.into_iter().collect();
+            files
         })
         .collect())
 }

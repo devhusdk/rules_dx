@@ -19,6 +19,14 @@
     "bzl": "quality:families/generation.bzl",
     "file_extensions": [
       ".capnp"
-    ]
+    ],
+    "aspects": {
+      "lint": [
+        "real_capnp_lint_aspect"
+      ],
+      "typecheck": [
+        "real_capnp_typecheck_aspect"
+      ]
+    }
   }
 }

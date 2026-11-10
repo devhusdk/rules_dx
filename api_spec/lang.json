@@ -25,6 +25,28 @@
     "bzl": "quality:families/generation.bzl",
     "file_extensions": [
       ".proto"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_protobuf_format_aspect"
+      ],
+      "lint": [
+        "real_protobuf_lint_aspect"
+      ],
+      "typecheck": [
+        "real_protobuf_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_generation_format_probe_aspect"
+      ],
+      "lint": [
+        "real_generation_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_generation_typecheck_probe_aspect"
+      ]
+    }
   }
 }

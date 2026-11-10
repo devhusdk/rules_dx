@@ -39,6 +39,28 @@
     "bzl": "quality:families/rust.bzl",
     "file_extensions": [
       ".rs"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_rust_format_aspect"
+      ],
+      "lint": [
+        "real_rust_lint_aspect"
+      ],
+      "typecheck": [
+        "real_rust_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_rust_format_probe_aspect"
+      ],
+      "lint": [
+        "real_rust_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_rust_typecheck_probe_aspect"
+      ]
+    }
   }
 }

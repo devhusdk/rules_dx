@@ -33,6 +33,28 @@
     "bzl": "quality:families/lua.bzl",
     "file_extensions": [
       ".lua"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_lua_format_aspect"
+      ],
+      "lint": [
+        "real_lua_lint_aspect"
+      ],
+      "typecheck": [
+        "real_lua_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_lua_format_probe_aspect"
+      ],
+      "lint": [
+        "real_lua_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_lua_typecheck_probe_aspect"
+      ]
+    }
   }
 }

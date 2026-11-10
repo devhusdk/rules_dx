@@ -34,6 +34,22 @@
     "bzl": "quality:families/swift.bzl",
     "file_extensions": [
       ".swift"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_swift_format_aspect"
+      ],
+      "lint": [
+        "real_swift_lint_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_swift_format_probe_aspect"
+      ],
+      "lint": [
+        "real_swift_lint_probe_aspect"
+      ]
+    }
   }
 }

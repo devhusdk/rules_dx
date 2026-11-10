@@ -37,6 +37,28 @@
     "bzl": "quality:families/haskell.bzl",
     "file_extensions": [
       ".hs"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_haskell_format_aspect"
+      ],
+      "lint": [
+        "real_haskell_lint_aspect"
+      ],
+      "typecheck": [
+        "real_haskell_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_haskell_format_probe_aspect"
+      ],
+      "lint": [
+        "real_haskell_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_haskell_typecheck_probe_aspect"
+      ]
+    }
   }
 }

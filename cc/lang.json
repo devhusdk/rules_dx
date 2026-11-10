@@ -54,6 +54,28 @@
       ".ipp",
       ".m",
       ".mm"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_cc_format_aspect"
+      ],
+      "lint": [
+        "real_cc_lint_aspect"
+      ],
+      "typecheck": [
+        "real_cc_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_cc_format_probe_aspect"
+      ],
+      "lint": [
+        "real_cc_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_cc_typecheck_probe_aspect"
+      ]
+    }
   }
 }

@@ -39,6 +39,28 @@
     "bzl": "quality:families/go.bzl",
     "file_extensions": [
       ".go"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_go_format_aspect"
+      ],
+      "lint": [
+        "real_go_lint_aspect"
+      ],
+      "typecheck": [
+        "real_go_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_go_format_probe_aspect"
+      ],
+      "lint": [
+        "real_go_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_go_typecheck_probe_aspect"
+      ]
+    }
   }
 }

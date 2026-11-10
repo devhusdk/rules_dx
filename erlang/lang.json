@@ -58,6 +58,28 @@
     "file_extensions": [
       ".erl",
       ".hrl"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_erlang_format_aspect"
+      ],
+      "lint": [
+        "real_erlang_lint_aspect"
+      ],
+      "typecheck": [
+        "real_erlang_typecheck_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_beam_format_probe_aspect"
+      ],
+      "lint": [
+        "real_beam_lint_probe_aspect"
+      ],
+      "typecheck": [
+        "real_beam_typecheck_probe_aspect"
+      ]
+    }
   }
 }

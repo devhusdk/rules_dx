@@ -51,7 +51,7 @@ fn module_field_parses() {
 fn quality_entries_merge_by_aspect_file() {
     let merged = parse_quality(&[
         r#"{"quality": {"bzl": "quality:families/a.bzl", "file_extensions": [".y"]}}"#,
-        r#"{"quality": {"bzl": "quality:families/a.bzl", "file_extensions": [".x"]}}"#,
+        r#"{"quality": {"bzl": "quality:families/a.bzl", "file_extensions": [".x"], "aspects": {"lint": ["a_lint"]}, "probes": {"lint": ["a_probe"]}}}"#,
         r#"{"name": "no quality"}"#,
     ])
     .expect("parse");
@@ -60,6 +60,8 @@ fn quality_entries_merge_by_aspect_file() {
         vec![QualityFiles {
             bzl: "quality:families/a.bzl".to_owned(),
             file_extensions: vec![".x".to_owned(), ".y".to_owned()],
+            aspects: BTreeMap::from([("lint".to_owned(), vec!["a_lint".to_owned()])]),
+            probes: BTreeMap::from([("lint".to_owned(), vec!["a_probe".to_owned()])]),
         }]
     );
     assert!(parse_quality(&["{"]).is_err());
@@ -76,4 +78,19 @@ fn every_quality_extension_has_one_aspect_file() {
         }
     }
     assert!(quality_languages().len() > 20);
+}
+
+#[test]
+fn every_language_aspect_label_is_listed_once() {
+    let mut seen = std::collections::BTreeSet::new();
+    for language in quality_languages() {
+        for command in ["format", "lint", "typecheck"] {
+            for probes in [false, true] {
+                for label in language.labels(command, probes) {
+                    assert!(seen.insert(label.clone()), "{label} is listed twice");
+                }
+            }
+        }
+    }
+    assert!(seen.len() > 100);
 }

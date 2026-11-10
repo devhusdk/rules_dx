@@ -34,6 +34,22 @@
       ".ps1",
       ".psd1",
       ".psm1"
-    ]
+    ],
+    "aspects": {
+      "format": [
+        "real_powershell_format_aspect"
+      ],
+      "lint": [
+        "real_powershell_lint_aspect"
+      ]
+    },
+    "probes": {
+      "format": [
+        "real_powershell_format_probe_aspect"
+      ],
+      "lint": [
+        "real_powershell_lint_probe_aspect"
+      ]
+    }
   }
 }

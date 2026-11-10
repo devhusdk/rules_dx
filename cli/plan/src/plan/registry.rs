@@ -2,7 +2,8 @@ use super::registry_gen;
 use super::rules_dx_label;
 use crate::args::Command;
 use crate::reports::StandardFormat;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
+use std::sync::OnceLock;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CommandSpec {
@@ -20,24 +21,59 @@ impl CommandSpec {
     }
 }
 
+/// The labels of the aspect files without a language, then those of every language's `quality`
+/// entry in `lang.json`.
+fn with_languages(
+    command: &'static str,
+    probes: bool,
+    core: &'static [&'static str],
+) -> &'static [&'static str] {
+    type Key = (&'static str, bool);
+    static ALL: OnceLock<BTreeMap<Key, &'static [&'static str]>> = OnceLock::new();
+    let all = ALL.get_or_init(|| {
+        let mut all = BTreeMap::new();
+        for (command, probes, core) in [
+            ("lint", false, registry_gen::LINT_ASPECTS),
+            ("lint", true, registry_gen::LINT_PROBES),
+            ("typecheck", false, registry_gen::TYPECHECK_ASPECTS),
+            ("typecheck", true, registry_gen::TYPECHECK_PROBES),
+            ("format", false, registry_gen::FORMAT_ASPECTS),
+            ("format", true, registry_gen::FORMAT_PROBES),
+        ] {
+            let mut labels: Vec<&'static str> = core.to_vec();
+            for language in dx_families::quality_languages() {
+                labels.extend(
+                    language
+                        .labels(command, probes)
+                        .into_iter()
+                        .map(|label| &*Box::leak(label.into_boxed_str())),
+                );
+            }
+            all.insert((command, probes), &*Box::leak(labels.into_boxed_slice()));
+        }
+        all
+    });
+    all.get(&(command, probes)).copied().unwrap_or(core)
+}
+
 pub fn spec(command: Command) -> CommandSpec {
     match command {
         Command::Lint => CommandSpec {
             command,
-            aspects: registry_gen::LINT_ASPECTS,
-            probes: registry_gen::LINT_PROBES,
+            aspects: with_languages("lint", false, registry_gen::LINT_ASPECTS),
+            probes: with_languages("lint", true, registry_gen::LINT_PROBES),
             reports: &[StandardFormat::Sarif],
         },
         Command::Typecheck => CommandSpec {
             command,
-            aspects: registry_gen::TYPECHECK_ASPECTS,
-            probes: registry_gen::TYPECHECK_PROBES,
+            aspects: with_languages("typecheck", false, registry_gen::TYPECHECK_ASPECTS),
+            probes: with_languages("typecheck", true, registry_gen::TYPECHECK_PROBES),
             reports: &[StandardFormat::Sarif],
         },
         Command::Format => CommandSpec {
             command,
-            aspects: registry_gen::FORMAT_ASPECTS,
-            probes: registry_gen::FORMAT_PROBES,
+            aspects: with_languages("format", false, registry_gen::FORMAT_ASPECTS),
+            probes: with_languages("format", true, registry_gen::FORMAT_PROBES),
             reports: &[],
         },
         Command::Generate => CommandSpec {
@@ -380,33 +416,24 @@ mod tests {
     #[test]
     fn go_only_consumer_selects_core_and_go() {
         let extensions = extensions(&[".go", ".json", ".md"]);
-        let lint = aspects_for(Command::Lint, consumer(&[], &extensions));
-        assert_eq!(
-            lint,
-            vec![
-                "quality:families/dockerfile.bzl%real_dockerfile_lint_aspect",
-                "quality:families/make.bzl%real_make_lint_aspect",
-                "quality:families/cmake.bzl%real_cmake_lint_aspect",
-                "quality:families/terraform.bzl%real_terraform_lint_aspect",
-                "quality:families/go.bzl%real_go_lint_aspect",
-                "quality:families/core.bzl%real_lint_aspect",
-                "quality:families/shell.bzl%real_shell_lint_aspect",
-                "quality:families/text.bzl%real_text_lint_aspect",
-                "quality:families/html_template.bzl%real_html_template_lint_aspect",
-                "quality:families/yaml.bzl%real_yaml_lint_aspect",
-                "quality:families/nix.bzl%real_nix_lint_aspect",
-                "quality:families/kubernetes.bzl%real_kubernetes_lint_aspect",
-                "quality:families/ansible.bzl%real_ansible_lint_aspect",
-                "quality:families/cloudformation.bzl%real_cloudformation_lint_aspect",
-                "quality:families/bicep.bzl%real_bicep_lint_aspect",
-                "quality:families/sql.bzl%real_sql_lint_aspect",
-                "quality:families/rego.bzl%real_rego_lint_aspect",
-                "quality:families/jsonnet.bzl%real_jsonnet_lint_aspect",
-                "quality:families/typst.bzl%real_typst_lint_aspect",
-                "quality:families/xml.bzl%real_xml_lint_aspect",
-                "quality:families/latex.bzl%real_latex_lint_aspect",
-            ]
-        );
+        for command in [Command::Lint, Command::Typecheck, Command::Format] {
+            let entry = spec(command);
+            let labels = aspects_for(command, consumer(&[], &extensions));
+            let probes = probes_for(command, consumer(&[], &extensions));
+            for label in labels.iter().chain(&probes) {
+                let file = label.split_once('%').expect("label has a name").0;
+                let language = dx_families::quality_languages()
+                    .iter()
+                    .find(|language| language.bzl == file);
+                assert!(
+                    language.is_none_or(|language| language.bzl == "quality:families/go.bzl"),
+                    "{command:?}: {label}"
+                );
+            }
+            assert!(labels.iter().any(|label| label.contains("families/go.bzl")));
+            assert!(labels.iter().any(|label| label.contains("families/core.bzl")));
+            assert!(labels.len() < entry.aspects.len());
+        }
         let probes = probes_for(Command::Lint, consumer(&[], &extensions));
         assert_eq!(
             probes,
@@ -415,6 +442,27 @@ mod tests {
                 "quality:families/go.bzl%real_go_lint_probe_aspect",
             ]
         );
+    }
+
+    #[test]
+    fn every_non_core_aspect_label_maps_to_one_language_file() {
+        use clap::ValueEnum;
+        for command in Command::value_variants() {
+            let entry = spec(*command);
+            for label in entry.aspects.iter().chain(entry.probes) {
+                let file = label.split_once('%').expect("label has a name").0;
+                let owners = dx_families::quality_languages()
+                    .iter()
+                    .filter(|language| language.bzl == file)
+                    .count();
+                assert!(owners <= 1, "{label}");
+            }
+            let mut sorted: Vec<&str> = entry.aspects.iter().chain(entry.probes).copied().collect();
+            sorted.sort();
+            let before = sorted.len();
+            sorted.dedup();
+            assert_eq!(before, sorted.len(), "{command:?} lists a label twice");
+        }
     }
 
     /// Family extensions no aspect file checks.
@@ -504,145 +552,37 @@ mod tests {
         }
     }
 
+    fn assert_core_then_languages(entry: &CommandSpec) {
+        let core = match entry.command {
+            Command::Lint => (registry_gen::LINT_ASPECTS, registry_gen::LINT_PROBES),
+            Command::Typecheck => (registry_gen::TYPECHECK_ASPECTS, registry_gen::TYPECHECK_PROBES),
+            _ => (registry_gen::FORMAT_ASPECTS, registry_gen::FORMAT_PROBES),
+        };
+        assert_eq!(&entry.aspects[..core.0.len()], core.0);
+        assert_eq!(&entry.probes[..core.1.len()], core.1);
+        let language_aspects: Vec<&str> = entry.aspects[core.0.len()..].to_vec();
+        assert!(!language_aspects.is_empty());
+        for label in language_aspects.iter().chain(&entry.probes[core.1.len()..]) {
+            let file = label.split_once('%').expect("label has a name").0;
+            assert!(
+                dx_families::quality_languages()
+                    .iter()
+                    .any(|language| language.bzl == file),
+                "{label} is in no lang.json quality entry"
+            );
+        }
+    }
+
     #[test]
     fn registry_entries_match_command_contract() {
         let lint = spec(Command::Lint);
-        assert_eq!(
-            lint.aspects,
-            &[
-                "quality:families/cc.bzl%real_cc_lint_aspect",
-                "quality:families/dockerfile.bzl%real_dockerfile_lint_aspect",
-                "quality:families/make.bzl%real_make_lint_aspect",
-                "quality:families/cmake.bzl%real_cmake_lint_aspect",
-                "quality:families/terraform.bzl%real_terraform_lint_aspect",
-                "quality:families/dotnet.bzl%real_dotnet_lint_aspect",
-                "quality:families/generation.bzl%real_capnp_lint_aspect",
-                "quality:families/generation.bzl%real_flatbuffers_lint_aspect",
-                "quality:families/generation.bzl%real_thrift_lint_aspect",
-                "quality:families/generation.bzl%real_avro_lint_aspect",
-                "quality:families/go.bzl%real_go_lint_aspect",
-                "quality:families/core.bzl%real_lint_aspect",
-                "quality:families/js.bzl%real_js_lint_aspect",
-                "quality:families/python.bzl%real_python_lint_aspect",
-                "quality:families/generation.bzl%real_protobuf_lint_aspect",
-                "quality:families/powershell.bzl%real_powershell_lint_aspect",
-                "quality:families/jvm.bzl%real_jvm_lint_aspect",
-                "quality:families/ruby.bzl%real_ruby_lint_aspect",
-                "quality:families/rust.bzl%real_rust_lint_aspect",
-                "quality:families/jvm.bzl%real_scala_lint_aspect",
-                "quality:families/shell.bzl%real_shell_lint_aspect",
-                "quality:families/text.bzl%real_text_lint_aspect",
-                "quality:families/html_template.bzl%real_html_template_lint_aspect",
-                "quality:families/yaml.bzl%real_yaml_lint_aspect",
-                "quality:families/nix.bzl%real_nix_lint_aspect",
-                "quality:families/lua.bzl%real_lua_lint_aspect",
-                "quality:families/ocaml.bzl%real_ocaml_lint_aspect",
-                "quality:families/kubernetes.bzl%real_kubernetes_lint_aspect",
-                "quality:families/ansible.bzl%real_ansible_lint_aspect",
-                "quality:families/cloudformation.bzl%real_cloudformation_lint_aspect",
-                "quality:families/bicep.bzl%real_bicep_lint_aspect",
-                "quality:families/sql.bzl%real_sql_lint_aspect",
-                "quality:families/rego.bzl%real_rego_lint_aspect",
-                "quality:families/jsonnet.bzl%real_jsonnet_lint_aspect",
-                "quality:families/fortran.bzl%real_fortran_lint_aspect",
-                "quality:families/typst.bzl%real_typst_lint_aspect",
-                "quality:families/xml.bzl%real_xml_lint_aspect",
-                "quality:families/haskell.bzl%real_haskell_lint_aspect",
-                "quality:families/latex.bzl%real_latex_lint_aspect",
-                "quality:families/beam.bzl%real_erlang_lint_aspect",
-                "quality:families/beam.bzl%real_elixir_lint_aspect",
-                "quality:families/php.bzl%real_php_lint_aspect",
-                "quality:families/dart.bzl%real_dart_lint_aspect",
-                "quality:families/d.bzl%real_d_lint_aspect",
-                "quality:families/perl.bzl%real_perl_lint_aspect",
-                "quality:families/swift.bzl%real_swift_lint_aspect",
-                "quality:families/zig.bzl%real_zig_lint_aspect",
-                "quality:families/julia.bzl%real_julia_lint_aspect",
-                "quality:families/pkl.bzl%real_pkl_lint_aspect",
-            ]
-        );
+        assert_core_then_languages(&lint);
         assert_eq!(lint.reports, &[StandardFormat::Sarif]);
         let typecheck = spec(Command::Typecheck);
-        assert_eq!(
-            typecheck.aspects,
-            &[
-                "quality:families/core.bzl%real_typecheck_aspect",
-                "quality:families/go.bzl%real_go_typecheck_aspect",
-                "quality:families/js.bzl%real_js_typecheck_aspect",
-                "quality:families/jvm.bzl%real_jvm_typecheck_aspect",
-                "quality:families/d.bzl%real_d_typecheck_aspect",
-                "quality:families/fortran.bzl%real_fortran_typecheck_aspect",
-                "quality:families/zig.bzl%real_zig_typecheck_aspect",
-                "quality:families/ocaml.bzl%real_ocaml_typecheck_aspect",
-                "quality:families/haskell.bzl%real_haskell_typecheck_aspect",
-                "quality:families/rust.bzl%real_rust_typecheck_aspect",
-                "quality:families/dotnet.bzl%real_dotnet_typecheck_aspect",
-                "quality:families/rego.bzl%real_rego_typecheck_aspect",
-                "quality:families/generation.bzl%real_capnp_typecheck_aspect",
-                "quality:families/generation.bzl%real_flatbuffers_typecheck_aspect",
-                "quality:families/generation.bzl%real_thrift_typecheck_aspect",
-                "quality:families/generation.bzl%real_avro_typecheck_aspect",
-                "quality:families/generation.bzl%real_protobuf_typecheck_aspect",
-                "quality:families/cue.bzl%real_cue_typecheck_aspect",
-                "quality:families/cc.bzl%real_cc_typecheck_aspect",
-                "quality:families/pkl.bzl%real_pkl_typecheck_aspect",
-                "quality:families/terraform.bzl%real_terraform_typecheck_aspect",
-                "quality:families/beam.bzl%real_erlang_typecheck_aspect",
-                "quality:families/php.bzl%real_php_typecheck_aspect",
-                "quality:families/julia.bzl%real_julia_typecheck_aspect",
-                "quality:families/lua.bzl%real_lua_typecheck_aspect",
-                "quality:families/ruby.bzl%real_ruby_typecheck_aspect",
-                "quality:families/dart.bzl%real_dart_typecheck_aspect",
-                "quality:families/python.bzl%real_python_typecheck_aspect",
-            ]
-        );
+        assert_core_then_languages(&typecheck);
         assert_eq!(typecheck.reports, &[StandardFormat::Sarif]);
         let format = spec(Command::Format);
-        assert_eq!(
-            format.aspects,
-            &[
-                "quality:families/cc.bzl%real_cc_format_aspect",
-                "quality:families/cue.bzl%real_cue_format_aspect",
-                "quality:families/dotnet.bzl%real_dotnet_format_aspect",
-                "quality:families/core.bzl%real_format_aspect",
-                "quality:families/fortran.bzl%real_fortran_format_aspect",
-                "quality:families/go.bzl%real_go_format_aspect",
-                "quality:families/haskell.bzl%real_haskell_format_aspect",
-                "quality:families/js.bzl%real_js_format_aspect",
-                "quality:families/jsonnet.bzl%real_jsonnet_format_aspect",
-                "quality:families/jvm.bzl%real_jvm_format_aspect",
-                "quality:families/lua.bzl%real_lua_format_aspect",
-                "quality:families/bicep.bzl%real_bicep_format_aspect",
-                "quality:families/cmake.bzl%real_cmake_format_aspect",
-                "quality:families/make.bzl%real_make_format_aspect",
-                "quality:families/nix.bzl%real_nix_format_aspect",
-                "quality:families/kubernetes.bzl%real_kubernetes_format_aspect",
-                "quality:families/ocaml.bzl%real_ocaml_format_aspect",
-                "quality:families/pkl.bzl%real_pkl_format_aspect",
-                "quality:families/generation.bzl%real_protobuf_format_aspect",
-                "quality:families/powershell.bzl%real_powershell_format_aspect",
-                "quality:families/rego.bzl%real_rego_format_aspect",
-                "quality:families/ruby.bzl%real_ruby_format_aspect",
-                "quality:families/rust.bzl%real_rust_format_aspect",
-                "quality:families/jvm.bzl%real_scala_format_aspect",
-                "quality:families/shell.bzl%real_shell_format_aspect",
-                "quality:families/terraform.bzl%real_terraform_format_aspect",
-                "quality:families/typst.bzl%real_typst_format_aspect",
-                "quality:families/latex.bzl%real_latex_format_aspect",
-                "quality:families/html_template.bzl%real_html_template_format_aspect",
-                "quality:families/sql.bzl%real_sql_format_aspect",
-                "quality:families/yaml.bzl%real_yaml_format_aspect",
-                "quality:families/beam.bzl%real_erlang_format_aspect",
-                "quality:families/beam.bzl%real_elixir_format_aspect",
-                "quality:families/dart.bzl%real_dart_format_aspect",
-                "quality:families/d.bzl%real_d_format_aspect",
-                "quality:families/perl.bzl%real_perl_format_aspect",
-                "quality:families/python.bzl%real_python_format_aspect",
-                "quality:families/julia.bzl%real_julia_format_aspect",
-                "quality:families/swift.bzl%real_swift_format_aspect",
-                "quality:families/zig.bzl%real_zig_format_aspect",
-            ]
-        );
+        assert_core_then_languages(&format);
         assert!(format.reports.is_empty());
         let build = spec(Command::Build);
         assert!(build.aspects.is_empty());

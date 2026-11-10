@@ -42,7 +42,10 @@ filegroup(
 genrule(
     name = "cpp_config",
     outs = ["cpp_config/thrift/config.h"],
-    cmd = "printf '#pragma once\\n#include <arpa/inet.h>\\n#define HAVE_STRERROR_R 1\\n#if defined(__GLIBC__) && defined(_GNU_SOURCE)\\n#define STRERROR_R_CHAR_P 1\\n#endif\\n' > $@",
+    cmd = select({
+        "@platforms//os:windows": "printf '#pragma once\\n#include <thrift/windows/config.h>\\n' > $@",
+        "//conditions:default": "printf '#pragma once\\n#include <arpa/inet.h>\\n#define HAVE_STRERROR_R 1\\n#if defined(__GLIBC__) && defined(_GNU_SOURCE)\\n#define STRERROR_R_CHAR_P 1\\n#endif\\n' > $@",
+    }),
 )
 
 cc_library(
@@ -56,19 +59,30 @@ cc_library(
         "lib/cpp/src/thrift/protocol/TProtocol.cpp",
         "lib/cpp/src/thrift/transport/TBufferTransports.cpp",
         "lib/cpp/src/thrift/transport/TTransportException.cpp",
-    ],
+    ] + select({
+        "@platforms//os:windows": [
+            "lib/cpp/src/thrift/windows/GetTimeOfDay.cpp",
+            "lib/cpp/src/thrift/windows/WinFcntl.cpp",
+        ],
+        "//conditions:default": [],
+    }),
     hdrs = glob(
         [
             "lib/cpp/src/thrift/**/*.h",
             "lib/cpp/src/thrift/**/*.tcc",
         ],
         exclude = [
-            "lib/cpp/src/thrift/windows/**",
             "lib/cpp/src/thrift/qt/**",
         ],
     ) + [":cpp_config"],
-    copts = ["-w"],
-    linkopts = ["-lpthread"],
+    copts = select({
+        "@platforms//os:windows": ["/w"],
+        "//conditions:default": ["-w"],
+    }),
+    linkopts = select({
+        "@platforms//os:windows": [],
+        "//conditions:default": ["-lpthread"],
+    }),
     includes = [
         "cpp_config",
         "lib/cpp/src",

@@ -55,7 +55,7 @@ fn tier_lines(
 const CUE_STATE_REL: &str = ".dx-cue-state";
 /// The std file name selene resolves `std = "lua53+lua54"` against.
 const SELENE_STD_FILE: &str = "lua54.yml";
-const SELENE_STD_BYTES: &[u8] = include_bytes!("../../tools/lua/lua54.yml");
+const SELENE_STD_BYTES: &[u8] = include_bytes!("../../../lua/private/quality/lua54.yml");
 
 pub struct RealTool {
     pub binary: PathBuf,

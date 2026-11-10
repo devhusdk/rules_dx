@@ -1046,7 +1046,7 @@ impl ModuleFile {
     /// Every `cpan.install` tag of the rules_perl extension in source order.
     pub fn cpan_installs(&self) -> Result<Vec<CpanInstall<'_>>, ModuleError> {
         const TAG: &str = "cpan.install";
-        self.tags(PERL_MODULE, "perl:extensions.bzl", "cpan", "install")
+        self.tags(PERL_MODULE, "perl/cpan:extensions.bzl", "cpan", "install")
             .map(|call| {
                 Ok(CpanInstall {
                     name: required(call, TAG, "name")?,

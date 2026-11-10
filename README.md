@@ -20,7 +20,16 @@ Bazel via Bazelisk is required. In an empty directory, create three files.
 
 ```starlark
 bazel_dep(name = "rules_dx", version = "<release>")
+
+archive_override(
+    module_name = "rules_py",
+    integrity = "sha256-TlCUj7uFZKizo7HzVM2ex//f4wT2PGpf6x/bz7/Hgr0=",
+    strip_prefix = "rules_py-2.0.0-alpha.11",
+    urls = ["https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"],
+)
 ```
+
+The `rules_py` override is needed until rules_py 2.0.0-alpha.11 is in the Bazel Central Registry (#6537).
 
 `BUILD.bazel`:
 

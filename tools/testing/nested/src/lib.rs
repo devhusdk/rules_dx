@@ -1111,6 +1111,9 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front
             command.env_remove(&key);
         }
     }
+    let user_home = home.join(HOME_DIR);
+    command.env("HOME", &user_home);
+    command.env("USERPROFILE", &user_home);
     let mut path = None;
     for (key, value) in envs {
         if *key == "PATH" {
@@ -1120,9 +1123,6 @@ fn apply_env_at(home: &Path, command: &mut Command, envs: &[(&str, &str)], front
         }
     }
     let path = path.unwrap_or_else(|| OsString::from(NO_PATH));
-    let user_home = home.join(HOME_DIR);
-    command.env("HOME", &user_home);
-    command.env("USERPROFILE", &user_home);
     let mut dirs: Vec<PathBuf> = front.iter().map(|dir| dir.to_path_buf()).collect();
     dirs.push(home.join("bin"));
     dirs.extend(std::env::split_paths(&path));
@@ -1711,6 +1711,7 @@ impl FakeBazel {
 #[cfg(unix)]
 mod tests {
     use super::*;
+    use std::ffi::OsStr;
 
     fn scratch(prefix: &str) -> tempfile::TempDir {
         use std::os::unix::fs::PermissionsExt;
@@ -1992,6 +1993,28 @@ mod tests {
         assert!(!other);
         assert!(!unrelated);
         assert!(!owned_by(pid, root));
+    }
+
+    fn env_of(command: &Command, key: &str) -> Option<OsString> {
+        command
+            .get_envs()
+            .find(|(name, _)| *name == OsStr::new(key))
+            .and_then(|(_, value)| value.map(OsStr::to_owned))
+    }
+
+    #[test]
+    fn the_command_home_is_the_slot_home_unless_the_caller_names_one() {
+        let slot = Path::new("slot");
+        let mut command = Command::new("dx");
+        apply_env_at(slot, &mut command, &[], &[]);
+        let slot_home = Some(slot.join(HOME_DIR).into_os_string());
+        assert_eq!(env_of(&command, "HOME"), slot_home);
+        assert_eq!(env_of(&command, "USERPROFILE"), slot_home);
+
+        let mut command = Command::new("dx");
+        apply_env_at(slot, &mut command, &[("HOME", "caller-home")], &[]);
+        assert_eq!(env_of(&command, "HOME"), Some(OsString::from("caller-home")));
+        assert_eq!(env_of(&command, "USERPROFILE"), slot_home);
     }
 
     #[test]

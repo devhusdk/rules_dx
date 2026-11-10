@@ -30,8 +30,6 @@ d/tests/fixtures/bench/BUILD.bazel manual 1
 d/tests/fixtures/fuzz/BUILD.bazel manual 1
 dart/private/defs.bzl manual 1
 dart/tests/tags/BUILD.bazel manual 1
-deploy/private/release/tests/BUILD.bazel local 1
-deploy/private/release/tests/BUILD.bazel no-sandbox 1
 deploy/private/release/tests/BUILD.bazel requires-network 1
 elixir/private/defs.bzl manual 1
 erlang/private/defs.bzl manual 1
@@ -80,8 +78,6 @@ tools/testing/hermetic/defs.bzl no-cache 2
 tools/testing/hermetic/defs.bzl no-remote 2
 tools/testing/hermetic/defs.bzl no-sandbox 2
 tools/testing/hermetic/defs.bzl requires-network 3
-tools/testing/nested_bazel.bzl local 1
-tools/testing/nested_bazel.bzl no-sandbox 1
 tools/testing/nested_bazel.bzl requires-network 1
 typescript/private/BUILD.bazel manual 3
 typescript/private/defs.bzl manual 1

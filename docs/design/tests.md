@@ -43,7 +43,7 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 
 - A test that only checks rule behaviour is an analysis test or an in-graph fixture test.
 - A fixture target that must fail to build is the subject of an analysis failure test. It is not a test target.
-- A fixture is a library, binary or file target. A test target is never the fixture of another test.
+- A fixture is a library, binary or file target. A test target is the fixture of another test only as a conformance subject.
 
 ## Nested Bazel
 
@@ -67,6 +67,35 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 - A target that must fail is a `testonly` non-test executable such as `starlark_binary`.
 - A passing test runs that executable from runfiles and asserts its exit code and output.
 - An analysis failure is asserted with `failure_test` on the non-test target.
+- A language test that must fail is a conformance subject.
+
+## Conformance
+
+- Every directory with a `lang.json` calls `dx_conformance_suite` from `//tools/testing/conformance:defs.bzl` once, in `<lang>/tests/conformance/BUILD.bazel`.
+- The package declares fixtures with the macros of `<lang>/defs.bzl`. The suite declares every test and holds every assertion.
+
+| Test | Passes when |
+| --- | --- |
+| `build_test` | The fixture binary prints the expected line and exits 0. |
+| `pass_test` | The passing subject test exits 0. |
+| `fail_test` | The failing subject test exits non-zero and names its failing case. |
+| `coverage_test` | The passing subject test, built with `collect_code_coverage`, writes LCOV with a hit on the fixture library. |
+| `lint_test` | The lint aspect reports nothing on the clean fixture. |
+| `lint_error_test` | The lint aspect reports the expected rule, file and line on the dirty fixture. |
+| `format_test` | The format aspect reports nothing on the clean fixture. |
+| `format_error_test` | The format aspect reports the unformatted fixture file. |
+| `lock_test` | The fixture binary imports a package pinned by the checked-in lockfile. The lock check rejects a lockfile without it. |
+| `cross_test` | The fixture binary, built for another platform of the language, has that platform's object format, OS and CPU. |
+| `runfiles_test` | The fixture binary reads a `data` file through the language's runfiles library and prints it. |
+
+- A subject test is a `<lang>_test` fixture that is incompatible outside the suite's transition. A package pattern skips it.
+- A suite test runs a subject from runfiles with Bazel's test environment.
+- A suite test is an in-graph fixture test with `size = "small"`.
+- A suite test runs on every platform in `lang.json` `platforms`.
+- `not_applicable` maps a capability, or a capability and platform, to a reason. Nothing else omits a suite test.
+- `tools/testing/conformance/pending.txt` holds one line per suite test that does not pass yet: `<lang> <test> <platform>`. Such a test is incompatible on that platform. The list only shrinks.
+- `//tools/testing/conformance:manifest` depends on every suite test of every language in `core/modules/langs.bzl`. A missing test fails its build.
+- `docs/support-matrix.md` takes each capability cell from the manifest: the test label, the reason or `pending`. No hand-written table states a capability.
 
 ## Duplicates
 
@@ -79,7 +108,7 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 - `@dx_test_tags_sources//:files.json` snapshots the `MODULE.bazel`, `<lang>/lang.json`, repository `*.BUILD` and `*.BUILD.bazel` files and the language and command pages under `docs/`.
 - A test that walks the module tree declares both snapshots, passes them through `DX_SOURCES_JSON` and `DX_FILES_JSON`, and reads them with `dx_testing::source_snapshot()`. A Python test writes them into a scratch tree.
 - `//tools/ci:test_tags_test` scans that snapshot as a declared input.
-- It counts the banned tags `manual`, `local`, `no-sandbox`, `no-cache`, `no-remote`, `external`, `requires-network` and `exclusive`.
+- It counts `manual`, `exclusive` and the tags banned under Sandbox, remote execution and cache.
 - It counts a tag in the `tags` of a test rule or test macro call, in `local = True` on such a call, and in a tags value built outside a call: a tags-named variable, a `"tags"` dict entry, or the arguments of a tags-named function.
 - It counts a loaded tags constant at each test call that uses it.
 - A call is a test call when its name has the word `test`, `tests`, `suite`, `bench` or `fuzz`, when the name is a `rule(test = True)`, or when the name is a macro that calls one of these.

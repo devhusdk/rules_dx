@@ -593,7 +593,7 @@ impl LoadGraph<'_> {
 pub fn external_repos(
     workspace: &Path,
     roots: &[String],
-) -> Result<BTreeMap<String, BTreeSet<String>>, String> {
+) -> Result<BTreeMap<String, BTreeSet<String>>, DxError> {
     let mut graph = LoadGraph {
         workspace,
         names: module_roots(workspace)?.names,

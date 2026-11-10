@@ -1,4 +1,4 @@
-use crate::run::{OwnerGate, pages_redact};
+use crate::run::{OwnerGate, pages_redact, run_publish};
 use crate::stage::copy_verified;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -319,7 +319,7 @@ fn pages_stage(files: &[PagesFile], staged: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn pages_failure_text(output: &std::process::Output, token: &str) -> String {
+fn pages_failure_text(output: &dx_process::capture::Captured, token: &str) -> String {
     let mut text = String::from_utf8_lossy(&output.stderr).into_owned();
     text.push('\n');
     text.push_str(&String::from_utf8_lossy(&output.stdout));
@@ -512,7 +512,7 @@ fn pages_deploy_staged(
         .env("WRANGLER_LOG_PATH", &log_dir)
         .env("HOME", &home)
         .env("XDG_CONFIG_HOME", home.join(".config"));
-    let output = match command.output() {
+    let output = match run_publish(&mut command) {
         Ok(output) => output,
         Err(error) => {
             return pages_fail(
@@ -522,8 +522,8 @@ fn pages_deploy_staged(
             );
         }
     };
-    if !output.status.success() {
-        let code = output.status.code().unwrap_or(1);
+    if !output.success() {
+        let code = output.code.unwrap_or(1);
         let tail = pages_failure_text(&output, &env.token);
         let _ = writeln!(
             err,

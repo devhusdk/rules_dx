@@ -64,14 +64,13 @@ def dependency_label(hub, sidecar, name):
             return "@{}//:{}".format(repo_name(hub, name), target)
     return None
 
-def tool_labels(hub, sidecar, package):
-    """Returns the executable labels of the dependencies of a package that have no library."""
-    tools = []
-    for dep in package["dependencies"]:
-        fetched = fetched_packages(sidecar).get(dep)
-        if fetched and "lib" not in fetched["components"]:
-            tools += ["@{}//:{}-exe-{}".format(repo_name(hub, dep), dep, exe) for exe in executables(fetched)]
-    return sorted(tools)
+def tool_labels(hub, package):
+    """Returns the executable labels of the build-tool-depends of a package."""
+    labels = []
+    for tool in package.get("tools", []):
+        name, _, exe = tool.partition(":")
+        labels.append("@{}//:{}-exe-{}".format(repo_name(hub, name), name, exe))
+    return sorted(labels)
 
 def _target(kind, name, attrs, deps, tools):
     attrs = attrs + ([
@@ -87,10 +86,8 @@ def _target(kind, name, attrs, deps, tools):
 def package_build(hub, sidecar, package):
     """Returns the BUILD file of one package repository."""
     name = package["name"]
-    fetched = fetched_packages(sidecar)
-    libs = [dep for dep in package["dependencies"] if dep not in fetched or "lib" in fetched[dep]["components"]]
-    deps = sorted([dep for dep in [dependency_label(hub, sidecar, dep) for dep in libs] if dep])
-    tools = tool_labels(hub, sidecar, package)
+    deps = sorted([dep for dep in [dependency_label(hub, sidecar, dep) for dep in package["dependencies"]] if dep])
+    tools = tool_labels(hub, package)
     has_lib = "lib" in package["components"]
     lines = [
         'load("@rules_haskell//haskell:cabal.bzl", "haskell_cabal_binary", "haskell_cabal_library")',

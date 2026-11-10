@@ -17,6 +17,7 @@
       "name": "OneTuple",
       "sdist_sha256": "643d1f48e63480ac6d03a8f0ab5976d66527c9b42b1fca81d1bf373d10099c6b",
       "source": "hackage",
+      "tools": [],
       "version": "0.4.3"
     },
     {
@@ -37,6 +38,7 @@
       "name": "QuickCheck",
       "sdist_sha256": "fd8462ad3b1c3bb90465ec581356cf5214673c1015d73f28f2e7a3df179bbc55",
       "source": "hackage",
+      "tools": [],
       "version": "2.18.0.0"
     },
     {
@@ -53,6 +55,7 @@
       "name": "StateVar",
       "sdist_sha256": "5e4b39da395656a59827b0280508aafdc70335798b50e5d6fd52596026251825",
       "source": "hackage",
+      "tools": [],
       "version": "1.2.2"
     },
     {
@@ -98,6 +101,7 @@
       "name": "aeson",
       "sdist_sha256": "ea82d650c0bbd8877dbf13a03b9baae3be7ed4a65f4e8cfe5b4eacb4f5beae75",
       "source": "hackage",
+      "tools": [],
       "version": "2.2.5.1"
     },
     {
@@ -115,6 +119,7 @@
       "name": "alex",
       "sdist_sha256": "df481dc960e2c59a30395f7335031fd4ef8773b8a42894a4f2320e00ff474418",
       "source": "hackage",
+      "tools": [],
       "version": "3.5.4.2"
     },
     {
@@ -131,6 +136,7 @@
       "name": "ansi-terminal",
       "sdist_sha256": "9cf083cef2e2ba88a425f132c8a82bfa931eb4b0c38232b2017f8fcea2e23073",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.5"
     },
     {
@@ -146,6 +152,7 @@
       "name": "ansi-terminal-types",
       "sdist_sha256": "9fc9ce2157f1889bd99a4d22c9f1c64589590be0f797c3efe71c8fa17a11a689",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.3"
     },
     {
@@ -157,6 +164,7 @@
       ],
       "name": "array",
       "source": "ghc",
+      "tools": [],
       "version": "0.5.8.0"
     },
     {
@@ -171,6 +179,7 @@
       "name": "assoc",
       "sdist_sha256": "231149b7fef09f5dd95af51228615e3b296dbd0faadeca053e0644a4b13b0ff6",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.1"
     },
     {
@@ -193,6 +202,7 @@
       "name": "attoparsec",
       "sdist_sha256": "3f337fe58624565de12426f607c23e60c7b09c86b4e3adfc827ca188c9979e6c",
       "source": "hackage",
+      "tools": [],
       "version": "0.14.4"
     },
     {
@@ -205,6 +215,7 @@
       ],
       "name": "base",
       "source": "ghc",
+      "tools": [],
       "version": "4.20.2.0"
     },
     {
@@ -219,6 +230,7 @@
       "name": "base-orphans",
       "sdist_sha256": "08cc283a31350f7bd28b2a5d31af693ee337f2593d3e7222999b72dd4954c72b",
       "source": "hackage",
+      "tools": [],
       "version": "0.9.4"
     },
     {
@@ -239,6 +251,7 @@
       "name": "bifunctors",
       "sdist_sha256": "ad7a357f022f4c780c505040d73f1c06a4fd697b4a0bab6123bbd73b55d8115c",
       "source": "hackage",
+      "tools": [],
       "version": "5.6.3"
     },
     {
@@ -253,6 +266,7 @@
       ],
       "name": "binary",
       "source": "ghc",
+      "tools": [],
       "version": "0.8.9.3"
     },
     {
@@ -272,6 +286,7 @@
       "name": "bitvec",
       "sdist_sha256": "1a42d33ce341973f4e4f3f0e10d00760056a0aca0e2a57180994bf2ac26c4e2b",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.6.0"
     },
     {
@@ -286,6 +301,7 @@
       ],
       "name": "bytestring",
       "source": "ghc",
+      "tools": [],
       "version": "0.12.2.0"
     },
     {
@@ -300,6 +316,7 @@
       "name": "character-ps",
       "sdist_sha256": "22de71fde38b236d3e9168a832b5e1e75d1fb4f4028667bdf747b3b4c8c1529c",
       "source": "hackage",
+      "tools": [],
       "version": "0.1"
     },
     {
@@ -314,6 +331,7 @@
       "name": "clock",
       "sdist_sha256": "6ae9898afe788a5e334cd5fad5d18a3c2e8e59fa09aaf7b957dbb38a4767df2e",
       "source": "hackage",
+      "tools": [],
       "version": "0.8.4"
     },
     {
@@ -332,6 +350,7 @@
       "name": "cmdargs",
       "sdist_sha256": "b8b12e7f8795cf13037bb062d453b86c788eae62558586f59e9419aabe6e9bef",
       "source": "hackage",
+      "tools": [],
       "version": "0.10.22"
     },
     {
@@ -346,6 +365,7 @@
       "name": "colour",
       "sdist_sha256": "1f3b1055675abe4e3362800cc9bf7ab9b92dfdf21a1f6c82b252611270be9680",
       "source": "hackage",
+      "tools": [],
       "version": "2.3.7"
     },
     {
@@ -365,6 +385,7 @@
       "name": "comonad",
       "sdist_sha256": "e9739df2bf5944958062a4ea73bde3bf35c0879cee0944edf7f05bebf993f9c1",
       "source": "hackage",
+      "tools": [],
       "version": "5.0.10"
     },
     {
@@ -392,6 +413,7 @@
       "name": "conduit",
       "sdist_sha256": "69902af03ea7e4cb982fa83da42afe36973b62d0a52ea140ae5362e52854ba3f",
       "source": "hackage",
+      "tools": [],
       "version": "1.3.6.1"
     },
     {
@@ -406,6 +428,7 @@
       ],
       "name": "containers",
       "source": "ghc",
+      "tools": [],
       "version": "0.7"
     },
     {
@@ -422,6 +445,7 @@
       "name": "contravariant",
       "sdist_sha256": "65f3260354ee5fd1f2c7ffc54cff99d22b794c254f053734979ad37820e6efe3",
       "source": "hackage",
+      "tools": [],
       "version": "1.5.6"
     },
     {
@@ -440,6 +464,7 @@
       "name": "cpphs",
       "sdist_sha256": "7fa78ae9a2a1d1c69179238e8849340ad26be6496b763a489bf2e0eb5b7c4c19",
       "source": "hackage",
+      "tools": [],
       "version": "1.20.10"
     },
     {
@@ -455,6 +480,7 @@
       "name": "data-default",
       "sdist_sha256": "fa7d5de70ccef7381a7f17cd64948de1c24b620de13e1cd55c36c26949870799",
       "source": "hackage",
+      "tools": [],
       "version": "0.8.0.2"
     },
     {
@@ -471,6 +497,7 @@
       "name": "data-fix",
       "sdist_sha256": "8df052d18c047ab9e9200536a8799b5af3997ebecbbb091a7384b6be8416ab37",
       "source": "hackage",
+      "tools": [],
       "version": "0.3.4"
     },
     {
@@ -484,6 +511,7 @@
       ],
       "name": "deepseq",
       "source": "ghc",
+      "tools": [],
       "version": "1.5.0.0"
     },
     {
@@ -499,6 +527,7 @@
       "name": "deriving-aeson",
       "sdist_sha256": "3afb52ac0a82f543783cdd683b6e1aa9ea7ab018ca0a020ccdd269f74ff03677",
       "source": "hackage",
+      "tools": [],
       "version": "0.2.10"
     },
     {
@@ -514,6 +543,7 @@
       ],
       "name": "directory",
       "source": "ghc",
+      "tools": [],
       "version": "1.3.8.5"
     },
     {
@@ -530,6 +560,7 @@
       "name": "distributive",
       "sdist_sha256": "aeeb028a23db9f9b073e24a6bd766b79b9d58c2b407b06bf33296c27e9264baa",
       "source": "hackage",
+      "tools": [],
       "version": "0.6.3"
     },
     {
@@ -545,6 +576,7 @@
       "name": "dlist",
       "sdist_sha256": "173d637328bb173fcc365f30d29ff4a94292a1e0e5558aeb3dfc11de81510115",
       "source": "hackage",
+      "tools": [],
       "version": "1.0"
     },
     {
@@ -560,6 +592,7 @@
       ],
       "name": "exceptions",
       "source": "ghc",
+      "tools": [],
       "version": "0.10.9"
     },
     {
@@ -580,6 +613,7 @@
       "name": "extra",
       "sdist_sha256": "66a7d6d718646a7bda822d67550dc185c6e25ad1f7fecf06fc132e300098b598",
       "source": "hackage",
+      "tools": [],
       "version": "1.8.1"
     },
     {
@@ -598,6 +632,7 @@
       "name": "file-embed",
       "sdist_sha256": "5f18672eff936355557cdd163905451205d7ee22742edac313dd27cf42a3f415",
       "source": "hackage",
+      "tools": [],
       "version": "0.0.16.0"
     },
     {
@@ -614,6 +649,7 @@
       ],
       "name": "filepath",
       "source": "ghc",
+      "tools": [],
       "version": "1.5.4.0"
     },
     {
@@ -631,6 +667,7 @@
       "name": "filepattern",
       "sdist_sha256": "cc445d439ea2f65cac7604d3578aa2c3a62e5a91dc989f4ce5b3390db9e59636",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.3"
     },
     {
@@ -642,6 +679,7 @@
       ],
       "name": "ghc-bignum",
       "source": "ghc",
+      "tools": [],
       "version": "1.3"
     },
     {
@@ -653,6 +691,7 @@
       ],
       "name": "ghc-boot-th",
       "source": "ghc",
+      "tools": [],
       "version": "9.10.3"
     },
     {
@@ -666,6 +705,7 @@
       ],
       "name": "ghc-internal",
       "source": "ghc",
+      "tools": [],
       "version": "9.1003.0"
     },
     {
@@ -675,7 +715,6 @@
         "lib"
       ],
       "dependencies": [
-        "alex",
         "array",
         "base",
         "binary",
@@ -687,7 +726,6 @@
         "filepath",
         "ghc-internal",
         "ghc-prim",
-        "happy",
         "hpc",
         "os-string",
         "parsec",
@@ -700,6 +738,10 @@
       "name": "ghc-lib-parser",
       "sdist_sha256": "5223528c0d91d1490213d383df2f9a363b93cefa3a08b15ea6b58721c909ef35",
       "source": "hackage",
+      "tools": [
+        "alex:alex",
+        "happy:happy"
+      ],
       "version": "9.12.3.20251228"
     },
     {
@@ -724,6 +766,7 @@
       "name": "ghc-lib-parser-ex",
       "sdist_sha256": "624995f08a60b1a8ebf34314a2be3951ebfc42646fd2ae7d89a596f280721571",
       "source": "hackage",
+      "tools": [],
       "version": "9.12.0.0"
     },
     {
@@ -735,6 +778,7 @@
       ],
       "name": "ghc-prim",
       "source": "ghc",
+      "tools": [],
       "version": "0.12.0"
     },
     {
@@ -753,6 +797,7 @@
       "name": "happy",
       "sdist_sha256": "9e390f0ab082d11d46598f6215b2f6e8253059721860f81082409091532d7e2a",
       "source": "hackage",
+      "tools": [],
       "version": "2.1.7"
     },
     {
@@ -771,6 +816,7 @@
       "name": "happy-lib",
       "sdist_sha256": "f625b2c4a3f2b5fafa3c560fa8757502cc8de83d9a84c2692fc943380900f269",
       "source": "hackage",
+      "tools": [],
       "version": "2.1.7"
     },
     {
@@ -791,6 +837,7 @@
       "name": "hashable",
       "sdist_sha256": "ed0b7c10ce92c9ffe45420dadc38c6d39db486ff3633ff13567cc9f75f79b112",
       "source": "hackage",
+      "tools": [],
       "version": "1.5.1.0"
     },
     {
@@ -829,6 +876,7 @@
       "name": "hlint",
       "sdist_sha256": "d99672337c06b455884ac14418d562701143141d0d7e46af476817c2ae3efe37",
       "source": "url",
+      "tools": [],
       "url": "https://hackage.haskell.org/package/hlint-3.10/hlint-3.10.tar.gz",
       "version": "3.10"
     },
@@ -846,6 +894,7 @@
       ],
       "name": "hpc",
       "source": "ghc",
+      "tools": [],
       "version": "0.7.0.2"
     },
     {
@@ -862,6 +911,7 @@
       "name": "hscolour",
       "sdist_sha256": "54ce30da55599e872fd38d927aa518369e2971b284acc67ed0caac6ae14cc77c",
       "source": "hackage",
+      "tools": [],
       "version": "1.25"
     },
     {
@@ -879,6 +929,7 @@
       "name": "indexed-traversable",
       "sdist_sha256": "6423597d3528ac66c54beaab9f5408429c0a29b8cb98c45a1645f255aef7fef0",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.5"
     },
     {
@@ -898,6 +949,7 @@
       "name": "indexed-traversable-instances",
       "sdist_sha256": "e69d41f23a95463c2e03aee03374a4f489c72f7bf235be251499c4cca9411fec",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.2.1"
     },
     {
@@ -915,6 +967,7 @@
       "name": "integer-conversion",
       "sdist_sha256": "c18164a048073310f6353ebc64c9037b52a4b8299963ce05e027bcf60e22155a",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.1"
     },
     {
@@ -930,6 +983,7 @@
       "name": "integer-logarithms",
       "sdist_sha256": "66dff6f1f778fe1ec689139fe125cd4e6a95643734c651c891eafa2c50669459",
       "source": "hackage",
+      "tools": [],
       "version": "1.0.5"
     },
     {
@@ -948,6 +1002,7 @@
       "name": "libyaml",
       "sdist_sha256": "d6297ec9b1ebb4e4b580a4357d840d08a6f53e13a10c0c53ee74b973bba6fa13",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.4"
     },
     {
@@ -960,6 +1015,7 @@
       "name": "libyaml-clib",
       "sdist_sha256": "04526bc54e5fcf471c2bd22854e6b519e162a6e3d654e866cd8862103c725149",
       "source": "hackage",
+      "tools": [],
       "version": "0.2.5"
     },
     {
@@ -983,6 +1039,7 @@
       "name": "mono-traversable",
       "sdist_sha256": "4dd93ea334c0169500402f07aa39c98dbb7bffe55dc63fdf228da2cc22c7c5cd",
       "source": "hackage",
+      "tools": [],
       "version": "1.0.21.0"
     },
     {
@@ -995,6 +1052,7 @@
       ],
       "name": "mtl",
       "source": "ghc",
+      "tools": [],
       "version": "2.3.1"
     },
     {
@@ -1013,6 +1071,7 @@
       "name": "network-uri",
       "sdist_sha256": "9c188973126e893250b881f20e8811dca06c223c23402b06f7a1f2e995797228",
       "source": "hackage",
+      "tools": [],
       "version": "2.6.4.2"
     },
     {
@@ -1032,6 +1091,7 @@
       "name": "optparse-applicative",
       "sdist_sha256": "cf16aeefd821730c7738447fa7c6b7ada7ca1c9cc25400d64ef283294d345871",
       "source": "hackage",
+      "tools": [],
       "version": "0.19.0.0"
     },
     {
@@ -1047,6 +1107,7 @@
       ],
       "name": "os-string",
       "source": "ghc",
+      "tools": [],
       "version": "2.0.7"
     },
     {
@@ -1061,6 +1122,7 @@
       ],
       "name": "parsec",
       "source": "ghc",
+      "tools": [],
       "version": "3.1.18.0"
     },
     {
@@ -1077,6 +1139,7 @@
       "name": "polyparse",
       "sdist_sha256": "395b89ed9901e9b19eaa652d2a17b9d1ed04c111b2cd92b8996868bea642bfd6",
       "source": "hackage",
+      "tools": [],
       "version": "1.13.1"
     },
     {
@@ -1090,6 +1153,7 @@
       ],
       "name": "pretty",
       "source": "ghc",
+      "tools": [],
       "version": "1.1.3.6"
     },
     {
@@ -1105,6 +1169,7 @@
       "name": "prettyprinter",
       "sdist_sha256": "f04eb6fd865512ad8672da1e8bfcea1c384509fc2f662c41b7ac39d7898706ee",
       "source": "hackage",
+      "tools": [],
       "version": "1.7.2"
     },
     {
@@ -1122,6 +1187,7 @@
       "name": "prettyprinter-ansi-terminal",
       "sdist_sha256": "912cd340d5c2583111e2eaeb9aa03b87551ca2e3dd78bbfd346756b9f1e6c9fe",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.4"
     },
     {
@@ -1139,6 +1205,7 @@
       "name": "primitive",
       "sdist_sha256": "44b4de41813c7bc5db8a57f87c3612a069b65086946268ba165097252ebd3d76",
       "source": "hackage",
+      "tools": [],
       "version": "0.9.1.0"
     },
     {
@@ -1155,6 +1222,7 @@
       ],
       "name": "process",
       "source": "ghc",
+      "tools": [],
       "version": "1.6.26.1"
     },
     {
@@ -1174,6 +1242,7 @@
       "name": "random",
       "sdist_sha256": "d840ac83f265b0cfa2a678f8ec78627eb50cf9be2f067c52c8a4239c29b71a35",
       "source": "hackage",
+      "tools": [],
       "version": "1.3.1"
     },
     {
@@ -1188,6 +1257,7 @@
       "name": "refact",
       "sdist_sha256": "0ad029727797c8ca5d179c7abf1bfc135d86a7d72cf93785ee12ad243aeb1f6c",
       "source": "hackage",
+      "tools": [],
       "version": "0.3.0.2"
     },
     {
@@ -1208,6 +1278,7 @@
       "name": "resourcet",
       "sdist_sha256": "ec601785ee42a201f32adb205b8685c983f18757b1bd33d2e806d571e0f9996b",
       "source": "hackage",
+      "tools": [],
       "version": "1.3.0"
     },
     {
@@ -1217,6 +1288,7 @@
       "dependencies": [],
       "name": "rts",
       "source": "ghc",
+      "tools": [],
       "version": "1.0.2"
     },
     {
@@ -1240,6 +1312,7 @@
       "name": "scientific",
       "sdist_sha256": "39e9c7baa13852e245f5fc9c82d82eb564cd15a0dcb3a2850d9a1fc13af1c707",
       "source": "hackage",
+      "tools": [],
       "version": "0.3.9.0"
     },
     {
@@ -1263,6 +1336,7 @@
       "name": "semialign",
       "sdist_sha256": "0f51389e57af646042dcec2511960617bee2857231ac291228cf4ef6621a9464",
       "source": "hackage",
+      "tools": [],
       "version": "1.4"
     },
     {
@@ -1288,6 +1362,7 @@
       "name": "semigroupoids",
       "sdist_sha256": "e48258e49542245ef6c58d7f419a83d1d1ab91b013d92c3b5c8c7c048daaa12e",
       "source": "hackage",
+      "tools": [],
       "version": "6.0.2"
     },
     {
@@ -1302,6 +1377,7 @@
       "name": "split",
       "sdist_sha256": "18adb60f7f12d08601c382d47c2bacbbd4de4b9233f09683889d15b64b6420d6",
       "source": "hackage",
+      "tools": [],
       "version": "0.2.5.1"
     },
     {
@@ -1317,6 +1393,7 @@
       "name": "splitmix",
       "sdist_sha256": "a61d4e8b30f5a16526d7d31171b674ae7924d2207f378060d13363bd8794de8c",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.3.2"
     },
     {
@@ -1329,6 +1406,7 @@
       ],
       "name": "stm",
       "source": "ghc",
+      "tools": [],
       "version": "2.5.3.1"
     },
     {
@@ -1352,6 +1430,7 @@
       "name": "strict",
       "sdist_sha256": "77719280c2a86312e748227bfa732eeaae0e7df48d57acc3c2e5b7b07afe2f8b",
       "source": "hackage",
+      "tools": [],
       "version": "0.5.1"
     },
     {
@@ -1366,6 +1445,7 @@
       "name": "syb",
       "sdist_sha256": "ddcaca983f67a170c0cfdbd037a268779880e2f9b57f93135eaccb6ae4c5da3f",
       "source": "hackage",
+      "tools": [],
       "version": "0.7.4"
     },
     {
@@ -1382,6 +1462,7 @@
       "name": "tagged",
       "sdist_sha256": "b288cf67bce7df2b21717fc254c05dea8eb814fec41059d263ba5d822cd8c75e",
       "source": "hackage",
+      "tools": [],
       "version": "0.8.11"
     },
     {
@@ -1403,6 +1484,7 @@
       "name": "tasty",
       "sdist_sha256": "c76120141bd61c4418b3ed5efc5fe3094186d47cfe12d7be552320139f52c6c7",
       "source": "hackage",
+      "tools": [],
       "version": "1.5.4"
     },
     {
@@ -1417,6 +1499,7 @@
       ],
       "name": "template-haskell",
       "source": "ghc",
+      "tools": [],
       "version": "2.22.0.0"
     },
     {
@@ -1434,6 +1517,7 @@
       ],
       "name": "text",
       "source": "ghc",
+      "tools": [],
       "version": "2.1.3"
     },
     {
@@ -1452,6 +1536,7 @@
       "name": "text-iso8601",
       "sdist_sha256": "ddbb13aec70a2fd54c7a25bf85e38a467d0d5599980d21f4925b3c706f8f7398",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.1.2"
     },
     {
@@ -1473,6 +1558,7 @@
       "name": "text-short",
       "sdist_sha256": "83669f402354274fbcdc75126443af733267b955e451f72c0c6d86ae8da87416",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.6.1"
     },
     {
@@ -1489,6 +1575,7 @@
       "name": "th-abstraction",
       "sdist_sha256": "946654bcd8ea2dff7d0058061861a8c898be9addf20c92d3cfa53b679e737622",
       "source": "hackage",
+      "tools": [],
       "version": "0.7.2.0"
     },
     {
@@ -1504,6 +1591,7 @@
       "name": "th-compat",
       "sdist_sha256": "9e26f12230d38ae56dcf94f8c139799dc3b7376f3434d35ce74847a0a24fd5ff",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.7"
     },
     {
@@ -1522,6 +1610,7 @@
       "name": "these",
       "sdist_sha256": "17d6d933365edabf801a16842c1403bdd37cc5300faa2fcca980decdab22e4de",
       "source": "hackage",
+      "tools": [],
       "version": "1.2.1"
     },
     {
@@ -1534,6 +1623,7 @@
       ],
       "name": "time",
       "source": "ghc",
+      "tools": [],
       "version": "1.12.2"
     },
     {
@@ -1553,6 +1643,7 @@
       "name": "time-compat",
       "sdist_sha256": "90fadded53cf9c15855eebf809e9536af8f85d00e32b82f7c8b506d2fadf7c25",
       "source": "hackage",
+      "tools": [],
       "version": "1.9.9"
     },
     {
@@ -1564,6 +1655,7 @@
       ],
       "name": "transformers",
       "source": "ghc",
+      "tools": [],
       "version": "0.6.1.1"
     },
     {
@@ -1579,6 +1671,7 @@
       "name": "transformers-compat",
       "sdist_sha256": "f05c2145ee8d77ed773908d27a77c7f8be4d9419af90a757076b799c4a194da8",
       "source": "hackage",
+      "tools": [],
       "version": "0.8"
     },
     {
@@ -1598,6 +1691,7 @@
       "name": "uniplate",
       "sdist_sha256": "e777c94628445556a71f135a42cf72d2cfbaccba5849cc42fbfec8b2182e3ad2",
       "source": "hackage",
+      "tools": [],
       "version": "1.6.13"
     },
     {
@@ -1613,6 +1707,7 @@
       ],
       "name": "unix",
       "source": "ghc",
+      "tools": [],
       "version": "2.8.7.0"
     },
     {
@@ -1628,6 +1723,7 @@
       "name": "unliftio-core",
       "sdist_sha256": "99384cba8d56d9d61b85e38a313a93ebcdb78be6566367f0930ef580597fe3e3",
       "source": "hackage",
+      "tools": [],
       "version": "0.2.1.0"
     },
     {
@@ -1645,6 +1741,7 @@
       "name": "unordered-containers",
       "sdist_sha256": "3b2ad1522b546e61960153257d1e5d239eeec5e83da847d5cb4d896a5bb7f9c0",
       "source": "hackage",
+      "tools": [],
       "version": "0.2.21"
     },
     {
@@ -1660,6 +1757,7 @@
       "name": "utf8-string",
       "sdist_sha256": "ee48deada7600370728c4156cb002441de770d0121ae33a68139a9ed9c19b09a",
       "source": "hackage",
+      "tools": [],
       "version": "1.0.2"
     },
     {
@@ -1681,6 +1779,7 @@
       "name": "uuid-types",
       "sdist_sha256": "9f00f278b9711104b6acc1404d9f0d45c1183b4987cf9c07403bebc05c0c3024",
       "source": "hackage",
+      "tools": [],
       "version": "1.0.6.1"
     },
     {
@@ -1698,6 +1797,7 @@
       "name": "vector",
       "sdist_sha256": "28f203c786cbf8ac6dc3fea3378ec36f34173d505fb4a1dd60fc8418ad91c423",
       "source": "hackage",
+      "tools": [],
       "version": "0.13.2.0"
     },
     {
@@ -1716,6 +1816,7 @@
       "name": "vector-algorithms",
       "sdist_sha256": "d2b674676802670d8a682b357da6b6b5741b4a33b191f0ffe5f2b2bc40558eb2",
       "source": "hackage",
+      "tools": [],
       "version": "0.9.1.0"
     },
     {
@@ -1731,6 +1832,7 @@
       "name": "vector-stream",
       "sdist_sha256": "d0f507334bdea5431a2f07f525a97f29e76522c32210f5de6d5a2b4f1d42bf7c",
       "source": "hackage",
+      "tools": [],
       "version": "0.1.0.1"
     },
     {
@@ -1753,6 +1855,7 @@
       "name": "witherable",
       "sdist_sha256": "48434cc1e465b13cbc0133a90c3ec0d827c93b77ce95807fe0a38b65f4918cd1",
       "source": "hackage",
+      "tools": [],
       "version": "0.5"
     },
     {
@@ -1783,6 +1886,7 @@
       "name": "yaml",
       "sdist_sha256": "ee74923ee5b0fef74413c58aaa20ea59baf5d29d256a62fb47cc279570d9dc2f",
       "source": "hackage",
+      "tools": [],
       "version": "0.11.11.2"
     }
   ],

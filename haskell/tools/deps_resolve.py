@@ -195,6 +195,7 @@ def sidecar_from_plan(plan, revisions):
             "source": package_source(entry),
             "components": set(),
             "dependencies": set(),
+            "tools": set(),
         })
         if package["source"] == "url":
             package["url"] = entry["pkg-src"]["uri"]
@@ -207,14 +208,18 @@ def sidecar_from_plan(plan, revisions):
         if component is None:
             continue
         package["components"].add(component)
-        for dep in entry.get("depends", []) + entry.get("exe-depends", []):
+        for dep in entry.get("depends", []):
             if names.get(dep) not in (None, key[0]):
                 package["dependencies"].add(dependency_name(names[dep], components[dep]))
+        for dep in entry.get("exe-depends", []):
+            if names.get(dep) not in (None, key[0]) and components[dep].startswith("exe:"):
+                package["tools"].add("{}:{}".format(names[dep], components[dep][len("exe:"):]))
     out = []
     for key in sorted(packages):
         package = packages[key]
         package["components"] = sorted(package["components"])
         package["dependencies"] = sorted(package["dependencies"])
+        package["tools"] = sorted(package["tools"])
         out.append(package)
     return out
 

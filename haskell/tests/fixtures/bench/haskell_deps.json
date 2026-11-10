@@ -17,6 +17,7 @@
       "name": "ansi-terminal",
       "sdist_sha256": "9cf083cef2e2ba88a425f132c8a82bfa931eb4b0c38232b2017f8fcea2e23073",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.5"
     },
     {
@@ -32,6 +33,7 @@
       "name": "ansi-terminal-types",
       "sdist_sha256": "9fc9ce2157f1889bd99a4d22c9f1c64589590be0f797c3efe71c8fa17a11a689",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.3"
     },
     {
@@ -43,6 +45,7 @@
       ],
       "name": "array",
       "source": "ghc",
+      "tools": [],
       "version": "0.5.8.0"
     },
     {
@@ -55,6 +58,7 @@
       ],
       "name": "base",
       "source": "ghc",
+      "tools": [],
       "version": "4.20.2.0"
     },
     {
@@ -67,6 +71,7 @@
       ],
       "name": "bench",
       "source": "local",
+      "tools": [],
       "version": "0.1.0.0"
     },
     {
@@ -81,6 +86,7 @@
       ],
       "name": "binary",
       "source": "ghc",
+      "tools": [],
       "version": "0.8.9.3"
     },
     {
@@ -95,6 +101,7 @@
       ],
       "name": "bytestring",
       "source": "ghc",
+      "tools": [],
       "version": "0.12.2.0"
     },
     {
@@ -109,6 +116,7 @@
       "name": "colour",
       "sdist_sha256": "1f3b1055675abe4e3362800cc9bf7ab9b92dfdf21a1f6c82b252611270be9680",
       "source": "hackage",
+      "tools": [],
       "version": "2.3.7"
     },
     {
@@ -123,6 +131,7 @@
       ],
       "name": "containers",
       "source": "ghc",
+      "tools": [],
       "version": "0.7"
     },
     {
@@ -136,6 +145,7 @@
       ],
       "name": "deepseq",
       "source": "ghc",
+      "tools": [],
       "version": "1.5.0.0"
     },
     {
@@ -151,6 +161,7 @@
       ],
       "name": "directory",
       "source": "ghc",
+      "tools": [],
       "version": "1.3.8.5"
     },
     {
@@ -166,6 +177,7 @@
       ],
       "name": "exceptions",
       "source": "ghc",
+      "tools": [],
       "version": "0.10.9"
     },
     {
@@ -182,6 +194,7 @@
       ],
       "name": "filepath",
       "source": "ghc",
+      "tools": [],
       "version": "1.5.4.0"
     },
     {
@@ -193,6 +206,7 @@
       ],
       "name": "ghc-bignum",
       "source": "ghc",
+      "tools": [],
       "version": "1.3"
     },
     {
@@ -204,6 +218,7 @@
       ],
       "name": "ghc-boot-th",
       "source": "ghc",
+      "tools": [],
       "version": "9.10.3"
     },
     {
@@ -217,6 +232,7 @@
       ],
       "name": "ghc-internal",
       "source": "ghc",
+      "tools": [],
       "version": "9.1003.0"
     },
     {
@@ -228,6 +244,7 @@
       ],
       "name": "ghc-prim",
       "source": "ghc",
+      "tools": [],
       "version": "0.12.0"
     },
     {
@@ -240,6 +257,7 @@
       ],
       "name": "mtl",
       "source": "ghc",
+      "tools": [],
       "version": "2.3.1"
     },
     {
@@ -259,6 +277,7 @@
       "name": "optparse-applicative",
       "sdist_sha256": "cf16aeefd821730c7738447fa7c6b7ada7ca1c9cc25400d64ef283294d345871",
       "source": "hackage",
+      "tools": [],
       "version": "0.19.0.0"
     },
     {
@@ -274,6 +293,7 @@
       ],
       "name": "os-string",
       "source": "ghc",
+      "tools": [],
       "version": "2.0.7"
     },
     {
@@ -287,6 +307,7 @@
       ],
       "name": "pretty",
       "source": "ghc",
+      "tools": [],
       "version": "1.1.3.6"
     },
     {
@@ -302,6 +323,7 @@
       "name": "prettyprinter",
       "sdist_sha256": "f04eb6fd865512ad8672da1e8bfcea1c384509fc2f662c41b7ac39d7898706ee",
       "source": "hackage",
+      "tools": [],
       "version": "1.7.2"
     },
     {
@@ -319,6 +341,7 @@
       "name": "prettyprinter-ansi-terminal",
       "sdist_sha256": "912cd340d5c2583111e2eaeb9aa03b87551ca2e3dd78bbfd346756b9f1e6c9fe",
       "source": "hackage",
+      "tools": [],
       "version": "1.1.4"
     },
     {
@@ -335,6 +358,7 @@
       ],
       "name": "process",
       "source": "ghc",
+      "tools": [],
       "version": "1.6.26.1"
     },
     {
@@ -344,6 +368,7 @@
       "dependencies": [],
       "name": "rts",
       "source": "ghc",
+      "tools": [],
       "version": "1.0.2"
     },
     {
@@ -356,6 +381,7 @@
       ],
       "name": "stm",
       "source": "ghc",
+      "tools": [],
       "version": "2.5.3.1"
     },
     {
@@ -371,6 +397,7 @@
       "name": "tagged",
       "sdist_sha256": "cd4c8d122f367b608b3cafade19efe980c4d6b982aa27c6c0690e552948e6b78",
       "source": "hackage",
+      "tools": [],
       "version": "0.9"
     },
     {
@@ -392,6 +419,7 @@
       "name": "tasty",
       "sdist_sha256": "c76120141bd61c4418b3ed5efc5fe3094186d47cfe12d7be552320139f52c6c7",
       "source": "hackage",
+      "tools": [],
       "version": "1.5.4"
     },
     {
@@ -410,6 +438,7 @@
       "name": "tasty-bench",
       "sdist_sha256": "829c80478dcd6450f3ddab0232603850bff6bc7277b2eecf126b2fd9c26d7be2",
       "source": "hackage",
+      "tools": [],
       "version": "0.4"
     },
     {
@@ -424,6 +453,7 @@
       ],
       "name": "template-haskell",
       "source": "ghc",
+      "tools": [],
       "version": "2.22.0.0"
     },
     {
@@ -441,6 +471,7 @@
       ],
       "name": "text",
       "source": "ghc",
+      "tools": [],
       "version": "2.1.3"
     },
     {
@@ -453,6 +484,7 @@
       ],
       "name": "time",
       "source": "ghc",
+      "tools": [],
       "version": "1.12.2"
     },
     {
@@ -464,6 +496,7 @@
       ],
       "name": "transformers",
       "source": "ghc",
+      "tools": [],
       "version": "0.6.1.1"
     },
     {
@@ -479,6 +512,7 @@
       ],
       "name": "unix",
       "source": "ghc",
+      "tools": [],
       "version": "2.8.7.0"
     }
   ],

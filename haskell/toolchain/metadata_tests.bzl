@@ -2,6 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
+load(":packages.bzl", "package_build")
 load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
@@ -122,6 +123,15 @@ def _checks():
         expect_contains("darwin rts conf keeps ffi", darwin_rts, "extra-libraries: m dl ffi"),
         expect_equal("linux conf is unchanged", drop_host_sdk_dirs(_CONF), _CONF),
         expect_contains("bundled programs stay relative", settings, "(\"unlit command\", \"$topdir/../bin/unlit\")"),
+    ]
+    sidecar = {"packages": [
+        {"name": "alex", "version": "3.5", "source": "hackage", "components": ["exe:alex"], "dependencies": [], "tools": []},
+        {"name": "lib", "version": "1.0", "source": "hackage", "components": ["lib"], "dependencies": [], "tools": ["alex:alex"]},
+    ]}
+    build = package_build("hub", sidecar, sidecar["packages"][1])
+    checks += [
+        expect_contains("package build renders tools", build, 'tools = ["@hub_alex//:alex-exe-alex"]'),
+        expect_false("package build keeps tools out of deps", 'deps = ["@hub_alex' in build),
     ]
     for name in sorted(CELLS.keys()):
         checks += _cell_checks(name)

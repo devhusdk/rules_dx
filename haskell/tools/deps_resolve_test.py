@@ -64,6 +64,19 @@ class DepsResolveTest(unittest.TestCase):
         self.assertEqual(foo["cabal_revision"], 2)
         self.assertEqual(foo["sdist_sha256"], "aa")
 
+    def test_exe_depends_are_tools_not_dependencies(self):
+        plan = json.loads(json.dumps(PLAN))
+        plan["install-plan"].append({
+            "type": "configured", "id": "alex-3.5-exe-alex", "pkg-name": "alex", "pkg-version": "3.5",
+            "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "bb", "pkg-cabal-sha256": "cc",
+            "component-name": "exe:alex", "depends": ["base-4.20"],
+        })
+        plan["install-plan"][1]["exe-depends"] = ["alex-3.5-exe-alex"]
+        by_name = {package["name"]: package for package in deps_resolve.sidecar_from_plan(plan, {})}
+        self.assertEqual(by_name["foo"]["dependencies"], ["base"])
+        self.assertEqual(by_name["foo"]["tools"], ["alex:alex"])
+        self.assertEqual(by_name["alex"]["tools"], [])
+
     def test_cross_package_sublibrary_dependency(self):
         plan = {"install-plan": [
             {"type": "configured", "id": "hl-1-inplace-grammar", "pkg-name": "hl", "pkg-version": "1",

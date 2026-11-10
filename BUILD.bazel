@@ -285,6 +285,7 @@ filegroup(
         "//lua/private/quality:module_srcs",
         "//make/private/quality:module_srcs",
         "//ocaml/private/quality:module_srcs",
+        "//patches:registry",
         "//perl/private/quality:module_srcs",
         "//php/private/quality:module_srcs",
         "//pkl/private/quality:module_srcs",

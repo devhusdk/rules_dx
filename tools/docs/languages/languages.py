@@ -182,6 +182,19 @@ def describe(root, path, name, depth=0):
         doc_match = re.search(r"^\s{4}doc\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")", call, re.S | re.M)
         doc = dedent(parts(STRING.match(doc_match.group(1)))) if doc_match else ""
         return (assign.group(1), "", doc, attrs_of(call))
+    factory = re.search(r"^%s\s*=\s*named_source_library\(" % re.escape(name), text, re.M)
+    if factory:
+        end = balanced(text, factory.end() - 1, "(", ")")
+        call = text[factory.end() - 1 : end]
+        class_id = re.match(r"\(\s*\"([^\"]*)\"", call)
+        strings = {}
+        for key in ("doc", "srcs_doc"):
+            found = re.search(r"\b%s\s*=\s*(\"\"\".*?\"\"\"|\"(?:[^\"\\\n]|\\.)*\")" % key, call, re.S)
+            strings[key] = unquote(parts(STRING.match(found.group(1)))) if found else ""
+        if class_id:
+            libs = "Other %s libraries this package depends on." % class_id.group(1)
+            attrs = [("srcs", "label_list", False, strings["srcs_doc"]), ("deps", "label_list", False, libs)]
+            return ("rule", "", strings["doc"], attrs)
     alias = re.search(r"^%s\s*=\s*(\w+)\s*$" % re.escape(name), text, re.M)
     if alias and alias.group(1) != name:
         target = alias.group(1)

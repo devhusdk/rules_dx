@@ -8,31 +8,18 @@ quality_family(
     disabled = [
         "audit",
         "format",
-        "lint",
     ],
     family_id = "haskell",
+    lint = [
+        "hlint",
+        "weeder",
+    ],
     typecheck = ["ghc"],
 )
 
 workspace_policy(
     name = "policy",
     families = [":haskell_family"],
-)
-
-quality_family(
-    name = "hlint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "haskell",
-    lint = ["hlint"],
-)
-
-workspace_policy(
-    name = "hlint_policy",
-    families = [":hlint_family"],
 )
 
 haskell_library(
@@ -56,22 +43,6 @@ haskell_library(
     srcs = ["Redundant.hs"],
     target_compatible_with = HASKELL_COMPATIBLE_WITH,
     deps = ["@dx_haskell_toolchains//:base"],
-)
-
-quality_family(
-    name = "weeder_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "haskell",
-    lint = ["weeder"],
-)
-
-workspace_policy(
-    name = "weeder_policy",
-    families = [":weeder_family"],
 )
 
 haskell_library(

@@ -24,6 +24,7 @@ workspace_policy(
         ":bicep_family",
         ":biome_json_family",
         ":cloudformation_family",
+        ":cue_family",
         ":eslint_js_family",
         ":eslint_ts_family",
         ":formatted_toml_family",
@@ -35,6 +36,7 @@ workspace_policy(
         ":latex_family",
         ":lua_family",
         ":nix_family",
+        ":pkl_family",
         ":rego_family",
         ":rst_family",
         ":terraform_family",
@@ -220,11 +222,6 @@ quality_family(
     family_id = "cue",
     format = ["cue"],
     typecheck = ["cue"],
-)
-
-workspace_policy(
-    name = "cue_policy",
-    families = [":cue_family"],
 )
 
 filegroup(
@@ -630,11 +627,6 @@ quality_family(
     family_id = "pkl",
     format = ["pkl"],
     typecheck = ["pkl"],
-)
-
-workspace_policy(
-    name = "pkl_policy",
-    families = [":pkl_family"],
 )
 
 filegroup(

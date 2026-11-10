@@ -6,7 +6,8 @@
 
 use std::path::Path;
 
-use dx_module_bazel::{Arg, ModuleError, ModuleFile, NewTag, Value};
+use dx_families::Hub;
+use dx_module_bazel::{Arg, ModuleFile, NewTag, Value};
 
 use crate::AdoptError;
 use crate::module_pin::ModuleEdit;
@@ -24,77 +25,19 @@ pub struct LockHubs {
     pub notes: Vec<String>,
 }
 
-struct Ecosystem {
-    dep: &'static str,
-    version: &'static str,
-    bzl: &'static str,
-    ext: &'static str,
-    binding: &'static str,
-    hub: &'static str,
+fn hub_of(ecosystem: &str) -> Result<&'static Hub, AdoptError> {
+    dx_families::hub(ecosystem).ok_or_else(|| refuse(format!("no setup.hubs entry for {ecosystem}")))
 }
 
-const CARGO: Ecosystem = Ecosystem {
-    dep: "rules_rust",
-    version: dx_versions::RULES_RUST_VERSION,
-    bzl: "@rules_rust//crate_universe:extensions.bzl",
-    ext: "crate",
-    binding: "crate",
-    hub: "crates",
-};
-const UV: Ecosystem = Ecosystem {
-    dep: "rules_py",
-    version: dx_versions::RULES_PY_VERSION,
-    bzl: "@rules_py//uv:extensions.bzl",
-    ext: "uv",
-    binding: "uv",
-    hub: "pypi",
-};
-const NPM: Ecosystem = Ecosystem {
-    dep: "aspect_rules_js",
-    version: dx_versions::ASPECT_RULES_JS_VERSION,
-    bzl: "@aspect_rules_js//npm:extensions.bzl",
-    ext: "npm",
-    binding: "npm",
-    hub: "npm",
-};
-const TYPESCRIPT: Ecosystem = Ecosystem {
-    dep: "aspect_rules_ts",
-    version: dx_versions::ASPECT_RULES_TS_VERSION,
-    bzl: "@aspect_rules_ts//ts:extensions.bzl",
-    ext: "typescript",
-    binding: "typescript",
-    hub: "npm_typescript",
-};
-const PUB: Ecosystem = Ecosystem {
-    dep: "rules_dart",
-    version: dx_versions::RULES_DART_VERSION,
-    bzl: "@rules_dx//dart:extensions.bzl",
-    ext: "pub",
-    binding: "pub",
-    hub: "pub_deps",
-};
-const PUB_UPSTREAM_BZL: &str = "@rules_dart//dart/pub:extensions.bzl";
-const PUB_OWN_BZL: &str = "//dart:extensions.bzl";
-const TSCONFIG: &str = "tsconfig.json";
-
-const PNPM: Ecosystem = Ecosystem {
-    dep: "aspect_rules_js",
-    version: dx_versions::ASPECT_RULES_JS_VERSION,
-    bzl: "@aspect_rules_js//npm:extensions.bzl",
-    ext: "pnpm",
-    binding: "pnpm",
-    hub: "pnpm",
-};
-
-fn binds_name(file: &ModuleFile, eco: &Ecosystem) -> bool {
+fn binds_name(file: &ModuleFile, eco: &Hub) -> bool {
     let bindings: Vec<&str> = file
-        .extension_bindings(eco.bzl, eco.ext)
+        .hub_bindings(&eco.extension, &eco.ecosystem)
         .into_iter()
         .map(|(name, _)| name)
         .collect();
     file.calls_named("use_repo").any(|call| {
         matches!(call.positional.first(), Some(Value::Ident(v)) if bindings.contains(&v.as_str()))
-            && (call.named.iter().any(|(alias, _)| alias == eco.hub)
+            && (call.named.iter().any(|(alias, _)| *alias == eco.hub)
                 || call
                     .positional
                     .iter()
@@ -279,6 +222,7 @@ impl Planner<'_> {
         if !self.exists(CARGO_LOCK) || !self.exists("Cargo.toml") {
             return Ok(());
         }
+        let cargo = hub_of("cargo")?;
         let lock = root_label(CARGO_LOCK);
         let mut covered = false;
         for file in self.files {
@@ -289,7 +233,7 @@ impl Planner<'_> {
             };
             for hub in hubs {
                 covered |= hub.cargo_lockfile == Some(lock.as_str());
-                if hub.name == CARGO.hub && hub.cargo_lockfile != Some(lock.as_str()) {
+                if hub.name == cargo.hub && hub.cargo_lockfile != Some(lock.as_str()) {
                     self.notes.push(format!(
                         "crate.from_cargo \"{}\" reads another lock; Cargo.lock not wired",
                         hub.name
@@ -305,12 +249,12 @@ impl Planner<'_> {
         let tags = vec![tag(
             "from_cargo",
             vec![
-                ("name", string(CARGO.hub)),
+                ("name", string(&cargo.hub)),
                 ("cargo_lockfile", string(&lock)),
                 ("manifests", Arg::List(manifests)),
             ],
         )];
-        self.add(&CARGO, &tags, &[CARGO.hub])
+        self.add(cargo, &tags, &[cargo.hub.as_str()])
     }
 
     fn cargo_manifests(&mut self) -> Vec<String> {
@@ -381,6 +325,7 @@ impl Planner<'_> {
     }
 
     fn uv(&mut self) -> Result<(), AdoptError> {
+        let uv = hub_of("uv")?;
         let dirs = self.lock_dirs(UV_LOCK, "pyproject.toml");
         if dirs.is_empty() {
             return Ok(());
@@ -388,7 +333,7 @@ impl Planner<'_> {
         let mut named: Vec<String> = Vec::new();
         let mut declared = false;
         for file in self.files {
-            if binds_name(file, &UV) {
+            if binds_name(file, uv) {
                 return Ok(());
             }
             let Ok(projects) = file.uv_projects() else {
@@ -399,7 +344,7 @@ impl Planner<'_> {
             named.extend(projects.iter().map(|project| project.lock.to_owned()));
             declared |= file
                 .calls_named("uv.declare_hub")
-                .any(|call| call.str("hub_name") == Some(UV.hub));
+                .any(|call| call.str("hub_name") == Some(uv.hub.as_str()));
         }
         let mut tags = Vec::new();
         for dir in dirs {
@@ -410,7 +355,7 @@ impl Planner<'_> {
             tags.push(tag(
                 "project",
                 vec![
-                    ("hub_name", string(UV.hub)),
+                    ("hub_name", string(&uv.hub)),
                     ("pyproject", string(&dir_label(&dir, "pyproject.toml"))),
                     ("lock", string(&lock)),
                 ],
@@ -420,12 +365,13 @@ impl Planner<'_> {
             return Ok(());
         }
         if !declared {
-            tags.insert(0, tag("declare_hub", vec![("hub_name", string(UV.hub))]));
+            tags.insert(0, tag("declare_hub", vec![("hub_name", string(&uv.hub))]));
         }
-        self.add(&UV, &tags, &[UV.hub])
+        self.add(uv, &tags, &[uv.hub.as_str()])
     }
 
     fn npm(&mut self) -> Result<(), AdoptError> {
+        let npm = hub_of("npm")?;
         let dirs = self.lock_dirs(PNPM_LOCK, "package.json");
         if dirs.is_empty() {
             return Ok(());
@@ -450,9 +396,9 @@ impl Planner<'_> {
         for dir in dirs {
             let lock = dir_label(&dir, PNPM_LOCK);
             let hub = if dir.is_empty() {
-                NPM.hub.to_owned()
+                npm.hub.clone()
             } else {
-                format!("{}_{}", NPM.hub, dir.replace('/', "_"))
+                format!("{}_{}", npm.hub, dir.replace('/', "_"))
             };
             if existing.iter().any(|(_, l)| l.as_deref() == Some(&lock)) {
                 continue;
@@ -474,19 +420,19 @@ impl Planner<'_> {
             return Ok(());
         }
         let hubs: Vec<&str> = hubs.iter().map(String::as_str).collect();
-        self.add(&NPM, &tags, &hubs)
+        self.add(npm, &tags, &hubs)
     }
 
     fn pub_(&mut self) -> Result<(), AdoptError> {
-        let dirs = self.lock_dirs(PUB_LOCK, "pubspec.yaml");
+        let pubs = hub_of("pub")?;
+        let dirs = self.lock_dirs(PUB_LOCK, &pubs.manifest);
         let Some(dir) = dirs.first() else {
             return Ok(());
         };
-        let wired = self.files.iter().any(|file| {
-            !file.extension_bindings(PUB.bzl, PUB.ext).is_empty()
-                || !file.extension_bindings(PUB_UPSTREAM_BZL, PUB.ext).is_empty()
-                || !file.extension_bindings(PUB_OWN_BZL, PUB.ext).is_empty()
-        });
+        let wired = self
+            .files
+            .iter()
+            .any(|file| !file.hub_bindings(&pubs.extension, &pubs.ecosystem).is_empty());
         if wired {
             return Ok(());
         }
@@ -498,60 +444,43 @@ impl Planner<'_> {
         let tags = vec![tag(
             "from_lock",
             vec![
-                ("name", string(PUB.hub)),
+                ("name", string(&pubs.hub)),
                 ("lock", string(&dir_label(dir, PUB_LOCK))),
             ],
         )];
-        self.add(&PUB, &tags, &[PUB.hub])
+        self.add(pubs, &tags, &[pubs.hub.as_str()])
     }
 
     fn pnpm(&mut self) -> Result<(), AdoptError> {
-        if self.files.iter().any(|file| binds_name(file, &PNPM)) {
+        let pnpm = hub_of("pnpm")?;
+        if self.files.iter().any(|file| binds_name(file, pnpm)) {
             return Ok(());
         }
-        self.add(&PNPM, &[], &[PNPM.hub])
+        self.add(pnpm, &[], &[pnpm.hub.as_str()])
     }
 
     fn typescript(&mut self) -> Result<(), AdoptError> {
-        let wanted = self.exists(TSCONFIG)
+        let ts = hub_of("typescript")?;
+        let wanted = self.exists(&ts.manifest)
             || self
                 .lock_dirs(PNPM_LOCK, "package.json")
                 .iter()
-                .any(|dir| self.exists(&format!("{dir}/{TSCONFIG}")));
-        if !wanted || self.files.iter().any(|file| binds_name(file, &TYPESCRIPT)) {
+                .any(|dir| self.exists(&format!("{dir}/{}", ts.manifest)));
+        if !wanted || self.files.iter().any(|file| binds_name(file, ts)) {
             return Ok(());
         }
-        let tags = vec![tag(
-            "deps",
-            vec![
-                ("version", string(dx_versions::TYPESCRIPT_VERSION)),
-                ("integrity", string(dx_versions::TYPESCRIPT_INTEGRITY)),
-            ],
-        )];
-        self.add(&TYPESCRIPT, &tags, &[TYPESCRIPT.hub])
+        self.add(ts, &[], &[ts.hub.as_str()])
     }
 
-    fn add(&mut self, eco: &Ecosystem, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
-        let declared = self
-            .files
-            .iter()
-            .any(|file| file.bazel_dep(eco.dep).is_ok());
-        if !declared {
-            let file = ModuleFile::parse(&self.text).map_err(refuse)?;
-            match file.insert_bazel_dep(eco.dep, eco.version) {
-                Ok(text) => self.text = text,
-                Err(ModuleError::AlreadyDeclared { .. }) => {}
-                Err(error) => return Err(refuse(error)),
-            }
-        }
+    fn add(&mut self, eco: &Hub, tags: &[NewTag], hubs: &[&str]) -> Result<(), AdoptError> {
         let file = ModuleFile::parse(&self.text).map_err(refuse)?;
         let binding = file
-            .extension_bindings(eco.bzl, eco.ext)
+            .extension_bindings(&eco.extension, &eco.ecosystem)
             .first()
-            .map_or(eco.binding, |(name, _)| *name)
+            .map_or(eco.ecosystem.as_str(), |(name, _)| *name)
             .to_owned();
         self.text = file
-            .insert_extension_block(&binding, eco.bzl, eco.ext, tags, hubs)
+            .insert_extension_block(&binding, &eco.extension, &eco.ecosystem, tags, hubs)
             .map_err(refuse)?;
         Ok(())
     }
@@ -720,10 +649,10 @@ mod tests {
         ]);
         let text = new_text(&hubs);
         assert!(text.starts_with(MODULE), "{text}");
-        assert!(text.contains("bazel_dep(name = \"rules_rust\""), "{text}");
+        assert!(!text.contains("bazel_dep(name = \"rules_rust\""), "{text}");
         assert!(
             text.contains(
-                "crate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\n        \"//:Cargo.toml\",\n        \"//app:Cargo.toml\",\n    ],\n)\nuse_repo(crate, \"crates\")\n"
+                "cargo.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\n        \"//:Cargo.toml\",\n        \"//app:Cargo.toml\",\n    ],\n)\nuse_repo(cargo, \"crates\")\n"
             ),
             "{text}"
         );
@@ -736,7 +665,7 @@ mod tests {
     fn pubspec_lock_gets_a_pub_deps_hub() {
         let hubs = plan(&[("pubspec.lock", ""), ("pubspec.yaml", "")]);
         let text = new_text(&hubs);
-        assert!(text.contains("bazel_dep(name = \"rules_dart\""), "{text}");
+        assert!(!text.contains("bazel_dep(name = \"rules_dart\""), "{text}");
         assert!(
             text.contains("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"),
             "{text}"
@@ -830,12 +759,12 @@ mod tests {
         let plan = plan_pnpm_tool(dir.path()).expect("plan");
         let edit = plan.edit.expect("edit");
         assert!(
-            edit.new.contains("bazel_dep(name = \"aspect_rules_js\""),
+            !edit.new.contains("bazel_dep(name = \"aspect_rules_js\""),
             "{}",
             edit.new
         );
         assert!(
-            edit.new.contains("pnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"pnpm\")\nuse_repo(pnpm, \"pnpm\")\n"),
+            edit.new.contains("pnpm = use_extension(\"@rules_dx//javascript:extensions.bzl\", \"pnpm\")\nuse_repo(pnpm, \"pnpm\")\n"),
             "{}",
             edit.new
         );
@@ -850,7 +779,7 @@ mod tests {
     fn uv_lock_gets_a_pypi_hub() {
         let hubs = plan(&[("uv.lock", ""), ("pyproject.toml", "")]);
         let text = new_text(&hubs);
-        assert!(text.contains("bazel_dep(name = \"rules_py\""), "{text}");
+        assert!(!text.contains("bazel_dep(name = \"rules_py\""), "{text}");
         assert!(
             text.contains("uv.declare_hub(\n    hub_name = \"pypi\",\n)"),
             "{text}"
@@ -865,7 +794,7 @@ mod tests {
         let hubs = plan(&[("pnpm-lock.yaml", ""), ("package.json", "{}")]);
         let text = new_text(&hubs);
         assert!(
-            text.contains("bazel_dep(name = \"aspect_rules_js\""),
+            !text.contains("bazel_dep(name = \"aspect_rules_js\""),
             "{text}"
         );
         assert!(
@@ -883,18 +812,11 @@ mod tests {
         ]);
         let text = new_text(&hubs);
         assert!(
-            text.contains("bazel_dep(name = \"aspect_rules_ts\""),
+            !text.contains("bazel_dep(name = \"aspect_rules_ts\""),
             "{text}"
         );
         assert!(
-            text.contains("typescript = use_extension(\"@aspect_rules_ts//ts:extensions.bzl\", \"typescript\")\ntypescript.deps(\n"),
-            "{text}"
-        );
-        assert!(
-            text.contains(&format!(
-                "version = \"{}\"",
-                dx_versions::TYPESCRIPT_VERSION
-            )),
+            text.contains("typescript = use_extension(\"@rules_dx//typescript:extensions.bzl\", \"typescript\")\nuse_repo(typescript, \"npm_typescript\")\n"),
             "{text}"
         );
         assert!(

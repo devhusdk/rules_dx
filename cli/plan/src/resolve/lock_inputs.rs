@@ -106,9 +106,21 @@ impl LockKind {
     }
 }
 
-pub(crate) const CRATE_EXTENSION_BZL: &str = "crate_universe:extensions.bzl";
+const CRATE_EXTENSION_BZL: &str = "crate_universe:extensions.bzl";
 const DEFAULT_HUB: &str = "crates";
 const NPM_EXTENSION_BZL: &str = "npm:extensions.bzl";
+const CARGO_HUB_BZL: &str = "//rust:extensions.bzl";
+const NPM_HUB_BZL: &str = "//javascript:extensions.bzl";
+
+/// Whether `use_extension(bzl, name)` is the crate_universe extension or the rules_dx `cargo` hub.
+pub(crate) fn is_crate_extension(bzl: &str, name: &str) -> bool {
+    (bzl.ends_with(CRATE_EXTENSION_BZL) && name == "crate")
+        || (bzl.ends_with(CARGO_HUB_BZL) && name == "cargo")
+}
+
+fn is_npm_extension(bzl: &str, name: &str) -> bool {
+    name == "npm" && (bzl.ends_with(NPM_EXTENSION_BZL) || bzl.ends_with(NPM_HUB_BZL))
+}
 
 type Key = (String, String);
 
@@ -182,14 +194,12 @@ pub(crate) fn crate_hubs(module_text: &str) -> Result<Vec<Hub>, dx_error::DxErro
         }
         let bzl = literal(call, "extension_bzl_file", Some(0))?.unwrap_or_default();
         let name = literal(call, "extension_name", Some(1))?.unwrap_or_default();
-        if bzl.ends_with(CRATE_EXTENSION_BZL)
-            && name == "crate"
+        if is_crate_extension(&bzl, &name)
             && let Some(binding) = &call.binding
         {
             bindings.insert(binding);
         }
-        if bzl.ends_with(NPM_EXTENSION_BZL)
-            && name == "npm"
+        if is_npm_extension(&bzl, &name)
             && let Some(binding) = &call.binding
         {
             npm_bindings.insert(binding);
@@ -1706,6 +1716,27 @@ npm.npm_translate_lock(name = "npm", pnpm_lock = "//web:pnpm-lock.yaml")
             ));
         }
         out
+    }
+
+    #[test]
+    fn rules_dx_hub_extensions_are_read_like_the_upstream_ones() {
+        let upstream = format!("{MODULE}{NPM_MODULE}");
+        let dx = upstream
+            .replace(
+                "use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")",
+                "use_extension(\"@rules_dx//rust:extensions.bzl\", \"cargo\")",
+            )
+            .replace(
+                "@aspect_rules_js//npm:extensions.bzl",
+                "@rules_dx//javascript:extensions.bzl",
+            );
+        assert_ne!(dx, upstream);
+        assert!(!dx.contains("@rules_rust//") && !dx.contains("@aspect_rules_js//"));
+        let hubs = crate_hubs(&dx).expect("hubs");
+        assert!(!hubs.is_empty());
+        assert_eq!(hubs, crate_hubs(&upstream).expect("hubs"));
+        assert!(is_crate_extension("//rust:extensions.bzl", "cargo"));
+        assert!(!is_crate_extension("@rules_rust//rust:extensions.bzl", "rust"));
     }
 
     #[test]

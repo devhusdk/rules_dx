@@ -655,6 +655,36 @@ impl ModuleFile {
             .collect()
     }
 
+    /// The variables bound to the rules_dx hub extension `extension` (like
+    /// `@rules_dx//rust:extensions.bzl`) or to the upstream extension it wraps, with their line.
+    pub fn hub_bindings(&self, extension: &str, name: &str) -> Vec<(&str, usize)> {
+        let Some(lang) = extension
+            .strip_prefix("@rules_dx//")
+            .and_then(|rest| rest.split_once(':'))
+            .map(|(lang, _)| lang)
+        else {
+            return self.extension_bindings(extension, name);
+        };
+        let dx = self.repo_name(RUBY_MODULE).unwrap_or(RUBY_MODULE);
+        let mut found = self.extension_bindings(&format!("@{dx}//{lang}:extensions.bzl"), name);
+        found.extend(self.extension_bindings(&format!("//{lang}:extensions.bzl"), name));
+        let upstream = match (lang, name) {
+            ("rust", "cargo") => Some((RUST_MODULE, "crate_universe:extensions.bzl", "crate")),
+            ("python", "uv") => Some((PY_MODULE, "uv:extensions.bzl", "uv")),
+            ("javascript", "npm" | "pnpm") => Some((JS_MODULE, "npm:extensions.bzl", name)),
+            ("typescript", "typescript") => {
+                Some(("aspect_rules_ts", "ts:extensions.bzl", "typescript"))
+            }
+            ("dart", "pub") => Some((DART_MODULE, "dart/pub:extensions.bzl", "pub")),
+            _ => None,
+        };
+        if let Some((module, file, ext)) = upstream {
+            let repo = self.repo_name(module).unwrap_or(module);
+            found.extend(self.extension_bindings(&format!("@{repo}//{file}"), ext));
+        }
+        found
+    }
+
     /// The literal repo names `use_repo(binding, ...)` imports, with the call's line.
     pub fn use_repos(&self, binding: &str) -> Vec<(&str, usize)> {
         let mut out = Vec::new();
@@ -848,6 +878,7 @@ impl ModuleFile {
     pub fn npm_translate_locks(&self) -> Result<Vec<NpmLock<'_>>, ModuleError> {
         const TAG: &str = "npm.npm_translate_lock";
         self.tags(JS_MODULE, "npm:extensions.bzl", "npm", "npm_translate_lock")
+            .chain(self.dx_tags("javascript", "npm", "npm_translate_lock"))
             .map(|call| {
                 Ok(NpmLock {
                     name: required(call, TAG, "name")?,
@@ -862,6 +893,7 @@ impl ModuleFile {
     pub fn uv_projects(&self) -> Result<Vec<UvProject<'_>>, ModuleError> {
         const TAG: &str = "uv.project";
         self.tags(PY_MODULE, "uv:extensions.bzl", "uv", "project")
+            .chain(self.dx_tags("python", "uv", "project"))
             .map(|call| {
                 Ok(UvProject {
                     hub_name: required(call, TAG, "hub_name")?,
@@ -903,7 +935,7 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `pub.from_lock` tag of rules_dart or this repository's `//dart:extensions.bzl` and
+    /// Every `pub.from_lock` tag of rules_dart or the rules_dx `dart/extensions.bzl` and
     /// `flutter.pub` tag of rules_flutter, in source order within each extension.
     pub fn pub_locks(&self) -> Result<Vec<PubLock<'_>>, ModuleError> {
         let dart = self
@@ -913,7 +945,7 @@ impl ModuleFile {
             .tags(FLUTTER_MODULE, "flutter:extensions.bzl", "flutter", "pub")
             .map(|call| ("flutter.pub", call));
         let own = self
-            .tags_of("//dart:extensions.bzl".to_owned(), "pub", "from_lock")
+            .dx_tags("dart", "pub", "from_lock")
             .map(|call| ("pub.from_lock", call));
         dart.chain(flutter)
             .chain(own)
@@ -1231,6 +1263,19 @@ impl ModuleFile {
             .collect()
     }
 
+    /// The calls of `tag` on every binding of the rules_dx extension `name` in
+    /// `<lang>/extensions.bzl`, named from a consumer or from this repository.
+    fn dx_tags<'a>(
+        &'a self,
+        lang: &str,
+        name: &str,
+        tag: &'a str,
+    ) -> impl Iterator<Item = &'a Call> + 'a {
+        let repo = self.repo_name(RUBY_MODULE).unwrap_or(RUBY_MODULE);
+        self.tags_of(format!("@{repo}//{lang}:extensions.bzl"), name, tag)
+            .chain(self.tags_of(format!("//{lang}:extensions.bzl"), name, tag))
+    }
+
     /// The calls of `tag` on every binding of the extension `name` in `@<module>//<file>`.
     fn tags<'a>(
         &'a self,
@@ -1534,12 +1579,19 @@ impl ModuleFile {
 
     fn crate_proxies(&self) -> Vec<&str> {
         let repo = self.repo_name(RUST_MODULE).unwrap_or(RUST_MODULE);
-        let label = format!("@{repo}//crate_universe:extensions.bzl");
+        let dx = self.repo_name(RUBY_MODULE).unwrap_or(RUBY_MODULE);
+        let known = [
+            (format!("@{repo}//crate_universe:extensions.bzl"), "crate"),
+            (format!("@{dx}//rust:extensions.bzl"), "cargo"),
+            ("//rust:extensions.bzl".to_owned(), "cargo"),
+        ];
         self.calls_named("use_extension")
             .filter(|call| {
                 let file = extension_arg(call, 0, "extension_bzl_file");
                 let extension = extension_arg(call, 1, "extension_name");
-                file == Some(label.as_str()) && extension == Some("crate")
+                known
+                    .iter()
+                    .any(|(label, name)| file == Some(label.as_str()) && extension == Some(*name))
             })
             .filter_map(|call| call.binding.as_deref())
             .collect()

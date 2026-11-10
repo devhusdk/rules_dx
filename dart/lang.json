@@ -14,6 +14,18 @@
   "lockfiles": [
     "pubspec.lock"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "pub",
+        "manifest": "pubspec.yaml",
+        "lock": "pubspec.lock",
+        "extension": "@rules_dx//dart:extensions.bzl",
+        "tag": "from_lock",
+        "hub": "pub_deps"
+      }
+    ]
+  },
   "tools": [
     "dart"
   ],

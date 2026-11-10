@@ -14,6 +14,24 @@
   "lockfiles": [
     "pnpm-lock.yaml"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "npm",
+        "manifest": "package.json",
+        "lock": "pnpm-lock.yaml",
+        "extension": "@rules_dx//javascript:extensions.bzl",
+        "tag": "npm_translate_lock",
+        "hub": "npm"
+      },
+      {
+        "ecosystem": "pnpm",
+        "manifest": "package.json",
+        "extension": "@rules_dx//javascript:extensions.bzl",
+        "hub": "pnpm"
+      }
+    ]
+  },
   "tools": [
     "biome",
     "eslint"

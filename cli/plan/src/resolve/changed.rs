@@ -474,9 +474,7 @@ impl ModuleInputPaths {
 /// `additive_build_file`) change repo contents and widen like any input.
 fn is_crate_lock_input(extension: &Option<(String, String)>, tag: &str) -> bool {
     extension.as_ref().is_some_and(|(bzl, name)| {
-        bzl.ends_with(lock_inputs::CRATE_EXTENSION_BZL)
-            && name == "crate"
-            && matches!(tag, "from_cargo" | "from_specs")
+        lock_inputs::is_crate_extension(bzl, name) && matches!(tag, "from_cargo" | "from_specs")
     })
 }
 

@@ -311,6 +311,18 @@
             "real_dart_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "pub",
+            "extension": "@rules_dx//dart:extensions.bzl",
+            "hub": "pub_deps",
+            "lock": "pubspec.lock",
+            "manifest": "pubspec.yaml",
+            "tag": "from_lock"
+          }
+        ]
       }
     },
     {
@@ -670,6 +682,24 @@
             "real_js_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "npm",
+            "extension": "@rules_dx//javascript:extensions.bzl",
+            "hub": "npm",
+            "lock": "pnpm-lock.yaml",
+            "manifest": "package.json",
+            "tag": "npm_translate_lock"
+          },
+          {
+            "ecosystem": "pnpm",
+            "extension": "@rules_dx//javascript:extensions.bzl",
+            "hub": "pnpm",
+            "manifest": "package.json"
+          }
+        ]
       }
     },
     {
@@ -1043,6 +1073,18 @@
             "real_python_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "uv",
+            "extension": "@rules_dx//python:extensions.bzl",
+            "hub": "pypi",
+            "lock": "uv.lock",
+            "manifest": "pyproject.toml",
+            "tag": "project"
+          }
+        ]
       }
     },
     {
@@ -1153,6 +1195,18 @@
             "real_rust_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "cargo",
+            "extension": "@rules_dx//rust:extensions.bzl",
+            "hub": "crates",
+            "lock": "Cargo.lock",
+            "manifest": "Cargo.toml",
+            "tag": "from_cargo"
+          }
+        ]
       }
     },
     {
@@ -1312,6 +1366,16 @@
           ".mts",
           ".ts",
           ".tsx"
+        ]
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "typescript",
+            "extension": "@rules_dx//typescript:extensions.bzl",
+            "hub": "npm_typescript",
+            "manifest": "tsconfig.json"
+          }
         ]
       }
     },

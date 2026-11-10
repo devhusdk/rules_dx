@@ -107,6 +107,34 @@ pub fn isolate_git<'a>(cmd: &'a mut Command, sandbox: &Path) -> &'a mut Command 
     cmd
 }
 
+/// Runs git in `root` with a fixed test identity, signing off, and the isolation of `isolate_git`
+/// rooted at `sandbox`. Panics with the args and stderr on failure. Returns trimmed stdout.
+pub fn git(root: &Path, sandbox: &Path, args: &[&str]) -> String {
+    let mut cmd = Command::new("git");
+    cmd.arg("-C").arg(root);
+    isolate_git(&mut cmd, sandbox);
+    cmd.args([
+        "-c",
+        "user.name=dx",
+        "-c",
+        "user.email=dx@example.com",
+        "-c",
+        "commit.gpgsign=false",
+        "-c",
+        "tag.gpgsign=false",
+    ])
+    .args(args);
+    let output = cmd
+        .output()
+        .unwrap_or_else(|err| panic!("git {args:?} did not start: {err}"));
+    assert!(
+        output.status.success(),
+        "git {args:?} failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8_lossy(&output.stdout).trim().to_owned()
+}
+
 /// Removes a directory link without following it into its target.
 pub fn remove_directory_link(path: &Path) -> std::io::Result<()> {
     #[cfg(windows)]
@@ -174,6 +202,38 @@ mod tests {
     #[cfg(not(windows))]
     fn directory_link(target: &Path, link: &Path) -> std::io::Result<()> {
         std::os::unix::fs::symlink(target, link)
+    }
+
+    #[test]
+    fn git_reads_only_sandbox_config() {
+        let sandbox = scratch("git-helper");
+        let root = sandbox.path().join("repo");
+        std::fs::create_dir_all(&root).expect("dir");
+        git(&root, sandbox.path(), &["init", "-q"]);
+        assert!(root.join(".git").is_dir());
+        git(
+            &root,
+            sandbox.path(),
+            &["commit", "-q", "--allow-empty", "-m", "x"],
+        );
+        assert_eq!(
+            git(&root, sandbox.path(), &["log", "-1", "--format=%an <%ae>"]),
+            "dx <dx@example.com>"
+        );
+        let origins = git(
+            &root,
+            sandbox.path(),
+            &["config", "--list", "--show-origin"],
+        );
+        let sandbox_text = sandbox.path().to_string_lossy().into_owned();
+        for line in origins.lines() {
+            assert!(
+                line.starts_with("command line:")
+                    || line.starts_with("file:.git/")
+                    || line.contains(&sandbox_text),
+                "config outside the sandbox: {line}"
+            );
+        }
     }
 
     #[test]

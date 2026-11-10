@@ -215,14 +215,6 @@ mod tests {
         );
     }
 
-    fn git(dir: &Path) {
-        dx_process::capture::run_checked(
-            dx_process::capture::git(dir).args(["init", "-q"]),
-            dx_process::capture::DEFAULT_TIMEOUT,
-        )
-        .expect("git init");
-    }
-
     fn workspace(files: &[&str], with_git: bool) -> dx_test_scratch::TempDir {
         let dir = scratch("families");
         write(dir.path(), MODULE_FILE, MODULE);
@@ -230,7 +222,7 @@ mod tests {
             write(dir.path(), file, "");
         }
         if with_git {
-            git(dir.path());
+            dx_test_scratch::git(dir.path(), dir.path(), &["init", "-q"]);
         }
         dir
     }
@@ -254,7 +246,7 @@ mod tests {
     #[test]
     fn a_broken_git_dir_under_a_parent_repo_is_walked() {
         let outer = scratch("families");
-        git(outer.path());
+        dx_test_scratch::git(outer.path(), outer.path(), &["init", "-q"]);
         let root = outer.path().join("app");
         write(&root, MODULE_FILE, MODULE);
         for file in ["src/A.java", ".git/x.go", "bazel-out/y.go"] {

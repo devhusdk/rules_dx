@@ -506,19 +506,7 @@ mod tests {
     }
 
     fn git(root: &Path, args: &[&str]) {
-        let mut cmd = dx_process::capture::git(root);
-        cmd.args([
-            "-c",
-            "user.name=t",
-            "-c",
-            "user.email=t@t",
-            "-c",
-            "commit.gpgsign=false",
-        ])
-        .args(args);
-        dx_test_scratch::isolate_git(&mut cmd, sandbox_of(root));
-        dx_process::capture::run_checked(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT)
-            .unwrap_or_else(|error| panic!("{args:?}: {error}"));
+        dx_test_scratch::git(root, sandbox_of(root), args);
     }
 
     fn write(root: &Path, rel: &str, body: &[u8]) {

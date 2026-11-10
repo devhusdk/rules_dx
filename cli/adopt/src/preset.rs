@@ -470,23 +470,15 @@ mod tests {
         );
     }
 
-    fn git(root: &Path, sandbox: &Path, args: &[&str]) {
-        let mut cmd = dx_process::capture::git(root);
-        cmd.args(args);
-        dx_test_scratch::isolate_git(&mut cmd, sandbox);
-        dx_process::capture::run_checked(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT)
-            .unwrap_or_else(|error| panic!("{args:?}: {error}"));
-    }
-
     #[test]
     fn tracked_layers_get_the_git_rm_note() {
         let scratch = dx_test_scratch::scratch("dx-preset-tracked-");
         let root = scratch.path().join("repo");
         std::fs::create_dir_all(&root).expect("dir");
-        git(&root, scratch.path(), &["init", "-q"]);
+        dx_test_scratch::git(&root, scratch.path(), &["init", "-q"]);
         apply(&root);
         write(&root, &layer_rel(Layer::Resources), "build --jobs=2\n").expect("layer");
-        git(&root, scratch.path(), &["add", "-f", CONSUMER_DIR]);
+        dx_test_scratch::git(&root, scratch.path(), &["add", "-f", CONSUMER_DIR]);
         assert!(preset_drift(&root).other.contains(&tracked_note()));
         assert!(apply(&root).1.contains(&tracked_note()));
     }

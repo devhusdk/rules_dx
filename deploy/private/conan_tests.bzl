@@ -32,5 +32,15 @@ def conan_unit_tests(name):
                 conan_remote_url_error("http://x"),
                 "conan_deploy: invalid remote_url 'http://x': want an https:// URL",
             ),
+            expect_equal(
+                "conan_remote_url_error rejects a space",
+                conan_remote_url_error("https://x/a b"),
+                "conan_deploy: invalid remote_url 'https://x/a b': want only URL characters, no spaces or quotes",
+            ),
+            expect_equal(
+                "conan_remote_url_error rejects credentials",
+                conan_remote_url_error("https://bot:hunter2@x"),
+                "conan_deploy: invalid remote_url: want no user or password in the URL",
+            ),
         ],
     )

@@ -145,5 +145,15 @@ def npm_unit_tests(name):
                 "npm_deploy: invalid registry_url '': want an https:// URL " +
                 "(for example 'https://registry.npmjs.org')",
             ),
+            expect_equal(
+                "npm_registry_url_error rejects a registry with no host",
+                npm_registry_url_error("https://"),
+                "npm_deploy: invalid registry_url 'https://': want a host after https://",
+            ),
+            expect_equal(
+                "npm_registry_url_error rejects credentials in the URL",
+                npm_registry_url_error("https://bot:hunter2@registry.npmjs.org"),
+                "npm_deploy: invalid registry_url: want no user or password in the URL",
+            ),
         ],
     )

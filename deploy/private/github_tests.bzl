@@ -35,6 +35,31 @@ def github_unit_tests(name):
                 "github_deploy: invalid release_tag 'current': use tag_from_head = True",
             ),
             expect_equal(
+                "github_tag_error rejects a tag gh would read as a flag",
+                github_tag_error("--prerelease"),
+                "github_deploy: invalid release_tag '--prerelease': want a git tag name: no leading '-' or '.', no '..', no trailing '.' or '.lock'",
+            ),
+            expect_equal(
+                "github_tag_error rejects a leading dot",
+                github_tag_error(".v1"),
+                "github_deploy: invalid release_tag '.v1': want a git tag name: no leading '-' or '.', no '..', no trailing '.' or '.lock'",
+            ),
+            expect_equal(
+                "github_tag_error rejects a double dot",
+                github_tag_error("v1..2"),
+                "github_deploy: invalid release_tag 'v1..2': want a git tag name: no leading '-' or '.', no '..', no trailing '.' or '.lock'",
+            ),
+            expect_equal(
+                "github_tag_error rejects a trailing dot",
+                github_tag_error("v1."),
+                "github_deploy: invalid release_tag 'v1.': want a git tag name: no leading '-' or '.', no '..', no trailing '.' or '.lock'",
+            ),
+            expect_equal(
+                "github_tag_error rejects a .lock suffix",
+                github_tag_error("v1.lock"),
+                "github_deploy: invalid release_tag 'v1.lock': want a git tag name: no leading '-' or '.', no '..', no trailing '.' or '.lock'",
+            ),
+            expect_equal(
                 "github_notes_error accepts commits",
                 github_notes_error("commits"),
                 "",

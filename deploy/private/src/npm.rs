@@ -372,6 +372,10 @@ const NPM_CHILD_ENV_EXTRA: &[&str] = &[
 
 /// Runs npm publish with a temporary owner-only npmrc, in a cleared env.
 pub fn npm_run_publish(npm: &Path, host: &str, token: &str, args: &[std::ffi::OsString]) -> i32 {
+    if let Some(refusal) = plain_token_refusal("npm_deploy", token, &[]) {
+        eprintln!("{refusal}");
+        return 1;
+    }
     let npmrc = match npm_write_npmrc(host, token) {
         Ok(path) => path,
         Err(error) => {
@@ -1751,6 +1755,17 @@ mod tests {
             env.lines()
                 .any(|line| line == "CI_PROJECT_URL=https://gitlab.example/p")
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn npm_run_publish_refuses_a_token_that_breaks_the_npmrc_line() {
+        let scratch = scratch_dir();
+        let npm = fake_npm(scratch.path(), 0);
+        for token in ["tok\nregistry=https://evil.invalid/", "tok en", "tok\r"] {
+            assert_eq!(npm_run_publish(&npm, "registry.npmjs.org", token, &[]), 1);
+            assert!(!scratch.path().join("args.txt").exists(), "{token:?} ran npm");
+        }
     }
 
     #[cfg(unix)]

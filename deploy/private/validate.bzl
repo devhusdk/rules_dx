@@ -13,6 +13,8 @@ VERSION_CHARS = NAME_CHARS + "+"
 
 DIGITS = "0123456789"
 
+URL_CHARS = ALNUM + "-._~:/?#[]@!$&()*+,;=%"
+
 SIZE_UNITS = [("GB", 1000 * 1000 * 1000), ("MB", 1000 * 1000), ("KB", 1000), ("B", 1)]
 
 only_chars = _only_chars
@@ -30,11 +32,18 @@ def charset_error(rule, what, value, chars, want_empty, want_chars):
     return ""
 
 def https_url_error(rule, what, value, want_empty, want_scheme):
-    """Returns "" or the message for an empty, non-string or non-https value."""
+    """Returns "" or the message for a value that is not an https URL with a host and no credentials."""
     if type(value) != "string" or value == "":
         return rule + ": invalid " + what + " '" + str(value) + "': want " + want_empty
     if not value.startswith("https://"):
         return rule + ": invalid " + what + " '" + value + "': want " + want_scheme
+    authority = value.removeprefix("https://").split("/")[0].split("?")[0].split("#")[0]
+    if "@" in authority:
+        return rule + ": invalid " + what + ": want no user or password in the URL"
+    if not only_chars(value, URL_CHARS):
+        return rule + ": invalid " + what + " '" + value + "': want only URL characters, no spaces or quotes"
+    if authority == "" or authority[0] not in ALNUM + "[":
+        return rule + ": invalid " + what + " '" + value + "': want a host after https://"
     return ""
 
 def suffix_error(rule, what, value, suffix, want_empty, want_suffix):

@@ -970,8 +970,9 @@ A default run checks the package and the spec and runs no `octo` command.
 Rerunning a published version: `octo push` fails because the package exists,
 the run exits 1 and the hint names `FailIfExists`. That includes a rerun after
 a failed `create-release`. The key goes to `octo` as `OCTOPUS_CLI_API_KEY` in its
-env, never the command line. A live run refuses version `0.0.0` and the default
-`registry_url`.
+env, never the command line. A live run refuses the placeholder versions `0.0.0`
+and `0.0.0-dryrun`, the default `registry_url`, and an `OCTOPUS_URL` that is not
+an https URL or that holds a user or password.
 
 # pypi_deploy
 

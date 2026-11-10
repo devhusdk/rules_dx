@@ -1191,13 +1191,13 @@ def _marked_tool_test(platform):
         config_settings = {"//command_line_option:platforms": str(Label(platform))},
     )
 
-_zanuda_marked_test = _marked_tool_test("//qt:macos_arm64")
+_zanuda_marked_test = _marked_tool_test("//qt:windows_x86_64")
 _swift_format_marked_test = _marked_tool_test("//qt:windows_x86_64")
 
 _zanuda_policy_test = analysistest.make(
     _unsupported_platform_impl,
     config_settings = {
-        "//command_line_option:extra_execution_platforms": str(Label("//qt:macos_arm64")),
+        "//command_line_option:extra_execution_platforms": str(Label("//qt:windows_x86_64")),
         str(Label("//config:workspace")): str(Label("//core/quality/testdata/ocaml_owned:policy")),
     },
     extra_target_under_test_aspects = [real_ocaml_lint_aspect],
@@ -1221,8 +1221,8 @@ def unsupported_platform_analysis_tests(name):
         target_under_test = "//swift/private/tools:swift_format",
     )
     _zanuda_policy_test(
-        name = name + "_zanuda_macos",
+        name = name + "_zanuda_windows",
         size = "small",
         target_under_test = "//core/quality/testdata/ocaml_owned:clean",
     )
-    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_macos"])
+    native.test_suite(name = name, tests = [name + "_hlint_macos", name + "_zanuda_tool", name + "_swift_format_tool", name + "_zanuda_windows"])

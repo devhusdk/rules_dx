@@ -154,6 +154,8 @@ REAL_RESULT_CASES = [
         "class": "ocaml",
         "contains": ["core/quality/testdata/zanuda_owned/clean.ml"],
         "absent": ["if_bool", "list_length_comparisons", "Fatal error", "no such file"],
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "real_result_zanuda_dirty",
@@ -164,6 +166,8 @@ REAL_RESULT_CASES = [
         "class": "ocaml",
         "contains": ["core/quality/testdata/zanuda_owned/dirty.ml", "list_length_comparisons"],
         "absent": ["if_bool"],
+        "linux_arm64": True,
+        "macos_arm64": True,
     },
     {
         "name": "real_result_ocaml_clean",

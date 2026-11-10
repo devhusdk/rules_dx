@@ -19,11 +19,16 @@ let package = Package(
 )
 ";
 
+const TAG: &str = "https://api.github.com/repos/example/mini/git/ref/tags/1.0.0";
+
 struct Archives(RefCell<Vec<String>>);
 
 impl Download for Archives {
     fn bytes(&self, url: &str) -> Result<Vec<u8>, Error> {
         self.0.borrow_mut().push(url.to_owned());
+        if url == TAG {
+            return Ok(format!("{{\"object\": {{\"type\": \"commit\", \"sha\": \"{REVISION}\"}}}}").into_bytes());
+        }
         std::fs::read(dx_testing::env_file("ARCHIVE")).map_err(|error| Error::new(error.to_string()))
     }
 }
@@ -71,6 +76,55 @@ fn a_pinned_package_writes_the_golden_lock() {
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
     dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/lock/testdata/golden.lock.json"))
         .expect("the lock matches the golden");
+}
+
+fn bare(manifest: &str) -> tempfile::TempDir {
+    let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
+    let dir = tempfile::tempdir().expect("set directory");
+    std::fs::write(dir.path().join(&hub.manifest), manifest).expect("manifest");
+    dir
+}
+
+#[test]
+fn a_manifest_with_no_state_file_writes_the_golden_state_and_lock() {
+    let dir = bare(MANIFEST);
+    let archives = Archives(RefCell::default());
+    assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
+    assert_eq!(
+        archives.0.borrow().as_slice(),
+        [TAG.to_owned(), format!("https://github.com/example/mini/archive/{REVISION}.tar.gz")]
+    );
+    let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
+    let state = std::fs::read_to_string(dir.path().join(hub.state.as_deref().expect("state"))).expect("state");
+    assert_eq!(state, self::state("https://github.com/example/mini"));
+    let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
+    dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/lock/testdata/golden.lock.json"))
+        .expect("the lock matches the golden");
+}
+
+#[test]
+fn a_range_requirement_fails_with_its_manifest_line() {
+    let dir = bare(&MANIFEST.replace("exact: \"1.0.0\"", "from: \"1.0.0\""));
+    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    assert!(error.to_string().contains("Package.swift:7: https://github.com/example/mini is not an exact"), "{error}");
+}
+
+#[test]
+fn a_dependency_outside_github_fails_with_its_manifest_line() {
+    let dir = bare(&MANIFEST.replace("github.com", "gitlab.com"));
+    let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
+    assert!(error.to_string().contains("Package.swift:7: https://gitlab.com/example/mini is not on github.com"), "{error}");
+}
+
+#[test]
+fn an_unchanged_pin_is_kept_without_a_download() {
+    let dir = set("https://github.com/example/mini");
+    assert_eq!(lock(dir.path(), &Archives(RefCell::default())), Ok(Outcome::Written));
+    let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
+    std::fs::write(dir.path().join(&hub.manifest), format!("{MANIFEST}\n")).expect("manifest");
+    let archives = Archives(RefCell::default());
+    assert_eq!(lock(dir.path(), &archives), Ok(Outcome::Written));
+    assert_eq!(archives.0.borrow().as_slice(), Vec::<String>::new());
 }
 
 #[test]

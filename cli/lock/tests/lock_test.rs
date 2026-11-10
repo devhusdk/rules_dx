@@ -27,7 +27,7 @@ struct Registry {
 }
 
 impl Resolver for Registry {
-    fn resolve(&self, scratch: &Scratch) -> Result<Resolution, Error> {
+    fn resolve(&self, scratch: &Scratch, _: Option<&Lock>) -> Result<Resolution, Error> {
         self.starts.set(self.starts.get() + 1);
         let output = scratch
             .command(runfile("FIXTURE_RESOLVER"))
@@ -45,8 +45,20 @@ impl Resolver for Registry {
 struct Fixed(Vec<Package>);
 
 impl Resolver for Fixed {
-    fn resolve(&self, _: &Scratch) -> Result<Resolution, Error> {
+    fn resolve(&self, _: &Scratch, _: Option<&Lock>) -> Result<Resolution, Error> {
         Ok(Resolution { packages: self.0.clone() })
+    }
+}
+
+/// Records whether the resolver got the previous lock and which packages it held.
+#[derive(Default)]
+struct Remembers(RefCell<Vec<Option<Vec<String>>>>);
+
+impl Resolver for Remembers {
+    fn resolve(&self, _: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error> {
+        let names = old.map(|lock| lock.packages.iter().map(|package| package.name.clone()).collect());
+        self.0.borrow_mut().push(names);
+        Ok(Resolution { packages: vec![package("alpha", "alpha-1.2.0.pkg")] })
     }
 }
 
@@ -171,6 +183,16 @@ fn a_changed_manifest_downloads_only_the_new_package() {
     assert_eq!(names, ["alpha", "delta", "vendor/beta"]);
     assert_eq!(text(&set.path().join("fixture.state")), "alpha 1.2.0\ndelta 2.0.0\nvendor/beta 0.4.1\n");
     assert_eq!(run(&spec(), &args(set.path(), true), &registry, &archives), Ok(Outcome::Fresh));
+}
+
+#[test]
+fn the_resolver_gets_the_previous_lock_only_after_a_first_run() {
+    let set = set();
+    let remembers = Remembers::default();
+    run(&spec(), &args(set.path(), false), &remembers, &Archives::default()).expect("first run");
+    std::fs::write(set.path().join("fixture.json"), "{}").expect("manifest");
+    run(&spec(), &args(set.path(), false), &remembers, &Archives::default()).expect("second run");
+    assert_eq!(*remembers.0.borrow(), [None, Some(vec!["alpha".to_owned()])]);
 }
 
 #[test]

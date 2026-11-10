@@ -55,9 +55,11 @@ impl Spec {
 pub trait Resolver {
     /// Resolves the manifest in `scratch.set()`, writes the state file there, and returns the closure.
     ///
+    /// `old` is the lock of the previous run, when it has one for this ecosystem.
+    ///
     /// # Errors
     /// Fails when the manifest has no resolution.
-    fn resolve(&self, scratch: &Scratch) -> Result<Resolution, Error>;
+    fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error>;
 }
 
 /// Reads archives the lock has no digest for.
@@ -248,7 +250,7 @@ pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch)
         schema: SCHEMA,
         ecosystem: spec.ecosystem.clone(),
         inputs: BTreeMap::new(),
-        packages: resolver.resolve(&scratch)?.packages,
+        packages: resolver.resolve(&scratch, old.as_ref())?.packages,
     };
     lock.normalize();
     let problems = lock.shape_problems();

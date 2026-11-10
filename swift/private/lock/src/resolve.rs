@@ -3,7 +3,7 @@
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
-use dx_lock::{Archive, Error, HttpFetch, Package, Resolution, Resolver, Scratch, Spec};
+use dx_lock::{Archive, Error, HttpFetch, Lock, Package, Resolution, Resolver, Scratch, Spec};
 use serde_json::{Map, Value, json};
 
 /// Downloads archives.
@@ -41,6 +41,7 @@ impl Download for Github {
 /// The resolver of the swiftpm ecosystem.
 pub struct Swift<'a> {
     swift: PathBuf,
+    manifest: String,
     state: String,
     download: &'a dyn Download,
 }
@@ -78,7 +79,12 @@ impl<'a> Swift<'a> {
     /// A resolver that runs `swift` and downloads with `download`.
     #[must_use]
     pub fn new(swift: PathBuf, spec: &Spec, download: &'a dyn Download) -> Self {
-        Self { swift, state: spec.state.first().cloned().unwrap_or_default(), download }
+        Self {
+            swift,
+            manifest: spec.manifest.first().cloned().unwrap_or_default(),
+            state: spec.state.first().cloned().unwrap_or_default(),
+            download,
+        }
     }
 
     /// The lock step values of the registry entry.
@@ -91,8 +97,67 @@ impl<'a> Swift<'a> {
         }
     }
 
+    /// Writes the state file from the root manifest: each `exact:` GitHub requirement becomes the
+    /// commit its tag names.
+    fn write_state(&self, scratch: &Scratch) -> Result<(), Error> {
+        let text = std::fs::read_to_string(scratch.set().join(&self.manifest))
+            .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
+        let at = |url: &str, message: String| {
+            let line = text.lines().position(|line| line.contains(url)).map_or(1, |index| index + 1);
+            Error::new(format!("{}:{line}: {message}", self.manifest))
+        };
+        let dumped = self
+            .package_json(scratch, scratch.set(), "dump-package", &[])
+            .map_err(|message| Error::new(format!("{}: {message}", self.manifest)))?;
+        let mut pins = BTreeMap::new();
+        for dependency in elements(&dumped["dependencies"]) {
+            let source = &dependency["sourceControl"][0];
+            let location = &source["location"]["remote"][0];
+            let url = location["urlString"].as_str().or_else(|| location.as_str()).ok_or_else(|| {
+                Error::new(format!("{}: a dependency is not a source control dependency", self.manifest))
+            })?;
+            let version = source["requirement"]["exact"][0]
+                .as_str()
+                .ok_or_else(|| at(url, format!("{url} is not an exact version requirement")))?;
+            let (owner, repo) = github_repository(url)
+                .ok_or_else(|| at(url, format!("{url} is not on github.com; only github.com is supported")))?;
+            let reference = format!("https://api.github.com/repos/{owner}/{repo}/git/ref/tags/{version}");
+            let object = self.api(&reference).map_err(|error| at(url, error.to_string()))?;
+            let mut object = object["object"].clone();
+            if object["type"] == "tag" {
+                let tag = field(&object, "url").map_err(|error| at(url, error.to_string()))?.to_owned();
+                object = self.api(&tag).map_err(|error| at(url, error.to_string()))?["object"].clone();
+            }
+            let revision = field(&object, "sha").map_err(|error| at(url, format!("{reference}: {error}")))?;
+            pins.insert(repo.to_lowercase(), (url.to_owned(), version.to_owned(), revision.to_owned()));
+        }
+        let quoted = |text: &str| Value::from(text).to_string();
+        let entries: Vec<String> = pins
+            .iter()
+            .map(|(identity, (url, version, revision))| {
+                format!(
+                    "    {{\n      \"identity\" : {},\n      \"kind\" : \"remoteSourceControl\",\n      \"location\" : {},\n      \"state\" : {{\n        \"revision\" : {},\n        \"version\" : {}\n      }}\n    }}",
+                    quoted(identity),
+                    quoted(url),
+                    quoted(revision),
+                    quoted(version)
+                )
+            })
+            .collect();
+        let state = format!("{{\n  \"pins\" : [\n{}\n  ],\n  \"version\" : 3\n}}\n", entries.join(",\n"));
+        std::fs::write(scratch.set().join(&self.state), state).map_err(|error| Error::new(format!("{}: {error}", self.state)))
+    }
+
+    fn api(&self, url: &str) -> Result<Value, Error> {
+        let bytes = self.download.bytes(url).map_err(|error| Error::new(format!("{url}: {error}")))?;
+        serde_json::from_slice(&bytes).map_err(|error| Error::new(format!("{url}: {error}")))
+    }
+
     fn pins(&self, scratch: &Scratch) -> Result<Vec<Pin>, Error> {
         let path = scratch.set().join(&self.state);
+        if !path.exists() {
+            self.write_state(scratch)?;
+        }
         let text = std::fs::read_to_string(&path)
             .map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
         let state: Value = serde_json::from_str(&text).map_err(|error| Error::new(format!("{}: {error}", self.state)))?;
@@ -105,11 +170,7 @@ impl<'a> Swift<'a> {
             let identity = field(pin, "identity")?.to_owned();
             let location = field(pin, "location")?;
             let revision = field(&pin["state"], "revision")?;
-            let repository = location
-                .strip_prefix("https://github.com/")
-                .map(|rest| rest.trim_end_matches('/').trim_end_matches(".git"))
-                .and_then(|rest| rest.split_once('/'))
-                .filter(|(owner, repo)| !owner.is_empty() && !repo.is_empty() && !repo.contains('/'))
+            let repository = github_repository(location)
                 .ok_or_else(|| Error::new(format!("pin {identity} is at {location}; only github.com is supported")))?;
             pins.push(Pin {
                 version: pin["state"]["version"].as_str().unwrap_or(revision).to_owned(),
@@ -156,6 +217,14 @@ impl<'a> Swift<'a> {
         let (products, targets) = library_targets(&described).map_err(failed)?;
         Ok(Described { pin, sha256, products, targets })
     }
+}
+
+fn github_repository(location: &str) -> Option<(&str, &str)> {
+    location
+        .strip_prefix("https://github.com/")
+        .map(|rest| rest.trim_end_matches('/').trim_end_matches(".git"))
+        .and_then(|rest| rest.split_once('/'))
+        .filter(|(owner, repo)| !owner.is_empty() && !repo.is_empty() && !repo.contains('/'))
 }
 
 fn elements(value: &Value) -> &[Value] {
@@ -214,16 +283,51 @@ pub fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String
     Ok((kept, targets))
 }
 
+/// The package of `old` that has the name, version and archive URL of `pin`.
+fn unchanged<'l>(old: &'l Lock, pin: &Pin) -> Option<&'l Package> {
+    old.packages.iter().find(|package| {
+        package.name == pin.identity
+            && package.version == pin.version
+            && package.archives.len() == 1
+            && package.archives[0].urls == [pin.url.as_str()]
+            && package.archives[0].strip_prefix == pin.strip_prefix
+    })
+}
+
 impl Resolver for Swift<'_> {
-    fn resolve(&self, scratch: &Scratch) -> Result<Resolution, Error> {
+    fn resolve(&self, scratch: &Scratch, old: Option<&Lock>) -> Result<Resolution, Error> {
+        let mut kept = Vec::new();
         let mut described = Vec::new();
         for pin in self.pins(scratch)? {
-            described.push(self.describe(scratch, pin)?);
+            match old.and_then(|lock| unchanged(lock, &pin)) {
+                Some(package) => kept.push(package.clone()),
+                None => described.push(self.describe(scratch, pin)?),
+            }
         }
         let mut owners: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
         for entry in &described {
             for product in entry.products.keys() {
                 owners.entry(product).or_default().push(&entry.pin.identity);
+            }
+        }
+        for package in &kept {
+            for product in package.extra.get("swift_products").and_then(Value::as_object).into_iter().flatten().map(|(name, _)| name) {
+                owners.entry(product).or_default().push(&package.name);
+            }
+        }
+        for package in &kept {
+            for target in package.extra.get("swift_targets").and_then(Value::as_object).into_iter().flat_map(Map::values) {
+                for dependency in strings(&target["product_deps"]) {
+                    let found = dependency.split_once(':').is_some_and(|(owner, product)| {
+                        owners.get(product).is_some_and(|all| all.contains(&owner))
+                    });
+                    if !found {
+                        return Err(Error::new(format!(
+                            "pin {}: {dependency} is gone; delete the lock to resolve every pin again",
+                            package.name
+                        )));
+                    }
+                }
             }
         }
         let mut packages = Vec::new();
@@ -284,6 +388,7 @@ impl Resolver for Swift<'_> {
                 extra,
             });
         }
+        packages.extend(kept);
         Ok(Resolution { packages })
     }
 }

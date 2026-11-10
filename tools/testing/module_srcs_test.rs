@@ -119,8 +119,8 @@ fn load_parser_follows_multi_line_and_repository_forms() {
         resolved,
         [
             Some(Bzl {
-                package: "erlang/private/toolchain".into(),
-                path: "erlang/private/toolchain/extensions.bzl".into()
+                package: "erlang".into(),
+                path: "erlang/extensions.bzl".into()
             }),
             Some(Bzl {
                 package: "quality".into(),

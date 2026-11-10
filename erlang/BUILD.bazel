@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 filegroup(
     name = "module_srcs",
     srcs = [
+        "BUILD.bazel",
         "defs.bzl",
         "extensions.bzl",
         "//:module_srcs",

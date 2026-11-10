@@ -63,7 +63,7 @@ Where release-built assets are hosted is the owner's decision. The rules above h
 
 | Tool | Licence | Upstream ships | linux_x86_64 | linux_arm64 | macos_arm64 | windows_x86_64 |
 | --- | --- | --- | --- | --- | --- | --- |
-| nixfmt | MPL-2.0 | one static Linux x86_64 binary | up | rel | rel | no |
+| nixfmt | MPL-2.0 | one static Linux x86_64 binary | up | rel | no | no |
 | deadnix | GPL-3.0 | source only | rel | rel | rel | rel |
 | selene | MPL-2.0 | Linux x86_64, macOS and Windows x86_64 zips, built without the lua52/53/54 features | rel | rel | rel | rel |
 | zanuda | LGPL-3.0 | source only | own | own | own | no |

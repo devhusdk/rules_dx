@@ -1,33 +1,8 @@
-diff --git a/MODULE.bazel b/MODULE.bazel
---- a/MODULE.bazel
-+++ b/MODULE.bazel
-@@ -44,6 +44,20 @@
- # generated files into one directory for the kernel compile.
- bazel_dep(name = "bazel_lib", version = "3.7.2")
- 
-+# Provides the pinned bsdtar that extracts pub archives.
-+bazel_dep(name = "tar.bzl", version = "0.10.9")
-+
-+bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
-+use_repo(
-+    bsd_tar_toolchains,
-+    "bsd_tar_toolchains_darwin_amd64",
-+    "bsd_tar_toolchains_darwin_arm64",
-+    "bsd_tar_toolchains_linux_amd64",
-+    "bsd_tar_toolchains_linux_arm64",
-+    "bsd_tar_toolchains_windows_amd64",
-+    "bsd_tar_toolchains_windows_arm64",
-+)
-+
- bazel_dep(name = "rules_multitool", version = "1.11.1", dev_dependency = True)
- bazel_dep(name = "buildifier_prebuilt", version = "10.1.0", dev_dependency = True)
- bazel_dep(name = "bazelrc-preset.bzl", version = "1.9.2", dev_dependency = True)
-diff --git a/flutter/private/flutter_pub_package.bzl b/flutter/private/flutter_pub_package.bzl
 --- a/flutter/private/flutter_pub_package.bzl
 +++ b/flutter/private/flutter_pub_package.bzl
-@@ -31,6 +31,25 @@
- load("@rules_dart//dart/pub:yaml_parser.bzl", "parse_pubspec_deps", "parse_pubspec_sdk_constraint")
- load("//flutter/private:flutter_pubspec.bzl", "parse_flutter_assets_block", "parse_flutter_plugin_block")
+@@ -1500,6 +1500,25 @@
+         guard_hub_deps = True,
+     )
  
 +_BSDTAR = {
 +    "darwin_amd64": Label("@bsd_tar_toolchains_darwin_amd64//:tar"),
@@ -48,21 +23,25 @@ diff --git a/flutter/private/flutter_pub_package.bzl b/flutter/private/flutter_p
 +        fail("rules_flutter: no pinned bsdtar for host os={} arch={}".format(ctx.os.name, ctx.os.arch))
 +    return str(ctx.path(label))
 +
- # Apple source extensions we sweep into the per-platform plugin library.
- _APPLE_SRC_EXTENSIONS = ("swift", "m", "mm", "h")
- 
-@@ -1507,16 +1526,16 @@
+ def _flutter_pub_package_impl(ctx):
+     url = "{base}/packages/{name}/versions/{version}.tar.gz".format(
+         base = ctx.attr.base_url,
+@@ -1507,16 +1526,19 @@
          version = ctx.attr.version,
      )
  
 -    # Match `pub_lock_package`'s download/extract semantics, including the
 -    # `tar -xzf` workaround for archives with trailing-garbage gzip streams.
-+    # Extract with the pinned bsdtar from tar.bzl, which accepts archives
-+    # with trailing-garbage gzip streams and needs no `tar` on the host.
++    if not ctx.attr.sha256:
++        fail("rules_flutter: {name} {version} has no sha256 in the lock".format(
++            name = ctx.attr.package_name,
++            version = ctx.attr.version,
++        ))
      ctx.download(
          url = url,
          output = "_archive.tar.gz",
-         sha256 = ctx.attr.sha256 if ctx.attr.sha256 else "",
+-        sha256 = ctx.attr.sha256 if ctx.attr.sha256 else "",
++        sha256 = ctx.attr.sha256,
      )
 -    extract = ctx.execute(["tar", "-xzf", "_archive.tar.gz"])
 +    extract = ctx.execute([_bsdtar_path(ctx), "-xzf", "_archive.tar.gz", "--no-same-owner"])

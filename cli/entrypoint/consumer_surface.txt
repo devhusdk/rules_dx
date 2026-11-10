@@ -22,6 +22,7 @@ elixir:defs.bzl
 elixir:extensions.bzl
 env:defs.bzl
 flutter:defs.bzl
+flutter:extensions.bzl
 erlang:defs.bzl
 flatbuffers:defs.bzl
 fortran:defs.bzl

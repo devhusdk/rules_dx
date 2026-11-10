@@ -180,11 +180,6 @@ pub fn pinned_bazel(pinned: PathBuf) -> Result<PathBuf, String> {
     Err(format!("{PINNED_ENV} {} is not a file", pinned.display()))
 }
 
-/// Quotes one argument for a POSIX shell.
-pub fn shell_quote(text: &str) -> String {
-    format!("'{}'", text.replace('\'', "'\\''"))
-}
-
 #[cfg(unix)]
 fn make_executable(path: &Path) -> Result<(), String> {
     use std::os::unix::fs::PermissionsExt;
@@ -234,7 +229,7 @@ pub fn reset(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// The real Bazel followed by every pinned nested startup option; the one source for both wrappers.
+/// The real Bazel followed by every pinned nested startup option; the shim sidecar's contents.
 pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String> {
     vec![
         config.bazel.to_string_lossy().into_owned(),
@@ -243,19 +238,6 @@ pub fn wrapper_argv(config: &Config, user_root: &Path, rc: &Path) -> Vec<String>
         format!("--host_jvm_args=-Xmx{}", config.heap),
         format!("--bazelrc={}", rc.display()),
     ]
-}
-
-/// Renders the sh `bazel` wrapper that pins every nested startup option and logs each call.
-pub fn wrapper_script(config: &Config, user_root: &Path, rc: &Path, calls: &Path) -> String {
-    let quoted: Vec<String> = wrapper_argv(config, user_root, rc)
-        .iter()
-        .map(|arg| shell_quote(arg))
-        .collect();
-    format!(
-        "#!/bin/sh\nprintf '%s\\n' \"$*\" >> {}\nexec {} \"$@\"\n",
-        shell_quote(&calls.to_string_lossy()),
-        quoted.join(" ")
-    )
 }
 
 /// Renders the shim's sidecar `.args` file: one argument per line, the real Bazel first.
@@ -289,6 +271,13 @@ pub fn shim_argv(text: &str, forwarded: &[OsString]) -> Option<(OsString, Vec<Os
 
 /// The `main` of the native `bazel` shim: runs the real Bazel from `<self>.args` with the forwarded args.
 pub fn shim_main() -> i32 {
+    if let Some(owner) = std::env::var_os(REAP_ENV) {
+        let workspaces = std::env::args_os().nth(1).map(PathBuf::from);
+        return match workspaces {
+            Some(workspaces) => reap(&owner.to_string_lossy(), &workspaces),
+            None => 2,
+        };
+    }
     let me = match std::env::current_exe() {
         Ok(me) => me,
         Err(error) => {
@@ -1020,7 +1009,6 @@ impl Server {
                 .map_err(|error| format!("cannot create {}: {error}", dir.display()))?;
         }
         kill_slot_servers(&server.user_root(), &server.home.join(WORKSPACES));
-        server.reaper = spawn_reaper(std::process::id(), &server.home);
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
         let repository_cache = server.repository_cache();
@@ -1033,41 +1021,25 @@ impl Server {
             &rc,
             &bazelrc(&server.config, &registry, &downloader, &repository_cache),
         )?;
+        let shim = server.config.shim.clone().ok_or_else(|| {
+            format!(
+                "{SHIM_ENV} is not set; nested Bazel needs the native shim (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
+            )
+        })?;
         let wrapper = server.wrapper();
         let argv = wrapper_argv(&server.config, &server.user_root(), &rc);
-        match &server.config.shim {
-            Some(shim) => {
-                install_shim(shim, &wrapper)?;
-                write(&wrapper.with_extension("args"), &shim_args(&argv)?)?;
-                if server.config.record.is_some() {
-                    let logs = server.home.join(RECORD_LOGS);
-                    let rc = record_rc(&server.home);
-                    write(&rc, "")?;
-                    write(
-                        &wrapper.with_extension("record"),
-                        &format!("{}\n{}\n", rc.display(), logs.display()),
-                    )?;
-                }
-            }
-            None if cfg!(unix) => {
-                write(
-                    &wrapper,
-                    &wrapper_script(
-                        &server.config,
-                        &server.user_root(),
-                        &rc,
-                        &server.calls_log(),
-                    ),
-                )?;
-                make_executable(&wrapper)?;
-            }
-            None => {
-                return Err(format!(
-                    "{SHIM_ENV} is not set; nested Bazel needs the native shim on this platform (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
-                ));
-            }
+        install_shim(&shim, &wrapper)?;
+        write(&wrapper.with_extension("args"), &shim_args(&argv)?)?;
+        if server.config.record.is_some() {
+            let logs = server.home.join(RECORD_LOGS);
+            let rc = record_rc(&server.home);
+            write(&rc, "")?;
+            write(
+                &wrapper.with_extension("record"),
+                &format!("{}\n{}\n", rc.display(), logs.display()),
+            )?;
         }
-        write(&server.calls_log(), "")?;
+        server.reaper = spawn_reaper(&wrapper, std::process::id(), &server.home);
         Ok(server)
     }
 
@@ -1084,19 +1056,6 @@ impl Server {
         self.home.join(USER_ROOT)
     }
 
-    /// Names the append-only log of every argument line the wrapper receives.
-    pub fn calls_log(&self) -> PathBuf {
-        self.home.join("calls.log")
-    }
-
-    /// Returns the argument lines the wrapper logged since the last call, then empties the log.
-    pub fn take_calls(&self) -> Vec<String> {
-        let log = self.calls_log();
-        let text = std::fs::read_to_string(&log).unwrap_or_default();
-        let _ = write(&log, "");
-        text.lines().map(str::to_owned).collect()
-    }
-
     pub fn wrapper(&self) -> PathBuf {
         wrapper_at(&self.home)
     }
@@ -1109,7 +1068,6 @@ impl Server {
             self.workspace = Some(root.clone());
         }
         reset(&root)?;
-        write(&self.calls_log(), "")?;
         Ok(root)
     }
 
@@ -1196,29 +1154,17 @@ fn bazel_command_at(home: &Path, root: &Path, args: &[&str], envs: &[(&str, &str
     command
 }
 
-#[cfg(unix)]
-const REAPER: &str = r#"while kill -0 "$1" 2>/dev/null; do sleep 1; done
-for sig in TERM KILL; do
-  pids=$(ps -eo pid=,args= | awk -v a=" --workspace_directory=$2/" -v b=" --workspace_directory=$3/" 'index($0, a) || index($0, b) { print $1 }')
-  [ -z "$pids" ] && exit 0
-  kill -$sig $pids 2>/dev/null
-  sleep 2
-done
-"#;
+/// Names the environment variable that makes the shim watch an owner pid instead of running Bazel.
+const REAP_ENV: &str = "DX_NESTED_REAP";
 
-/// Starts a detached watcher that sweeps the slot's workspaces once `owner` is gone, however it died.
+/// Starts a detached shim that sweeps the slot's workspaces once `owner` is gone, however it died.
 #[cfg(unix)]
-fn spawn_reaper(owner: u32, home: &Path) -> Option<Child> {
+fn spawn_reaper(shim: &Path, owner: u32, home: &Path) -> Option<Child> {
     use std::os::unix::process::CommandExt;
     let workspaces = home.join(WORKSPACES);
-    let real = std::fs::canonicalize(&workspaces).unwrap_or_else(|_| workspaces.clone());
-    Command::new("sh")
-        .arg("-c")
-        .arg(REAPER)
-        .arg("dx-nested-reaper")
-        .arg(owner.to_string())
+    Command::new(shim)
+        .env(REAP_ENV, owner.to_string())
         .arg(&workspaces)
-        .arg(&real)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -1228,8 +1174,23 @@ fn spawn_reaper(owner: u32, home: &Path) -> Option<Child> {
 }
 
 #[cfg(not(unix))]
-fn spawn_reaper(_owner: u32, _home: &Path) -> Option<Child> {
+fn spawn_reaper(_shim: &Path, _owner: u32, _home: &Path) -> Option<Child> {
     None
+}
+
+/// The reaper: waits for `owner` to exit, then stops every server under `workspaces`.
+fn reap(owner: &str, workspaces: &Path) -> i32 {
+    let Ok(owner) = owner.parse::<u32>() else {
+        eprintln!("nested bazel shim: {REAP_ENV} is not a pid");
+        return 2;
+    };
+    while alive(owner) {
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    let real = std::fs::canonicalize(workspaces).unwrap_or_else(|_| workspaces.to_path_buf());
+    kill_servers_in_workspaces(workspaces);
+    kill_servers_in_workspaces(&real);
+    0
 }
 
 impl Drop for Server {
@@ -1612,11 +1573,6 @@ impl Case {
         self.server().servers()
     }
 
-    /// Returns the argument lines the wrapper logged since the last call, then empties the log.
-    pub fn take_calls(&self) -> Vec<String> {
-        self.server().take_calls()
-    }
-
     /// Stops the server and asserts that none survives.
     pub fn shutdown_server(&self) {
         let mut guard = self.lease.borrow_mut();
@@ -1795,69 +1751,22 @@ impl std::ops::Deref for Case {
     }
 }
 
-/// One recorded Bazel reply, matched on the exact argument line.
-pub struct Reply<'a> {
-    pub args: &'a str,
-    pub stdout: &'a str,
-    pub stderr: &'a str,
-    pub exit: i32,
+#[cfg(test)]
+fn runfile(var: &str) -> PathBuf {
+    let key = std::env::var(var).unwrap_or_else(|_| panic!("{var} is not set"));
+    resolve_runfile(var, &key).unwrap_or_else(|error| panic!("{error}"))
 }
 
-/// A `bazel` on `PATH` that replays recorded output and logs every call.
-pub struct FakeBazel {
-    bin: PathBuf,
-    log: PathBuf,
+#[cfg(test)]
+fn probe() -> PathBuf {
+    runfile("DX_TEST_NESTED_PROBE")
 }
 
-impl FakeBazel {
-    pub fn new(dir: &Path, replies: &[Reply]) -> FakeBazel {
-        let bin = dir.join("bin");
-        let log = dir.join("calls.log");
-        let mut script = format!(
-            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> {}\ncase \"$*\" in\n",
-            shell_quote(&log.to_string_lossy())
-        );
-        for (index, reply) in replies.iter().enumerate() {
-            let out = dir.join(format!("reply-{index}.out"));
-            let err = dir.join(format!("reply-{index}.err"));
-            write(&out, reply.stdout).unwrap_or_else(|error| panic!("{error}"));
-            write(&err, reply.stderr).unwrap_or_else(|error| panic!("{error}"));
-            script.push_str(&format!(
-                "{})\n  cat {}\n  cat {} >&2\n  exit {}\n  ;;\n",
-                shell_quote(reply.args),
-                shell_quote(&out.to_string_lossy()),
-                shell_quote(&err.to_string_lossy()),
-                reply.exit
-            ));
-        }
-        script.push_str("esac\nprintf 'fake bazel has no reply for: %s\\n' \"$*\" >&2\nexit 2\n");
-        let fake = bin.join("bazel");
-        write(&fake, &script).unwrap_or_else(|error| panic!("{error}"));
-        make_executable(&fake).unwrap_or_else(|error| panic!("{error}"));
-        write(&log, "").unwrap_or_else(|error| panic!("{error}"));
-        FakeBazel { bin, log }
-    }
-
-    /// Returns `PATH` with the fake first.
-    pub fn path(&self) -> String {
-        let mut dirs = vec![self.bin.clone()];
-        dirs.extend(std::env::split_paths(
-            &std::env::var_os("PATH").unwrap_or_default(),
-        ));
-        std::env::join_paths(dirs)
-            .unwrap_or_else(|error| panic!("PATH: {error}"))
-            .to_string_lossy()
-            .into_owned()
-    }
-
-    /// Lists the argument lines of every call so far.
-    pub fn calls(&self) -> Vec<String> {
-        std::fs::read_to_string(&self.log)
-            .unwrap_or_default()
-            .lines()
-            .map(str::to_owned)
-            .collect()
-    }
+#[cfg(test)]
+fn probe_command(args: &[&str]) -> Command {
+    let mut command = Command::new(probe());
+    command.args(args);
+    command
 }
 
 #[cfg(test)]
@@ -1883,25 +1792,17 @@ mod tests {
             bazel: bazel.to_path_buf(),
             heap: DEFAULT_HEAP.to_owned(),
             offline: false,
-            shim: None,
+            shim: Some(runfile("DX_TEST_NESTED_BAZEL_SHIM")),
             cache: Vec::new(),
             record: None,
         }
     }
 
     fn recorder(dir: &Path) -> (PathBuf, PathBuf) {
-        let log = dir.join("real.log");
         let bazel = dir.join("real-bazel");
-        std::fs::write(
-            &bazel,
-            format!(
-                "#!/bin/sh\nprintf '%s|%s|%s\\n' \"$PWD\" \"${{TEST_TMPDIR:-unset}}\" \"$*\" >> '{}'\n",
-                log.display()
-            ),
-        )
-        .expect("write recorder");
+        std::fs::copy(probe(), &bazel).expect("copy probe");
         make_executable(&bazel).expect("chmod");
-        (bazel, log)
+        (bazel.clone(), bazel.with_extension("log"))
     }
 
     fn lookup(vars: Vec<(&'static str, OsString)>) -> impl Fn(&str) -> Option<OsString> {
@@ -2049,19 +1950,17 @@ mod tests {
 
     #[test]
     fn capture_panics_on_an_offline_blocked_download() {
-        let mut command = Command::new("/bin/sh");
-        command.args(["-c", &format!("echo '{BLOCKED_LINE}' >&2; exit 1")]);
+        let command = probe_command(&["emit", BLOCKED_LINE, "1"]);
         let message = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            capture(command, "sh", true)
+            capture(command, "probe", true)
         })) {
             Ok(run) => panic!("no panic: {}", run.combined()),
             Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
         };
         assert!(message.starts_with("nested bazel: "), "{message}");
         assert!(message.contains("nested_repository_cache"), "{message}");
-        let mut online = Command::new("/bin/sh");
-        online.args(["-c", &format!("echo '{BLOCKED_LINE}' >&2; exit 1")]);
-        let run = capture(online, "sh", false);
+        let online = probe_command(&["emit", BLOCKED_LINE, "1"]);
+        let run = capture(online, "probe", false);
         assert!(!run.status.success());
     }
 
@@ -2126,8 +2025,7 @@ mod tests {
     #[test]
     fn a_process_is_owned_only_when_its_command_line_names_the_user_root() {
         let root = Path::new("/nested/owned/root");
-        let mut child = Command::new("sh")
-            .args(["-c", "sleep 30; true", &root.to_string_lossy()])
+        let mut child = probe_command(&["sleep", "30", &root.to_string_lossy()])
             .spawn()
             .expect("spawn");
         let pid = child.id();
@@ -2171,15 +2069,14 @@ mod tests {
     #[test]
     fn the_wrapper_pins_the_startup_options_and_the_rc_names_the_repository_cache() {
         let config = config(Path::new("/b"), Path::new("/usr/bin/bazel"));
-        let script = wrapper_script(
-            &config,
-            Path::new("/b/0/u"),
-            Path::new("/b/0/bazelrc"),
-            Path::new("/b/0/calls.log"),
-        );
         assert_eq!(
-            script,
-            "#!/bin/sh\nprintf '%s\\n' \"$*\" >> '/b/0/calls.log'\nexec '/usr/bin/bazel' '--output_user_root=/b/0/u' '--max_idle_secs=5' '--host_jvm_args=-Xmx1536m' '--bazelrc=/b/0/bazelrc' \"$@\"\n"
+            shim_args(&wrapper_argv(
+                &config,
+                Path::new("/b/0/u"),
+                Path::new("/b/0/bazelrc")
+            ))
+            .expect("args"),
+            "/usr/bin/bazel\n--output_user_root=/b/0/u\n--max_idle_secs=5\n--host_jvm_args=-Xmx1536m\n--bazelrc=/b/0/bazelrc\n"
         );
         let cache = Path::new("/b/repository-cache");
         assert_eq!(
@@ -2369,21 +2266,14 @@ mod tests {
                 first.home().join("bazelrc").display()
             )
         );
-        assert_eq!(
-            first.take_calls(),
-            vec!["--nohome_rc --nosystem_rc info release".to_owned()]
-        );
-        assert!(first.take_calls().is_empty());
         let again = first.enter("ws").expect("enter again");
         assert_eq!(again, root);
-        assert!(first.take_calls().is_empty());
         assert_eq!(std::fs::read_dir(&root).expect("list").count(), 0);
     }
 
     #[test]
     fn the_shim_runs_the_pinned_bazel_with_the_startup_options() {
-        let key = std::env::var("DX_TEST_NESTED_BAZEL_SHIM").expect("DX_TEST_NESTED_BAZEL_SHIM");
-        let shim = resolve_runfile("DX_TEST_NESTED_BAZEL_SHIM", &key).expect("shim");
+        let shim = runfile("DX_TEST_NESTED_BAZEL_SHIM");
         let dir = scratch("nested-shim-");
         let (bazel, log) = recorder(dir.path());
         let shimmed = Config {
@@ -2417,7 +2307,8 @@ mod tests {
         let dir = scratch("nested-env-");
         let (bazel, _) = recorder(dir.path());
         let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
-        let env = Path::new("/usr/bin/env");
+        let env = probe();
+        let env = env.as_path();
         let command = server
             .command(env, &[("PATH", "/custom"), ("KEEP", "1")])
             .expect("command");
@@ -2443,7 +2334,7 @@ mod tests {
         let (bazel, _) = recorder(dir.path());
         let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("server");
         let command = server
-            .command(Path::new("/usr/bin/env"), &[])
+            .command(&probe(), &[])
             .expect("command");
         let run = capture(command, "env", false);
         let lines: Vec<&str> = run.stdout.lines().collect();
@@ -2460,7 +2351,7 @@ mod tests {
         let server = Server::acquire(config(&dir.path().join("base"), &bazel)).expect("slot");
         let shim = dir.path().join("shim");
         let command = server
-            .command_with_front(Path::new("/usr/bin/env"), &[("PATH", "/custom")], &[&shim])
+            .command_with_front(&probe(), &[("PATH", "/custom")], &[&shim])
             .expect("command");
         let run = capture(command, "env", false);
         let wrapper_dir = server.home().join("bin");
@@ -2472,55 +2363,15 @@ mod tests {
         );
     }
 
-    #[test]
-    fn fake_bazel_replays_exact_calls_and_logs_them() {
-        let dir = scratch("nested-fake-");
-        let fake = FakeBazel::new(
-            dir.path(),
-            &[Reply {
-                args: "--nohome_rc query -- tests('//a')",
-                stdout: "rule //a:t\n",
-                stderr: "INFO: done\n",
-                exit: 3,
-            }],
-        );
-        let bazel = dir.path().join("bin/bazel");
-        let hit = Command::new(&bazel)
-            .args(["--nohome_rc", "query", "--", "tests('//a')"])
-            .output()
-            .expect("fake runs");
-        assert_eq!(hit.status.code(), Some(3));
-        assert_eq!(String::from_utf8_lossy(&hit.stdout), "rule //a:t\n");
-        assert_eq!(String::from_utf8_lossy(&hit.stderr), "INFO: done\n");
-        let miss = Command::new(&bazel)
-            .arg("build")
-            .output()
-            .expect("fake runs");
-        assert_eq!(miss.status.code(), Some(2));
-        assert_eq!(
-            fake.calls(),
-            vec![
-                "--nohome_rc query -- tests('//a')".to_owned(),
-                "build".to_owned()
-            ]
-        );
-        assert!(
-            fake.path()
-                .starts_with(&*dir.path().join("bin").to_string_lossy())
-        );
-    }
-
     fn stand_in(workspace: &Path) -> Child {
-        Command::new("sh")
-            .args([
-                "-c",
-                "trap 'kill $p; exit' TERM; sleep 60 & p=$!; wait $p",
-                "bazel-server",
-            ])
-            .arg(format!("--workspace_directory={}", workspace.display()))
-            .arg("--output_base=/home/u/.cache/bazel/_bazel_u/abc")
-            .spawn()
-            .expect("spawn stand-in server")
+        probe_command(&[
+            "sleep",
+            "60",
+            &format!("--workspace_directory={}", workspace.display()),
+            "--output_base=/home/u/.cache/bazel/_bazel_u/abc",
+        ])
+        .spawn()
+        .expect("spawn stand-in server")
     }
 
     fn wait_until(what: &str, mut done: impl FnMut() -> bool) {
@@ -2606,13 +2457,13 @@ mod tests {
         let home = dir.path().to_path_buf();
         let workspaces = home.join("w");
         std::fs::create_dir_all(&workspaces).expect("mkdir");
-        let mut owner = Command::new("sleep").arg("60").spawn().expect("owner");
+        let mut owner = probe_command(&["sleep", "60"]).spawn().expect("owner");
         let mut stray = stand_in(&workspaces.join("consumer"));
         let pid = stray.id();
         wait_until("the stand-in", || {
             servers_in_workspaces(&workspaces) == vec![pid]
         });
-        let mut reaper = spawn_reaper(owner.id(), &home).expect("reaper");
+        let mut reaper = spawn_reaper(&runfile("DX_TEST_NESTED_BAZEL_SHIM"), owner.id(), &home).expect("reaper");
         std::thread::sleep(Duration::from_millis(1500));
         assert!(alive(pid));
         owner.kill().expect("kill owner");
@@ -2638,7 +2489,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn ps_snapshot_treats_zombies_as_gone() {
-        let mut child = Command::new("true").spawn().expect("spawn true");
+        let mut child = probe_command(&["exit", "0"]).spawn().expect("spawn true");
         let pid = child.id();
         wait_until("zombie in ps", || {
             Processes::from_ps()
@@ -2871,7 +2722,7 @@ mod portable_tests {
     #[cfg(unix)]
     #[test]
     fn alive_treats_an_unreaped_child_as_dead() {
-        let mut child = Command::new("true").spawn().expect("spawn");
+        let mut child = probe_command(&["exit", "0"]).spawn().expect("spawn");
         let pid = child.id();
         let start = std::time::Instant::now();
         while alive(pid) && start.elapsed() < std::time::Duration::from_secs(10) {
@@ -2945,24 +2796,7 @@ mod suspend_tests {
     use std::time::Duration;
 
     fn heartbeat(file: &Path) -> std::process::Child {
-        #[cfg(unix)]
-        let mut command = {
-            let mut command = std::process::Command::new("sh");
-            command.arg("-c").arg(format!(
-                "while true; do echo x >> '{}'; sleep 0.02; done",
-                file.display()
-            ));
-            command
-        };
-        #[cfg(windows)]
-        let mut command = {
-            let mut command = std::process::Command::new("powershell");
-            command.args(["-NoProfile", "-Command"]).arg(format!(
-                "while ($true) {{ Add-Content -Path '{}' -Value x; Start-Sleep -Milliseconds 20 }}",
-                file.display()
-            ));
-            command
-        };
+        let mut command = probe_command(&["heartbeat", &file.to_string_lossy()]);
         command.spawn().expect("spawn heartbeat")
     }
 

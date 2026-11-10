@@ -1,5 +1,7 @@
 """Exposes swift-format from the pinned Swift toolchain archive."""
 
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
+
 def _swift_format_impl(ctx):
     exe = None
     libs = []
@@ -11,13 +13,16 @@ def _swift_format_impl(ctx):
     if exe == None:
         fail("the Swift toolchain archive has no usr/bin/swift-format")
     copy = ctx.actions.declare_file(ctx.label.name + "/usr/bin/swift-format")
-    # run_shell: A copy, not a symlink, so the binary finds its libraries next to its real path.
-    ctx.actions.run_shell(
+    applets = coreutils(ctx)
+    ctx.actions.run(
+        executable = applets.binary,
+        arguments = ["cp", "-L", exe.path, copy.path],
         inputs = [exe],
         outputs = [copy],
-        command = "cp -L \"$1\" \"$2\" && chmod +x \"$2\"",
-        arguments = [exe.path, copy.path],
+        env = {"PATH": "/dx_no_path"},
         mnemonic = "SwiftFormatCopy",
+        use_default_shell_env = False,
+        toolchain = COREUTILS_TOOLCHAIN_TYPE,
     )
     mirrored = [copy]
     for lib in libs:
@@ -35,4 +40,5 @@ swift_format_tool = rule(
     attrs = {"srcs": attr.label_list(doc = "Swift sources to check.", allow_files = True, mandatory = True)},
     executable = True,
     doc = "A copy of swift-format beside links to the libraries it loads.",
+    toolchains = [COREUTILS_TOOLCHAIN_TYPE],
 )

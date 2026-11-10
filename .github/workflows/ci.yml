@@ -833,6 +833,10 @@ jobs:
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
           tools/dx generate -- "$@"
+      - name: Check MODULE.bazel.lock is current
+        run: |
+          # shellcheck disable=SC2086
+          bazel mod deps --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
   ci:
     name: ci
     if: ${{ !cancelled() || github.event_name == 'merge_group' }}

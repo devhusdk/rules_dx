@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 38
+MAX_TEST_CONFIGS = 28
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -78,8 +78,6 @@ _CC_SYNTAX = "//core/quality/testdata/clang_syntax:cc_syntax_policy"
 _CC_TIDY = "//core/quality/testdata/clang_syntax:cc_tidy_policy"
 _D = "//core/quality/testdata/d_owned:policy"
 _FSHARP = "//core/quality/testdata/fsharp_owned:policy"
-_HASKELL = "//core/quality/testdata/haskell_owned:policy"
-_OCAML = "//core/quality/testdata/ocaml_owned:policy"
 _SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
 _TOOL_OVERRIDE_POLICY = "//core/quality/testdata:tool_override_policy"
 _ZIG = "//core/quality/testdata/zig_owned:policy"
@@ -101,19 +99,10 @@ TEST_CONFIGS = {
     "zig_owned": _config(_ZIG),
     "fsharp_owned": _config(_FSHARP),
     "ruby_owned": _config(_RUBY),
-    "dialyzer": _config("//core/quality/testdata/dialyzer:policy"),
-    "eslint_typed_standard": _config("//core/quality/testdata/eslint_typed_owned/standard:ts_policy"),
-    "eslint_typed_strict": _config("//core/quality/testdata/eslint_typed_owned/strict:ts_policy"),
     "generated": _config("//core/quality/tests/fixtures/generated_policy:policy"),
-    "haskell_owned": _config(_HASKELL),
-    "haskell_owned_standard": _config(_HASKELL, profile = "standard"),
     "iac_tiers": _config("//core/quality/testdata/iac_tiers:policy"),
-    "jvm_owned": _config("//core/quality/testdata/jvm_owned:policy"),
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),
-    "ocaml_owned": _config(_OCAML),
-    "ocaml_owned_standard": _config(_OCAML, profile = "standard"),
     "prose_dirty": _config("//core/quality/testdata/prose_dirty:policy"),
-    "python_tiers_ruff": _config("//core/quality/testdata/python_tiers:ruff_policy"),
     "ruff_alternate": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:alternate_ruff"}),
     "ruff_empty": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:no_ruff"}),
     "ruff_pair": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:two_ruffs"}),
@@ -123,7 +112,6 @@ TEST_CONFIGS = {
     "tool_defaults": _config(_TOOL_OVERRIDE_POLICY),
     "tool_overrides": _config(_TOOL_OVERRIDE_POLICY, tools = _TOOL_OVERRIDES),
     "workspace": _config("//.dx:policy"),
-    "zanuda_owned": _config("//core/quality/testdata/zanuda_owned:policy"),
 }
 
 TEST_CONFIG_SETTINGS = sorted(TEST_CONFIGS["default"].keys())

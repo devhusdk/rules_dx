@@ -58,7 +58,7 @@ def _ruff_tier_case(tier, name, contains, absent):
     return {
         "name": "real_result_ruff_%s_%s" % (tier, name),
         "target": "//core/quality/testdata/python_tiers:%s_%s" % (tier, name),
-        "config": "python_tiers_ruff",
+        "config": "shared",
         "tool": "ruff",
         "capability": "lint",
         "class": "python",
@@ -129,7 +129,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_zanuda_clean",
         "target": "//core/quality/testdata/zanuda_owned:clean",
-        "config": "zanuda_owned",
+        "config": "shared",
         "tool": "zanuda",
         "capability": "lint",
         "class": "ocaml",
@@ -141,7 +141,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_zanuda_dirty",
         "target": "//core/quality/testdata/zanuda_owned:dirty",
-        "config": "zanuda_owned",
+        "config": "shared",
         "tool": "zanuda",
         "capability": "lint",
         "class": "ocaml",
@@ -153,7 +153,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ocaml_clean",
         "target": "//core/quality/testdata/ocaml_owned:clean",
-        "config": "ocaml_owned",
+        "config": "shared",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
@@ -163,7 +163,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ocaml_dirty",
         "target": "//core/quality/testdata/ocaml_owned:dirty",
-        "config": "ocaml_owned",
+        "config": "shared",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
@@ -173,7 +173,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ghc_clean",
         "target": "//core/quality/testdata/haskell_owned:clean",
-        "config": "haskell_owned",
+        "config": "shared",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
@@ -183,7 +183,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ghc_dirty",
         "target": "//core/quality/testdata/haskell_owned:dirty",
-        "config": "haskell_owned",
+        "config": "shared",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
@@ -193,7 +193,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ghc_redundant_standard",
         "target": "//core/quality/testdata/haskell_owned:redundant",
-        "config": "haskell_owned_standard",
+        "config": "shared_standard",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
@@ -203,7 +203,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ghc_redundant_strict",
         "target": "//core/quality/testdata/haskell_owned:redundant",
-        "config": "haskell_owned",
+        "config": "shared",
         "tool": "ghc",
         "capability": "typecheck",
         "class": "haskell",
@@ -213,7 +213,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ocaml_shadow_standard",
         "target": "//core/quality/testdata/ocaml_owned:shadow",
-        "config": "ocaml_owned_standard",
+        "config": "shared_standard",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
@@ -223,7 +223,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ocaml_shadow_strict",
         "target": "//core/quality/testdata/ocaml_owned:shadow",
-        "config": "ocaml_owned",
+        "config": "shared",
         "tool": "ocaml",
         "capability": "typecheck",
         "class": "ocaml",
@@ -366,7 +366,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_weeder_clean",
         "target": "//core/quality/testdata/haskell_owned:rooted",
-        "config": "haskell_owned",
+        "config": "shared",
         "tool": "weeder",
         "capability": "lint",
         "class": "haskell",
@@ -376,7 +376,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_weeder_dirty",
         "target": "//core/quality/testdata/haskell_owned:weeds",
-        "config": "haskell_owned",
+        "config": "shared",
         "tool": "weeder",
         "capability": "lint",
         "class": "haskell",
@@ -389,7 +389,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_elixirc_elixir_unused",
         "target": "//core/quality/testdata/elixirc:elixir_unused",
-        "config": "dialyzer",
+        "config": "shared",
         "tool": "elixirc",
         "capability": "typecheck",
         "class": "elixir",
@@ -401,7 +401,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_erlc_erlang_unused",
         "target": "//core/quality/testdata/erlc:erlang_unused",
-        "config": "dialyzer",
+        "config": "shared",
         "tool": "erlc",
         "capability": "typecheck",
         "class": "erlang",
@@ -415,7 +415,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_erlang_clean",
         "target": "//core/quality/testdata/dialyzer_clean:erlang_clean",
-        "config": "dialyzer",
+        "config": "shared",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "erlang",
@@ -427,7 +427,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_erlang_dirty",
         "target": "//core/quality/testdata/dialyzer:erlang_dirty",
-        "config": "dialyzer",
+        "config": "shared",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "erlang",
@@ -441,7 +441,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_elixir_clean",
         "target": "//elixir/tests/runtime:erlang_app",
-        "config": "dialyzer",
+        "config": "shared",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "elixir",
@@ -453,7 +453,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_eslint_typed_standard",
         "target": "//core/quality/testdata/eslint_typed_owned/standard:app",
-        "config": "eslint_typed_standard",
+        "config": "shared_standard",
         "tool": "eslint",
         "capability": "lint",
         "class": "typescript",
@@ -465,7 +465,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_eslint_typed_strict",
         "target": "//core/quality/testdata/eslint_typed_owned/strict:app",
-        "config": "eslint_typed_strict",
+        "config": "shared",
         "tool": "eslint",
         "capability": "lint",
         "class": "typescript",
@@ -477,7 +477,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_dialyzer_elixir_dirty",
         "target": "//core/quality/testdata/dialyzer:elixir_dirty",
-        "config": "dialyzer",
+        "config": "shared",
         "tool": "dialyzer",
         "capability": "typecheck",
         "class": "elixir",
@@ -627,7 +627,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_javac_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:java_unused_dep",
-        "config": "jvm_owned",
+        "config": "shared",
         "tool": "javac",
         "capability": "typecheck",
         "class": "java",
@@ -639,7 +639,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_kotlinc_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:kotlin_unused_dep",
-        "config": "jvm_owned",
+        "config": "shared",
         "tool": "kotlinc",
         "capability": "typecheck",
         "class": "kotlin",
@@ -651,7 +651,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_kotlinc_missing_dep",
         "target": "//core/quality/testdata/jvm_owned:kotlin_missing_dep",
-        "config": "jvm_owned",
+        "config": "shared",
         "tool": "kotlinc",
         "capability": "typecheck",
         "class": "kotlin",
@@ -663,7 +663,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_scalac_unused_dep",
         "target": "//core/quality/testdata/jvm_owned:scala_unused_dep",
-        "config": "jvm_owned",
+        "config": "shared",
         "tool": "scalac",
         "capability": "typecheck",
         "class": "scala",
@@ -675,7 +675,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_scalac_missing_dep",
         "target": "//core/quality/testdata/jvm_owned:scala_missing_dep",
-        "config": "jvm_owned",
+        "config": "shared",
         "tool": "scalac",
         "capability": "typecheck",
         "class": "scala",

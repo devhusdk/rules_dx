@@ -14,6 +14,8 @@ struct Declared {
   std::string min_compute_capability;
   std::string min_driver;
   std::string runtime;
+  std::string device_compute_capability;
+  std::string device_driver;
 };
 
 struct Check {

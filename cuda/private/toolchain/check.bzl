@@ -87,6 +87,55 @@ cuda_gpu_check = rule(
     },
 )
 
+def gpu_device_errors(compute_capability, driver):
+    """Returns errors for a declared GPU device that is half set or not X.Y."""
+    if compute_capability == "" and driver == "":
+        return []
+    errors = []
+    if _version(compute_capability) == None:
+        errors.append("dx_cuda: --@rules_dx//cuda:gpu_compute_capability '" + compute_capability + "' is not X.Y, for example 8.9")
+    if _version(driver) == None:
+        errors.append("dx_cuda: --@rules_dx//cuda:gpu_driver '" + driver + "' is not X.Y, for example " + CUDA_VERSION)
+    return errors
+
+def gpu_device_source(compute_capability, driver):
+    """Returns the C++ source that holds the declared GPU device."""
+    return "\n".join([
+        "#include \"cuda/private/testing/gpu_device.h\"",
+        "",
+        "const char *dx_gpu_device_compute_capability(void) { return \"" + compute_capability + "\"; }",
+        "",
+        "const char *dx_gpu_device_driver(void) { return \"" + driver + "\"; }",
+        "",
+    ])
+
+def _gpu_device_impl(ctx):
+    compute_capability = ctx.attr.compute_capability[BuildSettingInfo].value
+    driver = ctx.attr.driver[BuildSettingInfo].value
+    errors = gpu_device_errors(compute_capability, driver)
+    if errors:
+        fail("\n".join(errors))
+    out = ctx.actions.declare_file(ctx.label.name + ".cc")
+    ctx.actions.write(out, gpu_device_source(compute_capability, driver))
+    return [DefaultInfo(files = depset([out]))]
+
+cuda_gpu_device = rule(
+    implementation = _gpu_device_impl,
+    doc = "Writes the declared GPU device as a C++ source and fails analysis when it is half set or not X.Y.",
+    attrs = {
+        "compute_capability": attr.label(
+            doc = "Flag that holds the compute capability of the GPU, as X.Y.",
+            default = "//cuda:gpu_compute_capability",
+            providers = [BuildSettingInfo],
+        ),
+        "driver": attr.label(
+            doc = "Flag that holds the CUDA driver version of the machine, as X.Y.",
+            default = "//cuda:gpu_driver",
+            providers = [BuildSettingInfo],
+        ),
+    },
+)
+
 def compiler_errors(compiler):
     """Returns an error when rules_cuda is set to a compiler other than nvcc."""
     if compiler != "nvcc":

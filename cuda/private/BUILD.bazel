@@ -1,6 +1,6 @@
 load("//cc:defs.bzl", "CC_COVERAGE_INPUTS")
 load("//cuda/private/toolchain:transition.bzl", "cuda_host_settings")
-load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "gpu_requirement_errors", "toolkit_errors")
+load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "component_errors", "component_markers", "gpu_device_errors", "gpu_device_source", "gpu_requirement_errors", "toolkit_errors")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "expect_true")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
@@ -263,6 +263,31 @@ dx_wrapper_contract_tests(
                 "x",
                 "y",
             )]),
+        ),
+        expect_equal(
+            "no declared gpu device passes",
+            gpu_device_errors("", ""),
+            [],
+        ),
+        expect_equal(
+            "declared gpu device passes",
+            gpu_device_errors("12.0", "13.4"),
+            [],
+        ),
+        expect_equal(
+            "gpu device without a driver fails",
+            gpu_device_errors("12.0", ""),
+            ["dx_cuda: --@rules_dx//cuda:gpu_driver '' is not X.Y, for example 13.4"],
+        ),
+        expect_equal(
+            "malformed gpu device fails",
+            gpu_device_errors("120", "13.4"),
+            ["dx_cuda: --@rules_dx//cuda:gpu_compute_capability '120' is not X.Y, for example 8.9"],
+        ),
+        expect_true(
+            "gpu device source holds the declared device",
+            "dx_gpu_device_compute_capability(void) { return \"12.0\"; }" in gpu_device_source("12.0", "13.4") and
+            "dx_gpu_device_driver(void) { return \"13.4\"; }" in gpu_device_source("12.0", "13.4"),
         ),
         expect_equal(
             "gpu env pins the runtime",

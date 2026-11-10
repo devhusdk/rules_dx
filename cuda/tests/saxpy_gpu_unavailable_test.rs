@@ -27,6 +27,8 @@ fn a_host_without_a_visible_gpu_fails_as_unavailable() {
     assert_eq!(facts["declared"]["min_compute_capability"], "8.9");
     assert_eq!(facts["declared"]["min_driver"], "13.0");
     assert_eq!(facts["declared"]["runtime"], "13.4");
+    assert_eq!(facts["declared"]["device_compute_capability"], "12.0");
+    assert_eq!(facts["declared"]["device_driver"], "13.4");
     assert_eq!(facts["runtime"], "13.4");
     assert!(facts["device"].is_null(), "{facts}");
     assert_eq!(facts["checks"], dx_testing::serde_json::json!([]));
@@ -55,6 +57,29 @@ fn missing_declarations_fail_before_any_cuda_call() {
     assert_eq!(
         run.stderr.lines().next(),
         Some("fail: DX_GPU_MIN_CC is missing or not X.Y"),
+        "{}",
+        run.combined()
+    );
+    let facts = dx_testing::read_json(&outputs.join("gpu_facts.json")).unwrap();
+    assert_eq!(facts["status"], "fail");
+    assert!(facts["driver"].is_null(), "{facts}");
+}
+
+#[test]
+fn an_undeclared_device_fails_before_any_cuda_call() {
+    let undeclared =
+        dx_testing::resolve_runfiles(&std::env::var("DX_GPU_TEST_UNDECLARED").unwrap());
+    let outputs = dx_testing::mkscratch("gpu-undeclared").unwrap();
+    let run = dx_testing::run(
+        &undeclared,
+        &[],
+        &[("TEST_UNDECLARED_OUTPUTS_DIR", outputs.to_str().unwrap())],
+    )
+    .unwrap();
+    assert_eq!(run.status.code(), Some(1), "{}", run.combined());
+    assert_eq!(
+        run.stderr.lines().next(),
+        Some("fail: the declared GPU compute capability is missing or not X.Y"),
         "{}",
         run.combined()
     );

@@ -1,3 +1,5 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+
 exports_files([
     "README.md",
     "defs.bzl",
@@ -14,4 +16,22 @@ filegroup(
         "//cuda/private/toolchain:module_srcs",
     ],
     visibility = ["//:__subpackages__"],
+)
+
+string_flag(
+    name = "gpu_compute_capability",
+    build_setting_default = "",
+    visibility = ["//visibility:public"],
+)
+
+string_flag(
+    name = "gpu_driver",
+    build_setting_default = "",
+    visibility = ["//visibility:public"],
+)
+
+config_setting(
+    name = "gpu_undeclared",
+    flag_values = {":gpu_compute_capability": ""},
+    visibility = ["//visibility:public"],
 )

@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "cuda/private/testing/gpu_device.h"
 #include "cuda/private/testing/gpu_facts.h"
 #include "cuda/private/testing/gpu_test.h"
 
@@ -75,7 +76,9 @@ extern "C" bool dx_gpu_check(const char* name, const float* want,
 
 int main() {
   dx_gpu::Declared declared{Env("DX_GPU_MIN_CC"), Env("DX_GPU_MIN_DRIVER"),
-                            Env("DX_GPU_RUNTIME")};
+                            Env("DX_GPU_RUNTIME"),
+                            dx_gpu_device_compute_capability(),
+                            dx_gpu_device_driver()};
   dx_gpu::Probe probe;
   if (dx_gpu::DeclaredError(declared).empty()) {
     ProbeDevice(&probe);

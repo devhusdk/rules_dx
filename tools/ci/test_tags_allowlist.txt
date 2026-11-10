@@ -8,11 +8,6 @@ cli/cli/tests/uv_sets/BUILD.bazel no-sandbox 1
 core/fuzz.bzl manual 1
 csharp/private/defs.bzl manual 1
 csharp/tests/fixtures/fuzz/BUILD.bazel manual 1
-cuda/private/defs.bzl exclusive 1
-cuda/private/defs.bzl external 1
-cuda/private/defs.bzl local 1
-cuda/tests/BUILD.bazel manual 3
-cuda/tests/fixtures/cuda-app/gpu/BUILD.bazel manual 1
 d/tests/fixtures/bench/BUILD.bazel manual 1
 d/tests/fixtures/fuzz/BUILD.bazel manual 1
 dart/private/defs.bzl manual 1

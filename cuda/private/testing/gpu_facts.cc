@@ -105,6 +105,12 @@ std::string DeclaredError(const Declared &declared) {
   if (!ParseVersion(declared.runtime, &major, &minor)) {
     return "DX_GPU_RUNTIME is missing or not X.Y";
   }
+  if (!ParseVersion(declared.device_compute_capability, &major, &minor)) {
+    return "the declared GPU compute capability is missing or not X.Y";
+  }
+  if (!ParseVersion(declared.device_driver, &major, &minor)) {
+    return "the declared GPU driver is missing or not X.Y";
+  }
   return "";
 }
 
@@ -140,6 +146,19 @@ Verdict CheckDevice(const Probe &probe, const Declared &declared) {
   }
   int major = 0;
   int minor = 0;
+  ParseVersion(declared.device_compute_capability, &major, &minor);
+  if (Rank(probe.cc_major, probe.cc_minor) != Rank(major, minor)) {
+    return {Status::kFail,
+            "device compute capability " + std::to_string(probe.cc_major) +
+                "." + std::to_string(probe.cc_minor) +
+                " is not the declared " + declared.device_compute_capability};
+  }
+  ParseVersion(declared.device_driver, &major, &minor);
+  if (EncodedRank(probe.driver) != Rank(major, minor)) {
+    return {Status::kFail, "driver " + CudaVersion(probe.driver) +
+                               " is not the declared " +
+                               declared.device_driver};
+  }
   ParseVersion(declared.min_compute_capability, &major, &minor);
   if (Rank(probe.cc_major, probe.cc_minor) < Rank(major, minor)) {
     return {Status::kUnsupported,
@@ -225,7 +244,10 @@ std::string FactsJson(const Probe &probe, const Declared &declared,
   out += ",\"declared\":{\"min_compute_capability\":" +
          Quote(declared.min_compute_capability) +
          ",\"min_driver\":" + Quote(declared.min_driver) +
-         ",\"runtime\":" + Quote(declared.runtime) + "}";
+         ",\"runtime\":" + Quote(declared.runtime) +
+         ",\"device_compute_capability\":" +
+         Quote(declared.device_compute_capability) +
+         ",\"device_driver\":" + Quote(declared.device_driver) + "}";
   out += ",\"driver\":" + VersionOrNull(probe.driver);
   out += ",\"runtime\":" + VersionOrNull(probe.runtime);
   if (probe.error.empty() && probe.device_count > 0) {

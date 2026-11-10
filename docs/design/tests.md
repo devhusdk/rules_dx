@@ -30,6 +30,13 @@ Every test target and test macro follows these rules.
 - Tests that share a resource each get their own copy of it.
 - A resource that Bazel can count is declared with a `resources:<name>:<n>` tag.
 
+## Devices
+
+- A test that needs a device the machine may lack is incompatible until the machine declares the device with build flags.
+- The declared device is an input of the test. The test fails when the device it finds is not the declared one.
+- The test counts the device with a `resources:<name>:<n>` tag.
+- Its rule behaviour is also proven by a unit, analysis or in-graph fixture test that needs no device.
+
 ## Test kinds
 
 A test is the first of four kinds that can prove the behaviour.

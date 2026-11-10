@@ -67,7 +67,7 @@ fn build_lines_with_env(
         .args(args)
         .current_dir(&workspace)
         .env_clear()
-        .env("PATH", format!("{}:/usr/bin:/bin", bin.display()))
+        .env("PATH", bin.as_os_str())
         .env("HOME", &base)
         .env("XDG_CACHE_HOME", base.join("cache"))
         .env("TMPDIR", &tmp)

@@ -6,7 +6,10 @@ load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(
     default_testonly = True,
-    default_visibility = ["//:__subpackages__"],
+    default_visibility = [
+        "//:__subpackages__",
+        "@rules_dx//python/private:__pkg__",
+    ],
 )
 
 python_library(

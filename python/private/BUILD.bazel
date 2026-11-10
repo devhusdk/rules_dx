@@ -234,9 +234,9 @@ dx_wrapper_contract_tests(
     ],
     include_forwarder_checks = False,
     wrappers = {
-        "binary": "//python/tests/fixtures/hello:hello",
-        "library": "//python/tests/fixtures/hello:hello_lib",
-        "test": "//python/tests/fixtures/hello:hello_test",
+        "binary": "@rules_dx_python//python/tests/fixtures/hello:hello",
+        "library": "@rules_dx_python//python/tests/fixtures/hello:hello_lib",
+        "test": "@rules_dx_python//python/tests/fixtures/hello:hello_test",
     },
 )
 

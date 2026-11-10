@@ -1201,18 +1201,18 @@ mod tests {
         let stub = root.join("tools/dx");
         dx_testing::executable_script(&stub, "#!/bin/sh\ntouch dx-ran\n");
         let script = "PATH_add() { PATH=\"$PWD/$1:$PATH\"; export PATH; }\nwatch_file() { :; }\n. ./.envrc\ns=$?\nprintf %s \"$PATH\"\nexit $s";
-        let output = std::process::Command::new("sh")
+        let output = std::process::Command::new("/bin/sh")
             .arg("-c")
             .arg(script)
             .current_dir(root)
-            .env("PATH", "/usr/bin:/bin")
+            .env("PATH", "/fake/bin")
             .output()
             .expect("sh runs");
         let path = String::from_utf8_lossy(&output.stdout).into_owned();
         let dx_ran = root.join("dx-ran").exists();
         scratch.close().expect("cleanup");
         assert!(output.status.success(), "{}", output.status);
-        assert!(path.ends_with("/.dx/local/bin:/usr/bin:/bin"), "{path}");
+        assert!(path.ends_with("/.dx/local/bin:/fake/bin"), "{path}");
         assert!(!dx_ran);
     }
 

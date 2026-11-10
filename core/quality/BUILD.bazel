@@ -436,54 +436,31 @@ consumer_policy_tests(
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_yaml",
         },
         {
-            "case": "cmake_formatted",
+            "case": "cmake_checked",
             "expected_dx_results": [
                 "clean_cmake-real-format-cmake.pb",
+                "clean_cmake-real-lint-cmake.pb",
             ],
             "policy": "//core/quality/tests/fixtures/consumer_policy:cmake_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_cmake",
         },
         {
-            "case": "cmake_linted",
-            "expected_dx_results": [
-                "clean_cmake-real-lint-cmake.pb",
-            ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:cmake_lint_policy",
-            "subject": "//core/quality/tests/fixtures/consumer_policy:clean_cmake",
-        },
-        {
-            "case": "make_formatted",
+            "case": "make_checked",
             "expected_dx_results": [
                 "clean_make-real-format-make.pb",
-            ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:make_format_policy",
-            "subject": "//core/quality/tests/fixtures/consumer_policy:clean_make",
-        },
-        {
-            "case": "make_linted",
-            "expected_dx_results": [
                 "clean_make-real-lint-make.pb",
             ],
             "policy": "//core/quality/tests/fixtures/consumer_policy:make_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_make",
         },
         {
-            "case": "jupyter_formatted",
-            "expected_dx_results": [
-                "clean_jupyter-real-format-py.pb",
-                "clean_jupyter-real-lint-py.pb",
-            ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:jupyter_policy",
-            "subject": "//core/quality/tests/fixtures/consumer_policy:clean_jupyter",
-        },
-        {
-            "case": "jupyter_outputs_linted",
+            "case": "jupyter_checked",
             "expected_dx_results": [
                 "clean_jupyter-real-format-py.pb",
                 "clean_jupyter-real-lint-py.pb",
                 "clean_jupyter-real-lint.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:jupyter_outputs_policy",
+            "policy": "//core/quality/tests/fixtures/consumer_policy:jupyter_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_jupyter",
         },
         {
@@ -528,20 +505,12 @@ consumer_policy_tests(
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_cloudformation",
         },
         {
-            "case": "api_spec_linted",
-            "expected_dx_results": [
-                "clean_api_spec-real-lint-js.pb",
-            ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:api_spec_policy",
-            "subject": "//core/quality/tests/fixtures/consumer_policy:clean_api_spec",
-        },
-        {
-            "case": "api_spec_formatted",
+            "case": "api_spec_checked",
             "expected_dx_results": [
                 "clean_api_spec-real-format-js.pb",
                 "clean_api_spec-real-lint-js.pb",
             ],
-            "policy": "//core/quality/tests/fixtures/consumer_policy:api_spec_format_policy",
+            "policy": "//core/quality/tests/fixtures/consumer_policy:api_spec_policy",
             "subject": "//core/quality/tests/fixtures/consumer_policy:clean_api_spec",
         },
         {
@@ -641,8 +610,7 @@ test_suite(
     name = "all",
     tests = [
         ":consumer_policy_ansible_linted_test",
-        ":consumer_policy_api_spec_formatted_test",
-        ":consumer_policy_api_spec_linted_test",
+        ":consumer_policy_api_spec_checked_test",
         ":compile_check_exec_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_bicep_checked_test",
@@ -651,14 +619,11 @@ test_suite(
         ":consumer_policy_js_eslint_test",
         ":consumer_policy_js_eslint_typed_test",
         ":consumer_policy_json_biome_test",
-        ":consumer_policy_jupyter_formatted_test",
-        ":consumer_policy_jupyter_outputs_linted_test",
+        ":consumer_policy_jupyter_checked_test",
         ":consumer_policy_kubernetes_linted_test",
         ":consumer_policy_helm_linted_test",
-        ":consumer_policy_cmake_formatted_test",
-        ":consumer_policy_cmake_linted_test",
-        ":consumer_policy_make_formatted_test",
-        ":consumer_policy_make_linted_test",
+        ":consumer_policy_cmake_checked_test",
+        ":consumer_policy_make_checked_test",
         ":consumer_policy_latex_checked_test",
         ":consumer_policy_nix_linted_test",
         ":consumer_policy_asciidoc_vale_test",

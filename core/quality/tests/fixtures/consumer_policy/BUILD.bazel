@@ -331,32 +331,15 @@ real_source_target(
 
 quality_family(
     name = "make_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "make",
+    format = ["mbake"],
     lint = ["checkmake"],
 )
 
 workspace_policy(
     name = "make_policy",
     families = [":make_family"],
-)
-
-quality_family(
-    name = "make_format_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
-    family_id = "make",
-    format = ["mbake"],
-)
-
-workspace_policy(
-    name = "make_format_policy",
-    families = [":make_format_family"],
 )
 
 filegroup(
@@ -375,32 +358,15 @@ real_source_target(
 
 quality_family(
     name = "cmake_family",
-    disabled = [
-        "lint",
-        "typecheck",
-    ],
+    disabled = ["typecheck"],
     family_id = "cmake",
     format = ["gersemi"],
+    lint = ["cmakelint"],
 )
 
 workspace_policy(
     name = "cmake_policy",
     families = [":cmake_family"],
-)
-
-quality_family(
-    name = "cmake_lint_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
-    family_id = "cmake",
-    lint = ["cmakelint"],
-)
-
-workspace_policy(
-    name = "cmake_lint_policy",
-    families = [":cmake_lint_family"],
 )
 
 filegroup(
@@ -441,22 +407,6 @@ quality_family(
     ],
     family_id = "jupyter",
     format = ["ruff"],
-    lint = ["ruff"],
-)
-
-workspace_policy(
-    name = "jupyter_policy",
-    families = [":jupyter_family"],
-)
-
-quality_family(
-    name = "jupyter_outputs_family",
-    disabled = [
-        "audit",
-        "typecheck",
-    ],
-    family_id = "jupyter",
-    format = ["ruff"],
     lint = [
         "ruff",
         "notebook_outputs",
@@ -464,8 +414,8 @@ quality_family(
 )
 
 workspace_policy(
-    name = "jupyter_outputs_policy",
-    families = [":jupyter_outputs_family"],
+    name = "jupyter_policy",
+    families = [":jupyter_family"],
 )
 
 filegroup(
@@ -658,21 +608,6 @@ real_source_target(
 
 quality_family(
     name = "api_spec_family",
-    disabled = [
-        "format",
-        "typecheck",
-    ],
-    family_id = "api_spec",
-    lint = ["redocly"],
-)
-
-workspace_policy(
-    name = "api_spec_policy",
-    families = [":api_spec_family"],
-)
-
-quality_family(
-    name = "api_spec_format_family",
     disabled = ["typecheck"],
     family_id = "api_spec",
     format = ["prettier"],
@@ -680,8 +615,8 @@ quality_family(
 )
 
 workspace_policy(
-    name = "api_spec_format_policy",
-    families = [":api_spec_format_family"],
+    name = "api_spec_policy",
+    families = [":api_spec_family"],
 )
 
 filegroup(

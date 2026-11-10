@@ -9,55 +9,29 @@ package(
 )
 
 rust_test(
-    name = "release_candidate_smoke_test",
+    name = "release_consumer_smoke_test",
     timeout = "moderate",
     testonly = True,
-    srcs = ["candidate_consumer_test.rs"],
-    aliases = aliases(
-        package_name = "deploy/private/release/deploy_release_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "release_candidate_smoke_test",
-    crate_root = "candidate_consumer_test.rs",
-    data = [
-        "//cli/cli:dx",
-        "//deploy:module_srcs",
-    ] + NESTED_BAZEL_DATA,
-    env = {
-        "DX_BIN": "$(rootpath //cli/cli:dx)",
-        "RUST_TEST_THREADS": "1",
-    } | NESTED_BAZEL_NETWORK_ENV,
-    env_inherit = NESTED_BAZEL_ENV_INHERIT,
-    # The consumer fetches the rust and GCC toolchains and bcr modules.
-    tags = NESTED_BAZEL_NETWORK_TAGS,
-    deps = [
-        "//cli/process:dx_process",
-        "//deploy/private:dx_deploy_tools",
-        "//deploy/private/release:dx_release_tools",
-        "//tools/testing:dx_testing",
-        "//tools/testing/nested:dx_nested",
+    srcs = [
+        "candidate_consumer_test.rs",
+        "quickstart_consumer_test.rs",
+        "release_consumer_test.rs",
     ],
-)
-
-rust_test(
-    name = "readme_quickstart_smoke_test",
-    timeout = "moderate",
-    testonly = True,
-    srcs = ["quickstart_consumer_test.rs"],
     aliases = aliases(
         package_name = "deploy/private/release/deploy_release_tests",
         normal = True,
         normal_dev = True,
     ),
-    crate_name = "readme_quickstart_smoke_test",
-    crate_root = "quickstart_consumer_test.rs",
+    crate_name = "release_consumer_smoke_test",
+    crate_root = "release_consumer_test.rs",
     data = [
         "//:README.md",
         "//.bcr:presubmit.yml",
         "//:module_srcs",
         "//bcr_test_module:files",
+        "//cli/cli:dx",
         "//core/modules:core_budget.json",
+        "//deploy:module_srcs",
         "//patches/gomod-parser:glued_comment.patch",
         "//patches/ring:clang_cl_aarch64_windows.patch",
         "//patches/ring:msvc_fiat_include_path.patch",
@@ -69,13 +43,17 @@ rust_test(
         "//patches/rules_py:venv_bin_files.patch",
     ] + NESTED_BAZEL_DATA,
     env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
         "DX_CORE_BUDGET": "$(rootpath //core/modules:core_budget.json)",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = NESTED_BAZEL_ENV_INHERIT,
-    # The consumer fetches the rust and GCC toolchains and bcr modules.
+    # The consumers fetch the rust and GCC toolchains and bcr modules.
     tags = NESTED_BAZEL_NETWORK_TAGS,
     deps = [
+        "//cli/process:dx_process",
+        "//deploy/private:dx_deploy_tools",
+        "//deploy/private/release:dx_release_tools",
         "//tools/testing:dx_testing",
         "//tools/testing/nested:dx_nested",
         "@crates//:serde_json",

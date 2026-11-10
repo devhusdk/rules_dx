@@ -39,9 +39,7 @@ Use Bazel for CLion. Or open `.dx/local/ide/cc/compile_commands.json` as a compi
 | `.ex`, `.exs` | `elixir-lsp.vscode-elixir-ls` |
 | `.jl` | `julialang.language-julia` |
 | `.bicep`, `.bicepparam` | `ms-azuretools.vscode-bicep` |
-| `.cmake` | `ms-vscode.cmake-tools` |
-
-Detection looks at file extensions only, so `CMakeLists.txt` alone does not add the CMake extension.
+| `.cmake`, `CMakeLists.txt` | `ms-vscode.cmake-tools` |
 
 ## Indexing
 

@@ -179,12 +179,18 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
         .collect()
 }
 
-/// The lowercased extensions, with their dot, of the files under `root`.
+/// Files recognized by exact name, reported alongside the extensions.
+const NAMED_FILES: &[&str] = &["CMakeLists.txt"];
+
+/// The lowercased extensions, with their dot, of the files under `root`, plus the names in `NAMED_FILES`.
 pub fn file_extensions(root: &Path) -> BTreeSet<String> {
     source_files(root)
         .iter()
         .filter_map(|path| {
             let name = path.rsplit('/').next()?;
+            if NAMED_FILES.contains(&name) {
+                return Some(name.to_owned());
+            }
             let (stem, ext) = name.rsplit_once('.')?;
             (!stem.is_empty()).then(|| format!(".{}", ext.to_ascii_lowercase()))
         })

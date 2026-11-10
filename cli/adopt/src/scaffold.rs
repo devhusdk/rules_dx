@@ -148,7 +148,7 @@ const LANGUAGE_EDITOR_EXTENSIONS: [(&str, &[&str]); 17] = [
     ("elixir-lsp.vscode-elixir-ls", &[".ex", ".exs"]),
     ("julialang.language-julia", &[".jl"]),
     ("ms-azuretools.vscode-bicep", &[".bicep", ".bicepparam"]),
-    ("ms-vscode.cmake-tools", &[".cmake"]),
+    ("ms-vscode.cmake-tools", &[".cmake", "CMakeLists.txt"]),
 ];
 
 const JS_FILES: &[&str] = &[".js", ".jsx", ".ts", ".tsx", ".vue", ".svelte", ".astro"];
@@ -1437,6 +1437,12 @@ mod tests {
         ] {
             assert!(got.contains(&id.to_owned()), "{id} missing from {got:?}");
         }
+    }
+
+    #[test]
+    fn cmake_lists_alone_brings_the_cmake_extension() {
+        let got = recommendations(&[("lib/CMakeLists.txt", "")]);
+        assert!(got.contains(&"ms-vscode.cmake-tools".to_owned()), "{got:?}");
     }
 
     #[test]

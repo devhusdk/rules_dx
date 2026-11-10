@@ -38,23 +38,6 @@ fn write(path: &Path, text: &str) {
     std::fs::write(path, text).unwrap_or_else(|error| panic!("write {path:?}: {error}"));
 }
 
-fn git(root: &Path, args: &[&str]) {
-    dx_process::capture::run_checked(
-        dx_process::capture::git(root)
-            .args([
-                "-c",
-                "user.name=dx",
-                "-c",
-                "user.email=dx@example.com",
-                "-c",
-                "commit.gpgsign=false",
-            ])
-            .args(args),
-        dx_process::capture::DEFAULT_TIMEOUT,
-    )
-    .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
-}
-
 struct Env {
     base: PathBuf,
     home: PathBuf,
@@ -202,7 +185,8 @@ fn cache_dx(env: &Env) {
 fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
     let (_guard, root, env) = scratch_env("dx-agents-consumer-");
     let origin = root.parent().expect("base").join("origin.git");
-    git(
+    dx_test_scratch::git(
+        root.parent().expect("base"),
         root.parent().expect("base"),
         &[
             "init",
@@ -212,20 +196,21 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
             origin.to_str().expect("utf8"),
         ],
     );
-    git(&root, &["init", "--quiet", "--initial-branch=main"]);
+    dx_test_scratch::git(&root, &root, &["init", "--quiet", "--initial-branch=main"]);
     write(
         &root.join("MODULE.bazel"),
         "module(name = \"consumer\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n",
     );
     init(&root, &env);
     cache_dx(&env);
-    git(&root, &["add", "."]);
-    git(&root, &["commit", "--quiet", "-m", "base"]);
-    git(
+    dx_test_scratch::git(&root, &root, &["add", "."]);
+    dx_test_scratch::git(&root, &root, &["commit", "--quiet", "-m", "base"]);
+    dx_test_scratch::git(
+        &root,
         &root,
         &["remote", "add", "origin", origin.to_str().expect("utf8")],
     );
-    git(&root, &["push", "--quiet", "-u", "origin", "main"]);
+    dx_test_scratch::git(&root, &root, &["push", "--quiet", "-u", "origin", "main"]);
 
     let launcher = root.join("tools/dx");
     let launcher = launcher.to_str().expect("utf8");
@@ -415,7 +400,8 @@ fn an_agent_session_in_a_fresh_consumer_uses_the_launcher_and_hooks() {
 fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {
     let (guard, root, env) = scratch_env(name);
     let origin = root.parent().expect("base").join("origin.git");
-    git(
+    dx_test_scratch::git(
+        root.parent().expect("base"),
         root.parent().expect("base"),
         &[
             "init",
@@ -425,15 +411,16 @@ fn hook_repo(name: &str) -> (TempDir, PathBuf, Env) {
             origin.to_str().expect("utf8"),
         ],
     );
-    git(&root, &["init", "--quiet", "--initial-branch=main"]);
+    dx_test_scratch::git(&root, &root, &["init", "--quiet", "--initial-branch=main"]);
     write(&root.join("MODULE.bazel"), "module(name = \"consumer\")\n");
-    git(&root, &["add", "."]);
-    git(&root, &["commit", "--quiet", "-m", "base"]);
-    git(
+    dx_test_scratch::git(&root, &root, &["add", "."]);
+    dx_test_scratch::git(&root, &root, &["commit", "--quiet", "-m", "base"]);
+    dx_test_scratch::git(
+        &root,
         &root,
         &["remote", "add", "origin", origin.to_str().expect("utf8")],
     );
-    git(&root, &["push", "--quiet", "-u", "origin", "main"]);
+    dx_test_scratch::git(&root, &root, &["push", "--quiet", "-u", "origin", "main"]);
     (guard, root, env)
 }
 

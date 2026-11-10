@@ -490,14 +490,9 @@ fn check_and_fix_json_report_build_output_before_finishing() {
 #[test]
 fn check_ignores_source_named_target_committed_on_main() {
     let harness = umbrella_clean("umbrella-check-source-target");
+    let root = harness.workspace.clone();
     let git = |args: &[&str]| {
-        dx_process::capture::run_checked(
-            dx_process::capture::git(&harness.workspace)
-                .args(["-c", "user.name=t", "-c", "user.email=t@t"])
-                .args(args),
-            dx_process::capture::DEFAULT_TIMEOUT,
-        )
-        .unwrap_or_else(|error| panic!("{error}"));
+        dx_test_scratch::git(&root, &root, args);
     };
     git(&["init", "-q", "-b", "main"]);
     harness.write_source("src/x/target/Foo.java", "class Foo {}");
@@ -2560,17 +2555,8 @@ fn check_affected_hints_name_dx_check_apply_with_the_affected_flag() {
 
 fn commits_harness(name: &str, config: &str, subject: &str) -> (Harness, Invocation) {
     let harness = umbrella_clean(name);
-    let git = |args: &[&str]| {
-        let output = dx_process::capture::run_checked(
-            dx_process::capture::git(&harness.workspace)
-                .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
-                .args(["-c", "commit.gpgsign=false"])
-                .args(args),
-            dx_process::capture::DEFAULT_TIMEOUT,
-        )
-        .unwrap_or_else(|error| panic!("{args:?}: {error}"));
-        String::from_utf8_lossy(&output.stdout).trim().to_owned()
-    };
+    let root = harness.workspace.clone();
+    let git = |args: &[&str]| dx_test_scratch::git(&root, &root, args);
     git(&["init", "-q"]);
     git(&["commit", "-q", "--allow-empty", "-m", "base"]);
     let base = git(&["rev-parse", "HEAD"]);

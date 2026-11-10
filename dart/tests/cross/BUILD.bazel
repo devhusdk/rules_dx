@@ -3,19 +3,11 @@ load("@rules_dx//dart:defs.bzl", "DART_COMPATIBLE_WITH")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 
-platform(
-    name = "linux_arm64",
-    constraint_values = [
-        "@platforms//cpu:arm64",
-        "@platforms//os:linux",
-    ],
-)
-
 platform_transition_filegroup(
     name = "greet_arm64",
     srcs = ["//dart/tests/runtime:greet_bin"],
     target_compatible_with = DART_COMPATIBLE_WITH,
-    target_platform = ":linux_arm64",
+    target_platform = "@rules_dx//tools/platforms:linux_arm64",
 )
 
 rust_test(

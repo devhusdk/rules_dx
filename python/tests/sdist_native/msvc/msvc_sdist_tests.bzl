@@ -41,7 +41,7 @@ def _linux_exec_impl(ctx):
     asserts.expect_failure(env, "MSVC sdist builds need a Windows execution platform matching the target")
     return analysistest.end(env)
 
-_WINDOWS_X64 = [str(Label(":windows_x64"))]
+_WINDOWS_X64 = [str(Label("//tools/platforms:windows_x86_64"))]
 _SETTINGS = {
     "//command_line_option:platforms": _WINDOWS_X64,
     "//command_line_option:extra_toolchains": [

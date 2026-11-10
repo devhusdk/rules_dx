@@ -12,11 +12,6 @@ _WINDOWS_X64 = [
     "@platforms//cpu:x86_64",
 ]
 
-platform(
-    name = "windows_x86_64",
-    constraint_values = _WINDOWS_X64,
-)
-
 cc_binary(
     name = "hello_cxx",
     srcs = ["hello_cxx.cc"],
@@ -28,7 +23,7 @@ cc_toolchain_binary(
     name = "hello_msvc",
     binary = ":hello_cxx",
     compiler = "msvc",
-    platforms = ["//cc/tests/msvc_x86_64:windows_x86_64"],
+    platforms = ["//tools/platforms:windows_x86_64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,
 )
@@ -39,7 +34,7 @@ consumer_archive(
     format = "zip",
     min_runtime = "windows-10",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
-    platform = ":windows_x86_64",
+    platform = "//tools/platforms:windows_x86_64",
     runtime = [
         "//cc/private/toolchains:msvc_vcruntime",
         "//cc/private/toolchains:windows_ucrt",

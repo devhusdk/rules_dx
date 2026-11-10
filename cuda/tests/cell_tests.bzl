@@ -26,7 +26,7 @@ def _make(platform, compiler):
         _compat_impl,
         attrs = {"expected": attr.string_list()},
         config_settings = {
-            "//command_line_option:platforms": str(Label("//cuda/tests:" + platform + "_platform")),
+            "//command_line_option:platforms": str(Label("//tools/platforms:" + platform)),
             _COMPILER: compiler,
         },
     )

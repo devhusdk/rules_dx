@@ -368,30 +368,6 @@ real_source_target(
     visibility = ["//cuda:__pkg__"],
 )
 
-platform(
-    name = "windows_x86_64_platform",
-    constraint_values = [
-        "@platforms//os:windows",
-        "@platforms//cpu:x86_64",
-    ],
-)
-
-platform(
-    name = "windows_arm64_platform",
-    constraint_values = [
-        "@platforms//os:windows",
-        "@platforms//cpu:aarch64",
-    ],
-)
-
-platform(
-    name = "linux_x86_64_platform",
-    constraint_values = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-)
-
 cuda_cell_tests(name = "cell_tests")
 
 exports_files(

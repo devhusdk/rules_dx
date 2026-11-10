@@ -51,7 +51,7 @@ _gcc_test = analysistest.make(_gcc_impl, attrs = _ATTRS, config_settings = {_COM
 _gcc_arm64_test = analysistest.make(
     _gcc_arm64_impl,
     attrs = _ATTRS,
-    config_settings = {_COMPILER: "gcc", "//command_line_option:platforms": [str(Label("//cc/tests/gcc_cross:linux_arm64"))]},
+    config_settings = {_COMPILER: "gcc", "//command_line_option:platforms": [str(Label("//tools/platforms:linux_arm64"))]},
 )
 _gcc_arm64_native_test = analysistest.make(_gcc_arm64_native_impl, attrs = _ATTRS, config_settings = {_COMPILER: "gcc"})
 _llvm_test = analysistest.make(_llvm_impl, attrs = _ATTRS, config_settings = {_COMPILER: "llvm"})
@@ -124,7 +124,7 @@ def _msvc_arm64_impl(ctx):
 _msvc_test = analysistest.make(_msvc_impl, config_settings = {_COMPILER: "msvc"})
 _msvc_arm64_test = analysistest.make(
     _msvc_arm64_impl,
-    config_settings = {_COMPILER: "msvc", "//command_line_option:platforms": [str(Label("//cc/tests/msvc_cross:windows_arm64"))]},
+    config_settings = {_COMPILER: "msvc", "//command_line_option:platforms": [str(Label("//tools/platforms:windows_arm64"))]},
 )
 
 def cc_msvc_action_tests(name, compile_target, link_target):

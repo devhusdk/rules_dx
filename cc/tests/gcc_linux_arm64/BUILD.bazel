@@ -6,14 +6,6 @@ load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 
-platform(
-    name = "linux_arm64",
-    constraint_values = [
-        "@platforms//cpu:arm64",
-        "@platforms//os:linux",
-    ],
-)
-
 cc_binary(
     name = "hello_c",
     srcs = ["hello_c.c"],
@@ -23,7 +15,7 @@ cc_toolchain_binary(
     name = "hello_gcc",
     binary = ":hello_c",
     compiler = "gcc",
-    platforms = ["//cc/tests/gcc_linux_arm64:linux_arm64"],
+    platforms = ["//tools/platforms:linux_arm64"],
 )
 
 consumer_archive(
@@ -31,7 +23,7 @@ consumer_archive(
     app = ":hello_gcc",
     min_runtime = "glibc-2.28",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
-    platform = ":linux_arm64",
+    platform = "//tools/platforms:linux_arm64",
     runtime = ["//cc/private/toolchains:gcc_linux_glibc"],
     target_compatible_with = [
         "@platforms//os:linux",
@@ -50,7 +42,7 @@ cc_toolchain_binary(
     binary = ":hello_cxx",
     compiler = "gcc",
     extra_features = ["dynamic_libstdcxx"],
-    platforms = ["//cc/tests/gcc_linux_arm64:linux_arm64"],
+    platforms = ["//tools/platforms:linux_arm64"],
 )
 
 consumer_archive(
@@ -58,7 +50,7 @@ consumer_archive(
     app = ":hello_cxx_gcc",
     min_runtime = "glibc-2.28",
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
-    platform = ":linux_arm64",
+    platform = "//tools/platforms:linux_arm64",
     runtime = [
         "//cc/private/toolchains:gcc_linux_glibc",
         "//cc/private/toolchains:gcc_linux_libstdcxx",

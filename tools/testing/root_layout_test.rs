@@ -2,24 +2,19 @@ use std::collections::BTreeSet;
 
 /// Root directories every layout keeps.
 const SHARED: &[&str] = &[
+    "bcr_test_module",
+    "ci",
     "config",
     "cli",
     "core",
+    "deploy",
     "docs",
+    "dx",
     "examples",
     "gazelle",
     "patches",
     "third_party",
     "tools",
-];
-
-/// Root directories that have not moved into the layout yet; later changes shrink this list.
-const PENDING: &[&str] = &[
-    "bcr_test_module",
-    "ci",
-    "containers",
-    "deploy",
-    "dx",
 ];
 
 /// Root directories that are build or tool output, not sources.
@@ -45,7 +40,7 @@ fn root_directories() -> Vec<String> {
 #[test]
 fn every_root_directory_is_a_language_or_allowlisted() {
     let root = dx_testing::rules_dx_source();
-    let allowed: BTreeSet<&str> = SHARED.iter().chain(PENDING).copied().collect();
+    let allowed: BTreeSet<&str> = SHARED.iter().copied().collect();
     let stray: Vec<String> = root_directories()
         .into_iter()
         .filter(|name| !root.join(name).join("lang.json").is_file())
@@ -55,26 +50,4 @@ fn every_root_directory_is_a_language_or_allowlisted() {
         stray.is_empty(),
         "root directories that are neither a language with lang.json nor allowlisted: {stray:?}"
     );
-}
-
-#[test]
-fn pending_directories_still_exist() {
-    let present = root_directories();
-    let gone: Vec<&str> = PENDING
-        .iter()
-        .copied()
-        .filter(|name| !present.iter().any(|dir| dir == name))
-        .collect();
-    assert!(gone.is_empty(), "drop these from PENDING: {gone:?}");
-}
-
-#[test]
-fn pending_directories_are_not_languages() {
-    let root = dx_testing::rules_dx_source();
-    let moved: Vec<&str> = PENDING
-        .iter()
-        .copied()
-        .filter(|name| root.join(name).join("lang.json").is_file())
-        .collect();
-    assert!(moved.is_empty(), "drop these from PENDING: {moved:?}");
 }

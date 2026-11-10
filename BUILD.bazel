@@ -317,7 +317,6 @@ real_source_target(
         "//zig:README.md",
         "CLAUDE.md",
         "RELEASING.md",
-        "containers/README.md",
         "//flutter:README.md",
     ],
     tags = ["corpus"],

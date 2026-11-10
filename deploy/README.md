@@ -804,6 +804,26 @@ config. The upload ignores your own LuaRocks config. The key must not contain
 whitespace, control characters, `"` or `\`. A live run refuses upstream version
 `0.0.0`.
 
+# Base images
+
+`rules_oci` and `rules_pkg` with distroless base images pinned by digest.
+
+| Repository | Image |
+| --- | --- |
+| `@distroless_static` | `gcr.io/distroless/static-debian12` |
+| `@distroless_cc` | `gcr.io/distroless/cc-debian12` |
+| `@distroless_python` | `gcr.io/distroless/python3-debian12` |
+| `@distroless_java` | `gcr.io/distroless/java21-debian12` |
+| `@distroless_nodejs` | `gcr.io/distroless/nodejs22-debian12` |
+
+Each pin is the multi-arch index digest. `@<name>_linux_amd64` and `@<name>_linux_arm64` hold the single-platform images.
+
+```sh
+bazel build @distroless_static
+```
+
+The first build fetches the layers. Later builds use the Bazel cache and need no network.
+
 # oci_image_from_binary
 
 Builds an OCI image from one binary, with no Dockerfile.
@@ -827,8 +847,8 @@ oci_deploy(
 - `binary`: required. A `rust_binary`, `go_binary`, `cc_binary` or zig binary.
   The binary and its runfiles go in one layer under `/app`, and the
   entrypoint is `/app/<binary name>`.
-- `base`: `static` (default) or `cc`, the pinned distroless images from the
-  `containers` family.
+- `base`: `static` (default) or `cc`, the pinned distroless images listed under
+  Base images.
 - `main`: the entry script of a `python` or `node` base. It defaults to the
   binary's package and name with `.py` or `.js`, so `//app:server` runs
   `app/server.py` and `//app/server` runs `app/server/server.py`. A `dotnet`

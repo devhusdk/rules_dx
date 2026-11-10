@@ -20,9 +20,7 @@
         "rules_oci",
         "rules_pkg"
       ],
-      "dirs": [
-        "containers"
-      ],
+      "dirs": [],
       "extensions": [
         "@rules_oci//oci:extensions.bzl%oci"
       ],

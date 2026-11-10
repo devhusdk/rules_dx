@@ -13,6 +13,7 @@ swift_binary(
     name = "hello_arm64",
     srcs = ["main.swift"],
     platforms = [":linux_arm64"],
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 rust_test(

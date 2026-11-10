@@ -1,7 +1,7 @@
 //! Reads a launch descriptor, resolves its runfiles and runs the program it names.
 //!
-//! The descriptor sits beside the executable as `<name>.launch`, where `<name>` drops a
-//! trailing `.exe`, one entry per line:
+//! The descriptor sits beside the executable, or in its runfiles, as `<name>.launch`, where
+//! `<name>` drops a trailing `.exe`, one entry per line:
 //! `program=<key>` or `real_program=<key>` (the program with symlinks resolved), `arg=<literal>`, `path=<key>`,
 //! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
 //! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>` and `unset=<VAR>`.
@@ -181,6 +181,45 @@ pub fn descriptor_path(exe: &Path) -> PathBuf {
         .unwrap_or_default()
 }
 
+/// Returns the runfiles key of one file under `bazel-out/<configuration>/bin`.
+fn output_key(path: &Path) -> Option<String> {
+    let parts: Vec<String> = path
+        .components()
+        .map(|component| component.as_os_str().to_string_lossy().into_owned())
+        .collect();
+    let bin = (2..parts.len()).rev().find(|&index| {
+        parts.get(index).is_some_and(|part| part == "bin")
+            && parts.get(index - 2).is_some_and(|part| part == "bazel-out")
+    })?;
+    let package = parts.get(bin + 1..)?;
+    match package.split_first() {
+        Some((first, rest)) if first == "external" && !rest.is_empty() => Some(rest.join("/")),
+        Some(_) => Some(format!("_main/{}", package.join("/"))),
+        None => None,
+    }
+}
+
+/// Returns the runfiles keys of the descriptors of an executable under `bazel-out/<configuration>/bin`, best first.
+pub fn descriptor_keys(exe: &Path) -> Vec<String> {
+    descriptor_candidates(exe)
+        .iter()
+        .filter_map(|candidate| output_key(candidate))
+        .collect()
+}
+
+/// Returns the descriptor beside one executable, or the one in its runfiles when none sits beside it.
+pub fn descriptor_for(resolver: &Resolver, exe: &Path) -> PathBuf {
+    let beside = descriptor_path(exe);
+    if beside.is_file() {
+        return beside;
+    }
+    descriptor_keys(exe)
+        .iter()
+        .filter_map(|key| resolver.lookup(key).ok())
+        .find(|path| path.is_file())
+        .unwrap_or(beside)
+}
+
 /// Finds the `.runfiles` directory above one executable path, when there is one.
 fn tree_ancestor(exe: &Path) -> Option<PathBuf> {
     let mut root = PathBuf::new();
@@ -314,7 +353,7 @@ pub fn command(
 /// Runs the program named by the descriptor beside `exe` and returns its exit code.
 pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
     let resolver = resolver_for(exe)?;
-    let path = descriptor_path(exe);
+    let path = descriptor_for(&resolver, exe);
     let text = std::fs::read_to_string(&path)
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
     let descriptor = parse(&text)?;

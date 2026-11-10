@@ -111,6 +111,50 @@ fn finds_the_exe_runfiles_for_an_extensionless_argv0() {
     assert_eq!(runfiles_env(&resolver), ("RUNFILES_DIR", tree.clone()));
 }
 
+#[test]
+fn names_the_runfiles_keys_of_the_descriptor() {
+    assert_eq!(
+        descriptor_keys(Path::new("bazel-out/k8-fastbuild-exec/bin/pkg/tools/app")),
+        ["_main/pkg/tools/app.launch", "_main/pkg/tools/app_upstream.launch"]
+    );
+    assert_eq!(
+        descriptor_keys(Path::new("/root/bazel-out/cfg/bin/external/repo+/pkg/app.exe")),
+        ["repo+/pkg/app.launch", "repo+/pkg/app_upstream.launch"]
+    );
+    assert_eq!(
+        descriptor_keys(Path::new("bazel-out/cfg/bin/pkg/app.run")),
+        ["_main/pkg/app.run.launch", "_main/pkg/app.run_upstream.launch"]
+    );
+    assert_eq!(
+        descriptor_keys(Path::new("bazel-out/cfg/bin/pkg/app.run.EXE")),
+        ["_main/pkg/app.run.launch", "_main/pkg/app.run_upstream.launch"]
+    );
+    assert!(descriptor_keys(Path::new("out/pkg/app")).is_empty());
+    assert!(descriptor_keys(Path::new("bazel-out/cfg/bin")).is_empty());
+}
+
+#[cfg(unix)]
+#[test]
+fn runs_from_the_descriptor_in_the_runfiles() {
+    for (name, descriptor) in [
+        ("app", "app.launch"),
+        ("app.run", "app.run.launch"),
+        ("wrapped", "wrapped_upstream.launch"),
+    ] {
+        let dir = scratch(&format!("runfiles_descriptor_{name}")).join("bazel-out/cfg/bin/pkg");
+        let main = dir.join(format!("{name}.runfiles/_main"));
+        std::fs::create_dir_all(main.join("pkg")).unwrap();
+        dx_testing::executable_script(&main.join("prog"), "#!/bin/sh\nexit $(( $# + 4 ))\n");
+        std::fs::write(
+            main.join("pkg").join(descriptor),
+            "program=_main/prog\narg=one\n",
+        )
+        .unwrap();
+        let code = run(&dir.join(name), &[OsString::from("two")]).unwrap();
+        assert_eq!(code, 6, "{name}");
+    }
+}
+
 fn scratch(name: &str) -> PathBuf {
     let dir = std::env::temp_dir().join(format!("exec_launcher_{name}_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);

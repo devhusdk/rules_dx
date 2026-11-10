@@ -1,7 +1,7 @@
 diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
 --- a/http_pkg_archive.bzl
 +++ b/http_pkg_archive.bzl
-@@ -1,6 +1,22 @@
+@@ -1,6 +1,25 @@
  load("@bazel_lib//lib:repo_utils.bzl", "repo_utils")
  load("@bazel_tools//tools/build_defs/repo:utils.bzl", "get_auth")
  
@@ -11,6 +11,9 @@ diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
 +        if not pending:
 +            break
 +        for entry in pending.pop().readdir():
++            if not entry.exists:
++                rctx.delete(entry)
++                continue
 +            real = entry.realpath
 +            if real != entry:
 +                if real.is_dir:
@@ -24,7 +27,7 @@ diff -ruN a/http_pkg_archive.bzl b/http_pkg_archive.bzl
  def _http_pkg_archive_impl(rctx):
      rctx.download(
          url = rctx.attr.urls,
-@@ -34,6 +50,8 @@
+@@ -34,6 +53,8 @@
  
      rctx.delete(".downloaded.pkg")
  

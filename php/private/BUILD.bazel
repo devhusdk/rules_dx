@@ -4,7 +4,7 @@ load("//core:rlocation.bzl", "runfiles_path")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
-load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "shell_quote", "staged_path")
+load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "staged_path")
 
 package(default_visibility = ["//php:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
@@ -161,11 +161,6 @@ dx_wrapper_contract_tests(
             ],
         ),
         expect_equal(
-            "quotes survive the shell",
-            shell_quote("it's"),
-            "'it'\\''s'",
-        ),
-        expect_equal(
             "workspace runfiles",
             runfiles_path(
                 "_main",
@@ -181,20 +176,17 @@ dx_wrapper_contract_tests(
             ),
             "dep+/x.php",
         ),
-        expect_contains(
-            "the coverage launcher loads pcov on the autoload tree",
-            coverage_launcher_script("php+/php", {}, _TEST, "pcov+/pcov.so", "_main/tools/clover_to_lcov", "_main/t.php"),
-            "-d \"extension=$runfiles/pcov+/pcov.so\" -d pcov.enabled=1 -d \"pcov.directory=$tree\" \"$runfiles/phpunit/phpunit.phar\" --coverage-filter \"$tree\" --coverage-clover \"$clover\" --bootstrap",
-        ),
-        expect_contains(
-            "the coverage launcher converts the report to LCOV below the tree",
-            coverage_launcher_script("php+/php", {}, _TEST, "pcov+/pcov.so", "_main/tools/clover_to_lcov", "_main/t.php"),
-            "\"$runfiles/_main/tools/clover_to_lcov\" \"$clover\" \"$COVERAGE_OUTPUT_FILE\" \"/t.php/\"",
-        ),
-        expect_contains(
-            "the coverage launcher keeps the test status",
-            coverage_launcher_script("php+/php", {}, _TEST, "pcov+/pcov.so", "_main/tools/clover_to_lcov", "_main/t.php"),
-            "exit \"$status\"",
+        expect_equal(
+            "the coverage descriptor runs the coverage runner with the tree, pcov, php, the ini flags and the tokens",
+            coverage_descriptor(
+                "_main/tools/coverage_run",
+                "_main/t.php",
+                "pcov+/pcov.so",
+                "php+/php",
+                {"a": "b c"},
+                _TEST,
+            ),
+            "program=_main/tools/coverage_run\npath=_main/t.php\npath=pcov+/pcov.so\npath=php+/php\narg=-n\narg=-d\narg=a=b c\narg=--\npath=phpunit/phpunit.phar\narg=--bootstrap\npath=_main/t.php/vendor/autoload.php\narg=--no-configuration\narg=--fail-on-empty-test-suite\narg=--do-not-cache-test-index\nenv_flag=--log-junit\tXML_OUTPUT_FILE\n",
         ),
         expect_equal(
             "the descriptor names the program, ini flags and tokens",

@@ -46,6 +46,18 @@ fn rejects_bad_descriptors() {
         "program=x\nenv_dir=\tk\n",
         "program=x\nenv_default=A\n",
         "program=x\nenv_default=A=B\tv\n",
+        "fail=\n",
+        "fail=a\nfail=b\n",
+        "program=x\nfail=a\n",
+        "fail=a\narg=b\n",
+        "fail=a\ncopy=k\tp\n",
+        "program=x\ncopy=k\tp\n",
+        "copy=k\tp\nenv=A\tv\n",
+        "copy=k\n",
+        "copy=\tp\n",
+        "copy=k\t/abs\n",
+        "copy=k\t../up\n",
+        "copy=k\ta/../../up\n",
     ];
     for case in cases {
         assert!(parse(case).is_err(), "accepted {case:?}");
@@ -412,4 +424,44 @@ fn real_program_resolves_symlinks() {
     let planned = plan(&resolver, &real, &|_| None).unwrap();
     assert!(planned.program.ends_with("_main/real/tool"));
     assert!(parse("program=a\nreal_program=b\n").is_err());
+}
+
+#[test]
+fn a_fail_descriptor_prints_its_message_and_exits_2_without_runfiles() {
+    let dir = scratch("fail");
+    std::fs::write(dir.join("stub.launch"), "fail=tool is unavailable here\n").unwrap();
+    assert_eq!(
+        parse("fail=tool is unavailable here\n").unwrap().fail.as_deref(),
+        Some("tool is unavailable here")
+    );
+    assert_eq!(run(&dir.join("stub"), &[]).unwrap(), 2);
+    assert_eq!(run(&dir.join("stub.exe"), &["--version".into()]).unwrap(), 2);
+}
+
+#[test]
+fn copy_lines_write_runfiles_below_the_workspace() {
+    let dir = scratch("copy");
+    let tree = dir.join("update.runfiles");
+    std::fs::create_dir_all(tree.join("_main/pkg")).unwrap();
+    std::fs::write(tree.join("_main/pkg/a_cell.json"), "{\"a\": 1}\n").unwrap();
+    std::fs::write(tree.join("_main/pkg/b_cell.json"), "{\"b\": 2}\n").unwrap();
+    let descriptor =
+        parse("copy=_main/pkg/a_cell.json\tpkg/data/a.json\ncopy=_main/pkg/b_cell.json\tpkg/data/b.json\n")
+            .unwrap();
+    assert_eq!(descriptor.program, "");
+    let workspace = dir.join("workspace");
+    std::fs::create_dir_all(workspace.join("pkg/data")).unwrap();
+    std::fs::write(workspace.join("pkg/data/a.json"), "stale and longer than the new text\n").unwrap();
+    let resolver = Resolver::for_tree(&tree).unwrap();
+    copy_into(&resolver, &descriptor.copy, &workspace).unwrap();
+    assert_eq!(
+        std::fs::read_to_string(workspace.join("pkg/data/a.json")).unwrap(),
+        "{\"a\": 1}\n"
+    );
+    assert_eq!(
+        std::fs::read_to_string(workspace.join("pkg/data/b.json")).unwrap(),
+        "{\"b\": 2}\n"
+    );
+    let missing = parse("copy=_main/pkg/none.json\tpkg/data/none.json\n").unwrap();
+    assert!(copy_into(&resolver, &missing.copy, &workspace).is_err());
 }

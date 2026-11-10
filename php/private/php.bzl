@@ -9,7 +9,7 @@ PHP_SOURCE_EXTS = [".php"]
 
 _TOOL = Label("//php/private:tool.php")
 
-_CLOVER_TO_LCOV = Label("//php/private/coverage:clover_to_lcov")
+_COVERAGE_RUN = Label("//php/private/coverage:coverage_run")
 
 _COMPOSER = Label("@dx_composer//:composer.phar")
 
@@ -29,10 +29,6 @@ def autoloader_suffix(label):
     for c in text.elems():
         out.append(c if c.isalnum() else "_")
     return "".join(out)
-
-def shell_quote(text):
-    """Returns text as one single-quoted shell word."""
-    return "'" + text.replace("'", "'\\''") + "'"
 
 def ini_flags(ini):
     """Returns the -d flags for an ini dict, sorted by key."""
@@ -96,23 +92,6 @@ def _autoload(ctx, info, suffix):
     )
     return tree
 
-_LAUNCHER = """#!/usr/bin/env bash
-set -euo pipefail
-if [[ -d "$0.runfiles" ]]; then
-    runfiles="$0.runfiles"
-elif [[ -n "${{RUNFILES_DIR:-}}" ]]; then
-    runfiles="$RUNFILES_DIR"
-elif [[ "$0" == *.runfiles/* ]]; then
-    runfiles="${{0%%.runfiles/*}}.runfiles"
-else
-    echo "$0: no runfiles tree" >&2
-    exit 2
-fi
-export RUNFILES_DIR="$runfiles"
-{body}"""
-
-_BARE = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_./=-"
-
 def lit(text):
     """Returns a launcher token for one literal argument."""
     return ("arg", text)
@@ -128,36 +107,6 @@ def rf_prefixed(prefix, key):
 def env_flag(flag, var):
     """Returns a launcher token for a flag and the value of an environment variable, left out when the variable is unset or empty."""
     return ("env_flag", flag, var)
-
-def _bash_word(token):
-    kind = token[0]
-    if kind == "arg":
-        text = token[1]
-        return text if text and all([c in _BARE for c in text.elems()]) else shell_quote(text)
-    if kind == "path":
-        return '"$runfiles/{}"'.format(token[1])
-    if kind == "prefixed":
-        return '"{}$runfiles/{}"'.format(token[1], token[2])
-    if kind == "env_flag":
-        return '${{{var}:+{flag} "${var}"}}'.format(flag = token[1], var = token[2])
-    fail("unknown launcher token " + kind)
-
-_COVERAGE_BODY = """tree="$(cd -P "$runfiles/{tree}" && pwd)"
-clover="$(mktemp "${{TEST_TMPDIR:-${{TMPDIR:-/tmp}}}}/clover.XXXXXX")"
-status=0
-"$runfiles/{php}" -n {flags}-d "extension=$runfiles/{pcov}" -d pcov.enabled=1 -d "pcov.directory=$tree" {head} --coverage-filter "$tree" --coverage-clover "$clover" {tail} || status=$?
-if [[ -s "$clover" && -n "${{COVERAGE_OUTPUT_FILE:-}}" ]]; then
-    "$runfiles/{converter}" "$clover" "$COVERAGE_OUTPUT_FILE" "/{marker}/"
-fi
-exit "$status"
-"""
-
-def coverage_launcher_script(php, ini, tokens, pcov, converter, tree):
-    """Returns the bash launcher of a php_test under coverage: PCOV loaded, a Clover report converted to LCOV in $COVERAGE_OUTPUT_FILE."""
-    flags = "".join([shell_quote(flag) + " " for flag in ini_flags(ini)])
-    tail = " ".join([_bash_word(token) for token in tokens[1:]] + ['"$@"'])
-    body = _COVERAGE_BODY.format(tree = tree, php = php, flags = flags, pcov = pcov, head = _bash_word(tokens[0]), tail = tail, converter = converter, marker = tree.rsplit("/", 1)[-1])
-    return _LAUNCHER.format(body = body)
 
 def _descriptor_line(token):
     kind = token[0]
@@ -188,21 +137,28 @@ def _write_launcher(ctx, tokens):
     launcher, runfiles = write_launcher(ctx, php, ctx.attr.ini, tokens)
     return launcher, runfiles.merge(ctx.runfiles(transitive_files = php.files))
 
+def coverage_descriptor(runner, tree, pcov, php, ini, tokens):
+    """Returns the descriptor of a php_test under coverage: the coverage runner with the autoload tree, PCOV, php, its flags and the tokens."""
+    lines = ["program=" + runner, "path=" + tree, "path=" + pcov, "path=" + php, "arg=-n"]
+    for flag in ini_flags(ini):
+        lines.append("arg=" + flag)
+    lines.append("arg=--")
+    lines.extend([_descriptor_line(token) for token in tokens])
+    return "\n".join(lines) + "\n"
+
 def _write_coverage_launcher(ctx, tokens, tree):
-    """Writes the launcher of a test under coverage, with PCOV and the Clover converter in its runfiles."""
+    """Writes the launcher of a test under coverage, with PCOV and the coverage runner in its runfiles."""
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
-    launcher = ctx.actions.declare_file(ctx.label.name)
-    script = coverage_launcher_script(
+    launcher, _, runfiles = write_native_launcher(ctx, coverage_descriptor(
+        runfiles_path(ctx.workspace_name, ctx.executable._coverage_run.short_path),
+        tree,
+        runfiles_path(ctx.workspace_name, php.pcov.short_path),
         runfiles_path(ctx.workspace_name, php.interpreter.short_path),
         ctx.attr.ini,
         tokens,
-        runfiles_path(ctx.workspace_name, php.pcov.short_path),
-        runfiles_path(ctx.workspace_name, ctx.executable._clover_to_lcov.short_path),
-        tree,
-    )
-    ctx.actions.write(launcher, script, is_executable = True)
-    runfiles = ctx.runfiles(files = [launcher, php.pcov, ctx.executable._clover_to_lcov], transitive_files = php.files)
-    return launcher, runfiles.merge(ctx.attr._clover_to_lcov[DefaultInfo].default_runfiles)
+    ))
+    runfiles = runfiles.merge(ctx.runfiles(files = [php.pcov, ctx.executable._coverage_run], transitive_files = php.files))
+    return launcher, runfiles.merge(ctx.attr._coverage_run[DefaultInfo].default_runfiles)
 
 def _runfiles(ctx, files, transitive, base = None):
     runfiles = ctx.runfiles(files = files + ctx.files.data, transitive_files = depset(transitive = transitive))
@@ -320,7 +276,7 @@ php_test = rule(
     attrs = _RUN_ATTRS | {
         "config": attr.label(allow_single_file = [".xml", ".dist"], doc = "A phpunit.xml; without it PHPUnit runs with --no-configuration."),
         "srcs": attr.label_list(mandatory = True, allow_files = PHP_SOURCE_EXTS, doc = "PHPUnit test files PHPUnit runs."),
-        "_clover_to_lcov": attr.label(default = _CLOVER_TO_LCOV, executable = True, cfg = "exec", doc = "Converts the Clover report PHPUnit writes under coverage to LCOV."),
+        "_coverage_run": attr.label(default = _COVERAGE_RUN, executable = True, cfg = "target", doc = "Runs PHPUnit under PCOV and converts its Clover report to LCOV."),
         "_phpunit": attr.label(default = _PHPUNIT, allow_single_file = True, doc = "The pinned PHPUnit phar."),
     },
     test = True,

@@ -1,6 +1,8 @@
 """Writes the JSON spec of one pinned Qt cell."""
 
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//core:rlocation.bzl", "rlocation_path")
 load(":pins.bzl", "CELLS")
 load(":repos.bzl", "cell_spec", "qualified_cells")
 
@@ -20,17 +22,18 @@ qt_cell_json = rule(
 )
 
 def _qt_cell_data_update_impl(ctx):
-    script = ctx.actions.declare_file(ctx.label.name + ".sh")
-    lines = ["#!/bin/sh", "set -eu", "runfiles=\"${RUNFILES_DIR:-$0.runfiles}\"", "dest=\"$BUILD_WORKSPACE_DIRECTORY/" + ctx.label.package + "/" + ctx.attr.directory + "\"", "mkdir -p \"$dest\""]
-    for generated in ctx.files.generated:
-        lines.append("cat \"$runfiles/" + ctx.workspace_name + "/" + generated.short_path + "\" > \"$dest/" + generated.basename.removesuffix("_cell.json") + ".json\"")
-    ctx.actions.write(script, "\n".join(lines) + "\n", is_executable = True)
-    return [DefaultInfo(executable = script, runfiles = ctx.runfiles(files = ctx.files.generated))]
+    dest = ctx.label.package + "/" + ctx.attr.directory + "/"
+    lines = [
+        "copy=" + rlocation_path(ctx, generated) + "\t" + dest + generated.basename.removesuffix("_cell.json") + ".json"
+        for generated in ctx.files.generated
+    ]
+    launcher, _, runfiles = write_native_launcher(ctx, "\n".join(lines) + "\n")
+    return [DefaultInfo(executable = launcher, runfiles = runfiles.merge(ctx.runfiles(files = ctx.files.generated)))]
 
 qt_cell_data_update = rule(
     implementation = _qt_cell_data_update_impl,
     doc = "Copies the generated cell JSON files into the checked-in data directory.",
-    attrs = {
+    attrs = NATIVE_LAUNCHER_ATTRS | {
         "directory": attr.string(doc = "Package-relative directory that holds the checked-in JSON.", mandatory = True),
         "generated": attr.label_list(doc = "Generated cell JSON files.", allow_files = [".json"], mandatory = True),
     },

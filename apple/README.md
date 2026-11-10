@@ -538,7 +538,7 @@ rust_static_library(
 apple_macos_app(
     name = "ledger",
     srcs = ["main.m"],
-    platform = "//apple/platforms:macos_arm64",
+    platform = "@rules_dx//apple/platforms:macos_arm64",
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "14.0",

@@ -123,8 +123,8 @@ rust_android_apk(
 The package links one `lib/<abi>/lib<name>_bin.so` per ABI from the
 static native deps and signs the APK with the debug key. Builds never
 use a release key. Build `:app_apk` for the installable `app_apk.apk`;
-it builds for the platform labels in `platforms`, `//android/platforms:arm64-v8a` and
-`//android/platforms:x86_64` by default, and any other label fails. Do not set it with `select()`. The
+it builds for the platform labels in `platforms`, `@rules_dx//android/platforms:arm64-v8a` and
+`@rules_dx//android/platforms:x86_64` by default, and any other label fails. Do not set it with `select()`. The
 native deps need `alwayslink = True` so `ANativeActivity_onCreate` stays
 exported, and `-landroid -llog` as link options when they use the NDK
 APIs. The default manifest launches a `NativeActivity` loading that
@@ -227,7 +227,7 @@ load("@rules_dx//android:defs.bzl", "android_check")
 android_check(
     name = "aab_check",
     package = ":app_apk_aab_file",
-    platforms = ["//android/platforms:arm64-v8a", "//android/platforms:x86_64"],
+    platforms = ["@rules_dx//android/platforms:arm64-v8a", "@rules_dx//android/platforms:x86_64"],
     resources = ["string/app_name"],
 )
 ```

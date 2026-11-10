@@ -152,7 +152,7 @@ struct BuildLoader<'a> {
 }
 
 /// `label` as written in a file of `package`, with a `//` label of a family package given its
-/// family repo, so `//rules:defs.bzl` in `@rules_dx_js/tests` reads `@rules_dx_js//rules:defs.bzl`.
+/// family repo, so `//rules:defs.bzl` in `@rules_dx_powershell/tests` reads `@rules_dx_powershell//rules:defs.bzl`.
 fn absolute_label(package: &str, label: &str) -> String {
     match package
         .split_once('/')
@@ -442,11 +442,11 @@ mod tests {
         );
         assert!(bzl_path("a", "@platforms//os:BUILD").is_err());
         assert_eq!(
-            bzl_path("@rules_dx_js/tests", "//rules:defs.bzl").expect("path"),
-            "@rules_dx_js/rules/defs.bzl"
+            bzl_path("@rules_dx_powershell/tests", "//rules:defs.bzl").expect("path"),
+            "@rules_dx_powershell/rules/defs.bzl"
         );
         assert_eq!(
-            bzl_path("@rules_dx_js/tests", "@rules_dx//rust:defs.bzl").expect("path"),
+            bzl_path("@rules_dx_powershell/tests", "@rules_dx//rust:defs.bzl").expect("path"),
             "rust/defs.bzl"
         );
     }

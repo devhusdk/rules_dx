@@ -408,7 +408,9 @@ fn parse_locked_for_configured(
             },
             dx_adopt::dependency_sets::Ecosystem::Conan => dx_audit::locks::parse_conan_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Fpm => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::FPM_LOCK) => dx_audit::locks::parse_fpm_lock(text),
+                Some(dx_adopt::dependency_sets::FPM_LOCK) => {
+                    dx_audit::locks::parse_fpm_lock(text).map_err(dx_error::DxError::failure)
+                }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
@@ -435,7 +437,7 @@ fn parse_locked_for_configured(
                     dx_audit::locks::parse_cabal_freeze(text)
                 }
                 Some(dx_adopt::dependency_sets::STACK_LOCK) => {
-                    dx_audit::locks::parse_stack_lock(text)
+                    dx_audit::locks::parse_stack_lock(text).map_err(dx_error::DxError::failure)
                 }
                 _ => Ok(Vec::new()),
             },

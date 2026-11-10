@@ -36,7 +36,8 @@ fn str_of(p: &Path) -> &str {
 
 #[test]
 fn symbolizes_known_function_from_the_pdb() {
-    let tmp = dx_testing::mkscratch("pdb-symbolize").unwrap();
+    let scratch = dx_test_scratch::scratch("pdb-symbolize");
+    let tmp = scratch.path();
     let exe = tmp.join("known.exe");
     let pdb = tmp.join("known.pdb");
     std::fs::copy(data("DX_KNOWN_BINARY"), &exe).unwrap();
@@ -98,7 +99,8 @@ fn codeview_path_is_a_bare_file_name() {
 }
 
 fn fails_and_writes_nothing(name: &str, pdb: Option<&Path>) {
-    let tmp = dx_testing::mkscratch(name).unwrap();
+    let scratch = dx_test_scratch::scratch(name);
+    let tmp = scratch.path();
     let manifest = tmp.join("manifest.json");
     let binary = data("DX_KNOWN_BINARY");
     let mut args = vec!["--in", str_of(&binary), "--manifest", str_of(&manifest)];
@@ -117,7 +119,8 @@ fn pdb_of_another_binary_fails() {
 
 #[test]
 fn truncated_pdb_fails() {
-    let tmp = dx_testing::mkscratch("pdb-truncated").unwrap();
+    let scratch = dx_test_scratch::scratch("pdb-truncated");
+    let tmp = scratch.path();
     let bytes = read(&known_pdb());
     let short = tmp.join("short.pdb");
     std::fs::write(&short, &bytes[..bytes.len() / 2]).unwrap();

@@ -155,6 +155,27 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "fixture_version",
+    srcs = ["version_test.rs"],
+    aliases = aliases(
+        package_name = "cli/cli_entrypoint_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "fixture_version",
+    crate_root = "version_test.rs",
+    data = [
+        "repos.bzl",
+        "//cli/prebuilt:pins.bzl",
+    ],
+    env = {
+        "DX_ENTRYPOINT_REPOS": "$(rootpath repos.bzl)",
+        "DX_PREBUILT_PINS": "$(rootpath //cli/prebuilt:pins.bzl)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
@@ -172,6 +193,7 @@ real_source_target(
         "completion_test.rs",
         "entrypoint_test.rs",
         "surface_test.rs",
+        "version_test.rs",
     ],
     tags = ["corpus"],
 )

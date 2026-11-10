@@ -1,5 +1,7 @@
 """A consumer repository outside this module that runs the public dx launcher."""
 
+load("//cli/prebuilt:pins.bzl", "DX_VERSION")
+
 _BUILD_BAZEL = '''genrule(
     name = "consumer_dx_probe",
     outs = [
@@ -19,8 +21,8 @@ crate="$(location @rules_dx//cli/cli:dx)"
 "$$crate" --help > "$(location crate_help.txt)"
 cmp "$(location public_help.txt)" "$(location crate_help.txt)"
 echo 'module(name = "consumer", version = "0.0.0")' > "$(location workspace/MODULE.bazel)"
-echo 'bazel_dep(name = "rules_dx", version = "0.0.0")' >> "$(location workspace/MODULE.bazel)"
-echo '0.0.0' > "$(location workspace/.dx/pins)"
+echo 'bazel_dep(name = "rules_dx", version = "@@DX_VERSION@@")' >> "$(location workspace/MODULE.bazel)"
+echo '@@DX_VERSION@@' > "$(location workspace/.dx/pins)"
 ws="$$(dirname "$(location workspace/MODULE.bazel)")"
 "$$public" status --workspace "$$ws" > "$(location public_status.txt)"
 "$$public" --version > "$(location public_version.txt)"
@@ -87,28 +89,28 @@ status() {
     exit 1
   fi
 }
-workspace healthy 0.0.0 0.0.0
+workspace healthy @@DX_VERSION@@ @@DX_VERSION@@
 select_tool healthy
 (cd "$$root/healthy" && find . | LC_ALL=C sort) > "$$root/healthy.before"
 status healthy 0
 (cd "$$root/healthy" && find . | LC_ALL=C sort) > "$$root/healthy.after"
 cmp "$$root/healthy.before" "$$root/healthy.after"
-workspace unselected 0.0.0 0.0.0
+workspace unselected @@DX_VERSION@@ @@DX_VERSION@@
 status unselected 0
-workspace bare 0.0.0 ""
+workspace bare @@DX_VERSION@@ ""
 status bare 1
-workspace skew 0.0.0 9.9.9
+workspace skew @@DX_VERSION@@ 9.9.9
 status skew 1
-workspace missing_tool 0.0.0 0.0.0
+workspace missing_tool @@DX_VERSION@@ @@DX_VERSION@@
 select_tool missing_tool
 rm "$$root/missing_tool/bazel-out/tool"
 status missing_tool 1
-workspace corrupt_tool 0.0.0 0.0.0
+workspace corrupt_tool @@DX_VERSION@@ @@DX_VERSION@@
 select_tool corrupt_tool
 rm "$$root/corrupt_tool/.dx/local/environments/$$env/artifacts/tool"
 echo 'not the pinned tool' > "$$root/corrupt_tool/.dx/local/environments/$$env/artifacts/tool"
 status corrupt_tool 1
-workspace pin 9.9.9 0.0.0
+workspace pin 9.9.9 @@DX_VERSION@@
 status pin 0
 """,
     tools = ["@rules_dx//:dx"],
@@ -118,7 +120,7 @@ status pin 0
 
 def _consumer_dx_repo_impl(ctx):
     """Writes the consumer repository that depends on the public dx label."""
-    ctx.file("BUILD.bazel", _BUILD_BAZEL)
+    ctx.file("BUILD.bazel", _BUILD_BAZEL.replace("@@DX_VERSION@@", DX_VERSION))
     return ctx.repo_metadata(reproducible = True)
 
 consumer_dx_repo = repository_rule(
@@ -187,7 +189,7 @@ trap 'rm -rf "$$orig"' EXIT
 for ws in "$$ok" "$$bad" "$$nolock"; do
   echo 'module(name = "consumer_sets", version = "0.0.0")' > "$$ws/MODULE.bazel"
   mkdir -p "$$ws/.dx"
-  echo '0.0.0' > "$$ws/.dx/pins"
+  echo '@@DX_VERSION@@' > "$$ws/.dx/pins"
 done
 cat >> "$(location sets_ok/MODULE.bazel)" <<'EOF'
 uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
@@ -436,7 +438,7 @@ cmp "$$orig/consumer_sets_worker_uv_lock.orig" "$(location sets_ok/services/work
 
 def _consumer_sets_repo_impl(ctx):
     """Writes the consumer repository that declares its own dependency sets."""
-    ctx.file("BUILD.bazel", _SETS_BUILD_BAZEL)
+    ctx.file("BUILD.bazel", _SETS_BUILD_BAZEL.replace("@@DX_VERSION@@", DX_VERSION))
     return ctx.repo_metadata(reproducible = True)
 
 consumer_sets_repo = repository_rule(

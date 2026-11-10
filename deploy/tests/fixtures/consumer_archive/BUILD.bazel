@@ -5,7 +5,7 @@ load("//deploy/rules:resources.bzl", "dx_resources")
 load("//libs/starlark:defs.bzl", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(
     default_testonly = True,

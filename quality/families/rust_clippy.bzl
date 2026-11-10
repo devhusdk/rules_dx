@@ -8,7 +8,7 @@ load("@rules_rust//rust:defs.bzl", "rust_clippy_action", "rust_common")
 load("@rules_rust//rust/private:clippy.bzl", "ClippyFlagsInfo")
 load("@rules_rust//rust/private:rustc.bzl", "get_error_format")
 load("@rules_rust//rust/settings:incompatible.bzl", "IncompatibleFlagInfo")
-load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
+load("//rust/private/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE")
 
 DxClippyInfo = provider(
     doc = "The JSON clippy diagnostics dx lint reads for a crate.",

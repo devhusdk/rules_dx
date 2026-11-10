@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "rust",
   "title": "Rust",
-  "family": "rust",
+  "family": "core",
   "ecosystems": [
     "crates.io"
   ],

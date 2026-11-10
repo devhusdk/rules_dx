@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS + VIS_CLI)
@@ -150,8 +150,8 @@ rust_test(
         "//:pnpm-lock.yaml",
         "//python/tests/fixtures/hello:pyproject.toml",
         "//python/tests/fixtures/hello:uv.lock",
-        "@rules_dx_rust//rust/tests/fixtures/hello:Cargo.lock",
-        "@rules_dx_rust//rust/tests/fixtures/hello:Cargo.toml",
+        "//rust/tests/fixtures/hello:Cargo.lock",
+        "//rust/tests/fixtures/hello:Cargo.toml",
         "//third_party/dotnet:paket.dependencies",
         "//third_party/dotnet:paket.lock",
         "//third_party/go:go.mod",
@@ -162,8 +162,8 @@ rust_test(
         "//third_party/ruby:Gemfile.lock",
     ],
     env = {
-        "DX_CARGO_LOCK": "$(rootpath @rules_dx_rust//rust/tests/fixtures/hello:Cargo.lock)",
-        "DX_CARGO_MANIFEST": "$(rootpath @rules_dx_rust//rust/tests/fixtures/hello:Cargo.toml)",
+        "DX_CARGO_LOCK": "$(rootpath @rules_dx//rust/tests/fixtures/hello:Cargo.lock)",
+        "DX_CARGO_MANIFEST": "$(rootpath @rules_dx//rust/tests/fixtures/hello:Cargo.toml)",
         "DX_DEPCHECK_BIN": "$(rootpath :depcheck)",
         "DX_GO_LOCK": "$(rootpath //third_party/go:go.sum)",
         "DX_GO_MANIFEST": "$(rootpath //third_party/go:go.mod)",
@@ -204,8 +204,8 @@ rust_test(
         "//python/tests/fixtures/adopt-python:uv.lock",
         "//ruby/tests/fixtures/adopt-ruby:Gemfile",
         "//ruby/tests/fixtures/adopt-ruby:Gemfile.lock",
-        "@rules_dx_rust//rust/tests/fixtures/adopt-rust:Cargo.lock",
-        "@rules_dx_rust//rust/tests/fixtures/adopt-rust:Cargo.toml",
+        "//rust/tests/fixtures/adopt-rust:Cargo.lock",
+        "//rust/tests/fixtures/adopt-rust:Cargo.toml",
         "//tools/docs/components/tests/fixture/consumer:package.json",
         "//tools/docs/components/tests/fixture/consumer:pnpm-lock.yaml",
     ],
@@ -229,8 +229,8 @@ rust_test(
         "DX_PY_MANIFEST": "$(rootpath //python/tests/fixtures/adopt-python:pyproject.toml)",
         "DX_RUBY_LOCK": "$(rootpath //ruby/tests/fixtures/adopt-ruby:Gemfile.lock)",
         "DX_RUBY_MANIFEST": "$(rootpath //ruby/tests/fixtures/adopt-ruby:Gemfile)",
-        "DX_RUST_LOCK": "$(rootpath @rules_dx_rust//rust/tests/fixtures/adopt-rust:Cargo.lock)",
-        "DX_RUST_MANIFEST": "$(rootpath @rules_dx_rust//rust/tests/fixtures/adopt-rust:Cargo.toml)",
+        "DX_RUST_LOCK": "$(rootpath //rust/tests/fixtures/adopt-rust:Cargo.lock)",
+        "DX_RUST_MANIFEST": "$(rootpath //rust/tests/fixtures/adopt-rust:Cargo.toml)",
     },
     tags = ["no-coverage"],
     target_compatible_with = ["@platforms//os:linux"],

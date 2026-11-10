@@ -208,7 +208,7 @@ ROWS = [
     },
     {"ci_tests": _hello("ruby"), "consumer_tests": _starter_consumers("ruby"), "name": "ruby", "section": "languages", "title": "Ruby"},
     {
-        "ci_tests": ["@rules_dx_rust//rust/tests/fixtures/consumer_wasm:consumer_wasm_test"],
+        "ci_tests": ["//rust/tests/fixtures/consumer_wasm:consumer_wasm_test"],
         "consumer_tests": ["//tools/testing/hermetic:rust_wasi", "//tools/testing/hermetic:cpp_rust"] + _starter_consumers("rust"),
         "name": "rust",
         "section": "languages",

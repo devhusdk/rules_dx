@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS)
@@ -801,9 +801,9 @@ rust_test(
         "//rst/rules:corpus_starlark",
         "//ruby/private/quality:corpus_starlark",
         "//ruby/private:corpus_starlark",
-        "//rust/rules:corpus_starlark",
-        "//rust/toolchains:corpus_starlark",
         "//scala/private/toolchain:corpus_starlark",
+        "//rust/private:corpus_starlark",
+        "//rust/private/toolchains:corpus_starlark",
         "//scala/private:corpus_starlark",
         "//sql/rules:corpus_starlark",
         "//svelte/private:corpus_starlark",

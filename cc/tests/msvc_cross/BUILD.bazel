@@ -3,7 +3,7 @@ load("//cc/rules:defs.bzl", "cc_binary", "cc_library")
 load("//cc/toolchains:action_tests.bzl", "cc_msvc_arm64_action_tests")
 load("//cc/toolchains:select.bzl", "cc_toolchain_files")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 

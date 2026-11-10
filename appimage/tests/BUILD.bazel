@@ -5,7 +5,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//appimage:defs.bzl", "appimage_package")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cpu_test", "x86_64_action_test")
 load(":transition.bzl", "arm64_files")
 

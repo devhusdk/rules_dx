@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 load(":defs.bzl", "MANIFEST_COMPATIBLE_WITH", "QUALIFICATION_TAGS", "hermetic_qualification", "nested_bazel_test")
@@ -267,12 +267,12 @@ hermetic_qualification(
         "consumers/cpp_rust/consumer.bazelrc": ".bazelrc",
         "consumers/cpp_rust/root.BUILD.bazel": "BUILD.bazel",
         "//cc/tests/fixtures/adopt-cpp/solo:BUILD.bazel": "cc/tests/fixtures/adopt-cpp/solo/BUILD.bazel",
-        "@rules_dx_rust//rust/tests/fixtures/adopt-rust/solo:BUILD.bazel": "rust/tests/fixtures/adopt-rust/solo/BUILD.bazel",
+        "//rust/tests/fixtures/adopt-rust/solo:BUILD.bazel": "rust/tests/fixtures/adopt-rust/solo/BUILD.bazel",
         "//cc/tests/fixtures/adopt-cpp/solo:pure.cc": "cc/tests/fixtures/adopt-cpp/solo/pure.cc",
         "//cc/tests/fixtures/adopt-cpp/solo:pure.h": "cc/tests/fixtures/adopt-cpp/solo/pure.h",
         "//cc/tests/fixtures/adopt-cpp/solo:pure_test.cc": "cc/tests/fixtures/adopt-cpp/solo/pure_test.cc",
-        "@rules_dx_rust//rust/tests/fixtures/adopt-rust/solo:src/lib.rs": "rust/tests/fixtures/adopt-rust/solo/src/lib.rs",
-        "@rules_dx_rust//rust/tests/fixtures/adopt-rust/solo:src/net.rs": "rust/tests/fixtures/adopt-rust/solo/src/net.rs",
+        "//rust/tests/fixtures/adopt-rust/solo:src/lib.rs": "rust/tests/fixtures/adopt-rust/solo/src/lib.rs",
+        "//rust/tests/fixtures/adopt-rust/solo:src/net.rs": "rust/tests/fixtures/adopt-rust/solo/src/net.rs",
         "consumers/cpp_rust/apps/c_store.BUILD.bazel": "cc/tests/fixtures/c-app/store/BUILD.bazel",
         "consumers/cpp_rust/apps/c_cli.BUILD.bazel": "cc/tests/fixtures/c-app/cli/BUILD.bazel",
         "//cc/tests/fixtures/c-app:cjson.BUILD.bazel": "cc/tests/fixtures/c-app/store/cjson.build",

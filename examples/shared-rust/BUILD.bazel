@@ -5,7 +5,7 @@ load("//javascript:defs.bzl", "javascript_web_app")
 load("//libs/starlark:failure_test.bzl", "failure_test")
 load("//libs/web_server:server.bzl", "javascript_web_server")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test")
 load(":release.bzl", "release_artifact")
 
 package(default_visibility = ["//:__subpackages__"])

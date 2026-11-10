@@ -1,6 +1,6 @@
 """Starter test macros."""
 
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "STARTER_CONSUMER_TAGS")
 
 def starter_consumer_test(name, *, fixture = None, target_compatible_with = None, bazel_deps = ["rules_dx"]):

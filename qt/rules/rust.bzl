@@ -1,6 +1,6 @@
 """Rust crates with CXX-Qt bridges for Qt Quick applications."""
 
-load("//rust/rules:defs.bzl", "rust_static_library")
+load("//rust:defs.bzl", "rust_static_library")
 load(":defs.bzl", "QT_COMPATIBLE_WITH", "QT_REPOSITORY", "qt_rust_cc_library")
 
 _CXX_CRATE = Label("//qt/rust:cxx")

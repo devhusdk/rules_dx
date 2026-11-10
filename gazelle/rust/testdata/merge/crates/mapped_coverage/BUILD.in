@@ -1,4 +1,4 @@
-load("@rules_dx//rust/rules:defs.bzl", "rust_library")
+load("@rules_dx//rust:defs.bzl", "rust_library")
 load("//:defs.bzl", "my_rust_test")
 
 # gazelle:map_kind rust_test my_rust_test //:defs.bzl

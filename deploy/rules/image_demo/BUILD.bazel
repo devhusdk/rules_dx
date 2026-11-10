@@ -6,7 +6,7 @@ load("//deploy/rules:oci.bzl", "oci_deploy")
 load("//go/rules:defs.bzl", "go_binary")
 load("//java:defs.bzl", "java_binary")
 load("//python:defs.bzl", "python_binary")
-load("//rust/rules:defs.bzl", "rust_binary")
+load("//rust:defs.bzl", "rust_binary")
 load("//zig:defs.bzl", "zig_binary")
 
 rust_binary(

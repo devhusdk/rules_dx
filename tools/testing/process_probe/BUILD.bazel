@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
 
 package(

@@ -1,0 +1,69 @@
+load("@dx_rust_fixture_crates//:crates.bzl", "aliases")
+load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
+load(":cxx_bridge.bzl", "CXX_VERSION")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+alias(
+    name = "cxx_identity_pin",
+    actual = ":cxx_identity",
+    tags = ["cxx-identity-" + CXX_VERSION],
+)
+
+rust_library(
+    name = "cxx_identity",
+    testonly = True,
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/cxx_identity",
+        normal = True,
+    ),
+    crate_name = "cxx_identity",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_test(
+    name = "cxx_identity_test",
+    testonly = True,
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/cxx_identity",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":cxx_identity",
+)
+
+cc_library(
+    name = "bridge",
+    srcs = ["bridge.cc"],
+    hdrs = ["bridge.h"],
+)
+
+cc_test(
+    name = "bridge_test",
+    srcs = ["bridge_test.cc"],
+    deps = [":bridge"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cxx_bridge.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

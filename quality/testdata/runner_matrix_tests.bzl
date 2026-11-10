@@ -4,7 +4,7 @@ load("//deploy/rules:config.bzl", "rlocation_path")
 load("//libs/starlark:canonical.bzl", "is_canonical", "strip_canonical")
 load("//quality:pipeline.bzl", "real_request_stage")
 load("//quality:support.bzl", "SUPPORT_PLATFORMS")
-load("//rust/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
+load("//rust/private/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 def _single_file(target):
     files = target[DefaultInfo].files.to_list()

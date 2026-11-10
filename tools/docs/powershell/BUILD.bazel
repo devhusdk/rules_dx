@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//powershell/rules:defs.bzl", "powershell_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 # gazelle:dx_ignore_import powershell Pester

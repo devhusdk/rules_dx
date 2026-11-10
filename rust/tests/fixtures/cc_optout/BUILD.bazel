@@ -1,0 +1,74 @@
+load("@dx_rust_fixture_crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cargo_build_script(
+    name = "cc_optout_build_script",
+    testonly = True,
+    srcs = ["build.rs"],
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/cc_optout",
+        build = True,
+    ),
+    crate_features = [],
+    crate_name = "cc_optout_build_script",
+    crate_root = "build.rs",
+    edition = "2021",
+    emit_warnings = True,
+    pkg_name = "cc_optout",
+    use_cc_toolchain = 0,  # keep
+    use_default_shell_env = 0,
+    version = "0.1.0",
+)
+
+rust_test(
+    name = "cc_optout_test",
+    testonly = True,
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/cc_optout",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":cc_optout",
+    deps = crate_deps(
+        [],
+        package_name = "rust/tests/fixtures/cc_optout",
+    ) + [":cc_optout_build_script"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)
+
+rust_library(
+    name = "cc_optout",
+    testonly = True,
+    srcs = ["src/lib.rs"],
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/cc_optout",
+        normal = True,
+    ),
+    crate_name = "cc_optout",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "rust/tests/fixtures/cc_optout",
+    ) + [":cc_optout_build_script"],
+)

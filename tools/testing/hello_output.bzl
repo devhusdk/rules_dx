@@ -1,6 +1,6 @@
 """Shared hello-output assertion over rust_test."""
 
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 
 def dx_hello_output_test(name, binary, expected, exit_code = 0, size = "small", timeout = "short", condition_env = {}, condition_data = {}, **kwargs):
     """Declares one fixture-binary output assertion over the shared helper."""

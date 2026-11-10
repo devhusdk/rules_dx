@@ -2,7 +2,7 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//javascript:defs.bzl", "javascript_library")
 load("@rules_dx//mdx:defs.bzl", "mdx_library", "mdx_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_test")
+load("@rules_dx//rust:defs.bzl", "rust_test")
 
 package(
     default_testonly = True,

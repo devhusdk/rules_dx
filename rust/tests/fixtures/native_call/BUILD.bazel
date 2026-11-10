@@ -1,0 +1,377 @@
+load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
+load("@dx_rust_fixture_crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_cc//cc:defs.bzl", _raw_cc_library = "cc_library")
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library")
+load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_test")
+load("@rules_dx//libs/starlark:failure_test.bzl", "failure_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_shared_library", "rust_static_library", "rust_test")
+load(":build_script_tests.bzl", "build_script_absolute_tool_test", "build_script_compiler_tests", "build_script_host_env_test", "build_script_libstdcxx_test", "build_script_msvc_coverage_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_msvc_crt_library_tests", "rust_msvc_crt_tests")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+bool_flag(
+    name = "offset_100",
+    build_setting_default = False,
+)
+
+config_setting(
+    name = "offset_100_set",
+    flag_values = {":offset_100": "true"},
+)
+
+cc_library(
+    name = "native_c",
+    srcs = ["native.c"],
+    hdrs = ["native.h"],
+    copts = select({
+        ":offset_100_set": ["-DNATIVE_CALL_OFFSET=100"],
+        "//conditions:default": ["-DNATIVE_CALL_OFFSET=0"],
+    }),
+    features = ["treat_warnings_as_errors"],
+)
+
+sh_binary(
+    name = "make_bindings",
+    srcs = ["make_bindings.sh"],
+    visibility = ["//rust/tests/fixtures/consumer_native:__pkg__"],
+)
+
+genrule(
+    name = "native_bindings",
+    srcs = ["native.h"],
+    outs = ["bindings.rs"],
+    cmd = "$(location :make_bindings) $(location :native.h) $@ native_add native_div native_offset",
+    tools = [":make_bindings"],
+)
+
+cargo_build_script(
+    name = "native_call_build_script",
+    srcs = ["build.rs"],
+    build_script_env = {
+        "DX_NATIVE_BINDINGS_SRC": "$(location :native_bindings)",
+    },
+    crate_name = "native_call_build_script",
+    crate_root = "build.rs",
+    data = [":native_bindings"],
+    edition = "2021",
+    pkg_name = "native_call",
+    use_cc_toolchain = 0,
+    use_default_shell_env = 0,
+    version = "0.1.0",
+)
+
+cargo_build_script(
+    name = "native_cc_build_script",
+    srcs = ["cc_build.rs"],
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/native_call",
+        build = True,
+    ),
+    crate_name = "native_cc_build_script",
+    crate_root = "cc_build.rs",
+    data = [
+        "native_cc.c",
+        "native_cc.cc",
+        "native_cc.h",
+    ],
+    edition = "2021",
+    pkg_name = "native_call",
+    use_cc_toolchain = 1,
+    use_default_shell_env = 0,
+    version = "0.1.0",
+    deps = all_crate_deps(
+        package_name = "rust/tests/fixtures/native_call",
+        build = True,
+    ),
+)
+
+rust_library(
+    name = "native_cc",
+    srcs = ["src/native_cc.rs"],
+    crate_name = "native_cc",
+    crate_root = "src/native_cc.rs",
+    edition = "2021",
+    deps = [":native_cc_build_script"],
+)
+
+rust_test(
+    name = "native_cc_test",
+    crate = ":native_cc",
+    deps = [":native_cc_build_script"],
+)
+
+build_script_tool_inputs_test(
+    name = "native_cc_build_script_tool_inputs_test",
+    target_under_test = ":native_cc_build_script",
+)
+
+build_script_host_env_test(
+    name = "native_cc_build_script_host_env_test",
+    size = "small",
+    target_under_test = ":native_cc_build_script",
+)
+
+build_script_compiler_tests(
+    name = "native_cc_build_script_compiler_tests",
+    target = ":native_cc_build_script",
+)
+
+build_script_msvc_test(
+    name = "native_cc_build_script_msvc_test",
+    target = ":native_cc_build_script",
+)
+
+build_script_absolute_tool_test(
+    name = "native_cc_build_script_absolute_tool_test",
+    target = ":native_cc_build_script",
+)
+
+build_script_msvc_coverage_test(
+    name = "native_cc_build_script_msvc_coverage_test",
+    target = ":native_cc_build_script",
+)
+
+build_script_libstdcxx_test(
+    name = "native_cc_libstdcxx_test",
+    target = ":native_cc_test_upstream",
+)
+
+cross_build_script_tool_inputs_test(
+    name = "native_cc_build_script_cross_tool_inputs_test",
+    target_under_test = ":native_cc_build_script",
+)
+
+cross_build_script_identity_tests(
+    name = "native_cc_build_script_cross_identity_tests",
+    target = ":native_cc_build_script",
+)
+
+rust_link_compiler_tests(
+    name = "native_cc_link_compiler_tests",
+    target = ":native_cc_test_upstream",
+)
+
+cc_toolchain_test(
+    name = "gcc_native_cc_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_cc_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_arm64_native_cc_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = ":native_cc_test",
+)
+
+cc_toolchain_test(
+    name = "msvc_native_cc_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_cc_test",
+)
+
+rust_library(
+    name = "native_call",
+    srcs = ["src/lib.rs"],
+    crate_name = "native_call",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    link_deps = [":native_c"],
+    deps = [":native_call_build_script"],
+)
+
+rust_binary(
+    name = "native_call_bin",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    edition = "2021",
+    visibility = [
+        "//:__subpackages__",
+        "@rules_dx//cc/tests/gcc_cross:__pkg__",
+    ],
+    deps = [":native_call"],
+)
+
+rust_test(
+    name = "native_call_bin_test",
+    srcs = ["native_call_bin_test.rs"],
+    data = [":native_call_bin"],
+    edition = "2021",
+    env = {"NATIVE_CALL_BIN": "$(rootpath :native_call_bin)"},
+)
+
+rust_test(
+    name = "native_call_test",
+    crate = ":native_call",
+    link_deps = [":native_c"],
+    deps = [":native_call_build_script"],
+)
+
+rust_link_compiler_tests(
+    name = "native_call_link_compiler_tests",
+    target = ":native_call_test_upstream",
+)
+
+rust_link_windows_test(
+    name = "native_call_bin_link_windows_test",
+    target = ":native_call_bin_upstream",
+)
+
+rust_link_windows_test(
+    name = "native_call_test_link_windows_test",
+    target = ":native_call_test_upstream",
+)
+
+rust_link_windows_test(
+    name = "native_cc_test_link_windows_test",
+    target = ":native_cc_test_upstream",
+)
+
+cc_toolchain_test(
+    name = "gcc_native_call_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_call_test",
+)
+
+cc_toolchain_test(
+    name = "gcc_arm64_native_call_test",
+    compiler = "gcc",
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+    test = ":native_call_test",
+)
+
+cc_toolchain_test(
+    name = "msvc_native_call_test",
+    compiler = "msvc",
+    target_compatible_with = [
+        "@platforms//os:windows",
+        "@platforms//cpu:x86_64",
+    ],
+    test = ":native_call_test",
+)
+
+_raw_cc_library(
+    name = "native_md",
+    srcs = ["native.c"],
+    hdrs = ["native.h"],
+    copts = ["/MD"],
+    tags = ["manual"],
+)
+
+rust_test(
+    name = "native_md_crt_test",
+    crate = ":native_call",
+    link_deps = [":native_md"],
+    tags = ["manual"],
+    deps = [":native_call_build_script"],
+)
+
+rust_test(
+    name = "native_target_crt_test",
+    crate = ":native_call",
+    link_deps = [":native_c"],
+    rustc_flags = ["-Ctarget-feature=+crt-static"],
+    tags = ["manual"],
+    deps = [":native_call_build_script"],
+)
+
+rust_msvc_crt_tests(
+    name = "native_call_msvc_crt_tests",
+    bad = ":native_md_crt_test",
+    target_flag = ":native_target_crt_test",
+    ok = ":native_call_test",
+)
+
+rust_shared_library(
+    name = "native_md_shared",
+    srcs = ["src/md_lib.rs"],
+    crate_name = "native_md_shared",
+    edition = "2021",
+    tags = ["manual"],
+    deps = [":native_md"],
+)
+
+rust_static_library(
+    name = "native_md_static",
+    srcs = ["src/md_lib.rs"],
+    crate_name = "native_md_static",
+    edition = "2021",
+    tags = ["manual"],
+    deps = [":native_md"],
+)
+
+rust_static_library(
+    name = "native_crt_static_archive",
+    srcs = ["src/md_lib.rs"],
+    crate_name = "native_crt_static_archive",
+    edition = "2021",
+    rustc_flags = ["-Ctarget-feature=+crt-static"],
+    tags = ["manual"],
+)
+
+cc_binary(
+    name = "native_md_consumer",
+    srcs = ["md_main.c"],
+    tags = ["manual"],
+    deps = [":native_crt_static_archive"],
+)
+
+rust_msvc_crt_library_tests(
+    name = "native_md_library_crt_tests",
+    shared = ":native_md_shared",
+    static = ":native_md_static",
+    cc_consumer = ":native_md_consumer",
+)
+
+_raw_cc_library(
+    name = "native_bad_extension",
+    srcs = ["notes.txt"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "native_call_rejects_unsupported_extension",
+    expected_failure_substring = "misplaced here",
+    target = ":native_bad_extension",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "build_script_tests.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

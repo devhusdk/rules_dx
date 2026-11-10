@@ -216,7 +216,7 @@ filegroup(
         "//modules:module_srcs",
         "//quality:module_srcs",
         "//quality/private:module_srcs",
-        "//rust/rules:module_srcs",
+        "//rust/private:module_srcs",
     ],
     visibility = ["//visibility:public"],
 )
@@ -260,6 +260,7 @@ real_source_target(
         "powershell/README.md",
         "//python:README.md",
         "//julia:README.md",
+        "//rust:README.md",
         "//scala:README.md",
         "swift/README.md",
         "//zig:README.md",

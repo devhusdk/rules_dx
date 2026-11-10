@@ -4,7 +4,7 @@ load("//deploy/rules:oci.bzl", "oci_deploy")
 load("//deploy/rules:pypi.bzl", "pypi_deploy")
 load("//deploy/rules:sbom.bzl", "dx_sbom")
 load(":sbom_tests.bzl", "plain_file_sbom_tests")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library")
+load("//rust:defs.bzl", "rust_binary", "rust_library")
 
 package(default_visibility = ["//deploy/rules:__pkg__"])
 

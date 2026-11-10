@@ -230,7 +230,7 @@ TAXONOMY = {
         classes = ["ruby"],
     ),
     "rust": struct(
-        owner = "//rust/rules:defs.bzl",
+        owner = "//rust:defs.bzl",
         classes = ["rust"],
     ),
     "scala": struct(

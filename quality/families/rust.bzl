@@ -5,8 +5,8 @@ load("//quality:families/rust_clippy.bzl", "DxClippyInfo", "dx_clippy_aspect")
 load("//quality:family_hooks.bzl", "upstream_files")
 load("//quality:pipeline.bzl", "generated_source_paths", "prune_tool_generated_sources")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
-load("//rust/rules:edition.bzl", "RUST_EDITION")
-load("//rust/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
+load("//rust/private:edition.bzl", "RUST_EDITION")
+load("//rust/private/toolchains:bindings.bzl", "RUST_TOOLCHAIN_TYPE", "rust_toolchain_rustc", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
 TOOLS = {
     "clippy": {

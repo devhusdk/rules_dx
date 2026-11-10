@@ -1,6 +1,6 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(default_visibility = ["//cc/tests/fixtures/c-app:__subpackages__"])

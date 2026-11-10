@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("@rules_dx//rust/rules:defs.bzl", "rust_static_library")
+load("@rules_dx//rust:defs.bzl", "rust_static_library")
 load("//macos:app.bzl", "apple_macos_app")
 
 _MACOS_ARM64 = [

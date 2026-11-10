@@ -97,7 +97,7 @@ quality:families/zig.bzl
 quality:native_config.bzl
 rego:defs.bzl
 ruby:defs.bzl
-rust/rules:defs.bzl
+rust:defs.bzl
 scala:defs.bzl
 sql/rules:defs.bzl
 svelte:defs.bzl

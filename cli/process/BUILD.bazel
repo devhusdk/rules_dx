@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test")
-load("//rust/rules:wrapper_tests.bzl", "dx_test_srcs_split_tests")
+load("//rust:defs.bzl", "rust_library", "rust_test")
+load("//rust/private:wrapper_tests.bzl", "dx_test_srcs_split_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_DEPLOY_QUALITY_TOOLS")
 
 package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS)

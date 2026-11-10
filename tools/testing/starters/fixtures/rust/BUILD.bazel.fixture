@@ -1,4 +1,4 @@
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 rust_library(
     name = "demo-app",

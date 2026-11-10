@@ -30,7 +30,7 @@
    Rust keeps its names:
 
    ```starlark
-   load("@rules_dx//rust/rules:defs.bzl", "rust_library", "rust_test")
+   load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
    ```
 
    Python changes names:

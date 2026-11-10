@@ -214,7 +214,6 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_js",
         "@rules_dx_msix",
         "@rules_dx_powershell",
-        "@rules_dx_rust",
     ]
     .into_iter()
     .find_map(|repo| Some((repo, label.strip_prefix(repo)?.strip_prefix("//")?)));
@@ -460,8 +459,8 @@ mod tests {
             "@rules_dx_cuda/rules/defs.bzl"
         );
         assert_eq!(
-            bzl_path("@rules_dx_cuda/tests", "@rules_dx//rust/rules:defs.bzl").expect("path"),
-            "rust/rules/defs.bzl"
+            bzl_path("@rules_dx_cuda/tests", "@rules_dx//rust:defs.bzl").expect("path"),
+            "rust/defs.bzl"
         );
     }
 

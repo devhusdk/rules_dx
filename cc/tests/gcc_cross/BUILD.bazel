@@ -1,7 +1,7 @@
 load("//cc/rules:defs.bzl", "cc_binary")
 load("//cc/toolchains:select.bzl", "cc_toolchain_files")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 
@@ -23,7 +23,7 @@ cc_toolchain_files(
     srcs = [
         "//cc/tests/fixtures/hello:hello",
         ":hello_c",
-        "@rules_dx_rust//rust/tests/fixtures/native_call:native_call_bin",
+        "//rust/tests/fixtures/native_call:native_call_bin",
     ],
     compiler = "gcc",
     platforms = ["//cc/tests/gcc_cross:linux_arm64"],

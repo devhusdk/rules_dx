@@ -1,6 +1,6 @@
 load("//dart:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load(":dart_tool.bzl", "dart_tool")
 
 package(default_visibility = ["//visibility:public"])

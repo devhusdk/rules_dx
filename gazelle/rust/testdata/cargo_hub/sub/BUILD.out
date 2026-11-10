@@ -1,5 +1,5 @@
 load("@dx_quality_crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_dx//rust/rules:defs.bzl", "rust_binary")
+load("@rules_dx//rust:defs.bzl", "rust_binary")
 
 rust_binary(
     name = "hub_tool",

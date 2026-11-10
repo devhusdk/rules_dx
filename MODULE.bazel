@@ -315,12 +315,6 @@ local_path_override(
     path = "families/msix",
 )
 
-bazel_dep(name = "rules_dx_rust", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_rust",
-    path = "families/rust",
-)
-
 bazel_dep(name = "rules_dx_powershell", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_powershell",
@@ -1842,10 +1836,10 @@ crate.annotation(
 )
 crate.annotation_select(
     build_script_env = {
-        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
         "CARGO_FEATURE_PREFER_INTRINSICS": "1",
     },
-    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
+    build_script_tools = ["@@//rust/private/tools/msvc_paths:msvc_lib"],
     crate = "blake3",
     repositories = ["dx_crates"],
     triples = ["x86_64-pc-windows-msvc"],
@@ -1871,20 +1865,20 @@ crate.annotation(
 # cc-rs archives objects under absolute paths; msvc_lib makes them relative.
 crate.annotation_select(
     build_script_env = {
-        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
     },
-    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
+    build_script_tools = ["@@//rust/private/tools/msvc_paths:msvc_lib"],
     crate = "blake3",
     repositories = ["dx_crates"],
     triples = ["aarch64-pc-windows-msvc"],
 )
 crate.annotation_select(
     build_script_env = {
-        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
     },
-    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
+    build_script_tools = ["@@//rust/private/tools/msvc_paths:msvc_lib"],
     crate = "libz-sys",
     repositories = ["dx_crates"],
     triples = [
@@ -1894,13 +1888,13 @@ crate.annotation_select(
 )
 crate.annotation_select(
     build_script_env = {
-        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
-        "CC_aarch64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:clang_cl)",
+        "AR_aarch64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
+        "CC_aarch64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:clang_cl)",
         "CFLAGS_aarch64_pc_windows_msvc": "/WX-",
     },
     build_script_tools = [
-        "@@//rust/tools/msvc_paths:clang_cl",
-        "@@//rust/tools/msvc_paths:msvc_lib",
+        "@@//rust/private/tools/msvc_paths:clang_cl",
+        "@@//rust/private/tools/msvc_paths:msvc_lib",
     ],
     crate = "ring",
     repositories = ["dx_crates"],
@@ -1909,9 +1903,9 @@ crate.annotation_select(
 )
 crate.annotation_select(
     build_script_env = {
-        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/tools/msvc_paths:msvc_lib)",
+        "AR_x86_64_pc_windows_msvc": "$(execpath @@//rust/private/tools/msvc_paths:msvc_lib)",
     },
-    build_script_tools = ["@@//rust/tools/msvc_paths:msvc_lib"],
+    build_script_tools = ["@@//rust/private/tools/msvc_paths:msvc_lib"],
     crate = "ring",
     repositories = ["dx_crates"],
     triples = ["x86_64-pc-windows-msvc"],
@@ -2138,6 +2132,51 @@ crate.from_cargo(
     ],
 )
 use_repo(crate, "dx_thrift_crates")
+
+_consumer_hub_repo = use_repo_rule("//rust/tests/fixtures/consumer_hub:repos.bzl", "consumer_hub_repo")
+
+_consumer_hub_repo(
+    name = "consumer_hub",
+    dev_dependency = True,
+)
+
+_consumer_native_repo = use_repo_rule("//rust/tests/fixtures/consumer_native:repos.bzl", "consumer_native_repo")
+
+_consumer_native_repo(
+    name = "consumer_native",
+    dev_dependency = True,
+)
+
+_consumer_abi_repo = use_repo_rule("//rust/tests/fixtures/consumer_abi:repos.bzl", "consumer_abi_repo")
+
+_consumer_abi_repo(
+    name = "consumer_abi",
+    dev_dependency = True,
+)
+
+crate_fixtures = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate", dev_dependency = True)
+crate_fixtures.from_cargo(
+    name = "dx_rust_fixture_crates",
+    cargo_lockfile = "//rust/tests/fixtures/hello:Cargo.lock",
+    lockfile = "//rust/tests:cargo-bazel-lock.json",
+    manifests = [
+        "//rust/tests/fixtures/hello:Cargo.toml",
+        "//rust/tests/fixtures/native_call:Cargo.toml",
+        "//rust/tests/fixtures/fuzz:Cargo.toml",
+        "//rust/tests/fixtures/bench:Cargo.toml",
+    ],
+    supported_platform_triples = [
+        "aarch64-apple-darwin",
+        "aarch64-pc-windows-msvc",
+        "aarch64-unknown-linux-gnu",
+        "wasm32-unknown-unknown",
+        "wasm32-wasip1",
+        "x86_64-pc-windows-msvc",
+        "x86_64-unknown-linux-gnu",
+        "x86_64-unknown-nixos-gnu",
+    ],
+)
+use_repo(crate_fixtures, "dx_rust_fixture_crates")
 
 _docs_consumer_repo = use_repo_rule("//tools/docs/rust/fixture/consumer:repos.bzl", "docs_consumer_repo")
 

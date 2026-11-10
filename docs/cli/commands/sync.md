@@ -82,7 +82,7 @@ prost_codegen_shard(
 )
 ```
 
-- gRPC for Rust needs no extra rule. `rust_prost_library` emits tonic stubs when the proto has a `service`, because the `rules_rust_prost` default toolchain sets `tonic_plugin` and `tonic_runtime`. Depend on `@rules_rust_prost//private/3rdparty/crates:tonic` and `:tokio` to serve or call it, as in `@rules_dx_rust//rust/tests/tonic:greeter_test`. A custom `rust_prost_toolchain` must set `tonic_plugin`, `tonic_plugin_flag` and `tonic_runtime` together.
+- gRPC for Rust needs no extra rule. `rust_prost_library` emits tonic stubs when the proto has a `service`, because the `rules_rust_prost` default toolchain sets `tonic_plugin` and `tonic_runtime`. Depend on `@rules_rust_prost//private/3rdparty/crates:tonic` and `:tokio` to serve or call it, as in `@rules_dx//rust/tests/tonic:greeter_test`. A custom `rust_prost_toolchain` must set `tonic_plugin`, `tonic_plugin_flag` and `tonic_runtime` together.
 - Every shard binds the target that generated the files with `generated`. Set `language = "rust"` or `language = "java"` on the shard of a Rust or Java library. Bind a Rust shard to the `NAME_generated` target.
 - A Java shard entry is the srcjar of one direct dep.
 - A shard lists the files of the libraries in the `deps` of its library rule only.

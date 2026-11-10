@@ -6,7 +6,7 @@ load("//cc/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
 load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
 load("//qt/rules:rust.bzl", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:child_runfiles.bzl", "child_runfiles")
 load(":rules_tests.bzl", "qt_rules_tests")
 

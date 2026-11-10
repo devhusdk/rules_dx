@@ -250,7 +250,7 @@ Language rules:
 - `@rules_dx//quality/rules:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//rego:defs.bzl`: Rego.
 - `@rules_dx//ruby:defs.bzl`: Ruby.
-- `@rules_dx//rust/rules:defs.bzl`: Rust.
+- `@rules_dx//rust:defs.bzl`: Rust.
 - `@rules_dx//scala:defs.bzl`: Scala.
 - `@rules_dx//sql/rules:defs.bzl`: SQL.
 - `@rules_dx//terraform:defs.bzl`: Terraform.
@@ -299,7 +299,7 @@ dx rule that wraps it.
 | `@rules_py//py:defs.bzl` | `py_library` | `@rules_dx//python:defs.bzl` | `python_library` |
 | `@rules_py//py:defs.bzl` | `py_test`, `py_pytest_test` | `@rules_dx//python:defs.bzl` | `python_test` |
 | `@rules_ruby//ruby:defs.bzl` | `rb_binary`, `rb_library`, `rb_test` | `@rules_dx//ruby:defs.bzl` | `ruby_binary`, `ruby_library`, `ruby_test` |
-| `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test` | `@rules_dx//rust/rules:defs.bzl` | same names |
+| `@rules_rust//rust:defs.bzl` | `rust_binary`, `rust_library`, `rust_proc_macro`, `rust_shared_library`, `rust_static_library`, `rust_test` | `@rules_dx//rust:defs.bzl` | same names |
 | `@rules_scala//scala:scala.bzl` | `scala_binary`, `scala_library`, `scala_test` | `@rules_dx//scala:defs.bzl` | `scala_binary`, `scala_library`, `scala_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//typescript:defs.bzl` | `typescript_binary` |
 | `@aspect_rules_ts//ts:defs.bzl` | `ts_project` | `@rules_dx//typescript:defs.bzl` | `typescript_library` |
@@ -562,14 +562,14 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_coverage_lib_dirs` |
 |  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_library` |
 |  |  | `@rules_dx//ruby/private:defs.bzl` | `ruby_test` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_bench` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_binary` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_fuzz_test` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_library` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_proc_macro` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_shared_library` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_static_library` |
-|  |  | `@rules_dx//rust/rules:defs.bzl` | `rust_test` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_bench` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_binary` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_fuzz_test` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_library` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_proc_macro` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_shared_library` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_static_library` |
+|  |  | `@rules_dx//rust:defs.bzl` | `rust_test` |
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_bench` |
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_binary` |
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_fuzz_test` |

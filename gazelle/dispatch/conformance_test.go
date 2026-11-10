@@ -214,7 +214,7 @@ var conformanceRows = map[string]conformanceRow{
 	"rust": {
 		rel:   "crates/demo",
 		files: map[string]string{"src/lib.rs": "pub fn demo() {}\n"},
-		kind:  "rust_library", target: "demo", defs: "rust/rules:defs.bzl",
+		kind:  "rust_library", target: "demo", defs: "rust:defs.bzl",
 		symbols: []string{"rust_binary", "rust_library", "rust_test", "rust_bench", "rust_proc_macro", "rust_shared_library", "rust_static_library"},
 		extraLoads: map[string][]string{
 			"@rules_rust//cargo:defs.bzl":          {"cargo_build_script"},

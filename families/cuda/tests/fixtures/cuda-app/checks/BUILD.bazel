@@ -1,6 +1,6 @@
 load("//rules:defs.bzl", "CUDA_TARGET")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust/rules:defs.bzl", "rust_test")
+load("@rules_dx//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 

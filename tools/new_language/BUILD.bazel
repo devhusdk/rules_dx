@@ -1,4 +1,4 @@
-load("//rust/rules:defs.bzl", "rust_binary", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)

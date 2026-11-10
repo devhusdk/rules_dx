@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
 load(":site.bzl", "docs_api", "docs_scope_tools", "docs_site")

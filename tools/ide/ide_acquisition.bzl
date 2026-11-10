@@ -1,6 +1,6 @@
 """Shared IDE acquisition test macro."""
 
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 
 def _ide_rust_test(name, binary, expected, args, size, timeout, kwargs, binary_two = None, expected_two = None, args_two = None):
     """Declares one IDE acquisition test over the shared helper."""

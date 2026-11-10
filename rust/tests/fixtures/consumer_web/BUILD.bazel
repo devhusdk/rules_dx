@@ -1,0 +1,58 @@
+# gazelle:dx_rust_corpus false
+# gazelle:resolve rust wasm_bindgen @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen
+# gazelle:resolve rust wasm_bindgen_test @rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+rust_library(
+    name = "consumer_web",
+    testonly = True,
+    srcs = ["src/lib.rs"],
+    crate_name = "consumer_web",
+    crate_root = "src/lib.rs",
+    edition = "2021",
+    deps = ["@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen"],
+)
+
+# keep
+rust_binary(
+    name = "consumer_web_bin",
+    testonly = True,
+    srcs = ["src/main.rs"],
+    crate_name = "consumer_web_bin",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    wasm = "browser",
+    deps = [":consumer_web"],
+)
+
+rust_test(
+    name = "consumer_web_test",
+    testonly = True,
+    crate = ":consumer_web",
+)
+
+# keep
+rust_test(
+    name = "consumer_web_browser_test",
+    srcs = ["src/browser_test.rs"],
+    wasm = "browser",
+    deps = [
+        ":consumer_web",
+        "@rules_rust_wasm_bindgen//3rdparty:wasm_bindgen_test",
+    ],
+)
+
+exports_files(
+    [
+        "BUILD.bazel",
+        "src/browser_test.rs",
+        "src/lib.rs",
+        "src/main.rs",
+    ],
+    visibility = ["@rules_dx//cli/cli:__pkg__"],
+)

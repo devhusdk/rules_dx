@@ -222,7 +222,7 @@ func (l *rustLang) ApparentLoads(moduleToApparentName func(string) string) []rul
 
 func rustLoads(rulesRepo, cratesRepo, rulesRustRepo string) []rule.LoadInfo {
 	return []rule.LoadInfo{
-		{Name: "@" + rulesRepo + "//rust/rules:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, benchmarkKind, procMacroKind, sharedKind, staticKind}},
+		{Name: "@" + rulesRepo + "//rust:defs.bzl", Symbols: []string{binaryKind, libraryKind, testKind, benchmarkKind, procMacroKind, sharedKind, staticKind}},
 		{Name: "@" + rulesRustRepo + "//cargo:defs.bzl", Symbols: []string{scriptKind}},
 		{Name: "@" + cratesRepo + "//:crates.bzl", Symbols: []string{"aliases", "all_crate_deps"}},
 		corpusLoads(rulesRepo),

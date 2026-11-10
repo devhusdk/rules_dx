@@ -2,7 +2,7 @@
 
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//libs/starlark:failure_test.bzl", "failure_test")
-load("//rust/rules:defs.bzl", "rust_test")
+load("//rust:defs.bzl", "rust_test")
 
 def _red_manifest(name):
     """Exposes one red runner's harness manifest so a demo can stage it."""

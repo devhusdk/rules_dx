@@ -1,0 +1,31 @@
+load("@crates//:crates.bzl", "aliases", "crate_deps")
+load("@rules_dx//rust:defs.bzl", "rust_binary")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+rust_binary(
+    name = "worker",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "rust/tests/fixtures/adopt-rust/crates/worker",
+        normal = True,
+    ),
+    crate_name = "worker",
+    crate_root = "src/main.rs",
+    edition = "2021",
+    deps = crate_deps(
+        [],
+        package_name = "rust/tests/fixtures/adopt-rust/crates/worker",
+    ) + ["//rust/tests/fixtures/adopt-rust/crates/api"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

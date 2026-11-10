@@ -1,8 +1,8 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//deploy/rules:github.bzl", "github_deploy")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("//rust/rules:wrapper_tests.bzl", "dx_msvc_opt_pdb_tests")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust/private:wrapper_tests.bzl", "dx_msvc_opt_pdb_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
 package(default_visibility = VIS_CLI)
@@ -391,10 +391,10 @@ rust_test(
         ":dx",
         "//:MODULE.bazel",
         "//modules:versions.bzl",
-        "@rules_dx_rust//rust/tests/fixtures/consumer_web:BUILD.bazel",
-        "@rules_dx_rust//rust/tests/fixtures/consumer_web:src/browser_test.rs",
-        "@rules_dx_rust//rust/tests/fixtures/consumer_web:src/lib.rs",
-        "@rules_dx_rust//rust/tests/fixtures/consumer_web:src/main.rs",
+        "//rust/tests/fixtures/consumer_web:BUILD.bazel",
+        "//rust/tests/fixtures/consumer_web:src/browser_test.rs",
+        "//rust/tests/fixtures/consumer_web:src/lib.rs",
+        "//rust/tests/fixtures/consumer_web:src/main.rs",
         "//tools/testing/process_probe",
         "@dx_tools//:gitleaks",
     ],

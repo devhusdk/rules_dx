@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//rust/rules:defs.bzl", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
 package(default_visibility = VIS_CLI_TOOLS)
@@ -54,7 +54,7 @@ rust_library(
         "//python:lang.json",
         "//qt:lang.json",
         "//ruby:lang.json",
-        "//:rust/lang.json",
+        "//rust:lang.json",
         "//scala:lang.json",
         "//svelte:lang.json",
         "//:swift/lang.json",
@@ -113,7 +113,7 @@ rust_test(
         "//python:lang.json",
         "//qt:lang.json",
         "//ruby:lang.json",
-        "//:rust/lang.json",
+        "//rust:lang.json",
         "//scala:lang.json",
         "//svelte:lang.json",
         "//:swift/lang.json",

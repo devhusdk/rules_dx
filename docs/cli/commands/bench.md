@@ -50,7 +50,7 @@ Scopes: same as `dx test`. With no scope, it runs `//...`.
 
 D: `d_bench(name, srcs)` from `//d:defs.bzl` is a `d_binary` that writes `dx-bench.json` itself, usually from `std.datetime.stopwatch.benchmark`.
 
-Rust: `rust_bench` from `//rust/rules:defs.bzl` runs a criterion or `#[bench]` target with `--output-format bencher` and writes `dx-bench.json` in ns/iter. Gazelle turns `[[bench]]` entries with `harness = false` into `rust_bench` targets.
+Rust: `rust_bench` from `//rust:defs.bzl` runs a criterion or `#[bench]` target with `--output-format bencher` and writes `dx-bench.json` in ns/iter. Gazelle turns `[[bench]]` entries with `harness = false` into `rust_bench` targets.
 
 JavaScript and TypeScript: `javascript_bench(name, srcs, node_modules)` from `//javascript:defs.bzl` and `typescript_bench` from `//typescript:defs.bzl` run a [tinybench](https://github.com/tinylibs/tinybench) `Bench` that the first source (or `main`) exports as its default export. Each task becomes one row, in milliseconds. List `tinybench` in `package.json` so `node_modules` links it. `typescript_bench` also takes the `typescript_test` attributes such as `deps` and `tsconfig`.
 

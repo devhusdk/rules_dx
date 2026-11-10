@@ -59,7 +59,21 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 
 - Each converted rule has a test that fails when a host directory returns to its `PATH`.
 - `//core/coreutils:applet_probe_test` runs one applet by name with only the applet directory on `PATH`.
-- One repo test scans Starlark, shell and Rust sources for host `PATH` directories, `use_default_shell_env = True`, `sh_test` and shell `#!` lines. Its allowlist names the files not yet converted and only shrinks.
+- `//tools/ci:host_env_test` parses every `BUILD`, `.bzl` and repository `*.BUILD` file and scans Rust, shell, template and rc files. Its kinds:
+  - `host-path`: `/usr/bin`, `/bin`, `/usr/local/bin`, `$PATH` or `${PATH}` in a string or line.
+  - `home`: the string `HOME` in Starlark, `$HOME` or `${HOME}` in Starlark, shell and templates.
+  - `env-inherit`: an `env_inherit` argument or key.
+  - `default-shell-env`: `use_default_shell_env` set to anything but `False`, or passed as a key.
+  - `run-shell`, `genrule`, `sh-rule`: a call of `run_shell`, `genrule`, `sh_test` or `sh_binary`.
+  - `shebang`: a file or a written string that starts with a shell `#!` line.
+  - `rc-env-passthrough`: `--action_env`, `--host_action_env` or `--test_env` with a name and no value.
+- `//tools/ci:host_program_test` scans Rust and Starlark. Its kinds:
+  - `spawn-by-name`: `Command::new` with a string that has no path separator.
+  - `env-path`, `env-home`: `env::var` or `env::var_os` of `PATH`, `HOME` or `USERPROFILE`.
+  - `rctx-which`: a `.which(` call.
+  - `rctx-execute-by-name`: an `.execute(` call whose first argument element is a string with no path separator.
+- Test code counts the same as product code.
+- `tools/ci/host_env_allowlist.txt` and `tools/ci/host_program_allowlist.txt` hold one sorted line per file and kind: `<path> <kind> <count>`. They follow the allowlist rules in `docs/design/tests.md` section Guard.
 
 ## Conversion order
 
@@ -68,4 +82,4 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 3. `run_shell` actions and `genrule` commands.
 4. `sh_test` targets and shell test helpers.
 5. Rust code that starts host programs by name.
-6. The repo scan test, added with the allowlist of what is left and emptied by the steps above.
+6. The allowlists of `//tools/ci:host_env_test` and `//tools/ci:host_program_test`, emptied by the steps above.

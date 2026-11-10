@@ -90,6 +90,14 @@ name = "gitlab_inputs_parity_test"
 path = "gitlab_inputs_parity_test.rs"
 
 [[test]]
+name = "host_env_test"
+path = "host_env_test.rs"
+
+[[test]]
+name = "host_program_test"
+path = "host_program_test.rs"
+
+[[test]]
 name = "input_validation_test"
 path = "input_validation_test.rs"
 
@@ -124,6 +132,10 @@ path = "reusable_callers_test.rs"
 [[test]]
 name = "review_paths_test"
 path = "review_paths_test.rs"
+
+[[test]]
+name = "sandbox_escape_test"
+path = "sandbox_escape_test.rs"
 
 [[test]]
 name = "secret_flags_test"

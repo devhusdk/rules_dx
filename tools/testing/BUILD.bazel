@@ -199,15 +199,6 @@ testing_rust_test(
 )
 
 testing_rust_test(
-    name = "host_path_scan_test",
-    data = [
-        "host_path_allowlist.txt",
-        "//:module_srcs",
-    ],
-    deps = [":dx_testing"],
-)
-
-testing_rust_test(
     name = "dx_generated_fresh_test",
     data = ["//:module_srcs"],
     deps = [

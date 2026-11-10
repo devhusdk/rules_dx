@@ -1,0 +1,389 @@
+//! No action or test reaches the host environment outside tools/ci/host_env_allowlist.txt, and the allowlist holds no spare entry.
+
+mod guard_scan;
+
+use guard_scan::{Counts, Token, callee_name, exprs, hit, is_starlark, parse, rust_tokens, string};
+use starlark_syntax::syntax::ast::{ArgumentP, AstExpr, ExprP};
+use yaml_serde as _;
+
+/// The kinds an allowlist line may name.
+const KINDS: [&str; 9] = [
+    "default-shell-env",
+    "env-inherit",
+    "genrule",
+    "home",
+    "host-path",
+    "rc-env-passthrough",
+    "run-shell",
+    "sh-rule",
+    "shebang",
+];
+
+/// Text that names a host directory wherever it stands.
+const HOST_DIRS: [&str; 4] = ["/usr/bin", "/usr/local/bin", "$PATH", "${PATH}"];
+
+/// Shells a `#!` line may name.
+const SHELLS: [&str; 5] = ["sh", "bash", "zsh", "dash", "ksh"];
+
+/// Rule calls found in text that is not Starlark, with their kinds.
+const CALLS: [(&str, &str); 4] = [
+    ("run_shell(", "run-shell"),
+    ("genrule(", "genrule"),
+    ("sh_test(", "sh-rule"),
+    ("sh_binary(", "sh-rule"),
+];
+
+/// Flags that pass a host variable through when they carry no value.
+const PASSTHROUGH: [&str; 3] = ["--action_env=", "--host_action_env=", "--test_env="];
+
+/// Whether `text` puts a host directory on a path.
+fn host_path(text: &str) -> bool {
+    HOST_DIRS.iter().any(|dir| text.contains(dir))
+        || text
+            .split([':', '=', ' ', '"', '\''])
+            .any(|part| part == "/bin")
+}
+
+/// Whether `text` reads the host home directory.
+fn home(text: &str) -> bool {
+    text.contains("$HOME") || text.contains("${HOME}")
+}
+
+/// Whether `text` opens with a `#!` line that names a shell.
+fn shebang(text: &str) -> bool {
+    let Some(rest) = text.lines().next().and_then(|line| line.strip_prefix("#!")) else {
+        return false;
+    };
+    rest.split_whitespace()
+        .map(|word| word.rsplit('/').next().unwrap_or(word))
+        .any(|word| SHELLS.contains(&word))
+}
+
+fn is_false(expr: &AstExpr) -> bool {
+    matches!(&expr.node, ExprP::Identifier(ident) if ident.node.ident == "False")
+}
+
+/// Kinds one piece of generated or shell text holds.
+fn text_kinds(text: &str, mut add: impl FnMut(&str)) {
+    if host_path(text) {
+        add("host-path");
+    }
+    if text.contains("use_default_shell_env = True") {
+        add("default-shell-env");
+    }
+    for (needle, kind) in CALLS {
+        if text.contains(needle) {
+            add(kind);
+        }
+    }
+}
+
+fn scan_starlark(path: &str, source: &str, counts: &mut Counts) {
+    let module = parse(path, source);
+    for expr in exprs(module.statement()) {
+        if let Some(text) = string(expr) {
+            if host_path(text) {
+                hit(counts, path, "host-path");
+            }
+            if text == "HOME" || home(text) {
+                hit(counts, path, "home");
+            }
+            if text == "env_inherit" {
+                hit(counts, path, "env-inherit");
+            }
+            if text == "use_default_shell_env" {
+                hit(counts, path, "default-shell-env");
+            }
+            if shebang(text) {
+                hit(counts, path, "shebang");
+            }
+        }
+        let ExprP::Call(callee, args) = &expr.node else {
+            continue;
+        };
+        match callee_name(callee) {
+            "run_shell" => hit(counts, path, "run-shell"),
+            "genrule" => hit(counts, path, "genrule"),
+            "sh_test" | "sh_binary" => hit(counts, path, "sh-rule"),
+            _ => {}
+        }
+        for arg in &args.args {
+            match &arg.node {
+                ArgumentP::Named(key, _) if key.node == "env_inherit" => {
+                    hit(counts, path, "env-inherit");
+                }
+                ArgumentP::Named(key, value)
+                    if key.node == "use_default_shell_env" && !is_false(value) =>
+                {
+                    hit(counts, path, "default-shell-env");
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+fn scan_rust(path: &str, source: &str, counts: &mut Counts) {
+    for token in rust_tokens(source) {
+        let Token::Text(text) = token else {
+            continue;
+        };
+        text_kinds(&text, |kind| hit(counts, path, kind));
+        if shebang(&text) {
+            hit(counts, path, "shebang");
+        }
+    }
+}
+
+fn scan_lines(path: &str, source: &str, counts: &mut Counts) {
+    let rc = path.ends_with(".bazelrc");
+    for line in source.lines() {
+        let line = line.trim();
+        if rc && line.starts_with('#') {
+            continue;
+        }
+        text_kinds(line, |kind| hit(counts, path, kind));
+        if home(line) {
+            hit(counts, path, "home");
+        }
+        if !rc {
+            continue;
+        }
+        for word in line.split_whitespace() {
+            let name = PASSTHROUGH.iter().find_map(|flag| word.strip_prefix(flag));
+            if name.is_some_and(|name| !name.contains('=')) {
+                hit(counts, path, "rc-env-passthrough");
+            }
+        }
+    }
+}
+
+/// Host environment uses in one file.
+fn scan(path: &str, source: &str, counts: &mut Counts) {
+    if shebang(source) {
+        hit(counts, path, "shebang");
+    }
+    if is_starlark(path) {
+        scan_starlark(path, source, counts);
+    } else if path.ends_with(".rs") {
+        scan_rust(path, source, counts);
+    } else {
+        scan_lines(path, source, counts);
+    }
+}
+
+fn scan_all(sources: &[(&str, &str)]) -> Vec<(String, String, usize)> {
+    let mut counts = Counts::new();
+    for (path, source) in sources {
+        scan(path, source, &mut counts);
+    }
+    counts
+        .into_iter()
+        .map(|((path, kind), count)| (path, kind, count))
+        .collect()
+}
+
+fn lines(entries: &[(&str, &str, usize)]) -> Vec<(String, String, usize)> {
+    entries
+        .iter()
+        .map(|(path, kind, count)| ((*path).to_owned(), (*kind).to_owned(), *count))
+        .collect()
+}
+
+#[test]
+fn the_tree_matches_the_allowlist() {
+    let mut counts = Counts::new();
+    for (path, source) in &guard_scan::snapshot() {
+        scan(path, source, &mut counts);
+    }
+    guard_scan::verify(&counts, &KINDS);
+}
+
+#[test]
+fn host_directories_on_a_path_count() {
+    let bzl = r#"
+def _impl(ctx):
+    ctx.actions.run(env = {"PATH": "/usr/bin:/bin"})
+    ctx.actions.run(env = {"PATH": "/usr/local/bin"})
+    ctx.actions.run(env = {"PATH": tool + ":$PATH"})
+    ctx.actions.run(env = {"PATH": "${PATH}"})
+    ctx.actions.run(env = {"PATH": "/bin"})
+    ctx.actions.run(env = {"PATH": "/dx_no_path", "TOOL": "bazel-out/bin/tool"})
+"#;
+    assert_eq!(
+        scan_all(&[("pkg/defs.bzl", bzl)]),
+        lines(&[("pkg/defs.bzl", "host-path", 5)]),
+    );
+}
+
+#[test]
+fn home_counts_as_a_key_and_as_a_shell_variable() {
+    let bzl = r#"
+def _impl(ctx):
+    ctx.actions.run(env = {"HOME": ctx.attr.home})
+    ctx.actions.run(env = {"CACHE": "$HOME/.cache", "OTHER": "${HOME}"})
+    ctx.actions.run(env = {"HOMEBREW": "1"})
+"#;
+    let sh = "cd \"$HOME\"\nexport X=${HOME}/x\necho HOME\n";
+    assert_eq!(
+        scan_all(&[("pkg/defs.bzl", bzl), ("pkg/run.tpl", sh)]),
+        lines(&[("pkg/defs.bzl", "home", 3), ("pkg/run.tpl", "home", 2),]),
+    );
+}
+
+#[test]
+fn env_inherit_counts_as_an_argument_and_as_a_key() {
+    let build = r#"
+rust_test(name = "a", env_inherit = ["PATH"])
+rust_test(name = "b", env_inherit = INHERITED)
+"#;
+    let bzl = r#"
+def wrapped_test(name, **kwargs):
+    kwargs["env_inherit"] = ["HOME"]
+    native.cc_test(name = name, **kwargs)
+"#;
+    assert_eq!(
+        scan_all(&[("pkg/BUILD.bazel", build), ("pkg/defs.bzl", bzl)]),
+        lines(&[
+            ("pkg/BUILD.bazel", "env-inherit", 2),
+            ("pkg/defs.bzl", "env-inherit", 1),
+            ("pkg/defs.bzl", "home", 1),
+        ]),
+    );
+}
+
+#[test]
+fn the_default_shell_env_counts_unless_it_is_false() {
+    let bzl = r#"
+def _impl(ctx):
+    ctx.actions.run(use_default_shell_env = True)
+    ctx.actions.run(use_default_shell_env = flag)
+    ctx.actions.run(use_default_shell_env = False)
+    kwargs = {"use_default_shell_env": True}
+    ctx.actions.run(**kwargs)
+"#;
+    let rust = r##"
+fn rule() -> &'static str {
+    r#"ctx.actions.run(use_default_shell_env = True)"#
+}
+"##;
+    assert_eq!(
+        scan_all(&[("pkg/defs.bzl", bzl), ("pkg/src/lib.rs", rust)]),
+        lines(&[
+            ("pkg/defs.bzl", "default-shell-env", 3),
+            ("pkg/src/lib.rs", "default-shell-env", 1),
+        ]),
+    );
+}
+
+#[test]
+fn shell_actions_and_shell_rules_count() {
+    let bzl = r#"
+def _impl(ctx):
+    ctx.actions.run_shell(command = "true")
+
+def macro(name):
+    native.genrule(name = name, cmd = "true")
+    native.sh_binary(name = name + "_bin")
+"#;
+    let build = r#"
+genrule(name = "a", cmd = "true")
+sh_test(name = "b", srcs = ["b.sh"])
+sh_binary(name = "c", srcs = ["c.sh"])
+cc_library(name = "d")
+"#;
+    let rust = r#"
+const BUILD: &str = "sh_test(name = \"t\")\n";
+const RULE: &str = "ctx.actions.run_shell(command = cmd)";
+// sh_test( in a comment
+"#;
+    assert_eq!(
+        scan_all(&[
+            ("pkg/BUILD.bazel", build),
+            ("pkg/defs.bzl", bzl),
+            ("pkg/src/lib.rs", rust),
+        ]),
+        lines(&[
+            ("pkg/BUILD.bazel", "genrule", 1),
+            ("pkg/BUILD.bazel", "sh-rule", 2),
+            ("pkg/defs.bzl", "genrule", 1),
+            ("pkg/defs.bzl", "run-shell", 1),
+            ("pkg/defs.bzl", "sh-rule", 1),
+            ("pkg/src/lib.rs", "run-shell", 1),
+            ("pkg/src/lib.rs", "sh-rule", 1),
+        ]),
+    );
+}
+
+#[test]
+fn shell_shebangs_count_in_files_and_in_written_text() {
+    let bzl = r##"
+_LAUNCHER = """#!/usr/bin/env bash
+exec "$0.bin"
+"""
+_PYTHON = "#!/usr/bin/env python3\n"
+"##;
+    let rust = "const SCRIPT: &str = \"#!/bin/sh\\nexit 0\\n\";\n";
+    assert_eq!(
+        scan_all(&[
+            ("pkg/defs.bzl", bzl),
+            ("pkg/run.sh", "#!/bin/bash\ntrue\n"),
+            ("pkg/src/lib.rs", rust),
+            ("pkg/tool.sh", "#!/usr/bin/env python3\n"),
+        ]),
+        lines(&[
+            ("pkg/defs.bzl", "host-path", 2),
+            ("pkg/defs.bzl", "shebang", 1),
+            ("pkg/run.sh", "shebang", 1),
+            ("pkg/src/lib.rs", "shebang", 1),
+            ("pkg/tool.sh", "host-path", 1),
+        ]),
+    );
+}
+
+#[test]
+fn rc_flags_that_pass_a_host_variable_through_count() {
+    let rc = "
+# build --action_env=HOME
+build --action_env=CC
+build --host_action_env=CC --test_env=LANG
+test --test_env=MODE=fast
+build --action_env=PATH=/usr/bin
+";
+    assert_eq!(
+        scan_all(&[(".bazelrc", rc)]),
+        lines(&[
+            (".bazelrc", "host-path", 1),
+            (".bazelrc", "rc-env-passthrough", 3),
+        ]),
+    );
+}
+
+#[test]
+fn a_spare_or_loose_allowlist_line_fails() {
+    let mut found = Counts::new();
+    hit(&mut found, "pkg/BUILD.bazel", "genrule");
+    hit(&mut found, "pkg/BUILD.bazel", "genrule");
+    let check = |allowlist: &str| guard_scan::problems(&found, allowlist, &KINDS);
+    assert_eq!(check("pkg/BUILD.bazel genrule 2\n"), Vec::<String>::new());
+    assert_eq!(
+        check("pkg/BUILD.bazel genrule 1\n"),
+        ["pkg/BUILD.bazel genrule 2: 1 allowed; remove the new one"],
+    );
+    assert_eq!(
+        check("pkg/BUILD.bazel genrule 3\n"),
+        ["pkg/BUILD.bazel genrule 3: 2 left; lower the allowlist count"],
+    );
+    assert_eq!(
+        check("gone/BUILD.bazel genrule 1\npkg/BUILD.bazel genrule 2\n"),
+        ["gone/BUILD.bazel genrule 1: none left; delete the allowlist line"],
+    );
+    assert_eq!(
+        check("pkg/BUILD.bazel genrule 2\npkg/BUILD.bazel sh_test 1\n"),
+        ["malformed line: \"pkg/BUILD.bazel sh_test 1\""],
+    );
+    assert_eq!(
+        check("pkg/BUILD.bazel genrule 2\npkg/BUILD.bazel genrule 2\n"),
+        ["not sorted or repeated: \"pkg/BUILD.bazel genrule 2\""],
+    );
+}

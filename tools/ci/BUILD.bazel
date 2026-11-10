@@ -736,14 +736,82 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
-rust_test(
-    name = "git_spawn_policy_test",
+ci_rust_test(
+    name = "host_env_test",
     size = "small",
-    srcs = ["git_spawn_policy_test.rs"],
-    crate_name = "git_spawn_policy_test",
-    crate_root = "git_spawn_policy_test.rs",
-    data = ["//:module_srcs"],
-    deps = ["//tools/testing:dx_testing"],
+    srcs = [
+        "guard_scan.rs",
+        "host_env_test.rs",
+    ],
+    data = [
+        "host_env_allowlist.txt",
+        "@dx_test_tags_sources//:code.json",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "ALLOWLIST": "$(rlocationpath host_env_allowlist.txt)",
+        "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+ci_rust_test(
+    name = "host_program_test",
+    size = "small",
+    srcs = [
+        "guard_scan.rs",
+        "host_program_test.rs",
+    ],
+    data = [
+        "host_program_allowlist.txt",
+        "@dx_test_tags_sources//:code.json",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "ALLOWLIST": "$(rlocationpath host_program_allowlist.txt)",
+        "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+ci_rust_test(
+    name = "sandbox_escape_test",
+    size = "small",
+    srcs = [
+        "guard_scan.rs",
+        "sandbox_escape_test.rs",
+    ],
+    data = [
+        "sandbox_escape_allowlist.txt",
+        "@dx_test_tags_sources//:code.json",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "ALLOWLIST": "$(rlocationpath sandbox_escape_allowlist.txt)",
+        "DX_CODE_JSON": "$(rlocationpath @dx_test_tags_sources//:code.json)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
 )
 
 ci_rust_test(

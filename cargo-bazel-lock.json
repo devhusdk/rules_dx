@@ -1,5 +1,5 @@
 {
-  "checksum": "26a2519330e60c53f8a82943e8c452782118f4ca6ea4a83923c79bad8689921d",
+  "checksum": "e897d3dcf5da381d988f68c2daaf0c956d28582bfb6661ecb923aa033a834dc8",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -29054,11 +29054,11 @@
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",
-    "dx_archive 0.0.0": "libs/dx_archive",
+    "dx_archive 0.0.0": "cli/dx_archive",
     "dx_atomic_fs 0.0.0": "cli/dx_atomic_fs",
     "dx_audit 0.0.0": "cli/dx_audit",
     "dx_bep 0.0.0": "cli/dx_bep",
-    "dx_binfmt 0.0.0": "libs/dx_binfmt",
+    "dx_binfmt 0.0.0": "cli/dx_binfmt",
     "dx_bootstrap 0.0.0": "deploy/offline/dx_bootstrap",
     "dx_cli 0.0.0": "cli/dx_cli",
     "dx_codegen 0.0.0": "cli/dx_codegen",
@@ -29095,7 +29095,7 @@
     "dx_sbom 0.0.0": "cli/dx_sbom",
     "dx_sbom_schema 0.0.0": "cli/sbom/dx_sbom_schema",
     "dx_setup 0.0.0": "cli/dx_setup",
-    "dx_shard_writer 0.0.0": "libs/dx_shard_writer",
+    "dx_shard_writer 0.0.0": "cli/dx_shard_writer",
     "dx_shim 0.0.0": "cli/dx_shim",
     "dx_symbols 0.0.0": "deploy/dx_symbols",
     "dx_test_scratch 0.0.0": "cli/dx_test_scratch",

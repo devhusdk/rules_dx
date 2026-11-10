@@ -40,12 +40,7 @@ pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), String> 
 }
 
 /// Triggers the Packagist update of the repository registered for the package.
-fn packagist_live_update(
-    package: &str,
-    repository_url: &str,
-    username: &str,
-    token: &str,
-) -> i32 {
+fn packagist_live_update(package: &str, repository_url: &str, username: &str, token: &str) -> i32 {
     let body = serde_json::json!({"repository": {"url": repository_url}}).to_string();
     let result = crate::http::publish_agent()
         .post(PACKAGIST_UPDATE_URL)
@@ -176,8 +171,7 @@ mod tests {
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
-        std::fs::write(runfiles.join("composer.json"), r#"{"name": "acme/demo"}"#)
-            .expect("write");
+        std::fs::write(runfiles.join("composer.json"), r#"{"name": "acme/demo"}"#).expect("write");
         let outdir = scratch.path().join("out");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         let runfiles_dir = runfiles.to_string_lossy().into_owned();

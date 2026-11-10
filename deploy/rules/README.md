@@ -1134,16 +1134,16 @@ Live run needs `PACKAGIST_USERNAME`, `PACKAGIST_API_TOKEN` and
 
 # Registries released by tag
 
-These registries have no deploy rule. The release is a git tag, a pull
-request, or an upload, so the last step is manual. For the registries that
-read versions from tags (Go, Swift, PHP, dub), `github_deploy` with
-`release_tag` set to the tag is the release step.
+Most of these registries have no deploy rule. The release is a git tag, a pull
+request, or an upload, so the last step is manual. PHP has `packagist_deploy`.
+For the registries that read versions from tags (Go, Swift, PHP, dub),
+`github_deploy` with `release_tag` set to the tag is the release step.
 
 - Go: push the tag `vX.Y.Z`. The module proxy fetches it from the repository.
   For a GitHub release, set `release_tag` on `github_deploy` to that tag.
 - Julia: push the tag, then comment `@JuliaRegistrator register` on the commit.
 - Swift: push a semver tag such as `1.2.0`. SwiftPM reads versions from tags.
-- PHP: run `composer validate`, push a tag, then run `packagist_deploy` (below).
+- PHP: run `composer validate`, push a tag, then run `packagist_deploy`.
 - dub: push a semver tag such as `v1.2.0`. The dub registry reads versions
   from tags.
 - opam: open a pull request to the opam repository that adds

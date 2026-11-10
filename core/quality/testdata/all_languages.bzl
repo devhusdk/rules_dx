@@ -68,7 +68,7 @@ load("//ansible/private/quality:ansible.bzl", _ANSIBLE_SHARD_SPECS = "SHARD_SPEC
 load("//cloudformation/private/quality:cloudformation.bzl", _CLOUDFORMATION_SHARD_SPECS = "SHARD_SPECS", _CLOUDFORMATION_TOOLS = "TOOLS")
 load("//core/quality:families/cmake.bzl", _CMAKE_SHARD_SPECS = "SHARD_SPECS", _CMAKE_TOOLS = "TOOLS")
 load("//dockerfile/private/quality:dockerfile.bzl", _DOCKERFILE_SHARD_SPECS = "SHARD_SPECS", _DOCKERFILE_TOOLS = "TOOLS")
-load("//core/quality:families/oci_image.bzl", _real_oci_image_lint_aspect = "real_oci_image_lint_aspect", _OCI_IMAGE_HOOKS = "HOOKS", _OCI_IMAGE_SHARD_SPECS = "SHARD_SPECS", _OCI_IMAGE_TOOLS = "TOOLS")
+load("//core/quality:families/oci_image.bzl", _real_oci_image_lint_aspect = "real_oci_image_lint_aspect", _real_oci_image_typecheck_aspect = "real_oci_image_typecheck_aspect", _OCI_IMAGE_HOOKS = "HOOKS", _OCI_IMAGE_SHARD_SPECS = "SHARD_SPECS", _OCI_IMAGE_TOOLS = "TOOLS")
 load("//core/quality:families/html_template.bzl", _real_html_template_format_aspect = "real_html_template_format_aspect", _real_html_template_lint_aspect = "real_html_template_lint_aspect", _HTML_TEMPLATE_SHARD_SPECS = "SHARD_SPECS", _HTML_TEMPLATE_TOOLS = "TOOLS")
 load("//core/quality:families/latex.bzl", _real_latex_format_aspect = "real_latex_format_aspect", _real_latex_lint_aspect = "real_latex_lint_aspect", _LATEX_SHARD_SPECS = "SHARD_SPECS", _LATEX_TOOLS = "TOOLS")
 load("//core/quality:families/make.bzl", _MAKE_SHARD_SPECS = "SHARD_SPECS", _MAKE_TOOLS = "TOOLS")
@@ -616,6 +616,7 @@ real_shell_lint_aspect = _real_shell_lint_aspect
 real_shell_format_aspect = _real_shell_format_aspect
 
 real_oci_image_lint_aspect = _real_oci_image_lint_aspect
+real_oci_image_typecheck_aspect = _real_oci_image_typecheck_aspect
 
 real_nix_format_aspect = _real_nix_format_aspect
 

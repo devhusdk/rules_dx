@@ -20,6 +20,7 @@ EXPECTED_IDS = [
     "clang_tidy",
     "clippy",
     "cmakelint",
+    "container_structure_test",
     "credo",
     "csc",
     "csharpier",

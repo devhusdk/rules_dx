@@ -221,7 +221,9 @@ GHC_DROPPED_PATHS = [
 
 NO_HOST_TOOL = "dx-no-host-tool"
 
-BUNDLED_TOOLS = ["Merge objects command"]
+BUNDLED_TOOLS = ["Merge objects command", "windres command"]
+
+MINGW_ROOT = "$topdir/../mingw/"
 
 SETTINGS = {
     "C compiler command": NO_HOST_TOOL,
@@ -375,7 +377,7 @@ def ghc_settings(source):
         key = stripped[2:stripped.index("\"", 2)]
         if key in SETTINGS:
             seen.append(key)
-            if key in BUNDLED_TOOLS and "\"$tooldir/" in stripped:
+            if key in BUNDLED_TOOLS and (MINGW_ROOT in source or "\"$tooldir/" in stripped):
                 lines.append(line)
                 continue
             line = line[:line.index("(")] + "(" + repr(key) + ", " + repr(SETTINGS[key]) + ")"

@@ -60,4 +60,5 @@ None.
 
 ## Platforms
 
-None.
+- Linux arm64
+- Linux x86_64

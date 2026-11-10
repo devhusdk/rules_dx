@@ -20,7 +20,11 @@ load("@rules_dx//elixir:defs.bzl", "escript_archive", "escript_headers", "cover_
 
 ### `escript_archive`
 
-No documentation.
+```python
+escript_archive(name, visibility = None, **kwargs)
+```
+
+Thin wrapper over rules_erlang escript_archive. Runs on the pinned OTP runtime; fails when an app ships NIFs.
 
 ### `escript_headers`
 

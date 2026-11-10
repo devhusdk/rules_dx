@@ -19,7 +19,7 @@ PLATFORM_NAMES = {
     "windows_arm64": "Windows arm64",
     "windows_x86_64": "Windows x86_64",
 }
-LOAD = re.compile(r"^load\(\s*(\"[^\"]+\")\s*,(.*?)\n\)|^load\(\s*(\"[^\"]+\")\s*,([^\n]*)\)", re.M | re.S)
+LOAD = re.compile(r"^load\(\s*(\"[^\"]+\")\s*,([^\n]*)\)\s*$|^load\(\s*(\"[^\"]+\")\s*,(.*?)\n\)", re.M | re.S)
 LOAD_ITEM = re.compile(r"(?:(\w+)\s*=\s*)?\"(\w+)\"")
 ALIAS = re.compile(r"^(\w+)\s*=\s*(\w+)\s*$", re.M)
 STRING = re.compile(r'"""(.*?)"""|"((?:[^"\\\n]|\\.)*)"', re.S)

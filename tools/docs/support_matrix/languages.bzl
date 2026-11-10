@@ -547,7 +547,7 @@ LANGUAGES = [
     _language(
         "lua",
         bench = "lua_bench",
-        deps = "none: no LuaRocks support, rockspec packages are pinned with `http_archive`",
+        deps = "`luarocks` (pinned, no advisories)",
         doc = struct(tool = "ldoc", shard = "lua_doc_shard"),
         dead_code = ["selene unused_variable"],
         coverage = ["luacov"],

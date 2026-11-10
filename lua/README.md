@@ -128,6 +128,8 @@ Depend on `@rocks//inspect`. `luarocks.lock` is the file `luarocks --pin` writes
 fails the fetch and prints the digest to commit. A module named `x.init` is
 rejected; list it as `x`.
 
+`dx security` and `dx license` read `luarocks.lock`. `dx security` reports the set as uncovered because OSV has no LuaRocks ecosystem; accept it with `--accept uncovered:<set>`. `dx update` does not resolve it.
+
 Alternatively, pin a pure-Lua package with `http_archive` and
 a `build_file` that declares a `lua_library`:
 

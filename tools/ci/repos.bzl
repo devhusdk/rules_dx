@@ -76,7 +76,7 @@ def _rust(path, name):
     return not any([part in _TEST_DIRS for part in path.split("/")])
 
 def _test_tags_sources_impl(rctx):
-    """Writes sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, and rust.json, the same for the non-test .rs files."""
+    """Writes sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):
@@ -88,7 +88,8 @@ def _test_tags_sources_impl(rctx):
     sources = {}
     files = {}
     rust = {}
-    for path in walk(ignored, readdir).files:
+    paths = walk(ignored, readdir).files
+    for path in paths:
         name = path.rpartition("/")[2]
         if _starlark(name):
             sources[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
@@ -96,12 +97,22 @@ def _test_tags_sources_impl(rctx):
             files[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         elif _rust(path, name):
             rust[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+    langs = {
+        path.removesuffix("/lang.json"): True
+        for path in files
+        if path.count("/") == 1 and path.endswith("/lang.json")
+    }
+    for lang in langs:
+        readme = root.get_child(lang, "README.md")
+        if readme.exists:
+            files[lang + "/README.md"] = rctx.read(readme, watch = "yes")
     rctx.file("sources.json", json.encode(sources))
     rctx.file("files.json", json.encode(files))
     rctx.file("rust.json", json.encode(rust))
-    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json"])\n')
+    rctx.file("paths.json", json.encode(sorted([path for path in paths if path.split("/")[0] in langs])))
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "paths.json"])\n')
 
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,
-    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, repository BUILD and language page files, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
+    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, language README, repository BUILD and language page files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
 )

@@ -44,6 +44,7 @@ fn list_holds_the_review_prefixes() {
             "MODULE.bazel",
             "tools/testing/root_layout_test.rs",
             "docs/design/layout.md",
+            "tools/testing/language_skeleton_allowlist.txt",
         ]
     );
 }

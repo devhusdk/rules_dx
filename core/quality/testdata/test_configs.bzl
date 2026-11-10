@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 39
+MAX_TEST_CONFIGS = 40
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -111,6 +111,7 @@ TEST_CONFIGS = {
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),
     "ocaml_owned": _config(_OCAML),
     "ocaml_owned_standard": _config(_OCAML, profile = "standard"),
+    "prose_dirty": _config("//core/quality/testdata/prose_dirty:policy"),
     "python_tiers_ruff": _config("//core/quality/testdata/python_tiers:ruff_policy"),
     "ruff_alternate": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:alternate_ruff"}),
     "ruff_empty": _config("//config:default_workspace_policy", tools = {"//config:tool_ruff": "//core/quality/testdata:no_ruff"}),

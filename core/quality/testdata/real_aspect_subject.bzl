@@ -343,6 +343,7 @@ real_sql_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_sql_lint_aspect, r
 real_core_aspect_subject = _subject_rule(_CORE_ASPECTS)
 
 REAL_SUBJECT_BY_CLASS = {
+    "asciidoc": real_core_aspect_subject,
     "c": real_cc_aspect_subject,
     "csharp": real_dotnet_aspect_subject,
     "cuda": real_cc_aspect_subject,
@@ -355,6 +356,7 @@ REAL_SUBJECT_BY_CLASS = {
     "objc": real_cc_aspect_subject,
     "ocaml": real_ocaml_aspect_subject,
     "python": real_python_aspect_subject,
+    "rst": real_core_aspect_subject,
     "rust": real_rust_aspect_subject,
     "scala": real_scala_aspect_subject,
     "sql": real_sql_aspect_subject,

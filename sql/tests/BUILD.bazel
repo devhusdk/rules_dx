@@ -1,0 +1,37 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//sql:defs.bzl", "sql_library")
+load("//core:failure_test.bzl", "failure_test")
+load(":library_tests.bzl", "owns_sql_class_test")
+
+sql_library(
+    name = "docs",
+    srcs = ["fixtures/schema.sql"],
+)
+
+owns_sql_class_test(
+    name = "owns_sql_class_test",
+    size = "small",
+    target_under_test = ":docs",
+)
+
+sql_library(
+    name = "bad_extension",
+    srcs = ["fixtures/notes.txt"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_extension_fails",
+    expected_failure_substring = "misplaced here",
+    target = ":bad_extension",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

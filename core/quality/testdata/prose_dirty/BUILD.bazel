@@ -1,0 +1,54 @@
+load("//asciidoc:defs.bzl", "asciidoc_library")
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//rst:defs.bzl", "rst_library")
+
+package(default_visibility = ["//core/quality/testdata:__pkg__"])
+
+exports_files(
+    glob(["dirty.*"]),
+    visibility = ["//visibility:public"],
+)
+
+quality_family(
+    name = "asciidoc_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "asciidoc",
+    lint = ["vale"],
+)
+
+quality_family(
+    name = "rst_family",
+    disabled = [
+        "audit",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "rst",
+    format = ["docstrfmt"],
+)
+
+workspace_policy(
+    name = "policy",
+    configs = ["//core/quality/tiers/docstrfmt:standard"],
+    families = [
+        ":asciidoc_family",
+        ":rst_family",
+    ],
+)
+
+asciidoc_library(
+    name = "asciidoc",
+    srcs = ["dirty.adoc"],
+    aspect_hints = ["//core/quality/testdata:vale_cfg"],
+    tags = ["manual"],
+)
+
+rst_library(
+    name = "rst",
+    srcs = ["dirty.rst"],
+    tags = ["manual"],
+)

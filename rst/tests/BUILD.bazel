@@ -1,0 +1,37 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rst:defs.bzl", "rst_library")
+load("//core:failure_test.bzl", "failure_test")
+load(":library_tests.bzl", "owns_rst_class_test")
+
+rst_library(
+    name = "docs",
+    srcs = ["fixtures/index.rst", "fixtures/guide.rest"],
+)
+
+owns_rst_class_test(
+    name = "owns_rst_class_test",
+    size = "small",
+    target_under_test = ":docs",
+)
+
+rst_library(
+    name = "bad_extension",
+    srcs = ["fixtures/notes.txt"],
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "bad_extension_fails",
+    expected_failure_substring = "misplaced here",
+    target = ":bad_extension",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "library_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

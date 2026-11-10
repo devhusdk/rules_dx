@@ -29,9 +29,9 @@ def uncovered_families():
     return sorted([f for f in WRAPPER_OWNERS if WRAPPER_OWNERS[f] == "other"])
 
 def _is_owner_label(owner):
-    if owner.startswith("@rules_dx_"):
+    if owner.startswith("@rules_dx"):
         owner = "//" + owner.split("//", 1)[-1]
-    return owner.startswith("//") and owner.endswith("/rules:defs.bzl")
+    return owner.startswith("//") and owner.endswith(":defs.bzl")
 
 def wrapper_schema_error():
     """Validates the wrapper-ownership schema."""
@@ -40,7 +40,7 @@ def wrapper_schema_error():
             return "wrapper owners: non-canonical family '" + str(family) + "'"
         owner = WRAPPER_OWNERS[family]
         if owner != "other" and not _is_owner_label(owner):
-            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //.../rules:defs.bzl or @rules_dx_<family>//.../rules:defs.bzl label or \"other\""
+            return "wrapper owners: family '" + family + "' owner '" + str(owner) + "' must be a //<lang>:defs.bzl, //<lang>/private:defs.bzl, //.../rules:defs.bzl or @rules_dx//<lang>:defs.bzl or @rules_dx_<family>//.../rules:defs.bzl label or \"other\""
     for family in _taxonomy_families():
         if family not in WRAPPER_OWNERS:
             return "wrapper owners: taxonomy family '" + family + "' has no owner or uncovered verdict"

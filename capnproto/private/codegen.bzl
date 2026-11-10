@@ -19,7 +19,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers", "codegen_rust_library_kwargs")
+load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar", "codegen_rust_library_kwargs")
 load("//core:defs.bzl", "display_label")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
@@ -196,9 +196,6 @@ CapnpJavaAspectInfo = provider(
 
 _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 
-def _zip_entry(f):
-    return f.tree_relative_path + "=" + f.path
-
 def _java_aspect_impl(target, ctx):
     info = target[CapnpInfo]
     name = target.label.name
@@ -226,20 +223,7 @@ def _java_aspect_impl(target, ctx):
         mnemonic = "CapnpJava",
         progress_message = "capnp compile --java " + str(target.label),
     )
-    srcjar = ctx.actions.declare_file("_capnp_java/" + name + ".srcjar")
-    zip_args = ctx.actions.args()
-    zip_args.add("c")
-    zip_args.add(srcjar)
-    zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
-    ctx.actions.run(
-        executable = ctx.executable._zipper,
-        toolchain = None,
-        inputs = [tree],
-        outputs = [srcjar],
-        arguments = [zip_args],
-        mnemonic = "CapnpJavaSrcjar",
-        progress_message = "Packing " + srcjar.short_path,
-    )
+    srcjar = codegen_srcjar(ctx, tree, "_capnp_java/" + name + ".srcjar", "CapnpJavaSrcjar")
     jar = ctx.actions.declare_file("_capnp_java/" + name + ".jar")
     java_info = java_common.compile(
         ctx,
@@ -414,43 +398,14 @@ def capnp_rust_library(name, library, crate_name = None, deps = None, **kwargs):
     )
     rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate, [Label("//capnproto:runtime_rust")], deps, kwargs))
 
-def _shard_impl(ctx):
-    generated = ctx.attr.generated
-    if ctx.attr.language in _LANGUAGES and CapnpCodegenInfo in generated and generated[CapnpCodegenInfo].language != ctx.attr.language:
-        fail(
-            "capnp_codegen_shard " + display_label(ctx.label) + ": language " + ctx.attr.language +
-            " does not match " + display_label(generated.label) + ", which generates " +
-            generated[CapnpCodegenInfo].language + ". Point generated at a capnp_cc_library for cpp, " +
-            "at NAME_generated of a capnp_rust_library for rust, or at a capnp_java_library for java",
-        )
-    if OutputGroupInfo not in generated or CAPNP_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
-        fail(
-            "capnp_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(generated.label) + " has no " + CAPNP_GENERATED_SRCS_GROUP +
-            " output group (want a capnp_cc_library, a capnp_java_library or a capnp_rust_library NAME_generated)",
-        )
-    return codegen_bound_shard_providers(
-        ctx,
-        "capnp_codegen_shard",
-        "capnp",
-        display_label(generated.label),
-        CAPNP_GENERATED_SRCS_GROUP,
-        generated[OutputGroupInfo][CAPNP_GENERATED_SRCS_GROUP].to_list(),
-    )
-
-capnp_codegen_shard = rule(
-    implementation = _shard_impl,
-    doc = "Declares codegen plan entries for the sources capnp generates. Every generated file needs one entry with an EXEC_PATH suffix.",
-    attrs = {
-        "entries": attr.string_list(
-            doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
-            mandatory = True,
-        ),
-        "language": attr.string(doc = "cpp, rust or java.", mandatory = True),
-        "generated": attr.label(
-            doc = "capnp_cc_library, capnp_java_library, or the NAME_generated target of a capnp_rust_library, whose generated files the entries bind.",
-            mandatory = True,
-        ),
-        "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
-    },
+capnp_codegen_shard = codegen_shard_rule(
+    "capnp_codegen_shard",
+    "capnp",
+    CAPNP_GENERATED_SRCS_GROUP,
+    "want a capnp_cc_library, a capnp_java_library or a capnp_rust_library NAME_generated",
+    "cpp, rust or java.",
+    "Declares codegen plan entries for the sources capnp generates. Every generated file needs one entry with an EXEC_PATH suffix.",
+    "capnp_cc_library, capnp_java_library, or the NAME_generated target of a capnp_rust_library, whose generated files the entries bind.",
+    codegen_info = CapnpCodegenInfo,
+    languages = _LANGUAGES,
 )

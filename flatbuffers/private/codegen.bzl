@@ -17,8 +17,7 @@ load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", "rust_library")
-load("//core/codegen:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers", "codegen_rust_library_kwargs")
-load("//core:defs.bzl", "display_label")
+load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar", "codegen_rust_library_kwargs")
 load("//core:stage.bzl", "stage_closure")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":defs.bzl", "FlatBuffersInfo", "resolve_root")
@@ -163,9 +162,6 @@ FlatBuffersJavaStageInfo = provider(
 
 _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 
-def _zip_entry(f):
-    return f.tree_relative_path + "=" + f.path
-
 def _java_aspect_impl(target, ctx):
     info = target[FlatBuffersInfo]
     name = target.label.name
@@ -180,20 +176,7 @@ def _java_aspect_impl(target, ctx):
         mnemonic = "FlatcJava",
         progress_message = "flatc --java " + str(target.label),
     )
-    srcjar = ctx.actions.declare_file("_fbs_java/" + name + ".srcjar")
-    zip_args = ctx.actions.args()
-    zip_args.add("c")
-    zip_args.add(srcjar)
-    zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
-    ctx.actions.run(
-        executable = ctx.executable._zipper,
-        toolchain = None,
-        inputs = [tree],
-        outputs = [srcjar],
-        arguments = [zip_args],
-        mnemonic = "FlatcJavaSrcjar",
-        progress_message = "Packing " + srcjar.short_path,
-    )
+    srcjar = codegen_srcjar(ctx, tree, "_fbs_java/" + name + ".srcjar", "FlatcJavaSrcjar")
     dep_infos = [dep[FlatBuffersJavaAspectInfo].java_info for dep in ctx.rule.attr.deps]
     jar = ctx.actions.declare_file("_fbs_java/" + name + ".jar")
     java_info = java_common.compile(
@@ -323,44 +306,14 @@ def flatbuffers_rust_library(name, library, crate_name = None, deps = None, root
     )
     rust_library(**codegen_rust_library_kwargs(name, ":" + generated, crate_name, [Label("//flatbuffers:runtime_rust")], deps, kwargs))
 
-def _shard_impl(ctx):
-    generated = ctx.attr.generated
-    if FlatBuffersCodegenInfo in generated and ctx.attr.language in ("cpp", "rust", "java") and generated[FlatBuffersCodegenInfo].language != ctx.attr.language:
-        fail(
-            "flatbuffers_codegen_shard " + display_label(ctx.label) + ": language " + ctx.attr.language +
-            " does not match " + display_label(generated.label) + ", which generates " +
-            generated[FlatBuffersCodegenInfo].language + ". Point generated at a flatbuffers_cc_library for cpp, " +
-            "at NAME_generated of a flatbuffers_rust_library for rust, " +
-            "or at a flatbuffers_java_library for java",
-        )
-    if OutputGroupInfo not in generated or FLATBUFFERS_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
-        fail(
-            "flatbuffers_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(generated.label) + " has no " + FLATBUFFERS_GENERATED_SRCS_GROUP +
-            " output group (want a flatbuffers_cc_library, a flatbuffers_java_library or a flatbuffers_rust_library NAME_generated)",
-        )
-    return codegen_bound_shard_providers(
-        ctx,
-        "flatbuffers_codegen_shard",
-        "flatbuffers",
-        display_label(generated.label),
-        FLATBUFFERS_GENERATED_SRCS_GROUP,
-        generated[OutputGroupInfo][FLATBUFFERS_GENERATED_SRCS_GROUP].to_list(),
-    )
-
-flatbuffers_codegen_shard = rule(
-    implementation = _shard_impl,
-    doc = "Declares codegen plan entries for the sources flatc generates. Every generated file needs one entry with an EXEC_PATH suffix.",
-    attrs = {
-        "entries": attr.string_list(
-            doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per generated file.",
-            mandatory = True,
-        ),
-        "language": attr.string(doc = "cpp, rust or java.", mandatory = True),
-        "generated": attr.label(
-            doc = "flatbuffers_cc_library, flatbuffers_java_library, or the NAME_generated target of a flatbuffers_rust_library, whose generated files the entries bind.",
-            mandatory = True,
-        ),
-        "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
-    },
+flatbuffers_codegen_shard = codegen_shard_rule(
+    "flatbuffers_codegen_shard",
+    "flatbuffers",
+    FLATBUFFERS_GENERATED_SRCS_GROUP,
+    "want a flatbuffers_cc_library, a flatbuffers_java_library or a flatbuffers_rust_library NAME_generated",
+    "cpp, rust or java.",
+    "Declares codegen plan entries for the sources flatc generates. Every generated file needs one entry with an EXEC_PATH suffix.",
+    "flatbuffers_cc_library, flatbuffers_java_library, or the NAME_generated target of a flatbuffers_rust_library, whose generated files the entries bind.",
+    codegen_info = FlatBuffersCodegenInfo,
+    languages = ("cpp", "rust", "java"),
 )

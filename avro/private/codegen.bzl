@@ -4,7 +4,7 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_java//java/common:java_common.bzl", "java_common")
 load("@rules_java//java/common:java_info.bzl", "JavaInfo")
-load("//core/codegen:codegen.bzl", "CODEGEN_SHARD_WRITER_LABEL", "codegen_bound_shard_providers")
+load("//core/codegen:codegen.bzl", "codegen_shard_rule", "codegen_srcjar")
 load("//core:defs.bzl", "display_label")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load(":providers.bzl", "AvroInfo")
@@ -87,9 +87,6 @@ avro_cc_library = rule(
 
 _JAVA_TOOLCHAIN = "@bazel_tools//tools/jdk:toolchain_type"
 
-def _zip_entry(f):
-    return f.tree_relative_path + "=" + f.path
-
 def _java_library_impl(ctx):
     schemas = depset(transitive = [dep[AvroInfo].transitive_srcs for dep in ctx.attr.deps]).to_list()
     if not schemas:
@@ -122,20 +119,7 @@ def _java_library_impl(ctx):
         mnemonic = "AvroJava",
         progress_message = "avro-tools compile schema " + str(ctx.label),
     )
-    srcjar = ctx.actions.declare_file(ctx.label.name + ".srcjar")
-    zip_args = ctx.actions.args()
-    zip_args.add("c")
-    zip_args.add(srcjar)
-    zip_args.add_all([tree], expand_directories = True, map_each = _zip_entry)
-    ctx.actions.run(
-        executable = ctx.executable._zipper,
-        toolchain = None,
-        inputs = [tree],
-        outputs = [srcjar],
-        arguments = [zip_args],
-        mnemonic = "AvroJavaSrcjar",
-        progress_message = "Packing " + srcjar.short_path,
-    )
+    srcjar = codegen_srcjar(ctx, tree, ctx.label.name + ".srcjar", "AvroJavaSrcjar")
     runtime = ctx.attr._runtime[JavaInfo]
     java_info = java_common.compile(
         ctx,
@@ -167,30 +151,12 @@ avro_java_library = rule(
     fragments = ["java"],
 )
 
-def _shard_impl(ctx):
-    generated = ctx.attr.generated
-    if OutputGroupInfo not in generated or AVRO_GENERATED_SRCS_GROUP not in generated[OutputGroupInfo]:
-        fail(
-            "avro_codegen_shard " + display_label(ctx.label) + ": " +
-            display_label(generated.label) + " has no " + AVRO_GENERATED_SRCS_GROUP +
-            " output group (want an avro_cc_library or avro_java_library)",
-        )
-    return codegen_bound_shard_providers(
-        ctx,
-        "avro_codegen_shard",
-        "avro",
-        display_label(generated.label),
-        AVRO_GENERATED_SRCS_GROUP,
-        generated[OutputGroupInfo][AVRO_GENERATED_SRCS_GROUP].to_list(),
-    )
-
-avro_codegen_shard = rule(
-    implementation = _shard_impl,
-    doc = "Declares codegen plan entries for the headers and srcjars avro generates.",
-    attrs = {
-        "entries": attr.string_list(doc = "LOGICAL_PATH|IMPORT_ROOT|NAMESPACE|EXEC_PATH entries, one per file.", mandatory = True),
-        "language": attr.string(doc = "cpp or java.", mandatory = True),
-        "generated": attr.label(doc = "avro_cc_library or avro_java_library whose outputs the entries bind.", mandatory = True),
-        "_writer": attr.label(default = CODEGEN_SHARD_WRITER_LABEL, executable = True, cfg = "exec"),
-    },
+avro_codegen_shard = codegen_shard_rule(
+    "avro_codegen_shard",
+    "avro",
+    AVRO_GENERATED_SRCS_GROUP,
+    "want an avro_cc_library or avro_java_library",
+    "cpp or java.",
+    "Declares codegen plan entries for the headers and srcjars avro generates.",
+    "avro_cc_library or avro_java_library whose outputs the entries bind.",
 )

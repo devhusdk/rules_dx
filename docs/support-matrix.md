@@ -2,7 +2,7 @@
 
 This page lists, for each language, target, and compiler, the platforms it does not support, and its lint, format, typecheck, and API doc tools.
 
-Everything builds and tests on every platform it supports. `none` means all five platforms are supported.
+Everything builds and tests on every platform it supports. `none` means all five platforms are supported. `macos_x86_64` is not supported.
 
 `n/a` means the capability does not apply to that language or format.
 

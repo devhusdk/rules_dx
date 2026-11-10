@@ -312,7 +312,8 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     );
     out.push_str(
         "Everything builds and tests on every platform it supports. \
-         `none` means all five platforms are supported.\n\n",
+         `none` means all five platforms are supported. \
+         `macos_x86_64` is not supported.\n\n",
     );
     out.push_str("`n/a` means the capability does not apply to that language or format.\n\n");
     out.push_str(&format!("The platforms are {}.\n\n", ids.join(", ")));

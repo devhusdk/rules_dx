@@ -213,10 +213,22 @@ fn repack(members: &[(String, Vec<u8>, u32)], dst: &Path) {
     dx_deploy_tools::archive_tree(&refs, dst).expect("repack");
 }
 
+fn failed_detail(ledger: Result<String, String>) -> Result<String, String> {
+    let text = ledger?;
+    if !text.contains("\"state\": \"failed\"") {
+        return Ok(text);
+    }
+    let value: serde_json::Value = serde_json::from_str(&text).expect("ledger json");
+    Err(value["records"][0]["detail"]
+        .as_str()
+        .expect("detail")
+        .to_owned())
+}
+
 fn live_run(fixture: &Fixture, commit: &str) -> Result<String, String> {
-    release_run(TAG, Some(commit), "1", false, || {
+    failed_detail(release_run(TAG, Some(commit), "1", false, || {
         read_git_state(Some(&fixture.repo), TAG)
-    })
+    }))
 }
 
 #[test]
@@ -609,7 +621,7 @@ fn tag_lightweight_is_peeled_through_ls_remote() {
     assert_eq!(state.head, fixture.head);
     assert_eq!(state.tag_commit.as_deref(), Some(fixture.head.as_str()));
     let live = live_run(&fixture, &fixture.head).expect("live");
-    assert!(live.contains(RELEASE_REMOTE), "{live}");
+    assert!(live.contains("\"state\": \"validated\""), "{live}");
     assert_eq!(fixture.refs(), before);
 }
 
@@ -746,9 +758,9 @@ fn tag_dirty_tree_and_non_repo_fail_closed() {
     );
     let plain = fixture.path("plain");
     std::fs::create_dir_all(&plain).expect("plain");
-    let error = release_run(TAG, Some(&fixture.head), "1", false, || {
+    let error = failed_detail(release_run(TAG, Some(&fixture.head), "1", false, || {
         read_git_state(Some(&plain), TAG)
-    })
+    }))
     .expect_err("non-repo");
     assert!(
         error.starts_with("release: cannot read git state: git status --porcelain failed: "),

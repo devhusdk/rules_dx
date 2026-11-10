@@ -3,7 +3,7 @@
 use crate::archive::basename;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, print_redacted, scrubbed_command,
+    exit_text, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::path::{Path, PathBuf};
@@ -87,14 +87,14 @@ fn cpan_live_upload(perl: &Path, dist: &Path, user: &str, token: &str) -> Result
         &[("PAUSE_USER", user), ("PAUSE_PASSWORD", token)],
     );
     cmd.arg("-e").arg(UPLOAD_SCRIPT).arg(dist);
-    match cmd.output() {
-        Ok(out) if out.status.success() => {
+    match run_publish(&mut cmd) {
+        Ok(out) if out.success() => {
             print_redacted(&out, token);
             Ok(())
         }
         Ok(out) => {
             print_redacted(&out, token);
-            Err(format!("cpan_deploy: perl failed with {}", out.status))
+            Err(format!("cpan_deploy: perl failed with {}", exit_text(&out)))
         }
         Err(error) => Err(format!("cpan_deploy: {error}")),
     }

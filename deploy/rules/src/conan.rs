@@ -2,7 +2,7 @@
 
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, print_redacted, resolve_version, scrubbed_command,
+    exit_text, placeholder_refusal, print_redacted, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::path::{Path, PathBuf};
@@ -82,23 +82,21 @@ fn conan_run(
     let home = home.to_string_lossy();
     let mut extra = vec![("CONAN_HOME", home.as_ref())];
     extra.extend_from_slice(secrets);
-    let out = scrubbed_command(conan, &[PUBLISH_CHILD_ENV_KEEP], &extra)
-        .current_dir(dir)
-        .args(args)
-        .output()
-        .map_err(|error| format!("conan_deploy: {error}"))?;
+    let mut cmd = scrubbed_command(conan, &[PUBLISH_CHILD_ENV_KEEP], &extra);
+    cmd.current_dir(dir).args(args);
+    let out = run_publish(&mut cmd).map_err(|error| format!("conan_deploy: {error}"))?;
     let password = secrets
         .iter()
         .find(|(key, _)| *key == "CONAN_PASSWORD")
         .map_or("", |(_, value)| *value);
     print_redacted(&out, password);
-    if out.status.success() {
+    if out.success() {
         return Ok(());
     }
     Err(format!(
         "conan_deploy: conan {} failed with {}",
         args.first().copied().unwrap_or_default(),
-        out.status
+        exit_text(&out)
     ))
 }
 

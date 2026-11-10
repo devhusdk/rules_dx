@@ -160,7 +160,7 @@ _REAL_BASE_ATTRS = {
         providers = [QualityPolicyInfo],
     ),
     "_online": attr.label(default = "//config:lint_online"),
-    "_breaking_against": attr.label(default = "//config:buf_breaking_against"),
+    "_breaking_against": attr.label(default = "//config:buf_breaking_against", allow_files = True),
     "_runner": attr.label(
         default = "@dx_prebuilt//:quality_runner",
         executable = True,
@@ -463,12 +463,12 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         tool_env_entries.setdefault("lychee", []).append(real_request_tool_env("DX_LINT_ONLINE", "1"))
         requirements["requires-network"] = "1"
     if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
-        image = ctx.attr._breaking_against[BuildSettingInfo].value
-        if image:
-            tool_env_entries.setdefault("buf", []).append(real_request_tool_env("DX_BUF_BREAKING_AGAINST", image))
-            requirements["no-sandbox"] = "1"
-            requirements["no-cache"] = "1"
-            requirements["no-remote"] = "1"
+        images = ctx.files._breaking_against
+        if len(images) > 1:
+            fail(what + ": //config:buf_breaking_against must name one image file, got " + str(len(images)))
+        if len(images) == 1:
+            tool_env_entries.setdefault("buf", []).append(real_request_tool_env("DX_BUF_BREAKING_AGAINST", images[0].path))
+            inputs.append(images[0])
     request_resolves = []
     for ws_path in sorted(resolve_pairs.keys()):
         f = resolve_pairs[ws_path]

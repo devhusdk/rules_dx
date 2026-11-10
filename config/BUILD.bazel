@@ -34,9 +34,14 @@ bool_flag(
     build_setting_default = False,
 )
 
-string_flag(
+label_flag(
     name = "buf_breaking_against",
-    build_setting_default = "",
+    build_setting_default = ":buf_breaking_none",
+)
+
+filegroup(
+    name = "buf_breaking_none",
+    srcs = [],
 )
 
 config_setting(

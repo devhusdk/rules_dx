@@ -1,5 +1,6 @@
 //! Builds the base image `buf breaking` compares against. A Bazel action cannot
-//! see `.git`, so the image is built here and its path replaces the ref in the
+//! see `.git`, so the image is built here into a repository directory that is
+//! injected as `@dx_buf_base`; its label replaces the ref in the
 //! `--breaking-against` build setting.
 
 use super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
@@ -7,6 +8,10 @@ use dx_error::DxError;
 use dx_plan::args::BREAKING_AGAINST_OPTION;
 use dx_plan::resolve::{QueryRunner, merge_base};
 use std::path::{Path, PathBuf};
+
+const BASE_REPO: &str = "dx_buf_base";
+const IMAGE: &str = "image.binpb";
+const BASE_BUILD: &str = "exports_files([\"image.binpb\"])\n";
 
 const BUF: PinnedTool<'static> = PinnedTool {
     var: "DX_BUF_BIN",
@@ -21,8 +26,9 @@ pub(crate) struct Context<'a> {
     pub(crate) temp_dir: &'a Path,
 }
 
-/// Replaces the ref in the breaking option with the path of an image built at
-/// the merge base of `HEAD` and that ref. Other options pass through.
+/// Replaces the ref in the breaking option with the label of an image built at
+/// the merge base of `HEAD` and that ref, and injects the repository that holds
+/// it. Other options pass through.
 pub(crate) fn resolve_options(
     options: &[String],
     context: &Context<'_>,
@@ -32,8 +38,12 @@ pub(crate) fn resolve_options(
     for option in options {
         match option.strip_prefix(&prefix) {
             Some(reference) => {
-                let image = build_image(reference, context)?;
-                resolved.push(format!("{prefix}{}", image.display()));
+                let repo = build_image(reference, context)?;
+                resolved.push(format!(
+                    "--inject_repository={BASE_REPO}={}",
+                    repo.display()
+                ));
+                resolved.push(format!("{prefix}@{BASE_REPO}//:{IMAGE}"));
             }
             None => resolved.push(option.clone()),
         }
@@ -61,7 +71,18 @@ fn build_image(reference: &str, context: &Context<'_>) -> Result<PathBuf, DxErro
             DxError::infra(format!("could not resolve buf: {detail}"))
         }
     })?;
-    let image = context.temp_dir.join(format!("dx-buf-base-{sha}.binpb"));
+    let repo = context.temp_dir.join(format!("dx-buf-base-{sha}"));
+    for (name, content) in [("REPO.bazel", ""), ("BUILD.bazel", BASE_BUILD)] {
+        std::fs::create_dir_all(&repo)
+            .and_then(|()| std::fs::write(repo.join(name), content))
+            .map_err(|error| {
+                DxError::infra(format!(
+                    "could not write {}: {error}",
+                    repo.join(name).display()
+                ))
+            })?;
+    }
+    let image = repo.join(IMAGE);
     let argv = vec![
         buf.to_string_lossy().into_owned(),
         "build".to_owned(),
@@ -82,7 +103,7 @@ fn build_image(reference: &str, context: &Context<'_>) -> Result<PathBuf, DxErro
             stderr.trim()
         )));
     }
-    Ok(image)
+    Ok(repo)
 }
 
 #[cfg(test)]
@@ -130,7 +151,7 @@ mod tests {
         }
     }
 
-    fn run(buf_code: i32) -> (Result<Vec<String>, DxError>, Vec<Vec<String>>) {
+    fn run(buf_code: i32, temp_dir: &Path) -> (Result<Vec<String>, DxError>, Vec<Vec<String>>) {
         let fake = Fake {
             calls: RefCell::new(Vec::new()),
             buf_code,
@@ -144,7 +165,7 @@ mod tests {
             runner: &BufVar,
             query_runner: &fake,
             startup: &[],
-            temp_dir: Path::new("/tmp/dx"),
+            temp_dir,
         };
         let got = resolve_options(&options, &context);
         (got, fake.calls.into_inner())
@@ -152,22 +173,42 @@ mod tests {
 
     #[test]
     fn the_ref_becomes_an_image_built_at_the_merge_base() {
-        let (got, calls) = run(0);
+        let temp = tempfile::tempdir().expect("tempdir");
+        let (got, calls) = run(0, temp.path());
         let got = got.expect("resolved");
-        assert_eq!(got[0], "--keep_going");
-        let image = Path::new("/tmp/dx").join("dx-buf-base-abc123.binpb");
+        let repo = temp.path().join("dx-buf-base-abc123");
         assert_eq!(
-            got[1],
-            format!("{BREAKING_AGAINST_OPTION}={}", image.display())
+            got,
+            [
+                "--keep_going".to_owned(),
+                format!("--inject_repository=dx_buf_base={}", repo.display()),
+                format!("{BREAKING_AGAINST_OPTION}=@dx_buf_base//:image.binpb"),
+            ]
         );
         let build = calls.last().expect("buf call");
         assert_eq!(build[0], "/pinned/buf");
         assert_eq!(build[1..3], ["build", ".git#ref=abc123"]);
+        assert_eq!(
+            build[3..],
+            [
+                "-o".to_owned(),
+                repo.join("image.binpb").to_string_lossy().into_owned()
+            ]
+        );
+        assert_eq!(
+            std::fs::read_to_string(repo.join("BUILD.bazel")).expect("BUILD.bazel"),
+            "exports_files([\"image.binpb\"])\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(repo.join("REPO.bazel")).expect("REPO.bazel"),
+            ""
+        );
     }
 
     #[test]
     fn a_failed_image_build_names_the_ref() {
-        let (got, _) = run(1);
+        let temp = tempfile::tempdir().expect("tempdir");
+        let (got, _) = run(1, temp.path());
         let error = got.expect_err("failed");
         assert!(
             error.message().contains("origin/main") && error.message().contains("no such ref"),

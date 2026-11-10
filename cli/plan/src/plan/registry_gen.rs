@@ -1,7 +1,9 @@
 // Generated from core/quality/real_aspect_labels.bzl.
 // Run `bazel run //cli/plan:update_registry_gen` to refresh it.
 
-pub const DOCS_ASPECTS: &[&str] = &["tools/docs:aspect.bzl%real_docs_aspect"];
+pub const DOCS_ASPECTS: &[&str] = &[
+    "tools/docs:aspect.bzl%real_docs_aspect",
+];
 
 pub const FORMAT_ASPECTS: &[&str] = &[
     "core/quality:families/cue.bzl%real_cue_format_aspect",
@@ -44,11 +46,14 @@ pub const TYPECHECK_ASPECTS: &[&str] = &[
     "core/quality:families/oci_image.bzl%real_oci_image_typecheck_aspect",
 ];
 
-pub const FORMAT_PROBES: &[&str] =
-    &["core/quality:families/core_probe.bzl%real_core_format_probe_aspect"];
+pub const FORMAT_PROBES: &[&str] = &[
+    "core/quality:families/core_probe.bzl%real_core_format_probe_aspect",
+];
 
-pub const LINT_PROBES: &[&str] =
-    &["core/quality:families/core_probe.bzl%real_core_lint_probe_aspect"];
+pub const LINT_PROBES: &[&str] = &[
+    "core/quality:families/core_probe.bzl%real_core_lint_probe_aspect",
+];
 
-pub const TYPECHECK_PROBES: &[&str] =
-    &["core/quality:families/core_probe.bzl%real_core_typecheck_probe_aspect"];
+pub const TYPECHECK_PROBES: &[&str] = &[
+    "core/quality:families/core_probe.bzl%real_core_typecheck_probe_aspect",
+];

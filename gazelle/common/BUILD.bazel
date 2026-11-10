@@ -12,6 +12,11 @@ exports_files(
 )
 
 exports_files(
+    ["lock_registry.json"],
+    visibility = ["//core/modules:__pkg__"],
+)
+
+exports_files(
     [
         "dotnet_namespaces.txt",
         "fsharp_core_namespaces.txt",
@@ -33,6 +38,7 @@ go_library(
         "external.go",
         "external_dub.go",
         "external_go.go",
+        "external_lock.go",
         "external_maven.go",
         "external_npm.go",
         "external_pub.go",
@@ -65,6 +71,7 @@ go_library(
     embedsrcs = [
         "dotnet_namespaces.txt",
         "fsharp_core_namespaces.txt",
+        "lock_registry.json",
     ],
     importpath = "github.com/devhusdk/rules_dx/gazelle/common",
     visibility = ["//gazelle:__subpackages__"],
@@ -99,6 +106,7 @@ go_test(
         "erlangnif_test.go",
         "errors_test.go",
         "external_dub_test.go",
+        "external_lock_test.go",
         "external_test.go",
         "ignore_test.go",
         "jstestconfig_test.go",

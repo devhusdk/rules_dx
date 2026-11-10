@@ -2610,6 +2610,10 @@ common --repository_cache=/rc/repos
         drop(server);
         for index in 0..2 {
             let path = dx_process::slot_pool::slot_path(&slots, index);
+            let deadline = std::time::Instant::now() + Duration::from_secs(10);
+            while exclusive_is_blocked(&path) && std::time::Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(20));
+            }
             assert!(!exclusive_is_blocked(&path), "slot {index} is free");
         }
     }

@@ -21,7 +21,6 @@
     "dict-concatenation",
     "dict-method-named-arg",
     "duplicated-name",
-    "external-path",
     "filetype",
     "function-docstring",
     "function-docstring-header",

@@ -127,6 +127,7 @@ rust_test(
         "//quality:families/jsonnet.bzl",
         "//quality:families/julia.bzl",
         "//quality:families/jvm.bzl",
+        "//javascript/private/quality:js.bzl",
         "//kubernetes/private/quality:kubernetes.bzl",
         "//quality:families/latex.bzl",
         "//quality:families/lua.bzl",

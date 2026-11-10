@@ -18,10 +18,10 @@ def _settings_impl(ctx):
     env = analysistest.begin(ctx)
     info = analysistest.target_under_test(env)[DxFuzzBinaryInfo]
     asserts.equals(env, ctx.attr.want_asan, info.asan)
-    asserts.equals(env, True, info.fuzzer)
+    asserts.equals(env, ctx.attr.want_fuzzer, info.fuzzer)
     return analysistest.end(env)
 
-_attrs = {"want_asan": attr.bool()}
+_attrs = {"want_asan": attr.bool(), "want_fuzzer": attr.bool()}
 
 _windows_test = analysistest.make(
     _settings_impl,
@@ -38,6 +38,6 @@ def fuzz_binary_tests(name):
     """Declares the dx_fuzz_binary_select platform tests."""
     _stub_binary(name = name + "_stub", testonly = True)
     dx_fuzz_binary_select(name = name + "_subject", binary = ":" + name + "_stub")
-    _windows_test(name = name + "_windows_test", target_under_test = ":" + name + "_subject", want_asan = False)
-    _linux_test(name = name + "_linux_test", target_under_test = ":" + name + "_subject", want_asan = True)
+    _windows_test(name = name + "_windows_test", target_under_test = ":" + name + "_subject", want_asan = False, want_fuzzer = False)
+    _linux_test(name = name + "_linux_test", target_under_test = ":" + name + "_subject", want_asan = True, want_fuzzer = True)
     native.test_suite(name = name, tests = [":" + name + "_windows_test", ":" + name + "_linux_test"])

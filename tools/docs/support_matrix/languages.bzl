@@ -455,7 +455,7 @@ LANGUAGES = [
     ),
     _language(
         "fortran",
-        deps = "`fortran.fpm` builds pinned archives from `fpm.lock`; `dx security` and `dx license` read it, `dx update` does not resolve",
+        deps = "`fortran.fpm` builds pinned archives from `fpm.lock`; `dx security` and `dx license` read it, `dx update` re-hashes the archives",
         doc = struct(tool = "ford", shard = "fortran_doc_shard"),
         dead_code = ["fortitude C191 unreachable-statement"],
         coverage = ["kcov"],

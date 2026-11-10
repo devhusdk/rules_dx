@@ -43,7 +43,7 @@ genrule(
     name = "cpp_config",
     outs = ["cpp_config/thrift/config.h"],
     cmd = select({
-        "@platforms//os:windows": "printf '#pragma once\\n#include <thrift/windows/config.h>\\n' > $@",
+        "@platforms//os:windows": "printf '#pragma once\\n#include <thrift/windows/config.h>\\n#define __THRIFT_BYTE_ORDER 1234\\n#define __THRIFT_LITTLE_ENDIAN 1234\\n#define __THRIFT_BIG_ENDIAN 4321\\n' > $@",
         "//conditions:default": "printf '#pragma once\\n#include <arpa/inet.h>\\n#define HAVE_STRERROR_R 1\\n#if defined(__GLIBC__) && defined(_GNU_SOURCE)\\n#define STRERROR_R_CHAR_P 1\\n#endif\\n' > $@",
     }),
 )

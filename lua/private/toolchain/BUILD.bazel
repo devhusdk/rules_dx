@@ -9,7 +9,8 @@ exports_files([
     "BUILD.bazel",
     "metadata_tests.bzl",
     "pins.bzl",
-    "repos.bzl",
+    "luals.build",
+    "pins.json",
     "extensions.bzl",
     "toolchain.bzl",
 ])
@@ -38,7 +39,6 @@ real_source_target(
         "BUILD.bazel",
         "metadata_tests.bzl",
         "pins.bzl",
-        "repos.bzl",
         "extensions.bzl",
         "toolchain.bzl",
     ],

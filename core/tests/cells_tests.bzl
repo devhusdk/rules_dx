@@ -7,7 +7,6 @@ load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/private/toolchain:pins.bzl", haskell_cells = "CELLS")
 load("//core:cells.bzl", "cell_cases", "cell_setting", "unknown_cells", "unsupported_constraint")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//lua/private/toolchain:pins.bzl", "LUALS_CELLS")
 load("//core/modules:cuda.bzl", "CUDA_CELLS")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS")
 load("//php/private/toolchain:cells.bzl", "PHP_CELLS")
@@ -25,7 +24,7 @@ _ALL_CELLS = {
     "erlang": erlang_cells,
     "fortran": FORTRAN_CELLS,
     "haskell": haskell_cells,
-    "lua": LUALS_CELLS,
+    "lua": PINS["dx_luals"]["cells"],
     "ocaml": OCAML_CELLS,
     "php": PHP_CELLS,
     "powershell": PINS["dx_powershell_toolchains"]["cells"],

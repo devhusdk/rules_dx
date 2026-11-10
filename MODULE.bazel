@@ -726,6 +726,12 @@ dx_pins.pin(
     toolchain_type = "@rules_powershell//powershell:toolchain_type",
 )
 dx_pins.pin(
+    name = "dx_luals",
+    aliases = {"windows_arm64": "windows_x86_64"},
+    build = "//lua/private/toolchain:luals.build",
+    pins = "//lua/private/toolchain:pins.json",
+)
+dx_pins.pin(
     name = "dx_php",
     pins = "//php/private/toolchain:pins.json",
 )
@@ -792,6 +798,7 @@ dx_pins.data(
 )
 use_repo(
     dx_pins,
+    "dx_luals",
     "dx_pins_data",
     "dx_powershell_toolchains",
     "dx_powershell_toolchains__linux_arm64",
@@ -1347,7 +1354,7 @@ single_version_override(
 )
 
 lua_tools = use_extension("//lua:extensions.bzl", "lua")
-use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_ldoc", "dx_luafilesystem", "dx_luals", "dx_penlight")
+use_repo(lua_tools, "dx_luacov", "dx_luacov_reporter_lcov", "dx_ldoc", "dx_luafilesystem", "dx_penlight")
 
 register_toolchains("//lua/private/toolchain:all")
 

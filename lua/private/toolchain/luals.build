@@ -1,0 +1,8 @@
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["{binary}"])
+
+filegroup(
+    name = "tree",
+    srcs = glob(["**"], exclude = ["BUILD.bazel", "REPO.bazel"]),
+)

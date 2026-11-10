@@ -35,17 +35,24 @@ fn run(out: Option<PathBuf>) -> Result<(), DxError> {
         && !parent.as_os_str().is_empty()
     {
         std::fs::create_dir_all(parent).map_err(|error| {
-            DxError::infra(format!(
-                "dx_man: cannot create {}: {error}",
-                parent.display()
-            ))
+            DxError::from_io(
+                format!("dx_man: cannot create {}: {error}", parent.display()),
+                &error,
+            )
         })?;
     }
     let mut file = std::fs::File::create(&out).map_err(|error| {
-        DxError::infra(format!("dx_man: cannot write {}: {error}", out.display()))
+        DxError::from_io(
+            format!("dx_man: cannot write {}: {error}", out.display()),
+            &error,
+        )
     })?;
-    file.write_all(&buffer)
-        .map_err(|error| DxError::infra(format!("dx_man: cannot write {}: {error}", out.display())))
+    file.write_all(&buffer).map_err(|error| {
+        DxError::from_io(
+            format!("dx_man: cannot write {}: {error}", out.display()),
+            &error,
+        )
+    })
 }
 
 #[cfg(test)]

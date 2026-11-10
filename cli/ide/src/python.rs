@@ -21,8 +21,9 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
         .iter()
         .find(|path| path.file_name().is_some_and(|name| name != "typescript"))
         .ok_or_else(|| DxError::failure("the Python interpreter was not built"))?;
-    link(ctx.dir, "python", interpreter)
-        .map_err(|error| DxError::infra(format!("linking the Python interpreter: {error}")))?;
+    link(ctx.dir, "python", interpreter).map_err(|error| {
+        DxError::from_io(format!("linking the Python interpreter: {error}"), &error)
+    })?;
     write_site_packages(ctx)
 }
 
@@ -30,8 +31,9 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
 fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let target = ctx.dir.join(SITE_PACKAGES);
     let _ = std::fs::remove_dir_all(&target);
-    std::fs::create_dir_all(&target)
-        .map_err(|error| DxError::infra(format!("creating {}: {error}", target.display())))?;
+    std::fs::create_dir_all(&target).map_err(|error| {
+        DxError::from_io(format!("creating {}: {error}", target.display()), &error)
+    })?;
     let labels = locked_labels(&ctx.workspace.join("uv.lock"));
     if labels.is_empty() {
         return Ok(());
@@ -91,14 +93,15 @@ fn site_packages_dirs(install: &Path) -> Vec<PathBuf> {
 }
 
 fn link_entries(site: &Path, target: &Path) -> Result<(), DxError> {
-    let entries = std::fs::read_dir(site).map_err(|error| DxError::infra(error.to_string()))?;
+    let entries =
+        std::fs::read_dir(site).map_err(|error| DxError::from_io(error.to_string(), &error))?;
     for entry in entries.flatten() {
         let name = entry.file_name();
         if target.join(&name).symlink_metadata().is_ok() {
             continue;
         }
         link(target, &name.to_string_lossy(), &entry.path())
-            .map_err(|error| DxError::infra(error.to_string()))?;
+            .map_err(|error| DxError::from_io(error.to_string(), &error))?;
     }
     Ok(())
 }

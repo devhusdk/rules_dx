@@ -17,5 +17,5 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
         .min_by_key(|path| path.as_os_str().len())
         .ok_or_else(|| DxError::failure("the TypeScript package was not built"))?;
     link(ctx.dir, "lib", &package.join("lib"))
-        .map_err(|error| DxError::infra(format!("linking the TypeScript lib: {error}")))
+        .map_err(|error| DxError::from_io(format!("linking the TypeScript lib: {error}"), &error))
 }

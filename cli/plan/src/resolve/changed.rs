@@ -573,8 +573,9 @@ fn lock_change(
     if !workspace.join(path).is_file() {
         return Err(workspace_input());
     }
-    let head = std::fs::read_to_string(workspace.join(path))
-        .map_err(|error| dx_error::DxError::infra(format!("cannot read {path}: {error}")))?;
+    let head = std::fs::read_to_string(workspace.join(path)).map_err(|error| {
+        dx_error::DxError::from_io(format!("cannot read {path}: {error}"), &error)
+    })?;
     let base = show_at_base(git, workspace, runner, base, path)
         .map_err(|detail| dx_error::DxError::infra(format!("cannot read {path}: {detail}")))?
         .ok_or_else(workspace_input)?;

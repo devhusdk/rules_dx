@@ -588,14 +588,16 @@ fn busy_error(error: &std::io::Error, slot: u32) -> dx_error::DxError {
         std::io::ErrorKind::WouldBlock => dx_error::DxError::failure(format!(
             "slot {slot} is being switched by dx worktree; run the command again"
         )),
-        _ => dx_error::DxError::infra(format!("cannot lock slot {slot}: {error}")),
+        _ => dx_error::DxError::from_io(format!("cannot lock slot {slot}: {error}"), error),
     }
 }
 
 /// The slots of the pool whose primary checkout holds `dir`; none when `dir` is not in one.
 pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
     let dir = host::resolved(dir);
-    let main = dir.ancestors().find(|ancestor| ancestor.join(".git").is_dir())?;
+    let main = dir
+        .ancestors()
+        .find(|ancestor| ancestor.join(".git").is_dir())?;
     let env = |name: &str| std::env::var(name).ok();
     let pool = Pool::find(main, &cache_base(&env).ok()?)?;
     if host::resolved(&pool.main) != main {
@@ -700,7 +702,10 @@ mod tests {
     fn a_busy_slot_is_a_failure_and_other_lock_errors_are_infra() {
         let busy = busy_error(&std::io::Error::from(std::io::ErrorKind::WouldBlock), 3);
         assert_eq!(busy.kind(), dx_error::ErrorKind::Failure);
-        let other = busy_error(&std::io::Error::from(std::io::ErrorKind::PermissionDenied), 3);
+        let other = busy_error(
+            &std::io::Error::from(std::io::ErrorKind::PermissionDenied),
+            3,
+        );
         assert_eq!(other.kind(), dx_error::ErrorKind::Infra);
     }
 

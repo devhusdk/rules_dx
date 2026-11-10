@@ -272,7 +272,7 @@ fn write_state(
         serde_json::to_string_pretty(&state).map_err(|e| DxError::infra(e.to_string()))?;
     text.push('\n');
     dx_atomic_fs::write_atomic(path, text.as_bytes())
-        .map_err(|error| DxError::infra(format!("writing {STATE_FILE}: {error}")))
+        .map_err(|error| DxError::from_io(format!("writing {STATE_FILE}: {error}"), &error))
 }
 
 fn remove_stale(workspace: &Path, all: &[&Plugin], active: &[&Plugin]) {

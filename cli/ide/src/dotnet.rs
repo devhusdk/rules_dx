@@ -23,5 +23,5 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
         .and_then(|dotnet| dotnet.parent())
         .ok_or_else(|| DxError::failure("the .NET SDK was not built"))?;
     link(ctx.dir, "root", root)
-        .map_err(|error| DxError::infra(format!("linking the .NET SDK root: {error}")))
+        .map_err(|error| DxError::from_io(format!("linking the .NET SDK root: {error}"), &error))
 }

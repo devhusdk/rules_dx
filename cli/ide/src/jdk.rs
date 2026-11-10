@@ -20,5 +20,5 @@ fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
         .and_then(|java| java.parent()?.parent())
         .ok_or_else(|| DxError::failure("the JDK was not built"))?;
     link(ctx.dir, "home", home)
-        .map_err(|error| DxError::infra(format!("linking the JDK home: {error}")))
+        .map_err(|error| DxError::from_io(format!("linking the JDK home: {error}"), &error))
 }

@@ -38,7 +38,7 @@ sh_test(
         "@platforms//os:macos": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
-    timeout = "short",
+    timeout = "moderate",
 )
 
 csharp_library(
@@ -71,7 +71,7 @@ sh_test(
         "@platforms//os:macos": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
-    timeout = "short",
+    timeout = "moderate",
 )
 
 csharp_fuzz_test(

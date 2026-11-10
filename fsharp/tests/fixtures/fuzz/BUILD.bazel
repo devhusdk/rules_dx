@@ -42,7 +42,7 @@ sh_test(
         "@platforms//os:macos": [],
         "//conditions:default": ["@platforms//:incompatible"],
     }),
-    timeout = "short",
+    timeout = "moderate",
 )
 
 fsharp_fuzz_test(

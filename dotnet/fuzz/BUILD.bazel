@@ -5,6 +5,7 @@ load("@rules_dx//rust/rules:defs.bzl", "rust_binary")
 
 _SUPPORTED = select({
     "@platforms//os:linux": [],
+    "@platforms//os:windows": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
@@ -18,7 +19,10 @@ rust_binary(
 
 cc_binary(
     name = "libfuzzer_dotnet_bin",
-    srcs = ["@dx_libfuzzer_dotnet//:libfuzzer-dotnet.cc"],
+    srcs = select({
+        "@platforms//os:windows": ["@dx_libfuzzer_dotnet//:libfuzzer-dotnet-windows.cc"],
+        "//conditions:default": ["@dx_libfuzzer_dotnet//:libfuzzer-dotnet.cc"],
+    }),
     copts = ["-fsanitize=fuzzer"],
     linkopts = ["-fsanitize=fuzzer"],
     target_compatible_with = _SUPPORTED,

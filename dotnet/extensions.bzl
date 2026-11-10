@@ -6,8 +6,8 @@ load(":pins.bzl", "LIBFUZZER_DOTNET_SHA256", "LIBFUZZER_DOTNET_STRIP_PREFIX", "L
 def _dotnet_tools_impl(mctx):
     pinned_archive(
         name = "dx_libfuzzer_dotnet",
-        files = {"BUILD.bazel": "exports_files([\"libfuzzer-dotnet.cc\"])\n"},
-        required = ["libfuzzer-dotnet.cc"],
+        files = {"BUILD.bazel": "exports_files([\"libfuzzer-dotnet.cc\", \"libfuzzer-dotnet-windows.cc\"])\n"},
+        required = ["libfuzzer-dotnet.cc", "libfuzzer-dotnet-windows.cc"],
         sha256 = LIBFUZZER_DOTNET_SHA256,
         strip_prefix = LIBFUZZER_DOTNET_STRIP_PREFIX,
         urls = [LIBFUZZER_DOTNET_URL],

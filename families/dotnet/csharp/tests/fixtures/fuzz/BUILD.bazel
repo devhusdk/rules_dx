@@ -32,7 +32,11 @@ sh_test(
         "@rules_dx//dotnet/fuzz:libfuzzer_dotnet",
         "@rules_dx//libs/fuzz_run:fuzz_run",
     ],
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:windows": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     timeout = "short",
 )
 
@@ -61,7 +65,11 @@ sh_test(
         "@rules_dx//dotnet/fuzz:libfuzzer_dotnet",
         "@rules_dx//libs/fuzz_run:fuzz_run",
     ],
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:windows": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     timeout = "short",
 )
 

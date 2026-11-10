@@ -1,4 +1,4 @@
-.bazelrc rc-env-passthrough 5
+.bazelrc rc-env-passthrough 3
 android/tests/fixtures/adopt-android/app/BUILD.bazel sh-rule 1
 android/tests/fixtures/adopt-android/app/inspect_apk.sh shebang 1
 android/tests/fixtures/native_lib/BUILD.bazel default-shell-env 1

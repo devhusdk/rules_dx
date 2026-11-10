@@ -107,13 +107,12 @@ impl Config {
         let heap = text("DX_NESTED_BAZEL_HEAP")
             .filter(|heap| !heap.is_empty())
             .unwrap_or_else(|| DEFAULT_HEAP.to_owned());
-        let path = lookup("PATH").unwrap_or_default();
-        let chosen = env_path(lookup, "DX_NESTED_BAZEL");
-        let pinned = match text(PINNED_ENV).filter(|key| !key.is_empty()) {
-            Some(key) if chosen.is_none() => Some(resolve(PINNED_ENV, &key)?),
-            _ => None,
-        };
-        let bazel = find_bazel(chosen, pinned, &path, &root)?;
+        let pinned = text(PINNED_ENV)
+            .filter(|key| !key.is_empty())
+            .ok_or_else(|| {
+                format!("{PINNED_ENV} is not set; declare the test with nested_bazel_test")
+            })?;
+        let bazel = pinned_bazel(resolve(PINNED_ENV, &pinned)?)?;
         let shim = match text(SHIM_ENV).filter(|key| !key.is_empty()) {
             Some(key) => Some(resolve(SHIM_ENV, &key)?),
             None => None,
@@ -151,42 +150,12 @@ fn env_path(lookup: &dyn Fn(&str) -> Option<OsString>, name: &str) -> Option<Pat
         .map(PathBuf::from)
 }
 
-/// Returns the `DX_NESTED_BAZEL` override, else the pinned binary, else `bazel` or `bazelisk` on `path`.
-pub fn find_bazel(
-    chosen: Option<PathBuf>,
-    pinned: Option<PathBuf>,
-    path: &std::ffi::OsStr,
-    base: &Path,
-) -> Result<PathBuf, String> {
-    if let Some(chosen) = chosen {
-        if chosen.is_file() {
-            return Ok(chosen);
-        }
-        return Err(format!(
-            "DX_NESTED_BAZEL {} is not a file",
-            chosen.display()
-        ));
+/// Returns the pinned binary `pinned`, or an error when it is not a file.
+pub fn pinned_bazel(pinned: PathBuf) -> Result<PathBuf, String> {
+    if pinned.is_file() {
+        return Ok(pinned);
     }
-    if let Some(pinned) = pinned {
-        if pinned.is_file() {
-            return Ok(pinned);
-        }
-        return Err(format!("{PINNED_ENV} {} is not a file", pinned.display()));
-    }
-    for name in ["bazel", "bazelisk", "bazel.exe", "bazelisk.exe"] {
-        for dir in std::env::split_paths(path) {
-            if dir.starts_with(base) {
-                continue;
-            }
-            let candidate = dir.join(name);
-            if candidate.is_file() {
-                return Ok(candidate);
-            }
-        }
-    }
-    Err(format!(
-        "no bazel or bazelisk: set DX_NESTED_BAZEL, add the pinned binary as {PINNED_ENV}, or put bazel on PATH"
-    ))
+    Err(format!("{PINNED_ENV} {} is not a file", pinned.display()))
 }
 
 /// Quotes one argument for a POSIX shell.
@@ -1780,10 +1749,7 @@ mod tests {
         fn config(&self, vars: &[(&'static str, &str)]) -> Config {
             let mut all = vec![
                 (TMPDIR_ENV, self.tmpdir().into_os_string()),
-                (
-                    "DX_NESTED_BAZEL",
-                    self.dir.path().join("bazel").into_os_string(),
-                ),
+                (PINNED_ENV, self.dir.path().join("bazel").into_os_string()),
             ];
             all.extend(
                 vars.iter()
@@ -1919,7 +1885,7 @@ mod tests {
         let fixture = Fixture::new();
         assert_eq!(fixture.config(&[]).root, fixture.tmpdir().join("nested"));
         let bazel = fixture.dir.path().join("bazel").into_os_string();
-        let error = Config::from_parts(&lookup(vec![("DX_NESTED_BAZEL", bazel)]), &resolve)
+        let error = Config::from_parts(&lookup(vec![(PINNED_ENV, bazel)]), &resolve)
             .expect_err("no tmpdir");
         assert_eq!(
             error,
@@ -2046,104 +2012,34 @@ mod tests {
     }
 
     #[test]
-    fn find_bazel_skips_the_harness_wrappers() {
-        let dir = scratch("nested-find-");
-        let wrapped = dir.path().join("base/0/bin");
-        let real = dir.path().join("real");
-        for bin in [&wrapped, &real] {
-            std::fs::create_dir_all(bin).expect("mkdir");
-            std::fs::write(bin.join("bazel"), "").expect("write");
-        }
-        let path = std::env::join_paths([&wrapped, &real]).expect("join");
-        assert_eq!(
-            find_bazel(None, None, &path, &dir.path().join("base")).expect("found"),
-            real.join("bazel")
-        );
-    }
-
-    #[test]
-    fn find_bazel_prefers_the_override() {
-        let dir = scratch("nested-find-override-");
-        let real = dir.path().join("real");
-        let chosen = dir.path().join("chosen/bazel-9");
-        for file in [real.join("bazel"), chosen.clone()] {
-            std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
-            std::fs::write(&file, "").expect("write");
-        }
-        let path = std::env::join_paths([&real]).expect("join");
-        assert_eq!(
-            find_bazel(Some(chosen.clone()), None, &path, &dir.path().join("base")).expect("found"),
-            chosen
-        );
-    }
-
-    #[test]
-    fn find_bazel_rejects_a_missing_override() {
-        let dir = scratch("nested-find-missing-");
-        let real = dir.path().join("real");
-        std::fs::create_dir_all(&real).expect("mkdir");
-        std::fs::write(real.join("bazel"), "").expect("write");
+    fn pinned_bazel_rejects_a_missing_binary() {
+        let dir = scratch("nested-pinned-missing-");
         let missing = dir.path().join("missing/bazel");
-        let path = std::env::join_paths([&real]).expect("join");
-        let error = find_bazel(Some(missing.clone()), None, &path, &dir.path().join("base"))
-            .expect_err("missing override");
         assert_eq!(
-            error,
-            format!("DX_NESTED_BAZEL {} is not a file", missing.display())
-        );
-    }
-
-    #[test]
-    fn find_bazel_prefers_the_override_over_the_pinned_binary() {
-        let dir = scratch("nested-find-pinned-override-");
-        let chosen = dir.path().join("chosen/bazel");
-        let pinned = dir.path().join("pinned/bazel");
-        for file in [&chosen, &pinned] {
-            std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
-            std::fs::write(file, "").expect("write");
-        }
-        assert_eq!(
-            find_bazel(
-                Some(chosen.clone()),
-                Some(pinned),
-                std::ffi::OsStr::new(""),
-                &dir.path().join("base")
-            )
-            .expect("found"),
-            chosen
-        );
-    }
-
-    #[test]
-    fn find_bazel_prefers_the_pinned_binary_over_path() {
-        let dir = scratch("nested-find-pinned-");
-        let real = dir.path().join("real");
-        let pinned = dir.path().join("pinned/bazel");
-        for file in [real.join("bazelisk"), pinned.clone()] {
-            std::fs::create_dir_all(file.parent().expect("parent")).expect("mkdir");
-            std::fs::write(&file, "").expect("write");
-        }
-        let path = std::env::join_paths([&real]).expect("join");
-        assert_eq!(
-            find_bazel(None, Some(pinned.clone()), &path, &dir.path().join("base")).expect("found"),
-            pinned
-        );
-    }
-
-    #[test]
-    fn find_bazel_rejects_a_missing_pinned_binary() {
-        let dir = scratch("nested-find-pinned-missing-");
-        let real = dir.path().join("real");
-        std::fs::create_dir_all(&real).expect("mkdir");
-        std::fs::write(real.join("bazel"), "").expect("write");
-        let missing = dir.path().join("missing/bazel");
-        let path = std::env::join_paths([&real]).expect("join");
-        let error = find_bazel(None, Some(missing.clone()), &path, &dir.path().join("base"))
-            .expect_err("missing pinned");
-        assert_eq!(
-            error,
+            pinned_bazel(missing.clone()).expect_err("missing pinned"),
             format!("DX_NESTED_BAZEL_PINNED {} is not a file", missing.display())
         );
+    }
+
+    #[test]
+    fn the_config_fails_without_a_pinned_binary_whatever_is_on_path() {
+        let dir = scratch("nested-unpinned-");
+        for name in ["bazel", "bazelisk"] {
+            std::fs::write(dir.path().join(name), "").expect("write");
+        }
+        let host = dir.path().join("bazel").into_os_string();
+        for pinned in [None, Some(OsString::new())] {
+            let mut all = vec![
+                (TMPDIR_ENV, dir.path().join("tmp").into_os_string()),
+                ("DX_NESTED_BAZEL", host.clone()),
+                ("PATH", dir.path().as_os_str().to_owned()),
+            ];
+            all.extend(pinned.map(|value| (PINNED_ENV, value)));
+            assert_eq!(
+                Config::from_parts(&lookup(all), &resolve).expect_err("unpinned"),
+                "DX_NESTED_BAZEL_PINNED is not set; declare the test with nested_bazel_test"
+            );
+        }
     }
 
     #[test]
@@ -2171,7 +2067,6 @@ mod tests {
         let all = vec![
             (TMPDIR_ENV, fixture.tmpdir().into_os_string()),
             (PINNED_ENV, pinned.clone().into_os_string()),
-            ("PATH", OsString::new()),
         ];
         let config = Config::from_parts(&lookup(all), &resolve).expect("config");
         assert_eq!(config.bazel, pinned);
@@ -2591,25 +2486,6 @@ mod portable_tests {
                 (PathBuf::from("a/b"), b"2".to_vec()),
                 (PathBuf::from("c"), b"3".to_vec()),
             ]
-        );
-    }
-
-    #[test]
-    fn find_bazel_finds_exe_names() {
-        let dir = tempfile::tempdir().expect("tempdir");
-        let base = dir.path().join("base");
-        let bin = dir.path().join("bin");
-        std::fs::create_dir_all(&bin).expect("mkdir");
-        std::fs::write(bin.join("bazelisk.exe"), "").expect("write");
-        let path = std::env::join_paths([&bin]).expect("path");
-        assert_eq!(
-            find_bazel(None, None, &path, &base).expect("found"),
-            bin.join("bazelisk.exe")
-        );
-        std::fs::write(bin.join("bazel.exe"), "").expect("write");
-        assert_eq!(
-            find_bazel(None, None, &path, &base).expect("found"),
-            bin.join("bazel.exe")
         );
     }
 

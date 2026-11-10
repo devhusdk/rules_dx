@@ -3,6 +3,8 @@
 load("//libs/starlark:defs.bzl", "expect_contains", "expect_true", "starlark_test")
 load(":dev_hub.bzl", "dev_hub_defs")
 
+visibility(["//..."])
+
 def _checks():
     forward = dev_hub_defs("dx_npm", True)
     stub = dev_hub_defs("dx_npm", False)

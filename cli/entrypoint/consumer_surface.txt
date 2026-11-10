@@ -26,8 +26,7 @@ erlang/rules:defs.bzl
 go/rules:defs.bzl
 haskell/rules:defs.bzl
 java/rules:defs.bzl
-javascript/rules:defs.bzl
-javascript/rules:web.bzl
+javascript:defs.bzl
 julia/rules:defs.bzl
 kotlin/rules:defs.bzl
 kubernetes/rules:defs.bzl

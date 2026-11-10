@@ -108,7 +108,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"javascript": {
 		files: map[string]string{"demo.js": "export const x = 1;\n"},
-		kind:  "javascript_library", target: "demo", defs: "javascript/rules:defs.bzl",
+		kind:  "javascript_library", target: "demo", defs: "javascript:defs.bzl",
 		symbols:    []string{"javascript_library", "javascript_test", "javascript_binary"},
 		extraLoads: map[string][]string{
 			"@npm//:defs.bzl":                {"npm_link_all_packages"},

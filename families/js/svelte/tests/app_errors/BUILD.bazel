@@ -1,4 +1,4 @@
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_test")
+load("@rules_dx//javascript:defs.bzl", "javascript_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -15,8 +15,8 @@ _VITE = [
 javascript_test(
     name = "build_errors_test",
     srcs = ["build_errors.test.js"],
-    data = glob(["build_fail/**"]) + ["@rules_dx//javascript/rules:vite_tool_entry"] + _VITE,
-    env = {"VITE_TOOL": "$(rlocationpath @rules_dx//javascript/rules:vite_tool_entry)"},
+    data = glob(["build_fail/**"]) + ["@rules_dx//javascript/private:vite_tool_entry"] + _VITE,
+    env = {"VITE_TOOL": "$(rlocationpath @rules_dx//javascript/private:vite_tool_entry)"},
     node_modules = "//:node_modules",
     node_options = ["--experimental-vm-modules"],
     package_json = "//:package_json",

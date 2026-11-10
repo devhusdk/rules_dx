@@ -2,10 +2,12 @@
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
-load("//javascript/rules:defs.bzl", "javascript_test")
+load(":defs.bzl", "javascript_test")
 load("//libs/starlark:wrapper.bzl", "dx_library_forward_rule", "dx_wrap")
 load("//libs/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
+
+visibility(["//..."])
 
 def dx_framework_forward_rule(language, ext):
     """Creates the forwarding rule for one JS-framework wrapper."""
@@ -36,7 +38,7 @@ def dx_framework_test(name, srcs, config, transform, packages, node_modules, dat
         name = name,
         srcs = srcs,
         config = config,
-        data = list(data or []) + [transform, Label("//javascript/rules:framework_jest_config")] +
+        data = list(data or []) + [transform, Label("//javascript/private:framework_jest_config")] +
                [node_modules + "/" + package for package in packages],
         node_modules = node_modules,
         node_options = ["--experimental-vm-modules"],
@@ -86,7 +88,7 @@ def dx_framework_web_app(name, dist, what, **kwargs):
     """Exposes one built framework dist directory as a JavascriptWebAppInfo web app."""
     _dx_framework_web_app(name = name, dist = dist, what = what, **kwargs)
 
-_VITE_TOOL = Label("//javascript/rules:vite_tool")
+_VITE_TOOL = Label("//javascript/private:vite_tool")
 
 def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, target_compatible_with, tool, ssr_entry = None, keep_entry_path = False):
     env = {"VITE_TOOL_PACKAGE": native.package_name()}

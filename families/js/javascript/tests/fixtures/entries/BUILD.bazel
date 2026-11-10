@@ -1,4 +1,4 @@
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(

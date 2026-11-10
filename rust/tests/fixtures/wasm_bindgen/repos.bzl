@@ -1,6 +1,6 @@
 """A consumer-owned bundle of rules_dx wasm outputs."""
 
-_BUILD_BAZEL = '''load("@rules_dx//javascript/rules:defs.bzl", javascript_wasm_bindgen_library = "javascript_wasm_bindgen_library")
+_BUILD_BAZEL = '''load("@rules_dx//javascript:defs.bzl", javascript_wasm_bindgen_library = "javascript_wasm_bindgen_library")
 
 genrule(
     name = "bundle_raw",

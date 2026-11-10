@@ -21,7 +21,6 @@ go
 haskell
 helm
 java
-javascript
 julia
 kotlin
 kubernetes

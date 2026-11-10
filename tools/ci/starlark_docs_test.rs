@@ -38,7 +38,7 @@ const PACKAGES: [&str; 72] = [
     "generation",
     "go/rules",
     "java/rules",
-    "javascript/rules",
+    "javascript/private",
     "kotlin/rules",
     "libs/starlark",
     "libs/testing",

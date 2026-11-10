@@ -8,6 +8,8 @@ real hub only when rules_dx is the root module. Otherwise its macro does
 nothing, so consumers never fetch the hub or its link repos.
 """
 
+visibility(["//..."])
+
 def dev_hub_defs(hub, forward):
     """Returns the defs.bzl text for the shim repo.
 

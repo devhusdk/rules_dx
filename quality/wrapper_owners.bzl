@@ -110,7 +110,7 @@ def wrapper_unit_tests(name):
             expect_equal(
                 "wrapper owner query admits the frozen core",
                 [wrapper_owner("rust"), wrapper_owner("python"), wrapper_owner("css")],
-                ["//rust/rules:defs.bzl", "//python/rules:defs.bzl", "//javascript/rules:defs.bzl"],
+                ["//rust/rules:defs.bzl", "//python/rules:defs.bzl", "//javascript:defs.bzl"],
             ),
             expect_equal(
                 "wrapper owner query rejects unknown families",

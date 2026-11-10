@@ -1,21 +1,65 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
+load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
+load("//javascript:defs.bzl", "javascript_library")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_signature_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
+load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "defs.bzl",
     "dev_hub.bzl",
     "dev_hub_tests.bzl",
+    "framework_jest_config.cjs",
+    "frameworks.bzl",
+    "vite_tool.mjs",
+    "web.bzl",
+    "wrapper_tests.bzl",
 ])
 
 dev_hub_tests(name = "dev_hub_test")
+
+javascript_wrapper_contract_tests(name = "wrapper_contract_tests")
+
+dx_wrapper_signature_test(name = "wrapper_signature_test")
+
+javascript_library(
+    name = "bench_driver",
+    srcs = ["bench_driver.mjs"],
+)
+
+js_library(
+    name = "fuzz_driver",
+    srcs = ["fuzz_driver.cjs"],
+)
+
+js_binary(
+    name = "vite_tool",
+    entry_point = "vite_tool.mjs",
+)
+
+copy_to_bin(
+    name = "framework_jest_config",
+    srcs = ["framework_jest_config.cjs"],
+)
+
+copy_to_bin(
+    name = "vite_tool_entry",
+    srcs = ["vite_tool.mjs"],
+)
 
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "defs.bzl",
         "dev_hub.bzl",
         "dev_hub_tests.bzl",
+        "frameworks.bzl",
+        "web.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

@@ -128,8 +128,8 @@ def javascript_wrapper_contract_tests(name):
             ),
             expect_equal(
                 "relative and absolute spellings of one manifest are not added twice",
-                node_test_upstream_data(["a.js", "//javascript/rules:package_json"], ":package_json", native.package_relative_label),
-                ["a.js", "//javascript/rules:package_json"],
+                node_test_upstream_data(["a.js", "//javascript/private:package_json"], ":package_json", native.package_relative_label),
+                ["a.js", "//javascript/private:package_json"],
             ),
             expect_equal(
                 "missing env gains the filter channel",
@@ -178,12 +178,12 @@ def javascript_wrapper_contract_tests(name):
             ),
             expect_equal(
                 "label only in tools is an error naming tools",
-                dx_args_label_error("t", ["$(location //javascript/rules:d)"], [":a.js"], {"deps": [], "tools": [":d"]}),
-                "t: args names //javascript/rules:d, which is only in tools; add it to data",
+                dx_args_label_error("t", ["$(location //javascript/private:d)"], [":a.js"], {"deps": [], "tools": [":d"]}),
+                "t: args names //javascript/private:d, which is only in tools; add it to data",
             ),
             expect_equal(
                 "label also in data is accepted",
-                dx_args_label_error("t", ["$(rootpath :d)"], [":a.js", "//javascript/rules:d"], {"deps": [":d"]}),
+                dx_args_label_error("t", ["$(rootpath :d)"], [":a.js", "//javascript/private:d"], {"deps": [":d"]}),
                 None,
             ),
             expect_equal(

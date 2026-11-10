@@ -743,7 +743,7 @@ rust_test(
         "//generation:corpus_starlark",
         "//go/rules:corpus_starlark",
         "//java/rules:corpus_starlark",
-        "//javascript/rules:corpus_starlark",
+        "//javascript/private:corpus_starlark",
         "//julia/rules:corpus_starlark",
         "//julia/tools:corpus_starlark",
         "//kotlin/rules:corpus_starlark",

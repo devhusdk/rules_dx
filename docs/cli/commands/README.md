@@ -233,8 +233,7 @@ Language rules:
 - `@rules_dx//go/rules:defs.bzl`: Go.
 - `@rules_dx//haskell/rules:defs.bzl`: Haskell.
 - `@rules_dx//java/rules:defs.bzl`: Java.
-- `@rules_dx//javascript/rules:defs.bzl`: JavaScript.
-- `@rules_dx//javascript/rules:web.bzl`: web apps and dev servers.
+- `@rules_dx//javascript:defs.bzl`: JavaScript.
 - `@rules_dx//ansible/rules:defs.bzl`: Ansible.
 - `@rules_dx//bicep/rules:defs.bzl`: Bicep.
 - `@rules_dx//cloudformation/rules:defs.bzl`: CloudFormation.
@@ -288,10 +287,10 @@ dx rule that wraps it.
 | `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go/rules:defs.bzl` | `go_binary`, `go_library`, `go_test` |
 | `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell/rules:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
 | `@rules_java//java:defs.bzl` | `java_binary`, `java_library`, `java_test` | `@rules_dx//java/rules:defs.bzl` | `java_binary`, `java_library`, `java_test` |
-| `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//javascript/rules:defs.bzl` | `javascript_binary` |
-| `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//javascript/rules:defs.bzl` | `javascript_library` |
-| `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//javascript/rules:defs.bzl` | `javascript_test` |
-| `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//javascript/rules:defs.bzl` | `javascript_test` |
+| `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//javascript:defs.bzl` | `javascript_binary` |
+| `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//javascript:defs.bzl` | `javascript_library` |
+| `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//javascript:defs.bzl` | `javascript_test` |
+| `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//javascript:defs.bzl` | `javascript_test` |
 | `@rules_julia//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` | `@rules_dx//julia/rules:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` |
 | `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
 | `@rules_perl//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` | `@rules_dx//perl/rules:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` |
@@ -450,11 +449,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_bench` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_fuzz_test` |
 |  |  | `@rules_dx//java/rules:defs.bzl` | `java_jmh_test` |
-|  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_bench` |
-|  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_binary_upstream_data` |
-|  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_fuzz_test` |
-|  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_test_rejection` |
-|  |  | `@rules_dx//javascript/rules:defs.bzl` | `javascript_wasm_bindgen_library` |
+|  |  | `@rules_dx//javascript:defs.bzl` | `javascript_bench` |
+|  |  | `@rules_dx//javascript:defs.bzl` | `javascript_binary_upstream_data` |
+|  |  | `@rules_dx//javascript:defs.bzl` | `javascript_fuzz_test` |
+|  |  | `@rules_dx//javascript:defs.bzl` | `javascript_test_rejection` |
+|  |  | `@rules_dx//javascript:defs.bzl` | `javascript_wasm_bindgen_library` |
 |  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_standalone_binary` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_bench` |
 |  |  | `@rules_dx//kotlin/rules:defs.bzl` | `kotlin_fuzz_test` |

@@ -11,6 +11,8 @@ load("//libs/starlark:node_test.bzl", "node_jest_upstream_attrs", "node_test_for
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_wrap", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
+visibility(["//..."])
+
 _DX_JS_LIBRARY_PROVIDES = [
     _JsInfo,
     DefaultInfo,
@@ -183,7 +185,7 @@ def javascript_bench(name, *, srcs, node_modules, main = None, data = None, args
         name = name,
         srcs = srcs,
         runner = "node",
-        main = Label("//javascript/rules:bench_driver"),
+        main = Label("//javascript/private:bench_driver"),
         data = list(data or []) + [node_modules],
         args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),
@@ -202,7 +204,7 @@ def javascript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, 
         visibility = visibility,
         fuzz_rule = javascript_binary,
         fuzz_kwargs = {
-            "main": Label("//javascript/rules:fuzz_driver"),
+            "main": Label("//javascript/private:fuzz_driver"),
             "data": [":" + name + "_bin", node_modules] + list(srcs) + list(data or []),
             "fixed_args": fixed_args,
         },

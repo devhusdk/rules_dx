@@ -229,7 +229,7 @@ starlark_test(
         "@rules_dx_apple//bundle:defs.bzl": "resource_set = dx_heavy_resources",
         "@rules_dx_apple//ios:app.bzl": "resource_set = dx_heavy_resources",
         "@rules_dx_apple//macos:app.bzl": "resource_set = dx_heavy_resources",
-        "//javascript/rules:web.bzl": "resource_set = dx_bundler_resources",
+        "//javascript/private:web.bzl": "resource_set = dx_bundler_resources",
         "//quality:elixirc.bzl": "resource_set = dx_medium_resources",
         "//quality:erlc.bzl": "resource_set = dx_medium_resources",
         "//quality:fsc.bzl": "resource_set = dx_heavy_resources",

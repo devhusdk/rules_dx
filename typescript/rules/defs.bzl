@@ -4,7 +4,7 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
-load("//javascript/rules:defs.bzl", "javascript_binary")
+load("//javascript:defs.bzl", "javascript_binary")
 load("//libs/starlark:fuzz.bzl", "dx_fuzz_test")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//libs/starlark:node_test.bzl", "node_jest_upstream_attrs", "node_test_forward_rule", "node_test_runner_rejection", "node_test_wrap_args")
@@ -432,7 +432,7 @@ def typescript_bench(name, *, srcs, node_modules, main = None, data = None, args
         name = name,
         srcs = srcs,
         runner = "node",
-        main = Label("//javascript/rules:bench_driver"),
+        main = Label("//javascript/private:bench_driver"),
         data = list(data or []) + [node_modules],
         args = [_compiled_path(main or srcs[0])] + list(args or []),
         tags = merge_tags(tags, "dx-bench", "manual"),
@@ -451,7 +451,7 @@ def typescript_fuzz_test(name, *, srcs, node_modules, main = None, data = None, 
         visibility = visibility,
         fuzz_rule = javascript_binary,
         fuzz_kwargs = {
-            "main": Label("//javascript/rules:fuzz_driver"),
+            "main": Label("//javascript/private:fuzz_driver"),
             "data": [":" + name + "_bin", node_modules] + list(data or []),
             "fixed_args": fixed_args,
         },

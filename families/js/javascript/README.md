@@ -3,7 +3,7 @@
 Build, run and test JavaScript with Node.
 
 ```python
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
 
 javascript_library(
     name = "greet",

@@ -50,7 +50,7 @@ TAXONOMY = {
         classes = ["csharp"],
     ),
     "css": struct(
-        owner = "//javascript/rules:defs.bzl",
+        owner = "//javascript:defs.bzl",
         classes = ["css", "less", "scss"],
     ),
     "cuda": struct(
@@ -106,7 +106,7 @@ TAXONOMY = {
         classes = ["go_module"],
     ),
     "graphql": struct(
-        owner = "//javascript/rules:defs.bzl",
+        owner = "//javascript:defs.bzl",
         classes = ["graphql"],
     ),
     "haskell": struct(
@@ -118,7 +118,7 @@ TAXONOMY = {
         classes = ["helm"],
     ),
     "html": struct(
-        owner = "//javascript/rules:defs.bzl",
+        owner = "//javascript:defs.bzl",
         classes = ["html"],
     ),
     "html_template": struct(
@@ -130,7 +130,7 @@ TAXONOMY = {
         classes = ["java"],
     ),
     "javascript": struct(
-        owner = "//javascript/rules:defs.bzl",
+        owner = "//javascript:defs.bzl",
         classes = ["javascript", "jsx"],
     ),
     "json": struct(

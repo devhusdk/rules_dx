@@ -8,6 +8,8 @@ load("//libs/starlark:wrapper.bzl", "dx_quality_sources")
 load("//libs/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
+visibility(["//..."])
+
 _WEB_APP_SOURCE_SPECS = [("text", "txt")]
 
 _WEB_JS_EXTENSIONS = ["js", "mjs"]

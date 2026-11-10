@@ -91,7 +91,7 @@ func newLang() *common.SingleLang {
 			packageKind:   "@aspect_rules_js//npm:defs.bzl",
 		},
 		Kinds:       javascriptKinds,
-		DefsPackage: "javascript/rules:defs.bzl",
+		DefsPackage: "javascript:defs.bzl",
 		ImportAttr:  "srcs",
 		IsImportSource: func(src string) bool {
 			return isSupported(src) || common.IsAssetSource(src)

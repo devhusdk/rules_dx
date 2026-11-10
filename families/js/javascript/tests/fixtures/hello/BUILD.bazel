@@ -1,5 +1,5 @@
-load("@rules_dx//javascript/rules:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
-load("@rules_dx//javascript/rules:wrapper_tests.bzl", "javascript_run_environment_tests")
+load("@rules_dx//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("@rules_dx//javascript/private:wrapper_tests.bzl", "javascript_run_environment_tests")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 

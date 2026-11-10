@@ -1,7 +1,7 @@
 """MDX document libraries and app builds."""
 
 load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
-load("//javascript/rules:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_build", "dx_framework_test")
+load("//javascript/private:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_build", "dx_framework_test")
 
 _mdx_library_forward = dx_framework_forward_rule("mdx", ".mdx")
 

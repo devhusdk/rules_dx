@@ -5,18 +5,7 @@ load(":cells.bzl", "cell_setting", "unknown_cells", "unsupported_constraint")
 _INCOMPATIBLE = Label("@platforms//:incompatible")
 
 def platform_support(label, symbol, any_of, settings, package = None):
-    """Returns the platforms a language's targets accept.
-
-    Args:
-        label: The label of the file that defines the language's compatibility constant.
-        symbol: The name of that constant.
-        any_of: A list of constraint lists; a platform matching any one is supported.
-        settings: The config_setting labels that select the supported platforms.
-        package: The package whose `unsupported` constraint_value marks a rejected platform, or None.
-
-    Returns:
-        A struct with `key`, `any_of`, `settings` and `package`.
-    """
+    """Returns the platforms a language's targets accept."""
     return struct(key = label + "%" + symbol, any_of = any_of, settings = settings, package = package)
 
 def compatible_with(support):

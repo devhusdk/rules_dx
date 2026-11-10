@@ -47,6 +47,7 @@ def _sbom_aspect_impl(target, ctx):
 dx_sbom_aspect = aspect(
     implementation = _sbom_aspect_impl,
     attr_aspects = _EDGES,
+    doc = "Collects the SBOM inventory lines of an artifact and its dependencies.",
 )
 
 def _dx_sbom_impl(ctx):

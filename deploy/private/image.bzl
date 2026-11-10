@@ -41,10 +41,7 @@ def image_default_main(base, binary, package):
     return path + ext
 
 def image_entrypoint(base, app, main = None, main_class = None, runtime = False):
-    """Returns the image entrypoint and environment for a base.
-
-    With runtime the interpreter is the one the toolchain layer puts under /opt.
-    """
+    """Returns the image entrypoint and environment for a base."""
     if base == "python":
         root = "/app/" + app + ".runfiles/_main"
         return [("/opt/python" if runtime else "/usr") + "/bin/python3", root + "/" + main], {"PYTHONPATH": root}
@@ -94,10 +91,7 @@ _for_platform = rule(
 )
 
 def image_runtime_dest(path, layout, prefix):
-    """Returns where a toolchain file lands in the image, or None when the layer leaves it out.
-
-    path is relative to the toolchain's repository.
-    """
+    """Returns where a toolchain file lands in the image, or None when the layer leaves it out."""
     if not path.startswith(layout["strip"]):
         return None
     path = path[len(layout["strip"]):]
@@ -157,6 +151,7 @@ def _main_class_aspect_impl(target, ctx):
 _main_class_aspect = aspect(
     implementation = _main_class_aspect_impl,
     attr_aspects = ["upstream"],
+    doc = "Collects the main class of the java_binary an image wraps.",
 )
 
 def _jars_for_platform_impl(ctx):
@@ -193,25 +188,7 @@ _jars_for_platform = rule(
 )
 
 def oci_image_from_binary(name, binary, base = "static", platforms = ["@rules_dx//deploy:linux_amd64"], tags = None, main = None, main_class = None, runtime = False, visibility = None, testonly = None):
-    """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy.
-
-    One platform gives an oci_image and an oci_load target named name + "_load".
-    Several platforms give an oci_image_index of one image per platform, and
-    name + "_load" loads the image of the first platform. tags apply to the
-    image, index and load targets.
-
-    The python, java and node bases run on the distroless interpreter images
-    and the dotnet base on the Microsoft runtime image.
-    The python, node and dotnet bases need main, the workspace path of the entry script
-    or assembly, and run it from the binary's runfiles. python, node and dotnet default main to
-    the binary's package and name with .py or .js, and a dotnet binary to its net10.0 assembly. The java base puts the binary's runtime jars under /app/lib and
-    runs main_class, which defaults to the main class of the java_binary.
-
-    With runtime = True the python, java, node or dotnet base is replaced by the distroless cc image
-    and a layer from the managed toolchain for each platform, installed under /opt, so the image
-    runs the interpreter the build used instead of the one in the base image. The dotnet runtime
-    runs with invariant globalization.
-    """
+    """Builds an OCI image holding binary and its runfiles under /app, ready for oci_deploy."""
     if not main and type(binary) == "string":
         main = image_default_main(base, binary, native.package_name())
     if type(platforms) == "list":

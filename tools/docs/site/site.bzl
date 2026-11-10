@@ -157,14 +157,7 @@ def _docs_api_impl(ctx):
     ]
 
 def make_docs_api(aspects = []):
-    """Returns a docs_api rule whose libraries also get the given language docs aspects.
-
-    Args:
-      aspects: Language docs aspects, such as real_rust_docs_aspect.
-
-    Returns:
-      The docs_api rule.
-    """
+    """Returns a docs_api rule whose libraries also get the given language docs aspects."""
     return rule(
         doc = "Renders the API of libraries into API pages and checks the site's links.",
         implementation = _docs_api_impl,
@@ -193,17 +186,7 @@ def _docs_api_attrs(aspects):
 docs_api = make_docs_api()
 
 def docs_site_targets(docs_api_rule, name, libraries, prose, book_toml, prose_route, source_url):
-    """Declares the API, summary and site targets of one docs site.
-
-    Args:
-      docs_api_rule: A rule from make_docs_api.
-      name: The site target name.
-      libraries: The libraries to document.
-      prose: The prose pages.
-      book_toml: The book's book.toml.
-      prose_route: The route of the first prose page.
-      source_url: URL prefix that source paths link under.
-    """
+    """Declares the API, summary and site targets of one docs site."""
     docs_api_rule(
         name = name + "_docs",
         book_toml = book_toml,

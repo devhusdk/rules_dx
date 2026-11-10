@@ -83,12 +83,42 @@ fn missing_metadata_is_reported() {
 }
 
 #[test]
-fn json_string_reads_spaced_values() {
-    assert_eq!(
-        json_string("{ \"a\" : \"x\", \"b\": \"y\" }", "b").as_deref(),
-        Some("y")
-    );
-    assert_eq!(json_string("{\"a\":1}", "a"), None);
+fn metadata_without_a_string_updated_at_is_reported() {
+    for metadata in ["{ \"Version\" : 2 }", "{\"UpdatedAt\":1}", "not json"] {
+        let out = tempfile::tempdir().expect("tempdir");
+        let error = prepare_with(out.path(), "2026-11-05", |_| {
+            let db = out.path().join(CACHE_DIR).join("db");
+            std::fs::create_dir_all(&db).expect("db dir");
+            std::fs::write(db.join("metadata.json"), metadata).expect("metadata");
+            Ok(())
+        })
+        .expect_err("fails");
+        assert!(error.to_string().contains("metadata.json"), "{error}");
+        assert!(!out.path().join(META_FILE).exists());
+    }
+}
+
+#[test]
+fn a_spaced_sidecar_and_spaced_metadata_are_read() {
+    let out = tempfile::tempdir().expect("tempdir");
+    std::fs::write(
+        out.path().join(META_FILE),
+        "{ \"db_updated_at\" : \"then\", \"retrieved_at\" : \"2026-11-05\" }",
+    )
+    .expect("sidecar");
+    let kept = prepare_with(out.path(), "2026-11-05", |_| {
+        panic!("a same-day run must not download")
+    })
+    .expect("kept");
+    assert_eq!(kept.db_updated_at, "then");
+    let next = prepare_with(out.path(), "2026-11-06", |_| {
+        let db = out.path().join(CACHE_DIR).join("db");
+        std::fs::create_dir_all(&db).expect("db dir");
+        std::fs::write(db.join("metadata.json"), "{ \"UpdatedAt\" : \"now\" }").expect("metadata");
+        Ok(())
+    })
+    .expect("next");
+    assert_eq!(next.db_updated_at, "now");
 }
 
 #[test]

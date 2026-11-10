@@ -11,6 +11,8 @@
 use std::io;
 use std::path::Path;
 
+use base64::{Engine as _, engine::general_purpose::STANDARD};
+
 pub mod candidate;
 pub mod cell;
 mod deploy;
@@ -357,45 +359,11 @@ pub fn write_bcr_source(dst: &Path, module: &str, version: &str) -> io::Result<(
     Ok(())
 }
 
-const BASE64_ALPHABET: &[u8; 64] =
-    b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-
-fn base64_encode(bytes: &[u8]) -> String {
-    let mut out = String::with_capacity(bytes.len().div_ceil(3) * 4);
-    for chunk in bytes.chunks(3) {
-        let a = u32::from(chunk[0]);
-        let b = if chunk.len() > 1 {
-            u32::from(chunk[1])
-        } else {
-            0
-        };
-        let c = if chunk.len() > 2 {
-            u32::from(chunk[2])
-        } else {
-            0
-        };
-        let triple = (a << 16) | (b << 8) | c;
-        out.push(BASE64_ALPHABET[((triple >> 18) & 63) as usize] as char);
-        out.push(BASE64_ALPHABET[((triple >> 12) & 63) as usize] as char);
-        if chunk.len() > 1 {
-            out.push(BASE64_ALPHABET[((triple >> 6) & 63) as usize] as char);
-        } else {
-            out.push('=');
-        }
-        if chunk.len() > 2 {
-            out.push(BASE64_ALPHABET[(triple & 63) as usize] as char);
-        } else {
-            out.push('=');
-        }
-    }
-    out
-}
-
 pub fn bcr_integrity_of_digest(digest: &str) -> Result<String, String> {
     let raw = dx_digest::parse_hex(digest).map_err(|_| {
         format!("bcr: invalid sha256 digest {digest:?}: want 64 lowercase hex chars")
     })?;
-    Ok(format!("sha256-{}", base64_encode(&raw)))
+    Ok(format!("sha256-{}", STANDARD.encode(raw)))
 }
 
 fn bcr_candidate_version_error(version: &str) -> Result<(), String> {

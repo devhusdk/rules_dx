@@ -154,7 +154,7 @@ fn download(
     }
     file.sync_all()
         .map_err(|e| ShimError::failure(format!("cannot write {}: {e}", part.path.display())))?;
-    Ok(hex(&hasher.finalize()))
+    Ok(format!("{:x}", hasher.finalize()))
 }
 
 fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimError> {
@@ -173,10 +173,6 @@ fn sidecar(agent: &ureq::Agent, request: &Request<'_>) -> Result<String, ShimErr
 pub fn parse_hash(text: &str) -> Option<String> {
     (text.len() == 64 && text.bytes().all(|b| b.is_ascii_hexdigit()))
         .then(|| text.to_ascii_lowercase())
-}
-
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
 const STALE_PART_AGE: Duration = Duration::from_secs(60 * 60);

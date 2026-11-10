@@ -494,17 +494,6 @@ fn release_remote_record_validates_or_fails() {
 }
 
 #[test]
-fn base64_encodes_short_inputs_with_padding() {
-    assert_eq!(base64_encode(b""), "");
-    assert_eq!(base64_encode(b"f"), "Zg==");
-    assert_eq!(base64_encode(b"fo"), "Zm8=");
-    assert_eq!(base64_encode(b"foo"), "Zm9v");
-    assert_eq!(base64_encode(b"foob"), "Zm9vYg==");
-    assert_eq!(base64_encode(b"fooba"), "Zm9vYmE=");
-    assert_eq!(base64_encode(b"foobar"), "Zm9vYmFy");
-}
-
-#[test]
 fn bcr_integrity_comes_from_the_archive_sha256() {
     let digest = "a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447";
     assert_eq!(

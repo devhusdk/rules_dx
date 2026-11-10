@@ -5,6 +5,7 @@ use std::process::Command as Process;
 
 use dx_atomic_fs::write_atomic;
 use dx_audit::advisory_prep::PrepError;
+use serde::{Deserialize, Serialize};
 
 pub const CACHE_DIR: &str = "trivy";
 pub const META_FILE: &str = "trivy.meta.json";
@@ -16,6 +17,18 @@ pub struct TrivyPrepared {
     pub retrieved_at: String,
     pub db_updated_at: String,
     pub fetched: bool,
+}
+
+#[derive(Deserialize, Serialize)]
+struct Sidecar {
+    retrieved_at: String,
+    db_updated_at: String,
+}
+
+#[derive(Deserialize)]
+struct DbMetadata {
+    #[serde(rename = "UpdatedAt")]
+    updated_at: String,
 }
 
 /// The arguments of the two download steps, vulnerability database then checks.
@@ -49,13 +62,13 @@ pub fn prepare_with(
     let cache = out.join(CACHE_DIR);
     let meta_path = out.join(META_FILE);
     if let Ok(text) = std::fs::read_to_string(&meta_path)
-        && json_string(&text, "retrieved_at").as_deref() == Some(retrieved_at)
-        && let Some(db_updated_at) = json_string(&text, "db_updated_at")
+        && let Ok(sidecar) = serde_json::from_str::<Sidecar>(&text)
+        && sidecar.retrieved_at == retrieved_at
     {
         return Ok(TrivyPrepared {
             cache,
-            retrieved_at: retrieved_at.to_owned(),
-            db_updated_at,
+            retrieved_at: sidecar.retrieved_at,
+            db_updated_at: sidecar.db_updated_at,
             fetched: false,
         });
     }
@@ -67,20 +80,26 @@ pub fn prepare_with(
         program: "trivy".to_owned(),
         detail: format!("{}: {error}", metadata_path.display()),
     })?;
-    let db_updated_at = json_string(&metadata, "UpdatedAt").ok_or_else(|| PrepError::Fetch {
+    let db: DbMetadata = serde_json::from_str(&metadata).map_err(|error| PrepError::Fetch {
         program: "trivy".to_owned(),
-        detail: format!("{} has no UpdatedAt", metadata_path.display()),
+        detail: format!("{}: {error}", metadata_path.display()),
     })?;
-    let meta =
-        format!("{{\"retrieved_at\":\"{retrieved_at}\",\"db_updated_at\":\"{db_updated_at}\"}}\n");
-    write_atomic(&meta_path, meta.as_bytes()).map_err(|error| PrepError::Write {
+    let sidecar = Sidecar {
+        retrieved_at: retrieved_at.to_owned(),
+        db_updated_at: db.updated_at,
+    };
+    let write_error = |detail: String| PrepError::Write {
         path: meta_path.display().to_string(),
-        detail: error.to_string(),
-    })?;
+        detail,
+    };
+    let mut meta =
+        serde_json::to_string(&sidecar).map_err(|error| write_error(error.to_string()))?;
+    meta.push('\n');
+    write_atomic(&meta_path, meta.as_bytes()).map_err(|error| write_error(error.to_string()))?;
     Ok(TrivyPrepared {
         cache,
-        retrieved_at: retrieved_at.to_owned(),
-        db_updated_at,
+        retrieved_at: sidecar.retrieved_at,
+        db_updated_at: sidecar.db_updated_at,
         fetched: true,
     })
 }
@@ -150,14 +169,6 @@ fn run(binary: &Path, args: &[String]) -> Result<(), PrepError> {
         program: binary.display().to_string(),
         detail: format!("{} exited with {done}", args.join(" ")),
     })
-}
-
-/// The string value of a top-level key in a flat JSON object.
-fn json_string(text: &str, key: &str) -> Option<String> {
-    let rest = &text[text.find(&format!("\"{key}\""))? + key.len() + 2..];
-    let rest = rest.trim_start().strip_prefix(':')?.trim_start();
-    let rest = rest.strip_prefix('"')?;
-    Some(rest[..rest.find('"')?].to_owned())
 }
 
 #[cfg(test)]

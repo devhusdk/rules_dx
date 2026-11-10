@@ -41,6 +41,7 @@ name = "source_archive"
 path = "src/bin_source_archive.rs"
 
 [dependencies]
+base64 = "0.22"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 

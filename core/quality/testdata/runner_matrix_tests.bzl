@@ -436,53 +436,106 @@ def _tier_base_tools(case):
     bound = case.get("config_tools", []) + case.get("upstream_tools", [])
     return [t for t in matrix_case_tools(case) if t in tier_base_dirs() and t not in bound]
 
+_FORWARDED_DEFAULTS = {
+    "srcs": [],
+    "generated": {},
+    "siblings": [],
+    "staged_siblings": {},
+    "tool_names": [],
+    "tool_binaries": [],
+    "path_tool_owners": [],
+    "path_tool_names": [],
+    "path_tool_binaries": [],
+    "rustfmt_from_toolchain": False,
+    "toolfile_tools": [],
+    "toolfile_srcs": [],
+    "toolfile_rels": [],
+    "toolfile_group_tools": [],
+    "toolfile_group_prefixes": [],
+    "toolfile_group_srcs": [],
+    "config_tools": [],
+    "config_files": [],
+    "config_rels": [],
+    "edition_tools": [],
+    "edition_values": [],
+    "dialect_tools": [],
+    "dialect_values": [],
+    "args_tool": "",
+    "args_values": [],
+    "tool_env": [],
+    "upstream_tools": [],
+    "upstream_srcs": [],
+    "upstream_generated": {},
+    "expected": "",
+    "runner_failure": False,
+    "ambient_files": {},
+}
+
+def matrix_case(name, capability, tool, binary, source_class, src = None, generated = None, config = None, platforms = SUPPORT_PLATFORMS, **extra):
+    """Returns one matrix case row.
+
+    Args:
+      name: Test name; the expected file is `:matrix/<name>.expected.txt`.
+      capability: lint, format or typecheck.
+      tool: The one tool the stage runs; it is also the only `tool_names` entry.
+      binary: Label of the tool executable.
+      source_class: Source class of the stage.
+      src: Label in this package staged as the single source; the stage path derives from it.
+      generated: One-entry dict of workspace path to content; the stage path is its key.
+      config: Label bound as the tool's config and toolfile.
+      platforms: Platform ids the case runs on; linux_x86_64 always runs.
+      **extra: Further case keys, taken as given.
+
+    Returns:
+      The case dict.
+    """
+    if (src == None) == (generated == None):
+        fail("matrix_case " + name + ": set exactly one of src and generated")
+    case = {
+        "name": name,
+        "capability": capability,
+        "tool_names": [tool],
+        "tool_binaries": [binary],
+        "expected_file": ":matrix/" + name + ".expected.txt",
+        "linux_arm64": "linux_arm64" in platforms,
+        "macos_arm64": "macos_arm64" in platforms,
+        "windows_x86_64": "windows_x86_64" in platforms,
+        "windows_arm64": "windows_arm64" in platforms,
+    }
+    if src != None:
+        case["srcs"] = [src]
+        path = "core/quality/testdata/" + src.removeprefix(":")
+    else:
+        if len(generated) != 1:
+            fail("matrix_case " + name + ": generated takes one file")
+        case["generated"] = generated
+        path = generated.keys()[0]
+    case["stages"] = ["%s;%s;%s" % (tool, source_class, path)]
+    if config != None:
+        case["toolfile_tools"] = [tool]
+        case["toolfile_srcs"] = [config]
+        case["config_tools"] = [tool]
+        case["config_files"] = [config]
+    case.update(extra)
+    return case
+
 def runner_matrix_suite(name, cases, extra_cases = []):
     """Instantiates one _runner_matrix_test per matrix case plus a suite; extra_cases are existing tests."""
     tests = []
     for case in cases:
         tier_base_tools = _tier_base_tools(case)
+        forwarded = {key: case.get(key, default) for key, default in _FORWARDED_DEFAULTS.items()}
         _runner_matrix_test(
             name = case["name"],
-            srcs = case.get("srcs", []),
-            generated = case.get("generated", {}),
-            siblings = case.get("siblings", []),
-            staged_siblings = case.get("staged_siblings", {}),
             capability = case["capability"],
             stages = case["stages"],
-            tool_names = case.get("tool_names", []),
-            tool_binaries = case.get("tool_binaries", []),
-            path_tool_owners = case.get("path_tool_owners", []),
-            path_tool_names = case.get("path_tool_names", []),
-            path_tool_binaries = case.get("path_tool_binaries", []),
-            rustfmt_from_toolchain = case.get("rustfmt_from_toolchain", False),
-            toolfile_tools = case.get("toolfile_tools", []),
-            toolfile_srcs = case.get("toolfile_srcs", []),
-            toolfile_rels = case.get("toolfile_rels", []),
-            toolfile_group_tools = case.get("toolfile_group_tools", []),
-            toolfile_group_prefixes = case.get("toolfile_group_prefixes", []),
-            toolfile_group_srcs = case.get("toolfile_group_srcs", []),
-            config_tools = case.get("config_tools", []),
-            config_files = case.get("config_files", []),
-            config_rels = case.get("config_rels", []),
             tier_base_tools = tier_base_tools,
             tier_bases = ["//core/quality/tiers/%s:standard" % tier_base_dirs()[t] for t in tier_base_tools],
-            edition_tools = case.get("edition_tools", []),
-            edition_values = case.get("edition_values", []),
-            dialect_tools = case.get("dialect_tools", []),
-            dialect_values = case.get("dialect_values", []),
-            args_tool = case.get("args_tool", ""),
-            args_values = case.get("args_values", []),
-            tool_env = case.get("tool_env", []),
-            upstream_tools = case.get("upstream_tools", []),
-            upstream_srcs = case.get("upstream_srcs", []),
-            upstream_generated = case.get("upstream_generated", {}),
-            expected = case.get("expected", ""),
             expected_file = case.get("expected_file"),
-            runner_failure = case.get("runner_failure", False),
-            ambient_files = case.get("ambient_files", {}),
             size = "small",
             tags = ["no-coverage"] + case.get("tags", []),
             target_compatible_with = compatible(case),
+            **forwarded
         )
         tests.append(":" + case["name"])
     native.test_suite(name = name, tests = tests + [":" + case["name"] for case in extra_cases])

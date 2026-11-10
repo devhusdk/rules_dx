@@ -23,6 +23,8 @@ exports_files(
         "node_diagnostics_test.rs",
         "stub_target.bzl",
         "test_macros.bzl",
+        "web_hello.bzl",
+        "web_hello_coverage_test.rs",
     ],
     visibility = VIS_TOOLS_PUBLIC,
 )

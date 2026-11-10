@@ -44,11 +44,15 @@ const MIN_SOURCES: usize = 1000;
 const MIN_PATHS: usize = 1000;
 const MIN_LANGUAGES: usize = 50;
 
-/// The declared inputs: BUILD and .bzl texts, other texts, and paths under language directories.
+/// Fewer non-test Rust files than this means the sweep lost the tree.
+const MIN_RUST: usize = 300;
+
+/// The declared inputs: BUILD and .bzl texts, other texts, non-test Rust texts, and paths under language directories.
 #[derive(Default)]
 struct Tree {
     sources: BTreeMap<String, String>,
     files: BTreeMap<String, String>,
+    rust: BTreeMap<String, String>,
     paths: Vec<String>,
 }
 
@@ -355,9 +359,17 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
             }
         }
     }
-    if let Some(source) = tree.files.get("MODULE.bazel") {
-        for used in banned_tag_uses("MODULE.bazel", source, &langs.with_set) {
-            out.insert(format!("tag-use MODULE.bazel {used}"));
+    for (path, source) in &tree.rust {
+        for name in stated_names(source).intersection(&names) {
+            out.insert(format!("name {path} {name}"));
+        }
+    }
+    for (path, source) in &tree.files {
+        if path.rsplit('/').next() != Some("MODULE.bazel") {
+            continue;
+        }
+        for used in banned_tag_uses(path, source, &langs.with_set) {
+            out.insert(format!("tag-use {path} {used}"));
         }
     }
     for (path, text) in &tree.files {
@@ -437,6 +449,15 @@ fn decode_paths(variable: &str) -> Vec<String> {
 }
 
 fn tree(sources: &[(&str, &str)], files: &[(&str, &str)], paths: &[&str]) -> Tree {
+    tree_with_rust(sources, files, &[], paths)
+}
+
+fn tree_with_rust(
+    sources: &[(&str, &str)],
+    files: &[(&str, &str)],
+    rust: &[(&str, &str)],
+    paths: &[&str],
+) -> Tree {
     let map = |entries: &[(&str, &str)]| {
         entries
             .iter()
@@ -446,6 +467,7 @@ fn tree(sources: &[(&str, &str)], files: &[(&str, &str)], paths: &[&str]) -> Tre
     Tree {
         sources: map(sources),
         files: map(files),
+        rust: map(rust),
         paths: paths.iter().map(|path| (*path).to_owned()).collect(),
     }
 }
@@ -466,8 +488,14 @@ fn the_tree_matches_the_allowlist() {
     let tree = Tree {
         sources: decode_texts("DX_SOURCES_JSON"),
         files: decode_texts("DX_FILES_JSON"),
+        rust: decode_texts("DX_RUST_JSON"),
         paths: decode_paths("DX_PATHS_JSON"),
     };
+    assert!(
+        tree.rust.len() >= MIN_RUST,
+        "only {} non-test .rs files in the rust snapshot",
+        tree.rust.len()
+    );
     assert!(
         tree.sources.len() >= MIN_SOURCES,
         "only {} BUILD and .bzl files in the sources snapshot",
@@ -617,6 +645,33 @@ qt.configure(version = "6.9")
 }
 
 #[test]
+fn a_banned_argument_on_a_nested_module_tag_fails() {
+    let module = r#"
+composer = use_extension("@rules_dx//php:extensions.bzl", "composer")
+composer.lock(name = "composer", lock = "//:composer.lock.json", sha256 = "00")
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(name = "npm", integrity = "sha512-x")
+"#;
+    let tree = tree(
+        &[],
+        &[
+            ("php/lang.json", PHP_LANG),
+            ("php/tests/fixtures/composer/MODULE.bazel", module),
+            ("examples/php/MODULE.bazel", module),
+            ("php/tests/fixtures/composer/extra.MODULE.bazel", module),
+        ],
+        &[],
+    );
+    assert_eq!(
+        found(&tree),
+        [
+            "tag-use examples/php/MODULE.bazel composer.lock.sha256",
+            "tag-use php/tests/fixtures/composer/MODULE.bazel composer.lock.sha256",
+        ]
+    );
+}
+
+#[test]
 fn a_starlark_lock_parser_fails() {
     let tree = tree(
         &[
@@ -690,6 +745,34 @@ fn a_manifest_or_lock_name_outside_the_registry_fails() {
             "name ruby/lang.json MODULE.bazel",
             "name ruby/private/gems.bzl Gemfile.lock",
             "registry ruby",
+        ]
+    );
+}
+
+#[test]
+fn a_registry_name_in_rust_source_fails() {
+    let tree = tree_with_rust(
+        &[],
+        &[("php/lang.json", PHP_LANG)],
+        &[
+            (
+                "cli/adopt/src/php.rs",
+                "const LOCK: &str = \"composer.lock\";\n// Reads composer.json.\nconst OTHER: &str = \"composer.locked\";\n",
+            ),
+            (
+                "gazelle/php/lock.rs",
+                "fn lock(dir: &Path) -> PathBuf {\n    dir.join(\"composer.lock.json\")\n}\n",
+            ),
+            ("cli/plan/src/lib.rs", "const MODULE: &str = \"MODULE.bazel\";\n"),
+        ],
+        &[],
+    );
+    assert_eq!(
+        found(&tree),
+        [
+            "name cli/adopt/src/php.rs composer.json",
+            "name cli/adopt/src/php.rs composer.lock",
+            "name gazelle/php/lock.rs composer.lock.json",
         ]
     );
 }

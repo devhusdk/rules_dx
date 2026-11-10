@@ -310,7 +310,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//ansible/private:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec/private:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
-|  |  | `@rules_dx//asciidoc:defs.bzl` | `asciidoc_library` |
+|  |  | `@rules_dx//asciidoc/private:defs.bzl` | `asciidoc_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_build` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_library` |
 |  |  | `@rules_dx//astro/private:defs.bzl` | `astro_test` |
@@ -575,7 +575,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_fuzz_test` |
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_library` |
 |  |  | `@rules_dx//scala/private:defs.bzl` | `scala_test` |
-|  |  | `@rules_dx//sql:defs.bzl` | `sql_library` |
+|  |  | `@rules_dx//sql/private:defs.bzl` | `sql_library` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_build` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_library` |
 |  |  | `@rules_dx//svelte/private:defs.bzl` | `svelte_test` |

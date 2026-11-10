@@ -23,10 +23,10 @@ The font is a one-glyph font made for this fixture, so no test fetches fonts fro
 
 ```sh
 bazel build //flutter/tests/fixtures/flutter-app/android:all --sandbox_default_allow_network=false
-bazel test //flutter/tests/fixtures/flutter-app/android:inspect_apk_test //flutter/tests/fixtures/flutter-app/android:inspect_apk_arm64_test
+bazel test //flutter/tests/fixtures/flutter-app/apk:all
 ```
 
-`android:install`, `android:start` and `android:log` target `emulator-5554` with the x64 APK. `android:interaction_test` installs the APK, taps the add button with `adb shell input` and checks the count through `uiautomator dump`. It is tagged `linux-kvm` and `manual`, and it fails when no emulator or no `adb` is present. The app starts `io.flutter.embedding.android.FlutterActivity`, the activity in the manifest rules_flutter generates, and `inspect_apk_test` checks that the manifest names it.
+`android:install`, `android:start` and `android:log` target `emulator-5554` with the x64 APK. `android:interaction_test` installs the APK, taps the add button with `adb shell input` and checks the count through `uiautomator dump`. It is tagged `linux-kvm` and `manual`, and it fails when no emulator or no `adb` is present. The app starts `io.flutter.embedding.android.FlutterActivity`, the activity in the manifest rules_flutter generates, and `apk:inspect_apk_test` checks that the manifest names it. `apk:inspect_apk_test` and `apk:inspect_apk_arm64_test` run on Linux x86_64 and read the APK files and the manifest.
 
 The evidence workflow with `android=true` boots the emulator on a `linux_x86_64` runner and prints the versions it ran with. The flutter-app step passed in [run 42064365680](https://github.com/devhusdk/rules_dx/actions/runs/42064365680).
 

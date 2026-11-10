@@ -507,6 +507,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `fake_file` |
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `label_string` |
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `starlark_test` |
+|  |  | `@rules_dx//lua/luarocks:defs.bzl` | `luarocks_lock` |
 |  |  | `@rules_dx//lua/private:defs.bzl` | `lua_bench` |
 |  |  | `@rules_dx//lua/private:defs.bzl` | `lua_binary` |
 |  |  | `@rules_dx//lua/private:defs.bzl` | `lua_library` |

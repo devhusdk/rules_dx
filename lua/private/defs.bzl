@@ -1,5 +1,6 @@
 """Lua rules for dx: the core Lua rules plus dx quality source ownership."""
 
+load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//core:fuzz_bench.bzl", "merge_tags")
 load("//core:wrapper.bzl", "dx_quality_sources", "dx_quality_srcs")
 load(
@@ -65,10 +66,12 @@ def lua_test(name, *, srcs = None, visibility = None, **kwargs):
     kwargs.setdefault("size", "small")
     _lua_test(name = name, srcs = srcs or [], visibility = visibility, **kwargs)
 
-def lua_bench(name, *, main, deps = None, tags = None, **kwargs):
+def lua_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs):
     """A lua_test run by dx bench: main calls require("dx_bench").run({{name, fn}, ...}), which times each function with os.clock and writes dx-bench.json."""
+    main = dx_infer_main("lua_bench", name, main, srcs, dx_main_candidates(name, ".lua"))
     lua_test(
         name = name,
+        srcs = srcs,
         main = main,
         deps = (deps or []) + [Label("//lua/private:bench")],
         tags = merge_tags(tags, "dx-bench", "manual"),

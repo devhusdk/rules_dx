@@ -8,7 +8,6 @@ package(
 
 lua_bench(
     name = "sum_bench",
-    main = "sum_bench.lua",
 )
 
 lua_test(

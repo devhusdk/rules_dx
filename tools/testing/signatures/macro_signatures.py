@@ -18,7 +18,6 @@ REQUIRED_SRCS = {
     "typescript_playwright_test",
     "vue_test",
 }
-REQUIRED_MAIN = {"lua_bench", "ocaml_bench", "ocaml_fuzz_test"}
 
 
 def checkout_root():
@@ -105,14 +104,8 @@ def check(macro, kind, params):
     if "main" in names:
         if names.index("main") != (3 if "srcs" in names else 2):
             bad.append("main follows srcs")
-        if (defaults["main"] is None) != (macro in REQUIRED_MAIN):
-            bad.append(
-                "main defaults to None unless the macro is in REQUIRED_MAIN, and only then"
-            )
-        elif defaults["main"] not in (None, "None"):
+        if defaults["main"] not in (None, "None"):
             bad.append("main defaults to None")
-    elif macro in REQUIRED_MAIN:
-        bad.append("REQUIRED_MAIN lists a macro without main")
     if defaults.get("visibility", "None") != "None":
         bad.append("visibility defaults to None")
     return bad
@@ -123,7 +116,7 @@ def problems(root):
     if not found:
         return ["no binary, test, bench or fuzz macros under %s" % root]
     out = []
-    for macro in sorted((REQUIRED_SRCS | REQUIRED_MAIN) - set(found)):
+    for macro in sorted(REQUIRED_SRCS - set(found)):
         out.append("%s is listed as an exception but does not exist" % macro)
     for macro, (kind, params) in sorted(found.items()):
         out += ["%s: %s" % (macro, bad) for bad in check(macro, kind, params)]

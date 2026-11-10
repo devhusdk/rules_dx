@@ -36,6 +36,8 @@
     "https://bcr.bazel.build/modules/aspect_rules_jest/0.26.0/source.json": "e978f5f3f368a8fe4a56d3f01b2e77a53c7042ceb9cb6abad86193a9a19ba31a",
     "https://bcr.bazel.build/modules/aspect_rules_js/3.6.0/MODULE.bazel": "f7cd94cfa20f6a6dcf1d19d025b97a2a0298013296e4b3d3204c28ee46d0fcfa",
     "https://bcr.bazel.build/modules/aspect_rules_js/3.6.0/source.json": "8d66ed9a83cc6ce80d85a9d8c95ce3fc355b2d359f74af8193efcdce35334a17",
+    "https://bcr.bazel.build/modules/aspect_rules_ts/3.10.1/MODULE.bazel": "035205a7834b0ed9724ed3c4790e12d1c779ef2520d72496ab234e6307715e6c",
+    "https://bcr.bazel.build/modules/aspect_rules_ts/3.10.1/source.json": "d42b6560206adb5524caad2abc40ae0b5b34478dd38184a9f6ea4a5fed848cd6",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.4.2/MODULE.bazel": "f31aa84151d31e98cffd43eb7217ccff5ec52bdd5f2d10db8f053aeb23342eca",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.1/MODULE.bazel": "9d94e5c22c0019995c0a3216a6abb1717dc3f35acccf4e6267a55d6df38367aa",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.1/source.json": "dbe0a75bf1f741b18c7b72dd4d205fa5a45c8c135fee15f7fdd1a2b50ba0fdde",
@@ -438,8 +440,8 @@
     "https://bcr.bazel.build/modules/rules_python/2.4.6/source.json": "2e5154205999e263cdee7399111b09acfb9361a205f29e95af93f9423be674d6",
     "https://bcr.bazel.build/modules/rules_robolectric/4.14.1.2/MODULE.bazel": "d44fec647d0aeb67b9f3b980cf68ba634976f3ae7ccd6c07d790b59b87a4f251",
     "https://bcr.bazel.build/modules/rules_robolectric/4.14.1.2/source.json": "37c10335f2361c337c5c1f34ed36d2da70534c23088062b33a8bdaab68aa9dea",
-    "https://bcr.bazel.build/modules/rules_rust/0.69.0/MODULE.bazel": "4326fec48f2fef0d514de46346f7f77e200c82936dd08b91c9ef039fbdad5c10",
     "https://bcr.bazel.build/modules/rules_rust/0.75.0/MODULE.bazel": "77452ad75faf65400abc8d0956033d5732c68d39478c9ac064288d3f484f6e34",
+    "https://bcr.bazel.build/modules/rules_rust/0.75.0/source.json": "6205a2156646606f99828f217931f4cd5c68f3ada35916dab6601020358bfc63",
     "https://bcr.bazel.build/modules/rules_rust_prost/0.75.0/MODULE.bazel": "352c97c54b4938acaae4f5be9cf380845d56ce6f062cf161f78059764f7d901a",
     "https://bcr.bazel.build/modules/rules_rust_prost/0.75.0/source.json": "fdd8bb6bd5fca6d0f672a2438312016e91c8010fdd9c9355a8eec4f503aa5ac5",
     "https://bcr.bazel.build/modules/rules_rust_wasm_bindgen/0.75.0/MODULE.bazel": "2da21af41a035b2c603b2b8fe768d63746df1bae69fadd2d762c0436cd601ac8",
@@ -7362,7 +7364,7 @@
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "zFgbaCUuPzH6bIE7CBHBVCqjWSJ78/WNXisdzXaKSnU=",
-        "usagesDigest": "jLX6b+fdSoUaSEGQeP/yAqf9RVKo+YjJHZfzS/lOOUk=",
+        "usagesDigest": "XnNLgw3rZnvJD9xL8uAThxhO44ve7c2Q7c/CfN2KPKA=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -7373,11 +7375,11 @@
             "repoRuleId": "@@aspect_tools_telemetry+//:extension.bzl%tel_repository",
             "attributes": {
               "deps": {
-                "aspect_rules_ts": "3.10.1.dx.1",
+                "aspect_rules_ts": "3.10.1",
                 "aspect_rules_jest": "0.26.0",
                 "aspect_tools_telemetry": "0.5.1"
               },
-              "last_notice": 2
+              "last_notice": 3
             }
           }
         },
@@ -91434,7 +91436,7 @@
     "@@rules_rust+//crate_universe/private:internal_extensions.bzl%cu_nr": {
       "general": {
         "bzlTransitiveDigest": "d0P17DvSzYA8EiftcT0DZDSuFgT0PYMTYhntw1Pl+xk=",
-        "usagesDigest": "+TFhz2wASgxsRoJtOEdYucjfm22ZuGJB475HyMelxLA=",
+        "usagesDigest": "/bGmDj4Nr856OGWTjcSOPnxG0gSTFtYse380wG1a98A=",
         "recordedInputs": [
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",
           "REPO_MAPPING:bazel_features+,bazel_features_version bazel_features++version_extension+bazel_features_version",

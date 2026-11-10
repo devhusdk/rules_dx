@@ -53,7 +53,6 @@ rust_test(
     crate = ":dx_nested",
     data = [
         "//:.bazelrc",
-        "//:module_srcs",
         ":nested_probe",
         "//tools/testing:nested_bazel_shim",
     ],

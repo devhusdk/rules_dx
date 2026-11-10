@@ -726,7 +726,7 @@ node.toolchain(node_version = pinned)
             java.detail,
             "not applicable: MODULE.bazel does not use rust"
         );
-        let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0.dx.1\")\n");
+        let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n");
         assert_eq!(none.status, "warn");
         assert!(none.detail.starts_with("unknown:"), "{}", none.detail);
         let setup = crate::preflight::full_consumer_setup();
@@ -754,9 +754,8 @@ node.toolchain(node_version = pinned)
             skew.detail
         );
         let overridden = run(&format!(
-            "{}single_version_override(module_name = \"rules_rust\", version = \"{}\")\n",
-            setup,
-            super::CONSUMER_RULES_RUST_VERSION
+            "{}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
+            setup
         ));
         assert_eq!(overridden.status, "warn");
         assert!(
@@ -765,10 +764,7 @@ node.toolchain(node_version = pinned)
             overridden.detail
         );
         let no_dep = run(&setup.replace(
-            &format!(
-                "bazel_dep(name = \"rules_rust\", version = \"{}\")\n",
-                super::CONSUMER_RULES_RUST_VERSION
-            ),
+            "bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n",
             "",
         ));
         assert_eq!(no_dep.status, "warn");

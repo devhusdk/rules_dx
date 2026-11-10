@@ -421,18 +421,8 @@ fn make_file_writable(path: &Path) {
 }
 
 /// Renders the bazelrc every nested command reads last.
-pub fn bazelrc(
-    config: &Config,
-    registry: &Path,
-    downloader: &Path,
-    repository_cache: &Path,
-) -> String {
+pub fn bazelrc(config: &Config, downloader: &Path, repository_cache: &Path) -> String {
     let mut text = format!("common --local_resources=cpu={CPUS}\n");
-    let registry = slashed(registry);
-    let separator = if registry.starts_with('/') { "" } else { "/" };
-    text.push_str(&format!(
-        "common --registry=file://{separator}{registry}\ncommon --registry=https://bcr.bazel.build\n"
-    ));
     if config.offline {
         text.push_str(&format!(
             "common --downloader_config={}\n",
@@ -1016,11 +1006,7 @@ impl Server {
             cache::install(&repository_cache, &server.config.cache)?;
         }
         write(&downloader, DOWNLOADER)?;
-        let registry = dx_testing::rules_dx_source().join("patches");
-        write(
-            &rc,
-            &bazelrc(&server.config, &registry, &downloader, &repository_cache),
-        )?;
+        write(&rc, &bazelrc(&server.config, &downloader, &repository_cache))?;
         let shim = server.config.shim.clone().ok_or_else(|| {
             format!(
                 "{SHIM_ENV} is not set; nested Bazel needs the native shim (add NESTED_BAZEL_DATA and NESTED_BAZEL_ENV)"
@@ -2080,41 +2066,16 @@ mod tests {
         );
         let cache = Path::new("/b/repository-cache");
         assert_eq!(
-            bazelrc(
-                &config,
-                Path::new("/r/patches"),
-                Path::new("/b/downloader.cfg"),
-                cache
-            ),
-            "common --local_resources=cpu=2\ncommon --registry=file:///r/patches\ncommon --registry=https://bcr.bazel.build\ncommon --disk_cache=\ncommon --remote_cache=\ncommon --repository_cache=/b/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
+            bazelrc(&config, Path::new("/b/downloader.cfg"), cache),
+            "common --local_resources=cpu=2\ncommon --disk_cache=\ncommon --remote_cache=\ncommon --repository_cache=/b/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
         );
         let offline = Config {
             offline: true,
             ..config
         };
         assert_eq!(
-            bazelrc(
-                &offline,
-                Path::new("/r/patches"),
-                Path::new("/b/downloader.cfg"),
-                cache
-            ),
-            "common --local_resources=cpu=2\ncommon --registry=file:///r/patches\ncommon --registry=https://bcr.bazel.build\ncommon --downloader_config=/b/downloader.cfg\ncommon --lockfile_mode=error\ncommon --disk_cache=\ncommon --remote_cache=\ncommon --repository_cache=/b/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
-        );
-    }
-
-    #[test]
-    fn a_windows_registry_path_gets_three_slashes() {
-        let config = config(Path::new("/b"), Path::new("/usr/bin/bazel"));
-        let text = bazelrc(
-            &config,
-            Path::new("C:\\r\\patches"),
-            Path::new("/b/downloader.cfg"),
-            Path::new("/b/repository-cache"),
-        );
-        assert!(
-            text.contains("common --registry=file:///C:/r/patches\n"),
-            "{text}"
+            bazelrc(&offline, Path::new("/b/downloader.cfg"), cache),
+            "common --local_resources=cpu=2\ncommon --downloader_config=/b/downloader.cfg\ncommon --lockfile_mode=error\ncommon --disk_cache=\ncommon --remote_cache=\ncommon --repository_cache=/b/repository-cache\ncommon --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\nbuild --spawn_strategy=local\n"
         );
     }
 
@@ -2242,7 +2203,6 @@ mod tests {
             std::fs::read_to_string(first.home().join("bazelrc")).expect("bazelrc"),
             bazelrc(
                 &first.config,
-                &dx_testing::rules_dx_source().join("patches"),
                 &first.home().join("downloader.cfg"),
                 &first.repository_cache()
             )

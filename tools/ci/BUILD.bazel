@@ -793,7 +793,6 @@ rust_test(
         "//quality/artifacts/acquire_test:corpus_starlark",
         "//quality/artifacts/hub_test:corpus_starlark",
         "//quality/artifacts:corpus_starlark",
-        "//quality/rules:corpus_starlark",
         "//quality/tools/cc:corpus_starlark",
         "//quality/tools/dotnet/fsharplint:corpus_starlark",
         "//javascript/private/quality:corpus_starlark",

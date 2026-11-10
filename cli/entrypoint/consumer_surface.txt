@@ -48,8 +48,8 @@ qt/rules:defs.bzl
 qt/rules:rust.bzl
 qt/sdk:repos.bzl
 quality/private:generated_policy.bzl
-quality/rules:defs.bzl
 ansible/private/quality:ansible.bzl
+quality:defs.bzl
 quality:families/beam.bzl
 bicep/private/quality:bicep.bzl
 quality:families/cc.bzl

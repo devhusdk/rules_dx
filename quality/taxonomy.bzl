@@ -58,7 +58,7 @@ TAXONOMY = {
         classes = ["cuda"],
     ),
     "cue": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["cue"],
     ),
     "d": struct(
@@ -94,7 +94,7 @@ TAXONOMY = {
         classes = ["fsharp"],
     ),
     "gherkin": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["gherkin"],
     ),
     "go": struct(
@@ -122,7 +122,7 @@ TAXONOMY = {
         classes = ["html"],
     ),
     "html_template": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["html_template"],
     ),
     "java": struct(
@@ -138,7 +138,7 @@ TAXONOMY = {
         classes = ["json", "json5", "jsonc"],
     ),
     "jsonnet": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["jsonnet"],
     ),
     "julia": struct(
@@ -146,7 +146,7 @@ TAXONOMY = {
         classes = ["julia"],
     ),
     "jupyter": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["jupyter"],
     ),
     "kotlin": struct(
@@ -158,7 +158,7 @@ TAXONOMY = {
         classes = ["kubernetes"],
     ),
     "latex": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["latex"],
     ),
     "lua": struct(
@@ -178,7 +178,7 @@ TAXONOMY = {
         classes = ["mdx"],
     ),
     "nix": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["nix"],
     ),
     "objc": struct(
@@ -198,7 +198,7 @@ TAXONOMY = {
         classes = ["php"],
     ),
     "pkl": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["pkl"],
     ),
     "powershell": struct(
@@ -278,7 +278,7 @@ TAXONOMY = {
         classes = ["tsx", "typescript"],
     ),
     "typst": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["typst"],
     ),
     "vue": struct(
@@ -286,11 +286,11 @@ TAXONOMY = {
         classes = ["vue"],
     ),
     "xml": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["xml"],
     ),
     "yaml": struct(
-        owner = "//quality/rules:defs.bzl",
+        owner = "//quality:defs.bzl",
         classes = ["yaml"],
     ),
     "zig": struct(

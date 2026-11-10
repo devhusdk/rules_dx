@@ -86,7 +86,6 @@ const PACKAGES: [&str; 99] = [
     "quality/artifacts",
     "quality/artifacts/acquire_test",
     "quality/artifacts/hub_test",
-    "quality/rules",
     "javascript/private/quality",
     "quality/tools/jvm",
     "rego/private",

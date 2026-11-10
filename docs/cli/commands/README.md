@@ -247,7 +247,7 @@ Language rules:
 - `@rules_dx//python:defs.bzl`: Python.
 - `@rules_dx//qt/rules:defs.bzl`: Qt.
 - `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
-- `@rules_dx//quality/rules:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
+- `@rules_dx//quality:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//rego:defs.bzl`: Rego.
 - `@rules_dx//ruby:defs.bzl`: Ruby.
 - `@rules_dx//rust:defs.bzl`: Rust.

@@ -1,6 +1,6 @@
-load("@rules_dx//quality/rules:defs.bzl", "latex_library")
+load("@rules_dx//quality:defs.bzl", "latex_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//quality/rules:defs.bzl", "typst_library")
+load("@rules_dx//quality:defs.bzl", "typst_library")
 
 _PUBLIC = ["//visibility:public"]
 

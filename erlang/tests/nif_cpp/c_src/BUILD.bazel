@@ -1,17 +1,6 @@
 # gazelle:dx_rust_corpus false
 
 # gazelle:ignore
-load("@rules_dx//cc:defs.bzl", "cc_library")
-
-cc_library(
-    name = "c_src",
-    testonly = True,
-    srcs = [
-        "dx_cpp_a_nif.cc",
-        "dx_cpp_b_nif.cc",
-    ],
-)
-
 exports_files(
     [
         "dx_cpp_a_nif.cc",

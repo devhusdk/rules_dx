@@ -14,6 +14,7 @@ single_version_override(
         "//third_party/rules_dx:rules_rust.rust_lld_msvc_libpath.patch",
         "//third_party/rules_dx:rules_rust.crate_universe_lazy_host_tools.patch",
         "//third_party/rules_dx:rules_rust.cargo_toml_env_vars_flag.patch",
+        "//third_party/rules_dx:rules_rust.exec_scope_universal.patch",
     ],
     version = "0.75.0",
 )

@@ -51,186 +51,223 @@ config_setting(
 
 label_flag(
     name = "tool_ruff",
+    scope = "universal",
     build_setting_default = "@dx_tools//:ruff",
 )
 
 label_flag(
     name = "tool_hlint",
+    scope = "universal",
     build_setting_default = "//quality/tools/hlint",
 )
 
 label_flag(
     name = "tool_weeder",
+    scope = "universal",
     build_setting_default = "//haskell/tools/weeder:weeder",
 )
 
 label_flag(
     name = "tool_jet",
+    scope = "universal",
     build_setting_default = "//julia/private/tools/jet:jet",
 )
 
 label_flag(
     name = "tool_julialint",
+    scope = "universal",
     build_setting_default = "//julia/private/tools/lint:julialint",
 )
 
 label_flag(
     name = "tool_luals",
+    scope = "universal",
     build_setting_default = "//lua/private/tools:luals",
 )
 
 label_flag(
     name = "tool_nixfmt",
+    scope = "universal",
     build_setting_default = "//quality/tools/nixfmt",
 )
 
 label_flag(
     name = "tool_ormolu",
+    scope = "universal",
     build_setting_default = "//quality/tools/ormolu",
 )
 
 label_flag(
     name = "tool_pkl",
+    scope = "universal",
     build_setting_default = "@dx_tools//:pkl",
 )
 
 label_flag(
     name = "tool_sorbet",
+    scope = "universal",
     build_setting_default = "//ruby/private/tools:sorbet",
 )
 
 label_flag(
     name = "tool_stylua",
+    scope = "universal",
     build_setting_default = "@dx_tools//:stylua",
 )
 
 label_flag(
     name = "tool_gersemi",
+    scope = "universal",
     build_setting_default = "@dx_tools//:gersemi",
 )
 
 label_flag(
     name = "tool_opa",
+    scope = "universal",
     build_setting_default = "@dx_tools//:opa",
 )
 
 label_flag(
     name = "tool_regal",
+    scope = "universal",
     build_setting_default = "@dx_tools//:regal",
 )
 
 label_flag(
     name = "tool_actionlint",
+    scope = "universal",
     build_setting_default = "@dx_tools//:actionlint",
 )
 
 label_flag(
     name = "tool_hadolint",
+    scope = "universal",
     build_setting_default = "@dx_tools//:hadolint",
 )
 
 label_flag(
     name = "tool_trivy",
+    scope = "universal",
     build_setting_default = "@dx_tools//:trivy",
 )
 
 label_flag(
     name = "tool_helm",
+    scope = "universal",
     build_setting_default = "@dx_tools//:helm",
 )
 
 label_flag(
     name = "tool_helmfmt",
+    scope = "universal",
     build_setting_default = "@dx_tools//:helmfmt",
 )
 
 label_flag(
     name = "tool_kubeconform",
+    scope = "universal",
     build_setting_default = "@dx_tools//:kubeconform",
 )
 
 label_flag(
     name = "tool_gofumpt",
+    scope = "universal",
     build_setting_default = "@cc_mvdan_gofumpt//:gofumpt",
 )
 
 label_flag(
     name = "tool_modfmt",
+    scope = "universal",
     build_setting_default = "//go/tools/modfmt:dx_modfmt",
 )
 
 label_flag(
     name = "tool_govet",
+    scope = "universal",
     build_setting_default = "//go/tools/analysis/cmd/dx_govet",
 )
 
 label_flag(
     name = "tool_errcheck",
+    scope = "universal",
     build_setting_default = "//go/tools/analysis/cmd/dx_errcheck",
 )
 
 label_flag(
     name = "tool_staticcheck",
+    scope = "universal",
     build_setting_default = "//go/tools/analysis/cmd/dx_staticcheck",
 )
 
 label_flag(
     name = "tool_gotype",
+    scope = "universal",
     build_setting_default = "//go/tools/analysis/cmd/dx_gotype",
 )
 
 label_flag(
     name = "tool_capnp",
+    scope = "universal",
     build_setting_default = "@dx_capnproto//src/capnp:capnp_tool",
 )
 
 label_flag(
     name = "tool_flatc",
+    scope = "universal",
     build_setting_default = "@dx_flatbuffers//:flatc",
 )
 
 label_flag(
     name = "tool_thrift",
+    scope = "universal",
     build_setting_default = "@dx_thrift//:thrift_compiler",
 )
 
 label_flag(
     name = "tool_avro",
+    scope = "universal",
     build_setting_default = "//quality/tools/jvm:avro_tools",
 )
 
 label_flag(
     name = "tool_terraform",
+    scope = "universal",
     build_setting_default = "@dx_tools//:terraform",
 )
 
 label_flag(
     name = "tool_credo",
+    scope = "universal",
     build_setting_default = "//elixir/private/tools:credo",
 )
 
 label_flag(
     name = "tool_dialyzer",
+    scope = "universal",
     build_setting_default = "//erlang/private/tools:dialyzer",
 )
 
 label_flag(
     name = "tool_elvis",
+    scope = "universal",
     build_setting_default = "//erlang/private/tools:elvis",
 )
 
 label_flag(
     name = "tool_erlfmt",
+    scope = "universal",
     build_setting_default = "//erlang/private/tools:erlfmt",
 )
 
 label_flag(
     name = "tool_mix_format",
+    scope = "universal",
     build_setting_default = "//elixir/private/tools:mix_format",
 )
 
 label_flag(
     name = "tool_qmlformat",
+    scope = "universal",
     build_setting_default = ":no_qmlformat",
 )
 
@@ -238,6 +275,7 @@ filegroup(name = "no_qmlformat")
 
 label_flag(
     name = "tool_qmllint",
+    scope = "universal",
     build_setting_default = ":no_qmllint",
 )
 
@@ -245,6 +283,7 @@ filegroup(name = "no_qmllint")
 
 label_flag(
     name = "tool_swift_format",
+    scope = "universal",
     build_setting_default = ":no_swift_format",
 )
 
@@ -252,6 +291,7 @@ filegroup(name = "no_swift_format")
 
 label_flag(
     name = "tool_swift_lint",
+    scope = "universal",
     build_setting_default = ":no_swift_lint",
 )
 
@@ -259,6 +299,7 @@ filegroup(name = "no_swift_lint")
 
 label_flag(
     name = "tool_zig_ast_check",
+    scope = "universal",
     build_setting_default = ":no_zig_ast_check",
 )
 
@@ -266,6 +307,7 @@ filegroup(name = "no_zig_ast_check")
 
 label_flag(
     name = "tool_zig_fmt",
+    scope = "universal",
     build_setting_default = ":no_zig_fmt",
 )
 
@@ -273,6 +315,7 @@ filegroup(name = "no_zig_fmt")
 
 label_flag(
     name = "tool_dart",
+    scope = "universal",
     build_setting_default = ":no_dart",
 )
 
@@ -280,16 +323,19 @@ filegroup(name = "no_dart")
 
 label_flag(
     name = "tool_phpcs",
+    scope = "universal",
     build_setting_default = "//php/private/tools:phpcs",
 )
 
 label_flag(
     name = "tool_phpstan",
+    scope = "universal",
     build_setting_default = "//php/private/tools:phpstan",
 )
 
 label_flag(
     name = "tool_perlcritic",
+    scope = "universal",
     build_setting_default = ":no_perlcritic",
 )
 
@@ -297,6 +343,7 @@ filegroup(name = "no_perlcritic")
 
 label_flag(
     name = "tool_perltidy",
+    scope = "universal",
     build_setting_default = ":no_perltidy",
 )
 
@@ -304,6 +351,7 @@ filegroup(name = "no_perltidy")
 
 label_flag(
     name = "tool_julia_format",
+    scope = "universal",
     build_setting_default = ":no_julia_format",
 )
 

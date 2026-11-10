@@ -18,6 +18,9 @@ test --test_env=DX_NESTED_BAZEL_REPOSITORY_CACHE
 test --test_env=BAZELISK_BASE_URL
 test --test_env=BAZELISK_HOME
 common --registry=https://bcr.bazel.build
+
+# Bazel 10 default (bazelbuild/bazel#26909): exec configs reset Starlark flags unless scope = "universal".
+common --incompatible_exclude_starlark_flags_from_exec_config
 common --check_direct_dependencies=error
 common --experimental_repository_downloader_retries=5
 common --experimental_remote_cache_eviction_retries=5

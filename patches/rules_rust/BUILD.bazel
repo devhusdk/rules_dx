@@ -6,6 +6,7 @@ exports_files([
     "crate_universe_lazy_host_tools.patch",
     "crate_universe_root_lookup.patch",
     "exec_cc_toolchain_env.patch",
+    "exec_scope_universal.patch",
     "msvc_pdb_output.patch",
     "rust_lld_msvc_libpath.patch",
     "pipelined_rmeta_path.patch",

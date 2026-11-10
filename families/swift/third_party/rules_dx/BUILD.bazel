@@ -41,6 +41,7 @@ exports_files([
     "rules_rust.crate_universe_lazy_host_tools.patch",
     "rules_rust.crate_universe_root_lookup.patch",
     "rules_rust.exec_cc_toolchain_env.patch",
+    "rules_rust.exec_scope_universal.patch",
     "rules_rust.msvc_pdb_output.patch",
     "rules_rust.pipelined_rmeta_path.patch",
     "rules_rust.rust_lld_msvc_libpath.patch",

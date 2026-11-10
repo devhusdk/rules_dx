@@ -82,6 +82,7 @@ rust_library(
         "//patches/rules_rust:rust_lld_msvc_libpath.patch",
         "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
         "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
+        "//patches/rules_rust:exec_scope_universal.patch",
         "//patches/llvm:libunwind_copy.patch",
         "//patches/llvm:clang_cl_crt_default_lib.patch",
         "//patches/llvm:unwatched_overlay_inputs.patch",

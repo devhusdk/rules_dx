@@ -10,6 +10,7 @@ unconfigured_tool(
 
 label_flag(
     name = "rubocop",
+    scope = "universal",
     build_setting_default = ":rubocop_unconfigured",
 )
 

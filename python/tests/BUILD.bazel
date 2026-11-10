@@ -1,5 +1,4 @@
-# gazelle:dx_ignore_import python rpds
-
+# gazelle:ignore
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
 load("//python:defs.bzl", "python_test")

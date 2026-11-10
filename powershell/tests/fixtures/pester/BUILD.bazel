@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//powershell:defs.bzl", "powershell_library", "powershell_test")
 load("//powershell/private:wrapper_tests.bzl", "pwsh_coverage_env_test")
 load("//core/quality:fixtures.bzl", "real_source_target")

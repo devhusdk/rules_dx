@@ -1,3 +1,5 @@
+# gazelle:exclude bin
+# gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
 load("@rules_dx//php/private:php.bzl", "php_autoload_tree")

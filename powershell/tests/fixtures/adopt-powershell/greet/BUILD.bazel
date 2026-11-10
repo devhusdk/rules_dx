@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 

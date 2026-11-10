@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("//javascript:defs.bzl", "javascript_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")

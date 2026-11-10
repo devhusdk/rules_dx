@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//lua:defs.bzl", "lua_test")
 load("@rules_dx//lua/luarocks:defs.bzl", "luarocks_lock")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")

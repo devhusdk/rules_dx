@@ -1,3 +1,5 @@
+# gazelle:exclude src/main/java/hello
+# gazelle:ignore
 load("@rules_dx//java/private:coverage_tests.bzl", "jvm_coverage_env_test")
 load("@rules_dx//java:defs.bzl", "java_binary", "java_library", "java_test")
 load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")

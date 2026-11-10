@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//julia:defs.bzl", "julia_library", "julia_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 

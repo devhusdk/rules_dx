@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 

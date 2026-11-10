@@ -1,7 +1,4 @@
-# gazelle:dx_ignore_import python dxlinked
-# gazelle:dx_ignore_import python dxnative
-# gazelle:dx_ignore_import python python
-
+# gazelle:ignore
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")

@@ -3,7 +3,7 @@
 use crate::api_compat::{ApiCompatMode, Baseline, Outcome, conclude};
 use crate::archive::*;
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, placeholder_refusal,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, env_or_empty, exit_text, placeholder_refusal, run_publish,
     scrubbed_command,
 };
 use crate::stage::*;
@@ -220,9 +220,9 @@ fn previous_release(
     if let Some(dir) = workspace {
         cmd.current_dir(dir);
     }
-    let out = cmd.output().map_err(|error| error.to_string())?;
-    if !out.status.success() {
-        return Err(format!("gh release view failed with {}", out.status));
+    let out = run_publish(&mut cmd).map_err(|error| error.to_string())?;
+    if !out.success() {
+        return Err(format!("gh release view failed with {}", exit_text(&out)));
     }
     let mut tag = None;
     let mut assets = Vec::new();
@@ -426,16 +426,20 @@ pub fn github_main_checked(
         if let Some(workspace) = workspace {
             cmd.current_dir(workspace);
         }
-        match cmd.status() {
-            Ok(status) if status.success() => {
+        match run_publish(&mut cmd) {
+            Ok(out) if out.success() => {
+                print!("{}", out.stdout_text());
+                eprint!("{}", String::from_utf8_lossy(&out.stderr));
                 println!("github_deploy: published draft {tag}");
                 for line in asset_lines {
                     println!("{line}");
                 }
                 return 0;
             }
-            Ok(status) => {
-                eprintln!("github_deploy: gh failed with {status}");
+            Ok(out) => {
+                print!("{}", out.stdout_text());
+                eprint!("{}", String::from_utf8_lossy(&out.stderr));
+                eprintln!("github_deploy: gh failed with {}", exit_text(&out));
                 return 1;
             }
             Err(error) => {

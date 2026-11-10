@@ -61,6 +61,7 @@ def build_file(package):
             "    srcs = %s," % _list(target["srcs"]),
             "    defines = %s," % _list(defines),
             "    deps = %s," % _list(deps),
+            "    warnings_as_errors = False,",
             '    visibility = ["//visibility:public"],',
             ")",
             "",

@@ -18,7 +18,7 @@ swift_binary(
     copts = ["-DLEDGER_STRICT"],
     deps = [
         "//swift/tests/fixtures/swift-app/ledger/core",
-        "@swiftpkg_swift_argument_parser//:ArgumentParser",
+        "@swiftpkg//swift-argument-parser:ArgumentParser",
     ],
 )
 

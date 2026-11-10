@@ -47,7 +47,6 @@
   "rules_scala": "7.4.1",
   "rules_shell": "0.8.0",
   "rules_swift": "4.2.2",
-  "rules_swift_package_manager": "1.25.0",
   "rules_zig": "0.17.0",
   "tar.bzl": "0.10.9",
   "windows_support": "0.4.1",

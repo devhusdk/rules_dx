@@ -231,10 +231,7 @@ fn upgrade_with(
         workspace: invocation.workspace.clone(),
     };
     let refuse = |out: &mut dyn Write, err: &mut dyn Write, error: &DxError| {
-        let message = format!(
-            "upgrade refused: {} (nothing was written)",
-            error.message()
-        );
+        let message = format!("upgrade refused: {} (nothing was written)", error.message());
         fail(
             invocation,
             out,
@@ -743,7 +740,7 @@ mod tests {
     }
 
     #[test]
-    fn upgrade_refreshes_stale_overrides_layers_hooks_and_claude_md() {
+    fn upgrade_refreshes_stale_layers_hooks_and_claude_md() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-kinds-", OLD);
         let plan =
             init_files::plan(&root, "refresh", false, &dx_plan::args::Agent::ALL).expect("plan");
@@ -761,7 +758,6 @@ mod tests {
         dx_adopt::write_version_pin(&root, OLD).expect("pin");
         legacy_launcher(&root, OLD);
         let stale = [
-            ("third_party/rules_dx/BUILD.bazel", "stale\n".to_owned()),
             (".dx/bazelrc/correctness.bazelrc", "old\n".to_owned()),
             (dx_worktree::setup::HOOK_FILES[0].path, "{}".to_owned()),
             ("CLAUDE.md", "# Mine\n".to_owned()),
@@ -917,57 +913,6 @@ mod tests {
         );
     }
 
-    fn included_override_set(prefix: &str) -> (impl Sized, PathBuf, String, String) {
-        let (scratch, root) = pinned(prefix, OLD);
-        let plan =
-            init_files::plan(&root, "refresh", false, &dx_plan::args::Agent::ALL).expect("plan");
-        let mut applied = dx_adopt::Applied::default();
-        init_files::apply(
-            &root,
-            "",
-            &plan,
-            init_files::Mode::Create,
-            &mut applied,
-            &mut Vec::new(),
-        )
-        .expect("init");
-        std::fs::write(root.join("MODULE.bazel"), dep(module())).expect("module");
-        dx_adopt::write_version_pin(&root, OLD).expect("pin");
-        legacy_launcher(&root, OLD);
-        let patch = dx_adopt::render_overrides(&Default::default())
-            .into_iter()
-            .map(|(rel, _)| rel)
-            .find(|rel| rel.ends_with(".patch"))
-            .expect("a patch");
-        std::fs::remove_file(root.join(&patch)).expect("remove");
-        let orphan = "third_party/rules_dx/rules_android.rules_android.patch".to_owned();
-        std::fs::write(root.join(&orphan), "old\n").expect("orphan");
-        (scratch, root, patch, orphan)
-    }
-
-    #[test]
-    fn upgrade_refreshes_the_whole_override_set_when_included() {
-        let (_scratch, root, patch, orphan) = included_override_set("dx-adopt-upgrade-set-");
-        let include = format!("include(\"{}\")\n", dx_adopt::OVERRIDES_INCLUDE);
-        std::fs::write(root.join("MODULE.bazel"), dep(module()) + &include).expect("module");
-        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(root.join(&patch).is_file());
-        assert!(!root.join(&orphan).exists());
-        assert!(out.contains(&format!("wrote {patch}\n")), "{out}");
-        assert!(out.contains(&format!("removed {orphan}\n")), "{out}");
-    }
-
-    #[test]
-    fn upgrade_leaves_the_override_set_alone_when_not_included() {
-        let (_scratch, root, patch, orphan) = included_override_set("dx-adopt-upgrade-noset-");
-        let (code, out, err) = run(&upgrade(&["--apply"]), &root);
-        assert_eq!(code, 0, "{out}{err}");
-        assert!(!root.join(&patch).exists());
-        assert!(root.join(&orphan).exists());
-        assert!(!out.contains("removed "), "{out}");
-    }
-
     #[test]
     fn upgrade_rewrites_an_old_pin_in_an_existing_ci_file() {
         let (_scratch, root) = pinned("dx-adopt-upgrade-ci-", OLD);
@@ -1005,13 +950,10 @@ mod tests {
             "AGENTS.md".to_owned(),
             "CLAUDE.md".to_owned(),
             dx_worktree::setup::HOOK_FILES[0].path.to_owned(),
-            dx_adopt::render_overrides(&Default::default()).remove(0).0,
         ];
         for path in &gone {
             std::fs::remove_file(root.join(path)).expect("remove");
         }
-        let build = root.join("third_party/rules_dx/BUILD.bazel");
-        std::fs::write(&build, "stale\n").expect("stale build");
         let existed: Vec<&str> = plan
             .iter()
             .map(|file| file.path.as_str())
@@ -1019,7 +961,6 @@ mod tests {
             .collect();
         let (code, out, err) = run(&upgrade(&["--apply"]), &root);
         assert_eq!(code, 0, "{out}{err}");
-        assert_eq!(std::fs::read_to_string(&build).expect("read"), "stale\n");
         let known: Vec<&str> = plan.iter().map(|file| file.path.as_str()).collect();
         for line in out.lines().filter_map(|line| line.strip_prefix("wrote ")) {
             assert!(known.contains(&line), "{line} is not in the plan");

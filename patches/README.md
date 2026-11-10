@@ -1,30 +1,6 @@
 # Patches
 
-Bazel applies `single_version_override` only in the root module, and its
-patches must live in the root repository. `dx init --apply` writes
-them into your tree:
-
-```text
-third_party/rules_dx/rules_dx.MODULE.bazel
-third_party/rules_dx/<module>.<file>.patch
-third_party/rules_dx/BUILD.bazel
-third_party/rules_dx/.gitattributes
-```
-
-When `MODULE.bazel` has `bazel_dep(name = "rules_dx")`, dx adds this line after it:
-
-```python
-include("//third_party/rules_dx:rules_dx.MODULE.bazel")
-```
-
-dx owns `third_party/rules_dx/` and rewrites it on every `dx init --apply`. Do
-not edit it. Rerun `tools/dx init --apply` after you move the `rules_dx` pin.
-`MODULE.bazel.lock` changes with it. The overrides hold these modules at the
-versions below across your whole module graph.
-
-If your `MODULE.bazel` already overrides one of these modules, dx writes the
-files but leaves the `include()` out and says so on stderr. Without a
-`rules_dx` `bazel_dep`, dx writes the files and leaves `MODULE.bazel` alone.
+The `single_version_override`s in rules_dx's own `MODULE.bazel`, with the patches under `patches/`. Bazel honours them only in the root module, so they apply to builds inside this repository.
 
 The Version column is generated from `MODULE.bazel`, and every patch it applies must appear in the table. Refresh it with `bazel run //patches:update_readme`.
 
@@ -71,11 +47,6 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `windows_support` | 0.4.1 | `dx_msvc_layout.patch` | `@msvc_runtime` writes the MSVC header and library subsets that llvm's clang-cl toolchain searches and exposes them as `subdirectory` targets (#8912; upstream: hermeticbuild/windows_support#20 and PR #21; drop when a windows_support release has it) |
 | `windows_support` | 0.4.1 | `source_directory_headers.patch` | The Windows SDK `ucrt`, `shared`, `um` and `winrt` include targets give compiles one source directory each instead of about 4,000 loose headers, so Bazel caches their Merkle trees (#9135; upstream: hermeticbuild/windows_support#22 and PR #23; drop when a windows_support release has it) |
 | `windows_support` | 0.4.1 | `hostarm64_packages.patch` | `@msvc_runtime` selects the `Hostarm64` MSVC packages and their dependencies when `host_tools` is set |
-
-The trade-off: a `single_version_override` pins the module for the whole
-graph. If another dependency of yours needs a newer version of one of these
-modules, Bazel still resolves the version above. Move the `rules_dx` pin
-instead, or drop the `include()` and own the override yourself.
 
 ## elvis, rules_d, rules_dotnet, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml, rules_powershell, rules_ruby
 

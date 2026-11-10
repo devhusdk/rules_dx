@@ -164,7 +164,6 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//cli/adopt:dx_adopt",
         "//cli/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",

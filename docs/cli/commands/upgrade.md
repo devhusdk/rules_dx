@@ -33,10 +33,9 @@ Without `--to`, `dx upgrade` reads `core/modules/rules_dx/metadata.json` from th
 5. Existing launchers `tools/dx` and `tools/dx.cmd`.
 6. Dx-owned keys of an existing `.vscode/settings.json` and the `uses:` pin in an existing `.github/workflows/ci.yml`. The caller carries no version input.
 7. The dx block of an existing `AGENTS.md`.
-8. The `third_party/rules_dx/` overrides.
-9. Stale preset layers under `.dx/`. `.bazelrc` is untouched.
-10. Missing dx entries in existing hooks files, and the `AGENTS.md` import in an existing `CLAUDE.md`.
-11. Editor files in `.dx/local/ide/`. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
+8. Stale preset layers under `.dx/`. `.bazelrc` is untouched.
+9. Missing dx entries in existing hooks files, and the `AGENTS.md` import in an existing `CLAUDE.md`.
+10. Editor files in `.dx/local/ide/`. A failed refresh prints one `ide_refresh_failed` warning and keeps the exit code.
 
 Steps 1 and 2 are skipped when `rules_dx` is already at `--to`. No step creates a launcher, `AGENTS.md`, `CLAUDE.md`, `.vscode/settings.json` or `ci.yml`.
 
@@ -89,8 +88,6 @@ A failure after the pin lands keeps the pin:
 ```text
 dx: upgrade_failed: pinned <to> but <step> not refreshed: <error>; recovery: rerun `dx upgrade --to <to> --apply` (idempotent)
 ```
-
-After a move, run `dx init` and `dx sync` when an override file is missing and `MODULE.bazel` does not include the overrides.
 
 JSON streams `command_started`, one `status` event named `pin` (severity `info`, hint `dx status`), then `command_finished`. A refusal emits `upgrade_failed` instead of `pin`. A pending upgrade emits `upgrade_pending`.
 

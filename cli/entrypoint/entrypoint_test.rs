@@ -289,7 +289,6 @@ fn consumer_init_creates_a_new_directory() {
         "wrote myproj/.bazelversion\n",
         "wrote myproj/.dx/pins\n",
         "wrote myproj/tools/dx\n",
-        "wrote myproj/third_party/rules_dx/rules_dx.MODULE.bazel\n",
     ] {
         assert!(apply.contains(path), "apply lacks {path}: {apply}");
     }
@@ -303,8 +302,12 @@ fn consumer_init_creates_a_new_directory() {
         "the module is named after the directory: {module}"
     );
     assert!(
-        module.contains("include(\"//third_party/rules_dx:rules_dx.MODULE.bazel\")"),
-        "the module includes the rules_dx wiring: {module}"
+        !module.contains("include("),
+        "the module includes nothing: {module}"
+    );
+    assert!(
+        !apply.contains("third_party/rules_dx"),
+        "init writes no third_party/rules_dx: {apply}"
     );
     assert!(
         !read("DX_SCAFFOLD_BAZELVERSION").trim().is_empty(),
@@ -345,7 +348,6 @@ fn consumer_init_applies_and_rechecks_a_foreign_tree() {
     for file in [
         ".bazelignore",
         "tools/dx",
-        "third_party/rules_dx/rules_dx.MODULE.bazel",
         ".envrc",
         ".vscode/settings.json",
         ".github/workflows/ci.yml",

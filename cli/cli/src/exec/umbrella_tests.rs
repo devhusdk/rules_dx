@@ -41,7 +41,8 @@ fn umbrella_phases_and_test_share_the_bazel_settings() {
             argvs.push((format!("{phase:?} probe"), probe.argv));
         }
     }
-    let docs = dx_plan::plan::plan_docs(&resolved, &[], "/tmp/bep.json", &[], None).expect("docs plan");
+    let docs =
+        dx_plan::plan::plan_docs(&resolved, &[], "/tmp/bep.json", &[], None).expect("docs plan");
     argvs.push(("docs".to_owned(), docs.argv));
     let test = dx_plan::plan::plan_workflow(
         dx_plan::plan::WorkflowVerb::Test,
@@ -484,53 +485,6 @@ fn check_and_fix_json_report_build_output_before_finishing() {
         assert_eq!(events[last]["exit_code"], 1);
         assert_eq!(harness.seen_env.borrow().len(), 0);
     }
-}
-
-fn overrides_consumer(name: &str) -> Harness {
-    let harness = umbrella_clean(name);
-    harness.write_source(
-        "MODULE.bazel",
-        &format!(
-            "module(name = \"demo\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n",
-            dx_adopt::DX_VERSION
-        ),
-    );
-    harness
-}
-
-#[test]
-fn check_fails_on_stale_overrides_without_launching_bazel() {
-    let harness = overrides_consumer("umbrella-check-overrides-stale");
-    dx_adopt::apply_overrides(&harness.workspace).expect("applies");
-    harness.write_source(
-        "third_party/rules_dx/rules_rust.clippy_metadata_inputs.patch",
-        "corrupt\n",
-    );
-    let (code, out, err) = harness.run(&["check", "--output=json"]);
-    assert_eq!(code, 1, "{out}{err}");
-    assert!(
-        json_events(&out)
-            .iter()
-            .any(|event| event["code"] == "overrides_stale"),
-        "{out}"
-    );
-    assert_eq!(harness.seen_env.borrow().len(), 0);
-}
-
-#[test]
-fn check_notes_unadopted_overrides_and_continues() {
-    let harness = overrides_consumer("umbrella-check-overrides-warn");
-    let (_, out, err) = harness.run(&["check", "--output=text"]);
-    assert!(err.contains("dx: overrides: "), "{out}{err}");
-    assert!(!out.contains("overrides_stale"), "{out}{err}");
-    assert!(!err.contains("overrides_stale"), "{out}{err}");
-}
-
-#[test]
-fn check_is_silent_about_overrides_without_a_rules_dx_dep() {
-    let harness = umbrella_clean("umbrella-check-overrides-na");
-    let (_, out, err) = harness.run(&["check", "--output=text"]);
-    assert!(!err.contains("overrides"), "{out}{err}");
 }
 
 #[test]

@@ -171,7 +171,8 @@ fn patch_machine_flips_every_container() {
     }
 }
 
-const SNIPPET: &str = "module(name = \"my_project\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\ninclude(\"//third_party/rules_dx:toolchains.MODULE.bazel\")\n";
+const SNIPPET: &str =
+    "module(name = \"my_project\")\n\nbazel_dep(name = \"rules_dx\", version = \"0.0.0\")\n";
 
 struct FakeRunner {
     version: String,
@@ -1214,7 +1215,6 @@ fn consumer_of(fixture: &Fixture) -> Consumer {
 fn consumer_module_composes_the_snippet_and_escapes_the_checkout() {
     let module = consumer_module(SNIPPET, Path::new("C:\\src\\\"rules\"")).expect("module");
     assert!(module.starts_with("module(name = \"dx_release_consumer\")\n\n"));
-    assert!(module.contains("include(\"//third_party/rules_dx:toolchains.MODULE.bazel\")"));
     assert!(module.ends_with(
         "local_path_override(\n    module_name = \"rules_dx\",\n    path = \"C:\\\\src\\\\\\\"rules\\\"\",\n)\n"
     ));

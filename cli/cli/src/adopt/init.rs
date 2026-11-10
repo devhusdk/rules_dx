@@ -154,11 +154,8 @@ pub(crate) fn execute_init(
     notes.extend(
         dx_adopt::workspace_finding(root).map(|f| format!("{} ({}:{})", f.hint, f.file, f.line)),
     );
-    if let Some(plan) = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
-        .ok()
-        .map(|setup| dx_adopt::preflight(root, &setup))
-        .filter(|plan| plan.applicable)
-    {
+    let plan = dx_adopt::preflight(root, &dx_adopt::render_consumer_module_setup());
+    if plan.applicable {
         let hard: Vec<&str> = plan.hard().map(|f| f.subject.as_str()).collect();
         if !hard.is_empty() {
             let _ = write!(
@@ -320,10 +317,11 @@ fn check_init(
     let invalid_pin = dx_adopt::read_version_pin(workspace)
         .ok()
         .filter(|pin| !dx_adopt::pin_is_valid(pin));
-    let plan = dx_adopt::with_overrides_include(&dx_adopt::render_consumer_module_setup())
-        .ok()
-        .map(|setup| dx_adopt::preflight(workspace, &setup))
-        .filter(|plan| plan.applicable);
+    let plan = Some(dx_adopt::preflight(
+        workspace,
+        &dx_adopt::render_consumer_module_setup(),
+    ))
+    .filter(|plan| plan.applicable);
     let json = invocation.output == OutputMode::Json;
     if json
         && let Err(exit) = emit_built(out, command_started(invocation.command.name(), "default"))
@@ -591,24 +589,6 @@ mod tests {
     }
 
     #[test]
-    fn init_apply_with_a_hard_plan_conflict_writes_nothing() {
-        let scratch = dx_test_scratch::scratch("dx-adopt-init-hard-plan-");
-        let root = scratch.path().to_path_buf();
-        let module = "module(name = \"app\")\nsingle_version_override(module_name = \"rules_rust\", version = \"0.1.0\")\n";
-        std::fs::write(root.join("MODULE.bazel"), module).expect("module");
-        let (code, out, err) = run(&invocation(&["init", "--apply"]), &root);
-        assert_eq!(code, 1, "{err}");
-        assert!(out.is_empty(), "{out}");
-        assert!(err.contains("hard conflict"), "{err}");
-        assert_eq!(
-            std::fs::read_to_string(root.join("MODULE.bazel")).expect("read"),
-            module
-        );
-        assert!(!root.join("AGENTS.md").exists());
-        assert_eq!(run(&invocation(&["init"]), &root).0, 1);
-    }
-
-    #[test]
     fn init_apply_with_a_vscode_file_writes_nothing() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-vscode-file-");
         let root = scratch.path().to_path_buf();
@@ -860,7 +840,7 @@ mod tests {
     }
 
     #[test]
-    fn init_check_prints_the_plan_and_fails_on_a_hard_conflict() {
+    fn init_check_prints_the_plan() {
         let scratch = dx_test_scratch::scratch("dx-adopt-init-plan-");
         let root = scratch.path().to_path_buf();
         let (code, _out, _err) = run(&invocation(&["init", "--apply"]), &root);
@@ -873,18 +853,6 @@ mod tests {
         let (code, out, err) = run(&invocation(&["init"]), &root);
         assert_eq!(code, 0, "{out}{err}");
         assert!(out.contains("override conflicts:\n  none"), "{out}");
-        let conflict = format!(
-            "{module}single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n"
-        );
-        std::fs::write(root.join("MODULE.bazel"), conflict).expect("module");
-        let (code, out, err) = run(&invocation(&["init"]), &root);
-        assert_eq!(code, 1, "{out}{err}");
-        assert!(out.contains("override conflicts:"), "{out}");
-        assert!(out.contains("MODULE.bazel:3"), "{out}");
-        assert!(
-            err.contains("init plan: 1 hard conflicts (rules_rust)"),
-            "{err}"
-        );
     }
 
     fn adopted_root(name: &str, extra: &str) -> std::path::PathBuf {
@@ -951,17 +919,17 @@ mod tests {
     }
 
     #[test]
-    fn init_check_json_reports_a_hard_conflict_and_fails() {
+    fn init_check_json_reports_an_override_as_advisory() {
         let root = adopted_root(
             "dx-adopt-init-plan-hard-",
-            "single_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
+            "single_version_override(module_name = \"rules_rust\", version = \"0.1.0\")\n",
         );
         let (code, out, err) = run(&invocation(&["init", "--output=json"]), &root);
-        assert_eq!(code, 1, "{out}{err}");
+        assert_eq!(code, 0, "{out}{err}");
         assert!(
             events(&out)
                 .iter()
-                .any(|e| e["event"] == "init_plan" && e["strength"] == "hard"),
+                .any(|e| e["event"] == "init_plan" && e["strength"] == "advisory"),
             "{out}"
         );
     }

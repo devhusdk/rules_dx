@@ -174,9 +174,8 @@ pub fn plan_fresh_files(module: &str) -> Vec<ScaffoldFile> {
                 Ownership::Lines,
                 "MODULE.bazel",
                 &format!(
-                    "module(name = \"{module}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\ninclude(\"{}\")\n",
-                    super::DX_VERSION,
-                    crate::overrides::OVERRIDES_INCLUDE
+                    "module(name = \"{module}\")\n\nbazel_dep(name = \"rules_dx\", version = \"{}\")\n",
+                    super::DX_VERSION
                 ),
             ),
             kind: FileKind::WriteOnce,
@@ -298,16 +297,11 @@ mod tests {
     }
 
     #[test]
-    fn fresh_module_depends_on_rules_dx_and_includes_the_overrides() {
+    fn fresh_module_depends_on_rules_dx() {
         let files = plan_fresh_files("demo");
         let module = &files[0];
         assert_eq!(module.path, "MODULE.bazel");
-        let parsed = dx_module_bazel::ModuleFile::parse(&module.content).expect("parses");
-        assert!(
-            parsed
-                .include_labels()
-                .contains(&crate::overrides::OVERRIDES_INCLUDE)
-        );
+        assert!(!module.content.contains("include("));
         assert!(module.content.contains(&format!(
             "bazel_dep(name = \"rules_dx\", version = \"{}\")",
             super::super::DX_VERSION

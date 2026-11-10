@@ -3,7 +3,7 @@ use super::failure::CODE_INVALID_SCOPE;
 use super::generate::execute_generate_phase;
 use super::generate::execute_generate_request;
 use super::quality::execute_quality_request;
-use super::quality::{execute_quality_phase, guard_build_output, guard_overrides};
+use super::quality::{execute_quality_phase, guard_build_output};
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, command_started, error_event,
     nest_phase_event, notice_event, quality_started, read_event, report_event, with_correlation,
@@ -917,9 +917,6 @@ fn run_umbrella(request: &UmbrellaRequest, env: Env<'_>) -> i32 {
         }
     }
     if let Some(exit) = guard_build_output(workspace, request.common.output, out, err) {
-        return exit;
-    }
-    if !fix_apply && let Some(exit) = guard_overrides(workspace, request.common.output, out, err) {
         return exit;
     }
     if request.common.output == OutputMode::Json

@@ -40,8 +40,6 @@ pub enum AdoptError {
     InitInvalidDir { dir: String, reason: String },
     #[error("invalid module name for dx init: {module:?}: {reason}")]
     InitInvalidModule { module: String, reason: String },
-    #[error("init MODULE.bazel snippet: {detail}")]
-    InitSnippet { detail: String },
     #[error("scaffold path escapes the workspace root: {path}")]
     ScaffoldEscapesRoot { path: String },
     #[error("{path} is not a directory")]

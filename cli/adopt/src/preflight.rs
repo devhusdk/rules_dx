@@ -5,8 +5,6 @@ use std::path::Path;
 
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
-use crate::overrides::{OVERRIDES, OVERRIDES_INCLUDE};
-
 /// rules_dx's own non-dev `bazel_dep` versions, the floors an override must meet.
 /// The drift test keeps this equal to `//:MODULE.bazel`.
 pub const RULES_DX_DEPS: &[(&str, &str)] = &[
@@ -136,13 +134,9 @@ pub fn preflight(root: &Path, snippet: &str) -> Preflight {
         return result;
     };
     let read_include = |label: &str| -> Result<String, dx_error::DxError> {
-        if label == OVERRIDES_INCLUDE {
-            return Ok(String::new());
-        }
         let rel = dx_module_bazel::include_rel("", label).map_err(dx_error::DxError::failure)?;
-        std::fs::read_to_string(root.join(rel)).map_err(|e| {
-            dx_error::DxError::failure(format!("cannot read included {label}: {e}"))
-        })
+        std::fs::read_to_string(root.join(rel))
+            .map_err(|e| dx_error::DxError::failure(format!("cannot read included {label}: {e}")))
     };
     let loaded = match dx_module_bazel::load_with_includes_labeled(&text, &read_include) {
         Ok(loaded) => loaded,
@@ -259,12 +253,10 @@ fn override_conflicts(sources: &[Source]) -> Vec<Finding> {
             let Some(target) = call.str("module_name") else {
                 continue;
             };
-            let owned = OVERRIDES.iter().any(|row| row.module == target);
-            let floor = RULES_DX_DEPS.iter().find(|(n, _)| *n == target);
-            if !owned && floor.is_none() {
+            let Some((_, min)) = RULES_DX_DEPS.iter().find(|(n, _)| *n == target) else {
                 continue;
-            }
-            if let (false, Some((_, min)), Some(version)) = (owned, floor, call.str("version"))
+            };
+            if let Some(version) = call.str("version")
                 && compare_module_versions(version, min).is_ge()
             {
                 continue;
@@ -273,20 +265,9 @@ fn override_conflicts(sources: &[Source]) -> Vec<Finding> {
                 Some(Value::Str(v)) => format!("{} {}", call.name, v.value),
                 _ => call.name.clone(),
             };
-            let (after, hint, hard) = if owned {
-                (
-                    "dx patched override".to_owned(),
-                    "dx cannot add its patches while you own this override; drop yours or port the patches"
-                        .to_owned(),
-                    true,
-                )
-            } else {
-                (
-                    format!("rules_dx floor {}", floor.map_or("", |(_, v)| v)),
-                    "your override wins in the root module; check it satisfies rules_dx".to_owned(),
-                    false,
-                )
-            };
+            let after = format!("rules_dx floor {min}");
+            let hint =
+                "your override wins in the root module; check it satisfies rules_dx".to_owned();
             out.push(Finding {
                 kind: Kind::OverrideConflict,
                 subject: target.to_owned(),
@@ -295,7 +276,7 @@ fn override_conflicts(sources: &[Source]) -> Vec<Finding> {
                 file: source.file.clone(),
                 line: call.line,
                 hint,
-                hard,
+                hard: false,
             });
         }
     }
@@ -593,16 +574,16 @@ mod tests {
     }
 
     #[test]
-    fn owned_override_is_hard_and_names_the_included_file() {
+    fn override_in_an_included_file_names_that_file() {
         let dir = scratch(&[
             ("MODULE.bazel", "include(\"//tools:mine.MODULE.bazel\")\n"),
             (
                 "tools/mine.MODULE.bazel",
-                "\nsingle_version_override(module_name = \"rules_rust\", version = \"0.75.0\")\n",
+                "\nsingle_version_override(module_name = \"rules_scala\", version = \"7.4.0\")\n",
             ),
         ]);
         let plan = preflight(dir.path(), &snippet());
-        let f = plan.hard().next().expect("hard finding");
+        let f = plan.findings.first().expect("finding");
         assert_eq!((f.file.as_str(), f.line), ("tools/mine.MODULE.bazel", 2));
     }
 
@@ -642,15 +623,6 @@ mod tests {
             assert_eq!(plan.findings.len(), 1, "{text}");
             assert!(!plan.findings[0].hard);
         }
-    }
-
-    #[test]
-    fn dx_own_include_is_not_a_conflict() {
-        let dir = scratch(&[(
-            "MODULE.bazel",
-            &format!("include(\"{OVERRIDES_INCLUDE}\")\n"),
-        )]);
-        assert!(preflight(dir.path(), &snippet()).findings.is_empty());
     }
 
     #[test]

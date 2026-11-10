@@ -45,10 +45,6 @@ Scopes: no scope means `//...`. `--here` and `--affected` do not combine with sc
 
 Before any phase, `dx check` fails when your change adds build output. That is a new file under `target/`, `bazel-*`, `node_modules/`, `__pycache__/`, `.gradle/`, or a `build/` directory, or a file over 1 MiB. List paths or `dir/` prefixes to keep in `[large_files] allow` in `dx.toml`; lock files such as `MODULE.bazel.lock` are always skipped. The check is skipped outside a Git checkout.
 
-### Generated overrides
-
-Without `--apply`, `dx check` fails with `overrides_stale` when `third_party/rules_dx/` differs from this `dx`. Run `dx init --apply`.
-
 ### Output
 
 Text prints `N file(s) need changes. Apply them with: dx check --apply ...` when a phase finds changes, and one `dx: <total> actions, <executed> executed, <cached> cached` line on stderr.

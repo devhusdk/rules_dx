@@ -80,9 +80,6 @@ dx_gazelle.asset(name = "dx-gazelle-linux-x86_64", url = "https://...", sha256 =
 
 or build it with `dx_gazelle.from_source()`, which needs a Go toolchain.
 
-`dx init --apply` writes the overrides `rules_dx` needs; see
-[patches/README.md](patches/README.md).
-
 A global `dx` shim for PATH is built from `//cli/shim`. It runs the version in
 `.dx/pins` without Bazel. See
 [Global Shim](docs/cli/commands/README.md#global-shim).
@@ -120,7 +117,6 @@ It costs:
 - Bazel and its learning curve: BUILD files and `MODULE.bazel`.
 - The files `dx init` writes: launcher, editor, devcontainer, CI and agent files; see [init](docs/cli/commands/init.md).
 - Following the pinned rule and tool versions. You move when you run [`dx upgrade`](docs/cli/commands/upgrade.md).
-- Patched upstream overrides that `dx init --apply` writes to `third_party/rules_dx/`; see [rules_dx overrides](docs/cli/commands/init.md#rules_dx-overrides) and [patches/README.md](patches/README.md).
 
 ## Contributing
 

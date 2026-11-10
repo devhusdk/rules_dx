@@ -139,10 +139,9 @@ A file that dx creates and whose format has comments starts with a one-line `dx:
 | --- | --- | --- |
 | `.dx/pins` | whole | Generated. One `<version> <sha256> <asset>` line per release binary, for the current version only. `dx init --apply` and `dx upgrade --apply` rewrite it when it differs. Edit the `MODULE.bazel` version, not this file. |
 | `tools/dx`, `tools/dx.cmd` | whole | Written when missing. Rewritten when it differs from the current launcher text. A launcher dx did not write is kept. On Linux the launcher needs glibc 2.28 or newer and stops with a message on musl (Alpine) or older glibc. |
-| `third_party/rules_dx/` | whole | Rewritten on every run: `rules_dx.MODULE.bazel`, the patches, `BUILD.bazel` and `.gitattributes`. |
 | `.dx/bazelrc/correctness.bazelrc`, `.dx/bazelrc/performance.bazelrc`, `.dx/bazelrc/resources.bazelrc` | whole | Generated from `dx.toml`, not committed. Rewritten when they differ, by `dx init --apply`, `dx upgrade --apply` and every other dx command except `status`. |
 | `.bazelrc` | lines | Created when missing. Three `try-import %workspace%/.dx/bazelrc/<layer>.bazelrc` lines are added at the top when none exists, and `try-import %workspace%/user.bazelrc` at the bottom when no line names it. Other lines stay. |
-| `MODULE.bazel` | lines | Written in a fresh directory. Otherwise the `include` of the rules_dx overrides is added after `bazel_dep(name = "rules_dx")`, unless the file overrides a rules_dx module. |
+| `MODULE.bazel` | lines | Written in a fresh directory. |
 | `.bazelversion` | once | Written in a fresh directory only. |
 | `.gitignore` | lines | Written when missing. An existing file gets each line of the list above that no line covers appended. |
 | `.bazelignore` | lines | Written when missing. |
@@ -176,9 +175,7 @@ When the root has a `MODULE.bazel`, `dx init` (the check) also prints a read-onl
 what adopting rules_dx would change, found from the declared files. It runs no Bazel
 and writes nothing. Sections:
 
-- `override conflicts`: a `*_override` you own. One on a module dx patches
-  (`single_version_override` of `rules_rust`, for example) is hard, because dx cannot add its
-  patches; one on another rules_dx dependency is advisory.
+- `override conflicts`: a `*_override` you own on a rules_dx dependency. Advisory.
 - `toolchain conflicts`: toolchains you register that compete with registrations the snippet
   would add, measured against the merged file, so a repo that already has the snippet shows
   none. A Rust toolchain (your `rust.toolchain` tag, or a registered repo from your own
@@ -201,7 +198,7 @@ and writes nothing. Sections:
 | Exit code | Meaning |
 | --- | --- |
 | `0` | no hard findings (advisory findings are printed) |
-| `1` | a hard override or toolchain conflict, or other init drift |
+| `1` | a hard toolchain conflict, or other init drift |
 | `2` | usage error |
 
 Each finding names the file and line, including `include()`d `.MODULE.bazel` files. Hard
@@ -213,20 +210,6 @@ With `--output=json`, the plan is one `init_plan` event per finding instead of t
 `subject`, `before`, `after`, `path`, `line` (left out when unknown), `hint`, and `strength`
 (`hard` or `advisory`). Plan notes, such as a `MODULE.bazel` that could not be compared, are `notice` events
 with code `init_plan_partial`. `--apply` refuses `--output=json`. The agent default of `json` does not apply to `--apply`, which prints text.
-
-## rules_dx overrides
-
-`dx init --apply` writes the root-only
-`single_version_override`s `rules_dx` needs to `third_party/rules_dx/`:
-`rules_dx.MODULE.bazel`, one `<module>.<file>.patch` per patch, `BUILD.bazel`
-and `.gitattributes`. These files are always rewritten to match the running dx.
-When `MODULE.bazel` has `bazel_dep(name = "rules_dx")`, apply adds
-`include("//third_party/rules_dx:rules_dx.MODULE.bazel")` after it and prints
-`wrote MODULE.bazel`. When
-`MODULE.bazel` already overrides one of the modules, the line is left out and
-stderr prints `dx: MODULE.bazel (overrides <modules> itself; ...)`. Inside the
-`rules_dx` repository nothing is written. See
-[patches/README.md](https://github.com/devhusdk/rules_dx/blob/main/patches/README.md).
 
 ## Agent commands block
 

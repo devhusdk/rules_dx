@@ -60,12 +60,6 @@ expect_like_fresh() {
   for path in .github/workflows/ci.yml tools/dx tools/dx.cmd; do
     diff "$fresh/$path" "$path" || { echo "$path differs from a fresh init at $1"; exit 1; }
   done
-  if [ -e "$fresh/third_party/rules_dx" ] || [ -e third_party/rules_dx ]; then
-    diff -r "$fresh/third_party/rules_dx" third_party/rules_dx || { echo "third_party/rules_dx differs from a fresh init at $1"; exit 1; }
-  fi
-  if [ -f third_party/rules_dx/rules_dx.MODULE.bazel ]; then
-    grep -q "//third_party/rules_dx:rules_dx.MODULE.bazel" MODULE.bazel || { echo "MODULE.bazel does not include the rules_dx overrides"; exit 1; }
-  fi
 }
 
 expect_version() {

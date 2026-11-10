@@ -40,7 +40,6 @@ const ESSENTIAL: [&str; 6] = [
 pub(super) enum Kind {
     Scaffold(FileKind),
     Launcher,
-    Override,
     Preset,
     /// A file `dx generate` renders from `dx.toml`.
     Generated,
@@ -79,7 +78,7 @@ impl InitFile {
                 }
                 FileKind::Generated => Ownership::Whole,
             },
-            Kind::Launcher | Kind::Override => Ownership::Whole,
+            Kind::Launcher => Ownership::Whole,
             Kind::Preset => Ownership::Lines,
             Kind::Generated if self.path == "BUILD.bazel" => Ownership::Block,
             Kind::Generated => Ownership::Whole,
@@ -108,7 +107,7 @@ fn agent_paths(agent: Agent) -> &'static [&'static str] {
     }
 }
 
-/// Every file init manages, once each: scaffold files, launchers, overrides, preset, AGENTS.md, and the tool files that exist or whose agent is selected.
+/// Every file init manages, once each: scaffold files, launchers, preset, AGENTS.md, and the tool files that exist or whose agent is selected.
 pub(super) fn plan(
     root: &Path,
     module: &str,
@@ -164,11 +163,6 @@ pub(super) fn plan_for(
         Kind::Launcher,
     ));
     entries.extend(
-        dx_adopt::render_overrides(&dx_adopt::module_deps(root))
-            .into_iter()
-            .map(|(path, content)| (path, content, Kind::Override)),
-    );
-    entries.extend(
         dx_adopt::preset_files()
             .into_iter()
             .map(|(path, content)| (path, content, Kind::Preset)),
@@ -200,14 +194,10 @@ pub(super) fn plan_for(
             Kind::CopilotInstructions,
         ));
     }
-    let overrides_included = std::fs::read_to_string(root.join("MODULE.bazel"))
-        .is_ok_and(|text| text.contains(dx_adopt::OVERRIDES_INCLUDE));
     let mut files: Vec<InitFile> = Vec::new();
     for (path, content, kind) in entries {
         if files.iter().all(|file| file.path != path) {
-            let essential = ESSENTIAL.contains(&path.as_str())
-                || selected.contains(&path.as_str())
-                || (kind == Kind::Override && overrides_included);
+            let essential = ESSENTIAL.contains(&path.as_str()) || selected.contains(&path.as_str());
             files.push(InitFile {
                 path,
                 content,
@@ -312,7 +302,6 @@ pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result
         .map_err(|error| from_adopt(prefix, &error))?;
     check_pin(root, prefix)?;
     dx_adopt::plan_launcher_files(root, true).map_err(|error| from_adopt(prefix, &error))?;
-    dx_adopt::preflight_overrides(root).map_err(|error| from_adopt(prefix, &error))?;
     dx_adopt::preflight_preset(root).map_err(|error| from_adopt(prefix, &error))?;
     let io = io_error;
     setup::inspect(root, &hook_paths(files)).map_err(io)?;
@@ -322,7 +311,7 @@ pub(super) fn preflight(root: &Path, prefix: &str, files: &[InitFile]) -> Result
     Ok(())
 }
 
-/// Writes the planned files under `root`, scaffold files first, then launchers, overrides, preset, hooks, AGENTS.md and CLAUDE.md.
+/// Writes the planned files under `root`, scaffold files first, then launchers, preset, hooks, AGENTS.md and CLAUDE.md.
 ///
 /// Records each path with `prefix` in `applied` as it lands and each advisory in `notes`; prints nothing.
 pub(super) fn apply(
@@ -375,16 +364,6 @@ pub(super) fn apply(
         applied.refused.extend(prefixed(launchers.refused));
         written.map_err(|error| from_adopt(prefix, &error))?;
     }
-    if has(|kind| *kind == Kind::Override) {
-        for entry in
-            dx_adopt::apply_overrides(root).map_err(|error| from_adopt(prefix, &error))?
-        {
-            match entry.strip_prefix("refused:") {
-                Some(refused) => notes.push(format!("{prefix}{refused}")),
-                None => applied.wrote.push(prefix_entry(prefix, &entry)),
-            }
-        }
-    }
     wire_module(root, prefix, applied, notes)?;
     if has(|kind| *kind == Kind::Preset) {
         let mut preset = Applied::default();
@@ -424,14 +403,10 @@ pub(super) fn apply(
             ));
         }
     }
-    if has(|kind| *kind == Kind::AgentsBlock)
-        && agents::write(root, true).map_err(io_error)?
-    {
+    if has(|kind| *kind == Kind::AgentsBlock) && agents::write(root, true).map_err(io_error)? {
         applied.wrote.push(format!("{prefix}{}", agents::FILE));
     }
-    if has(|kind| *kind == Kind::ClaudeImport)
-        && claude_md::write(root).map_err(io_error)?
-    {
+    if has(|kind| *kind == Kind::ClaudeImport) && claude_md::write(root).map_err(io_error)? {
         applied.wrote.push(format!("{prefix}{}", claude_md::FILE));
     }
     if has(|kind| *kind == Kind::CopilotInstructions)
@@ -504,19 +479,12 @@ fn refresh(
             .map_err(|error| adopt_refresh("editor and CI files", &error))?;
         record(applied, own.wrote);
     }
-    if has(|kind| *kind == Kind::Override) {
-        let wrote = dx_adopt::refresh_overrides(root)
-            .map_err(|error| adopt_refresh("overrides", &error))?;
-        record(applied, wrote);
-    }
     if has(|kind| *kind == Kind::Hooks) {
-        let outcome =
-            setup::refresh(root).map_err(|error| io_refresh("hooks", &error))?;
+        let outcome = setup::refresh(root).map_err(|error| io_refresh("hooks", &error))?;
         record(applied, outcome.wrote);
     }
     if has(|kind| *kind == Kind::AgentsBlock)
-        && agents::write(root, false)
-            .map_err(|error| io_refresh("AGENTS.md", &error))?
+        && agents::write(root, false).map_err(|error| io_refresh("AGENTS.md", &error))?
     {
         record(applied, vec![agents::FILE.to_owned()]);
     }
@@ -526,8 +494,7 @@ fn refresh(
         record(applied, vec![claude_md::FILE.to_owned()]);
     }
     if has(|kind| *kind == Kind::CopilotInstructions)
-        && copilot_md::refresh(root)
-            .map_err(|error| io_refresh(copilot_md::FILE, &error))?
+        && copilot_md::refresh(root).map_err(|error| io_refresh(copilot_md::FILE, &error))?
     {
         record(applied, vec![copilot_md::FILE.to_owned()]);
     }
@@ -605,7 +572,7 @@ pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
                     drift.stale.push(file.path.clone());
                 }
             }
-            Kind::Override | Kind::Generated => {
+            Kind::Generated => {
                 if std::fs::read(root.join(path))
                     .is_ok_and(|bytes| bytes != file.content.as_bytes())
                 {
@@ -814,7 +781,11 @@ mod tests {
         let root = scratch.path();
         std::fs::write(root.join("app.py"), "print(1)\n").expect("source");
         std::fs::create_dir(root.join("pkg")).expect("pkg");
-        std::fs::write(root.join("pkg/BUILD.bazel"), "dx_deployment(name = \"app\")\n").expect("build");
+        std::fs::write(
+            root.join("pkg/BUILD.bazel"),
+            "dx_deployment(name = \"app\")\n",
+        )
+        .expect("build");
         let rows = doc_rows();
         let mut files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         let gitlab =
@@ -1026,11 +997,6 @@ mod tests {
             dx_adopt::LAUNCHER_CMD_REL.to_owned(),
         ];
         paths.push(dx_adopt::preset::GITIGNORE.to_owned());
-        paths.extend(
-            dx_adopt::render_overrides(&Default::default())
-                .into_iter()
-                .map(|(p, _)| p),
-        );
         let files = plan(root, "my_project", true, &Agent::ALL).expect("plan");
         for path in paths {
             assert!(files.iter().any(|file| file.path == path), "{path}");
@@ -1039,6 +1005,23 @@ mod tests {
             std::fs::remove_file(&full).expect("remove");
             assert!(drift_of(root).missing.contains(&path), "{path}");
             std::fs::write(&full, kept).expect("restore");
+        }
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
+    fn init_on_an_empty_directory_writes_no_override_files() {
+        let scratch = dx_test_scratch::scratch("dx-init-no-overrides-");
+        let root = scratch.path();
+        let (code, out, err) = run(
+            &invocation(&["init", "--apply", "--agents=claude,codex,gemini,copilot"]),
+            root,
+        );
+        assert_eq!(code, 0, "{err}");
+        assert!(!out.contains("third_party/rules_dx"), "{out}");
+        assert!(!root.join("third_party/rules_dx").exists());
+        if let Ok(module) = std::fs::read_to_string(root.join("MODULE.bazel")) {
+            assert!(!module.contains("include("), "{module}");
         }
         scratch.close().expect("cleanup");
     }
@@ -1062,8 +1045,8 @@ mod tests {
         std::fs::write(root.join(".dx/pins"), "4.5.6\n").expect("pin");
         std::fs::write(root.join("AGENTS.md"), "# Mine\n").expect("agents");
         std::fs::write(root.join("CLAUDE.md"), "# Mine\n").expect("claude");
-        let (path, _) = dx_adopt::render_overrides(&Default::default()).remove(0);
-        std::fs::write(root.join(&path), "changed\n").expect("override");
+        let path = dx_adopt::preset_paths().remove(0);
+        std::fs::write(root.join(&path), "changed\n").expect("preset");
         let stale = drift_of(root).stale.join("\n");
         for want in [
             ".bazelignore",

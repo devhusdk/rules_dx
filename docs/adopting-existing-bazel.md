@@ -15,11 +15,9 @@
    bazel run @rules_dx//:dx -- init --apply
    ```
 
-   `init` adds `include("//third_party/rules_dx:rules_dx.MODULE.bazel")` to `MODULE.bazel` and writes `third_party/rules_dx/`. Do not edit that directory. Commit `MODULE.bazel.lock`. See [Init](cli/commands/init.md).
+   Commit `MODULE.bazel.lock`. See [Init](cli/commands/init.md).
 
-4. If your `MODULE.bazel` already overrides `rules_rust`, `rules_android`, `rules_dotnet`, `rules_swift`, `aspect_rules_py`, `aspect_rules_ts` or `aspect_rules_jest`, `init` skips the `include()` and says so on stderr. Merge the override from `third_party/rules_dx/rules_dx.MODULE.bazel`, or remove yours.
-
-5. Run `dx` on existing targets:
+4. Run `dx` on existing targets:
 
    ```sh
    tools/dx build //pkg/...
@@ -59,4 +57,4 @@
 
 - Package: restore its `load()` lines.
 - Version: see [Upgrade](cli/commands/upgrade.md).
-- Remove `rules_dx`: delete the `bazel_dep`, the `include()` line and `third_party/rules_dx/`. Restore your own overrides.
+- Remove `rules_dx`: delete the `bazel_dep`.

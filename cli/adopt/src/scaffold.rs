@@ -201,23 +201,6 @@ pub fn render_consumer_module_setup() -> String {
     format!("bazel_dep(name = \"rules_dx\", version = \"{DX_VERSION}\")\n")
 }
 
-/// Adds the include of the dx-written overrides right after the rules_dx `bazel_dep`.
-pub fn with_overrides_include(setup: &str) -> Result<String, AdoptError> {
-    let module = parse_init_snippet(setup)?;
-    let included = module
-        .insert_include(crate::overrides::OVERRIDES_INCLUDE, "rules_dx")
-        .map_err(|error| AdoptError::InitSnippet {
-            detail: error.to_string(),
-        })?;
-    Ok(included)
-}
-
-fn parse_init_snippet(setup: &str) -> Result<dx_module_bazel::ModuleFile, AdoptError> {
-    dx_module_bazel::ModuleFile::parse(setup).map_err(|error| AdoptError::InitSnippet {
-        detail: error.to_string(),
-    })
-}
-
 pub fn validate_init_module(module_name: &str) -> Result<String, AdoptError> {
     let module = if module_name.is_empty() {
         "my_project"
@@ -2137,17 +2120,6 @@ mod tests {
             settings.content,
             render_editor_settings(&std::collections::BTreeSet::new(), &EditorTools::default())
         );
-    }
-
-    #[test]
-    fn snippet_edits_follow_parsed_calls_not_text() {
-        let setup = "# bazel_dep(
-bazel_dep(name = \"rules_dx\", version = \"1\")\n";
-        let included = super::with_overrides_include(setup).expect("include");
-        assert!(included.contains(&format!(
-            "bazel_dep(name = \"rules_dx\", version = \"1\")\ninclude(\"{}\")\n",
-            crate::overrides::OVERRIDES_INCLUDE
-        )));
     }
 
     #[test]

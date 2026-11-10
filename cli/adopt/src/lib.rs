@@ -18,15 +18,15 @@ pub mod init_dir;
 pub mod launcher;
 pub mod load_graph;
 pub mod lock_hubs;
+pub mod module_deps;
 pub mod module_pin;
-pub mod overrides;
 pub mod ownership;
 pub mod preflight;
 pub mod preset;
 pub mod preset_fragment;
+mod rule_keys;
 pub mod scaffold;
 pub mod status;
-mod rule_keys;
 pub mod upgrade;
 pub mod version;
 pub mod watch;
@@ -53,11 +53,8 @@ pub use load_graph::{BzlImpact, bzl_impact, external_repos, module_inputs, repo_
 pub use lock_hubs::{
     LockHubs, MavenLocks, plan_lock_hubs, plan_maven_locks, plan_pnpm_tool, unlocked_manifests,
 };
+pub use module_deps::{is_rules_dx_root, module_deps};
 pub use module_pin::{ModuleEdit, plan_rules_dx_version, write_edit_or_create, write_module_edit};
-pub use overrides::{
-    OVERRIDES_INCLUDE, OverridesState, apply_overrides, check_overrides, check_overrides_in,
-    is_rules_dx_root, module_deps, preflight_overrides, refresh_overrides, render_overrides,
-};
 pub use ownership::Ownership;
 pub use preflight::{Finding, Preflight, preflight, render_plan_text, workspace_finding};
 pub use preset::{
@@ -68,12 +65,13 @@ pub use scaffold::{
     Applied, CONSUMER_WORKFLOW_PIN, CiProvider, FileKind, GITHUB_SETTINGS_NOTES,
     bazelignore_covers_dx, owned_file_drift, plan_init_files, plan_init_files_at,
     preflight_destinations, refresh_scaffold, render_consumer_caller, render_consumer_module_setup,
-    render_gitlab_caller, with_overrides_include,
+    render_gitlab_caller,
 };
 pub use status::{StatusCheck, observed_status_checks, render_status_text};
 pub use upgrade::{
     Selections, ToolSwap, UpgradeIntent, base_changes, merge_override, override_conflict_message,
-    override_missing_base_message, suppression_lines, tool_swaps, upgrade_recovery_message, upgrade_retry_command,
+    override_missing_base_message, suppression_lines, tool_swaps, upgrade_recovery_message,
+    upgrade_retry_command,
 };
 pub use version::{
     DX_VERSION, MODULE_VERSION, local_path_overrides, module_dependency_status,

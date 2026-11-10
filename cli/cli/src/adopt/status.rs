@@ -4,9 +4,9 @@ use clap::ValueEnum;
 
 use crate::exec::common::{check_stdout_write, emit_built, emit_event};
 use dx_output::{
-    CapabilityEvent, ConfigFileEvent, FamilyToolsEvent, FinishedCounts, OutputMode, OwnedFileEvent, StatusEvent, TierEvent,
-    capability_event, command_finished, command_started, config_file_event, family_tools_event, owned_file_event,
-    status_event, tier_event,
+    CapabilityEvent, ConfigFileEvent, FamilyToolsEvent, FinishedCounts, OutputMode, OwnedFileEvent,
+    StatusEvent, TierEvent, capability_event, command_finished, command_started, config_file_event,
+    family_tools_event, owned_file_event, status_event, tier_event,
 };
 use dx_plan::args::grammar::advertises_passthrough;
 use dx_plan::args::{Command, Invocation};
@@ -141,13 +141,10 @@ fn init_check(workspace: &std::path::Path) -> dx_adopt::StatusCheck {
     let (status, detail) = if parts.is_empty() {
         ("ok", "every file dx init writes is current".to_owned())
     } else {
-        let broken = drift.stale.iter().any(|path| {
-            path == dx_adopt::LAUNCHER_SH_REL
-                || path == dx_adopt::LAUNCHER_CMD_REL
-                || dx_adopt::render_overrides(&dx_adopt::module_deps(workspace))
-                    .iter()
-                    .any(|(override_path, _)| override_path == path)
-        });
+        let broken = drift
+            .stale
+            .iter()
+            .any(|path| path == dx_adopt::LAUNCHER_SH_REL || path == dx_adopt::LAUNCHER_CMD_REL);
         (if broken { "error" } else { "warn" }, parts.join("; "))
     };
     dx_adopt::StatusCheck {
@@ -562,9 +559,6 @@ mod tests {
             assert!(owned.iter().any(|p| p == path), "{path}");
         }
         for path in dx_adopt::preset_paths() {
-            assert!(owned.contains(&path), "{path}");
-        }
-        for (path, _) in dx_adopt::render_overrides(&Default::default()) {
             assert!(owned.contains(&path), "{path}");
         }
     }

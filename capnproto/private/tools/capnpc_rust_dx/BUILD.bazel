@@ -1,5 +1,9 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+# gazelle:resolve rust capnp @dx_capnproto_rust//:capnp
+# gazelle:resolve rust capnpc @dx_capnproto_rust//:capnpc
 
 package(default_visibility = ["//capnproto:__subpackages__"])
 
@@ -8,6 +12,10 @@ package(default_visibility = ["//capnproto:__subpackages__"])
 rust_binary(
     name = "capnpc_rust_dx",
     srcs = ["main.rs"],
+    aliases = aliases(
+        package_name = "capnproto/private/tools/capnpc_rust_dx",
+        normal = True,
+    ),
     crate_name = "capnpc_rust_dx",
     crate_root = "main.rs",
     rustc_flags = ["--cap-lints=allow"],
@@ -17,14 +25,25 @@ rust_binary(
     ],
 )
 
-# keep
 rust_test(
     name = "capnpc_rust_dx_test",
+    aliases = aliases(
+        package_name = "capnproto/private/tools/capnpc_rust_dx",
+        normal = True,
+        normal_dev = True,
+    ),
     crate = ":capnpc_rust_dx",
+    deps = [],
 )
 
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
 )

@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "capnpc_rust_dx"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "capnpc_rust_dx"
+path = "main.rs"

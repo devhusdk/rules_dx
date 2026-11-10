@@ -90,6 +90,13 @@ fn paren_lock_skips_non_package_lines() {
 }
 
 #[test]
+fn range_not_equal_clause_excludes_only_that_version() {
+    assert!(satisfies_non_semver(">=1.0,!=1.5", "1.2"));
+    assert!(!satisfies_non_semver(">=1.0,!=1.5", "1.5"));
+    assert!(satisfies_non_semver("!=1.5,>=1.0", "1.2"));
+}
+
+#[test]
 fn non_semver_grammar_settles_caret_and_exact() {
     assert!(satisfies_non_semver("1", "1.0.0"));
     assert!(!satisfies_non_semver("^1.2.3", "1.9.0"));

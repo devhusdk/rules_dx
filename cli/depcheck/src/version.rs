@@ -134,7 +134,7 @@ fn upper_bound(parts: &[u64], pessimistic: bool) -> (Vec<u64>, bool) {
 fn satisfies_range(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
     for part in spec.split(',') {
         let part = part.trim();
-        let (op, rest) = ["<=", ">=", "<", ">"]
+        let (op, rest) = ["<=", ">=", "!=", "<", ">"]
             .iter()
             .find_map(|op| part.strip_prefix(op).map(|rest| (*op, rest)))?;
         let want = parse_version(rest.trim())?;
@@ -143,6 +143,7 @@ fn satisfies_range(spec: &str, locked: &(Vec<u64>, bool)) -> Option<bool> {
             ">=" => ordering != Ordering::Less,
             "<=" => ordering != Ordering::Greater,
             ">" => ordering == Ordering::Greater,
+            "!=" => ordering != Ordering::Equal,
             _ => ordering == Ordering::Less,
         };
         if !holds {
@@ -224,7 +225,7 @@ pub(crate) fn satisfies_non_semver(spec: &str, locked: &str) -> bool {
         return parse_version(&locked_norm)
             .and_then(|locked| satisfies_tilde(&rest, &locked))
             .unwrap_or(rest == locked_norm);
-    } else if s.starts_with(['<', '>']) {
+    } else if s.starts_with(['<', '>', '!']) {
         return parse_version(&locked_norm)
             .and_then(|locked| satisfies_range(&s, &locked))
             .unwrap_or(s == locked_norm);

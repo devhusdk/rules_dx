@@ -1120,3 +1120,13 @@ rust_test(
     ],
     deps = ["//tools/testing:dx_testing"],
 )
+
+rust_test(
+    name = "git_spawn_policy_test",
+    srcs = ["git_spawn_policy_test.rs"],
+    crate_name = "git_spawn_policy_test",
+    crate_root = "git_spawn_policy_test.rs",
+    data = ["//:module_srcs"],
+    size = "small",
+    deps = ["//tools/testing:dx_testing"],
+)

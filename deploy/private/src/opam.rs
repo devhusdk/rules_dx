@@ -53,6 +53,28 @@ pub fn opam_repository_path(package: &str, version: &str) -> String {
     format!("packages/{package}/{package}.{version}/opam")
 }
 
+/// Git branch name for the release: characters outside `[A-Za-z0-9._-]` become `-`, dot runs collapse to one dot.
+pub fn opam_branch_name(package: &str, version: &str) -> String {
+    let mut branch = String::new();
+    for ch in format!("{package}.{version}").chars() {
+        let ch = if ch.is_ascii_alphanumeric() || matches!(ch, '.' | '_' | '-') {
+            ch
+        } else {
+            '-'
+        };
+        if ch == '.' && branch.ends_with('.') {
+            continue;
+        }
+        branch.push(ch);
+    }
+    let trimmed = branch.trim_matches(|ch| ch == '.' || ch == '-');
+    let mut branch = trimmed.to_owned();
+    if branch.ends_with(".lock") {
+        branch.push_str("-release");
+    }
+    branch
+}
+
 /// Runs `opam lint` on the file with the pinned opam and an empty root.
 fn opam_lint(opam: &Path, file: &Path, home: &Path) -> bool {
     let home_text = home.to_string_lossy().into_owned();
@@ -148,7 +170,6 @@ fn opam_live_pull_request(
         agent: crate::http::publish_agent(),
         token,
     };
-    let login = text_field(&github.call("GET", "/user", None)?.1, "/login")?;
     let fork = text_field(
         &github
             .call(
@@ -185,7 +206,8 @@ fn opam_live_pull_request(
             .1,
         "/object/sha",
     )?;
-    let branch = format!("{package}.{version}");
+    let branch = opam_branch_name(package, version);
+    let owner = fork.split('/').next().unwrap_or_default().to_owned();
     match github.call(
         "POST",
         &format!("/repos/{fork}/git/refs"),
@@ -196,26 +218,50 @@ fn opam_live_pull_request(
         Err(error) => return Err(error),
     }
     let path = opam_repository_path(package, version);
+    let existing = match github.call(
+        "GET",
+        &format!("/repos/{fork}/contents/{path}?ref={branch}"),
+        None,
+    ) {
+        Ok((_, value)) => Some(text_field(&value, "/sha")?),
+        Err(error) if error.contains("HTTP 404") => None,
+        Err(error) => return Err(error),
+    };
+    let mut put = serde_json::json!({
+        "message": format!("Add {package}.{version}"),
+        "content": base64::engine::general_purpose::STANDARD.encode(contents),
+        "branch": branch,
+    });
+    if let Some(sha) = existing {
+        put["sha"] = serde_json::Value::String(sha);
+    }
     github.call(
         "PUT",
         &format!("/repos/{fork}/contents/{path}"),
-        Some(serde_json::json!({
-            "message": format!("Add {package}.{version}"),
-            "content": base64::engine::general_purpose::STANDARD.encode(contents),
-            "branch": branch,
-        })),
+        Some(put),
     )?;
-    let pull = github.call(
+    let head = format!("{owner}:{branch}");
+    match github.call(
         "POST",
         &format!("/repos/{UPSTREAM}/pulls"),
         Some(serde_json::json!({
             "title": format!("[new release] {package} ({version})"),
-            "head": format!("{login}:{branch}"),
+            "head": head,
             "base": UPSTREAM_BASE,
             "body": format!("Adds {package}.{version}."),
         })),
-    )?;
-    text_field(&pull.1, "/html_url")
+    ) {
+        Ok((_, pull)) => text_field(&pull, "/html_url"),
+        Err(error) if error.contains("HTTP 422") && error.contains("already exists") => {
+            let (_, pulls) = github.call(
+                "GET",
+                &format!("/repos/{UPSTREAM}/pulls?state=open&head={head}"),
+                None,
+            )?;
+            text_field(&pulls, "/0/html_url")
+        }
+        Err(error) => Err(error),
+    }
 }
 
 /// Runs the opam deploy tool.
@@ -328,6 +374,16 @@ mod tests {
         let text = "opam-version: \"2.0\"\nsynopsis: \"x\"\n";
         assert_eq!(opam_read_identity(text), (None, None));
         assert_eq!(opam_check_identity(text, "demo", "1.0.0"), Ok(()));
+    }
+
+    #[test]
+    fn branch_name_is_a_valid_git_ref() {
+        assert_eq!(opam_branch_name("demo", "1.0.0"), "demo.1.0.0");
+        assert_eq!(opam_branch_name("demo", "1.2.0~rc1"), "demo.1.2.0-rc1");
+        assert_eq!(opam_branch_name("demo", "1..2"), "demo.1.2");
+        assert_eq!(opam_branch_name("demo+x", "1.0.0+a b"), "demo-x.1.0.0-a-b");
+        assert_eq!(opam_branch_name("demo", "1."), "demo.1");
+        assert_eq!(opam_branch_name("demo", "lock"), "demo.lock-release");
     }
 
     #[test]

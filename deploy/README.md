@@ -1197,8 +1197,10 @@ download) and prints the target path
 `packages/<package>/<package>.<version>/opam`. It contacts nothing.
 Live run needs `OPAM_API_TOKEN` (a GitHub token that can fork and open pull
 requests) and `OPAM_PUBLISH_APPROVED=1`. It forks `ocaml/opam-repository`,
-commits the file on a branch named `<package>.<version>` and opens the pull
-request against `master`.
+commits the file on a branch named `<package>.<version>` (characters outside
+`[A-Za-z0-9._-]`, such as `~`, become `-`) and opens the pull request against
+`master`. A rerun updates the file on that branch and reports the already open
+pull request.
 
 # packagist_deploy
 

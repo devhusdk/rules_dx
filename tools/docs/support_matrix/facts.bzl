@@ -5,7 +5,7 @@ load("//cc/private/toolchains:pins.bzl", "CC_COMPILER_VERSIONS")
 load("//core/quality:adapters.bzl", "NOT_APPLICABLE", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:parity_tests.bzl", "PARITY_DEFERRED")
 load("//core/quality:support.bzl", "SUPPORT_RECORDS")
-load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "NO_COVERAGE", "PENDING_COMPILERS", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "PLATFORM_SUPPORT", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
+load(":languages.bzl", "API_COMPAT_TOOLS", "BENCH", "COMPILER_BLOCKERS", "COMPILER_PLATFORM_PROBES", "COMPILER_PROBES", "COVERAGE_COLLECTORS", "COVERAGE_NOTES", "DEAD_CODE", "DEPENDENCIES", "DOC_TOOLS", "FUZZ", "LANGUAGES", "NOT_LANGUAGES", "NO_COVERAGE", "PLATFORMS", "PLATFORM_NOT_APPLICABLE", "PLATFORM_SUPPORT", "ROWS", "SECTIONS", "UNSUPPORTED_CONSTRAINTS")
 
 _CAPABILITIES = ["lint", "format", "typecheck"]
 
@@ -128,14 +128,8 @@ def support_matrix_facts_dict():
             fail("support matrix: row " + row["name"] + " sets compiler outside the compilers section")
     for compiler in CC_COMPILERS:
         rows = compiler_rows.get(compiler, [])
-        pending = PENDING_COMPILERS.get(compiler, "")
-        if rows and pending:
-            fail("support matrix: compiler " + compiler + " has a row and is pending")
-        if len(rows) > 1 or (not rows and not pending):
-            fail("support matrix: compiler " + compiler + " needs exactly one row or a pending reason")
-    for compiler in PENDING_COMPILERS:
-        if compiler not in CC_COMPILERS:
-            fail("support matrix: PENDING_COMPILERS names unknown compiler " + compiler)
+        if len(rows) != 1:
+            fail("support matrix: compiler " + compiler + " needs exactly one row")
     for compiler in COMPILER_PROBES:
         if compiler not in CC_COMPILERS:
             fail("support matrix: COMPILER_PROBES names unknown compiler " + compiler)
@@ -208,7 +202,6 @@ def support_matrix_facts_dict():
         "deferred_families": sorted(deferred.keys()),
         "not_applicable": NOT_APPLICABLE,
         "not_languages": sorted(NOT_LANGUAGES),
-        "pending_compilers": PENDING_COMPILERS,
         "platform_not_applicable": PLATFORM_NOT_APPLICABLE,
         "platforms": PLATFORMS,
         "quality": quality,

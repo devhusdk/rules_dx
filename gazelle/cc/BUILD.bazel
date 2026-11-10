@@ -11,7 +11,7 @@ go_library(
         "cuda.go",
         "doc.go",
         "lang.go",
-        "legacy.go",
+        "lexer_fallback.go",
         "naming.go",
         "parser.go",
     ],

@@ -6,7 +6,7 @@ rust_library(
         "old.rs",
         "extra/kept.rs",  # keep
     ],
-    crate_name = "legacy",  # keep
+    crate_name = "renamed",  # keep
     crate_root = "old.rs",
     data = ["asset.txt"],
     tags = ["manual"],

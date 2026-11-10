@@ -126,18 +126,33 @@ pub enum PlaceError {
     UnmappablePosition { line: u64, column: u64 },
     #[error("end position precedes start position")]
     InvertedRange,
+    #[error("text of {bytes} bytes is too large to place: the limit is {PLACEMENT_LIMIT} bytes")]
+    TextTooLarge { bytes: u64 },
+}
+
+/// Largest text, in bytes, whose positions can be placed.
+pub const PLACEMENT_LIMIT: u64 = u32::MAX as u64 - 1;
+
+fn check_placeable(bytes: u64) -> Result<(), PlaceError> {
+    if bytes > PLACEMENT_LIMIT {
+        return Err(PlaceError::TextTooLarge { bytes });
+    }
+    Ok(())
 }
 
 /// Text with its line index built once, for placing many positions.
 pub struct PlacementText<'a> {
     text: &'a str,
-    index: Option<LineIndex>,
+    index: LineIndex,
 }
 
 impl<'a> PlacementText<'a> {
-    pub fn new(text: &'a str) -> Self {
-        let index = (text.len() < u32::MAX as usize).then(|| LineIndex::new(text));
-        PlacementText { text, index }
+    pub fn new(text: &'a str) -> Result<Self, PlaceError> {
+        check_placeable(text.len() as u64)?;
+        Ok(PlacementText {
+            text,
+            index: LineIndex::new(text),
+        })
     }
 
     pub fn line_col_to_byte(
@@ -149,23 +164,17 @@ impl<'a> PlacementText<'a> {
         if line == 0 || column == 0 {
             return None;
         }
-        let Some(index) = &self.index else {
-            return legacy_line_col_to_byte(self.text, line, column, encoding);
-        };
-        let (start, end) = self.line_range(index, line)?;
+        let (start, end) = self.line_range(line)?;
         let line_text = self.text.get(start..end)?;
         let body = line_text.strip_suffix('\n').unwrap_or(line_text);
         Some((start + column_to_offset(body, column - 1, encoding)?) as u64)
     }
 
     pub fn line_end_to_byte(&self, line: u64) -> Option<u64> {
-        let Some(index) = &self.index else {
-            return legacy_line_end_to_byte(self.text, line);
-        };
         if line == 1 && self.text.is_empty() {
             return Some(0);
         }
-        let (start, end) = self.line_range(index, line)?;
+        let (start, end) = self.line_range(line)?;
         if start == self.text.len() {
             return None;
         }
@@ -175,8 +184,8 @@ impl<'a> PlacementText<'a> {
         Some((start + body.len()) as u64)
     }
 
-    fn line_range(&self, index: &LineIndex, line: u64) -> Option<(usize, usize)> {
-        let range = index.line(u32::try_from(line.checked_sub(1)?).ok()?)?;
+    fn line_range(&self, line: u64) -> Option<(usize, usize)> {
+        let range = self.index.line(u32::try_from(line.checked_sub(1)?).ok()?)?;
         Some((
             u32::from(range.start()) as usize,
             u32::from(range.end()) as usize,
@@ -190,7 +199,9 @@ pub fn line_col_to_byte(
     column: u64,
     encoding: ColumnEncoding,
 ) -> Option<u64> {
-    PlacementText::new(text).line_col_to_byte(line, column, encoding)
+    PlacementText::new(text)
+        .ok()?
+        .line_col_to_byte(line, column, encoding)
 }
 
 /// Column units occupied after `ch`, given `seen` units before it.
@@ -229,42 +240,11 @@ fn column_to_offset(body: &str, units: u64, encoding: ColumnEncoding) -> Option<
 }
 
 pub fn line_end_to_byte(text: &str, line: u64) -> Option<u64> {
-    PlacementText::new(text).line_end_to_byte(line)
-}
-
-fn legacy_line_end_to_byte(text: &str, line: u64) -> Option<u64> {
-    let index = usize::try_from(line.checked_sub(1)?).ok()?;
-    let mut offset = 0usize;
-    for (number, content) in text.split_inclusive('\n').enumerate() {
-        if number == index {
-            let body = content.strip_suffix('\n').unwrap_or(content);
-            let body = body.strip_suffix('\r').unwrap_or(body);
-            return Some((offset + body.len()) as u64);
-        }
-        offset += content.len();
-    }
-    (index == 0 && text.is_empty()).then_some(0)
-}
-
-fn legacy_line_col_to_byte(
-    text: &str,
-    line: u64,
-    column: u64,
-    encoding: ColumnEncoding,
-) -> Option<u64> {
-    let mut offset = 0u64;
-    for (index, content) in text.split_inclusive('\n').enumerate() {
-        if index as u64 + 1 == line {
-            let body = content.strip_suffix('\n').unwrap_or(content);
-            return Some(offset + column_to_offset(body, column - 1, encoding)? as u64);
-        }
-        offset += content.len() as u64;
-    }
-    None
+    PlacementText::new(text).ok()?.line_end_to_byte(line)
 }
 
 pub fn place_finding(finding: &Finding, path: &str, text: &str) -> Result<Diagnostic, PlaceError> {
-    place_finding_with(finding, path, &PlacementText::new(text), |_| None)
+    place_finding_with(finding, path, &PlacementText::new(text)?, |_| None)
 }
 
 pub fn place_finding_with<'t>(
@@ -551,6 +531,26 @@ mod tests {
             PlaceError::InvertedRange.to_string(),
             "end position precedes start position"
         );
+        assert_eq!(
+            PlaceError::TextTooLarge { bytes: 4294967295 }.to_string(),
+            "text of 4294967295 bytes is too large to place: the limit is 4294967294 bytes"
+        );
+    }
+
+    #[test]
+    fn text_past_the_placement_limit_is_rejected() {
+        assert_eq!(check_placeable(0), Ok(()));
+        assert_eq!(check_placeable(PLACEMENT_LIMIT), Ok(()));
+        assert_eq!(
+            check_placeable(PLACEMENT_LIMIT + 1),
+            Err(PlaceError::TextTooLarge {
+                bytes: PLACEMENT_LIMIT + 1
+            })
+        );
+        assert_eq!(
+            check_placeable(u64::MAX),
+            Err(PlaceError::TextTooLarge { bytes: u64::MAX })
+        );
     }
 
     #[test]
@@ -672,8 +672,8 @@ mod tests {
             end: None,
         });
         finding.related = vec![on_other, external, off_end, Related::new("help", "bare")];
-        let cafe = PlacementText::new(CAFE);
-        let other = PlacementText::new(other);
+        let cafe = PlacementText::new(CAFE).expect("placeable");
+        let other = PlacementText::new(other).expect("placeable");
         let placed = place_finding_with(&finding, "a.rs", &cafe, |file| {
             (file == "/s/b.rs").then(|| ("src/b.rs".to_owned(), &other))
         })
@@ -735,7 +735,7 @@ mod tests {
         let starts: Vec<usize> = std::iter::once(0)
             .chain(text.match_indices('\n').map(|(at, _)| at + 1))
             .collect();
-        let placement = PlacementText::new(&text);
+        let placement = PlacementText::new(&text).expect("placeable");
         for n in 0..10_000usize {
             let line = n * 5 + 1;
             let start = starts[line - 1];
@@ -753,12 +753,19 @@ mod tests {
 
     #[test]
     fn indexed_line_end_handles_crlf_and_edges() {
-        for text in ["", "a\r\nb\r\n", "ab\ncd", "ab\n", "\r\n\r\n", "x\r"] {
-            let placement = PlacementText::new(text);
-            for line in 0..5 {
+        for (text, ends) in [
+            ("", [None, Some(0), None, None, None]),
+            ("a\r\nb\r\n", [None, Some(1), Some(4), None, None]),
+            ("ab\ncd", [None, Some(2), Some(5), None, None]),
+            ("ab\n", [None, Some(2), None, None, None]),
+            ("\r\n\r\n", [None, Some(0), Some(2), None, None]),
+            ("x\r", [None, Some(1), None, None, None]),
+        ] {
+            let placement = PlacementText::new(text).expect("placeable");
+            for (line, end) in ends.into_iter().enumerate() {
                 assert_eq!(
-                    placement.line_end_to_byte(line),
-                    legacy_line_end_to_byte(text, line),
+                    placement.line_end_to_byte(line as u64),
+                    end,
                     "{text:?} line {line}"
                 );
             }

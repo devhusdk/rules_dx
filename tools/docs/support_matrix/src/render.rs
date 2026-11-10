@@ -111,7 +111,7 @@ fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> 
             ]
         })
         .collect();
-    let mut out = table(
+    table(
         &[
             "Compiler",
             "Driver",
@@ -120,11 +120,7 @@ fn compiler_table(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> 
             "Blocked on",
         ],
         &rows,
-    );
-    for (compiler, reason) in &facts.pending_compilers {
-        out.push_str(&format!("\nPending `{compiler}`: {reason}\n"));
-    }
-    out
+    )
 }
 
 fn blocked_cell(facts: &Facts, row: &Row) -> String {
@@ -416,7 +412,6 @@ mod tests {
       "deferred_families": [],
       "not_applicable": {"typecheck": {"yaml": "data format"}},
       "not_languages": [],
-      "pending_compilers": {"msvc": "waiting on #5954"},
       "computed_constraints": {}
     }"#;
 
@@ -513,7 +508,6 @@ mod tests {
             head.contains(" | `macos_arm64`: needs a runner |\n"),
             "{page}"
         );
-        assert!(head.contains("Pending `msvc`: waiting on #5954"), "{page}");
         assert!(!quality.contains("LLVM"), "{page}");
     }
 }

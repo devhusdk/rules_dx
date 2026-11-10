@@ -30,7 +30,7 @@ fn a_javascript_launch_names_its_own_runfiles() {
 }
 
 #[test]
-fn an_unmigrated_tool_inherits_its_runfiles() {
+fn a_direct_tool_inherits_its_runfiles() {
     let launch = ResolvedTool::direct("biome", Path::new("/out/bin/biome"));
     assert_eq!(launch.runfiles, RunfilesPolicy::Inherit);
     assert_eq!(policy_for("biome"), RunfilesPolicy::Inherit);

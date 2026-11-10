@@ -3,6 +3,9 @@ package cc
 import (
 	"reflect"
 	"testing"
+
+	"github.com/devhusdk/rules_dx/gazelle/common/treesitter"
+	"github.com/odvcencio/gotreesitter/grammars/cpp"
 )
 
 func TestParseQuotedIncludesKeepsPath(t *testing.T) {
@@ -163,6 +166,33 @@ func TestMalformedIncludesAndLiteralBoundaries(t *testing.T) {
 	for _, literal := range []string{"/* main( unterminated", "\"main( unterminated\n", "'main( unterminated", "R\"main(\"", "\"escaped\\\" main(\"", `'\''`} {
 		if DefinesMain([]byte(literal)) {
 			t.Errorf("literal main: %q", literal)
+		}
+	}
+}
+
+func TestUnparsableSourceUsesTheScanner(t *testing.T) {
+	for _, src := range []string{
+		"char c = 'a\n#include \"real.h\"\n#include <jni.h>\nint main() {}\n",
+		"auto s = xu8R\"x(\n#include \"real.h\"\n#include <jni.h>\n)x\";\nint main() {}\n",
+	} {
+		tree := treesitter.Parse(cpp.Language(), []byte(src))
+		rejected := tree.HasError
+		tree.Release()
+		if !rejected {
+			t.Errorf("tree-sitter parses %q cleanly, so it does not reach the scanner", src)
+		}
+		got := lex([]byte(src))
+		if !reflect.DeepEqual(got, scanLex([]byte(src))) {
+			t.Errorf("lex(%q) = %+v, want the scanner result", src, got)
+		}
+		if !reflect.DeepEqual(got.quoted, []string{"real.h"}) {
+			t.Errorf("lex(%q) quoted = %v, want [real.h]", src, got.quoted)
+		}
+		if !reflect.DeepEqual(got.systems, []SystemInclude{{Path: "jni.h"}}) {
+			t.Errorf("lex(%q) systems = %v, want [jni.h]", src, got.systems)
+		}
+		if !got.main {
+			t.Errorf("lex(%q) main = false, want true", src)
 		}
 	}
 }

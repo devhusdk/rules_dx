@@ -739,8 +739,6 @@ NOT_LANGUAGES = [
     "tools",
 ]
 
-PENDING_COMPILERS = {}
-
 # A compiler row and platform that the row targets but whose evidence is still waiting on something, with the reason.
 COMPILER_BLOCKERS = {}
 

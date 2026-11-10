@@ -1,4 +1,4 @@
-//! Runs repin-all against a fake dx in a scratch runfiles tree and checks how it launches dx.
+//! Runs repin_all against a fake dx in a scratch runfiles tree and checks how it launches dx.
 
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};

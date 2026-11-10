@@ -7,10 +7,10 @@ import (
 	"strings"
 )
 
-// legacyLex is the hand-written scanner. It is the fallback for sources the
-// tree-sitter C++ grammar cannot parse cleanly (truncated literals, stray
-// directives), where error recovery would otherwise misplace includes.
-func legacyLex(content []byte) lexed {
+// scanLex is the hand-written scanner. It lexes sources the tree-sitter C++
+// grammar cannot parse cleanly (truncated literals, stray directives), where
+// error recovery would misplace includes.
+func scanLex(content []byte) lexed {
 	s := strings.ReplaceAll(string(content), "\\\r\n", " ")
 	s = strings.ReplaceAll(s, "\\\n", " ")
 	b := []byte(s)
@@ -100,10 +100,10 @@ func legacyLex(content []byte) lexed {
 		includes = append(includes, name)
 	}
 	sort.Strings(includes)
-	return lexed{code: code, quoted: includes, systems: systems, main: legacyMainRe.Match(code)}
+	return lexed{code: code, quoted: includes, systems: systems, main: scannedMainRe.Match(code)}
 }
 
-var legacyMainRe = regexp.MustCompile(`(^|[^A-Za-z0-9_.:>])main\s*\([^()]*\)\s*\{`)
+var scannedMainRe = regexp.MustCompile(`(^|[^A-Za-z0-9_.:>])main\s*\([^()]*\)\s*\{`)
 
 // trackConditional updates the conditional stack for the directive after a '#'.
 func trackConditional(b []byte, pos int, frames []bool) []bool {

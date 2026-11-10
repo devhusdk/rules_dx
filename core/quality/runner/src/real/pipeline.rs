@@ -59,7 +59,12 @@ impl RealBackend {
             by_absolute.insert(absolute.as_os_str(), workspace);
             by_workspace.insert(workspace, workspace);
             if let Some(text) = files.get(workspace) {
-                texts.insert(workspace, PlacementText::new(text));
+                let placement =
+                    PlacementText::new(text).map_err(|err| RunnerError::UnplaceableFinding {
+                        tool_id: tool_id.to_owned(),
+                        detail: format!("{workspace}: {err}"),
+                    })?;
+                texts.insert(workspace, placement);
             }
         }
         let mut diagnostics = Vec::with_capacity(collected.len());

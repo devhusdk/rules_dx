@@ -229,7 +229,6 @@ def support_matrix_facts_tests(name):
                     "l is not a compiler row",
                 ],
             ),
-            expect_equal("pending compilers", sorted(facts["pending_compilers"].keys()), []),
             expect_equal(
                 "every row with a stated reason has an unsupported constraint_value or is pending",
                 sorted([name for name in facts["platform_not_applicable"] if name not in UNSUPPORTED_CONSTRAINTS]),

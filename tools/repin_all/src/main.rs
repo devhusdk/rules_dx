@@ -19,13 +19,13 @@ fn main() -> ExitCode {
         std::env::var_os("BUILD_WORKSPACE_DIRECTORY").filter(|dir| !dir.is_empty())
     else {
         eprintln!(
-            "repin-all: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools:repin-all`"
+            "repin_all: BUILD_WORKSPACE_DIRECTORY is unset; run it with `bazel run //tools/repin_all`"
         );
         return ExitCode::from(2);
     };
     let Some(dx) = resolve_dx() else {
         eprintln!(
-            "repin-all: cannot locate dx in runfiles; run it with `bazel run //tools:repin-all`"
+            "repin_all: cannot locate dx in runfiles; run it with `bazel run //tools/repin_all`"
         );
         return ExitCode::from(2);
     };
@@ -50,7 +50,7 @@ fn main() -> ExitCode {
     let code = match command.status() {
         Ok(done) => done.code().unwrap_or(1),
         Err(error) => {
-            eprintln!("repin-all: cannot run {}: {error}", dx.display());
+            eprintln!("repin_all: cannot run {}: {error}", dx.display());
             1
         }
     };

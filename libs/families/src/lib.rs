@@ -111,6 +111,7 @@ const LANGUAGE_MANIFESTS: &[&str] = &[
     include_str!("../../../kotlin/lang.json"),
     include_str!("../../../lua/lang.json"),
     include_str!("../../../mdx/lang.json"),
+    include_str!("../../../msix/lang.json"),
     include_str!("../../../ocaml/lang.json"),
     include_str!("../../../perl/lang.json"),
     include_str!("../../../php/lang.json"),

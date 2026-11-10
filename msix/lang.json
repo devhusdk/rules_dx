@@ -1,0 +1,21 @@
+{
+  "$schema": "../modules/lang.schema.json",
+  "name": "msix",
+  "title": "MSIX",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [
+    "windows_arm64",
+    "windows_x86_64"
+  ],
+  "pins": [
+    "private/pins.bzl"
+  ],
+  "entry_points": [
+    "msix_package",
+    "msix_sign"
+  ]
+}

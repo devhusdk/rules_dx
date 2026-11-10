@@ -21,7 +21,6 @@ FAMILY_MODULES = [
     "js",
     "julia",
     "lua",
-    "msix",
     "ocaml",
     "perl",
     "php",

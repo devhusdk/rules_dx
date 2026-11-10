@@ -40,6 +40,8 @@ libs/web_server:server.bzl
 lua:defs.bzl
 make/rules:defs.bzl
 mdx:defs.bzl
+msix:defs.bzl
+msix:extensions.bzl
 perl:defs.bzl
 php:defs.bzl
 powershell/rules:defs.bzl

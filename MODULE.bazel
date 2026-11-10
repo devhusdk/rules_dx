@@ -309,12 +309,6 @@ local_path_override(
     path = "families/swift",
 )
 
-bazel_dep(name = "rules_dx_msix", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_msix",
-    path = "families/msix",
-)
-
 bazel_dep(name = "rules_dx_powershell", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_powershell",
@@ -2924,7 +2918,12 @@ _hub_fixture_repo(
 appimage_tools = use_extension("//appimage:extensions.bzl", "appimage_tools")
 use_repo(appimage_tools, "dx_appimage_tools")
 
-msix_dev = use_extension("@rules_dx_msix//:extensions.bzl", "msix_tools", dev_dependency = True)
+msix_tools = use_extension("//msix:extensions.bzl", "msix_tools")
+use_repo(msix_tools, "dx_msix_tools")
+
+register_toolchains("//msix/private/toolchains:all")
+
+msix_dev = use_extension("//msix:extensions.bzl", "msix_tools", dev_dependency = True)
 msix_dev.license(accept = ["windows-sdk-buildtools"])
 
 windows_msvc_runtime = use_extension("@windows_support//windows:extensions.bzl", "msvc_runtime")

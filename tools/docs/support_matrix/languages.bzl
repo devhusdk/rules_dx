@@ -275,7 +275,7 @@ ROWS = [
         "section": "targets",
         "title": "CMake",
     },
-    {"ci_tests": ["@rules_dx_msix//tests:pack_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:msix"], "name": "msix", "section": "targets", "title": "MSIX"},
+    {"ci_tests": ["//msix/tests:pack_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:msix"], "name": "msix", "section": "targets", "title": "MSIX"},
     {
         "ci_tests": ["//qt/tests:qt_test"],
         "consumer_tests": ["//tools/testing/hermetic:qt_tasks", "//tools/testing/hermetic:qt_rust"],

@@ -136,10 +136,10 @@ fn an_undeclared_repository_is_found() {
         ["maven", "rules_cc"]
     );
     // A family module the harness provides is declared by the extension the fragment loads from it.
-    let family = "msix_tools = use_extension(\"@rules_dx_msix//:extensions.bzl\", \"msix_tools\")\n\
+    let family = "cuda_tools = use_extension(\"@rules_dx_cuda//:extensions.bzl\", \"cuda_tools\")\n\
                   rule = use_repo_rule(\"@@rules_dx_android//toolchain:repos.bzl\", \"repo\")\n";
     assert_eq!(
         declared(family).into_iter().collect::<Vec<_>>(),
-        ["rules_dx_android", "rules_dx_msix"]
+        ["rules_dx_android", "rules_dx_cuda"]
     );
 }

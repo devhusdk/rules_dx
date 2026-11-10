@@ -249,6 +249,7 @@ filegroup(
         "//cli/launcher:module_srcs",
         "//cli/ocaml_cc_driver:module_srcs",
         "//cli/prebuilt:module_srcs",
+        "//cli/release_tree:module_srcs",
         "//cloudformation/private/quality:module_srcs",
         "//cmake/private/quality:module_srcs",
         "//config:module_srcs",

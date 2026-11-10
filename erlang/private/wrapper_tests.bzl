@@ -177,9 +177,9 @@ def _release_layout_impl(ctx):
     env = analysistest.begin(ctx)
     actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "ErlangRelease"]
     asserts.equals(env, 1, len(actions), "expected one ErlangRelease action")
-    script = "\n".join(actions[0].argv)
+    argv = actions[0].argv
     for path in ctx.attr.paths:
-        asserts.true(env, ("/" + path + '"\n') in script + "\n", "release does not write " + path + ":\n" + script)
+        asserts.true(env, path in argv, "release does not write " + path + ":\n" + "\n".join(argv))
     return analysistest.end(env)
 
 _release_layout_test = analysistest.make(

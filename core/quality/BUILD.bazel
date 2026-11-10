@@ -836,6 +836,7 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
     "//cli/path:src/lib.rs",
     "//cli/plan:src/lib.rs",
     "//cli/process:src/lib.rs",
+    "//cli/release_tree:src/main.rs",
     "//cli/roots:src/lib.rs",
     "//cli/sbom/schema:src/lib.rs",
     "//cli/sbom:src/lib.rs",

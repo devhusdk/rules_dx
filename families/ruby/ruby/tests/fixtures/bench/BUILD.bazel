@@ -9,7 +9,7 @@ package(
 
 ruby_bench(
     name = "sum_bench",
-    main = "sum_bench.rb",
+    srcs = ["sum_bench.rb"],
 )
 
 real_source_target(

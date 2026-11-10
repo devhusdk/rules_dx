@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
 load("//libs/starlark:defs.bzl", "expect_equal")
+load("//libs/starlark:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//ruby/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
 load(":defs.bzl", "ruby_coverage_lib_dirs")
 
@@ -17,6 +18,11 @@ def ruby_wrapper_contract_tests(name):
         name,
         file_classes = ["ruby"],
         extra_checks = [
+            expect_equal(
+                "ruby_bench main defaults to the target name with .rb",
+                dx_infer_main("ruby_bench", "sum_bench", None, ["helper.rb", "sum_bench.rb"], dx_main_candidates("sum_bench", ".rb")),
+                "sum_bench.rb",
+            ),
             expect_equal(
                 "coverage lib dirs follow the pins",
                 ruby_coverage_lib_dirs(["x/README.md"] + _entries(_GEMS_ROOT)),

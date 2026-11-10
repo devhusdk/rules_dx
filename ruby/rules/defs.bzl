@@ -2,7 +2,7 @@
 
 load("@rules_ruby//ruby:defs.bzl", _rb_binary = "rb_binary", _rb_library = "rb_library", _rb_test = "rb_test")
 load("@rules_ruby//ruby/private:providers.bzl", "BundlerInfo", "RubyFilesInfo")
-load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs")
+load("//libs/starlark:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//libs/starlark:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//libs/starlark:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo")
@@ -109,12 +109,13 @@ def ruby_test(name, *, srcs = None, main = None, visibility = None, **kwargs):
     upstream = dict(kwargs, main = main) if main != None else kwargs
     dx_wrap_test(name, _rb_test, _ruby_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, quality_srcs = dx_entry_quality_srcs(main, srcs), **kwargs)
 
-def ruby_bench(name, *, main, srcs = None, data = None, env = None, tags = None, **kwargs):
-    """A ruby_test run by dx bench: `main` calls DxBench.run with a benchmark-ips block, which writes dx-bench.json."""
+def ruby_bench(name, *, srcs = None, main = None, data = None, env = None, tags = None, **kwargs):
+    """A ruby_test run by dx bench: `main` calls DxBench.run with a benchmark-ips block, which writes dx-bench.json. main is name.rb, else the single src."""
+    main = dx_infer_main("ruby_bench", name, main, srcs, dx_main_candidates(name, ".rb"))
     ips = Label("@dx_ruby_bench_gems//:benchmark-ips-2.14.0/lib/benchmark/ips.rb")
     ruby_test(
         name = name,
-        srcs = (srcs or []) + [main, Label("//ruby/rules:bench_main.rb")],
+        srcs = (srcs or []) + [src for src in [main] if src not in (srcs or [])] + [Label("//ruby/rules:bench_main.rb")],
         main = Label("//ruby/rules:bench_main.rb"),
         data = (data or []) + [ips, Label("@dx_ruby_bench_gems//:lib")],
         env = dict(

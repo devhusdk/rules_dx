@@ -9,7 +9,7 @@ package(
 
 php_bench(
     name = "sum_bench",
-    benches = ["SumBench.php"],
+    srcs = ["SumBench.php"],
 )
 
 real_source_target(

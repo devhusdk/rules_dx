@@ -47,7 +47,7 @@ ruby_test(
 | `ruby_library` | `rb_library` |
 | `ruby_binary` | `rb_binary`. `srcs` is optional |
 | `ruby_test` | `rb_test`. Set `main` to a runner such as an RSpec bin |
-| `ruby_bench` | `ruby_test` for `dx bench`. `main` calls `DxBench.run` with a benchmark-ips block and reports seconds per call. `ruby_fuzz_test` is not offered yet: ruzzy builds a native extension against libFuzzer |
+| `ruby_bench` | `ruby_test` for `dx bench`. `main` (name.rb, else the single src) calls `DxBench.run` with a benchmark-ips block and reports seconds per call. `ruby_fuzz_test` is not offered yet: ruzzy builds a native extension against libFuzzer |
 
 ## Gems
 

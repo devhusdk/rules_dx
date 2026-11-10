@@ -43,7 +43,7 @@ php_binary(
 | `php_library` | Sources whose classes other targets load; every file is checked with `php -l` at build time |
 | `php_binary` | Runs `main` with `bazel run` |
 | `php_test` | Runs PHPUnit test files; a failure or an empty suite fails the test |
-| `php_bench` | `php_test` for `dx bench`. `benches` lists phpbench files, one class per file named like the file; the pinned phpbench phar runs them. `php_fuzz_test` is not offered: php-fuzzer is not a pinned phar |
+| `php_bench` | `php_test` for `dx bench`. `srcs` lists phpbench files, one class per file named like the file; the pinned phpbench phar runs them. `php_fuzz_test` is not offered: php-fuzzer is not a pinned phar |
 
 - A syntax error fails the build, not the first run.
 - PHP runs with `-n`, so no `php.ini` from the host is read. Set ini values

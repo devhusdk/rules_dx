@@ -7,6 +7,7 @@ load("//rust:defs.bzl", "rust_test")
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
+load(":elixirc_script_tests.bzl", "elixirc_script_test_suite")
 load(":suite_membership.bzl", "suite_membership_test")
 load(":sh_toolchain.bzl", "dx_sh_toolchain")
 load(":fsc_tests.bzl", "fsc_unit_tests")
@@ -603,6 +604,7 @@ clang_syntax_analysis_tests(name = "clang_syntax_analysis")
 nvcc_syntax_unit_tests(name = "nvcc_syntax_unit")
 
 compile_check_unit_tests(name = "compile_check_unit")
+elixirc_script_test_suite(name = "elixirc_script_unit")
 
 fsc_unit_tests(name = "fsc_unit")
 
@@ -767,6 +769,7 @@ real_source_target(
         "fixtures_tests.bzl",
         "library_tests.bzl",
         "elixirc.bzl",
+        "elixirc_script_tests.bzl",
         "erlc.bzl",
         "fsc.bzl",
         "fsc_tests.bzl",

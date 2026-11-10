@@ -1,6 +1,6 @@
 """A consumer-owned native dependency with its own build script."""
 
-_BUILD_BAZEL = '''load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+_BUILD_BAZEL = '''load("@rules_dx//cc:defs.bzl", "cc_library")
 
 exports_files(["native.h"])
 

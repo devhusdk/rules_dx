@@ -1,6 +1,6 @@
 """Swift API reference shards from the symbol graphs of the toolchain's swift-symbolgraph-extract."""
 
-load("//swift/rules:providers.bzl", "SwiftDocsInfo")
+load("//swift/private:providers.bzl", "SwiftDocsInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
 def swift_shard_action(ctx, info, package, config, stem, extract_tool):

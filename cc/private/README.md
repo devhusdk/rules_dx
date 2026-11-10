@@ -3,7 +3,7 @@
 `defs.bzl` wraps `cc_library`, `cc_binary`, `cc_test` and `objc_library`.
 
 ```starlark
-load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
+load("@rules_dx//cc/private:defs.bzl", "cc_binary", "cc_library", "cc_test", "objc_library")
 
 cc_library(
     name = "greet",
@@ -120,7 +120,7 @@ The hermetic harness denies the preinstalled Visual Studio, Windows Kits and Mic
 `cc_bench` links Google Benchmark's `benchmark_main` into a private `<name>_bin` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
 
 ```starlark
-load("@rules_dx//cc/rules:defs.bzl", "cc_bench")
+load("@rules_dx//cc/private:defs.bzl", "cc_bench")
 
 cc_bench(
     name = "parse_bench",

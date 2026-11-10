@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_library")
+load("//cc:defs.bzl", "cc_library")
 load("//core:cells.bzl", "cell_settings", "unsupported_value")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "d_metadata_tests")

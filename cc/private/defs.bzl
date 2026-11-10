@@ -134,7 +134,7 @@ _cc_forward_test = dx_executable_forward_rule(
     allow_files = True,
     upstream_providers = [[CcInfo]],
     extra_attrs = dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
-        "_coverage_probe": attr.label(default = "//cc/rules:coverage_probe", cfg = _cc_coverage_transition),
+        "_coverage_probe": attr.label(default = "//cc/private:coverage_probe", cfg = _cc_coverage_transition),
     },
     optional_providers = [CcInfo],
     upstream_cfg = _cc_coverage_transition,
@@ -221,6 +221,6 @@ def cc_bench(name, *, srcs = None, visibility = None, tags = None, deps = None, 
         tags = tags,
         visibility = visibility,
         binary_kwargs = {"srcs": srcs, "deps": (deps or []) + [Label("@google_benchmark//:benchmark_main")]},
-        runner_kwargs = {"srcs": [Label("//cc/rules:bench_run.sh")]},
+        runner_kwargs = {"srcs": [Label("//cc/private:bench_run.sh")]},
         pass_binary = True,
     )

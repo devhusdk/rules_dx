@@ -119,10 +119,10 @@ dx format --apply -- --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat
 
 ## Rules
 
-Load the rules from `@rules_dx//qt/rules:defs.bzl`:
+Load the rules from `@rules_dx//qt/private:defs.bzl`:
 
 ```python
-load("@rules_dx//qt/rules:defs.bzl", "qt_cc_binary", "qt_cc_test", "qt_qml_module")
+load("@rules_dx//qt/private:defs.bzl", "qt_cc_binary", "qt_cc_test", "qt_qml_module")
 
 qt_qml_module(
     name = "tally",
@@ -164,7 +164,7 @@ on the os and cpu of each qualified cell, so the targets build on every
 qualified cell and are skipped elsewhere:
 
 ```python
-load("@rules_dx//qt/rules:defs.bzl", "qt_cc_binary")
+load("@rules_dx//qt/private:defs.bzl", "qt_cc_binary")
 
 qt_cc_binary(
     name = "app",
@@ -250,10 +250,10 @@ Generated `moc`, `uic`, `rcc` and registration sources are never checked.
 ## Rust
 
 `qt_rust_library` builds a Rust crate with CXX-Qt bridges and the Qt C++
-library generated from them. Load it from `@rules_dx//qt/rules:rust.bzl`:
+library generated from them. Load it from `@rules_dx//qt/private:rust.bzl`:
 
 ```python
-load("@rules_dx//qt/rules:rust.bzl", "qt_rust_library")
+load("@rules_dx//qt/private:rust.bzl", "qt_rust_library")
 
 qt_rust_library(
     name = "model",
@@ -287,7 +287,7 @@ Attributes:
 - `uri`, `version`, `qml_srcs`, `qml_depends`, `modules`, `qt`, `copts`: as on
   `qt_qml_module`. `modules` defaults to `["qml"]` with a `uri`, else `["core"]`.
 
-`qt_rust_cc_library` from `@rules_dx//qt/rules:defs.bzl` builds only the C++
+`qt_rust_cc_library` from `@rules_dx//qt/private:defs.bzl` builds only the C++
 side for an existing Rust static library, passed as `rust`.
 
 Link one `qt_rust_library` per binary: each carries the Rust standard
@@ -317,7 +317,7 @@ resource:
 
 ```python
 load("@rules_dx//deploy:defs.bzl", "consumer_archive")
-load("@rules_dx//qt/rules:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
+load("@rules_dx//qt/private:defs.bzl", "QT_CONSUMER_MIN_RUNTIME", "qt_bundle")
 
 qt_bundle(
     name = "runtime",

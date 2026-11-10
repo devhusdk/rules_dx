@@ -2,13 +2,18 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["README.md"])
+exports_files([
+    "README.md",
+    "defs.bzl",
+])
 
 filegroup(
     name = "module_srcs",
     srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
         "//:module_srcs",
-        "//haskell/rules:module_srcs",
+        "//haskell/private:module_srcs",
         "//haskell/toolchain:module_srcs",
     ],
 )

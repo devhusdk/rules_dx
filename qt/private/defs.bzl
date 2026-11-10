@@ -410,7 +410,7 @@ def _uses_qml(modules):
 
 _GUI_MODULES = ["gui", "quick", "widgets"]
 
-_WINDOWS_TEST_CONSOLE = Label("//qt/rules:windows_test_console")
+_WINDOWS_TEST_CONSOLE = Label("//qt/private:windows_test_console")
 
 def _windows_console(test, modules):
     # Qt opens a blocking MessageBox for a failed platform plugin when the process has no console window.

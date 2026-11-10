@@ -433,7 +433,7 @@ def _request_checks():
     ]
 
 def _build_checks():
-    hub = hub_build({cell: cell_repository_name(cell) for cell in qualified_cells()}, "//qt/rules:defs.bzl")
+    hub = hub_build({cell: cell_repository_name(cell) for cell in qualified_cells()}, "//qt/private:defs.bzl")
     arm64 = cell_build("linux_arm64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     base = cell_build("linux_x86_64", ["qtbase"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
     full = cell_build("linux_x86_64", ["qtbase", "qtdeclarative"], "@rules_cc//cc:defs.bzl", "//qt/sdk:unsupported.bzl", "//qt/sdk:needs.bzl")
@@ -495,7 +495,7 @@ def _build_checks():
             "uic",
             "widgets",
         ]),
-        expect_contains("hub loads the Rust runtime rule", hub, 'load("//qt/rules:defs.bzl", "qt_rust_runtime")\n'),
+        expect_contains("hub loads the Rust runtime rule", hub, 'load("//qt/private:defs.bzl", "qt_rust_runtime")\n'),
         expect_contains("hub declares the CXX-Qt runtime", hub, 'qt_rust_runtime(\n    name = "cxx_qt",\n    core = ":core",\n'),
         expect_contains("hub routes qmllint", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:qmllint"'),
         expect_contains("hub routes needs", hub, '":linux_x86_64": "@dx_qt_linux_x86_64//:needs"'),
@@ -662,7 +662,7 @@ def _consumer_checks():
     windows = effective_cells(consumer_cells([_tag(_spec(), "windows_x86_64", ["@platforms//os:windows", "@platforms//cpu:x86_64"])])[0])
     custom = effective_cells(consumer_cells([_tag(_spec(), "custom_x86_64")])[0])
     active = qualified_cells(custom)
-    hub = hub_build({cell: cell_repository_name(cell) for cell in active}, "//qt/rules:defs.bzl", {cell: custom[cell].constraints for cell in active}, no_match_error(custom))
+    hub = hub_build({cell: cell_repository_name(cell) for cell in active}, "//qt/private:defs.bzl", {cell: custom[cell].constraints for cell in active}, no_match_error(custom))
     return round_trip + [
         expect_equal("a clean consumer cell passes", _errors(_spec()), []),
         expect_equal("consumer sha256 is checked", _errors(sha), ["cell 'custom' archive 'qtbase' sha256 is not 64 hex characters"]),

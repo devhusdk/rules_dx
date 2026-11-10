@@ -1,4 +1,4 @@
-load("@rules_dx//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
+load("@rules_dx//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_binary", "haskell_library", "haskell_test")
 
 haskell_library(
     name = "demo-app",

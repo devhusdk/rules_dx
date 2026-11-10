@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//go/rules:defs.bzl", "go_bench", "go_library")
+load("//go:defs.bzl", "go_bench", "go_library")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(
@@ -25,7 +25,7 @@ sh_test(
     args = ["$(rootpath :parse_bench_bin)"],
     data = [
         ":parse_bench_bin",
-        "//go/rules:bench_run.sh",
+        "//go/private:bench_run.sh",
     ],
     timeout = "short",
 )

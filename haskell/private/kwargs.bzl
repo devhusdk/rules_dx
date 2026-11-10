@@ -4,7 +4,7 @@ load("//core:wrapper.bzl", "dx_language_kwargs", "dx_warnings_as_errors")
 
 HASKELL_CELLS = qualified_cells()
 
-PLATFORM_SUPPORT = cells_support("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", CELLS, HASKELL_CELLS, "//haskell/toolchain")
+PLATFORM_SUPPORT = cells_support("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", CELLS, HASKELL_CELLS, "//haskell/toolchain")
 
 HASKELL_COMPATIBLE_WITH = compatible_with(PLATFORM_SUPPORT)
 

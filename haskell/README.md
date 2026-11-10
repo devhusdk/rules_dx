@@ -6,12 +6,12 @@ the toolchain, so there is no setup in `MODULE.bazel`.
 
 ## Rules
 
-Load the rules from `@rules_dx//haskell/rules:defs.bzl`. They wrap
+Load the rules from `@rules_dx//haskell/private:defs.bzl`. They wrap
 [rules_haskell](https://github.com/tweag/rules_haskell) and take the same
 attributes.
 
 ```python
-load("@rules_dx//haskell/rules:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
+load("@rules_dx//haskell/private:defs.bzl", "haskell_binary", "haskell_library", "haskell_test")
 
 haskell_library(
     name = "stock",
@@ -119,7 +119,7 @@ On other platforms Haskell targets fail toolchain resolution.
 The toolchain pins cabal-install 3.18.2.0 next to GHC. `haskell_deps_resolve` (`bazel run`) runs it for a directory with a `.cabal` file and a `cabal.project` that sets `index-state:`. It writes `cabal.project.freeze` and `haskell_deps.json`, which lists each package with its version, sdist sha256, `.cabal` revision and sha256, components and dependencies. A public sublibrary of another package is recorded as `lib:<sub>` and depended on as `<pkg>:<sub>`, which the hub builds as `<pkg>-lib-<sub>`. Resolving needs network access to Hackage. `haskell_deps_resolve_test` reads the committed files only and fails when either is stale. With `stack_lock = "stack.yaml.lock"` (listed in `srcs`), `haskell_deps_resolve` pins every version named by the lock's sha256-checked snapshot and extra-deps, and writes the same two files; `dx audit` and `dx update` read the resulting `cabal.project.freeze`. It does not run `stack`; `dx update` of a set whose only lock is `stack.yaml.lock` reports that the lock must be resolved first.
 
 ```starlark
-load("@rules_dx//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("@rules_dx//haskell/private:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 haskell_deps_resolve(name = "resolve", srcs = ["cabal.project", "app.cabal"])
 

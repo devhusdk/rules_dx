@@ -624,7 +624,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("go_test", Constraint::AsWritten),
     (
         "haskell_test",
-        Constraint::Appended("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH"),
+        Constraint::Appended("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH"),
     ),
     (
         "hermetic_qualification",
@@ -643,7 +643,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("lua_test", Constraint::AsWritten),
     (
         "ocaml_test",
-        Constraint::DefaultIfUnset("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH"),
+        Constraint::DefaultIfUnset("//ocaml:defs.bzl", "OCAML_COMPATIBLE_WITH"),
     ),
     (
         "perl_test",

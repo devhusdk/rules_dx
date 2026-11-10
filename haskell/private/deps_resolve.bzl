@@ -1,7 +1,7 @@
 """Resolve a cabal project into cabal.project.freeze and a Hackage sidecar."""
 
 load("@rules_py//py:defs.bzl", "py_binary", "py_test")
-load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
+load("//haskell/private:defs.bzl", "HASKELL_COMPATIBLE_WITH")
 load("//core:wrapper.bzl", "dx_language_kwargs")
 
 _SCRIPT = Label("//haskell/tools:deps_resolve.py")

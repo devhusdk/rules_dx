@@ -1,4 +1,4 @@
-load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
+load("@rules_dx//powershell:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 
 # gazelle:dx_ignore_import powershell Pester
 

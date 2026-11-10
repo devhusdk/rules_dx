@@ -1,6 +1,6 @@
 """OCaml real quality aspects."""
 
-load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
+load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
 load("//quality:compile_check.bzl", "compile_check_aspect", "compile_check_hook")
 load("//quality:family_hooks.bzl", "stage")
 load("//quality:pipeline.bzl", "real_request_tool_env")

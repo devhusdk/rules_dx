@@ -1,6 +1,6 @@
 """Writes the -cmt-list file zanuda reads from an OCaml target's OCamlCmtInfo."""
 
-load("//ocaml/rules:providers.bzl", "OCamlCmtInfo")
+load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
 
 def _line(kind, source, cmt):
     return "\t".join([kind, source.short_path, cmt.short_path])

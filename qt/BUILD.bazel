@@ -2,14 +2,19 @@ load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
-exports_files(["README.md"])
+exports_files([
+    "README.md",
+    "defs.bzl",
+])
 
 filegroup(
     name = "module_srcs",
     srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
         "//:module_srcs",
         "//qt/platforms:module_srcs",
-        "//qt/rules:module_srcs",
+        "//qt/private:module_srcs",
         "//qt/rust:module_srcs",
         "//qt/sdk:module_srcs",
     ],

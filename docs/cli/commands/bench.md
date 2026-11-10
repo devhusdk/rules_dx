@@ -30,7 +30,7 @@ Every `<lang>_bench` macro declares `<name>` as the manual `dx-bench` test dx ru
 - `java_bench`, `kotlin_bench` and `scala_bench` declare a JMH library `<name>_bin` plus a `<name>` runner, with the same split and the same `size` default.
 - `csharp_bench`, `fsharp_bench`, `dart_bench`, `elixir_bench`, `erlang_bench`, `javascript_bench`, `lua_bench`, `perl_bench`, `php_bench`, `python_bench`, `ruby_bench` and `typescript_bench` declare only the `<name>` test, which takes every attribute. They declare no `_bin` and set no `size` default, so Bazel's default applies.
 
-Go: `go_bench(name, srcs, embed = ...)` from `//go/rules:defs.bzl` runs the `Benchmark*` functions with `-test.bench=. -test.benchmem` and turns each `ns/op`, `B/op` and `allocs/op` column into one result named `<Benchmark> <unit>`. The Go gazelle extension adds `<name>_bench` next to the `go_test` when a test file declares a `Benchmark*` function.
+Go: `go_bench(name, srcs, embed = ...)` from `//go:defs.bzl` runs the `Benchmark*` functions with `-test.bench=. -test.benchmem` and turns each `ns/op`, `B/op` and `allocs/op` column into one result named `<Benchmark> <unit>`. The Go gazelle extension adds `<name>_bench` next to the `go_test` when a test file declares a `Benchmark*` function.
 
 Each test writes `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json`:
 

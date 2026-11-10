@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_binary")
+load("//cc:defs.bzl", "cc_binary")
 load("//cc/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
 load("//deploy:defs.bzl", "consumer_archive")
 load("//quality:fixtures.bzl", "real_source_target")

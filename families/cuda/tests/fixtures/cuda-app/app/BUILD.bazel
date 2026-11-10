@@ -1,4 +1,4 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
+load("@rules_dx//cc:defs.bzl", "cc_binary")
 load("@rules_dx_cuda//rules:defs.bzl", "CUDA_TARGET")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")

@@ -38,7 +38,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{TestKind},
 		Kinds:          pwshKinds,
-		DefsPackage:    "powershell/rules:defs.bzl",
+		DefsPackage:    "powershell/private:defs.bzl",
 		ImportAttr:     "srcs",
 		Identity:       ModuleName,
 		IsImportSource: isModuleFile,

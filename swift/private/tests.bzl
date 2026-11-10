@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_swift//swift:providers.bzl", "SwiftInfo")
-load("//swift/rules:providers.bzl", "SwiftDocsInfo")
+load("//swift/private:providers.bzl", "SwiftDocsInfo")
 
 def _library_impl(ctx):
     env = analysistest.begin(ctx)

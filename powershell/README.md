@@ -19,12 +19,12 @@ The targets are Linux only. They set `target_compatible_with` to
 
 ## Rules
 
-Load the rules from `@rules_dx//powershell/rules:defs.bzl`. They wrap
+Load the rules from `@rules_dx//powershell/private:defs.bzl`. They wrap
 [rules_powershell](https://github.com/bazel-contrib/rules_powershell) and take
 the same attributes.
 
 ```python
-load("@rules_dx//powershell/rules:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
+load("@rules_dx//powershell/private:defs.bzl", "powershell_binary", "powershell_library", "powershell_test")
 
 powershell_library(
     name = "hello_lib",

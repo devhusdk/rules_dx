@@ -1,4 +1,4 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_binary")
+load("@rules_dx//cc:defs.bzl", "cc_binary")
 load("@rules_dx//msix:defs.bzl", "msix_package", "msix_sign")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 

@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_library")
+load("//cc:defs.bzl", "cc_library")
 load("//deploy/private:archive.bzl", "consumer_archive")
 load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load("//deploy/private:resources.bzl", "dx_resources")

@@ -2,7 +2,7 @@
 
 load("//core:repo.bzl", "hub_repo")
 
-_DEFS = str(Label("//haskell/rules:defs.bzl"))
+_DEFS = str(Label("//haskell/private:defs.bzl"))
 
 _TOOLCHAINS = "@dx_haskell_toolchains//"
 

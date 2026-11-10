@@ -41,7 +41,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"cc": {
 		files: map[string]string{"demo.cc": "#include <string>\n"},
-		kind:  "cc_library", target: "demo", defs: "cc/rules:defs.bzl",
+		kind:  "cc_library", target: "demo", defs: "cc/private:defs.bzl",
 		symbols:    []string{"cc_library", "cc_test"},
 		extraLoads: map[string][]string{"@rules_dx_cuda//rules:defs.bzl": {"cuda_library"}},
 	},
@@ -92,12 +92,12 @@ var conformanceRows = map[string]conformanceRow{
 	"go": {
 		files: map[string]string{"demo.go": "package demo\n"},
 		inert: []string{"notes.txt"},
-		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
+		kind:  "go_library", target: "demo", defs: "go/private:defs.bzl",
 		symbols: []string{"go_library", "go_binary", "go_test", "go_bench"},
 	},
 	"haskell": {
 		files: map[string]string{"Demo.hs": "module Demo where\n\nimport Data.List (sort)\n"},
-		kind:  "haskell_library", target: "demo", defs: "haskell/rules:defs.bzl",
+		kind:  "haskell_library", target: "demo", defs: "haskell/private:defs.bzl",
 		symbols: []string{"haskell_library"},
 	},
 	"java": {
@@ -167,7 +167,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"powershell": {
 		files: map[string]string{"Demo.psm1": "function Get-Greeting { 'hi' }\n"},
-		kind:  "powershell_library", target: "demo", defs: "powershell/rules:defs.bzl",
+		kind:  "powershell_library", target: "demo", defs: "powershell/private:defs.bzl",
 		symbols: []string{"powershell_library", "powershell_test"},
 		oldSrcs: []string{"Old.psm1"},
 	},
@@ -234,12 +234,12 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"ocaml": {
 		files: map[string]string{"demo.ml": "let x = 1\n"},
-		kind:  "ocaml_module", target: "demo", defs: "ocaml/rules:defs.bzl",
+		kind:  "ocaml_module", target: "demo", defs: "ocaml/private:defs.bzl",
 		symbols: []string{"ocaml_module"},
 	},
 	"swift": {
 		files: map[string]string{"Demo.swift": "import Foundation\n"},
-		kind:  "swift_library", target: "demo", defs: "swift/rules:defs.bzl",
+		kind:  "swift_library", target: "demo", defs: "swift/private:defs.bzl",
 		symbols: []string{"swift_library", "swift_test"},
 	},
 	"typescript": {

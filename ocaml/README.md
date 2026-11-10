@@ -9,12 +9,12 @@ rules_dx registers the toolchain, so there is no setup in `MODULE.bazel`.
 
 ## Rules
 
-Load the rules from `@rules_dx//ocaml/rules:defs.bzl`. They wrap
+Load the rules from `@rules_dx//ocaml/private:defs.bzl`. They wrap
 [rules_ocaml](https://github.com/obazl/rules_ocaml) and take the same
 attributes.
 
 ```python
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_signature", "ocaml_test")
+load("@rules_dx//ocaml/private:defs.bzl", "ocaml_binary", "ocaml_library", "ocaml_module", "ocaml_signature", "ocaml_test")
 
 ocaml_module(
     name = "stock",
@@ -78,7 +78,7 @@ ocaml_test(
 - `ocamllex` is re-exported unchanged, because lexers need it to build.
 - Modules and signatures compile with `-bin-annot` (opt out with
   `-no-bin-annot`) and expose their `.cmt` and `.cmti` files through
-  `OCamlCmtInfo` (`//ocaml/rules:providers.bzl`) and the `cmt` and `cmti`
+  `OCamlCmtInfo` (`//ocaml/private:providers.bzl`) and the `cmt` and `cmti`
   output groups.
 - Modules and signatures warn on unused variables and values (`-w +26+27+32..39`)
   unless their opts set `-w`.
@@ -139,7 +139,7 @@ scratch directory. Modules that use a ppx rewriter are not checked.
 
 ### Dune libraries
 
-`dx_dune_library` (`ocaml/rules/dune.bzl`) runs `dune build -p <package> @install`
+`dx_dune_library` (`ocaml/private/dune.bzl`) runs `dune build -p <package> @install`
 on a dune workspace and returns the package as rules_ocaml providers, so
 `ocaml_module` and `ocaml_test` take it in `deps`. The package is copied to the
 tree artifact `<name>_ocamlpath/<package>` (a findlib layout); the archive named
@@ -169,7 +169,7 @@ The lint aspect reads the typed trees (`.cmt`/`.cmti`) that `ocaml_module` and
 `-no-bin-annot` fails closed. A source-alias patch makes typed and untyped
 findings report the same workspace path.
 
-- **Build.** `dx_dune_build` (`ocaml/rules/dune.bzl`) builds zanuda with the
+- **Build.** `dx_dune_build` (`ocaml/private/dune.bzl`) builds zanuda with the
   shared `//ocaml/toolchain:dune` bootstrap (`dx_dune_bootstrap`) using the pinned native OCaml,
   the resolved C toolchain, no network and no dune cache. The 22 source
   archives are pinned in `quality/artifacts/zanuda.bzl` and unpacked side by
@@ -250,7 +250,7 @@ up, then in 10 timed samples of `iterations` calls (default 1000), and the
 results go to `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json` in ns/iter.
 
 ```python
-load("@rules_dx//ocaml/rules:defs.bzl", "ocaml_bench")
+load("@rules_dx//ocaml/private:defs.bzl", "ocaml_bench")
 
 ocaml_bench(
     name = "sum_bench",

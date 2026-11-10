@@ -1,4 +1,4 @@
-load("//qt/rules:defs.bzl", "qt_cc_binary", "qt_cc_test")
+load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 # The QML plugin imports QtQmlMeta; linking Quick stages it with the binary.

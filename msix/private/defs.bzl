@@ -1,6 +1,6 @@
 """Windows MSIX packaging for target binaries."""
 
-load("//powershell/rules:defs.bzl", "powershell_binary")
+load("//powershell:defs.bzl", "powershell_binary")
 load("//core:packaging.bzl", "claim_dest", "data_path")
 load("//core:platform.bzl", "PLATFORM_ATTRS", "platform_identity", "platform_transition")
 load(":pins.bzl", "MAX_VERSION_TESTED", "MIN_VERSION")

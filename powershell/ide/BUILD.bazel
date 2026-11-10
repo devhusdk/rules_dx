@@ -1,5 +1,5 @@
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//powershell/rules:defs.bzl", "powershell_binary")
+load("//powershell:defs.bzl", "powershell_binary")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 

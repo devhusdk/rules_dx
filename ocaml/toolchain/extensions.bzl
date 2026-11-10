@@ -36,7 +36,7 @@ def _declare_packages(mctx, tag, locked, annotations, facts):
             if missing:
                 fail("{} {} depends on {}, which {} does not lock".format(package, version, ", ".join(missing), tag.lock))
             library = annotation.library if annotation and annotation.library else package.replace("-", "_").replace(".", "_")
-            build_file = dune_package_build(package, library, str(Label("//ocaml/toolchain:dune")), str(Label("//ocaml/rules:dune.bzl")), needs, tag.name)
+            build_file = dune_package_build(package, library, str(Label("//ocaml/toolchain:dune")), str(Label("//ocaml/private:dune.bzl")), needs, tag.name)
         pinned_archive(
             name = package_repo_name(tag.name, package),
             files = {"BUILD.bazel": build_file},

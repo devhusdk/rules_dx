@@ -1,4 +1,4 @@
-load("//go/rules:defs.bzl", "go_library")
+load("//go:defs.bzl", "go_library")
 load("//quality:native_config.bzl", "govet_config")
 
 package(

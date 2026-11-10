@@ -16,7 +16,7 @@ A fuzz target is a rule tagged `dx-fuzz` with a runner named `<name>_run` next t
 
 Every `<lang>_fuzz_test` macro has the same shape. `<name>` is the manual `dx-fuzz` target dx runs, the program is a private `<name>_bin`, and `<name>_run` is the runner. `args` and `target_compatible_with` go to `<name>`; `go_fuzz_test` also takes `size`, `timeout`, `env`, `data`, `flaky` and `shard_count` there. The other attributes go to `<name>_bin`. `tags` are merged with `dx-fuzz` and `manual`.
 
-Go: `go_fuzz_test(name, target = "FuzzParse", srcs = ..., ...)` from `//go/rules:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
+Go: `go_fuzz_test(name, target = "FuzzParse", srcs = ..., ...)` from `//go:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
 
 D: `d_fuzz_test(name, srcs)` from `//d:defs.bzl` builds with LDC's `-fsanitize=fuzzer,address` and the pinned LLVM's libFuzzer. `srcs` define `LLVMFuzzerTestOneInput`, for example through `ldc.libfuzzer`.
 
@@ -28,13 +28,13 @@ Rust: `rust_fuzz_test(name, srcs, libfuzzer_sys = ..., crate_root = ...)` from `
 
 C#: `csharp_fuzz_test(name, srcs, deps)` from `//csharp:defs.bzl` declares a harness binary that calls `Fuzzer.LibFuzzer.Run` from SharpFuzz, tags it and adds the `<name>_run` runner. The macro instruments each library in `deps` with SharpFuzz.CommandLine at build time; NuGet packages stay uninstrumented. `<name>` is the harness, and the runner starts it from the libfuzzer-dotnet driver that rules_dx builds from a pinned source archive. Linux only for now.
 
-OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml/rules:defs.bzl` runs Crowbar in quickcheck mode, tags it and adds the `<name>_run` runner. The runner repeats `-s <seed> -r 500` with fresh seeds until `--time` is up and writes a failing seed to `crash-<hash>`; `--repro` replays it.
+OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml:defs.bzl` runs Crowbar in quickcheck mode, tags it and adds the `<name>_run` runner. The runner repeats `-s <seed> -r 500` with fresh seeds until `--time` is up and writes a failing seed to `crash-<hash>`; `--repro` replays it.
 
 F#: `fsharp_fuzz_test(name, srcs, deps)` from `//fsharp:defs.bzl` works like `csharp_fuzz_test` with an F# harness. Linux only for now.
 
 Java, Kotlin and Scala: `java_fuzz_test`, `kotlin_fuzz_test` and `scala_fuzz_test` from `//java:defs.bzl`, `//kotlin:defs.bzl` and `//scala:defs.bzl` build a Jazzer binary, tag it and add the `<name>_run` runner. Pass `target_class`, a class with a static `fuzzerTestOneInput(byte[])`: a Kotlin `object` method marked `@JvmStatic`, or a top-level Scala `object` method. Linux runs are tested; Jazzer comes from rules_dx's pinned Maven artifacts.
 
-OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml/rules:defs.bzl` runs a Crowbar test in quickcheck mode. It is manual, has no `dx-fuzz` tag or `<name>_run` runner, and `dx fuzz` does not run it yet (#10221). Run it with `bazel test`.
+OCaml: `ocaml_fuzz_test(name, main, deps)` from `//ocaml:defs.bzl` runs a Crowbar test in quickcheck mode. It is manual, has no `dx-fuzz` tag or `<name>_run` runner, and `dx fuzz` does not run it yet (#10221). Run it with `bazel test`.
 
 Zig and Haskell have no fuzz macro. Zig's fuzzer runs only under `zig build --fuzz`, and Haskell's harness cannot run hermetically.
 

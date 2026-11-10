@@ -1,4 +1,4 @@
-load("//go/rules:defs.bzl", "go_library", "go_test")
+load("//go:defs.bzl", "go_library", "go_test")
 load("//core/tests:direct_sources.bzl", "dx_direct_sources_test")
 load("//quality:fixtures.bzl", "real_source_target")
 

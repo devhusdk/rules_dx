@@ -1,4 +1,4 @@
-load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
+load("//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 
 package(default_visibility = ["//quality:__pkg__", "//quality/testdata:__pkg__"])

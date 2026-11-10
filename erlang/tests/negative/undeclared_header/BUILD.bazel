@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx//erlang:defs.bzl", "erlang_nif")
 load("//erlang/tests/negative:negative_tests.bzl", "nif_header_test")
 

@@ -1,5 +1,5 @@
-load("@rules_dx//powershell/rules:defs.bzl", "powershell_library", "powershell_test")
-load("@rules_dx//powershell/rules:wrapper_tests.bzl", "pwsh_coverage_env_test")
+load("@rules_dx//powershell:defs.bzl", "powershell_library", "powershell_test")
+load("@rules_dx//powershell/private:wrapper_tests.bzl", "pwsh_coverage_env_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 
 package(

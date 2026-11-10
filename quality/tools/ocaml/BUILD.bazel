@@ -1,4 +1,4 @@
-load("@rules_dx//ocaml/rules:dune.bzl", "dx_dune_build")
+load("@rules_dx//ocaml/private:dune.bzl", "dx_dune_build")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")

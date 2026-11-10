@@ -1,4 +1,4 @@
-load("@rules_dx//swift/rules:defs.bzl", "swift_binary", "swift_library", "swift_test")
+load("@rules_dx//swift:defs.bzl", "swift_binary", "swift_library", "swift_test")
 
 swift_library(
     name = "demo-app",

@@ -118,6 +118,6 @@ def haskell_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs
         tags = tags,
         visibility = visibility,
         binary_kwargs = {"srcs": srcs or []},
-        runner_kwargs = {"srcs": [Label("//haskell/rules:bench_run.sh")]},
+        runner_kwargs = {"srcs": [Label("//haskell/private:bench_run.sh")]},
         pass_binary = True,
     )

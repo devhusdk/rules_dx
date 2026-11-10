@@ -6,7 +6,7 @@ load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE
 load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs")
 load(":profile_tests.bzl", "profile_ghcopts_tests")
 
-package(default_visibility = ["//visibility:public"])
+package(default_visibility = ["//haskell:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
 exports_files([
     "bench_run.sh",

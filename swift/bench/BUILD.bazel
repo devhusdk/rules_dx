@@ -1,5 +1,5 @@
 load("//quality:fixtures.bzl", "real_source_target")
-load("//swift/rules:defs.bzl", "swift_library")
+load("//swift:defs.bzl", "swift_library")
 
 swift_library(
     name = "bench",

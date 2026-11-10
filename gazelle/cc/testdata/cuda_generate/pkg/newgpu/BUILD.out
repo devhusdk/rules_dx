@@ -1,4 +1,4 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx_cuda//rules:defs.bzl", "cuda_library")
 
 cc_library(

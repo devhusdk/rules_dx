@@ -1,7 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//swift/rules:defs.bzl", "swift_bench")
+load("//swift:defs.bzl", "swift_bench")
 
 package(
     default_testonly = True,

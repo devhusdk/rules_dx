@@ -60,7 +60,7 @@ def _qt_sdk_impl(module_ctx):
         name = HUB_NAME,
         files = {"BUILD.bazel": hub_build(
             cells,
-            str(Label("//qt/rules:defs.bzl")),
+            str(Label("//qt/private:defs.bzl")),
             {cell: table[cell].constraints for cell in cells},
             no_match_error(table),
         )},

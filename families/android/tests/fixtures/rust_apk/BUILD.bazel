@@ -1,6 +1,6 @@
 # gazelle:ignore
 
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_static_library", "rust_test")
 load("@rules_java//java:java_binary.bzl", "java_binary")

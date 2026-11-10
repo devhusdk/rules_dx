@@ -241,7 +241,7 @@ The build fails before linking when:
 ### Swift apps
 
 `entry` takes any `CcInfo` or `SwiftInfo` target that holds the `@main`
-module, such as a `swift_library` from `@rules_dx//swift/rules:defs.bzl`.
+module, such as a `swift_library` from `@rules_dx//swift:defs.bzl`.
 `swift_library` keeps `alwayslink` on, so the `@main` module stays
 linked. Name the file something other than `main.swift`.
 

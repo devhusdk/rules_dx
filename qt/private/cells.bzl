@@ -21,13 +21,13 @@ def _cell_setting(cell):
 # consumer cell, including macOS. Packaging has its own gate, QT_BUNDLE_COMPATIBLE_WITH.
 QT_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in _CONSUMER_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
+    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/private")]},
 )
 
 # target_compatible_with added to every qt_bundle: cells with a needs table.
 QT_BUNDLE_COMPATIBLE_WITH = select(
     {_cell_setting(cell): [] for cell in _BUNDLE_CELLS} |
-    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/rules")]},
+    {"//conditions:default": [Label("@platforms//:incompatible"), unsupported_constraint("//qt/private")]},
 )
 
 # consumer_archive min_runtime of the qualified cell the build targets.
@@ -42,7 +42,7 @@ _WINDOWS_CELLS = [cell for cell in _BUNDLE_CELLS if CELLS[cell].layout.os == "wi
 
 # consumer_archive runtime of the qualified cell the build targets.
 QT_CONSUMER_RUNTIME = select(
-    {_cell_setting(cell): [Label("//qt/rules:os_runtime_" + cell)] for cell in _RUNTIME_CELLS} |
+    {_cell_setting(cell): [Label("//qt/private:os_runtime_" + cell)] for cell in _RUNTIME_CELLS} |
     {_cell_setting(cell): [Label("//cc/toolchains:msvc_vcruntime")] for cell in _WINDOWS_CELLS} |
     {"//conditions:default": []},
 )

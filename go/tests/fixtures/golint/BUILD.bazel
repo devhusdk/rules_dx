@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//go/rules:defs.bzl", "go_library")
+load("//go:defs.bzl", "go_library")
 
 package(
     default_testonly = True,

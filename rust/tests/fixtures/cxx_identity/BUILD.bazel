@@ -1,5 +1,5 @@
 load("@dx_rust_fixture_crates//:crates.bzl", "aliases")
-load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("@rules_dx//cc:defs.bzl", "cc_library", "cc_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
 load(":cxx_bridge.bzl", "CXX_VERSION")

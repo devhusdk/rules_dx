@@ -26,7 +26,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          swiftKinds,
 		ExtraKinds:     []string{TestKind},
-		DefsPackage:    "swift/rules:defs.bzl",
+		DefsPackage:    "swift/private:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,

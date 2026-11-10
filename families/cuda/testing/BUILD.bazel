@@ -1,6 +1,6 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("@rules_dx//cc:defs.bzl", "cc_library", "cc_test")
 load("//rules:defs.bzl", "CUDA_TARGET", "cuda_library")
 
 package(default_visibility = ["//visibility:public"])

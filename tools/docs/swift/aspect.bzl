@@ -1,6 +1,6 @@
 """Swift documentation shard aspect."""
 
-load("//swift/rules:providers.bzl", "SwiftDocsInfo")
+load("//swift/private:providers.bzl", "SwiftDocsInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/swift:defs.bzl", "swift_shard_action")
 

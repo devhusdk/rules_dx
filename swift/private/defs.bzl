@@ -13,7 +13,7 @@ load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_append_flags", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage", "dx_warnings_flags", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 load("//swift/platforms:transition.bzl", "swift_linux_platforms", "swift_linux_transition")
-load("//swift/rules:providers.bzl", "SwiftDocsInfo")
+load("//swift/private:providers.bzl", "SwiftDocsInfo")
 
 # Re-exported unchanged: BUILD files need it to expose C modules to Swift.
 swift_interop_hint = _swift_interop_hint
@@ -131,11 +131,11 @@ def _swift_coverage_kwargs(kwargs):
     """Links Swift's own profile runtime into a swift_test under bazel coverage."""
     out = _swift_upstream_kwargs(kwargs)
     out = dx_append_flags(out, "features", select({
-        Label("//swift/rules:coverage_linux"): ["-llvm_coverage_map_format"],
+        Label("//swift/private:coverage_linux"): ["-llvm_coverage_map_format"],
         "//conditions:default": [],
     }))
     return dx_append_flags(out, "deps", select({
-        Label("//swift/rules:coverage_linux"): [Label("//swift/toolchain:profile_runtime")],
+        Label("//swift/private:coverage_linux"): [Label("//swift/toolchain:profile_runtime")],
         "//conditions:default": [],
     }))
 

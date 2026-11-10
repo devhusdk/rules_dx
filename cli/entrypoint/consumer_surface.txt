@@ -6,7 +6,7 @@ astro:defs.bzl
 avro:defs.bzl
 bicep:defs.bzl
 capnproto:defs.bzl
-cc/rules:defs.bzl
+cc/private:defs.bzl
 cloudformation:defs.bzl
 cmake:defs.bzl
 csharp:defs.bzl
@@ -24,8 +24,8 @@ erlang:defs.bzl
 flatbuffers:defs.bzl
 fortran:defs.bzl
 fsharp:defs.bzl
-go/rules:defs.bzl
-haskell/rules:defs.bzl
+go/private:defs.bzl
+haskell/private:defs.bzl
 helm:defs.bzl
 java:defs.bzl
 javascript:defs.bzl
@@ -41,11 +41,11 @@ msix:defs.bzl
 msix:extensions.bzl
 perl:defs.bzl
 php:defs.bzl
-powershell/rules:defs.bzl
+powershell/private:defs.bzl
 powershell/toolchain:gallery.bzl
 python:defs.bzl
-qt/rules:defs.bzl
-qt/rules:rust.bzl
+qt/private:defs.bzl
+qt/private:rust.bzl
 qt/sdk:repos.bzl
 quality/private:generated_policy.bzl
 ansible/private/quality:ansible.bzl

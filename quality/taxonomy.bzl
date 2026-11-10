@@ -30,7 +30,7 @@ TAXONOMY = {
         classes = ["capnp"],
     ),
     "cc": struct(
-        owner = "//cc/rules:defs.bzl",
+        owner = "//cc/private:defs.bzl",
         classes = ["c", "cpp"],
     ),
     "cloudformation": struct(
@@ -98,7 +98,7 @@ TAXONOMY = {
         classes = ["gherkin"],
     ),
     "go": struct(
-        owner = "//go/rules:defs.bzl",
+        owner = "//go/private:defs.bzl",
         classes = ["go"],
     ),
     "go_module": struct(
@@ -110,7 +110,7 @@ TAXONOMY = {
         classes = ["graphql"],
     ),
     "haskell": struct(
-        owner = "//haskell/rules:defs.bzl",
+        owner = "//haskell/private:defs.bzl",
         classes = ["haskell"],
     ),
     "helm": struct(
@@ -182,11 +182,11 @@ TAXONOMY = {
         classes = ["nix"],
     ),
     "objc": struct(
-        owner = "//cc/rules:defs.bzl",
+        owner = "//cc/private:defs.bzl",
         classes = ["objc", "objcpp"],
     ),
     "ocaml": struct(
-        owner = "//ocaml/rules:defs.bzl",
+        owner = "//ocaml/private:defs.bzl",
         classes = ["ocaml"],
     ),
     "perl": struct(
@@ -202,7 +202,7 @@ TAXONOMY = {
         classes = ["pkl"],
     ),
     "powershell": struct(
-        owner = "//powershell/rules:defs.bzl",
+        owner = "//powershell/private:defs.bzl",
         classes = ["powershell"],
     ),
     "protobuf": struct(
@@ -214,7 +214,7 @@ TAXONOMY = {
         classes = ["python", "python_stub"],
     ),
     "qml": struct(
-        owner = "//qt/rules:defs.bzl",
+        owner = "//qt/private:defs.bzl",
         classes = ["qml"],
     ),
     "rego": struct(
@@ -254,7 +254,7 @@ TAXONOMY = {
         classes = ["svelte"],
     ),
     "swift": struct(
-        owner = "//swift/rules:defs.bzl",
+        owner = "//swift/private:defs.bzl",
         classes = ["swift"],
     ),
     "terraform": struct(

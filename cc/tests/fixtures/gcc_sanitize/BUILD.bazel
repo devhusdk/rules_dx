@@ -1,5 +1,5 @@
-load("//cc/rules:defs.bzl", "cc_test")
-load("//cc/rules:wrapper_tests.bzl", "cc_gcc_asan_env_tests")
+load("//cc:defs.bzl", "cc_test")
+load("//cc/private:wrapper_tests.bzl", "cc_gcc_asan_env_tests")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(

@@ -1,4 +1,4 @@
-load("@rules_dx//go/rules:defs.bzl", "go_library", "go_test")
+load("@rules_dx//go:defs.bzl", "go_library", "go_test")
 
 # gazelle:resolve go github.com/google/go-cmp/cmp @com_github_google_go_cmp//cmp
 

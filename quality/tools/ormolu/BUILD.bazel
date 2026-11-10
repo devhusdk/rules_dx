@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//haskell/rules:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
+load("//haskell/private:deps_resolve.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 
 package(default_visibility = ["//visibility:public"])
 

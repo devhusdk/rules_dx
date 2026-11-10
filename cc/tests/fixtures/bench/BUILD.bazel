@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//cc/rules:defs.bzl", "cc_bench")
+load("//cc:defs.bzl", "cc_bench")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(
@@ -18,7 +18,7 @@ sh_test(
     args = ["$(rootpath :parse_bench_bin)"],
     data = [
         ":parse_bench_bin",
-        "//cc/rules:bench_run.sh",
+        "//cc/private:bench_run.sh",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     timeout = "short",

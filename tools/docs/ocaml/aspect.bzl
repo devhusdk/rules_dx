@@ -1,6 +1,6 @@
 """OCaml documentation shard aspect."""
 
-load("//ocaml/rules:providers.bzl", _OCamlCmtInfo = "OCamlCmtInfo")
+load("//ocaml/private:providers.bzl", _OCamlCmtInfo = "OCamlCmtInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 load("//tools/docs/ocaml:defs.bzl", "ODOC_CONFIG", "ocaml_odoc_available", "ocaml_shard_action", "ocaml_typed_trees")
 

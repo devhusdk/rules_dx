@@ -131,7 +131,7 @@ fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
     (git_dir, sha)
 }
 
-const GCC_BUILD: &str = r#"load("@my_dx//cc/rules:defs.bzl", "cc_binary")
+const GCC_BUILD: &str = r#"load("@my_dx//cc:defs.bzl", "cc_binary")
 
 cc_binary(
     name = "app",

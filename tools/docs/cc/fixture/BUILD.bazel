@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_library")
+load("//cc:defs.bzl", "cc_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/cc:defs.bzl", "cc_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")

@@ -80,7 +80,7 @@ pub fn diff_name_status(
         }
         return Err(git_failure("diff", first_diagnostic(&result.stderr)));
     }
-    dx_adopt::parse_name_status_nul(&result.stdout).map_err(dx_error::DxError::failure)
+    dx_adopt::parse_name_status_nul(&result.stdout)
 }
 
 pub fn merge_base(
@@ -829,7 +829,8 @@ fn widen_bzl_changes(
     aspect_labels: &[String],
     widened: &mut Vec<WidenedScope>,
 ) {
-    let impact = dx_adopt::bzl_impact(workspace, paths, aspect_labels);
+    let impact =
+        dx_adopt::bzl_impact(workspace, paths, aspect_labels).map_err(|error| error.to_string());
     widen_impact(impact, "", widened);
 }
 
@@ -1012,7 +1013,8 @@ pub fn resolve_affected(
                 reason.message().to_owned(),
             ),
             Ok(found) => {
-                let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels);
+                let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels)
+                    .map_err(|error| error.to_string());
                 widen_impact(impact, "@", &mut widened);
                 update = Some(found).filter(|found| !found.modules.is_empty());
             }

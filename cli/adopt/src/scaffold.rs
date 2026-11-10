@@ -1,3 +1,4 @@
+use dx_error::DxError;
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -933,7 +934,7 @@ pub fn refresh_scaffold(
 }
 
 /// Whether an existing owned file lacks dx-owned values; `Err` when it cannot be read or parsed.
-pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, String> {
+pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, DxError> {
     if file.kind == FileKind::WriteOnce {
         return Ok(false);
     }
@@ -942,7 +943,7 @@ pub fn owned_file_drift(root: &Path, file: &ScaffoldFile) -> Result<bool, String
     };
     match merge_owned(file.kind, &existing, &file.content) {
         Ok(merged) => Ok(merged != existing),
-        Err(error) => Err(format!("{}: {error}", file.path)),
+        Err(error) => Err(DxError::failure(format!("{}: {error}", file.path))),
     }
 }
 

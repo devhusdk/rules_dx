@@ -1,23 +1,24 @@
+use dx_error::DxError;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use dx_module_bazel::{Call, ModuleFile, Value, load_labels};
 
-fn read(workspace: &Path, rel: &str) -> Result<Option<String>, String> {
+fn read(workspace: &Path, rel: &str) -> Result<Option<String>, DxError> {
     match std::fs::read_to_string(workspace.join(rel)) {
         Ok(text) => Ok(Some(text)),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(error) => Err(format!("cannot read {rel}: {error}")),
+        Err(error) => Err(DxError::infra(format!("cannot read {rel}: {error}"))),
     }
 }
 
-fn literal_arg<'a>(call: &'a Call, key: &str) -> Result<&'a str, String> {
+fn literal_arg<'a>(call: &'a Call, key: &str) -> Result<&'a str, DxError> {
     match call.positional.first().or_else(|| call.arg(key)) {
         Some(Value::Str(literal)) => Ok(&literal.value),
-        _ => Err(format!(
+        _ => Err(DxError::failure(format!(
             "{} at line {} has no literal file label",
             call.name, call.line
-        )),
+        ))),
     }
 }
 
@@ -211,7 +212,7 @@ fn scan_inputs(file: &ModuleFile, package: &str, names: &[String], inputs: &mut 
     }
 }
 
-fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
+fn module_roots(workspace: &Path) -> Result<ModuleRoots, DxError> {
     let mut roots = ModuleRoots {
         names: Vec::new(),
         extensions: Vec::new(),
@@ -232,9 +233,10 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
                 roots.inputs.complete = false;
                 return Ok(roots);
             }
-            return Err(format!("{rel} is included but missing"));
+            return Err(DxError::failure(format!("{rel} is included but missing")));
         };
-        let file = ModuleFile::parse(&source).map_err(|error| format!("{rel}: {error}"))?;
+        let file = ModuleFile::parse(&source)
+            .map_err(|error| DxError::failure(format!("{rel}: {error}")))?;
         if rel == "MODULE.bazel" {
             roots.names = own_names(&file);
         }
@@ -263,12 +265,13 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
                 "include" => "label",
                 _ => continue,
             };
-            let label = literal_arg(call, key).map_err(|error| format!("{rel}: {error}"))?;
+            let label = literal_arg(call, key)
+                .map_err(|error| DxError::failure(format!("{rel}: {error}")))?;
             let Some(target) = label_path(label, &package, &roots.names) else {
                 if call.name == "include" {
-                    return Err(format!(
+                    return Err(DxError::failure(format!(
                         "{rel}: include {label:?} is not in the main repository"
-                    ));
+                    )));
                 }
                 continue;
             };
@@ -289,15 +292,15 @@ fn module_roots(workspace: &Path) -> Result<ModuleRoots, String> {
 }
 
 /// The main-repository files that MODULE.bazel and its included segments name.
-pub fn module_inputs(workspace: &Path) -> Result<ModuleInputs, String> {
+pub fn module_inputs(workspace: &Path) -> Result<ModuleInputs, DxError> {
     module_roots(workspace).map(|roots| roots.inputs)
 }
 
-fn no_pattern(rel: &str, call: &Call) -> String {
-    format!(
+fn no_pattern(rel: &str, call: &Call) -> DxError {
+    DxError::failure(format!(
         "{rel}: {} at line {} has no literal target pattern",
         call.name, call.line
-    )
+    ))
 }
 
 struct BazelrcRoots {
@@ -318,12 +321,13 @@ fn repo_matches(name: &str, repo: &str) -> bool {
     name == repo || (repo.ends_with('+') && name.starts_with(repo))
 }
 
-fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, String> {
+fn bazelrc_roots(workspace: &Path) -> Result<BazelrcRoots, DxError> {
     let mut pending: Vec<String> = Vec::new();
-    let entries =
-        std::fs::read_dir(workspace).map_err(|error| format!("cannot read workspace: {error}"))?;
+    let entries = std::fs::read_dir(workspace)
+        .map_err(|error| DxError::infra(format!("cannot read workspace: {error}")))?;
     for entry in entries {
-        let entry = entry.map_err(|error| format!("cannot read workspace: {error}"))?;
+        let entry =
+            entry.map_err(|error| DxError::infra(format!("cannot read workspace: {error}")))?;
         let name = entry.file_name().to_string_lossy().into_owned();
         if name.starts_with(".bazelrc") && workspace.join(&name).is_file() {
             pending.push(name);
@@ -454,7 +458,7 @@ fn pattern_builds(
 }
 
 /// The `.bazelignore` prefixes of the workspace, without `./` or trailing slashes.
-pub fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, String> {
+pub fn read_bazelignore(workspace: &Path) -> Result<Vec<String>, DxError> {
     let Some(text) = read(workspace, ".bazelignore")? else {
         return Ok(Vec::new());
     };
@@ -489,15 +493,16 @@ fn walk_workspace(
     workspace: &Path,
     skip: &[&str],
     mut visit: impl FnMut(&str, &str, &str) -> bool,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let ignores = read_bazelignore(workspace)?;
     let mut dirs: Vec<String> = vec![String::new()];
     while let Some(dir) = dirs.pop() {
         let shown = if dir.is_empty() { "." } else { dir.as_str() };
         let entries = std::fs::read_dir(workspace.join(&dir))
-            .map_err(|error| format!("cannot read {shown}: {error}"))?;
+            .map_err(|error| DxError::infra(format!("cannot read {shown}: {error}")))?;
         for entry in entries {
-            let entry = entry.map_err(|error| format!("cannot read {shown}: {error}"))?;
+            let entry =
+                entry.map_err(|error| DxError::infra(format!("cannot read {shown}: {error}")))?;
             let name = entry.file_name().to_string_lossy().into_owned();
             let rel = if dir.is_empty() {
                 name.clone()
@@ -506,7 +511,7 @@ fn walk_workspace(
             };
             let kind = entry
                 .file_type()
-                .map_err(|error| format!("cannot read {rel}: {error}"))?;
+                .map_err(|error| DxError::infra(format!("cannot read {rel}: {error}")))?;
             if kind.is_dir() {
                 if !skip.contains(&name.as_str()) && !is_ignored(&rel, &ignores) {
                     dirs.push(rel);
@@ -519,7 +524,7 @@ fn walk_workspace(
     Ok(())
 }
 
-fn build_files(workspace: &Path) -> Result<Vec<(String, String)>, String> {
+fn build_files(workspace: &Path) -> Result<Vec<(String, String)>, DxError> {
     let mut found: Vec<(String, String)> = Vec::new();
     walk_workspace(workspace, &[".git"], |name, rel, dir| {
         if matches!(name, "BUILD" | "BUILD.bazel") && workspace.join(rel).is_file() {
@@ -539,7 +544,7 @@ struct LoadGraph<'a> {
 }
 
 impl LoadGraph<'_> {
-    fn add(&mut self, rel: &str, package: &str) -> Result<(), String> {
+    fn add(&mut self, rel: &str, package: &str) -> Result<(), DxError> {
         let mut pending: Vec<(String, String)> = vec![(rel.to_owned(), package.to_owned())];
         while let Some((rel, package)) = pending.pop() {
             if self.loads.contains_key(&rel) {
@@ -549,7 +554,8 @@ impl LoadGraph<'_> {
                 self.loads.insert(rel, Vec::new());
                 continue;
             };
-            let labels = load_labels(&source).map_err(|error| format!("{rel}: {error}"))?;
+            let labels = load_labels(&source)
+                .map_err(|error| DxError::failure(format!("{rel}: {error}")))?;
             let mut targets = Vec::new();
             for label in labels {
                 if let Some(target) = label_path(&label, &package, &self.names) {
@@ -627,7 +633,7 @@ struct ImpactGraph<'a> {
 fn impact_graph<'a>(
     workspace: &'a Path,
     aspect_labels: &[String],
-) -> Result<ImpactGraph<'a>, String> {
+) -> Result<ImpactGraph<'a>, DxError> {
     let roots = module_roots(workspace)?;
     let mut graph = LoadGraph {
         workspace,
@@ -734,7 +740,7 @@ fn toolchain_attr_labels(source: &str) -> Vec<&str> {
 fn implementation_roots(
     graph: &mut LoadGraph<'_>,
     toolchain_builds: &[String],
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, DxError> {
     let mut roots = Vec::new();
     let mut repos: BTreeSet<String> = BTreeSet::new();
     for rel in toolchain_builds {
@@ -830,7 +836,7 @@ pub fn bzl_impact(
     workspace: &Path,
     changed_bzl: &[String],
     aspect_labels: &[String],
-) -> Result<BTreeMap<String, BzlImpact>, String> {
+) -> Result<BTreeMap<String, BzlImpact>, DxError> {
     let graph = impact_graph(workspace, aspect_labels)?;
     let mut impact = BTreeMap::new();
     for path in changed_bzl {
@@ -853,7 +859,7 @@ pub fn repo_impact(
     workspace: &Path,
     repos: &[String],
     aspect_labels: &[String],
-) -> Result<BTreeMap<String, BzlImpact>, String> {
+) -> Result<BTreeMap<String, BzlImpact>, DxError> {
     let graph = impact_graph(workspace, aspect_labels)?;
     let mut impact = BTreeMap::new();
     for repo in repos {
@@ -1049,10 +1055,10 @@ mod tests {
         write(root, "tools/ext.bzl", "load(\":a.bzl\"\n");
         let changed = ["tools/a.bzl".to_owned()];
         let error = bzl_impact(root, &changed, &[]).expect_err("parse error");
-        assert!(error.starts_with("tools/ext.bzl: "), "{error}");
+        assert!(error.message().starts_with("tools/ext.bzl: "), "{error}");
         write(root, "MODULE.bazel", "module(name = \n");
         let error = bzl_impact(root, &changed, &[]).expect_err("module parse error");
-        assert!(error.starts_with("MODULE.bazel: "), "{error}");
+        assert!(error.message().starts_with("MODULE.bazel: "), "{error}");
     }
 
     fn input_paths(root: &Path) -> (Vec<String>, bool) {
@@ -1171,16 +1177,18 @@ mod tests {
         let root = scratch.path();
         write(root, "MODULE.bazel", "module(name = \n");
         let error = module_inputs(root).expect_err("parse error");
-        assert!(error.starts_with("MODULE.bazel: "), "{error}");
+        assert!(error.message().starts_with("MODULE.bazel: "), "{error}");
         write(
             root,
             "MODULE.bazel",
             "include(\"//deps:gone.MODULE.bazel\")\n",
         );
+        let error = module_inputs(root).expect_err("missing include");
         assert_eq!(
-            module_inputs(root),
-            Err("deps/gone.MODULE.bazel is included but missing".to_owned())
+            error.message(),
+            "deps/gone.MODULE.bazel is included but missing"
         );
+        assert_eq!(error.kind(), dx_error::ErrorKind::Failure);
     }
 
     #[test]
@@ -1491,7 +1499,7 @@ mod tests {
             let error = bzl_impact(root, &changed, &[]).expect_err("computed pattern");
             let name = call.split('(').next().unwrap_or_default();
             assert!(
-                error.starts_with(&format!(
+                error.message().starts_with(&format!(
                     "MODULE.bazel: {name} at line 2 has no literal target pattern"
                 )),
                 "{error}"
@@ -1539,7 +1547,7 @@ mod tests {
         write(root, "MODULE.bazel", "module(name = \"demo\")\n");
         write(root, "app/BUILD.bazel", "load(\"//:defs.bzl\"\n");
         let error = bzl_impact(root, &["defs.bzl".to_owned()], &[]).expect_err("parse error");
-        assert!(error.starts_with("app/BUILD.bazel: "), "{error}");
+        assert!(error.message().starts_with("app/BUILD.bazel: "), "{error}");
     }
 
     fn repo_effects(root: &Path, repos: &[&str], aspects: &[&str]) -> Vec<(String, BzlImpact)> {

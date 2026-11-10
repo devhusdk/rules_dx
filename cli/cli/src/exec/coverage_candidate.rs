@@ -107,7 +107,8 @@ pub(super) fn tracked_orphans(
         .filter(|path| !path.is_empty())
         .map(|path| String::from_utf8_lossy(path).into_owned())
         .collect();
-    let ignored = dx_adopt::load_graph::read_bazelignore(workspace).map_err(Unavailable::Failed)?;
+    let ignored = dx_adopt::load_graph::read_bazelignore(workspace)
+        .map_err(|error| Unavailable::Failed(error.to_string()))?;
     let mut cache = HashMap::new();
     let candidates: Vec<String> = dx_lcov::orphan_candidates(&tracked, &ignored)
         .into_iter()

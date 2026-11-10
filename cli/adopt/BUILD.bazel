@@ -111,6 +111,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/dx_config",
+        "//cli/error:dx_error",
         "//cli/generate:dx_generate",
         "//cli/ide:dx_ide",
         "//cli/merge:dx_merge",
@@ -248,6 +249,7 @@ rust_test(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/dx_config",
+        "//cli/error:dx_error",
         "//cli/generate:dx_generate",
         "//cli/ide:dx_ide",
         "//cli/merge:dx_merge",

@@ -575,7 +575,7 @@ pub(super) fn drift(root: &Path, files: &[InitFile]) -> Drift {
                 match dx_adopt::owned_file_drift(root, &owned) {
                     Ok(false) => {}
                     Ok(true) => drift.stale.push(file.path.clone()),
-                    Err(error) => drift.other.push(error),
+                    Err(error) => drift.other.push(error.to_string()),
                 }
                 if path == ".bazelignore"
                     && std::fs::read_to_string(root.join(path))

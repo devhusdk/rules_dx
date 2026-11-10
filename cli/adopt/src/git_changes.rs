@@ -1,3 +1,4 @@
+use dx_error::DxError;
 use std::path::Path;
 
 /// Branch names tried, in order, when origin/HEAD is unset.
@@ -23,7 +24,7 @@ pub struct GitChange {
     pub kind: ChangeKind,
 }
 
-fn change_kind_from_status(status: &str) -> Result<(ChangeKind, bool), String> {
+fn change_kind_from_status(status: &str) -> Result<(ChangeKind, bool), DxError> {
     let kind = match status.as_bytes().first() {
         Some(b'A') => ChangeKind::Added,
         Some(b'C') => ChangeKind::Copied,
@@ -32,20 +33,24 @@ fn change_kind_from_status(status: &str) -> Result<(ChangeKind, bool), String> {
         Some(b'R') => ChangeKind::Renamed,
         Some(b'T') => ChangeKind::TypeChanged,
         Some(b'U') => ChangeKind::Unmerged,
-        _ => return Err(format!("git change status {status:?} is not supported")),
+        _ => {
+            return Err(DxError::failure(format!(
+                "git change status {status:?} is not supported"
+            )));
+        }
     };
     let renamed = matches!(kind, ChangeKind::Renamed | ChangeKind::Copied);
     Ok((kind, renamed))
 }
 
-fn utf8_path(bytes: &[u8]) -> Result<String, String> {
+fn utf8_path(bytes: &[u8]) -> Result<String, DxError> {
     std::str::from_utf8(bytes)
         .map(ToOwned::to_owned)
-        .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())
+        .map_err(|_| DxError::failure("git path is not UTF-8: rename the file to a UTF-8 name"))
 }
 
 /// Parses `git diff --name-status -z` output into typed changes with rename identities kept.
-pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, String> {
+pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, DxError> {
     let mut fields: Vec<&[u8]> = output.split(|byte| *byte == 0).collect();
     if fields.last().is_some_and(|field| field.is_empty()) {
         fields.pop();
@@ -55,25 +60,27 @@ pub fn parse_name_status_nul(output: &[u8]) -> Result<Vec<GitChange>, String> {
     while index < fields.len() {
         let status = utf8_path(fields[index])?;
         if status.is_empty() {
-            return Err("git change list has an empty status field".to_owned());
+            return Err(DxError::failure(
+                "git change list has an empty status field",
+            ));
         }
         let (kind, renamed) = change_kind_from_status(&status)?;
         index += 1;
         let first = fields
             .get(index)
-            .ok_or_else(|| "git change list ends before its path".to_owned())
+            .ok_or_else(|| DxError::failure("git change list ends before its path"))
             .and_then(|field| utf8_path(field))?;
         if first.is_empty() {
-            return Err("git change list has an empty path".to_owned());
+            return Err(DxError::failure("git change list has an empty path"));
         }
         index += 1;
         let (path, from) = if renamed {
             let second = fields
                 .get(index)
-                .ok_or_else(|| "git rename ends before its target path".to_owned())
+                .ok_or_else(|| DxError::failure("git rename ends before its target path"))
                 .and_then(|field| utf8_path(field))?;
             if second.is_empty() {
-                return Err("git rename has an empty target path".to_owned());
+                return Err(DxError::failure("git rename has an empty target path"));
             }
             index += 1;
             (second, Some(first))

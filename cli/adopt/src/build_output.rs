@@ -1,3 +1,4 @@
+use dx_error::DxError;
 use std::collections::BTreeSet;
 use std::path::Path;
 use std::process::Command;
@@ -202,18 +203,18 @@ struct Git<'a> {
 
 impl Git<'_> {
     /// `Ok(None)` when git cannot start; any other failure to finish is an error.
-    fn run(&self, args: &[&str]) -> Result<Option<dx_process::capture::Captured>, String> {
+    fn run(&self, args: &[&str]) -> Result<Option<dx_process::capture::Captured>, DxError> {
         let mut cmd = dx_process::capture::git(self.root);
         cmd.args(args);
         (self.configure)(&mut cmd);
         match dx_process::capture::run_captured(&mut cmd, dx_process::capture::DEFAULT_TIMEOUT) {
             Ok(output) => Ok(Some(output)),
             Err(dx_process::capture::RunError::Spawn { .. }) => Ok(None),
-            Err(error) => Err(error.to_string()),
+            Err(error) => Err(DxError::infra(error.to_string())),
         }
     }
 
-    fn ok_text(&self, args: &[&str]) -> Result<Option<String>, String> {
+    fn ok_text(&self, args: &[&str]) -> Result<Option<String>, DxError> {
         let Some(output) = self.run(args)? else {
             return Ok(None);
         };
@@ -224,20 +225,20 @@ impl Git<'_> {
         Ok((!text.is_empty()).then_some(text))
     }
 
-    fn stdout(&self, args: &[&str]) -> Result<Vec<u8>, String> {
+    fn stdout(&self, args: &[&str]) -> Result<Vec<u8>, DxError> {
         let output = self
             .run(args)?
-            .ok_or_else(|| "git did not start".to_owned())?;
+            .ok_or_else(|| DxError::infra("git did not start"))?;
         if output.success() {
             return Ok(output.stdout);
         }
         let stderr = output.stderr_text();
         let line = stderr.lines().next().unwrap_or("git failed").trim();
-        Err(line.to_owned())
+        Err(DxError::infra(line))
     }
 }
 
-fn default_base(git: &Git<'_>) -> Result<Option<String>, String> {
+fn default_base(git: &Git<'_>) -> Result<Option<String>, DxError> {
     let mut candidates = Vec::new();
     if let Some(head) = git.ok_text(&[
         "symbolic-ref",
@@ -260,7 +261,7 @@ fn default_base(git: &Git<'_>) -> Result<Option<String>, String> {
     Ok(None)
 }
 
-fn lfs_paths(git: &Git<'_>, paths: &[String]) -> Result<BTreeSet<String>, String> {
+fn lfs_paths(git: &Git<'_>, paths: &[String]) -> Result<BTreeSet<String>, DxError> {
     let mut args = vec!["check-attr", "-z", "filter", "--"];
     args.extend(paths.iter().map(String::as_str));
     let stdout = git.stdout(&args)?;
@@ -273,12 +274,12 @@ fn lfs_paths(git: &Git<'_>, paths: &[String]) -> Result<BTreeSet<String>, String
 }
 
 /// Scans the change: untracked files, staged and unstaged edits, and commits since the default branch.
-pub fn scan(root: &Path) -> Result<ScanReport, String> {
+pub fn scan(root: &Path) -> Result<ScanReport, DxError> {
     scan_with(root, &|_| {})
 }
 
 /// `scan` with a hook that configures every git command, so tests can isolate git.
-fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport, String> {
+fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport, DxError> {
     let git = &Git { root, configure };
     let mut report = ScanReport::default();
     let Some(inside) = git.run(&["rev-parse", "--is-inside-work-tree"])? else {
@@ -356,9 +357,9 @@ fn scan_with(root: &Path, configure: &dyn Fn(&mut Command)) -> Result<ScanReport
 }
 
 /// Reads one NUL-separated git path as UTF-8.
-fn git_path(field: &[u8]) -> Result<&str, String> {
+fn git_path(field: &[u8]) -> Result<&str, DxError> {
     std::str::from_utf8(field)
-        .map_err(|_| "git path is not UTF-8: rename the file to a UTF-8 name".to_owned())
+        .map_err(|_| DxError::failure("git path is not UTF-8: rename the file to a UTF-8 name"))
 }
 
 #[cfg(test)]
@@ -396,7 +397,7 @@ mod tests {
         }
     }
 
-    fn scan_isolated(root: &Path) -> Result<ScanReport, String> {
+    fn scan_isolated(root: &Path) -> Result<ScanReport, DxError> {
         let sandbox = sandbox_of(root);
         scan_with(root, &|c| {
             dx_test_scratch::isolate_git(c, sandbox);
@@ -679,13 +680,13 @@ mod tests {
         let root = repo_on_main();
         std::fs::write(root.join(".git/index"), b"garbage").expect("index");
         let error = scan_isolated(&root).expect_err("error");
-        assert!(!error.is_empty());
+        assert!(!error.message().is_empty());
     }
 
     #[test]
     fn non_utf8_names_are_an_error() {
         let error = git_path(b"bad\xff.txt").expect_err("error");
-        assert!(error.contains("not UTF-8"), "{error}");
+        assert!(error.message().contains("not UTF-8"), "{error}");
         assert_eq!(git_path(b"ok.txt"), Ok("ok.txt"));
     }
 

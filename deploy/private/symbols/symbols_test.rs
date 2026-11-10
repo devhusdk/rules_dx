@@ -35,7 +35,8 @@ fn known_split() -> (PathBuf, PathBuf, PathBuf) {
 #[test]
 fn symbolizes_known_function_from_debug_file() {
     let (_, debug, _) = known_split();
-    let tmp = dx_testing::mkscratch("symbols").unwrap();
+    let scratch = dx_test_scratch::scratch("symbols");
+    let tmp = scratch.path();
     let copy = tmp.join("known.debug");
     std::fs::copy(&debug, &copy).unwrap();
     let nm = dx_testing::run(&data("DX_LLVM_NM"), &[copy.to_str().unwrap()], &[]).unwrap();
@@ -99,7 +100,8 @@ fn manifest_matches_the_binary() {
 
 #[test]
 fn split_without_build_id_writes_nothing() {
-    let tmp = dx_testing::mkscratch("symbols-nobuildid").unwrap();
+    let scratch = dx_test_scratch::scratch("symbols-nobuildid");
+    let tmp = scratch.path();
     let out = |n: &str| tmp.join(n).to_str().unwrap().to_string();
     let args = [
         "--objcopy".to_string(),
@@ -124,7 +126,8 @@ fn split_without_build_id_writes_nothing() {
 
 #[test]
 fn split_missing_input_fails() {
-    let tmp = dx_testing::mkscratch("symbols-missing").unwrap();
+    let scratch = dx_test_scratch::scratch("symbols-missing");
+    let tmp = scratch.path();
     let missing = tmp.join("missing");
     let out = |n: &str| tmp.join(n).to_str().unwrap().to_string();
     let objcopy = data("DX_LLVM_OBJCOPY");

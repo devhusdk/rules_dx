@@ -72,25 +72,35 @@ impl BazelBuild<'_> {
 }
 
 impl dx_ide::Runner for BazelBuild<'_> {
-    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, String> {
+    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, dx_error::DxError> {
         let labels: Vec<String> = labels
             .iter()
             .map(|label| dx_plan::plan::rules_dx_label(label))
             .collect();
         self.build_files(&labels, &[])
+            .map_err(dx_error::DxError::infra)
     }
 
-    fn build_group(&self, labels: &[String], group: &str) -> Result<Vec<PathBuf>, String> {
+    fn build_group(
+        &self,
+        labels: &[String],
+        group: &str,
+    ) -> Result<Vec<PathBuf>, dx_error::DxError> {
         self.build_files(labels, &[format!("--output_groups={group}")])
+            .map_err(dx_error::DxError::infra)
     }
 
-    fn aquery(&self, expr: &str) -> Result<String, String> {
+    fn aquery(&self, expr: &str) -> Result<String, dx_error::DxError> {
         let options = ["--output=jsonproto".to_owned()];
-        self.run(&self.argv("aquery", &options, &[expr.to_owned()])?)
+        let argv = self
+            .argv("aquery", &options, &[expr.to_owned()])
+            .map_err(dx_error::DxError::infra)?;
+        self.run(&argv).map_err(dx_error::DxError::infra)
     }
 
-    fn execution_root(&self) -> Result<PathBuf, String> {
+    fn execution_root(&self) -> Result<PathBuf, dx_error::DxError> {
         self.info("execution_root")
+            .map_err(dx_error::DxError::infra)
     }
 }
 

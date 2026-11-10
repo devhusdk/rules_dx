@@ -215,20 +215,22 @@ fn resolve_dart_uri(uri: &str, owned: &BTreeSet<String>) -> Resolved {
 }
 
 /// Parses one source manifest: a `v1 cell <cell>` header, then `<prod|test> <source|generated> <path>` rows.
-pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, String> {
+pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, dx_error::DxError> {
     let mut lines = text.lines();
     let header: Vec<&str> = lines.next().unwrap_or_default().split(' ').collect();
     let cell = match header.as_slice() {
         [MANIFEST_VERSION, "cell", cell] if !cell.is_empty() => (*cell).to_string(),
         _ => {
-            return Err(format!(
+            return Err(dx_error::DxError::failure(format!(
                 "unsupported source manifest header: {:?}",
                 header.join(" ")
-            ));
+            )));
         }
     };
     if cell == UNKNOWN_CELL {
-        return Err("source manifest names an unknown cell".to_string());
+        return Err(dx_error::DxError::failure(
+            "source manifest names an unknown cell",
+        ));
     }
     let mut manifest = SourceManifest {
         cell,
@@ -238,25 +240,37 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, String> {
         let lineno = index + 2;
         let fields: Vec<&str> = line.splitn(3, ' ').collect();
         let [kind, origin, path] = fields.as_slice() else {
-            return Err(format!("malformed source manifest row {lineno}: {line:?}"));
+            return Err(dx_error::DxError::failure(format!(
+                "malformed source manifest row {lineno}: {line:?}"
+            )));
         };
         if *kind == "cell" {
-            return Err(format!(
+            return Err(dx_error::DxError::failure(format!(
                 "source manifest names more than one cell at row {lineno}"
-            ));
+            )));
         }
         let test = match *kind {
             "prod" => false,
             "test" => true,
-            _ => return Err(format!("unknown source kind {kind:?} at row {lineno}")),
+            _ => {
+                return Err(dx_error::DxError::failure(format!(
+                    "unknown source kind {kind:?} at row {lineno}"
+                )));
+            }
         };
         let generated = match *origin {
             "source" => false,
             "generated" => true,
-            _ => return Err(format!("unknown source origin {origin:?} at row {lineno}")),
+            _ => {
+                return Err(dx_error::DxError::failure(format!(
+                    "unknown source origin {origin:?} at row {lineno}"
+                )));
+            }
         };
         if path.is_empty() {
-            return Err(format!("malformed source manifest row {lineno}: {line:?}"));
+            return Err(dx_error::DxError::failure(format!(
+                "malformed source manifest row {lineno}: {line:?}"
+            )));
         }
         manifest.rows.push(SourceRow {
             path: (*path).to_string(),
@@ -268,7 +282,7 @@ pub fn parse_source_manifest(text: &str) -> Result<SourceManifest, String> {
     let mut errors = Vec::new();
     alias_errors("source manifest", &paths, &mut errors);
     match errors.into_iter().next() {
-        Some(error) => Err(error),
+        Some(error) => Err(dx_error::DxError::failure(error)),
         None => Ok(manifest),
     }
 }

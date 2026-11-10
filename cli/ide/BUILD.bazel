@@ -31,6 +31,7 @@ rust_library(
         "//cc/context:cc_context",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/path:dx_path",
     ],
 )
@@ -52,6 +53,7 @@ rust_test(
         "//cc/context:cc_context",
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
     ],

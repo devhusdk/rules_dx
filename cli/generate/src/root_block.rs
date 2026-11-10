@@ -2,6 +2,7 @@
 
 use std::collections::BTreeSet;
 
+use dx_error::DxError;
 use dx_merge::block;
 
 use crate::{GenerateError, RootBuild};
@@ -175,7 +176,7 @@ fn exports(text: &str) -> (Vec<Export>, Option<String>) {
         match call(&tokens[at + 2..]) {
             Ok(export) => out.push(export),
             Err(argument) => {
-                non_literal.get_or_insert(argument);
+                non_literal.get_or_insert(argument.message().to_owned());
             }
         }
     }
@@ -184,7 +185,7 @@ fn exports(text: &str) -> (Vec<Export>, Option<String>) {
 
 /// Parses the arguments of one call, up to its closing parenthesis, or names the first
 /// argument that is not literal.
-fn call(tokens: &[Token]) -> Result<Export, String> {
+fn call(tokens: &[Token]) -> Result<Export, DxError> {
     let non_literal = |at: usize| match tokens.get(at) {
         Some(Token::Word(word)) => word.clone(),
         Some(Token::Str(value)) => format!("\"{value}\""),
@@ -201,7 +202,8 @@ fn call(tokens: &[Token]) -> Result<Export, String> {
         match tokens.get(at) {
             Some(Token::Punct(')')) => return Ok(export),
             Some(Token::Punct('[')) => {
-                let (values, next) = strings(tokens, at).ok_or_else(|| non_literal(at))?;
+                let (values, next) =
+                    strings(tokens, at).ok_or_else(|| DxError::failure(non_literal(at)))?;
                 match positional {
                     0 => export.files = values,
                     1 => export.visibility = Some(values),
@@ -211,7 +213,8 @@ fn call(tokens: &[Token]) -> Result<Export, String> {
                 at = next;
             }
             Some(Token::Word(key)) if tokens.get(at + 1) == Some(&Token::Punct('=')) => {
-                let (values, next) = strings(tokens, at + 2).ok_or_else(|| non_literal(at + 2))?;
+                let (values, next) =
+                    strings(tokens, at + 2).ok_or_else(|| DxError::failure(non_literal(at + 2)))?;
                 match key.as_str() {
                     "srcs" => export.files = values,
                     "visibility" => export.visibility = Some(values),
@@ -219,12 +222,12 @@ fn call(tokens: &[Token]) -> Result<Export, String> {
                 }
                 at = next;
             }
-            _ => return Err(non_literal(at)),
+            _ => return Err(DxError::failure(non_literal(at))),
         }
         match tokens.get(at) {
             Some(Token::Punct(',')) => at += 1,
             Some(Token::Punct(')')) => {}
-            _ => return Err(non_literal(at)),
+            _ => return Err(DxError::failure(non_literal(at))),
         }
     }
 }

@@ -1,4 +1,5 @@
 use crate::{Ctx, Plugin, link};
+use dx_error::DxError;
 
 pub const PLUGIN: Plugin = Plugin {
     name: "typescript",
@@ -8,13 +9,13 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
-fn write(ctx: &Ctx<'_>) -> Result<(), String> {
+fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let package = ctx
         .outputs
         .iter()
         .filter(|path| path.file_name().is_some_and(|name| name == "typescript"))
         .min_by_key(|path| path.as_os_str().len())
-        .ok_or("the TypeScript package was not built")?;
+        .ok_or_else(|| DxError::failure("the TypeScript package was not built"))?;
     link(ctx.dir, "lib", &package.join("lib"))
-        .map_err(|error| format!("linking the TypeScript lib: {error}"))
+        .map_err(|error| DxError::infra(format!("linking the TypeScript lib: {error}")))
 }

@@ -1,4 +1,5 @@
 use crate::{Ctx, Plugin, link};
+use dx_error::DxError;
 
 pub const PLUGIN: Plugin = Plugin {
     name: "jdk",
@@ -8,7 +9,7 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
-fn write(ctx: &Ctx<'_>) -> Result<(), String> {
+fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let home = ctx
         .outputs
         .iter()
@@ -17,6 +18,7 @@ fn write(ctx: &Ctx<'_>) -> Result<(), String> {
                 .is_some_and(|name| name == "java" || name == "java.exe")
         })
         .and_then(|java| java.parent()?.parent())
-        .ok_or("the JDK was not built")?;
-    link(ctx.dir, "home", home).map_err(|error| format!("linking the JDK home: {error}"))
+        .ok_or_else(|| DxError::failure("the JDK was not built"))?;
+    link(ctx.dir, "home", home)
+        .map_err(|error| DxError::infra(format!("linking the JDK home: {error}")))
 }

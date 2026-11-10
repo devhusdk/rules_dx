@@ -33,6 +33,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/path:dx_path",
         "//cli/roots:dx_roots",
     ],
@@ -73,6 +74,7 @@ rust_test(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
         "//cli/roots:dx_roots",

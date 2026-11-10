@@ -1,3 +1,4 @@
+use dx_error::DxError;
 use std::path::{Path, PathBuf};
 
 use crate::{Ctx, Plugin, link};
@@ -14,23 +15,23 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
-fn write(ctx: &Ctx<'_>) -> Result<(), String> {
+fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let interpreter = ctx
         .outputs
         .iter()
         .find(|path| path.file_name().is_some_and(|name| name != "typescript"))
-        .ok_or("the Python interpreter was not built")?;
+        .ok_or_else(|| DxError::failure("the Python interpreter was not built"))?;
     link(ctx.dir, "python", interpreter)
-        .map_err(|error| format!("linking the Python interpreter: {error}"))?;
+        .map_err(|error| DxError::infra(format!("linking the Python interpreter: {error}")))?;
     write_site_packages(ctx)
 }
 
 /// Links every top-level entry of the locked wheels into `site-packages`, so the editor can import them.
-fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), String> {
+fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let target = ctx.dir.join(SITE_PACKAGES);
     let _ = std::fs::remove_dir_all(&target);
     std::fs::create_dir_all(&target)
-        .map_err(|error| format!("creating {}: {error}", target.display()))?;
+        .map_err(|error| DxError::infra(format!("creating {}: {error}", target.display())))?;
     let labels = locked_labels(&ctx.workspace.join("uv.lock"));
     if labels.is_empty() {
         return Ok(());
@@ -38,11 +39,11 @@ fn write_site_packages(ctx: &Ctx<'_>) -> Result<(), String> {
     let installs = ctx
         .runner
         .build_group(&labels, OUTPUT_GROUP)
-        .map_err(|error| format!("building the locked Python packages: {error}"))?;
+        .map_err(|error| DxError::infra(format!("building the locked Python packages: {error}")))?;
     for install in installs {
         for site in site_packages_dirs(&install) {
             link_entries(&site, &target)
-                .map_err(|error| format!("linking {}: {error}", site.display()))?;
+                .map_err(|error| DxError::infra(format!("linking {}: {error}", site.display())))?;
         }
     }
     Ok(())
@@ -89,14 +90,15 @@ fn site_packages_dirs(install: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-fn link_entries(site: &Path, target: &Path) -> Result<(), String> {
-    let entries = std::fs::read_dir(site).map_err(|error| error.to_string())?;
+fn link_entries(site: &Path, target: &Path) -> Result<(), DxError> {
+    let entries = std::fs::read_dir(site).map_err(|error| DxError::infra(error.to_string()))?;
     for entry in entries.flatten() {
         let name = entry.file_name();
         if target.join(&name).symlink_metadata().is_ok() {
             continue;
         }
-        link(target, &name.to_string_lossy(), &entry.path()).map_err(|error| error.to_string())?;
+        link(target, &name.to_string_lossy(), &entry.path())
+            .map_err(|error| DxError::infra(error.to_string()))?;
     }
     Ok(())
 }

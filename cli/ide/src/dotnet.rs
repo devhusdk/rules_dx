@@ -1,4 +1,5 @@
 use crate::{Ctx, Plugin, link};
+use dx_error::DxError;
 
 pub const PLUGIN: Plugin = Plugin {
     name: "dotnet",
@@ -11,7 +12,7 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
-fn write(ctx: &Ctx<'_>) -> Result<(), String> {
+fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let root = ctx
         .outputs
         .iter()
@@ -20,6 +21,7 @@ fn write(ctx: &Ctx<'_>) -> Result<(), String> {
                 .is_some_and(|name| name == "dotnet" || name == "dotnet.exe")
         })
         .and_then(|dotnet| dotnet.parent())
-        .ok_or("the .NET SDK was not built")?;
-    link(ctx.dir, "root", root).map_err(|error| format!("linking the .NET SDK root: {error}"))
+        .ok_or_else(|| DxError::failure("the .NET SDK was not built"))?;
+    link(ctx.dir, "root", root)
+        .map_err(|error| DxError::infra(format!("linking the .NET SDK root: {error}")))
 }

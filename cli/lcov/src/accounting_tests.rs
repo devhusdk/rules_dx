@@ -71,13 +71,15 @@ fn rejects_bad_headers_and_unknown_cells() {
         "v1 cell \n",
         "v1 os linux\n",
     ] {
-        let error = parse_source_manifest(text).unwrap_err();
+        let error = parse_source_manifest(text).unwrap_err().to_string();
         assert!(
             error.contains("unsupported source manifest header"),
             "{error}"
         );
     }
-    let error = parse_source_manifest("v1 cell unknown\nprod source a.rs\n").unwrap_err();
+    let error = parse_source_manifest("v1 cell unknown\nprod source a.rs\n")
+        .unwrap_err()
+        .to_string();
     assert!(error.contains("unknown cell"), "{error}");
 }
 
@@ -94,7 +96,9 @@ fn rejects_malformed_rows() {
         ("cell linux arm64", "more than one cell at row 2"),
     ];
     for (row, want) in cases {
-        let error = parse_source_manifest(&format!("v1 cell linux_x86_64\n{row}\n")).unwrap_err();
+        let error = parse_source_manifest(&format!("v1 cell linux_x86_64\n{row}\n"))
+            .unwrap_err()
+            .to_string();
         assert!(error.contains(want), "{row}: {error}");
     }
 }
@@ -102,14 +106,16 @@ fn rejects_malformed_rows() {
 #[test]
 fn rejects_duplicates_and_aliases() {
     let error = parse_source_manifest("v1 cell linux_x86_64\nprod source a.rs\ntest source a.rs\n")
-        .unwrap_err();
+        .unwrap_err()
+        .to_string();
     assert!(
         error.contains("duplicate path in source manifest: a.rs"),
         "{error}"
     );
     let error =
         parse_source_manifest("v1 cell linux_x86_64\nprod source a.rs\nprod source ./a.rs\n")
-            .unwrap_err();
+            .unwrap_err()
+            .to_string();
     assert!(error.contains("path alias in source manifest"), "{error}");
 }
 

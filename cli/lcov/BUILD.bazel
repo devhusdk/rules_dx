@@ -34,6 +34,7 @@ rust_library(
         package_name = "cli/dx_lcov",
         normal = True,
     ) + [
+        "//cli/error:dx_error",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
     ],
@@ -74,6 +75,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/error:dx_error",
         "//cli/output:dx_output",
         "//cli/path:dx_path",
     ],

@@ -43,9 +43,9 @@ struct Cli {
     help: bool,
 }
 
-fn parse_args(args: &[String]) -> Result<Cli, String> {
+fn parse_args(args: &[String]) -> Result<Cli, DxError> {
     Cli::try_parse_from(std::iter::once("env").chain(args.iter().map(|arg| arg as &str)))
-        .map_err(|error| dx_output::parse_error(&error, args))
+        .map_err(|error| DxError::usage(dx_output::parse_error(&error, args)))
 }
 
 #[derive(Debug)]
@@ -59,19 +59,25 @@ enum Plan {
     },
 }
 
-fn plan(args: &[String]) -> Result<Plan, String> {
+fn plan(args: &[String]) -> Result<Plan, DxError> {
     let cli = parse_args(args)?;
     if cli.help {
         return Ok(Plan::Help);
     }
     if cli.staged_bin.is_none() != cli.metadata.is_none() {
-        return Err("--staged-bin and --metadata must be passed together".to_owned());
+        return Err(DxError::usage(
+            "--staged-bin and --metadata must be passed together",
+        ));
     }
     let lock_timeout = match cli.lock_timeout_ms {
         None => dx_env::LOCK_TIMEOUT,
         Some(millis) => match millis.parse::<u64>() {
             Ok(millis) => Duration::from_millis(millis),
-            Err(_) => return Err("--lock-timeout-ms must be a non-negative integer".to_owned()),
+            Err(_) => {
+                return Err(DxError::usage(
+                    "--lock-timeout-ms must be a non-negative integer",
+                ));
+            }
         },
     };
     Ok(Plan::Install {
@@ -115,7 +121,7 @@ fn run() -> Result<(), DxError> {
             metadata,
             lock_timeout,
         }) => (workspace, staged_bin, metadata, lock_timeout),
-        Err(message) => return Err(usage_error(&message)),
+        Err(error) => return Err(usage_error(error.message())),
     };
     let cwd = dx_process::current_directory().unwrap_or_else(|_| PathBuf::from("."));
     let start = match workspace {
@@ -203,7 +209,7 @@ mod tests {
         lock_timeout: Duration,
     }
 
-    fn plan_of(args: &[&str]) -> Result<Plan, String> {
+    fn plan_of(args: &[&str]) -> Result<Plan, DxError> {
         let args: Vec<String> = args.iter().map(|arg| (*arg).to_owned()).collect();
         plan(&args)
     }
@@ -226,7 +232,10 @@ mod tests {
     }
 
     fn rejected(args: &[&str]) -> String {
-        plan_of(args).expect_err("plan must reject these arguments")
+        plan_of(args)
+            .expect_err("plan must reject these arguments")
+            .message()
+            .to_owned()
     }
 
     #[test]

@@ -1,5 +1,6 @@
 use crate::link::make_executable;
 use crate::{Ctx, Plugin};
+use dx_error::DxError;
 
 const WRAPPER: &str = if cfg!(windows) {
     "gopackagesdriver.cmd"
@@ -15,7 +16,7 @@ pub const PLUGIN: Plugin = Plugin {
     write,
 };
 
-fn write(ctx: &Ctx<'_>) -> Result<(), String> {
+fn write(ctx: &Ctx<'_>) -> Result<(), DxError> {
     let driver = ctx
         .outputs
         .iter()
@@ -23,13 +24,14 @@ fn write(ctx: &Ctx<'_>) -> Result<(), String> {
             path.file_name()
                 .is_some_and(|name| name == "gopackagesdriver" || name == "gopackagesdriver.exe")
         })
-        .ok_or("the Go packages driver was not built")?;
+        .ok_or_else(|| DxError::failure("the Go packages driver was not built"))?;
     let script = script(&ctx.workspace.to_string_lossy(), &driver.to_string_lossy());
-    std::fs::create_dir_all(ctx.dir).map_err(|e| format!("creating {}: {e}", ctx.dir.display()))?;
+    std::fs::create_dir_all(ctx.dir)
+        .map_err(|e| DxError::infra(format!("creating {}: {e}", ctx.dir.display())))?;
     let path = ctx.dir.join(WRAPPER);
     dx_atomic_fs::write_atomic(&path, script.as_bytes())
-        .map_err(|e| format!("writing {WRAPPER}: {e}"))?;
-    make_executable(&path).map_err(|e| format!("making {WRAPPER} executable: {e}"))
+        .map_err(|e| DxError::infra(format!("writing {WRAPPER}: {e}")))?;
+    make_executable(&path).map_err(|e| DxError::infra(format!("making {WRAPPER} executable: {e}")))
 }
 
 #[cfg(not(windows))]

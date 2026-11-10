@@ -41,6 +41,7 @@ rust_library(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/dx_config",
         "//cli/merge:dx_merge",
         "//cli/path:dx_path",
@@ -90,6 +91,7 @@ rust_test(
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
         "//cli/digest:dx_digest",
+        "//cli/error:dx_error",
         "//cli/dx_config",
         "//cli/merge:dx_merge",
         "//cli/path:dx_path",

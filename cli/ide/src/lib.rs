@@ -19,6 +19,7 @@ mod python;
 mod rust_analyzer;
 mod typescript;
 
+use dx_error::DxError;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -54,18 +55,18 @@ pub struct Plugin {
     pub labels: &'static [&'static str],
     /// Paths the plug-in writes, relative to `.dx/local/ide/<name>`.
     pub outputs: &'static [&'static str],
-    pub write: fn(&Ctx<'_>) -> Result<(), String>,
+    pub write: fn(&Ctx<'_>) -> Result<(), DxError>,
 }
 
 /// Builds rules_dx labels and returns the absolute paths of their files.
 pub trait Runner {
-    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, String>;
+    fn build(&self, labels: &[String]) -> Result<Vec<PathBuf>, DxError>;
     /// Builds labels as they are written and returns the files of one output group.
-    fn build_group(&self, labels: &[String], group: &str) -> Result<Vec<PathBuf>, String>;
+    fn build_group(&self, labels: &[String], group: &str) -> Result<Vec<PathBuf>, DxError>;
     /// Runs `bazel aquery --output=jsonproto` on an expression and returns the output.
-    fn aquery(&self, expr: &str) -> Result<String, String>;
+    fn aquery(&self, expr: &str) -> Result<String, DxError>;
     /// The absolute execution root of the workspace.
-    fn execution_root(&self) -> Result<PathBuf, String>;
+    fn execution_root(&self) -> Result<PathBuf, DxError>;
 }
 
 /// What one refresh did.
@@ -101,7 +102,7 @@ const PLUGINS: &[&Plugin] = &[
 ];
 
 /// Refreshes `.dx/local/ide/` for the plug-ins that apply; a second run with the same inputs does nothing.
-pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, String> {
+pub fn refresh(workspace: &Path, runner: &dyn Runner) -> Result<Report, DxError> {
     refresh_with(workspace, runner, PLUGINS)
 }
 
@@ -109,7 +110,7 @@ fn refresh_with(
     workspace: &Path,
     runner: &dyn Runner,
     plugins: &[&Plugin],
-) -> Result<Report, String> {
+) -> Result<Report, DxError> {
     let mut extensions = Vec::new();
     collect_extensions(workspace, &mut extensions);
     let active: Vec<&Plugin> = plugins
@@ -167,8 +168,11 @@ fn refresh_with(
         match result {
             Ok(()) => results.insert(plugin.name.to_owned(), "ok".to_owned()),
             Err(error) => {
-                report.failed.push((plugin.name.to_owned(), error.clone()));
-                results.insert(plugin.name.to_owned(), error)
+                let message = error.message().to_owned();
+                report
+                    .failed
+                    .push((plugin.name.to_owned(), message.clone()));
+                results.insert(plugin.name.to_owned(), message)
             }
         };
     }
@@ -262,12 +266,13 @@ fn write_state(
     path: &Path,
     digest: &str,
     results: &BTreeMap<String, String>,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let state = serde_json::json!({ "digest": digest, "plugins": results });
-    let mut text = serde_json::to_string_pretty(&state).map_err(|e| e.to_string())?;
+    let mut text =
+        serde_json::to_string_pretty(&state).map_err(|e| DxError::infra(e.to_string()))?;
     text.push('\n');
     dx_atomic_fs::write_atomic(path, text.as_bytes())
-        .map_err(|error| format!("writing {STATE_FILE}: {error}"))
+        .map_err(|error| DxError::infra(format!("writing {STATE_FILE}: {error}")))
 }
 
 fn remove_stale(workspace: &Path, all: &[&Plugin], active: &[&Plugin]) {
@@ -333,7 +338,7 @@ mod tests {
     }
 
     impl Runner for Fake {
-        fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
+        fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, DxError> {
             self.calls.set(self.calls.get() + 1);
             Ok(vec![
                 self.lib.clone(),
@@ -343,15 +348,15 @@ mod tests {
             ])
         }
 
-        fn build_group(&self, _labels: &[String], _group: &str) -> Result<Vec<PathBuf>, String> {
+        fn build_group(&self, _labels: &[String], _group: &str) -> Result<Vec<PathBuf>, DxError> {
             Ok(self.groups.clone())
         }
 
-        fn aquery(&self, _expr: &str) -> Result<String, String> {
+        fn aquery(&self, _expr: &str) -> Result<String, DxError> {
             Ok(self.aquery.clone())
         }
 
-        fn execution_root(&self) -> Result<PathBuf, String> {
+        fn execution_root(&self) -> Result<PathBuf, DxError> {
             Ok(self.lib.clone())
         }
     }
@@ -367,8 +372,8 @@ mod tests {
         }
     }
 
-    fn fail(_: &Ctx<'_>) -> Result<(), String> {
-        Err("boom".to_owned())
+    fn fail(_: &Ctx<'_>) -> Result<(), DxError> {
+        Err(DxError::failure("boom"))
     }
 
     const AQUERY: &str = r#"{"targets":[{"id":1,"label":"//:a"}],"actions":[{"mnemonic":"CppCompile","arguments":["clang","-c","a.cc"],"targetId":1}]}"#;
@@ -673,19 +678,19 @@ mod tests {
 
     #[cfg(unix)]
     impl Runner for RustRunner {
-        fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, String> {
+        fn build(&self, _labels: &[String]) -> Result<Vec<PathBuf>, DxError> {
             Ok(self.files.clone())
         }
 
-        fn build_group(&self, _labels: &[String], _group: &str) -> Result<Vec<PathBuf>, String> {
+        fn build_group(&self, _labels: &[String], _group: &str) -> Result<Vec<PathBuf>, DxError> {
             Ok(Vec::new())
         }
 
-        fn aquery(&self, _expr: &str) -> Result<String, String> {
+        fn aquery(&self, _expr: &str) -> Result<String, DxError> {
             Ok(String::new())
         }
 
-        fn execution_root(&self) -> Result<PathBuf, String> {
+        fn execution_root(&self) -> Result<PathBuf, DxError> {
             Ok(PathBuf::new())
         }
     }

@@ -569,17 +569,17 @@ fn busy_file(base: &Path, slot: u32) -> PathBuf {
 pub fn hold_busy(
     workspace: &Path,
     wait: Duration,
-) -> Option<Result<dx_atomic_fs::lease::SharedLease, String>> {
+) -> Option<Result<dx_atomic_fs::lease::SharedLease, dx_error::DxError>> {
     let (dir, record) = lease_for_workspace(workspace)?;
     let base = dir.parent()?;
     Some(
         dx_atomic_fs::lease::acquire_shared_at(&busy_file(base, record.slot), wait).map_err(
             |error| match error.kind() {
-                std::io::ErrorKind::WouldBlock => format!(
+                std::io::ErrorKind::WouldBlock => dx_error::DxError::failure(format!(
                     "slot {} is being switched by dx worktree; run the command again",
                     record.slot
-                ),
-                _ => format!("cannot lock slot {}: {error}", record.slot),
+                )),
+                _ => dx_error::DxError::infra(format!("cannot lock slot {}: {error}", record.slot)),
             },
         ),
     )
@@ -593,7 +593,9 @@ pub fn lease_for_dir(dir: &Path) -> Option<(PathBuf, Record)> {
 /// The slots of the pool whose primary checkout holds `dir`; none when `dir` is not in one.
 pub fn slots_for_primary(dir: &Path) -> Option<Vec<(PathBuf, Record)>> {
     let dir = host::resolved(dir);
-    let main = dir.ancestors().find(|ancestor| ancestor.join(".git").is_dir())?;
+    let main = dir
+        .ancestors()
+        .find(|ancestor| ancestor.join(".git").is_dir())?;
     let env = |name: &str| std::env::var(name).ok();
     let pool = Pool::find(main, &cache_base(&env).ok()?)?;
     if host::resolved(&pool.main) != main {

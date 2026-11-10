@@ -34,6 +34,7 @@ rust_library(
         normal = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/error:dx_error",
         "//cli/merge:dx_merge",
         "//cli/path:dx_path",
         "//cli/process:dx_process",
@@ -72,6 +73,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/error:dx_error",
         "//cli/merge:dx_merge",
         "//cli/path:dx_path",
         "//cli/process:dx_process",

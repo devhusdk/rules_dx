@@ -150,7 +150,7 @@ fn observe_process(
     dir: &Path,
     dx_dir: &Path,
     live: &mut LiveHexes,
-) -> Result<(), String> {
+) -> Result<(), dx_error::DxError> {
     let mut targets: Vec<PathBuf> = Vec::new();
     let outcome = read_targets(proc, dir, dx_dir, &mut targets);
     for target in &targets {
@@ -166,7 +166,7 @@ fn observe_process(
     }
     match outcome {
         Ok(()) | Err(Stop::Denied) => Ok(()),
-        Err(Stop::Failed(reason)) => Err(reason),
+        Err(Stop::Failed(reason)) => Err(dx_error::DxError::infra(reason)),
     }
 }
 

@@ -113,6 +113,7 @@ fn hold_slot(
         return None;
     }
     dx_worktree::hold_busy(workspace, wait)
+        .map(|held| held.map_err(|error| error.message().to_owned()))
 }
 
 fn lease_refusal_for(

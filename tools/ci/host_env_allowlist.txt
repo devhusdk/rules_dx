@@ -20,8 +20,6 @@ android/tests/fixtures/rust_apk/sign_test.sh shebang 1
 ansible/tests/BUILD.bazel sh-rule 1
 ansible/tests/collections_hub_test.sh shebang 1
 api_spec/private/codegen.bzl home 1
-api_spec/private/codegen.bzl host-path 1
-api_spec/private/codegen.bzl run-shell 1
 api_spec/tests/BUILD.bazel genrule 1
 appimage/private/packer/src/lib.rs shebang 2
 appimage/private/repos.bzl host-path 1
@@ -76,8 +74,6 @@ cc/tests/fixtures/foreign_cmake/BUILD.bazel genrule 1
 cc/tests/fixtures/foreign_cmake/transition.bzl run-shell 1
 cc/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 cc/tests/fixtures/fuzz/run_test.sh shebang 1
-cc/tests/fixtures/hello/BUILD.bazel env-inherit 1
-cc/tests/fixtures/hello/BUILD.bazel home 1
 cc/tests/foreign_cmake_cross.rs host-path 2
 cc/tests/foreign_cmake_log.rs host-path 4
 cli/adopt/src/launcher.rs host-path 1
@@ -110,7 +106,6 @@ cli/cli/src/exec/test_case_launcher_tests.rs host-path 1
 cli/cli/src/exec/test_case_launcher_tests.rs shebang 1
 cli/cli/src/exec/update_pr.rs shebang 2
 cli/cli/src/multicall.rs host-path 1
-cli/cli/tests/adopt/BUILD.bazel env-inherit 1
 cli/cli/tests/adopt/tests/adopt.rs shebang 1
 cli/cli/tests/agents/BUILD.bazel env-inherit 1
 cli/cli/tests/agents/tests/dev_launcher.rs host-path 3
@@ -214,7 +209,6 @@ deploy/private/linux_package.bzl host-path 1
 deploy/private/linux_package_tests.bzl host-path 2
 deploy/private/npm.bzl genrule 1
 deploy/private/offline/offline.bzl genrule 2
-deploy/private/release/BUILD.bazel env-inherit 1
 deploy/private/release/BUILD.bazel home 2
 deploy/private/release/bcr.bzl genrule 1
 deploy/private/release/candidate_test.rs shebang 1

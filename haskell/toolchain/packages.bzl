@@ -54,8 +54,19 @@ def dependency_label(hub, sidecar, name):
             return "@{}//:{}".format(repo_name(hub, name), name)
     return None
 
-def _target(kind, name, attrs, deps):
-    attrs = attrs + [
+def tool_labels(hub, sidecar, package):
+    """Returns the executable labels of the dependencies of a package that have no library."""
+    tools = []
+    for dep in package["dependencies"]:
+        fetched = fetched_packages(sidecar).get(dep)
+        if fetched and "lib" not in fetched["components"]:
+            tools += ["@{}//:{}-exe-{}".format(repo_name(hub, dep), dep, exe) for exe in executables(fetched)]
+    return sorted(tools)
+
+def _target(kind, name, attrs, deps, tools):
+    attrs = attrs + ([
+        "tools = " + repr(tools),
+    ] if tools else []) + [
         'srcs = glob(["**"], exclude = ["BUILD.bazel", "REPO.bazel"])',
         "deps = " + repr(deps),
         "target_compatible_with = HASKELL_COMPATIBLE_WITH",
@@ -66,8 +77,10 @@ def _target(kind, name, attrs, deps):
 def package_build(hub, sidecar, package):
     """Returns the BUILD file of one package repository."""
     name = package["name"]
-    deps = [dependency_label(hub, sidecar, dep) for dep in package["dependencies"]]
-    deps = sorted([dep for dep in deps if dep])
+    fetched = fetched_packages(sidecar)
+    libs = [dep for dep in package["dependencies"] if dep not in fetched or "lib" in fetched[dep]["components"]]
+    deps = sorted([dep for dep in [dependency_label(hub, sidecar, dep) for dep in libs] if dep])
+    tools = tool_labels(hub, sidecar, package)
     has_lib = "lib" in package["components"]
     lines = [
         'load("@rules_haskell//haskell:cabal.bzl", "haskell_cabal_binary", "haskell_cabal_library")',
@@ -78,10 +91,10 @@ def package_build(hub, sidecar, package):
     ]
     if has_lib:
         attrs = ['package_name = "{}"'.format(name), 'version = "{}"'.format(package["version"]), "haddock = False"]
-        lines.append(_target("haskell_cabal_library", name, attrs, deps))
+        lines.append(_target("haskell_cabal_library", name, attrs, deps, tools))
     for exe in executables(package):
         exe_deps = deps + [":" + name] if has_lib else deps
-        lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps))
+        lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps, tools))
     return "\n".join(lines)
 
 def hub_build(hub, sidecar):

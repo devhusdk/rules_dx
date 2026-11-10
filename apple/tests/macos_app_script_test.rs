@@ -41,9 +41,15 @@ const FAKE_SHASUM: &str = r#"#!/bin/sh
 echo "c0ffee  $3"
 "#;
 
-const FAKE_DITTO: &str = r#"#!/bin/sh
-cp -R "$FAKE_TREE/." "$4"
-"#;
+const FAKE_DITTO: &str = "#!/bin/sh\nexit 0\n";
+
+const FAKE_MKTEMP: &str = "#!/bin/sh\necho \"$FAKE_TREE\"\n";
+
+const FAKE_FIND: &str = "#!/bin/sh\necho \"$1/Ledger.app\"\n";
+
+const FAKE_HEAD: &str = "#!/bin/sh\nread -r line\necho \"$line\"\n";
+
+const FAKE_RAW_PLUTIL: &str = "#!/bin/sh\necho Ledger\n";
 
 const NAME: &str = "Ledger";
 const ZIP_BYTES: &str = "PK\u{3}\u{4}ledger";
@@ -481,10 +487,18 @@ fn the_launcher_exits_127_without_ditto_and_runs_the_app_with_it() {
         &case.contents.join("MacOS/Ledger"),
         "#!/bin/sh\necho \"ledger $*\"\n",
     );
-    executable(&case.root.join("bin/ditto"), FAKE_DITTO);
+    for (name, text) in [
+        ("ditto", FAKE_DITTO),
+        ("mktemp", FAKE_MKTEMP),
+        ("find", FAKE_FIND),
+        ("head", FAKE_HEAD),
+        ("plutil", FAKE_RAW_PLUTIL),
+    ] {
+        executable(&case.root.join("bin").join(name), text);
+    }
     let runfiles = case.root.join("runfiles");
     write(&runfiles.join("_main/pkg/Ledger.zip"), ZIP_BYTES);
-    let path = format!("{}:/usr/bin:/bin", case.root.join("bin").display());
+    let path = case.root.join("bin").to_string_lossy().into_owned();
     let tree = case.root.join("tree").to_string_lossy().into_owned();
     let runfiles = runfiles.to_string_lossy().into_owned();
     let tmp = case.root.to_string_lossy().into_owned();

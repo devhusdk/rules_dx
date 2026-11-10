@@ -69,20 +69,17 @@ fixture haskell
 fixture helm
 fixture java
 fixture javascript
-fixture julia
 fixture kotlin
 fixture kubernetes
 fixture make
 fixture mdx
 fixture msix
 fixture ocaml
-fixture php
 fixture powershell
 fixture python
 fixture qt
 fixture rego
 fixture rst
-fixture ruby
 fixture scala
 fixture sql
 fixture svelte
@@ -91,8 +88,13 @@ fixture terraform
 fixture thrift
 fixture typescript
 fixture vue
+init d
 init go
+init julia
 init lua
+init perl
+init php
+init ruby
 init rust
 init zig
 override archive_override lua

@@ -1,0 +1,15 @@
+load("@rules_dx//julia:defs.bzl", "julia_library", "julia_test")
+
+julia_library(
+    name = "Greet",
+    srcs = ["src/Greet.jl"],
+    data = ["Project.toml"],
+    visibility = ["//visibility:public"],
+)
+
+julia_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["greet_test.jl"],
+    deps = [":Greet"],
+)

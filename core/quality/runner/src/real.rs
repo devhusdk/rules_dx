@@ -20,11 +20,11 @@ const BICEP_CONFIG_REL: &str = "bicepconfig.json";
 const BICEP_HOME_REL: &str = "dx-bicep/home";
 const PKL_LSP_HOME_REL: &str = ".dx-pkl-lsp/home";
 const HELMFMT_HOME_REL: &str = "dx-helmfmt/home";
-/// Empty plugin home: tflint never downloads or finds a provider ruleset.
 /// The request env key naming the provider mirror roots, joined with `|`.
 const TERRAFORM_PLUGIN_DIRS_ENV: &str = "DX_TERRAFORM_PLUGIN_DIRS";
 const TERRAFORM_EMPTY_MIRROR_REL: &str = "dx-terraform/empty-mirror";
 const TERRAFORM_CLI_CONFIG_REL: &str = "dx-terraform/cli.tfrc";
+/// Empty plugin home: tflint never downloads or finds a provider ruleset.
 const TFLINT_PLUGIN_DIR_REL: &str = "dx-tflint-plugins";
 /// Scratch dir holding one launcher shim per `path_tools` helper; the child's whole `PATH`.
 const PATH_TOOLS_DIR_REL: &str = "dx-path-tools";
@@ -437,6 +437,7 @@ impl RealBackend {
         invocation: &Invocation,
         scratch: &Scratch,
     ) -> Result<ChildOutput, RunnerError> {
+        self.last_stderr.borrow_mut().clear();
         let cwd = scratch.root().join(&invocation.cwd_rel);
         let extra: Vec<(OsString, OsString)> = tool
             .extra_env
@@ -482,21 +483,6 @@ impl RealBackend {
             ));
             env.push((OsString::from("TF_IN_AUTOMATION"), OsString::from("1")));
             env.push((OsString::from("CHECKPOINT_DISABLE"), OsString::from("1")));
-            if cfg!(unix) {
-                // Provider plugins talk over a unix socket made in TMPDIR, and a long
-                // scratch path overflows the socket path limit.
-                let short = short_socket_dir()
-                    .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
-                for (key, value) in &mut env {
-                    if key == "TMPDIR" || key == "TEMP" || key == "TMP" {
-                        *value = short.path().as_os_str().to_owned();
-                    }
-                }
-                let result = (self.spawn)(&spawn_argv(tool_id, invocation), &cwd, &env)
-                    .map_err(|err| execution(tool_id, format!("spawn: {err}")));
-                drop(short);
-                return result;
-            }
         }
         if tool_id == "tflint" {
             let plugins = scratch.root().join(TFLINT_PLUGIN_DIR_REL);
@@ -508,22 +494,19 @@ impl RealBackend {
                 plugins.into_os_string(),
             ));
             env.push((OsString::from("TFLINT_LOG"), OsString::new()));
-            if cfg!(unix) {
-                // The bundled ruleset talks over a unix socket made in TMPDIR, and
-                // a long scratch path overflows the socket path limit.
-                let short = short_socket_dir()
-                    .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
-                for (key, value) in &mut env {
-                    if key == "TMPDIR" || key == "TEMP" || key == "TMP" {
-                        *value = short.path().as_os_str().to_owned();
-                    }
-                }
-                let result = (self.spawn)(&spawn_argv(tool_id, invocation), &cwd, &env)
-                    .map_err(|err| execution(tool_id, format!("spawn: {err}")));
-                drop(short);
-                return result;
-            }
         }
+        let socket_dir = if cfg!(unix) && (tool_id == "terraform" || tool_id == "tflint") {
+            let short = short_socket_dir()
+                .map_err(|err| execution(tool_id, format!("socket dir: {err}")))?;
+            for (key, value) in &mut env {
+                if key == "TMPDIR" || key == "TEMP" || key == "TMP" {
+                    *value = short.path().as_os_str().to_owned();
+                }
+            }
+            Some(short)
+        } else {
+            None
+        };
         let bicep_argv0 = invocation.argv.first().map(Path::new);
         let runs_bicep = tool_id == "bicep"
             || tool
@@ -649,9 +632,10 @@ impl RealBackend {
                 ));
             }
         }
-        self.last_stderr.borrow_mut().clear();
         let out = (self.spawn)(&argv, &cwd, &env)
-            .map_err(|err| execution(tool_id, format!("spawn: {err}")))?;
+            .map_err(|err| execution(tool_id, format!("spawn: {err}")));
+        drop(socket_dir);
+        let out = out?;
         self.last_stderr.borrow_mut().clone_from(&out.stderr);
         Ok(out)
     }

@@ -2,50 +2,73 @@
 
 use std::collections::BTreeMap;
 
-/// Byte range of the quoted entry of `deps` in the rule named `target` that names `dependency`.
-pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
-    let rule = text.find(&format!("name = \"{target}\""))?;
-    let rule_end = text[rule..].find("\n)").map_or(text.len(), |at| rule + at);
-    let mut from = rule;
-    while let Some(at) = text[from..rule_end].find("deps = [") {
-        let key = from + at;
-        from = key + "deps = [".len();
-        let before = text[..key].chars().next_back();
-        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+/// Whether `text` has an identifier character right before `at`.
+fn inside_identifier(text: &str, at: usize) -> bool {
+    text[..at]
+        .chars()
+        .next_back()
+        .is_some_and(|c| c.is_alphanumeric() || c == '_')
+}
+
+/// Byte range from the `name` attribute of the rule named `target` to the end of that rule.
+fn find_rule(text: &str, target: &str) -> Option<(usize, usize)> {
+    let name = format!("name = \"{target}\"");
+    let mut from = 0;
+    while let Some(at) = text[from..].find(&name) {
+        let rule = from + at;
+        from = rule + name.len();
+        if inside_identifier(text, rule) {
             continue;
         }
-        let list_end = text[from..rule_end]
-            .find(']')
-            .map_or(rule_end, |at| from + at);
-        return literals(&text[from..list_end], from)
-            .into_iter()
-            .find(|(start, end)| target_name(&text[start + 1..end - 1]) == dependency);
+        let rule_end = text[rule..].find("\n)").map_or(text.len(), |at| rule + at);
+        return Some((rule, rule_end));
     }
     None
 }
 
-/// Whether the rule named `target` has `"dx-keep"` in its `tags`, which exempts it from dep checks.
-pub fn has_keep_tag(text: &str, target: &str) -> bool {
-    let Some(rule) = text.find(&format!("name = \"{target}\"")) else {
-        return false;
-    };
-    let rule_end = text[rule..].find("\n)").map_or(text.len(), |at| rule + at);
+/// The start of the `<attr> = [` key in `rule..rule_end` and the byte range of its list body.
+fn find_list(
+    text: &str,
+    rule: usize,
+    rule_end: usize,
+    attr: &str,
+) -> Option<(usize, usize, usize)> {
+    let open = format!("{attr} = [");
     let mut from = rule;
-    while let Some(at) = text[from..rule_end].find("tags = [") {
+    while let Some(at) = text[from..rule_end].find(&open) {
         let key = from + at;
-        from = key + "tags = [".len();
-        let before = text[..key].chars().next_back();
-        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
+        from = key + open.len();
+        if inside_identifier(text, key) {
             continue;
         }
-        let list_end = text[from..rule_end]
+        let close = text[from..rule_end]
             .find(']')
             .map_or(rule_end, |at| from + at);
-        return literals(&text[from..list_end], from)
-            .into_iter()
-            .any(|(start, end)| &text[start..end] == "\"dx-keep\"");
+        return Some((key, from, close));
     }
-    false
+    None
+}
+
+/// Byte range of the quoted entry of `deps` in the rule named `target` that names `dependency`.
+pub fn locate(text: &str, target: &str, dependency: &str) -> Option<(usize, usize)> {
+    let (rule, rule_end) = find_rule(text, target)?;
+    let (_, open, close) = find_list(text, rule, rule_end, "deps")?;
+    literals(&text[open..close], open)
+        .into_iter()
+        .find(|(start, end)| target_name(&text[start + 1..end - 1]) == dependency)
+}
+
+/// Whether the rule named `target` has `"dx-keep"` in its `tags`, which exempts it from dep checks.
+pub fn has_keep_tag(text: &str, target: &str) -> bool {
+    let Some((rule, rule_end)) = find_rule(text, target) else {
+        return false;
+    };
+    let Some((_, open, close)) = find_list(text, rule, rule_end, "tags") else {
+        return false;
+    };
+    literals(&text[open..close], open)
+        .into_iter()
+        .any(|(start, end)| &text[start..end] == "\"dx-keep\"")
 }
 
 /// The quoted strings of a list body, as byte ranges including the quotes.
@@ -101,42 +124,20 @@ pub fn removal(text: &str, start: usize, end: usize) -> (usize, usize) {
 
 /// Byte range of the `deps = [` key of the rule named `target`, else of its `name =` line.
 pub fn locate_deps_list(text: &str, target: &str) -> Option<(usize, usize)> {
-    let rule = text.find(&format!("name = \"{target}\""))?;
-    let (key, _) = deps_list(text, rule)?;
-    if let Some(key) = key {
-        return Some((key, key + "deps = [".len()));
+    let (rule, rule_end) = find_rule(text, target)?;
+    if let Some((key, open, _)) = find_list(text, rule, rule_end, "deps") {
+        return Some((key, open));
     }
     let line_start = text[..rule].rfind('\n').map_or(0, |at| at + 1);
     let line_end = text[rule..].find('\n').map_or(text.len(), |at| rule + at);
     Some((line_start, line_end))
 }
 
-/// The start of the `deps = [` key and the offset of its closing bracket.
-fn deps_list(text: &str, rule: usize) -> Option<(Option<usize>, usize)> {
-    let rule_end = text[rule..].find("\n)").map_or(text.len(), |at| rule + at);
-    let mut from = rule;
-    while let Some(at) = text[from..rule_end].find("deps = [") {
-        let key = from + at;
-        from = key + "deps = [".len();
-        let before = text[..key].chars().next_back();
-        if before.is_some_and(|c| c.is_alphanumeric() || c == '_') {
-            continue;
-        }
-        let close = text[from..rule_end]
-            .find(']')
-            .map_or(rule_end, |at| from + at);
-        return Some((Some(key), close));
-    }
-    Some((None, rule_end))
-}
-
 /// The offset and text that add `label` as the last entry of the target's `deps`.
 /// None when the target has no `deps` list or already lists the label.
 pub fn insertion(text: &str, target: &str, label: &str) -> Option<(usize, String)> {
-    let rule = text.find(&format!("name = \"{target}\""))?;
-    let (key, close) = deps_list(text, rule)?;
-    let key = key?;
-    let open = key + "deps = [".len();
+    let (rule, rule_end) = find_rule(text, target)?;
+    let (_, open, close) = find_list(text, rule, rule_end, "deps")?;
     let entries = literals(&text[open..close], open);
     if entries
         .iter()
@@ -236,6 +237,31 @@ mod tests {
         assert!(has_keep_tag(text, "a"));
         assert!(!has_keep_tag(text, "b"));
         assert!(!has_keep_tag(text, "c"));
+    }
+
+    #[test]
+    fn skips_attributes_that_end_in_name() {
+        let text = concat!(
+            "rust_library(\n",
+            "    name = \"lib\",\n",
+            "    crate_name = \"bin\",\n",
+            "    tags = [\"dx-keep\"],\n",
+            "    deps = [\"//a:a\"],\n",
+            ")\n",
+            "rust_binary(\n",
+            "    name = \"bin\",\n",
+            "    deps = [\"//b:b\"],\n",
+            ")\n",
+        );
+        assert!(!has_keep_tag(text, "bin"));
+        assert!(locate(text, "bin", "a").is_none());
+        let (start, end) = locate(text, "bin", "b").expect("located");
+        assert_eq!(&text[start..end], "\"//b:b\"");
+        let (start, _) = locate_deps_list(text, "bin").expect("located");
+        assert!(start > text.find("rust_binary").expect("second rule"));
+        let (at, _) = insertion(text, "bin", "//c:c").expect("inserted");
+        assert!(at > start);
+        assert!(locate(text, "missing", "a").is_none());
     }
 
     #[test]

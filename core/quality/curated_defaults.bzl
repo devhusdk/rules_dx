@@ -265,10 +265,6 @@ CROSS_FAMILY_TOOLS = [
     "yamlfmt",
 ]
 
-def curated_families():
-    """Returns the sorted curated families in the manifest."""
-    return sorted(CURATED_DEFAULTS.keys())
-
 def curated_schema_error():
     """Validates the curated-defaults schema."""
     for family in CURATED_DEFAULTS:

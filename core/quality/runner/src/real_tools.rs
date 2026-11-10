@@ -5530,7 +5530,13 @@ fn helmfmt_fix_rewrites_a_template_and_a_syntax_error_stays() {
     assert!(findings[0].message.contains("unexpected EOF"));
     assert_eq!(
         backend
-            .apply_fix_in_context("helmfmt", "c/templates/e.yaml", "BROKEN\n", "format", &known)
+            .apply_fix_in_context(
+                "helmfmt",
+                "c/templates/e.yaml",
+                "BROKEN\n",
+                "format",
+                &known
+            )
             .expect("kept"),
         "BROKEN\n"
     );
@@ -5782,6 +5788,30 @@ fn tflint_plugin_failure_is_an_error_not_a_clean_run() {
         .diagnose("tflint", "lint", &single("a/main.tf", "ok\n"))
         .expect_err("never clean");
     assert!(err.to_string().contains("tflint --init"), "{err}");
+}
+
+fn tflint_crash(
+    _argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    Ok(ChildOutput {
+        code: Some(2),
+        stdout: Vec::new(),
+        stderr: b"ruleset plugin crashed\n".to_vec(),
+    })
+}
+
+#[test]
+fn a_tflint_failure_carries_its_own_stderr() {
+    let backend = backend_for("tflint", bound_tool("cfg/.tflint.hcl", b""), tflint_crash);
+    *backend.last_stderr.borrow_mut() = b"stderr of an earlier tool\n".to_vec();
+    let err = backend
+        .diagnose("tflint", "lint", &single("a/main.tf", "ok\n"))
+        .expect_err("a crash is an error");
+    let located = backend.located(err).to_string();
+    assert!(located.contains("ruleset plugin crashed"), "{located}");
+    assert!(!located.contains("earlier tool"), "{located}");
 }
 
 const LATEX_DIRTY: &str = "\\begin{itemize}\n\\item one\n\\end{itemize}\n";

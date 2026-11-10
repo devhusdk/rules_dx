@@ -2,7 +2,7 @@
 
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "adapter_registry_schema_error")
 load(":curated_defaults.bzl", "CURATED_DEFAULTS", "curated_schema_error")
-load(":parity_tests.bzl", "PARITY_DEFERRED", "parity_schema_error")
+load(":parity_tests.bzl", "parity_schema_error")
 load(":sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "sources_schema_error")
 load(":support.bzl", "support_schema_error")
 load(":taxonomy.bzl", "taxonomy_schema_error")
@@ -26,10 +26,6 @@ def registry_tools():
 def registry_curated_families():
     """Returns the sorted curated families via query."""
     return sorted(CURATED_DEFAULTS.keys())
-
-def registry_deferred_classes():
-    """Returns the sorted deferred classes via query."""
-    return sorted(PARITY_DEFERRED.keys())
 
 def is_registry_class(class_id):
     """Reports whether a class is in the single-sourced registry."""

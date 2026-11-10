@@ -2,14 +2,14 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/quality/testdata:all_languages.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_haskell_lint_aspect", "real_ocaml_lint_aspect", "real_quality_resource_set", "real_rust_typecheck_aspect", "real_skip_notes", "real_tool_table_error", "real_tool_table_shape_error", "real_typecheck_aspect", "real_unavailable_tools", "real_wired_tools", "rustc_diagnostics_group")
+load("//go/private:go_analysis.bzl", "go_lang_version")
 load("//sql/private:providers.bzl", "sql_dialect_error")
 load(":adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY", "real_supported_classes")
 load(":pipeline.bzl", "authorize_classes", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_stages", "prune_tool_generated_sources", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
-load("//go/private:go_analysis.bzl", "go_lang_version")
 load(":policy.bzl", "family_section_error")
-load("//core/quality/testdata:all_languages.bzl", "real_ocaml_lint_aspect")
+load(":real_core.bzl", "real_merged_output_groups")
 load(":unavailable_tool.bzl", "DxUnavailableToolInfo")
-load("//core/quality/testdata:all_languages.bzl", "inherits_test_crate_sources", "merge_inherited_sources", "real_quality_resource_set", "real_tool_table_error", "real_tool_table_shape_error", "real_wired_tools", "real_haskell_lint_aspect", "real_rust_typecheck_aspect", "real_skip_notes", "real_unavailable_tools", "real_typecheck_aspect", "rustc_diagnostics_group")
 
 def _f(path, is_source = True, extension = "rs", repo_name = ""):
     return struct(path = path, is_source = is_source, extension = extension, owner = struct(repo_name = repo_name))
@@ -96,11 +96,28 @@ _TOOLCHAIN_TOOL = {"capabilities": ["lint"], "kind": "toolchain", "resources": "
 
 _SETTING_TOOL = {"attr": "sentinel", "capabilities": ["format"], "kind": "setting", "resources": "light", "shard": "core"}
 
+def _merged_groups(groups):
+    merged = real_merged_output_groups([{k: depset(v) for k, v in group.items()} for group in groups])
+    return {k: v.to_list() for k, v in merged.items()}
+
 def real_pipeline_unit_tests(name):
     starlark_test(
         name = name,
         mode = "unit",
         checks = [
+            expect_equal(
+                "merged output groups keep the results and skip notes of every target",
+                [
+                    _merged_groups([{"dx_results": ["own.pb"], "dx_skips": ["own.txt"]}, {"dx_results": ["crate.pb"]}]),
+                    _merged_groups([{"dx_skips": ["own.txt"]}, {"dx_results": ["crate.pb"], "dx_skips": ["crate.txt"]}]),
+                    _merged_groups([{"other": ["x"]}]),
+                ],
+                [
+                    {"dx_results": ["own.pb", "crate.pb"], "dx_skips": ["own.txt"]},
+                    {"dx_results": ["crate.pb"], "dx_skips": ["own.txt", "crate.txt"]},
+                    {},
+                ],
+            ),
             expect_equal(
                 "rustc_diagnostics_group prefers rustc_rmeta_output and falls back to rustc_output",
                 [

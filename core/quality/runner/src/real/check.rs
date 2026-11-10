@@ -73,14 +73,6 @@ impl RealBackend {
         ))
     }
 
-    /// Runs one tool over the selection, in argv-budget batches when its transport allows.
-    ///
-    /// Findings merge in a stable order, and a failing batch names itself when there are
-    /// several so the error points at the spawn that broke.
-    /// Reads every staged notebook and refuses any that Ruff would skip, so a
-    /// non-Python or malformed notebook never reports clean.
-    /// `cue vet -c=false` once per package, by import path from the enclosing CUE module root, so
-    /// imports and ancestor-directory files of the same package resolve as in the real instance.
     /// zanuda reads the typed trees the compile wrote, not the sources: the aspect stages each
     /// `.cmt`/`.cmti` as `dx-zanuda/{impl,intf}/<source workspace path>.cmt[i]`. This batch lints
     /// the entries whose source is in `pairs` and fails when an owned source has none, so a
@@ -158,6 +150,7 @@ impl RealBackend {
         parsed(tool_id, parsers::parse_zanuda(&bytes, out.code, &strs))
     }
 
+    /// Runs `cue vet -c=false` once per package, by import path from the enclosing CUE module root.
     pub(super) fn check_cue_vet(
         &self,
         tool_id: &str,
@@ -452,6 +445,7 @@ impl RealBackend {
         Ok(findings)
     }
 
+    /// Runs one tool over the selection, in argv-budget batches when its transport allows.
     pub(super) fn check_files(
         &self,
         tool_id: &str,
@@ -471,15 +465,13 @@ impl RealBackend {
             .collect();
         let strs: Vec<&str> = names.iter().map(String::as_str).collect();
         let batches = match commands::transport_for(tool_id) {
-            commands::ArgTransport::Batched => {
-                commands::plan_invocation_batches(&refs, |batch| {
-                    let invocation = build(batch)?;
-                    Ok(Invocation {
-                        argv: spawn_argv(tool_id, &invocation),
-                        cwd_rel: invocation.cwd_rel,
-                    })
-                })?
-            }
+            commands::ArgTransport::Batched => commands::plan_invocation_batches(&refs, |batch| {
+                let invocation = build(batch)?;
+                Ok(Invocation {
+                    argv: spawn_argv(tool_id, &invocation),
+                    cwd_rel: invocation.cwd_rel,
+                })
+            })?,
             commands::ArgTransport::Single => vec![refs.clone()],
         };
         let total = batches.len();

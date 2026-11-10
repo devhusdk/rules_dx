@@ -4,13 +4,13 @@ load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//core:resources.bzl", "DX_QUALITY_TIERS", "dx_quality_resource_set")
 load("//core/quality:adapters.bzl", "REAL_ADAPTERS", "REAL_CLASS_TO_FAMILY")
 load("//core/quality:execution_requirements.bzl", "dx_stage_execution_requirements")
-load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel", "staged_config_rel")
 load("//core/quality:parity_tests.bzl", "deferred_pipeline_error")
 load("//core/quality:pipeline.bzl", "aspect_capability_blocked", "aspect_direct_maps", "aspect_family_selections", "filter_pipeline_by_tools", "ordered_pipeline_paths", "pipeline_inputs_for_paths", "real_request_doc", "real_request_mapping", "real_request_stage", "real_request_tool", "real_request_tool_env", "real_request_tool_file", "resolve_pipeline")
 load("//core/quality:policy.bzl", "QualityPolicyInfo", "family_section_error")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources", "upstream_source_class")
-load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//core/quality:support.bzl", "support_unpinned_tools", "support_unsupported_reasons")
+load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
+load("//core/quality/private:native_config_impl.bzl", "DxNativeConfigInfo", "bound_config_targets", "collect_native_configs", "missing_required_config_error", "native_config_scratch_rel", "staged_config_rel")
 
 _REAL_TOOL_KINDS = ["executable", "file", "setting", "toolchain", "upstream"]
 
@@ -456,13 +456,12 @@ def _real_pipeline_action(cfg, target, ctx, capability, allowed_tools, output_su
         run_tools = run_tools + found.run_tools
     requirements = dict(dx_stage_execution_requirements(stage_tools, capability))
     if "lychee" in stage_tools and hasattr(ctx.attr, "_online") and ctx.attr._online[BuildSettingInfo].value:
-        tool_env_entries.setdefault("lychee", []).append(["DX_LINT_ONLINE", "1"])
+        tool_env_entries.setdefault("lychee", []).append(real_request_tool_env("DX_LINT_ONLINE", "1"))
         requirements["requires-network"] = "1"
     if "buf" in stage_tools and capability == "lint" and hasattr(ctx.attr, "_breaking_against"):
         image = ctx.attr._breaking_against[BuildSettingInfo].value
         if image:
-            # The base image lives outside the workspace, so the action reads it unsandboxed and uncached.
-            tool_env_entries.setdefault("buf", []).append(["DX_BUF_BREAKING_AGAINST", image])
+            tool_env_entries.setdefault("buf", []).append(real_request_tool_env("DX_BUF_BREAKING_AGAINST", image))
             requirements["no-sandbox"] = "1"
             requirements["no-cache"] = "1"
             requirements["no-remote"] = "1"
@@ -571,6 +570,15 @@ def real_tool_table_error(cfg):
             return "real aspects: table tool '" + tool + "' has a capability no shard runs"
     return ""
 
+def real_merged_output_groups(groups):
+    """Merges the dx_results and dx_skips output groups of several targets."""
+    merged = {}
+    for name in ["dx_results", "dx_skips"]:
+        parts = [group[name] for group in groups if name in group]
+        if len(parts) > 0:
+            merged[name] = depset(transitive = parts)
+    return merged
+
 def _workspace_crate(ctx):
     """Returns the in-workspace crate a test rule points at, or None."""
     crate = getattr(ctx.rule.attr, "crate", None)
@@ -589,10 +597,12 @@ def real_make_aspect(cfg, shard_name):
         if not follows_crate:
             return found
         crate = _workspace_crate(ctx)
-        if crate == None or "dx_results" not in crate[OutputGroupInfo]:
+        if crate == None:
             return found
-        own = found[0]["dx_results"] if len(found) > 0 and "dx_results" in found[0] else depset()
-        return [OutputGroupInfo(dx_results = depset(transitive = [own, crate[OutputGroupInfo]["dx_results"]]))]
+        merged = real_merged_output_groups(found + [crate[OutputGroupInfo]])
+        if len(merged) == 0:
+            return found
+        return [OutputGroupInfo(**merged)]
 
     return aspect(
         implementation = _impl,

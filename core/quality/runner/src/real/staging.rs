@@ -54,10 +54,7 @@ pub(super) struct FsharplintInputs {
     pub langversion: String,
 }
 
-/// Points Bicep's module cache at the scratch home whatever the bound config says, because
-/// .NET on Windows ignores `USERPROFILE` and a config may name a host `cacheRootDirectory`.
-/// Bicep accepts comments in `bicepconfig.json`, so they are stripped before parsing. A config
-/// that is still not a JSON object is kept as is; Bicep then rejects it itself.
+/// Strips the comments Bicep accepts in `bicepconfig.json`.
 fn strip_json_comments(bytes: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(bytes.len());
     let mut i = 0;
@@ -96,6 +93,7 @@ fn strip_json_comments(bytes: &[u8]) -> Vec<u8> {
     out
 }
 
+/// Points Bicep's module cache at the scratch home whatever the bound config says.
 fn pin_bicep_cache(bound: Option<Vec<u8>>, root: &Path) -> Vec<u8> {
     let mut config = match bound {
         None => serde_json::Value::Object(serde_json::Map::new()),

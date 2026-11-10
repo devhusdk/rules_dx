@@ -1,6 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+use dx_error::DxError;
+
 pub use dx_ecosystems::{Ecosystem, SUPPORTED_ECOSYSTEMS};
 
 pub const MODULE_BAZEL: &str = "MODULE.bazel";
@@ -302,17 +304,19 @@ pub fn load(workspace: &Path) -> Result<Option<Registry>, DependencySetsError> {
         Ok(text) => text,
     };
     discover(&root, &|rel: &str| {
-        std::fs::read_to_string(workspace.join(rel)).map_err(|error| format!("{rel}: {error}"))
+        std::fs::read_to_string(workspace.join(rel)).map_err(|error| DxError::infra(format!("{rel}: {error}")))
     })
 }
 
 /// The dependency sets of the hubs in `root`; `read` returns a workspace file by its path.
 pub fn discover(
     root: &str,
-    read: &dyn Fn(&str) -> Result<String, String>,
+    read: &dyn Fn(&str) -> Result<String, DxError>,
 ) -> Result<Option<Registry>, DependencySetsError> {
     let module_error = |detail: String| DependencySetsError::Module { detail };
-    let read_include = |label: &str| read(&dx_module_bazel::include_rel("", label)?);
+    let read_include = |label: &str| {
+        read(&dx_module_bazel::include_rel("", label)?).map_err(|error| error.message().to_owned())
+    };
     let modules = dx_module_bazel::load_with_includes(root, &read_include).map_err(module_error)?;
     let path = |label: &str| dx_module_bazel::label_path(label).map_err(module_error);
     let hub = |error: dx_module_bazel::ModuleError| module_error(error.to_string());
@@ -602,7 +606,7 @@ pub fn discover(
 /// The generated `paket.<group>.bzl` files a paket extension label loads.
 fn paket_groups(
     label: &str,
-    read: &dyn Fn(&str) -> Result<String, String>,
+    read: &dyn Fn(&str) -> Result<String, DxError>,
 ) -> Result<Vec<String>, DependencySetsError> {
     let module_error = |detail: String| DependencySetsError::Module { detail };
     let bzl = dx_module_bazel::label_path(label).map_err(module_error)?;
@@ -614,7 +618,7 @@ fn paket_groups(
     {
         return Ok(vec![in_dir(&package, &format!("paket.{group}.bzl"))]);
     }
-    let text = read(&bzl).map_err(module_error)?;
+    let text = read(&bzl).map_err(|error| module_error(error.message().to_owned()))?;
     let loads =
         dx_module_bazel::load_labels(&text).map_err(|error| module_error(error.to_string()))?;
     let mut groups = Vec::new();

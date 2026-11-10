@@ -50,7 +50,9 @@ const EXPECTED_NAMES: [&str; 38] = [
 fn sets() -> Vec<DependencySet> {
     let read = |rel: &str| match rel {
         "third_party/dotnet/extension.bzl" => Ok(PAKET_EXTENSION.to_owned()),
-        other => Err(format!("{other} is not a test input")),
+        other => Err(dx_error::DxError::failure(format!(
+            "{other} is not a test input"
+        ))),
     };
     discover(MODULE_BAZEL, &read)
         .expect("root MODULE.bazel hubs load")

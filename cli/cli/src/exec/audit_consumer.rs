@@ -465,7 +465,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn configured_and_builtin_selection_agree_on_names_and_scopes() {
-        let registry = dx_adopt::dependency_sets::discover(UV_MODULE, &|rel| Err(rel.to_owned()))
+        let registry = dx_adopt::dependency_sets::discover(UV_MODULE, &|rel| Err(dx_error::DxError::failure(rel)))
             .expect("registry")
             .expect("present");
         for selector in [
@@ -493,7 +493,7 @@ source = { registry = "https://pypi.org/simple" }
 
     #[test]
     fn excluded_sets_and_secret_paths_are_skipped_unless_named() {
-        let registry = dx_adopt::dependency_sets::discover(UV_MODULE, &|rel| Err(rel.to_owned()))
+        let registry = dx_adopt::dependency_sets::discover(UV_MODULE, &|rel| Err(dx_error::DxError::failure(rel)))
             .expect("registry")
             .expect("present");
         let excludes = vec!["//services/...".to_owned()];

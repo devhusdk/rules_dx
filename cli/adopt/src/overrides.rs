@@ -8,6 +8,7 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use dx_error::DxError;
 use dx_families::Family;
 
 use dx_module_bazel::ModuleFile;
@@ -547,7 +548,7 @@ struct Observed {
     owned: Vec<&'static str>,
 }
 
-fn observe(root: &Path, text: &str) -> Result<Observed, String> {
+fn observe(root: &Path, text: &str) -> Result<Observed, DxError> {
     let read_include = |label: &str| -> Result<String, String> {
         if label == OVERRIDES_INCLUDE {
             return Ok(String::new());
@@ -556,7 +557,8 @@ fn observe(root: &Path, text: &str) -> Result<Observed, String> {
         std::fs::read_to_string(root.join(rel))
             .map_err(|e| format!("cannot read included {label}: {e}"))
     };
-    let modules = dx_module_bazel::load_with_includes(text, &read_include)?;
+    let modules =
+        dx_module_bazel::load_with_includes(text, &read_include).map_err(DxError::failure)?;
     let mut observed = Observed {
         rules_dx_module: false,
         has_dep: false,
@@ -678,7 +680,9 @@ pub fn check_overrides_in(root: &Path, owned: Option<&[String]>) -> OverridesSta
     };
     let observed = match observe(root, &text) {
         Ok(observed) => observed,
-        Err(detail) => return OverridesState::Warn(format!("cannot read MODULE.bazel: {detail}")),
+        Err(error) => {
+            return OverridesState::Warn(format!("cannot read MODULE.bazel: {}", error.message()));
+        }
     };
     if observed.rules_dx_module {
         return OverridesState::NotApplicable("rules_dx workspace".to_owned());
@@ -768,7 +772,9 @@ pub fn apply_overrides(root: &Path) -> Result<Vec<String>, AdoptError> {
     };
     let observed = match &text {
         Some(text) => {
-            Some(observe(root, text).map_err(|detail| AdoptError::LoadModuleFile { detail })?)
+            Some(observe(root, text).map_err(|error| AdoptError::LoadModuleFile {
+                detail: error.message().to_owned(),
+            })?)
         }
         None => None,
     };

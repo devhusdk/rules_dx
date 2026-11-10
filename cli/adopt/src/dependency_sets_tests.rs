@@ -51,7 +51,7 @@ fn discovered(root: &str, files: &[(&str, &str)]) -> Result<Option<Registry>, De
         files
             .get(rel)
             .cloned()
-            .ok_or_else(|| format!("{rel}: missing"))
+            .ok_or_else(|| DxError::failure(format!("{rel}: missing")))
     })
 }
 
@@ -217,7 +217,7 @@ fn cabal_layout_compares_freeze_and_sidecar_versions() {
 #[test]
 fn cpan_installs_become_cpan_sets() {
     let module = "cpan = use_extension(\"@rules_perl//perl/cpan:extensions.bzl\", \"cpan\")\ncpan.install(name = \"perl_cpan\", lock = \"//perl/tools:cpanfile.snapshot.lock.json\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("perl_cpan").expect("set");
@@ -316,7 +316,7 @@ fn composer_workspace(digest_reference: &str) -> (dx_test_scratch::TempDir, Reso
 #[test]
 fn composer_locks_become_composer_sets() {
     let module = "composer = use_extension(\"@rules_dx//php/composer:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"vendor\", lock = \"//php:composer.lock\", digests = \"//php:composer.digests.json\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("vendor").expect("set");
@@ -361,7 +361,7 @@ fn dub_locks_become_dub_sets() {
     let module = "dub = use_extension(\"@rules_dx//d/dub:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", lock = \"//d:dub.selections.json\", digests = \"//d:dub.digests.json\")\n";
     let read = |path: &str| match path {
         "d/dub.sdl" => Ok(String::new()),
-        _ => Err("none".to_owned()),
+        _ => Err(DxError::failure("none")),
     };
     let registry = discover(module, &read)
         .expect("discovers")
@@ -375,7 +375,7 @@ fn dub_locks_become_dub_sets() {
 #[test]
 fn fpm_locks_become_fpm_sets() {
     let module = "fortran = use_extension(\"@rules_dx//fortran/toolchain:extensions.bzl\", \"fortran\")\nfortran.fpm(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\n";
-    let read = |_: &str| Err("none".to_owned());
+    let read = |_: &str| Err(DxError::failure("none"));
     let registry = discover(module, &read)
         .expect("discovers")
         .expect("registry");
@@ -422,7 +422,7 @@ fn ansible_and_bicep_tags_become_sets() {
 #[test]
 fn zig_locks_become_zig_sets() {
     let module = "zig = use_extension(\"@rules_dx//zig/deps:extensions.bzl\", \"zig_deps\")\nzig.lock(name = \"zig_pkgs\", lock = \"//app:build.zig.zon\", digests = \"//app:zig.digests.json\")\n";
-    let read = |_: &str| Err("none".to_owned());
+    let read = |_: &str| Err(DxError::failure("none"));
     let registry = discover(module, &read)
         .expect("discovers")
         .expect("registry");
@@ -467,7 +467,7 @@ fn composer_layout_rejects_a_stale_digest() {
 #[test]
 fn swift_from_package_tags_become_swiftpm_sets() {
     let module = "swift_deps = use_extension(\"@rules_swift_package_manager//:extensions.bzl\", \"swift_deps\")\nswift_deps.from_package(resolved = \"//app:Package.resolved\", swift = \"//app:Package.swift\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("swiftpm").expect("set");
@@ -479,7 +479,7 @@ fn swift_from_package_tags_become_swiftpm_sets() {
 #[test]
 fn julia_from_manifest_tags_become_julia_sets() {
     let module = "pkg = use_extension(\"@rules_julia//julia/pkg:extensions.bzl\", \"pkg\")\npkg.from_manifest(name = \"jl_deps\", lockfile = \"//third_party/julia:Manifest.bazel.json\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("jl_deps").expect("set");
@@ -527,7 +527,7 @@ fn julia_layout_needs_both_locks_to_name_the_same_versions() {
 #[test]
 fn pub_locks_become_pub_sets() {
     let module = "pub = use_extension(\"@rules_dart//dart/pub:extensions.bzl\", \"pub\")\npub.from_lock(name = \"dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("dart_deps").expect("set");
@@ -539,7 +539,7 @@ fn pub_locks_become_pub_sets() {
 #[test]
 fn elixir_mix_tags_become_hex_sets() {
     let module = "elixir = use_extension(\"//elixir/toolchain:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("deps").expect("set");
@@ -551,7 +551,7 @@ fn elixir_mix_tags_become_hex_sets() {
 #[test]
 fn erlang_rebar_tags_become_rebar_hex_sets() {
     let module = "erlang = use_extension(\"//erlang/toolchain:extensions.bzl\", \"erlang\")\nerlang.rebar(name = \"deps\", lock = \"//third_party/erlang:rebar.lock\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("deps").expect("set");
@@ -570,7 +570,7 @@ fn erlang_rebar_tags_become_rebar_hex_sets() {
 #[test]
 fn the_repos_own_dart_hub_becomes_a_pub_set() {
     let module = "pub = use_extension(\"//dart:pub.bzl\", \"pub\", dev_dependency = True)\npub.from_lock(name = \"dx_dart_deps\", lock = \"//third_party/dart:pubspec.lock\")\n";
-    let registry = discover(module, &|_: &str| Err("none".to_owned()))
+    let registry = discover(module, &|_: &str| Err(DxError::failure("none")))
         .expect("discovers")
         .expect("registry");
     let set = registry.find("dx_dart_deps").expect("set");
@@ -583,7 +583,7 @@ fn conan_extensions_become_conan_sets() {
     let module = "conan = use_extension(\"//build/conan:conan_deps_module_extension.bzl\", \"conan_extension\")\n";
     let read = |path: &str| match path {
         "build/conanfile.py" => Ok(String::new()),
-        _ => Err("none".to_owned()),
+        _ => Err(DxError::failure("none")),
     };
     let registry = discover(module, &read)
         .expect("discovers")

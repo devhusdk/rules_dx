@@ -156,6 +156,7 @@ real_source_target(
         "BUILD.bazel",
         "repos.bzl",
         "extensions.bzl",
+        "tests.bzl",
         "toolchain.bzl",
         "windows.bzl",
     ],

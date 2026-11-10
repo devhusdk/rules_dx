@@ -1,7 +1,7 @@
 """Runs protoc with its C# generator over one proto_library."""
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
-load("@rules_dx//libs/exec_os:defs.bzl", "ExecOsInfo")
+load("@rules_dx//cli/exec_os:defs.bzl", "ExecOsInfo")
 
 def pascal_case(name):
     """Returns the .cs base name protoc's C# generator writes for a proto basename."""
@@ -63,7 +63,7 @@ csharp_proto_srcs = rule(
     attrs = {
         "proto": attr.label(mandatory = True, providers = [ProtoInfo]),
         "_exec_os": attr.label(
-            default = "@rules_dx//libs/exec_os",
+            default = "@rules_dx//cli/exec_os",
             cfg = "exec",
             providers = [ExecOsInfo],
         ),

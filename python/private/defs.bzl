@@ -3,7 +3,7 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("@rules_py//py:defs.bzl", _PyInfo = "PyInfo", _PyWheelsInfo = "PyWheelsInfo", _py_binary = "py_binary", _py_library = "py_library", _py_pytest_test = "py_pytest_test", _py_test = "py_test")
-load("//libs/exec_os:defs.bzl", "ExecOsInfo")
+load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//core:entry.bzl", "dx_entry_quality_srcs")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
@@ -207,7 +207,7 @@ _py_grpc_srcs = rule(
         "proto": attr.label(mandatory = True, providers = [ProtoInfo], doc = "The proto_library with the service."),
         "tool": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "The protoc binary from grpcio-tools."),
         "_exec_os": attr.label(
-            default = "//libs/exec_os",
+            default = "//cli/exec_os",
             cfg = "exec",
             providers = [ExecOsInfo],
         ),

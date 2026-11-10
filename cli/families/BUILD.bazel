@@ -21,7 +21,7 @@ rust_library(
     name = "dx_families",
     srcs = ["src/lib.rs"],
     aliases = aliases(
-        package_name = "libs/dx_families",
+        package_name = "cli/dx_families",
         normal = True,
     ),
     compile_data = [
@@ -67,7 +67,7 @@ rust_library(
     crate_name = "dx_families",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_families",
+        package_name = "cli/dx_families",
         normal = True,
     ) + ["@crates//:serde"],
 )
@@ -80,7 +80,7 @@ rust_test(
         "src/tests.rs",
     ],
     aliases = aliases(
-        package_name = "libs/dx_families",
+        package_name = "cli/dx_families",
         normal = True,
         normal_dev = True,
     ),
@@ -128,7 +128,7 @@ rust_test(
     crate_name = "dx_families",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_families",
+        package_name = "cli/dx_families",
         normal = True,
         normal_dev = True,
     ) + ["@crates//:serde"],

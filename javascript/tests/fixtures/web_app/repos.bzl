@@ -24,7 +24,7 @@ document.getElementById("consumer-asset").textContent = asset.trim();
 """
 
 _BUILD_BAZEL = '''load("@rules_dx//javascript:defs.bzl", "javascript_web_app")
-load("@rules_dx//libs/web_server:server.bzl", "javascript_web_server")
+load("@rules_dx//cli/web_server:server.bzl", "javascript_web_server")
 
 package(
     default_testonly = True,

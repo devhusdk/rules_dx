@@ -94,8 +94,8 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/error:dx_error",
         "//cli/process:dx_process",
-        "//libs/gomod:dx_gomod",
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/gomod:dx_gomod",
+        "//cli/module_bazel:dx_module_bazel",
         "@crates//:serde_json",
     ],
 )
@@ -175,8 +175,8 @@ rust_test(
         "//cli/error:dx_error",
         "//cli/process:dx_process",
         "//cli/test_scratch:dx_test_scratch",
-        "//libs/gomod:dx_gomod",
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/gomod:dx_gomod",
+        "//cli/module_bazel:dx_module_bazel",
         "@crates//:serde_json",
     ],
 )

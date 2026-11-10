@@ -23,7 +23,7 @@ def tested_stack_contract_tests(name):
             ]),
             ":stack": _lines([
                 '"schema_version": 2',
-                '"generator": "libs/testing/tested_stack.bzl"',
+                '"generator": "cli/testing/tested_stack.bzl"',
                 '"rules_rust_version": "%s"' % RULES_RUST_VERSION,
                 '"rules_cc_version": "%s"' % RULES_CC_VERSION,
                 '"rust_version": "%s"' % RUST_VERSION,

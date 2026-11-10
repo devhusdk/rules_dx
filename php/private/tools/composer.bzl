@@ -1,6 +1,6 @@
 """The composer_tool rule: the pinned Composer phar on the pinned PHP, as one executable."""
 
-load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
 load("//php/private:php.bzl", "rf", "runfiles_path", "write_launcher")
 load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
 

@@ -4,7 +4,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load(":defs.bzl", "javascript_test")
 load("//core:wrapper.bzl", "dx_library_forward_rule", "dx_wrap")
-load("//libs/web_server:server.bzl", "JavascriptWebAppInfo")
+load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 visibility(["//..."])

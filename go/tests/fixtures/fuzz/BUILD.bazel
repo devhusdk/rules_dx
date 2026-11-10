@@ -26,7 +26,7 @@ sh_test(
     args = ["$(rootpath :parse_fuzz)"],
     data = [
         ":parse_fuzz",
-        "//libs/fuzz_run:fuzz_run",
+        "//cli/fuzz_run:fuzz_run",
     ],
     timeout = "short",
 )

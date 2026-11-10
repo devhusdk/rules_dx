@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//erlang/private/toolchain:cells.bzl", "cell_cases")
-load("//libs/launcher:defs.bzl", "native_launch_descriptor_path")
+load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal")
 load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")

@@ -35,7 +35,7 @@ def _tested_stack_impl(ctx):
         deps.setdefault(name, version)
     manifest = {
         "dotnet_version": ctx.attr.dotnet_version,
-        "generator": "libs/testing/tested_stack.bzl",
+        "generator": "cli/testing/tested_stack.bzl",
         "go_sdk_version": ctx.attr.go_sdk_version,
         "module_deps": deps,
         "platforms": sorted(ctx.attr.platforms),

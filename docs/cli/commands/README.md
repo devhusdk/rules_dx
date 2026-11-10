@@ -490,10 +490,10 @@ dx rule that wraps it.
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_warnings_as_errors_opts` |
 |  |  | `@rules_dx//kubernetes/private:defs.bzl` | `kubernetes_library` |
 |  |  | `@rules_dx//kubernetes/private:defs.bzl` | `kubernetes_schemas` |
-|  |  | `@rules_dx//libs/exec_os:defs.bzl` | `exec_os` |
-|  |  | `@rules_dx//libs/launcher:defs.bzl` | `native_launch_descriptor_path` |
-|  |  | `@rules_dx//libs/launcher:defs.bzl` | `target_is_windows` |
-|  |  | `@rules_dx//libs/launcher:defs.bzl` | `write_native_launcher` |
+|  |  | `@rules_dx//cli/exec_os:defs.bzl` | `exec_os` |
+|  |  | `@rules_dx//cli/launcher:defs.bzl` | `native_launch_descriptor_path` |
+|  |  | `@rules_dx//cli/launcher:defs.bzl` | `target_is_windows` |
+|  |  | `@rules_dx//cli/launcher:defs.bzl` | `write_native_launcher` |
 |  |  | `@rules_dx//core:defs.bzl` | `display_label` |
 |  |  | `@rules_dx//core:defs.bzl` | `expect_contains` |
 |  |  | `@rules_dx//core:defs.bzl` | `expect_equal` |

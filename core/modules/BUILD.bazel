@@ -42,7 +42,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],
@@ -68,7 +68,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
     ],
 )
@@ -89,7 +89,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
     ],
 )
@@ -163,7 +163,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/adopt:dx_adopt",
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
     ],

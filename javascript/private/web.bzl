@@ -5,7 +5,7 @@ load("//deploy/private:validate_resources.bzl", "resource_mapping_error", "resou
 load("//core:defs.bzl", "display_label")
 load("//core:resources.bzl", "dx_bundler_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//libs/web_server:server.bzl", "JavascriptWebAppInfo")
+load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
 load("//quality:sources.bzl", "QualitySourcesInfo")
 
 visibility(["//..."])

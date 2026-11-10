@@ -3,7 +3,10 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
-package(default_visibility = VIS_CLI_TOOLS)
+package(default_visibility = VIS_CLI_TOOLS + [
+    "//core/modules:__pkg__",
+    "//tools/testing/floor:__pkg__",
+])
 
 real_source_target(
     name = "corpus_starlark",
@@ -18,41 +21,46 @@ real_source_target(
 )
 
 exports_files([
+    "src/identity.rs",
     "src/lib.rs",
 ])
 
 rust_library(
-    name = "dx_gomod",
-    srcs = ["src/lib.rs"],
+    name = "dx_module_bazel",
+    srcs = [
+        "src/identity.rs",
+        "src/lib.rs",
+    ],
     aliases = aliases(
-        package_name = "libs/dx_gomod",
+        package_name = "cli/dx_module_bazel",
         normal = True,
     ),
-    crate_name = "dx_gomod",
+    crate_name = "dx_module_bazel",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_gomod",
+        package_name = "cli/dx_module_bazel",
         normal = True,
     ),
 )
 
 rust_test(
-    name = "dx_gomod_test",
+    name = "dx_module_bazel_test",
     size = "small",
     srcs = [
+        "src/identity.rs",
         "src/lib.rs",
         "src/tests.rs",
     ],
     aliases = aliases(
-        package_name = "libs/dx_gomod",
+        package_name = "cli/dx_module_bazel",
         normal = True,
         normal_dev = True,
     ),
-    coverage_lib = ":dx_gomod",
-    crate_name = "dx_gomod",
+    coverage_lib = ":dx_module_bazel",
+    crate_name = "dx_module_bazel",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
-        package_name = "libs/dx_gomod",
+        package_name = "cli/dx_module_bazel",
         normal = True,
         normal_dev = True,
     ),

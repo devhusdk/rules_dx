@@ -1,6 +1,6 @@
 """Launches one tool of a Qt cell through the shared native launcher."""
 
-load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 
 # Mirrors the non-DYLD entries of host_routes in launcher.c.
 QT_TOOL_UNSET = [

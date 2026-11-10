@@ -144,7 +144,7 @@ rust_test(
         normal_dev = True,
     ) + [
         ":hermetic",
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/module_bazel:dx_module_bazel",
         "//tools/testing:dx_testing",
     ],
 )

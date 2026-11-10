@@ -2,7 +2,7 @@
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
 load("//erlang/private:defs.bzl", "runfiles_path")
-load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load(":launcher.bzl", "launcher_preamble", "launcher_root", "windows_descriptor")
 
 _EXEC = """PATH="$otp/bin:$elixir/bin:$PATH" exec "$elixir/bin/elixir"{paths} "$runfiles/{driver}" "$@"

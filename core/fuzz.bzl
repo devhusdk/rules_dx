@@ -46,7 +46,7 @@ _dx_fuzz_run = rule(
     doc = "The runner executable that `dx fuzz` calls for one fuzz binary.",
     attrs = {
         "data": attr.label_list(doc = "Files the runner needs at run time.", allow_files = True),
-        "runner": attr.label(doc = "The fuzz_run binary.", default = Label("//libs/fuzz_run:fuzz_run"), executable = True, cfg = "target"),
+        "runner": attr.label(doc = "The fuzz_run binary.", default = Label("//cli/fuzz_run:fuzz_run"), executable = True, cfg = "target"),
     },
     executable = True,
 )

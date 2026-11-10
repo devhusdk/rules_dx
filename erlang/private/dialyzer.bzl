@@ -1,6 +1,6 @@
 """Dialyzer PLT and tool rules over the pinned OTP runtime."""
 
-load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "native_launch_descriptor_path")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "native_launch_descriptor_path")
 load(":defs.bzl", "otp_tool_binary_impl")
 load(":providers.bzl", "DialyzerToolInfo", _DialyzerPltInfo = "DialyzerPltInfo")
 

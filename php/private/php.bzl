@@ -1,6 +1,6 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
-load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
 

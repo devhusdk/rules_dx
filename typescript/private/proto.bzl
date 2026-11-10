@@ -1,7 +1,7 @@
 """Runs protoc with protoc-gen-es over one proto_library."""
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
-load("//libs/exec_os:defs.bzl", "ExecOsInfo")
+load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 
 visibility(["//..."])
 
@@ -63,7 +63,7 @@ ts_proto_srcs = rule(
     attrs = {
         "proto": attr.label(doc = "Proto library to generate from.", mandatory = True, providers = [ProtoInfo]),
         "_exec_os": attr.label(
-            default = "//libs/exec_os",
+            default = "//cli/exec_os",
             cfg = "exec",
             providers = [ExecOsInfo],
         ),

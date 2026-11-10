@@ -1,7 +1,7 @@
 """Shared pieces for rules that run the native launcher on Windows."""
 
 NATIVE_LAUNCHER_ATTRS = {
-    "_exec_launcher": attr.label(default = Label("//libs/launcher:exec_launcher"), executable = True, cfg = "target", doc = "The native launcher used on Windows."),
+    "_exec_launcher": attr.label(default = Label("//cli/launcher:exec_launcher"), executable = True, cfg = "target", doc = "The native launcher used on Windows."),
     "_windows_os": attr.label(default = Label("@platforms//os:windows")),
 }
 

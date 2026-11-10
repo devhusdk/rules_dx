@@ -22,7 +22,7 @@ load("@rules_java//java/common:java_info.bzl", "JavaInfo")
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
 load("@aspect_rules_js//js:libs.bzl", "js_binary_lib")
 load("//ocaml/rules:providers.bzl", _OCamlCmtInfo = "OCamlCmtInfo")
-load("//libs/exec_os:defs.bzl", "ExecOsInfo")
+load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 load("//tools/docs/cc:defs.bzl", "cc_shard_action", "doxygen_available")
@@ -686,7 +686,7 @@ real_docs_aspect = aspect(
             executable = True,
         ),
         "_exec_os": attr.label(
-            default = Label("//libs/exec_os"),
+            default = Label("//cli/exec_os"),
             cfg = "exec",
             providers = [ExecOsInfo],
         ),

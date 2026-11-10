@@ -1,7 +1,7 @@
 """PHP toolchain pin and acquisition tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
 load("//core:cells.bzl", "cell_cases", "cell_setting")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")

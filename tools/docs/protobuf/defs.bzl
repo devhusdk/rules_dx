@@ -1,7 +1,7 @@
 """Protobuf schema reference shards read from protoc's descriptor set and its source info."""
 
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
-load("//libs/exec_os:defs.bzl", "ExecOsInfo")
+load("//cli/exec_os:defs.bzl", "ExecOsInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative")
 
 PROTO_TOOLCHAIN = "@protobuf//bazel/private:proto_toolchain_type"
@@ -109,7 +109,7 @@ docs_protobuf_shard = rule(
             doc = "The documented proto_library; its own .proto srcs are documented.",
         ),
         "_exec_os": attr.label(
-            default = Label("//libs/exec_os"),
+            default = Label("//cli/exec_os"),
             cfg = "exec",
             providers = [ExecOsInfo],
         ),

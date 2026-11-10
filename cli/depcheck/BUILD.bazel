@@ -54,7 +54,7 @@ rust_library(
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/path:dx_path",
-        "//libs/gomod:dx_gomod",
+        "//cli/gomod:dx_gomod",
     ],
 )
 
@@ -73,7 +73,7 @@ rust_binary(
     ) + [
         ":depcheck_lib",
         "//cli/error:dx_error",
-        "//libs/gomod:dx_gomod",
+        "//cli/gomod:dx_gomod",
     ],
 )
 
@@ -119,7 +119,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/error:dx_error",
-        "//libs/gomod:dx_gomod",
+        "//cli/gomod:dx_gomod",
     ],
 )
 
@@ -133,7 +133,7 @@ rust_test(
     ) + [
         ":depcheck_lib",
         "//cli/error:dx_error",
-        "//libs/gomod:dx_gomod",
+        "//cli/gomod:dx_gomod",
     ],
 )
 

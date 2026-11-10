@@ -21,7 +21,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/testing/dx_floor",
         normal = True,
-    ) + ["//libs/module_bazel:dx_module_bazel"],
+    ) + ["//cli/module_bazel:dx_module_bazel"],
 )
 
 rust_test(
@@ -43,7 +43,7 @@ rust_test(
         package_name = "tools/testing/dx_floor",
         normal = True,
         normal_dev = True,
-    ) + ["//libs/module_bazel:dx_module_bazel"],
+    ) + ["//cli/module_bazel:dx_module_bazel"],
 )
 
 exports_files(["testdata/graph_bazel_9_2_0.json"])

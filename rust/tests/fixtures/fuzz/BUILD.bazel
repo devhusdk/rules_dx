@@ -18,12 +18,12 @@ sh_test(
     name = "parse_fuzz_run_test",
     srcs = ["run_test.sh"],
     args = [
-        "$(rlocationpath @rules_dx//libs/fuzz_run:fuzz_run)",
+        "$(rlocationpath @rules_dx//cli/fuzz_run:fuzz_run)",
         "$(rootpath :parse_fuzz)",
     ],
     data = [
         ":parse_fuzz",
-        "@rules_dx//libs/fuzz_run:fuzz_run",
+        "@rules_dx//cli/fuzz_run:fuzz_run",
     ],
     target_compatible_with = [
         "@platforms//cpu:x86_64",

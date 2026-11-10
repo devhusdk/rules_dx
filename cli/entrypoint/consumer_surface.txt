@@ -33,7 +33,7 @@ javascript/private/quality:js.bzl
 julia:defs.bzl
 kotlin:defs.bzl
 kubernetes:defs.bzl
-libs/web_server:server.bzl
+cli/web_server:server.bzl
 lua:defs.bzl
 make:defs.bzl
 mdx:defs.bzl

@@ -18,9 +18,9 @@ JavascriptWebAppInfo = provider(
 )
 
 _WEB_LAUNCHER_RUNFILES = [
-    "rules_dx/libs/web_server/web_server.py",
-    "_main/libs/web_server/web_server.py",
-    "libs/web_server/web_server.py",
+    "rules_dx/cli/web_server/web_server.py",
+    "_main/cli/web_server/web_server.py",
+    "cli/web_server/web_server.py",
 ]
 
 def _web_launcher_candidates(repo, package, app):
@@ -156,7 +156,7 @@ def javascript_web_server(
         **launcher_kwargs
     )
     binary_kwargs = dict(kwargs)
-    binary_kwargs["data"] = list(kwargs.get("data", [])) + [app, Label("//libs/web_server:web_server")]
+    binary_kwargs["data"] = list(kwargs.get("data", [])) + [app, Label("//cli/web_server:web_server")]
     binary_kwargs["deps"] = list(kwargs.get("deps", [])) + [Label("@rules_python//python/runfiles:runfiles")]
     launcher = ":" + name + "_launcher"
     binary_kwargs.setdefault("main", launcher)

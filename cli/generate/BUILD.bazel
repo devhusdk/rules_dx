@@ -45,7 +45,7 @@ rust_library(
         "//cli/error:dx_error",
         "//cli/merge:dx_merge",
         "//cli/path:dx_path",
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],
 )
@@ -96,7 +96,7 @@ rust_test(
         "//cli/merge:dx_merge",
         "//cli/path:dx_path",
         "//cli/test_scratch:dx_test_scratch",
-        "//libs/module_bazel:dx_module_bazel",
+        "//cli/module_bazel:dx_module_bazel",
         "//tools/bazelrc:dx_preset",
     ],
 )

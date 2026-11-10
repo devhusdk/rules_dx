@@ -1,7 +1,7 @@
 """Unit tests for the repository rule helpers."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//core:repo.bzl", "crlf_text", "gem_extract")
+load("//core:repo.bzl", "crlf_text", "digest_error", "gem_extract")
 
 def _fake_rctx(gem_files):
     calls = []
@@ -58,5 +58,8 @@ def repo_unit_tests(name):
             expect_equal("mixed endings", crlf_text("a\nb\r\nc"), "a\r\nb\r\nc"),
             expect_equal("already crlf", crlf_text("x\r\n"), "x\r\n"),
             expect_equal("empty", crlf_text(""), ""),
+            expect_equal("sha256 pins", digest_error("demo", "abc", ""), ""),
+            expect_equal("integrity pins", digest_error("demo", "", "sha512-abc"), ""),
+            expect_equal("no digest is rejected", digest_error("demo", "", ""), "demo: set sha256 or integrity; an archive without a digest is not pinned"),
         ] + _gem_extract_checks(),
     )

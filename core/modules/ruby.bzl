@@ -31,8 +31,6 @@ GEM_CHECKSUMS = {
     "unicode-emoji-4.3.0": "11c02fa73290378c066bb0562cd4c87d8e1b706fbbe0059ca12746a4244de8ce",
 }
 
-# portable-ruby release 3.4.12-1. rules_ruby 0.29.0 ships no checksums for 3.4.12, so
-# the root and consumer toolchains pass these (sha256 of the release assets).
 PORTABLE_RUBY_CHECKSUMS = {
     "ruby-3.4.12.arm64_darwin.tar.gz": "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
     "ruby-3.4.12.arm64_linux.tar.gz": "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",

@@ -67,7 +67,7 @@ def dx_fuzz_binary_select(name, *, tags = None, visibility = None, testonly = Tr
     native.alias(
         name = name,
         actual = select({
-            Label("@platforms//os:windows"): ":" + name + "_noasan",  # TODO(#9946)
+            Label("@platforms//os:windows"): ":" + name + "_noasan",
             "//conditions:default": ":" + name + "_asan",
         }),
         testonly = testonly,

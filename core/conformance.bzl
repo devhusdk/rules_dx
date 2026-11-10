@@ -17,7 +17,6 @@ def dx_forwarder_checks():
     return [
         expect_equal("test kwargs keep manual", dx_forwarded_test_kwargs({"tags": ["manual", "cpu:4"]}), {"tags": ["manual", "cpu:4"]}),
         expect_equal("test kwargs forward timeout and flaky", dx_forwarded_test_kwargs({"timeout": "short", "flaky": True}), {"timeout": "short", "flaky": True}),
-        expect_equal("test kwargs forward flaky", dx_forwarded_test_kwargs({"flaky": True}), {"flaky": True}),
         expect_equal("test kwargs forward args", dx_forwarded_test_kwargs({"args": ["--x"]}), {"args": ["--x"]}),
         expect_equal("test kwargs forward data with args", dx_forwarded_test_kwargs({"args": ["--x"], "data": [":d"]}), {"args": ["--x"], "data": [":d"]}),
         expect_equal("test kwargs keep data upstream without args", dx_forwarded_test_kwargs({"data": [":d"]}), {}),

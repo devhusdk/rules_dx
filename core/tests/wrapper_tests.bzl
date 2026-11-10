@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:resources.bzl", "dx_bundler_resources", "dx_quality_resource_set", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_strip_none", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
+load("//core:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_language_kwargs", "dx_missing_optional_names", "dx_optional_forward_warning", "dx_quality_srcs", "dx_setdefaults", "dx_src_path", "dx_symlink_executable_name", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_warnings_as_errors", "dx_wrap_forward_kwargs", "dx_wrap_upstream_kwargs")
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
@@ -229,11 +229,6 @@ def wrapper_shape_kwargs_tests(name):
                 "src path skips an external Label",
                 dx_src_path("pkg", Label("@bazel_tools//tools:x")),
                 None,
-            ),
-            expect_equal(
-                "strip_none drops only None values",
-                dx_strip_none({"a": None, "b": [], "c": False, "d": "x"}),
-                {"b": [], "c": False, "d": "x"},
             ),
             expect_equal(
                 "warnings_as_errors true picks on",

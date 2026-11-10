@@ -116,22 +116,11 @@ def missing_fragment_demo(name):
         deps = ["//tools/testing:dx_testing"],
     )
 
-def _wrong_phase_subject_impl(ctx):
-    if len(ctx.attr.subjects) != 0:
-        fail("starlark_test (load mode): subjects must be empty: " +
-             "load tests observe loading, not analysis")
-    return [DefaultInfo(files = depset([]))]
-
-_wrong_phase_subject = rule(
-    implementation = _wrong_phase_subject_impl,
-    attrs = {
-        "subjects": attr.label_list(),
-    },
-)
-
 def wrong_phase_demo(name):
-    _wrong_phase_subject(
+    starlark_test(
         name = name + "_subject",
+        mode = "load",
+        checks = [expect_equal("control that passes", 1, 1)],
         subjects = [":negative_subject"],
         tags = ["manual"],
     )
@@ -139,4 +128,22 @@ def wrong_phase_demo(name):
         name = name,
         target = ":" + name + "_subject",
         expected_failure_substring = "starlark_test (load mode): subjects must be empty",
+    )
+
+def empty_file_blocks_demo(name):
+    native.filegroup(
+        name = name + "_files",
+        srcs = [],
+        tags = ["manual"],
+    )
+    starlark_test(
+        name = name + "_subject",
+        mode = "execution",
+        file_blocks = {":" + name + "_files": ["never read"]},
+        tags = ["manual"],
+    )
+    failure_test(
+        name = name,
+        target = ":" + name + "_subject",
+        expected_failure_substring = "starlark_test: file_blocks target has no files",
     )

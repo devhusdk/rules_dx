@@ -2,7 +2,7 @@
 
 load(":defs.bzl", "expect_equal", "expect_true")
 load(":host.bzl", "host_cell")
-load(":repo.bzl", "gem_extract", "hub_repo")
+load(":repo.bzl", "gem_extract")
 
 _HOST_CELLS = [
     "linux_arm64",
@@ -72,16 +72,6 @@ cell_archive_rule = repository_rule(
     },
 )
 
-def host_archive(name, tool, cells, build, aliases = {}):
-    """Declares a repository holding the pinned archive of the host cell."""
-    host_archive_rule(
-        name = name,
-        aliases = aliases,
-        build = build,
-        cells = json.encode({cell: {"binary": pin.binary, "sha256": pin.sha256, "strip_prefix": getattr(pin, "strip_prefix", ""), "urls": pin.urls} for cell, pin in cells.items()}),
-        tool = tool,
-    )
-
 def pin_checks(cells, version, archive_attr = "archive"):
     """Returns the checks every archive pin table shares."""
     pins = cells.values()
@@ -132,7 +122,7 @@ def pins_hub(name, cells, toolchain_type, compatible_with = "exec"):
             toolchain = "@{}//:toolchain".format(cell_repo(name, cell)),
             toolchain_type = toolchain_type,
             visibility = ["//visibility:public"],
-            **{compatible_with + "_compatible_with": [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]]},
+            **{compatible_with + "_compatible_with": [_OS_CONSTRAINTS[cell.partition("_")[0]], _CPU_CONSTRAINTS[cell.partition("_")[2]]]}
         )
         for cell in sorted(cells)
     ])

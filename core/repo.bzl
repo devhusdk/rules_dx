@@ -21,7 +21,16 @@ def crlf_text(text):
     """Returns text with every line ending as CRLF."""
     return text.replace("\r\n", "\n").replace("\n", "\r\n")
 
+def digest_error(name, sha256, integrity):
+    """Returns the error for an archive pinned by neither sha256 nor integrity, or ""."""
+    if sha256 or integrity:
+        return ""
+    return name + ": set sha256 or integrity; an archive without a digest is not pinned"
+
 def _pinned_archive_impl(rctx):
+    error = digest_error(rctx.name, rctx.attr.sha256, rctx.attr.integrity)
+    if error:
+        fail(error)
     if rctx.attr.download_as:
         rctx.download(url = rctx.attr.urls, output = rctx.attr.download_as, sha256 = rctx.attr.sha256, integrity = rctx.attr.integrity)
     else:

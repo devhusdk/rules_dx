@@ -1,7 +1,4 @@
-"""Pinned 7-Zip extractors shared by the repository rules that unpack .7z archives.
-
-Bazel's native .7z support cannot decode BCJ2, so archives that use it need a real 7-Zip.
-"""
+"""Pinned 7-Zip extractors shared by the repository rules that unpack .7z archives."""
 
 load(":host.bzl", "host_cell")
 
@@ -33,7 +30,6 @@ SEVEN_ZIP_EXTRACTORS = {
         sha256 = "5ca87677072c59f5602e5c49baa27d4694bacd2259b4e507f0094249d4281480",
         url = _RELEASE + "7z2603-mac.tar.xz",
     ),
-    # 7zr.exe is x86, so it also runs on Windows arm64 under emulation.
     "windows_arm64": _WINDOWS,
     "windows_x86_64": _WINDOWS,
 }

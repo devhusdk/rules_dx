@@ -1,6 +1,6 @@
-load("//core/tests:subject.bzl", "example_subject")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":negative_tests.bzl", "failing_check_demo", "missing_fragment_demo", "missing_observation_demo", "red_failing_checks", "red_missing_fragment", "red_missing_observation", "wrong_phase_demo")
+load("//core/tests:subject.bzl", "example_subject")
+load(":negative_tests.bzl", "empty_file_blocks_demo", "failing_check_demo", "missing_fragment_demo", "missing_observation_demo", "red_failing_checks", "red_missing_fragment", "red_missing_observation", "wrong_phase_demo")
 
 exports_files(["negative_tests.bzl"])
 
@@ -21,6 +21,8 @@ missing_observation_demo(name = "missing_observation_demo")
 missing_fragment_demo(name = "missing_fragment_demo")
 
 wrong_phase_demo(name = "wrong_phase_demo")
+
+empty_file_blocks_demo(name = "empty_file_blocks_demo")
 
 real_source_target(
     name = "corpus_starlark",

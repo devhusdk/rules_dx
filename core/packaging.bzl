@@ -22,10 +22,3 @@ def only_chars(value, allowed):
         if c not in allowed:
             return False
     return True
-
-def has_any(value, chars):
-    """Returns True when value contains any of chars."""
-    for c in value.elems():
-        if c in chars:
-            return True
-    return False

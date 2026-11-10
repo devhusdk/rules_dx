@@ -493,23 +493,6 @@ def dx_wrap_forward_kwargs(kwargs):
             out[key] = kwargs[key]
     return out
 
-def dx_strip_none(kwargs):
-    """Returns kwargs without the keys `macro(inherit_attrs = ...)` left at None."""
-    return {key: value for key, value in kwargs.items() if value != None}
-
-def dx_wrapper_macro_attrs(nonconfigurable_lists = [], nonconfigurable_labels = [], allow_files = True, mandatory = []):
-    """Returns macro() attr overrides that make inspected attributes non-configurable."""
-    out = {}
-    for key in nonconfigurable_lists:
-        out[key] = attr.label_list(allow_files = allow_files, configurable = False, mandatory = key in mandatory)
-    for key in nonconfigurable_labels:
-        out[key] = attr.label(allow_single_file = allow_files, configurable = False, mandatory = key in mandatory)
-    return out
-
-def dx_macro_upstream_visibility():
-    """Returns the visibility of a `<name>_upstream` target declared in a macro."""
-    return [native.package_relative_label(":__pkg__")]
-
 def dx_binary_run_kwargs(kwargs):
     """Returns args, env and env_inherit, plus data only when args or env is set, for a binary forwarder."""
     out = {}
@@ -618,10 +601,6 @@ def dx_wrap_binary(name, upstream_rule, forward_rule, srcs, visibility = None, u
         **forward_kwargs
     )
 
-# Tag that marks a public test forwarder whose language has no coverage
-# collector: `bazel coverage` writes an empty but valid coverage.dat for it.
-# `dx coverage` fails with `no_coverage_collector` for every tagged test that
-# ran (#2308). Opt one test out with `tags = ["no-coverage"]`.
 DX_NO_COVERAGE_COLLECTOR_TAG = "dx-no-coverage-collector"
 
 def dx_with_tag(tags, tag):

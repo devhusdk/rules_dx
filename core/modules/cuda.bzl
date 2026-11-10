@@ -7,15 +7,10 @@ CUDA_VERSION = _CUDA_VERSION
 CUDA_REDIST_VERSION = _CUDA_REDIST_VERSION
 RULES_CUDA_VERSION = _RULES_CUDA_VERSION
 
-# Newest clang major the pinned nvcc accepts as a host compiler (CUDA 13.4 Linux
-# install guide, supported host compilers: https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html).
-# Recheck on every nvcc pin bump; once this reaches the main @llvm major, drop the
-# nvcc_allow_unsupported_compiler feature from @rules_dx//cuda:defs.bzl.
 CUDA_MAX_HOST_CLANG_MAJOR = 22
 
 _PINS = DATA["dx_cuda"]
 
-# The manifest rules_cuda's cuda.redist_json reads; every pin below must appear in it.
 CUDA_REDIST_URL = _PINS["archives"]["redist_manifest"]["urls"][0]
 CUDA_REDIST_SHA256 = _PINS["archives"]["redist_manifest"]["sha256"]
 
@@ -30,7 +25,6 @@ def _components(cell):
         for name, pin in _PINS["cells"][cell]["components"].items()
     }
 
-# A cell with a blocker is pinned but not qualified.
 CUDA_CELLS = {
     "linux_x86_64": struct(
         rules_cuda_platform = "linux-x86_64",

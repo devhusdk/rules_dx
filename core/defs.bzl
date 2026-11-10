@@ -199,11 +199,11 @@ def _harness_runfiles_key(ctx, f):
         return short_path[3:]
     return ctx.workspace_name + "/" + short_path
 
-def _file_check_files(target):
-    """Returns one file_checks target's files, failing analysis when it has none."""
+def _file_check_files(target, attr):
+    """Returns the files of one target of a file attribute, failing analysis when it has none."""
     target_files = target.files.to_list()
     if len(target_files) == 0:
-        fail("starlark_test: file_checks target has no files: " + str(target.label))
+        fail("starlark_test: " + attr + " target has no files: " + str(target.label))
     return sorted(target_files, key = lambda f: f.short_path)
 
 def _harness_file_entries(ctx):
@@ -211,7 +211,7 @@ def _harness_file_entries(ctx):
     entries = []
     staged = []
     for target in sorted(ctx.attr.file_checks.keys(), key = lambda t: str(t.label)):
-        files = _file_check_files(target)
+        files = _file_check_files(target, "file_checks")
         want = ctx.attr.file_checks[target]
         required = [line for line in want.split("\n") if line != ""]
         if len(required) == 0:
@@ -224,7 +224,7 @@ def _harness_file_entries(ctx):
             })
             staged.append(f)
     for target in sorted(ctx.attr.file_blocks.keys(), key = lambda t: str(t.label)):
-        files = sorted(target.files.to_list(), key = lambda f: f.short_path)
+        files = _file_check_files(target, "file_blocks")
         blocks = json.decode(ctx.attr.file_blocks[target])
         if type(blocks) != "list" or len(blocks) == 0:
             fail("starlark_test: file_blocks value is empty for " + str(target.label))
@@ -244,7 +244,7 @@ def _harness_file_entries(ctx):
         kind = ctx.attr.file_line_endings[target]
         if kind not in ("crlf", "lf"):
             fail("starlark_test: file_line_endings value must be crlf or lf for " + str(target.label))
-        for f in _file_check_files(target):
+        for f in _file_check_files(target, "file_line_endings"):
             entries.append({
                 "key": _harness_runfiles_key(ctx, f),
                 "label": _display_label(target.label),
@@ -273,7 +273,6 @@ def _write_harness(ctx, records, observations):
         executable = ctx.actions.declare_file(ctx.label.name + ".exe")
     else:
         executable = ctx.actions.declare_file(ctx.label.name)
-    # Bazel stats the target of an executable symlink, which fails when the target exists only remotely.
     ctx.actions.symlink(output = executable, target_file = harness)
     transitive = []
     for target in ctx.attr.file_checks.keys() + ctx.attr.file_blocks.keys() + ctx.attr.file_line_endings.keys():

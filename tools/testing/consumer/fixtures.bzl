@@ -6,6 +6,7 @@ CONSUMER_FIXTURES = [
     "go",
     "lua",
     "rust",
+    "zig",
 ]
 
 def consumer_fixture_tests(name, size):

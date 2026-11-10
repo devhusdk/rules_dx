@@ -44,6 +44,8 @@ jobs:
           host="$HOST"
           deadnix_version="1.3.1"
           selene_version="0.32.0"
+          nixfmt_version="1.5.0"
+          nixfmt_sha256="614827e269ece8055904241675f691b47f5c6468604264412c4fec2ca92d3474"
           selene_sha256="cd208a4b3bae38decc9c7bb797c19615caaecf67606b3e593ca60b64d3416cd5"
           rm -rf "$out"
           mkdir -p "$out"
@@ -68,9 +70,17 @@ jobs:
             built="$root/$(bazel cquery "${flags[@]}" --output=files "//rust/private/quality/tools:$tool")"
             cp "$built" "$out/dx-tool-$tool-$version-$host$ext"
           done
+          if test "$host" = "linux-arm64"; then
+            bazel build --config=dx_tool_release_linux_haskell @haskell_nixfmt_hackage//:nixfmt-exe-nixfmt
+            built="$root/$(bazel cquery --config=dx_tool_release_linux_haskell --output=files @haskell_nixfmt_hackage//:nixfmt-exe-nixfmt)"
+            cp "$built" "$out/dx-tool-nixfmt-$nixfmt_version-$host"
+            chmod +x "$out/dx-tool-nixfmt-$nixfmt_version-$host"
+          fi
           case "$host" in
             linux-*)
-              for tool in deadnix-$deadnix_version selene-$selene_version; do
+              tools=(deadnix-$deadnix_version selene-$selene_version)
+              if test "$host" = "linux-arm64"; then tools+=(nixfmt-$nixfmt_version); fi
+              for tool in "${tools[@]}"; do
                 if readelf -l "$out/dx-tool-$tool-$host" | grep -q INTERP; then
                   echo "dx-tool-$tool-$host is dynamically linked" >&2
                   exit 1
@@ -89,6 +99,12 @@ jobs:
           curl --fail --silent --show-error --location -o "$download/selene.tar.gz" "https://github.com/Kampfkarren/selene/archive/refs/tags/$selene_version.tar.gz"
           test "$(sha256_of "$download/selene.tar.gz")" = "$selene_sha256" || { echo "selene archive sha256 differs from MODULE.bazel" >&2; exit 1; }
           tar -xzOf "$download/selene.tar.gz" "selene-$selene_version/LICENSE.md" > "$out/dx-tool-selene-$selene_version-LICENSE"
+          if test "$host" = "linux-arm64"; then
+            curl --fail --silent --show-error --location -o "$download/nixfmt.tar.gz" "https://github.com/NixOS/nixfmt/archive/refs/tags/v$nixfmt_version.tar.gz"
+            test "$(sha256_of "$download/nixfmt.tar.gz")" = "$nixfmt_sha256" || { echo "nixfmt archive sha256 differs from haskell_deps.json" >&2; exit 1; }
+            tar -xzOf "$download/nixfmt.tar.gz" "nixfmt-$nixfmt_version/LICENSE" > "$out/dx-tool-nixfmt-$nixfmt_version-LICENSE"
+            test -s "$out/dx-tool-nixfmt-$nixfmt_version-LICENSE"
+          fi
           test -s "$out/dx-tool-deadnix-$deadnix_version-LICENSE"
           test -s "$out/dx-tool-selene-$selene_version-LICENSE"
           rm -rf "$download"

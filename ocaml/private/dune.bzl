@@ -142,7 +142,7 @@ def _env(ctx, tree):
         assembler = tool(ACTION_NAMES.assemble),
         linker = tool(ACTION_NAMES.cpp_link_executable),
         archiver = tool(ACTION_NAMES.cpp_link_static_library),
-        dist_bin = _abs(compiler.dirname),
+        path = _abs(compiler.dirname) + ":/usr/bin:/bin",
         macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo]),
         ar_wrapper = _abs(ctx.file._libtool_ar.path),
         link_env = link_env,

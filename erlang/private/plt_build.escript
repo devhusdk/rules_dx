@@ -22,12 +22,12 @@ main([Dialyzer, Out | Args]) ->
             halt(1)
     end.
 
-%% Dialyzer reads the user's home for its caches, and a hermetic action has none (Windows has no HOME).
+%% Dialyzer reads the user's home for its caches, and a hermetic action has none.
 ensure_home() ->
     case os:getenv("HOME") of
         false ->
             Home = case os:getenv("USERPROFILE") of
-                       false -> filename:basedir(user_cache, "dx");
+                       false -> os:getenv("TMPDIR", "/tmp");
                        Profile -> Profile
                    end,
             true = os:putenv("HOME", Home);

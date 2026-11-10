@@ -40,8 +40,10 @@ def toolchain_fields(info, extra):
     fields.update(extra)
     return fields
 
-def native_cc_env(cc, assembler, linker, archiver, dist_bin, macos = False, ar_wrapper = None, link_env = {}):
-    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools."""
+NATIVE_CC_TOOLS = ["ar", "as", "cc", "ld", "mkdll", "mkexe", "ranlib"]
+
+def native_cc_env(cc, assembler, linker, archiver, path, macos = False, ar_wrapper = None, lib = None, link_env = {}):
+    """Returns the CONDA_OCAML_* variables that point ocamlopt at the given C tools, and its PATH."""
     env = dict(link_env)
     env.update({
         "CONDA_OCAML_AR": archiver,
@@ -49,14 +51,26 @@ def native_cc_env(cc, assembler, linker, archiver, dist_bin, macos = False, ar_w
         "CONDA_OCAML_CC": cc,
         "CONDA_OCAML_MKDLL": linker + " -shared",
         "CONDA_OCAML_MKEXE": linker,
-        "PATH": dist_bin + ":/usr/bin:/bin",
+        "PATH": path,
     })
+    if lib:
+        env["DX_OCAML_LIB"] = lib
     if macos:
         env["CONDA_OCAML_MKDLL"] = linker + " -shared -undefined dynamic_lookup"
-        if ar_wrapper and "libtool" in archiver:
-            env["CONDA_OCAML_AR"] = ar_wrapper
+        if "libtool" in archiver:
             env["DX_OCAML_LIBTOOL"] = archiver
+            if ar_wrapper:
+                env["CONDA_OCAML_AR"] = ar_wrapper
     return env
+
+def _cc_drivers(ctx):
+    """Links the C tool driver under every program name ocamlopt calls and returns the links."""
+    links = []
+    for tool in NATIVE_CC_TOOLS:
+        link = ctx.actions.declare_file(ctx.label.name + "_cc/conda-ocaml-" + tool)
+        ctx.actions.symlink(output = link, target_file = ctx.executable._cc_driver, is_executable = True)
+        links.append(link)
+    return links
 
 def _native_fields(ctx):
     cc = find_cc_toolchain(ctx)
@@ -67,16 +81,17 @@ def _native_fields(ctx):
         unsupported_features = ctx.disabled_features,
     )
     tool = lambda action: cc_common.get_tool_for_action(feature_configuration = features, action_name = action)
+    drivers = _cc_drivers(ctx)
     return {
-        "cc_files": depset(ctx.files.native_tools + [ctx.file._libtool_ar], transitive = [cc.all_files]),
+        "cc_files": depset(drivers + [ctx.executable._cc_driver], transitive = [cc.all_files]),
         "cc_link_env_vars": native_cc_env(
             cc = tool(ACTION_NAMES.c_compile),
             assembler = tool(ACTION_NAMES.assemble),
             linker = tool(ACTION_NAMES.cpp_link_executable),
             archiver = tool(ACTION_NAMES.cpp_link_static_library),
-            dist_bin = ctx.file.compiler.dirname,
+            path = drivers[0].dirname,
             macos = ctx.target_platform_has_constraint(ctx.attr._macos[platform_common.ConstraintValueInfo]),
-            ar_wrapper = ctx.file._libtool_ar.path,
+            lib = ctx.file.compiler.dirname.rpartition("/")[0] + "/lib",
             link_env = cc_common.get_environment_variables(
                 feature_configuration = features,
                 action_name = ACTION_NAMES.cpp_link_executable,
@@ -104,12 +119,11 @@ dx_ocaml_toolchain = rule(
     doc = "Adds the bytecode stub libraries and ocamlrun to one rules_ocaml toolchain.",
     attrs = {
         "adapter": attr.label(mandatory = True, providers = [platform_common.ToolchainInfo], doc = "The ocaml_toolchain_adapter target."),
-        "compiler": attr.label(allow_single_file = True, mandatory = True, doc = "The compiler; its directory is the dist bin directory."),
+        "compiler": attr.label(allow_single_file = True, mandatory = True, doc = "The compiler; the lib directory beside its bin directory is searched when linking."),
         "dllibs": attr.label_list(allow_files = True, mandatory = True, doc = "Stub libraries ocamlrun loads."),
-        "native_tools": attr.label_list(allow_files = True, doc = "The conda-ocaml-* wrapper scripts ocamlopt runs; they must sit beside each other in the action sandbox."),
         "native": attr.bool(default = False, doc = "Whether ocamlopt assembles and links with the C toolchain."),
         "vmruntime": attr.label(allow_single_file = True, executable = True, cfg = "exec", mandatory = True, doc = "The ocamlrun interpreter."),
-        "_libtool_ar": attr.label(default = Label("//ocaml/private/toolchain:libtool_ar.sh"), allow_single_file = True),
+        "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
         "_macos": attr.label(default = Label("@platforms//os:macos")),
     },
     toolchains = use_cc_toolchain(),
@@ -130,7 +144,6 @@ def dx_ocaml_dist(name, emitters, licenses, version_file):
         data = [":runtime_libs", ":stublibs", STDLIB + "/ld.conf"],
     )
     native.filegroup(name = "tree", srcs = native.glob(["bin/**", "lib/**", "include/**", "share/**"], exclude = ["**/*.conda"]))
-    native.filegroup(name = "native_tools", srcs = native.glob(["bin/conda-ocaml-*"]))
     native.filegroup(name = "licenses", srcs = licenses)
     native.filegroup(name = "version_file", srcs = [version_file])
     for emitter in emitters:
@@ -154,7 +167,6 @@ def dx_ocaml_dist(name, emitters, licenses, version_file):
             compiler = compiler,
             dllibs = [":stublibs"],
             native = emitter == "sys",
-            native_tools = [":native_tools"] if emitter == "sys" else [],
             vmruntime = TOOLS["vmruntime"],
         )
         ocaml_toolchain_profile(name = emitter + "_profile")

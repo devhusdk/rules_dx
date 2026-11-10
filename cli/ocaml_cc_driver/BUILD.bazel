@@ -1,0 +1,36 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_binary(
+    name = "ocaml_cc_driver",
+    srcs = [
+        "src/driver.rs",
+        "src/main.rs",
+    ],
+    crate_root = "src/main.rs",
+)
+
+rust_test(
+    name = "ocaml_cc_driver_test",
+    srcs = [
+        "src/driver.rs",
+        "src/driver_tests.rs",
+        "src/main.rs",
+    ],
+    crate_name = "ocaml_cc_driver",
+    crate_root = "src/main.rs",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

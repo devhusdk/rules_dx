@@ -697,6 +697,8 @@ register_toolchains("//tools/platforms:protoc_windows_arm64")
 
 register_toolchains("@dx_powershell_toolchains//:all")
 
+register_toolchains("@dx_coreutils//:all")
+
 # needed: @rules_ruby (dx_pins extension) loads @bazel_features
 bazel_dep(name = "bazel_features", version = "1.54.1")
 
@@ -710,6 +712,12 @@ dx_pins.pin(
     aliases = {"windows_arm64": "windows_x86_64"},
     build = "//ruby/private/toolchain:sorbet.build",
     pins = "//ruby/private/toolchain:pins.json",
+)
+dx_pins.pin(
+    name = "dx_coreutils",
+    build = "//core/coreutils:coreutils.build",
+    pins = "//core/coreutils:pins.json",
+    toolchain_type = "//core/coreutils:toolchain_type",
 )
 dx_pins.pin(
     name = "dx_powershell_toolchains",
@@ -837,6 +845,13 @@ dx_pins.archive(
 )
 use_repo(
     dx_pins,
+    "dx_coreutils",
+    "dx_coreutils__linux_arm64",
+    "dx_coreutils__linux_x86_64",
+    "dx_coreutils__macos_arm64",
+    "dx_coreutils__macos_x86_64",
+    "dx_coreutils__windows_arm64",
+    "dx_coreutils__windows_x86_64",
     "dx_libfuzzer_dotnet",
     "dx_luals",
     "dx_pins_data",

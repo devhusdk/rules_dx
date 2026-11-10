@@ -1,0 +1,7 @@
+load("@rules_dx//core/coreutils:defs.bzl", "coreutils_toolchain")
+
+coreutils_toolchain(
+    name = "toolchain",
+    binary = "{binary}",
+    visibility = ["//visibility:public"],
+)

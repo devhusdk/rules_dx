@@ -11,7 +11,7 @@ load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
 load("//cc:defs.bzl", "CC_COVERAGE_TRANSITION", _cc_library = "cc_library")
 load("//erlang/private:beam.bzl", "beam_info")
-load("//erlang/private:providers.bzl", "BeamInfo", "ErlangNifInfo")
+load("//erlang/private:providers.bzl", "BeamInfo", "ErlangNifInfo", "OtpToolInfo")
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
@@ -121,7 +121,10 @@ def otp_tool_binary_impl(ctx):
     script_runfiles = ctx.runfiles([script]) if script else ctx.runfiles()
     if target_is_windows(ctx):
         launcher, _, launcher_runfiles = write_native_launcher(ctx, otp_launch_descriptor(otp_root, ctx.attr.tool, script_key))
-        return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles).merge(script_runfiles))]
+        return [
+            DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = launcher_runfiles.merge(erlang_runfiles).merge(script_runfiles)),
+            OtpToolInfo(files = erlang_runfiles.files, program = None),
+        ]
     launcher = ctx.actions.declare_file(ctx.label.name)
     ctx.actions.write(launcher, otp_launcher_text(
         root = otp_root,
@@ -129,7 +132,10 @@ def otp_tool_binary_impl(ctx):
         args = '"$runfiles/' + script_key + '" ' if script else "",
         prelude = _HOME_PRELUDE,
     ), is_executable = True)
-    return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = ctx.runfiles([launcher]).merge(erlang_runfiles).merge(script_runfiles))]
+    return [
+        DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = ctx.runfiles([launcher]).merge(erlang_runfiles).merge(script_runfiles)),
+        OtpToolInfo(files = erlang_runfiles.files, program = root.dirname + "/bin/" + ctx.attr.tool),
+    ]
 
 _NATIVE_SUFFIXES = (".so", ".dylib", ".dll")
 

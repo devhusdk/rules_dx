@@ -1,0 +1,49 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "COREUTILS_APPLETS", "applet_file_name", "coreutils_applet_probe")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "coreutils.build",
+    "defs.bzl",
+    "pins.json",
+])
+
+toolchain_type(name = "toolchain_type")
+
+coreutils_applet_probe(
+    name = "applet_probe",
+    tags = ["manual"],
+)
+
+build_test(
+    name = "applet_probe_test",
+    targets = [":applet_probe"],
+)
+
+starlark_test(
+    name = "metadata",
+    mode = "unit",
+    checks = [
+        expect_equal("applets are sorted and unique", COREUTILS_APPLETS, sorted({applet: True for applet in COREUTILS_APPLETS}.keys())),
+        expect_equal("unix applet name", applet_file_name("dirname", "coreutils"), "dirname"),
+        expect_equal("windows applet name", applet_file_name("dirname", "coreutils.exe"), "dirname.exe"),
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

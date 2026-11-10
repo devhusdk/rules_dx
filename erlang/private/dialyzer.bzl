@@ -1,8 +1,9 @@
 """Dialyzer PLT and tool rules over the pinned OTP runtime."""
 
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "native_launch_descriptor_path")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
 load(":defs.bzl", "otp_tool_binary_impl")
-load(":providers.bzl", "DialyzerToolInfo", _DialyzerPltInfo = "DialyzerPltInfo")
+load(":providers.bzl", "DialyzerToolInfo", "OtpToolInfo", _DialyzerPltInfo = "DialyzerPltInfo")
 
 DialyzerPltInfo = _DialyzerPltInfo
 
@@ -21,11 +22,26 @@ def _dirs(files):
         seen[f.dirname] = True
     return list(seen)
 
+def otp_action_tools(ctx, dialyzer, escript):
+    """Returns how an action runs escript and dialyzer: executable, dialyzer path, inputs, tools and PATH."""
+    if escript[OtpToolInfo].program == None:
+        launchers = [escript[DefaultInfo].files_to_run, dialyzer[DefaultInfo].files_to_run]
+        return struct(executable = launchers[0], dialyzer = launchers[1].executable.path, inputs = depset(), tools = [launchers[1]], path = "/dx_no_path")
+    applets = coreutils(ctx)
+    return struct(
+        executable = escript[OtpToolInfo].program,
+        dialyzer = dialyzer[OtpToolInfo].program,
+        inputs = depset(transitive = [escript[OtpToolInfo].files, dialyzer[OtpToolInfo].files, applets.files]),
+        tools = [],
+        path = applets.path,
+    )
+
 def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code, out):
-    """Builds one PLT of OTP `apps` and `beams`, layered over `plts`."""
+    """Builds one PLT of OTP `apps` and `beams`, layered over `plts`; `dialyzer` and `escript` are otp_tool_binary targets."""
+    otp = otp_action_tools(ctx, dialyzer, escript)
     args = ctx.actions.args()
     args.add(driver)
-    args.add(dialyzer.executable)
+    args.add(otp.dialyzer)
     args.add(out)
     for directory in _dirs(code):
         args.add("-pa")
@@ -44,12 +60,12 @@ def dialyzer_plt_action(ctx, dialyzer, escript, driver, apps, plts, beams, code,
     ctx.actions.run(
         mnemonic = "DxDialyzerPlt",
         progress_message = "Building dialyzer PLT %{output}",
-        executable = escript,
+        executable = otp.executable,
         arguments = [args],
-        inputs = list(plts) + list(beams) + list(code) + [driver],
+        inputs = depset(list(plts) + list(beams) + list(code) + [driver], transitive = [otp.inputs]),
         outputs = [out],
-        tools = [dialyzer],
-        env = {"PATH": "/dx_no_path" if escript.executable.path.endswith(".exe") else "/usr/bin:/bin"},
+        tools = otp.tools,
+        env = {"PATH": otp.path},
         use_default_shell_env = False,
     )
 
@@ -58,7 +74,7 @@ def _dialyzer_plt_impl(ctx):
     base = [dep[DialyzerPltInfo].plt for dep in ctx.attr.plts]
     if not ctx.attr.apps and not ctx.files.beams:
         fail("dialyzer_plt " + ctx.label.name + ": set apps or beams")
-    dialyzer_plt_action(ctx, ctx.attr.dialyzer[DefaultInfo].files_to_run, ctx.attr.escript[DefaultInfo].files_to_run, ctx.file._driver, ctx.attr.apps, base, ctx.files.beams, ctx.files.code, out)
+    dialyzer_plt_action(ctx, ctx.attr.dialyzer, ctx.attr.escript, ctx.file._driver, ctx.attr.apps, base, ctx.files.beams, ctx.files.code, out)
     return [DefaultInfo(files = depset([out])), DialyzerPltInfo(plt = out)]
 
 dialyzer_plt = rule(
@@ -68,12 +84,13 @@ dialyzer_plt = rule(
         "apps": attr.string_list(doc = "OTP application names."),
         "beams": attr.label_list(allow_files = [".beam"], doc = "Extra .beam files to include."),
         "code": attr.label_list(allow_files = [".beam"], doc = "Beams whose directories go on dialyzer's code path, to read the debug info of `beams`."),
-        "dialyzer": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "An otp_tool_binary for dialyzer."),
-        "escript": attr.label(mandatory = True, executable = True, cfg = "exec", doc = "An otp_tool_binary for escript."),
+        "dialyzer": attr.label(mandatory = True, executable = True, cfg = "exec", providers = [OtpToolInfo], doc = "An otp_tool_binary for dialyzer."),
+        "escript": attr.label(mandatory = True, executable = True, cfg = "exec", providers = [OtpToolInfo], doc = "An otp_tool_binary for escript."),
         "plts": attr.label_list(providers = [DialyzerPltInfo], doc = "PLTs this one builds on, in order."),
         "_driver": attr.label(default = "//erlang/private:plt_build.escript", allow_single_file = True),
     },
     provides = [DefaultInfo, DialyzerPltInfo],
+    toolchains = [COREUTILS_TOOLCHAIN_TYPE],
 )
 
 def tool_launcher(ctx, binary_target):

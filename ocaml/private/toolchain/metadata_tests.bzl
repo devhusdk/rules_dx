@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load(":ocaml.bzl", "COMPILERS", "TOOLS", "native_cc_env", "toolchain_fields")
+load(":ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
 load(":opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
 load(":pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
 load(":repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
@@ -50,31 +50,38 @@ def _checks():
         expect_equal("native compiler", TOOLS["native_compiler"], "bin/ocamlopt.opt"),
         expect_equal("each emitter has its compiler", COMPILERS, {"sys": "bin/ocamlopt.opt", "vm": "bin/ocamlc.opt"}),
         expect_equal(
-            "native C environment names every tool and keeps the dist bin first on PATH",
-            native_cc_env("clang", "as-clang", "ld-clang", "llvm-ar", "ext/dist/bin"),
+            "native C environment names every tool and puts only the driver directory on PATH",
+            native_cc_env("clang", "as-clang", "ld-clang", "llvm-ar", "bin/tc_cc", lib = "ext/dist/lib"),
             {
                 "CONDA_OCAML_AR": "llvm-ar",
                 "CONDA_OCAML_AS": "as-clang -c",
                 "CONDA_OCAML_CC": "clang",
                 "CONDA_OCAML_MKDLL": "ld-clang -shared",
                 "CONDA_OCAML_MKEXE": "ld-clang",
-                "PATH": "ext/dist/bin:/usr/bin:/bin",
+                "DX_OCAML_LIB": "ext/dist/lib",
+                "PATH": "bin/tc_cc",
             },
         ),
         expect_equal(
-            "macOS links plugins against the host executable and archives through the libtool wrapper",
-            native_cc_env("clang", "as-clang", "ld-clang", "x/libtool", "ext/dist/bin", macos = True, ar_wrapper = "w/libtool_ar.sh", link_env = {"LLVM_CLANGXX": "x/clang++"}),
+            "macOS links plugins against the host executable and archives through libtool",
+            native_cc_env("clang", "as-clang", "ld-clang", "x/libtool", "bin/tc_cc", macos = True, link_env = {"LLVM_CLANGXX": "x/clang++"}),
             {
-                "CONDA_OCAML_AR": "w/libtool_ar.sh",
+                "CONDA_OCAML_AR": "x/libtool",
                 "CONDA_OCAML_AS": "as-clang -c",
                 "CONDA_OCAML_CC": "clang",
                 "CONDA_OCAML_MKDLL": "ld-clang -shared -undefined dynamic_lookup",
                 "CONDA_OCAML_MKEXE": "ld-clang",
                 "DX_OCAML_LIBTOOL": "x/libtool",
                 "LLVM_CLANGXX": "x/clang++",
-                "PATH": "ext/dist/bin:/usr/bin:/bin",
+                "PATH": "bin/tc_cc",
             },
         ),
+        expect_equal(
+            "a macOS archive wrapper replaces the archiver",
+            native_cc_env("clang", "as-clang", "ld-clang", "x/libtool", "p", macos = True, ar_wrapper = "w/libtool_ar.sh")["CONDA_OCAML_AR"],
+            "w/libtool_ar.sh",
+        ),
+        expect_equal("the driver is linked under every tool name", NATIVE_CC_TOOLS, ["ar", "as", "cc", "ld", "mkdll", "mkexe", "ranlib"]),
         expect_equal("conda stem", conda_stem("https://x/linux-64/zstd-1.5.7-h_7.conda"), "zstd-1.5.7-h_7"),
         expect_equal("root files keep a dot prefix", relative_prefix("ld.conf"), "."),
         expect_equal("nested files climb to the root", relative_prefix("lib/ocaml/ld.conf"), "../.."),

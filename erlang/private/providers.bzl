@@ -29,3 +29,11 @@ ErlangNifInfo = provider(
         "objects_lists": "depset of runtime_objects_list.txt files naming the libraries for native coverage.",
     },
 )
+
+OtpToolInfo = provider(
+    doc = "One OTP program an action runs without its launcher.",
+    fields = {
+        "files": "depset of the OTP tree.",
+        "program": "Exec path of `bin/<tool>` in the OTP tree; None on Windows, where actions run the launcher.",
+    },
+)

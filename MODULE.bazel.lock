@@ -18504,10 +18504,16 @@
     },
     "@@rules_flutter+//flutter:extensions.bzl%flutter": {
       "general": {
-        "bzlTransitiveDigest": "GK/nTVuhKsoYTSmRtqwxsJqzVBZ9wkKBrd2UmlgX4dM=",
+        "bzlTransitiveDigest": "JwMLOv7x1tXBVVMWVllyJtBQjJ+QOER38F9E5x1GN2c=",
         "usagesDigest": "HucYF0TDh95cdm34211YSaQUXJjJ2bdsnapnUbFPtms=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dart+,yaml.bzl yaml.bzl+",
+          "REPO_MAPPING:rules_flutter+,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
+          "REPO_MAPPING:rules_flutter+,bsd_tar_toolchains_darwin_arm64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_arm64",
+          "REPO_MAPPING:rules_flutter+,bsd_tar_toolchains_linux_amd64 tar.bzl++toolchains+bsd_tar_toolchains_linux_amd64",
+          "REPO_MAPPING:rules_flutter+,bsd_tar_toolchains_linux_arm64 tar.bzl++toolchains+bsd_tar_toolchains_linux_arm64",
+          "REPO_MAPPING:rules_flutter+,bsd_tar_toolchains_windows_amd64 tar.bzl++toolchains+bsd_tar_toolchains_windows_amd64",
+          "REPO_MAPPING:rules_flutter+,bsd_tar_toolchains_windows_arm64 tar.bzl++toolchains+bsd_tar_toolchains_windows_arm64",
           "REPO_MAPPING:rules_flutter+,rules_dart rules_dart+",
           "REPO_MAPPING:rules_flutter+,yaml.bzl yaml.bzl+",
           "FILE:@@//flutter/tests/fixtures/flutter-app/pubspec.lock 528dd631efc347cf1966f721548be397ec8a232b7a5cee79eb3492c19d96e8cc",

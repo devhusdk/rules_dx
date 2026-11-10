@@ -51,10 +51,10 @@ x86_64 with NDK r27 targeting API 31.
 
 ## Native platforms
 
-`//platforms` names the two qualified tuples: `device`
+`@rules_dx//android/platforms` names the two qualified tuples: `device`
 (`aarch64-linux-android`) and `emulator` (`x86_64-linux-android`) at API
 floor 31. Build one mixed Rust and C library for both tuples with
-`//rules`:
+`android_native_library` from `@rules_dx//android:defs.bzl`:
 
 ```python
 load("@rules_dx//android:defs.bzl", "android_native_library")
@@ -80,8 +80,8 @@ underlying Rust and C actions; build scripts stay on the host toolchain.
 
 ## NDK toolchain
 
-`//toolchain` defines NDK clang toolchains for both tuples from
-an installed SDK:
+`android_ndk_toolchain_repo` from `@rules_dx//android:repos.bzl` defines
+NDK clang toolchains for both tuples from an installed SDK:
 
 ```python
 _android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:repos.bzl", "android_ndk_toolchain_repo")
@@ -103,8 +103,8 @@ host runs them.
 
 ## Application packaging
 
-`//packaging` builds one installable APK from static native
-deps through the qualified upstream backend (`rules_android` 0.8.0):
+`rust_android_apk` from `@rules_dx//android:defs.bzl` builds one installable
+APK from static native deps through the qualified upstream backend (`rules_android` 0.8.0):
 
 ```python
 load("@rules_dx//android:defs.bzl", "rust_android_apk")

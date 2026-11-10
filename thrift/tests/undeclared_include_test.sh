@@ -1,6 +1,6 @@
 #!/bin/bash
 set -u
-thrift="$(find -L "${RUNFILES_DIR:-$0.runfiles}" -name thrift_compiler -type f | head -n 1)"
+thrift="$(find -L "${RUNFILES_DIR:-$0.runfiles}" \( -name thrift_compiler -o -name thrift_compiler.exe \) -type f | head -n 1)"
 work="$(mktemp -d)"
 mkdir -p "$work/thrift/tests"
 cp "$(find -L "${RUNFILES_DIR:-$0.runfiles}" -name undeclared.thrift | head -n 1)" "$work/thrift/tests/undeclared.thrift"

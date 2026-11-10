@@ -1,5 +1,3 @@
-apple/private/ios/BUILD.bazel manual 3
-apple/private/ios/app.bzl manual 1
 apple/private/ios/app.bzl no-sandbox 1
 cc/tests/fixtures/bench/BUILD.bazel manual 1
 cc/tests/fixtures/fuzz/BUILD.bazel manual 1

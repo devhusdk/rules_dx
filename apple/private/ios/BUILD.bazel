@@ -3,7 +3,7 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//apple/private/bundle:cell_tests.bzl", "adhoc_signing_test", "cell_failure_test", "signing_probe", "signing_probe_device", "stub_library")
-load(":app.bzl", "apple_ios_app", "apple_ios_app_test", "apple_ios_xcframework")
+load(":app.bzl", "apple_ios_app", "apple_ios_xcframework", "ios_xctest_selection")
 load(":app_tests.bzl", "apple_ios_app_tests")
 load(":defs.bzl", "apple_ios_lib", "ios_lib", "ios_lib_cell")
 load(":device.bzl", "apple_ios_export")
@@ -493,11 +493,13 @@ cell_failure_test(
     target = ":files_app_library",
 )
 
-apple_ios_app_test(
-    name = "no_runtime_test_app",
+ios_xctest_selection(
+    name = "no_runtime_test_app_selection",
+    deployment = "",
+    device_type = "",
+    os_version = "",
     srcs = [],
-    app = ":simulator_app",
-    tags = ["manual"],
+    deps = [],
 )
 
 failure_test(
@@ -506,13 +508,13 @@ failure_test(
     target = ":no_runtime_test_app_selection",
 )
 
-apple_ios_app_test(
-    name = "no_device_type_app",
-    srcs = [],
-    app = ":simulator_app",
+ios_xctest_selection(
+    name = "no_device_type_app_selection",
     deployment = "17.0",
+    device_type = "",
     os_version = "18.5",
-    tags = ["manual"],
+    srcs = [],
+    deps = [],
 )
 
 failure_test(
@@ -521,13 +523,13 @@ failure_test(
     target = ":no_device_type_app_selection",
 )
 
-apple_ios_app_test(
-    name = "test_no_sources_app",
-    app = ":simulator_app",
+ios_xctest_selection(
+    name = "test_no_sources_app_selection",
     deployment = "17.0",
     device_type = "iPhone 16",
     os_version = "18.5",
-    tags = ["manual"],
+    srcs = [],
+    deps = [],
 )
 
 failure_test(

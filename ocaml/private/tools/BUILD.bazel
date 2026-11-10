@@ -24,10 +24,10 @@ package(default_visibility = ["//visibility:public"])
 alias(
     name = "opam_binary",
     actual = select({
-        ":linux_aarch64": "@dx_opam_linux_arm64//file",
-        ":linux_x86_64": "@dx_opam_linux_x86_64//file",
-        ":macos_aarch64": "@dx_opam_macos_arm64//file",
-        ":macos_x86_64": "@dx_opam_macos_x86_64//file",
+        ":linux_aarch64": "@opam_linux_arm64//file",
+        ":linux_x86_64": "@opam_linux_x86_64//file",
+        ":macos_aarch64": "@opam_macos_arm64//file",
+        ":macos_x86_64": "@opam_macos_x86_64//file",
     }),
 )
 

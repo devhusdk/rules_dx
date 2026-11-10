@@ -1,7 +1,7 @@
 """Rust real quality aspects."""
 
 load("@rules_rust//rust:defs.bzl", _rust_common = "rust_common")
-load("//quality:families/rust_clippy.bzl", "DxClippyInfo", "dx_clippy_aspect")
+load("//rust/private/quality:rust_clippy.bzl", "DxClippyInfo", "dx_clippy_aspect")
 load("//quality:family_hooks.bzl", "upstream_files")
 load("//quality:pipeline.bzl", "generated_source_paths", "prune_tool_generated_sources")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")

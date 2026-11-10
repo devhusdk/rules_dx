@@ -9,5 +9,4 @@ moduleRoots:
   - "families/msix"
   - "families/ocaml"
   - "families/powershell"
-  - "families/rust"
   - "families/swift"

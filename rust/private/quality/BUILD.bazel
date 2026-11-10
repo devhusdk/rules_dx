@@ -1,0 +1,20 @@
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//modules:__pkg__", "//quality:__subpackages__", "//rust:__subpackages__", "//tools/ci:__pkg__"])
+
+exports_files([
+    "rust.bzl",
+    "rust_clippy.bzl",
+    "rust_tools.bzl",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "rust.bzl",
+        "rust_clippy.bzl",
+        "rust_tools.bzl",
+    ],
+    tags = ["corpus"],
+)

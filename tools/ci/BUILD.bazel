@@ -803,6 +803,7 @@ rust_test(
         "//ruby/private:corpus_starlark",
         "//scala/private/toolchain:corpus_starlark",
         "//rust/private:corpus_starlark",
+        "//rust/private/quality:corpus_starlark",
         "//rust/private/toolchains:corpus_starlark",
         "//scala/private:corpus_starlark",
         "//sql/rules:corpus_starlark",

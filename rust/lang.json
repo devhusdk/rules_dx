@@ -36,7 +36,7 @@
     "rust_fuzz_test"
   ],
   "quality": {
-    "bzl": "quality:families/rust.bzl",
+    "bzl": "rust/private/quality:rust.bzl",
     "file_extensions": [
       ".rs"
     ],

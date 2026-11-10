@@ -403,7 +403,7 @@ mod tests {
         let probes = probes_for(Command::Lint, consumer(&installed, &extensions));
         assert!(probes.contains(&"quality:families/core_probe.bzl%real_core_lint_probe_aspect"));
         assert!(probes.contains(&"quality:families/python.bzl%real_python_lint_probe_aspect"));
-        assert!(probes.contains(&"quality:families/rust.bzl%real_rust_lint_probe_aspect"));
+        assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
         assert!(!probes.contains(&"quality:families/swift.bzl%real_swift_lint_probe_aspect"));
         assert!(probes_for(Command::Docs, consumer(&installed, &extensions)).is_empty());
     }

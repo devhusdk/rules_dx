@@ -1,5 +1,6 @@
 """Core PHP rules: php_library, php_binary and php_test on the pinned PHP, Composer and PHPUnit."""
 
+load("//core:rlocation.bzl", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE", "TOOLCHAIN_TYPE")
 load(":providers.bzl", "PhpInfo")
@@ -36,12 +37,6 @@ def shell_quote(text):
 def ini_flags(ini):
     """Returns the -d flags for an ini dict, sorted by key."""
     return [flag for key in sorted(ini.keys()) for flag in ("-d", key + "=" + ini[key])]
-
-def runfiles_path(workspace_name, file):
-    """Returns one file's path below the runfiles root."""
-    if file.short_path.startswith("../"):
-        return file.short_path[3:]
-    return workspace_name + "/" + file.short_path
 
 def _src_args(file):
     return ["--src", file.path, staged_path(file)]
@@ -189,7 +184,7 @@ def launcher_descriptor(php, ini, tokens):
 
 def write_launcher(ctx, php, ini, tokens):
     """Writes the launcher of a php program: a bash script, or the native launcher with a descriptor on Windows."""
-    key = runfiles_path(ctx.workspace_name, php.interpreter)
+    key = runfiles_path(ctx.workspace_name, php.interpreter.short_path)
     if target_is_windows(ctx):
         launcher, _, runfiles = write_native_launcher(ctx, launcher_descriptor(key, ini, tokens))
     else:
@@ -209,11 +204,11 @@ def _write_coverage_launcher(ctx, tokens, tree):
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     launcher = ctx.actions.declare_file(ctx.label.name)
     script = coverage_launcher_script(
-        runfiles_path(ctx.workspace_name, php.interpreter),
+        runfiles_path(ctx.workspace_name, php.interpreter.short_path),
         ctx.attr.ini,
         tokens,
-        runfiles_path(ctx.workspace_name, php.pcov),
-        runfiles_path(ctx.workspace_name, ctx.executable._clover_to_lcov),
+        runfiles_path(ctx.workspace_name, php.pcov.short_path),
+        runfiles_path(ctx.workspace_name, ctx.executable._clover_to_lcov.short_path),
         tree,
     )
     ctx.actions.write(launcher, script, is_executable = True)
@@ -257,7 +252,7 @@ def _php_binary_impl(ctx):
     srcs = _program_srcs(ctx)
     info = _php_info(ctx, srcs)
     tree = _autoload(ctx, info, autoloader_suffix(ctx.label))
-    root = runfiles_path(ctx.workspace_name, tree)
+    root = runfiles_path(ctx.workspace_name, tree.short_path)
     tokens = [
         lit("-d"),
         rf_prefixed("auto_prepend_file=", root + "/vendor/autoload.php"),
@@ -275,11 +270,11 @@ def _php_test_impl(ctx):
     srcs = list(ctx.files.srcs)
     info = _php_info(ctx, srcs)
     tree = _autoload(ctx, info, autoloader_suffix(ctx.label))
-    root = runfiles_path(ctx.workspace_name, tree)
+    root = runfiles_path(ctx.workspace_name, tree.short_path)
     phpunit = ctx.file._phpunit
-    tokens = [rf(runfiles_path(ctx.workspace_name, phpunit)), lit("--bootstrap"), rf(root + "/vendor/autoload.php")]
+    tokens = [rf(runfiles_path(ctx.workspace_name, phpunit.short_path)), lit("--bootstrap"), rf(root + "/vendor/autoload.php")]
     if ctx.file.config:
-        tokens += [lit("--configuration"), rf(runfiles_path(ctx.workspace_name, ctx.file.config))]
+        tokens += [lit("--configuration"), rf(runfiles_path(ctx.workspace_name, ctx.file.config.short_path))]
     else:
         tokens.append(lit("--no-configuration"))
     tokens += [lit("--fail-on-empty-test-suite"), lit("--do-not-cache-test-index"), env_flag("--log-junit", "XML_OUTPUT_FILE")]

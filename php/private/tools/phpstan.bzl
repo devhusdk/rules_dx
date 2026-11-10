@@ -1,7 +1,8 @@
 """The phpstan_tool rule: the pinned PHPStan phar on the pinned PHP, as one executable."""
 
+load("//core:rlocation.bzl", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
-load("//php/private:php.bzl", "rf", "runfiles_path", "write_launcher")
+load("//php/private:php.bzl", "rf", "write_launcher")
 load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
 
 PHPSTAN_INI = {
@@ -11,7 +12,7 @@ PHPSTAN_INI = {
 def _phpstan_tool_impl(ctx):
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     phar = ctx.file._phpstan
-    launcher, runfiles = write_launcher(ctx, php, PHPSTAN_INI, [rf(runfiles_path(ctx.workspace_name, phar))])
+    launcher, runfiles = write_launcher(ctx, php, PHPSTAN_INI, [rf(runfiles_path(ctx.workspace_name, phar.short_path))])
     return [DefaultInfo(
         executable = launcher,
         files = depset([launcher]),

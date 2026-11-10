@@ -1,9 +1,10 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "fake_file", "label_string")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
-load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "runfiles_path", "shell_quote", "staged_path")
+load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_launcher_script", "env_flag", "ini_flags", "launcher_descriptor", "launcher_script", "lit", "rf", "rf_prefixed", "shell_quote", "staged_path")
 
 package(default_visibility = ["//php:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
@@ -168,7 +169,7 @@ dx_wrapper_contract_tests(
             "workspace runfiles",
             runfiles_path(
                 "_main",
-                fake_file(short_path = "app/x.php"),
+                "app/x.php",
             ),
             "_main/app/x.php",
         ),
@@ -176,7 +177,7 @@ dx_wrapper_contract_tests(
             "external runfiles",
             runfiles_path(
                 "_main",
-                fake_file(short_path = "../dep+/x.php"),
+                "../dep+/x.php",
             ),
             "dep+/x.php",
         ),

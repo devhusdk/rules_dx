@@ -1,11 +1,12 @@
 """PHP toolchain pin and acquisition tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
 load("//core:cells.bzl", "cell_cases", "cell_setting")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
-load("//php/private:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
+load("//php/private:php.bzl", "lit", "rf", "write_launcher")
 load(":php.bzl", "TOOLCHAIN_TYPE")
 load(":cells.bzl", "PHP_CELLS")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
@@ -64,7 +65,7 @@ REQUIRED_MODULES = ["Phar", "ctype", "dom", "hash", "iconv", "json", "libxml", "
 def _php_version_test_impl(ctx):
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     script = ctx.file._script
-    tokens = [rf(runfiles_path(ctx.workspace_name, script)), lit(PHP_VERSION)] + [lit(module) for module in REQUIRED_MODULES]
+    tokens = [rf(runfiles_path(ctx.workspace_name, script.short_path)), lit(PHP_VERSION)] + [lit(module) for module in REQUIRED_MODULES]
     launcher, runfiles = write_launcher(ctx, php, {}, tokens)
     return [DefaultInfo(executable = launcher, files = depset([launcher]), runfiles = runfiles.merge(ctx.runfiles(files = [script], transitive_files = php.files)))]
 

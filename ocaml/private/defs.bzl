@@ -22,6 +22,7 @@ load(
     _ocaml_signature = "ocaml_signature",
     _ocamllex = "ocamllex",
 )
+load("//core:rlocation.bzl", "runfiles_path")
 load("//cc:defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_settings")
 load("//core:fuzz.bzl", "dx_fuzz_runner")
 load("//core:fuzz_bench.bzl", "merge_tags", "split_test_kwargs", "with_default_size")
@@ -151,12 +152,6 @@ exec "$runfiles/{ocamlrun}" "$runfiles/{bytecode}" "$@"
 def launcher_script(ocamlrun, bytecode):
     """Returns the launcher that runs one bytecode file on the runfiles ocamlrun."""
     return _LAUNCHER.format(ocamlrun = ocamlrun, bytecode = bytecode)
-
-def runfiles_path(workspace_name, short_path):
-    """Returns one file's path below the runfiles root."""
-    if short_path.startswith("../"):
-        return short_path[3:]
-    return workspace_name + "/" + short_path
 
 def _run_environment_info(ctx, upstream):
     return dx_run_environment(ctx, upstream[RunEnvironmentInfo] if RunEnvironmentInfo in upstream else None)

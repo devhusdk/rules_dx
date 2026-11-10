@@ -9,6 +9,7 @@ load("@rules_erlang//:erlang_xrl_yrl.bzl", _erlang_xrl_yrl = "erlang_xrl_yrl")
 load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
 load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//cc:defs.bzl", "CC_COVERAGE_TRANSITION", _cc_library = "cc_library")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
@@ -97,12 +98,6 @@ _HOME_PRELUDE = 'export HOME="${HOME:-${TMPDIR:-/tmp}}"\n'
 def otp_launcher_text(root, tool, args = "", prelude = ""):
     """Returns the shared launcher script that runs `bin/<tool>` of the resolved OTP tree."""
     return _LAUNCHER.format(root = root, tool = tool, args = args, prelude = prelude)
-
-def runfiles_path(workspace_name, short_path):
-    """Returns one file's path below the runfiles root."""
-    if short_path.startswith("../"):
-        return short_path[3:]
-    return workspace_name + "/" + short_path
 
 def otp_launch_descriptor(root, tool, archive_key = None):
     """Returns the native launcher descriptor that runs `bin/<tool>.exe` of the OTP tree at `root`."""

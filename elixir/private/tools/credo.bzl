@@ -1,11 +1,11 @@
 """Credo on the pinned Elixir and OTP runtimes."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
-load("//erlang/private:defs.bzl", "runfiles_path")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load(":launcher.bzl", "launcher_preamble", "launcher_root", "windows_descriptor")
 
-_EXEC = """PATH="$otp/bin:$elixir/bin:$PATH" exec "$elixir/bin/elixir"{paths} "$runfiles/{driver}" "$@"
+_EXEC = """PATH="$otp/bin:$elixir/bin" exec "$elixir/bin/elixir"{paths} "$runfiles/{driver}" "$@"
 """
 
 def credo_script(otp, elixir, ebins, driver):

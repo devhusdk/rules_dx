@@ -6,3 +6,9 @@ def rlocation_path(ctx, file):
     if path.startswith("../"):
         return path[3:]
     return ctx.workspace_name + "/" + path
+
+def runfiles_path(workspace_name, short_path):
+    """Returns one file's path below the runfiles root."""
+    if short_path.startswith("../"):
+        return short_path[3:]
+    return workspace_name + "/" + short_path

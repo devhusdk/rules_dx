@@ -1,6 +1,6 @@
 """Shared launcher pieces for Elixir tools that run on the pinned OTP and Elixir."""
 
-load("//erlang/private:defs.bzl", "runfiles_path")
+load("//core:rlocation.bzl", "runfiles_path")
 
 MIX_HOME = "/nonexistent/dx_mix_format"
 

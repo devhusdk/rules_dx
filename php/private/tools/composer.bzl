@@ -1,7 +1,8 @@
 """The composer_tool rule: the pinned Composer phar on the pinned PHP, as one executable."""
 
+load("//core:rlocation.bzl", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
-load("//php/private:php.bzl", "rf", "runfiles_path", "write_launcher")
+load("//php/private:php.bzl", "rf", "write_launcher")
 load("//php/private/toolchain:php.bzl", "TOOLCHAIN_TYPE")
 
 COMPOSER_INI = {
@@ -11,7 +12,7 @@ COMPOSER_INI = {
 def _composer_tool_impl(ctx):
     php = ctx.toolchains[TOOLCHAIN_TYPE].php
     phar = ctx.file._composer
-    launcher, runfiles = write_launcher(ctx, php, COMPOSER_INI, [rf(runfiles_path(ctx.workspace_name, phar))])
+    launcher, runfiles = write_launcher(ctx, php, COMPOSER_INI, [rf(runfiles_path(ctx.workspace_name, phar.short_path))])
     return [DefaultInfo(
         executable = launcher,
         files = depset([launcher]),

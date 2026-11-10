@@ -208,7 +208,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:asan_test",
+    test = "//cc/tests/fixtures/sanitize:asan_test",
 )
 
 cc_toolchain_test(
@@ -220,7 +220,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:ubsan_test",
+    test = "//cc/tests/fixtures/sanitize:ubsan_test",
 )
 
 cc_toolchain_test(
@@ -232,7 +232,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:tsan_test",
+    test = "//cc/tests/fixtures/sanitize:tsan_test",
 )
 
 cc_toolchain_test(
@@ -244,7 +244,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:asan_test",
+    test = "//cc/tests/fixtures/sanitize:asan_test",
 )
 
 cc_toolchain_test(
@@ -256,7 +256,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:ubsan_test",
+    test = "//cc/tests/fixtures/sanitize:ubsan_test",
 )
 
 cc_toolchain_test(
@@ -268,7 +268,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:tsan_test",
+    test = "//cc/tests/fixtures/sanitize:tsan_test",
 )
 
 cc_toolchain_test(
@@ -331,7 +331,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:asan_test",
+    test = "//cc/tests/fixtures/sanitize:asan_test",
 )
 
 cc_toolchain_test(
@@ -343,7 +343,7 @@ cc_toolchain_test(
         "@platforms//os:linux",
         "@platforms//cpu:arm64",
     ],
-    test = "//cc/tests/fixtures/gcc_sanitize:ubsan_test",
+    test = "//cc/tests/fixtures/sanitize:ubsan_test",
 )
 
 cc_toolchain_test(

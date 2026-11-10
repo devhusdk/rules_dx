@@ -51,6 +51,7 @@ cc_test(
     name = "ubsan_test",
     srcs = ["sanitize_test.cc"],
     copts = ["-fno-sanitize-recover=undefined"],
+    local_defines = ["DX_EXPECT_UBSAN"],
     tags = ["manual"],
     target_compatible_with = _GCC_ONLY,
 )

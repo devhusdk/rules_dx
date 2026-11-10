@@ -12,6 +12,14 @@ path = "src/lib.rs"
 name = "depcheck"
 path = "src/main.rs"
 
+[[test]]
+name = "repo_locks_test"
+path = "repo_locks_test.rs"
+
+[[test]]
+name = "adopt_locks_test"
+path = "adopt_locks_test.rs"
+
 [dependencies]
 regex = "1"
 serde_json = "1"

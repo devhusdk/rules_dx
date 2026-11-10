@@ -13,16 +13,19 @@ pub fn rules_dx_override(rules_dx: &Path) -> String {
     )
 }
 
+/// The patches of `//patches/rules_py` that `rules_py_override` names, without `.patch`.
+pub const RULES_PY_PATCHES: [&str; 6] = [
+    "py_cc_toolchain_platform",
+    "native_sdist_toolchain_flags",
+    "pep517_msvc",
+    "venv_bin_files",
+    "host_interpreter_windows_arm64",
+    "external_repo_pytest_paths",
+];
+
 /// Pins the patched rules_py the way the root MODULE.bazel does, until the BCR serves alpha.11 (#6811).
 pub fn rules_py_override() -> String {
-    let patches = [
-        "py_cc_toolchain_platform",
-        "native_sdist_toolchain_flags",
-        "pep517_msvc",
-        "venv_bin_files",
-        "host_interpreter_windows_arm64",
-        "external_repo_pytest_paths",
-    ]
+    let patches = RULES_PY_PATCHES
     .map(|name| format!("        \"//patches/rules_py:{name}.patch\",\n"))
     .concat();
     format!(

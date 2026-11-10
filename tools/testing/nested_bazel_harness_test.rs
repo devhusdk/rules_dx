@@ -1,4 +1,4 @@
-//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk (#5689), a seeded consumer resolves rules_dx extensions (#2978), and nested servers stop with their test binary.
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk (#5689), a locked consumer resolves rules_dx extensions from its repository cache sets (#2978), and nested servers stop with their test binary.
 
 use std::time::{Duration, Instant};
 
@@ -12,23 +12,78 @@ use {dx_nested::Case, dx_testing::rlocation};
 const PYTHON_FACTS: &str = "@@rules_py+//py:extensions.bzl%python_interpreters";
 
 #[cfg(target_os = "linux")]
+/// Starts the harness consumer with its checked-in lock.
+fn locked_consumer(name: &str) -> (Case, String) {
+    let lock = dx_testing::read_text(&dx_testing::env_file("DX_NESTED_HARNESS_LOCK"));
+    let case = nested::harness_consumer(name);
+    case.write("MODULE.bazel.lock", &lock);
+    (case, lock)
+}
+
+#[cfg(target_os = "linux")]
 #[test]
 fn seeded_consumer_resolves_python_interpreters_offline() {
-    let case = Case::consumer("seed", "");
-    let run = case.bazel(&[
-        "query",
-        "--color=no",
-        "--curses=no",
-        "@@rules_py++python_interpreters+python_interpreters//:all",
-    ]);
+    let (case, lock) = locked_consumer("seed");
+    let run = case.bazel(nested::HARNESS_QUERY);
     assert!(run.status.success(), "{}", run.combined());
 
-    let lock = dx_testing::read_json(&case.root().join("MODULE.bazel.lock"))
-        .unwrap_or_else(|error| panic!("{error}"));
+    assert_eq!(
+        dx_testing::read_text(&case.root().join("MODULE.bazel.lock")),
+        lock,
+        "the offline run rewrote the consumer lock"
+    );
+    let lock: serde_json::Value = serde_json::from_str(&lock).expect("lock json");
     assert!(
         lock["facts"].get(PYTHON_FACTS).is_some(),
         "the consumer lock lost the python_interpreters facts: {lock}"
     );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_download_outside_the_cache_sets_fails_with_its_url() {
+    let (case, _) = locked_consumer("undeclared");
+    let rules_py = "4e50948fbb8564a8b3a3b1f354cd9ec7ffdfe304f63c6a5feb1fdbcfbfc782bd";
+    let entry = nested::cache::entry(&case.repository_cache(), rules_py);
+    let kept = entry.with_extension("kept");
+    std::fs::rename(&entry, &kept).expect("hide the rules_py archive");
+    let message = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        case.bazel(nested::HARNESS_QUERY)
+    })) {
+        Ok(run) => panic!("no panic: {}", run.combined()),
+        Err(panic) => panic.downcast_ref::<String>().cloned().unwrap_or_default(),
+    };
+    std::fs::rename(&kept, &entry).expect("restore the rules_py archive");
+    assert!(
+        message.contains("https://github.com/aspect-build/rules_py/releases/download/v2.0.0-alpha.11/rules_py-v2.0.0-alpha.11.tar.gz"),
+        "{message}"
+    );
+    assert!(message.contains("nested_repository_cache"), "{message}");
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn nested_commands_see_no_host_path_and_a_home_under_the_test_tmpdir() {
+    let tmpdir = std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
+    let case = nested::case("environment");
+    std::fs::write(case.join("MODULE.bazel"), "module(name = \"environment\")\n")
+        .unwrap_or_else(|error| panic!("write MODULE.bazel: {error}"));
+    let run = case.bazel(&["info", "output_base"]);
+    assert!(run.status.success(), "{}", run.combined());
+    let output_base = std::path::PathBuf::from(run.stdout.trim());
+    assert!(output_base.starts_with(&tmpdir), "{}", output_base.display());
+    assert!(case.root().starts_with(&tmpdir), "{}", case.root().display());
+    let environ = std::fs::read(format!("/proc/{}/environ", case.servers()[0])).expect("environ");
+    let environ = String::from_utf8_lossy(&environ);
+    let vars: Vec<&str> = environ.split('\0').collect();
+    let bin = case.wrapper();
+    let path = format!("PATH={}:/dx_no_path", bin.parent().expect("bin").display());
+    assert!(vars.contains(&path.as_str()), "{vars:?}");
+    let home = vars
+        .iter()
+        .find_map(|var| var.strip_prefix("HOME="))
+        .expect("HOME");
+    assert!(std::path::Path::new(home).starts_with(&tmpdir), "{home}");
 }
 
 #[cfg(target_os = "linux")]
@@ -60,20 +115,13 @@ fn nested_servers_stop_when_their_test_binary_exits() {
     let rel = std::env::var("DX_NESTED_PROBE")
         .unwrap_or_else(|_| panic!("DX_NESTED_PROBE must name the probe"));
     let version = read_runfiles(".bazelversion");
-    let disk_cache_tmp = dx_test_scratch::scratch("leak-disk-cache");
-    let disk_cache = disk_cache_tmp.path().to_path_buf();
-    let repository_cache_tmp = dx_test_scratch::scratch("leak-repo-cache");
-    let repository_cache = repository_cache_tmp.path().to_path_buf();
+    let probe_tmp = dx_test_scratch::scratch("probe");
     let probe = run(
         &resolve_runfiles(&rel),
         &[],
         &[
             ("DX_PROBE_BAZEL_VERSION", version.trim()),
-            ("DX_NESTED_BAZEL_DISK_CACHE", &disk_cache.to_string_lossy()),
-            (
-                "DX_NESTED_BAZEL_REPOSITORY_CACHE",
-                &repository_cache.to_string_lossy(),
-            ),
+            ("TEST_TMPDIR", &probe_tmp.path().to_string_lossy()),
         ],
     )
     .unwrap_or_else(|error| panic!("run probe: {error}"));

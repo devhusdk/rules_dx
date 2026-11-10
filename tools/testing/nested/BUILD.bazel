@@ -9,6 +9,7 @@ rust_library(
     name = "dx_nested",
     testonly = True,
     srcs = [
+        "src/cache.rs",
         "src/compose.rs",
         "src/footprint.rs",
         "src/lib.rs",

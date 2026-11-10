@@ -36,8 +36,6 @@ deploy/private/release/tests/BUILD.bazel requires-network 1
 elixir/private/defs.bzl manual 1
 erlang/private/defs.bzl manual 1
 erlang/tests/tags/BUILD.bazel manual 1
-examples/adopt-polyglot/BUILD.bazel local 1
-examples/adopt-polyglot/BUILD.bazel no-sandbox 1
 examples/adopt-polyglot/BUILD.bazel requires-network 1
 flutter/private/defs.bzl manual 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel exclusive 1
@@ -70,8 +68,6 @@ rust/private/defs.bzl manual 2
 rust/tests/fixtures/wasm_bindgen/BUILD.bazel manual 1
 swift/tests/fixtures/fuzz/BUILD.bazel manual 1
 tools/ci/BUILD.bazel no-remote 2
-tools/testing/BUILD.bazel local 1
-tools/testing/BUILD.bazel no-sandbox 1
 tools/testing/hermetic/BUILD.bazel exclusive 2
 tools/testing/hermetic/BUILD.bazel manual 5
 tools/testing/hermetic/BUILD.bazel no-cache 2
@@ -79,11 +75,10 @@ tools/testing/hermetic/BUILD.bazel no-remote 2
 tools/testing/hermetic/BUILD.bazel no-sandbox 2
 tools/testing/hermetic/BUILD.bazel requires-network 2
 tools/testing/hermetic/defs.bzl exclusive 2
-tools/testing/hermetic/defs.bzl local 2
 tools/testing/hermetic/defs.bzl manual 2
 tools/testing/hermetic/defs.bzl no-cache 2
 tools/testing/hermetic/defs.bzl no-remote 2
-tools/testing/hermetic/defs.bzl no-sandbox 4
+tools/testing/hermetic/defs.bzl no-sandbox 2
 tools/testing/hermetic/defs.bzl requires-network 3
 tools/testing/nested_bazel.bzl local 1
 tools/testing/nested_bazel.bzl no-sandbox 1

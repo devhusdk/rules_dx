@@ -1,8 +1,6 @@
 """Tags and platform constraints for tests that run a nested Bazel server."""
 
 NESTED_BAZEL_TAGS = [
-    "local",
-    "no-sandbox",
     "resources:cpu:2",
     "resources:memory:2560",
     "resources:nested_bazel:1",
@@ -30,21 +28,5 @@ CONSUMER_MAVEN_DATA = [_CONSUMER_MAVEN_LOCK]
 CONSUMER_MAVEN_ENV = {
     "DX_CONSUMER_MAVEN_LOCK": "$(rlocationpath " + _CONSUMER_MAVEN_LOCK + ")",
 }
-
-# The host variables a nested Bazel client needs on Linux, macOS and Windows.
-NESTED_BAZEL_ENV_INHERIT = [
-    "APPDATA",
-    "BAZELISK_BASE_URL",
-    "BAZELISK_HOME",
-    "HOME",
-    "LOCALAPPDATA",
-    "PATH",
-    "ProgramData",
-    "SystemRoot",
-    "TEMP",
-    "TMP",
-    "USERPROFILE",
-    "XDG_CACHE_HOME",
-]
 
 NESTED_BAZEL_NETWORK_ENV = NESTED_BAZEL_ENV | {"DX_NESTED_BAZEL_NETWORK": "1"}

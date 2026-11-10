@@ -1,0 +1,7 @@
+exports_files(
+    [
+        "harness.MODULE.bazel.lock",
+        "harness.txt",
+    ],
+    visibility = ["//tools/testing:__pkg__"],
+)

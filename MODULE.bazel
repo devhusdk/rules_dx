@@ -2466,6 +2466,13 @@ _test_tags_sources(
 nested_bazel = use_extension("//tools/testing:extensions.bzl", "nested_bazel", dev_dependency = True)
 use_repo(nested_bazel, "nested_bazel_darwin_arm64", "nested_bazel_darwin_x86_64", "nested_bazel_linux_arm64", "nested_bazel_linux_x86_64", "nested_bazel_windows_x86_64")
 
+nested_repository_cache = use_extension("//tools/testing:extensions.bzl", "nested_repository_cache", dev_dependency = True)
+nested_repository_cache.set(
+    name = "nested_cache_harness",
+    list = "//tools/testing/nested_cache:harness.txt",
+)
+use_repo(nested_repository_cache, "nested_cache_harness")
+
 _http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 _http_file(

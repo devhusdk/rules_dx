@@ -3,7 +3,7 @@
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
 load("//core:platform_support.bzl", "compatible_with", "platform_support")
 load("//rust:defs.bzl", "rust_test")
-load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_ENV_INHERIT", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_ENV", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS", "NESTED_BAZEL_TAGS")
 
 # The string each compiler leaves in the binaries it builds: the ELF .comment entry, or the
 # PE Rich header entry of cl.exe compiling C++.
@@ -191,16 +191,16 @@ def hermetic_qualification(
         **kwargs
     )
 
-def nested_bazel_test(name, *, network = False, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
-    """Declares a rust_test that runs a nested Bazel with the shared tags, env and offline downloader."""
+def nested_bazel_test(name, *, network = False, repository_caches = None, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
+    """Declares a rust_test that runs a nested Bazel with the shared tags, env and repository cache sets."""
     target_compatible_with = target_compatible_with or []
-    env_inherit = kwargs.pop("env_inherit", NESTED_BAZEL_ENV_INHERIT)
+    repository_caches = repository_caches or []
+    cache_env = {"DX_NESTED_REPOSITORY_CACHE": " ".join(["$(rlocationpath %s)" % cache for cache in repository_caches])} if repository_caches else {}
     rust_test(
         name = name,
-        data = (data or []) + NESTED_BAZEL_DATA,
-        env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else NESTED_BAZEL_ENV) | (env or {}),
+        data = (data or []) + repository_caches + NESTED_BAZEL_DATA,
+        env = {"RUST_TEST_THREADS": "1"} | (NESTED_BAZEL_NETWORK_ENV if network else NESTED_BAZEL_ENV) | cache_env | (env or {}),
         tags = (NESTED_BAZEL_NETWORK_TAGS if network else NESTED_BAZEL_TAGS) + (tags or []),
         target_compatible_with = target_compatible_with,
-        env_inherit = env_inherit,
         **kwargs
     )

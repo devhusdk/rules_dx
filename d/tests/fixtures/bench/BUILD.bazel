@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_bench")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_bench")
 load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 
 package(

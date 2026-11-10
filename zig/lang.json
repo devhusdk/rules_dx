@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "zig",
   "title": "Zig",
-  "family": "zig",
+  "family": "core",
   "ecosystems": [
     "zig packages"
   ],

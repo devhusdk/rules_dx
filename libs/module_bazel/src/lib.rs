@@ -1065,8 +1065,8 @@ impl ModuleFile {
     /// Every `fortran.fpm` tag of the rules_dx Fortran extension in source order.
     pub fn fpm_locks(&self) -> Result<Vec<FpmLock<'_>>, ModuleError> {
         const TAG: &str = "fortran.fpm";
-        let own = self.tags_of("//fortran/toolchain:extensions.bzl".to_owned(), "fortran", "fpm");
-        self.tags(RUBY_MODULE, "fortran/toolchain:extensions.bzl", "fortran", "fpm")
+        let own = self.tags_of("//fortran:extensions.bzl".to_owned(), "fortran", "fpm");
+        self.tags(RUBY_MODULE, "fortran:extensions.bzl", "fortran", "fpm")
             .chain(own)
             .map(|call| {
                 Ok(FpmLock {
@@ -1081,8 +1081,8 @@ impl ModuleFile {
     /// Every `dub.lock` tag of the rules_dx dub extension in source order.
     pub fn dub_locks(&self) -> Result<Vec<DubLock<'_>>, ModuleError> {
         const TAG: &str = "dub.lock";
-        let own = self.tags_of("//d/dub:extensions.bzl".to_owned(), "dub", "lock");
-        self.tags(RUBY_MODULE, "d/dub:extensions.bzl", "dub", "lock")
+        let own = self.tags_of("//d:extensions.bzl".to_owned(), "dub", "lock");
+        self.tags(RUBY_MODULE, "d:extensions.bzl", "dub", "lock")
             .chain(own)
             .map(|call| {
                 Ok(DubLock {
@@ -1098,8 +1098,8 @@ impl ModuleFile {
     /// Every `zig.lock` tag of the rules_dx zig deps extension in source order.
     pub fn zig_locks(&self) -> Result<Vec<ZigLock<'_>>, ModuleError> {
         const TAG: &str = "zig.lock";
-        let own = self.tags_of("//zig/deps:extensions.bzl".to_owned(), "zig_deps", "lock");
-        self.tags(RUBY_MODULE, "zig/deps:extensions.bzl", "zig_deps", "lock")
+        let own = self.tags_of("//zig:extensions.bzl".to_owned(), "zig_deps", "lock");
+        self.tags(RUBY_MODULE, "zig:extensions.bzl", "zig_deps", "lock")
             .chain(own)
             .map(|call| {
                 Ok(ZigLock {

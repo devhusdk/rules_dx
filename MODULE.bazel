@@ -291,12 +291,6 @@ local_path_override(
     path = "families/generation",
 )
 
-bazel_dep(name = "rules_dx_fortran", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_fortran",
-    path = "families/fortran",
-)
-
 bazel_dep(name = "rules_dx_haskell", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_haskell",
@@ -339,22 +333,10 @@ local_path_override(
     path = "families/ruby",
 )
 
-bazel_dep(name = "rules_dx_zig", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_zig",
-    path = "families/zig",
-)
-
 bazel_dep(name = "rules_dx_dart", version = "0.0.0", dev_dependency = True)
 local_path_override(
     module_name = "rules_dx_dart",
     path = "families/dart",
-)
-
-bazel_dep(name = "rules_dx_julia", version = "0.0.0", dev_dependency = True)
-local_path_override(
-    module_name = "rules_dx_julia",
-    path = "families/julia",
 )
 
 bazel_dep(name = "rules_dx_lua", version = "0.0.0", dev_dependency = True)
@@ -854,6 +836,19 @@ single_version_override(
     version = "0.17.0",
 )
 
+zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
+zig.toolchain(zig_version = "0.17.0")
+
+_zig_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+_zig_http_archive(
+    name = "zig_app_xxhash",
+    build_file = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
+    sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
+    strip_prefix = "xxHash-0.8.3",
+    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
+)
+
 # floor: equals tested
 bazel_dep(name = "rules_swift", version = "4.2.2")
 single_version_override(
@@ -1069,74 +1064,84 @@ single_version_override(
     version = "0.8.0",
 )
 
+julia = use_extension("@rules_julia//julia:extensions.bzl", "julia")
+julia.toolchain(version = "1.12.5")
+
+julia_pkg_dev = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg", dev_dependency = True)
+julia_pkg_dev.from_manifest(
+    name = "julia_app_pkgs",
+    lockfile = "//julia/tests/fixtures/julia-app/third_party:Manifest.bazel.json",
+)
+use_repo(julia_pkg_dev, julia_app_deps = "julia_app_pkgs")
+
 julia_pkg = use_extension("@rules_julia//julia/pkg:extensions.bzl", "pkg")
 julia_pkg.from_manifest(
     name = "dx_julia_coverage",
-    lockfile = "//julia/coverage:Manifest.bazel.json",
+    lockfile = "//julia/private/coverage:Manifest.bazel.json",
 )
 julia_pkg.from_manifest(
     name = "dx_julia_docs",
-    lockfile = "//julia/tools/docs:Manifest.bazel.json",
+    lockfile = "//julia/private/tools/docs:Manifest.bazel.json",
 )
 julia_pkg.from_manifest(
     name = "dx_julia_format",
-    lockfile = "//julia/tools:Manifest.bazel.json",
+    lockfile = "//julia/private/tools:Manifest.bazel.json",
 )
 julia_pkg.from_manifest(
     name = "dx_julia_jet",
-    lockfile = "//julia/tools/jet:Manifest.bazel.json",
+    lockfile = "//julia/private/tools/jet:Manifest.bazel.json",
 )
 julia_pkg.from_manifest(
     name = "dx_julia_lint",
-    lockfile = "//julia/tools/lint:Manifest.bazel.json",
+    lockfile = "//julia/private/tools/lint:Manifest.bazel.json",
 )
 julia_pkg.pkg_annotation(
     dep = "Preferences",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/patches:Preferences.patch"],
+    patches = ["//julia/private/tools/patches:Preferences.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "Documenter",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/docs/patches:Documenter.patch"],
+    patches = ["//julia/private/tools/docs/patches:Documenter.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "StructUtils",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/docs/patches:StructUtils.patch"],
+    patches = ["//julia/private/tools/docs/patches:StructUtils.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "JET",
     patch_args = ["-p1"],
     patches = [
-        "//julia/tools/jet/patches:JET.patch",
-        "//julia/tools/jet/patches:JET_docs.patch",
+        "//julia/private/tools/jet/patches:JET.patch",
+        "//julia/private/tools/jet/patches:JET_docs.patch",
     ],
 )
 julia_pkg.pkg_annotation(
     dep = "MacroTools",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/jet/patches:MacroTools.patch"],
+    patches = ["//julia/private/tools/jet/patches:MacroTools.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "ExceptionUnwrapping",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/lint/patches:ExceptionUnwrapping.patch"],
+    patches = ["//julia/private/tools/lint/patches:ExceptionUnwrapping.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "CommonMark@1.0.4",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/lint/patches:CommonMark.patch"],
+    patches = ["//julia/private/tools/lint/patches:CommonMark.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "JuliaWorkspaces",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/lint/patches:JuliaWorkspaces.patch"],
+    patches = ["//julia/private/tools/lint/patches:JuliaWorkspaces.patch"],
 )
 julia_pkg.pkg_annotation(
     dep = "JSON",
     patch_args = ["-p1"],
-    patches = ["//julia/tools/lint/patches:JSON.patch"],
+    patches = ["//julia/private/tools/lint/patches:JSON.patch"],
 )
 use_repo(julia_pkg, "dx_julia_coverage", "dx_julia_docs", "dx_julia_format", "dx_julia_jet", "dx_julia_lint")
 
@@ -1254,8 +1259,10 @@ ocaml.annotation(
 )
 use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "ocaml_app", "ocaml_fuzz", "rules_ocaml")
 
-fortran = use_extension("//fortran/toolchain:extensions.bzl", "fortran")
-use_repo(fortran, "rules_fortran")
+fortran = use_extension("//fortran:extensions.bzl", "fortran")
+use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
+
+register_toolchains("@dx_fortran_toolchains//:all")
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.4.6.bcr.1")
@@ -1319,12 +1326,12 @@ haskell.lock(
 )
 use_repo(haskell, "dx_ghc_windows_x86_64", "dx_haskell_toolchains", "haskell_app_hackage", "haskell_bench_hackage", "haskell_exe_hackage", "haskell_hlint_hackage", "haskell_nixfmt_hackage", "haskell_ormolu_hackage", "haskell_weeder_hackage", "rules_haskell")
 
-d = use_extension("//d/toolchain:extensions.bzl", "d")
+d = use_extension("//d:extensions.bzl", "d")
 use_repo(d, "dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_ldc_linux_x86_64", "dx_d_ldc_linux_arm64", "dx_d_ldc_macos_arm64", "dx_d_ldc_windows_x86_64", "dx_d_libddoc", "dx_d_libdparse", "dx_d_toolchains", "rules_d")
 
 register_toolchains("@dx_d_toolchains//:all")
 
-dub = use_extension("//d/dub:extensions.bzl", "dub", dev_dependency = True)
+dub = use_extension("//d:extensions.bzl", "dub", dev_dependency = True)
 dub.lock(
     name = "dub_fixture",
     digests = "//d/tests/fixtures/dub:dub.digests.json",

@@ -1,4 +1,4 @@
-load("@rules_dx//fortran/rules:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+load("@rules_dx//fortran:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
 
 fortran_library(
     name = "demo-app",

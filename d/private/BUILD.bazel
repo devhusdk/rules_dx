@@ -1,0 +1,88 @@
+load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
+load("//libs/starlark:conformance.bzl", "dx_wrapper_contract_tests")
+load("//libs/starlark:defs.bzl", "expect_equal")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":defs.bzl", "D_CELLS", "D_COVERAGE_COLLECTOR", "d_quality_srcs")
+load(":kwargs.bzl", "d_kwargs")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "defs.bzl",
+    "kwargs.bzl",
+])
+
+config_setting(
+    name = "coverage",
+    values = {"collect_code_coverage": "true"},
+)
+
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    extra_checks = [
+        expect_equal(
+            "d guard is a select by default",
+            type(d_kwargs({})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "d guard stays with a user list",
+            type(d_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]),
+            "select",
+        ),
+        expect_equal(
+            "d keeps user tags",
+            d_kwargs({"tags": ["t"]})["tags"],
+            ["t"],
+        ),
+        expect_equal(
+            "d tests have a coverage collector",
+            D_COVERAGE_COLLECTOR,
+            True,
+        ),
+        expect_equal(
+            "modules and interface files are owned in order",
+            d_quality_srcs([
+                "app.d",
+                "api.di",
+            ]),
+            [
+                "app.d",
+                "api.di",
+            ],
+        ),
+        expect_equal(
+            "string import files are not owned",
+            d_quality_srcs(
+                [
+                    "app.d",
+                    "banner.txt",
+                ],
+                ["banner.txt"],
+            ),
+            ["app.d"],
+        ),
+        expect_equal(
+            "no sources own nothing",
+            d_quality_srcs(None),
+            [],
+        ),
+        expect_equal(
+            "D targets build on every pinned LDC cell",
+            D_CELLS,
+            sorted(LDC_CELLS.keys()),
+        ),
+    ],
+    file_classes = ["d"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "kwargs.bzl",
+        "wrapper_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

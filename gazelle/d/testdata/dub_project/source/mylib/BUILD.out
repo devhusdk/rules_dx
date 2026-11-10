@@ -1,4 +1,4 @@
-load("@rules_dx//d/rules:defs.bzl", "d_library")
+load("@rules_dx//d:defs.bzl", "d_library")
 
 d_library(
     name = "mylib",

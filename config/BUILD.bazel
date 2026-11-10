@@ -66,12 +66,12 @@ label_flag(
 
 label_flag(
     name = "tool_jet",
-    build_setting_default = "//julia/tools/jet:jet",
+    build_setting_default = "//julia/private/tools/jet:jet",
 )
 
 label_flag(
     name = "tool_julialint",
-    build_setting_default = "//julia/tools/lint:julialint",
+    build_setting_default = "//julia/private/tools/lint:julialint",
 )
 
 label_flag(

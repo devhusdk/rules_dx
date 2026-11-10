@@ -1,4 +1,4 @@
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/d:defs.bzl", "d_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")

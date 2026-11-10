@@ -1,3 +1,0 @@
-load("@rules_dx//fortran/rules:defs.bzl", "fortran_library")
-
-filegroup(name = "loads")

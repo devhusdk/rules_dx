@@ -50,7 +50,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{TestKind},
 		Kinds:          juliaKinds,
-		DefsPackage:    "julia/rules:defs.bzl",
+		DefsPackage:    "julia:defs.bzl",
 		ImportAttr:     "srcs",
 		IsStdLib:       IsStdLib,
 		UnresolvedHint: UnresolvedHint,

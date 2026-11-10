@@ -1,0 +1,31 @@
+load("@rules_dx//fortran:defs.bzl", "fortran_library", "fortran_test")
+load("@rules_dx//tools/coverage/kcov:kcov_tests.bzl", "dx_kcov_env_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//:__subpackages__"])
+
+fortran_library(
+    name = "calc",
+    srcs = ["calc.f90"],
+)
+
+fortran_test(
+    name = "calc_test",
+    srcs = ["calc_test.f90"],
+    deps = [":calc"],
+)
+
+dx_kcov_env_test(
+    name = "calc_test_kcov_test",
+    instrumented = ["fortran/tests/fixtures/calc/calc.f90"],
+    linux_platform = "//fortran/private:linux_x86_64",
+    target = ":calc_test",
+    upstream = "calc_test_upstream",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

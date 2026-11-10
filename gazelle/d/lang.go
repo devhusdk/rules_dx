@@ -101,7 +101,7 @@ func NewLanguage() language.Language {
 		ExtraKinds:     []string{BinaryKind, TestKind},
 		External:       "dub",
 		ConfigureExt:   configureDub,
-		DefsPackage:    "d/rules:defs.bzl",
+		DefsPackage:    "d:defs.bzl",
 		ImportAttr:     "srcs",
 		IsImportSource: isSupported,
 		IsStdLib:       IsStdLib,

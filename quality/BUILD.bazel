@@ -245,7 +245,7 @@ consumer_policy_tests(
                 "calc-real-lint-text.pb",
             ],
             "policy": "//config:default_workspace_policy",
-            "subject": "@rules_dx_fortran//fortran/tests/fixtures/calc:calc",
+            "subject": "//fortran/tests/fixtures/calc:calc",
         },
         {
             "case": "default_dart",
@@ -318,7 +318,7 @@ consumer_policy_tests(
                 "greet-real-lint-zig.pb",
             ],
             "policy": "//config:default_workspace_policy",
-            "subject": "@rules_dx_zig//zig/tests/fixtures/hello:greet",
+            "subject": "//zig/tests/fixtures/hello:greet",
         },
         {
             "case": "toml_formatted",

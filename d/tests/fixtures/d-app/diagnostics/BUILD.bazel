@@ -1,6 +1,6 @@
 # gazelle:exclude *.d
 
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH")
 load("//libs/starlark:cells.bzl", "cell_setting")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
@@ -19,7 +19,7 @@ alias(
     tags = ["manual"],
     testonly = True,
     actual = select(
-        {cell_setting("//d/toolchain", cell): "@dx_d_ldc_%s//:dmd" % cell for cell in _CELLS},
+        {cell_setting("//d/private/toolchain", cell): "@dx_d_ldc_%s//:dmd" % cell for cell in _CELLS},
         no_match_error = "the D diagnostics test runs on the pinned LDC cells",
     ),
 )

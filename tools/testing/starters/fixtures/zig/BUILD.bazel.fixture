@@ -1,4 +1,4 @@
-load("@rules_dx//zig/rules:defs.bzl", "zig_binary", "zig_library", "zig_test")
+load("@rules_dx//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")
 
 zig_library(
     name = "demo-app",

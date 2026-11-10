@@ -35,14 +35,14 @@ def _platform_test(platform):
     )
 
 # An analysis rule fixes its platform when it is defined, so every platform a caller can name is defined here.
-_fortran_linux_test = _platform_test("//fortran/rules:linux_x86_64")
-_zig_linux_test = _platform_test("//zig/rules:kcov_linux_x86_64")
-_zig_macos_test = _platform_test("//zig/rules:kcov_macos_arm64")
+_fortran_linux_test = _platform_test("//fortran/private:linux_x86_64")
+_zig_linux_test = _platform_test("//zig/private:kcov_linux_x86_64")
+_zig_macos_test = _platform_test("//zig/private:kcov_macos_arm64")
 
 _PLATFORM_TESTS = {
-    "//fortran/rules:linux_x86_64": _fortran_linux_test,
-    "//zig/rules:kcov_linux_x86_64": _zig_linux_test,
-    "//zig/rules:kcov_macos_arm64": _zig_macos_test,
+    "//fortran/private:linux_x86_64": _fortran_linux_test,
+    "//zig/private:kcov_linux_x86_64": _zig_linux_test,
+    "//zig/private:kcov_macos_arm64": _zig_macos_test,
 }
 
 _off_test = analysistest.make(

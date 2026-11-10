@@ -667,7 +667,7 @@ fn julia_update_runs_pkg_update_then_the_resolver() {
     assert_eq!(
         runs[0].argv[runs[0].argv.len() - 4..],
         [
-            "@rules_dx//julia/tools:pkg_update",
+            "@rules_dx//julia/private/tools:pkg_update",
             "--",
             app.as_str(),
             "JSON"

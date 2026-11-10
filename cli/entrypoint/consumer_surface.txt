@@ -6,7 +6,7 @@ bicep/rules:defs.bzl
 cc/rules:defs.bzl
 cloudformation/rules:defs.bzl
 cmake/rules:defs.bzl
-d/rules:defs.bzl
+d:defs.bzl
 deploy/offline:offline.bzl
 deploy/rules:archive.bzl
 deploy/rules:cloudflare.bzl
@@ -28,7 +28,7 @@ go/rules:defs.bzl
 haskell/rules:defs.bzl
 java/private:defs.bzl
 javascript:defs.bzl
-julia/rules:defs.bzl
+julia:defs.bzl
 kotlin/private:defs.bzl
 kubernetes/rules:defs.bzl
 libs/web_server:server.bzl
@@ -115,4 +115,4 @@ tools/docs/zig:defs.bzl
 tools/docs:aspect.bzl
 typescript:defs.bzl
 vue:defs.bzl
-zig/rules:defs.bzl
+zig:defs.bzl

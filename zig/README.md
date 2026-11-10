@@ -4,7 +4,7 @@ Build, run, test and format Zig with the pinned `rules_zig` 0.17.0 and Zig
 0.16.0 toolchain. Nothing needs to be installed.
 
 ```python
-load("@rules_dx//zig/rules:defs.bzl", "zig_binary", "zig_library", "zig_test")
+load("@rules_dx//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")
 
 zig_library(
     name = "greet",
@@ -45,7 +45,7 @@ installed.
 The `.dependencies` of a `build.zig.zon` become one hub of `zig_library` targets. Bazel fetches each archive through its repository cache; Zig never runs at fetch time. Only `http(s)` archive URLs (`.tar.gz`, `.tgz`, `.tar.xz`, `.tar.zst`, `.zip`) are supported; `git+` URLs and path dependencies are not.
 
 ```python
-zig_deps = use_extension("@rules_dx//zig/deps:extensions.bzl", "zig_deps")
+zig_deps = use_extension("@rules_dx//zig:extensions.bzl", "zig_deps")
 zig_deps.lock(
     name = "zig_packages",
     digests = "//:zig.digests.json",
@@ -76,7 +76,7 @@ A package without a matching entry fails the fetch and prints the entry to commi
 `zig_bench` builds a private `<name>_bin` with `mode = "release_fast"` and declares `<name>` as the manual `dx-bench` test `dx bench` runs. Test attributes (`size`, `timeout`, `args`, `data`, `env`) go to `<name>`, the other attributes to the binary.
 
 ```python
-load("@rules_dx//zig/rules:defs.bzl", "zig_bench")
+load("@rules_dx//zig:defs.bzl", "zig_bench")
 
 zig_bench(
     name = "parse_bench",

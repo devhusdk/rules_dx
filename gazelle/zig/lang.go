@@ -41,7 +41,7 @@ func NewLanguage() language.Language {
 		LibraryKind:    LibraryKind,
 		Kinds:          zigKinds,
 		ExtraKinds:     []string{TestKind},
-		DefsPackage:    "zig/rules:defs.bzl",
+		DefsPackage:    "zig:defs.bzl",
 		ImportAttr:     "main",
 		Identity:       func(name string) string { return name },
 		IsImportSource: isSupported,

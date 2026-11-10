@@ -1,17 +1,17 @@
 """The language list behind docs/support-matrix.md."""
 
 load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
-load("//d/rules:defs.bzl", "D_CELLS")
-load("//d/toolchain:pins.bzl", "LDC_CELLS")
+load("//d:defs.bzl", "D_CELLS")
+load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
 load("//dart/rules:platforms.bzl", "DART_PLATFORMS")
 load("//elixir:defs.bzl", "ELIXIR_CELLS")
 load("//erlang:defs.bzl", "ERLANG_CELLS")
 load("//erlang/private/toolchain:pins.bzl", OTP_CELLS = "CELLS")
 load("//flutter/rules:platforms.bzl", "FLUTTER_PLATFORMS")
-load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
+load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/rules:defs.bzl", "HASKELL_CELLS")
 load("//haskell/toolchain:pins.bzl", GHC_CELLS = "CELLS")
-load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
+load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
 load("//modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
 load("//ocaml/toolchain:pins.bzl", "OCAML_CELLS")
 load("//perl/rules:platforms.bzl", "PERL_PLATFORMS")
@@ -39,16 +39,16 @@ def _cells(pinned, cells):
 COMPUTED_CONSTRAINTS = {
     "@rules_dx_apple//ios:cell.bzl%APPLE_HOSTS": [["@platforms//os:ios"], ["@platforms//os:macos"]],
     "@rules_dx_cuda//rules:defs.bzl%CUDA_TARGET": _cells(CUDA_CELLS, cuda_qualified_cells()),
-    "//d/rules:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
+    "//d:defs.bzl%D_COMPATIBLE_WITH": _cells(LDC_CELLS, D_CELLS),
     "//dart/rules:defs.bzl%DART_COMPATIBLE_WITH": _os_cpu_pairs(DART_PLATFORMS),
     "//elixir:defs.bzl%ELIXIR_COMPATIBLE_WITH": _cells(OTP_CELLS, ELIXIR_CELLS),
     "//erlang:defs.bzl%ERLANG_COMPATIBLE_WITH": _cells(OTP_CELLS, ERLANG_CELLS),
     "//flutter/rules:defs.bzl%FLUTTER_COMPATIBLE_WITH": _os_cpu_pairs(FLUTTER_PLATFORMS),
-    "//fortran/rules:defs.bzl%FORTRAN_COMPATIBLE_WITH": [FORTRAN_CELLS[cell].constraints for cell in sorted(FORTRAN_CELLS.keys())],
+    "//fortran:defs.bzl%FORTRAN_COMPATIBLE_WITH": [FORTRAN_CELLS[cell].constraints for cell in sorted(FORTRAN_CELLS.keys())],
     "//haskell/rules:defs.bzl%HASKELL_COMPATIBLE_WITH": _cells(GHC_CELLS, HASKELL_CELLS),
     # Mirrors HERMETIC_COMPATIBLE_WITH in //tools/testing/hermetic:defs.bzl.
     "//tools/testing/hermetic:defs.bzl%HERMETIC_COMPATIBLE_WITH": [["@platforms//os:linux"], ["@platforms//os:macos"], ["@platforms//os:windows"]],
-    "//julia/rules:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
+    "//julia:defs.bzl%JULIA_COMPATIBLE_WITH": _os_cpu_pairs(JULIA_PLATFORMS),
     "//ocaml/rules:defs.bzl%OCAML_COMPATIBLE_WITH": _cells(OCAML_CELLS, sorted(OCAML_CELLS.keys())),
     # PERL_COMPATIBLE_WITH is a select() on rules_perl_platform, which matches any of these.
     "//perl/rules:defs.bzl%PERL_COMPATIBLE_WITH": _os_cpu_pairs(PERL_PLATFORMS),
@@ -182,13 +182,13 @@ ROWS = [
         "section": "languages",
         "title": "Flutter",
     },
-    {"ci_tests": ["@rules_dx_fortran//fortran/tests/runtime:stats_test"], "consumer_tests": _starter_consumers("fortran"), "name": "fortran", "section": "languages", "title": "Fortran"},
+    {"ci_tests": ["//fortran/tests/runtime:stats_test"], "consumer_tests": _starter_consumers("fortran"), "name": "fortran", "section": "languages", "title": "Fortran"},
     {"ci_tests": _hello("fsharp", "@rules_dx_dotnet"), "consumer_tests": _starter_consumers("fsharp"), "name": "fsharp", "section": "languages", "title": "F#"},
     {"ci_tests": _hello("go"), "consumer_tests": _starter_consumers("go"), "name": "go", "section": "languages", "title": "Go"},
     {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": _starter_consumers("haskell"), "name": "haskell", "section": "languages", "title": "Haskell"},
     {"ci_tests": _hello("java"), "consumer_tests": _starter_consumers("java"), "name": "java", "section": "languages", "title": "Java"},
     {"ci_tests": _hello("javascript", "@rules_dx_js"), "consumer_tests": _starter_consumers("javascript"), "name": "javascript", "section": "languages", "title": "JavaScript"},
-    {"ci_tests": ["@rules_dx_julia//julia/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("julia"), "name": "julia", "section": "languages", "title": "Julia"},
+    {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("julia"), "name": "julia", "section": "languages", "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "title": "Kotlin"},
     {"ci_tests": ["@rules_dx_lua//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": "Lua"},
     {"ci_tests": _hello("mdx", "@rules_dx_js") + ["@rules_dx_js//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": "MDX"},
@@ -219,7 +219,7 @@ ROWS = [
     {"ci_tests": ["//swift/tests/fixtures/hello:hello_output_test"], "name": "swift", "section": "languages", "title": "Swift"},
     {"ci_tests": _hello("typescript", "@rules_dx_js"), "consumer_tests": _starter_consumers("typescript"), "name": "typescript", "section": "languages", "title": "TypeScript"},
     {"ci_tests": _hello("vue", "@rules_dx_js"), "consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "title": "Vue"},
-    {"ci_tests": ["@rules_dx_zig//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": "Zig"},
+    {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": "Zig"},
     {
         "ci_tests": [
             "@rules_dx_android//tests/fixtures/rust_apk:check_unsigned_test",
@@ -530,7 +530,7 @@ LANGUAGES = [
         doc = struct(tool = "documenter", shard = "julia_doc_shard"),
         dead_code = ["none"],
         coverage = ["CoverageTools"],
-        unsupported = "//julia/rules:unsupported",
+        unsupported = "//julia/private:unsupported",
         not_applicable = {
             "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
         },

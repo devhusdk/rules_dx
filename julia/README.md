@@ -11,7 +11,7 @@ to precompile. Libraries precompile at build time, so a syntax error fails
 `bazel build`.
 
 ```python
-load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library", "julia_test")
+load("@rules_dx//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
 
 julia_library(
     name = "Greet",

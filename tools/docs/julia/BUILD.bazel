@@ -1,7 +1,7 @@
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_julia//julia:defs.bzl", "julia_binary")
-load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
-load("//julia/tools:julia_tool.bzl", "dx_julia_tool")
+load("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH")
+load("//julia/private/tools:julia_tool.bzl", "dx_julia_tool")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)

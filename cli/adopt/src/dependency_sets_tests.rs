@@ -358,7 +358,7 @@ fn dub_workspace(digest_version: &str) -> (dx_test_scratch::TempDir, ResolvedSet
 
 #[test]
 fn dub_locks_become_dub_sets() {
-    let module = "dub = use_extension(\"@rules_dx//d/dub:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", lock = \"//d:dub.selections.json\", digests = \"//d:dub.digests.json\")\n";
+    let module = "dub = use_extension(\"@rules_dx//d:extensions.bzl\", \"dub\")\ndub.lock(name = \"dub_deps\", lock = \"//d:dub.selections.json\", digests = \"//d:dub.digests.json\")\n";
     let read = |path: &str| match path {
         "d/dub.sdl" => Ok(String::new()),
         _ => Err("none".to_owned()),
@@ -374,7 +374,7 @@ fn dub_locks_become_dub_sets() {
 
 #[test]
 fn fpm_locks_become_fpm_sets() {
-    let module = "fortran = use_extension(\"@rules_dx//fortran/toolchain:extensions.bzl\", \"fortran\")\nfortran.fpm(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\n";
+    let module = "fortran = use_extension(\"@rules_dx//fortran:extensions.bzl\", \"fortran\")\nfortran.fpm(name = \"fpm_deps\", lock = \"//f:fpm.lock\")\n";
     let read = |_: &str| Err("none".to_owned());
     let registry = discover(module, &read)
         .expect("discovers")
@@ -421,7 +421,7 @@ fn ansible_and_bicep_tags_become_sets() {
 
 #[test]
 fn zig_locks_become_zig_sets() {
-    let module = "zig = use_extension(\"@rules_dx//zig/deps:extensions.bzl\", \"zig_deps\")\nzig.lock(name = \"zig_pkgs\", lock = \"//app:build.zig.zon\", digests = \"//app:zig.digests.json\")\n";
+    let module = "zig = use_extension(\"@rules_dx//zig:extensions.bzl\", \"zig_deps\")\nzig.lock(name = \"zig_pkgs\", lock = \"//app:build.zig.zon\", digests = \"//app:zig.digests.json\")\n";
     let read = |_: &str| Err("none".to_owned());
     let registry = discover(module, &read)
         .expect("discovers")

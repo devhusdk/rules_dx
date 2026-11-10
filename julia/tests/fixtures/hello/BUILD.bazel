@@ -1,0 +1,85 @@
+load("@rules_dx//julia:defs.bzl", "JULIA_COMPATIBLE_WITH", "julia_binary", "julia_library", "julia_test")
+load("@rules_dx//julia/private:precompile_tests.bzl", "julia_forwarded_info_test", "julia_precompile_test")
+load("@rules_dx//julia/private:wrapper_tests.bzl", "julia_coverage_test", "julia_wrapper_action_test")
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//rust/rules:defs.bzl", "rust_test")
+load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+julia_library(
+    name = "Greet",
+    srcs = ["src/Greet.jl"],
+    data = ["Project.toml"],
+)
+
+julia_precompile_test(
+    name = "greet_precompiles_test",
+    package = "Greet",
+    target = ":Greet_upstream",
+)
+
+julia_forwarded_info_test(
+    name = "greet_forwards_info_test",
+    package = "Greet",
+    target = ":Greet",
+)
+
+julia_binary(
+    name = "hello",
+    srcs = ["main.jl"],
+    deps = [":Greet"],
+)
+
+julia_test(
+    name = "greet_test",
+    srcs = ["greet_test.jl"],
+    deps = [":Greet"],
+)
+
+julia_coverage_test(
+    name = "greet_test_coverage_test",
+    source = "julia/tests/fixtures/hello/src/Greet.jl",
+    target = ":greet_test",
+)
+
+julia_wrapper_action_test(
+    name = "hello_wrapper_action_test",
+    target = ":hello_upstream",
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello",
+    expected = "Hello, julia!",
+)
+
+dx_hello_output_test(
+    name = "hello_standalone_output_test",
+    binary = "//julia/tests/fixtures/hello/app:hello_standalone",
+    expected = "Hello, julia!",
+)
+
+rust_test(
+    name = "relocate_test",
+    srcs = ["relocate_test.rs"],
+    data = ["//julia/tests/fixtures/hello/app:hello_standalone"],
+    env = {"DX_HELLO_BIN": "$(rootpath //julia/tests/fixtures/hello/app:hello_standalone)"},
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+    deps = ["@rules_dx//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["@rules_dx//tools/docs/support_matrix:__pkg__"],
+)

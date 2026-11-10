@@ -1601,7 +1601,7 @@ workspace_policy(
 zig_subject(
     name = "zig_subject",
     testonly = True,
-    target = "@rules_dx_zig//zig/tests/fixtures/hello:greet",
+    target = "//zig/tests/fixtures/hello:greet",
 )
 
 zig_fmt_flag_tests(
@@ -1628,7 +1628,7 @@ workspace_policy(
 zig_lint_subject(
     name = "zig_lint_subject",
     testonly = True,
-    target = "@rules_dx_zig//zig/tests/fixtures/hello:greet",
+    target = "//zig/tests/fixtures/hello:greet",
 )
 
 zig_ast_check_flag_tests(
@@ -1694,7 +1694,7 @@ workspace_policy(
 julia_subject(
     name = "julia_subject",
     testonly = True,
-    target = "@rules_dx_julia//julia/tests/fixtures/hello:Greet",
+    target = "//julia/tests/fixtures/hello:Greet",
 )
 
 julia_format_flag_tests(
@@ -1721,7 +1721,7 @@ workspace_policy(
 julia_typecheck_subject(
     name = "julia_typecheck_subject",
     testonly = True,
-    target = "@rules_dx_julia//julia/tests/fixtures/hello:Greet",
+    target = "//julia/tests/fixtures/hello:Greet",
 )
 
 jet_flag_tests(

@@ -595,7 +595,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     (
         "d_test",
-        Constraint::Appended("//d/rules:defs.bzl", "D_COMPATIBLE_WITH"),
+        Constraint::Appended("//d:defs.bzl", "D_COMPATIBLE_WITH"),
     ),
     ("dx_hello_output_test", Constraint::AsWritten),
     ("dx_wasi_test_tests", Constraint::AsWritten),
@@ -613,7 +613,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ),
     (
         "fortran_test",
-        Constraint::DefaultIfUnset("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
+        Constraint::DefaultIfUnset("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH"),
     ),
     ("failure_test", Constraint::AsWritten),
     (
@@ -637,7 +637,7 @@ const KNOWN_KINDS: &[(&str, Constraint)] = &[
     ("javascript_test", Constraint::AsWritten),
     (
         "julia_test",
-        Constraint::Appended("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH"),
+        Constraint::Appended("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH"),
     ),
     ("kotlin_test", Constraint::AsWritten),
     ("lua_test", Constraint::AsWritten),
@@ -904,7 +904,7 @@ mod tests {
                     ],
                 ]);
             }
-            if label == "//d/rules:defs.bzl" && symbol == "D_COMPATIBLE_WITH" {
+            if label == "//d:defs.bzl" && symbol == "D_COMPATIBLE_WITH" {
                 let cell = |os: &str, cpu: &str, extra: &[&str]| {
                     let mut cell = vec![
                         format!("@platforms//os:{os}"),
@@ -937,7 +937,7 @@ mod tests {
         let linux_x86_64 = "[\"@platforms//os:linux\", \"@platforms//cpu:x86_64\"]\n".to_owned();
         Files(BTreeMap::from([
             (
-                "//fortran/rules:defs.bzl".to_owned(),
+                "//fortran:defs.bzl".to_owned(),
                 format!("FORTRAN_COMPATIBLE_WITH = {linux_x86_64}"),
             ),
             (

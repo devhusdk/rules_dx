@@ -13,7 +13,7 @@ Run `dx init --apply demo-app` and add sources. The language is wired when
 its sources appear.
 
 ```python
-load("@rules_dx//fortran/rules:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
+load("@rules_dx//fortran:defs.bzl", "fortran_binary", "fortran_library", "fortran_test")
 
 fortran_library(
     name = "units",
@@ -62,7 +62,7 @@ fortran_doc_shard(
 
 ## Rules
 
-Load the rules from `@rules_dx//fortran/rules:defs.bzl`. `fortran_library`
+Load the rules from `@rules_dx//fortran:defs.bzl`. `fortran_library`
 wraps the [rules_fortran](https://github.com/miinso/rules_fortran) rule and
 takes the same attributes.
 

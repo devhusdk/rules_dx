@@ -226,7 +226,7 @@ Language rules:
 - `@rules_dx//dockerfile/rules:defs.bzl`: Dockerfiles.
 - `@rules_dx//make/rules:defs.bzl`: Makefiles.
 - `@rules_dx//cmake/rules:defs.bzl`: CMake files.
-- `@rules_dx//d/rules:defs.bzl`: D.
+- `@rules_dx//d:defs.bzl`: D.
 - `@rules_dx//elixir:defs.bzl`: Elixir.
 - `@rules_dx//erlang:defs.bzl`: Erlang.
 - `@rules_dx_dotnet//fsharp/rules:defs.bzl`: F#.
@@ -237,7 +237,7 @@ Language rules:
 - `@rules_dx//ansible/rules:defs.bzl`: Ansible.
 - `@rules_dx//bicep/rules:defs.bzl`: Bicep.
 - `@rules_dx//cloudformation/rules:defs.bzl`: CloudFormation.
-- `@rules_dx//julia/rules:defs.bzl`: Julia.
+- `@rules_dx//julia:defs.bzl`: Julia.
 - `@rules_dx//kotlin:defs.bzl`: Kotlin.
 - `@rules_dx//lua/rules:defs.bzl`: Lua.
 - `@rules_dx//kubernetes/rules:defs.bzl`: Kubernetes.
@@ -256,7 +256,7 @@ Language rules:
 - `@rules_dx//terraform/rules:defs.bzl`: Terraform.
 - `@rules_dx//typescript:defs.bzl`: TypeScript.
 - `@rules_dx//vue:defs.bzl`: Vue.
-- `@rules_dx//zig/rules:defs.bzl`: Zig.
+- `@rules_dx//zig:defs.bzl`: Zig.
 
 ### Rule names
 
@@ -275,7 +275,7 @@ dx rule that wraps it.
 | `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc/rules:defs.bzl` | `objc_library` |
 | `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx_dotnet//csharp/rules:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
 | `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx_cuda//rules:defs.bzl` | `cuda_library`, `cuda_objects` |
-| `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d/rules:defs.bzl` | `d_binary`, `d_library`, `d_test` |
+| `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d:defs.bzl` | `d_binary`, `d_library`, `d_test` |
 | `@rules_elixir//:elixir_app.bzl` | `elixir_app` | `@rules_dx//elixir:defs.bzl` | `elixir_app` |
 | `@rules_elixir//:ex_unit_test.bzl` | `ex_unit_test` | `@rules_dx//elixir:defs.bzl` | `elixir_test` |
 | `@rules_erlang//:erlang_app.bzl` | `erlang_app`, `test_erlang_app` | `@rules_dx//erlang:defs.bzl` | `erlang_app`, `erlang_test_app` |
@@ -291,7 +291,7 @@ dx rule that wraps it.
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//javascript:defs.bzl` | `javascript_library` |
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//javascript:defs.bzl` | `javascript_test` |
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//javascript:defs.bzl` | `javascript_test` |
-| `@rules_julia//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` | `@rules_dx//julia/rules:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` |
+| `@rules_julia//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` | `@rules_dx//julia:defs.bzl` | `julia_binary`, `julia_library`, `julia_test` |
 | `@rules_kotlin//kotlin:jvm.bzl` | `kt_jvm_binary`, `kt_jvm_library`, `kt_jvm_test` | `@rules_dx//kotlin:defs.bzl` | `kotlin_binary`, `kotlin_library`, `kotlin_test` |
 | `@rules_perl//perl:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` | `@rules_dx//perl/rules:defs.bzl` | `perl_binary`, `perl_library`, `perl_test` |
 | `@rules_powershell//powershell:defs.bzl` | `pwsh_binary`, `pwsh_library`, `pwsh_test` | `@rules_dx//powershell/rules:defs.bzl` | `powershell_binary`, `powershell_library`, `powershell_test` |
@@ -306,7 +306,7 @@ dx rule that wraps it.
 | `@aspect_rules_js//js:defs.bzl` | `js_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
 | `@aspect_rules_jest//jest:defs.bzl` | `jest_test` | `@rules_dx//typescript:defs.bzl` | `typescript_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_library` | `@rules_dx//vue:defs.bzl` | `vue_library` |
-| `@rules_zig//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` | `@rules_dx//zig/rules:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` |
+| `@rules_zig//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` | `@rules_dx//zig:defs.bzl` | `zig_binary`, `zig_library`, `zig_test` |
 |  |  | `@rules_dx//ansible/rules:defs.bzl` | `ansible_library` |
 |  |  | `@rules_dx//api_spec/rules:defs.bzl` | `api_spec_library` |
 |  |  | `@rules_dx//appimage:defs.bzl` | `appimage_package` |
@@ -329,9 +329,12 @@ dx rule that wraps it.
 |  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
 |  |  | `@rules_dx//cloudformation/rules:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake/rules:defs.bzl` | `cmake_library` |
-|  |  | `@rules_dx//d/rules:defs.bzl` | `d_bench` |
-|  |  | `@rules_dx//d/rules:defs.bzl` | `d_fuzz_test` |
-|  |  | `@rules_dx//d/rules:defs.bzl` | `d_quality_srcs` |
+|  |  | `@rules_dx//d/private:defs.bzl` | `d_bench` |
+|  |  | `@rules_dx//d/private:defs.bzl` | `d_binary` |
+|  |  | `@rules_dx//d/private:defs.bzl` | `d_fuzz_test` |
+|  |  | `@rules_dx//d/private:defs.bzl` | `d_library` |
+|  |  | `@rules_dx//d/private:defs.bzl` | `d_quality_srcs` |
+|  |  | `@rules_dx//d/private:defs.bzl` | `d_test` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_bench` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_binary` |
 |  |  | `@rules_dx//dart/rules:defs.bzl` | `dart_js_binary` |
@@ -448,10 +451,10 @@ dx rule that wraps it.
 |  |  | `@rules_dx//flutter/rules:defs.bzl` | `flutter_test` |
 |  |  | `@rules_dx//flutter/rules:defs.bzl` | `flutter_web_app` |
 |  |  | `@rules_dx//flutter/rules:defs.bzl` | `flutter_web_bundle` |
-|  |  | `@rules_dx//fortran/rules:defs.bzl` | `fortran_binary` |
-|  |  | `@rules_dx//fortran/rules:defs.bzl` | `fortran_library` |
-|  |  | `@rules_dx//fortran/rules:defs.bzl` | `fortran_test` |
-|  |  | `@rules_dx//fortran/rules:defs.bzl` | `library_name` |
+|  |  | `@rules_dx//fortran/private:defs.bzl` | `fortran_binary` |
+|  |  | `@rules_dx//fortran/private:defs.bzl` | `fortran_library` |
+|  |  | `@rules_dx//fortran/private:defs.bzl` | `fortran_test` |
+|  |  | `@rules_dx//fortran/private:defs.bzl` | `library_name` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_bench` |
 |  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell/rules:defs.bzl` | `haskell_bench` |
@@ -471,7 +474,10 @@ dx rule that wraps it.
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_test` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_test_rejection` |
 |  |  | `@rules_dx//javascript/private:defs.bzl` | `javascript_wasm_bindgen_library` |
-|  |  | `@rules_dx//julia/rules:defs.bzl` | `julia_standalone_binary` |
+|  |  | `@rules_dx//julia/private:defs.bzl` | `julia_binary` |
+|  |  | `@rules_dx//julia/private:defs.bzl` | `julia_library` |
+|  |  | `@rules_dx//julia/private:defs.bzl` | `julia_standalone_binary` |
+|  |  | `@rules_dx//julia/private:defs.bzl` | `julia_test` |
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_bench` |
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_binary` |
 |  |  | `@rules_dx//kotlin/private:defs.bzl` | `kotlin_fuzz_test` |
@@ -666,8 +672,11 @@ dx rule that wraps it.
 |  |  | `@rules_dx//vue/private:defs.bzl` | `vue_build` |
 |  |  | `@rules_dx//vue/private:defs.bzl` | `vue_library` |
 |  |  | `@rules_dx//vue/private:defs.bzl` | `vue_test` |
-|  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_bench` |
-|  |  | `@rules_dx//zig/rules:defs.bzl` | `zig_import_name` |
+|  |  | `@rules_dx//zig/private:defs.bzl` | `zig_bench` |
+|  |  | `@rules_dx//zig/private:defs.bzl` | `zig_binary` |
+|  |  | `@rules_dx//zig/private:defs.bzl` | `zig_import_name` |
+|  |  | `@rules_dx//zig/private:defs.bzl` | `zig_library` |
+|  |  | `@rules_dx//zig/private:defs.bzl` | `zig_test` |
 
 Packaging and deploy:
 

@@ -48,7 +48,7 @@ A target that passes but wrote no `dx-bench.json`, or wrote an invalid one, fail
 
 Scopes: same as `dx test`. With no scope, it runs `//...`.
 
-D: `d_bench(name, srcs)` from `//d/rules:defs.bzl` is a `d_binary` that writes `dx-bench.json` itself, usually from `std.datetime.stopwatch.benchmark`.
+D: `d_bench(name, srcs)` from `//d:defs.bzl` is a `d_binary` that writes `dx-bench.json` itself, usually from `std.datetime.stopwatch.benchmark`.
 
 Rust: `rust_bench` from `//rust/rules:defs.bzl` runs a criterion or `#[bench]` target with `--output-format bencher` and writes `dx-bench.json` in ns/iter. Gazelle turns `[[bench]]` entries with `harness = false` into `rust_bench` targets.
 

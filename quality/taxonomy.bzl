@@ -62,7 +62,7 @@ TAXONOMY = {
         classes = ["cue"],
     ),
     "d": struct(
-        owner = "//d/rules:defs.bzl",
+        owner = "//d:defs.bzl",
         classes = ["d"],
     ),
     "dart": struct(
@@ -86,7 +86,7 @@ TAXONOMY = {
         classes = ["flatbuffers"],
     ),
     "fortran": struct(
-        owner = "//fortran/rules:defs.bzl",
+        owner = "//fortran:defs.bzl",
         classes = ["fortran"],
     ),
     "fsharp": struct(
@@ -142,7 +142,7 @@ TAXONOMY = {
         classes = ["jsonnet"],
     ),
     "julia": struct(
-        owner = "//julia/rules:defs.bzl",
+        owner = "//julia:defs.bzl",
         classes = ["julia"],
     ),
     "jupyter": struct(
@@ -294,7 +294,7 @@ TAXONOMY = {
         classes = ["yaml"],
     ),
     "zig": struct(
-        owner = "//zig/rules:defs.bzl",
+        owner = "//zig:defs.bzl",
         classes = ["zig"],
     ),
 }

@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "d",
   "title": "D",
-  "family": "d",
+  "family": "core",
   "ecosystems": [
     "dub"
   ],
@@ -14,7 +14,7 @@
   "tools": [],
   "platforms": [],
   "pins": [
-    "toolchain/pins.bzl"
+    "private/toolchain/pins.bzl"
   ],
   "entry_points": [
     "d_quality_srcs",

@@ -1,7 +1,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/zig:defs.bzl", "zig_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
-load("//zig/rules:defs.bzl", "zig_library")
+load("//zig:defs.bzl", "zig_library")
 
 package(default_visibility = VIS_TOOLS)
 

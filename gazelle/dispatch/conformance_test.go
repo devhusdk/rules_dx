@@ -53,7 +53,7 @@ var conformanceRows = map[string]conformanceRow{
 	"d": {
 		files: map[string]string{"demo.d": "module demo;\n"},
 		inert: []string{"notes.txt"},
-		kind:  "d_library", target: "demo", defs: "d/rules:defs.bzl",
+		kind:  "d_library", target: "demo", defs: "d:defs.bzl",
 		symbols: []string{"d_library", "d_binary", "d_test"},
 	},
 	"dart": {
@@ -122,7 +122,7 @@ var conformanceRows = map[string]conformanceRow{
 			"Project.toml": "name = \"Demo\"\nuuid = \"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\"\n",
 			"src/Demo.jl":  "module Demo\nend\n",
 		},
-		kind: "julia_library", target: "Demo", defs: "julia/rules:defs.bzl",
+		kind: "julia_library", target: "Demo", defs: "julia:defs.bzl",
 		symbols: []string{"julia_library", "julia_test"},
 		oldSrcs: []string{"src/Old.jl"},
 	},
@@ -271,7 +271,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"zig": {
 		files: map[string]string{"demo.zig": "const std = @import(\"std\");\n"},
-		kind:  "zig_library", target: "demo", defs: "zig/rules:defs.bzl",
+		kind:  "zig_library", target: "demo", defs: "zig:defs.bzl",
 		symbols: []string{"zig_library", "zig_test"},
 	},
 }

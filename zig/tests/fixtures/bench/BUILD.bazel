@@ -1,0 +1,48 @@
+load("@rules_dx//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("@rules_dx//zig:defs.bzl", "zig_bench")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+zig_bench(
+    name = "parse_bench",
+    main = "main.zig",
+)
+
+sh_test(
+    name = "parse_bench_run_test",
+    srcs = ["run_test.sh"],
+    args = [
+        "$(rootpath @rules_dx//zig/private:bench_run.sh)",
+        "$(rootpath :parse_bench_bin)",
+    ],
+    data = [
+        ":parse_bench_bin",
+        "@rules_dx//zig/private:bench_run.sh",
+    ],
+    target_compatible_with = ["@platforms//os:linux"],
+    timeout = "short",
+)
+
+zig_bench(
+    name = "sized_bench",
+    main = "main.zig",
+    size = "large",
+    timeout = "long",
+    args = ["--extra"],
+    tags = ["dx-bench", "extra"],
+)
+
+dx_runner_attr_test(
+    name = "sized_bench_attrs",
+    expected = {
+        "args": ["$(rootpath :sized_bench_bin)", "--extra"],
+        "size": "large",
+        "tags": ["dx-bench", "extra", "manual"],
+        "timeout": "long",
+    },
+    runner = "sized_bench",
+)

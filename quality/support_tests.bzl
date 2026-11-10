@@ -3,7 +3,7 @@
 load("//dart/rules:platforms.bzl", "DART_PLATFORMS")
 load("//elixir/private/toolchain:pins.bzl", "ELIXIR_CELLS")
 load("//erlang/private/toolchain:pins.bzl", ERLANG_CELLS = "CELLS", "OTP_DIALYZER_UNPORTED_CELLS")
-load("//julia/rules:platforms.bzl", "JULIA_PLATFORMS")
+load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")
 load("//qt/sdk:pins.bzl", QT_CELLS = "CELLS")
 load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS")

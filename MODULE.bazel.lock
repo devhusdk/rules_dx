@@ -91712,7 +91712,7 @@
     "@@rules_zig+//zig:extensions.bzl%zig": {
       "general": {
         "bzlTransitiveDigest": "vTeQKV6Xl5RuIpCwuarKlx1FwNYsPvKFOklJop5h/mI=",
-        "usagesDigest": "4oZvnzHwYHB1wm8fYXArs6ws6rvpaUwaclTWOwYl3j4=",
+        "usagesDigest": "bF2Sv6TYex7RRDqZDZJEV3F6aMC2HV3YUh9tteoZSMI=",
         "recordedInputs": [
           "REPO_MAPPING:rules_zig+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_zig+,bazel_tools bazel_tools",

@@ -1,4 +1,4 @@
-load("//fortran/rules:defs.bzl", "fortran_library")
+load("//fortran:defs.bzl", "fortran_library")
 load("//tools/docs/fortran:defs.bzl", "fortran_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

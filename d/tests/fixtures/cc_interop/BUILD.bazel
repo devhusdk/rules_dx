@@ -1,5 +1,5 @@
 load("//cc/rules:defs.bzl", "cc_library")
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_binary")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_binary")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 package(

@@ -1,9 +1,9 @@
 """Shared cell setting tests."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load("//d/toolchain:pins.bzl", "LDC_CELLS")
+load("//d/private/toolchain:pins.bzl", "LDC_CELLS")
 load("//erlang/private/toolchain:pins.bzl", erlang_cells = "CELLS")
-load("//fortran/toolchain:pins.bzl", "FORTRAN_CELLS")
+load("//fortran/private/toolchain:pins.bzl", "FORTRAN_CELLS")
 load("//haskell/toolchain:pins.bzl", haskell_cells = "CELLS")
 load("//libs/starlark:cells.bzl", "cell_cases", "cell_setting", "unknown_cells", "unsupported_constraint")
 load("//libs/starlark:defs.bzl", "expect_equal", "starlark_test")

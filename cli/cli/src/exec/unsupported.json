@@ -17,7 +17,7 @@
     },
     "title": "Haskell"
   },
-  "//julia/rules:unsupported": {
+  "//julia/private:unsupported": {
     "platforms": {
       "windows_arm64": "julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build"
     },

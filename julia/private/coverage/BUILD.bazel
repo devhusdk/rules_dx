@@ -1,0 +1,67 @@
+load("@rules_julia//julia:defs.bzl", "julia_binary")
+load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
+load("@rules_julia//julia/pkg:julia_pkg_resolve_test.bzl", "julia_pkg_resolve_test")
+load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
+load("//julia/private/tools:julia_tool.bzl", "dx_julia_tool")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "coverage.bzl",
+    "Manifest.bazel.json",
+    "Manifest.toml",
+    "Project.toml",
+])
+
+julia_pkg_resolve(
+    name = "resolve",
+    manifest_bazel_json = "Manifest.bazel.json",
+    manifests = {"Manifest.toml": "1.12"},
+    project_toml = "Project.toml",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+)
+
+julia_pkg_resolve_test(
+    name = "resolve_test",
+    resolver = ":resolve",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+)
+
+config_setting(
+    name = "coverage_on",
+    values = {"collect_code_coverage": "true"},
+)
+
+julia_binary(
+    name = "runner_bin",
+    srcs = ["runner.jl"],
+    main = "runner.jl",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+    visibility = ["//visibility:private"],
+    deps = ["@dx_julia_coverage//:CoverageTools"],
+)
+
+dx_julia_tool(
+    name = "runner",
+    binary = ":runner_bin",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "coverage.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = [
+        "Manifest.toml",
+        "Project.toml",
+    ],
+)

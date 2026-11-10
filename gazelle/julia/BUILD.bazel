@@ -1,6 +1,6 @@
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
-load("//julia/rules:defs.bzl", "julia_binary", "julia_test")
+load("//julia:defs.bzl", "julia_binary", "julia_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:private"])

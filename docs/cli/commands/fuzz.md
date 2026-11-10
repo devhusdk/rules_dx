@@ -18,7 +18,7 @@ Every `<lang>_fuzz_test` macro has the same shape. `<name>` is the manual `dx-fu
 
 Go: `go_fuzz_test(name, target = "FuzzParse", srcs = ..., ...)` from `//go/rules:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
 
-D: `d_fuzz_test(name, srcs)` from `//d/rules:defs.bzl` builds with LDC's `-fsanitize=fuzzer,address` and the pinned LLVM's libFuzzer. `srcs` define `LLVMFuzzerTestOneInput`, for example through `ldc.libfuzzer`.
+D: `d_fuzz_test(name, srcs)` from `//d:defs.bzl` builds with LDC's `-fsanitize=fuzzer,address` and the pinned LLVM's libFuzzer. `srcs` define `LLVMFuzzerTestOneInput`, for example through `ldc.libfuzzer`.
 
 Python: `python_fuzz_test(name, srcs, main, deps = ["@pypi//atheris"])` from `//python:defs.bzl` declares a binary that calls `atheris.Setup` and `atheris.Fuzz`, tags it and adds the `<name>_run` runner. Manual and Linux x86_64 only: there is no atheris wheel for Windows.
 

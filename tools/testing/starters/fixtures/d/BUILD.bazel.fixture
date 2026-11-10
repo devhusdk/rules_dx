@@ -1,4 +1,4 @@
-load("@rules_dx//d/rules:defs.bzl", "d_binary", "d_library", "d_test")
+load("@rules_dx//d:defs.bzl", "d_binary", "d_library", "d_test")
 
 d_library(
     name = "demo-app",

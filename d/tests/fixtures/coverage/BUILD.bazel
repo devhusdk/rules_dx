@@ -1,5 +1,5 @@
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH", "d_library", "d_test")
-load("//d/rules:wrapper_tests.bzl", "d_coverage_env_test")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library", "d_test")
+load("//d/private:wrapper_tests.bzl", "d_coverage_env_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(

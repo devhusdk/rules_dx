@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "julia",
   "title": "Julia",
-  "family": "julia",
+  "family": "core",
   "ecosystems": [
     "julia general registry"
   ],

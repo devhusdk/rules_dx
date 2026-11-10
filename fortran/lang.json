@@ -2,7 +2,7 @@
   "$schema": "../modules/lang.schema.json",
   "name": "fortran",
   "title": "Fortran",
-  "family": "fortran",
+  "family": "core",
   "ecosystems": [],
   "manifests": [
     "fpm.toml"
@@ -16,7 +16,7 @@
     "linux_x86_64"
   ],
   "pins": [
-    "toolchain/pins.bzl"
+    "private/toolchain/pins.bzl"
   ],
   "entry_points": [
     "library_name",

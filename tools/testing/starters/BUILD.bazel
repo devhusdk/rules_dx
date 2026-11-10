@@ -1,12 +1,12 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//d/rules:defs.bzl", "D_COMPATIBLE_WITH")
+load("//d:defs.bzl", "D_COMPATIBLE_WITH")
 load("//dart/rules:defs.bzl", "DART_COMPATIBLE_WITH")
 load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH")
 load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH")
-load("//fortran/rules:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
+load("//fortran:defs.bzl", "FORTRAN_COMPATIBLE_WITH")
 load("//haskell/rules:defs.bzl", "HASKELL_COMPATIBLE_WITH")
-load("//julia/rules:defs.bzl", "JULIA_COMPATIBLE_WITH")
+load("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH")
 load("//perl/rules:defs.bzl", "PERL_COMPATIBLE_WITH")
 load("//php/rules:defs.bzl", "PHP_COMPATIBLE_WITH")
@@ -73,7 +73,7 @@ starter_consumer_test(
 
 starter_consumer_test(
     name = "fortran",
-    bazel_deps = ["rules_dx", "rules_dx_fortran"],
+    bazel_deps = ["rules_dx"],
     target_compatible_with = FORTRAN_COMPATIBLE_WITH,
 )
 

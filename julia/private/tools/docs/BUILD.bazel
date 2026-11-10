@@ -1,0 +1,25 @@
+load("@rules_julia//julia/pkg:julia_pkg_resolve.bzl", "julia_pkg_resolve")
+load("@rules_julia//julia/pkg:julia_pkg_resolve_test.bzl", "julia_pkg_resolve_test")
+load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "Manifest.bazel.json",
+    "Manifest.toml",
+    "Project.toml",
+])
+
+julia_pkg_resolve(
+    name = "resolve",
+    manifest_bazel_json = "Manifest.bazel.json",
+    manifests = {"Manifest.toml": "1.12"},
+    project_toml = "Project.toml",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+)
+
+julia_pkg_resolve_test(
+    name = "resolve_test",
+    resolver = ":resolve",
+    target_compatible_with = JULIA_COMPATIBLE_WITH,
+)

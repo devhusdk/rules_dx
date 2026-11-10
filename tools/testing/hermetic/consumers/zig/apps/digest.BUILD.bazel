@@ -1,5 +1,5 @@
 load("@rules_dx//cc/rules:defs.bzl", "cc_library")
-load("@rules_dx//zig/rules:defs.bzl", "zig_library", "zig_test")
+load("@rules_dx//zig:defs.bzl", "zig_library", "zig_test")
 
 _PUBLIC = ["//visibility:public"]
 

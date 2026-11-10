@@ -938,7 +938,7 @@ pub fn plan_configured(
                 });
             };
             let dir = set_dir(workspace, set)?;
-            let mut update = vec!["@rules_dx//julia/tools:pkg_update", "--", dir.as_str()];
+            let mut update = vec!["@rules_dx//julia/private/tools:pkg_update", "--", dir.as_str()];
             if let Selection::Packages(packages) = request {
                 update.extend(packages.iter().map(String::as_str));
             }

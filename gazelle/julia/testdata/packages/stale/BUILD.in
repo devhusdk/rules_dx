@@ -1,4 +1,4 @@
-load("@rules_dx//julia/rules:defs.bzl", "julia_binary", "julia_library")
+load("@rules_dx//julia:defs.bzl", "julia_binary", "julia_library")
 
 julia_library(
     name = "Stale",

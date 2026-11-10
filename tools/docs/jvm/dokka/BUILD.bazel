@@ -1,5 +1,5 @@
 load("//kotlin:defs.bzl", "kotlin_binary")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)

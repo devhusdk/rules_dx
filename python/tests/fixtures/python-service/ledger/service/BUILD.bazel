@@ -1,5 +1,5 @@
 load("//python:defs.bzl", "python_library", "python_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//python/tests/fixtures/python-service:__subpackages__"])
 

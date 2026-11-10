@@ -3,7 +3,7 @@ load("//msix:defs.bzl", "msix_package", "msix_sign")
 load("//msix/private:repos.bzl", "UNACCEPTED")
 load("//msix/private:toolchain.bzl", "msix_toolchain")
 load("//powershell:defs.bzl", "powershell_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":cell_tests.bzl", "arch_on_arm64_test", "arch_on_x64_test", "arm64_action_test", "attribute_failure_test", "data_paths_test", "fake_exe", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
 load(":transition.bzl", "msix_variant")
 

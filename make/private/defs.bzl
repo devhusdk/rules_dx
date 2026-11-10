@@ -1,6 +1,6 @@
 """Make source ownership for dx quality."""
 
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "named_source_class_error")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "named_source_class_error")
 
 def _make_library_impl(ctx):
     for f in ctx.files.srcs:

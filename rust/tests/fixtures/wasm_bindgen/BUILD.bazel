@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("@rules_dx//rust/private:wrapper_tests.bzl", "dx_browser_binary_tests", "dx_browser_cell_tests")
 load("@rules_rust_wasm_bindgen//:defs.bzl", "rust_wasm_bindgen", "rust_wasm_bindgen_toolchain")

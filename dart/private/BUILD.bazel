@@ -3,7 +3,7 @@ load("//core:cells.bzl", "unsupported_value")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_main_candidates")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "DART_SOURCE_SPECS", "dart_root_package_name")
 load(":platforms.bzl", "DART_PLATFORMS")
 

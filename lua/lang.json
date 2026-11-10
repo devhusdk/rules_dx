@@ -34,7 +34,7 @@
     "lua_test"
   ],
   "quality": {
-    "bzl": "quality:families/lua.bzl",
+    "bzl": "core/quality:families/lua.bzl",
     "file_extensions": [
       ".lua"
     ],

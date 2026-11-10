@@ -1,0 +1,19 @@
+producer //core/quality/testdata:matrix_api_spec_openapi_recommended_fail
+capability LINT
+stages 1
+stage redocly classes=api_spec sources=core/quality/testdata/api_spec/openapi.yaml
+completed_rounds 1
+convergence STABLE
+initial 5
+initial WARNING redocly no-empty-servers core/quality/testdata/api_spec/openapi.yaml 0 0 fixable=false "Servers must be present."
+initial WARNING redocly info-license core/quality/testdata/api_spec/openapi.yaml 15 15 fixable=false "Info object should contain `license` field."
+initial WARNING redocly operation-summary core/quality/testdata/api_spec/openapi.yaml 80 80 fixable=false "Operation object should contain `summary` field."
+initial WARNING redocly security-defined core/quality/testdata/api_spec/openapi.yaml 80 80 fixable=false "Every operation should have security defined on it or on the root level."
+initial WARNING redocly operation-4xx-response core/quality/testdata/api_spec/openapi.yaml 244 244 fixable=false "Operation must have at least one `4XX` response."
+terminal 5
+terminal WARNING redocly no-empty-servers core/quality/testdata/api_spec/openapi.yaml 0 0 fixable=false "Servers must be present."
+terminal WARNING redocly info-license core/quality/testdata/api_spec/openapi.yaml 15 15 fixable=false "Info object should contain `license` field."
+terminal WARNING redocly operation-summary core/quality/testdata/api_spec/openapi.yaml 80 80 fixable=false "Operation object should contain `summary` field."
+terminal WARNING redocly security-defined core/quality/testdata/api_spec/openapi.yaml 80 80 fixable=false "Every operation should have security defined on it or on the root level."
+terminal WARNING redocly operation-4xx-response core/quality/testdata/api_spec/openapi.yaml 244 244 fixable=false "Operation must have at least one `4XX` response."
+replacements 0

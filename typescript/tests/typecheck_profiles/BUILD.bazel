@@ -2,7 +2,7 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript/private/quality:tsc_report.bzl", "tsc_report")
 load("//typescript:defs.bzl", "typescript_library")
 
@@ -14,7 +14,7 @@ package(
 [
     copy_file(
         name = "%s_base" % profile,
-        src = "//quality/tiers/tsconfig:%s.json" % profile,
+        src = "//core/quality/tiers/tsconfig:%s.json" % profile,
         out = ".dx/config/tsconfig/%s.json" % profile,
     )
     for profile in [

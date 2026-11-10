@@ -1,5 +1,5 @@
 load("@rules_dx//d:defs.bzl", "D_COMPATIBLE_WITH", "d_binary")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
 d_binary(

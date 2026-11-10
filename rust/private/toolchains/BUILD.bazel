@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":identity_subject.bzl", "toolchain_identity_subject")
 load(":identity_tests.bzl", "toolchain_identity_tests")
 

@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//cuda/private/toolchain:check.bzl", "in_component")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _COMPILER = "@rules_cuda//cuda:compiler"
 

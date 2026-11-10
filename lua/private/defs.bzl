@@ -13,7 +13,7 @@ load(
     "lua_library_impl",
 )
 load("//lua/private:providers.bzl", _LUA_ENTRY_FORMAT = "LUA_ENTRY_FORMAT", _LUA_ENTRY_SUFFIX = "LUA_ENTRY_SUFFIX", _LuaInfo = "LuaInfo")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 LuaInfo = _LuaInfo
 LUA_ENTRY_FORMAT = _LUA_ENTRY_FORMAT

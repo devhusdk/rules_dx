@@ -1,5 +1,5 @@
 load("@rules_scala//scala:scala_toolchain.bzl", "scala_toolchain")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 

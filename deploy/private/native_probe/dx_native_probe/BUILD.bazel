@@ -3,7 +3,7 @@ load("@rules_cc//cc:cc_shared_library.bzl", "cc_shared_library")
 load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load("@rules_python//python/cc:py_extension.bzl", "py_extension")
 load("//deploy/private:native_probe.bzl", "NATIVE_PROBE_COMPATIBLE", "dx_native_probe_runtime_files")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//deploy/private:__pkg__"])
 

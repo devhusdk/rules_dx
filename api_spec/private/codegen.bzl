@@ -157,7 +157,7 @@ openapi_python_client = rule(
         "root": attr.label(allow_single_file = [".yaml", ".yml", ".json"], doc = "The root document; required when the spec has more than one."),
         "spec": attr.label(providers = [ApiSpecInfo], mandatory = True, doc = "The api_spec_library to generate from."),
         "_config": attr.label(default = Label("//api_spec/private/codegen:openapi_python_client.yaml"), allow_single_file = True),
-        "_generator": attr.label(default = Label("//quality/tools/python:openapi_python_client"), executable = True, cfg = "exec"),
+        "_generator": attr.label(default = Label("//core/quality/tools/python:openapi_python_client"), executable = True, cfg = "exec"),
         "_preflight": attr.label(default = Label("//api_spec/private/codegen:preflight"), executable = True, cfg = "exec"),
     },
 )

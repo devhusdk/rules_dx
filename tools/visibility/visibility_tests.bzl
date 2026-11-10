@@ -31,7 +31,7 @@ def visibility_unit_tests(name):
             expect_equal(
                 "quality scope stays quality-only",
                 VIS_QUALITY,
-                ["//quality:__pkg__", "//quality:__subpackages__"],
+                ["//core/quality:__pkg__", "//core/quality:__subpackages__"],
             ),
             expect_equal(
                 "tools scope points at the tools group",

@@ -3,7 +3,7 @@ use super::changed_lines;
 use dx_plan::resolve::{QueryResult, QueryRunner};
 use std::path::Path;
 
-const SOURCES_ASPECT: &str = "//quality:coverage_sources.bzl%dx_coverage_sources_aspect";
+const SOURCES_ASPECT: &str = "//core/quality:coverage_sources.bzl%dx_coverage_sources_aspect";
 const OWNS_A: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
 const HALF_LCOV: &str = "SF:src/a.py\nDA:1,1\nDA:2,0\nend_of_record\n";
 

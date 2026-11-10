@@ -1,6 +1,6 @@
 """Repository rule that restores one Bicep registry module and pins it by digest."""
 
-load("//quality/artifacts:bicep.bzl", "ARTIFACTS")
+load("//core/quality/artifacts:bicep.bzl", "ARTIFACTS")
 
 _HEX = "0123456789abcdef"
 

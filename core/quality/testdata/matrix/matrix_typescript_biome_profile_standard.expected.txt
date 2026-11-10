@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_typescript_biome_profile_standard
+capability LINT
+stages 1
+stage biome classes=typescript sources=matrix/biome_profile.ts
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR biome lint/correctness/noUnusedVariables matrix/biome_profile.ts 60 66 fixable=false "This variable unused is unused."
+terminal 1
+terminal ERROR biome lint/correctness/noUnusedVariables matrix/biome_profile.ts 60 66 fixable=false "This variable unused is unused."
+replacements 0

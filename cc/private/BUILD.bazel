@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "cc_coverage_probe", "objc_library")
 load(":wrapper_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
 

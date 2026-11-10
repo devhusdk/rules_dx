@@ -1,7 +1,7 @@
 """cmake_library ownership proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _owns_cmake_class_impl(ctx):
     env = analysistest.begin(ctx)

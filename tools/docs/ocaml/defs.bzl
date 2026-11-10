@@ -1,8 +1,8 @@
 """OCaml API reference shards read from typed trees by the pinned odoc."""
 
 load("//ocaml/private:providers.bzl", "OCamlCmtInfo")
-load("//quality/artifacts:odoc.bzl", _ODOC = "SOURCE")
-load("//quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
+load("//core/quality/artifacts:odoc.bzl", _ODOC = "SOURCE")
+load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 ODOC_CONFIG = "odoc=" + _ODOC["version"]

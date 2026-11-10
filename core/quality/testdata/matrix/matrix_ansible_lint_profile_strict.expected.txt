@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_ansible_lint_profile_strict
+capability LINT
+stages 1
+stage ansible_lint classes=ansible sources=matrix/ansible_profile_strict/playbooks/site.yml
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING ansible_lint fqcn[action-core] matrix/ansible_profile_strict/playbooks/site.yml 104 104 fixable=true "Use `ansible.builtin.debug` or `ansible.legacy.debug` instead."
+terminal 0
+replacements 1
+replacement matrix/ansible_profile_strict/playbooks/site.yml 104 104 "ansible.builtin."

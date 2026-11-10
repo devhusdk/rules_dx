@@ -1,0 +1,534 @@
+"""Layer-2 full-matrix runner tests (snapshot workflow)."""
+
+load("//deploy/private:config.bzl", "rlocation_path")
+load("//core:canonical.bzl", "is_canonical", "strip_canonical")
+load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
+load("//core/quality:pipeline.bzl", "real_request_stage")
+load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
+load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel", "staged_config_rel", "tier_base_dirs")
+load("//rust/private/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
+
+# Mirrors TIER_BASE_TOOLS in core/quality/runner/src/real/staging.rs.
+RUNNER_TIER_BASE_TOOLS = [
+    "bicep",
+    "biome",
+    "checkmake",
+    "credo",
+    "detekt",
+    "docstrfmt",
+    "elvis",
+    "ffmt",
+    "gersemi",
+    "gplint",
+    "hadolint",
+    "hlint",
+    "mbake",
+    "pmd",
+    "redocly",
+    "regal",
+    "rustfmt",
+    "scalafix",
+    "scalafmt",
+    "selene",
+    "stylelint",
+    "tflint",
+]
+
+def _single_file(target):
+    files = target[DefaultInfo].files.to_list()
+    if len(files) != 1:
+        fail("runner_matrix_test: target '" + str(target.label) + "' must provide exactly one file")
+    return files[0]
+
+def _tool_executable(target):
+    exe = target[DefaultInfo].files_to_run.executable
+    if exe != None:
+        return exe
+    return _single_file(target)
+
+def _mapping(ctx, ws_path, f):
+    return {"key": rlocation_path(ctx, f), "workspace": ws_path}
+
+def _tool_env_entry(entry):
+    tool, sep, rest = entry.partition("=")
+    if sep == "":
+        fail("runner_matrix_test: malformed tool_env '" + entry + "': want TOOL=KEY=VALUE")
+    key, key_sep, value = rest.partition("=")
+    if key_sep == "":
+        fail("runner_matrix_test: malformed tool_env '" + entry + "': want TOOL=KEY=VALUE")
+    return {"key": key, "tool": tool, "value": value}
+
+def _request_stage(entry):
+    tool, sep, rest = entry.partition(";")
+    classes, paths_sep, paths = rest.partition(";")
+    if sep == "" or paths_sep == "" or not tool or not classes or not paths:
+        fail("runner_matrix_test: malformed stage '" + entry + "': want TOOL;classes;paths")
+    return real_request_stage(tool, classes.split(","), paths.split(","))
+
+def _runner_matrix_test_impl(ctx):
+    harness = ctx.executable._harness
+    runner = ctx.executable._runner
+    printer = ctx.executable._printer
+
+    staged = {}
+    for f in ctx.files.srcs:
+        staged[f.short_path] = f
+    for ws_path in ctx.attr.generated:
+        staged[ws_path] = ctx.actions.declare_file(
+            ctx.label.name + "_gen/" + ws_path.replace("/", "__").replace("..", "__"),
+        )
+        ctx.actions.write(output = staged[ws_path], content = ctx.attr.generated[ws_path])
+    sibling_staged = {}
+    for f in ctx.files.siblings:
+        sibling_staged[f.short_path] = f
+    for target, spec in ctx.attr.staged_siblings.items():
+        marker, sep, directory = spec.partition(":")
+        if not sep or not marker or not directory.endswith("/"):
+            fail("runner_matrix_test: malformed staged sibling '" + spec + "': want MARKER:DIR/")
+        for f in target.files.to_list():
+            at = f.short_path.rfind(marker)
+            if at < 0:
+                fail("runner_matrix_test: staged sibling " + f.short_path + " has no '" + marker + "'")
+            sibling_staged[directory + f.short_path[at + len(marker):]] = f
+
+    tools = {}
+    for i, name in enumerate(ctx.attr.tool_names):
+        tools[name] = _tool_executable(ctx.attr.tool_binaries[i])
+    if ctx.attr.rustfmt_from_toolchain:
+        if "rustfmt" in tools:
+            fail("runner_matrix_test: rustfmt_from_toolchain with an explicit rustfmt binary")
+        _clippy_driver, rustfmt = rust_toolchain_tools(ctx)
+        tools["rustfmt"] = rustfmt
+
+    tool_files = []
+    for i, tool in enumerate(ctx.attr.toolfile_tools):
+        f = _single_file(ctx.attr.toolfile_srcs[i])
+        rel = f.short_path
+        if i < len(ctx.attr.toolfile_rels) and ctx.attr.toolfile_rels[i]:
+            rel = ctx.attr.toolfile_rels[i]
+        tool_files.append((tool, rel, f))
+    for i, tool in enumerate(ctx.attr.toolfile_group_tools):
+        for f in ctx.attr.toolfile_group_srcs[i].files.to_list():
+            tool_files.append((tool, ctx.attr.toolfile_group_prefixes[i] + f.short_path.split("/", 2)[2], f))
+    configs = {}
+    for i, tool in enumerate(ctx.attr.config_tools):
+        configs[tool] = _single_file(ctx.attr.config_files[i]).short_path
+        if i < len(ctx.attr.config_rels) and ctx.attr.config_rels[i]:
+            configs[tool] = ctx.attr.config_rels[i]
+    for i, tool in enumerate(ctx.attr.tier_base_tools):
+        if tool in configs:
+            fail("runner_matrix_test: tool '" + tool + "' already has a config; tier base would bind it twice")
+        info = ctx.attr.tier_bases[i][DxNativeConfigInfo]
+        config_rel = native_config_scratch_rel(info.config.short_path)
+        if config_rel == None:
+            fail("runner_matrix_test: tier base config " + info.config.short_path + " escapes the scratch")
+        rel = staged_config_rel(tool, config_rel)
+        configs[tool] = rel
+        for f in sorted(info.closure.to_list(), key = lambda f: f.short_path):
+            closure_rel = native_config_scratch_rel(f.short_path)
+            if closure_rel == None:
+                fail("runner_matrix_test: tier base file " + f.short_path + " escapes the scratch")
+            tool_files.append((tool, rel if f == info.config else closure_rel, f))
+    editions = {}
+    for i, tool in enumerate(ctx.attr.edition_tools):
+        editions[tool] = ctx.attr.edition_values[i]
+
+    dialects = {}
+    for i, tool in enumerate(ctx.attr.dialect_tools):
+        dialects[tool] = ctx.attr.dialect_values[i]
+
+    args = {}
+    if ctx.attr.args_tool:
+        args[ctx.attr.args_tool] = ctx.attr.args_values
+
+    upstream = []
+    upstream_src_targets = ctx.attr.upstream_srcs
+    for i, tool in enumerate(ctx.attr.upstream_tools):
+        if i < len(upstream_src_targets):
+            upstream.append((tool, _single_file(upstream_src_targets[i])))
+        elif tool not in ctx.attr.upstream_generated:
+            fail("runner_matrix_test: upstream tool '" + tool + "' has neither upstream_srcs nor upstream_generated bytes")
+    for tool, content in ctx.attr.upstream_generated.items():
+        if tool in [t for (t, _f) in upstream]:
+            fail("runner_matrix_test: duplicate upstream diagnostics for tool '" + tool + "'")
+        diagnostics = ctx.actions.declare_file(ctx.label.name + "_gen/upstream/" + tool + ".diagnostics")
+        ctx.actions.write(output = diagnostics, content = content)
+        upstream.append((tool, diagnostics))
+
+    expected = ctx.file.expected_file
+    if expected == None:
+        if not ctx.attr.expected:
+            fail("runner_matrix_test: either expected or expected_file must be set")
+        expected = ctx.actions.declare_file(ctx.label.name + "_expected.txt")
+        ctx.actions.write(output = expected, content = ctx.attr.expected)
+    elif ctx.attr.expected:
+        fail("runner_matrix_test: expected and expected_file are mutually exclusive")
+
+    producer = str(ctx.label)
+    if is_canonical(producer):
+        producer = strip_canonical(producer)
+
+    manifest_sources = [_mapping(ctx, ws_path, f) for ws_path, f in staged.items()]
+    manifest_siblings = [_mapping(ctx, ws_path, f) for ws_path, f in sibling_staged.items()]
+
+    manifest_tools = {}
+    for tool in tools.keys():
+        manifest_tools[tool] = {
+            "binary_key": rlocation_path(ctx, tools[tool]),
+            "env": [],
+            "files": [],
+            "upstream_keys": [],
+        }
+    for tool, rel, f in tool_files:
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["files"].append({"key": rlocation_path(ctx, f), "mirror_rel": rel})
+    for tool, rel in configs.items():
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["config"] = rel
+    for tool, edition in editions.items():
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["edition"] = edition
+    for tool, dialect in dialects.items():
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["dialect"] = dialect
+    for tool, values in args.items():
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["args"] = values
+
+    for i, name in enumerate(ctx.attr.path_tool_names):
+        owner = ctx.attr.path_tool_owners[i]
+        if owner not in manifest_tools:
+            manifest_tools[owner] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[owner].setdefault("path_tools", []).append({
+            "binary_key": rlocation_path(ctx, _tool_executable(ctx.attr.path_tool_binaries[i])),
+            "name": name,
+        })
+
+    launcher_env = []
+    for launcher in ["pydoclint", "psscriptanalyzer"]:
+        if launcher in tools:
+            launcher_env.append({"key": "RUNFILES_DIR", "tool": launcher, "value": "$TEST_SRCDIR"})
+    for launcher in ["eslint", "gplint", "graphql_eslint", "prettier", "redocly", "remark", "stylelint"]:
+        if launcher in tools:
+            launcher_env.append({"key": "JS_BINARY__NO_CD_BINDIR", "tool": launcher, "value": "1"})
+    for entry in ctx.attr.tool_env:
+        launcher_env.append(_tool_env_entry(entry))
+    for entry in launcher_env:
+        tool = entry["tool"]
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["env"].append({"key": entry["key"], "value": entry["value"]})
+    for tool, f in upstream:
+        if tool not in manifest_tools:
+            manifest_tools[tool] = {"env": [], "files": [], "upstream_keys": []}
+        manifest_tools[tool]["upstream_keys"].append(rlocation_path(ctx, f))
+
+    manifest = {
+        "ambient_files": ctx.attr.ambient_files,
+        "capability": ctx.attr.capability,
+        "expected_key": rlocation_path(ctx, expected),
+        "name": ctx.label.name,
+        "printer_key": rlocation_path(ctx, printer),
+        "producer": producer,
+        "runner_failure": ctx.attr.runner_failure,
+        "runner_key": rlocation_path(ctx, runner),
+        "siblings": manifest_siblings,
+        "sources": manifest_sources,
+        "stages": [_request_stage(s) for s in ctx.attr.stages],
+        "tools": manifest_tools,
+        "update_file": ctx.label.name + ".expected.update",
+        "update_hint": "core/quality/testdata/matrix/" + ctx.label.name + ".expected.txt",
+    }
+    manifest_file = ctx.actions.declare_file(ctx.label.name + ".matrix_manifest.json")
+    ctx.actions.write(output = manifest_file, content = json.encode(manifest) + "\n")
+
+    executable = ctx.actions.declare_file(ctx.label.name)
+    # Bazel stats the target of an executable symlink, which fails when the target exists only remotely.
+    ctx.actions.symlink(output = executable, target_file = harness)
+
+    runfiles = ctx.runfiles(
+        files = (
+            [harness, runner, printer, expected, manifest_file] +
+            list(staged.values()) +
+            list(sibling_staged.values()) +
+            list(tools.values()) +
+            [_tool_executable(t) for t in ctx.attr.path_tool_binaries] +
+            [f for (_tool, _rel, f) in tool_files] +
+            [f for f in ctx.files.config_files] +
+            [f for (_tool, f) in upstream]
+        ),
+    )
+    runfiles = runfiles.merge(ctx.attr._runfiles_lib[DefaultInfo].default_runfiles)
+
+    # A path tool's launcher reads the runfiles tree beside its own binary,
+    # so each tool's tree is rebuilt next to the binary the test runfiles carry.
+    path_tool_trees = {}
+    for target in ctx.attr.path_tool_binaries:
+        info = target[DefaultInfo]
+        exe = _tool_executable(target)
+        beside = "_main/" + exe.short_path + ".runfiles/"
+        tool_runfiles = info.default_runfiles
+        for f in tool_runfiles.files.to_list():
+            path = f.short_path
+            path_tool_trees[beside + (path[3:] if path.startswith("../") else "_main/" + path)] = f
+        for entry in tool_runfiles.symlinks.to_list():
+            path_tool_trees[beside + "_main/" + entry.path] = entry.target_file
+        for entry in tool_runfiles.root_symlinks.to_list():
+            path_tool_trees[beside + entry.path] = entry.target_file
+        repo_mapping = info.files_to_run.repo_mapping_manifest
+        if repo_mapping != None:
+            path_tool_trees[beside + "_repo_mapping"] = repo_mapping
+    runfiles = runfiles.merge(ctx.runfiles(root_symlinks = path_tool_trees))
+    for target in (
+        ctx.attr.srcs +
+        ctx.attr.siblings +
+        ctx.attr.staged_siblings.keys() +
+        ctx.attr.tool_binaries +
+        ctx.attr.path_tool_binaries +
+        ctx.attr.toolfile_srcs +
+        ctx.attr.toolfile_group_srcs +
+        ctx.attr.config_files +
+        ctx.attr.upstream_srcs +
+        [ctx.attr._runner, ctx.attr._printer, ctx.attr._harness]
+    ):
+        if DefaultInfo in target:
+            runfiles = runfiles.merge(target[DefaultInfo].default_runfiles)
+    return [
+        DefaultInfo(executable = executable, runfiles = runfiles),
+        testing.TestEnvironment({"MATRIX_HARNESS_MANIFEST": rlocation_path(ctx, manifest_file)}, []),
+    ]
+
+_runner_matrix_test = rule(
+    implementation = _runner_matrix_test_impl,
+    test = True,
+    toolchains = rust_toolchain_toolchains(),
+    attrs = {
+        "srcs": attr.label_list(
+            allow_files = True,
+        ),
+        "generated": attr.string_dict(),
+        "siblings": attr.label_list(
+            allow_files = True,
+        ),
+        "staged_siblings": attr.label_keyed_string_dict(
+            allow_files = True,
+            doc = "Label to `MARKER:DIR/`: each of its files is staged at DIR/ plus its short_path after the last MARKER, for files that must appear outside their own package path.",
+        ),
+        "capability": attr.string(
+            mandatory = True,
+            values = ["lint", "format", "typecheck"],
+        ),
+        "stages": attr.string_list(
+            mandatory = True,
+        ),
+        "tool_names": attr.string_list(),
+        "tool_binaries": attr.label_list(),
+        "path_tool_owners": attr.string_list(
+            doc = "Tool whose child PATH carries each path tool.",
+        ),
+        "path_tool_names": attr.string_list(
+            doc = "Name each path tool is found by on the owning tool's PATH.",
+        ),
+        "path_tool_binaries": attr.label_list(
+            cfg = "exec",
+            doc = "Executable behind each path tool.",
+        ),
+        "toolfile_tools": attr.string_list(),
+        "toolfile_rels": attr.string_list(
+            doc = "Optional mirror-relative path per toolfile_srcs entry; empty keeps the file's short path.",
+        ),
+        "toolfile_srcs": attr.label_list(
+            allow_files = True,
+        ),
+        "toolfile_group_tools": attr.string_list(),
+        "toolfile_group_prefixes": attr.string_list(
+            doc = "Mirror-relative prefix per toolfile_group_srcs entry; each file keeps its path below the repository directory.",
+        ),
+        "toolfile_group_srcs": attr.label_list(
+            doc = "External repository file groups staged whole as tool files.",
+        ),
+        "config_tools": attr.string_list(),
+        "config_files": attr.label_list(
+            allow_files = True,
+        ),
+        "tier_base_tools": attr.string_list(
+            doc = "Runner tier-base tools bound to their standard tier base.",
+        ),
+        "tier_bases": attr.label_list(
+            providers = [DxNativeConfigInfo],
+        ),
+        "config_rels": attr.string_list(
+            doc = "Optional mirror-relative config path per config_files entry; empty keeps the file's short path.",
+        ),
+        "edition_tools": attr.string_list(),
+        "edition_values": attr.string_list(),
+        "dialect_tools": attr.string_list(),
+        "dialect_values": attr.string_list(),
+        "args_tool": attr.string(),
+        "args_values": attr.string_list(),
+        "tool_env": attr.string_list(),
+        "upstream_tools": attr.string_list(),
+        "upstream_srcs": attr.label_list(
+            allow_files = True,
+        ),
+        "upstream_generated": attr.string_dict(),
+        "expected": attr.string(
+            default = "",
+        ),
+        "expected_file": attr.label(
+            allow_single_file = True,
+        ),
+        "rustfmt_from_toolchain": attr.bool(
+            default = False,
+        ),
+        "runner_failure": attr.bool(
+            default = False,
+        ),
+        "ambient_files": attr.string_dict(
+            doc = "Files written, by relative path, into the directory the runner's scratch dirs live under.",
+        ),
+        "_runner": attr.label(
+            default = "//core/quality/runner:quality_runner",
+            executable = True,
+            cfg = "target",
+        ),
+        "_printer": attr.label(
+            default = "//core/quality/result:print_result",
+            executable = True,
+            cfg = "target",
+        ),
+        "_harness": attr.label(
+            default = "//core/quality/runner:matrix_harness",
+            executable = True,
+            cfg = "target",
+        ),
+        "_runfiles_lib": attr.label(
+            default = "@rules_shell//shell/runfiles",
+        ),
+    },
+)
+
+def compatible(macos_arm64, windows_x86_64, linux_arm64, windows_arm64 = False):
+    """Returns the platforms one matrix case runs on."""
+    linux = ["@platforms//os:linux"] if linux_arm64 else ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+    if not macos_arm64 and not windows_x86_64 and not windows_arm64:
+        return linux
+    if windows_x86_64 and windows_arm64:
+        windows = []
+    elif windows_x86_64:
+        windows = ["@platforms//cpu:x86_64"]
+    elif windows_arm64:
+        windows = ["@platforms//cpu:arm64"]
+    else:
+        windows = linux
+    return select({
+        "@platforms//os:macos": ["@platforms//cpu:arm64"] if macos_arm64 else linux,
+        "@platforms//os:windows": windows,
+        "//conditions:default": linux,
+    })
+
+def matrix_case_platforms(case):
+    """Returns the platform ids one matrix case runs on, mirroring `compatible`.
+
+    linux_x86_64 is always included. Keep this next to `compatible` so they cannot drift.
+    """
+    linux_arm64 = case.get("linux_arm64", False)
+    macos_arm64 = case.get("macos_arm64", False)
+    windows_x86_64 = case.get("windows_x86_64", False)
+    windows_arm64 = case.get("windows_arm64", False)
+    platforms = ["linux_x86_64"]
+    if linux_arm64:
+        platforms.append("linux_arm64")
+    if macos_arm64:
+        platforms.append("macos_arm64")
+    if windows_x86_64:
+        platforms.append("windows_x86_64")
+    if windows_arm64:
+        platforms.append("windows_arm64")
+    return platforms
+
+def matrix_case_tools(case):
+    """Returns the tool names one matrix case really executes, mirroring the tool binding in the rule impl.
+
+    `tool_names` run their binary; `rustfmt_from_toolchain` adds rustfmt. `upstream_tools` replay
+    recorded output and never run the tool, so they are not listed. Keep in sync with the impl.
+    """
+    tools = list(case.get("tool_names", []))
+    if case.get("rustfmt_from_toolchain", False) and "rustfmt" not in tools:
+        tools.append("rustfmt")
+    return tools
+
+def matrix_platform_case_names(cases, platform):
+    """Returns the names of the cases that run on `platform`, per `matrix_case_platforms`."""
+    return [case["name"] for case in cases if platform in matrix_case_platforms(case)]
+
+def _tier_base_tools(case):
+    bound = case.get("config_tools", []) + case.get("upstream_tools", [])
+    return [t for t in matrix_case_tools(case) if t in RUNNER_TIER_BASE_TOOLS and t not in bound]
+
+def runner_matrix_suite(name, cases, extra_cases = []):
+    """Instantiates one _runner_matrix_test per matrix case plus a suite; extra_cases are existing tests."""
+    tests = []
+    for case in cases:
+        tier_base_tools = _tier_base_tools(case)
+        _runner_matrix_test(
+            name = case["name"],
+            srcs = case.get("srcs", []),
+            generated = case.get("generated", {}),
+            siblings = case.get("siblings", []),
+            staged_siblings = case.get("staged_siblings", {}),
+            capability = case["capability"],
+            stages = case["stages"],
+            tool_names = case.get("tool_names", []),
+            tool_binaries = case.get("tool_binaries", []),
+            path_tool_owners = case.get("path_tool_owners", []),
+            path_tool_names = case.get("path_tool_names", []),
+            path_tool_binaries = case.get("path_tool_binaries", []),
+            rustfmt_from_toolchain = case.get("rustfmt_from_toolchain", False),
+            toolfile_tools = case.get("toolfile_tools", []),
+            toolfile_srcs = case.get("toolfile_srcs", []),
+            toolfile_rels = case.get("toolfile_rels", []),
+            toolfile_group_tools = case.get("toolfile_group_tools", []),
+            toolfile_group_prefixes = case.get("toolfile_group_prefixes", []),
+            toolfile_group_srcs = case.get("toolfile_group_srcs", []),
+            config_tools = case.get("config_tools", []),
+            config_files = case.get("config_files", []),
+            config_rels = case.get("config_rels", []),
+            tier_base_tools = tier_base_tools,
+            tier_bases = ["//core/quality/tiers/%s:standard" % tier_base_dirs()[t] for t in tier_base_tools],
+            edition_tools = case.get("edition_tools", []),
+            edition_values = case.get("edition_values", []),
+            dialect_tools = case.get("dialect_tools", []),
+            dialect_values = case.get("dialect_values", []),
+            args_tool = case.get("args_tool", ""),
+            args_values = case.get("args_values", []),
+            tool_env = case.get("tool_env", []),
+            upstream_tools = case.get("upstream_tools", []),
+            upstream_srcs = case.get("upstream_srcs", []),
+            upstream_generated = case.get("upstream_generated", {}),
+            expected = case.get("expected", ""),
+            expected_file = case.get("expected_file"),
+            runner_failure = case.get("runner_failure", False),
+            ambient_files = case.get("ambient_files", {}),
+            size = "small",
+            tags = ["no-coverage"] + case.get("tags", []),
+            target_compatible_with = compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False), case.get("windows_arm64", False)),
+        )
+        tests.append(":" + case["name"])
+    native.test_suite(name = name, tests = tests + [":" + case["name"] for case in extra_cases])
+
+    # One evidence suite per non-default platform, derived from the same flags as
+    # `matrix_case_platforms`. The CI preflight lane for a platform runs exactly its suite.
+    # An empty `tests` list would make test_suite expand to every test in the package, so fail.
+    for platform in SUPPORT_PLATFORMS:
+        if platform == "linux_x86_64":
+            continue
+        members = matrix_platform_case_names(cases + extra_cases, platform)
+        if not members:
+            fail("runner_matrix_suite: no case is flagged for " + platform + "; an empty test_suite would run every test")
+        native.test_suite(name = name + "_" + platform, tests = [":" + m for m in members])

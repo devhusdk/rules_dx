@@ -1,0 +1,27 @@
+producer //core/quality/testdata:matrix_php_lint_fail
+capability LINT
+stages 1
+stage phpcs classes=php sources=matrix/phpcs_dirty.php
+completed_rounds 1
+convergence STABLE
+initial 9
+initial WARNING phpcs phpcs/PSR12.Files.FileHeader.SpacingAfterTagBlock matrix/phpcs_dirty.php 0 0 fixable=false "Header blocks must be separated by a single blank line"
+initial WARNING phpcs phpcs/PSR12.Files.FileHeader.SpacingAfterNamespaceBlock matrix/phpcs_dirty.php 23 23 fixable=false "Header blocks must be separated by a single blank line"
+initial WARNING phpcs phpcs/PSR2.Classes.ClassDeclaration.OpenBraceNewLine matrix/phpcs_dirty.php 42 42 fixable=false "Opening brace of a class must be on the line after the definition"
+initial WARNING phpcs phpcs/Squiz.Functions.FunctionDeclarationArgumentSpacing.NoSpaceBeforeArg matrix/phpcs_dirty.php 70 70 fixable=false "Expected 1 space between comma and argument \"$b\"; 0 found"
+initial WARNING phpcs phpcs/Squiz.Functions.MultiLineFunctionDeclaration.BraceOnSameLine matrix/phpcs_dirty.php 74 74 fixable=false "Opening brace should be on a new line"
+initial WARNING phpcs phpcs/Squiz.Functions.MultiLineFunctionDeclaration.ContentAfterBrace matrix/phpcs_dirty.php 74 74 fixable=false "Opening brace must be the last content on the line"
+initial WARNING phpcs phpcs/PSR12.Operators.OperatorSpacing.NoSpaceAfter matrix/phpcs_dirty.php 85 85 fixable=false "Expected at least 1 space after \"+\"; 0 found"
+initial WARNING phpcs phpcs/PSR12.Operators.OperatorSpacing.NoSpaceBefore matrix/phpcs_dirty.php 85 85 fixable=false "Expected at least 1 space before \"+\"; 0 found"
+initial WARNING phpcs phpcs/Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore matrix/phpcs_dirty.php 90 90 fixable=false "Closing brace must be on a line by itself"
+terminal 9
+terminal WARNING phpcs phpcs/PSR12.Files.FileHeader.SpacingAfterTagBlock matrix/phpcs_dirty.php 0 0 fixable=false "Header blocks must be separated by a single blank line"
+terminal WARNING phpcs phpcs/PSR12.Files.FileHeader.SpacingAfterNamespaceBlock matrix/phpcs_dirty.php 23 23 fixable=false "Header blocks must be separated by a single blank line"
+terminal WARNING phpcs phpcs/PSR2.Classes.ClassDeclaration.OpenBraceNewLine matrix/phpcs_dirty.php 42 42 fixable=false "Opening brace of a class must be on the line after the definition"
+terminal WARNING phpcs phpcs/Squiz.Functions.FunctionDeclarationArgumentSpacing.NoSpaceBeforeArg matrix/phpcs_dirty.php 70 70 fixable=false "Expected 1 space between comma and argument \"$b\"; 0 found"
+terminal WARNING phpcs phpcs/Squiz.Functions.MultiLineFunctionDeclaration.BraceOnSameLine matrix/phpcs_dirty.php 74 74 fixable=false "Opening brace should be on a new line"
+terminal WARNING phpcs phpcs/Squiz.Functions.MultiLineFunctionDeclaration.ContentAfterBrace matrix/phpcs_dirty.php 74 74 fixable=false "Opening brace must be the last content on the line"
+terminal WARNING phpcs phpcs/PSR12.Operators.OperatorSpacing.NoSpaceAfter matrix/phpcs_dirty.php 85 85 fixable=false "Expected at least 1 space after \"+\"; 0 found"
+terminal WARNING phpcs phpcs/PSR12.Operators.OperatorSpacing.NoSpaceBefore matrix/phpcs_dirty.php 85 85 fixable=false "Expected at least 1 space before \"+\"; 0 found"
+terminal WARNING phpcs phpcs/Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore matrix/phpcs_dirty.php 90 90 fixable=false "Closing brace must be on a line by itself"
+replacements 0

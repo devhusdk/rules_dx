@@ -3,7 +3,7 @@
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("//appimage/private:pins.bzl", "MKSQUASHFS_LICENSE", "MKSQUASHFS_VERSION", "RUNTIME_LICENSE", "RUNTIME_VERSION", "TOOL_LICENSE", "TOOL_VERSION")
-load("//quality/artifacts:extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
+load("//core/quality/artifacts:extension.bzl", "TOOL_ARTIFACTS", "TOOL_SOURCES")
 
 _WRITE_GOOD_VERSION = "0.4.1"
 

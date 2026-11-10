@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//rust/private:wrapper_tests.bzl", "dx_wasi_test_tests")
 

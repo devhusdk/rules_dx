@@ -1,5 +1,5 @@
 load("//flutter:defs.bzl", "flutter_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/dart:defs.bzl", "dart_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

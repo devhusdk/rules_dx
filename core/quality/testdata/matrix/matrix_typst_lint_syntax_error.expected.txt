@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_typst_lint_syntax_error
+capability LINT
+stages 1
+stage tinymist classes=typst sources=matrix/typst_lint_broken.typ
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING tinymist tinymist/lint matrix/typst_lint_broken.typ 16 16 fixable=false "unclosed delimiter"
+terminal 1
+terminal WARNING tinymist tinymist/lint matrix/typst_lint_broken.typ 16 16 fixable=false "unclosed delimiter"
+replacements 0

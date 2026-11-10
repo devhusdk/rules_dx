@@ -6,7 +6,7 @@ load("@rules_rust//rust/private:providers.bzl", "LintsInfo")
 load("@rules_rust_wasm_bindgen//:providers.bzl", "RustWasmBindgenInfo")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
+load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "RUST")
 load(":defs.bzl", "MSVC_LINK_FLAGS", "MSVC_OPT_LINK_FLAGS")
 
 def dx_wrapper_registry_tests(name):

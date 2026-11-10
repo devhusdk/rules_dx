@@ -1,6 +1,6 @@
 load("//cc:defs.bzl", "cc_test")
 load("//cc/private:wrapper_tests.bzl", "cc_gcc_asan_env_tests")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,

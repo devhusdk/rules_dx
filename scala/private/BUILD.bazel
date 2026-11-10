@@ -1,6 +1,6 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":validate.bzl", "scala_scalacopts_with_warnings_as_errors")
 
 package(default_visibility = ["//scala:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])

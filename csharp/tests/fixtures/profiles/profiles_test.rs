@@ -43,6 +43,6 @@ fn standard_is_the_sdk_recommended_tier() {
         ca_lines("DX_SDK_RECOMMENDED"),
         "the SDK changed its Recommended tier; copy the dotnet_diagnostic.CA lines of \
          Sdks/Microsoft.NET.Sdk/analyzers/build/config/analysislevel_<major>_recommended.globalconfig \
-         into quality/tiers/roslyn/standard.globalconfig"
+         into core/quality/tiers/roslyn/standard.globalconfig"
     );
 }

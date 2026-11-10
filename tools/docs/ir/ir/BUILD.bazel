@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

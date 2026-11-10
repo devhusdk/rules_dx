@@ -1,9 +1,9 @@
 """Shared wrapper-forwarder plumbing for language rules."""
 
 load("//core:resources.bzl", "dx_test_resource_tags")
-load("//quality:pipeline.bzl", "upstream_tags")
-load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources")
-load("//quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
+load("//core/quality:pipeline.bzl", "upstream_tags")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo", "check_direct_sources")
+load("//core/quality:unavailable_tool.bzl", "DxUnavailableToolInfo")
 
 DX_EXEC_PROVIDES = [DefaultInfo, QualitySourcesInfo]
 

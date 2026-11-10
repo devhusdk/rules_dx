@@ -1,6 +1,6 @@
 load("//core:defs.bzl", "starlark_test")
 load("//core:tag_probe.bzl", "tag_subject")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//typescript:defs.bzl", "typescript_library")
 
 typescript_library(

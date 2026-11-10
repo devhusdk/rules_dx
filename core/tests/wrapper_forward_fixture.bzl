@@ -3,7 +3,7 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests", "dx_wrapper_forward_observations", "dx_wrapper_forward_subject")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule", "dx_symlink_default_info", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _fake_upstream_impl(ctx):
     providers = [coverage_common.instrumented_files_info(ctx, source_attributes = ["srcs"])]

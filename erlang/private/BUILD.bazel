@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":dialyzer.bzl", "dialyzer_plt")
 load(":wrapper_tests.bzl", "dialyzer_plt_needs_input_test", "erlang_wrapper_contract_tests")
 

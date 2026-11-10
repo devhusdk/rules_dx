@@ -1,6 +1,6 @@
 load("//javascript:defs.bzl", "javascript_library", "javascript_test")
 load("//vue:defs.bzl", "vue_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 javascript_library(
     name = "format",

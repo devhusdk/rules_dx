@@ -1,0 +1,158 @@
+load("@crates//:crates.bzl", "aliases")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_DATA", "NESTED_BAZEL_NETWORK_ENV", "NESTED_BAZEL_NETWORK_TAGS")
+
+_LINUX = select({
+    "@platforms//cpu:arm64": ["@platforms//os:linux"],
+    "@platforms//cpu:x86_64": ["@platforms//os:linux"],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
+_LINUX_X86_64 = [
+    "@platforms//os:linux",
+    "@platforms//cpu:x86_64",
+]
+
+rust_test(
+    name = "qt_adapter_test",
+    testonly = True,
+    srcs = ["qt_adapter_test.rs"],
+    aliases = aliases(
+        package_name = "core/quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "qt_adapter_test",
+    crate_root = "qt_adapter_test.rs",
+    data = [
+        "//core/quality/tests/fixtures/qmlformat:Sample.qml",
+        "//core/quality/tests/fixtures/qmllint:Sample.qml",
+        "//core/quality/tests/fixtures/qmllint:check_dirty.json",
+        "@dx_qt//:qmlformat",
+        "@dx_qt//:qmllint",
+    ],
+    env = {
+        "DX_QMLFORMAT": "$(rootpath @dx_qt//:qmlformat)",
+        "DX_QMLFORMAT_FIXTURE": "$(rootpath //core/quality/tests/fixtures/qmlformat:Sample.qml)",
+        "DX_QMLLINT": "$(rootpath @dx_qt//:qmllint)",
+        "DX_QMLLINT_FIXTURE": "$(rootpath //core/quality/tests/fixtures/qmllint:Sample.qml)",
+        "DX_QMLLINT_FIXTURE_DIRTY": "$(rootpath //core/quality/tests/fixtures/qmllint:check_dirty.json)",
+    },
+    tags = ["block-network"],
+    target_compatible_with = _LINUX,
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//core/quality/adapter:quality_adapter",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "column_units_test",
+    testonly = True,
+    srcs = ["column_units_test.rs"],
+    aliases = aliases(
+        package_name = "core/quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "column_units_test",
+    crate_root = "column_units_test.rs",
+    data = [
+        "//javascript/private/quality/bin:eslint",
+        "//core/quality/tools/jvm:pmd",
+    ],
+    env = {
+        "DX_ESLINT": "$(rootpath //javascript/private/quality/bin:eslint)",
+        "DX_PMD": "$(rootpath //core/quality/tools/jvm:pmd)",
+    },
+    tags = ["block-network"],
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//core/quality/adapter:quality_adapter",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "quality_check_smoke_test",
+    size = "large",
+    timeout = "moderate",
+    testonly = True,
+    srcs = [
+        "quality_check_smoke_common.rs",
+        "quality_check_smoke_test.rs",
+    ],
+    aliases = aliases(
+        package_name = "core/quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "quality_check_smoke_test",
+    crate_root = "quality_check_smoke_test.rs",
+    data = [
+        "//:MODULE.bazel",
+        "//cli/cli:dx",
+    ] + NESTED_BAZEL_DATA,
+    env = {
+        "DX_BIN": "$(rootpath //cli/cli:dx)",
+        "RUST_TEST_THREADS": "1",
+    } | NESTED_BAZEL_NETWORK_ENV,
+    env_inherit = [
+        "HOME",
+        "PATH",
+    ],
+    tags = NESTED_BAZEL_NETWORK_TAGS,
+    target_compatible_with = _LINUX_X86_64,
+    deps = [
+        "//cli/test_scratch:dx_test_scratch",
+        "//tools/testing:dx_testing",
+        "//tools/testing/nested:dx_nested",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+rust_test(
+    name = "powershell_gallery_lock_test",
+    testonly = True,
+    srcs = ["powershell_gallery_lock_test.rs"],
+    aliases = aliases(
+        package_name = "core/quality/quality_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "powershell_gallery_lock_test",
+    crate_root = "powershell_gallery_lock_test.rs",
+    data = [
+        "//:MODULE.bazel",
+        "//third_party/powershell:PSGallery.lock.json",
+        "//third_party/powershell:PSGallery.requirements.psd1",
+    ],
+    env = {
+        "DX_GALLERY_REQUIREMENTS": "$(rootpath //third_party/powershell:PSGallery.requirements.psd1)",
+        "DX_GALLERY_LOCK": "$(rootpath //third_party/powershell:PSGallery.lock.json)",
+        "DX_MODULE_BAZEL": "$(rootpath //:MODULE.bazel)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

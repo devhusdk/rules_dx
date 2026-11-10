@@ -246,7 +246,7 @@ Language rules:
 - `@rules_dx//powershell:defs.bzl`: PowerShell.
 - `@rules_dx//python:defs.bzl`: Python.
 - `@rules_dx//qt:defs.bzl`: Qt.
-- `@rules_dx//quality:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
+- `@rules_dx//core/quality:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//rego:defs.bzl`: Rego.
 - `@rules_dx//ruby:defs.bzl`: Ruby.
 - `@rules_dx//rust:defs.bzl`: Rust.
@@ -760,7 +760,7 @@ API docs:
 
 Quality config:
 
-- `@rules_dx//quality:native_config.bzl`: native linter and formatter configs.
+- `@rules_dx//core/quality:native_config.bzl`: native linter and formatter configs.
 
 Every other file stays private.
 A private file is not a dependency.

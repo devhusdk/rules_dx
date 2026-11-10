@@ -379,13 +379,13 @@ fn path_scopes_parse_for_resolution() {
     let got = parse(&strings(&[
         "lint",
         "src/main.rs",
-        "quality/testdata/",
+        "core/quality/testdata/",
         "./x.py",
     ]))
     .expect("parse");
     assert_eq!(
         got.targets,
-        strings(&["src/main.rs", "quality/testdata/", "./x.py"])
+        strings(&["src/main.rs", "core/quality/testdata/", "./x.py"])
     );
 }
 

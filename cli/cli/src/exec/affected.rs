@@ -605,7 +605,7 @@ mod tests {
     fn widened_plan(entries: &[(&str, &str)]) -> AffectedPlan {
         AffectedPlan {
             base: "1a2b3c4d5e6f7890".to_string(),
-            changed_files: vec!["quality/fixtures.bzl".to_string()],
+            changed_files: vec!["core/quality/fixtures.bzl".to_string()],
             targets: Vec::new(),
             tests: Vec::new(),
             widened: entries
@@ -642,16 +642,16 @@ mod tests {
         let scopes: Vec<String> = (0..480).map(|n| format!("//p{n}:all")).collect();
         let entries: Vec<(&str, &str)> = scopes
             .iter()
-            .map(|scope| (scope.as_str(), "loads quality/fixtures.bzl"))
+            .map(|scope| (scope.as_str(), "loads core/quality/fixtures.bzl"))
             .collect();
         let plan = widened_plan(&entries);
         let summary = plan.summary();
         assert!(
-            summary.contains("//p0:all (loads quality/fixtures.bzl)"),
+            summary.contains("//p0:all (loads core/quality/fixtures.bzl)"),
             "{summary}"
         );
         assert!(
-            summary.contains("//p2:all (loads quality/fixtures.bzl)"),
+            summary.contains("//p2:all (loads core/quality/fixtures.bzl)"),
             "{summary}"
         );
         assert!(summary.contains("and 477 more"), "{summary}");

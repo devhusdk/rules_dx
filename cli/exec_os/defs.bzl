@@ -1,6 +1,6 @@
 """Reports whether the execution platform is Windows."""
 
-load("//quality/artifacts:platforms.bzl", "execution_is_windows")
+load("//core/quality/artifacts:platforms.bzl", "execution_is_windows")
 
 ExecOsInfo = provider(
     doc = "Operating system of the platform a target is built for.",

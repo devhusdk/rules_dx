@@ -56,7 +56,7 @@
     "erlang_bench"
   ],
   "quality": {
-    "bzl": "quality:families/beam.bzl",
+    "bzl": "core/quality:families/beam.bzl",
     "file_extensions": [
       ".erl",
       ".hrl"

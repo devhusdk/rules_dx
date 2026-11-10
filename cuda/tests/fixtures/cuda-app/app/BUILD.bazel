@@ -1,7 +1,7 @@
 load("@rules_dx//cc:defs.bzl", "cc_binary")
 load("@rules_dx//cuda:defs.bzl", "CUDA_TARGET")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
 

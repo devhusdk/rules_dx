@@ -1,0 +1,27 @@
+producer //core/quality/testdata:matrix_bicep_trivy_lint_fail
+capability LINT
+stages 1
+stage trivy_config classes=bicep sources=matrix/trivy_bicep_dirty/a.bicep
+completed_rounds 1
+convergence STABLE
+initial 9
+initial INFO trivy_config AZU-0058 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should use geo-redundant replication"
+initial WARNING trivy_config AZU-0056 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have blob soft delete enabled"
+initial WARNING trivy_config AZU-0057 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have logging enabled"
+initial WARNING trivy_config AZU-0061 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have infrastructure encryption enabled"
+initial ERROR trivy_config AZU-0008 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage accounts should be configured to only accept transfers that are over secure connections"
+initial ERROR trivy_config AZU-0011 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "The minimum TLS version for Storage Accounts should be TLS1_2 or higher"
+initial ERROR trivy_config AZU-0012 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "The default action on Storage account network rules should be set to deny"
+initial ERROR trivy_config AZU-0059 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have secure transfer and minimum TLS version configured"
+initial ERROR trivy_config AZU-0059 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have secure transfer and minimum TLS version configured"
+terminal 9
+terminal INFO trivy_config AZU-0058 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should use geo-redundant replication"
+terminal WARNING trivy_config AZU-0056 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have blob soft delete enabled"
+terminal WARNING trivy_config AZU-0057 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have logging enabled"
+terminal WARNING trivy_config AZU-0061 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have infrastructure encryption enabled"
+terminal ERROR trivy_config AZU-0008 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage accounts should be configured to only accept transfers that are over secure connections"
+terminal ERROR trivy_config AZU-0011 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "The minimum TLS version for Storage Accounts should be TLS1_2 or higher"
+terminal ERROR trivy_config AZU-0012 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "The default action on Storage account network rules should be set to deny"
+terminal ERROR trivy_config AZU-0059 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have secure transfer and minimum TLS version configured"
+terminal ERROR trivy_config AZU-0059 matrix/trivy_bicep_dirty/a.bicep 0 0 fixable=false "Storage account should have secure transfer and minimum TLS version configured"
+replacements 0

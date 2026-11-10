@@ -1,6 +1,6 @@
 load("@rules_dx//javascript:defs.bzl", "javascript_library")
 load("@rules_dx//typescript:defs.bzl", "typescript_library", "typescript_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 typescript_library(
     name = "sums",

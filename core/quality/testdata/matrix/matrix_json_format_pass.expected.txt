@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_json_format_pass
+capability FORMAT
+stages 1
+stage biome classes=json sources=matrix/json_clean.json
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

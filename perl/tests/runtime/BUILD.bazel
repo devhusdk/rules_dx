@@ -1,12 +1,12 @@
 load("@rules_dx//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
 perl_library(
     name = "dx_probe",
     srcs = ["lib/DxProbe.pm"],
-    visibility = ["@rules_dx//quality/testdata:__pkg__"],
+    visibility = ["@rules_dx//core/quality/testdata:__pkg__"],
 )
 
 perl_binary(

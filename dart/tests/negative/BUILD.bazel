@@ -1,6 +1,6 @@
 load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
 load("@rules_dx//core:failure_test.bzl", "failure_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":negative_tests.bzl", "dart_module_input_test")
 
 real_source_target(

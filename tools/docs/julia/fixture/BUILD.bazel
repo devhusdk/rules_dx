@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//julia:defs.bzl", "julia_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/julia:defs.bzl", "julia_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

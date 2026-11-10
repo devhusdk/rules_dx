@@ -1,6 +1,6 @@
 """Dockerfile source ownership for dx quality."""
 
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "dockerfile_name_error")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources", "dockerfile_name_error")
 
 def _dockerfile_library_impl(ctx):
     for f in ctx.files.srcs:

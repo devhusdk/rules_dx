@@ -26,7 +26,7 @@ real_fortran_docs_aspect = aspect(
     attrs = {
         "_ford_driver": attr.label(
             cfg = "exec",
-            default = Label("//quality/tools/python:ford_dump"),
+            default = Label("//core/quality/tools/python:ford_dump"),
             executable = True,
         ),
         "_fortran_extract": attr.label(

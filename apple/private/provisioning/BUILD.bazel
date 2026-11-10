@@ -1,7 +1,7 @@
 load("@apple_support//xcode:xcode_config.bzl", "xcode_config")
 load("@apple_support//xcode:xcode_version.bzl", "xcode_version")
 load("//core:failure_test.bzl", "failure_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "apple_provisioning")
 load(":metadata_tests.bzl", "apple_provisioning_tests")
 load(":probe.bzl", "apple_toolchain_probe")

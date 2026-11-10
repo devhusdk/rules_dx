@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_api_spec_asyncapi_fail
+capability LINT
+stages 1
+stage redocly classes=api_spec sources=core/quality/testdata/api_spec/asyncapi_bad.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING redocly struct core/quality/testdata/api_spec/asyncapi_bad.yaml 93 93 fixable=false "Property `bogus` is not expected here."
+terminal 1
+terminal WARNING redocly struct core/quality/testdata/api_spec/asyncapi_bad.yaml 93 93 fixable=false "Property `bogus` is not expected here."
+replacements 0

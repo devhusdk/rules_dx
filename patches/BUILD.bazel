@@ -1,5 +1,5 @@
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
 
 exports_files(["README.md"])

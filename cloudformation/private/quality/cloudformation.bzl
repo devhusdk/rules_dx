@@ -1,10 +1,10 @@
 """CloudFormation real quality aspects (cfn-lint)."""
 
-load("//quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "cfn_lint": {
-        "attr": attr.label(default = "//quality/tools/python:cfn_lint", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//core/quality/tools/python:cfn_lint", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "medium",
         "runfiles_env": True,

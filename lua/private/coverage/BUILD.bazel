@@ -3,7 +3,7 @@
 # gazelle:dx_ignore_import lua luacov.reporter
 # gazelle:dx_ignore_import lua luacov.reporter.lcov
 load("//lua:defs.bzl", "lua_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 

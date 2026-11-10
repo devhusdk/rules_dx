@@ -10,7 +10,7 @@ load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "elixir_app_kwargs", "elixir_cover_opts", "elixir_kwargs", _COVER_LOAD = "COVER_LOAD", _ELIXIR_CELLS = "ELIXIR_CELLS", _ELIXIR_COMPATIBLE_WITH = "ELIXIR_COMPATIBLE_WITH")
 
 COVER_LOAD = _COVER_LOAD

@@ -220,7 +220,7 @@ tsc_aspect = aspect(
             cfg = "exec",
         ),
         "_tier_tsconfig": attr.label(
-            default = "//quality/tiers/tsconfig:standard.json",
+            default = "//core/quality/tiers/tsconfig:standard.json",
             allow_single_file = True,
         ),
         "_tsc": attr.label(

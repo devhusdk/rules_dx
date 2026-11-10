@@ -1,5 +1,5 @@
 load("@rules_dx//go:defs.bzl", "go_library", "go_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 go_library(
     name = "solo",

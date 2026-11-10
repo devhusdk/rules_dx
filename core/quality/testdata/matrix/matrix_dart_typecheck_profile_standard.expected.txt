@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_dart_typecheck_profile_standard
+capability TYPECHECK
+stages 1
+stage dart classes=dart sources=matrix/dart_profile_standard.dart
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

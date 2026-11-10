@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_typescript_biome_tier_clean_standard
-capability LINT
-stages 1
-stage biome classes=typescript sources=matrix/biome_tier_clean.ts
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

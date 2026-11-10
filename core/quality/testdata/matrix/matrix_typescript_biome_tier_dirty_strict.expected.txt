@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_typescript_biome_tier_dirty_strict
+capability LINT
+stages 1
+stage biome classes=typescript sources=matrix/biome_tier_dirty.ts
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING biome lint/suspicious/noConsole matrix/biome_tier_dirty.ts 31 42 fixable=false "Don't use console."
+terminal 1
+terminal WARNING biome lint/suspicious/noConsole matrix/biome_tier_dirty.ts 31 42 fixable=false "Don't use console."
+replacements 0

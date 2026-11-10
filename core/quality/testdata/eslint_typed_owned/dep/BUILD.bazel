@@ -1,0 +1,25 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("//typescript:defs.bzl", "typescript_library")
+
+copy_file(
+    name = "standard_base",
+    src = "//core/quality/tiers/tsconfig:standard.json",
+    out = ".dx/config/tsconfig/standard.json",
+)
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    deps = [":standard_base"],
+)
+
+typescript_library(
+    name = "dep",
+    srcs = ["dep.ts"],
+    declaration = True,
+    isolated_typecheck = False,
+    transpiler = "tsc",
+    tsconfig = ":tsconfig",
+    visibility = ["//core/quality/testdata:__subpackages__"],
+)

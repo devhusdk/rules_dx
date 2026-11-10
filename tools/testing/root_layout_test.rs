@@ -23,7 +23,6 @@ const PENDING: &[&str] = &[
     "dx",
     "env",
     "families",
-    "quality",
 ];
 
 /// Root directories that are build or tool output, not sources.

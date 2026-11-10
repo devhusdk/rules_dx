@@ -2,8 +2,8 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("//helm/private:providers.bzl", "HelmChartInfo")
-load("//quality:family_hooks.bzl", "stage")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//core/quality:family_hooks.bzl", "stage")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 
 TOOLS = {
     "helm": {

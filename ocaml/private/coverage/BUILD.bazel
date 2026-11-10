@@ -3,7 +3,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//ocaml/private:dune.bzl", "dx_dune_build", "dx_dune_library")
 load("//ocaml:defs.bzl", "ocaml_library", "ocaml_module", "ocaml_signature")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 load(":marker.bzl", "ocaml_executable_marker")
 

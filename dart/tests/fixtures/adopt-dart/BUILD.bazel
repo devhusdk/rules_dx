@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 # gazelle:dx_external pub third_party/dart/pubspec.lock dx_dart_deps
 

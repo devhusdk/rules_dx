@@ -1,6 +1,6 @@
 load("@rules_py//py:defs.bzl", "py_unittest_test")
 load("//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":lock_tests.bzl", "lua_luarocks_lock_tests")
 
 package(default_visibility = ["//visibility:public"])

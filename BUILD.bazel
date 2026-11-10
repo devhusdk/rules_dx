@@ -2,15 +2,15 @@ load("@aspect_rules_js//js:defs.bzl", "js_library")
 
 # A shim over the dev hub @dx_npm, so consumers that load this package fetch no npm repos.
 load("@dx_npm_link//:defs.bzl", "npm_link_all_packages")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:json_schema.bzl", "json_schema", "json_schemas")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 
 # gazelle:dx_fixture_testonly true
 # gazelle:resolve rust dx_deploy_tools //deploy/private:dx_deploy_tools
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir/proto:doc_ir_proto_rs
 # gazelle:resolve rust marker_proto //env/private/proto:marker_proto_rs
-# gazelle:resolve rust proto //quality/result/proto:result_proto_rs
-# gazelle:resolve rust result_proto //quality/result/proto:result_proto_rs
+# gazelle:resolve rust proto //core/quality/result/proto:result_proto_rs
+# gazelle:resolve rust result_proto //core/quality/result/proto:result_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
 # gazelle:resolve rust runfiles @rules_rust//rust/runfiles
 # gazelle:resolve rust serde @crates//:serde
@@ -32,19 +32,19 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cuda/tests
 # gazelle:exclude haskell/tests/fixtures/bench/bench_src
 # gazelle:exclude flutter/tests/fixtures/flutter-app/ios/Runner
-# gazelle:exclude quality/tiers
+# gazelle:exclude core/quality/tiers
 # gazelle:exclude java/private/jmh
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures
 # gazelle:exclude rust/tests/fixtures
-# gazelle:exclude quality/tests/fixtures
+# gazelle:exclude core/quality/tests/fixtures
 # gazelle:exclude tools/docs/python/fixture
 # gazelle:exclude tools/docs/rust/fixture
 # gazelle:exclude tools/docs/components/tests/fixture
 # gazelle:exclude gazelle/protobuf/tests/roundtrip
 # gazelle:exclude examples/adopt-polyglot
 # gazelle:exclude lua/private/quality/testdata
-# gazelle:exclude quality/testdata
+# gazelle:exclude core/quality/testdata
 # gazelle:exclude tools/testing/starters/fixtures
 # gazelle:exclude deploy/private/release/consumer
 # gazelle:exclude tools/docs/typescript/fixture
@@ -57,10 +57,10 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/dotnet/fixture
 # gazelle:exclude tools/docs/dotnet/fsharp
 # gazelle:exclude tools/docs/jvm/record
-# gazelle:exclude quality/tools/jvm/javac_check
+# gazelle:exclude core/quality/tools/jvm/javac_check
 # gazelle:exclude avro/private/tools/avdl_union
-# gazelle:exclude quality/tools/jvm/kotlinc_check
-# gazelle:exclude quality/tools/jvm/scalac_check
+# gazelle:exclude core/quality/tools/jvm/kotlinc_check
+# gazelle:exclude core/quality/tools/jvm/scalac_check
 # gazelle:exclude javascript/private/quality/bin
 # gazelle:exclude tools/docs/powershell/fixture
 # gazelle:exclude tools/docs/go/fixture
@@ -115,7 +115,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude php/private/tool.php
 # gazelle:exclude gazelle/php/builtins_dump.php
 # gazelle:exclude haskell/tests/runtime/src
-# gazelle:exclude quality/tools/dotnet/fsharplint
+# gazelle:exclude core/quality/tools/dotnet/fsharplint
 # gazelle:exclude gazelle
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude swift/tests/fixtures/swift-app
@@ -146,8 +146,8 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cmake/tests/fixtures
 # gazelle:exclude deploy/tests/fixtures
 # gazelle:exclude deploy/tests/cross/cross_app.c
-# gazelle:exclude quality/artifacts
-# gazelle:exclude quality/tools/python
+# gazelle:exclude core/quality/artifacts
+# gazelle:exclude core/quality/tools/python
 # gazelle:exclude cli/depcheck
 # gazelle:exclude go/tests/fixtures/gofumpt
 # gazelle:exclude go/tests/fixtures/staticcheck
@@ -160,8 +160,8 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cc/tests/fixtures/linux_corpus
 # gazelle:exclude cc/tests/fixtures/prebuilt_interop
 # gazelle:exclude cc/tests/fixtures/strict_generation
-# gazelle:exclude quality/tests/fixtures/strict_preset
-# gazelle:exclude quality/tests/fixtures/consumer_policy
+# gazelle:exclude core/quality/tests/fixtures/strict_preset
+# gazelle:exclude core/quality/tests/fixtures/consumer_policy
 # gazelle:exclude astro/tests/app
 # gazelle:exclude astro/tests/app_config/configs
 # gazelle:exclude astro/tests/app_config/src
@@ -255,8 +255,8 @@ filegroup(
         "//kubernetes/private/quality:module_srcs",
         "//core:module_srcs",
         "//core/modules:module_srcs",
-        "//quality:module_srcs",
-        "//quality/private:module_srcs",
+        "//core/quality:module_srcs",
+        "//core/quality/private:module_srcs",
         "//rego/private/quality:module_srcs",
         "//rust:module_srcs",
         "//rust/private:module_srcs",

@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//quality:tools_gen.bzl", "config_tools_gen")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:tools_gen.bzl", "config_tools_gen")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY")
 
@@ -9,8 +9,8 @@ package(default_visibility = VIS_CLI)
 exports_files(
     ["src/tools_gen.rs"],
     visibility = [
-        "//quality/adapter:__pkg__",
-        "//quality/tiers:__pkg__",
+        "//core/quality/adapter:__pkg__",
+        "//core/quality/tiers:__pkg__",
     ],
 )
 
@@ -32,7 +32,7 @@ rust_library(
         package_name = "cli/dx_generate",
         normal = True,
     ),
-    compile_data = ["//quality/tiers:all"],
+    compile_data = ["//core/quality/tiers:all"],
     crate_name = "dx_generate",
     crate_root = "src/lib.rs",
     deps = all_crate_deps(
@@ -67,7 +67,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ),
-    compile_data = ["//quality/tiers:all"],
+    compile_data = ["//core/quality/tiers:all"],
     coverage_lib = ":dx_generate",
     crate_name = "dx_generate",
     crate_root = "src/lib.rs",
@@ -75,14 +75,14 @@ rust_test(
         "//gazelle/python:dx_generate_fixpoint_testdata",
         "//gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE",
         "//gazelle/python:testdata/dx_generate_standard/WORKSPACE",
-        "//quality/tests/fixtures/generated_policy:BUILD.bazel",
+        "//core/quality/tests/fixtures/generated_policy:BUILD.bazel",
         "@dx_tools//:buildifier",
     ],
     env = {
         "DX_BUILDIFIER": "$(rootpath @dx_tools//:buildifier)",
         "DX_FIXPOINT_EXISTING_EXPORTS": "$(rootpath //gazelle/python:testdata/dx_generate_existing_exports/WORKSPACE)",
         "DX_FIXPOINT_STANDARD": "$(rootpath //gazelle/python:testdata/dx_generate_standard/WORKSPACE)",
-        "DX_GENERATED_POLICY": "$(rootpath //quality/tests/fixtures/generated_policy:BUILD.bazel)",
+        "DX_GENERATED_POLICY": "$(rootpath //core/quality/tests/fixtures/generated_policy:BUILD.bazel)",
     },
     deps = all_crate_deps(
         package_name = "cli/dx_generate",

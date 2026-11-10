@@ -2,7 +2,7 @@ load("//cuda/private/toolchain:check.bzl", "arch_errors", "compiler_errors", "co
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "expect_true")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "CUDA_TARGET", "cuda_gpu_env", "cuda_split_srcs", "cuda_target_compatible_with")
 
 package(default_visibility = ["//cuda:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])

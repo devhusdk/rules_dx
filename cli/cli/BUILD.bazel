@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//deploy:defs.bzl", "github_deploy")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//rust/private:wrapper_tests.bzl", "dx_msvc_opt_pdb_tests")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
@@ -143,7 +143,7 @@ rust_library(
         "//cli/archive:dx_archive",
         "//cli/families:dx_families",
         "//cli/module_bazel:dx_module_bazel",
-        "//quality/result:quality_result",
+        "//core/quality/result:quality_result",
         "@crates//:serde",
         "@crates//:serde_json",
     ],
@@ -172,10 +172,10 @@ rust_binary(
         "//cli/process:dx_process",
         "//env/private/env_shard",
         "//cli/codegen_shard",
-        "//quality/lsp_check:lsp_check_lib",
-        "//quality/markdown:quality_markdown_lib",
-        "//quality/notebook:quality_notebook_lib",
-        "//quality/runner:quality_runner_lib",
+        "//core/quality/lsp_check:lsp_check_lib",
+        "//core/quality/markdown:quality_markdown_lib",
+        "//core/quality/notebook:quality_notebook_lib",
+        "//core/quality/runner:quality_runner_lib",
         "//tools/coverage/collect:collect_native_lib",
     ],
 )
@@ -441,8 +441,8 @@ rust_test(
         "//cli/archive:dx_archive",
         "//cli/families:dx_families",
         "//cli/module_bazel:dx_module_bazel",
-        "//quality/result/proto:result_proto_rs",
-        "//quality/result:quality_result",
+        "//core/quality/result/proto:result_proto_rs",
+        "//core/quality/result:quality_result",
         "//tools/testing:dx_testing",
         "@crates//:serde",
         "@crates//:serde_json",

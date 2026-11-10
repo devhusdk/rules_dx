@@ -1,7 +1,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//javascript:defs.bzl", "javascript_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":dev_hub_tests.bzl", "dev_hub_tests")
 load(":wrapper_tests.bzl", "javascript_wrapper_contract_tests")
 

@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_ruby_lint_standard
-capability LINT
-stages 1
-stage rubocop classes=ruby sources=matrix/rubocop_profile_standard.rb
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

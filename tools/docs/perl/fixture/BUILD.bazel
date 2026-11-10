@@ -1,5 +1,5 @@
 load("//perl:defs.bzl", "perl_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/perl:defs.bzl", "perl_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

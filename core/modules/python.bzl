@@ -8,12 +8,12 @@ PYTHON_VERSION = _PYTHON_VERSION
 
 UV_HUB = "dx_pypi"
 UV_PROJECTS = [
-    "//quality/tools/python:pyproject.toml",
+    "//core/quality/tools/python:pyproject.toml",
 ]
 UV_LOCKS = [
-    "//quality/tools/python:uv.lock",
+    "//core/quality/tools/python:uv.lock",
 ]
 
 UV_REPIN_DIRS = [
-    "quality/tools/python",
+    "core/quality/tools/python",
 ]

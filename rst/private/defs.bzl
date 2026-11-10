@@ -1,7 +1,7 @@
 """reStructuredText source ownership for dx quality."""
 
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//quality:sources.bzl", "QualityToolsInfo")
+load("//core/quality:sources.bzl", "QualityToolsInfo")
 
 def _rst_library_impl(ctx):
     return [
@@ -21,7 +21,7 @@ rst_library = rule(
         "srcs": attr.label_list(allow_files = [".rst", ".rest"], doc = "reStructuredText files of this package."),
         "deps": attr.label_list(providers = [DefaultInfo], doc = "reStructuredText libraries this package depends on."),
         "_rst2html": attr.label(
-            default = Label("//quality/tools/python:rst2html"),
+            default = Label("//core/quality/tools/python:rst2html"),
             cfg = "exec",
             executable = True,
         ),

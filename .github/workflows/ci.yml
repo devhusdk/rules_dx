@@ -615,19 +615,19 @@ jobs:
         include:
           - platform: linux_x86_64
             runner: ubuntu-latest
-            quality: "//quality/testdata:matrix_python_format_pass //quality/testdata:matrix_jupyter_format_pass //quality/testdata:matrix_jupyter_lint_fail //quality/testdata:matrix_jupyter_outputs_fail //quality/testdata:matrix_javascript_format_pass //quality/testdata:matrix_api_spec_openapi_pass //quality/testdata:matrix_yaml_format_pass //quality/testdata:matrix_yaml_format_fail //quality/testdata:matrix_yaml_format_syntax_error //quality/testdata:matrix_yaml_lint_pass //quality/testdata:matrix_yaml_lint_fail //quality/testdata:matrix_yaml_lint_syntax_error //quality/testdata:matrix_flatbuffers_lint_pass //quality/testdata:matrix_capnp_lint_pass //quality/testdata:matrix_thrift_lint_pass //quality/testdata:matrix_thrift_lint_warning_fail //quality/testdata:matrix_thrift_lint_syntax_error //quality/testdata:matrix_thrift_lint_semantic_fail //quality/testdata:matrix_thrift_lint_include_undeclared //quality/testdata:matrix_thrift_typecheck_pass //quality/testdata:matrix_thrift_typecheck_semantic_fail //quality/testdata:matrix_thrift_typecheck_warning_ignored //quality/testdata:matrix_avro_lint_avsc_pass //quality/testdata:matrix_avro_lint_avsc_undefined_name //quality/testdata:matrix_avro_lint_avsc_syntax_error //quality/testdata:matrix_avro_lint_avdl_import_pass //quality/testdata:matrix_avro_lint_avdl_syntax_error //quality/testdata:matrix_avro_typecheck_avsc_pass //quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
+            quality: "//core/quality/testdata:matrix_python_format_pass //core/quality/testdata:matrix_jupyter_format_pass //core/quality/testdata:matrix_jupyter_lint_fail //core/quality/testdata:matrix_jupyter_outputs_fail //core/quality/testdata:matrix_javascript_format_pass //core/quality/testdata:matrix_api_spec_openapi_pass //core/quality/testdata:matrix_yaml_format_pass //core/quality/testdata:matrix_yaml_format_fail //core/quality/testdata:matrix_yaml_format_syntax_error //core/quality/testdata:matrix_yaml_lint_pass //core/quality/testdata:matrix_yaml_lint_fail //core/quality/testdata:matrix_yaml_lint_syntax_error //core/quality/testdata:matrix_flatbuffers_lint_pass //core/quality/testdata:matrix_capnp_lint_pass //core/quality/testdata:matrix_thrift_lint_pass //core/quality/testdata:matrix_thrift_lint_warning_fail //core/quality/testdata:matrix_thrift_lint_syntax_error //core/quality/testdata:matrix_thrift_lint_semantic_fail //core/quality/testdata:matrix_thrift_lint_include_undeclared //core/quality/testdata:matrix_thrift_typecheck_pass //core/quality/testdata:matrix_thrift_typecheck_semantic_fail //core/quality/testdata:matrix_thrift_typecheck_warning_ignored //core/quality/testdata:matrix_avro_lint_avsc_pass //core/quality/testdata:matrix_avro_lint_avsc_undefined_name //core/quality/testdata:matrix_avro_lint_avsc_syntax_error //core/quality/testdata:matrix_avro_lint_avdl_import_pass //core/quality/testdata:matrix_avro_lint_avdl_syntax_error //core/quality/testdata:matrix_avro_typecheck_avsc_pass //core/quality/testdata:matrix_avro_typecheck_avsc_undefined_name"
           - platform: linux_arm64
             runner: ubuntu-24.04-arm
-            quality: "//quality/testdata:runner_matrix_linux_arm64"
+            quality: "//core/quality/testdata:runner_matrix_linux_arm64"
           - platform: macos_arm64
             runner: macos-15
-            quality: "//quality/testdata:runner_matrix_macos_arm64"
+            quality: "//core/quality/testdata:runner_matrix_macos_arm64"
           - platform: windows_x86_64
             runner: windows-latest
-            quality: "//quality/testdata:runner_matrix_windows_x86_64"
+            quality: "//core/quality/testdata:runner_matrix_windows_x86_64"
           - platform: windows_arm64
             runner: windows-11-arm
-            quality: "//quality/testdata:runner_matrix_windows_arm64"
+            quality: "//core/quality/testdata:runner_matrix_windows_arm64"
     runs-on: ${{ matrix.runner }}
     permissions:
       contents: read

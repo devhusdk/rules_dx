@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
 load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,7 +13,7 @@ php_library(
 php_library(
     name = "greeter",
     srcs = ["src/Hello/Greeter.php"],
-    visibility = ["@rules_dx//quality/testdata:__pkg__"],
+    visibility = ["@rules_dx//core/quality/testdata:__pkg__"],
     deps = [":format"],
 )
 

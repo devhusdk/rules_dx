@@ -2,7 +2,7 @@ load("//javascript:defs.bzl", "javascript_web_app", "javascript_web_bundle")
 load("//core:failure_test.bzl", "failure_test")
 load("//cli/web_server:server.bzl", "javascript_web_server", "javascript_web_server_launcher")
 load("//python:defs.bzl", "python_binary")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//rust/tests/fixtures/wasm_bindgen:js_parity.bzl", "synthetic_bindgen")
 

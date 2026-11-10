@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_markdown_prettier_fail
+capability FORMAT
+stages 1
+stage prettier classes=markdown sources=matrix/markdown_prettier_dirty.md
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - matrix/markdown_prettier_dirty.md 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/markdown_prettier_dirty.md 2 14 "Title\n\n-"

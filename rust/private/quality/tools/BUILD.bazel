@@ -1,7 +1,7 @@
 # gazelle:ignore
 # Quality tools built from Rust source through the dx_quality_crates hub.
 
-load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
+load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 
 package(default_visibility = ["//visibility:public"])
 

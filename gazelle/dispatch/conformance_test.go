@@ -203,7 +203,7 @@ var conformanceRows = map[string]conformanceRow{
 		symbols: []string{"python_library", "python_test", "python_binary"},
 		inert:   []string{"notes.txt", "orphan.pyi"},
 		extraLoads: map[string][]string{
-			"@rules_dx//quality:native_config.bzl": {"ruff_config"},
+			"@rules_dx//core/quality:native_config.bzl": {"ruff_config"},
 		},
 	},
 	"ruby": {
@@ -219,7 +219,7 @@ var conformanceRows = map[string]conformanceRow{
 		extraLoads: map[string][]string{
 			"@rules_rust//cargo:defs.bzl":          {"cargo_build_script"},
 			"@crates//:crates.bzl":                 {"aliases", "all_crate_deps"},
-			"@rules_dx//quality:fixtures.bzl":      {"real_source_target"},
+			"@rules_dx//core/quality:fixtures.bzl":      {"real_source_target"},
 		},
 	},
 	"scala": {

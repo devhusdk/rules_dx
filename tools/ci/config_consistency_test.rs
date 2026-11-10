@@ -155,19 +155,19 @@ fn runner_config_refusals(source: &str) -> Vec<String> {
 
 #[test]
 fn the_tools_the_runner_refuses_without_a_config_are_the_tools_it_cannot_default() {
-    let refusals = runner_config_refusals(&read_runfiles("quality/runner/real_sources.txt"));
+    let refusals = runner_config_refusals(&read_runfiles("core/quality/runner/real_sources.txt"));
     let effective = refusals;
     assert_eq!(
         effective,
         starlark_list_items(
-            &read_runfiles("quality/native_config_tests.bzl"),
+            &read_runfiles("core/quality/native_config_tests.bzl"),
             "_RUNNER_CONFIG_REQUIRED_TOOLS",
         ),
         "the tools the runner refuses without a config no longer match the set \
-         quality/native_config_tests.bzl pins"
+         core/quality/native_config_tests.bzl pins"
     );
     let required = starlark_dict_keys(
-        &read_runfiles("quality/private/native_config_impl.bzl"),
+        &read_runfiles("core/quality/private/native_config_impl.bzl"),
         "CONFIG_REQUIRED_TOOLS",
     );
     for tool in &effective {
@@ -226,23 +226,23 @@ fn toml_list_reads_one_line_and_commented_lists() {
 #[test]
 fn ruff_policy_matches_the_hinted_fixture() {
     let workspace = read_runfiles("ruff.toml");
-    let fixture = read_runfiles("quality/testdata/ruff.toml");
+    let fixture = read_runfiles("core/quality/testdata/ruff.toml");
     assert_eq!(
         toml_scalar(&workspace, "target-version"),
         toml_scalar(&fixture, "target-version"),
-        "ruff.toml and quality/testdata/ruff.toml disagree on the Python floor"
+        "ruff.toml and core/quality/testdata/ruff.toml disagree on the Python floor"
     );
     assert_eq!(
         toml_list(&workspace, "ignore"),
         toml_list(&fixture, "ignore"),
-        "ruff.toml and quality/testdata/ruff.toml disagree on the ignore list"
+        "ruff.toml and core/quality/testdata/ruff.toml disagree on the ignore list"
     );
 }
 
 #[test]
 fn buildifier_policy_matches_the_hinted_fixture() {
     let workspace = read_runfiles(".buildifier.json");
-    let fixture = read_runfiles("quality/testdata/buildifier_cfg/.buildifier.json");
+    let fixture = read_runfiles("core/quality/testdata/buildifier_cfg/.buildifier.json");
     let selected = json_strings(&json_array(&workspace, "warningsList"));
     assert!(!selected.is_empty(), ".buildifier.json enables no warning");
     assert_eq!(
@@ -255,18 +255,18 @@ fn buildifier_policy_matches_the_hinted_fixture() {
 #[test]
 fn vale_policy_agrees_across_the_root_shim_the_corpus_and_the_fixture() {
     let shim = read_runfiles(".vale.ini");
-    let corpus = read_runfiles("quality/corpus_vale.ini");
-    let fixture = read_runfiles("quality/testdata/vale_test.ini");
+    let corpus = read_runfiles("core/quality/corpus_vale.ini");
+    let fixture = read_runfiles("core/quality/testdata/vale_test.ini");
     for key in ["MinAlertLevel", "BasedOnStyles"] {
         assert_eq!(
             ini_value(&shim, key),
             ini_value(&corpus, key),
-            ".vale.ini and quality/corpus_vale.ini disagree on {key}"
+            ".vale.ini and core/quality/corpus_vale.ini disagree on {key}"
         );
         assert_eq!(
             ini_value(&shim, key),
             ini_value(&fixture, key),
-            ".vale.ini and quality/testdata/vale_test.ini disagree on {key}"
+            ".vale.ini and core/quality/testdata/vale_test.ini disagree on {key}"
         );
     }
 }
@@ -276,18 +276,18 @@ fn every_vale_config_resolves_its_marker_style() {
     for (config, declared, styles) in [
         (
             ".vale.ini",
-            "quality/corpus_styles",
-            "quality/corpus_styles",
+            "core/quality/corpus_styles",
+            "core/quality/corpus_styles",
         ),
         (
-            "quality/corpus_vale.ini",
+            "core/quality/corpus_vale.ini",
             "corpus_styles",
-            "quality/corpus_styles",
+            "core/quality/corpus_styles",
         ),
         (
-            "quality/testdata/vale_test.ini",
+            "core/quality/testdata/vale_test.ini",
             "styles",
-            "quality/testdata/styles",
+            "core/quality/testdata/styles",
         ),
     ] {
         assert_eq!(
@@ -305,19 +305,19 @@ fn every_vale_config_resolves_its_marker_style() {
 
 #[test]
 fn the_hinted_marker_style_matches_the_corpus() {
-    let fixture = read_runfiles("quality/testdata/styles/Dx/Markers.yml");
-    let corpus = read_runfiles("quality/corpus_styles/Dx/Markers.yml");
+    let fixture = read_runfiles("core/quality/testdata/styles/Dx/Markers.yml");
+    let corpus = read_runfiles("core/quality/corpus_styles/Dx/Markers.yml");
     assert_eq!(
         yaml_body(&fixture),
         yaml_body(&corpus),
-        "the hinted Dx.Markers style drifted from quality/corpus_styles"
+        "the hinted Dx.Markers style drifted from core/quality/corpus_styles"
     );
 }
 
 #[test]
 fn biome_policy_matches_the_hinted_fixture() {
     let workspace = read_runfiles("biome.json");
-    let fixture = read_runfiles("quality/testdata/biome_cfg/biome.json");
+    let fixture = read_runfiles("core/quality/testdata/biome_cfg/biome.json");
     for key in ["linter", "formatter"] {
         assert_eq!(
             squeezed(&json_object(&workspace, key)),
@@ -372,7 +372,7 @@ fn the_shell_configs_never_restate_the_shfmt_invocation() {
     for config in SHELL_CONFIGS {
         assert!(
             !read_runfiles(config).contains("shfmt"),
-            "{config} names shfmt; quality/adapter/src/commands.rs owns that invocation"
+            "{config} names shfmt; core/quality/adapter/src/commands.rs owns that invocation"
         );
     }
 }
@@ -896,14 +896,14 @@ fn the_scalafmt_tiers_pin_the_version_the_toolchain_downloads() {
             .trim()
             .to_owned()
     };
-    let artifact = read_runfiles("quality/artifacts/scalafmt.bzl");
+    let artifact = read_runfiles("core/quality/artifacts/scalafmt.bzl");
     for tier in ["standard", "strict"] {
-        let path = format!("quality/tiers/scalafmt/{tier}.conf");
+        let path = format!("core/quality/tiers/scalafmt/{tier}.conf");
         let pinned = version_of(&read_runfiles(&path));
         assert_eq!(pinned, version_of(&read_runfiles(".scalafmt.conf")), "{path}");
         assert!(
             artifact.contains(&format!("\"upstream_version\": \"{pinned}\"")),
-            "{path} pins {pinned}, which quality/artifacts/scalafmt.bzl does not ship"
+            "{path} pins {pinned}, which core/quality/artifacts/scalafmt.bzl does not ship"
         );
     }
 }

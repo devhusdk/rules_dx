@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_lua_selene_clean_strict
+capability LINT
+stages 1
+stage selene classes=lua sources=matrix/selene_tier/add.lua
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

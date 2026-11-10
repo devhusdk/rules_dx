@@ -2,7 +2,7 @@
 
 load("//d:defs.bzl", "D_COMPATIBLE_WITH")
 load("//core:cells.bzl", "cell_setting")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
 _CELLS = [

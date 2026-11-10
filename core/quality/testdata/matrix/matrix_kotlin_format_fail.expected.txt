@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_kotlin_format_fail
+capability FORMAT
+stages 1
+stage ktfmt classes=kotlin sources=core/quality/testdata/real_dirty.kt
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING ktfmt - core/quality/testdata/real_dirty.kt 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement core/quality/testdata/real_dirty.kt 14 111 "\nobject Dirty {\n    fun hello(name: String): String {\n        return \"hello \" + name\n    "

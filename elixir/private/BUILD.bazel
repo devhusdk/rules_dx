@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":wrapper_tests.bzl", "elixir_wrapper_contract_tests")
 
 package(default_visibility = ["//elixir:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])

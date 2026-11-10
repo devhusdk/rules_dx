@@ -225,7 +225,7 @@ The `actionlint`, `ruff`, `terraform`, `hadolint`, `opa`, `regal`, `ormolu` and 
 
 `clang_tidy` runs on the tier base of `config_profile` unless a `clang_tidy_config` is bound.
 
-`standard` and `strict` clang-tidy tiers live in `quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
+`standard` and `strict` clang-tidy tiers live in `core/quality/tiers/clang_tidy/` as `standard.clang-tidy` and `strict.clang-tidy`. Standard turns on `bugprone-*`, `performance-*` and the unused checks. Strict adds `modernize-*`, `readability-*`, `cppcoreguidelines-*`, `misc-*` and `objc-*`. clang-tidy cannot extend a file at another path, so a tier is used as a full copy: bind it with `clang_tidy_config`, and copy it to the root `.clang-tidy` for clangd. Neither file sets `WarningsAsErrors`.
 
 `kubeconform` runs with `-strict` in the strict tier, so duplicate keys fail; the tier comes from the build, not from `kubernetes_schemas`, which carries only the schemas and `skip_kinds`.
 
@@ -419,7 +419,7 @@ Edit the tool's own root file. Where the Base column says `extends`, the file ex
 
 See [standard tiers](../../tiers-standard.md) and [strict tiers](../../tiers-strict.md) for what each tier turns on.
 
-<!-- tool-config-table:begin (generated from quality/tools.bzl; run `bazel run //docs:update_tool_configs`) -->
+<!-- tool-config-table:begin (generated from core/quality/tools.bzl; run `bazel run //docs:update_tool_configs`) -->
 
 | Tool | Level | Native file(s) | Base | Tier source | Shared with |
 | --- | --- | --- | --- | --- | --- |

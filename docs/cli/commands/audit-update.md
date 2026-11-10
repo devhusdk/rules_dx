@@ -9,7 +9,7 @@ tools/dx security
 tools/dx security --affected
 tools/dx security --offline --fail-on warning
 tools/dx license --fail-on error //...
-tools/dx security --report sarif=security.sarif quality/tools/python
+tools/dx security --report sarif=security.sarif core/quality/tools/python
 ```
 
 ```text
@@ -34,14 +34,14 @@ Scopes: dependency-set, package or target selectors. No scope means `//...`. See
 A scope selects sets by path. A `...` scope selects the nearest set above it in the table plus every set under it. A package selects its path's set. Each set reads its whole lockfile. A scope that owns no set exits `2`.
 
 ```text
-//cli/..., //tools/docs/..., //env/..., //core/..., //quality/..., //rust/...    cargo
+//cli/..., //tools/docs/..., //env/..., //core/..., //core/quality/..., //rust/...    cargo
 //csharp/..., //fsharp/..., //third_party/dotnet/...                                  nuget
 //go/..., //third_party/go/...                                                         go
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven
 //javascript/..., //typescript/..., //astro/..., //svelte/..., //vue/..., //mdx/...   npm
 //javascript/private/quality/...                                                        npm-tools
 //python/...                                                                           uv
-//quality/tools/python/...                                                            uv-tools
+//core/quality/tools/python/...                                                            uv-tools
 //examples/adopt-polyglot/...                                                         npm-adopt-polyglot, uv-adopt-polyglot
 ```
 
@@ -76,10 +76,10 @@ With `--trivy BINARY`, `--pin` also packs the trivy cache into `<dir>/<date>/tri
 
 Cargo sets also get a `cargo-yanked` snapshot, built from the crates.io sparse index (`--cargo-index` overrides it), that lists the locked yanked versions. A yanked version is a `yanked` finding: it fails under the strict tier and is `info` under standard. The yanked snapshots are pinned like the others, as `advisory cargo-yanked ...` and `advisory pypi-yanked ...` lines, so `--pin` prints them too. A set without such a line only warns with `yanked_unprepared`. uv sets get a `pypi-yanked` snapshot the same way, from the PyPI JSON API (`--pypi-index` overrides it); a version is yanked when every file of it is. Other families have no yanked data yet and report nothing.
 
-Secrets are scanned with the pinned `@rules_dx//quality/artifacts:gitleaks`. If `DX_GITLEAKS_BIN` holds an absolute path, dx runs it. Otherwise dx resolves the label through Bazel. A relative path is rejected and `PATH` is never searched. If no artifact is found, the run exits `1` with `secrets auditor unavailable`. Export the path with:
+Secrets are scanned with the pinned `@rules_dx//core/quality/artifacts:gitleaks`. If `DX_GITLEAKS_BIN` holds an absolute path, dx runs it. Otherwise dx resolves the label through Bazel. A relative path is rejected and `PATH` is never searched. If no artifact is found, the run exits `1` with `secrets auditor unavailable`. Export the path with:
 
 ```sh
-export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
+export "$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)"
 ```
 
 The scan always runs with an explicit config. Without a `.gitleaks.toml`, it uses `.dx/config/gitleaks/base.toml`, which dx generates. A `.gitleaks.toml` in the workspace root must start with `[extend]` and `path = ".dx/config/gitleaks/base.toml"`, every `[[allowlists]]` entry needs a non-empty `description`, and the file is reported as a warning. A `.gitleaksignore` file has no effect. A secret finding has the Gitleaks rule id, for example `gitleaks/aws-key`. Files git ignores are skipped. Outside git, every file is scanned.
@@ -103,7 +103,7 @@ expires = "2027-04-24"
 
 An `[[exception]]` needs `advisory`, `package`, `set`, `versions`, `reason` and `expires`. An `[[uncovered]]` entry needs `set`, `reason` and `expires`. An expired entry fails the run. An exception that matches no finding in its set fails the run. `versions` uses the set ecosystem's range syntax. Bad entries print as `<file>:<line>: <entry>: <problem>`.
 
-Images: when the scope holds `oci_deploy` targets, `dx security` builds each image and scans it with the pinned trivy (`DX_TRIVY`, else `@rules_dx//quality/artifacts:trivy`) against the trivy pin described under [Advisory Snapshots](#advisory-snapshots). It adds one line per image, such as `image //app:image: 0 critical, 2 high, 0 medium, 0 low`, and each finding has the rule `trivy/<advisory>`. Critical and high findings are errors, medium findings are warnings and low findings are info; `--fail-on` decides which of them fail the run. An `[[exception]]` covers an image finding when `set` is `oci` or a label pattern that matches the `oci_deploy` target, such as `//app/...`. With no `oci_deploy` in scope nothing is built and the output does not change. Under `--offline`, a trivy pin that is not cached fails the run with `advisory_refresh_failed`.
+Images: when the scope holds `oci_deploy` targets, `dx security` builds each image and scans it with the pinned trivy (`DX_TRIVY`, else `@rules_dx//core/quality/artifacts:trivy`) against the trivy pin described under [Advisory Snapshots](#advisory-snapshots). It adds one line per image, such as `image //app:image: 0 critical, 2 high, 0 medium, 0 low`, and each finding has the rule `trivy/<advisory>`. Critical and high findings are errors, medium findings are warnings and low findings are info; `--fail-on` decides which of them fail the run. An `[[exception]]` covers an image finding when `set` is `oci` or a label pattern that matches the `oci_deploy` target, such as `//app/...`. With no `oci_deploy` in scope nothing is built and the output does not change. Under `--offline`, a trivy pin that is not cached fails the run with `advisory_refresh_failed`.
 
 ### License
 
@@ -209,7 +209,7 @@ A failure prints `advisory_prepare_failed: <family and reason>` and writes no sn
 ## Tool Resolution
 
 ```sh
-bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
+bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print
 ```
 
 It runs `bazel cquery --output=files` for the label and writes the absolute artifact path to a variable. An `external/` path is read under `bazel info output_base`; any other path is a built output, read under `bazel info execution_root`, so build the label first.
@@ -268,7 +268,7 @@ dx update [--apply] [--offline] [--frozen] [--floor --reason=<text>] <set:packag
 
 `--report` and Bazel options do not apply. `--fail-on info\|warning\|error` is accepted and changes nothing.
 
-Scopes: selectors are a set name (`dx_crates`), `set:package` (`dx_npm:vue`), or a label or path (`quality/tools/python`, `//quality/tools/python/...`, `//...`). No selector selects every set. Unknown names and unowned paths exit `2`. See [Dependency sets](#dependency-sets).
+Scopes: selectors are a set name (`dx_crates`), `set:package` (`dx_npm:vue`), or a label or path (`core/quality/tools/python`, `//core/quality/tools/python/...`, `//...`). No selector selects every set. Unknown names and unowned paths exit `2`. See [Dependency sets](#dependency-sets).
 
 ### Check And Apply
 

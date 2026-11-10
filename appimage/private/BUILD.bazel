@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "appimage_metadata_tests")
 
 package(default_visibility = ["//appimage:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])

@@ -1,7 +1,7 @@
 """The dart_config rule and the provider the Dart quality aspects read from it."""
 
 load("//dart/private:providers.bzl", "DartInfo")
-load("//quality:native_config.bzl", "native_config_impl")
+load("//core/quality:native_config.bzl", "native_config_impl")
 
 DxDartConfigInfo = provider(
     doc = "Dart packages a dart_config pulls in for the analyzer.",

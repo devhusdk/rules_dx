@@ -1,5 +1,5 @@
 load("//core:failure_test.bzl", "failure_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":visibility_tests.bzl", "visibility_unit_tests")
 
 package(default_visibility = [":tools_repo"])
@@ -36,7 +36,7 @@ package_group(
         "-//env/...",
         "-//gazelle/...",
         "-//core/codegen/...",
-        "-//quality/...",
+        "-//core/quality/...",
         "-//tools/...",
         "public",
     ],
@@ -49,7 +49,7 @@ package_group(
         "-//env/...",
         "-//gazelle/...",
         "-//core/codegen/...",
-        "-//quality/...",
+        "-//core/quality/...",
         "-//tools/...",
         "public",
     ],

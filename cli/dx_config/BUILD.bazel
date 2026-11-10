@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//quality:dx_config_gen.bzl", "dx_config_gen")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:dx_config_gen.bzl", "dx_config_gen")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 

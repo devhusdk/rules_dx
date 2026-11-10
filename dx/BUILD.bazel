@@ -1,5 +1,5 @@
 load("@gazelle//:def.bzl", "gazelle")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_DX_COMMANDS", "VIS_DX_ROOTS")
 
 package(default_visibility = ["//visibility:private"])

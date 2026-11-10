@@ -1,6 +1,6 @@
 load("//elixir/private:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "ELIXIR_DIALYZER_COMPATIBLE_WITH")
 load("//erlang/private:dialyzer.bzl", "dialyzer_plt")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":credo.bzl", "credo")
 load(":mix_format.bzl", "mix_format")
 

@@ -582,7 +582,7 @@ mod tests {
         let aspect = coverage_sources_aspect_flag();
         assert_eq!(
             aspect,
-            "--aspects=@rules_dx//quality:coverage_sources.bzl%dx_coverage_sources_aspect"
+            "--aspects=@rules_dx//core/quality:coverage_sources.bzl%dx_coverage_sources_aspect"
         );
         let user = strings(&[
             "--aspects=//tools:mine.bzl%mine",

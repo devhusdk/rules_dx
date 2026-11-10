@@ -37,7 +37,7 @@
     "dart_bench"
   ],
   "quality": {
-    "bzl": "quality:families/dart.bzl",
+    "bzl": "core/quality:families/dart.bzl",
     "file_extensions": [
       ".dart"
     ],

@@ -7,7 +7,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//haskell/private/toolchain:transition.bzl", "ghc_mingw_transition")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_upstream_tags", "dx_wrap_binary", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//haskell/private/coverage:coverage.bzl", "dx_haskell_coverage_attrs", "dx_haskell_test_coverage")
 load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs", _DEFAULT_GHCOPTS = "DEFAULT_GHCOPTS", _HASKELL_CELLS = "HASKELL_CELLS", _HASKELL_COMPATIBLE_WITH = "HASKELL_COMPATIBLE_WITH", _STANDARD_GHCOPTS = "STANDARD_GHCOPTS", _STRICT_GHCOPTS = "STRICT_GHCOPTS")
 

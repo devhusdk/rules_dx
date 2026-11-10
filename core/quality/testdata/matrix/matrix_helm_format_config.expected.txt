@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_helm_format_config
+capability FORMAT
+stages 1
+stage helmfmt classes=helm sources=matrix/helmfmt_config/Chart.yaml,matrix/helmfmt_config/templates/deployment.yaml
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING helmfmt - matrix/helmfmt_config/templates/deployment.yaml 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/helmfmt_config/templates/deployment.yaml 313 412 "  {{- range .Values.env }}\n            - name: {{ .name }}\n              value: {{ .value | quote }}\n  "

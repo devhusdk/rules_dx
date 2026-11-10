@@ -1,6 +1,6 @@
 """Dockerfile real quality aspects."""
 
-load("//quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "hadolint": {

@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_flatbuffers_lint_pass
+capability LINT
+stages 1
+stage flatc classes=flatbuffers sources=core/quality/testdata/matrix/flatbuffers_pass/main.fbs
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

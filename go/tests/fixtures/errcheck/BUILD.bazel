@@ -1,5 +1,5 @@
 load("//go:defs.bzl", "go_library")
-load("//quality:native_config.bzl", "errcheck_config")
+load("//core/quality:native_config.bzl", "errcheck_config")
 
 package(
     default_testonly = True,

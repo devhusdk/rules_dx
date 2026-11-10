@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_lua_luals_standard
-capability TYPECHECK
-stages 1
-stage luals classes=lua sources=matrix/luals_profile.lua
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

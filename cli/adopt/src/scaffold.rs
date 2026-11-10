@@ -372,8 +372,8 @@ pub struct EditorTools {
     pub selected: Option<BTreeSet<String>>,
 }
 
-const GOPLS_STANDARD: &str = include_str!("../../../quality/tiers/gopls/gopls_standard.json");
-const GOPLS_STRICT: &str = include_str!("../../../quality/tiers/gopls/gopls_strict.json");
+const GOPLS_STANDARD: &str = include_str!("../../../core/quality/tiers/gopls/gopls_standard.json");
+const GOPLS_STRICT: &str = include_str!("../../../core/quality/tiers/gopls/gopls_strict.json");
 
 impl EditorTools {
     fn is_selected(&self, tool: &str) -> bool {

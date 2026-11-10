@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":transition_tests.bzl", "transition_test_suite")
 
 package(default_visibility = ["//visibility:public"])

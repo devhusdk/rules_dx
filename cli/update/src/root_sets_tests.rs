@@ -128,6 +128,6 @@ fn go_maven_and_uv_have_their_declared_shape() {
     assert_eq!(maven.manifests, ["MODULE.bazel"]);
     assert_eq!(maven.locks, ["third_party/jvm/maven_install.json"]);
     let tools = set("dx_pypi-python");
-    assert_eq!(tools.manifests, ["quality/tools/python/pyproject.toml"]);
-    assert_eq!(tools.locks, ["quality/tools/python/uv.lock"]);
+    assert_eq!(tools.manifests, ["core/quality/tools/python/pyproject.toml"]);
+    assert_eq!(tools.locks, ["core/quality/tools/python/uv.lock"]);
 }

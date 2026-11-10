@@ -2,7 +2,7 @@
 
 load("@rules_dx//dart:defs.bzl", "dart_js_binary", "dart_wasm_binary")
 load("@rules_dx//javascript:defs.bzl", "javascript_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":web_tests.bzl", "web_owns_main_test")
 
 package(default_visibility = ["//visibility:public"])

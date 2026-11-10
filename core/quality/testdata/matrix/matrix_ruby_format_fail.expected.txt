@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_ruby_format_fail
+capability FORMAT
+stages 1
+stage rubocop classes=ruby sources=matrix/rubocop_dirty.rb
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING rubocop Style/StringLiterals matrix/rubocop_dirty.rb 5 5 fixable=true "Prefer double-quoted strings."
+terminal 0
+replacements 1
+replacement matrix/rubocop_dirty.rb 5 11 "fixed"

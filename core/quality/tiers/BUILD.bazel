@@ -1,0 +1,155 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+load(":corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "TYPOS_UNSAFE", "tier_labels")
+
+# gazelle:exclude eslint
+# gazelle:exclude vale
+_VISIBILITY = [
+    "//docs:__pkg__",
+    "//cli/adopt:__subpackages__",
+    "//cli/generate:__subpackages__",
+    "//core/quality/runner:__subpackages__",
+    "//go/tests:__subpackages__",
+    "//go/private/tools/analysis:__subpackages__",
+    "//core/quality/testdata:__subpackages__",
+    "//core/quality/tests/fixtures:__subpackages__",
+    "//typescript/tests:__subpackages__",
+    "//tools/testing/hermetic:__subpackages__",
+]
+
+filegroup(
+    name = "all",
+    srcs = [
+        "//core/quality/tiers/ansible_lint:files",
+        "//core/quality/tiers/bicep:files",
+        "//core/quality/tiers/biome:files",
+        "//core/quality/tiers/buf:files",
+        "//core/quality/tiers/buildifier:files",
+        "//core/quality/tiers/cfn_lint:files",
+        "//core/quality/tiers/checkmake:files",
+        "//core/quality/tiers/clang_format:files",
+        "//core/quality/tiers/clang_tidy:files",
+        "//core/quality/tiers/cmakelint:files",
+        "//core/quality/tiers/clippy:files",
+        "//core/quality/tiers/credo:files",
+        "//core/quality/tiers/dart:files",
+        "//core/quality/tiers/deadnix:files",
+        "//core/quality/tiers/detekt:files",
+        "//core/quality/tiers/djlint:files",
+        "//core/quality/tiers/docstrfmt:files",
+        "//core/quality/tiers/elvis:files",
+        "//core/quality/tiers/errcheck:files",
+        "//core/quality/tiers/eslint:files",
+        "//core/quality/tiers/ffmt:files",
+        "//core/quality/tiers/fortitude:files",
+        "//core/quality/tiers/fsharplint:files",
+        "//core/quality/tiers/gersemi:files",
+        "//core/quality/tiers/gitleaks:files",
+        "//core/quality/tiers/govet:files",
+        "//core/quality/tiers/gplint:files",
+        "//core/quality/tiers/graphql_eslint:files",
+        "//core/quality/tiers/hadolint:files",
+        "//core/quality/tiers/hlint:files",
+        "//core/quality/tiers/julialint:files",
+        "//core/quality/tiers/luals:files",
+        "//core/quality/tiers/lychee:files",
+        "//core/quality/tiers/markdown_check:files",
+        "//core/quality/tiers/mbake:files",
+        "//core/quality/tiers/mix_format:files",
+        "//core/quality/tiers/perlcritic:files",
+        "//core/quality/tiers/perltidy:files",
+        "//core/quality/tiers/phpcs:files",
+        "//core/quality/tiers/phpstan:files",
+        "//core/quality/tiers/pmd:files",
+        "//core/quality/tiers/prettier:files",
+        "//core/quality/tiers/psscriptanalyzer:files",
+        "//core/quality/tiers/pydoclint:files",
+        "//core/quality/tiers/qmlformat:files",
+        "//core/quality/tiers/qmllint:files",
+        "//core/quality/tiers/redocly:files",
+        "//core/quality/tiers/regal:files",
+        "//core/quality/tiers/remark:files",
+        "//core/quality/tiers/roslyn:files",
+        "//core/quality/tiers/rubocop:files",
+        "//core/quality/tiers/ruff:files",
+        "//core/quality/tiers/rustfmt:files",
+        "//core/quality/tiers/scalafix:files",
+        "//core/quality/tiers/scalafmt:files",
+        "//core/quality/tiers/selene:files",
+        "//core/quality/tiers/shellcheck:files",
+        "//core/quality/tiers/shfmt:files",
+        "//core/quality/tiers/sqlfluff:files",
+        "//core/quality/tiers/spotbugs:files",
+        "//core/quality/tiers/staticcheck:files",
+        "//core/quality/tiers/stylelint:files",
+        "//core/quality/tiers/stylua:files",
+        "//core/quality/tiers/swift_format:files",
+        "//core/quality/tiers/taplo:files",
+        "//core/quality/tiers/swift_lint:files",
+        "//core/quality/tiers/tflint:files",
+        "//core/quality/tiers/trivy_config:files",
+        "//core/quality/tiers/tsconfig:files",
+        "//core/quality/tiers/ty:files",
+        "//core/quality/tiers/typos:files",
+        "//core/quality/tiers/vale:files",
+        "//core/quality/tiers/yamlfmt:files",
+        "//core/quality/tiers/yamllint:files",
+        "//core/quality/tiers/zizmor:files",
+        "//core/quality/tiers/zanuda:files",
+    ],
+    visibility = _VISIBILITY,
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "corpora.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_javascript",
+    javascript_srcs = tier_labels(TIER_JAVASCRIPT),
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_json",
+    json_srcs = tier_labels(TIER_JSON),
+)
+
+real_source_target(
+    name = "corpus_toml",
+    toml_srcs = tier_labels([path for path in TIER_TOML if path not in TYPOS_UNSAFE]),
+)
+
+real_source_target(
+    name = "corpus_yaml",
+    tags = ["corpus"],
+    yaml_srcs = tier_labels(TIER_YAML),
+)
+
+_CORPORA = [
+    ":corpus_javascript",
+    ":corpus_json",
+    ":corpus_toml",
+    ":corpus_yaml",
+]
+
+rust_test(
+    name = "tiers_test",
+    srcs = ["tiers_test.rs"],
+    data = [
+        ":all",
+        "//cli/generate:src/tools_gen.rs",
+    ] + _CORPORA,
+    env = {
+        "DX_TIER_CONFIGS": "$(rootpath //cli/generate:src/tools_gen.rs)",
+        "DX_TIER_CORPORA": " ".join(["$(rootpaths %s)" % corpus for corpus in _CORPORA]),
+        "DX_TIER_FILES": "$(rootpaths :all)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+

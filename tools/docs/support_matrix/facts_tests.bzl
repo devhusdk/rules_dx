@@ -2,8 +2,8 @@
 
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION", "MSVC_CL_BUILD")
 load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
-load("//quality:adapters.bzl", "NOT_APPLICABLE", "TYPECHECK_CANDIDATES")
-load("//quality:support.bzl", "SUPPORT_PLATFORMS")
+load("//core/quality:adapters.bzl", "NOT_APPLICABLE", "TYPECHECK_CANDIDATES")
+load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//tools/docs/cc:defs.bzl", "cc_doc_shard", "cuda_doc_shard")
 load("//tools/docs/components:defs.bzl", "astro_doc_shard", "mdx_doc_shard", "svelte_doc_shard", "vue_doc_shard")
 load("//tools/docs/dart:defs.bzl", "dart_doc_shard")

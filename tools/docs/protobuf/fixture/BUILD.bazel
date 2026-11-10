@@ -1,5 +1,5 @@
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/protobuf:defs.bzl", "protobuf_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_lua_luals_strict
+capability TYPECHECK
+stages 1
+stage luals classes=lua sources=matrix/luals_profile.lua
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING luals luals/no-unknown matrix/luals_profile.lua 57 57 fixable=false "Cannot infer type."
+terminal 1
+terminal WARNING luals luals/no-unknown matrix/luals_profile.lua 57 57 fixable=false "Cannot infer type."
+replacements 0

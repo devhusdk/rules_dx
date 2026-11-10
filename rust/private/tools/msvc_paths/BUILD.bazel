@@ -1,5 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust/private:defs.bzl", "MSVC_LINK_FLAGS")
 
 # Plain rules_rust rules: the dx Rust macros link through msvc_link.

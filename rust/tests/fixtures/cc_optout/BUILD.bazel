@@ -1,6 +1,6 @@
 load("@dx_rust_fixture_crates//:crates.bzl", "aliases", "crate_deps")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
 
 package(

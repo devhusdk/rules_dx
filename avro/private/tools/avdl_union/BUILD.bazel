@@ -1,5 +1,5 @@
 load("//java:defs.bzl", "java_binary")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//avro:__subpackages__"])
 
@@ -7,7 +7,7 @@ java_binary(
     name = "avdl_union",
     srcs = ["AvdlUnion.java"],
     main_class = "dx.avro.tools.AvdlUnion",
-    deps = ["//quality/tools/jvm:avro_tools_import"],
+    deps = ["//core/quality/tools/jvm:avro_tools_import"],
 )
 
 real_source_target(

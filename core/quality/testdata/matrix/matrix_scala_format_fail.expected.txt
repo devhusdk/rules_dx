@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_scala_format_fail
+capability FORMAT
+stages 1
+stage scalafmt classes=scala sources=core/quality/testdata/real_dirty.scala
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING scalafmt - core/quality/testdata/real_dirty.scala 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement core/quality/testdata/real_dirty.scala 27 72 " { def hello(name: String): String = \"hello \" + name "

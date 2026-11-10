@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_rust_typos_pass
+capability LINT
+stages 1
+stage typos classes=rust sources=matrix/typos_clean.rs
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

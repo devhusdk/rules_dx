@@ -1,5 +1,5 @@
 load("@dx_quality_crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
 
 # gazelle:dx_rust_crates_hub dx_quality_crates

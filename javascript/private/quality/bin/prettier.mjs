@@ -73,7 +73,7 @@ const files = forwarded.filter((arg) => !arg.startsWith("-")).map((arg) => arg.t
 const plugins = Object.entries(PLUGINS)
   .filter(([, extensions]) => files.some((file) => extensions.some((extension) => file.endsWith(extension))))
   .map(([name]) => `--plugin=${fileURLToPath(import.meta.resolve(name))}`);
-// Mirrors is_dockerfile_name in quality/sources.bzl; keep the two in sync.
+// Mirrors is_dockerfile_name in core/quality/sources.bzl; keep the two in sync.
 function isDockerfileName(file) {
   const base = path.basename(file);
   if (base.endsWith(".dockerignore")) {

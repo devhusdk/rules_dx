@@ -1,5 +1,5 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//swift:defs.bzl", "SWIFT_WINDOWS_RUNTIME_DLLS", "SWIFT_WINDOWS_RUNTIME_PATH", "swift_binary", "swift_library", "swift_test")
 load("//swift/private:tests.bzl", "swift_binary_provider_test", "swift_library_provider_test", "swift_test_coverage_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")

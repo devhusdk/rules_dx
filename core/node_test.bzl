@@ -1,7 +1,7 @@
 """Shared Jest and plain Node test core for the JavaScript and TypeScript wrappers."""
 
 load("//core:wrapper.bzl", "dx_args_label_error", "dx_forward_attrs", "dx_forward_data_attr", "dx_forwarded_quiet", "dx_lcov_merger_attr", "dx_quality_sources", "dx_run_env_attrs", "dx_symlink_default_info", "dx_run_environment")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _JEST_ONLY_KEYS = [
     "config",

@@ -111,7 +111,7 @@ fn consumer_bare_check_runs_configured_sets_and_no_phantoms() {
         "nuget",
         "examples/",
         "third_party/",
-        "quality/tools",
+        "core/quality/tools",
     ] {
         assert!(!out.contains(phantom), "phantom {phantom} in {out}");
     }

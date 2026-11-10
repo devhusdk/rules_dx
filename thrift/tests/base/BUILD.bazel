@@ -1,5 +1,5 @@
 # gazelle:ignore
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//thrift:defs.bzl", "thrift_library")
 
 package(default_visibility = ["//thrift/tests:__subpackages__"])

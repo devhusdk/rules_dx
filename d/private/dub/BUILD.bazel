@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":lock_tests.bzl", "d_dub_lock_tests")
 
 package(default_visibility = ["//visibility:public"])

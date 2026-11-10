@@ -313,15 +313,15 @@ mod tests {
         let labels = all_aspect_labels();
         for probe in ["lint", "format", "typecheck"] {
             assert!(labels.contains(&format!(
-                "@rules_dx//quality:families/core_probe.bzl%real_core_{probe}_probe_aspect"
+                "@rules_dx//core/quality:families/core_probe.bzl%real_core_{probe}_probe_aspect"
             )));
         }
         assert!(
-            labels.contains(&"@rules_dx//quality:families/core.bzl%real_lint_aspect".to_owned())
+            labels.contains(&"@rules_dx//core/quality:families/core.bzl%real_lint_aspect".to_owned())
         );
         assert!(
             labels
-                .contains(&"@rules_dx//quality:families/core.bzl%real_typecheck_aspect".to_owned())
+                .contains(&"@rules_dx//core/quality:families/core.bzl%real_typecheck_aspect".to_owned())
         );
         assert!(labels.contains(&dx_codegen::aspect_label(super::super::rules_dx_repo())));
         assert!(labels.contains(&dx_env_plan::aspect_label(super::super::rules_dx_repo())));
@@ -346,12 +346,12 @@ mod tests {
                     .find(|family| family.aspects.iter().any(|aspect| aspect == name));
                 match family {
                     Some(family) if family.name != "core" => {
-                        let in_quality = format!("quality:families/{}.bzl", family.name);
+                        let in_quality = format!("core/quality:families/{}.bzl", family.name);
                         let in_language = format!("javascript/private/quality:{}.bzl", family.name);
                         assert!(file == in_quality || file == in_language, "{label}");
                     }
                     _ => assert!(
-                        file.starts_with("quality:families/")
+                        file.starts_with("core/quality:families/")
                             || file.contains("/private/quality:"),
                         "{label}"
                     ),
@@ -411,8 +411,8 @@ mod tests {
             &families_json(),
             consumer(&[], &extensions),
         );
-        assert!(lint.contains(&"quality:families/python.bzl%real_python_lint_aspect"));
-        assert!(!lint.contains(&"quality:families/jvm.bzl%real_jvm_lint_aspect"));
+        assert!(lint.contains(&"core/quality:families/python.bzl%real_python_lint_aspect"));
+        assert!(!lint.contains(&"core/quality:families/jvm.bzl%real_jvm_lint_aspect"));
     }
 
     #[test]
@@ -420,10 +420,10 @@ mod tests {
         let installed = ["rules_dx_rust".to_owned()];
         let extensions = extensions(&[".py", ".rs", ".swift"]);
         let probes = probes_for(Command::Lint, consumer(&installed, &extensions));
-        assert!(probes.contains(&"quality:families/core_probe.bzl%real_core_lint_probe_aspect"));
-        assert!(probes.contains(&"quality:families/python.bzl%real_python_lint_probe_aspect"));
+        assert!(probes.contains(&"core/quality:families/core_probe.bzl%real_core_lint_probe_aspect"));
+        assert!(probes.contains(&"core/quality:families/python.bzl%real_python_lint_probe_aspect"));
         assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
-        assert!(probes.contains(&"quality:families/swift.bzl%real_swift_lint_probe_aspect"));
+        assert!(probes.contains(&"core/quality:families/swift.bzl%real_swift_lint_probe_aspect"));
         assert!(probes_for(Command::Docs, consumer(&installed, &extensions)).is_empty());
     }
 
@@ -453,7 +453,7 @@ mod tests {
                     .iter()
                     .find(|language| language.bzl == file);
                 assert!(
-                    language.is_none_or(|language| language.bzl == "quality:families/go.bzl"),
+                    language.is_none_or(|language| language.bzl == "core/quality:families/go.bzl"),
                     "{command:?}: {label}"
                 );
             }
@@ -465,8 +465,8 @@ mod tests {
         assert_eq!(
             probes,
             vec![
-                "quality:families/core_probe.bzl%real_core_lint_probe_aspect",
-                "quality:families/go.bzl%real_go_lint_probe_aspect",
+                "core/quality:families/core_probe.bzl%real_core_lint_probe_aspect",
+                "core/quality:families/go.bzl%real_go_lint_probe_aspect",
             ]
         );
     }
@@ -540,13 +540,13 @@ mod tests {
             let entry = spec(command);
             for aspect in entry.aspects {
                 let Some(file) = aspect
-                    .strip_prefix("quality:families/")
+                    .strip_prefix("core/quality:families/")
                     .and_then(|rest| rest.split_once(".bzl"))
                     .map(|(file, _)| file)
                 else {
                     continue;
                 };
-                let bzl = format!("quality:families/{file}.bzl");
+                let bzl = format!("core/quality:families/{file}.bzl");
                 if !dx_families::quality_languages()
                     .iter()
                     .any(|language| language.bzl == bzl)
@@ -554,7 +554,7 @@ mod tests {
                     continue;
                 }
                 let probe =
-                    format!("quality:families/{file}.bzl%real_{file}_{capability}_probe_aspect");
+                    format!("core/quality:families/{file}.bzl%real_{file}_{capability}_probe_aspect");
                 assert!(
                     entry.probes.contains(&probe.as_str()),
                     "{command:?}: {aspect} has no probe {probe}"

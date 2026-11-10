@@ -2,10 +2,10 @@ use dx_error::DxError;
 
 pub const TOOL_ENV_VAR: &str = "DX_GITLEAKS_BIN";
 
-pub const TOOL_LABEL: &str = "@rules_dx//quality/artifacts:gitleaks";
+pub const TOOL_LABEL: &str = "@rules_dx//core/quality/artifacts:gitleaks";
 
 /// Shell command that exports the pinned Gitleaks path for a local run.
-pub const RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)\"";
+pub const RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//core/quality/artifacts:gitleaks --var DX_GITLEAKS_BIN --print)\"";
 
 pub const SARIF_FORMAT: &str = "sarif";
 

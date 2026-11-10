@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_perl_lint_pass
+capability LINT
+stages 1
+stage perlcritic classes=perl sources=matrix/perlcritic_clean.pl
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

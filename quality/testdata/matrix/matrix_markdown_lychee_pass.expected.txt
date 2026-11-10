@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_markdown_lychee_pass
-capability LINT
-stages 1
-stage lychee classes=markdown sources=matrix/lychee_clean/README.md
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

@@ -3,7 +3,7 @@ load("@bazel_skylib//rules:build_test.bzl", "build_test")
 # Keep these loads in sync with _MINGW_CC_LOADS in haskell/private/toolchain/repos.bzl.
 # Only the Windows GHC repo uses them, so this package loads them on every host.
 load("@rules_cc//cc/toolchains:cc_toolchain.bzl", "cc_toolchain")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_haskell//haskell:cc_toolchain_config.bzl", "cc_toolchain_config")
 
 filegroup(name = "empty")

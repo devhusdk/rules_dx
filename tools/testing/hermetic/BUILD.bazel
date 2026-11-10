@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing:nested_bazel.bzl", "CONSUMER_MAVEN_DATA", "CONSUMER_MAVEN_ENV")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_CLI_TEST")
@@ -440,30 +440,30 @@ hermetic_qualification(
 hermetic_qualification(
     name = "prose",
     files = {
-        "//quality/tests/fixtures/prose-docs/drafts:BUILD.bazel": "quality/tests/fixtures/prose-docs/drafts/BUILD.bazel",
-        "//quality/tests/fixtures/prose-docs/drafts:messy.typ": "quality/tests/fixtures/prose-docs/drafts/messy.typ",
-        "//quality/tests/fixtures/prose-docs/drafts:todo.adoc": "quality/tests/fixtures/prose-docs/drafts/todo.adoc",
-        "//quality/tests/fixtures/prose-docs/drafts:todo.rst": "quality/tests/fixtures/prose-docs/drafts/todo.rst",
-        "//quality/tests/fixtures/prose-docs/guide:BUILD.bazel": "quality/tests/fixtures/prose-docs/guide/BUILD.bazel",
-        "//quality/tests/fixtures/prose-docs/guide:index.rst": "quality/tests/fixtures/prose-docs/guide/index.rst",
-        "//quality/tests/fixtures/prose-docs/guide:install.rst": "quality/tests/fixtures/prose-docs/guide/install.rst",
-        "//quality/tests/fixtures/prose-docs/handbook:BUILD.bazel": "quality/tests/fixtures/prose-docs/handbook/BUILD.bazel",
-        "//quality/tests/fixtures/prose-docs/handbook:intro.adoc": "quality/tests/fixtures/prose-docs/handbook/intro.adoc",
-        "//quality/tests/fixtures/prose-docs/handbook:ops.adoc": "quality/tests/fixtures/prose-docs/handbook/ops.adoc",
-        "//quality/tests/fixtures/prose-docs/paper:BUILD.bazel": "quality/tests/fixtures/prose-docs/paper/BUILD.bazel",
-        "//quality/tests/fixtures/prose-docs/paper:body.tex": "quality/tests/fixtures/prose-docs/paper/body.tex",
-        "//quality/tests/fixtures/prose-docs/paper:common.typ": "quality/tests/fixtures/prose-docs/paper/common.typ",
-        "//quality/tests/fixtures/prose-docs/paper:main.tex": "quality/tests/fixtures/prose-docs/paper/main.tex",
-        "//quality/tests/fixtures/prose-docs/paper:main.typ": "quality/tests/fixtures/prose-docs/paper/main.typ",
-        "//quality/tests/fixtures/prose-docs/shared:BUILD.bazel": "quality/tests/fixtures/prose-docs/shared/BUILD.bazel",
-        "//quality/tests/fixtures/prose-docs/shared:glossary.rst": "quality/tests/fixtures/prose-docs/shared/glossary.rst",
-        "//quality/tests/fixtures/prose-docs/shared:terms.adoc": "quality/tests/fixtures/prose-docs/shared/terms.adoc",
-        "//quality/tests/fixtures/prose-docs:styles/House/Todo.yml": "quality/tests/fixtures/prose-docs/styles/House/Todo.yml",
-        "//quality/tests/fixtures/prose-docs:BUILD.bazel": "quality/tests/fixtures/prose-docs/BUILD.bazel",
-        "//quality/tests/fixtures/prose-docs:README.md": "quality/tests/fixtures/prose-docs/README.md",
-        "//quality/tests/fixtures/prose-docs:bundle_test.sh": "quality/tests/fixtures/prose-docs/bundle_test.sh",
-        "//quality/tests/fixtures/prose-docs:docs.vale.ini": "quality/tests/fixtures/prose-docs/docs.vale.ini",
-        "//quality/tests/fixtures/prose-docs:latexindent.yaml": "quality/tests/fixtures/prose-docs/latexindent.yaml",
+        "//core/quality/tests/fixtures/prose-docs/drafts:BUILD.bazel": "core/quality/tests/fixtures/prose-docs/drafts/BUILD.bazel",
+        "//core/quality/tests/fixtures/prose-docs/drafts:messy.typ": "core/quality/tests/fixtures/prose-docs/drafts/messy.typ",
+        "//core/quality/tests/fixtures/prose-docs/drafts:todo.adoc": "core/quality/tests/fixtures/prose-docs/drafts/todo.adoc",
+        "//core/quality/tests/fixtures/prose-docs/drafts:todo.rst": "core/quality/tests/fixtures/prose-docs/drafts/todo.rst",
+        "//core/quality/tests/fixtures/prose-docs/guide:BUILD.bazel": "core/quality/tests/fixtures/prose-docs/guide/BUILD.bazel",
+        "//core/quality/tests/fixtures/prose-docs/guide:index.rst": "core/quality/tests/fixtures/prose-docs/guide/index.rst",
+        "//core/quality/tests/fixtures/prose-docs/guide:install.rst": "core/quality/tests/fixtures/prose-docs/guide/install.rst",
+        "//core/quality/tests/fixtures/prose-docs/handbook:BUILD.bazel": "core/quality/tests/fixtures/prose-docs/handbook/BUILD.bazel",
+        "//core/quality/tests/fixtures/prose-docs/handbook:intro.adoc": "core/quality/tests/fixtures/prose-docs/handbook/intro.adoc",
+        "//core/quality/tests/fixtures/prose-docs/handbook:ops.adoc": "core/quality/tests/fixtures/prose-docs/handbook/ops.adoc",
+        "//core/quality/tests/fixtures/prose-docs/paper:BUILD.bazel": "core/quality/tests/fixtures/prose-docs/paper/BUILD.bazel",
+        "//core/quality/tests/fixtures/prose-docs/paper:body.tex": "core/quality/tests/fixtures/prose-docs/paper/body.tex",
+        "//core/quality/tests/fixtures/prose-docs/paper:common.typ": "core/quality/tests/fixtures/prose-docs/paper/common.typ",
+        "//core/quality/tests/fixtures/prose-docs/paper:main.tex": "core/quality/tests/fixtures/prose-docs/paper/main.tex",
+        "//core/quality/tests/fixtures/prose-docs/paper:main.typ": "core/quality/tests/fixtures/prose-docs/paper/main.typ",
+        "//core/quality/tests/fixtures/prose-docs/shared:BUILD.bazel": "core/quality/tests/fixtures/prose-docs/shared/BUILD.bazel",
+        "//core/quality/tests/fixtures/prose-docs/shared:glossary.rst": "core/quality/tests/fixtures/prose-docs/shared/glossary.rst",
+        "//core/quality/tests/fixtures/prose-docs/shared:terms.adoc": "core/quality/tests/fixtures/prose-docs/shared/terms.adoc",
+        "//core/quality/tests/fixtures/prose-docs:styles/House/Todo.yml": "core/quality/tests/fixtures/prose-docs/styles/House/Todo.yml",
+        "//core/quality/tests/fixtures/prose-docs:BUILD.bazel": "core/quality/tests/fixtures/prose-docs/BUILD.bazel",
+        "//core/quality/tests/fixtures/prose-docs:README.md": "core/quality/tests/fixtures/prose-docs/README.md",
+        "//core/quality/tests/fixtures/prose-docs:bundle_test.sh": "core/quality/tests/fixtures/prose-docs/bundle_test.sh",
+        "//core/quality/tests/fixtures/prose-docs:docs.vale.ini": "core/quality/tests/fixtures/prose-docs/docs.vale.ini",
+        "//core/quality/tests/fixtures/prose-docs:latexindent.yaml": "core/quality/tests/fixtures/prose-docs/latexindent.yaml",
         "consumers/prose/consumer.bazelrc": ".bazelrc",
         "consumers/prose/root.BUILD.bazel": "BUILD.bazel",
     },
@@ -696,7 +696,7 @@ hermetic_qualification(
     module_fragment = "consumers/scala_scalafix/module_fragment.bazel",
     patterns = [
         "//...",
-        "@my_dx//quality/tools/jvm:scalafix",
+        "@my_dx//core/quality/tools/jvm:scalafix",
     ],
 )
 

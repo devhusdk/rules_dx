@@ -1,8 +1,8 @@
 """Kubernetes manifest ownership and schema staging for dx lint."""
 
-load("//quality:native_config.bzl", "DxNativeConfigInfo")
+load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _version_error(version):
     parts = version.split(".")

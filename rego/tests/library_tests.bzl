@@ -1,7 +1,7 @@
 """rego_library ownership and provider proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//rego/private:providers.bzl", "RegoInfo")
 
 def _owns_rego_class_impl(ctx):

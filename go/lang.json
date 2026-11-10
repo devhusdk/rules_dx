@@ -37,7 +37,7 @@
     "go_bench"
   ],
   "quality": {
-    "bzl": "quality:families/go.bzl",
+    "bzl": "core/quality:families/go.bzl",
     "file_extensions": [
       ".go"
     ],

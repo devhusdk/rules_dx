@@ -1,7 +1,7 @@
 load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//php:defs.bzl", "php_library", "php_test")
 load("//php/tests/negative:negative_tests.bzl", "php_autoload_input_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 

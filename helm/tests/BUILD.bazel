@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//helm:defs.bzl", "helm_chart")
 load("//core:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "chart_provider_test", "owns_helm_class_test")

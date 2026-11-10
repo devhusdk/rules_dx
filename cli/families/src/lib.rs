@@ -68,7 +68,7 @@ pub fn installed(dep_names: &BTreeSet<String>) -> Vec<&'static Family> {
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]
 #[serde(default)]
 pub struct QualityFiles {
-    /// The aspect file, like `quality:families/go.bzl`.
+    /// The aspect file, like `core/quality:families/go.bzl`.
     pub bzl: String,
     pub file_extensions: Vec<String>,
     /// Aspect names defined in `bzl`, by command.

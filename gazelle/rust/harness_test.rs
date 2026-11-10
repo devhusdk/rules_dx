@@ -291,7 +291,7 @@ fn native_config_case() {
     let ambiguous_build = write(
         &root,
         "ambiguous/BUILD.bazel",
-        "load(\"@rules_dx//quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n\nrustfmt_config(\n    name = \"rustfmt_extra\",\n    src = \"extra.toml\",\n)\n",
+        "load(\"@rules_dx//core/quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n\nrustfmt_config(\n    name = \"rustfmt_extra\",\n    src = \"extra.toml\",\n)\n",
     );
     let ambiguous_before = std::fs::read(&ambiguous_build).expect("read build");
     let ambiguous = run_gazelle(&root, &[]);
@@ -308,7 +308,7 @@ fn native_config_case() {
     write(
         &root,
         "ambiguous/BUILD.bazel",
-        "load(\"@rules_dx//quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n",
+        "load(\"@rules_dx//core/quality:native_config.bzl\", \"rustfmt_config\")\n\nrustfmt_config(\n    name = \"rustfmt_cfg\",\n    src = \"custom.toml\",\n)\n",
     );
     let single = run_gazelle(&root, &[]);
     assert!(

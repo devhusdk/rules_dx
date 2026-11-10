@@ -18,7 +18,7 @@
   "pins": [],
   "entry_points": [],
   "quality": {
-    "bzl": "quality:families/pkl.bzl",
+    "bzl": "core/quality:families/pkl.bzl",
     "file_extensions": [
       ".pkl"
     ],

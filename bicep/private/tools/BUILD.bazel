@@ -1,5 +1,5 @@
 load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//bicep:__subpackages__"])
 

@@ -1,7 +1,7 @@
 load("@aspect_rules_js//npm:defs.bzl", "npm_package")
 load("@npm_node_app//:defs.bzl", "npm_link_all_packages")
 load("//typescript:defs.bzl", "typescript_library", "typescript_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"])
 

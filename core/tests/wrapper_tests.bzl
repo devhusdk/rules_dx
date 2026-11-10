@@ -6,7 +6,7 @@ load("//core:wrapper.bzl", "dx_append_flags", "dx_binary_forward_kwargs", "dx_bi
 load("//tools/testing:nested_bazel.bzl", "NESTED_BAZEL_TAGS")
 
 _PARITY_KWARGS = {
-    "aspect_hints": ["//quality:hint"],
+    "aspect_hints": ["//core/quality:hint"],
     "tags": ["cpu:4"],
     "testonly": True,
     "target_compatible_with": ["@platforms//os:linux"],
@@ -377,8 +377,8 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "binary hints ride forwarder",
-                dx_binary_forward_kwargs({"aspect_hints": ["//quality:hint"]}),
-                {"aspect_hints": ["//quality:hint"]},
+                dx_binary_forward_kwargs({"aspect_hints": ["//core/quality:hint"]}),
+                {"aspect_hints": ["//core/quality:hint"]},
             ),
             expect_equal(
                 "binary drops non-forwarded attrs",
@@ -612,8 +612,8 @@ def wrapper_shape_kwargs_tests(name):
             ),
             expect_equal(
                 "test forward rides hints",
-                dx_test_forward_kwargs({"aspect_hints": ["//quality:hint"]}),
-                {"aspect_hints": ["//quality:hint"], "size": "small"},
+                dx_test_forward_kwargs({"aspect_hints": ["//core/quality:hint"]}),
+                {"aspect_hints": ["//core/quality:hint"], "size": "small"},
             ),
             expect_equal(
                 "test forward rides exec_properties",

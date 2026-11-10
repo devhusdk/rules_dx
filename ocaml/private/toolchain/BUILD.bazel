@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("//core:cells.bzl", "cell_settings")
 load("//ocaml/private:dune.bzl", "dx_dune_bootstrap")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "ocaml_metadata_tests")
 load(":pins.bzl", "OCAML_CELLS")
 

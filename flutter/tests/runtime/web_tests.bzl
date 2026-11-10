@@ -1,7 +1,7 @@
 """Analysis test that flutter_web_app owns its sources for quality."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
+load("@rules_dx//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _owns_main_impl(ctx):
     env = analysistest.begin(ctx)

@@ -1,5 +1,5 @@
 load("@rules_dx//dart:defs.bzl", "dart_library", "dart_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 _PUBLIC = ["//visibility:public"]
 

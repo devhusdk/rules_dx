@@ -732,7 +732,6 @@ NOT_LANGUAGES = [
     "families",
     "gazelle",
     "patches",
-    "quality",
     "third_party",
     "tools",
 ]

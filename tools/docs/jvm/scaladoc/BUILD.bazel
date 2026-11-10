@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//scala:defs.bzl", "scala_binary")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS_PUBLIC")
 

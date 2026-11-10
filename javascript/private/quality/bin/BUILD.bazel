@@ -7,7 +7,7 @@ load("@dx_npm_tools//javascript/private/quality:esbuild/package_json.bzl", esbui
 load("@dx_npm_tools//javascript/private/quality:gplint/package_json.bzl", gplint_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:typedoc/package_json.bzl", typedoc_bin = "bin")
 load("@dx_npm_tools//javascript/private/quality:wrangler/package_json.bzl", wrangler_bin = "bin")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//javascript/private/quality:defs.bzl", "js_tool")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -118,7 +118,7 @@ js_binary(
     name = "prettier_generated",
     data = [
         "prettier_ignore",
-        "//quality/tiers/prettier:standard_json",
+        "//core/quality/tiers/prettier:standard_json",
         "//javascript/private/quality:node_modules/@prettier/plugin-php",
         "//javascript/private/quality:node_modules/@prettier/plugin-xml",
         "//javascript/private/quality:node_modules/prettier",

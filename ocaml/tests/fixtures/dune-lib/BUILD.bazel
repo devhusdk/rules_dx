@@ -1,6 +1,6 @@
 load("//ocaml:defs.bzl", "dx_dune_library", "ocaml_module", "ocaml_test")
 load("//ocaml/tests/native:defs.bzl", "sys_cell_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 

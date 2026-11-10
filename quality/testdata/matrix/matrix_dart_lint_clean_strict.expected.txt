@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_dart_lint_clean_strict
-capability LINT
-stages 1
-stage dart classes=dart sources=matrix/dart_tier/main.dart
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

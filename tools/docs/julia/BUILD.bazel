@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_julia//julia:defs.bzl", "julia_binary")
 load("//julia:defs.bzl", "JULIA_COMPATIBLE_WITH")
 load("//julia/private/tools:julia_tool.bzl", "dx_julia_tool")

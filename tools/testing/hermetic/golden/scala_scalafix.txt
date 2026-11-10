@@ -1,6 +1,6 @@
 language scala
 pattern //...
-pattern @my_dx//quality/tools/jvm:scalafix
+pattern @my_dx//core/quality/tools/jvm:scalafix
 file .bazelrc
 file BUILD.bazel
 file app/BUILD.bazel

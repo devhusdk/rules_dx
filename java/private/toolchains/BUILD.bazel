@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_java//java:defs.bzl", "java_package_configuration")
 load("@rules_java//toolchains:default_java_toolchain.bzl", "default_java_toolchain")
 

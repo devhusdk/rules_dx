@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_toolchain")
 load("@rules_dx//cc/private:wrapper_tests.bzl", "cc_external_asan_env_tests", "cc_external_coverage_tests")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//cc/private/toolchains:identity_subject.bzl", "cc_toolchain_identity_subject")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_test")
 load(":custom_gcc_tests.bzl", "custom_gcc_identity_test")

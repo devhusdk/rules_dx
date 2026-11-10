@@ -1,6 +1,6 @@
 """Quality tool rows for the cloudformation family."""
 
-load("//quality:tool_defs.bzl", "config", "row", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "tool")
 
 TOOLS = [
     tool(

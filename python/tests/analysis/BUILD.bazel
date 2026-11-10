@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("//python:defs.bzl", "python_binary", "python_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":coverage_tests.bzl", "instrumented_sources_test")
 load(":runfiles_tests.bzl", "declared_dep_test", "no_click_runfiles_test", "undeclared_dep_test")
 

@@ -5,7 +5,7 @@ const ROOT_BUILD: &str = "BUILD.bazel";
 const EXCLUDE: &str = "# gazelle:exclude ";
 
 /// Root excludes that still hide a dx_crates package.
-const ALLOWED: &[&str] = &["cli/depcheck", "deploy/rules", "quality/tiers"];
+const ALLOWED: &[&str] = &["cli/depcheck", "deploy/rules", "core/quality/tiers"];
 
 fn root_excludes() -> Vec<String> {
     read_runfiles(ROOT_BUILD)

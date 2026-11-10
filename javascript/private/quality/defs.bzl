@@ -11,7 +11,7 @@ generated launcher cannot be used at all.
 """
 
 load("@bazel_lib//lib:directory_path.bzl", "DirectoryPathInfo")
-load("//quality/artifacts:platforms.bzl", "execution_is_windows")
+load("//core/quality/artifacts:platforms.bzl", "execution_is_windows")
 
 _NODE_OPTIONS = ["--preserve-symlinks-main"]
 

@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_terraform_format_module
+capability FORMAT
+stages 1
+stage terraform classes=terraform sources=core/quality/tests/fixtures/consumer_policy/terraform_module/main.tf,core/quality/tests/fixtures/consumer_policy/terraform_module/modules/child/main.tf,core/quality/tests/fixtures/consumer_policy/terraform_module/outputs.tf,core/quality/tests/fixtures/consumer_policy/terraform_module/terraform.tfvars
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

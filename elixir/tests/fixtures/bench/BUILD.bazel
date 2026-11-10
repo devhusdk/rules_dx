@@ -1,6 +1,6 @@
 load("@rules_dx//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_bench")
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files(
     glob(["*.exs"]) + ["BUILD.bazel"],

@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_php_typecheck_strict
+capability TYPECHECK
+stages 1
+stage phpstan classes=php sources=matrix/phpstan_profile_strict.php
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR phpstan phpstan/if.condNotBoolean matrix/phpstan_profile_strict.php 120 120 fixable=false "Only booleans are allowed in an if condition, int given."
+terminal 1
+terminal ERROR phpstan phpstan/if.condNotBoolean matrix/phpstan_profile_strict.php 120 120 fixable=false "Only booleans are allowed in an if condition, int given."
+replacements 0

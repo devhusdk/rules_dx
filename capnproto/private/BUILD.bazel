@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs_tests.bzl", "capnp_library_tests")
 
 package(default_visibility = ["//capnproto:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])

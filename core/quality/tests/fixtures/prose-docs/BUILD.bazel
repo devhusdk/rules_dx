@@ -1,0 +1,97 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:native_config.bzl", "latexindent_config", "vale_config")
+load("@rules_dx//core/quality/private:generated_policy.bzl", "dx_generated_policy")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+_PUBLIC = ["//visibility:public"]
+
+package(default_visibility = _PUBLIC)
+
+exports_files(
+    glob(["*"]) + ["styles/House/Todo.yml"],
+    visibility = [
+        "//tools/testing/hermetic:__pkg__",
+    ],
+)
+
+dx_generated_policy(
+    name = "policy",
+    defaults = False,
+    families = {
+        "asciidoc": {
+            "disabled": [
+                "format",
+                "typecheck",
+            ],
+            "lint": ["vale"],
+        },
+        "latex": {
+            "disabled": ["typecheck"],
+            "format": ["latexindent"],
+            "lint": ["chktex"],
+        },
+        "rst": {
+            "disabled": [
+                "format",
+                "typecheck",
+            ],
+            "lint": ["vale"],
+        },
+        "typst": {
+            "disabled": [
+                "lint",
+                "typecheck",
+            ],
+            "format": ["typstyle"],
+        },
+    },
+    tier = "standard",
+)
+
+vale_config(
+    name = "docs_vale",
+    src = "docs.vale.ini",
+    data = ["styles/House/Todo.yml"],
+)
+
+latexindent_config(
+    name = "docs_latexindent",
+    src = "latexindent.yaml",
+)
+
+sh_test(
+    name = "bundle_test",
+    srcs = ["bundle_test.sh"],
+    data = [
+        "//core/quality/tests/fixtures/prose-docs/guide:pages",
+        "//core/quality/tests/fixtures/prose-docs/handbook:pages",
+        "//core/quality/tests/fixtures/prose-docs/paper:latex",
+        "//core/quality/tests/fixtures/prose-docs/paper:typst",
+    ],
+)
+
+filegroup(
+    name = "files",
+    testonly = True,
+    srcs = glob(["*"]) + [
+        "styles/House/Todo.yml",
+        "//core/quality/tests/fixtures/prose-docs/drafts:files",
+        "//core/quality/tests/fixtures/prose-docs/guide:files",
+        "//core/quality/tests/fixtures/prose-docs/handbook:files",
+        "//core/quality/tests/fixtures/prose-docs/paper:files",
+        "//core/quality/tests/fixtures/prose-docs/shared:files",
+    ],
+    visibility = ["//core/quality/tests:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

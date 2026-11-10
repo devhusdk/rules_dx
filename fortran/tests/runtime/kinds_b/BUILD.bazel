@@ -1,5 +1,5 @@
 load("@rules_dx//fortran:defs.bzl", "fortran_library")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 fortran_library(
     name = "kinds_b",

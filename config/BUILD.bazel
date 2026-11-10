@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag", "string_flag", "string_list_flag")
-load("//quality:default_policy.bzl", "default_workspace_policy")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:policy_subject.bzl", "policy_subject")
+load("//core/quality:default_policy.bzl", "default_workspace_policy")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:policy_subject.bzl", "policy_subject")
 load(":settings_tests.bzl", "exec_settings_tests", "settings_tests", "workspace_policy_tests")
 load(":subject.bzl", "exec_settings_subject", "settings_subject")
 
@@ -88,7 +88,7 @@ label_flag(
 label_flag(
     name = "tool_nixfmt",
     scope = "universal",
-    build_setting_default = "//quality/tools/nixfmt",
+    build_setting_default = "//core/quality/tools/nixfmt",
 )
 
 label_flag(
@@ -226,7 +226,7 @@ label_flag(
 label_flag(
     name = "tool_avro",
     scope = "universal",
-    build_setting_default = "//quality/tools/jvm:avro_tools",
+    build_setting_default = "//core/quality/tools/jvm:avro_tools",
 )
 
 label_flag(

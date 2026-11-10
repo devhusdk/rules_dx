@@ -3,7 +3,7 @@
 load("//core:canonical.bzl", "strip_canonical")
 load("//core:defs.bzl", "DxSubjectInfo", "expect_equal", "starlark_test")
 load("//core:wrapper.bzl", "dx_binary_forward_kwargs", "dx_forwarded_test_kwargs", "dx_merge_run_environment", "dx_symlink_executable_name")
-load("//quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "KNOWN_SEMANTIC_FILE_CLASSES", "QualitySourcesInfo")
 
 def dx_file_class_checks(classes):
     """Builds known-class checks for each file class."""

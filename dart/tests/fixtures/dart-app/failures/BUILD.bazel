@@ -1,5 +1,5 @@
 load("@rules_dx//dart:defs.bzl", "dart_binary")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//dart/tests/fixtures/dart-app:__subpackages__"])
 

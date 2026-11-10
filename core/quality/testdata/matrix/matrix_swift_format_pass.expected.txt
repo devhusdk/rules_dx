@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_swift_format_pass
+capability FORMAT
+stages 1
+stage swift_format classes=swift sources=matrix/swift_clean.swift
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

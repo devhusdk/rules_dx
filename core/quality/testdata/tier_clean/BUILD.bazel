@@ -1,0 +1,67 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//sql:defs.bzl", "sql_library")
+
+package(default_visibility = ["//core/quality/testdata:__pkg__"])
+
+[
+    quality_family(
+        name = "%s_family" % family,
+        disabled = [
+            "audit",
+            "format",
+            "typecheck",
+        ],
+        family_id = family,
+        lint = [tool],
+    )
+    for family, tool in [
+        ("sql", "sqlfluff"),
+        ("starlark", "buildifier"),
+        ("yaml", "yamllint"),
+    ]
+]
+
+workspace_policy(
+    name = "policy",
+    configs = [
+        "//core/quality/tiers/sqlfluff:standard",
+        "//core/quality/tiers/buildifier:standard",
+        "//core/quality/tiers/yamllint:standard",
+    ],
+    families = [
+        ":sql_family",
+        ":starlark_family",
+        ":yaml_family",
+    ],
+)
+
+workspace_policy(
+    name = "strict_policy",
+    configs = [
+        "//core/quality/tiers/sqlfluff:strict",
+        "//core/quality/tiers/buildifier:strict",
+        "//core/quality/tiers/yamllint:strict",
+    ],
+    families = [
+        ":sql_family",
+        ":starlark_family",
+        ":yaml_family",
+    ],
+)
+
+real_source_target(
+    name = "yaml",
+    yaml_srcs = ["clean.yaml"],
+)
+
+real_source_target(
+    name = "starlark",
+    starlark_srcs = ["clean.bzl"],
+)
+
+sql_library(
+    name = "sql",
+    srcs = ["clean.sql"],
+    dialect = "sqlite",
+)

@@ -52,7 +52,7 @@ func corpusKinds() map[string]rule.KindInfo {
 
 func corpusLoads(rulesRepo string) rule.LoadInfo {
 	return rule.LoadInfo{
-		Name:    "@" + rulesRepo + "//quality:fixtures.bzl",
+		Name:    "@" + rulesRepo + "//core/quality:fixtures.bzl",
 		Symbols: []string{"real_source_target"},
 	}
 }

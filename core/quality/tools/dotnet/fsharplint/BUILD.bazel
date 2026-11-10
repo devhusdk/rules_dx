@@ -1,0 +1,38 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_dotnet//dotnet:defs.bzl", "fsharp_binary")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//third_party/dotnet:framework.bzl", "DOTNET_TOOL_FRAMEWORK", "framework_pinned")
+
+package(default_visibility = ["//:__subpackages__"])
+
+fsharp_binary(
+    name = "runner",
+    srcs = ["Program.fs"],
+    target_frameworks = [DOTNET_TOOL_FRAMEWORK],
+    visibility = ["//visibility:public"],
+    deps = [
+        "@paket.fsharplint//fsharp.compiler.service",
+        "@paket.fsharplint//fsharp.core",
+        "@paket.fsharplint//fsharplint.core",
+    ],
+)
+
+framework_pinned(
+    name = "runner_pinned",
+    actual = ":runner",
+)
+
+sh_binary(
+    name = "fsharplint",
+    srcs = ["fsharplint.sh"],
+    data = [":runner_pinned"],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)

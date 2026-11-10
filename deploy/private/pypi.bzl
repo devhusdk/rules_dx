@@ -63,7 +63,7 @@ _pypi_config = rule(
             doc = "Workspace-relative source directory griffe reads at the git baseline.",
         ),
         "_griffe": attr.label(
-            default = Label("//quality/tools/python:griffe_check"),
+            default = Label("//core/quality/tools/python:griffe_check"),
             executable = True,
             cfg = "exec",
         ),

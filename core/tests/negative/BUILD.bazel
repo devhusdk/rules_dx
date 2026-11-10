@@ -1,5 +1,5 @@
 load("//core/tests:subject.bzl", "example_subject")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":negative_tests.bzl", "failing_check_demo", "missing_fragment_demo", "missing_observation_demo", "red_failing_checks", "red_missing_fragment", "red_missing_observation", "wrong_phase_demo")
 
 exports_files(["negative_tests.bzl"])

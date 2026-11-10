@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":cc_toolchain_config.bzl", "ndk_cc_toolchain_config")
 load(":metadata_tests.bzl", "android_toolchain_tests")
 

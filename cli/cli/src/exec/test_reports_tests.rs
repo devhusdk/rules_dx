@@ -404,7 +404,7 @@ fn coverage_min_coverage_counts_d_sources() {
     assert!(err.contains("1/2 lines"), "{err}");
 }
 
-const SOURCES_ASPECT: &str = "//quality:coverage_sources.bzl%dx_coverage_sources_aspect";
+const SOURCES_ASPECT: &str = "//core/quality:coverage_sources.bzl%dx_coverage_sources_aspect";
 
 const PY_SOURCES: &str = "v1 cell linux_x86_64\nprod source src/a.py\n";
 

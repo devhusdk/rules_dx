@@ -1,0 +1,12 @@
+load("//scala:defs.bzl", "scala_library")
+
+package(default_visibility = ["//core/quality:__subpackages__"])
+
+exports_files(["Strict.scala"])
+
+# Compiled bytecode with bundled semanticdb the scalafix profile matrix cases analyse.
+scala_library(
+    name = "strict",
+    srcs = ["Strict.scala"],
+    tags = ["manual"],
+)

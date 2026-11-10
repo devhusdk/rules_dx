@@ -1,7 +1,7 @@
 """Module extension that restores Bicep registry modules pinned by manifest digest."""
 
 load("//bicep/private:registry.bzl", "bicep_registry_repo", "registry_errors")
-load("//quality/artifacts:bicep.bzl", "ARTIFACTS")
+load("//core/quality/artifacts:bicep.bzl", "ARTIFACTS")
 
 def _clis():
     return {key: Label("@dx_bicep_%s//:%s" % (key, art["executable"])) for key, art in ARTIFACTS.items()}

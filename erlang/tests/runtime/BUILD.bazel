@@ -6,14 +6,14 @@ load("@rules_dx//erlang/private/toolchain:pins.bzl", "OTP_VERSION")
 
 exports_files(
     ["src/dx_runtime_probe.erl"],
-    visibility = ["@rules_dx//quality/tests:__pkg__"],
+    visibility = ["@rules_dx//core/quality/tests:__pkg__"],
 )
 
 erlang_app(
     app_name = "dx_runtime_probe",
     app_version = "1.0.0",
     target_compatible_with = ERLANG_COMPATIBLE_WITH,
-    visibility = ["@rules_dx//quality/testdata:__pkg__"],
+    visibility = ["@rules_dx//core/quality/testdata:__pkg__"],
 )
 
 erlang_test_app(

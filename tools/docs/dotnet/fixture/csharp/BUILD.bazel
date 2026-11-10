@@ -1,5 +1,5 @@
 load("@rules_dotnet//dotnet:defs.bzl", "csharp_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/docs/dotnet:defs.bzl", "csharp_doc_shard")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 

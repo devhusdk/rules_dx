@@ -1,5 +1,5 @@
 load("@rules_dx//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 
 # gazelle:resolve kotlin grades.BuildInfo //kotlin/tests/fixtures/kotlin-app/grades

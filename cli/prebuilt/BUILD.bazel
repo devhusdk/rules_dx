@@ -1,5 +1,5 @@
 load("//core:failure_test.bzl", "failure_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":fail.bzl", "dx_unavailable")
 load(":hub.bzl", "unsupported_message")
 load(":hub_tests.bzl", "dx_prebuilt_hub_tests")

@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//go:defs.bzl", "go_library")
-load("//quality:native_config.bzl", "staticcheck_config")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:native_config.bzl", "staticcheck_config")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,
@@ -44,13 +44,13 @@ real_source_target(
 
 copy_file(
     name = "standard_conf",
-    src = "//quality/tiers/staticcheck:standard.conf",
+    src = "//core/quality/tiers/staticcheck:standard.conf",
     out = "standard/staticcheck.conf",
 )
 
 copy_file(
     name = "strict_conf",
-    src = "//quality/tiers/staticcheck:strict.conf",
+    src = "//core/quality/tiers/staticcheck:strict.conf",
     out = "strict/staticcheck.conf",
 )
 

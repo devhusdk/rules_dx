@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_text_lint_fail
+capability LINT
+stages 1
+stage keep_sorted classes=text sources=matrix/keep_sorted_dirty.txt
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING keep_sorted - matrix/keep_sorted_dirty.txt 20 20 fixable=true "These lines are out of order."
+terminal 0
+replacements 1
+replacement matrix/keep_sorted_dirty.txt 20 25 "a\nb\nc"

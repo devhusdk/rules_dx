@@ -1,6 +1,6 @@
 load("@gazelle//:def.bzl", "gazelle_generation_test")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -57,12 +57,12 @@ go_test(
     ],
     data = [
         "//cuda/private:defs.bzl",
-        "//quality:sources.bzl",
+        "//core/quality:sources.bzl",
     ],
     embed = [":cc"],
     env = {
         "CUDA_DEFS_BZL": "$(rlocationpath //cuda/private:defs.bzl)",
-        "QUALITY_SOURCES_BZL": "$(rlocationpath //quality:sources.bzl)",
+        "QUALITY_SOURCES_BZL": "$(rlocationpath //core/quality:sources.bzl)",
     },
     pure = "on",
     deps = ["@com_github_bazelbuild_buildtools//build"],

@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_cloudformation_template_prettier_pass
+capability FORMAT
+stages 1
+stage prettier classes=cloudformation sources=matrix/cloudformation_template_pass.template
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

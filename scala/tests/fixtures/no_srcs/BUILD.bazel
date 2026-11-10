@@ -1,5 +1,5 @@
 load("@rules_dx//core/tests:direct_sources.bzl", "dx_direct_sources_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//scala:defs.bzl", "scala_library")
 
 package(

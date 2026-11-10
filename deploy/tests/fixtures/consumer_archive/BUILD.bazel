@@ -4,7 +4,7 @@ load("//deploy/private:native_runtime.bzl", "dx_native_runtime")
 load("//deploy/private:resources.bzl", "dx_resources")
 load("//core:defs.bzl", "starlark_test")
 load("//core:failure_test.bzl", "failure_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(

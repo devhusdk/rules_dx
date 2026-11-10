@@ -9,7 +9,7 @@ load(
     "lua_executable_name",
     "module_name",
 )
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "LUA_ENTRY_SUFFIX", "lua_library")
 
 package(default_visibility = ["//lua:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])

@@ -62,7 +62,7 @@ advisory = "GHSA-g6cj-pr64-35w5"
 package = "cryptography"
 set = "dx_pypi-python"
 versions = "=49.0.0"
-reason = "Pinned only in quality/tools/python/uv.lock, a lint-time tool environment that is not shipped; the fix needs cryptography 50."
+reason = "Pinned only in core/quality/tools/python/uv.lock, a lint-time tool environment that is not shipped; the fix needs cryptography 50."
 expires = "2027-01-28"
 
 [[exception]]
@@ -70,7 +70,7 @@ advisory = "PYSEC-2026-3552"
 package = "cryptography"
 set = "dx_pypi-python"
 versions = "=49.0.0"
-reason = "Same finding as GHSA-g6cj-pr64-35w5; quality/tools/python/uv.lock is a lint-time tool environment that is not shipped."
+reason = "Same finding as GHSA-g6cj-pr64-35w5; core/quality/tools/python/uv.lock is a lint-time tool environment that is not shipped."
 expires = "2027-01-28"
 
 [[exception]]

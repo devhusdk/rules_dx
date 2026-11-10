@@ -27,7 +27,7 @@ takes the last output line as the artifact path, joins an `external/` path with 
 output, which must be built first) with `bazel info execution_root`, \
 refuses a missing file, and appends VAR=path to the GitHub environment file so later \
 steps read the hermetic tool without host parsing.\n\n--label LABEL names the tool \
-(e.g. @rules_dx//quality/artifacts:gitleaks); --var NAME names the exported variable (e.g. \
+(e.g. @rules_dx//core/quality/artifacts:gitleaks); --var NAME names the exported variable (e.g. \
 DX_GITLEAKS_BIN); --bazel PATH selects the Bazel binary (default bazel); \
 --workspace DIR runs the inner Bazel commands there (default \
 BUILD_WORKSPACE_DIRECTORY, the `bazel run` invocation root, else the current \

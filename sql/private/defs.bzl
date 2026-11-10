@@ -1,7 +1,7 @@
 """SQL source ownership for dx quality."""
 
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "SQL_DIALECTS", "SqlDialectInfo", "sql_dialect_error")
 
 _EXTENSIONS = ["sql"]

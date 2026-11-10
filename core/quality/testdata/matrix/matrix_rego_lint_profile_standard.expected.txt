@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_rego_lint_profile_standard
+capability LINT
+stages 1
+stage regal classes=rego sources=matrix/regal_profile_standard/policy.rego
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

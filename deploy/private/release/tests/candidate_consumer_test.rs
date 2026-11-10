@@ -11,7 +11,7 @@ use dx_testing::{Run, mkscratch, resolve_runfiles, rules_dx_source};
 
 const VERSION: &str = "1.2.3-rc1";
 
-const BUILD: &str = r#"load("@my_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
+const BUILD: &str = r#"load("@my_dx//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 load("@my_dx//rust:defs.bzl", "rust_binary", "rust_test")
 
 rust_binary(

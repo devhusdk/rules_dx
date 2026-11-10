@@ -1396,7 +1396,7 @@ fn host_names_this_machine() {
 
 #[test]
 fn consumer_build_keeps_targets_and_drops_repository_only_statements() {
-    let original = "load(\"@rules_dx//cc:defs.bzl\", \"cc_test\")\nload(\"//quality:fixtures.bzl\", \"real_source_target\")\n\npackage(default_visibility = [\"//:__subpackages__\"])\n\nexports_files(\n    [\"a.cc\"],\n    visibility = [\"//x:__pkg__\"],\n)\n\ncc_test(\n    name = \"t\",\n    srcs = [\"a.cc\"],\n    visibility = [\"//:__subpackages__\"],\n)\n\nreal_source_target(\n    name = \"corpus_starlark\",\n    starlark_srcs = [\"BUILD.bazel\"],\n)\n";
+    let original = "load(\"@rules_dx//cc:defs.bzl\", \"cc_test\")\nload(\"//core/quality:fixtures.bzl\", \"real_source_target\")\n\npackage(default_visibility = [\"//:__subpackages__\"])\n\nexports_files(\n    [\"a.cc\"],\n    visibility = [\"//x:__pkg__\"],\n)\n\ncc_test(\n    name = \"t\",\n    srcs = [\"a.cc\"],\n    visibility = [\"//:__subpackages__\"],\n)\n\nreal_source_target(\n    name = \"corpus_starlark\",\n    starlark_srcs = [\"BUILD.bazel\"],\n)\n";
     assert_eq!(
         consumer_build(original, "my_dx"),
         "load(\"@my_dx//cc:defs.bzl\", \"cc_test\")\n\ncc_test(\n    name = \"t\",\n    srcs = [\"a.cc\"],\n)\n"

@@ -1,6 +1,6 @@
 load("@rules_dx//kotlin:defs.bzl", "kotlin_bench")
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 

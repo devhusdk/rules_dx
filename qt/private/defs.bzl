@@ -21,7 +21,7 @@ load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_covera
 load("//cc/private:defs.bzl", "CC_COVERAGE_TRANSITION", "CcCoverageProbeInfo", "cc_coverage_mismatch", "cc_coverage_unsupported")
 load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain")
 load("//qt/private/sdk:pins.bzl", "RUNTIME_PLUGINS")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":providers.bzl", "QtInfo")
 load(":bundle.bzl", _QT_CONF = "QT_CONF", _qt_bundle = "qt_bundle", _qt_bundle_members = "qt_bundle_members", _qt_os_supplied_libraries = "qt_os_supplied_libraries", _qt_runtime_members = "qt_runtime_members")
 load(":cells.bzl", _QT_BUNDLE_COMPATIBLE_WITH = "QT_BUNDLE_COMPATIBLE_WITH", _QT_COMPATIBLE_WITH = "QT_COMPATIBLE_WITH", _QT_CONSUMER_MIN_RUNTIME = "QT_CONSUMER_MIN_RUNTIME", _QT_CONSUMER_RUNTIME = "QT_CONSUMER_RUNTIME", _qt_consumer_identity = "qt_consumer_identity")

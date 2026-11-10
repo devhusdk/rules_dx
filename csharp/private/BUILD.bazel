@@ -1,6 +1,6 @@
 load("@rules_dx//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("@rules_dx//core:defs.bzl", "expect_equal")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 load(":proto.bzl", "pascal_case")
 

@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_dockerfile_lint_style_strict
+capability LINT
+stages 1
+stage hadolint classes=dockerfile sources=matrix/hadolint_style/Dockerfile
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING hadolint DL3059 matrix/hadolint_style/Dockerfile 28 28 fixable=false "Multiple consecutive `RUN` instructions. Consider consolidation."
+terminal 1
+terminal WARNING hadolint DL3059 matrix/hadolint_style/Dockerfile 28 28 fixable=false "Multiple consecutive `RUN` instructions. Consider consolidation."
+replacements 0

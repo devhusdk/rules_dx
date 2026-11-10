@@ -5,7 +5,7 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//qt/private/sdk:pins.bzl", "CELLS", "IDENTITIES")
 load("//qt/private/sdk:repos.bzl", "qualified_cells")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "QT_SOURCE_SPECS", "qt_os_supplied_libraries")
 
 package(default_visibility = ["//qt:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])

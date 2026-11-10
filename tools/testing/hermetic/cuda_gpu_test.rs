@@ -80,7 +80,7 @@ fn gpu_test_runs_on_the_device_through_a_nested_consumer() {
 fn consumer_gpu_build(build: &str) -> String {
     let build = build
         .lines()
-        .filter(|line| !line.contains("//quality:fixtures.bzl"))
+        .filter(|line| !line.contains("//core/quality:fixtures.bzl"))
         .collect::<Vec<_>>()
         .join("\n");
     let kept: Vec<&str> = build
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn the_consumer_gpu_build_drops_the_corpus_rule() {
-        let build = "load(\"a\", \"b\")\nload(\"@rules_dx//quality:fixtures.bzl\", \"real_source_target\")\n\nx()\n\nreal_source_target(\n    name = \"c\",\n)\n";
+        let build = "load(\"a\", \"b\")\nload(\"@rules_dx//core/quality:fixtures.bzl\", \"real_source_target\")\n\nx()\n\nreal_source_target(\n    name = \"c\",\n)\n";
         assert_eq!(consumer_gpu_build(build), "load(\"a\", \"b\")\n\nx()\n");
     }
 

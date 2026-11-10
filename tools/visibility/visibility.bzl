@@ -10,7 +10,7 @@ VIS_CLI = [
 
 VIS_CLI_DEPLOY_QUALITY = VIS_CLI + [
     "//deploy:__subpackages__",
-    "//quality:__subpackages__",
+    "//core/quality:__subpackages__",
 ]
 
 VIS_CLI_DEPLOY_QUALITY_TOOLS = VIS_CLI_DEPLOY_QUALITY + ["//tools:__subpackages__"]
@@ -18,14 +18,14 @@ VIS_CLI_DEPLOY_QUALITY_TOOLS = VIS_CLI_DEPLOY_QUALITY + ["//tools:__subpackages_
 VIS_CLI_DEPLOY_GENERATION_QUALITY = VIS_CLI + [
     "//deploy:__subpackages__",
     "//core/codegen:__subpackages__",
-    "//quality:__subpackages__",
+    "//core/quality:__subpackages__",
 ]
 
 VIS_CLI_DEPLOY_ENV_GENERATION_QUALITY = VIS_CLI + [
     "//deploy:__subpackages__",
     "//env:__subpackages__",
     "//core/codegen:__subpackages__",
-    "//quality:__subpackages__",
+    "//core/quality:__subpackages__",
 ]
 
 VIS_CLI_TOOLS = VIS_CLI + [
@@ -35,14 +35,14 @@ VIS_CLI_TOOLS = VIS_CLI + [
 VIS_CLI_ENV_GENERATION_QUALITY = VIS_CLI + [
     "//env:__subpackages__",
     "//core/codegen:__subpackages__",
-    "//quality:__subpackages__",
+    "//core/quality:__subpackages__",
 ]
 
 VIS_CLI_WIDE = VIS_CLI + [
     "//tools/docs:__subpackages__",
     "//env:__subpackages__",
     "//core/codegen:__subpackages__",
-    "//quality:__subpackages__",
+    "//core/quality:__subpackages__",
 ]
 
 VIS_CLI_PLATFORM = VIS_CLI_WIDE + [
@@ -53,7 +53,7 @@ VIS_CLI_PLATFORM = VIS_CLI_WIDE + [
 VIS_CLI_DOCS_GENERATION_QUALITY = VIS_CLI + [
     "//tools/docs:__subpackages__",
     "//core/codegen:__subpackages__",
-    "//quality:__subpackages__",
+    "//core/quality:__subpackages__",
 ]
 
 VIS_ENV_SHARD = VIS_CLI + [
@@ -71,8 +71,8 @@ VIS_CLI_GENERATION = VIS_CLI + [
 ]
 
 VIS_QUALITY = [
-    "//quality:__pkg__",
-    "//quality:__subpackages__",
+    "//core/quality:__pkg__",
+    "//core/quality:__subpackages__",
 ]
 
 VIS_QUALITY_ENV = [

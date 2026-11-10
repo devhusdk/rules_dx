@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("//cuda/private/toolchain:check.bzl", "CudaLicenseInfo", "component_errors")
 load("//core:wrapper.bzl", "dx_preserved_providers")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _library_paths(cc_info):
     paths = [f.path for f in cc_info.compilation_context.headers.to_list()]

@@ -1,0 +1,67 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("//core/quality:native_config.bzl", "eslint_config")
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//typescript:defs.bzl", "typescript_library")
+
+package(default_visibility = ["//core/quality/testdata:__pkg__"])
+
+quality_family(
+    name = "ts_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "typescript",
+    lint = ["eslint"],
+)
+
+workspace_policy(
+    name = "ts_policy",
+    families = [":ts_family"],
+)
+
+copy_file(
+    name = "standard_base",
+    src = "//core/quality/tiers/tsconfig:standard.json",
+    out = ".dx/config/tsconfig/standard.json",
+)
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    deps = [":standard_base"],
+)
+
+copy_file(
+    name = "eslint_profile",
+    src = "//core/quality/tiers/eslint:standard.mjs",
+    out = ".dx/config/eslint/standard.mjs",
+)
+
+copy_file(
+    name = "eslint_frameworks",
+    src = "//core/quality/tiers/eslint:frameworks.mjs",
+    out = ".dx/config/eslint/frameworks.mjs",
+)
+
+eslint_config(
+    name = "eslint",
+    src = "eslint.config.mjs",
+    allow_generated = True,
+    data = [
+        ":eslint_frameworks",
+        ":eslint_profile",
+    ],
+)
+
+typescript_library(
+    name = "app",
+    srcs = ["app.ts"],
+    aspect_hints = [":eslint"],
+    isolated_typecheck = False,
+    tags = ["corpus"],
+    transpiler = "tsc",
+    tsconfig = ":tsconfig",
+    deps = ["//core/quality/testdata/eslint_typed_owned/dep"],
+)

@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "starlark_test")
 load("//core:tag_probe.bzl", "tag_subject")
 load("//qt:defs.bzl", "qt_cc_binary", "qt_cc_library", "qt_cc_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 _LINUX = select({
     "@platforms//cpu:arm64": ["@platforms//os:linux"],

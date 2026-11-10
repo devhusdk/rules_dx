@@ -1,6 +1,6 @@
 load("@rules_dx//perl:defs.bzl", "perl_test")
 load("@rules_dx//perl/private:wrapper_tests.bzl", "perl_coverage_env_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 

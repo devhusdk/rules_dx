@@ -1,0 +1,13 @@
+producer //core/quality/testdata:matrix_lua_selene_strict
+capability LINT
+stages 1
+stage selene classes=lua sources=matrix/selene_profile.lua
+completed_rounds 1
+convergence STABLE
+initial 2
+initial WARNING selene unused_variable matrix/selene_profile.lua 6 12 fixable=false "unused is assigned a value, but never used"
+initial WARNING selene parenthese_conditions matrix/selene_profile.lua 56 67 fixable=false "lua does not require parentheses around conditions"
+terminal 2
+terminal WARNING selene unused_variable matrix/selene_profile.lua 6 12 fixable=false "unused is assigned a value, but never used"
+terminal WARNING selene parenthese_conditions matrix/selene_profile.lua 56 67 fixable=false "lua does not require parentheses around conditions"
+replacements 0

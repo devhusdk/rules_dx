@@ -30,8 +30,8 @@ go_binary(
 go_test(
     name = "dx_staticcheck_test",
     srcs = ["checks_test.go"],
-    data = ["//quality/tiers/staticcheck:standard.conf"],
+    data = ["//core/quality/tiers/staticcheck:standard.conf"],
     embed = [":dx_staticcheck_lib"],
-    env = {"STANDARD_CONF": "$(rootpath //quality/tiers/staticcheck:standard.conf)"},
+    env = {"STANDARD_CONF": "$(rootpath //core/quality/tiers/staticcheck:standard.conf)"},
     deps = ["@org_golang_x_tools//go/analysis"],
 )

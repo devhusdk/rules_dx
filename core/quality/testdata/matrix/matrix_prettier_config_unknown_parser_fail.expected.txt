@@ -1,0 +1,1 @@
+pipeline failed: invalid tool output for prettier: prettier output is outside the pinned grammar: error without a file: "Couldn't resolve parser \"nope\"." (config core/quality/testdata/prettier_cfg/unknown_parser.json): [error] Couldn't resolve parser "nope".

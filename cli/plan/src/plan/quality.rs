@@ -728,19 +728,19 @@ mod tests {
         assert_eq!(
             select_aspects(lint.aspects.to_vec(), Some(&rust)),
             vec![
-                "quality:families/core.bzl%real_lint_aspect",
+                "core/quality:families/core.bzl%real_lint_aspect",
                 "rust/private/quality:rust.bzl%real_rust_lint_aspect",
             ]
         );
         let unknown: BTreeSet<String> = ["real_nonexistent_lint".to_owned()].into();
         assert_eq!(
             select_aspects(lint.aspects.to_vec(), Some(&unknown)),
-            vec!["quality:families/core.bzl%real_lint_aspect"]
+            vec!["core/quality:families/core.bzl%real_lint_aspect"]
         );
         let format = spec(Command::Format);
         assert_eq!(
             select_aspects(format.aspects.to_vec(), Some(&BTreeSet::new())),
-            vec!["quality:families/core.bzl%real_format_aspect"]
+            vec!["core/quality:families/core.bzl%real_format_aspect"]
         );
     }
 
@@ -783,7 +783,7 @@ mod tests {
         )
         .expect("plan");
         assert!(plan.argv.contains(
-            &"--aspects=@rules_dx//quality:families/core.bzl%real_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect".to_owned()
+            &"--aspects=@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect".to_owned()
         ));
     }
 
@@ -881,7 +881,7 @@ mod tests {
                 "--jobs=4",
                 "--@rules_dx//config:clippy_output_diagnostics=true",
                 "--@rules_dx//config:rustc_output_diagnostics=true",
-                "--aspects=@rules_dx//dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect,@rules_dx//quality:families/oci_image.bzl%real_oci_image_lint_aspect,@rules_dx//quality:families/make.bzl%real_make_lint_aspect,@rules_dx//quality:families/cmake.bzl%real_cmake_lint_aspect,@rules_dx//quality:families/core.bzl%real_lint_aspect,@rules_dx//quality:families/shell.bzl%real_shell_lint_aspect,@rules_dx//quality:families/text.bzl%real_text_lint_aspect,@rules_dx//quality:families/html_template.bzl%real_html_template_lint_aspect,@rules_dx//quality:families/yaml.bzl%real_yaml_lint_aspect,@rules_dx//quality:families/nix.bzl%real_nix_lint_aspect,@rules_dx//kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect,@rules_dx//ansible/private/quality:ansible.bzl%real_ansible_lint_aspect,@rules_dx//cloudformation/private/quality:cloudformation.bzl%real_cloudformation_lint_aspect,@rules_dx//quality:families/jsonnet.bzl%real_jsonnet_lint_aspect,@rules_dx//quality:families/typst.bzl%real_typst_lint_aspect,@rules_dx//quality:families/xml.bzl%real_xml_lint_aspect,@rules_dx//quality:families/latex.bzl%real_latex_lint_aspect,@rules_dx//javascript/private/quality:js.bzl%real_js_lint_aspect,@rules_dx//quality:families/beam.bzl%real_elixir_lint_aspect,@rules_dx//quality:families/beam.bzl%real_erlang_lint_aspect,@rules_dx//quality:families/cc.bzl%real_cc_lint_aspect,@rules_dx//quality:families/d.bzl%real_d_lint_aspect,@rules_dx//quality:families/dart.bzl%real_dart_lint_aspect,@rules_dx//quality:families/dotnet.bzl%real_dotnet_lint_aspect,@rules_dx//quality:families/fortran.bzl%real_fortran_lint_aspect,@rules_dx//quality:families/generation.bzl%real_protobuf_lint_aspect,@rules_dx//quality:families/generation.bzl%real_avro_lint_aspect,@rules_dx//quality:families/generation.bzl%real_capnp_lint_aspect,@rules_dx//quality:families/generation.bzl%real_flatbuffers_lint_aspect,@rules_dx//quality:families/generation.bzl%real_thrift_lint_aspect,@rules_dx//quality:families/go.bzl%real_go_lint_aspect,@rules_dx//quality:families/haskell.bzl%real_haskell_lint_aspect,@rules_dx//quality:families/julia.bzl%real_julia_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_jvm_lint_aspect,@rules_dx//quality:families/jvm.bzl%real_scala_lint_aspect,@rules_dx//quality:families/lua.bzl%real_lua_lint_aspect,@rules_dx//quality:families/ocaml.bzl%real_ocaml_lint_aspect,@rules_dx//quality:families/perl.bzl%real_perl_lint_aspect,@rules_dx//quality:families/php.bzl%real_php_lint_aspect,@rules_dx//quality:families/pkl.bzl%real_pkl_lint_aspect,@rules_dx//quality:families/powershell.bzl%real_powershell_lint_aspect,@rules_dx//quality:families/python.bzl%real_python_lint_aspect,@rules_dx//quality:families/ruby.bzl%real_ruby_lint_aspect,@rules_dx//quality:families/swift.bzl%real_swift_lint_aspect,@rules_dx//quality:families/zig.bzl%real_zig_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect",
+                "--aspects=@rules_dx//dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect,@rules_dx//core/quality:families/oci_image.bzl%real_oci_image_lint_aspect,@rules_dx//core/quality:families/make.bzl%real_make_lint_aspect,@rules_dx//core/quality:families/cmake.bzl%real_cmake_lint_aspect,@rules_dx//core/quality:families/core.bzl%real_lint_aspect,@rules_dx//core/quality:families/shell.bzl%real_shell_lint_aspect,@rules_dx//core/quality:families/text.bzl%real_text_lint_aspect,@rules_dx//core/quality:families/html_template.bzl%real_html_template_lint_aspect,@rules_dx//core/quality:families/yaml.bzl%real_yaml_lint_aspect,@rules_dx//core/quality:families/nix.bzl%real_nix_lint_aspect,@rules_dx//kubernetes/private/quality:kubernetes.bzl%real_kubernetes_lint_aspect,@rules_dx//ansible/private/quality:ansible.bzl%real_ansible_lint_aspect,@rules_dx//cloudformation/private/quality:cloudformation.bzl%real_cloudformation_lint_aspect,@rules_dx//core/quality:families/jsonnet.bzl%real_jsonnet_lint_aspect,@rules_dx//core/quality:families/typst.bzl%real_typst_lint_aspect,@rules_dx//core/quality:families/xml.bzl%real_xml_lint_aspect,@rules_dx//core/quality:families/latex.bzl%real_latex_lint_aspect,@rules_dx//core/quality:families/beam.bzl%real_elixir_lint_aspect,@rules_dx//core/quality:families/beam.bzl%real_erlang_lint_aspect,@rules_dx//core/quality:families/cc.bzl%real_cc_lint_aspect,@rules_dx//core/quality:families/d.bzl%real_d_lint_aspect,@rules_dx//core/quality:families/dart.bzl%real_dart_lint_aspect,@rules_dx//core/quality:families/dotnet.bzl%real_dotnet_lint_aspect,@rules_dx//core/quality:families/fortran.bzl%real_fortran_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_protobuf_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_avro_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_capnp_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_flatbuffers_lint_aspect,@rules_dx//core/quality:families/generation.bzl%real_thrift_lint_aspect,@rules_dx//core/quality:families/go.bzl%real_go_lint_aspect,@rules_dx//core/quality:families/haskell.bzl%real_haskell_lint_aspect,@rules_dx//core/quality:families/julia.bzl%real_julia_lint_aspect,@rules_dx//core/quality:families/jvm.bzl%real_jvm_lint_aspect,@rules_dx//core/quality:families/jvm.bzl%real_scala_lint_aspect,@rules_dx//core/quality:families/lua.bzl%real_lua_lint_aspect,@rules_dx//core/quality:families/ocaml.bzl%real_ocaml_lint_aspect,@rules_dx//core/quality:families/perl.bzl%real_perl_lint_aspect,@rules_dx//core/quality:families/php.bzl%real_php_lint_aspect,@rules_dx//core/quality:families/pkl.bzl%real_pkl_lint_aspect,@rules_dx//core/quality:families/powershell.bzl%real_powershell_lint_aspect,@rules_dx//core/quality:families/python.bzl%real_python_lint_aspect,@rules_dx//core/quality:families/ruby.bzl%real_ruby_lint_aspect,@rules_dx//core/quality:families/swift.bzl%real_swift_lint_aspect,@rules_dx//core/quality:families/zig.bzl%real_zig_lint_aspect,@rules_dx//javascript/private/quality:js.bzl%real_js_lint_aspect,@rules_dx//rust/private/quality:rust.bzl%real_rust_lint_aspect",
                 "--output_groups=dx_results,dx_skips",
                 "--remote_download_outputs=toplevel",
             ]
@@ -1002,22 +1002,22 @@ mod tests {
         .expect("plan");
         assert!(
             plan.argv.iter().any(|arg| arg
-                .contains("@rules_dx//quality:families/core.bzl%real_typecheck_aspect")
+                .contains("@rules_dx//core/quality:families/core.bzl%real_typecheck_aspect")
                 && arg.contains("@rules_dx//rust/private/quality:rust.bzl%real_rust_typecheck_aspect")
                 && arg.contains(
-                    "@rules_dx//quality:families/dotnet.bzl%real_dotnet_typecheck_aspect"
+                    "@rules_dx//core/quality:families/dotnet.bzl%real_dotnet_typecheck_aspect"
                 )
                 && arg.contains("@rules_dx//javascript/private/quality:js.bzl%real_js_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:families/jvm.bzl%real_jvm_typecheck_aspect")
-                && arg.contains("@rules_dx//quality:families/d.bzl%real_d_typecheck_aspect")
+                && arg.contains("@rules_dx//core/quality:families/jvm.bzl%real_jvm_typecheck_aspect")
+                && arg.contains("@rules_dx//core/quality:families/d.bzl%real_d_typecheck_aspect")
                 && arg.contains(
-                    "@rules_dx//quality:families/fortran.bzl%real_fortran_typecheck_aspect"
+                    "@rules_dx//core/quality:families/fortran.bzl%real_fortran_typecheck_aspect"
                 )
-                && arg.contains("@rules_dx//quality:families/zig.bzl%real_zig_typecheck_aspect")
+                && arg.contains("@rules_dx//core/quality:families/zig.bzl%real_zig_typecheck_aspect")
                 && arg
-                    .contains("@rules_dx//quality:families/ocaml.bzl%real_ocaml_typecheck_aspect")
+                    .contains("@rules_dx//core/quality:families/ocaml.bzl%real_ocaml_typecheck_aspect")
                 && arg.contains(
-                    "@rules_dx//quality:families/haskell.bzl%real_haskell_typecheck_aspect"
+                    "@rules_dx//core/quality:families/haskell.bzl%real_haskell_typecheck_aspect"
                 )),
             "typecheck selects the real typecheck aspects: {plan:?}"
         );

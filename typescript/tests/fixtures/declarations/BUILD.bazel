@@ -2,7 +2,7 @@
 # gazelle:dx_ignore_import typescript bindings
 # gazelle:dx_ignore_import typescript greeting
 # gazelle:dx_ignore_import typescript widget
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load("//typescript:defs.bzl", "typescript_binary", "typescript_library")
 

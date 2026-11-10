@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_php_typecheck_pass
+capability TYPECHECK
+stages 1
+stage phpstan classes=php sources=matrix/phpstan_clean.php
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

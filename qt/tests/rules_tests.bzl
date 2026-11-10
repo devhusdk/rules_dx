@@ -7,7 +7,7 @@ load("//qt:defs.bzl", "QT_BUNDLE_COMPATIBLE_WITH", "QT_BUNDLE_MACOS_RUNPATH", "Q
 load("//qt/private:providers.bzl", "QtInfo")
 load("//qt/private:validate.bzl", "qt_uri_error")
 load("//qt/private/sdk:pins.bzl", "CELLS")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 _LINUX = select({
     "@platforms//cpu:arm64": ["@platforms//os:linux"],

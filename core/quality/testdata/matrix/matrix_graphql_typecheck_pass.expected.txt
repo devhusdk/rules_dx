@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_graphql_typecheck_pass
+capability TYPECHECK
+stages 1
+stage graphql_eslint classes=graphql sources=matrix/graphql_typecheck_pass.graphql
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

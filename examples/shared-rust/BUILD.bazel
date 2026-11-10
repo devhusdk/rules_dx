@@ -4,7 +4,7 @@ load("//deploy:defs.bzl", "archive_deploy")
 load("//javascript:defs.bzl", "javascript_web_app")
 load("//core:failure_test.bzl", "failure_test")
 load("//cli/web_server:server.bzl", "javascript_web_server")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_static_library", "rust_test")
 load(":release.bzl", "release_artifact")
 

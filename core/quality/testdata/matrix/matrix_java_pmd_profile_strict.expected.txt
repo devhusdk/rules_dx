@@ -1,0 +1,17 @@
+producer //core/quality/testdata:matrix_java_pmd_profile_strict
+capability LINT
+stages 1
+stage pmd classes=java sources=core/quality/testdata/profiles/java/Strict.java
+completed_rounds 1
+convergence STABLE
+initial 4
+initial WARNING pmd AvoidCatchingGenericException core/quality/testdata/profiles/java/Strict.java 577 597 fixable=false "Avoid catching NullPointerException in try-catch block"
+initial WARNING pmd UseLocaleWithCaseConversions core/quality/testdata/profiles/java/Strict.java 827 845 fixable=false "When doing a String.toLowerCase()/toUpperCase() call, use a Locale"
+initial WARNING pmd LiteralsFirstInComparisons core/quality/testdata/profiles/java/Strict.java 827 860 fixable=false "Position literals first in String comparisons"
+initial WARNING pmd UnnecessaryCaseChange core/quality/testdata/profiles/java/Strict.java 827 860 fixable=false "Using equalsIgnoreCase() is cleaner than using toUpperCase/toLowerCase().equals()."
+terminal 4
+terminal WARNING pmd AvoidCatchingGenericException core/quality/testdata/profiles/java/Strict.java 577 597 fixable=false "Avoid catching NullPointerException in try-catch block"
+terminal WARNING pmd UseLocaleWithCaseConversions core/quality/testdata/profiles/java/Strict.java 827 845 fixable=false "When doing a String.toLowerCase()/toUpperCase() call, use a Locale"
+terminal WARNING pmd LiteralsFirstInComparisons core/quality/testdata/profiles/java/Strict.java 827 860 fixable=false "Position literals first in String comparisons"
+terminal WARNING pmd UnnecessaryCaseChange core/quality/testdata/profiles/java/Strict.java 827 860 fixable=false "Using equalsIgnoreCase() is cleaner than using toUpperCase/toLowerCase().equals()."
+replacements 0

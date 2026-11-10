@@ -9,7 +9,7 @@ const DECLARED: &[&str] = &[
     "core/wrapper.bzl",
     "qt/private/defs.bzl",
     "qt/private/sdk/launcher.c",
-    "quality/pipeline.bzl",
+    "core/quality/pipeline.bzl",
 ];
 
 /// The `.bzl` files that nested consumers of each area load first.
@@ -120,7 +120,7 @@ fn load_parser_follows_multi_line_and_repository_forms() {
             "@bazel_skylib//lib:paths.bzl"
         ]
     );
-    let resolved: Vec<Option<Bzl>> = labels.iter().map(|l| resolve(l, "quality")).collect();
+    let resolved: Vec<Option<Bzl>> = labels.iter().map(|l| resolve(l, "core/quality")).collect();
     assert_eq!(
         resolved,
         [
@@ -129,8 +129,8 @@ fn load_parser_follows_multi_line_and_repository_forms() {
                 path: "erlang/extensions.bzl".into()
             }),
             Some(Bzl {
-                package: "quality".into(),
-                path: "quality/sibling.bzl".into()
+                package: "core/quality".into(),
+                path: "core/quality/sibling.bzl".into()
             }),
             None,
         ]

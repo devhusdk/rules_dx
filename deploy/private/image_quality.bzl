@@ -1,6 +1,6 @@
 """Owns one OCI image for dx lint."""
 
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 load(":image_providers.bzl", "OciImageQualityInfo")
 
 def _oci_image_quality_impl(ctx):

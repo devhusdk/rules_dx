@@ -1,7 +1,7 @@
 load("@rules_cc//cc:defs.bzl", "cc_shared_library")
 load("//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//cc/private/toolchains:action_tests.bzl", "cc_msvc_action_tests")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,

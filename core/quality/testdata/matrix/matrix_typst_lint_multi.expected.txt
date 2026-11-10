@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_typst_lint_multi
+capability LINT
+stages 1
+stage tinymist classes=typst sources=matrix/typst_lint_multi/bad.typ,matrix/typst_lint_multi/clean.typ
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING tinymist tinymist/lint matrix/typst_lint_multi/bad.typ 9 9 fixable=false "unknown variable: missing"
+terminal 1
+terminal WARNING tinymist tinymist/lint matrix/typst_lint_multi/bad.typ 9 9 fixable=false "unknown variable: missing"
+replacements 0

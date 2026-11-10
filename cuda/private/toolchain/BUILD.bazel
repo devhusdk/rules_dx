@@ -2,7 +2,7 @@ load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("//core:cells.bzl", "cell_settings", "cells_compatible_with")
 load("//core/modules:cuda.bzl", "CUDA_CELLS", "cuda_qualified_cells")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":check.bzl", "cuda_toolkit_check")
 load(":settings.bzl", "CUDA_CELL_SETTINGS")
 

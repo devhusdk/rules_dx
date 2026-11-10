@@ -1,0 +1,131 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//cc:defs.bzl", "objc_library")
+load("//core/quality:native_config.bzl", "clang_tidy_config")
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//core/quality/testdata:__pkg__"])
+
+quality_family(
+    name = "cc_syntax_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "cc",
+    typecheck = ["clang_syntax"],
+)
+
+workspace_policy(
+    name = "cc_syntax_policy",
+    visibility = [
+        "//core/quality:__pkg__",
+        "//core/quality/testdata:__pkg__",
+    ],
+    families = [":cc_syntax_family"],
+)
+
+quality_family(
+    name = "objc_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "objc",
+    typecheck = ["clang_syntax"],
+)
+
+workspace_policy(
+    name = "objc_policy",
+    families = [":objc_family"],
+)
+
+clang_tidy_config(
+    name = "tidy_config",
+    src = ".clang-tidy",
+)
+
+quality_family(
+    name = "cc_tidy_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "cc",
+    lint = ["clang_tidy"],
+)
+
+workspace_policy(
+    name = "cc_tidy_policy",
+    visibility = [
+        "//core/quality:__pkg__",
+        "//core/quality/testdata:__pkg__",
+    ],
+    families = [":cc_tidy_family"],
+)
+
+cc_library(
+    name = "dep",
+    srcs = [],
+    hdrs = ["dep.h"],
+    includes = ["."],
+)
+
+cc_library(
+    name = "windows_param_file",
+    visibility = ["//core/quality:__pkg__"],
+    srcs = ["clean.c"],
+)
+
+cc_library(
+    name = "clean",
+    aspect_hints = [":tidy_config"],
+    srcs = ["clean.c"],
+    copts = ["-DCLEAN_OFFSET=1"],
+    deps = [":dep"],
+)
+
+cc_library(
+    name = "tidy_dirty",
+    srcs = ["tidy_dirty.c"],
+    aspect_hints = [":tidy_config"],
+    local_defines = ["TIDY_DEFINE=1"],
+    tags = ["manual"],
+    deps = [":dep"],
+)
+
+cc_library(
+    name = "tidy_crt",
+    srcs = ["tidy_crt.c"],
+    aspect_hints = [":tidy_config"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:windows"],
+)
+
+cc_library(
+    name = "dirty",
+    visibility = [
+        "//core/quality:__pkg__",
+        "//core/quality/testdata:__pkg__",
+    ],
+    srcs = ["dirty.c"],
+    copts = ["-DCLEAN_OFFSET=1"],
+    tags = ["manual"],
+    deps = [":dep"],
+)
+
+objc_library(
+    name = "clean_objc",
+    srcs = ["clean.m"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
+)
+
+objc_library(
+    name = "dirty_objc",
+    srcs = ["dirty.m"],
+    tags = ["manual"],
+    target_compatible_with = ["@platforms//os:macos"],
+)

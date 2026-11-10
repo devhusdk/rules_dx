@@ -1402,7 +1402,7 @@ haskell.lock(
 )
 haskell.lock(
     name = "haskell_nixfmt_hackage",
-    lock = "//quality/tools/nixfmt:haskell_deps.json",
+    lock = "//core/quality/tools/nixfmt:haskell_deps.json",
 )
 haskell.lock(
     name = "haskell_hlint_hackage",
@@ -1723,18 +1723,18 @@ uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(hub_name = "dx_pypi")
 uv.project(
     hub_name = "dx_pypi",
-    lock = "//quality/tools/python:uv.lock",
-    pyproject = "//quality/tools/python:pyproject.toml",
+    lock = "//core/quality/tools/python:uv.lock",
+    pyproject = "//core/quality/tools/python:pyproject.toml",
 )
 uv.project(
     hub_name = "dx_pypi",
-    lock = "//quality/tools/python/sqlfluff:uv.lock",
-    pyproject = "//quality/tools/python/sqlfluff:pyproject.toml",
+    lock = "//core/quality/tools/python/sqlfluff:uv.lock",
+    pyproject = "//core/quality/tools/python/sqlfluff:pyproject.toml",
 )
 uv.project(
     hub_name = "dx_pypi",
-    lock = "//quality/tools/python/docstrfmt:uv.lock",
-    pyproject = "//quality/tools/python/docstrfmt:pyproject.toml",
+    lock = "//core/quality/tools/python/docstrfmt:uv.lock",
+    pyproject = "//core/quality/tools/python/docstrfmt:pyproject.toml",
 )
 uv.project(
     hub_name = "dx_pypi",
@@ -2057,17 +2057,17 @@ crate.from_cargo(
         "//env/private/stubs:Cargo.toml",
         "//cli/codegen_shard:Cargo.toml",
         "//cli/generation_result:Cargo.toml",
-        "//quality/adapter:Cargo.toml",
+        "//core/quality/adapter:Cargo.toml",
         "//javascript/private/quality/launcher:Cargo.toml",
-        "//quality/markdown:Cargo.toml",
-        "//quality/notebook:Cargo.toml",
-        "//quality/result:Cargo.toml",
-        "//quality/runner:Cargo.toml",
-        "//quality:Cargo.toml",
-        "//quality/tiers:Cargo.toml",
-        "//quality/tiers/gopls:Cargo.toml",
-        "//quality/tests:Cargo.toml",
-        "//quality/tools/jvm:Cargo.toml",
+        "//core/quality/markdown:Cargo.toml",
+        "//core/quality/notebook:Cargo.toml",
+        "//core/quality/result:Cargo.toml",
+        "//core/quality/runner:Cargo.toml",
+        "//core/quality:Cargo.toml",
+        "//core/quality/tiers:Cargo.toml",
+        "//core/quality/tiers/gopls:Cargo.toml",
+        "//core/quality/tests:Cargo.toml",
+        "//core/quality/tools/jvm:Cargo.toml",
         "//tools/docs/ir/ir:Cargo.toml",
         "//tools/docs/rust/extract:Cargo.toml",
         "//tools/docs/typescript/extract:Cargo.toml",
@@ -2684,7 +2684,7 @@ _psgallery_module(
     ],
 )
 
-dx_tools = use_extension("//quality/artifacts:extension.bzl", "dx_tools")
+dx_tools = use_extension("//core/quality/artifacts:extension.bzl", "dx_tools")
 dx_tools.platform(
     cpu_arm64 = "@platforms//cpu:arm64",
     cpu_x86_64 = "@platforms//cpu:x86_64",
@@ -2934,7 +2934,7 @@ use_repo(
     "dx_firefox_linux_x86_64",
 )
 
-_hub_fixture_repo = use_repo_rule("//quality/artifacts/hub_test:repos.bzl", "hub_fixture_repo")
+_hub_fixture_repo = use_repo_rule("//core/quality/artifacts/hub_test:repos.bzl", "hub_fixture_repo")
 
 _hub_fixture_repo(
     name = "dx_hub_fixture_taplo_linux_x86_64",

@@ -15,8 +15,8 @@ func TestInitOwnedConfigs(t *testing.T) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	build := `load("@rules_dx//quality:native_config.bzl", "eslint_config", "ruff_config")
-load("@rules_dx//quality/private:generated_policy.bzl", "dx_generated_policy")
+	build := `load("@rules_dx//core/quality:native_config.bzl", "eslint_config", "ruff_config")
+load("@rules_dx//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 
 ruff_config(
     name = "ruff",

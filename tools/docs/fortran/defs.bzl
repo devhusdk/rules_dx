@@ -115,7 +115,7 @@ docs_fortran_shard = rule(
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the name of lib."),
         "_driver": attr.label(
             cfg = "exec",
-            default = Label("//quality/tools/python:ford_dump"),
+            default = Label("//core/quality/tools/python:ford_dump"),
             executable = True,
         ),
         "_extract": attr.label(

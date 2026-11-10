@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_ansible_format_pass
+capability FORMAT
+stages 1
+stage yamlfmt classes=ansible sources=matrix/yamlfmt_ansible_clean.yml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

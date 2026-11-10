@@ -5,11 +5,11 @@ load("//core/modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_H
 load("//core/modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
 
 _UV_PROJECTS_BLOCK = """UV_PROJECTS = [
-    "//quality/tools/python:pyproject.toml",
+    "//core/quality/tools/python:pyproject.toml",
 ]"""
 
 _UV_LOCKS_BLOCK = """UV_LOCKS = [
-    "//quality/tools/python:uv.lock",
+    "//core/quality/tools/python:uv.lock",
 ]"""
 
 def python_runtime_unit_tests(name):
@@ -57,21 +57,21 @@ def python_runtime_unit_tests(name):
                 "wheel projects stay the quality tools",
                 _MOD_PY_PROJECTS,
                 [
-                    "//quality/tools/python:pyproject.toml",
+                    "//core/quality/tools/python:pyproject.toml",
                 ],
             ),
             expect_equal(
                 "wheel locks stay the quality tools",
                 _MOD_PY_LOCKS,
                 [
-                    "//quality/tools/python:uv.lock",
+                    "//core/quality/tools/python:uv.lock",
                 ],
             ),
             expect_equal(
                 "repin dirs stay the quality tools",
                 _MOD_PY_REPIN,
                 [
-                    "quality/tools/python",
+                    "core/quality/tools/python",
                 ],
             ),
         ],
@@ -81,6 +81,6 @@ def python_runtime_unit_tests(name):
         file_checks = {
             "//:MODULE.bazel": "python_version = \"3.12\"",
             "//python/tests/fixtures/hello:pyproject.toml": "requires-python = \">=3.12\"",
-            "//quality/tools/python:pyproject.toml": "requires-python = \">=3.12\"",
+            "//core/quality/tools/python:pyproject.toml": "requires-python = \">=3.12\"",
         },
     )

@@ -1,8 +1,8 @@
 """kubernetes_library and kubernetes_schemas proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//quality:native_config.bzl", "DxNativeConfigInfo")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:native_config.bzl", "DxNativeConfigInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _owns_kubernetes_class_impl(ctx):
     env = analysistest.begin(ctx)

@@ -1,5 +1,5 @@
 load("@rules_dx//d:defs.bzl", "D_COMPATIBLE_WITH", "d_library", "d_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 d_library(
     name = "cli",

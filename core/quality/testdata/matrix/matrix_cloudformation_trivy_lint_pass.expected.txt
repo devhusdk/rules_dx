@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_cloudformation_trivy_lint_pass
+capability LINT
+stages 1
+stage trivy_config classes=cloudformation sources=matrix/trivy_clean/template.yaml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

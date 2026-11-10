@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_swift_format_fail
+capability FORMAT
+stages 1
+stage swift_format classes=swift sources=matrix/swift_dirty.swift
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING swift_format - matrix/swift_dirty.swift 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/swift_dirty.swift 5 6 ""

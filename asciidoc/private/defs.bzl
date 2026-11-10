@@ -1,7 +1,7 @@
 """AsciiDoc source ownership for dx quality."""
 
 load("//core:wrapper.bzl", "dx_quality_sources")
-load("//quality:sources.bzl", "QualityToolsInfo")
+load("//core/quality:sources.bzl", "QualityToolsInfo")
 
 def _asciidoc_library_impl(ctx):
     return [

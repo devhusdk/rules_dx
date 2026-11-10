@@ -20,7 +20,7 @@
     "sql_library"
   ],
   "quality": {
-    "bzl": "quality:families/sql.bzl",
+    "bzl": "core/quality:families/sql.bzl",
     "file_extensions": [
       ".sql"
     ],

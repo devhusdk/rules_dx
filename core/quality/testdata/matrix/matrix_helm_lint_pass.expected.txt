@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_helm_lint_pass
+capability LINT
+stages 1
+stage helm classes=helm sources=matrix/helm_clean/Chart.yaml,matrix/helm_clean/values.yaml,matrix/helm_clean/templates/configmap.yaml
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

@@ -24,7 +24,7 @@
     "resolve_root"
   ],
   "quality": {
-    "bzl": "quality:families/generation.bzl",
+    "bzl": "core/quality:families/generation.bzl",
     "file_extensions": [
       ".fbs"
     ],

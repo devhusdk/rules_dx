@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load(":toolchain.bzl", "swift_linux_toolchain")
 load(":windows.bzl", "swift_windows_toolchain")

@@ -2852,7 +2852,7 @@ mod tests {
         let workspace = scratch.path();
         write(
             workspace,
-            "quality/aspects.bzl",
+            "core/quality/aspects.bzl",
             "load(\"//tools:defs.bzl\", \"x\")\n",
         );
         let query = FakeQuery::new(vec![graph(&[])]);
@@ -2860,7 +2860,7 @@ mod tests {
             workspace,
             &[change("tools/defs.bzl", dx_adopt::ChangeKind::Modified)],
             &query,
-            &["@demo//quality:aspects.bzl%lint_aspect"],
+            &["@demo//core/quality:aspects.bzl%lint_aspect"],
         );
         assert_eq!(selection.targets, strings(&["//..."]));
         assert_eq!(

@@ -1,0 +1,19 @@
+load("//python:defs.bzl", "python_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+
+package(default_visibility = VIS_QUALITY)
+
+python_test(
+    name = "update_test",
+    srcs = ["update_test.py"],
+    data = ["//core/quality/artifacts:update.py"],
+    dep_group = "hello",
+    deps = ["@pypi//pytest"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

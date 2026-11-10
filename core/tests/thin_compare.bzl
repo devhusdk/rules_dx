@@ -4,7 +4,7 @@ load("//core:canonical.bzl", "strip_canonical")
 load("//core:conformance.bzl", "dx_render_run_env", "dx_render_run_inherited")
 load("//core:defs.bzl", "DxSubjectInfo", "starlark_test")
 load("//core:wrapper.bzl", "dx_executable_forward_rule", "dx_library_forward_rule")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _render_direct_sources(info):
     """Renders direct sources as sorted class to basename text."""

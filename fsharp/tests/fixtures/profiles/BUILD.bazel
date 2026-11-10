@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 
 package(
@@ -19,15 +19,15 @@ real_source_target(
         testonly = True,
         srcs = ["Short.fs"] + configs,
         outs = ["lint_" + name + ".jsonl"],
-        cmd = "$(location @rules_dx//quality/tools/dotnet/fsharplint:runner) %s --compile $$PWD/$(location Short.fs) $$PWD/$(location Short.fs) > $@ || test $$? -le 1" % (
+        cmd = "$(location @rules_dx//core/quality/tools/dotnet/fsharplint:runner) %s --compile $$PWD/$(location Short.fs) $$PWD/$(location Short.fs) > $@ || test $$? -le 1" % (
             "--config $$PWD/$(location %s)" % configs[0] if configs else ""
         ),
-        tools = ["@rules_dx//quality/tools/dotnet/fsharplint:runner"],
+        tools = ["@rules_dx//core/quality/tools/dotnet/fsharplint:runner"],
     )
     for name, configs in {
         "default": [],
-        "standard": ["@rules_dx//quality/tiers/fsharplint:standard.json"],
-        "strict": ["@rules_dx//quality/tiers/fsharplint:strict.json"],
+        "standard": ["@rules_dx//core/quality/tiers/fsharplint:standard.json"],
+        "strict": ["@rules_dx//core/quality/tiers/fsharplint:strict.json"],
     }.items()
 ]
 

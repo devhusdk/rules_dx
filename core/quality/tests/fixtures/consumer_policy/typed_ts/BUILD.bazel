@@ -1,0 +1,37 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("//core/quality:native_config.bzl", "eslint_config")
+load("//typescript:defs.bzl", "typescript_library")
+
+package(default_visibility = ["//core/quality:__pkg__"])
+
+copy_file(
+    name = "standard_base",
+    src = "//core/quality/tiers/tsconfig:standard.json",
+    out = ".dx/config/tsconfig/standard.json",
+)
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    deps = [":standard_base"],
+)
+
+eslint_config(
+    name = "typed_eslint_config",
+    src = "eslint.config.mjs",
+)
+
+typescript_library(
+    name = "typed_ts",
+    srcs = [
+        "dep.ts",
+        "main.ts",
+    ],
+    aspect_hints = [":typed_eslint_config"],
+    isolated_typecheck = False,
+    out_dir = "out",
+    tags = ["corpus"],
+    transpiler = "tsc",
+    tsconfig = ":tsconfig",
+)

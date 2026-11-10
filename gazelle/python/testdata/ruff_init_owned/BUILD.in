@@ -1,4 +1,4 @@
-load("@rules_dx//quality:native_config.bzl", "ruff_config")
+load("@rules_dx//core/quality:native_config.bzl", "ruff_config")
 
 exports_files([
     "ruff.toml",

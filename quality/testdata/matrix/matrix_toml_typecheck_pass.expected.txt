@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_toml_typecheck_pass
-capability TYPECHECK
-stages 1
-stage taplo classes=toml sources=matrix/toml_typed_clean.toml
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

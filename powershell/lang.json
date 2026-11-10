@@ -33,7 +33,7 @@
     "powershell_test"
   ],
   "quality": {
-    "bzl": "quality:families/powershell.bzl",
+    "bzl": "core/quality:families/powershell.bzl",
     "file_extensions": [
       ".ps1",
       ".psd1",

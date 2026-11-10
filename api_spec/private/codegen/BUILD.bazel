@@ -1,5 +1,5 @@
 load("@crates//:crates.bzl", "aliases")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 
 package(default_visibility = ["//api_spec/private:__pkg__"])
@@ -13,7 +13,7 @@ rust_binary(
     ),
     crate_name = "preflight",
     crate_root = "preflight_main.rs",
-    deps = ["//quality/adapter:quality_adapter"],
+    deps = ["//core/quality/adapter:quality_adapter"],
 )
 
 exports_files([

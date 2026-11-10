@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_kotlin_detekt_profile_strict
+capability LINT
+stages 1
+stage detekt classes=kotlin sources=matrix/detektstrict/Profile.kt
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING detekt UndocumentedPublicFunction matrix/detektstrict/Profile.kt 33 33 fixable=false "The function double is missing documentation."
+terminal 1
+terminal WARNING detekt UndocumentedPublicFunction matrix/detektstrict/Profile.kt 33 33 fixable=false "The function double is missing documentation."
+replacements 0

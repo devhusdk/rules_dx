@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_latex_lint_fail
+capability LINT
+stages 1
+stage chktex classes=latex sources=matrix/latex_lint_dirty.tex
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING chktex 2 matrix/latex_lint_dirty.tex 44 45 fixable=false "Non-breaking space (`~') should have been used."
+terminal 1
+terminal WARNING chktex 2 matrix/latex_lint_dirty.tex 44 45 fixable=false "Non-breaking space (`~') should have been used."
+replacements 0

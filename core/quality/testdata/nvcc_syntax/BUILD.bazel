@@ -1,0 +1,59 @@
+load("@rules_dx//cuda:defs.bzl", "cuda_library")
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+
+package(default_visibility = ["//core/quality/testdata:__pkg__"])
+
+quality_family(
+    name = "cuda_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "cuda",
+    typecheck = ["nvcc_syntax"],
+)
+
+workspace_policy(
+    name = "policy",
+    families = [":cuda_family"],
+)
+
+cuda_library(
+    name = "dep",
+    srcs = [],
+    hdrs = [
+        "dep.cuh",
+        "host_only.cuh",
+    ],
+    cuda_archs = ["sm_89"],
+    includes = ["."],
+)
+
+cuda_library(
+    name = "clean",
+    srcs = ["clean.cu"],
+    cuda_archs = ["sm_89"],
+    copts = ["-DCLEAN_OFFSET=1"],
+    deps = [":dep"],
+)
+
+cuda_library(
+    name = "two_archs",
+    srcs = ["two_archs.cu"],
+    cuda_archs = [
+        "sm_80",
+        "sm_89",
+    ],
+    copts = ["-DCLEAN_OFFSET=1"],
+    tags = ["manual"],
+    deps = [":dep"],
+)
+
+cuda_library(
+    name = "dirty",
+    srcs = ["dirty.cu"],
+    cuda_archs = ["sm_89"],
+    tags = ["manual"],
+    deps = [":dep"],
+)

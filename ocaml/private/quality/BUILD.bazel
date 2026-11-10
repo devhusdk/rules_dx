@@ -1,6 +1,6 @@
 load("@rules_dx//ocaml/private:dune.bzl", "dx_dune_build")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//quality:unavailable_tool.bzl", "dx_unavailable_tool")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":cmt_list.bzl", "ocaml_cmt_list")

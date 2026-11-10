@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_helm_trivy_lint_fail
+capability LINT
+stages 1
+stage trivy_config classes=helm sources=matrix/trivy_helm_dirty/Chart.yaml,matrix/trivy_helm_dirty/values.yaml,matrix/trivy_helm_dirty/templates/pod.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR trivy_config KSV-0017 matrix/trivy_helm_dirty/templates/pod.yaml 0 0 fixable=false "Privileged"
+terminal 1
+terminal ERROR trivy_config KSV-0017 matrix/trivy_helm_dirty/templates/pod.yaml 0 0 fixable=false "Privileged"
+replacements 0

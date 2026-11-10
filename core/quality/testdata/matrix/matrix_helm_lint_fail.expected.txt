@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_helm_lint_fail
+capability LINT
+stages 1
+stage helm classes=helm sources=matrix/helm_dirty/Chart.yaml,matrix/helm_dirty/values.yaml,matrix/helm_dirty/templates/configmap.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR helm invalid matrix/helm_dirty/templates/configmap.yaml 0 0 fixable=false "/data/key: got number, want string"
+terminal 1
+terminal ERROR helm invalid matrix/helm_dirty/templates/configmap.yaml 0 0 fixable=false "/data/key: got number, want string"
+replacements 0

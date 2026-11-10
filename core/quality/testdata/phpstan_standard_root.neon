@@ -1,0 +1,2 @@
+includes:
+    - ../../../.dx/config/phpstan/standard.neon

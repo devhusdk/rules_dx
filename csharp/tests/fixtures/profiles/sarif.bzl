@@ -1,6 +1,6 @@
 """Test-only rule that exposes the Roslyn SARIF logs of a C# library."""
 
-load("@rules_dx//quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
+load("@rules_dx//core/quality:roslyn.bzl", "RoslynInfo", "roslyn_aspect")
 
 def _roslyn_sarif_impl(ctx):
     return [DefaultInfo(files = depset(ctx.attr.dep[RoslynInfo].sarifs))]

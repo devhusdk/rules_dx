@@ -1,6 +1,6 @@
 """Ansible source ownership for dx quality."""
 
-load("//quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 load(":layout.bzl", "ansible_layout_class")
 
 def _ansible_library_impl(ctx):

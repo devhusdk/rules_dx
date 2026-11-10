@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality/testdata:real_aspect_subject.bzl", "real_docs_shard_files")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
@@ -38,11 +38,11 @@ rust_test(
     data = [
         ":fixture_rustdoc_json",
         ":fixture_srcs_file",
-        "//quality/testdata:docs_fixture_aspect_shard",
+        "//core/quality/testdata:docs_fixture_aspect_shard",
         "//tools/docs/rust/extract:rust_extract",
     ],
     env = {
-        "DX_ASPECT_SHARD": "$(rootpath //quality/testdata:docs_fixture_aspect_shard)",
+        "DX_ASPECT_SHARD": "$(rootpath //core/quality/testdata:docs_fixture_aspect_shard)",
         "DX_FIXTURE_RUSTDOC": "$(rootpath :fixture_rustdoc_json)",
         "DX_FIXTURE_SRCS": "$(rootpath :fixture_srcs_file)",
         "DX_RUST_EXTRACT": "$(rootpath //tools/docs/rust/extract:rust_extract)",

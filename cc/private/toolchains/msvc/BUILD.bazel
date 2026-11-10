@@ -1,6 +1,6 @@
 load("//cc/private/toolchains:unavailable.bzl", "cc_toolchain_unavailable")
 load("//cc/private/toolchains/msvc:tests.bzl", "msvc_toolchain_tests", "msvc_version_tests")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":repos_tests.bzl", "msvc_repos_tests", "msvc_unavailable_tests", "msvc_unsupported_tests")
 load(":unavailable.bzl", "UNSUPPORTED")
 

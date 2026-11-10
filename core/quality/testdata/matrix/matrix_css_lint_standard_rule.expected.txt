@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_css_lint_standard_rule
+capability LINT
+stages 1
+stage stylelint classes=css sources=matrix/stylelint_standard_rule.css
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_standard_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
+terminal 1
+terminal WARNING stylelint declaration-block-no-duplicate-properties matrix/stylelint_standard_rule.css 12 12 fixable=false "Duplicate property \"color\" (declaration-block-no-duplicate-properties)"
+replacements 0

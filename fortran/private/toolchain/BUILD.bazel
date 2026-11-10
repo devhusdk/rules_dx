@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "fortran_metadata_tests")
 load(":pins.bzl", "FORTRAN_CELLS")
 

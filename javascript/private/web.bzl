@@ -6,7 +6,7 @@ load("//core:defs.bzl", "display_label")
 load("//core:resources.bzl", "dx_bundler_resources")
 load("//core:wrapper.bzl", "dx_quality_sources")
 load("//cli/web_server:server.bzl", "JavascriptWebAppInfo")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 visibility(["//..."])
 

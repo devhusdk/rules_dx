@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_avro_lint_avsc_undefined_name
+capability LINT
+stages 1
+stage avro_tools classes=avro sources=matrix/avro/undefined.avsc
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR avro_tools error matrix/avro/undefined.avsc 0 0 fixable=false "Undefined schema: fixtures.Nope"
+terminal 1
+terminal ERROR avro_tools error matrix/avro/undefined.avsc 0 0 fixable=false "Undefined schema: fixtures.Nope"
+replacements 0

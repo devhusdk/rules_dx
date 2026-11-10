@@ -1,6 +1,6 @@
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "dx_scoped_tsconfig_out", "dx_tsconfig_content", "dx_tsconfig_is_source", "dx_tsconfig_relpath", "typescript_binary_kwargs_rejection", "typescript_binary_forward_kwargs", "typescript_binary_main", "typescript_binary_rejection", "typescript_binary_upstream_kwargs", "typescript_compiled_entry", "typescript_declaration_srcs_rejection", "typescript_empty_library_rejection", "typescript_scoped_tsconfig_rejection", "typescript_srcs_rejection", "typescript_test_rejection", "typescript_transpiler", "typescript_upstream_srcs")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 

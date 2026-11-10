@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//csharp/private:coverage_check.bzl", "dx_dotnet_coverage_tests")
 load("//fsharp:defs.bzl", "fsharp_library", "fsharp_test")
 

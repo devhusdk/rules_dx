@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_typescript_eslint_standard_typed_fail
+capability LINT
+stages 1
+stage eslint classes=typescript sources=core/quality/testdata/eslint_typed/a.ts
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING eslint @typescript-eslint/no-floating-promises core/quality/testdata/eslint_typed/a.ts 178 185 fixable=false "Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator."
+terminal 1
+terminal WARNING eslint @typescript-eslint/no-floating-promises core/quality/testdata/eslint_typed/a.ts 178 185 fixable=false "Promises must be awaited, end with a call to .catch, end with a call to .then with a rejection handler or be explicitly marked as ignored with the `void` operator."
+replacements 0

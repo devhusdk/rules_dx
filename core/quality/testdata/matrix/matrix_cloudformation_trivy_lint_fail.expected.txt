@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_cloudformation_trivy_lint_fail
+capability LINT
+stages 1
+stage trivy_config classes=cloudformation sources=matrix/trivy_dirty/template.yaml
+completed_rounds 1
+convergence STABLE
+initial 1
+initial ERROR trivy_config AWS-0095 matrix/trivy_dirty/template.yaml 50 59 fixable=false "Unencrypted SNS topic."
+terminal 1
+terminal ERROR trivy_config AWS-0095 matrix/trivy_dirty/template.yaml 50 59 fixable=false "Unencrypted SNS topic."
+replacements 0

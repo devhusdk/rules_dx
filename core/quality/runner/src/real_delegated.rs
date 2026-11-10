@@ -1,0 +1,2519 @@
+use super::real_fixtures::*;
+use super::*;
+
+#[test]
+fn delegated_diagnostics_fail_closed_when_missing_or_malformed() {
+    for tool_id in [
+        "clippy",
+        "rustc",
+        "roslyn",
+        "csc",
+        "fsc",
+        "fsharplint",
+        "qmllint",
+        "govet",
+        "gotype",
+        "errcheck",
+        "staticcheck",
+        "clang_tidy",
+        "rubocop",
+        "shellcheck",
+        "yamllint",
+        "hadolint",
+        "deadnix",
+        "kubeconform",
+        "checkmake",
+    ] {
+        let scratch = tempfile::tempdir().expect("scratch");
+        let tool = delegated_tool(scratch.path().join("missing"));
+        let backend = backend_for(tool_id, tool, must_not_spawn);
+        let capability = if tool_id == "rustc" || tool_id == "gotype" {
+            "typecheck"
+        } else {
+            "lint"
+        };
+        let error = backend
+            .diagnose(tool_id, capability, &single("src/a.txt", "x\n"))
+            .expect_err("missing diagnostics");
+        assert!(
+            error.to_string().contains("upstream diagnostics"),
+            "{tool_id}: {error}"
+        );
+        let report = upstream_file(tool_id, "{<error malformed");
+        let backend = backend_for(
+            tool_id,
+            delegated_tool(report.path().to_path_buf()),
+            must_not_spawn,
+        );
+        assert!(
+            backend
+                .diagnose(tool_id, capability, &single("src/a.txt", "x\n"))
+                .is_err(),
+            "{tool_id}"
+        );
+    }
+}
+
+#[test]
+fn delegated_findings_are_reanchored_to_the_staged_source() {
+    for (tool_id, report) in [
+        (
+            "qmllint",
+            r#"{"files":[{"filename":"src/a.scala","success":false,"warnings":[{"column":1,"id":"demo","line":1,"message":"finding","type":"warning"}]}],"revision":4}"#,
+        ),
+        (
+            "roslyn",
+            r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[{"ruleId":"CA1822","level":"warning","message":{"text":"finding"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"src/a.scala"},"region":{"startLine":1,"startColumn":1,"endLine":1,"endColumn":2}}}]}]}]}"#,
+        ),
+        ("shellcheck", "src/a.scala:1:1: warning: finding [SC2086]\n"),
+        (
+            "checkmake",
+            r#"[{"rule":"minphony","violation":"finding","file_name":"src/a.scala","line_number":1}]"#,
+        ),
+        (
+            "hadolint",
+            r#"[{"code":"DL4006","column":1,"file":"src/a.scala","level":"warning","line":1,"message":"finding"}]"#,
+        ),
+        (
+            "deadnix",
+            r#"{"file":"src/a.scala","results":[{"column":1,"endColumn":2,"line":1,"message":"Unused let binding: finding"}]}"#,
+        ),
+        (
+            "kubeconform",
+            r#"{"resources":[{"filename":"src/a.scala","kind":"Pod","name":"a","version":"v1","status":"statusInvalid","msg":"finding","validationErrors":[{"path":"/spec","msg":"finding"}]}]}"#,
+        ),
+        (
+            "yamllint",
+            "src/a.scala:1:1: [warning] finding (trailing-spaces)\n",
+        ),
+        (
+            "govet",
+            r#"{"p":{"printf":[{"posn":"src/a.scala:1:1","message":"finding"}]}}"#,
+        ),
+        (
+            "errcheck",
+            r#"{"p":{"errcheck":[{"posn":"src/a.scala:1:1","message":"finding"}]}}"#,
+        ),
+        (
+            "clang_tidy",
+            "1 warning generated.\nsrc/a.scala:1:1: warning: finding [demo-check]\n  x\n  ^\nSuppressed 1 warnings (1 in non-user code).\n",
+        ),
+        (
+            "staticcheck",
+            r#"{"code":"S1000","severity":"warning","location":{"file":"src/a.scala","line":1,"column":1},"message":"finding"}"#,
+        ),
+        (
+            "fsharplint",
+            r#"{"path":"src/a.scala","startLine":1,"startColumn":1,"endLine":1,"endColumn":2,"rule":"Rule","message":"finding"}"#,
+        ),
+    ] {
+        let upstream = upstream_file(tool_id, report);
+        let backend = backend_for(
+            tool_id,
+            delegated_tool(upstream.path().to_path_buf()),
+            must_not_spawn,
+        );
+        let findings = backend
+            .diagnose(tool_id, "lint", &single("src/a.scala", "xx\n"))
+            .expect("delegated finding");
+        assert_eq!(findings.len(), 1);
+        assert_eq!(findings[0].path, "src/a.scala");
+    }
+}
+
+fn empty_report(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    empty_report_unchecked(argv, _cwd)
+}
+
+fn empty_report_unchecked(argv: &[OsString], _cwd: &Path) -> io::Result<ChildOutput> {
+    let _ = last_file(argv);
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+/// `empty_report` for bicep, the only tool launched with a scratch HOME.
+fn empty_report_scratch_home(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic_scratch_home(env);
+    empty_report_unchecked(argv, cwd)
+}
+
+fn must_not_spawn(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    panic!("delegated tool spawned: {:?}", argv);
+}
+
+#[test]
+fn staticcheck_reads_the_unitchecker_report_of_the_go_aspect() {
+    let report = r#"{"p":{"S1000":[{"posn":"src/a.go:1:1","message":"finding"}]}}"#;
+    let upstream = upstream_file("staticcheck", report);
+    let backend = backend_for(
+        "staticcheck",
+        delegated_tool(upstream.path().to_path_buf()),
+        must_not_spawn,
+    );
+    let findings = backend
+        .diagnose("staticcheck", "lint", &single("src/a.go", "xx\n"))
+        .expect("delegated finding");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "src/a.go");
+}
+
+#[test]
+pub(super) fn every_real_tool_reaches_a_check_arm() {
+    for &tool_id in REAL_TOOLS {
+        let spawn = if tool_id == "bicep" {
+            empty_report_scratch_home
+        } else {
+            empty_report
+        };
+        let backend = backend_for(tool_id, plain_tool(), spawn);
+        for capability in ["lint", "format"] {
+            match backend.diagnose(tool_id, capability, &single("a.txt", "x\n")) {
+                Ok(_) => {}
+                Err(err) => assert!(
+                    !err.to_string().contains("unsupported real tool"),
+                    "{tool_id} fell through the dispatch: {err}"
+                ),
+            }
+        }
+    }
+}
+
+#[test]
+pub(super) fn every_real_fix_tool_reaches_a_fix_round() {
+    for tool_id in [
+        "buf",
+        "clang_format",
+        "cue",
+        "csharpier",
+        "dart",
+        "djlint",
+        "docstrfmt",
+        "erlfmt",
+        "fantomas",
+        "ffmt",
+        "gersemi",
+        "gofumpt",
+        "helmfmt",
+        "jsonnetfmt",
+        "julia_format",
+        "latexindent",
+        "mbake",
+        "mix_format",
+        "modfmt",
+        "nixfmt",
+        "ormolu",
+        "opa",
+        "perltidy",
+        "pkl",
+        "psscriptanalyzer",
+        "qmlformat",
+        "scalafmt",
+        "shfmt",
+        "stylua",
+        "swift_format",
+        "terraform",
+        "topiary",
+        "typstyle",
+        "yamlfmt",
+        "zig_fmt",
+    ] {
+        let tool = match tool_id {
+            "gofumpt" => gofumpt_tool(),
+            "scalafmt" => bound_tool(".scalafmt.conf", b""),
+            "ffmt" => bound_tool("ffmt.toml", b""),
+            "gersemi" => bound_tool(".gersemirc", b""),
+            "docstrfmt" => bound_tool("docstrfmt.toml", b"[tool.docstrfmt]\n"),
+            "mbake" => bound_tool(".bake.toml", b""),
+            _ => plain_tool(),
+        };
+        let backend = backend_for(tool_id, tool, empty_report);
+        let fixed = backend
+            .apply_fix(tool_id, "a.txt", "x\n", "format")
+            .expect("fix round reaches the tool");
+        assert_eq!(fixed, "x\n");
+    }
+}
+
+#[test]
+pub(super) fn delegated_tools_read_diagnostics_without_spawning() {
+    for (tool_id, report) in [
+        ("clang_tidy", ""),
+        ("djlint", ""),
+        ("errcheck", "{}"),
+        ("fsharplint", ""),
+        ("gotype", "{}"),
+        ("govet", "{}"),
+        ("keep_sorted", ""),
+        (
+            "qmllint",
+            r#"{"files":[{"filename":"a.txt","success":true,"warnings":[]}],"revision":4}"#,
+        ),
+        (
+            "roslyn",
+            r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[]}]}"#,
+        ),
+        ("rubocop", r#"{"files":[{"path":"a.txt","offenses":[]}]}"#),
+        ("shellcheck", ""),
+        ("hadolint", "[]"),
+        ("deadnix", ""),
+        ("kubeconform", r#"{"resources":[]}"#),
+        ("checkmake", ""),
+        ("staticcheck", ""),
+        ("yamllint", ""),
+    ] {
+        let upstream = upstream_file(tool_id, report);
+        let tool = delegated_tool(upstream.path().to_path_buf());
+        let backend = backend_for(tool_id, tool, must_not_spawn);
+        let found = backend
+            .diagnose(tool_id, "lint", &single("a.txt", "x\n"))
+            .unwrap_or_else(|err| panic!("{tool_id}: {err}"));
+        assert!(found.is_empty(), "{tool_id}");
+    }
+}
+
+fn erlfmt_rewrites(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let broken = std::fs::read_to_string(&file)
+        .expect("read staged file")
+        .contains("broken");
+    assert_eq!(argv[1], OsString::from("--write"));
+    std::fs::write(&file, "-module(a).\n").expect("fix writes back");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: if broken {
+            format!("{file}:2:12: syntax error before: '.'\n").into_bytes()
+        } else {
+            Vec::new()
+        },
+    })
+}
+
+#[test]
+pub(super) fn erlfmt_fix_keeps_a_file_it_reported_an_error_for() {
+    let backend = backend_for("erlfmt", plain_tool(), erlfmt_rewrites);
+    let fixed = backend
+        .apply_fix("erlfmt", "a.erl", "-module( a ).\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "-module(a).\n");
+    let broken = "-module( a ).\nbroken(X) -> X +.\n";
+    let kept = backend
+        .apply_fix("erlfmt", "a.erl", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
+}
+
+fn jsonnet_lint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (1, "ERROR: boom\n".to_owned())
+    } else if text.contains("unused") {
+        (
+            2,
+            format!("{file}:1:7-17 Unused variable: x\n\nlocal x = 1;\n\n\nProblems found!\n"),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn jsonnet_lint_reports_problems_and_never_trusts_a_failed_run() {
+    let backend = backend_for("jsonnet_lint", plain_tool(), jsonnet_lint_behavior);
+    let lint = |text: &str| backend.diagnose("jsonnet_lint", "lint", &single("a.jsonnet", text));
+    assert!(lint("{}\n").expect("check").is_empty());
+    let warned = lint("local x = 1; unused\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].message, "Unused variable: x");
+    assert!(lint("crash\n").is_err());
+}
+
+fn fortitude_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("crash") {
+        (2, "error: boom\n".to_owned())
+    } else if text.contains("implicit") {
+        (
+            1,
+            format!(
+                r#"[{{"code":"C001","severity":"error","filename":"{file}","location":{{"column":1,"row":1}},"end_location":{{"column":1,"row":2}},"message":"program uses implicit typing"}}]"#
+            ),
+        )
+    } else {
+        (0, "[]".to_owned())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn fortitude_reports_findings_skips_fixed_form_and_never_trusts_a_failed_run() {
+    let backend = backend_for("fortitude", plain_tool(), fortitude_behavior);
+    let lint = |name: &str, text: &str| backend.diagnose("fortitude", "lint", &single(name, text));
+    assert!(lint("a.f90", "program p\n").expect("check").is_empty());
+    let warned = lint("a.f90", "program implicit\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "C001");
+    // Fixed-form sources are not handed to the tool, so even a crash text is not run.
+    assert!(lint("a.f", "crash\n").expect("check").is_empty());
+    assert!(lint("a.f90", "crash\n").is_err());
+}
+
+fn zanuda_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let lib = env
+        .iter()
+        .find(|(key, _)| key == "OCAMLLIB")
+        .map(|(_, value)| PathBuf::from(value))
+        .expect("OCAMLLIB is set");
+    assert!(lib.is_absolute(), "OCAMLLIB must be absolute: {lib:?}");
+    assert!(lib.ends_with("external/ocaml/lib/ocaml"), "{lib:?}");
+    assert_eq!(argv[1], OsString::from("-cmt-list"));
+    assert_eq!(argv[3], OsString::from("-no-top_file_license"));
+    assert_eq!(argv[4], OsString::from("-no-check-filesystem"));
+    let out = argv.len() - 2;
+    assert_eq!(argv[out], OsString::from("-ordjsonl"));
+    let off = |lint: &str| argv.contains(&OsString::from(format!("-no-{lint}")));
+    assert!(off("camel_cased_types") && !off("exc_error_swallowing"));
+    let list = std::fs::read_to_string(&argv[2]).expect("read the list");
+    let mut report = String::new();
+    let mut crash = false;
+    for line in list.lines() {
+        let fields: Vec<&str> = line.split('\t').collect();
+        assert_eq!(fields.len(), 3, "{line}");
+        assert!(Path::new(fields[1]).is_absolute(), "{line}");
+        let cmt = Path::new(fields[2]);
+        assert!(cmt.is_absolute() && cmt.exists(), "{line}");
+        assert_eq!(
+            fields[0],
+            if fields[1].ends_with(".mli") {
+                "intf"
+            } else {
+                "impl"
+            }
+        );
+        let text = std::fs::read_to_string(fields[1]).expect("read staged source");
+        crash |= text.contains("crash");
+        if text.contains("smells") {
+            report.push_str(&format!(
+                r#"{{"message":"smells bad\n","location":{{"path":"{}","range":{{"start":{{"line":2,"column":1}}}}}},"severity":"INFO","code":{{"value":"if_bool","url":"u"}}}}"#,
+                fields[1]
+            ));
+            report.push('\n');
+        }
+    }
+    std::fs::write(&argv[out + 1], report)?;
+    Ok(ChildOutput {
+        code: Some(i32::from(crash)),
+        stdout: Vec::new(),
+        stderr: if crash {
+            b"cannot read cmt\n".to_vec()
+        } else {
+            Vec::new()
+        },
+    })
+}
+
+fn zanuda_tool(entries: &[&str]) -> RealTool {
+    let mut tool = plain_tool();
+    tool.extra_env = vec![("OCAMLLIB".to_owned(), "external/ocaml/lib/ocaml".to_owned())];
+    tool.tool_files = entries
+        .iter()
+        .map(|rel| ((*rel).to_owned(), b"cmt".to_vec()))
+        .collect();
+    tool
+}
+
+#[test]
+pub(super) fn zanuda_reads_the_staged_typed_trees_and_never_trusts_a_failed_run() {
+    let entries = [
+        "dx-zanuda/impl/pkg/a.ml.cmt",
+        "dx-zanuda/intf/pkg/a.mli.cmti",
+        "dx-zanuda/impl/pkg/other.ml.cmt",
+    ];
+    let backend = backend_for("zanuda", zanuda_tool(&entries), zanuda_behavior);
+    let lint = |files: &[(&str, &str)]| {
+        let mut map = std::collections::BTreeMap::new();
+        for (name, text) in files {
+            map.insert((*name).to_owned(), (*text).to_owned());
+        }
+        backend.diagnose("zanuda", "lint", &map)
+    };
+    // A clean run, and a finding mapped back onto the owned file.
+    assert!(
+        lint(&[("pkg/a.ml", "let x = 1\n")])
+            .expect("check")
+            .is_empty()
+    );
+    let warned = lint(&[
+        ("pkg/a.ml", "let x = 1\nsmells\n"),
+        ("pkg/a.mli", "val x : int\n"),
+    ])
+    .expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "if_bool");
+    assert!(warned[0].path.ends_with("pkg/a.ml"), "{}", warned[0].path);
+    // A crash is an error and carries stderr.
+    let err = lint(&[("pkg/a.ml", "crash\n")]).expect_err("crash fails closed");
+    assert!(err.to_string().contains("cannot read cmt"), "{err}");
+    // An owned source with no typed tree is an error, not a clean result.
+    let err = lint(&[("pkg/missing.ml", "let y = 2\n")]).expect_err("missing cmt");
+    assert!(err.to_string().contains("-no-bin-annot"), "{err}");
+}
+
+#[test]
+pub(super) fn zanuda_skips_entries_outside_the_batch() {
+    let entries = ["dx-zanuda/impl/pkg/a.ml.cmt", "dx-zanuda/impl/pkg/b.ml.cmt"];
+    let backend = backend_for("zanuda", zanuda_tool(&entries), zanuda_behavior);
+    // b.ml is staged for the target but not in this batch, so its text is never read.
+    let found = backend
+        .diagnose("zanuda", "lint", &single("pkg/a.ml", "smells\n"))
+        .expect("check");
+    assert_eq!(found.len(), 1);
+}
+
+fn hlint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--json"));
+    let config = argv[2].to_string_lossy().into_owned();
+    assert!(
+        config.starts_with("--hint=") && config.ends_with("cfg/hlint.yaml"),
+        "{config}"
+    );
+    assert_eq!(argv[3], OsString::from("--"));
+    let staged = std::fs::read(config.trim_start_matches("--hint=")).expect("staged config");
+    assert_eq!(staged, b"");
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("crash") {
+        (1, String::new())
+    } else if text.contains("redundant") {
+        (
+            1,
+            format!(
+                r#"[{{"module":[],"decl":[],"severity":"Warning","hint":"Use id","file":"{file}","startLine":1,"startColumn":5,"endLine":1,"endColumn":12,"from":"x","to":"id","note":[],"refactorings":"[]"}}]"#
+            ),
+        )
+    } else {
+        (0, "[]".to_owned())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn hlint_reports_findings_with_the_staged_default_and_never_trusts_a_failed_run() {
+    let backend = backend_for("hlint", bound_tool("cfg/hlint.yaml", b""), hlint_behavior);
+    let lint = |text: &str| backend.diagnose("hlint", "lint", &single("A.hs", text));
+    assert!(lint("main = pure ()\n").expect("check").is_empty());
+    let warned = lint("f = redundant\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "Use id");
+    assert!(lint("crash\n").is_err());
+}
+
+fn zig_ast_check_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    // Exactly one file: `ast-check`, `--color`, `off`, then the file.
+    assert_eq!(argv.len(), 5, "one file per process: {argv:?}");
+    assert_eq!(argv[1], OsString::from("ast-check"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (
+            1,
+            "error: unable to open file 'x' for ast-check: FileNotFound\n".to_owned(),
+        )
+    } else if text.contains("unused") {
+        (
+            1,
+            format!("{file}:1:1: error: unused local variable\nunused\n^\n"),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn zig_ast_check_runs_one_process_per_file_and_never_trusts_a_failed_run() {
+    let backend = backend_for("zig_ast_check", plain_tool(), zig_ast_check_behavior);
+    let lint = |text: &str| backend.diagnose("zig_ast_check", "lint", &single("a.zig", text));
+    assert!(lint("const a = 1;\n").expect("check").is_empty());
+    let warned = lint("unused\n").expect("check");
+    assert_eq!(warned.len(), 1);
+    assert_eq!(warned[0].rule_id, "ast_check");
+    assert!(lint("crash\n").is_err());
+    let mut two = single("a.zig", "unused\n");
+    two.extend(single("b.zig", "unused\n"));
+    let both = backend
+        .diagnose("zig_ast_check", "lint", &two)
+        .expect("check");
+    assert_eq!(both.len(), 2);
+}
+
+fn julialint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let after = |name: &str| {
+        let at = text.iter().position(|a| a == name).expect("flag");
+        text[at + 1].clone()
+    };
+    assert!(after("--scratch").contains(".dx-julialint"));
+    let report = after("--report");
+    assert!(report.contains(".dx-julialint"));
+    let file = last_file(argv);
+    let source = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, body) = if source.contains("crash") {
+        (2, String::new())
+    } else if source.contains("stray") {
+        let line = r#"{"v":1,"file":"/elsewhere/b.jl","line":1,"col":1,"severity":"error","rule":"r","message":"m"}"#;
+        (0, format!("{line}\n"))
+    } else if source.contains("missing") {
+        let line = format!(
+            r#"{{"v":1,"file":"{file}","line":1,"col":3,"severity":"error","rule":"missing-reference","message":"Missing reference: x"}}"#
+        );
+        (0, format!("{line}\n"))
+    } else {
+        (0, String::new())
+    };
+    if code == 0 {
+        std::fs::write(&report, body)?;
+    }
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn julialint_maps_findings_and_never_trusts_a_failed_run() {
+    let backend = backend_for("julialint", plain_tool(), julialint_behavior);
+    let lint = |text: &str| backend.diagnose("julialint", "lint", &single("a.jl", text));
+    assert!(lint("x = 1\n").expect("check").is_empty());
+    let found = lint("f() = missing\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "a.jl");
+    assert_eq!(found[0].rule_id, "julialint/missing-reference");
+    assert!(lint("crash\n").is_err());
+    assert!(lint("stray\n").is_err());
+    assert_eq!(
+        backend
+            .apply_fix("julialint", "a.jl", "x = 1\n", "lint")
+            .expect("check-only"),
+        "x = 1\n"
+    );
+}
+
+fn pkl_lsp_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    // The launch points the JVM profile variables at the scratch home; the rest must stay hermetic.
+    let profile = ["USERPROFILE", "APPDATA", "LOCALAPPDATA"];
+    for name in profile {
+        let value = env.iter().find(|(key, _)| key == name).map(|(_, v)| v);
+        let value = value.unwrap_or_else(|| panic!("{name} is pinned"));
+        assert!(
+            value.to_string_lossy().contains(".dx-pkl-lsp"),
+            "{name} stays in the scratch home"
+        );
+    }
+    let rest: Vec<(OsString, OsString)> = env
+        .iter()
+        .filter(|(key, _)| !profile.iter().any(|name| key == name))
+        .cloned()
+        .collect();
+    assert_hermetic(&rest);
+    let text: Vec<String> = argv
+        .iter()
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
+    let dashes = text.iter().position(|a| a == "--").expect("java separator");
+    assert_eq!(text[dashes + 1], "/fake/jdk/bin/java");
+    assert!(text[dashes + 2].starts_with("-Duser.home="));
+    assert!(text[dashes + 2].contains(".dx-pkl-lsp"));
+    assert_eq!(text[dashes + 3], "-jar");
+    assert_eq!(text[dashes + 4], "/fake/pkl-lsp.jar");
+    let file = last_file(argv);
+    let source = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if source.contains("crash") {
+        (2, String::new())
+    } else if source.contains("unused") {
+        let line = format!(
+            r#"{{"file":"{file}","line":1,"col":7,"severity":2,"code":"unused","message":"Unused local"}}"#
+        );
+        (1, format!("{line}\n"))
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn pkl_lsp_maps_findings_and_needs_both_companions() {
+    let companions = vec![
+        ("java".to_owned(), PathBuf::from("/fake/jdk/bin/java")),
+        ("pkl-lsp.jar".to_owned(), PathBuf::from("/fake/pkl-lsp.jar")),
+    ];
+    let tool = RealTool {
+        path_tools: companions.clone(),
+        ..plain_tool()
+    };
+    let backend = backend_for("pkl_lsp", tool, pkl_lsp_behavior);
+    let lint = |text: &str| backend.diagnose("pkl_lsp", "lint", &single("a.pkl", text));
+    assert!(lint("x = 1\n").expect("check").is_empty());
+    let found = lint("local unused = 1\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "a.pkl");
+    assert_eq!(found[0].rule_id, "unused");
+    assert!(lint("crash\n").is_err());
+    for kept in 0..companions.len() {
+        let partial = RealTool {
+            path_tools: vec![companions[kept].clone()],
+            ..plain_tool()
+        };
+        let backend = backend_for("pkl_lsp", partial, pkl_lsp_behavior);
+        assert!(
+            backend
+                .diagnose("pkl_lsp", "lint", &single("a.pkl", "x = 1\n"))
+                .is_err()
+        );
+    }
+    assert_eq!(
+        backend
+            .apply_fix("pkl_lsp", "a.pkl", "x = 1\n", "lint")
+            .expect("check-only"),
+        "x = 1\n"
+    );
+}
+
+fn dart_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--suppress-analytics"));
+    assert_eq!(argv[2], OsString::from("format"));
+    let value = |key: &str| {
+        env.iter()
+            .find(|(known, _)| known == key)
+            .map(|(_, value)| value.clone())
+    };
+    assert_eq!(
+        value("DART_SUPPRESS_ANALYTICS"),
+        Some(OsString::from("true"))
+    );
+    assert!(value("HOME").is_none(), "dart format needs no HOME");
+    let writing = argv[3] == OsString::from("--output=write");
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout, stderr) = if text.contains("broken") {
+        (
+            65,
+            "Formatted no files in 0.00 seconds.\n".to_owned(),
+            format!(
+                "Could not format because the source could not be parsed:\n\nline 2, column 1 of {file}: Expected an identifier.\n"
+            ),
+        )
+    } else if text.contains("silent") {
+        (
+            1,
+            "Formatted 1 file (0 changed) in 0.00 seconds.\n".to_owned(),
+            String::new(),
+        )
+    } else if text.contains("{ }") && writing {
+        std::fs::write(&file, text.replace("{ }", "{}")).expect("rewrite staged file");
+        (
+            0,
+            "Formatted 1 file (1 changed) in 0.00 seconds.\n".to_owned(),
+            String::new(),
+        )
+    } else if text.contains("{ }") {
+        (
+            1,
+            format!("Changed {file}\nFormatted 1 file (1 changed) in 0.00 seconds.\n"),
+            String::new(),
+        )
+    } else {
+        (
+            0,
+            "Formatted 1 file (0 changed) in 0.00 seconds.\n".to_owned(),
+            String::new(),
+        )
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn dart_formats_without_a_home_and_never_trusts_a_silent_exit() {
+    let backend = backend_for("dart", plain_tool(), dart_behavior);
+    let check = |text: &str| backend.diagnose("dart", "format", &single("a.dart", text));
+    assert!(check("void main() {}\n").expect("check").is_empty());
+    let dirty = check("void main() { }\n").expect("check");
+    assert_eq!(dirty.len(), 1);
+    assert_eq!(dirty[0].message, "file is not formatted");
+    let broken = check("broken\n").expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+    assert!(check("silent\n").is_err());
+    let fixed = backend
+        .apply_fix("dart", "a.dart", "void main() { }\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "void main() {}\n");
+    let kept = backend
+        .apply_fix("dart", "a.dart", "broken\n", "format")
+        .expect("fix round");
+    assert_eq!(kept, "broken\n");
+}
+
+fn dart_analyze_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[2], OsString::from("analyze"));
+    assert_eq!(argv[3], OsString::from("--format=json"));
+    assert!(argv[4].to_string_lossy().starts_with("--cache="));
+    let options = argv[5].to_string_lossy().into_owned();
+    assert!(options.ends_with("analysis_options.yaml"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let diagnostic = |path: &str, code: &str, severity: &str, kind: &str| {
+        format!(
+            r#"{{"code":"{code}","severity":"{severity}","type":"{kind}","location":{{"file":"{path}","range":{{"start":{{"offset":0,"line":1,"column":1}},"end":{{"offset":1,"line":1,"column":2}}}}}},"problemMessage":"msg."}}"#
+        )
+    };
+    let (code, diagnostics) = if text.contains("badoptions") {
+        (
+            3,
+            vec![diagnostic(
+                &options,
+                "undefined_lint",
+                "ERROR",
+                "COMPILE_TIME_ERROR",
+            )],
+        )
+    } else if text.contains("mismatch") {
+        (
+            0,
+            vec![diagnostic(&file, "unused_import", "WARNING", "HINT")],
+        )
+    } else if text.contains("both") {
+        (
+            3,
+            vec![
+                diagnostic(&file, "unused_import", "WARNING", "HINT"),
+                diagnostic(&file, "invalid_assignment", "ERROR", "COMPILE_TIME_ERROR"),
+            ],
+        )
+    } else {
+        (0, Vec::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: format!(
+            r#"{{"version":1,"diagnostics":[{}]}}"#,
+            diagnostics.join(",")
+        )
+        .into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn dart_analyze_splits_lint_from_typecheck_and_never_trusts_a_bad_run() {
+    let backend = backend_for("dart", plain_tool(), dart_analyze_behavior);
+    let run = |capability: &str, text: &str| {
+        backend.diagnose("dart", capability, &single("a.dart", text))
+    };
+    assert!(run("lint", "ok\n").expect("lint").is_empty());
+    let lint = run("lint", "both\n").expect("lint");
+    let types = run("typecheck", "both\n").expect("typecheck");
+    assert_eq!(lint.len(), 1);
+    assert_eq!(lint[0].rule_id, "unused_import");
+    assert_eq!(types.len(), 1);
+    assert_eq!(types[0].rule_id, "invalid_assignment");
+    assert!(run("lint", "badoptions\n").is_err());
+    assert!(run("typecheck", "mismatch\n").is_err());
+    let kept = backend
+        .apply_fix("dart", "a.dart", "both\n", "lint")
+        .expect("fix round");
+    assert_eq!(kept, "both\n");
+}
+
+fn xmllint_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    for flag in ["--noout", "--nonet", "--nocatalogs"] {
+        assert!(argv.iter().any(|arg| arg == flag), "{flag} is passed");
+    }
+    for flag in ["--noent", "--loaddtd", "--valid"] {
+        assert!(!argv.iter().any(|arg| arg == flag), "{flag} stays off");
+    }
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (2, "boom\n".to_owned())
+    } else if text.contains("broken") {
+        (
+            4,
+            format!(
+                "{file}:1: parser error : Extra content at the end of the document\n<a/><b/>\n    ^\n"
+            ),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn xmllint_reports_parse_errors_and_never_trusts_a_failed_run() {
+    let backend = backend_for("xmllint", plain_tool(), xmllint_behavior);
+    let lint = |text: &str| backend.diagnose("xmllint", "lint", &single("a.xml", text));
+    assert!(lint("<a/>\n").expect("check").is_empty());
+    let broken = lint("broken\n").expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "parser");
+    assert!(lint("crash\n").is_err());
+}
+
+fn tinymist_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stderr) = if text.contains("crash") {
+        (2, "error: boom\n".to_owned())
+    } else if text.contains("broken") {
+        (1, format!("{file}:1:1: error: unknown variable: broken\n"))
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn tinymist_lints_each_file_and_never_trusts_a_failed_run() {
+    let backend = backend_for("tinymist", plain_tool(), tinymist_behavior);
+    let lint = |text: &str| backend.diagnose("tinymist", "lint", &single("a.typ", text));
+    assert!(lint("= Title\n").expect("check").is_empty());
+    let found = lint("#broken\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].rule_id, "tinymist/lint");
+    assert!(lint("crash\n").is_err());
+}
+
+fn perltidy_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--noprofile"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let inplace = argv.contains(&OsString::from("-b"));
+    if text.contains("broken") {
+        return Ok(ChildOutput {
+            code: Some(2),
+            stdout: if inplace {
+                Vec::new()
+            } else {
+                text.into_bytes()
+            },
+            stderr: format!("{file}:1: final indentation level: 1\n").into_bytes(),
+        });
+    }
+    let formatted = text.replace("f{", "f {");
+    if inplace {
+        std::fs::write(&file, &formatted).expect("fix writes back");
+        return Ok(ChildOutput {
+            code: Some(0),
+            stdout: Vec::new(),
+            stderr: Vec::new(),
+        });
+    }
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: formatted.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn perltidy_checks_one_file_at_a_time_and_reports_a_syntax_error() {
+    let backend = backend_for("perltidy", plain_tool(), perltidy_behavior);
+    let clean = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f {}\n"))
+        .expect("check");
+    assert!(clean.is_empty());
+    let dirty = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f{}\n"))
+        .expect("check");
+    assert_eq!(dirty.len(), 1);
+    let broken = backend
+        .diagnose("perltidy", "format", &single("a.pm", "sub f { broken\n"))
+        .expect("check");
+    assert_eq!(broken.len(), 1);
+    assert_eq!(broken[0].rule_id, "syntax");
+}
+
+#[test]
+pub(super) fn perltidy_fix_keeps_a_file_it_could_not_parse() {
+    let backend = backend_for("perltidy", plain_tool(), perltidy_behavior);
+    let fixed = backend
+        .apply_fix("perltidy", "a.pm", "sub f{}\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "sub f {}\n");
+    let broken = "sub f { broken\n";
+    let kept = backend
+        .apply_fix("perltidy", "a.pm", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
+}
+
+fn perlcritic_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert_eq!(argv[1], OsString::from("--noprofile"));
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let (code, stdout) = if text.contains("silent") {
+        (2, String::new())
+    } else if text.contains("phantom") {
+        (0, format!("dx\t{file}\t1\t1\t5\tP::Q\tm\n"))
+    } else if text.contains("unreadable") {
+        (3, String::new())
+    } else if text.contains("no strict") {
+        (
+            2,
+            format!(
+                "dx\t{file}\t1\t1\t5\tTestingAndDebugging::RequireUseStrict\tCode before strictures are enabled\n"
+            ),
+        )
+    } else {
+        (0, String::new())
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: stdout.into_bytes(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn perlcritic_lints_and_never_trusts_an_exit_that_disagrees_with_its_output() {
+    let backend = backend_for("perlcritic", plain_tool(), perlcritic_behavior);
+    let lint = |text: &str| backend.diagnose("perlcritic", "lint", &single("a.pl", text));
+    assert!(lint("use strict;\n").expect("check").is_empty());
+    let found = lint("# no strict\n").expect("check");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].rule_id, "TestingAndDebugging::RequireUseStrict");
+    assert!(lint("silent\n").is_err());
+    assert!(lint("phantom\n").is_err());
+    assert!(lint("unreadable\n").is_err());
+}
+
+fn opa_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let done = |code, stdout: &str, stderr: String| {
+        Ok(ChildOutput {
+            code: Some(code),
+            stdout: stdout.as_bytes().to_vec(),
+            stderr: stderr.into_bytes(),
+        })
+    };
+    if argv[1] == OsString::from("check") {
+        if text.contains("noise") {
+            return done(0, "", "warning: noise\n".to_owned());
+        }
+        if text.contains("missing") {
+            let report = format!(
+                "{{\"errors\":[{{\"message\":\"undefined function data.lib.missing\",\"code\":\"rego_type_error\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":6}}}}]}}"
+            );
+            return done(1, "", report);
+        }
+        return done(0, "", String::new());
+    }
+    if text.contains(":= :=") {
+        return done(
+            2,
+            "",
+            format!(
+                "failed to format Rego source file: 1 error occurred:\n{file}:2: rego_parse_error: unexpected assign token\n"
+            ),
+        );
+    }
+    let formatted = "package a\n\nx := 1\n";
+    if argv[2] == OsString::from("-w") {
+        std::fs::write(&file, formatted).expect("fix writes back");
+        return done(0, "", String::new());
+    }
+    done(0, formatted, String::new())
+}
+
+#[test]
+pub(super) fn opa_format_reports_unformatted_files_and_parse_errors() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let clean = single("a.rego", "package a\n\nx := 1\n");
+    assert!(
+        backend
+            .diagnose("opa", "format", &clean)
+            .expect("clean")
+            .is_empty()
+    );
+    let findings = backend
+        .diagnose(
+            "opa",
+            "format",
+            &single("a.rego", "package a\n\nx   := 1\n"),
+        )
+        .expect("unformatted");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].message, "file is not formatted");
+    let broken = single("a.rego", "package a\nx := := 1\n");
+    let findings = backend
+        .diagnose("opa", "format", &broken)
+        .expect("parse error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "rego_parse_error");
+}
+
+#[test]
+pub(super) fn opa_fix_rewrites_an_owned_file() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let fixed = backend
+        .apply_fix("opa", "a.rego", "package a\n\nx   := 1\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "package a\n\nx := 1\n");
+}
+
+#[test]
+pub(super) fn opa_typecheck_reports_errors_and_never_counts_noise_as_clean() {
+    let backend = backend_for("opa", plain_tool(), opa_behavior);
+    let clean = single("a.rego", "package a\n\nx := 1\n");
+    assert!(
+        backend
+            .diagnose("opa", "typecheck", &clean)
+            .expect("clean")
+            .is_empty()
+    );
+    let findings = backend
+        .diagnose(
+            "opa",
+            "typecheck",
+            &single("a.rego", "package a\n\nx := data.lib.missing(1)\n"),
+        )
+        .expect("type error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "rego_type_error");
+    assert_eq!(findings[0].path, "a.rego");
+    assert!(
+        backend
+            .diagnose("opa", "typecheck", &single("a.rego", "noise\n"))
+            .is_err()
+    );
+}
+
+fn regal_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    assert!(cwd.join(".regal").is_dir(), "regal config dir is staged");
+    let config = argv
+        .iter()
+        .position(|arg| arg == "--config-file")
+        .map(|index| PathBuf::from(&argv[index + 1]))
+        .expect("regal is always given a config file");
+    assert!(config.is_file(), "the config file exists");
+    let file = last_file(argv);
+    assert!(
+        Path::new(&file).is_relative(),
+        "paths are workspace-relative"
+    );
+    let text = std::fs::read_to_string(cwd.join(&file)).expect("read staged file");
+    let report = |level: &str, count: u64| {
+        format!(
+            "{{\"violations\":[{{\"title\":\"use-assignment-operator\",\"description\":\"Prefer :=\",\"category\":\"style\",\"level\":\"{level}\",\"location\":{{\"file\":\"{file}\",\"row\":3,\"col\":3}}}}],\"summary\":{{\"files_scanned\":1,\"files_failed\":1,\"rules_skipped\":0,\"num_violations\":{count}}}}}"
+        )
+    };
+    let done = |code: i32, stdout: String, stderr: &str| {
+        Ok(ChildOutput {
+            code: Some(code),
+            stdout: stdout.into_bytes(),
+            stderr: stderr.as_bytes().to_vec(),
+        })
+    };
+    if text.contains("errors") {
+        return done(3, report("error", 1), "");
+    }
+    if text.contains("warnings") {
+        return done(2, report("warning", 1), "");
+    }
+    if text.contains("exit0") {
+        return done(0, report("error", 1), "");
+    }
+    if text.contains("garbage") {
+        return done(0, "not json".to_owned(), "");
+    }
+    if text.contains("crash") {
+        return done(1, "{\"errors\":[\"parse failure\"]}".to_owned(), "boom\n");
+    }
+    done(
+        0,
+        "{\"violations\":[],\"summary\":{\"files_scanned\":1,\"files_failed\":0,\"rules_skipped\":0,\"num_violations\":0}}"
+            .to_owned(),
+        "",
+    )
+}
+
+#[test]
+pub(super) fn regal_lint_reports_errors_and_warnings_and_never_counts_noise_as_clean() {
+    let mut tool = bound_tool(".regal/config.yaml", b"");
+    tool.extra_env = vec![("REGAL_DISABLE_VERSION_CHECK".to_owned(), "1".to_owned())];
+    let backend = backend_for("regal", tool, regal_behavior);
+    assert!(
+        backend
+            .diagnose("regal", "lint", &single("p/a.rego", "package p\n"))
+            .expect("clean")
+            .is_empty()
+    );
+    let findings = backend
+        .diagnose(
+            "regal",
+            "lint",
+            &single("p/a.rego", "package p\n\nerrors = 1\n"),
+        )
+        .expect("errors");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].rule_id, "style/use-assignment-operator");
+    assert_eq!(findings[0].path, "p/a.rego");
+    let findings = backend
+        .diagnose(
+            "regal",
+            "lint",
+            &single("p/a.rego", "package p\n\nwarnings = 1\n"),
+        )
+        .expect("warnings are findings");
+    assert_eq!(findings.len(), 1);
+    for body in ["package p\n\nexit0 = 1\n", "garbage\n", "crash\n"] {
+        assert!(
+            backend
+                .diagnose("regal", "lint", &single("p/a.rego", body))
+                .is_err(),
+            "{body}"
+        );
+    }
+}
+
+#[test]
+pub(super) fn regal_lint_with_a_missing_binary_is_an_error() {
+    let backend = backend_for("regal", plain_tool(), |_, _, _| {
+        Err(io::Error::new(io::ErrorKind::NotFound, "no regal"))
+    });
+    assert!(
+        backend
+            .diagnose("regal", "lint", &single("a.rego", "package a\n"))
+            .is_err()
+    );
+}
+
+fn opa_dependency_behavior(
+    argv: &[OsString],
+    _cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let mut errors = Vec::new();
+    for arg in &argv[2..] {
+        let file = arg.to_string_lossy().into_owned();
+        if !Path::new(&file).is_file() {
+            continue;
+        }
+        let text = std::fs::read_to_string(&file).expect("read staged file");
+        if text.contains("broken") {
+            errors.push(format!(
+                "{{\"message\":\"unexpected token\",\"code\":\"rego_parse_error\",\"location\":{{\"file\":\"{file}\",\"row\":2,\"col\":1}}}}"
+            ));
+        }
+    }
+    let (code, stderr) = if errors.is_empty() {
+        (0, String::new())
+    } else {
+        (1, format!("{{\"errors\":[{}]}}", errors.join(",")))
+    };
+    Ok(ChildOutput {
+        code: Some(code),
+        stdout: Vec::new(),
+        stderr: stderr.into_bytes(),
+    })
+}
+
+#[test]
+pub(super) fn opa_typecheck_never_reports_clean_when_only_a_dependency_is_broken() {
+    let backend = backend_for("opa", plain_tool(), opa_dependency_behavior);
+    let owned = single("app/app.rego", "package app\n\nx := 1\n");
+    let clean = single("lib/base.rego", "package lib\n\ny := 1\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &clean)
+        .expect("clean dependency");
+    assert!(found.is_empty());
+    let broken = single("lib/base.rego", "package lib\nbroken\n");
+    let error = backend
+        .diagnose_with_resolve("opa", "typecheck", &owned, &BTreeMap::new(), &broken)
+        .expect_err("broken dependency is never clean");
+    assert!(error.to_string().contains("lib/base.rego"), "{error}");
+    let both = single("app/app.rego", "package app\nbroken\n");
+    let found = backend
+        .diagnose_with_resolve("opa", "typecheck", &both, &BTreeMap::new(), &broken)
+        .expect("owned error");
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].path, "app/app.rego");
+}
+
+fn mix_format_behavior(
+    argv: &[OsString],
+    cwd: &Path,
+    env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    assert_hermetic(env);
+    let file = last_file(argv);
+    let text = std::fs::read_to_string(&file).expect("read staged file");
+    let relative = Path::new(&file)
+        .strip_prefix(cwd)
+        .expect("staged under cwd")
+        .to_string_lossy()
+        .into_owned();
+    let check = argv[1] == OsString::from("--check-formatted");
+    if text.contains('*') {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: format!(
+                "mix format failed for file: {relative}\n** (SyntaxError) invalid syntax found on {relative}:2:3:\n    error: syntax error before: '*'\n"
+            )
+            .into_bytes(),
+        });
+    }
+    if check {
+        return Ok(ChildOutput {
+            code: Some(1),
+            stdout: Vec::new(),
+            stderr: format!(
+                "** (Mix) mix format failed due to --check-formatted.\nThe following files are not formatted:\n\n\u{1b}[1m\u{1b}[31m{file}\n\u{1b}[0m\n1   -|x=1\n  1 +|x = 1\n"
+            )
+            .into_bytes(),
+        });
+    }
+    assert_eq!(argv.len(), 2);
+    std::fs::write(&file, "x = 1\n").expect("fix writes back");
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+fn mix_format_names_bound_config(
+    argv: &[OsString],
+    _cwd: &Path,
+    _env: &[(OsString, OsString)],
+) -> io::Result<ChildOutput> {
+    let at = argv
+        .iter()
+        .position(|arg| arg == "--dot-formatter")
+        .expect("mix names its formatter file");
+    let config = Path::new(&argv[at + 1]);
+    assert!(config.ends_with("core/quality/tiers/mix_format/standard.exs"));
+    assert_eq!(
+        std::fs::read(config).expect("staged"),
+        b"[line_length: 98]\n"
+    );
+    Ok(ChildOutput {
+        code: Some(0),
+        stdout: Vec::new(),
+        stderr: Vec::new(),
+    })
+}
+
+#[test]
+pub(super) fn mix_format_reads_only_the_bound_formatter_file() {
+    let tool = RealTool {
+        config_rel: Some("core/quality/tiers/mix_format/standard.exs".to_owned()),
+        tool_files: vec![(
+            "core/quality/tiers/mix_format/standard.exs".to_owned(),
+            b"[line_length: 98]\n".to_vec(),
+        )],
+        ..plain_tool()
+    };
+    let backend = backend_for("mix_format", tool, mix_format_names_bound_config);
+    let findings = backend
+        .diagnose("mix_format", "format", &single("lib/a.ex", "x = 1\n"))
+        .expect("clean");
+    assert!(findings.is_empty());
+}
+
+#[test]
+pub(super) fn mix_format_reports_files_relative_to_its_working_directory() {
+    let backend = backend_for("mix_format", plain_tool(), mix_format_behavior);
+    let findings = backend
+        .diagnose("mix_format", "format", &single("lib/a.ex", "x=1\n"))
+        .expect("unformatted");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "lib/a.ex");
+    assert_eq!(findings[0].message, "file is not formatted");
+    let findings = backend
+        .diagnose("mix_format", "format", &single("lib/a.ex", "x = 1\ny *\n"))
+        .expect("syntax error");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "lib/a.ex");
+    assert_eq!(findings[0].rule_id, "syntax");
+    assert_eq!(findings[0].message, "syntax error before: '*'");
+    assert_eq!(findings[0].start_byte, Some(8));
+}
+
+#[test]
+pub(super) fn mix_format_fix_keeps_a_file_it_could_not_parse() {
+    let backend = backend_for("mix_format", plain_tool(), mix_format_behavior);
+    let fixed = backend
+        .apply_fix("mix_format", "a.ex", "x=1\n", "format")
+        .expect("fix round");
+    assert_eq!(fixed, "x = 1\n");
+    let broken = "x = 1\ny *\n";
+    let kept = backend
+        .apply_fix("mix_format", "a.ex", broken, "format")
+        .expect("fix round");
+    assert_eq!(kept, broken);
+}
+
+const ROSLYN_CLEAN: &str =
+    r#"{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"csc"}},"results":[]}]}"#;
+
+#[test]
+fn delegated_roslyn_fails_closed_without_the_csc_exit_status() {
+    for exit in [None, Some("oops")] {
+        let report = upstream_file("roslyn", ROSLYN_CLEAN);
+        let mut tool = delegated_tool(report.path().to_path_buf());
+        tool.tool_files = exit
+            .map(|text| vec![(roslyn_exit_key(report.path()), text.as_bytes().to_vec())])
+            .unwrap_or_default();
+        let backend = backend_for("roslyn", tool, must_not_spawn);
+        let error = backend
+            .diagnose("roslyn", "lint", &single("src/a.cs", "x\n"))
+            .expect_err("missing exit status");
+        assert!(error.to_string().contains("csc exit status"), "{error}");
+    }
+}
+
+#[test]
+fn delegated_roslyn_reports_a_nonzero_exit_without_errors() {
+    let report = upstream_file("roslyn", ROSLYN_CLEAN);
+    let mut tool = delegated_tool(report.path().to_path_buf());
+    tool.tool_files = vec![(roslyn_exit_key(report.path()), b"1\r\n".to_vec())];
+    let backend = backend_for("roslyn", tool, must_not_spawn);
+    let error = backend
+        .diagnose("roslyn", "lint", &single("src/a.cs", "x\n"))
+        .expect_err("incomplete");
+    assert!(error.to_string().contains("csc exit 1"), "{error}");
+}
+
+fn roslyn_result(rule: &str, line: u32, message: &str) -> String {
+    format!(
+        r#"{{"ruleId":"{rule}","level":"warning","message":{{"text":"{message}"}},"locations":[{{"physicalLocation":{{"artifactLocation":{{"uri":"src/a.cs"}},"region":{{"startLine":{line},"startColumn":1,"endLine":{line},"endColumn":2}}}}}}]}}"#
+    )
+}
+
+fn roslyn_sarif(results: &[String]) -> String {
+    format!(
+        r#"{{"version":"2.1.0","runs":[{{"tool":{{"driver":{{"name":"csc"}}}},"results":[{}]}}]}}"#,
+        results.join(",")
+    )
+}
+
+/// One Roslyn tool fed a SARIF log and exit status per target framework.
+fn roslyn_pivots(scratch: &Path, pivots: &[(&str, &str, Option<&str>)]) -> RealTool {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    tool.tool_files.clear();
+    for (tfm, sarif, exit) in pivots {
+        let path = scratch.join(format!("{tfm}.sarif"));
+        std::fs::write(&path, sarif).expect("write pivot SARIF");
+        if let Some(exit) = exit {
+            tool.tool_files
+                .push((format!("dx-roslyn/{tfm}/exit"), exit.as_bytes().to_vec()));
+        }
+        tool.upstream_diagnostics.push(path);
+    }
+    tool
+}
+
+const ROSLYN_SOURCE: &str = "a\nb\nc\n";
+
+#[test]
+fn delegated_roslyn_reports_a_finding_shared_by_every_framework_once() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let shared = roslyn_sarif(&[roslyn_result("CA1822", 1, "shared")]);
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", &shared, Some("0")),
+            ("net10.0", &shared, Some("0")),
+        ],
+    );
+    let findings = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect("merged findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].message, "shared");
+}
+
+#[test]
+fn delegated_roslyn_marks_a_finding_with_the_frameworks_that_report_it() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let net8 = roslyn_sarif(&[
+        roslyn_result("CA1822", 1, "shared"),
+        roslyn_result("CA1822", 2, "only net8"),
+    ]);
+    let net10 = roslyn_sarif(&[roslyn_result("CA1822", 1, "shared")]);
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[("net8.0", &net8, Some("0")), ("net10.0", &net10, Some("0"))],
+    );
+    let findings = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect("merged findings");
+    let mut messages: Vec<&str> = findings
+        .iter()
+        .map(|found| found.message.as_str())
+        .collect();
+    messages.sort_unstable();
+    assert_eq!(messages, ["only net8 [net8.0]", "shared"]);
+}
+
+#[test]
+fn delegated_roslyn_fails_closed_without_a_framework_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", ROSLYN_CLEAN, Some("0")),
+            ("net10.0", ROSLYN_CLEAN, None),
+        ],
+    );
+    let error = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect_err("missing net10.0 exit status");
+    assert!(
+        error.to_string().contains("exit status for net10.0"),
+        "{error}"
+    );
+}
+
+#[test]
+fn delegated_roslyn_clean_framework_never_hides_a_failed_one() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", ROSLYN_CLEAN, Some("1")),
+            ("net10.0", ROSLYN_CLEAN, Some("0")),
+        ],
+    );
+    let error = backend_for("roslyn", tool, must_not_spawn)
+        .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect_err("net8.0 csc failed");
+    assert!(error.to_string().contains("csc exit 1"), "{error}");
+}
+
+#[test]
+fn delegated_roslyn_fails_closed_on_one_malformed_framework_log() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = roslyn_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", "{<error", Some("0")),
+            ("net10.0", ROSLYN_CLEAN, Some("0")),
+        ],
+    );
+    assert!(
+        backend_for("roslyn", tool, must_not_spawn)
+            .diagnose("roslyn", "lint", &single("src/a.cs", ROSLYN_SOURCE))
+            .is_err()
+    );
+}
+
+#[test]
+fn delegated_csc_keeps_compiler_diagnostics_and_drops_analyzers() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let sarif = roslyn_sarif(&[
+        roslyn_result("CS0029", 1, "cannot convert"),
+        roslyn_result("CA1822", 2, "static"),
+    ]);
+    let tool = roslyn_pivots(scratch.path(), &[("net8.0", &sarif, Some("0"))]);
+    let findings = backend_for("csc", tool, must_not_spawn)
+        .diagnose("csc", "typecheck", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect("compiler findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].message, "cannot convert");
+}
+
+#[test]
+fn delegated_csc_requires_the_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let sarif = roslyn_sarif(&[]);
+    let tool = roslyn_pivots(scratch.path(), &[("net8.0", &sarif, None)]);
+    let error = backend_for("csc", tool, must_not_spawn)
+        .diagnose("csc", "typecheck", &single("src/a.cs", ROSLYN_SOURCE))
+        .expect_err("missing exit");
+    assert!(error.to_string().contains("csc"), "{error}");
+}
+
+/// One fsc tool fed an fsc log and exit status per target framework.
+fn fsc_pivots(scratch: &Path, pivots: &[(&str, &str, Option<&str>)]) -> RealTool {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    tool.tool_files.clear();
+    for (tfm, log, exit) in pivots {
+        let path = scratch.join(format!("{tfm}.log"));
+        std::fs::write(&path, log).expect("write fsc log");
+        if let Some(exit) = exit {
+            tool.tool_files
+                .push((format!("dx-fsc/{tfm}/exit"), exit.as_bytes().to_vec()));
+        }
+        tool.upstream_diagnostics.push(path);
+    }
+    tool
+}
+
+const FSC_ERROR: &str = "/work/root/src/a.fs(2,1): error FS0001: boom\n";
+
+#[test]
+fn delegated_fsc_reports_errors_reanchored_to_the_staged_source() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = fsc_pivots(scratch.path(), &[("net10.0", FSC_ERROR, Some("1"))]);
+    let findings = backend_for("fsc", tool, must_not_spawn)
+        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+        .expect("compiler findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].rule_id, "FS0001");
+    assert!(findings[0].path.ends_with("src/a.fs"), "{:?}", findings[0]);
+}
+
+#[test]
+fn delegated_fsc_requires_the_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = fsc_pivots(scratch.path(), &[("net10.0", "", None)]);
+    let error = backend_for("fsc", tool, must_not_spawn)
+        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+        .expect_err("missing exit");
+    assert!(error.to_string().contains("fsc exit status"), "{error}");
+}
+
+#[test]
+fn delegated_fsc_merges_frameworks_and_fails_on_a_silent_failure() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let tool = fsc_pivots(
+        scratch.path(),
+        &[
+            ("net8.0", FSC_ERROR, Some("1")),
+            ("net10.0", FSC_ERROR, Some("1")),
+        ],
+    );
+    let findings = backend_for("fsc", tool, must_not_spawn)
+        .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+        .expect("merged");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    let tool = fsc_pivots(
+        scratch.path(),
+        &[("net8.0", FSC_ERROR, Some("1")), ("net10.0", "", Some("1"))],
+    );
+    assert!(
+        backend_for("fsc", tool, must_not_spawn)
+            .diagnose("fsc", "typecheck", &single("src/a.fs", ROSLYN_SOURCE))
+            .is_err()
+    );
+}
+
+const ERLC_SOURCE: &str = "-module(a).\n\n\n\n    f(X) -> ok.\n";
+const ERLC_LOG: &str = "src/a.erl:5:9: Warning: variable 'X' is unused\n";
+
+#[test]
+fn delegated_erlc_reports_warnings_reanchored_to_the_staged_source() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("beam_files.log");
+    std::fs::write(&log, ERLC_LOG).expect("write erlc log");
+    let mut tool = delegated_tool(log);
+    tool.tool_files.clear();
+    tool.tool_files
+        .push(("dx-erlc/beam_files/exit".to_owned(), b"0".to_vec()));
+    let findings = backend_for("erlc", tool, must_not_spawn)
+        .diagnose("erlc", "typecheck", &single("src/a.erl", ERLC_SOURCE))
+        .expect("compiler findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert_eq!(findings[0].message, "variable 'X' is unused");
+    assert!(findings[0].path.ends_with("src/a.erl"), "{:?}", findings[0]);
+}
+
+#[test]
+fn delegated_erlc_requires_the_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("beam_files.log");
+    std::fs::write(&log, ERLC_LOG).expect("write erlc log");
+    let mut tool = delegated_tool(log);
+    tool.tool_files.clear();
+    let error = backend_for("erlc", tool, must_not_spawn)
+        .diagnose("erlc", "typecheck", &single("src/a.erl", ERLC_SOURCE))
+        .expect_err("missing exit");
+    assert!(error.to_string().contains("erlc exit status"), "{error}");
+}
+
+const ELIXIRC_SOURCE: &str = "defmodule A do\n  def f(x), do: :ok\nend\n";
+const ELIXIRC_LOG: &str = "    warning: variable \"x\" is unused (if the variable is not meant to be used, prefix it with an underscore)\n    │\n  2 │   def f(x), do: :ok\n    │         ~\n    │\n    └─ lib/a.ex:2:9: A.f/1\n";
+
+#[test]
+fn delegated_elixirc_reports_warnings_reanchored_to_the_staged_source() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("beam_files.log");
+    std::fs::write(&log, ELIXIRC_LOG).expect("write elixirc log");
+    let mut tool = delegated_tool(log);
+    tool.tool_files.clear();
+    tool.tool_files
+        .push(("dx-elixirc/beam_files/exit".to_owned(), b"0".to_vec()));
+    let findings = backend_for("elixirc", tool, must_not_spawn)
+        .diagnose("elixirc", "typecheck", &single("lib/a.ex", ELIXIRC_SOURCE))
+        .expect("compiler findings");
+    assert_eq!(findings.len(), 1, "{findings:?}");
+    assert!(findings[0].message.starts_with("variable \"x\" is unused"));
+    assert!(findings[0].path.ends_with("lib/a.ex"), "{:?}", findings[0]);
+}
+
+#[test]
+fn delegated_elixirc_requires_the_exit_status() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("beam_files.log");
+    std::fs::write(&log, ELIXIRC_LOG).expect("write elixirc log");
+    let mut tool = delegated_tool(log);
+    tool.tool_files.clear();
+    let error = backend_for("elixirc", tool, must_not_spawn)
+        .diagnose("elixirc", "typecheck", &single("lib/a.ex", ELIXIRC_SOURCE))
+        .expect_err("missing exit");
+    assert!(error.to_string().contains("elixirc exit status"), "{error}");
+}
+
+fn clang_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
+    clang_syntax_driver_tool(log, exit, Some("gnu"))
+}
+
+fn clang_syntax_driver_tool(log: &Path, exit: Option<&str>, driver: Option<&str>) -> RealTool {
+    let stem = log.file_stem().and_then(|s| s.to_str()).expect("stem");
+    let mut tool = delegated_tool(log.to_path_buf());
+    if let Some(text) = exit {
+        tool.tool_files.push((
+            format!("dx-clang-syntax/{stem}/exit"),
+            text.as_bytes().to_vec(),
+        ));
+    }
+    if let Some(text) = driver {
+        tool.tool_files.push((
+            format!("dx-clang-syntax/{stem}/driver"),
+            text.as_bytes().to_vec(),
+        ));
+    }
+    tool
+}
+
+fn nvcc_syntax_tool(log: &Path, exit: Option<&str>) -> RealTool {
+    let stem = log.file_stem().and_then(|s| s.to_str()).expect("stem");
+    let mut tool = delegated_tool(log.to_path_buf());
+    tool.tool_files = exit
+        .map(|text| {
+            vec![(
+                format!("dx-nvcc-syntax/{stem}/exit"),
+                text.as_bytes().to_vec(),
+            )]
+        })
+        .unwrap_or_default();
+    tool
+}
+
+fn compile_check_tool(tool_id: &str, log: &Path, exit: Option<&str>) -> RealTool {
+    let stem = log.file_stem().and_then(|s| s.to_str()).expect("stem");
+    let mut tool = delegated_tool(log.to_path_buf());
+    tool.tool_files = exit
+        .map(|text| {
+            vec![(
+                format!("dx-compile-check/{stem}/exit"),
+                text.as_bytes().to_vec(),
+            )]
+        })
+        .unwrap_or_default();
+    let _ = tool_id;
+    tool
+}
+
+const COMPILE_CHECK_SOURCE: &str = "abcdefghij\nabcdefghij\nabcdefghij\nabcdefghij\n";
+
+const COMPILE_CHECK_CASES: [(&str, &str, &str, &str); 5] = [
+    (
+        "flang",
+        "src/a.f90",
+        "src/a.f90:3:7: error: No explicit type declared for 'y'\nerror: Semantic errors in src/a.f90\n",
+        "src/gen.f90:3:7: error: No explicit type declared for 'y'\n",
+    ),
+    (
+        "ghc",
+        "src/A.hs",
+        "{\"version\":\"1.1\",\"span\":{\"file\":\"src/A.hs\",\"start\":{\"line\":4,\"column\":9},\"end\":{\"line\":4,\"column\":10}},\"severity\":\"Error\",\"code\":88464,\"message\":[\"Variable not in scope: y\"]}\n",
+        "{\"version\":\"1.1\",\"span\":{\"file\":\"src/Gen.hs\",\"start\":{\"line\":4,\"column\":9},\"end\":{\"line\":4,\"column\":10}},\"severity\":\"Error\",\"code\":88464,\"message\":[\"Variable not in scope: y\"]}\n",
+    ),
+    (
+        "ldc",
+        "src/a.d",
+        "src/a.d:4:9: Error: undefined identifier `y`\n",
+        "src/gen.d:4:9: Error: undefined identifier `y`\n",
+    ),
+    (
+        "ocaml",
+        "src/a.ml",
+        "File \"src/a.ml\", line 4, characters 8-9:\nError: Unbound value y\n",
+        "File \"src/gen.ml\", line 4, characters 8-9:\nError: Unbound value y\n",
+    ),
+    (
+        "zig",
+        "src/a.zig",
+        "src/a.zig:4:9: error: use of undeclared identifier 'y'\n",
+        "src/gen.zig:4:9: error: use of undeclared identifier 'y'\n",
+    ),
+];
+
+#[test]
+fn delegated_compile_check_reads_clean_and_owned_errors() {
+    for (tool_id, path, owned, _) in COMPILE_CHECK_CASES {
+        let clean = upstream_file(tool_id, "");
+        let found = backend_for(
+            tool_id,
+            compile_check_tool(tool_id, clean.path(), Some("0\n")),
+            must_not_spawn,
+        )
+        .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+        .expect("clean");
+        assert!(found.is_empty(), "{tool_id}");
+
+        let dirty = upstream_file(tool_id, owned);
+        let found = backend_for(
+            tool_id,
+            compile_check_tool(tool_id, dirty.path(), Some("1\n")),
+            must_not_spawn,
+        )
+        .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+        .expect("dirty");
+        assert_eq!(found.len(), 1, "{tool_id}");
+        assert_eq!(found[0].path, path);
+    }
+}
+
+#[test]
+fn delegated_compile_check_fails_closed() {
+    for (tool_id, path, _, foreign) in COMPILE_CHECK_CASES {
+        let empty = upstream_file(tool_id, "");
+        let foreign_log = upstream_file(tool_id, foreign);
+        for (tool, needle) in [
+            (
+                compile_check_tool(tool_id, empty.path(), None),
+                "exit status",
+            ),
+            (
+                compile_check_tool(tool_id, empty.path(), Some("1")),
+                "exit 1",
+            ),
+            (
+                compile_check_tool(tool_id, foreign_log.path(), Some("1")),
+                tool_id,
+            ),
+        ] {
+            let error = backend_for(tool_id, tool, must_not_spawn)
+                .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+                .expect_err("fail closed");
+            assert!(error.to_string().contains(needle), "{tool_id}: {error}");
+        }
+        let error = backend_for(tool_id, plain_tool(), must_not_spawn)
+            .diagnose(tool_id, "typecheck", &single(path, COMPILE_CHECK_SOURCE))
+            .expect_err("no upstream");
+        assert!(error.to_string().contains("requires upstream diagnostics"));
+    }
+}
+
+const TSC_SOURCE: &str = "export const n: number = 'x';\n";
+const TSC_OWNED: &str =
+    "src/a.ts(1,14): error TS2322: Type 'string' is not assignable to type 'number'.\n";
+
+fn tsc_tool(report: &Path, exit: Option<&str>) -> RealTool {
+    let mut tool = delegated_tool(report.to_path_buf());
+    tool.tool_files = exit
+        .map(|text| vec![("dx-tsc/exit".to_owned(), text.as_bytes().to_vec())])
+        .unwrap_or_default();
+    tool
+}
+
+#[test]
+fn delegated_clang_syntax_reads_clean_and_dirty_logs() {
+    let clean = upstream_file("clang_syntax", "");
+    let backend = backend_for(
+        "clang_syntax",
+        clang_syntax_tool(clean.path(), Some("0\n")),
+        must_not_spawn,
+    );
+    let found = backend
+        .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+        .expect("clean");
+    assert!(found.is_empty());
+
+    let dirty = upstream_file(
+        "clang_syntax",
+        "src/a.c:1:1: error: unknown type name 'x'\n",
+    );
+    let backend = backend_for(
+        "clang_syntax",
+        clang_syntax_tool(dirty.path(), Some("1\n")),
+        must_not_spawn,
+    );
+    let found = backend
+        .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+        .expect("dirty");
+    assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn delegated_clang_syntax_parses_an_msvc_log_by_driver() {
+    let log = upstream_file(
+        "clang_syntax",
+        "a.cpp\nsrc/a.c(1,1): error C2065: 'x': undeclared identifier\n",
+    );
+    let found = backend_for(
+        "clang_syntax",
+        clang_syntax_driver_tool(log.path(), Some("2\n"), Some("msvc\n")),
+        must_not_spawn,
+    )
+    .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+    .expect("msvc");
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert_eq!(found[0].rule_id, "C2065");
+}
+
+#[test]
+fn delegated_clang_syntax_needs_a_known_driver() {
+    let log = upstream_file("clang_syntax", "");
+    for (driver, needle) in [(None, "compiler driver"), (Some("watcom"), "watcom")] {
+        let error = backend_for(
+            "clang_syntax",
+            clang_syntax_driver_tool(log.path(), Some("0\n"), driver),
+            must_not_spawn,
+        )
+        .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+        .expect_err("driver");
+        assert!(error.to_string().contains(needle), "{error}");
+    }
+}
+
+#[test]
+fn delegated_clang_syntax_fails_closed() {
+    let log = upstream_file("clang_syntax", "");
+    for (tool, needle) in [
+        (clang_syntax_tool(log.path(), None), "exit status"),
+        (clang_syntax_tool(log.path(), Some("1")), "exit 1"),
+    ] {
+        let error = backend_for("clang_syntax", tool, must_not_spawn)
+            .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+            .expect_err("fail closed");
+        assert!(error.to_string().contains(needle), "{error}");
+    }
+    let error = backend_for("clang_syntax", plain_tool(), must_not_spawn)
+        .diagnose("clang_syntax", "typecheck", &single("src/a.c", "x\n"))
+        .expect_err("no upstream");
+    assert!(error.to_string().contains("requires upstream diagnostics"));
+}
+
+#[test]
+fn delegated_nvcc_syntax_reads_clean_and_dirty_logs() {
+    let clean = upstream_file("nvcc_syntax", "");
+    let backend = backend_for(
+        "nvcc_syntax",
+        nvcc_syntax_tool(clean.path(), Some("0\n")),
+        must_not_spawn,
+    );
+    let found = backend
+        .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
+        .expect("clean");
+    assert!(found.is_empty());
+
+    let dirty = upstream_file(
+        "nvcc_syntax",
+        "src/a.cu(1): error: identifier \"x\" is undefined\n",
+    );
+    let backend = backend_for(
+        "nvcc_syntax",
+        nvcc_syntax_tool(dirty.path(), Some("1\n")),
+        must_not_spawn,
+    );
+    let found = backend
+        .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
+        .expect("dirty");
+    assert_eq!(found.len(), 1);
+}
+
+#[test]
+fn delegated_nvcc_syntax_fails_closed() {
+    let log = upstream_file("nvcc_syntax", "");
+    for (tool, needle) in [
+        (nvcc_syntax_tool(log.path(), None), "exit status"),
+        (nvcc_syntax_tool(log.path(), Some("1")), "exit 1"),
+    ] {
+        let error = backend_for("nvcc_syntax", tool, must_not_spawn)
+            .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
+            .expect_err("fail closed");
+        assert!(error.to_string().contains(needle), "{error}");
+    }
+    let error = backend_for("nvcc_syntax", plain_tool(), must_not_spawn)
+        .diagnose("nvcc_syntax", "typecheck", &single("src/a.cu", "x\n"))
+        .expect_err("no upstream");
+    assert!(error.to_string().contains("requires upstream diagnostics"));
+}
+
+#[test]
+fn delegated_tsc_is_clean_on_exit_zero_and_reports_owned_findings() {
+    let clean = upstream_file("tsc", "");
+    let findings = backend_for("tsc", tsc_tool(clean.path(), Some("0")), must_not_spawn)
+        .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+        .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("tsc", TSC_OWNED);
+    let findings = backend_for("tsc", tsc_tool(dirty.path(), Some("2\n")), must_not_spawn)
+        .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+        .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "src/a.ts");
+    assert_eq!(findings[0].rule_id, "TS2322");
+}
+
+#[test]
+fn delegated_tsc_never_reports_a_failing_project_clean() {
+    let dependency_only = upstream_file(
+        "tsc",
+        "lib/dep.ts(3,1): error TS2322: Type 'string' is not assignable to type 'number'.\n",
+    );
+    let global = upstream_file(
+        "tsc",
+        "error TS18003: No inputs were found in config file.\n",
+    );
+    let silent = upstream_file("tsc", "");
+    for report in [&dependency_only, &global, &silent] {
+        let result = backend_for("tsc", tsc_tool(report.path(), Some("2")), must_not_spawn)
+            .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE));
+        assert!(result.is_err(), "{result:?}");
+    }
+}
+
+#[test]
+fn delegated_tsc_fails_closed_without_its_inputs() {
+    for exit in [None, Some("oops")] {
+        let report = upstream_file("tsc", "");
+        let error = backend_for("tsc", tsc_tool(report.path(), exit), must_not_spawn)
+            .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+            .expect_err("missing exit status");
+        assert!(error.to_string().contains("exit status"), "{error}");
+    }
+    let mut tool = tsc_tool(Path::new(""), Some("0"));
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("tsc", tool, must_not_spawn)
+        .diagnose("tsc", "typecheck", &single("src/a.ts", TSC_SOURCE))
+        .expect_err("missing diagnostics");
+    assert!(error.to_string().contains("diagnostics"), "{error}");
+}
+
+const JAVAC_SOURCE: &str = "class A {\n  int f() { return \"s\"; }\n}\n";
+
+fn javac_log(exit: i32, file: &str) -> String {
+    let diagnostics = if exit == 0 {
+        String::new()
+    } else {
+        format!(
+            r#"{{"file":"{file}","line":2,"column":22,"severity":"error","code":"compiler.err.prob.found.req","message":"incompatible types"}}"#
+        )
+    };
+    format!(r#"{{"tool":"javac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+}
+
+#[test]
+fn delegated_javac_is_clean_and_reports_owned_errors() {
+    let clean = upstream_file("javac", &javac_log(0, ""));
+    let findings = backend_for(
+        "javac",
+        delegated_tool(clean.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE))
+    .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("javac", &javac_log(1, "j/A.java"));
+    let findings = backend_for(
+        "javac",
+        delegated_tool(dirty.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE))
+    .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "j/A.java");
+    assert_eq!(findings[0].rule_id, "compiler.err.prob.found.req");
+}
+
+#[test]
+fn delegated_javac_never_reports_a_failing_target_clean() {
+    let generated = upstream_file("javac", &javac_log(1, "bazel-out/k8/bin/j/Gen.java"));
+    let result = backend_for(
+        "javac",
+        delegated_tool(generated.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE));
+    assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn delegated_javac_fails_closed_without_its_log() {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("javac", tool, must_not_spawn)
+        .diagnose("javac", "typecheck", &single("j/A.java", JAVAC_SOURCE))
+        .expect_err("missing log");
+    assert!(error.to_string().contains("check log"), "{error}");
+}
+
+const KOTLINC_SOURCE: &str = "fun f(): Int {\n  return \"s\"\n}\n";
+
+fn kotlinc_log(exit: i32, file: &str) -> String {
+    let diagnostics = if exit == 0 {
+        String::new()
+    } else {
+        format!(
+            r#"{{"file":"{file}","line":2,"column":10,"severity":"error","code":"RETURN_TYPE_MISMATCH","message":"type mismatch"}}"#
+        )
+    };
+    format!(r#"{{"tool":"kotlinc","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+}
+
+#[test]
+fn delegated_kotlinc_is_clean_and_reports_owned_errors() {
+    let clean = upstream_file("kotlinc", &kotlinc_log(0, ""));
+    let findings = backend_for(
+        "kotlinc",
+        delegated_tool(clean.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE))
+    .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("kotlinc", &kotlinc_log(1, "k/A.kt"));
+    let findings = backend_for(
+        "kotlinc",
+        delegated_tool(dirty.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE))
+    .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "k/A.kt");
+    assert_eq!(findings[0].rule_id, "RETURN_TYPE_MISMATCH");
+}
+
+#[test]
+fn delegated_kotlinc_never_reports_a_failing_target_clean() {
+    let generated = upstream_file("kotlinc", &kotlinc_log(1, "bazel-out/k8/bin/k/Gen.kt"));
+    let result = backend_for(
+        "kotlinc",
+        delegated_tool(generated.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE));
+    assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn delegated_kotlinc_fails_closed_without_its_log() {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("kotlinc", tool, must_not_spawn)
+        .diagnose("kotlinc", "typecheck", &single("k/A.kt", KOTLINC_SOURCE))
+        .expect_err("missing log");
+    assert!(error.to_string().contains("check log"), "{error}");
+}
+
+const SCALAC_SOURCE: &str = "object A { val n: Int = \"s\" }\n";
+
+fn scalac_log(exit: i32, file: &str) -> String {
+    let diagnostics = if exit == 0 {
+        String::new()
+    } else {
+        format!(
+            r#"{{"file":"{file}","line":1,"column":24,"severity":"error","code":"scalac","message":"type mismatch"}}"#
+        )
+    };
+    format!(r#"{{"tool":"scalac","exit":{exit},"diagnostics":[{diagnostics}]}}"#)
+}
+
+#[test]
+fn delegated_scalac_is_clean_and_reports_owned_errors() {
+    let clean = upstream_file("scalac", &scalac_log(0, ""));
+    let findings = backend_for(
+        "scalac",
+        delegated_tool(clean.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE))
+    .expect("clean");
+    assert!(findings.is_empty());
+    let dirty = upstream_file("scalac", &scalac_log(1, "s/A.scala"));
+    let findings = backend_for(
+        "scalac",
+        delegated_tool(dirty.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE))
+    .expect("findings");
+    assert_eq!(findings.len(), 1);
+    assert_eq!(findings[0].path, "s/A.scala");
+    assert_eq!(findings[0].rule_id, "scalac");
+}
+
+#[test]
+fn delegated_scalac_reports_every_scala3_unused_warning() {
+    let log = r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"s/A.scala","line":1,"column":33,"severity":"warning","code":"scalac","message":"unused import"},{"file":"s/A.scala","line":5,"column":9,"severity":"warning","code":"scalac","message":"unused local definition"}]}"#;
+    let log = upstream_file("scalac", log);
+    let source = "import scala.collection.mutable.ListBuffer\n\n\n\n    val spare = n\n";
+    let findings = backend_for(
+        "scalac",
+        delegated_tool(log.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", source))
+    .expect("findings");
+    let found: Vec<(&str, &str)> = findings
+        .iter()
+        .map(|f| (&*f.rule_id, &*f.message))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("scalac", "unused import"),
+            ("scalac", "unused local definition")
+        ]
+    );
+}
+
+#[test]
+fn delegated_scalac_never_reports_a_failing_target_clean() {
+    let generated = upstream_file("scalac", &scalac_log(1, "bazel-out/k8/bin/s/Gen.scala"));
+    let result = backend_for(
+        "scalac",
+        delegated_tool(generated.path().to_path_buf()),
+        must_not_spawn,
+    )
+    .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE));
+    assert!(result.is_err(), "{result:?}");
+}
+
+#[test]
+fn delegated_scalac_fails_closed_without_its_log() {
+    let mut tool = delegated_tool(PathBuf::new());
+    tool.upstream_diagnostics.clear();
+    let error = backend_for("scalac", tool, must_not_spawn)
+        .diagnose("scalac", "typecheck", &single("s/A.scala", SCALAC_SOURCE))
+        .expect_err("missing log");
+    assert!(error.to_string().contains("check log"), "{error}");
+}
+
+#[test]
+fn gotype_reports_findings_and_fails_closed_on_driver_errors() {
+    let report = upstream_file(
+        "gotype",
+        r#"{"p":{"typecheck":[{"posn":"a.txt:1:5","message":"undefined: x"}]}}"#,
+    );
+    let backend = backend_for(
+        "gotype",
+        delegated_tool(report.path().to_path_buf()),
+        must_not_spawn,
+    );
+    let found = backend
+        .diagnose("gotype", "typecheck", &single("a.txt", "var x = 1\n"))
+        .expect("findings");
+    assert_eq!(found.len(), 1);
+    let failed = upstream_file(
+        "gotype",
+        r#"{"p":{"typecheck":{"error":"no export data"}}}"#,
+    );
+    let backend = backend_for(
+        "gotype",
+        delegated_tool(failed.path().to_path_buf()),
+        must_not_spawn,
+    );
+    assert!(
+        backend
+            .diagnose("gotype", "typecheck", &single("a.txt", "x\n"))
+            .is_err()
+    );
+}
+
+#[test]
+fn go_lint_tools_fail_closed_without_exactly_one_report() {
+    for tool_id in ["govet", "errcheck"] {
+        let mut tool = delegated_tool(std::path::PathBuf::new());
+        tool.upstream_diagnostics.clear();
+        let backend = backend_for(tool_id, tool, must_not_spawn);
+        let error = backend
+            .diagnose(tool_id, "lint", &single("a.go", "package a\n"))
+            .expect_err("no upstream report");
+        assert!(
+            error.to_string().contains("did not supply it"),
+            "{tool_id}: {error}"
+        );
+    }
+}
+
+#[test]
+fn rustc_unused_dependency_is_a_diagnostic_without_a_path() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let stream = concat!(
+        r#"{"$message_type":"dx_crate_deps","package":"p","target":"lib","crate":"lib","deps":{"serde":"serde"}}"#,
+        "\n",
+        r#"{"$message_type":"diagnostic","message":"external crate `serde` unused in `lib`: remove the dependency or add `use serde as _;`","code":{"code":"unused_crate_dependencies"},"level":"warning","spans":[],"children":[]}"#,
+    );
+    let path = scratch.path().join("rustc.json");
+    std::fs::write(&path, stream).expect("write");
+    let tool = delegated_tool(path);
+    for tool_id in ["rustc", "clippy"] {
+        let found = delegated::build_dep_diagnostics(tool_id, &tool).expect("diagnostics");
+        assert_eq!(found.len(), 1);
+        assert!(found[0].path.is_empty());
+        assert_eq!(found[0].tool_id, tool_id);
+        assert_eq!(found[0].rule_id, "unused_crate_dependencies");
+        let dep = found[0].build_dep.as_ref().expect("build dep");
+        assert_eq!(
+            (&*dep.package, &*dep.target, &*dep.dependency),
+            ("p", "lib", "serde")
+        );
+    }
+    assert!(
+        delegated::build_dep_diagnostics("shellcheck", &tool)
+            .expect("diagnostics")
+            .is_empty()
+    );
+}
+
+#[test]
+fn scalac_unused_dependency_is_a_diagnostic_without_a_path() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("lib.json");
+    std::fs::write(
+        &log,
+        r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"","line":0,"column":0,"severity":"warning","code":"scalac.unused.dep","message":"Target '//p:gone' is specified as a dependency to //p:lib but isn't used"}]}"#,
+    )
+    .expect("write log");
+    let map = scratch.path().join("lib.unused_deps.json");
+    std::fs::write(
+        &map,
+        r#"{"package":"p","target":"lib","deps":[{"label":"//p:gone","jars":["gone.jar"]}]}"#,
+    )
+    .expect("write map");
+    let mut tool = delegated_tool(log);
+    tool.upstream_diagnostics.push(map);
+    let found = delegated::build_dep_diagnostics("scalac", &tool).expect("diagnostics");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].path.is_empty());
+    assert_eq!(found[0].rule_id, "unused_deps");
+    let dep = found[0].build_dep.as_ref().expect("build dep");
+    assert_eq!(
+        (&*dep.package, &*dep.target, &*dep.dependency),
+        ("p", "lib", "gone")
+    );
+    tool.upstream_diagnostics.pop();
+    assert!(
+        delegated::build_dep_diagnostics("scalac", &tool)
+            .expect("diagnostics")
+            .is_empty()
+    );
+}
+
+#[test]
+fn scalac_missing_dependency_is_a_missing_deps_diagnostic() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let log = scratch.path().join("lib.json");
+    std::fs::write(
+        &log,
+        r#"{"tool":"scalac","exit":0,"diagnostics":[{"file":"","line":0,"column":0,"severity":"warning","code":"scalac.missing.dep","message":"Target '//p:far' is used but isn't explicitly declared, please add it to the deps."}]}"#,
+    )
+    .expect("write log");
+    let map = scratch.path().join("lib.unused_deps.json");
+    std::fs::write(
+        &map,
+        r#"{"package":"p","target":"lib","deps":[],"indirect":[{"jar":"far.jar","label":"//p:far"}]}"#,
+    )
+    .expect("write map");
+    let mut tool = delegated_tool(log);
+    tool.upstream_diagnostics.push(map);
+    let found = delegated::build_dep_diagnostics("scalac", &tool).expect("diagnostics");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].path.is_empty());
+    assert_eq!(found[0].rule_id, "missing_deps");
+    let dep = found[0].build_dep.as_ref().expect("build dep");
+    assert!(dep.missing);
+    assert_eq!(
+        (&*dep.package, &*dep.target, &*dep.label),
+        ("p", "lib", "//p:far")
+    );
+}
+
+fn unused_reference_sarif(labels: &[&str]) -> String {
+    let results: Vec<String> = labels
+        .iter()
+        .map(|label| {
+            format!(
+                r#"{{"ruleId":"RT0001","level":"warning","message":{{"text":"Reference {label} can be removed"}}}}"#
+            )
+        })
+        .collect();
+    roslyn_sarif(&results)
+}
+
+#[test]
+fn roslyn_unused_dependency_is_reported_only_when_every_framework_agrees() {
+    let scratch = tempfile::tempdir().expect("scratch");
+    let net8 = unused_reference_sarif(&["//p:gone", "//p:partly"]);
+    let net10 = unused_reference_sarif(&["//p:gone"]);
+    let mut tool = roslyn_pivots(
+        scratch.path(),
+        &[("net8.0", &net8, None), ("net10.0", &net10, None)],
+    );
+    let map = r#"{"package":"p","target":"app","deps":[{"label":"//p:gone","refs":["gone.dll"]},{"label":"//p:partly","refs":["partly.dll"]}]}"#;
+    for tfm in ["net8.0", "net10.0"] {
+        tool.tool_files.push((
+            format!("dx-roslyn/{tfm}/deps.json"),
+            map.as_bytes().to_vec(),
+        ));
+    }
+    let found = delegated::build_dep_diagnostics("roslyn", &tool).expect("diagnostics");
+    assert_eq!(found.len(), 1);
+    assert!(found[0].path.is_empty());
+    assert_eq!(found[0].rule_id, "RT0001");
+    let dep = found[0].build_dep.as_ref().expect("build dep");
+    assert_eq!(
+        (&*dep.package, &*dep.target, &*dep.dependency),
+        ("p", "app", "gone")
+    );
+}

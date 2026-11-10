@@ -1,11 +1,11 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 # Refresh: /evidence scope=//tools/testing/hermetic:consumer_maven_pin, then copy
 # test.outputs/maven_install.json over maven_install.json.
 exports_files(
     ["maven_install.json"],
     visibility = [
-        "//quality/tests:__pkg__",
+        "//core/quality/tests:__pkg__",
         "//tools/testing:__pkg__",
         "//tools/testing/hermetic:__pkg__",
     ],

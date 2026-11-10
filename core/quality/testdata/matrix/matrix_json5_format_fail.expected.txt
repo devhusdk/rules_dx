@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_json5_format_fail
+capability FORMAT
+stages 1
+stage prettier classes=json5 sources=core/quality/testdata/real_dirty.json5
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - core/quality/testdata/real_dirty.json5 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement core/quality/testdata/real_dirty.json5 1 5 " a: 1 "

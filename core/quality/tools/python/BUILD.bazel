@@ -1,0 +1,313 @@
+load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
+
+package(default_visibility = ["//:__subpackages__"])
+
+exports_files([
+    "pyproject.toml",
+    "uv.lock",
+])
+
+py_binary(
+    name = "pydoclint",
+    srcs = [
+        "pydoclint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "pydoclint_main.py",
+    deps = ["@pypi//pydoclint"],
+)
+
+py_binary(
+    name = "rst2html",
+    srcs = [
+        "rst2html_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "rst2html_main.py",
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//docutils"],
+)
+
+py_unittest_test(
+    name = "rst2html_main_test",
+    srcs = [
+        "rst2html_main.py",
+        "rst2html_main_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//docutils"],
+)
+
+py_binary(
+    name = "djlint",
+    srcs = [
+        "djlint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "djlint_main.py",
+    package_collisions = "ignore",
+    deps = ["@pypi//djlint"],
+)
+
+py_binary(
+    name = "docstrfmt",
+    srcs = [
+        "docstrfmt_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-docstrfmt",
+    main = "docstrfmt_main.py",
+    package_collisions = "ignore",
+    deps = ["@pypi//docstrfmt"],
+)
+
+py_binary(
+    name = "mbake",
+    srcs = [
+        "mbake_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "mbake_main.py",
+    deps = ["@pypi//mbake"],
+)
+
+py_binary(
+    name = "yamllint",
+    srcs = [
+        "tool_bootstrap.py",
+        "yamllint_main.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "yamllint_main.py",
+    deps = ["@pypi//yamllint"],
+)
+
+py_binary(
+    name = "check_jsonschema",
+    srcs = [
+        "check_jsonschema_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "check_jsonschema_main.py",
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//check_jsonschema"],
+)
+
+py_unittest_test(
+    name = "check_jsonschema_main_test",
+    srcs = [
+        "check_jsonschema_main.py",
+        "check_jsonschema_main_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//check_jsonschema"],
+)
+
+py_binary(
+    name = "cfn_lint",
+    srcs = [
+        "cfn_lint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "cfn_lint_main.py",
+    deps = ["@pypi//cfn_lint"],
+)
+
+py_binary(
+    name = "cmakelint",
+    srcs = [
+        "cmakelint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "cmakelint_main.py",
+    deps = ["@pypi//cmakelint"],
+)
+
+py_unittest_test(
+    name = "cmakelint_main_test",
+    srcs = [
+        "cmakelint_main.py",
+        "cmakelint_main_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//cmakelint"],
+)
+
+py_binary(
+    name = "sqlfluff",
+    srcs = [
+        "sqlfluff_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-sqlfluff",
+    main = "sqlfluff_main.py",
+    deps = ["@pypi//sqlfluff"],
+)
+
+py_binary(
+    name = "openapi_python_client",
+    srcs = [
+        "openapi_python_client_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "openapi_python_client_main.py",
+    visibility = ["//api_spec/private:__pkg__"],
+    deps = ["@pypi//openapi_python_client"],
+)
+
+py_binary(
+    name = "ansible_lint",
+    srcs = [
+        "ansible_lint_main.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    main = "ansible_lint_main.py",
+    deps = [
+        "@pypi//ansible_core",
+        "@pypi//ansible_lint",
+    ],
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:windows",
+    ],
+)
+
+# cryptography has no win_arm64 wheel and its sdist needs maturin, Rust and
+# OpenSSL. Remove this alias once a wheel ships or an OpenSSL-backed sdist
+# override exists.
+alias(
+    name = "ansible_lint_tool",
+    actual = select({
+        ":windows_arm64": ":ansible_lint_unsupported",
+        "//conditions:default": ":ansible_lint",
+    }),
+)
+
+dx_unavailable_tool(
+    name = "ansible_lint_unsupported",
+    tool = "ansible_lint",
+)
+
+py_unittest_test(
+    name = "ansible_lint_main_test",
+    srcs = [
+        "ansible_lint_main.py",
+        "ansible_lint_main_test.py",
+        "tool_bootstrap.py",
+    ],
+)
+
+py_binary(
+    name = "ford_dump",
+    srcs = [
+        "ford_dump.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    imports = ["."],
+    main = "ford_dump.py",
+    visibility = [
+        "//core/quality:__pkg__",
+        "//tools/docs:__pkg__",
+        "//tools/docs/fortran:__subpackages__",
+    ],
+    deps = ["@pypi//ford"],
+)
+
+py_binary(
+    name = "griffe_dump",
+    srcs = [
+        "griffe_dump.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    imports = ["."],
+    main = "griffe_dump.py",
+    visibility = [
+        "//core/quality:__pkg__",
+        "//tools/docs:__pkg__",
+        "//tools/docs/python:__subpackages__",
+    ],
+    deps = ["@pypi//griffelib"],
+)
+
+py_unittest_test(
+    name = "griffe_dump_test",
+    srcs = [
+        "griffe_dump.py",
+        "griffe_dump_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//griffelib"],
+)
+
+py_binary(
+    name = "griffe_check",
+    srcs = [
+        "griffe_check.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    imports = ["."],
+    main = "griffe_check.py",
+    visibility = ["//deploy/private:__pkg__"],
+    deps = ["@pypi//griffelib"],
+)
+
+py_unittest_test(
+    name = "griffe_check_test",
+    srcs = [
+        "griffe_check.py",
+        "griffe_check_test.py",
+        "tool_bootstrap.py",
+    ],
+    dep_group = "dx-python-tools",
+    deps = ["@pypi//griffelib"],
+)
+
+py_unittest_test(
+    name = "tool_bootstrap_test",
+    srcs = [
+        "tool_bootstrap.py",
+        "tool_bootstrap_test.py",
+    ],
+)
+
+real_source_target(
+    name = "corpus_python",
+    python_srcs = glob(["*.py"]),
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["pyproject.toml"],
+)

@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":tested_stack.bzl", "tested_stack")
 load(":tested_stack_tests.bzl", "tested_stack_contract_tests")
 

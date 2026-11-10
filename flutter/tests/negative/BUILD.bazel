@@ -2,7 +2,7 @@
 
 load("//flutter:defs.bzl", "flutter_library")
 load("//core:failure_test.bzl", "failure_test")
-load("//quality/private:generated_policy.bzl", "dx_generated_policy")
+load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
 
 flutter_library(
     name = "broken",

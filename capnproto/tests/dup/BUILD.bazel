@@ -2,7 +2,7 @@
 # gazelle:exclude a
 # gazelle:exclude b
 load("//capnproto:defs.bzl", "capnp_library", "capnp_rust_library")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//capnproto:__subpackages__"])
 

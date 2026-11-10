@@ -4,7 +4,7 @@ load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_fortran//fortran:defs.bzl", "FortranInfo", _fortran_library = "fortran_library")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//tools/coverage/kcov:kcov.bzl", "dx_kcov_attrs", "dx_kcov_test_coverage")
 load(":kwargs.bzl", _FORTRAN_COMPATIBLE_WITH = "FORTRAN_COMPATIBLE_WITH", "fortran_library_kwargs", "fortran_link_kwargs", "fortran_with_defaults")
 

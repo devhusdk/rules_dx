@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_terraform_trivy_lint_fail
+capability LINT
+stages 1
+stage trivy_config classes=terraform sources=matrix/trivy_dirty/main.tf
+completed_rounds 1
+convergence STABLE
+initial 1
+initial INFO trivy_config AWS-0017 matrix/trivy_dirty/main.tf 0 60 fixable=false "CloudWatch log groups should be encrypted using CMK"
+terminal 1
+terminal INFO trivy_config AWS-0017 matrix/trivy_dirty/main.tf 0 60 fixable=false "CloudWatch log groups should be encrypted using CMK"
+replacements 0

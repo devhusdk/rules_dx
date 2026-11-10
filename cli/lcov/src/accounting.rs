@@ -6,7 +6,7 @@ use crate::{
 };
 
 /// The rules_dx-relative aspect that writes one source manifest per top-level target.
-pub const SOURCES_ASPECT: &str = "quality:coverage_sources.bzl%dx_coverage_sources_aspect";
+pub const SOURCES_ASPECT: &str = "core/quality:coverage_sources.bzl%dx_coverage_sources_aspect";
 /// The output group that carries the source manifests.
 pub const SOURCES_OUTPUT_GROUP: &str = "dx_coverage_sources";
 

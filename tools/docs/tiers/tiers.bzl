@@ -1,8 +1,8 @@
-"""Renders docs/tiers-standard.md and docs/tiers-strict.md from quality/tiers."""
+"""Renders docs/tiers-standard.md and docs/tiers-strict.md from core/quality/tiers."""
 
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//quality:tools.bzl", "TOOLS")
+load("//core/quality:tools.bzl", "TOOLS")
 
 def _native(config):
     if config.files:
@@ -16,7 +16,7 @@ def tier_manifest():
         config = tool.config
         if not config.tier_active or not config.ext:
             continue
-        base = "quality/tiers/%s" % (config.tier_dir or tool.id)
+        base = "core/quality/tiers/%s" % (config.tier_dir or tool.id)
         lines.append("\t".join([
             tool.id,
             config.tier_source,
@@ -35,7 +35,7 @@ def tier_docs(name, standard_page, strict_page):
     )
     native.genrule(
         name = name + "_pages",
-        srcs = [":" + name + "_manifest", "//quality/tiers:all"],
+        srcs = [":" + name + "_manifest", "//core/quality/tiers:all"],
         outs = [name + "_standard.md", name + "_strict.md"],
         cmd = "$(location //tools/docs/tiers:render) $(location :%s_manifest) $(location %s_standard.md) $(location %s_strict.md)" % (name, name, name),
         tools = ["//tools/docs/tiers:render"],

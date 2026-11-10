@@ -1,6 +1,6 @@
 load("//cc:defs.bzl", "cc_library", "cc_test")
 load("//cc/private/toolchains:select.bzl", "cc_gcov_fixture")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,

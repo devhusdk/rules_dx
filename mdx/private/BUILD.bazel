@@ -1,6 +1,6 @@
 # gazelle:ignore
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//mdx:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 

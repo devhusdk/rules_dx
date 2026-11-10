@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases")
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//deploy/private:archive.bzl", "archive_deploy")
 load("//rust:defs.bzl", "rust_test")
 load(":cell_test.bzl", "aarch64_link_test")

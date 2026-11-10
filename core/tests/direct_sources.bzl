@@ -1,7 +1,7 @@
 """Analysis test that pins a wrapper's direct quality sources."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _direct_sources_test_impl(ctx):
     env = analysistest.begin(ctx)

@@ -7,8 +7,8 @@ This page shows what the strict tier changes against the standard tier of each t
 Source: dx. Native file: `buf.yaml`.
 
 ```diff
---- a/quality/tiers/buf/strict.yaml
-+++ b/quality/tiers/buf/strict.yaml
+--- a/core/quality/tiers/buf/strict.yaml
++++ b/core/quality/tiers/buf/strict.yaml
 @@ -2,6 +2,8 @@
  lint:
    use:
@@ -26,8 +26,8 @@ Source: dx. Native file: `buf.yaml`.
 Source: dx. Native file: `.buildifier.json`.
 
 ```diff
---- a/quality/tiers/buildifier/strict.json
-+++ b/quality/tiers/buildifier/strict.json
+--- a/core/quality/tiers/buildifier/strict.json
++++ b/core/quality/tiers/buildifier/strict.json
 @@ -1,3 +1,3 @@
  {
 -  "warnings": "default"
@@ -40,8 +40,8 @@ Source: dx. Native file: `.buildifier.json`.
 Source: dx. Native file: `checkmake.ini`.
 
 ```diff
---- a/quality/tiers/checkmake/strict.ini
-+++ b/quality/tiers/checkmake/strict.ini
+--- a/core/quality/tiers/checkmake/strict.ini
++++ b/core/quality/tiers/checkmake/strict.ini
 @@ -1,5 +1,6 @@
  [maxbodylength]
 -disabled=true
@@ -57,8 +57,8 @@ Source: dx. Native file: `checkmake.ini`.
 Source: dx. Native file: `.cmakelintrc`.
 
 ```diff
---- a/quality/tiers/cmakelint/strict.cmakelintrc
-+++ b/quality/tiers/cmakelint/strict.cmakelintrc
+--- a/core/quality/tiers/cmakelint/strict.cmakelintrc
++++ b/core/quality/tiers/cmakelint/strict.cmakelintrc
 @@ -1,2 +1,2 @@
  # gersemi owns layout, so the whitespace and line length checks are off.
 -filter=-linelength,-whitespace/eol,-whitespace/extra,-whitespace/indent,-whitespace/mismatch,-whitespace/newline,-whitespace/tabs,-convention/filename
@@ -70,8 +70,8 @@ Source: dx. Native file: `.cmakelintrc`.
 Source: dx. Native file: `analysis_options.yaml`.
 
 ```diff
---- a/quality/tiers/dart/strict.yaml
-+++ b/quality/tiers/dart/strict.yaml
+--- a/core/quality/tiers/dart/strict.yaml
++++ b/core/quality/tiers/dart/strict.yaml
 @@ -93,3 +93,29 @@
      - use_super_parameters
      - valid_regexps
@@ -109,8 +109,8 @@ Source: dx. Native file: `analysis_options.yaml`.
 Source: dx. Native file: `docstrfmt.toml`.
 
 ```diff
---- a/quality/tiers/docstrfmt/strict.toml
-+++ b/quality/tiers/docstrfmt/strict.toml
+--- a/core/quality/tiers/docstrfmt/strict.toml
++++ b/core/quality/tiers/docstrfmt/strict.toml
 @@ -2,4 +2,5 @@
  bullet-list-marker = "-"
  format-python-code-blocks = true
@@ -125,8 +125,8 @@ Source: dx. Native file: `docstrfmt.toml`.
 Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs, eslint.config.ts, .eslintrc*`.
 
 ```diff
---- a/quality/tiers/eslint/strict.mjs
-+++ b/quality/tiers/eslint/strict.mjs
+--- a/core/quality/tiers/eslint/strict.mjs
++++ b/core/quality/tiers/eslint/strict.mjs
 @@ -1,7 +1,7 @@
  import { defineConfig } from "eslint/config";
  import globals from "globals";
@@ -263,8 +263,8 @@ Source: dx. Native file: `eslint.config.mjs, eslint.config.js, eslint.config.cjs
 Source: dx. Native file: `.gersemirc`.
 
 ```diff
---- a/quality/tiers/gersemi/strict.yaml
-+++ b/quality/tiers/gersemi/strict.yaml
+--- a/core/quality/tiers/gersemi/strict.yaml
++++ b/core/quality/tiers/gersemi/strict.yaml
 @@ -2,5 +2,5 @@
  line_length: 80
  list_expansion: favour-inlining
@@ -280,8 +280,8 @@ Source: dx. Native file: `.gersemirc`.
 Source: dx. Native file: `.hlint.yaml`.
 
 ```diff
---- a/quality/tiers/hlint/strict.yaml
-+++ b/quality/tiers/hlint/strict.yaml
+--- a/core/quality/tiers/hlint/strict.yaml
++++ b/core/quality/tiers/hlint/strict.yaml
 @@ -1,6 +1,3 @@
 -- ignore: {name: Use camelCase}
 -- ignore: {name: Use section}
@@ -299,8 +299,8 @@ Source: dx. Native file: `.hlint.yaml`.
 Source: dx. Native file: `lychee.toml`.
 
 ```diff
---- a/quality/tiers/lychee/strict.toml
-+++ b/quality/tiers/lychee/strict.toml
+--- a/core/quality/tiers/lychee/strict.toml
++++ b/core/quality/tiers/lychee/strict.toml
 @@ -1,4 +1,4 @@
 -# Link checks use lychee's defaults, written down so no other config is read.
 -timeout = 20
@@ -317,8 +317,8 @@ Source: dx. Native file: `lychee.toml`.
 Source: dx. Native file: `.bake.toml`.
 
 ```diff
---- a/quality/tiers/mbake/strict.toml
-+++ b/quality/tiers/mbake/strict.toml
+--- a/core/quality/tiers/mbake/strict.toml
++++ b/core/quality/tiers/mbake/strict.toml
 @@ -1,15 +1,15 @@
  [formatter]
  align_variable_assignments = false
@@ -346,8 +346,8 @@ Source: dx. Native file: `.bake.toml`.
 Source: dx. Native file: `.formatter.exs`.
 
 ```diff
---- a/quality/tiers/mix_format/strict.exs
-+++ b/quality/tiers/mix_format/strict.exs
+--- a/core/quality/tiers/mix_format/strict.exs
++++ b/core/quality/tiers/mix_format/strict.exs
 @@ -1,4 +1,4 @@
 -# mix format defaults, written down so no other .formatter.exs is read.
 +# Shorter lines.
@@ -362,8 +362,8 @@ Source: dx. Native file: `.formatter.exs`.
 Source: dx. Native file: `.perltidyrc`.
 
 ```diff
---- a/quality/tiers/perltidy/strict.perltidyrc
-+++ b/quality/tiers/perltidy/strict.perltidyrc
+--- a/core/quality/tiers/perltidy/strict.perltidyrc
++++ b/core/quality/tiers/perltidy/strict.perltidyrc
 @@ -1,3 +1,2 @@
 -# perltidy defaults, written down so no other profile is read.
 ---indent-columns=4
@@ -377,8 +377,8 @@ Source: dx. Native file: `.perltidyrc`.
 Source: dx. Native file: `PSScriptAnalyzerSettings.psd1`.
 
 ```diff
---- a/quality/tiers/psscriptanalyzer/strict.psd1
-+++ b/quality/tiers/psscriptanalyzer/strict.psd1
+--- a/core/quality/tiers/psscriptanalyzer/strict.psd1
++++ b/core/quality/tiers/psscriptanalyzer/strict.psd1
 @@ -1,6 +1,8 @@
  @{
      IncludeDefaultRules = $true
@@ -395,8 +395,8 @@ Source: dx. Native file: `PSScriptAnalyzerSettings.psd1`.
 Source: dx. Native file: `*.toml`.
 
 ```diff
---- a/quality/tiers/pydoclint/strict.toml
-+++ b/quality/tiers/pydoclint/strict.toml
+--- a/core/quality/tiers/pydoclint/strict.toml
++++ b/core/quality/tiers/pydoclint/strict.toml
 @@ -1,5 +1,11 @@
 -# Numpy-style docstrings. Short docstrings are not checked.
 +# Numpy-style docstrings. Every docstring is checked, including class attributes and yields.
@@ -418,8 +418,8 @@ Source: dx. Native file: `*.toml`.
 Source: dx. Native file: `ruff.toml, .ruff.toml`.
 
 ```diff
---- a/quality/tiers/ruff/strict.toml
-+++ b/quality/tiers/ruff/strict.toml
+--- a/core/quality/tiers/ruff/strict.toml
++++ b/core/quality/tiers/ruff/strict.toml
 @@ -1,94 +1,63 @@
 -# Syntax errors, pyflakes, bugbear, security, deprecated APIs, performance and unused code.
 -# No style rules. Codes come from the pinned `ruff rule --all --output-format json`.
@@ -1355,8 +1355,8 @@ Source: dx. Native file: `ruff.toml, .ruff.toml`.
 Source: dx. Native file: `.editorconfig`.
 
 ```diff
---- a/quality/tiers/shfmt/strict.editorconfig
-+++ b/quality/tiers/shfmt/strict.editorconfig
+--- a/core/quality/tiers/shfmt/strict.editorconfig
++++ b/core/quality/tiers/shfmt/strict.editorconfig
 @@ -1,3 +1,4 @@
 -# shfmt defaults, written down so no other .editorconfig is read.
 +# Two-space indentation.
@@ -1371,8 +1371,8 @@ Source: dx. Native file: `.editorconfig`.
 Source: dx. Native file: `.sqlfluff`.
 
 ```diff
---- a/quality/tiers/sqlfluff/strict.cfg
-+++ b/quality/tiers/sqlfluff/strict.cfg
+--- a/core/quality/tiers/sqlfluff/strict.cfg
++++ b/core/quality/tiers/sqlfluff/strict.cfg
 @@ -1,3 +1,3 @@
  # The dialect comes from sql_library, not from this file.
  [sqlfluff]
@@ -1385,8 +1385,8 @@ Source: dx. Native file: `.sqlfluff`.
 Source: dx. Native file: `.stylelintrc.json, .stylelintrc*, stylelint.config.*`.
 
 ```diff
---- a/quality/tiers/stylelint/strict.json
-+++ b/quality/tiers/stylelint/strict.json
+--- a/core/quality/tiers/stylelint/strict.json
++++ b/core/quality/tiers/stylelint/strict.json
 @@ -5,8 +5,10 @@
      "at-rule-descriptor-value-no-unknown": true,
      "at-rule-no-deprecated": true,
@@ -1473,8 +1473,8 @@ Same as the standard tier.
 Source: dx. Native file: `tsconfig.json`.
 
 ```diff
---- a/quality/tiers/tsconfig/strict.json
-+++ b/quality/tiers/tsconfig/strict.json
+--- a/core/quality/tiers/tsconfig/strict.json
++++ b/core/quality/tiers/tsconfig/strict.json
 @@ -1,1 +1,11 @@
 -{ "compilerOptions": { "strict": true } }
 +{
@@ -1507,8 +1507,8 @@ Same as the standard tier.
 Source: dx. Native file: `.yamllint`.
 
 ```diff
---- a/quality/tiers/yamllint/strict.yaml
-+++ b/quality/tiers/yamllint/strict.yaml
+--- a/core/quality/tiers/yamllint/strict.yaml
++++ b/core/quality/tiers/yamllint/strict.yaml
 @@ -1,6 +1,23 @@
  rules:
 -  anchors: enable

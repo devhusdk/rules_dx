@@ -14,7 +14,7 @@ use std::path::Path;
 
 const TRIVY: PinnedTool<'static> = PinnedTool {
     var: "DX_TRIVY",
-    label: "@rules_dx//quality/artifacts:trivy",
+    label: "@rules_dx//core/quality/artifacts:trivy",
 };
 
 /// The private rule `oci_deploy` wraps; its targets carry the image output group.

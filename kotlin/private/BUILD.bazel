@@ -2,7 +2,7 @@ load("@rules_kotlin//kotlin:core.bzl", "kt_kotlinc_options")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "label_string")
 load("//core:wrapper.bzl", "dx_warnings_as_errors")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "kotlin_warnings_as_errors_opts")
 load(":kwargs.bzl", "kotlin_kotlinc_opts_with_warnings_as_errors", "kotlin_test_class", "kotlin_test_entry_kwargs")
 

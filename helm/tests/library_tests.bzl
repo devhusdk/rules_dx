@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//helm/private:providers.bzl", "HelmChartInfo")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _owns_helm_class_impl(ctx):
     env = analysistest.begin(ctx)

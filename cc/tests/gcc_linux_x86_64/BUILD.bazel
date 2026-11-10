@@ -2,7 +2,7 @@ load("//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_files")
 load("//deploy:defs.bzl", "consumer_archive")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)

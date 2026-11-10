@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_proc_macro", "rust_test")
 load("@rules_dx//rust/private:wrapper_tests.bzl", "dx_wasi_binary_tests")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")

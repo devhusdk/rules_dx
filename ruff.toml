@@ -1,4 +1,4 @@
-# Own-tree Ruff policy on the dx base; quality/testdata/ruff.toml mirrors it.
+# Own-tree Ruff policy on the dx base; core/quality/testdata/ruff.toml mirrors it.
 extend = ".dx/config/ruff/base.toml"
 target-version = "py312"
 

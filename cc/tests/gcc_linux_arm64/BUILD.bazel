@@ -1,7 +1,7 @@
 load("//cc:defs.bzl", "cc_binary")
 load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary")
 load("//deploy:defs.bzl", "consumer_archive")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)

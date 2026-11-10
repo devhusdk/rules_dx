@@ -1,10 +1,10 @@
 """Ansible real quality aspects (ansible-lint)."""
 
-load("//quality:real_core.bzl", "real_config", "real_make_aspect")
+load("//core/quality:real_core.bzl", "real_config", "real_make_aspect")
 
 TOOLS = {
     "ansible_lint": {
-        "attr": attr.label(default = "//quality/tools/python:ansible_lint_tool", cfg = "exec", executable = True),
+        "attr": attr.label(default = "//core/quality/tools/python:ansible_lint_tool", cfg = "exec", executable = True),
         "kind": "executable",
         "resources": "heavy",
         "runfiles_env": True,

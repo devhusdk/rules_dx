@@ -1,0 +1,246 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:tools_gen.bzl", "tools_gen")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//tools/visibility:visibility.bzl", "VIS_QUALITY")
+
+package(default_visibility = VIS_QUALITY)
+
+tools_gen(name = "update_tools")
+
+rust_library(
+    name = "quality_runner_lib",
+    srcs = [
+        "src/entry.rs",
+        "src/lib.rs",
+        "src/real.rs",
+        "src/real/bicep.rs",
+        "src/real/cfn_lint.rs",
+        "src/real/check.rs",
+        "src/real/cmakelint.rs",
+        "src/real/config_tools.rs",
+        "src/real/delegated.rs",
+        "src/real/helm.rs",
+        "src/real/jvm.rs",
+        "src/real/kubeconform.rs",
+        "src/real/native.rs",
+        "src/real/pipeline.rs",
+        "src/real/python.rs",
+        "src/real/redocly.rs",
+        "src/real/rustfmt.rs",
+        "src/real/schema.rs",
+        "src/real/scripting.rs",
+        "src/real/single_run.rs",
+        "src/real/sqlfluff.rs",
+        "src/real/staging.rs",
+        "src/real/tools_gen.rs",
+        "src/real/web.rs",
+        "src/real/weeder.rs",
+        "src/real_fix.rs",
+        "src/request.rs",
+    ],
+    aliases = aliases(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+    ),
+    compile_data = [
+        "//core/quality/tiers/cmakelint:standard.cmakelintrc",
+        "//core/quality/tiers/deadnix:standard.txt",
+        "//core/quality/tiers/julialint:standard.toml",
+        "//core/quality/tiers/markdown_check:standard.txt",
+        "//core/quality/tiers/trivy_config:standard.txt",
+        "//core/quality/tiers/zizmor:standard.txt",
+        "//core/quality/tiers/zanuda:standard.txt",
+        "//core/quality/tiers/zanuda:strict.txt",
+        "//core/quality/tiers/pmd:standard.xml",
+        "//lua/private/quality:lua54.yml",
+    ],
+    crate_name = "quality_runner",
+    crate_root = "src/lib.rs",
+    visibility = VIS_QUALITY + ["//cli/cli:__pkg__"],
+    deps = all_crate_deps(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+        "//cli/output:dx_output",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//core/quality/adapter:quality_adapter",
+        "//core/quality/notebook:quality_notebook_lib",
+        "//core/quality/result:quality_result",
+        "@crates//:serde",
+    ],
+)
+
+rust_binary(
+    name = "quality_runner",
+    srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+    ),
+    crate_name = "quality_runner",
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+    ) + [":quality_runner_lib"],
+)
+
+rust_binary(
+    name = "matrix_harness",
+    srcs = ["src/matrix_harness.rs"],
+    aliases = aliases(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+    ),
+    crate_name = "matrix_harness",
+    crate_root = "src/matrix_harness.rs",
+    deps = all_crate_deps(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+    ) + [
+        ":quality_runner_lib",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//core/quality/result:quality_result",
+    ],
+)
+
+exports_files([
+    "Cargo.toml",
+    "src/entry.rs",
+    "src/lib.rs",
+    "src/main.rs",
+    "src/matrix_harness.rs",
+    "src/real/staging.rs",
+])
+
+filegroup(
+    name = "real_srcs",
+    srcs = glob(["src/real/*.rs"]),
+)
+
+genrule(
+    name = "real_sources",
+    srcs = [":real_srcs"],
+    outs = ["real_sources.txt"],
+    cmd = "cat $(locations :real_srcs) > $@",
+    visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "quality_runner_test",
+    srcs = [
+        "src/entry.rs",
+        "src/lib.rs",
+        "src/lib_determinism.rs",
+        "src/lib_gates.rs",
+        "src/lib_pipeline.rs",
+        "src/lib_synthetic.rs",
+        "src/real.rs",
+        "src/real/bicep.rs",
+        "src/real/cfn_lint.rs",
+        "src/real/check.rs",
+        "src/real/cmakelint.rs",
+        "src/real/config_tools.rs",
+        "src/real/delegated.rs",
+        "src/real/helm.rs",
+        "src/real/jvm.rs",
+        "src/real/kubeconform.rs",
+        "src/real/native.rs",
+        "src/real/pipeline.rs",
+        "src/real/python.rs",
+        "src/real/redocly.rs",
+        "src/real/rustfmt.rs",
+        "src/real/schema.rs",
+        "src/real/scripting.rs",
+        "src/real/single_run.rs",
+        "src/real/sqlfluff.rs",
+        "src/real/staging.rs",
+        "src/real/tools_gen.rs",
+        "src/real/web.rs",
+        "src/real/weeder.rs",
+        "src/real_core.rs",
+        "src/real_delegated.rs",
+        "src/real_fix.rs",
+        "src/real_fixtures.rs",
+        "src/real_helm.rs",
+        "src/real_tools.rs",
+        "src/real_weeder.rs",
+        "src/request.rs",
+    ],
+    aliases = aliases(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+        normal_dev = True,
+    ),
+    compile_data = [
+        "//core/quality/tiers/cmakelint:standard.cmakelintrc",
+        "//core/quality/tiers/deadnix:standard.txt",
+        "//core/quality/tiers/julialint:standard.toml",
+        "//core/quality/tiers/markdown_check:standard.txt",
+        "//core/quality/tiers/trivy_config:standard.txt",
+        "//core/quality/tiers/zizmor:standard.txt",
+        "//core/quality/tiers/zanuda:standard.txt",
+        "//core/quality/tiers/zanuda:strict.txt",
+        "//core/quality/tiers/pmd:standard.xml",
+        "//lua/private/quality:lua54.yml",
+    ],
+    coverage_lib = ":quality_runner_lib",
+    crate_name = "quality_runner",
+    crate_root = "src/lib.rs",
+    deps = all_crate_deps(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//cli/atomic_fs:dx_atomic_fs",
+        "//cli/digest:dx_digest",
+        "//cli/output:dx_output",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//core/quality/adapter:quality_adapter",
+        "//core/quality/notebook:quality_notebook_lib",
+        "//core/quality/result:quality_result",
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
+)
+
+rust_test(
+    name = "matrix_harness_test",
+    aliases = aliases(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":matrix_harness",
+    deps = all_crate_deps(
+        package_name = "core/quality/quality_runner",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":quality_runner_lib",
+        "//cli/path:dx_path",
+        "//cli/process:dx_process",
+        "//core/quality/result:quality_result",
+        "@rules_rust_prost//private/3rdparty/crates:prost",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = ["//tools/ci:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

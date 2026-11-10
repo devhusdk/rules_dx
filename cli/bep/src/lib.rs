@@ -870,7 +870,7 @@ mod tests {
             testlog_path(
                 &locations,
                 None,
-                "//quality:preset_parity_test",
+                "//core/quality:preset_parity_test",
                 "test.xml",
                 IDENTITY
             )
@@ -879,7 +879,7 @@ mod tests {
                 "/ws",
                 &[
                     "bazel-testlogs",
-                    "quality",
+                    "core/quality",
                     "preset_parity_test",
                     "test.xml"
                 ]

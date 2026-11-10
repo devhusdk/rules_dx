@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_markdown_lychee_fail
+capability LINT
+stages 1
+stage lychee classes=markdown sources=matrix/lychee_dirty/README.md
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING lychee broken-link matrix/lychee_dirty/README.md 4 4 fixable=false "matrix/lychee_dirty/missing.md: File not found. Check if file exists and path is correct"
+terminal 1
+terminal WARNING lychee broken-link matrix/lychee_dirty/README.md 4 4 fixable=false "matrix/lychee_dirty/missing.md: File not found. Check if file exists and path is correct"
+replacements 0

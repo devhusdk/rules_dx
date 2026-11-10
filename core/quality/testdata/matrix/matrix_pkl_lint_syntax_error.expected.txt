@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_pkl_lint_syntax_error
+capability LINT
+stages 1
+stage pkl_lsp classes=pkl sources=matrix/pkl_lint_broken.pkl
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING pkl_lsp - matrix/pkl_lint_broken.pkl 8 8 fixable=false "Invalid syntax."
+terminal 1
+terminal WARNING pkl_lsp - matrix/pkl_lint_broken.pkl 8 8 fixable=false "Invalid syntax."
+replacements 0

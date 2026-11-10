@@ -1,4 +1,4 @@
-// Generated from quality/curated_defaults.bzl and quality/tools.bzl.
+// Generated from core/quality/curated_defaults.bzl and core/quality/tools.bzl.
 // Run `bazel run //cli/dx_config:update_curated_defaults` to refresh it.
 
 use crate::select::{CuratedFamily, Overlap};

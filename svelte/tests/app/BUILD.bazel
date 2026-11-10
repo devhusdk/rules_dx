@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript:defs.bzl", "javascript_test")
 load("//cli/web_server:server.bzl", "javascript_web_server")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//svelte:defs.bzl", "svelte_build", "svelte_library")
 
 package(

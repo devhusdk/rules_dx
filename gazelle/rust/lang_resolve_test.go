@@ -393,19 +393,19 @@ func TestResolvePreservesCrateDeps(t *testing.T) {
 
 func TestResolveDedupesSiblingLibDuplicate(t *testing.T) {
 	l := &rustLang{}
-	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "rust quality_result //quality/result:quality_result"}})
+	cfg := resolverConfig(t, []rule.Directive{{Key: "resolve", Value: "rust quality_result //core/quality/result:quality_result"}})
 	r := rule.NewRule(binaryKind, "print_result")
 	l.Resolve(cfg, resolverIndex(l), nil, r,
 		targetImports{production: []string{"quality_result"}, siblingLib: "quality_result"},
-		label.New("rules_dx", "quality/result", "print_result"))
+		label.New("rules_dx", "core/quality/result", "print_result"))
 	if got := strings.Join(r.AttrStrings("deps"), ","); got != ":quality_result" {
 		t.Errorf("deps = %q, want :quality_result", got)
 	}
-	from := label.New("", "quality/result", "print_result")
+	from := label.New("", "core/quality/result", "print_result")
 	deps := map[string]bool{
 		"//other/pkg:quality_result":      true,
-		"@third//quality/result:tool":     true,
-		"//quality/result:quality_result": true,
+		"@third//core/quality/result:tool":     true,
+		"//core/quality/result:quality_result": true,
 	}
 	addLocalDep(deps, from, "quality_result")
 	var got []string
@@ -413,7 +413,7 @@ func TestResolveDedupesSiblingLibDuplicate(t *testing.T) {
 		got = append(got, dep)
 	}
 	sort.Strings(got)
-	want := "//other/pkg:quality_result,:quality_result,@third//quality/result:tool"
+	want := "//other/pkg:quality_result,:quality_result,@third//core/quality/result:tool"
 	if strings.Join(got, ",") != want {
 		t.Errorf("deps = %q, want %q", strings.Join(got, ","), want)
 	}

@@ -1,7 +1,7 @@
 load("//haskell/private/toolchain:pins.bzl", "qualified_cells")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "DEFAULT_GHCOPTS", "GMP", "HASKELL_CELLS", "HASKELL_COMPATIBLE_WITH", "STANDARD_GHCOPTS", "STRICT_GHCOPTS", "with_gmp")
 load(":kwargs.bzl", "haskell_kwargs", "haskell_upstream_kwargs")
 load(":profile_tests.bzl", "profile_ghcopts_tests")

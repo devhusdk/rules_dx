@@ -1,5 +1,5 @@
 load("@rules_dx//ocaml:defs.bzl", "ocaml_module")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//ocaml/private/quality:__pkg__"])
 

@@ -1,0 +1,9 @@
+producer //core/quality/testdata:matrix_markdown_prettier_pass
+capability FORMAT
+stages 1
+stage prettier classes=markdown sources=matrix/markdown_prettier_clean.md
+completed_rounds 1
+convergence STABLE
+initial 0
+terminal 0
+replacements 0

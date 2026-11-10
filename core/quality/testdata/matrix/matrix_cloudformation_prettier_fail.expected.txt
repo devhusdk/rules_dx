@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_cloudformation_prettier_fail
+capability FORMAT
+stages 1
+stage prettier classes=cloudformation sources=matrix/cloudformation_prettier_dirty.yaml
+completed_rounds 2
+convergence STABLE
+initial 1
+initial WARNING prettier - matrix/cloudformation_prettier_dirty.yaml 0 0 fixable=true "file is not formatted"
+terminal 0
+replacements 1
+replacement matrix/cloudformation_prettier_dirty.yaml 13 38 "Bucket:\n    Type:"

@@ -1,6 +1,6 @@
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("//typescript:defs.bzl", "typescript_fuzz_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(

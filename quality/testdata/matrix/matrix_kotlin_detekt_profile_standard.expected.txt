@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_kotlin_detekt_profile_standard
-capability LINT
-stages 1
-stage detekt classes=kotlin sources=matrix/detektstandard/Profile.kt
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

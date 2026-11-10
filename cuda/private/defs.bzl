@@ -11,7 +11,7 @@ load("//cuda/private/toolchain:transition.bzl", "cuda_host_transition")
 load("//core:platform_support.bzl", "compatible_with")
 load("//core:wrapper.bzl", "dx_library_forward_rule", "dx_upstream_tags")
 load("//core/modules:cuda.bzl", "CUDA_VERSION")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
 cuda_component_library = _cuda_component_library
 

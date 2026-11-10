@@ -304,7 +304,7 @@ fn every_item_is_in_exactly_one_family() {
     actual.insert(
         "aspects",
         aspect_names(&dx_testing::read_runfiles(
-            "quality/testdata/all_languages.bzl",
+            "core/quality/testdata/all_languages.bzl",
         )),
     );
     let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
@@ -565,7 +565,7 @@ const FAMILY_FILES: [&str; 44] = [
     "zig",
 ];
 
-/// Family files that sit in their language directory instead of `quality/families`.
+/// Family files that sit in their language directory instead of `core/quality/families`.
 const LANGUAGE_FAMILY_FILES: [&str; 8] = [
     "ansible",
     "bicep",
@@ -581,7 +581,7 @@ fn family_file(family: &str) -> String {
     if LANGUAGE_FAMILY_FILES.contains(&family) {
         format!("{family}/private/quality/{family}.bzl")
     } else {
-        format!("quality/families/{family}.bzl")
+        format!("core/quality/families/{family}.bzl")
     }
 }
 
@@ -589,7 +589,7 @@ fn family_load(family: &str) -> String {
     if LANGUAGE_FAMILY_FILES.contains(&family) {
         format!("load(\"//{family}/private/quality:{family}.bzl\"")
     } else {
-        format!("load(\"//quality:families/{family}.bzl\"")
+        format!("load(\"//core/quality:families/{family}.bzl\"")
     }
 }
 
@@ -630,7 +630,7 @@ fn family_files_define_aspects_listed_in_families_json() {
 
 #[test]
 fn core_family_file_loads_no_family_rule_set() {
-    let source = dx_testing::read_runfiles("quality/families/core.bzl");
+    let source = dx_testing::read_runfiles("core/quality/families/core.bzl");
     let foreign = source
         .lines()
         .filter(|line| line.starts_with("load(\"@") && !line.starts_with("load(\"@bazel_skylib"))

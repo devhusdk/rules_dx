@@ -1,7 +1,7 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//cc/private/context:identity.bzl", "cc_context_exec_identity", "cc_context_identity")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 

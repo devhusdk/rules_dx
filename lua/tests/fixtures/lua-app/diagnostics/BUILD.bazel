@@ -1,5 +1,5 @@
 load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//lua/tests/fixtures/lua-app:__subpackages__"])
 

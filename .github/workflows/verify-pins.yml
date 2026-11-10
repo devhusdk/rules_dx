@@ -35,4 +35,4 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run --noshow_progress "$@" //quality/artifacts:update -- --verify-only
+          bazel run --noshow_progress "$@" //core/quality/artifacts:update -- --verify-only

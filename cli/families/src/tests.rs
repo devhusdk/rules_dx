@@ -50,15 +50,15 @@ fn module_field_parses() {
 #[test]
 fn quality_entries_merge_by_aspect_file() {
     let merged = parse_quality(&[
-        r#"{"quality": {"bzl": "quality:families/a.bzl", "file_extensions": [".y"]}}"#,
-        r#"{"quality": {"bzl": "quality:families/a.bzl", "file_extensions": [".x"], "aspects": {"lint": ["a_lint"]}, "probes": {"lint": ["a_probe"]}}}"#,
+        r#"{"quality": {"bzl": "core/quality:families/a.bzl", "file_extensions": [".y"]}}"#,
+        r#"{"quality": {"bzl": "core/quality:families/a.bzl", "file_extensions": [".x"], "aspects": {"lint": ["a_lint"]}, "probes": {"lint": ["a_probe"]}}}"#,
         r#"{"name": "no quality"}"#,
     ])
     .expect("parse");
     assert_eq!(
         merged,
         vec![QualityFiles {
-            bzl: "quality:families/a.bzl".to_owned(),
+            bzl: "core/quality:families/a.bzl".to_owned(),
             file_extensions: vec![".x".to_owned(), ".y".to_owned()],
             aspects: BTreeMap::from([("lint".to_owned(), vec!["a_lint".to_owned()])]),
             probes: BTreeMap::from([("lint".to_owned(), vec!["a_probe".to_owned()])]),

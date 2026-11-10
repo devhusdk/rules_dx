@@ -14,7 +14,7 @@ This page fixes the rules for the lint and format configuration that dx ships. T
 - `error`: type errors, compile errors, security findings and certain bugs.
 - `warning`: likely bugs, suspicious code, performance, maintainability and style (naming, readability, pedantic, codestyle).
 - `info`: only what the tool itself labels a suggestion or hint, such as hlint `Suggestion`, staticcheck `QF` and vale `suggestion`.
-- Severity is mapped once per tool in `quality/tools.bzl`. A mapping never soft-disables a rule.
+- Severity is mapped once per tool in `core/quality/tools.bzl`. A mapping never soft-disables a rule.
 
 ## Profiles
 

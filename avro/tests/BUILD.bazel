@@ -5,7 +5,7 @@ load("//avro:defs.bzl", "avro_cc_library", "avro_codegen_shard", "avro_java_libr
 load("//cc:defs.bzl", "cc_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:private"])
 

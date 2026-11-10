@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
-load("//quality:dx_config_gen.bzl", "plan_registry_gen")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:dx_config_gen.bzl", "plan_registry_gen")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI", "VIS_QUALITY_CLI")
 
@@ -193,8 +193,8 @@ rust_test(
         "//gazelle/common:testdata/intended_manifest.json",
         "//gazelle/common:testdata/intended_manifest_failed.json",
         "//core/modules:versions.bzl",
-        "//quality:BUILD.bazel",
-        "//quality:adapters.bzl",
+        "//core/quality:BUILD.bazel",
+        "//core/quality:adapters.bzl",
         "//tools/testing/process_probe",
     ],
     env = {

@@ -1,5 +1,5 @@
 load("@rules_dx//julia:defs.bzl", "JULIA_COMPATIBLE_WITH")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//julia/tests/fixtures/julia-app:__subpackages__"])

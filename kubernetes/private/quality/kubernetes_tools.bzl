@@ -1,6 +1,6 @@
 """Quality tool rows for the kubernetes family."""
 
-load("//quality:tool_defs.bzl", "config", "row", "severity", "tool")
+load("//core/quality:tool_defs.bzl", "config", "row", "severity", "tool")
 
 TOOLS = [
     tool(

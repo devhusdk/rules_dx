@@ -81,8 +81,8 @@ pub enum GenerateError {
 /// Where dx renders the gitleaks base that `.gitleaks.toml` extends.
 pub const GITLEAKS_BASE_PATH: &str = ".dx/config/gitleaks/base.toml";
 
-const GITLEAKS_STANDARD: &str = include_str!("../../../quality/tiers/gitleaks/standard.toml");
-const GITLEAKS_STRICT: &str = include_str!("../../../quality/tiers/gitleaks/strict.toml");
+const GITLEAKS_STANDARD: &str = include_str!("../../../core/quality/tiers/gitleaks/standard.toml");
+const GITLEAKS_STRICT: &str = include_str!("../../../core/quality/tiers/gitleaks/strict.toml");
 
 /// The policy the correctness rc selects.
 pub const POLICY_LABEL: &str = "//.dx:policy";
@@ -93,7 +93,7 @@ pub fn base_path(config: &ToolConfig) -> Option<String> {
         .then(|| format!(".dx/config/{}/base.{}", tier_dir(config), config.ext))
 }
 
-/// The directory a tool's tier files live in, under `.dx/config` and `quality/tiers`.
+/// The directory a tool's tier files live in, under `.dx/config` and `core/quality/tiers`.
 pub fn tier_dir(config: &ToolConfig) -> &str {
     if config.tier_dir.is_empty() {
         config.id
@@ -335,12 +335,12 @@ fn dx_build(
             .map(|(tool, _)| format!("\"{}_config\"", tool.config.id))
             .collect();
         text.push_str(&format!(
-            "load(\"@{repo}//quality:native_config.bzl\", {})\n",
+            "load(\"@{repo}//core/quality:native_config.bzl\", {})\n",
             symbols.join(", ")
         ));
     }
     text.push_str(&format!(
-        "load(\"@{repo}//quality/private:generated_policy.bzl\", \"dx_generated_policy\")\n\n\
+        "load(\"@{repo}//core/quality/private:generated_policy.bzl\", \"dx_generated_policy\")\n\n\
          package(default_visibility = [\"//visibility:public\"])\n"
     ));
     for (tool, file) in bound {
@@ -367,7 +367,7 @@ fn dx_build(
         .filter(|tool| tool.config.tier_base && tool.profile != root)
         .map(|tool| {
             format!(
-                "        \"{}\": \"@{repo}//quality/tiers/{}:{}\",\n",
+                "        \"{}\": \"@{repo}//core/quality/tiers/{}:{}\",\n",
                 tool.config.id,
                 tool.dir(),
                 tool.profile.as_str()

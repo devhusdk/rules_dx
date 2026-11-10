@@ -28,7 +28,7 @@
     "d_bench"
   ],
   "quality": {
-    "bzl": "quality:families/d.bzl",
+    "bzl": "core/quality:families/d.bzl",
     "file_extensions": [
       ".d"
     ],

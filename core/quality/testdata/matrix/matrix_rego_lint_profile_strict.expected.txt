@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_rego_lint_profile_strict
+capability LINT
+stages 1
+stage regal classes=rego sources=matrix/regal_profile_strict/policy.rego
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING regal style/prefer-snake-case matrix/regal_profile_strict/policy.rego 37 37 fixable=false "Prefer snake_case for names"
+terminal 1
+terminal WARNING regal style/prefer-snake-case matrix/regal_profile_strict/policy.rego 37 37 fixable=false "Prefer snake_case for names"
+replacements 0

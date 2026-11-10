@@ -12,7 +12,7 @@ load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_cand
 load("//core:platform_support.bzl", "compatible_with")
 load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_executable_forward_rule", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_wrap", "dx_wrap_binary", "dx_wrap_test")
 load("//flutter/private:platforms.bzl", FLUTTER_SUPPORT = "PLATFORM_SUPPORT")
-load("//quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo", "QualityToolsInfo")
 
 flutter_gen_l10n = _flutter_gen_l10n
 

@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_php_lint_strict
+capability LINT
+stages 1
+stage phpcs classes=php sources=matrix/phpcs_profile_strict.php
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING phpcs phpcs/Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed matrix/phpcs_profile_strict.php 83 83 fixable=false "The method parameter $b is never used"
+terminal 1
+terminal WARNING phpcs phpcs/Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed matrix/phpcs_profile_strict.php 83 83 fixable=false "The method parameter $b is never used"
+replacements 0

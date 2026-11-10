@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_svelte_prettier_format_pass
-capability FORMAT
-stages 1
-stage prettier classes=svelte sources=quality/testdata/real_clean.svelte
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

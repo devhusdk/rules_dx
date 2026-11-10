@@ -1,0 +1,10 @@
+load("//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
+
+package(default_visibility = ["//core/quality/testdata:__pkg__"])
+
+erlang_app(
+    name = "erlang_clean",
+    app_name = "dx_dialyzer_clean",
+    app_version = "1.0.0",
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+)

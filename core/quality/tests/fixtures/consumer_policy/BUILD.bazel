@@ -1,0 +1,804 @@
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("//api_spec:defs.bzl", "api_spec_library")
+load("//kubernetes:defs.bzl", "kubernetes_schemas")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:native_config.bzl", "clang_tidy_config", "eslint_config", "ruff_config")
+load("//core/quality:policy.bzl", "quality_family", "workspace_policy")
+load("//core/quality/private:generated_policy.bzl", "dx_generated_policy")
+
+package(default_visibility = ["//core/quality:__pkg__"])
+
+exports_files([
+    "clean.c",
+    "clean.js",
+    "clean.json",
+    "clean.toml",
+    "ruff.toml",
+])
+
+workspace_policy(
+    name = "shared_policy",
+    families = [
+        ":ansible_family",
+        ":asciidoc_family",
+        ":bicep_family",
+        ":biome_json_family",
+        ":cloudformation_family",
+        ":cue_family",
+        ":eslint_js_family",
+        ":eslint_ts_family",
+        ":formatted_toml_family",
+        ":haskell_family",
+        ":helm_family",
+        ":html_template_family",
+        ":jsonnet_family",
+        ":kubernetes_family",
+        ":latex_family",
+        ":lua_family",
+        ":nix_family",
+        ":pkl_family",
+        ":rego_family",
+        ":rst_family",
+        ":terraform_family",
+        ":typst_family",
+        ":yaml_family",
+    ],
+    visibility = [
+        "//core/quality:__pkg__",
+        "//core/quality/testdata:__pkg__",
+    ],
+)
+
+quality_family(
+    name = "formatted_toml_family",
+    disabled = ["typecheck"],
+    family_id = "toml",
+    format = ["taplo"],
+    lint = ["taplo"],
+)
+
+quality_family(
+    name = "unformatted_toml_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "toml",
+    lint = ["taplo"],
+)
+
+workspace_policy(
+    name = "format_off_policy",
+    families = [":unformatted_toml_family"],
+)
+
+quality_family(
+    name = "unconfigured_toml_family",
+    family_id = "toml",
+    lint = ["taplo"],
+)
+
+workspace_policy(
+    name = "unconfigured_format_policy",
+    families = [":unconfigured_toml_family"],
+)
+
+quality_family(
+    name = "unwired_toml_family",
+    disabled = ["typecheck"],
+    family_id = "toml",
+    format = ["modfmt"],
+    lint = ["taplo"],
+)
+
+workspace_policy(
+    name = "unwired_tool_policy",
+    families = [":unwired_toml_family"],
+)
+
+quality_family(
+    name = "biome_json_family",
+    disabled = ["typecheck"],
+    family_id = "json",
+    format = ["biome"],
+    lint = ["biome"],
+)
+
+quality_family(
+    name = "eslint_js_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "javascript",
+    lint = ["eslint"],
+)
+
+quality_family(
+    name = "eslint_ts_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "typescript",
+    lint = ["eslint"],
+)
+
+quality_family(
+    name = "clang_tidy_cc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cc",
+    lint = ["clang_tidy"],
+)
+
+workspace_policy(
+    name = "cc_clang_tidy_policy",
+    bases = ["//core/quality/tiers/clang_tidy:standard"],
+    families = [":clang_tidy_cc_family"],
+)
+
+workspace_policy(
+    name = "cc_clang_tidy_bound_policy",
+    configs = [":consumer_clang_tidy_config"],
+    families = [":clang_tidy_cc_family"],
+)
+
+eslint_config(
+    name = "consumer_eslint_config",
+    src = "eslint.config.js",
+)
+
+clang_tidy_config(
+    name = "consumer_clang_tidy_config",
+    src = ".clang-tidy",
+)
+
+real_source_target(
+    name = "clean_c",
+    aspect_hints = [":consumer_clang_tidy_config"],
+    c_srcs = ["clean.c"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "clean_js",
+    aspect_hints = [
+        ":consumer_eslint_config",
+    ],
+    javascript_srcs = ["clean.js"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "clean_json",
+    json_srcs = ["clean.json"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "clean_toml",
+    tags = ["corpus"],
+    toml_srcs = ["clean.toml"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+quality_family(
+    name = "terraform_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "terraform",
+    format = ["terraform"],
+)
+
+filegroup(
+    name = "terraform_module",
+    srcs = [
+        "terraform_module/main.tf",
+        "terraform_module/modules/child/main.tf",
+        "terraform_module/outputs.tf",
+        "terraform_module/terraform.tfvars",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_terraform",
+    terraform_srcs = [":terraform_module"],
+)
+
+quality_family(
+    name = "cue_family",
+    disabled = ["lint"],
+    family_id = "cue",
+    format = ["cue"],
+    typecheck = ["cue"],
+)
+
+filegroup(
+    name = "cue_module",
+    srcs = [
+        "cue_module/cue.mod/module.cue",
+        "cue_module/lib/greeting.cue",
+        "cue_module/main.cue",
+        "cue_module/values.cue",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_cue",
+    cue_srcs = [":cue_module"],
+)
+
+quality_family(
+    name = "jsonnet_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "jsonnet",
+    format = ["jsonnetfmt"],
+)
+
+filegroup(
+    name = "jsonnet_module",
+    srcs = [
+        "jsonnet_module/lib/settings.libsonnet",
+        "jsonnet_module/main.jsonnet",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_jsonnet",
+    jsonnet_srcs = [":jsonnet_module"],
+)
+
+quality_family(
+    name = "typst_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "typst",
+    format = ["typstyle"],
+)
+
+filegroup(
+    name = "typst_module",
+    srcs = [
+        "typst_module/lib/helpers.typ",
+        "typst_module/main.typ",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_typst",
+    typst_srcs = [":typst_module"],
+)
+
+quality_family(
+    name = "latex_family",
+    disabled = ["typecheck"],
+    family_id = "latex",
+    format = ["latexindent"],
+    lint = ["chktex"],
+)
+
+filegroup(
+    name = "latex_module",
+    srcs = [
+        "latex_module/lib/helpers.sty",
+        "latex_module/main.tex",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_latex",
+    latex_srcs = [":latex_module"],
+)
+
+quality_family(
+    name = "yaml_family",
+    disabled = ["typecheck"],
+    family_id = "yaml",
+    format = ["yamlfmt"],
+    lint = ["yamllint"],
+)
+
+filegroup(
+    name = "yaml_module",
+    srcs = ["yaml_module/clean.yaml"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_yaml",
+    yaml_srcs = [":yaml_module"],
+)
+
+quality_family(
+    name = "make_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "make",
+    lint = ["checkmake"],
+)
+
+workspace_policy(
+    name = "make_policy",
+    families = [":make_family"],
+)
+
+quality_family(
+    name = "make_format_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "make",
+    format = ["mbake"],
+)
+
+workspace_policy(
+    name = "make_format_policy",
+    families = [":make_format_family"],
+)
+
+filegroup(
+    name = "make_module",
+    srcs = [
+        "make_module/Makefile",
+        "make_module/sub/rules.mk",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_make",
+    make_srcs = [":make_module"],
+)
+
+quality_family(
+    name = "cmake_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "cmake",
+    format = ["gersemi"],
+)
+
+workspace_policy(
+    name = "cmake_policy",
+    families = [":cmake_family"],
+)
+
+quality_family(
+    name = "cmake_lint_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cmake",
+    lint = ["cmakelint"],
+)
+
+workspace_policy(
+    name = "cmake_lint_policy",
+    families = [":cmake_lint_family"],
+)
+
+filegroup(
+    name = "cmake_module",
+    srcs = [
+        "cmake_module/CMakeLists.txt",
+        "cmake_module/sub/helpers.cmake",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_cmake",
+    cmake_srcs = [":cmake_module"],
+)
+
+quality_family(
+    name = "nix_family",
+    disabled = ["typecheck"],
+    family_id = "nix",
+    format = ["nixfmt"],
+    lint = ["deadnix"],
+)
+
+filegroup(
+    name = "nix_module",
+    srcs = [
+        "nix_module/clean.nix",
+        "nix_module/greeting.nix",
+    ],
+)
+
+quality_family(
+    name = "jupyter_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = ["ruff"],
+)
+
+workspace_policy(
+    name = "jupyter_policy",
+    families = [":jupyter_family"],
+)
+
+quality_family(
+    name = "jupyter_outputs_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "jupyter",
+    format = ["ruff"],
+    lint = [
+        "ruff",
+        "notebook_outputs",
+    ],
+)
+
+workspace_policy(
+    name = "jupyter_outputs_policy",
+    families = [":jupyter_outputs_family"],
+)
+
+filegroup(
+    name = "jupyter_module",
+    srcs = ["jupyter_module/clean.ipynb"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_nix",
+    nix_srcs = [":nix_module"],
+)
+
+real_source_target(
+    name = "clean_jupyter",
+    jupyter_srcs = [":jupyter_module"],
+)
+
+quality_family(
+    name = "kubernetes_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "kubernetes",
+    lint = ["kubeconform"],
+)
+
+quality_family(
+    name = "helm_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "helm",
+    lint = ["helm"],
+)
+
+kubernetes_schemas(
+    name = "kubernetes_schemas",
+    kubernetes_version = "1.32.0",
+    schemas = ["//core/quality/testdata/kubernetes_schemas:configmap-v1.json"],
+    visibility = ["//core/quality/tests/fixtures/consumer_policy/helm_chart:__pkg__"],
+)
+
+filegroup(
+    name = "kubernetes_module",
+    srcs = ["kubernetes_module/clean.yaml"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_kubernetes",
+    aspect_hints = [":kubernetes_schemas"],
+    kubernetes_srcs = [":kubernetes_module"],
+)
+
+quality_family(
+    name = "ansible_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "ansible",
+    lint = ["ansible_lint"],
+)
+
+filegroup(
+    name = "ansible_module",
+    srcs = ["ansible_module/playbooks/site.yml"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_ansible",
+    ansible_srcs = [":ansible_module"],
+)
+
+quality_family(
+    name = "bicep_family",
+    disabled = ["typecheck"],
+    family_id = "bicep",
+    format = ["bicep"],
+    lint = ["bicep"],
+)
+
+real_source_target(
+    name = "clean_bicep",
+    bicep_srcs = ["bicep_module/main.bicep"],
+)
+
+quality_family(
+    name = "cloudformation_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "cloudformation",
+    lint = ["cfn_lint"],
+)
+
+filegroup(
+    name = "cloudformation_module",
+    srcs = ["cloudformation_module/clean.yaml"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_cloudformation",
+    cloudformation_srcs = [":cloudformation_module"],
+)
+
+quality_family(
+    name = "html_template_family",
+    disabled = ["typecheck"],
+    family_id = "html_template",
+    format = ["djlint"],
+    lint = ["djlint"],
+)
+
+filegroup(
+    name = "html_template_module",
+    srcs = ["html_template_module/clean.html"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_html_template",
+    html_template_srcs = [":html_template_module"],
+)
+
+quality_family(
+    name = "haskell_family",
+    disabled = [
+        "lint",
+        "typecheck",
+    ],
+    family_id = "haskell",
+    format = ["ormolu"],
+)
+
+filegroup(
+    name = "haskell_module",
+    srcs = [
+        "haskell_module/Lib/Greeting.hs",
+        "haskell_module/Main.hs",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_haskell",
+    haskell_srcs = [":haskell_module"],
+)
+
+quality_family(
+    name = "pkl_family",
+    disabled = ["lint"],
+    family_id = "pkl",
+    format = ["pkl"],
+    typecheck = ["pkl"],
+)
+
+filegroup(
+    name = "pkl_module",
+    srcs = [
+        "pkl_module/lib/settings.pkl",
+        "pkl_module/main.pkl",
+    ],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+real_source_target(
+    name = "clean_pkl",
+    pkl_srcs = [":pkl_module"],
+)
+
+quality_family(
+    name = "lua_family",
+    disabled = ["typecheck"],
+    family_id = "lua",
+    format = ["stylua"],
+    lint = ["selene"],
+)
+
+real_source_target(
+    name = "clean_lua",
+    lua_srcs = ["lua_module/greet.lua"],
+)
+
+quality_family(
+    name = "api_spec_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "api_spec",
+    lint = ["redocly"],
+)
+
+workspace_policy(
+    name = "api_spec_policy",
+    families = [":api_spec_family"],
+)
+
+quality_family(
+    name = "api_spec_format_family",
+    disabled = ["typecheck"],
+    family_id = "api_spec",
+    format = ["prettier"],
+    lint = ["redocly"],
+)
+
+workspace_policy(
+    name = "api_spec_format_policy",
+    families = [":api_spec_format_family"],
+)
+
+filegroup(
+    name = "api_spec_module",
+    srcs = ["api_spec_module/clean.yaml"],
+    visibility = ["//core/quality/testdata:__pkg__"],
+)
+
+api_spec_library(
+    name = "clean_api_spec",
+    srcs = [":api_spec_module"],
+)
+
+quality_family(
+    name = "rego_family",
+    family_id = "rego",
+    format = ["opa"],
+    lint = ["regal"],
+    typecheck = ["opa"],
+)
+
+real_source_target(
+    name = "clean_rego",
+    rego_srcs = ["rego_module/greet.rego"],
+)
+
+quality_family(
+    name = "rst_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "rst",
+    lint = ["vale"],
+)
+
+filegroup(
+    name = "rst_module",
+    srcs = [
+        "rst_module/guide.rst",
+        "rst_module/notes.rst",
+    ],
+)
+
+real_source_target(
+    name = "clean_rst",
+    aspect_hints = ["//core/quality:corpus_vale_config"],
+    rst_srcs = [":rst_module"],
+)
+
+quality_family(
+    name = "asciidoc_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "asciidoc",
+    lint = ["vale"],
+)
+
+filegroup(
+    name = "asciidoc_module",
+    srcs = [
+        "asciidoc_module/guide.adoc",
+        "asciidoc_module/notes.adoc",
+    ],
+)
+
+real_source_target(
+    name = "clean_asciidoc",
+    asciidoc_srcs = [":asciidoc_module"],
+    aspect_hints = ["//core/quality:corpus_vale_config"],
+)
+
+quality_family(
+    name = "python_ruff_family",
+    disabled = [
+        "format",
+        "typecheck",
+    ],
+    family_id = "python",
+    lint = ["ruff"],
+)
+
+ruff_config(
+    name = "policy_ruff_config",
+    src = "ruff.toml",
+)
+
+ruff_config(
+    name = "target_ruff_config",
+    src = "override/ruff.toml",
+)
+
+workspace_policy(
+    name = "python_ruff_policy",
+    configs = [":policy_ruff_config"],
+    families = [":python_ruff_family"],
+)
+
+real_source_target(
+    name = "policy_bound_py",
+    python_srcs = ["clean.py"],
+)
+
+dx_generated_policy(
+    name = "strict_generated_policy",
+    tier = "strict",
+)
+
+cc_library(
+    name = "policy_bound_c",
+    srcs = ["clean.c"],
+)
+
+real_source_target(
+    name = "hinted_py",
+    aspect_hints = [":target_ruff_config"],
+    python_srcs = ["clean.py"],
+)

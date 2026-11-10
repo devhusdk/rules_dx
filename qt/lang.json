@@ -34,7 +34,7 @@
     "qt_bundle"
   ],
   "quality": {
-    "bzl": "quality:families/cc.bzl",
+    "bzl": "core/quality:families/cc.bzl",
     "file_extensions": [
       ".qml"
     ]

@@ -1,6 +1,6 @@
 load("@rules_dx//php:defs.bzl", "php_library")
 load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load(":composer.bzl", "composer_tool")
 load(":phpcs.bzl", "phpcs_tool")
 load(":phpstan.bzl", "phpstan_tool")

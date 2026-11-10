@@ -1,6 +1,6 @@
 load("@rules_dx//fortran:defs.bzl", "fortran_library")
 load("//fortran/tests/negative:negative_tests.bzl", "fortran_module_input_test")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 fortran_library(
     name = "base_dep",

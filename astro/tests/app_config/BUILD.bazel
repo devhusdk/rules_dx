@@ -2,7 +2,7 @@ load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("//javascript:defs.bzl", "javascript_library")
 load("//astro:defs.bzl", "astro_build")
 load("//javascript:defs.bzl", "javascript_test")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(
     default_testonly = True,

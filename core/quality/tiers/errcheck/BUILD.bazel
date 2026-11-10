@@ -1,0 +1,37 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:native_config.bzl", "errcheck_config")
+
+exports_files(
+    glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "files",
+    srcs = glob(
+        ["**"],
+        exclude = ["BUILD.bazel"],
+    ),
+    visibility = ["//visibility:public"],
+)
+
+errcheck_config(
+    name = "standard",
+    src = "standard.txt",
+    visibility = ["//visibility:public"],
+)
+
+errcheck_config(
+    name = "strict",
+    src = "strict.txt",
+    visibility = ["//visibility:public"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -1,7 +1,7 @@
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("//ocaml/private:dune.bzl", "dx_dune_build")
-load("//quality:fixtures.bzl", "real_source_target")
-load("//quality:unavailable_tool.bzl", "dx_unavailable_tool")
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
 package(default_visibility = VIS_TOOLS_PUBLIC)

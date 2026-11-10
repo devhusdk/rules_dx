@@ -1,7 +1,7 @@
 """Analysis tests that Ruby targets own their main for quality."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("@rules_dx//quality:sources.bzl", "QualitySourcesInfo")
+load("@rules_dx//core/quality:sources.bzl", "QualitySourcesInfo")
 
 def _owns_impl(expected):
     def impl(ctx):

@@ -194,7 +194,7 @@ format = ["stylua"]
 See the [config reference](../docs/cli/commands/config.md#dxtoml).
 
 StyLua never reads a `stylua.toml` or `.editorconfig` next to the sources. Bind
-a `stylua_config` from `@rules_dx//quality:native_config.bzl` to set indent
+a `stylua_config` from `@rules_dx//core/quality:native_config.bzl` to set indent
 width or quote style.
 
 ### Lint with selene
@@ -202,7 +202,7 @@ width or quote style.
 `dx check` lints Lua with `selene` 0.32.0, built from source with the Lua 5.2
 to 5.4 parsers. Add `lint = ["selene"]` to the `lua` family. The default config
 uses `std = "lua53+lua54"`; bind a `selene_config` from
-`@rules_dx//quality:native_config.bzl` to change lints or the standard library.
+`@rules_dx//core/quality:native_config.bzl` to change lints or the standard library.
 selene has no autofix.
 
 ### Type check with LuaLS
@@ -211,7 +211,7 @@ selene has no autofix.
 3.19.2. Select `luals` in a `lua` family;
 `--@rules_dx//config:tool_luals` overrides the pinned binary. Modules of `deps` are staged as a library and are never
 reported; only the sources of the target are. Bind a `luals_config` from
-`@rules_dx//quality:native_config.bzl` (a plain `.luarc.json`, never `.jsonc`) to
+`@rules_dx//core/quality:native_config.bzl` (a plain `.luarc.json`, never `.jsonc`) to
 set globals or diagnostics. The runtime version, the library, `libraryFiles` and
 the output paths are always set by dx. Only `linux_x86_64` is qualified.
 

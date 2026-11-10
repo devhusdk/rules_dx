@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -23,7 +23,7 @@ real_source_target(
 
 real_source_target(
     name = "corpus_markdown",
-    aspect_hints = ["@rules_dx//quality:corpus_vale_config"],
+    aspect_hints = ["@rules_dx//core/quality:corpus_vale_config"],
     markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

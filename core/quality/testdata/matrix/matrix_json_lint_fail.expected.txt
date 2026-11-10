@@ -1,0 +1,11 @@
+producer //core/quality/testdata:matrix_json_lint_fail
+capability LINT
+stages 1
+stage biome classes=json sources=matrix/json_dup.json
+completed_rounds 1
+convergence STABLE
+initial 1
+initial WARNING biome lint/suspicious/noDuplicateObjectKeys matrix/json_dup.json 1 4 fixable=false "The key a was already declared."
+terminal 1
+terminal WARNING biome lint/suspicious/noDuplicateObjectKeys matrix/json_dup.json 1 4 fixable=false "The key a was already declared."
+replacements 0

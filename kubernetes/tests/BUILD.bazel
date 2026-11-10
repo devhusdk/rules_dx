@@ -1,4 +1,4 @@
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//kubernetes:defs.bzl", "kubernetes_library", "kubernetes_schemas")
 load("//core:failure_test.bzl", "failure_test")
 load(":library_tests.bzl", "owns_kubernetes_class_test", "schemas_config_test")

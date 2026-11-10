@@ -69,7 +69,7 @@ pub fn preflight_quality(path: &str, text: &str) -> Result<BTreeMap<String, Vec<
 }
 
 /// Checks that each non-default platform's preflight lane runs its own evidence suite
-/// `//quality/testdata:runner_matrix_<platform>` and lists no label twice.
+/// `//core/quality/testdata:runner_matrix_<platform>` and lists no label twice.
 pub fn check_evidence_lanes(
     path: &str,
     lanes: &BTreeMap<String, Vec<String>>,
@@ -82,7 +82,7 @@ pub fn check_evidence_lanes(
         let Some(labels) = lanes.get(*platform) else {
             return Err(format!("{path}: no preflight lane for {platform}"));
         };
-        let suite = format!("//quality/testdata:runner_matrix_{platform}");
+        let suite = format!("//core/quality/testdata:runner_matrix_{platform}");
         if !labels.contains(&suite) {
             return Err(format!(
                 "{path}: the {platform} preflight lane must run {suite}"
@@ -274,7 +274,7 @@ jobs:
 
     #[test]
     fn accepts_a_lane_running_its_suite() {
-        let ci = lane_ci("//quality/testdata:runner_matrix_macos_arm64 //x:y");
+        let ci = lane_ci("//core/quality/testdata:runner_matrix_macos_arm64 //x:y");
         let lanes = preflight_quality("ci.yml", &ci).expect("lanes");
         check_evidence_lanes("ci.yml", &lanes, &["linux_x86_64", "macos_arm64"]).expect("ok");
     }
@@ -291,7 +291,7 @@ jobs:
 
     #[test]
     fn rejects_a_duplicate_lane_label() {
-        let ci = lane_ci("//quality/testdata:runner_matrix_macos_arm64 //x:y //x:y");
+        let ci = lane_ci("//core/quality/testdata:runner_matrix_macos_arm64 //x:y //x:y");
         let lanes = preflight_quality("ci.yml", &ci).expect("lanes");
         let error = check_evidence_lanes("ci.yml", &lanes, &["macos_arm64"]).expect_err("dup");
         assert!(error.contains("twice"), "{error}");

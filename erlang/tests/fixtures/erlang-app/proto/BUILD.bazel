@@ -1,5 +1,5 @@
 load("@rules_dx//erlang:defs.bzl", "DEFAULT_TEST_ERLC_OPTS", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_eunit_test", "erlang_test_app", "erlang_xrl_yrl", "erlc_opts")
-load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files(
     glob(["src/*"]) + [

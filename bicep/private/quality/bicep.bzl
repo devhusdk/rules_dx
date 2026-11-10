@@ -1,8 +1,8 @@
 """Bicep real quality aspects."""
 
 load("//bicep/private:providers.bzl", "BicepInfo")
-load("//quality:family_hooks.bzl", "stage")
-load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
+load("//core/quality:family_hooks.bzl", "stage")
+load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect")
 
 TOOLS = {
     "bicep": {

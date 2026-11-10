@@ -1,5 +1,5 @@
 load("//qt/private/sdk:repos.bzl", "qualified_cells")
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])
 

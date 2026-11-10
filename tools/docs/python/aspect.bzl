@@ -26,7 +26,7 @@ real_python_docs_aspect = aspect(
     attrs = {
         "_py_driver": attr.label(
             cfg = "exec",
-            default = Label("//quality/tools/python:griffe_dump"),
+            default = Label("//core/quality/tools/python:griffe_dump"),
             executable = True,
         ),
         "_py_extract": attr.label(

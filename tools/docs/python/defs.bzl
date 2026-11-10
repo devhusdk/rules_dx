@@ -33,7 +33,7 @@ docs_python_shard = rule(
         "package": attr.string(doc = "Top-level package to document; defaults to the library name."),
         "_driver": attr.label(
             cfg = "exec",
-            default = Label("//quality/tools/python:griffe_dump"),
+            default = Label("//core/quality/tools/python:griffe_dump"),
             executable = True,
         ),
         "_extract": attr.label(

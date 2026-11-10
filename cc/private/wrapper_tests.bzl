@@ -6,7 +6,7 @@ load("@rules_cc//cc/common:objc_info.bzl", "ObjcInfo")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "msvc_crt_reset_settings", "msvc_crt_static_settings")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
-load("//quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load(":defs.bzl", "CC_COVERAGE_INPUTS", "cc_coverage_features", "cc_coverage_mismatch", "cc_coverage_settings", "cc_coverage_unsupported", "cc_param_file_features")
 
 def _coverage_inputs(features, collect, compiler, compiler_flag):

@@ -1,9 +1,0 @@
-producer //quality/testdata:matrix_dockerfile_lint_clean_standard
-capability LINT
-stages 1
-stage hadolint classes=dockerfile sources=matrix/hadolint_tier/Dockerfile
-completed_rounds 1
-convergence STABLE
-initial 0
-terminal 0
-replacements 0

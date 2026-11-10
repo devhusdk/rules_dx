@@ -1,4 +1,4 @@
-load("//quality:fixtures.bzl", "real_source_target")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 
 package(default_visibility = ["//cc/tests/fixtures/cpp-app:__subpackages__"])
@@ -13,8 +13,8 @@ rust_test(
         "syntax_error.cc",
         "type_error.cc",
         "unused.cc",
-        "//quality/tiers/clang_tidy:standard.clang-tidy",
-        "//quality/tiers/clang_tidy:strict.clang-tidy",
+        "//core/quality/tiers/clang_tidy:standard.clang-tidy",
+        "//core/quality/tiers/clang_tidy:strict.clang-tidy",
         "@llvm//tools:clang",
         "@llvm//tools:clang-tidy",
     ],
@@ -25,10 +25,10 @@ rust_test(
         "DX_LINT": "$(rootpath lint_error.cc)",
         "DX_MODERNIZE": "$(rootpath modernize.cc)",
         "DX_STD": "-std=c++17",
-        "DX_STANDARD": "$(rootpath //quality/tiers/clang_tidy:standard.clang-tidy)",
-        "DX_STRICT": "$(rootpath //quality/tiers/clang_tidy:strict.clang-tidy)",
+        "DX_STANDARD": "$(rootpath //core/quality/tiers/clang_tidy:standard.clang-tidy)",
+        "DX_STRICT": "$(rootpath //core/quality/tiers/clang_tidy:strict.clang-tidy)",
         "DX_SYNTAX": "$(rootpath syntax_error.cc)",
-        "DX_TIDY_STANDARD": "$(rootpath //quality/tiers/clang_tidy:standard.clang-tidy)",
+        "DX_TIDY_STANDARD": "$(rootpath //core/quality/tiers/clang_tidy:standard.clang-tidy)",
         "DX_TYPE": "$(rootpath type_error.cc)",
         "DX_UNUSED": "$(rootpath unused.cc)",
     },

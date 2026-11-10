@@ -1294,17 +1294,17 @@ mod tests {
         );
         write(root, "rc/aspect.bzl", "load(\":rc_helper.bzl\", \"h\")\n");
         write(root, "rc/rc_helper.bzl", "H = 1\n");
-        write(root, "quality/aspects.bzl", "A = 1\n");
+        write(root, "core/quality/aspects.bzl", "A = 1\n");
         write(root, "plain.bzl", "P = 1\n");
         assert_eq!(
             impact(
                 root,
-                &["plain.bzl", "quality/aspects.bzl", "rc/rc_helper.bzl"],
-                &["@demo//quality:aspects.bzl%lint_aspect"]
+                &["plain.bzl", "core/quality/aspects.bzl", "rc/rc_helper.bzl"],
+                &["@demo//core/quality:aspects.bzl%lint_aspect"]
             ),
             [
                 packages("plain.bzl", &[]),
-                global("quality/aspects.bzl", "aspect input"),
+                global("core/quality/aspects.bzl", "aspect input"),
                 global("rc/rc_helper.bzl", "aspect input"),
             ]
         );

@@ -3,6 +3,7 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 load(":swift_tool.bzl", "swift_format_tool")
+load(":swift_tool_tests.bzl", "swift_format_copy_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -12,6 +13,12 @@ swift_format_tool(
         "@platforms//cpu:aarch64": ["@dx_swift_linux_aarch64//:files"],
         "//conditions:default": ["@dx_swift_linux_x86_64//:files"],
     }),
+)
+
+swift_format_copy_test(
+    name = "swift_format_copy_test",
+    target_compatible_with = ["@platforms//os:linux"],
+    target_under_test = ":swift_format_linux",
 )
 
 dx_unavailable_tool(
@@ -64,6 +71,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "swift_tool.bzl",
+        "swift_tool_tests.bzl",
     ],
     tags = ["corpus"],
 )

@@ -1,7 +1,7 @@
 """Elixir and Erlang documentation shard aspect."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
-load("//tools/docs/beam:shard.bzl", "ELIXIR_TOOLCHAIN", "OTP_TOOLCHAIN")
+load("//tools/docs/beam:shard.bzl", "ELIXIR_DUMP_TOOL", "ELIXIR_TOOLCHAIN", "ESCRIPT_TOOL", "OTP_TOOLCHAIN")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/elixir:defs.bzl", "elixir_shard_action")
 load("//tools/docs/erlang:defs.bzl", "erlang_shard_action")
@@ -14,12 +14,12 @@ def _beam_docs_shard(target, ctx):
         return None
     package = target[ErlangAppInfo].app_name
     stem = "_dx_docs/" + ctx.label.name
-    action = erlang_shard_action(ctx, target, package, stem + "_erlang", ctx.file._erlang_driver, ctx.executable._beam_extract)
+    action = erlang_shard_action(ctx, target, package, stem + "_erlang", ctx.attr._escript[DefaultInfo].files_to_run, ctx.file._erlang_driver, ctx.executable._beam_extract)
     if action:
         return action.shard
     if ctx.toolchains[ELIXIR_TOOLCHAIN] == None:
         return None
-    action = elixir_shard_action(ctx, target, package, stem + "_elixir", ctx.file._elixir_driver, ctx.executable._beam_extract)
+    action = elixir_shard_action(ctx, target, package, stem + "_elixir", ctx.attr._elixir_dump[DefaultInfo].files_to_run, ctx.executable._beam_extract)
     return action.shard if action else None
 
 def _real_beam_docs_aspect_impl(target, ctx):
@@ -37,13 +37,19 @@ real_beam_docs_aspect = aspect(
             default = Label("//tools/docs/beam/extract:beam_extract"),
             executable = True,
         ),
-        "_elixir_driver": attr.label(
-            allow_single_file = True,
-            default = Label("//tools/docs/elixir:elixir_dump.exs"),
+        "_elixir_dump": attr.label(
+            cfg = "exec",
+            default = ELIXIR_DUMP_TOOL,
+            executable = True,
         ),
         "_erlang_driver": attr.label(
             allow_single_file = True,
             default = Label("//tools/docs/erlang:edoc_dump.escript"),
+        ),
+        "_escript": attr.label(
+            cfg = "exec",
+            default = ESCRIPT_TOOL,
+            executable = True,
         ),
     },
     toolchains = [

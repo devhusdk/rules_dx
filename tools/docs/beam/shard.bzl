@@ -1,36 +1,14 @@
 """Shared actions of the Elixir and Erlang API doc shards: the pinned runtime reads the docs, beam_extract writes DocIr."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
-load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
+load("//core/coreutils:defs.bzl", "coreutils")
 load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
 
 OTP_TOOLCHAIN = "@rules_erlang//tools:toolchain_type"
 ELIXIR_TOOLCHAIN = "@rules_elixir//:toolchain_type"
 
-_ELIXIR_COMMAND = """set -eu
-PATH="$PWD/$1"
-export PATH
-shift
-otp="$(cd "$(dirname "$1")" && pwd)"
-elixir="$(cd "$(dirname "$2")" && pwd)"
-shift 2
-mkdir -p "$1"
-export PATH="$otp/bin:$elixir/bin:$PATH" HOME="$PWD/$1" ELIXIR_ERL_OPTIONS="-elixir ansi_enabled false" LANG=C.UTF-8 LC_ALL=C.UTF-8
-shift
-exec "$elixir/bin/elixir" "$@"
-"""
-
-_ERLANG_COMMAND = """set -eu
-PATH="$PWD/$1"
-export PATH
-shift
-otp="$(cd "$(dirname "$1")" && pwd)"
-shift
-mkdir -p "$1"
-export PATH="$otp/bin:$PATH" HOME="$PWD/$1" LANG=C.UTF-8 LC_ALL=C.UTF-8
-shift
-exec "$otp/bin/escript" "$@"
-"""
+ESCRIPT_TOOL = Label("//erlang/private/tools:escript_bin")
+ELIXIR_DUMP_TOOL = Label("//tools/docs/elixir:elixir_dump")
 
 def beam_sources(app, extensions):
     """Returns the workspace sources of an app with one of the extensions, sorted by path."""
@@ -49,54 +27,48 @@ def _manifest(ctx, stem, files):
     ctx.actions.write(manifest, "".join(sorted([srcs_manifest_line(f.path, repo_relative(f.short_path), not f.is_source) for f in files])))
     return manifest
 
-def beam_shard_action(ctx, language, srcs, dep_beams, package, stem, driver, extract_tool):
+def beam_shard_action(ctx, language, srcs, dep_beams, package, stem, runner, extract_tool, driver = None):
     """Runs the pinned runtime over the sources and the extractor over its JSON.
 
     Args:
-      ctx: The rule or aspect context carrying the OTP and coreutils toolchains, and the Elixir one for Elixir.
+      ctx: The rule or aspect context carrying the coreutils toolchain.
       language: "elixir" or "erlang".
       srcs: The .ex or .erl files the shard documents.
       dep_beams: Compiled dependency files and ebin directories the Elixir compiler loads.
       package: Package segment of the shard's symbol ids.
       stem: Output name prefix, relative to the target's package.
-      driver: The elixir_dump.exs or edoc_dump.escript file.
+      runner: FilesToRunProvider of ELIXIR_DUMP_TOOL for Elixir, of ESCRIPT_TOOL for Erlang.
       extract_tool: The beam_extract executable.
+      driver: The edoc_dump.escript file; Erlang only.
 
     Returns:
       A struct with the DocIr `shard`, the dump `json` and the `manifest`.
     """
-    otp = ctx.toolchains[OTP_TOOLCHAIN].otpinfo
     manifest = _manifest(ctx, stem, srcs)
     json = ctx.actions.declare_file(stem + ".dump.json")
-    scratch = ctx.actions.declare_directory(stem + ".beam_scratch")
     applets = coreutils(ctx)
     args = ctx.actions.args()
-    args.add(applets.path)
-    args.add(otp.version_file)
-    transitive = [otp.tree, applets.files]
+    inputs = srcs + dep_beams + [manifest]
+    outputs = [json]
     if language == "elixir":
-        elixir = ctx.toolchains[ELIXIR_TOOLCHAIN].elixirinfo
-        args.add(elixir.version_file)
-        args.add(scratch.path)
+        scratch = ctx.actions.declare_directory(stem + ".beam_scratch")
+        outputs.append(scratch)
         for f in dep_beams:
-            args.add("-pa", f.path if f.is_directory else f.dirname)
-        args.add(driver)
+            args.add("--pa", f.path if f.is_directory else f.dirname)
         args.add("--srcs", manifest)
         args.add("--scratch", scratch.path + "/beams")
         args.add("--out", json)
-        transitive.append(elixir.tree)
-        command = _ELIXIR_COMMAND
     else:
-        args.add(scratch.path)
+        inputs.append(driver)
         args.add(driver)
         args.add(manifest)
         args.add(json)
-        command = _ERLANG_COMMAND
-    ctx.actions.run_shell(
-        command = command,
+    ctx.actions.run(
+        executable = runner,
         arguments = [args],
-        inputs = depset(srcs + dep_beams + [manifest, driver, otp.version_file], transitive = transitive),
-        outputs = [json, scratch],
+        inputs = depset(inputs, transitive = [applets.files]),
+        outputs = outputs,
+        env = {"LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PATH": applets.path},
         mnemonic = "DxDocs" + language.capitalize(),
         progress_message = "Reading " + language.capitalize() + " API docs for %{label}",
         use_default_shell_env = False,

@@ -1,6 +1,7 @@
 # Compiles Elixir sources with docs on the pinned Elixir and writes their public API as versioned JSON.
 #
-# usage: elixir_dump.exs --srcs FILE --scratch DIR --out FILE
+# usage: elixir_dump.exs [--pa DIR]... --srcs FILE --scratch DIR --out FILE
+# --pa puts one directory of compiled dependencies on the code path.
 # --srcs lists one source per line as `exec path TAB repo-relative path TAB 0|1 (generated)`.
 # The documentation is read from each module's docs chunk with Code.fetch_docs/1, the data
 # ExDoc itself renders.
@@ -9,7 +10,8 @@ defmodule DxElixirDump do
   @moduledoc false
 
   def main(argv) do
-    opts = parse(argv, %{})
+    opts = parse(argv, %{"--pa" => []})
+    Enum.each(opts["--pa"], &Code.prepend_path/1)
     rows = rows(opts["--srcs"])
     root = File.cwd!()
     scratch = Path.expand(opts["--scratch"])
@@ -122,6 +124,8 @@ defmodule DxElixirDump do
     if Map.has_key?(opts, flag), do: fail("#{flag} given more than once")
     parse(rest, Map.put(opts, flag, value))
   end
+
+  defp parse(["--pa", dir | rest], opts), do: parse(rest, Map.update!(opts, "--pa", &(&1 ++ [dir])))
 
   defp parse([flag | _], _), do: fail("unknown argument '#{flag}'")
 

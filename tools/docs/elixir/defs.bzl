@@ -2,18 +2,18 @@
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
 load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
-load("//tools/docs/beam:shard.bzl", "ELIXIR_TOOLCHAIN", "OTP_TOOLCHAIN", "beam_dirs", "beam_shard_action", "beam_sources")
+load("//tools/docs/beam:shard.bzl", "ELIXIR_DUMP_TOOL", "beam_dirs", "beam_shard_action", "beam_sources")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
-def elixir_shard_action(ctx, app, package, stem, driver, extract_tool):
+def elixir_shard_action(ctx, app, package, stem, runner, extract_tool):
     """Runs Code.fetch_docs on the pinned Elixir and the extractor for one Elixir app.
 
     Args:
-      ctx: The rule or aspect context; it must carry the OTP, Elixir and coreutils toolchains.
+      ctx: The rule or aspect context; it must carry the coreutils toolchain.
       app: The documented app, which provides ErlangAppInfo.
       package: Package segment of the shard's symbol ids.
       stem: Output name prefix, relative to the target's package.
-      driver: The elixir_dump.exs file.
+      runner: FilesToRunProvider of ELIXIR_DUMP_TOOL.
       extract_tool: The beam_extract executable.
 
     Returns:
@@ -22,12 +22,12 @@ def elixir_shard_action(ctx, app, package, stem, driver, extract_tool):
     srcs = beam_sources(app, ["ex"])
     if not srcs:
         return None
-    return beam_shard_action(ctx, "elixir", srcs, beam_dirs(app), package, stem, driver, extract_tool)
+    return beam_shard_action(ctx, "elixir", srcs, beam_dirs(app), package, stem, runner, extract_tool)
 
 def _impl(ctx):
     app = ctx.attr.app
     package = ctx.attr.package or app[ErlangAppInfo].app_name
-    action = elixir_shard_action(ctx, app, package, ctx.label.name, ctx.file._driver, ctx.executable._extract)
+    action = elixir_shard_action(ctx, app, package, ctx.label.name, ctx.attr._runner[DefaultInfo].files_to_run, ctx.executable._extract)
     if not action:
         fail("elixir_doc_shard " + str(ctx.label) + ": app lists no .ex srcs")
     return [
@@ -42,11 +42,11 @@ docs_elixir_shard = rule(
     attrs = {
         "app": attr.label(mandatory = True, providers = [ErlangAppInfo], doc = "The documented elixir_app; its .ex srcs are documented."),
         "package": attr.string(doc = "Package segment of the symbol ids; defaults to the app name."),
-        "_driver": attr.label(allow_single_file = True, default = Label("//tools/docs/elixir:elixir_dump.exs")),
+        "_runner": attr.label(cfg = "exec", default = ELIXIR_DUMP_TOOL, executable = True),
         "_extract": attr.label(cfg = "exec", default = Label("//tools/docs/beam/extract:beam_extract"), executable = True),
     },
     provides = [DocsShardInfo],
-    toolchains = [OTP_TOOLCHAIN, ELIXIR_TOOLCHAIN, COREUTILS_TOOLCHAIN_TYPE],
+    toolchains = [COREUTILS_TOOLCHAIN_TYPE],
 )
 
 def elixir_doc_shard(name, app, package = "", **kwargs):

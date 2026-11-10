@@ -380,7 +380,6 @@ swift/private/toolchain/repos.bzl shebang 1
 swift/private/toolchain/windows.bzl host-path 1
 swift/private/tools/BUILD.bazel sh-rule 1
 swift/private/tools/swift_tool.bzl host-path 2
-swift/private/tools/swift_tool.bzl run-shell 1
 swift/tests/BUILD.bazel sh-rule 1
 swift/tests/fixtures/bench/BUILD.bazel sh-rule 1
 swift/tests/fixtures/bench/run_test.sh shebang 1
@@ -426,8 +425,6 @@ tools/coverage/kcov/smoke_test.sh shebang 1
 tools/coverage/lib/BUILD.bazel sh-rule 1
 tools/coverage/lib/runfile_test.sh host-path 1
 tools/coverage/lib/runfile_test.sh shebang 1
-tools/docs/beam/shard.bzl host-path 2
-tools/docs/beam/shard.bzl run-shell 1
 tools/docs/dart/defs.bzl home 1
 tools/docs/dotnet/csharp/BUILD.bazel sh-rule 1
 tools/docs/dotnet/fsharp/BUILD.bazel sh-rule 1

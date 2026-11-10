@@ -38,30 +38,6 @@
   "//tools/testing/hermetic:appimage": [
     "hermetic-golden"
   ],
-  "//tools/testing/hermetic:c_fixture_gcc": [
-    "exclusive",
-    "hermetic-consumer",
-    "hermetic-qualification",
-    "manual",
-    "no-cache",
-    "no-coverage",
-    "no-remote",
-    "no-sandbox",
-    "requires-network",
-    "resources:nested_bazel:1"
-  ],
-  "//tools/testing/hermetic:cpp_fixture_gcc": [
-    "exclusive",
-    "hermetic-consumer",
-    "hermetic-qualification",
-    "manual",
-    "no-cache",
-    "no-coverage",
-    "no-remote",
-    "no-sandbox",
-    "requires-network",
-    "resources:nested_bazel:1"
-  ],
   "//tools/testing/hermetic:cpp_rust": [
     "exclusive",
     "hermetic-consumer",

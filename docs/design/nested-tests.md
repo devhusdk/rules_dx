@@ -36,7 +36,7 @@ Measured on Linux x86_64 with the pinned Bazel 9.3.1, an empty module and one wr
 | `//cli/cli/tests/cli_argv_e2e:cli_argv_e2e_test` | `dx test` forwards `--test_arg` | Converted to a unit test in `//cli/cli:dx_cli_test` |
 | `//tools/testing/starters:*` | `dx init` plus a starter fixture gives the listed files and `bazel_dep` names | One in-graph test over all fixtures, no `manual` |
 | `//tools/testing/hermetic:*` golden checks | The consumer manifest matches its golden | In-graph already. Stay |
-| `//tools/testing/hermetic:c_fixture_*`, `cpp_fixture_*` | The selected compiler built the binary | In-graph fixtures per toolchain that check the producer string |
+| `//tools/testing/hermetic:c_*_fixture`, `cpp_*_fixture` | The selected compiler built the binary | In-graph fixtures per toolchain that check the producer string |
 | `//tools/testing/hermetic:cpp_rust` | A consumer fetches, builds and tests with no install and no network | Stays nested, on the harness |
 | `//tools/testing/hermetic:isolation_probe_test` | The isolation layer denies network and host tools | Deleted with the isolation layer |
 | `//tools/testing/hermetic:*_maven_pin` | The Maven lock matches a fresh pin | `bazel run` update tools. `consumer_maven_lock_test` stays |

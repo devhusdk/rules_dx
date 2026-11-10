@@ -30,30 +30,6 @@
     "dx-no-coverage-collector"
   ],
   "//swift/tests/fixtures/hello:xctest": [],
-  "//tools/testing/hermetic:c_fixture_msvc": [
-    "exclusive",
-    "hermetic-consumer",
-    "hermetic-qualification",
-    "manual",
-    "no-cache",
-    "no-coverage",
-    "no-remote",
-    "no-sandbox",
-    "requires-network",
-    "resources:nested_bazel:1"
-  ],
-  "//tools/testing/hermetic:cpp_fixture_msvc": [
-    "exclusive",
-    "hermetic-consumer",
-    "hermetic-qualification",
-    "manual",
-    "no-cache",
-    "no-coverage",
-    "no-remote",
-    "no-sandbox",
-    "requires-network",
-    "resources:nested_bazel:1"
-  ],
   "//tools/testing/hermetic:cpp_rust": [
     "exclusive",
     "hermetic-consumer",

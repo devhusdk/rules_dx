@@ -186,7 +186,7 @@ TAXONOMY = {
         classes = ["objc", "objcpp"],
     ),
     "oci_image": struct(
-        owner = "//deploy/rules:defs.bzl",
+        owner = "//deploy:defs.bzl",
         classes = ["oci_image"],
     ),
     "ocaml": struct(

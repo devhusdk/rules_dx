@@ -103,5 +103,5 @@ def fsharp_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     )
 
 def fsharp_fuzz_test(name, *, srcs, deps = None, visibility = None, tags = None, **kwargs):
-    """A SharpFuzz harness and a `<name>_run` runner for `dx fuzz`; the libraries in deps are instrumented. Linux only."""
+    """A SharpFuzz harness and a `<name>_run` runner for `dx fuzz`; the first-party libraries in deps are instrumented. Linux and macOS only."""
     sharpfuzz_fuzz(name, fsharp_binary, srcs, deps, visibility, tags, kwargs)

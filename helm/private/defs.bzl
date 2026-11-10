@@ -3,7 +3,6 @@
 load("//helm/private:providers.bzl", "HelmChartInfo")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "check_direct_sources")
 
-# Helm's maxReleaseNameLen, pkg/chart/v2/util/validate_name.go.
 _HELM_RELEASE_NAME_MAX = 53
 
 def _dns_label_error(what, value, max_len, limit_note = ""):
@@ -37,6 +36,8 @@ def _helm_chart_impl(ctx):
     for f in ctx.files.srcs:
         if f.extension == "tgz":
             fail(who + "archive '" + f.short_path + "' belongs in subcharts, not srcs")
+        if f.short_path.startswith("../") or not f.short_path.startswith(_join(package, "")):
+            fail(who + "src '" + f.short_path + "' must be under the chart package '" + package + "'")
     chart_yaml = _join(package, "Chart.yaml")
     if chart_yaml not in [f.short_path for f in ctx.files.srcs]:
         fail(who + "srcs must contain " + chart_yaml)
@@ -67,7 +68,7 @@ helm_chart = rule(
         ),
         "namespace": attr.string(default = "default", doc = "Namespace passed to helm template."),
         "release_name": attr.string(default = "release", doc = "Release name passed to helm template; at most 53 characters."),
-        "srcs": attr.label_list(allow_files = True, doc = "Chart files, including Chart.yaml and templates."),
+        "srcs": attr.label_list(allow_files = True, doc = "Chart files of this package, including Chart.yaml and templates."),
         "values": attr.label_list(
             allow_files = [".yaml", ".yml"],
             doc = "Values files in order; later files override earlier ones.",

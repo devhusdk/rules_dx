@@ -1,7 +1,7 @@
 # Lua app example
 
 A Lua unit-stock CLI split into three packages. Every target runs on the Lua
-5.4 that rules_dx builds from source, with nothing installed on the host.
+5.5 that rules_dx builds from source, with nothing installed on the host.
 
 | Package | Role |
 | --- | --- |

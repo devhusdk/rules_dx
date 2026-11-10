@@ -29,6 +29,7 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `aspect_rules_ts` | 3.10.1 | `typecheck_root_dir.patch` | TypeScript typecheck root dir (aspect-build/rules_ts#1001) |
 | `avro-cpp` | 1.12.0.bcr.1 | `iterator.patch` | Missing std includes (`<iterator>`, `<memory>`, `<vector>`) with libc++, added to the headers that use them; `Exception.hh` includes `fmt/format.h` for fmt 12 |
 | `fmt` | 12.2.0.bcr.1 | none | Raises avro-cpp's fmt to a release with the libc++ include fix |
+| `lua` | 5.5.0 | `overlay.patch` | Builds Lua 5.5.0 from the lua.org tarball with a BUILD overlay: `lua` library, `lua` and `luac` binaries, per-platform `LUA_USE_*` defines (#1375, #10826) |
 | `gcc_toolchain` | 0.13.0 | `sanitizer_spec.patch` | Ships `libsanitizer.spec` so GCC `-fsanitize=` links in the sandbox |
 | `gcc_toolchain` | 0.13.0 | `runtime_libs.patch` | Exposes the GCC runtime libraries (libstdc++, libgcc) to link actions |
 | `gcc_toolchain` | 0.13.0 | `target_identity_config.patch` | `cc_toolchain_config` takes `target_libc` and `target_system_name` and reports them instead of `local` (#6575; upstream: f0rmiga/gcc-toolchain#257, commit 08f057a; drop when a gcc_toolchain release has it, #7704) |

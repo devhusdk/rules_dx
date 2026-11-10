@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://luarocks.org";
 
-const MANIFEST: &str = "manifest-5.4.json";
+const MANIFEST: &str = "manifest-5.5.json";
 
 /// Compares `(rock, version)` pins against the manifest at `base`.
 pub fn outdated(
@@ -156,7 +156,7 @@ mod tests {
         "current":{"1.0-1":[{"arch":"rockspec"}]}}}"#;
 
     fn registry(url: &str) -> Result<String, DxError> {
-        if url == "https://luarocks.org/manifest-5.4.json" {
+        if url == "https://luarocks.org/manifest-5.5.json" {
             Ok(MANIFEST_JSON.to_owned())
         } else {
             Err(DxError::failure(format!("unexpected lookup {url}")))

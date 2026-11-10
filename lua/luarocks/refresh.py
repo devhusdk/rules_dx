@@ -17,7 +17,7 @@ import tempfile
 import urllib.request
 
 BASE = "https://luarocks.org"
-MANIFEST = "manifest-5.4.json"
+MANIFEST = "manifest-5.5.json"
 
 _ENTRY = r'^(\s*(?:\["%s"\]|%s)\s*=\s*)"[^"]*"'
 _PIN = re.compile(r'^\s*(?:\["([^"]+)"\]|([A-Za-z0-9_]+))\s*=\s*"([^"]*)"\s*,?\s*$')

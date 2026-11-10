@@ -273,6 +273,7 @@ fn a_read_only_bundle_installs_twice() {
     let snapshot = root
         .join("ws")
         .join(".dx")
+        .join("local")
         .join("advisory")
         .join(format!("{set}.json"));
     assert_eq!(std::fs::read(&snapshot).expect("snapshot"), b"{}");

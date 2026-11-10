@@ -6,7 +6,7 @@
  
 -__attribute__((weak, section("__libfuzzer_extra_counters")))
 +#ifdef __APPLE__
-+#define EXTRA_COUNTERS_SECTION "__DATA,__libfuzzer_extra_counters"
++#define EXTRA_COUNTERS_SECTION "__DATA,__libfuzz_extra"
 +#else
 +#define EXTRA_COUNTERS_SECTION "__libfuzzer_extra_counters"
 +#endif

@@ -130,7 +130,7 @@ pub struct NugetConfig {
     pub apicompat_rloc: String,
 }
 
-/// Pins one CPAN upload: the dist, its expected package and version, and the optional pinned perl.
+/// Pins one CPAN upload: the dist, its expected package and version.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CpanConfig {
@@ -138,8 +138,6 @@ pub struct CpanConfig {
     pub deploy_name: String,
     pub package: String,
     pub version: String,
-    #[serde(default)]
-    pub perl_rloc: String,
 }
 
 /// Pins one Conan upload: the recipe files, reference, remote and the optional pinned conan.
@@ -504,7 +502,6 @@ pub fn run_deploy_config(config: &DeployConfig, argv: &[String]) -> i32 {
             &cpan.deploy_name,
             &cpan.package,
             &cpan.version,
-            &cpan.perl_rloc,
             argv,
         ),
         DeployConfig::Conan(conan) => crate::conan_main(
@@ -1122,7 +1119,6 @@ mod tests {
                 deploy_name: "demo".to_owned(),
                 package: String::new(),
                 version: String::new(),
-                perl_rloc: String::new(),
             }),
             DeployConfig::Conan(ConanConfig {
                 recipe_rlocs: vec!["a".to_owned()],

@@ -685,7 +685,6 @@ cpan_deploy(
 - `dist`: required. One `<Dist>-<version>.tar.gz` holding `<Dist>-<version>/META.json` or `META.yml`.
 - `package`: the distribution name. Defaults to `name`. Must match the file name.
 - `version`: optional. Must match the version in the file name.
-- `perl`, `perl_files`: optional pinned perl with `CPAN::Uploader` and the files it needs. Empty takes `perl` from `PATH`.
 - `build_mode`: `debug`, `dev` or `release`. Defaults to `release`.
 
 A default run checks the identity and stages `<name>-dist/` with the tarball.
@@ -696,8 +695,8 @@ CPAN_PUBLISH_APPROVED=1 CPAN_API_USER=... CPAN_API_TOKEN=... \
 DX_DEPLOY_LIVE=1 dx deploy --apply //pkg:cpan-demo
 ```
 
-This runs `CPAN::Uploader->upload_file` under `perl`. The PAUSE user and
-password reach it through the environment, never the command line. A live run
+This posts the tarball to `https://pause.perl.org/pause/authenquery` with HTTP
+basic auth from the PAUSE user and password. No perl is needed. A live run
 refuses version `0.0.0`.
 
 # conan_deploy

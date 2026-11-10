@@ -7,8 +7,6 @@ cc/tests/fixtures/sanitize/BUILD.bazel manual 4
 cc/tests/tags/BUILD.bazel manual 1
 cli/cli/tests/agents/BUILD.bazel local 1
 cli/cli/tests/agents/BUILD.bazel no-sandbox 1
-cli/cli/tests/cli_argv_e2e/BUILD.bazel local 1
-cli/cli/tests/cli_argv_e2e/BUILD.bazel no-sandbox 1
 cli/cli/tests/uv_sets/BUILD.bazel local 1
 cli/cli/tests/uv_sets/BUILD.bazel no-sandbox 1
 core/conformance.bzl manual 2

@@ -2,7 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use dx_testing::{read_runfiles, resolve_runfiles};
+use dx_testing::resolve_runfiles;
 
 const WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 
@@ -83,10 +83,7 @@ fn archive(name: &str, body: &str) -> Vec<u8> {
 }
 
 fn prepare_script() -> String {
-    let document: serde_json::Value = serde_json::from_value(
-        yaml_serde::from_str::<serde_json::Value>(&read_runfiles(WORKFLOW)).expect("valid YAML"),
-    )
-    .expect("json");
+    let document = ci_workflow::document(WORKFLOW);
     let steps = document["jobs"]["advisory-snapshots"]["steps"]
         .as_array()
         .expect("steps")

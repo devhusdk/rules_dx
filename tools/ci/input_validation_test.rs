@@ -239,35 +239,39 @@ fn table() -> Vec<(String, String)> {
         .collect()
 }
 
-fn preflight_pairs(text: &str) -> Vec<(String, String)> {
-    let lines: Vec<&str> = text.lines().map(str::trim).collect();
-    lines
-        .windows(2)
-        .filter_map(|pair| {
-            let platform = pair[0].strip_prefix("- platform: ")?;
-            let runner = pair[1].strip_prefix("runner: ")?;
-            Some((platform.to_string(), runner.to_string()))
+fn include_of(document: &Value, job: &str) -> Vec<Value> {
+    document["jobs"][job]["strategy"]["matrix"]["include"]
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+}
+
+fn preflight_pairs(document: &Value) -> Vec<(String, String)> {
+    include_of(document, "starter-consumer")
+        .iter()
+        .filter_map(|entry| {
+            Some((
+                entry["platform"].as_str()?.to_string(),
+                entry["runner"].as_str()?.to_string(),
+            ))
         })
         .collect()
 }
 
-fn dogfood_platforms(text: &str) -> Vec<String> {
-    let lines: Vec<&str> = text
-        .lines()
-        .filter_map(|line| line.trim().strip_prefix("platforms: '"))
-        .filter_map(|rest| rest.strip_suffix('\''))
-        .collect();
-    match lines.as_slice() {
-        [one] => serde_json::from_str(one).unwrap_or_default(),
-        _ => Vec::new(),
-    }
+fn dogfood_platforms(document: &Value) -> Vec<String> {
+    document["jobs"]["dogfood"]["with"]["platforms"]
+        .as_str()
+        .and_then(|json| serde_json::from_str(json).ok())
+        .unwrap_or_default()
 }
 
-fn runners_of(text: &str) -> Vec<String> {
-    let mut runners: Vec<String> = text
-        .lines()
-        .filter_map(|line| line.trim().strip_prefix("runner: "))
-        .map(str::to_string)
+fn runners_of(document: &Value) -> Vec<String> {
+    let mut runners: Vec<String> = document["jobs"]
+        .as_object()
+        .into_iter()
+        .flatten()
+        .flat_map(|(id, _)| include_of(document, id))
+        .filter_map(|entry| entry["runner"].as_str().map(str::to_string))
         .collect();
     runners.sort();
     runners.dedup();
@@ -287,11 +291,10 @@ fn platform_drift(ci: &str, release: &str, consumer: &str, actionlint: &str) -> 
     let mut want: Vec<String> = table.iter().map(|(_, runner)| runner.clone()).collect();
     want.sort();
     let mut problems = Vec::new();
-    let pairs = preflight_pairs(ci);
-    if pairs.is_empty()
-        || !pairs.len().is_multiple_of(table.len())
-        || pairs.chunks(table.len()).any(|chunk| chunk != table)
-    {
+    let ci = &ci_workflow::parse(CI_WORKFLOW, ci);
+    let release = &ci_workflow::parse(RELEASE_WORKFLOW, release);
+    let consumer = &ci_workflow::parse(CONSUMER_WORKFLOW, consumer);
+    if preflight_pairs(ci) != table {
         problems.push(format!("{CI_WORKFLOW} preflight matrix drifted"));
     }
     if dogfood_platforms(ci) != names {
@@ -332,7 +335,7 @@ fn platform_copies_match_the_table() {
 fn platform_parity_catches_a_drifted_copy() {
     let (ci, release, consumer, actionlint) = copies();
     let dropped = ci.replace(
-        "- platform: windows_arm64\n            runner: windows-11-arm\n",
+        "          - platform: windows_arm64\n            runner: windows-11-arm\n",
         "",
     );
     assert!(

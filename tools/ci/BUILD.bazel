@@ -84,6 +84,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/ci/evidence_inputs",
         "//tools/ci/input_validation",
         "//tools/testing:dx_testing",
@@ -196,6 +197,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
         "@crates//:yaml_serde",
@@ -351,9 +353,9 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 

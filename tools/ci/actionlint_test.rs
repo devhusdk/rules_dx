@@ -214,8 +214,7 @@ fn matrix_runner_problems(
     text: &str,
     table: &BTreeMap<String, String>,
 ) -> (Vec<String>, usize) {
-    let document: serde_json::Value = yaml_serde::from_str(text)
-        .unwrap_or_else(|error| panic!("{name} is not valid YAML: {error}"));
+    let document = ci_workflow::parse(name, text);
     let mut problems = Vec::new();
     let mut checked = 0;
     let Some(jobs) = document["jobs"].as_object() else {

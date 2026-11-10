@@ -25,7 +25,7 @@ func IsTestSource(name string) bool {
 
 // IsModuleSource reports whether name belongs in the directory's
 // powershell_library. A .psd1 counts only next to a .psm1 with the same basename, so
-// data files such as PSGallery.requirements.psd1 stay out.
+// data files such as gallery requirement manifests stay out.
 func IsModuleSource(name string, present map[string]bool) bool {
 	switch {
 	case strings.HasSuffix(name, ModuleExt):

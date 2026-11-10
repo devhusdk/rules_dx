@@ -103,7 +103,7 @@ type targetImports struct {
 	renames      map[string]string
 	gated        map[string]bool
 	gateTarget   map[string]string
-	// deferred are imports Cargo.toml does not declare; Resolve finds them in the rule index.
+	// deferred are imports the manifest does not declare; Resolve finds them in the rule index.
 	deferred map[string]bool
 	// inheritedDeps are dependency labels of the existing crate rule that a
 	// self-contained unit test does not inherit through crate=.

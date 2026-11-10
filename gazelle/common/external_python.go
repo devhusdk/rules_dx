@@ -19,12 +19,12 @@ func pythonHubName(name string) string {
 	return strings.ToLower(pyNameRun.ReplaceAllString(name, "_"))
 }
 
-// pythonManifest holds the registry distributions a uv.lock pins.
+// pythonManifest holds the registry distributions the uv lock pins.
 type pythonManifest struct {
 	names map[string]bool
 }
 
-// parseUVLockManifest reads the [[package]] tables of a uv.lock. Packages
+// parseUVLockManifest reads the [[package]] tables of the uv lock. Packages
 // whose source is the workspace itself (virtual or editable) are skipped.
 func parseUVLockManifest(content []byte, _ string) (externalManifest, error) {
 	m := &pythonManifest{names: map[string]bool{}}

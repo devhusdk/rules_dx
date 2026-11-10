@@ -46,7 +46,7 @@ func init() {
 	dKinds[TestKind] = dKinds[LibraryKind]
 }
 
-// dubConfig is the dub.json in effect for a directory.
+// dubConfig is the dub manifest in effect for a directory.
 type dubConfig struct {
 	rel     string
 	project *common.DubProject

@@ -99,12 +99,8 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude go/tests/fixtures/golint
 # gazelle:exclude go/tests/fixtures/testonly_binary
-# gazelle:exclude cc/tests/fixtures/hello
-# gazelle:exclude cc/tests/fixtures/shared
 # gazelle:exclude cc/private/testdata
 # gazelle:exclude cc/tests/fixtures
-# gazelle:exclude cc/tests/fixtures/no_srcs
-# gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude appimage/tests/fixtures
 # gazelle:exclude qt/tests/fixtures
 # gazelle:exclude cc/ide
@@ -128,8 +124,6 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude gazelle
 # gazelle:exclude examples/shared-rust
 # gazelle:exclude swift/tests/fixtures/swift-app
-# gazelle:exclude cc/tests/fixtures/c-app
-# gazelle:exclude cc/tests/fixtures/cpp-app
 # gazelle:exclude haskell/tests/fixtures/haskell-app
 # gazelle:exclude qt/tests/fixtures/qt-app
 # gazelle:exclude ocaml/tests/fixtures/ocaml-app
@@ -166,11 +160,6 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude swift/tests/fixtures/hello
 # gazelle:exclude d/tests/fixtures/hello
 # gazelle:exclude d/tests/fixtures/cc_interop
-# gazelle:exclude cc/tests/fixtures/googletest
-# gazelle:exclude cc/tests/fixtures/lcov_accounting
-# gazelle:exclude cc/tests/fixtures/linux_corpus
-# gazelle:exclude cc/tests/fixtures/prebuilt_interop
-# gazelle:exclude cc/tests/fixtures/strict_generation
 # gazelle:exclude core/quality/tests/fixtures/strict_preset
 # gazelle:exclude core/quality/tests/fixtures/consumer_policy
 # gazelle:exclude astro/tests/app
@@ -416,9 +405,6 @@ real_source_target(
     ],
 )
 
-# gazelle:exclude cc/tests/fixtures/compilation_db
-# gazelle:exclude cc/tests/fixtures/copts
-# gazelle:exclude cc/tests/fixtures/warnings
 
 real_source_target(
     name = "dotfile_toml",

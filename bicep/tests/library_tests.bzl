@@ -1,8 +1,8 @@
 """bicep_library ownership and provider proofs."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//bicep/private:registry.bzl", "registry_errors")
 load("//bicep/private:providers.bzl", "BicepInfo")
+load("//bicep/private:registry.bzl", "digest_mismatch", "registry_errors")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 
@@ -49,4 +49,10 @@ def registry_unit_tests(name):
         expect_equal("short digest", len(registry_errors(_REF, "sha256:abc")), 1),
         expect_equal("upper digest", len(registry_errors(_REF, "sha256:" + "A" * 64)), 1),
         expect_equal("both bad", len(registry_errors("x", "y")), 2),
+        expect_equal("digest match", digest_mismatch(_REF, _DIGEST, _DIGEST), ""),
+        expect_equal(
+            "digest mismatch",
+            digest_mismatch(_REF, _DIGEST, "sha256:" + "b" * 64),
+            "bicep registry module %s: manifest digest mismatch\n  expected %s\n  actual   %s" % (_REF, _DIGEST, "sha256:" + "b" * 64),
+        ),
     ])

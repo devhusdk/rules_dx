@@ -42,53 +42,37 @@ _EMPTY = _CANONICAL + "//quality/testdata:no_ruff"
 _POLICY = _CANONICAL + "//quality:fixture_policy"
 _QML_POLICY = _CANONICAL + "//quality/testdata:qml_policy"
 _QML_LINT_POLICY = _CANONICAL + "//quality/testdata:qml_lint_policy"
+_TOOL_OVERRIDE_POLICY = _CANONICAL + "//quality/testdata:tool_override_policy"
 _WORKSPACE_SETTING = _CANONICAL + "//config:workspace"
-_ZIG_POLICY = _CANONICAL + "//quality/testdata:zig_policy"
-_ZIG_LINT_POLICY = _CANONICAL + "//quality/testdata:zig_lint_policy"
 _ZIG_AST_CHECK_SETTING = _CANONICAL + "//config:tool_zig_ast_check"
 _ZIG_FMT_SETTING = _CANONICAL + "//config:tool_zig_fmt"
 _ZIG_FMT_TOOL = _CANONICAL + "//zig/private/tools:zig"
 _PERLCRITIC_SETTING = _CANONICAL + "//config:tool_perlcritic"
 _PERLCRITIC_TOOL = _CANONICAL + "//perl/private/tools:perlcritic"
-_PERL_LINT_POLICY = _CANONICAL + "//quality/testdata:perl_lint_policy"
-_DART_POLICY = _CANONICAL + "//quality/testdata:dart_policy"
 _DART_SETTING = _CANONICAL + "//config:tool_dart"
 _DART_TOOL = _CANONICAL + "//dart/private/tools:dart"
-_JULIA_POLICY = _CANONICAL + "//quality/testdata:julia_policy"
 _JULIA_FORMAT_SETTING = _CANONICAL + "//config:tool_julia_format"
 _JULIA_FORMAT_TOOL = _CANONICAL + "//julia/private/tools:julia_format"
-_JULIA_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:julia_typecheck_policy"
 _JET_SETTING = _CANONICAL + "//config:tool_jet"
 _JET_TOOL = _CANONICAL + "//julia/private/tools/jet:jet"
-_PERL_POLICY = _CANONICAL + "//quality/testdata:perl_policy"
 _PERLTIDY_SETTING = _CANONICAL + "//config:tool_perltidy"
 _PERLTIDY_TOOL = _CANONICAL + "//perl/private/tools:perltidy"
-_ERLANG_POLICY = _CANONICAL + "//quality/testdata:erlang_policy"
 _ERLFMT_SETTING = _CANONICAL + "//config:tool_erlfmt"
 _ERLFMT_TOOL = _CANONICAL + "//erlang/private/tools:erlfmt"
-_ERLANG_LINT_POLICY = _CANONICAL + "//quality/testdata:erlang_lint_policy"
 _ELVIS_SETTING = _CANONICAL + "//config:tool_elvis"
 _ELVIS_TOOL = _CANONICAL + "//erlang/private/tools:elvis"
-_ERLANG_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:erlang_typecheck_policy"
-_ELIXIR_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:elixir_typecheck_policy"
 _DIALYZER_SETTING = _CANONICAL + "//config:tool_dialyzer"
 _DIALYZER_TOOL = _CANONICAL + "//erlang/private/tools:dialyzer"
-_PHP_LINT_POLICY = _CANONICAL + "//quality/testdata:php_lint_policy"
-_LUA_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:lua_typecheck_policy"
 _LUALS_SETTING = _CANONICAL + "//config:tool_luals"
 _LUALS_TOOL = _CANONICAL + "//lua/private/tools:luals"
-_RUBY_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:ruby_typecheck_policy"
 _SORBET_SETTING = _CANONICAL + "//config:tool_sorbet"
 _SORBET_TOOL = _CANONICAL + "//ruby/private/tools:sorbet"
-_PHP_TYPECHECK_POLICY = _CANONICAL + "//quality/testdata:php_typecheck_policy"
 _PHPCS_SETTING = _CANONICAL + "//config:tool_phpcs"
 _PHPCS_TOOL = _CANONICAL + "//php/private/tools:phpcs"
 _PHPSTAN_SETTING = _CANONICAL + "//config:tool_phpstan"
 _PHPSTAN_TOOL = _CANONICAL + "//php/private/tools:phpstan"
-_ELIXIR_POLICY = _CANONICAL + "//quality/testdata:elixir_policy"
 _MIX_FORMAT_SETTING = _CANONICAL + "//config:tool_mix_format"
 _MIX_FORMAT_TOOL = _CANONICAL + "//elixir/private/tools:mix_format"
-_ELIXIR_LINT_POLICY = _CANONICAL + "//quality/testdata:elixir_lint_policy"
 _CREDO_SETTING = _CANONICAL + "//config:tool_credo"
 _CREDO_TOOL = _CANONICAL + "//elixir/private/tools:credo"
 
@@ -553,7 +537,7 @@ def _perlcritic_default_impl(ctx):
 
 _perlcritic_default_test = analysistest.make(
     _perlcritic_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _PERL_LINT_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 def _perlcritic_wired_impl(ctx):
@@ -566,7 +550,7 @@ def _perlcritic_wired_impl(ctx):
 
 _perlcritic_set_test = analysistest.make(
     _perlcritic_wired_impl,
-    config_settings = _with_tool_overrides(_PERL_LINT_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def perlcritic_flag_tests(name, subject):
@@ -595,7 +579,7 @@ def _perltidy_default_impl(ctx):
 
 _perltidy_default_test = analysistest.make(
     _perltidy_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _PERL_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 def _perltidy_wired_impl(ctx):
@@ -608,7 +592,7 @@ def _perltidy_wired_impl(ctx):
 
 _perltidy_set_test = analysistest.make(
     _perltidy_wired_impl,
-    config_settings = _with_tool_overrides(_PERL_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def perltidy_flag_tests(name, subject):
@@ -637,7 +621,7 @@ def _zig_default_impl(ctx):
 
 _zig_fmt_default_test = analysistest.make(
     _zig_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _ZIG_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 def _zig_wired_impl(ctx):
@@ -650,7 +634,7 @@ def _zig_wired_impl(ctx):
 
 _zig_fmt_set_test = analysistest.make(
     _zig_wired_impl,
-    config_settings = _with_tool_overrides(_ZIG_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def zig_fmt_flag_tests(name, subject):
@@ -677,7 +661,7 @@ def _zig_ast_check_default_impl(ctx):
 
 _zig_ast_check_default_test = analysistest.make(
     _zig_ast_check_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _ZIG_LINT_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 def _zig_ast_check_wired_impl(ctx):
@@ -690,7 +674,7 @@ def _zig_ast_check_wired_impl(ctx):
 
 _zig_ast_check_set_test = analysistest.make(
     _zig_ast_check_wired_impl,
-    config_settings = _with_tool_overrides(_ZIG_LINT_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def zig_ast_check_flag_tests(name, subject):
@@ -717,7 +701,7 @@ def _dart_default_impl(ctx):
 
 _dart_format_default_test = analysistest.make(
     _dart_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _DART_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 def _dart_wired_impl(ctx):
@@ -730,7 +714,7 @@ def _dart_wired_impl(ctx):
 
 _dart_format_set_test = analysistest.make(
     _dart_wired_impl,
-    config_settings = _with_tool_overrides(_DART_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def dart_format_flag_tests(name, subject):
@@ -757,7 +741,7 @@ def _julia_default_impl(ctx):
 
 _julia_format_default_test = analysistest.make(
     _julia_default_impl,
-    config_settings = {_WORKSPACE_SETTING: _JULIA_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 def _julia_wired_impl(ctx):
@@ -770,7 +754,7 @@ def _julia_wired_impl(ctx):
 
 _julia_format_set_test = analysistest.make(
     _julia_wired_impl,
-    config_settings = _with_tool_overrides(_JULIA_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def julia_format_flag_tests(name, subject):
@@ -796,12 +780,12 @@ def _erlfmt_wired_impl(ctx):
 
 _erlfmt_default_test = analysistest.make(
     _erlfmt_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _ERLANG_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _erlfmt_set_test = analysistest.make(
     _erlfmt_wired_impl,
-    config_settings = _with_tool_overrides(_ERLANG_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def erlfmt_flag_tests(name, subject):
@@ -848,12 +832,12 @@ def _credo_wired_impl(ctx):
 
 _credo_default_test = analysistest.make(
     _credo_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _ELIXIR_LINT_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _credo_set_test = analysistest.make(
     _credo_wired_impl,
-    config_settings = _with_tool_overrides(_ELIXIR_LINT_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def credo_flag_tests(name, subject):
@@ -879,12 +863,12 @@ def _elvis_wired_impl(ctx):
 
 _elvis_default_test = analysistest.make(
     _elvis_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _ERLANG_LINT_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _elvis_set_test = analysistest.make(
     _elvis_wired_impl,
-    config_settings = _with_tool_overrides(_ERLANG_LINT_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def elvis_flag_tests(name, subject):
@@ -910,12 +894,12 @@ def _mix_format_wired_impl(ctx):
 
 _mix_format_default_test = analysistest.make(
     _mix_format_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _ELIXIR_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _mix_format_set_test = analysistest.make(
     _mix_format_wired_impl,
-    config_settings = _with_tool_overrides(_ELIXIR_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def mix_format_flag_tests(name, subject):
@@ -989,12 +973,12 @@ def _dialyzer_wired_impl(ctx):
 
 _dialyzer_default_test = analysistest.make(
     _dialyzer_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _ERLANG_TYPECHECK_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _dialyzer_set_test = analysistest.make(
     _dialyzer_wired_impl,
-    config_settings = _with_tool_overrides(_ERLANG_TYPECHECK_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def dialyzer_flag_tests(name, subject):
@@ -1012,12 +996,12 @@ def dialyzer_flag_tests(name, subject):
 
 _dialyzer_elixir_default_test = analysistest.make(
     _dialyzer_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _ELIXIR_TYPECHECK_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _dialyzer_elixir_set_test = analysistest.make(
     _dialyzer_wired_impl,
-    config_settings = _with_tool_overrides(_ELIXIR_TYPECHECK_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def dialyzer_elixir_flag_tests(name, subject):
@@ -1042,12 +1026,12 @@ def _phpcs_wired_impl(ctx):
 
 _phpcs_default_test = analysistest.make(
     _phpcs_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _PHP_LINT_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _phpcs_set_test = analysistest.make(
     _phpcs_wired_impl,
-    config_settings = _with_tool_overrides(_PHP_LINT_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def phpcs_flag_tests(name, subject):
@@ -1072,12 +1056,12 @@ def _phpstan_wired_impl(ctx):
 
 _phpstan_default_test = analysistest.make(
     _phpstan_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _PHP_TYPECHECK_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _phpstan_set_test = analysistest.make(
     _phpstan_wired_impl,
-    config_settings = _with_tool_overrides(_PHP_TYPECHECK_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def phpstan_flag_tests(name, subject):
@@ -1102,12 +1086,12 @@ def _luals_wired_impl(ctx):
 
 _luals_default_test = analysistest.make(
     _luals_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _LUA_TYPECHECK_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _luals_set_test = analysistest.make(
     _luals_wired_impl,
-    config_settings = _with_tool_overrides(_LUA_TYPECHECK_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def luals_flag_tests(name, subject):
@@ -1132,12 +1116,12 @@ def _jet_wired_impl(ctx):
 
 _jet_default_test = analysistest.make(
     _jet_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _JULIA_TYPECHECK_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _jet_set_test = analysistest.make(
     _jet_wired_impl,
-    config_settings = _with_tool_overrides(_JULIA_TYPECHECK_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def jet_flag_tests(name, subject):
@@ -1162,12 +1146,12 @@ def _sorbet_wired_impl(ctx):
 
 _sorbet_default_test = analysistest.make(
     _sorbet_wired_impl,
-    config_settings = {_WORKSPACE_SETTING: _RUBY_TYPECHECK_POLICY},
+    config_settings = {_WORKSPACE_SETTING: _TOOL_OVERRIDE_POLICY},
 )
 
 _sorbet_set_test = analysistest.make(
     _sorbet_wired_impl,
-    config_settings = _with_tool_overrides(_RUBY_TYPECHECK_POLICY),
+    config_settings = _with_tool_overrides(_TOOL_OVERRIDE_POLICY),
 )
 
 def sorbet_flag_tests(name, subject):

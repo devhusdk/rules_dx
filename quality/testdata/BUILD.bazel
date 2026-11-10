@@ -1243,6 +1243,116 @@ workspace_policy(
     families = [":qml_family"],
 )
 
+quality_family(
+    name = "tool_override_erlang_family",
+    disabled = ["audit"],
+    family_id = "erlang",
+    format = ["erlfmt"],
+    lint = ["elvis"],
+    typecheck = ["dialyzer"],
+)
+
+quality_family(
+    name = "tool_override_elixir_family",
+    disabled = ["audit"],
+    family_id = "elixir",
+    format = ["mix_format"],
+    lint = ["credo"],
+    typecheck = ["dialyzer"],
+)
+
+quality_family(
+    name = "tool_override_perl_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "perl",
+    format = ["perltidy"],
+    lint = ["perlcritic"],
+)
+
+quality_family(
+    name = "tool_override_zig_family",
+    disabled = [
+        "audit",
+        "typecheck",
+    ],
+    family_id = "zig",
+    format = ["zig_fmt"],
+    lint = ["zig_ast_check"],
+)
+
+quality_family(
+    name = "tool_override_julia_family",
+    disabled = [
+        "audit",
+        "lint",
+    ],
+    family_id = "julia",
+    format = ["julia_format"],
+    typecheck = ["jet"],
+)
+
+quality_family(
+    name = "tool_override_php_family",
+    disabled = [
+        "audit",
+        "format",
+    ],
+    family_id = "php",
+    lint = ["phpcs"],
+    typecheck = ["phpstan"],
+)
+
+quality_family(
+    name = "tool_override_dart_family",
+    disabled = [
+        "audit",
+        "lint",
+        "typecheck",
+    ],
+    family_id = "dart",
+    format = ["dart"],
+)
+
+quality_family(
+    name = "tool_override_lua_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "lua",
+    typecheck = ["luals"],
+)
+
+quality_family(
+    name = "tool_override_ruby_family",
+    disabled = [
+        "audit",
+        "format",
+        "lint",
+    ],
+    family_id = "ruby",
+    typecheck = ["sorbet"],
+)
+
+workspace_policy(
+    name = "tool_override_policy",
+    families = [
+        ":tool_override_dart_family",
+        ":tool_override_elixir_family",
+        ":tool_override_erlang_family",
+        ":tool_override_julia_family",
+        ":tool_override_lua_family",
+        ":tool_override_perl_family",
+        ":tool_override_php_family",
+        ":tool_override_ruby_family",
+        ":tool_override_zig_family",
+    ],
+)
+
 qml_sources(
     name = "qml_fixture",
     srcs = ["Fixture.qml"],
@@ -1258,22 +1368,6 @@ qmlformat_flag_tests(
     subject = ":qml_subject",
 )
 
-quality_family(
-    name = "erlang_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "erlang",
-    format = ["erlfmt"],
-)
-
-workspace_policy(
-    name = "erlang_policy",
-    families = [":erlang_family"],
-)
-
 erlang_subject(
     name = "erlang_subject",
     testonly = True,
@@ -1283,22 +1377,6 @@ erlang_subject(
 erlfmt_flag_tests(
     name = "erlfmt_flag",
     subject = ":erlang_subject",
-)
-
-quality_family(
-    name = "erlang_lint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "erlang",
-    lint = ["elvis"],
-)
-
-workspace_policy(
-    name = "erlang_lint_policy",
-    families = [":erlang_lint_family"],
 )
 
 erlang_lint_subject(
@@ -1312,22 +1390,6 @@ elvis_flag_tests(
     subject = ":erlang_lint_subject",
 )
 
-quality_family(
-    name = "erlang_typecheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
-    family_id = "erlang",
-    typecheck = ["dialyzer"],
-)
-
-workspace_policy(
-    name = "erlang_typecheck_policy",
-    families = [":erlang_typecheck_family"],
-)
-
 erlang_typecheck_subject(
     name = "erlang_typecheck_subject",
     testonly = True,
@@ -1337,22 +1399,6 @@ erlang_typecheck_subject(
 dialyzer_flag_tests(
     name = "dialyzer_flag",
     subject = ":erlang_typecheck_subject",
-)
-
-quality_family(
-    name = "elixir_typecheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
-    family_id = "elixir",
-    typecheck = ["dialyzer"],
-)
-
-workspace_policy(
-    name = "elixir_typecheck_policy",
-    families = [":elixir_typecheck_family"],
 )
 
 erlang_typecheck_subject(
@@ -1366,22 +1412,6 @@ dialyzer_elixir_flag_tests(
     subject = ":elixir_typecheck_subject",
 )
 
-quality_family(
-    name = "php_lint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "php",
-    lint = ["phpcs"],
-)
-
-workspace_policy(
-    name = "php_lint_policy",
-    families = [":php_lint_family"],
-)
-
 php_lint_subject(
     name = "php_lint_subject",
     testonly = True,
@@ -1391,22 +1421,6 @@ php_lint_subject(
 phpcs_flag_tests(
     name = "phpcs_flag",
     subject = ":php_lint_subject",
-)
-
-quality_family(
-    name = "lua_typecheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
-    family_id = "lua",
-    typecheck = ["luals"],
-)
-
-workspace_policy(
-    name = "lua_typecheck_policy",
-    families = [":lua_typecheck_family"],
 )
 
 lua_typecheck_subject(
@@ -1420,22 +1434,6 @@ luals_flag_tests(
     subject = ":lua_typecheck_subject",
 )
 
-quality_family(
-    name = "ruby_typecheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
-    family_id = "ruby",
-    typecheck = ["sorbet"],
-)
-
-workspace_policy(
-    name = "ruby_typecheck_policy",
-    families = [":ruby_typecheck_family"],
-)
-
 ruby_typecheck_subject(
     name = "ruby_typecheck_subject",
     testonly = True,
@@ -1445,22 +1443,6 @@ ruby_typecheck_subject(
 sorbet_flag_tests(
     name = "sorbet_flag",
     subject = ":ruby_typecheck_subject",
-)
-
-quality_family(
-    name = "php_typecheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
-    family_id = "php",
-    typecheck = ["phpstan"],
-)
-
-workspace_policy(
-    name = "php_typecheck_policy",
-    families = [":php_typecheck_family"],
 )
 
 php_typecheck_subject(
@@ -1474,22 +1456,6 @@ phpstan_flag_tests(
     subject = ":php_typecheck_subject",
 )
 
-quality_family(
-    name = "elixir_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "elixir",
-    format = ["mix_format"],
-)
-
-workspace_policy(
-    name = "elixir_policy",
-    families = [":elixir_family"],
-)
-
 elixir_subject(
     name = "elixir_subject",
     testonly = True,
@@ -1499,22 +1465,6 @@ elixir_subject(
 mix_format_flag_tests(
     name = "mix_format_flag",
     subject = ":elixir_subject",
-)
-
-quality_family(
-    name = "elixir_lint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "elixir",
-    lint = ["credo"],
-)
-
-workspace_policy(
-    name = "elixir_lint_policy",
-    families = [":elixir_lint_family"],
 )
 
 elixir_lint_subject(
@@ -1528,22 +1478,6 @@ credo_flag_tests(
     subject = ":elixir_lint_subject",
 )
 
-quality_family(
-    name = "perl_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "perl",
-    format = ["perltidy"],
-)
-
-workspace_policy(
-    name = "perl_policy",
-    families = [":perl_family"],
-)
-
 perl_subject(
     name = "perl_subject",
     testonly = True,
@@ -1553,22 +1487,6 @@ perl_subject(
 perltidy_flag_tests(
     name = "perltidy_flag",
     subject = ":perl_subject",
-)
-
-quality_family(
-    name = "perl_lint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "perl",
-    lint = ["perlcritic"],
-)
-
-workspace_policy(
-    name = "perl_lint_policy",
-    families = [":perl_lint_family"],
 )
 
 perl_lint_subject(
@@ -1582,22 +1500,6 @@ perlcritic_flag_tests(
     subject = ":perl_lint_subject",
 )
 
-quality_family(
-    name = "zig_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "zig",
-    format = ["zig_fmt"],
-)
-
-workspace_policy(
-    name = "zig_policy",
-    families = [":zig_family"],
-)
-
 zig_subject(
     name = "zig_subject",
     testonly = True,
@@ -1609,22 +1511,6 @@ zig_fmt_flag_tests(
     subject = ":zig_subject",
 )
 
-quality_family(
-    name = "zig_lint_family",
-    disabled = [
-        "audit",
-        "format",
-        "typecheck",
-    ],
-    family_id = "zig",
-    lint = ["zig_ast_check"],
-)
-
-workspace_policy(
-    name = "zig_lint_policy",
-    families = [":zig_lint_family"],
-)
-
 zig_lint_subject(
     name = "zig_lint_subject",
     testonly = True,
@@ -1634,22 +1520,6 @@ zig_lint_subject(
 zig_ast_check_flag_tests(
     name = "zig_ast_check_flag",
     subject = ":zig_lint_subject",
-)
-
-quality_family(
-    name = "dart_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "dart",
-    format = ["dart"],
-)
-
-workspace_policy(
-    name = "dart_policy",
-    families = [":dart_family"],
 )
 
 dart_subject(
@@ -1675,22 +1545,6 @@ dart_config_deps_test(
     target_under_test = ":dart_lints_config",
 )
 
-quality_family(
-    name = "julia_family",
-    disabled = [
-        "audit",
-        "lint",
-        "typecheck",
-    ],
-    family_id = "julia",
-    format = ["julia_format"],
-)
-
-workspace_policy(
-    name = "julia_policy",
-    families = [":julia_family"],
-)
-
 julia_subject(
     name = "julia_subject",
     testonly = True,
@@ -1700,22 +1554,6 @@ julia_subject(
 julia_format_flag_tests(
     name = "julia_format_flag",
     subject = ":julia_subject",
-)
-
-quality_family(
-    name = "julia_typecheck_family",
-    disabled = [
-        "audit",
-        "format",
-        "lint",
-    ],
-    family_id = "julia",
-    typecheck = ["jet"],
-)
-
-workspace_policy(
-    name = "julia_typecheck_policy",
-    families = [":julia_typecheck_family"],
 )
 
 julia_typecheck_subject(

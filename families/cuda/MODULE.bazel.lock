@@ -11403,10 +11403,10 @@
         }
       }
     },
-    "@@rules_dx+//dart:pub.bzl%pub": {
+    "@@rules_dx+//dart:extensions.bzl%pub": {
       "general": {
-        "bzlTransitiveDigest": "VNTf9kwkvE2nQ/+jY5ktqngyMqwf0ge9JSbNN0s5rsc=",
-        "usagesDigest": "ph1iYxgkZ9x3YMRlAd3AQ2pRJ7ZbgRpUjKHf6Tq7eqc=",
+        "bzlTransitiveDigest": "MCAkGWEocDiAr8gOmWX9RAc8IHnI6+Bq/NYs/pYVWdc=",
+        "usagesDigest": "giPO1UUNxIXEzga+XZskcKnEcMhsJCiv4RvuzcEuTnM=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dx+,dx_rules_dart_pub rules_dx++dart_tools+dx_rules_dart_pub",
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
@@ -11416,8 +11416,8 @@
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_windows_amd64 tar.bzl++toolchains+bsd_tar_toolchains_windows_amd64",
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_windows_arm64 tar.bzl++toolchains+bsd_tar_toolchains_windows_arm64",
           "REPO_MAPPING:rules_dx++dart_tools+dx_rules_dart_pub,yaml.bzl yaml.bzl+",
-          "FILE:@@rules_dx+//dart/tools/dart_apitool/pubspec.lock bcde4406b9a37a9d8df7f185033a0a067bfde50c4b786c71f5d6a38e9d138480",
-          "FILE:@@rules_dx+//dart/rules/bench/pubspec.lock 1fdb12d41f188d31d09c31a0dd13ee0e902ddc52e6a61f36e5832642c5990e3b"
+          "FILE:@@rules_dx+//dart/private/tools/dart_apitool/pubspec.lock bcde4406b9a37a9d8df7f185033a0a067bfde50c4b786c71f5d6a38e9d138480",
+          "FILE:@@rules_dx+//dart/private/bench/pubspec.lock 1fdb12d41f188d31d09c31a0dd13ee0e902ddc52e6a61f36e5832642c5990e3b"
         ],
         "generatedRepoSpecs": {
           "dart_pub___fe_analyzer_shared": {
@@ -21144,7 +21144,7 @@
     "@@rules_zig+//zig:extensions.bzl%zig": {
       "general": {
         "bzlTransitiveDigest": "vTeQKV6Xl5RuIpCwuarKlx1FwNYsPvKFOklJop5h/mI=",
-        "usagesDigest": "QF0FP4iBd3UL3eOAQ/3YQ/7Y7gdmVPz2aHt0+5zCriE=",
+        "usagesDigest": "G3RaphUrcukF6Utq5kIh8yMCfhYZTf1FZHFUaUmNuy0=",
         "recordedInputs": [
           "REPO_MAPPING:rules_zig+,bazel_skylib bazel_skylib+",
           "REPO_MAPPING:rules_zig+,bazel_tools bazel_tools",

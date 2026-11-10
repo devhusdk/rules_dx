@@ -28,7 +28,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude d/tests/fixtures
 # gazelle:exclude haskell/tests/fixtures/bench/bench_src
 # gazelle:exclude flutter/tests/fixtures/flutter-app/ios/Runner
-# gazelle:exclude quality/tiers
 # gazelle:exclude java/rules/jmh
 # gazelle:exclude go/tests/fixtures
 # gazelle:exclude javascript/tests/fixtures
@@ -129,7 +128,6 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude deploy/tests/cross/cross_app.c
 # gazelle:exclude quality/artifacts
 # gazelle:exclude quality/tools/python
-# gazelle:exclude cli/depcheck
 # gazelle:exclude go/tests/fixtures/gofumpt
 # gazelle:exclude go/tests/fixtures/staticcheck
 # gazelle:exclude go/tests/fixtures/godeps

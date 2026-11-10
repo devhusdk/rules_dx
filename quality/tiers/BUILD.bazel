@@ -2,7 +2,10 @@ load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("//rust/rules:defs.bzl", "rust_test")
 load(":corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "TYPOS_UNSAFE", "tier_labels")
 
+# gazelle:exclude buildifier
 # gazelle:exclude eslint
+# gazelle:exclude rustfmt
+# gazelle:exclude taplo
 # gazelle:exclude vale
 _VISIBILITY = [
     "//docs:__pkg__",

@@ -1,6 +1,12 @@
 use super::*;
 use std::path::{Path, PathBuf};
 
+use dx_error::{DxError, ErrorKind};
+
+fn exit_code(result: Result<(), DxError>) -> i32 {
+    result.err().map_or(0, |error| error.exit_code())
+}
+
 fn testdata_root() -> PathBuf {
     for candidate in [
         std::env::var("TEST_SRCDIR")
@@ -781,7 +787,7 @@ fn consistency(eco: Ecosystem, case: &str) -> i32 {
     let lock = root.join(eco_dir(eco)).join(case).join(lock_name(eco));
     let mut out = String::new();
     let mut err = String::new();
-    cmd_consistency(eco, &man, &lock, &mut out, &mut err)
+    exit_code(cmd_consistency(eco, &man, &lock, &mut out, &mut err))
 }
 
 fn usage(eco: Ecosystem, case: &str) -> (i32, String) {
@@ -790,7 +796,7 @@ fn usage(eco: Ecosystem, case: &str) -> (i32, String) {
     let man = base.join(manifest_name(eco));
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_usage(eco, &man, &base, &mut out, &mut err);
+    let code = exit_code(cmd_usage(eco, &man, &base, &mut out, &mut err));
     (code, err)
 }
 
@@ -837,7 +843,13 @@ fn parity_consistency_missing_lock_is_actionable() {
     let lock = root.join("rust/ok_used/MISSING.lock");
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Rust,
+        &man,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 2);
 }
 
@@ -893,13 +905,13 @@ fn cc_missing_sha256_fails() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(
+    let code = exit_code(cmd_consistency(
         Ecosystem::Cc,
         &dir.path().join("cc_deps.toml"),
         &dir.path().join("cc_lock.json"),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("missing sha256"));
 }
@@ -919,11 +931,11 @@ fn cc_pair_checks_sha256_through_the_shared_body() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = consistency::check_pair(
+    let code = exit_code(consistency::check_pair(
         consistency::lock_pair(Ecosystem::Cc, &manifest, &lock),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 0, "{err}");
     write_file(
         &manifest,
@@ -931,11 +943,11 @@ fn cc_pair_checks_sha256_through_the_shared_body() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = consistency::check_pair(
+    let code = exit_code(consistency::check_pair(
         consistency::lock_pair(Ecosystem::Cc, &manifest, &lock),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("stale sha256"), "{err}");
 }
@@ -1038,7 +1050,7 @@ fn locks_case(dir: &Path, stale_cargo: bool) -> (Vec<PathBuf>, i32) {
     };
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_locks(&locks, &mut out, &mut err);
+    let code = exit_code(cmd_locks(&locks, &mut out, &mut err));
     (owned, code)
 }
 
@@ -1112,7 +1124,7 @@ fn locks_missing_file_is_actionable() {
     };
     let mut out = String::new();
     let mut err = String::new();
-    assert_eq!(cmd_locks(&locks, &mut out, &mut err), 2);
+    assert_eq!(exit_code(cmd_locks(&locks, &mut out, &mut err)), 2);
     assert!(err.contains("lock missing"));
 }
 
@@ -1129,13 +1141,13 @@ fn dotnet_lock_ignores_nested_constraints() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(
+    let code = exit_code(cmd_consistency(
         Ecosystem::Csharp,
         &dir.path().join("paket.dependencies"),
         &dir.path().join("paket.lock"),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 0, "{err}");
 }
 
@@ -1213,13 +1225,13 @@ fn ruby_consistency_accepts_pessimistic() {
         );
         let mut out = String::new();
         let mut err = String::new();
-        let code = cmd_consistency(
+        let code = exit_code(cmd_consistency(
             Ecosystem::Ruby,
             &dir.path().join("Gemfile"),
             &dir.path().join("Gemfile.lock"),
             &mut out,
             &mut err,
-        );
+        ));
         assert_eq!(code, want, "{locked} {err}");
     }
 }
@@ -1237,13 +1249,13 @@ fn ruby_consistency_ok() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(
+    let code = exit_code(cmd_consistency(
         Ecosystem::Ruby,
         &dir.path().join("Gemfile"),
         &dir.path().join("Gemfile.lock"),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 0, "{err}");
 }
 
@@ -1569,7 +1581,13 @@ version = "0.1.0rc1"
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Python, &man, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Python,
+        &man,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 1, "{err}");
     assert!(err.contains("stale lock entry for 'upper'"), "{err}");
     assert!(!err.contains("'excluded'"), "{err}");
@@ -1752,14 +1770,17 @@ fn consistency_cmd_error_paths() {
     let lock = dir.path().join("Cargo.lock");
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(
+    let result = cmd_consistency(
         Ecosystem::Rust,
         &dir.path().join("MISSING.toml"),
         &lock,
         &mut out,
         &mut err,
     );
-    assert_eq!(code, 2);
+    assert_eq!(
+        result.expect_err("missing manifest").kind(),
+        ErrorKind::Usage
+    );
     assert!(err.contains("manifest missing"), "{err}");
 
     err.clear();
@@ -1768,15 +1789,15 @@ fn consistency_cmd_error_paths() {
         &lock,
         "[[package]]\nname = \"anyhow\"\nversion = \"1.0.0\"\n",
     );
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
-    assert_eq!(code, 2);
+    let result = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(result.expect_err("bad manifest").kind(), ErrorKind::Failure);
     assert!(err.contains("unreadable manifest"), "{err}");
 
     err.clear();
     write_file(&man, "[dependencies]\nanyhow = \"1\"\n");
     write_file(&lock, "[[package]");
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
-    assert_eq!(code, 2);
+    let result = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    assert_eq!(result.expect_err("bad lock").kind(), ErrorKind::Failure);
     assert!(err.contains("unreadable lock"), "{err}");
 }
 
@@ -1795,7 +1816,13 @@ fn consistency_missing_entry_prefers_alt_names() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Rust,
+        &man,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("missing lock entry for 'dash-name'"), "{err}");
     assert!(
@@ -1815,7 +1842,13 @@ fn consistency_passes_when_any_locked_version_matches() {
     write_file(&lock, SYN_TWO_VERSIONS);
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Rust,
+        &man,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 0, "{err}");
 }
 
@@ -1828,7 +1861,13 @@ fn consistency_stale_lists_all_locked_versions() {
     write_file(&lock, SYN_TWO_VERSIONS);
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Rust,
+        &man,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("lock has 1.0.109, 2.0.48"), "{err}");
 }
@@ -1863,14 +1902,26 @@ fn consistency_finds_renamed_crate() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Rust,
+        &man,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 0, "{err}");
     write_file(
         &lock,
         "[[package]]\nname = \"serde_json\"\nversion = \"0.9.0\"\n",
     );
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Rust, &man, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Rust,
+        &man,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("stale lock entry for 'json'"), "{err}");
 }
@@ -1883,7 +1934,13 @@ fn usage_matches_renamed_crate_by_alias() {
     write_file(&dir.path().join("src/lib.rs"), "use json::Value;\n");
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_usage(Ecosystem::Rust, &man, dir.path(), &mut out, &mut err);
+    let code = exit_code(cmd_usage(
+        Ecosystem::Rust,
+        &man,
+        dir.path(),
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 0, "{err}");
 }
 
@@ -1900,13 +1957,13 @@ fn consistency_stale_cc_sha_fails() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(
+    let code = exit_code(cmd_consistency(
         Ecosystem::Cc,
         &dir.path().join("cc_deps.toml"),
         &dir.path().join("cc_lock.json"),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("stale sha256"), "{err}");
 }
@@ -1951,14 +2008,14 @@ fn locks_from(paths: &[PathBuf; 14]) -> WorkspaceLocks<'_> {
 
 #[test]
 fn locks_cmd_error_paths() {
-    for case in [
-        "cargo_manifest_missing",
-        "cargo_manifest_bad",
-        "cargo_lock_bad",
-        "maven_artifacts_missing",
-        "maven_lock_missing",
-        "maven_artifacts_empty",
-        "maven_lock_bad",
+    for (case, kind) in [
+        ("cargo_manifest_missing", ErrorKind::Usage),
+        ("cargo_manifest_bad", ErrorKind::Failure),
+        ("cargo_lock_bad", ErrorKind::Failure),
+        ("maven_artifacts_missing", ErrorKind::Usage),
+        ("maven_lock_missing", ErrorKind::Usage),
+        ("maven_artifacts_empty", ErrorKind::Failure),
+        ("maven_lock_bad", ErrorKind::Failure),
     ] {
         let dir = tempfile::tempdir().expect("scratch");
         write_workspace_locks(dir.path(), false);
@@ -1976,8 +2033,8 @@ fn locks_cmd_error_paths() {
         let locks = locks_from(&paths);
         let mut out = String::new();
         let mut err = String::new();
-        let code = cmd_locks(&locks, &mut out, &mut err);
-        assert_eq!(code, 2, "{case}: {err}");
+        let error = cmd_locks(&locks, &mut out, &mut err).expect_err(case);
+        assert_eq!(error.kind(), kind, "{case}: {err}");
     }
 }
 
@@ -1991,32 +2048,32 @@ fn usage_cmd_error_paths() {
     let mut out = String::new();
     let mut err = String::new();
 
-    let code = cmd_usage(
+    let code = exit_code(cmd_usage(
         Ecosystem::Rust,
         &dir.path().join("MISSING.toml"),
         &src,
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 2);
     assert!(err.contains("manifest missing"), "{err}");
 
     err.clear();
-    let code = cmd_usage(
+    let code = exit_code(cmd_usage(
         Ecosystem::Rust,
         &man,
         &dir.path().join("MISSING_DIR"),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 2);
     assert!(err.contains("sources missing"), "{err}");
 
     err.clear();
     let bad = dir.path().join("bad.toml");
     write_file(&bad, "not = [valid");
-    let code = cmd_usage(Ecosystem::Rust, &bad, &src, &mut out, &mut err);
-    assert_eq!(code, 2);
+    let error = cmd_usage(Ecosystem::Rust, &bad, &src, &mut out, &mut err).expect_err("bad");
+    assert_eq!(error.kind(), ErrorKind::Failure);
     assert!(err.contains("unreadable manifest"), "{err}");
 }
 
@@ -2033,13 +2090,13 @@ fn usage_rust_build_only_is_category_error() {
     );
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_usage(
+    let code = exit_code(cmd_usage(
         Ecosystem::Rust,
         &dir.path().join("Cargo.toml"),
         dir.path(),
         &mut out,
         &mut err,
-    );
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("used only by build tooling"), "{err}");
 }
@@ -2056,13 +2113,13 @@ fn usage_rust_prod_and_dev_dep_used_only_by_tests() {
         write_file(&dir.path().join("tests/it.rs"), "fn t() { foo::x(); }\n");
         let mut out = String::new();
         let mut err = String::new();
-        let code = cmd_usage(
+        let code = exit_code(cmd_usage(
             Ecosystem::Rust,
             &dir.path().join("Cargo.toml"),
             dir.path(),
             &mut out,
             &mut err,
-        );
+        ));
         assert_eq!(code, want, "{err}");
         assert_eq!(err.contains("used only by tests"), want == 1, "{err}");
     }
@@ -2080,13 +2137,13 @@ fn usage_python_prod_and_dev_dep_used_only_by_tests() {
         write_file(&dir.path().join("tests/test_it.py"), "import foo\n");
         let mut out = String::new();
         let mut err = String::new();
-        let code = cmd_usage(
+        let code = exit_code(cmd_usage(
             Ecosystem::Python,
             &dir.path().join("pyproject.toml"),
             dir.path(),
             &mut out,
             &mut err,
-        );
+        ));
         assert_eq!(code, want, "{err}");
         assert_eq!(err.contains("used only by tests"), want == 1, "{err}");
     }
@@ -2124,26 +2181,26 @@ fn js_fixture(manifest: &str, lock_pkgs: &[(&str, &str)], source: &str) -> tempf
 fn js_consistency(dir: &Path) -> (i32, String, String) {
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(
+    let code = exit_code(cmd_consistency(
         Ecosystem::Js,
         &dir.join("package.json"),
         &dir.join("pnpm-lock.yaml"),
         &mut out,
         &mut err,
-    );
+    ));
     (code, out, err)
 }
 
 fn js_usage(dir: &Path) -> (i32, String) {
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_usage(
+    let code = exit_code(cmd_usage(
         Ecosystem::Js,
         &dir.join("package.json"),
         dir,
         &mut out,
         &mut err,
-    );
+    ));
     (code, err)
 }
 
@@ -2266,9 +2323,9 @@ fn js_consistency_conflicting_and_malformed_manifests_error() {
         &[("react", "18.2.0")],
         "",
     );
-    assert_eq!(js_consistency(conflict.path()).0, 2);
+    assert_eq!(js_consistency(conflict.path()).0, 1);
     let malformed = js_fixture(r#"{"dependencies":{"react":1}}"#, &[], "");
-    assert_eq!(js_consistency(malformed.path()).0, 2);
+    assert_eq!(js_consistency(malformed.path()).0, 1);
 }
 
 #[test]
@@ -2405,13 +2462,13 @@ fn pnpm_malformed_and_unsupported_locks_are_errors() {
         "",
     ] {
         let (code, _, err) = pnpm_check(manifest, lock);
-        assert_eq!(code, 2, "{lock}: {err}");
+        assert_eq!(code, 1, "{lock}: {err}");
     }
     let (code, _, err) = pnpm_check(
         r#"{"dependencies":{"foo":"catalog:"}}"#,
         "importers:\n  .:\n    dependencies:\n      foo: {specifier: 'catalog:', version: 1.0.0}\npackages:\n  foo@1.0.0: {}\n",
     );
-    assert_eq!(code, 2, "{err}");
+    assert_eq!(code, 1, "{err}");
 }
 
 #[test]
@@ -2430,13 +2487,13 @@ fn pnpm_selects_the_workspace_subdirectory_importer() {
     let run = |manifest: &Path| {
         let mut out = String::new();
         let mut err = String::new();
-        let code = cmd_consistency(
+        let code = exit_code(cmd_consistency(
             Ecosystem::Js,
             manifest,
             &dir.path().join("pnpm-lock.yaml"),
             &mut out,
             &mut err,
-        );
+        ));
         (code, err)
     };
     assert_eq!(run(&dir.path().join("package.json")).0, 0);
@@ -2451,7 +2508,7 @@ fn pnpm_selects_the_workspace_subdirectory_importer() {
         r#"{"dependencies":{"foo":"^1.0.0"}}"#,
     );
     let (code, err) = run(&dir.path().join("packages/other/package.json"));
-    assert_eq!(code, 2, "{err}");
+    assert_eq!(code, 1, "{err}");
     assert!(err.contains("no importer 'packages/other'"), "{err}");
 }
 
@@ -2591,7 +2648,13 @@ fn zig_consistency_flags_stale_hash() {
     write_file(&lock, "a old\n");
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Zig, &zon, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Zig,
+        &zon,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("stale hash for 'a'"), "{err}");
 }
@@ -2720,7 +2783,13 @@ fn dart_ranges_and_any_are_settled() {
 fn consistency_code(manifest: &std::path::Path, lock: &std::path::Path) -> i32 {
     let mut out = String::new();
     let mut err = String::new();
-    cmd_consistency(Ecosystem::Dart, manifest, lock, &mut out, &mut err)
+    exit_code(cmd_consistency(
+        Ecosystem::Dart,
+        manifest,
+        lock,
+        &mut out,
+        &mut err,
+    ))
 }
 
 #[test]
@@ -3192,7 +3261,13 @@ fn powershell_consistency_flags_old_install() {
     write_file(&lock, "pester 4.10.1\n");
     let mut out = String::new();
     let mut err = String::new();
-    let code = cmd_consistency(Ecosystem::Powershell, &psd1, &lock, &mut out, &mut err);
+    let code = exit_code(cmd_consistency(
+        Ecosystem::Powershell,
+        &psd1,
+        &lock,
+        &mut out,
+        &mut err,
+    ));
     assert_eq!(code, 1);
     assert!(err.contains("stale lock entry for 'Pester'"), "{err}");
 }
@@ -3351,4 +3426,21 @@ fn ocaml_usage_reads_libraries_and_pps() {
     assert!(hits["ppx_deriving"].src);
     assert!(hits["alcotest"].test && !hits["alcotest"].src);
     assert!(!hits["bas"].src);
+}
+
+#[test]
+fn depcheck_errors_map_to_kinds() {
+    let io = || std::io::Error::other("io");
+    for (error, kind) in [
+        (
+            DepcheckError::UnknownEcosystem("x".to_owned()),
+            ErrorKind::Usage,
+        ),
+        (DepcheckError::ManifestIo(io()), ErrorKind::Infra),
+        (DepcheckError::LockIo(io()), ErrorKind::Infra),
+        (DepcheckError::LockParse("x".to_owned()), ErrorKind::Failure),
+        (DepcheckError::CcEntry, ErrorKind::Failure),
+    ] {
+        assert_eq!(DxError::from(error).kind(), kind);
+    }
 }

@@ -13,6 +13,7 @@ use std::ffi::OsString;
 use std::path::PathBuf;
 
 use dx_depcheck::Ecosystem;
+use dx_error::DxError;
 
 // LCOV_EXCL_START - reason: clap schema, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 #[derive(Parser)]
@@ -83,7 +84,7 @@ fn emit(out: &str, err: &str) {
     }
 }
 
-fn run_from<I, T>(args: I) -> i32
+fn run_from<I, T>(args: I) -> Result<(), DxError>
 where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
@@ -96,10 +97,10 @@ where
         } => {
             let mut out = String::new();
             let mut err = String::new();
-            let code =
+            let result =
                 dx_depcheck::cmd_consistency(ecosystem, &manifest, &lock, &mut out, &mut err);
             emit(&out, &err);
-            code
+            result
         }
         Command::Usage {
             ecosystem,
@@ -108,9 +109,9 @@ where
         } => {
             let mut out = String::new();
             let mut err = String::new();
-            let code = dx_depcheck::cmd_usage(ecosystem, &manifest, &sources, &mut out, &mut err);
+            let result = dx_depcheck::cmd_usage(ecosystem, &manifest, &sources, &mut out, &mut err);
             emit(&out, &err);
-            code
+            result
         }
         Command::Locks {
             cargo_manifest,
@@ -130,7 +131,7 @@ where
         } => {
             let mut out = String::new();
             let mut err = String::new();
-            let code = dx_depcheck::cmd_locks(
+            let result = dx_depcheck::cmd_locks(
                 &dx_depcheck::WorkspaceLocks {
                     cargo_manifest: &cargo_manifest,
                     cargo_lock: &cargo_lock,
@@ -151,24 +152,24 @@ where
                 &mut err,
             );
             emit(&out, &err);
-            code
+            result
         }
     }
 }
 
 // LCOV_EXCL_START - reason: process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
-fn run() -> i32 {
-    run_from(std::env::args_os())
-}
-
 fn main() -> std::process::ExitCode {
-    dx_error::exit_code(run())
+    match run_from(std::env::args_os()) {
+        Ok(()) => std::process::ExitCode::SUCCESS,
+        Err(error) => error.into(),
+    }
 }
 // LCOV_EXCL_STOP - reason: end process shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_error::ErrorKind;
 
     const ECOSYSTEMS: [&str; 26] = [
         "rust",
@@ -256,20 +257,21 @@ mod tests {
 
     #[test]
     fn consistency_dispatch_reports_a_missing_manifest_instead_of_a_usage_error() {
-        let code = run_from([
+        let err = run_from([
             "depcheck",
             "consistency",
             "--ecosystem=rust",
             "--manifest=/nonexistent/Cargo.toml",
             "--lock=/nonexistent/Cargo.lock",
-        ]);
-        assert_eq!(code, 2);
+        ])
+        .expect_err("missing manifest");
+        assert_eq!(err.kind(), ErrorKind::Usage);
     }
 
     #[test]
     fn locks_dispatch_reports_the_first_unreadable_lock() {
-        let code = run_from(lock_args("missing"));
-        assert_eq!(code, 2);
+        let err = run_from(lock_args("missing")).expect_err("missing locks");
+        assert_eq!(err.kind(), ErrorKind::Usage);
     }
 
     #[test]
@@ -291,13 +293,13 @@ mod tests {
              checksum = \"fixture\"\n",
         )
         .expect("lock");
-        let code = run_from([
+        let result = run_from([
             "depcheck".to_owned(),
             "consistency".to_owned(),
             format!("--manifest={}", manifest.display()),
             format!("--lock={}", lock.display()),
             "--ecosystem=rust".to_owned(),
         ]);
-        assert_eq!(code, 0);
+        assert_eq!(result, Ok(()));
     }
 }

@@ -5,6 +5,8 @@ use crate::ecosystem::{
     beam, cc, dart, dlang, dotnet, fortran, go, haskell, js, julia, jvm, lua, ocaml,
     parse_paren_lock, perl, php, powershell, python, ruby, rust, swift, zig,
 };
+use dx_error::DxError;
+
 use crate::version::satisfies_for;
 use crate::{DepInfo, DepcheckError, Ecosystem, LockVersions, WorkspaceLocks};
 
@@ -102,7 +104,7 @@ pub fn cmd_consistency(
     lock: &Path,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
-) -> i32 {
+) -> Result<(), DxError> {
     check_pair(lock_pair(eco, manifest, lock), stdout, stderr)
 }
 
@@ -113,7 +115,7 @@ fn check_maps(
     cc_lock_sha: &BTreeMap<String, String>,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
-) -> i32 {
+) -> Result<(), DxError> {
     let mut failures = Vec::new();
     for (name, info) in deps {
         let key = if info.package.is_empty() {
@@ -185,19 +187,28 @@ fn report(
     failures: &[String],
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
-) -> i32 {
+) -> Result<(), DxError> {
     if !failures.is_empty() {
         for failure in failures {
             let _ = writeln!(stderr, "depcheck: FAIL: consistency: {failure}");
         }
-        return 1;
+        return Err(DxError::failure(format!(
+            "{} consistency failures ({})",
+            failures.len(),
+            eco.name()
+        )));
     }
     let _ = writeln!(
         stdout,
         "depcheck: OK: consistency: {declared} declarations match lock ({})",
         eco.name()
     );
-    0
+    Ok(())
+}
+
+pub(crate) fn reported(stderr: &mut dyn std::fmt::Write, error: DxError) -> DxError {
+    let _ = writeln!(stderr, "depcheck: ERROR: {error}");
+    error
 }
 
 fn check_pnpm(
@@ -220,28 +231,26 @@ pub(crate) fn check_pair(
     pair: Pair<'_>,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
-) -> i32 {
+) -> Result<(), DxError> {
     if !pair.manifest.exists() {
-        let _ = writeln!(
+        return Err(reported(
             stderr,
-            "depcheck: ERROR: manifest missing: {}",
-            pair.manifest.display()
-        );
-        return 2;
+            DxError::usage(format!("manifest missing: {}", pair.manifest.display())),
+        ));
     }
     if !pair.lock.exists() {
-        let _ = writeln!(
+        return Err(reported(
             stderr,
-            "depcheck: ERROR: lock missing: {} (declare lock inputs, do not skip)",
-            pair.lock.display()
-        );
-        return 2;
+            DxError::usage(format!(
+                "lock missing: {} (declare lock inputs, do not skip)",
+                pair.lock.display()
+            )),
+        ));
     }
     let mut deps = match (pair.load_deps)(pair.eco, pair.manifest) {
         Ok(deps) => deps,
         Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
+            return Err(reported(stderr, err.into()));
         }
     };
     if matches!(pair.eco, Ecosystem::Js | Ecosystem::Ts) {
@@ -250,17 +259,13 @@ pub(crate) fn check_pair(
     if matches!(pair.eco, Ecosystem::Js | Ecosystem::Ts) {
         return match check_pnpm(&deps, pair.manifest, pair.lock) {
             Ok(failures) => report(pair.eco, deps.len(), &failures, stdout, stderr),
-            Err(err) => {
-                let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-                2
-            }
+            Err(err) => Err(reported(stderr, err.into())),
         };
     }
     let pkgs = match (pair.load_pkgs)(pair.eco, pair.lock) {
         Ok(pkgs) => pkgs,
         Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
+            return Err(reported(stderr, err.into()));
         }
     };
     let cc_lock_sha = if pair.eco == Ecosystem::Cc {
@@ -286,9 +291,9 @@ pub fn cmd_locks(
     locks: &WorkspaceLocks,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
-) -> i32 {
-    let mut worst = 0;
-    for code in [
+) -> Result<(), DxError> {
+    let mut worst: Option<DxError> = None;
+    for result in [
         check_pair(
             lock_pair(Ecosystem::Rust, locks.cargo_manifest, locks.cargo_lock),
             stdout,
@@ -331,7 +336,13 @@ pub fn cmd_locks(
             stderr,
         ),
     ] {
-        worst = worst.max(code);
+        if let Err(error) = result
+            && worst
+                .as_ref()
+                .is_none_or(|w| error.exit_code() > w.exit_code())
+        {
+            worst = Some(error);
+        }
     }
-    worst
+    worst.map_or(Ok(()), Err)
 }

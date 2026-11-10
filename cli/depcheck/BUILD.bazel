@@ -51,6 +51,7 @@ rust_library(
         package_name = "cli/dx_depcheck",
         normal = True,
     ) + [
+        "//cli/error:dx_error",
         "//cli/path:dx_path",
         "//libs/gomod:dx_gomod",
     ],
@@ -116,6 +117,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/error:dx_error",
         "//libs/gomod:dx_gomod",
     ],
 )

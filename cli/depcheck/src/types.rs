@@ -185,3 +185,15 @@ pub struct WorkspaceLocks<'a> {
     pub ruby_manifest: &'a Path,
     pub ruby_lock: &'a Path,
 }
+
+impl From<DepcheckError> for dx_error::DxError {
+    fn from(error: DepcheckError) -> Self {
+        match error {
+            DepcheckError::UnknownEcosystem(_) => Self::usage(error.to_string()),
+            DepcheckError::ManifestIo(_) | DepcheckError::LockIo(_) => {
+                Self::infra(error.to_string())
+            }
+            _ => Self::failure(error.to_string()),
+        }
+    }
+}

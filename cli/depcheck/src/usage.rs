@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+use dx_error::DxError;
+
+use crate::consistency::reported;
 use crate::{DepcheckError, Ecosystem};
 
 fn collect_sources(root: &Path, nested: Option<&str>) -> Vec<PathBuf> {
@@ -673,28 +676,23 @@ pub fn cmd_usage(
     sources: &Path,
     stdout: &mut dyn std::fmt::Write,
     stderr: &mut dyn std::fmt::Write,
-) -> i32 {
+) -> Result<(), DxError> {
     if !manifest.exists() {
-        let _ = writeln!(
+        return Err(reported(
             stderr,
-            "depcheck: ERROR: manifest missing: {}",
-            manifest.display()
-        );
-        return 2;
+            DxError::usage(format!("manifest missing: {}", manifest.display())),
+        ));
     }
     if !sources.exists() {
-        let _ = writeln!(
+        return Err(reported(
             stderr,
-            "depcheck: ERROR: sources missing: {}",
-            sources.display()
-        );
-        return 2;
+            DxError::usage(format!("sources missing: {}", sources.display())),
+        ));
     }
     let mut deps = match crate::consistency::load_manifest(eco, manifest) {
         Ok(deps) => deps,
         Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
+            return Err(reported(stderr, err.into()));
         }
     };
     if matches!(eco, Ecosystem::Js | Ecosystem::Ts) {
@@ -704,8 +702,7 @@ pub fn cmd_usage(
     let usages = match find_usages(eco, sources, &dep_names) {
         Ok(usages) => usages,
         Err(err) => {
-            let _ = writeln!(stderr, "depcheck: ERROR: {err}");
-            return 2;
+            return Err(reported(stderr, err.into()));
         }
     };
     let mut failures = Vec::new();
@@ -752,7 +749,11 @@ pub fn cmd_usage(
         for failure in &failures {
             let _ = writeln!(stderr, "depcheck: FAIL: usage: {failure}");
         }
-        return 1;
+        return Err(DxError::failure(format!(
+            "{} usage failures ({})",
+            failures.len(),
+            eco.name()
+        )));
     }
     let _ = writeln!(
         stdout,
@@ -760,5 +761,5 @@ pub fn cmd_usage(
         deps.len(),
         eco.name()
     );
-    0
+    Ok(())
 }

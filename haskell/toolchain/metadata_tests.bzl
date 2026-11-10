@@ -77,7 +77,7 @@ def _cell_checks(name):
 def _checks():
     darwin_rts = drop_host_sdk_dirs(_DARWIN_RTS_CONF)
     settings = ghc_settings(_SETTINGS)
-    windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\""))
+    windows_settings = ghc_settings(_SETTINGS.replace("\"Merge objects command\", \"/usr/bin/ld.gold\"", "\"Merge objects command\", \"\"").replace("\"ar command\", \"/usr/bin/ar\"", "\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\"").replace("\"windres command\", \"/bin/false\"", "\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\""))
     checks = [
         expect_false("toolchain hub loads nothing", "load(" in hub_files()["toolchains/BUILD.bazel"]),
         expect_false("toolchain hub names no rules_haskell", "@rules_haskell" in hub_files()["toolchains/BUILD.bazel"]),
@@ -105,6 +105,7 @@ def _checks():
         expect_false("windows settings keep bundled mingw paths", host_path(windows_settings)),
         expect_contains("windows settings keep the bundled windres", windows_settings, "(\"windres command\", \"$topdir/../mingw//bin/llvm-windres.exe\")"),
         expect_contains("windows settings keep the bundled merge objects tool", windows_settings, "(\"Merge objects command\", \"\")"),
+        expect_contains("windows settings keep the bundled ar", windows_settings, "(\"ar command\", \"$topdir/../mingw//bin/llvm-ar.exe\")"),
         expect_true("a drive path is a host path", host_path("(\"ar command\", \"C:\\\\tools\\\\ar.exe\")")),
         expect_true("an absolute path is a host path", host_path("(\"ar command\", \"/usr/bin/ar\")")),
         expect_false("a tooldir path is not a host path", host_path("(\"ar command\", \"$tooldir/ar\")")),

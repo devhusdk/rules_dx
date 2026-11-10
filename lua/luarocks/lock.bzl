@@ -3,6 +3,8 @@
 Nothing here runs LuaRocks or Lua. The lock is read line by line and never evaluated.
 """
 
+load("//core:pins.bzl", _spoke_name = "spoke_name")
+
 _NAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"
 
 _MODULE_CHARS = _NAME_CHARS + "-"
@@ -11,7 +13,7 @@ _HEX_CHARS = "0123456789abcdef"
 
 def spoke_name(hub, rock):
     """Returns the repository name of one rock: <hub>__<rock> with - and . written as _."""
-    return hub + "__" + rock.replace("-", "_").replace(".", "_")
+    return _spoke_name(hub, rock, "-.")
 
 def module_path(module):
     """Returns the repository path of a Lua module name: a.b -> a/b.lua."""

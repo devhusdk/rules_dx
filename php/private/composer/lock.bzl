@@ -3,6 +3,8 @@
 Nothing here runs Composer or PHP. Gazelle and a future pin tool can reuse the same facts.
 """
 
+load("//core:pins.bzl", "pin_problem", _spoke_name = "spoke_name")
+
 _ARCHIVE_TYPES = ["zip", "tar"]
 
 _PLATFORM_PREFIXES = ("ext-", "lib-", "composer-")
@@ -17,7 +19,7 @@ def is_platform(requirement):
 
 def spoke_name(hub, package):
     """Returns the repository name of one package: <hub>__<vendor>__<name>."""
-    return hub + "__" + package.replace("/", "__")
+    return _spoke_name(hub, package, "/", "__")
 
 def archive_type(dist_type, url):
     """Returns the download_and_extract type of one dist."""
@@ -64,17 +66,6 @@ def manifest_entry(entry):
     out["type"] = out.get("type", "library")
     return out
 
-def pin_problem(entry, pin):
-    """Returns why a package has no usable digest ("" when it is pinned)."""
-    reference = entry.get("dist", {}).get("reference", "")
-    if not pin:
-        return "has no entry in composer.digests.json"
-    if pin.get("reference", "") != reference:
-        return "is pinned to reference %r but composer.lock has %r; re-pin it" % (pin.get("reference", ""), reference)
-    if len(pin.get("sha256", "")) != 64:
-        return "has no 64 hex character sha256; re-pin it"
-    return ""
-
 def analyze(hub, lock_text, sidecar_text):
     """Validates one lock and sidecar.
 
@@ -112,7 +103,7 @@ def analyze(hub, lock_text, sidecar_text):
             continue
         spokes[spoke] = name
         pin = pins.get(name)
-        problem = pin_problem(entry, pin)
+        problem = pin_problem("composer.digests.json", "reference", entry.get("dist", {}).get("reference", ""), "composer.lock", pin)
         urls = package_urls(entry, pin)
         packages[name] = struct(
             name = name,
@@ -161,13 +152,6 @@ def analyze(hub, lock_text, sidecar_text):
         if pin_name not in packages:
             errors.append("composer.digests.json pins %s, which is not in composer.lock; remove it" % pin_name)
     return struct(errors = errors, packages = resolved)
-
-def pin_entry_json(name, reference, sha256, urls = None):
-    """Returns the corrected sidecar entry to commit for one package."""
-    entry = {"reference": reference, "sha256": sha256}
-    if urls:
-        entry["urls"] = urls
-    return json.encode_indent({name: entry}, indent = "  ")
 
 def spoke_build(package, package_bzl, dep_spokes):
     """Returns the BUILD file of one package repository."""

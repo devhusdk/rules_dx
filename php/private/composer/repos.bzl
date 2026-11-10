@@ -1,32 +1,14 @@
 """Repository rule and hub for Composer packages fetched from composer.lock."""
 
+load("//core:pins.bzl", "fetch_and_extract", "pin_entry_json")
 load("//core:repo.bzl", "hub_repo")
-load(":lock.bzl", "analyze", "hub_package_build", "hub_root_build", "pin_entry_json", "spoke_build")
+load(":lock.bzl", "analyze", "hub_package_build", "hub_root_build", "spoke_build")
 
 _PACKAGE_BZL = str(Label("//php/private:php.bzl"))
 
 def _package_impl(rctx):
     attrs = rctx.attr
-    kwargs = {"url": attrs.urls, "output": "_archive"}
-    if attrs.sha256:
-        kwargs["sha256"] = attrs.sha256
-    download = rctx.download(**kwargs)
-    if attrs.unpinned:
-        rctx.delete("_archive")
-        fail("%s %s\nDownloaded sha256 is %s. Review it and commit to composer.digests.json:\n%s" % (
-            attrs.package,
-            attrs.unpinned,
-            download.sha256,
-            pin_entry_json(attrs.package, attrs.reference, download.sha256),
-        ))
-    rctx.extract("_archive", output = "_probe", type = attrs.archive_type)
-    top = rctx.path("_probe").readdir()
-    strip = ""
-    if len(top) == 1 and top[0].is_dir:
-        strip = top[0].basename
-    rctx.delete("_probe")
-    rctx.extract("_archive", strip_prefix = strip, type = attrs.archive_type)
-    rctx.delete("_archive")
+    fetch_and_extract(rctx, "_archive", lambda sha256: pin_entry_json(attrs.package, "reference", attrs.reference, sha256), type = attrs.archive_type)
     rctx.file("REPO.bazel", "")
     rctx.file("manifest.json", attrs.manifest + "\n")
     package = struct(name = attrs.package, version = attrs.version)

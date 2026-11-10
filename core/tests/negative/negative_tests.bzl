@@ -1,6 +1,6 @@
 """Negative demonstrations as green hermetic proofs."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_binary")
 load("//core:failure_test.bzl", "failure_test")
 load("//rust:defs.bzl", "rust_test")
 
@@ -16,7 +16,7 @@ def _red_manifest(name):
 
 def red_failing_checks(name):
     """Red unit runner with two wrong expects and one passing control."""
-    starlark_test(
+    starlark_binary(
         name = name,
         mode = "unit",
         checks = [
@@ -41,7 +41,7 @@ aspect_field transitive_count=0"""
 
 def red_missing_observation(name):
     """Red analysis runner with one wrong observation field."""
-    starlark_test(
+    starlark_binary(
         name = name,
         mode = "analysis",
         subjects = [":negative_subject"],
@@ -52,7 +52,7 @@ def red_missing_observation(name):
 
 def red_missing_fragment(name):
     """Red execution runner wanting one absent substring."""
-    starlark_test(
+    starlark_binary(
         name = name,
         mode = "execution",
         file_checks = {
@@ -117,7 +117,7 @@ def missing_fragment_demo(name):
     )
 
 def wrong_phase_demo(name):
-    starlark_test(
+    starlark_binary(
         name = name + "_subject",
         mode = "load",
         checks = [expect_equal("control that passes", 1, 1)],
@@ -136,7 +136,7 @@ def empty_file_blocks_demo(name):
         srcs = [],
         tags = ["manual"],
     )
-    starlark_test(
+    starlark_binary(
         name = name + "_subject",
         mode = "execution",
         file_blocks = {":" + name + "_files": ["never read"]},

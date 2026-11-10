@@ -427,6 +427,37 @@ _starlark_execution_test = rule(
     attrs = _common_attrs,
 )
 
+_starlark_load_binary = rule(
+    implementation = _load_test_impl,
+    executable = True,
+    attrs = _common_attrs,
+)
+
+_starlark_unit_binary = rule(
+    implementation = _unit_test_impl,
+    executable = True,
+    attrs = _common_attrs,
+)
+
+_starlark_analysis_binary = rule(
+    implementation = _analysis_test_impl,
+    executable = True,
+    attrs = _common_attrs,
+)
+
+_starlark_execution_binary = rule(
+    implementation = _execution_test_impl,
+    executable = True,
+    attrs = _common_attrs,
+)
+
+_BINARIES = {
+    "analysis": _starlark_analysis_binary,
+    "execution": _starlark_execution_binary,
+    "load": _starlark_load_binary,
+    "unit": _starlark_unit_binary,
+}
+
 _MODES = {
     "analysis": _starlark_analysis_test,
     "execution": _starlark_execution_test,
@@ -441,6 +472,24 @@ def starlark_test(name, *, mode, checks = [], subjects = [], expected_observatio
              ", ".join(sorted(_MODES.keys())))
     kwargs.setdefault("size", "small")
     _MODES[mode](
+        name = name,
+        checks = checks,
+        subjects = subjects,
+        expected_observations = expected_observations,
+        windows_expected_observations = windows_expected_observations,
+        file_checks = file_checks,
+        file_line_endings = file_line_endings,
+        file_blocks = {label: json.encode(blocks) for label, blocks in file_blocks.items()},
+        **kwargs
+    )
+
+def starlark_binary(name, *, mode, checks = [], subjects = [], expected_observations = "", windows_expected_observations = "", file_checks = {}, file_blocks = {}, file_line_endings = {}, **kwargs):
+    """Instantiates the harness of starlark_test as a non-test executable."""
+    if mode not in _BINARIES:
+        fail("starlark_binary: unknown mode '" + mode + "': want one of " +
+             ", ".join(sorted(_BINARIES.keys())))
+    kwargs.setdefault("testonly", True)
+    _BINARIES[mode](
         name = name,
         checks = checks,
         subjects = subjects,

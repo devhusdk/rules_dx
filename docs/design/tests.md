@@ -62,6 +62,12 @@ A test is one of four kinds. Pick the first kind that can prove the behaviour.
 - A unit, analysis or in-graph fixture test starts no Bazel server.
 - A change that adds a nested test states its measured time.
 
+## Expected failures
+
+- A target that must fail is a `testonly` non-test executable such as `starlark_binary`.
+- A passing test runs that executable from runfiles and asserts its exit code and output.
+- An analysis failure is asserted with `failure_test` on the non-test target.
+
 ## Duplicates
 
 - A test that proves what another test already proves is deleted.

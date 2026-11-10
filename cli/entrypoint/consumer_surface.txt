@@ -1,3 +1,4 @@
+android:defs.bzl
 ansible:defs.bzl
 api_spec:defs.bzl
 asciidoc:defs.bzl
@@ -125,3 +126,6 @@ tools/docs:aspect.bzl
 typescript:defs.bzl
 vue:defs.bzl
 zig:defs.bzl
+apple:defs.bzl
+cuda:defs.bzl
+wasi:defs.bzl

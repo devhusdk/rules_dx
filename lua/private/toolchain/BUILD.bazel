@@ -1,4 +1,4 @@
-load("//modules:versions.bzl", "LUA_VERSION")
+load("//core/modules:versions.bzl", "LUA_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "lua_metadata_tests")
 load(":toolchain.bzl", "lua_toolchain")

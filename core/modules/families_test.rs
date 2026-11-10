@@ -277,7 +277,7 @@ fn moved_problems(
 
 #[test]
 fn modules_are_unique_and_named_rules_dx() {
-    let problems = module_problems(&dx_testing::read_runfiles("modules/families.json"));
+    let problems = module_problems(&dx_testing::read_runfiles("core/modules/families.json"));
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
 
@@ -297,7 +297,7 @@ fn every_item_is_in_exactly_one_family() {
     let root = dx_testing::rules_dx_source();
     let module =
         ModuleFile::parse(&dx_testing::read_runfiles("MODULE.bazel")).expect("MODULE.bazel");
-    let kinds = families(&dx_testing::read_runfiles("modules/families.json"));
+    let kinds = families(&dx_testing::read_runfiles("core/modules/families.json"));
     let mut actual = module_items(&module);
     actual.insert("dirs", root_dirs(&root));
     actual.insert("gazelle", gazelle_languages(&module));
@@ -305,7 +305,7 @@ fn every_item_is_in_exactly_one_family() {
         "aspects",
         aspect_names(&dx_testing::read_runfiles("quality/testdata/all_languages.bzl")),
     );
-    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     let mut problems = extension_problems(&kinds);
     for (key, items) in &actual {
         problems.extend(violations(key, &root_kinds(&kinds, &paths)[key], items));
@@ -343,7 +343,7 @@ fn weightless_families(kinds: &BTreeMap<&'static str, Kind>) -> Vec<String> {
 
 #[test]
 fn every_family_but_core_adds_to_the_module_graph() {
-    let kinds = families(&dx_testing::read_runfiles("modules/families.json"));
+    let kinds = families(&dx_testing::read_runfiles("core/modules/families.json"));
     assert_eq!(
         weightless_families(&kinds),
         Vec::<String>::new(),
@@ -449,7 +449,7 @@ mod tests {
 #[test]
 fn moved_families_vendor_the_overrides_dx_renders() {
     let root = dx_testing::rules_dx_source();
-    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     for (family, path) in &paths {
         assert_eq!(
             dx_adopt::check_overrides(&root.join(path)),
@@ -505,7 +505,7 @@ fn without_corpus(dir: &std::path::Path) -> Vec<String> {
 #[test]
 fn moved_families_have_corpus_starlark_in_every_package() {
     let root = dx_testing::rules_dx_source();
-    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     for (family, path) in &paths {
         let dir = root.join(path);
         let missing = without_corpus(&dir);
@@ -593,7 +593,7 @@ fn family_load(family: &str) -> String {
 #[test]
 fn family_files_define_aspects_listed_in_families_json() {
     let json: serde_json::Value =
-        serde_json::from_str(&dx_testing::read_runfiles("modules/families.json")).expect("json");
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json")).expect("json");
     let listed: BTreeSet<&str> = json["families"]
         .as_object()
         .expect("families")
@@ -713,7 +713,7 @@ use_repo(other, "foreign")
 
 #[test]
 fn family_files_load_only_their_own_repos() {
-    let json = dx_testing::read_runfiles("modules/families.json");
+    let json = dx_testing::read_runfiles("core/modules/families.json");
     let module =
         ModuleFile::parse(&dx_testing::read_runfiles("MODULE.bazel")).expect("MODULE.bazel");
     let mut problems = Vec::new();
@@ -751,7 +751,7 @@ fn missing_check_targets(family: &str, build_file: Option<&str>) -> Vec<String> 
 #[test]
 fn moved_families_declare_the_source_check_targets() {
     let root = dx_testing::rules_dx_source();
-    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     let mut problems = Vec::new();
     for (family, path) in &paths {
         let dir = root.join(path);
@@ -836,7 +836,7 @@ fn package_list_problems(family: &str, build_file: &str, packages: &[String]) ->
 #[test]
 fn moved_families_list_every_package_in_the_source_checks() {
     let root = dx_testing::rules_dx_source();
-    let paths = family_paths(&dx_testing::read_runfiles("modules/families.json"));
+    let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     let mut problems = Vec::new();
     for (family, path) in &paths {
         let dir = root.join(path);

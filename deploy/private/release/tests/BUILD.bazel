@@ -57,7 +57,7 @@ rust_test(
         "//.bcr:presubmit.yml",
         "//:module_srcs",
         "//bcr_test_module:files",
-        "//modules:core_budget.json",
+        "//core/modules:core_budget.json",
         "//patches/gomod-parser:glued_comment.patch",
         "//patches/ring:clang_cl_aarch64_windows.patch",
         "//patches/ring:msvc_fiat_include_path.patch",
@@ -69,7 +69,7 @@ rust_test(
         "//patches/rules_py:venv_bin_files.patch",
     ] + NESTED_BAZEL_DATA,
     env = {
-        "DX_CORE_BUDGET": "$(rootpath //modules:core_budget.json)",
+        "DX_CORE_BUDGET": "$(rootpath //core/modules:core_budget.json)",
         "RUST_TEST_THREADS": "1",
     } | NESTED_BAZEL_NETWORK_ENV,
     env_inherit = NESTED_BAZEL_ENV_INHERIT,

@@ -23,7 +23,7 @@ pub struct Pins {
     pub tested: String,
 }
 
-/// `{module: {floor, tested}}`, as `//modules:consumer_deps_json` writes it.
+/// `{module: {floor, tested}}`, as `//core/modules:consumer_deps_json` writes it.
 pub type Table = BTreeMap<String, Pins>;
 
 /// Module name to the version a run forces it to.

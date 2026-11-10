@@ -1,5 +1,5 @@
 {
-  "$schema": "../modules/lang.schema.json",
+  "$schema": "../core/modules/lang.schema.json",
   "name": "api_spec",
   "title": "api_spec",
   "family": "generation",

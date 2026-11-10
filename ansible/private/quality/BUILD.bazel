@@ -1,6 +1,6 @@
 load("//quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//ansible:__subpackages__", "//modules:__pkg__", "//quality:__subpackages__", "//tools/ci:__pkg__"])
+package(default_visibility = ["//ansible:__subpackages__", "//core/modules:__pkg__", "//quality:__subpackages__", "//tools/ci:__pkg__"])
 
 exports_files([
     "ansible.bzl",

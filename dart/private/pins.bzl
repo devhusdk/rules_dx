@@ -1,6 +1,6 @@
 """Pinned rules_dart archive for the pub extension."""
 
-load("//modules:versions.bzl", "RULES_DART_VERSION")
+load("//core/modules:versions.bzl", "RULES_DART_VERSION")
 
 RULES_DART_SHA256 = "e7d9271bb10e5ed0a20415a70a120b367a22d8dd7afe7b0368810f1a08f43170"
 

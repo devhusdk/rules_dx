@@ -661,12 +661,12 @@ func TestGenerateCargoOmitsDefaultEdition(t *testing.T) {
 }
 
 func TestRulesDxEditionMatchesVersions(t *testing.T) {
-	content, err := os.ReadFile("../../modules/versions.bzl")
+	content, err := os.ReadFile("../../core/modules/versions.bzl")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if want := "RUST_EDITION = \"" + rulesDxEdition + "\"\n"; !strings.Contains(string(content), want) {
-		t.Errorf("modules/versions.bzl does not contain %q", want)
+		t.Errorf("core/modules/versions.bzl does not contain %q", want)
 	}
 }
 

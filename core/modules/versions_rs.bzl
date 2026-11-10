@@ -37,7 +37,7 @@ _CONSTS = [
 
 def _versions_rs_impl(ctx):
     out = ctx.actions.declare_file(ctx.label.name + ".rs")
-    lines = ["//! Versions from `modules/versions.bzl`.", ""]
+    lines = ["//! Versions from `core/modules/versions.bzl`.", ""]
     for name, value in _CONSTS:
         lines.append("pub const {}: &str = {};".format(name, json.encode(value)))
     ctx.actions.write(out, "\n".join(lines) + "\n")

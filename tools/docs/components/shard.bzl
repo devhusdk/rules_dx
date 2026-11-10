@@ -1,6 +1,6 @@
 """Component API reference shard action, free of any JavaScript rule set."""
 
-load("//modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//core/modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 
 META_SCHEMA = "dx-component-meta/1"

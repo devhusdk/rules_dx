@@ -43,7 +43,7 @@ fn manifest(name: &str, title: &str) -> String {
         .collect::<Vec<_>>()
         .join(",\n");
     format!(
-        "{{\n  \"$schema\": \"../modules/lang.schema.json\",\n  \"name\": \"{name}\",\n  \"title\": \"{title}\",\n  \"family\": \"core\",\n  \"ecosystems\": [],\n  \"manifests\": [],\n  \"lockfiles\": [],\n  \"tools\": [],\n  \"platforms\": [\n{platforms}\n  ],\n  \"pins\": [\n    \"pins.json\"\n  ],\n  \"entry_points\": []\n}}\n"
+        "{{\n  \"$schema\": \"../core/modules/lang.schema.json\",\n  \"name\": \"{name}\",\n  \"title\": \"{title}\",\n  \"family\": \"core\",\n  \"ecosystems\": [],\n  \"manifests\": [],\n  \"lockfiles\": [],\n  \"tools\": [],\n  \"platforms\": [\n{platforms}\n  ],\n  \"pins\": [\n    \"pins.json\"\n  ],\n  \"entry_points\": []\n}}\n"
     )
 }
 
@@ -129,7 +129,7 @@ fn scaffold(root: &Path, name: &str, title: &str) -> Result<Vec<String>, String>
     if dir.exists() {
         return Err(format!("{name}: already exists"));
     }
-    let families_path = root.join("modules/families.json");
+    let families_path = root.join("core/modules/families.json");
     let families = fs::read_to_string(&families_path)
         .map_err(|error| format!("{}: {error}", families_path.display()))?;
     let updated = register(&families, name)?;
@@ -144,7 +144,7 @@ fn scaffold(root: &Path, name: &str, title: &str) -> Result<Vec<String>, String>
     }
     fs::write(&families_path, updated)
         .map_err(|error| format!("{}: {error}", families_path.display()))?;
-    written.push("modules/families.json".to_owned());
+    written.push("core/modules/families.json".to_owned());
     Ok(written)
 }
 
@@ -183,8 +183,8 @@ mod tests {
     fn scratch(tag: &str) -> std::path::PathBuf {
         let root = std::env::temp_dir().join(format!("new_language_{tag}_{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
-        fs::create_dir_all(root.join("modules")).expect("modules");
-        fs::write(root.join("modules/families.json"), FAMILIES).expect("families");
+        fs::create_dir_all(root.join("core/modules")).expect("modules");
+        fs::write(root.join("core/modules/families.json"), FAMILIES).expect("families");
         root
     }
 
@@ -204,8 +204,8 @@ mod tests {
         ] {
             assert!(root.join("mylang").join(path).is_file(), "{path}");
         }
-        assert!(written.contains(&"modules/families.json".to_owned()));
-        let families = fs::read_to_string(root.join("modules/families.json")).expect("read");
+        assert!(written.contains(&"core/modules/families.json".to_owned()));
+        let families = fs::read_to_string(root.join("core/modules/families.json")).expect("read");
         assert!(families.contains("\"ansible\",\n        \"mylang\",\n        \"zig\"\n"));
         let lang = fs::read_to_string(root.join("mylang/lang.json")).expect("lang");
         assert!(lang.contains("\"name\": \"mylang\""));

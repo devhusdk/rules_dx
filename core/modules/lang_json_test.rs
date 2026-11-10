@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-const NON_LANGUAGE: [&str; 34] = [
+const NON_LANGUAGE: [&str; 33] = [
     "appimage",
     "bcr_test_module",
     "bundle",
@@ -25,7 +25,6 @@ const NON_LANGUAGE: [&str; 34] = [
     "ios",
     "libs",
     "macos",
-    "modules",
     "packaging",
     "patches",
     "platforms",
@@ -160,10 +159,10 @@ fn problems(root: &Path, dir: &Path, schema: &Value) -> Vec<String> {
 #[test]
 fn every_language_dir_has_a_valid_lang_json() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("modules/families.json"))
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
         .expect("families.json");
     let schema: Value =
-        serde_json::from_str(&dx_testing::read_runfiles("modules/lang.schema.json"))
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
             .expect("lang.schema.json");
     let dirs = language_dirs(&root, &families);
     assert!(dirs.len() > 40, "found only {} language dirs", dirs.len());
@@ -177,7 +176,7 @@ fn every_language_dir_has_a_valid_lang_json() {
 #[test]
 fn schema_rejects_a_bad_manifest() {
     let schema: Value =
-        serde_json::from_str(&dx_testing::read_runfiles("modules/lang.schema.json"))
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
             .expect("schema");
     let bad =
         serde_json::json!({"name": "x", "extra": 1, "platforms": ["beos"], "tools": ["a", "a"]});
@@ -191,7 +190,7 @@ fn schema_rejects_a_bad_manifest() {
 #[test]
 fn ecosystems_are_dx_ids_and_every_id_is_used() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("modules/families.json"))
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
         .expect("families.json");
     let table: Value =
         serde_json::from_str(&dx_testing::read_runfiles("cli/ecosystems/ecosystems.json"))

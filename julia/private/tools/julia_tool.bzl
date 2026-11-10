@@ -1,7 +1,7 @@
 """Runs a Julia binary under the Julia version the formatter Manifest was resolved for."""
 
 load("@rules_julia//julia:julia_info.bzl", "JuliaInfo")
-load("//modules:versions.bzl", "JULIA_VERSION")
+load("//core/modules:versions.bzl", "JULIA_VERSION")
 
 _VERSION_SETTING = "@rules_julia//julia/settings:version"
 

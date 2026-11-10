@@ -107,7 +107,7 @@ exports_files(
         "//quality:__pkg__",
         "//quality:__subpackages__",
         "//tools/ci:__pkg__",
-        "//modules:__pkg__",
+        "//core/modules:__pkg__",
     ],
 )
 

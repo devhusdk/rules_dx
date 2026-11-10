@@ -1,11 +1,11 @@
-//! The language families of `modules/families.json`.
+//! The language families of `core/modules/families.json`.
 
 use std::collections::BTreeSet;
 use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-const TABLE: &str = include_str!("../../../modules/families.json");
+const TABLE: &str = include_str!("../../../core/modules/families.json");
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]
 #[serde(default)]

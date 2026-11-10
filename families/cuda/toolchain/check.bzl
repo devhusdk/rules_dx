@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaToolkitInfo")
-load("@rules_dx//modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION", "CUDA_VERSION", "cuda_qualified_cells")
+load("@rules_dx//core/modules:cuda.bzl", "CUDA_ARCHS", "CUDA_CELLS", "CUDA_REDIST_VERSION", "CUDA_VERSION", "cuda_qualified_cells")
 
 CudaLicenseInfo = provider(
     doc = "Whether the CUDA Toolkit EULA is accepted.",

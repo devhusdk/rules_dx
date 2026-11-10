@@ -390,7 +390,7 @@ rust_test(
     data = glob(["src/**/*.rs"]) + [
         ":dx",
         "//:MODULE.bazel",
-        "//modules:versions.bzl",
+        "//core/modules:versions.bzl",
         "//rust/tests/fixtures/consumer_web:BUILD.bazel",
         "//rust/tests/fixtures/consumer_web:src/browser_test.rs",
         "//rust/tests/fixtures/consumer_web:src/lib.rs",

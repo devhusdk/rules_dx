@@ -27,7 +27,7 @@ Read `docs/design/layout.md` before you add or move a language.
 bazel run //tools/new_language -- <lang> [title]
 ```
 
-It creates `<lang>/` with `defs.bzl`, `extensions.bzl`, `BUILD.bazel`, `lang.json`, `pins.json`, `private/` and `tests/`, and adds the directory to `modules/families.json`. Fill in `lang.json`, then run `bazel run //tools/docs/support_matrix:update`.
+It creates `<lang>/` with `defs.bzl`, `extensions.bzl`, `BUILD.bazel`, `lang.json`, `pins.json`, `private/` and `tests/`, and adds the directory to `core/modules/families.json`. Fill in `lang.json`, then run `bazel run //tools/docs/support_matrix:update`.
 
 ## Remote cache
 
@@ -67,13 +67,13 @@ Filters: [user issues](https://github.com/devhusdk/rules_dx/issues?q=is%3Aissue+
 ## Dependency floors
 
 Every consumer-facing (non-dev) `bazel_dep` in the root `MODULE.bazel` has its
-versions in `modules/versions.bzl`:
+versions in `core/modules/versions.bzl`:
 
 - `<DEP>_VERSION` when the floor and the tested version are the same.
 - `FLOOR_<DEP>` and `TESTED_<DEP>` when they differ.
 
 The floor equals the tested version for every consumer dep (#6016): only the
-tested versions are supported. `//modules:consumer_deps_test` fails when they differ.
+tested versions are supported. `//core/modules:consumer_deps_test` fails when they differ.
 
 A `# floor: equals tested` comment directly above each `bazel_dep` marks this.
 Tools parse that marker, so keep it as written. To bump a dep, set the `bazel_dep`
@@ -85,7 +85,7 @@ and the `single_version_override` to the same version:
 
 rules_dx is a non-root module in every consumer, so its root-only
 `single_version_override`s do not apply there and a consumer resolves the floors.
-`//modules:consumer_deps_test` keeps the hermetic consumer `module_fragment.bazel`
+`//core/modules:consumer_deps_test` keeps the hermetic consumer `module_fragment.bazel`
 files from pinning a consumer dep above its floor.
 
 `.dx/local/launcher` is a copy (about 50 MB) of the last built dx, kept for worktree hooks and failed rebuilds. `tools/dx worktree add`, `release` and `hook` run the last built dx without rebuilding, so they never wait on Bazel. Any other `tools/dx` command (or `bazel build //:dx`) picks up dx source changes. You can delete it any time and `tools/dx` recreates it. `tools/dx worktree prune --apply --bases` drops it in free slots. Both launchers run dx from this copy, so a running dx never locks bazel-bin; `dx.exe.old.*` files may remain while an old dx is still running.

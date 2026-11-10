@@ -132,7 +132,7 @@ RUST_CRATE_MANIFESTS = [
     "//tools/testing/lsp:Cargo.toml",
     "//tools/testing/floor:Cargo.toml",
     "//tools/testing/starters:Cargo.toml",
-    "//modules:Cargo.toml",
+    "//core/modules:Cargo.toml",
     "//wasi/testing:Cargo.toml",
     "//api_spec/private/codegen:Cargo.toml",
     "//appimage/packer:Cargo.toml",

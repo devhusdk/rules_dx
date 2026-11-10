@@ -22,7 +22,7 @@ dx upgrade [--apply] [--to <version>]
 
 Scopes: none. Positional scopes are rejected.
 
-Without `--to`, `dx upgrade` reads `modules/rules_dx/metadata.json` from the registry and uses its newest stable version, so the check prints `pin <old> can move to <new>` with the `--apply` command. If the registry cannot be reached it fails with `upgrade needs --to <version>`.
+Without `--to`, `dx upgrade` reads `core/modules/rules_dx/metadata.json` from the registry and uses its newest stable version, so the check prints `pin <old> can move to <new>` with the `--apply` command. If the registry cannot be reached it fails with `upgrade needs --to <version>`.
 
 ## What `--apply` Writes
 

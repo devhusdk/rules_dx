@@ -377,7 +377,7 @@ func (d cargoDependency) androidOnly() bool {
 	return d.platformConstraint() == androidPlatformConstraint
 }
 
-// rulesDxEdition must match RUST_EDITION in modules/versions.bzl, the
+// rulesDxEdition must match RUST_EDITION in core/modules/versions.bzl, the
 // edition the rules_dx Rust macros use when none is set.
 const rulesDxEdition = "2024"
 

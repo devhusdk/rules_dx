@@ -1,4 +1,4 @@
-load("//modules:python.bzl", "PYTHON_VERSION")
+load("//core/modules:python.bzl", "PYTHON_VERSION")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 load("//tools/ide:ide_tool.bzl", "ide_python_tool")

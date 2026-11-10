@@ -1,6 +1,6 @@
 """Pinned rules_dotnet and libfuzzer-dotnet archives."""
 
-load("//modules:versions.bzl", "RULES_DOTNET_VERSION")
+load("//core/modules:versions.bzl", "RULES_DOTNET_VERSION")
 
 RULES_DOTNET_SHA256 = "ce35dad18db31cd68323b568dc09c689cc6d75ec16eba1510ccd128bb5f1264e"
 

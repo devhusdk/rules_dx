@@ -777,7 +777,7 @@ rust_test(
         "//lua/private:corpus_starlark",
         "//make/private:corpus_starlark",
         "//mdx/private:corpus_starlark",
-        "//modules:corpus_starlark",
+        "//core/modules:corpus_starlark",
         "//msix/private:corpus_starlark",
         "//msix/private/toolchains:corpus_starlark",
         "//msix/tests:corpus_starlark",

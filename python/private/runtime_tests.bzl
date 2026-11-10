@@ -1,8 +1,8 @@
 """Python runtime ownership gate for the coherent setup keep review."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load("//modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_HUB = "UV_HUB", _MOD_PY_LOCKS = "UV_LOCKS", _MOD_PY_PROJECTS = "UV_PROJECTS", _MOD_PY_REPIN = "UV_REPIN_DIRS", _MOD_PY_VERSION = "PYTHON_VERSION", _MOD_RULES_PY = "RULES_PYTHON_VERSION")
-load("//modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
+load("//core/modules:python.bzl", _MOD_ASPECT_PY = "RULES_PY_VERSION", _MOD_PY_HUB = "UV_HUB", _MOD_PY_LOCKS = "UV_LOCKS", _MOD_PY_PROJECTS = "UV_PROJECTS", _MOD_PY_REPIN = "UV_REPIN_DIRS", _MOD_PY_VERSION = "PYTHON_VERSION", _MOD_RULES_PY = "RULES_PYTHON_VERSION")
+load("//core/modules:versions.bzl", _ASPECT_PY = "RULES_PY_VERSION", _PY = "PYTHON_VERSION", _RULES_PY = "RULES_PYTHON_VERSION")
 
 _UV_PROJECTS_BLOCK = """UV_PROJECTS = [
     "//quality/tools/python:pyproject.toml",
@@ -76,7 +76,7 @@ def python_runtime_unit_tests(name):
             ),
         ],
         file_blocks = {
-            "//modules:python.bzl": [_UV_PROJECTS_BLOCK, _UV_LOCKS_BLOCK],
+            "//core/modules:python.bzl": [_UV_PROJECTS_BLOCK, _UV_LOCKS_BLOCK],
         },
         file_checks = {
             "//:MODULE.bazel": "python_version = \"3.12\"",

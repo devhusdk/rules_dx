@@ -35,11 +35,11 @@ LINUX_MACOS_WINDOWS = select({
 
 MANIFEST_HOSTS = MANIFEST_COMPATIBLE_WITH
 
-# The fragments of the hermetic consumers, read by //modules:consumer_deps_test.
+# The fragments of the hermetic consumers, read by //core/modules:consumer_deps_test.
 filegroup(
     name = "module_fragments",
     srcs = glob(["consumers/*/module_fragment.bazel"]),
-    visibility = ["//modules:__pkg__"],
+    visibility = ["//core/modules:__pkg__"],
 )
 
 rust_library(

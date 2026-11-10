@@ -150,7 +150,7 @@ fn fragment_violations(source: &str, label: &str, table: &Table) -> Vec<String> 
 #[test]
 fn consumer_fragments_pin_consumer_deps_at_their_floors() {
     let table = table(&dx_testing::read_runfiles(
-        "modules/consumer_deps_json.json",
+        "core/modules/consumer_deps_json.json",
     ));
     let probe = dx_testing::resolve_runfiles(
         "tools/testing/hermetic/consumers/cpp_rust/module_fragment.bazel",
@@ -199,7 +199,7 @@ fn a_fragment_above_its_floor_fails() {
 fn root_module_matches_the_consumer_table() {
     let source = dx_testing::read_runfiles("MODULE.bazel");
     let table = table(&dx_testing::read_runfiles(
-        "modules/consumer_deps_json.json",
+        "core/modules/consumer_deps_json.json",
     ));
     assert!(!table.is_empty(), "CONSUMER_BAZEL_DEPS is empty");
     let problems = violations(&source, &table);

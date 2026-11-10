@@ -3,8 +3,8 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 
 package(default_visibility = [
+    "//core/modules:__pkg__",
     "//deploy/private/release/tests:__pkg__",
-    "//modules:__pkg__",
     "//tools/testing/hermetic:__pkg__",
 ])
 

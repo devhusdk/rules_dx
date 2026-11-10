@@ -4,7 +4,7 @@ load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
 package(default_visibility = VIS_CLI_TOOLS + [
-    "//modules:__pkg__",
+    "//core/modules:__pkg__",
     "//tools/testing/floor:__pkg__",
 ])
 

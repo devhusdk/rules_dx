@@ -1,7 +1,7 @@
 """Component API reference shards built from the pinned component metadata tools."""
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
-load("//modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
+load("//core/modules:versions.bzl", "ASTRO_COMPILER_VERSION", "MDX_VERSION", "SVELTE2TSX_VERSION", "SVELTE_VERSION", "TYPESCRIPT_VERSION", "VUE_COMPONENT_META_VERSION")
 load("//tools/docs/components:shard.bzl", "component_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
 

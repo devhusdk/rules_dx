@@ -1,5 +1,5 @@
 {
-  "$schema": "../modules/lang.schema.json",
+  "$schema": "../core/modules/lang.schema.json",
   "name": "dotnet",
   "title": "dotnet",
   "family": "core",

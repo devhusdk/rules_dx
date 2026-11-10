@@ -15,6 +15,7 @@ python_test(
     main = "rule_names.py",
     runner = "plain",
     tags = [
+        "external",
         "local",
         "no-sandbox",
     ],

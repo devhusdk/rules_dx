@@ -19,6 +19,7 @@ python_test(
     main = "languages.py",
     runner = "plain",
     tags = [
+        "external",
         "local",
         "no-sandbox",
     ],

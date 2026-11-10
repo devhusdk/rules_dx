@@ -111,6 +111,7 @@ python_test(
     main = "macro_rows.py",
     runner = "plain",
     tags = [
+        "external",
         "local",
         "no-sandbox",
     ],

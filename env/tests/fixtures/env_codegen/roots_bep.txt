@@ -14,8 +14,7 @@ ties, and no timing claims are made per [ADR 0022]; cold proportional to
 the selected graph, warm via the persistent server plus action cache by
 design.
 
-Provenance: cli/roots roots_pattern_fixture plus roots_monolith_fixture
-with repository_roots_file plus roots_aggregate wiring; generation plus
+Provenance: generation plus
 env shard-emission fixtures with transitive aspect collection.
 
 Admitted-pairs evolution onboarding (issue #788): admitted-pairs evolution

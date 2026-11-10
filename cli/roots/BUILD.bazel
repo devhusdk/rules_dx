@@ -4,7 +4,6 @@ load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
-load(":roots.bzl", "repository_roots_file", "roots_aggregate")
 
 package(default_visibility = VIS_CLI)
 
@@ -33,23 +32,8 @@ rust_test(
 )
 
 exports_files([
-    "roots.bzl",
     "src/lib.rs",
 ])
-
-repository_roots_file(
-    name = "roots_pattern_fixture",
-    out = "roots_pattern_fixture.txt",
-    roots = ["//..."],
-)
-
-roots_aggregate(
-    name = "roots_monolith_fixture",
-    deps = [
-        "//dx:codegen",
-        "//dx:env",
-    ],
-)
 
 genquery(
     name = "sync_roots_rust",
@@ -98,7 +82,6 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
-        "roots.bzl",
     ],
     tags = ["corpus"],
     visibility = VIS_CLI + ["//tools/ci:__pkg__"],

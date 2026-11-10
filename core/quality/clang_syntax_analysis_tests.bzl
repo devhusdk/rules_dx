@@ -1,7 +1,7 @@
 """Analysis tests for the clang syntax aspect."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load(":clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
+load("//cc/private:clang_syntax.bzl", "ClangSyntaxInfo", "clang_syntax_aspect")
 load("//core/quality/testdata:all_languages.bzl", "real_cc_lint_aspect")
 
 def _windows_argv_impl(ctx):

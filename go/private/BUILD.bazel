@@ -28,6 +28,7 @@ real_source_target(
         "cgo.bzl",
         "cgo_tests.bzl",
         "defs.bzl",
+        "go_analysis.bzl",
     ],
     tags = ["corpus"],
 )

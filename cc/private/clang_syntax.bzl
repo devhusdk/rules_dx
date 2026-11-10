@@ -407,6 +407,6 @@ clang_syntax_aspect = aspect(
             providers = [QualityPolicyInfo],
         ),
         "_clang_tidy": attr.label(default = "@llvm//tools:clang-tidy", allow_single_file = True, cfg = "exec"),
-        "_clang_tidy_run": attr.label(default = "//core/quality:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),
+        "_clang_tidy_run": attr.label(default = "//cc/private:clang_tidy_run.sh", allow_single_file = True, cfg = "exec"),
     },
 )

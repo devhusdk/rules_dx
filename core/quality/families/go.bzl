@@ -2,7 +2,7 @@
 
 load("@rules_go//go:def.bzl", "GoArchive")
 load("//core/quality:family_hooks.bzl", "without")
-load("//core/quality:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
+load("//go/private:go_analysis.bzl", "GO_TOOLCHAIN_TYPE", "GoAnalysisInfo", "go_analysis_aspect", "go_lang_version")
 load("//core/quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect")
 
 TOOLS = {

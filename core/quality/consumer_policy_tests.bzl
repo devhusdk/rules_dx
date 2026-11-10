@@ -1,7 +1,7 @@
 """Analysis proofs for the consumer-selected workspace policy."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core/quality:clang_syntax.bzl", "clang_syntax_aspect")
+load("//cc/private:clang_syntax.bzl", "clang_syntax_aspect")
 load(
     "//core/quality/testdata:all_languages.bzl",
     "real_cc_format_aspect",

@@ -4,9 +4,8 @@ load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//rust:defs.bzl", "rust_test")
-load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
-load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")
+load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
 load(":fsc_tests.bzl", "fsc_unit_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
@@ -38,7 +37,6 @@ exports_files([
     "BUILD.bazel",
     "adapters.bzl",
     "applicability.bzl",
-    "clang_tidy_run.sh",
     "compile_check_exec.sh",
     "coverage_sources.bzl",
     "dart_context.bzl",
@@ -624,16 +622,7 @@ alias(
     actual = "//core/quality/runner:update_tools",
 )
 
-clang_syntax_unit_tests(name = "clang_syntax_unit")
-
 clang_syntax_analysis_tests(name = "clang_syntax_analysis")
-
-sh_test(
-    name = "clang_tidy_run_test",
-    srcs = ["clang_tidy_run_test.sh"],
-    args = ["$(location :clang_tidy_run.sh)"],
-    data = [":clang_tidy_run.sh"],
-)
 
 nvcc_syntax_unit_tests(name = "nvcc_syntax_unit")
 
@@ -654,7 +643,6 @@ test_suite(
         ":consumer_policy_ansible_linted_test",
         ":consumer_policy_api_spec_formatted_test",
         ":consumer_policy_api_spec_linted_test",
-        ":clang_tidy_run_test",
         ":compile_check_exec_test",
         ":consumer_policy_cc_clang_tidy_test",
         ":consumer_policy_bicep_checked_test",
@@ -717,9 +705,7 @@ real_source_target(
         "applicability.bzl",
         "consumer_policy_tests.bzl",
         "defs.bzl",
-        "clang_syntax.bzl",
         "clang_syntax_analysis_tests.bzl",
-        "clang_syntax_tests.bzl",
         "compile_check.bzl",
         "compile_check_tests.bzl",
         "coverage_sources.bzl",
@@ -768,7 +754,6 @@ real_source_target(
         "tools_tests.bzl",
         "wrapper_owners.bzl",
         "roslyn.bzl",
-        "go_analysis.bzl",
         "jvm_check.bzl",
     ] + glob(["families/*.bzl"]),
     tags = ["corpus"],

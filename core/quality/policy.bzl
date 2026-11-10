@@ -2,7 +2,7 @@
 
 load(":native_config.bzl", "DxNativeConfigInfo")
 
-visibility(["//core/quality/..."])
+visibility(["//cc/private", "//core/quality/...", "//go/private"])
 
 CAPABILITIES = ["lint", "typecheck", "format", "audit"]
 

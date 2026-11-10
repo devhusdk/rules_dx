@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
 load(":pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
-load(":packages.bzl", "package_build")
+load(":packages.bzl", "is_sha256", "package_build", "pin_problems")
 load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
@@ -133,6 +133,19 @@ def _checks():
     checks += [
         expect_contains("package build renders tools", build, 'tools = ["@hub_alex//:alex-exe-alex"]'),
         expect_false("package build keeps tools out of deps", 'deps = ["@hub_alex' in build),
+    ]
+    pinned = {"name": "pinned", "version": "1.0", "source": "hackage", "cabal_revision": 2, "sdist_sha256": "a" * 64, "cabal_sha256": "b" * 64}
+    checks += [
+        expect_equal("pinned packages have no pin problem", pin_problems({"packages": [pinned, {"name": "base", "source": "ghc"}]}), []),
+        expect_equal("an empty sdist digest names the package", pin_problems({"packages": [pinned | {"name": "empty", "sdist_sha256": ""}]}), ['package empty has sdist_sha256 "", expected 64 lowercase hex characters']),
+        expect_equal("a 63 character sdist digest names the package", pin_problems({"packages": [pinned | {"name": "short", "sdist_sha256": "a" * 63}]}), ['package short has sdist_sha256 "{}", expected 64 lowercase hex characters'.format("a" * 63)]),
+        expect_equal("an empty cabal digest of a revision names the package", pin_problems({"packages": [pinned | {"name": "revised", "cabal_sha256": ""}]}), ['package revised has cabal_sha256 "", expected 64 lowercase hex characters']),
+        expect_equal("a missing sdist digest of a url package names the package", pin_problems({"packages": [{"name": "tarball", "version": "1.0", "source": "url"}]}), ['package tarball has sdist_sha256 "", expected 64 lowercase hex characters']),
+        expect_equal("revision 0 needs no cabal digest", pin_problems({"packages": [pinned | {"cabal_revision": 0, "cabal_sha256": ""}]}), []),
+        expect_equal("problems are reported for every package", len(pin_problems({"packages": [pinned | {"name": "a", "sdist_sha256": ""}, pinned | {"name": "b", "cabal_sha256": "x"}]})), 2),
+        expect_false("an uppercase digest is no sha256", is_sha256("A" * 64)),
+        expect_false("a 65 character digest is no sha256", is_sha256("a" * 65)),
+        expect_true("64 lowercase hex characters are a sha256", is_sha256("0123456789abcdef" * 4)),
     ]
     for name in sorted(CELLS.keys()):
         checks += _cell_checks(name)

@@ -39,6 +39,21 @@ def has_revision(package):
     """Returns whether a fetched package carries a pinned cabal revision above 0."""
     return package["source"] == "hackage" and package["cabal_revision"] > 0
 
+def is_sha256(value):
+    """Returns whether a value is 64 lowercase hex characters."""
+    return len(value) == 64 and not value.lstrip("0123456789abcdef")
+
+def pin_problems(sidecar):
+    """Returns one message per fetched package whose sdist or cabal revision digest is not a sha256."""
+    problems = []
+    for name, package in sorted(fetched_packages(sidecar).items()):
+        fields = ["sdist_sha256"] + (["cabal_sha256"] if has_revision(package) else [])
+        for field in fields:
+            value = package.get(field, "")
+            if type(value) != "string" or not is_sha256(value):
+                problems.append("package {} has {} {}, expected 64 lowercase hex characters".format(name, field, repr(value)))
+    return problems
+
 def executables(package):
     """Returns the executable names of a package."""
     return [component[len("exe:"):] for component in package["components"] if component.startswith("exe:")]
@@ -122,6 +137,12 @@ def hub_build(hub, sidecar):
     return "\n".join(lines)
 
 def _hackage_package_impl(rctx):
+    pins = {"sha256": rctx.attr.sha256}
+    if rctx.attr.cabal_url:
+        pins["cabal_sha256"] = rctx.attr.cabal_sha256
+    for field, value in pins.items():
+        if not is_sha256(value):
+            fail("package {} has {} {}, expected 64 lowercase hex characters".format(rctx.attr.package, field, repr(value)))
     rctx.download_and_extract(
         url = [rctx.attr.url],
         sha256 = rctx.attr.sha256,
@@ -164,6 +185,9 @@ def declare_packages(mctx, tag):
     sidecar = json.decode(mctx.read(tag.lock))
     if sidecar.get("version") != 1:
         fail("{} has sidecar version {}, expected 1".format(tag.lock, sidecar.get("version")))
+    problems = pin_problems(sidecar)
+    if problems:
+        fail("{}: {}".format(tag.lock, "; ".join(problems)))
     created = [tag.name]
     for name, package in sorted(fetched_packages(sidecar).items()):
         revised = has_revision(package)

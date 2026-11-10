@@ -10,6 +10,7 @@ static ERL_NIF_TERM fnv1a(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
   return enif_make_uint(env, fnv1a_32(data.data, data.size));
 }
 
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static ErlNifFunc funcs[] = {{"fnv1a", 1, fnv1a, 0}};
 
 ERL_NIF_INIT(kv_checksum, funcs, NULL, NULL, NULL, NULL)

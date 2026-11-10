@@ -1,7 +1,7 @@
 """Analysis test that the starlark_test harness link is a plain symlink."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:defs.bzl", "expect_equal", "starlark_test")
+load("//core:defs.bzl", "expect_equal", "starlark_binary")
 
 def _impl(ctx):
     env = analysistest.begin(ctx)
@@ -20,7 +20,7 @@ def harness_link_tests(name):
     Args:
       name: Name of the test suite.
     """
-    starlark_test(
+    starlark_binary(
         name = name + "_subject",
         mode = "unit",
         checks = [expect_equal("trivial", 1, 1)],

@@ -52,10 +52,15 @@ swift_format_macos_repo = repository_rule(
 )
 
 _SWIFT_WINDOWS_VERSION = "6.4.1"
+_WINDOWS_CELL_CPU = {"aarch64": "arm64"}
 _SWIFT_WINDOWS = {
     "x86_64": struct(
         url = "https://download.swift.org/swift-6.4.1-release/windows10/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-windows10.exe",
         sha256 = "9382e14919eeae5e7b5dbfe0575452fe2154178e089a595c8b44d03960d91d59",
+    ),
+    "aarch64": struct(
+        url = "https://download.swift.org/swift-6.4.1-release/windows10-arm64/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-windows10-arm64.exe",
+        sha256 = "faff6a12cdae099d76372ca971b0c83b13280ad704e1022faa599dbe0b146e64",
     ),
 }
 
@@ -98,7 +103,8 @@ def _swift_windows_impl(repository_ctx):
     pin = _SWIFT_WINDOWS[cpu]
     repository_ctx.file("BUILD.bazel", _SWIFT_WINDOWS_BUILD)
     repository_ctx.file(".swift-version", _SWIFT_WINDOWS_VERSION + "\n")
-    if host_cell(repository_ctx) != "windows_" + cpu:
+    cell = "windows_" + _WINDOWS_CELL_CPU.get(cpu, cpu)
+    if host_cell(repository_ctx) != cell:
         for path in ["toolchain/usr/bin/swiftc.exe", "toolchain/usr/bin/swift-symbolgraph-extract.exe"]:
             repository_ctx.file(path, "")
         return
@@ -108,7 +114,7 @@ def _swift_windows_impl(repository_ctx):
         sha256 = pin.sha256,
         canonical_id = "swift-windows-" + _SWIFT_WINDOWS_VERSION + "-" + cpu,
     )
-    pwsh = repository_ctx.path(Label("@dx_powershell_toolchains__windows_{}//:pwsh.exe".format(cpu)))
+    pwsh = repository_ctx.path(Label("@dx_powershell_toolchains__{}//:pwsh.exe".format(cell)))
     script = repository_ctx.path(Label(":extract_windows.ps1"))
     result = repository_ctx.execute(
         [
@@ -136,6 +142,6 @@ def _swift_windows_impl(repository_ctx):
 
 swift_windows_repo = repository_rule(
     implementation = _swift_windows_impl,
-    attrs = {"cpu": attr.string(mandatory = True, values = ["x86_64"])},
+    attrs = {"cpu": attr.string(mandatory = True, values = ["x86_64", "aarch64"])},
     doc = "The sha256-pinned swift.org Windows toolchain, unpacked on a Windows host and stubbed elsewhere.",
 )

@@ -955,7 +955,7 @@ swift_format_macos = use_extension("//swift/toolchain:extensions.bzl", "swift_fo
 use_repo(swift_format_macos, "dx_swift_format_macos_arm64")
 
 swift_windows = use_extension("//swift/toolchain:extensions.bzl", "swift_windows")
-use_repo(swift_windows, "dx_swift_windows_x86_64")
+use_repo(swift_windows, "dx_swift_windows_aarch64", "dx_swift_windows_x86_64")
 
 # floor: equals tested; dev only, for the swift-app fixture packages
 bazel_dep(name = "rules_swift_package_manager", version = "1.25.0", dev_dependency = True)

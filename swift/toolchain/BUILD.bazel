@@ -21,6 +21,11 @@ swift_windows_toolchain(
     cpu = "x86_64",
 )
 
+swift_windows_toolchain(
+    name = "toolchain_windows_aarch64",
+    cpu = "aarch64",
+)
+
 exports_files(["extract_windows.ps1"])
 
 # The shared libraries a Swift test binary loads that the sysroot ships, so it runs without host libraries.

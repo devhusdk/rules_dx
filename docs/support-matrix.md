@@ -44,7 +44,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Rust | none | `cargo` | `rust_bench` | `rust_fuzz_test` |
 | Scala | none | `maven` | `scala_bench` | `scala_fuzz_test` |
 | Svelte | none | `npm` | n/a | n/a |
-| Swift | `windows_x86_64`, `windows_arm64`: rules_dx registers no Swift toolchain for Windows | `swiftpm` | `swift_bench` | `swift_fuzz_test` |
+| Swift | `windows_x86_64`: rules_dx registers no Swift toolchain for Windows; `windows_arm64`: The Swift Windows arm64 toolchain is registered but unverified on Windows ARM | `swiftpm` | `swift_bench` | `swift_fuzz_test` |
 | TypeScript | none | `npm` | `typescript_bench` | `typescript_fuzz_test` |
 | Vue | none | `npm` | n/a | n/a |
 | Zig | none | `zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256) | `zig_bench` | n/a |

@@ -3,7 +3,7 @@
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
 load(":launcher.bzl", "launcher_preamble", "launcher_root", "windows_descriptor")
 
-_EXEC = """PATH="$otp/bin:$elixir/bin:/usr/bin:/bin" exec "$elixir/bin/elixir" "$elixir/bin/mix" %s"$@"
+_EXEC = """PATH="$otp/bin:$elixir/bin:$PATH" exec "$elixir/bin/elixir" "$elixir/bin/mix" %s"$@"
 """
 
 def mix_format_script(otp, elixir, mix_args = ["format"], inherit_env = False):

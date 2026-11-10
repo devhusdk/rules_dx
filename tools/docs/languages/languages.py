@@ -60,7 +60,7 @@ def shard_bzl(root, shard):
     pattern = re.compile(r"^(%s\s*=|def %s\()" % (re.escape(shard), re.escape(shard)), re.M)
     base = os.path.join(root, "tools/docs")
     for name in sorted(os.listdir(base)):
-        for bzl in ("defs.bzl", "%s.bzl" % name):
+        for bzl in ("defs.bzl", "%s.bzl" % name, "site.bzl"):
             path = "tools/docs/%s/%s" % (name, bzl)
             text = read(root, path)
             if text is not None and pattern.search(text):

@@ -60,5 +60,14 @@
         "real_lua_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/lua:aspect.bzl",
+    "file_extensions": [
+      ".lua"
+    ],
+    "aspects": [
+      "real_lua_docs_aspect"
+    ]
   }
 }

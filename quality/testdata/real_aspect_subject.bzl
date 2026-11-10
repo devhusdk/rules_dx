@@ -27,7 +27,7 @@ load(
     "real_core_lint_probe_aspect",
     "real_core_typecheck_probe_aspect",
     "real_d_typecheck_aspect",
-    "real_docs_aspect",
+    "real_docs_aspects",
     "real_dockerfile_lint_aspect",
     "real_dotnet_format_aspect",
     "real_dotnet_lint_aspect",
@@ -448,9 +448,9 @@ def _real_docs_subject_impl(ctx):
 
 real_docs_subject = rule(
     implementation = _real_docs_subject_impl,
-    doc = "Observes the docs shards that real_docs_aspect builds for a target.",
+    doc = "Observes the docs shards that the docs aspects build for a target.",
     attrs = {
-        "target": attr.label(aspects = [real_docs_aspect], mandatory = True),
+        "target": attr.label(aspects = real_docs_aspects, mandatory = True),
     },
 )
 
@@ -459,9 +459,9 @@ def _real_docs_shard_files_impl(ctx):
 
 real_docs_shard_files = rule(
     implementation = _real_docs_shard_files_impl,
-    doc = "Exposes one output group that real_docs_aspect builds for a target.",
+    doc = "Exposes one output group that the docs aspects build for a target.",
     attrs = {
         "group": attr.string(default = "dx_docs_shards"),
-        "target": attr.label(aspects = [real_docs_aspect], mandatory = True),
+        "target": attr.label(aspects = real_docs_aspects, mandatory = True),
     },
 )

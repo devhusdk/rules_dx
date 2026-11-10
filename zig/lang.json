@@ -57,5 +57,14 @@
         "real_zig_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/zig:aspect.bzl",
+    "file_extensions": [
+      ".zig"
+    ],
+    "aspects": [
+      "real_zig_docs_aspect"
+    ]
   }
 }

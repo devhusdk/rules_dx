@@ -48,5 +48,14 @@
         "real_generation_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/protobuf:aspect.bzl",
+    "file_extensions": [
+      ".proto"
+    ],
+    "aspects": [
+      "real_protobuf_docs_aspect"
+    ]
   }
 }

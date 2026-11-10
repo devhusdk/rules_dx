@@ -22,7 +22,7 @@ impl CommandSpec {
 }
 
 /// The labels of the aspect files without a language, then those of every language's `quality`
-/// entry in `lang.json`.
+/// entry (and, for `docs`, its `docs` entry) in `lang.json`.
 fn with_languages(
     command: &'static str,
     probes: bool,
@@ -39,6 +39,7 @@ fn with_languages(
             ("typecheck", true, registry_gen::TYPECHECK_PROBES),
             ("format", false, registry_gen::FORMAT_ASPECTS),
             ("format", true, registry_gen::FORMAT_PROBES),
+            ("docs", false, registry_gen::DOCS_ASPECTS),
         ] {
             let mut labels: Vec<&'static str> = core.to_vec();
             for language in dx_families::quality_languages() {
@@ -48,6 +49,16 @@ fn with_languages(
                         .into_iter()
                         .map(|label| &*Box::leak(label.into_boxed_str())),
                 );
+            }
+            if command == "docs" {
+                for language in dx_families::docs_languages() {
+                    labels.extend(
+                        language
+                            .labels()
+                            .into_iter()
+                            .map(|label| &*Box::leak(label.into_boxed_str())),
+                    );
+                }
             }
             all.insert((command, probes), &*Box::leak(labels.into_boxed_slice()));
         }
@@ -177,7 +188,7 @@ pub fn spec(command: Command) -> CommandSpec {
         },
         Command::Docs => CommandSpec {
             command,
-            aspects: registry_gen::DOCS_ASPECTS,
+            aspects: with_languages("docs", false, registry_gen::DOCS_ASPECTS),
             probes: &[],
             reports: &[],
         },
@@ -234,15 +245,21 @@ fn probes_for_families(
 /// Whether the file that defines `label` loads no language rule set or loads one the consumer has.
 fn wanted(label: &str, consumer: Consumer) -> bool {
     let file = label.split_once('%').map_or(label, |(file, _)| file);
-    dx_families::quality_languages()
+    let extensions = dx_families::quality_languages()
         .iter()
         .find(|language| language.bzl == file)
-        .is_none_or(|language| {
-            language
-                .file_extensions
+        .map(|language| &language.file_extensions)
+        .or_else(|| {
+            dx_families::docs_languages()
                 .iter()
-                .any(|extension| consumer.extensions.contains(extension))
-        })
+                .find(|language| language.bzl == file)
+                .map(|language| &language.file_extensions)
+        });
+    extensions.is_none_or(|extensions| {
+        extensions
+            .iter()
+            .any(|extension| consumer.extensions.contains(extension))
+    })
 }
 
 fn label_name(label: &str) -> &str {
@@ -321,6 +338,9 @@ mod tests {
             let entry = spec(*command);
             for label in entry.aspects {
                 let (file, name) = label.rsplit_once('%').expect("label has a name");
+                if file.starts_with("tools/docs") {
+                    continue;
+                }
                 let family = dx_families::families()
                     .iter()
                     .find(|family| family.aspects.iter().any(|aspect| aspect == name));
@@ -332,8 +352,7 @@ mod tests {
                     }
                     _ => assert!(
                         file.starts_with("quality:families/")
-                            || file.contains("/private/quality:")
-                            || file == "tools/docs:aspect.bzl",
+                            || file.contains("/private/quality:"),
                         "{label}"
                     ),
                 }
@@ -406,6 +425,19 @@ mod tests {
         assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
         assert!(!probes.contains(&"quality:families/swift.bzl%real_swift_lint_probe_aspect"));
         assert!(probes_for(Command::Docs, consumer(&installed, &extensions)).is_empty());
+    }
+
+    #[test]
+    fn go_only_consumer_docs_selects_the_core_aspect_and_go() {
+        let extensions = extensions(&[".go", ".json", ".md"]);
+        let labels = aspects_for(Command::Docs, consumer(&[], &extensions));
+        assert_eq!(
+            labels,
+            [
+                "tools/docs:aspect.bzl%real_docs_aspect",
+                "tools/docs/go:aspect.bzl%real_go_docs_aspect"
+            ]
+        );
     }
 
     #[test]
@@ -602,7 +634,8 @@ mod tests {
             ]
         );
         let docs = spec(Command::Docs);
-        assert_eq!(docs.aspects, &["tools/docs:aspect.bzl%real_docs_aspect"]);
+        assert_eq!(docs.aspects[0], "tools/docs:aspect.bzl%real_docs_aspect");
+        assert!(docs.aspects.contains(&"tools/docs/go:aspect.bzl%real_go_docs_aspect"));
         assert!(docs.probes.is_empty());
         assert!(docs.reports.is_empty());
         let run = spec(Command::Run);

@@ -61,5 +61,17 @@
       ".ts",
       ".tsx"
     ]
+  },
+  "docs": {
+    "bzl": "tools/docs/typescript:aspect.bzl",
+    "file_extensions": [
+      ".cts",
+      ".mts",
+      ".ts",
+      ".tsx"
+    ],
+    "aspects": [
+      "real_typescript_docs_aspect"
+    ]
   }
 }

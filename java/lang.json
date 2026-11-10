@@ -63,5 +63,14 @@
         "real_jvm_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/jvm:aspect.bzl",
+    "file_extensions": [
+      ".java"
+    ],
+    "aspects": [
+      "real_jvm_docs_aspect"
+    ]
   }
 }

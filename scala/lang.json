@@ -48,5 +48,12 @@
         "real_scala_lint_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/jvm:aspect.bzl",
+    "file_extensions": [
+      ".scala"
+    ],
+    "aspects": []
   }
 }

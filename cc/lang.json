@@ -83,5 +83,25 @@
         "real_cc_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/cc:aspect.bzl",
+    "file_extensions": [
+      ".c",
+      ".cc",
+      ".cpp",
+      ".cu",
+      ".cuh",
+      ".cxx",
+      ".h",
+      ".hh",
+      ".hpp",
+      ".hxx",
+      ".inl",
+      ".ipp"
+    ],
+    "aspects": [
+      "real_cc_docs_aspect"
+    ]
   }
 }

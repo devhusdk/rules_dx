@@ -33,5 +33,14 @@
     "file_extensions": [
       ".vue"
     ]
+  },
+  "docs": {
+    "bzl": "tools/docs/components:aspect.bzl",
+    "file_extensions": [
+      ".vue"
+    ],
+    "aspects": [
+      "real_components_docs_aspect"
+    ]
   }
 }

@@ -22,7 +22,7 @@ load("//tools/docs/powershell:defs.bzl", "powershell_doc_shard")
 load("//tools/docs/protobuf:defs.bzl", "protobuf_doc_shard")
 load("//tools/docs/python:defs.bzl", "python_doc_shard")
 load("//tools/docs/ruby:defs.bzl", "ruby_doc_shard")
-load("//tools/docs/site:site.bzl", "docs_site")
+load("//tools/docs/rust:site.bzl", "rust_docs_site")
 load("//tools/docs/julia:defs.bzl", "julia_doc_shard")
 load("//tools/docs/ocaml:defs.bzl", "ocaml_doc_shard")
 load("//tools/docs/swift:defs.bzl", "swift_doc_shard")
@@ -57,7 +57,7 @@ _SHARD_RULES = {
     "protobuf_doc_shard": protobuf_doc_shard,
     "python_doc_shard": python_doc_shard,
     "ruby_doc_shard": ruby_doc_shard,
-    "docs_site": docs_site,
+    "rust_docs_site": rust_docs_site,
     "scala_doc_shard": scala_doc_shard,
     "svelte_doc_shard": svelte_doc_shard,
     "swift_doc_shard": swift_doc_shard,

@@ -57,15 +57,15 @@ events and `command_finished`. A failure adds one `error`. `--diff` and
 
 ## Doc shard rules
 
-Rust libraries go straight into `docs_site` from
-`@rules_dx//tools/docs/site:site.bzl`. The other languages have a rule that
-documents one library and produces a shard; list the shard in `libraries` too.
-Then build the site:
+Rust libraries go straight into `rust_docs_site` from
+`@rules_dx//tools/docs/rust:site.bzl`. The other languages have a rule that
+documents one library and produces a shard; list the shard in `libraries` of
+`docs_site` from `@rules_dx//tools/docs/site:site.bzl`. Then build the site:
 
 ```starlark
-load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
+load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
 
-docs_site(
+rust_docs_site(
     name = "site",
     book_toml = "book.toml",
     prose = ["guide.md"],
@@ -80,7 +80,7 @@ tools/dx docs //lib:site
 
 | Language | Load | Rule | Attributes |
 | --- | --- | --- | --- |
-| Rust | `@rules_dx//tools/docs/site:site.bzl` | `docs_site` | `libraries` |
+| Rust | `@rules_dx//tools/docs/rust:site.bzl` | `rust_docs_site` | `libraries` |
 | TypeScript | `@rules_dx//tools/docs/typescript:defs.bzl` | `typescript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig`, `options` |
 | JavaScript | `@rules_dx//tools/docs/javascript:defs.bzl` | `javascript_doc_shard` | `srcs`, `entry_points`, `package`, `tsconfig` (sets `allowJs`), `options` |
 | Vue | `@rules_dx//tools/docs/components:defs.bzl` | `vue_doc_shard` | `srcs`, `entry_points`, `node_modules`, `package`, `tsconfig` |

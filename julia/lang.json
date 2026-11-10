@@ -58,5 +58,14 @@
         "real_julia_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/julia:aspect.bzl",
+    "file_extensions": [
+      ".jl"
+    ],
+    "aspects": [
+      "real_julia_docs_aspect"
+    ]
   }
 }

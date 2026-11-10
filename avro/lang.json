@@ -34,5 +34,15 @@
         "real_avro_typecheck_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/avro:aspect.bzl",
+    "file_extensions": [
+      ".avdl",
+      ".avsc"
+    ],
+    "aspects": [
+      "real_avro_docs_aspect"
+    ]
   }
 }

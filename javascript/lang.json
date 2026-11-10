@@ -66,5 +66,17 @@
         "real_js_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/javascript:aspect.bzl",
+    "file_extensions": [
+      ".cjs",
+      ".js",
+      ".jsx",
+      ".mjs"
+    ],
+    "aspects": [
+      "real_javascript_docs_aspect"
+    ]
   }
 }

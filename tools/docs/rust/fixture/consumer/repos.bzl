@@ -43,7 +43,7 @@ language = "en"
 src = "src"
 '''
 
-_BUILD_BAZEL = '''load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
+_BUILD_BAZEL = '''load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
 load("@rules_rust//rust:defs.bzl", "rust_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -58,7 +58,7 @@ rust_library(
     edition = "2021",
 )
 
-docs_site(
+rust_docs_site(
     name = "site",
     book_toml = "book.toml",
     prose = ["guide.md"],

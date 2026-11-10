@@ -56,5 +56,14 @@
         "real_php_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/php:aspect.bzl",
+    "file_extensions": [
+      ".php"
+    ],
+    "aspects": [
+      "real_php_docs_aspect"
+    ]
   }
 }

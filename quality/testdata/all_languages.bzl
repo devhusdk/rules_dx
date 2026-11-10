@@ -73,6 +73,30 @@ load("//quality:pipeline.bzl", "drop_pipeline_tool", "real_request_tool_env")
 load("//quality:real_core.bzl", "real_config", "real_context", "real_make_aspect", "real_make_probe_aspect", "real_upstream_direct_sources", _RealShardProbeInfo = "RealShardProbeInfo", _real_policy_error = "real_policy_error", _real_quality_resource_set = "real_quality_resource_set", _real_shard_result_stems = "real_shard_result_stems", _real_skip_notes = "real_skip_notes", _real_tool_table_error = "real_tool_table_error", _real_unavailable_tools = "real_unavailable_tools", _real_tool_table_shape_error = "real_tool_table_shape_error", _real_wired_capabilities = "real_wired_capabilities", _real_wired_tools = "real_wired_tools")
 load("//quality:sources.bzl", "QualityToolsInfo")
 load("//tools/docs:aspect.bzl", _real_docs_aspect = "real_docs_aspect")
+load("//tools/docs/avro:aspect.bzl", _real_avro_docs_aspect = "real_avro_docs_aspect")
+load("//tools/docs/cc:aspect.bzl", _real_cc_docs_aspect = "real_cc_docs_aspect")
+load("//tools/docs/components:aspect.bzl", _real_components_docs_aspect = "real_components_docs_aspect")
+load("//tools/docs/d:aspect.bzl", _real_d_docs_aspect = "real_d_docs_aspect")
+load("//tools/docs/dart:aspect.bzl", _real_dart_docs_aspect = "real_dart_docs_aspect")
+load("//tools/docs/dotnet:aspect.bzl", _real_dotnet_docs_aspect = "real_dotnet_docs_aspect")
+load("//tools/docs/fortran:aspect.bzl", _real_fortran_docs_aspect = "real_fortran_docs_aspect")
+load("//tools/docs/go:aspect.bzl", _real_go_docs_aspect = "real_go_docs_aspect")
+load("//tools/docs/haskell:aspect.bzl", _real_haskell_docs_aspect = "real_haskell_docs_aspect")
+load("//tools/docs/javascript:aspect.bzl", _real_javascript_docs_aspect = "real_javascript_docs_aspect")
+load("//tools/docs/julia:aspect.bzl", _real_julia_docs_aspect = "real_julia_docs_aspect")
+load("//tools/docs/jvm:aspect.bzl", _real_jvm_docs_aspect = "real_jvm_docs_aspect")
+load("//tools/docs/lua:aspect.bzl", _real_lua_docs_aspect = "real_lua_docs_aspect")
+load("//tools/docs/ocaml:aspect.bzl", _real_ocaml_docs_aspect = "real_ocaml_docs_aspect")
+load("//tools/docs/perl:aspect.bzl", _real_perl_docs_aspect = "real_perl_docs_aspect")
+load("//tools/docs/php:aspect.bzl", _real_php_docs_aspect = "real_php_docs_aspect")
+load("//tools/docs/powershell:aspect.bzl", _real_powershell_docs_aspect = "real_powershell_docs_aspect")
+load("//tools/docs/protobuf:aspect.bzl", _real_protobuf_docs_aspect = "real_protobuf_docs_aspect")
+load("//tools/docs/python:aspect.bzl", _real_python_docs_aspect = "real_python_docs_aspect")
+load("//tools/docs/ruby:aspect.bzl", _real_ruby_docs_aspect = "real_ruby_docs_aspect")
+load("//tools/docs/rust:aspect.bzl", _real_rust_docs_aspect = "real_rust_docs_aspect")
+load("//tools/docs/swift:aspect.bzl", _real_swift_docs_aspect = "real_swift_docs_aspect")
+load("//tools/docs/typescript:aspect.bzl", _real_typescript_docs_aspect = "real_typescript_docs_aspect")
+load("//tools/docs/zig:aspect.bzl", _real_zig_docs_aspect = "real_zig_docs_aspect")
 
 _JVM_CHECK_TOOLS = ["javac", "kotlinc", "scalac"]
 
@@ -353,6 +377,82 @@ real_format_probe_aspect = _make_real_probe_aspect("format")
 real_typecheck_probe_aspect = _make_real_probe_aspect("typecheck")
 
 real_docs_aspect = _real_docs_aspect
+
+real_avro_docs_aspect = _real_avro_docs_aspect
+
+real_cc_docs_aspect = _real_cc_docs_aspect
+
+real_components_docs_aspect = _real_components_docs_aspect
+
+real_d_docs_aspect = _real_d_docs_aspect
+
+real_dart_docs_aspect = _real_dart_docs_aspect
+
+real_dotnet_docs_aspect = _real_dotnet_docs_aspect
+
+real_fortran_docs_aspect = _real_fortran_docs_aspect
+
+real_go_docs_aspect = _real_go_docs_aspect
+
+real_haskell_docs_aspect = _real_haskell_docs_aspect
+
+real_javascript_docs_aspect = _real_javascript_docs_aspect
+
+real_julia_docs_aspect = _real_julia_docs_aspect
+
+real_jvm_docs_aspect = _real_jvm_docs_aspect
+
+real_lua_docs_aspect = _real_lua_docs_aspect
+
+real_ocaml_docs_aspect = _real_ocaml_docs_aspect
+
+real_perl_docs_aspect = _real_perl_docs_aspect
+
+real_php_docs_aspect = _real_php_docs_aspect
+
+real_powershell_docs_aspect = _real_powershell_docs_aspect
+
+real_protobuf_docs_aspect = _real_protobuf_docs_aspect
+
+real_python_docs_aspect = _real_python_docs_aspect
+
+real_ruby_docs_aspect = _real_ruby_docs_aspect
+
+real_rust_docs_aspect = _real_rust_docs_aspect
+
+real_swift_docs_aspect = _real_swift_docs_aspect
+
+real_typescript_docs_aspect = _real_typescript_docs_aspect
+
+real_zig_docs_aspect = _real_zig_docs_aspect
+
+real_docs_aspects = [
+    real_docs_aspect,
+    real_avro_docs_aspect,
+    real_cc_docs_aspect,
+    real_components_docs_aspect,
+    real_d_docs_aspect,
+    real_dart_docs_aspect,
+    real_dotnet_docs_aspect,
+    real_fortran_docs_aspect,
+    real_go_docs_aspect,
+    real_haskell_docs_aspect,
+    real_javascript_docs_aspect,
+    real_julia_docs_aspect,
+    real_jvm_docs_aspect,
+    real_lua_docs_aspect,
+    real_ocaml_docs_aspect,
+    real_perl_docs_aspect,
+    real_php_docs_aspect,
+    real_powershell_docs_aspect,
+    real_protobuf_docs_aspect,
+    real_python_docs_aspect,
+    real_ruby_docs_aspect,
+    real_rust_docs_aspect,
+    real_swift_docs_aspect,
+    real_typescript_docs_aspect,
+    real_zig_docs_aspect,
+]
 
 real_cue_format_aspect = _real_cue_format_aspect
 

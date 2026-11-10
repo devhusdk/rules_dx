@@ -50,6 +50,7 @@ fn roots(source: &Path) -> Vec<String> {
     );
     roots.push("quality/families/core.bzl".to_owned());
     roots.push("quality/families/core_probe.bzl".to_owned());
+    roots.push("tools/docs/aspect.bzl".to_owned());
     roots
 }
 

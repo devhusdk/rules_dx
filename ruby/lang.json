@@ -62,5 +62,14 @@
         "real_ruby_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/ruby:aspect.bzl",
+    "file_extensions": [
+      ".rb"
+    ],
+    "aspects": [
+      "real_ruby_docs_aspect"
+    ]
   }
 }

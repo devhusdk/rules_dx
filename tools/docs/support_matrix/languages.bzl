@@ -640,7 +640,7 @@ LANGUAGES = [
         bench = "rust_bench",
         fuzz = "rust_fuzz_test",
         deps = "`cargo`",
-        doc = struct(tool = "rustdoc", shard = "docs_site"),
+        doc = struct(tool = "rustdoc", shard = "rust_docs_site"),
         dead_code = ["rustc dead_code"],
         coverage = ["llvm-cov"],
     ),

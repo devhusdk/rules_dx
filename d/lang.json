@@ -54,5 +54,14 @@
         "real_d_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/d:aspect.bzl",
+    "file_extensions": [
+      ".d"
+    ],
+    "aspects": [
+      "real_d_docs_aspect"
+    ]
   }
 }

@@ -192,8 +192,13 @@ pub fn plan_docs(
     bazel_options: &[String],
     bep_path: &str,
     startup_options: &[String],
+    consumer: Option<Consumer>,
 ) -> Result<BuildPlan, DxError> {
-    let aspects = joined_labels(spec(Command::Docs).aspects.iter().copied());
+    let aspects = match consumer {
+        Some(consumer) => aspects_for(Command::Docs, consumer),
+        None => spec(Command::Docs).aspects.to_vec(),
+    };
+    let aspects = joined_labels(aspects);
     let groups = format!(
         "{OUTPUT_GROUP},{DOCS_SITE_OUTPUT_GROUP},{DOCS_SHARD_OUTPUT_GROUP},{DOCS_TOOLS_OUTPUT_GROUP},dx_docs_tool_files"
     );
@@ -1055,10 +1060,12 @@ mod tests {
 
     #[test]
     fn docs_plan_adds_the_site_group_and_protects_output_groups() {
-        let plan = plan_docs(&resolved(&[]), &[], "/tmp/bep.json", &[]).expect("plan");
+        let plan = plan_docs(&resolved(&[]), &[], "/tmp/bep.json", &[], None).expect("plan");
         let argv: Vec<&str> = plan.argv.iter().map(String::as_str).collect();
         assert!(
-            argv.contains(&"--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect"),
+            argv.iter().any(|arg| arg.starts_with(
+                "--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect,@rules_dx//tools/docs/"
+            )),
             "{argv:?}"
         );
         assert!(
@@ -1080,6 +1087,7 @@ mod tests {
             &strings(&["--output_groups=other"]),
             "/tmp/bep.json",
             &[],
+            None,
         )
         .expect_err("a second output group must fail");
         assert!(

@@ -59,5 +59,18 @@
         "real_fortran_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/fortran:aspect.bzl",
+    "file_extensions": [
+      ".f",
+      ".f03",
+      ".f08",
+      ".f90",
+      ".f95"
+    ],
+    "aspects": [
+      "real_fortran_docs_aspect"
+    ]
   }
 }

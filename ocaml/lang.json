@@ -69,5 +69,15 @@
         "real_ocaml_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/ocaml:aspect.bzl",
+    "file_extensions": [
+      ".ml",
+      ".mli"
+    ],
+    "aspects": [
+      "real_ocaml_docs_aspect"
+    ]
   }
 }

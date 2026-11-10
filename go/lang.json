@@ -63,5 +63,14 @@
         "real_go_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/go:aspect.bzl",
+    "file_extensions": [
+      ".go"
+    ],
+    "aspects": [
+      "real_go_docs_aspect"
+    ]
   }
 }

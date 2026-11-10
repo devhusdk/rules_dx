@@ -2,7 +2,7 @@ use super::common::*;
 use super::docs_index::{CODE_INDEX_FAILED, build_index, built_shards, execution_root};
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
-use dx_plan::plan::{DOCS_SITE_OUTPUT_GROUP, bep_path, plan_docs};
+use dx_plan::plan::{Consumer, DOCS_SITE_OUTPUT_GROUP, bep_path, plan_docs};
 use dx_plan::resolve::resolve;
 use std::path::{Path, PathBuf};
 
@@ -137,11 +137,24 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
             &crate::startup::temp_path_not_utf8(),
         );
     };
+    let deps: Vec<String> = dx_adopt::module_deps(workspace).into_iter().collect();
+    let installed = (!deps.is_empty() && !dx_adopt::is_rules_dx_root(workspace)).then_some(deps);
+    let extensions = installed
+        .as_ref()
+        .map(|_| dx_adopt::file_extensions(workspace));
+    let consumer = installed
+        .as_deref()
+        .zip(extensions.as_ref())
+        .map(|(modules, extensions)| Consumer {
+            modules,
+            extensions,
+        });
     let plan = match plan_docs(
         &resolved,
         &invocation.quiet_bazel_options(),
         bep_text,
         &invocation.bazel_startup_options,
+        consumer,
     ) {
         Ok(plan) => plan,
         Err(error) => return pre_exec(invocation.output, out, err, &format!("{error}")),
@@ -473,9 +486,9 @@ mod tests {
         assert_eq!(code, 0, "{words:?}: {out}{err}");
         let argv = harness.build_argv.borrow()[0].clone();
         assert!(
-            argv.contains(
-                &"--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect".to_owned()
-            ),
+            argv.iter().any(|arg| arg.starts_with(
+                "--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect"
+            )),
             "{argv:?}"
         );
         assert!(

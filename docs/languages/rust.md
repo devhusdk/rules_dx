@@ -87,16 +87,16 @@ A libFuzzer binary built with sancov and AddressSanitizer plus a `<name>_run` ru
 Tool: `rustdoc`.
 
 ```python
-load("@rules_dx//tools/docs/site:site.bzl", "docs_site")
+load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
 ```
 
-### `docs_site`
+### `rust_docs_site`
 
 ```python
-docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = "")
+rust_docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = "")
 ```
 
-Renders one prose page and the API reference of some libraries.
+Renders one prose page and the API reference of some Rust libraries.
 
 Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 

@@ -32,6 +32,16 @@
         "aspects": {"$ref": "#/$defs/commands"},
         "probes": {"$ref": "#/$defs/commands"}
       }
+    },
+    "docs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bzl", "file_extensions", "aspects"],
+      "properties": {
+        "bzl": {"type": "string", "minLength": 1},
+        "file_extensions": {"$ref": "#/$defs/strings"},
+        "aspects": {"$ref": "#/$defs/strings"}
+      }
     }
   },
   "$defs": {

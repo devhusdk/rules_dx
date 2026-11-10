@@ -35,5 +35,12 @@
     "file_extensions": [
       ".mdx"
     ]
+  },
+  "docs": {
+    "bzl": "tools/docs/components:aspect.bzl",
+    "file_extensions": [
+      ".mdx"
+    ],
+    "aspects": []
   }
 }

@@ -90,6 +90,27 @@ impl QualityFiles {
     }
 }
 
+/// The `docs` entry of one `<lang>/lang.json`.
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct DocsFiles {
+    /// The aspect file, like `tools/docs/go:aspect.bzl`.
+    pub bzl: String,
+    pub file_extensions: Vec<String>,
+    /// Docs aspect names defined in `bzl`.
+    pub aspects: Vec<String>,
+}
+
+impl DocsFiles {
+    /// The `bzl%name` labels of the docs aspects.
+    pub fn labels(&self) -> Vec<String> {
+        self.aspects
+            .iter()
+            .map(|name| format!("{}%{name}", self.bzl))
+            .collect()
+    }
+}
+
 const LANGUAGE_MANIFESTS: &[&str] = &[
     include_str!("../../../api_spec/lang.json"),
     include_str!("../../../astro/lang.json"),
@@ -133,6 +154,7 @@ const LANGUAGE_MANIFESTS: &[&str] = &[
 #[derive(Deserialize)]
 struct Manifest {
     quality: Option<QualityFiles>,
+    docs: Option<DocsFiles>,
 }
 
 /// Merges the `quality` entries of `lang.json` texts by aspect file, sorted by file. A text
@@ -163,6 +185,38 @@ pub fn parse_quality(texts: &[&str]) -> Result<Vec<QualityFiles>, serde_json::Er
             files
         })
         .collect())
+}
+
+/// Merges the `docs` entries of `lang.json` texts by aspect file, sorted by file. A text
+/// without a `docs` entry is skipped.
+pub fn parse_docs(texts: &[&str]) -> Result<Vec<DocsFiles>, serde_json::Error> {
+    let mut merged: std::collections::BTreeMap<String, DocsFiles> = Default::default();
+    for text in texts {
+        let manifest: Manifest = serde_json::from_str(text)?;
+        if let Some(docs) = manifest.docs {
+            let entry = merged.entry(docs.bzl.clone()).or_default();
+            entry.bzl = docs.bzl;
+            entry.file_extensions.extend(docs.file_extensions);
+            entry.aspects.extend(docs.aspects);
+        }
+    }
+    Ok(merged
+        .into_values()
+        .map(|mut files| {
+            let extensions: BTreeSet<String> = files.file_extensions.drain(..).collect();
+            files.file_extensions = extensions.into_iter().collect();
+            let aspects: BTreeSet<String> = files.aspects.drain(..).collect();
+            files.aspects = aspects.into_iter().collect();
+            files
+        })
+        .collect())
+}
+
+/// The docs aspect files of the languages, with the file extensions that make a workspace need
+/// them.
+pub fn docs_languages() -> &'static [DocsFiles] {
+    static ALL: OnceLock<Vec<DocsFiles>> = OnceLock::new();
+    ALL.get_or_init(|| parse_docs(LANGUAGE_MANIFESTS).unwrap_or_default())
 }
 
 /// The aspect files that load a language rule set, with the file extensions that make a

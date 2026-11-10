@@ -49,5 +49,15 @@
         "real_dotnet_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/dotnet:aspect.bzl",
+    "file_extensions": [
+      ".cs",
+      ".fs"
+    ],
+    "aspects": [
+      "real_dotnet_docs_aspect"
+    ]
   }
 }

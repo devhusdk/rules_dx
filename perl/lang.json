@@ -53,5 +53,15 @@
         "real_perl_lint_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/perl:aspect.bzl",
+    "file_extensions": [
+      ".pl",
+      ".pm"
+    ],
+    "aspects": [
+      "real_perl_docs_aspect"
+    ]
   }
 }

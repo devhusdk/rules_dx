@@ -41,5 +41,12 @@
       ".kt",
       ".kts"
     ]
+  },
+  "docs": {
+    "bzl": "tools/docs/jvm:aspect.bzl",
+    "file_extensions": [
+      ".kt"
+    ],
+    "aspects": []
   }
 }

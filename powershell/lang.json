@@ -55,5 +55,16 @@
         "real_powershell_lint_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/powershell:aspect.bzl",
+    "file_extensions": [
+      ".ps1",
+      ".psd1",
+      ".psm1"
+    ],
+    "aspects": [
+      "real_powershell_docs_aspect"
+    ]
   }
 }

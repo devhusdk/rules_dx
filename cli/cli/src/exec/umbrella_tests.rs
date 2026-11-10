@@ -41,7 +41,7 @@ fn umbrella_phases_and_test_share_the_bazel_settings() {
             argvs.push((format!("{phase:?} probe"), probe.argv));
         }
     }
-    let docs = dx_plan::plan::plan_docs(&resolved, &[], "/tmp/bep.json", &[]).expect("docs plan");
+    let docs = dx_plan::plan::plan_docs(&resolved, &[], "/tmp/bep.json", &[], None).expect("docs plan");
     argvs.push(("docs".to_owned(), docs.argv));
     let test = dx_plan::plan::plan_workflow(
         dx_plan::plan::WorkflowVerb::Test,

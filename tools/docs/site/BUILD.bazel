@@ -1,9 +1,10 @@
 load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load("//tools/docs/rust:site.bzl", "rust_docs_api", "rust_docs_site")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 load(":render.bzl", "mdbook_book", "mdbook_check", "mdbook_page_list")
-load(":site.bzl", "docs_api", "docs_scope_tools", "docs_site")
+load(":site.bzl", "docs_scope_tools")
 load(":site_tests.bzl", "site_file_tests", "site_unit_tests", "site_user_file_tests")
 load(":user/api.bzl", "PUBLIC_RUST_CRATES")
 load(":user/book.bzl", "USER_BOOK")
@@ -37,7 +38,7 @@ docs_scope_tools(
     visibility = ["//visibility:public"],
 )
 
-docs_site(
+rust_docs_site(
     name = "demo_site",
     book_toml = "demo/book.toml",
     libraries = ["//tools/docs/rust/fixture:docs_fixture"],
@@ -45,7 +46,7 @@ docs_site(
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
-docs_site(
+rust_docs_site(
     name = "demo_polyglot_site",
     book_toml = "demo/book.toml",
     libraries = [
@@ -62,7 +63,7 @@ docs_site(
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
-docs_site(
+rust_docs_site(
     name = "demo_changed_site",
     book_toml = "demo/book.toml",
     libraries = ["//tools/docs/rust/fixture:docs_fixture_changed"],
@@ -70,7 +71,7 @@ docs_site(
     source_url = "https://github.com/devhusdk/rules_dx/blob/main/",
 )
 
-docs_api(
+rust_docs_api(
     name = "user_api",
     book_toml = "user/book.toml",
     libraries = PUBLIC_RUST_CRATES,

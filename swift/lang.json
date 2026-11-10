@@ -53,5 +53,14 @@
         "real_swift_lint_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/swift:aspect.bzl",
+    "file_extensions": [
+      ".swift"
+    ],
+    "aspects": [
+      "real_swift_docs_aspect"
+    ]
   }
 }

@@ -61,5 +61,14 @@
         "real_haskell_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/haskell:aspect.bzl",
+    "file_extensions": [
+      ".hs"
+    ],
+    "aspects": [
+      "real_haskell_docs_aspect"
+    ]
   }
 }

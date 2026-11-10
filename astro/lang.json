@@ -33,5 +33,12 @@
     "file_extensions": [
       ".astro"
     ]
+  },
+  "docs": {
+    "bzl": "tools/docs/components:aspect.bzl",
+    "file_extensions": [
+      ".astro"
+    ],
+    "aspects": []
   }
 }

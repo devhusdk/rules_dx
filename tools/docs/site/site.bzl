@@ -156,13 +156,27 @@ def _docs_api_impl(ctx):
         ),
     ]
 
-docs_api = rule(
-    doc = "Renders the API of libraries into API pages and checks the site's links.",
-    implementation = _docs_api_impl,
-    attrs = {
+def make_docs_api(aspects = []):
+    """Returns a docs_api rule whose libraries also get the given language docs aspects.
+
+    Args:
+      aspects: Language docs aspects, such as real_rust_docs_aspect.
+
+    Returns:
+      The docs_api rule.
+    """
+    return rule(
+        doc = "Renders the API of libraries into API pages and checks the site's links.",
+        implementation = _docs_api_impl,
+        attrs = _docs_api_attrs([real_docs_aspect] + aspects),
+        provides = [DocsApiInfo],
+    )
+
+def _docs_api_attrs(aspects):
+    return {
         "book_toml": attr.label(doc = "The book's book.toml.", allow_single_file = True, mandatory = True),
         "prose": attr.label_list(doc = "The prose pages beside the API reference.", allow_files = [".md"], mandatory = True),
-        "libraries": attr.label_list(doc = "The libraries to document, or targets that already return a DocsShardInfo.", mandatory = True, aspects = [real_docs_aspect]),
+        "libraries": attr.label_list(doc = "The libraries to document, or targets that already return a DocsShardInfo.", mandatory = True, aspects = aspects),
         "source_url": attr.string(doc = "URL prefix that source paths link under."),
         "_aggregate": attr.label(
             cfg = "exec",
@@ -174,13 +188,23 @@ docs_api = rule(
             default = Label("//tools/docs/site/check:site_check"),
             executable = True,
         ),
-    },
-    provides = [DocsApiInfo],
-)
+    }
 
-def docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = ""):
-    """Renders one prose page and the API reference of some libraries."""
-    docs_api(
+docs_api = make_docs_api()
+
+def docs_site_targets(docs_api_rule, name, libraries, prose, book_toml, prose_route, source_url):
+    """Declares the API, summary and site targets of one docs site.
+
+    Args:
+      docs_api_rule: A rule from make_docs_api.
+      name: The site target name.
+      libraries: The libraries to document.
+      prose: The prose pages.
+      book_toml: The book's book.toml.
+      prose_route: The route of the first prose page.
+      source_url: URL prefix that source paths link under.
+    """
+    docs_api_rule(
         name = name + "_docs",
         book_toml = book_toml,
         prose = prose,
@@ -200,6 +224,10 @@ def docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", sourc
         routes = [prose_route],
         summary = ":" + name + "_SUMMARY.md",
     )
+
+def docs_site(name, libraries, prose, book_toml, prose_route = "prose.md", source_url = ""):
+    """Renders one prose page and the API reference of some libraries."""
+    docs_site_targets(docs_api, name, libraries, prose, book_toml, prose_route, source_url)
 
 def _docs_scope_tools_impl(ctx):
     tools = [

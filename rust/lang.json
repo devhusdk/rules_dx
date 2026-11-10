@@ -64,5 +64,14 @@
         "real_rust_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/rust:aspect.bzl",
+    "file_extensions": [
+      ".rs"
+    ],
+    "aspects": [
+      "real_rust_docs_aspect"
+    ]
   }
 }

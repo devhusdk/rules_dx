@@ -66,5 +66,15 @@
         "real_python_typecheck_probe_aspect"
       ]
     }
+  },
+  "docs": {
+    "bzl": "tools/docs/python:aspect.bzl",
+    "file_extensions": [
+      ".py",
+      ".pyi"
+    ],
+    "aspects": [
+      "real_python_docs_aspect"
+    ]
   }
 }

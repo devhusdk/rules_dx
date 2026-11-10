@@ -1,5 +1,6 @@
 """Matrix cases: every tier file is already formatted, so a format run changes nothing."""
 
+load(":runner_matrix_file_family.bzl", "TFLINT_HEADER")
 load("//core/quality/tiers:corpora.bzl", "TIER_JAVASCRIPT", "TIER_JSON", "TIER_TOML", "TIER_YAML", "tier_labels")
 
 def _fixpoint_case(name, tool, binary, source_class, paths, config = None):
@@ -33,13 +34,11 @@ def _fixpoint_case(name, tool, binary, source_class, paths, config = None):
         case["config_files"] = [config]
     return case
 
-_TFLINT_HEADER = "terraform {\n  required_version = \">= 1.5\"\n  required_providers {\n    null = {\n      source  = \"hashicorp/null\"\n      version = \">= 3.0\"\n    }\n  }\n}\n\n"
-
 _HADOLINT_CLEAN = {"matrix/hadolint_tier/Dockerfile": "FROM scratch\nCOPY hello /hello\nENTRYPOINT [\"/hello\"]\n"}
 _HADOLINT_STYLE = {"matrix/hadolint_style/Dockerfile": "FROM scratch\nRUN [\"/bin/a\"]\nRUN [\"/bin/b\"]\n"}
 _TFLINT_DOCUMENTED = {
     "matrix/tflint_tier/variables.tf": "variable \"name\" {\n  type        = string\n  description = \"Name.\"\n}\n",
-    "matrix/tflint_tier/main.tf": _TFLINT_HEADER + "resource \"null_resource\" \"sample\" {\n  triggers = {\n    name = var.name\n  }\n}\n",
+    "matrix/tflint_tier/main.tf": TFLINT_HEADER + "resource \"null_resource\" \"sample\" {\n  triggers = {\n    name = var.name\n  }\n}\n",
 }
 _SELENE_CLEAN = {"matrix/selene_tier/add.lua": "local function add(a, b)\n    return a + b\nend\n\nprint(add(1, 2))\n"}
 _DART_CLEAN = {"matrix/dart_tier/main.dart": "void main() {\n  print(1);\n}\n"}

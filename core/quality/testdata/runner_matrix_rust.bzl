@@ -1,4 +1,4 @@
-"""Layer-2 matrix cases (snapshot workflow): every supported language x capability cell."""
+"""Matrix Rust cases."""
 
 RUST_CASES = [
     {

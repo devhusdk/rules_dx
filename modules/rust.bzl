@@ -134,7 +134,7 @@ RUST_CRATE_MANIFESTS = [
     "//tools/testing/starters:Cargo.toml",
     "//modules:Cargo.toml",
     "//wasi/testing:Cargo.toml",
-    "//api_spec/codegen:Cargo.toml",
+    "//api_spec/private/codegen:Cargo.toml",
     "//appimage/packer:Cargo.toml",
     "//qt/rust:Cargo.toml",
 ]

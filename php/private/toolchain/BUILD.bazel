@@ -2,15 +2,16 @@ load("@rules_dx//php:defs.bzl", "php_library")
 load("//core:cells.bzl", "cell_settings", "unsupported_value")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":metadata_tests.bzl", "php_metadata_tests", "php_version_test")
-load(":pins.bzl", "PHP_CELLS")
+load(":cells.bzl", "PHP_CELLS")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "cells.bzl",
     "metadata_tests.bzl",
     "pcov.BUILD",
     "php.bzl",
-    "pins.bzl",
+    "pins.json",
     "repos.bzl",
     "extensions.bzl",
     "version_check.php",
@@ -37,9 +38,9 @@ real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
+        "cells.bzl",
         "metadata_tests.bzl",
         "php.bzl",
-        "pins.bzl",
         "repos.bzl",
         "extensions.bzl",
     ],

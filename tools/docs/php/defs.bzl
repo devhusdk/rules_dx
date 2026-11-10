@@ -1,7 +1,7 @@
 """PHP API reference shards parsed by the pinned phpDocumentor on the registered PHP toolchain."""
 
+load("@dx_pins_data//:pins.bzl", "PINS")
 load("//php/private:providers.bzl", "PhpInfo")
-load("//php/private/toolchain:pins.bzl", "PHPDOCUMENTOR")
 load("//php/private/toolchain:php.bzl", "EXEC_TOOLCHAIN_TYPE")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo", "repo_relative", "srcs_manifest_line")
 
@@ -50,7 +50,7 @@ def php_shard_action(ctx, own, package, stem, phar, driver, extract_tool):
     args.add("-d", "error_reporting=8191")
     args.add(driver)
     args.add("--phar", phar)
-    args.add("--tool-version", PHPDOCUMENTOR.version)
+    args.add("--tool-version", PINS["dx_php"]["tools"]["phpdocumentor"]["version"])
     args.add("--own", manifest)
     args.add("--scratch", scratch.path)
     args.add("--out", php_json)

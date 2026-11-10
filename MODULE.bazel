@@ -766,6 +766,10 @@ dx_pins.pin(
     pins = "//powershell/toolchain:pins.json",
     toolchain_type = "@rules_powershell//powershell:toolchain_type",
 )
+dx_pins.pin(
+    name = "dx_php",
+    pins = "//php/private/toolchain:pins.json",
+)
 use_repo(
     dx_pins,
     "dx_pins_data",

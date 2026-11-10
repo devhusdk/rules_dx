@@ -8,8 +8,10 @@ def _dx_pins_impl(mctx):
     for mod in mctx.modules:
         for tag in mod.tags.pin:
             pins = json.decode(mctx.read(tag.pins))
-            build = mctx.read(tag.build)
             data[tag.name] = pins
+            if tag.build == None:
+                continue
+            build = mctx.read(tag.build)
             if tag.toolchain_type == None:
                 host_archive_rule(
                     name = tag.name,
@@ -33,7 +35,7 @@ dx_pins = module_extension(
             doc = "One pins.json. With a toolchain_type it makes a repository per cell and a hub of toolchain() targets; without, one repository of the host cell.",
             attrs = {
                 "aliases": attr.string_dict(doc = "Host cell to the pinned cell that serves it."),
-                "build": attr.label(mandatory = True, allow_single_file = True, doc = "BUILD file template; {binary} is replaced by the cell's binary path."),
+                "build": attr.label(allow_single_file = True, doc = "BUILD file template; {binary} is replaced by the cell's binary path. Unset records the pins in dx_pins_data only."),
                 "compatible_with": attr.string(default = "exec", values = ["exec", "target"], doc = "Which toolchain() constraint attribute the cell platform fills."),
                 "name": attr.string(mandatory = True, doc = "Hub, or sole, repository name."),
                 "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file of version and cells."),

@@ -1,29 +1,37 @@
 """PHP toolchain pin and acquisition tests."""
 
+load("@dx_pins_data//:pins.bzl", "PINS")
 load("//libs/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS")
 load("//core:cells.bzl", "cell_cases", "cell_setting")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//php:defs.bzl", "PHP_COMPATIBLE_WITH")
 load("//php/private:php.bzl", "lit", "rf", "runfiles_path", "write_launcher")
 load(":php.bzl", "TOOLCHAIN_TYPE")
-load(":pins.bzl", "COMPOSER", "PCOV", "PHPBENCH", "PHPCS", "PHPDOCUMENTOR", "PHPSTAN", "PHPSTAN_STRICT_RULES", "PHPUNIT", "PHP_CELLS", "PHP_HEADERS", "PHP_VERSION", "STATIC_PHP", "UNUSED_PUBLIC", "WEBMOZART_ASSERT")
+load(":cells.bzl", "PHP_CELLS")
 load(":repos.bzl", "VERSION_FILE", "hub_build", "runtime_build")
 
-PINS = [COMPOSER, PCOV, PHPBENCH, PHPCS, PHPDOCUMENTOR, PHPSTAN, PHPSTAN_STRICT_RULES, PHPUNIT, UNUSED_PUBLIC, WEBMOZART_ASSERT]
+_PHP = PINS["dx_php"]
+
+PHP_VERSION = _PHP["version"]
+
+STATIC_PHP = "https://dl.static-php.dev/v3/php-bin/"
 
 def _checks():
     hub = hub_build(PHP_CELLS.keys())
     flavors = {"linux_x86_64": "gnu-bulk", "linux_arm64": "gnu-bulk", "macos_arm64": "common", "windows_x86_64": "spc-max"}
     mac = PHP_CELLS["macos_arm64"]
+    pins = [_PHP["pcov"]] + _PHP["tools"].values()
+    cells = _PHP["cells"]
     cases = cell_cases("//php/private/toolchain", PHP_CELLS.keys(), unsupported = True)
     default = cases.pop("//conditions:default")
     return [
-        expect_true("pinned tools carry a digest and name their version", all([len(pin.sha256) == 64 and all([pin.version in url for url in pin.urls]) for pin in PINS])),
+        expect_true("pinned tools carry a digest and name their version", all([len(pin["sha256"]) == 64 and all([pin["version"] in url for url in pin["urls"]]) for pin in pins])),
         expect_equal("one case per pinned cell", sorted([str(key) for key in cases]), sorted([str(cell_setting("//php/private/toolchain", cell)) for cell in PHP_CELLS])),
         expect_equal("pinned cells allow the target", cases.values(), [[] for _ in PHP_CELLS]),
         expect_equal("other platforms are incompatible and unsupported", [str(label) for label in default], [str(Label("@platforms//:incompatible")), str(Label("//php/private/toolchain:unsupported"))]),
-        expect_true("cell digests", all([len(PHP_CELLS[c].sha256) == 64 for c in PHP_CELLS])),
-        expect_true("cell urls", all([PHP_CELLS[c].urls == [STATIC_PHP + flavors[c] + "/" + PHP_CELLS[c].archive] for c in PHP_CELLS])),
+        expect_equal("pinned cells are the language cells", sorted(cells.keys()), sorted(PHP_CELLS.keys())),
+        expect_true("cell urls", all([cells[c]["urls"][0].startswith(STATIC_PHP + flavors[c] + "/") for c in PHP_CELLS])),
+        expect_equal("cell binaries are the interpreters", {c: cells[c]["binary"] for c in cells}, {c: PHP_CELLS[c].interpreter for c in PHP_CELLS}),
         expect_equal("macos constraints", mac.exec_compatible_with, ["@platforms//os:macos", "@platforms//cpu:aarch64"]),
         expect_equal("windows constraints", PHP_CELLS["windows_x86_64"].exec_compatible_with, ["@platforms//os:windows", "@platforms//cpu:x86_64"]),
         expect_equal("windows interpreter", PHP_CELLS["windows_x86_64"].interpreter, "php.exe"),
@@ -31,7 +39,7 @@ def _checks():
         expect_contains("a pcov runtime names the extension", runtime_build(PHP_VERSION, "php", True), 'pcov = "@dx_php_pcov//:pcov.so",'),
         expect_contains("a runtime without pcov names none", runtime_build(PHP_VERSION), "pcov = None,"),
         expect_equal("only the linux cells load pcov", sorted([c for c in PHP_CELLS if PHP_CELLS[c].pcov]), ["linux_arm64", "linux_x86_64"]),
-        expect_true("pcov headers are pinned per linux cell", all([len(PHP_HEADERS[c].sha256) == 64 for c in PHP_HEADERS]) and sorted(PHP_HEADERS.keys()) == ["linux_arm64", "linux_x86_64"]),
+        expect_true("pcov headers are pinned per linux cell", all([len(h["sha256"]) == 64 for h in _PHP["headers"].values()]) and sorted(_PHP["headers"].keys()) == ["linux_arm64", "linux_x86_64"]),
         expect_contains("the windows runtime exports its interpreter", runtime_build(PHP_VERSION, "php.exe"), 'interpreter = "php.exe",'),
         expect_contains("the windows runtime exports the exe", runtime_build(PHP_VERSION, "php.exe"), 'exports_files(["php.exe", "DX_PHP_VERSION"])'),
         expect_equal("the version file is named", VERSION_FILE, "DX_PHP_VERSION"),

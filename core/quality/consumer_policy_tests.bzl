@@ -126,7 +126,7 @@ load(
 )
 load("//core/quality/testdata:config_subject.bzl", "config_attr", "config_subject_rule", "config_transition")
 
-CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "consumer_shared", "default", "generated"]
+CONSUMER_POLICY_CONFIGS = ["consumer_cc_clang_tidy", "consumer_format_off", "default", "generated", "shared"]
 
 _ASPECTS_BY_RESULT = {
     "format-cc": real_cc_format_aspect,

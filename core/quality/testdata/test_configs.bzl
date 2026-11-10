@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 39
+MAX_TEST_CONFIGS = 34
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -38,6 +38,7 @@ _DOTNET = "//core/quality/testdata/dotnet_owned:policy"
 _GO = "//core/quality/testdata/go_owned:policy"
 _HASKELL = "//core/quality/testdata/haskell_owned:policy"
 _OCAML = "//core/quality/testdata/ocaml_owned:policy"
+_SHARED = "//core/quality/tests/fixtures/consumer_policy:shared_policy"
 _RUST = "//core/quality/testdata/rust_owned:policy"
 
 TEST_CONFIGS = {
@@ -49,10 +50,9 @@ TEST_CONFIGS = {
     "cc_tidy_msvc": _config(_CC_TIDY, compiler = "msvc"),
     "consumer_cc_clang_tidy": _config("//core/quality/tests/fixtures/consumer_policy:cc_clang_tidy_policy"),
     "consumer_format_off": _config("//core/quality/tests/fixtures/consumer_policy:format_off_policy"),
-    "consumer_shared": _config("//core/quality/tests/fixtures/consumer_policy:shared_policy"),
+    "shared": _config(_SHARED),
+    "shared_standard": _config(_SHARED, profile = "standard"),
     "default": _config("//config:default_workspace_policy"),
-    "detekt_standard": _config("//core/quality/testdata/jvmclean:detekt_standard_policy"),
-    "detekt_strict": _config("//core/quality/testdata/jvmclean:detekt_strict_policy"),
     "dialyzer": _config("//core/quality/testdata/dialyzer:policy"),
     "dotnet_owned": _config(_DOTNET),
     "dotnet_owned_standard": _config(_DOTNET, profile = "standard"),
@@ -69,15 +69,11 @@ TEST_CONFIGS = {
     "objc": _config("//core/quality/testdata/clang_syntax:objc_policy"),
     "ocaml_owned": _config(_OCAML),
     "ocaml_owned_standard": _config(_OCAML, profile = "standard"),
-    "pmd_standard": _config("//core/quality/testdata/jvmclean:pmd_standard_policy"),
-    "pmd_strict": _config("//core/quality/testdata/jvmclean:pmd_strict_policy"),
     "python_tiers_ruff": _config("//core/quality/testdata/python_tiers:ruff_policy"),
     "rust_owned": _config(_RUST),
     "rust_owned_clippy_standard": _config(_RUST, clippy_flags = _CLIPPY_STANDARD),
     "rust_owned_clippy_strict": _config(_RUST, clippy_flags = _CLIPPY_STRICT),
     "scalafix_aux": _config("//core/quality/testdata/scalafix_aux:policy"),
-    "tier_clean": _config("//core/quality/testdata/tier_clean:policy"),
-    "tier_clean_strict": _config("//core/quality/testdata/tier_clean:strict_policy"),
     "workspace": _config("//.dx:policy"),
     "zanuda_owned": _config("//core/quality/testdata/zanuda_owned:policy"),
 }

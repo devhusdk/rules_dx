@@ -222,7 +222,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_yamllint_tier_standard_clean",
         "target": "//core/quality/testdata/tier_clean:yaml",
-        "config": "tier_clean",
+        "config": "shared_standard",
         "tool": "yamllint",
         "capability": "lint",
         "class": "yaml",
@@ -235,7 +235,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_yamllint_tier_strict_clean",
         "target": "//core/quality/testdata/tier_clean:yaml",
-        "config": "tier_clean_strict",
+        "config": "shared",
         "tool": "yamllint",
         "capability": "lint",
         "class": "yaml",
@@ -248,7 +248,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_buildifier_tier_standard_clean",
         "target": "//core/quality/testdata/tier_clean:starlark",
-        "config": "tier_clean",
+        "config": "shared_standard",
         "tool": "buildifier",
         "capability": "lint",
         "class": "starlark",
@@ -261,7 +261,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_buildifier_tier_strict_clean",
         "target": "//core/quality/testdata/tier_clean:starlark",
-        "config": "tier_clean_strict",
+        "config": "shared",
         "tool": "buildifier",
         "capability": "lint",
         "class": "starlark",
@@ -274,7 +274,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_sqlfluff_tier_standard_clean",
         "target": "//core/quality/testdata/tier_clean:sql",
-        "config": "tier_clean",
+        "config": "shared_standard",
         "tool": "sqlfluff",
         "capability": "lint",
         "class": "sql",
@@ -287,7 +287,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_sqlfluff_tier_strict_clean",
         "target": "//core/quality/testdata/tier_clean:sql",
-        "config": "tier_clean_strict",
+        "config": "shared",
         "tool": "sqlfluff",
         "capability": "lint",
         "class": "sql",
@@ -521,7 +521,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_pmd_clean_standard",
         "target": "//core/quality/testdata/jvmclean:java_clean",
-        "config": "pmd_standard",
+        "config": "shared_standard",
         "tool": "pmd",
         "capability": "lint",
         "class": "java",
@@ -531,7 +531,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_pmd_clean_strict",
         "target": "//core/quality/testdata/jvmclean:java_clean",
-        "config": "pmd_strict",
+        "config": "shared",
         "tool": "pmd",
         "capability": "lint",
         "class": "java",
@@ -541,7 +541,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_detekt_clean_standard",
         "target": "//core/quality/testdata/jvmclean:kotlin_clean",
-        "config": "detekt_standard",
+        "config": "shared_standard",
         "tool": "detekt",
         "capability": "lint",
         "class": "kotlin",
@@ -551,7 +551,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_detekt_clean_strict",
         "target": "//core/quality/testdata/jvmclean:kotlin_clean",
-        "config": "detekt_strict",
+        "config": "shared",
         "tool": "detekt",
         "capability": "lint",
         "class": "kotlin",

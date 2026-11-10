@@ -18,6 +18,26 @@ exports_files([
 
 workspace_policy(
     name = "shared_policy",
+    configs = select({
+            "//config:config_profile_strict": ["//core/quality/tiers/buildifier:strict"],
+            "//conditions:default": ["//core/quality/tiers/buildifier:standard"],
+        }) +
+        select({
+            "//config:config_profile_strict": ["//core/quality/tiers/detekt:strict"],
+            "//conditions:default": ["//core/quality/tiers/detekt:standard"],
+        }) +
+        select({
+            "//config:config_profile_strict": ["//core/quality/tiers/pmd:strict"],
+            "//conditions:default": ["//core/quality/tiers/pmd:standard"],
+        }) +
+        select({
+            "//config:config_profile_strict": ["//core/quality/tiers/sqlfluff:strict"],
+            "//conditions:default": ["//core/quality/tiers/sqlfluff:standard"],
+        }) +
+        select({
+            "//config:config_profile_strict": ["//core/quality/tiers/yamllint:strict"],
+            "//conditions:default": ["//core/quality/tiers/yamllint:standard"],
+        }),
     families = [
         ":ansible_family",
         ":api_spec_family",
@@ -34,7 +54,9 @@ workspace_policy(
         ":helm_family",
         ":html_template_family",
         ":jsonnet_family",
+        ":java_pmd_family",
         ":jupyter_family",
+        ":kotlin_detekt_family",
         ":kubernetes_family",
         ":latex_family",
         ":lua_family",
@@ -43,6 +65,8 @@ workspace_policy(
         ":pkl_family",
         ":rego_family",
         ":rst_family",
+        ":sql_family",
+        ":starlark_family",
         ":terraform_family",
         ":typst_family",
         ":yaml_family",
@@ -51,6 +75,45 @@ workspace_policy(
         "//core/quality:__pkg__",
         "//core/quality/testdata:__pkg__",
     ],
+)
+
+[
+    quality_family(
+        name = "%s_family" % family,
+        disabled = [
+            "audit",
+            "format",
+            "typecheck",
+        ],
+        family_id = family,
+        lint = [tool],
+    )
+    for family, tool in [
+        ("sql", "sqlfluff"),
+        ("starlark", "buildifier"),
+    ]
+]
+
+quality_family(
+    name = "java_pmd_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "java",
+    lint = ["pmd"],
+)
+
+quality_family(
+    name = "kotlin_detekt_family",
+    disabled = [
+        "audit",
+        "format",
+        "typecheck",
+    ],
+    family_id = "kotlin",
+    lint = ["detekt"],
 )
 
 quality_family(

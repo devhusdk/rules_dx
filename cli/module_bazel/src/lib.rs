@@ -1251,18 +1251,6 @@ impl ModuleFile {
             .collect()
     }
 
-    /// The main-repository .bzl labels of `use_extension` calls that load Conan's `BazelDeps` output.
-    pub fn conan_extensions(&self) -> Vec<&str> {
-        self.extensions()
-            .into_iter()
-            .filter(|(label, _)| {
-                let file = label.rsplit([':', '/']).next().unwrap_or(label);
-                label.starts_with("//") && file == "conan_deps_module_extension.bzl"
-            })
-            .map(|(label, _)| label)
-            .collect()
-    }
-
     /// The calls of `tag` on every binding of the rules_dx extension `name` in
     /// `<lang>/extensions.bzl`, named from a consumer or from this repository.
     fn dx_tags<'a>(

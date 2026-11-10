@@ -2,9 +2,7 @@
   "languages": [
     {
       "depcheck": "cc",
-      "ecosystems": [
-        "conan"
-      ],
+      "ecosystems": [],
       "name": "cc",
       "semver": false
     },

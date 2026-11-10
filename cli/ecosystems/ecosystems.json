@@ -210,25 +210,6 @@
       "pinned_reason": null
     },
     {
-      "name": "conan",
-      "manifest": "conanfile.txt",
-      "alt_manifests": ["conanfile.py"],
-      "shared_manifest": false,
-      "plan_backend": "pinned",
-      "check_backend": "pinned",
-      "graph_only": false,
-      "check": false,
-      "update": false,
-      "audit": true,
-      "advisory_family": null,
-      "uses_repository": false,
-      "lockfiles": ["conan.lock"],
-      "osv_source": null,
-      "license_audit": false,
-      "lock_required": true,
-      "pinned_reason": "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
-    },
-    {
       "name": "julia",
       "manifest": "Project.toml",
       "alt_manifests": [],

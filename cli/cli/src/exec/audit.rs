@@ -422,7 +422,6 @@ fn parse_locked_for_configured(
                 }
                 _ => Ok(Vec::new()),
             },
-            dx_adopt::dependency_sets::Ecosystem::Conan => dx_audit::locks::parse_conan_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Fpm => match rel.rsplit('/').next() {
                 Some(dx_adopt::dependency_sets::FPM_LOCK) => dx_audit::locks::parse_fpm_lock(text),
                 _ => Ok(Vec::new()),

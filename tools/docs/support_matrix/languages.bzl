@@ -366,7 +366,7 @@ LANGUAGES = [
         "cc",
         bench = "cc_bench",
         fuzz = "cc_fuzz_test",
-        deps = "`conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set",
+        deps = "none for `vcpkg.json`: there is no vcpkg set",
         doc = struct(tool = "doxygen", shard = "cc_doc_shard"),
         dead_code = ["clang_tidy misc-unused-parameters, misc-unused-using-decls"],
         coverage = ["gcov", "llvm-cov"],

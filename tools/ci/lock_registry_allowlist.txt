@@ -5,8 +5,6 @@ digests-file php/tests/fixtures/composer/composer.digests.json
 digests-file zig/tests/fixtures/zig-deps/zig.digests.json
 name ansible/lang.json MODULE.bazel
 name bicep/lang.json MODULE.bazel
-name cc/lang.json conan.lock
-name cc/lang.json conanfile.txt
 name cli/adopt/src/build_output.rs Cargo.lock
 name cli/adopt/src/build_output.rs Cargo.toml
 name cli/adopt/src/build_output.rs Gemfile.lock
@@ -30,8 +28,6 @@ name cli/adopt/src/dependency_sets.rs cabal.project
 name cli/adopt/src/dependency_sets.rs cabal.project.freeze
 name cli/adopt/src/dependency_sets.rs composer.json
 name cli/adopt/src/dependency_sets.rs composer.lock
-name cli/adopt/src/dependency_sets.rs conan.lock
-name cli/adopt/src/dependency_sets.rs conanfile.txt
 name cli/adopt/src/dependency_sets.rs cpanfile
 name cli/adopt/src/dependency_sets.rs cpanfile.snapshot
 name cli/adopt/src/dependency_sets.rs dub.json
@@ -77,7 +73,6 @@ name cli/audit/src/locks.rs maven_install.json
 name cli/audit/src/locks_cabal.rs cabal.project.freeze
 name cli/audit/src/locks_cargo.rs Cargo.lock
 name cli/audit/src/locks_composer.rs composer.lock
-name cli/audit/src/locks_conan.rs conan.lock
 name cli/audit/src/locks_cpan.rs cpanfile.snapshot
 name cli/audit/src/locks_dub.rs dub.selections.json
 name cli/audit/src/locks_hex.rs mix.lock
@@ -135,7 +130,6 @@ name cli/cli/src/exec/audit_reports.rs go.mod
 name cli/cli/src/exec/audit_reports.rs pnpm-lock.yaml
 name cli/cli/src/exec/audit_uncovered.rs build.zig.zon
 name cli/cli/src/exec/audit_uncovered.rs composer.lock
-name cli/cli/src/exec/audit_uncovered.rs conan.lock
 name cli/cli/src/exec/audit_uncovered.rs cpanfile.snapshot
 name cli/cli/src/exec/audit_uncovered.rs dub.selections.json
 name cli/cli/src/exec/audit_uncovered.rs mix.lock
@@ -512,7 +506,6 @@ parser zig/private/deps/lock.bzl
 registry ansible
 registry bicep
 registry cabal
-registry conan
 registry cpan
 registry fpm
 registry go

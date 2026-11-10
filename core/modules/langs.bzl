@@ -362,9 +362,7 @@ LANGS = json.decode("""{
         ".ipp"
       ]
     },
-    "ecosystems": [
-      "conan"
-    ],
+    "ecosystems": [],
     "entry_points": [
       "cc_coverage_settings",
       "cc_library",
@@ -375,12 +373,8 @@ LANGS = json.decode("""{
       "cc_bench"
     ],
     "family": "core",
-    "lockfiles": [
-      "conan.lock"
-    ],
-    "manifests": [
-      "conanfile.txt"
-    ],
+    "lockfiles": [],
+    "manifests": [],
     "name": "cc",
     "pins": [
       "private/toolchains/pins.bzl"
@@ -1741,6 +1735,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "luarocks",
+          "extension": "@rules_dx//lua/luarocks:extensions.bzl",
+          "hub": "luarocks",
+          "imports": "name",
+          "lock": "luarocks.lock",
+          "manifest": "*.rockspec",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "Lua",
     "tools": [
       "selene",
@@ -3032,6 +3041,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "zig",
+          "extension": "@rules_dx//zig:extensions.bzl",
+          "hub": "zig_deps",
+          "imports": "name",
+          "lock": "build.zig.zon",
+          "manifest": "build.zig.zon",
+          "resolver": null,
+          "state": null,
+          "tag": "lock"
+        }
+      ]
+    },
     "title": "Zig",
     "tools": [
       "zig_fmt"

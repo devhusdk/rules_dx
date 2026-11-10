@@ -63,29 +63,7 @@ fn presubmit_covers_five_platforms_and_the_dx_commands() {
 }
 
 #[test]
-fn every_family_template_directory_is_complete() {
-    let dir = dx_testing::resolve_runfiles(".bcr/presubmit.yml").with_file_name("families");
-    let Ok(entries) = std::fs::read_dir(&dir) else {
-        return;
-    };
-    for entry in entries {
-        let family = entry.expect("entry").path();
-        for file in [
-            "metadata.template.json",
-            "source.template.json",
-            "presubmit.yml",
-        ] {
-            assert!(
-                family.join(file).is_file(),
-                "{} lacks {file}",
-                family.display()
-            );
-        }
-    }
-}
-
-#[test]
-fn config_lists_the_root_and_every_family_with_templates() {
+fn config_lists_only_the_root() {
     let config = template("config.yml");
     let mut roots: Vec<String> = config
         .lines()
@@ -93,15 +71,7 @@ fn config_lists_the_root_and_every_family_with_templates() {
         .map(|root| root.trim_matches('"').to_owned())
         .collect();
     roots.sort();
-    let dir = dx_testing::resolve_runfiles(".bcr/presubmit.yml").with_file_name("families");
-    let mut want = vec![".".to_owned()];
-    if let Ok(entries) = std::fs::read_dir(&dir) {
-        for entry in entries {
-            let name = entry.expect("entry").file_name();
-            want.push(format!("families/{}", name.to_string_lossy()));
-        }
-    }
-    want.sort();
+    let want = vec![".".to_owned()];
     assert!(config.starts_with("moduleRoots:"));
     assert_eq!(roots, want);
 }

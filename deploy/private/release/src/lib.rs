@@ -221,26 +221,10 @@ pub fn render_provenance(base: &str, digest: &str, builder: &str) -> String {
 }
 
 pub fn render_bcr_source(module: &str, version: &str) -> String {
-    let (strip_prefix, url) = match module.strip_prefix("rules_dx_") {
-        Some(family) => (
-            bcr_module_strip_prefix(
-                &modules::ReleaseModule {
-                    name: module.to_owned(),
-                    root: format!("families/{family}"),
-                },
-                version,
-            ),
-            bcr_source_url(BCR_WANT_MODULE, version),
-        ),
-        None => (
-            bcr_strip_prefix(module, version),
-            bcr_source_url(module, version),
-        ),
-    };
     render_pretty(&serde_json::json!({
         "integrity": "<integrity-filled-at-release>",
-        "strip_prefix": strip_prefix,
-        "url": url,
+        "strip_prefix": bcr_strip_prefix(module, version),
+        "url": bcr_source_url(module, version),
     }))
 }
 
@@ -439,15 +423,6 @@ pub fn bcr_strip_prefix(module: &str, version: &str) -> String {
     format!("{module}-{version}")
 }
 
-pub fn bcr_module_strip_prefix(module: &modules::ReleaseModule, version: &str) -> String {
-    let prefix = bcr_strip_prefix(BCR_WANT_MODULE, version);
-    if module.is_core() {
-        prefix
-    } else {
-        format!("{prefix}/{}", module.root)
-    }
-}
-
 pub fn render_bcr_source_for_digest(
     module: &str,
     version: &str,
@@ -456,33 +431,23 @@ pub fn render_bcr_source_for_digest(
     if module != BCR_WANT_MODULE {
         return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
     }
-    render_bcr_module_source_for_digest(&modules::ReleaseModule::core(), version, digest)
-}
-
-/// Renders the `source.json` of one module; every module points at the core archive.
-pub fn render_bcr_module_source_for_digest(
-    module: &modules::ReleaseModule,
-    version: &str,
-    digest: &str,
-) -> Result<String, String> {
     bcr_candidate_version_error(version)?;
     let integrity = bcr_integrity_of_digest(digest)?;
     Ok(render_pretty(&serde_json::json!({
         "integrity": integrity,
-        "strip_prefix": bcr_module_strip_prefix(module, version),
-        "url": bcr_source_url(BCR_WANT_MODULE, version),
+        "strip_prefix": bcr_strip_prefix(module, version),
+        "url": bcr_source_url(module, version),
     })))
 }
 
 pub fn write_bcr_source_for_archive(
     dst: &Path,
-    module: &modules::ReleaseModule,
     version: &str,
     archive: &Path,
 ) -> io::Result<String> {
     let digest = dx_digest::sha256_file_hex(archive)?;
-    let text =
-        render_bcr_module_source_for_digest(module, version, &digest).map_err(io::Error::other)?;
+    let text = render_bcr_source_for_digest(BCR_WANT_MODULE, version, &digest)
+        .map_err(io::Error::other)?;
     std::fs::write(dst, text.as_bytes())?;
     bcr_integrity_of_digest(&digest).map_err(io::Error::other)
 }
@@ -498,21 +463,6 @@ pub fn bcr_candidate_error(
         source_text,
         &want_prefix,
         &bcr_source_url(module, version),
-        digest,
-    )
-}
-
-pub fn bcr_module_candidate_error(
-    source_text: &str,
-    module: &modules::ReleaseModule,
-    version: &str,
-    digest: &str,
-) -> Result<(), String> {
-    let want_prefix = bcr_module_strip_prefix(module, version);
-    bcr_source_error(
-        source_text,
-        &want_prefix,
-        &bcr_source_url(BCR_WANT_MODULE, version),
         digest,
     )
 }
@@ -633,14 +583,6 @@ pub fn render_bcr_dry_run(module: &str, version: &str, inputs: &[String]) -> Str
     out
 }
 
-/// Accepts `rules_dx` and `rules_dx_<family>`, the names `bcr_source_error` takes.
-fn bcr_module_is_valid(module: &str) -> bool {
-    module == BCR_WANT_MODULE
-        || module
-            .strip_prefix("rules_dx_")
-            .is_some_and(|family| !family.is_empty())
-}
-
 pub fn bcr_run(
     module: &str,
     version: &str,
@@ -648,10 +590,8 @@ pub fn bcr_run(
     dry_run: bool,
     approved: bool,
 ) -> Result<String, String> {
-    if !bcr_module_is_valid(module) {
-        return Err(format!(
-            "bcr: invalid module '{module}': want 'rules_dx' or 'rules_dx_<family>'"
-        ));
+    if module != BCR_WANT_MODULE {
+        return Err(format!("bcr: invalid module '{module}': want 'rules_dx'"));
     }
     if dry_run {
         return Ok(render_bcr_dry_run(module, version, inputs));

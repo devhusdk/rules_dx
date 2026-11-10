@@ -220,10 +220,6 @@ jobs:
           RELEASE_SIGN_DRY_RUN=1 run signing_demo bazel run //deploy/private/release:signing_demo > "$stage/signing-dry-run.log" 2>&1
           BCR_DRY_RUN=1 run bcr_demo bazel run //deploy/private/release:bcr_demo > "$stage/bcr-dry-run.log" 2>&1
           bcr_logs="$stage/bcr-dry-run.log"
-          for family in android apple; do
-            BCR_DRY_RUN=1 run "bcr_demo_$family" bazel run "//deploy/private/release:bcr_demo_$family" > "$stage/bcr-dry-run-$family.log" 2>&1
-            bcr_logs="$bcr_logs:$stage/bcr-dry-run-$family.log"
-          done
           run release_driver bazel run //deploy/private/release:release_driver -- v0.0.0-dryrun > "$stage/human-run-dry-run.log" 2>&1
           echo "install verifier refusal proof (no network, publishes nothing):"
           run verify_help bazel run //deploy/private/install:dx_verify -- --help > "$stage/verify-help.txt"
@@ -268,7 +264,7 @@ jobs:
             echo "- SBOM: \`//deploy/private/release:sbom_demo\` SPDX-2.3 + SLSA v1 ok, subject digest equals artifact sha256, publishes nothing"
             echo "- NOTICE: \`//deploy/private/release:notice_demo\` ok (hermetic bundle, signed alongside SBOM pair, publishes nothing)"
             echo "- signing dry-run: \`//deploy/private/release:signing_demo\` \`RELEASE_SIGN_DRY_RUN=1\` ok (Sigstore keyless + attestation over SBOM pair plus NOTICE, publishes nothing)"
-            echo "- BCR shape: \`rules_dx\` and \`rules_dx_<family>\` at \`0.0.0\` via \`//deploy/private/release:bcr_demo\` and \`//deploy/private/release:bcr_demo_<family>\` checked, not submitted"
+            echo "- BCR shape: \`rules_dx\` at \`0.0.0\` via \`//deploy/private/release:bcr_demo\` checked, not submitted"
             echo "- verifier: checksum-only refused, TUF trust root, nothing installed"
             echo "- operations (all \`not-authorized\`, none executed):"
             echo '```'
@@ -311,10 +307,6 @@ jobs:
           test -s "out/$src"
           test -s "out/$src.sha256"
           test -s out/source.json
-          for file in out/rules_dx_*.source.json; do
-            [ -e "$file" ] || continue
-            test -s "$file"
-          done
           test -s out/files.list
       - name: Reuse or plan the attestation
         id: plan
@@ -421,7 +413,7 @@ jobs:
         run: |
           set -euo pipefail
           src="rules_dx-${RELEASE_TAG#v}.tar.gz"
-          sources=$(cd out && ls source.json rules_dx_*.source.json 2>/dev/null)
+          sources=$(cd out && ls source.json)
           : > "$RUNNER_TEMP/paths.txt"
           for file in $(cat out/files.list) "$src" "$src.sha256" "$src.intoto.jsonl" $sources; do
             if [ "$DRY_RUN" = true ]; then

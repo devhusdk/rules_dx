@@ -8,10 +8,10 @@ use std::process::Stdio;
 use dx_process::capture::{self, Captured, DEFAULT_TIMEOUT, RunError, run_captured};
 
 use crate::{
-    BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_version_error,
-    bcr_integrity_of_digest, bcr_module_candidate_error, bcr_source_url, bcr_strip_prefix,
-    modules::{ReleaseModule, module_versions_error, release_modules},
-    render_bcr_module_source_for_digest, render_pretty, write_bcr_source_for_archive,
+    BCR_WANT_MODULE, GitState, RELEASE_REMOTE, RELEASE_REPOSITORY, bcr_candidate_error,
+    bcr_candidate_version_error, bcr_integrity_of_digest, bcr_source_url, bcr_strip_prefix,
+    modules::module_version_error, render_bcr_source_for_digest, render_pretty,
+    write_bcr_source_for_archive,
 };
 
 /// One release candidate: a SemVer version at one full commit.
@@ -472,8 +472,7 @@ fn conflicting_output_error(path: &Path, bytes: &[u8]) -> Result<(), String> {
 
 /// Builds, verifies and describes the release source archive in `out_dir`.
 ///
-/// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar, `source.json` and one
-/// `<module>.source.json` per family module.
+/// Writes `rules_dx-<version>.tar.gz`, its `.sha256` sidecar, and `source.json`.
 /// Refuses an `out_dir` that already holds different bytes under those names.
 /// `pins` replaces [`PINS_PATH`] as in [`build_source_archive`].
 pub fn write_release_source(
@@ -519,71 +518,41 @@ fn stage_release_source(
 ) -> Result<StagedOutputs, String> {
     let built = build_source_archive(repo, candidate, staged, pins)?;
     source_archive_error(staged, repo, candidate, pins)?;
-    let module_files = commit_module_files(repo, candidate)?;
-    module_versions_error(&module_files, candidate.version())?;
+    let module_text = commit_module_file(repo, candidate)?;
+    module_version_error(&module_text, candidate.version())?;
     let archive = std::fs::read(staged)
         .map_err(|error| format!("candidate: cannot read {}: {error}", staged.display()))?;
     let sidecar = format!("{}  {name}\n", built.digest).into_bytes();
-    let mut outputs = vec![
+    let integrity = write_bcr_source_for_archive(staged_json, candidate.version(), staged)
+        .map_err(|error| format!("candidate: cannot write source.json: {error}"))?;
+    if integrity != built.integrity {
+        return Err("candidate: source.json integrity differs from the archive".to_owned());
+    }
+    let json = std::fs::read(staged_json)
+        .map_err(|error| format!("candidate: cannot read source.json: {error}"))?;
+    let json_text = String::from_utf8(json.clone())
+        .map_err(|error| format!("candidate: source.json is not UTF-8: {error}"))?;
+    bcr_candidate_error(
+        &json_text,
+        BCR_WANT_MODULE,
+        candidate.version(),
+        &built.digest,
+    )?;
+    let outputs = vec![
         (name.to_owned(), archive),
         (format!("{name}.sha256"), sidecar),
+        ("source.json".to_owned(), json),
     ];
-    for module in release_modules(&module_files)? {
-        let integrity =
-            write_bcr_source_for_archive(staged_json, &module, candidate.version(), staged)
-                .map_err(|error| {
-                    format!("candidate: cannot write {}: {error}", module.source_file())
-                })?;
-        if integrity != built.integrity {
-            return Err(format!(
-                "candidate: {} integrity differs from the archive",
-                module.source_file()
-            ));
-        }
-        let json = std::fs::read(staged_json)
-            .map_err(|error| format!("candidate: cannot read {}: {error}", module.source_file()))?;
-        let json_text = String::from_utf8(json.clone()).map_err(|error| {
-            format!("candidate: {} is not UTF-8: {error}", module.source_file())
-        })?;
-        bcr_module_candidate_error(&json_text, &module, candidate.version(), &built.digest)?;
-        outputs.push((module.source_file(), json));
-    }
     Ok((built, outputs))
 }
 
-/// Reads the commit's root MODULE.bazel and every `families/<f>/MODULE.bazel`.
-fn commit_module_files(
-    repo: &Path,
-    candidate: &Candidate,
-) -> Result<Vec<(String, String)>, String> {
-    let commit = candidate.commit();
-    let listing = git_read(
+/// Reads the commit's root MODULE.bazel.
+fn commit_module_file(repo: &Path, candidate: &Candidate) -> Result<String, String> {
+    git_read(
         repo,
-        &[
-            "ls-tree",
-            "-r",
-            "--name-only",
-            "-z",
-            "--full-tree",
-            commit,
-            "--",
-            "MODULE.bazel",
-            "families",
-        ],
+        &["show", &format!("{}:MODULE.bazel", candidate.commit())],
     )
-    .map_err(|error| format!("candidate: {error}"))?;
-    let mut files = Vec::new();
-    for path in listing.split('\0').filter(|path| !path.is_empty()) {
-        if path != "MODULE.bazel"
-            && !(path.starts_with("families/") && path.ends_with("/MODULE.bazel"))
-        {
-            continue;
-        }
-        let text = git_read(repo, &["show", &format!("{commit}:{path}")])
-            .map_err(|error| format!("candidate: {error}"))?;
-        files.push((path.to_owned(), text));
-    }
-    Ok(files)
+    .map_err(|error| format!("candidate: {error}"))
 }
 
 pub(crate) fn call_end(text: &str, open: usize) -> Option<usize> {
@@ -758,68 +727,37 @@ pub fn stage_local_registry(
     let prefix = candidate.strip_prefix();
     let listing = dx_deploy_tools::archive_listing(archive)
         .map_err(|error| format!("candidate: cannot list {}: {error}", archive.display()))?;
-    let mut files = Vec::new();
-    for (path, _, _) in &listing {
-        let Some(relative) = path.strip_prefix(&format!("{prefix}/")) else {
-            continue;
-        };
-        if relative == "MODULE.bazel"
-            || (relative.starts_with("families/") && relative.ends_with("/MODULE.bazel"))
-        {
-            let bytes = dx_deploy_tools::archive_read_member(archive, path)
-                .map_err(|error| format!("candidate: cannot read {path}: {error}"))?;
-            let text =
-                String::from_utf8(bytes).map_err(|_| format!("candidate: {path} is not UTF-8"))?;
-            files.push((relative.to_owned(), text));
-        }
+    let module_path = format!("{prefix}/MODULE.bazel");
+    if !listing.iter().any(|(path, _, _)| path == &module_path) {
+        return Err(format!("candidate: cannot read {module_path}"));
     }
-    let core_text = files
-        .iter()
-        .find(|(path, _)| path == "MODULE.bazel")
-        .map(|(_, text)| text.clone())
-        .ok_or_else(|| format!("candidate: cannot read {prefix}/MODULE.bazel"))?;
-    let family_files: Vec<(String, String)> = files
-        .into_iter()
-        .filter(|(path, _)| path != "MODULE.bazel")
-        .collect();
-    let mut modules = release_modules(&family_files)?;
-    modules.insert(0, ReleaseModule::core());
-    modules.dedup_by(|a, b| a.name == b.name);
-    for module in &modules {
-        let text = if module.is_core() {
-            core_text.as_str()
-        } else {
-            family_files
-                .iter()
-                .find(|(path, _)| path == &format!("{}/MODULE.bazel", module.root))
-                .map(|(_, text)| text.as_str())
-                .ok_or_else(|| format!("candidate: {} has no MODULE.bazel", module.root))?
-        };
-        let module_file = candidate_named_module_file(text, version, &module.name)?;
-        let module_dir = dir.join("modules").join(&module.name);
-        write_file(
-            &module_dir.join("metadata.json"),
-            render_pretty(&serde_json::json!({
-                "homepage": RELEASE_REPOSITORY,
-                "maintainers": [],
-                "repository": [RELEASE_REPOSITORY.replace("https://github.com/", "github:")],
-                "versions": [version],
-                "yanked_versions": {},
-            }))
-            .as_bytes(),
-        )?;
-        write_file(
-            &module_dir.join(version).join("MODULE.bazel"),
-            module_file.as_bytes(),
-        )?;
-        let source = render_bcr_module_source_for_digest(module, version, &digest)?;
-        let source_path = module_dir.join(version).join("source.json");
-        write_file(&source_path, source.as_bytes())?;
-        let staged = std::fs::read_to_string(&source_path).map_err(|error| {
-            format!("candidate: cannot read {}: {error}", source_path.display())
-        })?;
-        bcr_module_candidate_error(&staged, module, version, &digest)?;
-    }
+    let bytes = dx_deploy_tools::archive_read_member(archive, &module_path)
+        .map_err(|error| format!("candidate: cannot read {module_path}: {error}"))?;
+    let text =
+        String::from_utf8(bytes).map_err(|_| format!("candidate: {module_path} is not UTF-8"))?;
+    let module_file = candidate_named_module_file(&text, version, BCR_WANT_MODULE)?;
+    let module_dir = dir.join("modules").join(BCR_WANT_MODULE);
+    write_file(
+        &module_dir.join("metadata.json"),
+        render_pretty(&serde_json::json!({
+            "homepage": RELEASE_REPOSITORY,
+            "maintainers": [],
+            "repository": [RELEASE_REPOSITORY.replace("https://github.com/", "github:")],
+            "versions": [version],
+            "yanked_versions": {},
+        }))
+        .as_bytes(),
+    )?;
+    write_file(
+        &module_dir.join(version).join("MODULE.bazel"),
+        module_file.as_bytes(),
+    )?;
+    let source = render_bcr_source_for_digest(BCR_WANT_MODULE, version, &digest)?;
+    let source_path = module_dir.join(version).join("source.json");
+    write_file(&source_path, source.as_bytes())?;
+    let staged = std::fs::read_to_string(&source_path)
+        .map_err(|error| format!("candidate: cannot read {}: {error}", source_path.display()))?;
+    bcr_candidate_error(&staged, BCR_WANT_MODULE, version, &digest)?;
     let url = candidate.url();
     let relative = url
         .strip_prefix("https://")

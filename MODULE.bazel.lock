@@ -63967,7 +63967,7 @@
       },
       "os:windows,arch:amd64": {
         "bzlTransitiveDigest": "T84h6d0yQeT/AOyIWS8NagtobEg9RpCrbuzBCaosmdM=",
-        "usagesDigest": "J2BQgKK3EbTmqnypAzGPNP112ijBWOm1FXav5ba01mg=",
+        "usagesDigest": "hK/EPbMzP6kqR9SlJKMmM3fkJZNlN5Dq5dZYq8MIe3E=",
         "recordedInputs": [
           "REPO_MAPPING:rules_go+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_go+,io_bazel_rules_go rules_go+",
@@ -87861,8 +87861,8 @@
         }
       },
       "os:windows,arch:amd64": {
-        "bzlTransitiveDigest": "Dkd0NADH9eGNlFtUoFdsFiGZh9T5wJMmUQwZwdvLRb4=",
-        "usagesDigest": "Sd3LaLuXUPNCUh+Bc1l8i9Fnt3wf09D1JMWYnhzL3pQ=",
+        "bzlTransitiveDigest": "QgUTRy/OdnNi7uR9hLrlfSTb7bBo5YV16nhznd8HKdE=",
+        "usagesDigest": "Ly043mKod3pIlMqbsOauaTJWdMSwoX0jfjq354u2r7g=",
         "recordedInputs": [
           "ENV:RULES_PYTHON_BZLMOD_DEBUG \\0",
           "REPO_MAPPING:bazel_features+,bazel_features_globals bazel_features++version_extension+bazel_features_globals",

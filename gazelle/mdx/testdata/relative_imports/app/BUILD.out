@@ -1,5 +1,5 @@
 load("@rules_dx//javascript:defs.bzl", "javascript_library")
-load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+load("@rules_dx//mdx:defs.bzl", "mdx_library")
 load("@rules_dx//typescript:defs.bzl", "typescript_library")
 
 javascript_library(

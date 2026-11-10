@@ -3,6 +3,8 @@
 load("@aspect_rules_js//js:defs.bzl", _js_library = "js_library")
 load("//javascript/private:frameworks.bzl", "dx_framework_forward_rule", "dx_framework_library", "dx_framework_build", "dx_framework_test")
 
+visibility(["//..."])
+
 _mdx_library_forward = dx_framework_forward_rule("mdx", ".mdx")
 
 def mdx_library(name, srcs, visibility = None, **kwargs):
@@ -15,4 +17,4 @@ def mdx_build(name, srcs, config, node_modules, package_json = None, public = No
 
 def mdx_test(name, *, srcs, node_modules, data = None, **kwargs):
     """Runs jest over MDX components, compiled by the linked @mdx-js/mdx. Coverage maps back to the .mdx sources."""
-    dx_framework_test(name, srcs, Label("//mdx/rules:jest_config"), Label("//mdx/rules:jest_transform"), ["@mdx-js/mdx", "source-map"], node_modules, data = data, **kwargs)
+    dx_framework_test(name, srcs, Label("//mdx/private:jest_config"), Label("//mdx/private:jest_transform"), ["@mdx-js/mdx", "source-map"], node_modules, data = data, **kwargs)

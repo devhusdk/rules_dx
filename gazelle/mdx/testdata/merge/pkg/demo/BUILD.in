@@ -1,4 +1,4 @@
-load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+load("@rules_dx//mdx:defs.bzl", "mdx_library")
 
 filegroup(
     name = "assets",

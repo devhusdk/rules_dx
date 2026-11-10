@@ -46,7 +46,7 @@ const PACKAGES: [&str; 72] = [
     "dart/rules",
     "lua/rules",
     "lua/toolchain",
-    "mdx/rules",
+    "mdx/private",
     "modules",
     "ocaml/rules",
     "ocaml/toolchain",

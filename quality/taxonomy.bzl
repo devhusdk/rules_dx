@@ -174,7 +174,7 @@ TAXONOMY = {
         classes = ["markdown"],
     ),
     "mdx": struct(
-        owner = "//mdx/rules:defs.bzl",
+        owner = "//mdx:defs.bzl",
         classes = ["mdx"],
     ),
     "nix": struct(

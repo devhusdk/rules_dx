@@ -753,7 +753,7 @@ rust_test(
         "//lua/private:corpus_starlark",
         "//lua/rules:corpus_starlark",
         "//lua/toolchain:corpus_starlark",
-        "//mdx/rules:corpus_starlark",
+        "//mdx/private:corpus_starlark",
         "//modules:corpus_starlark",
         "//ocaml/rules:corpus_starlark",
         "//ocaml/toolchain:corpus_starlark",

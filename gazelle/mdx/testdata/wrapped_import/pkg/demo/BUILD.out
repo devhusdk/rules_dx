@@ -1,4 +1,4 @@
-load("@rules_dx//mdx/rules:defs.bzl", "mdx_library")
+load("@rules_dx//mdx:defs.bzl", "mdx_library")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(

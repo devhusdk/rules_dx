@@ -478,9 +478,9 @@ dx rule that wraps it.
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_library` |
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_test` |
 |  |  | `@rules_dx//make/rules:defs.bzl` | `make_library` |
-|  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_build` |
-|  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_library` |
-|  |  | `@rules_dx//mdx/rules:defs.bzl` | `mdx_test` |
+|  |  | `@rules_dx//mdx:defs.bzl` | `mdx_build` |
+|  |  | `@rules_dx//mdx:defs.bzl` | `mdx_library` |
+|  |  | `@rules_dx//mdx:defs.bzl` | `mdx_test` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `launcher_script` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_bench` |
 |  |  | `@rules_dx//ocaml/rules:defs.bzl` | `ocaml_binary` |

@@ -140,7 +140,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"mdx": {
 		files: map[string]string{"demo.mdx": webScript + "\n# Demo\n\nContent.\n"},
-		kind:  "mdx_library", target: "demo", defs: "mdx/rules:defs.bzl",
+		kind:  "mdx_library", target: "demo", defs: "mdx:defs.bzl",
 		symbols: []string{"mdx_library"},
 	},
 	"ownership": {

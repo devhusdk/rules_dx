@@ -93,6 +93,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude go/tests/fixtures/golint
 # gazelle:exclude go/tests/fixtures/testonly_binary
 # gazelle:exclude cc/tests/fixtures/hello
+# gazelle:exclude cc/tests/fixtures/shared
 # gazelle:exclude cc/private/testdata
 # gazelle:exclude cc/tests/fixtures/no_srcs
 # gazelle:exclude cc/tests/fixtures/consumer_cc

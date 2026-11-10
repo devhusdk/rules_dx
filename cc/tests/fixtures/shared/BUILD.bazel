@@ -1,0 +1,46 @@
+load("@rules_cc//cc:defs.bzl", "cc_shared_library")
+load("//cc:defs.bzl", "cc_library", "cc_test")
+load("//core/quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+cc_library(
+    name = "greet_api",
+    hdrs = ["greet.h"],
+)
+
+cc_library(
+    name = "greet",
+    srcs = ["greet.cc"],
+    local_defines = ["DX_GREET_BUILD"],
+    deps = [":greet_api"],
+)
+
+cc_shared_library(
+    name = "greet_shared",
+    deps = [":greet"],
+)
+
+cc_test(
+    name = "shared_test",
+    srcs = ["shared_test.cc"],
+    dynamic_deps = [":greet_shared"],
+    deps = [":greet_api"],
+)
+
+cc_test(
+    name = "dynamic_test",
+    srcs = ["shared_test.cc"],
+    linkstatic = False,
+    deps = [":greet"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

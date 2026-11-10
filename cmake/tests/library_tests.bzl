@@ -1,18 +1,5 @@
 """cmake_library ownership proofs."""
 
-load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
+load("//core/quality:library_tests.bzl", "owns_class_test")
 
-def _owns_cmake_class_impl(ctx):
-    env = analysistest.begin(ctx)
-    target = analysistest.target_under_test(env)
-    direct = target[QualitySourcesInfo].direct_sources
-    asserts.equals(env, ["cmake"], sorted(direct.keys()))
-    asserts.equals(
-        env,
-        ["CMakeLists.txt", "helpers.cmake"],
-        [f.basename for f in direct["cmake"].to_list()],
-    )
-    return analysistest.end(env)
-
-owns_cmake_class_test = analysistest.make(_owns_cmake_class_impl)
+owns_cmake_class_test = owns_class_test("cmake", ["CMakeLists.txt", "helpers.cmake"])

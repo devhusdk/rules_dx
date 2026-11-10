@@ -118,6 +118,36 @@ def named_source_class_error(class_id, basename):
     accepted = row["names"] + ["*" + s for s in row["suffixes"]]
     return "'" + basename + "' is not a " + class_id + " file name; accepted names: " + ", ".join(accepted)
 
+def named_source_library(class_id, doc, srcs_doc):
+    """Returns a `<class_id>_library` rule that owns name-matched sources of one class."""
+    name = class_id + "_library"
+
+    def _impl(ctx):
+        for f in ctx.files.srcs:
+            error = named_source_class_error(class_id, f.basename)
+            if error != "":
+                fail(name + " " + str(ctx.label) + ": " + error)
+        direct_sources = {}
+        if len(ctx.files.srcs) > 0:
+            direct_sources[class_id] = depset(ctx.files.srcs)
+        check_direct_sources(direct_sources, str(ctx.label))
+        return [
+            DefaultInfo(files = depset(
+                ctx.files.srcs,
+                transitive = [dep[DefaultInfo].files for dep in ctx.attr.deps],
+            )),
+            QualitySourcesInfo(direct_sources = direct_sources),
+        ]
+
+    return rule(
+        implementation = _impl,
+        doc = doc,
+        attrs = {
+            "srcs": attr.label_list(allow_files = True, doc = srcs_doc),
+            "deps": attr.label_list(providers = [DefaultInfo], doc = "Other " + class_id + " libraries this package depends on."),
+        },
+    )
+
 # Classes recognised by directory and extension. These are checked before the
 # extension table, so a workflow file leaves the `yaml` class for lint.
 PATH_SOURCE_CLASSES = {

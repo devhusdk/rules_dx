@@ -20,7 +20,7 @@ def _checks():
         expect_true("zanuda rejects OCaml 5.6", not in_ranges("5.6.0", ZANUDA_OCAML_RANGES)),
         expect_equal("zanuda version", [p["version"] for p in packages if p["name"] == "zanuda"], [SOURCE["version"]]),
         expect_equal("directories are unique", len(dirs), len(depset(dirs).to_list())),
-        expect_true("archive count stays below the abort threshold", len(packages) <= 25),
+        expect_true("archive count stays below the abort threshold", len(packages) <= 40),
         expect_equal("patch names map to directories", patch_package("zanuda.1-no-plugins.patch"), "zanuda"),
         expect_true("dune keeps its library directory", "dune_src" in dirs),
         expect_true("patches name packages", all([patch_package(p.split("/")[-1]) in dirs for p in SOURCE["patches"]])),

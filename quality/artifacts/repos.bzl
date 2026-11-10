@@ -112,6 +112,7 @@ DX_TOOL_REPOS = [
     "dx_opa_macos_arm64",
     "dx_opa_windows_x86_64",
     "dx_ormolu_linux_x86_64",
+    "dx_ormolu_macos_arm64",
     "dx_ormolu_windows_x86_64",
     "dx_pkl_linux_arm64",
     "dx_pkl_linux_x86_64",

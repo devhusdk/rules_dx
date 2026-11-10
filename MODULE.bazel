@@ -836,19 +836,6 @@ single_version_override(
     version = "0.17.0",
 )
 
-zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
-zig.toolchain(zig_version = "0.17.0")
-
-_zig_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-
-_zig_http_archive(
-    name = "zig_app_xxhash",
-    build_file = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
-    sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
-    strip_prefix = "xxHash-0.8.3",
-    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
-)
-
 # floor: equals tested
 bazel_dep(name = "rules_swift", version = "4.2.2")
 single_version_override(
@@ -1263,6 +1250,20 @@ fortran = use_extension("//fortran:extensions.bzl", "fortran")
 use_repo(fortran, "dx_fortran_toolchains", "rules_fortran")
 
 register_toolchains("@dx_fortran_toolchains//:all")
+
+zig = use_extension("@rules_zig//zig:extensions.bzl", "zig")
+zig.toolchain(zig_version = "0.17.0")
+
+_zig_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+_zig_http_archive(
+    name = "zig_app_xxhash",
+    build_file = "//zig/tests/fixtures/zig-app:xxhash.BUILD.bazel",
+    dev_dependency = True,
+    sha256 = "aae608dfe8213dfd05d909a57718ef82f30722c392344583d3f39050c7f29a80",
+    strip_prefix = "xxHash-0.8.3",
+    urls = ["https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.3.tar.gz"],
+)
 
 # floor: equals tested
 bazel_dep(name = "lua", version = "5.4.6.bcr.1")

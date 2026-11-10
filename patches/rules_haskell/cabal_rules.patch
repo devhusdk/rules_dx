@@ -182,9 +182,11 @@ index 6e2a40e..271609e 100755
  os.environ["RULES_HASKELL_GHC_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PATH", ""))
  os.environ["RULES_HASKELL_GHC_PKG_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_GHC_PKG_PATH", ""))
  os.environ["RULES_HASKELL_LIBDIR_PATH"] = canonicalize_path(os.getenv("RULES_HASKELL_LIBDIR_PATH", ""))
-@@ -295,6 +298,10 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
+@@ -295,6 +298,12 @@ with mkdtemp(distdir_prefix()) as distdir, init_deps_db() as deps_package_db:
      if "RUNFILES_MANIFEST_FILE" in os.environ:
          del os.environ["RUNFILES_MANIFEST_FILE"]
++    if "RUNFILES_DIR" in os.environ:
++        del os.environ["RUNFILES_DIR"]
      runghc_args = [arg.replace("./", execroot + "/") for arg in runghc_args]
 +    ghc_cc_args = toolchain_info["ghc_cc_args"]
 +    if "-pgmlm" in ghc_cc_args:

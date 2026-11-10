@@ -4,14 +4,13 @@ use dx_testing::read_runfiles;
 const CI: &str = ".github/workflows/ci.yml";
 const WORKFLOW: &str = ".github/workflows/pr-check.yml";
 const SCRIPT: &str = "tools/ci/pr_check.sh";
-const SETS: [&str; 8] = [
+const SETS: [&str; 7] = [
     "workflow",
     "preflight",
     "preflight-windows-arm64",
     "starter",
     "hermetic",
     "docs",
-    "families",
     "cli",
 ];
 

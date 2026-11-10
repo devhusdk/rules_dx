@@ -260,8 +260,7 @@ env/private/stubs/BUILD.bazel shebang 1
 erlang/private/toolchain/metadata_tests.bzl shebang 1
 examples/adopt-polyglot/consumer_test.rs host-path 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel sh-rule 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel sh-rule 3
-flutter/tests/fixtures/flutter-app/android/inspect_apk.sh shebang 1
+flutter/tests/fixtures/flutter-app/android/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/interaction.sh shebang 1
 flutter/tests/fixtures/flutter-app/ios/simulator_smoke.sh shebang 1
 fortran/private/BUILD.bazel env-inherit 2

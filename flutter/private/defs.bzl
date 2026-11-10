@@ -163,18 +163,12 @@ def flutter_web_bundle(name, **kwargs):
     """Thin wrapper over flutter_web_bundle, for dart2js or canvaskit builds."""
     _flutter_web_bundle(name = name, **dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH))
 
-def _flutter_app_kwargs(kwargs):
-    app_kwargs = dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
-    if not app_kwargs.get("tags"):
-        app_kwargs["tags"] = ["manual"]
-    return app_kwargs
-
 def flutter_android_app(name, application, package_name, android_abi = "arm64", visibility = None, **kwargs):
     """Thin wrapper over flutter_android_app. An unknown android_abi fails when the target is analyzed."""
     if android_abi not in FLUTTER_ANDROID_ABIS:
         _declare_invalid(name, "flutter_android_app: android_abi '{}' is unknown: want {}".format(android_abi, ", ".join(FLUTTER_ANDROID_ABIS)), kwargs, visibility)
         return
-    app_kwargs = _flutter_app_kwargs(kwargs)
+    app_kwargs = dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
     _flutter_android_app(
         name = name,
         application = application,
@@ -190,5 +184,5 @@ def flutter_ios_app(name, application, bundle_id, **kwargs):
         name = name,
         application = application,
         bundle_id = bundle_id,
-        **_flutter_app_kwargs(kwargs)
+        **dx_language_kwargs(kwargs, compatible_with = FLUTTER_COMPATIBLE_WITH)
     )

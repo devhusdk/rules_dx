@@ -20,12 +20,11 @@ deploy/private/release/tests/BUILD.bazel requires-network 1
 elixir/private/defs.bzl manual 1
 erlang/private/defs.bzl manual 1
 examples/adopt-polyglot/BUILD.bazel requires-network 1
-flutter/private/defs.bzl manual 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel exclusive 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel local 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel manual 1
 flutter/tests/fixtures/flutter-app/android/BUILD.bazel exclusive 1
-flutter/tests/fixtures/flutter-app/android/BUILD.bazel manual 4
+flutter/tests/fixtures/flutter-app/android/BUILD.bazel manual 1
 fsharp/private/defs.bzl manual 1
 fsharp/tests/fixtures/fuzz/BUILD.bazel manual 1
 go/tests/fixtures/bench/BUILD.bazel manual 1

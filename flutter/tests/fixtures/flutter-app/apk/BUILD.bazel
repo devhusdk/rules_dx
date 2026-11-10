@@ -1,0 +1,35 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+[
+    rust_test(
+        name = name,
+        size = "small",
+        srcs = ["inspect_apk_test.rs"],
+        crate_root = "inspect_apk_test.rs",
+        data = [apk],
+        env = {
+            "DX_APK": "$(rootpaths {})".format(apk),
+            "DX_APK_ABI": abi,
+            "DX_APK_ACTIVITY": "io.flutter.embedding.android.FlutterActivity",
+            "DX_APK_APP_ID": "dk.devhus.flutterapp",
+        },
+        tags = ["block-network"],
+        target_compatible_with = [
+            "@platforms//cpu:x86_64",
+            "@platforms//os:linux",
+        ],
+        deps = ["@crates//:zip"],
+    )
+    for name, apk, abi in [
+        ("inspect_apk_test", "//flutter/tests/fixtures/flutter-app/android:apk", "x86_64"),
+        ("inspect_apk_arm64_test", "//flutter/tests/fixtures/flutter-app/android:apk_arm64", "arm64-v8a"),
+    ]
+]
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

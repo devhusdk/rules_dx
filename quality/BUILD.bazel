@@ -334,7 +334,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_cue-real-format-cue.pb",
             ],
-            "policy": "//quality/tests/fixtures/consumer_policy:cue_policy",
+            "policy": "//quality/tests/fixtures/consumer_policy:shared_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_cue",
         },
         {
@@ -419,7 +419,7 @@ consumer_policy_tests(
             "expected_dx_results": [
                 "clean_pkl-real-format-pkl.pb",
             ],
-            "policy": "//quality/tests/fixtures/consumer_policy:pkl_policy",
+            "policy": "//quality/tests/fixtures/consumer_policy:shared_policy",
             "subject": "//quality/tests/fixtures/consumer_policy:clean_pkl",
         },
         {

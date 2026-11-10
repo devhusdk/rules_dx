@@ -1053,4 +1053,4 @@ toolchain(
     toolchain_type = "@bazel_tools//tools/sh:toolchain_type",
 )
 
-suite_membership_test(name = "suite_membership_test")
+suite_membership_test(name = "suite_membership_test", sh_test = sh_test)

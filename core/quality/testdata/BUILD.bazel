@@ -1868,6 +1868,7 @@ test_suite(
 
 suite_membership_test(
     name = "suite_membership_test",
+    sh_test = sh_test,
     views = [
         "runner_matrix",
         "runner_matrix_linux_arm64",

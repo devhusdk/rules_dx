@@ -5,7 +5,7 @@ stage pmd classes=java sources=core/quality/testdata/real_dirty.java
 completed_rounds 1
 convergence STABLE
 initial 1
-initial INFO pmd UnnecessaryImport core/quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
+initial WARNING pmd UnnecessaryImport core/quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
 terminal 1
-terminal INFO pmd UnnecessaryImport core/quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
+terminal WARNING pmd UnnecessaryImport core/quality/testdata/real_dirty.java 15 42 fixable=false "Unused import 'java.util.ArrayList'"
 replacements 0

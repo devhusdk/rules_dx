@@ -5,9 +5,9 @@ stage ruff classes=jupyter sources=core/quality/testdata/jupyter/syntax_error.ip
 completed_rounds 1
 convergence STABLE
 initial 2
-initial ERROR ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 731 732 fixable=false "cell 3, line 1: Expected a parameter or the end of the parameter list"
-initial ERROR ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 732 742 fixable=false "cell 3, line 1: Expected `)`, found newline"
+initial WARNING ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 731 732 fixable=false "cell 3, line 1: Expected a parameter or the end of the parameter list"
+initial WARNING ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 732 742 fixable=false "cell 3, line 1: Expected `)`, found newline"
 terminal 2
-terminal ERROR ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 731 732 fixable=false "cell 3, line 1: Expected a parameter or the end of the parameter list"
-terminal ERROR ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 732 742 fixable=false "cell 3, line 1: Expected `)`, found newline"
+terminal WARNING ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 731 732 fixable=false "cell 3, line 1: Expected a parameter or the end of the parameter list"
+terminal WARNING ruff invalid-syntax core/quality/testdata/jupyter/syntax_error.ipynb 732 742 fixable=false "cell 3, line 1: Expected `)`, found newline"
 replacements 0

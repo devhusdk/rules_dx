@@ -4,10 +4,18 @@ stages 1
 stage ruff classes=python sources=matrix/ruff_profile_strict.py
 completed_rounds 2
 convergence STABLE
-initial 2
-initial ERROR ruff ARG001 matrix/ruff_profile_strict.py 40 46 fixable=false "Unused function argument: `unused`"
-initial ERROR ruff RET505 matrix/ruff_profile_strict.py 83 87 fixable=true "Unnecessary `else` after `return` statement"
-terminal 1
-terminal ERROR ruff ARG001 matrix/ruff_profile_strict.py 40 46 fixable=false "Unused function argument: `unused`"
+initial 6
+initial WARNING ruff ANN201 matrix/ruff_profile_strict.py 29 33 fixable=false "Missing return type annotation for public function `pick`"
+initial WARNING ruff D103 matrix/ruff_profile_strict.py 29 33 fixable=false "Missing docstring in public function"
+initial WARNING ruff ANN001 matrix/ruff_profile_strict.py 34 38 fixable=false "Missing type annotation for function argument `flag`"
+initial WARNING ruff ANN001 matrix/ruff_profile_strict.py 40 46 fixable=false "Missing type annotation for function argument `unused`"
+initial WARNING ruff ARG001 matrix/ruff_profile_strict.py 40 46 fixable=false "Unused function argument: `unused`"
+initial WARNING ruff RET505 matrix/ruff_profile_strict.py 83 87 fixable=true "Unnecessary `else` after `return` statement"
+terminal 5
+terminal WARNING ruff ANN201 matrix/ruff_profile_strict.py 29 33 fixable=false "Missing return type annotation for public function `pick`"
+terminal WARNING ruff D103 matrix/ruff_profile_strict.py 29 33 fixable=false "Missing docstring in public function"
+terminal WARNING ruff ANN001 matrix/ruff_profile_strict.py 34 38 fixable=false "Missing type annotation for function argument `flag`"
+terminal WARNING ruff ANN001 matrix/ruff_profile_strict.py 40 46 fixable=false "Missing type annotation for function argument `unused`"
+terminal WARNING ruff ARG001 matrix/ruff_profile_strict.py 40 46 fixable=false "Unused function argument: `unused`"
 replacements 1
 replacement matrix/ruff_profile_strict.py 83 97 ""

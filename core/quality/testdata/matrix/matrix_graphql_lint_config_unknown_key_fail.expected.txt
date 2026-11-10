@@ -1,1 +1,1 @@
-pipeline failed: tool execution failed for graphql_eslint: exit 2: graphql_eslint: unknown config key extends
+pipeline failed: tool execution failed for graphql_eslint: exit 2: graphql_eslint: unknown config key extends (config core/quality/testdata/graphql_cfg/unknown_key.json)

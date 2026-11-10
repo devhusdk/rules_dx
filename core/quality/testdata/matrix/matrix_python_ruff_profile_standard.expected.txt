@@ -5,7 +5,7 @@ stage ruff classes=python sources=matrix/ruff_profile_standard.py
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR ruff ARG001 matrix/ruff_profile_standard.py 40 46 fixable=false "Unused function argument: `unused`"
+initial WARNING ruff ARG001 matrix/ruff_profile_standard.py 40 46 fixable=false "Unused function argument: `unused`"
 terminal 1
-terminal ERROR ruff ARG001 matrix/ruff_profile_standard.py 40 46 fixable=false "Unused function argument: `unused`"
+terminal WARNING ruff ARG001 matrix/ruff_profile_standard.py 40 46 fixable=false "Unused function argument: `unused`"
 replacements 0

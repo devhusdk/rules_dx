@@ -49,7 +49,7 @@ Scopes: none.
 Text prints one line per check:
 
 ```text
-toolchain: ok (available: rust 1.99.1 via rules_rust 0.75.0 declared in MODULE.bazel) hint: bazel build //...
+toolchain: ok (available: rust 1.99.1 via rules_rust 0.75.0.dx.1 declared in MODULE.bazel) hint: bazel build //...
 ```
 
 After the checks, text prints the tier (unless `dx.toml` fails to parse) and the bound root tool configs:

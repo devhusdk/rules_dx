@@ -726,7 +726,7 @@ node.toolchain(node_version = pinned)
             java.detail,
             "not applicable: MODULE.bazel does not use rust"
         );
-        let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0\")\n");
+        let none = run("bazel_dep(name = \"rules_rust\", version = \"0.75.0.dx.1\")\n");
         assert_eq!(none.status, "warn");
         assert!(none.detail.starts_with("unknown:"), "{}", none.detail);
         let setup = crate::preflight::full_consumer_setup();

@@ -6,6 +6,7 @@ load("@rules_erlang//:erlang_app_info.bzl", "flat_deps")
 load("@rules_erlang//:util.bzl", "path_join")
 load("@rules_erlang//private:util.bzl", "erl_libs_contents")
 load("//core:resources.bzl", "dx_medium_resources")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
 
 _TOOLCHAIN = Label("@rules_elixir//:toolchain_type")
 
@@ -63,6 +64,7 @@ def _elixirc_impl(target, ctx):
     opts = [shell.quote(o) for o in attrs.elixirc_opts if o != "--warnings-as-errors"]
     env = "\n".join(["export %s=%s" % (k, v) for k, v in attrs.env.items()])
 
+    applets = coreutils(ctx)
     log = ctx.actions.declare_file("dx_elixirc/%s/%s.log" % (name, name))
     status = ctx.actions.declare_file("dx_elixirc/%s/%s.exit" % (name, name))
     out_tree = ctx.actions.declare_directory("dx_elixirc/%s/out" % name)
@@ -73,7 +75,7 @@ case "{elixir_home}" in
     /*) ABS_ELIXIR_HOME="{elixir_home}" ;;
     *) ABS_ELIXIR_HOME="$PWD/{elixir_home}" ;;
 esac
-export PATH="$ABS_ELIXIR_HOME"/bin:"{erlang_home}"/bin:/usr/bin:/bin
+export PATH="$ABS_ELIXIR_HOME"/bin:"{erlang_home}"/bin:"{coreutils_path}"
 if [ -n "{erl_libs_path}" ]; then
     export ERL_LIBS="{erl_libs_path}"
 fi
@@ -85,6 +87,7 @@ echo "$?" > "$status"
         maybe_install_erlang = maybe_install_erlang(elixir_ctx),
         elixir_home = elixir_home,
         erlang_home = erlang_home,
+        coreutils_path = applets.path,
         erl_libs_path = erl_libs_path,
         env = env,
         setup = attrs.setup,
@@ -99,7 +102,7 @@ echo "$?" > "$status"
         arguments = [log.path, status.path, out_tree.path, srcs],
         inputs = depset(
             direct = ctx.rule.files.srcs + ctx.rule.files.data + erl_libs_files,
-            transitive = [erlang_runfiles.files, elixir_runfiles.files],
+            transitive = [erlang_runfiles.files, elixir_runfiles.files, applets.files],
         ),
         outputs = [log, status, out_tree],
         resource_set = dx_medium_resources,
@@ -111,5 +114,5 @@ elixirc_aspect = aspect(
     implementation = _elixirc_impl,
     doc = "Replays the elixirc compilation of a target and records the compiler warnings.",
     attr_aspects = ["upstream", "beam", "beam_files_dir"],
-    toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False)],
+    toolchains = [config_common.toolchain_type(_TOOLCHAIN, mandatory = False), COREUTILS_TOOLCHAIN_TYPE],
 )

@@ -27,6 +27,10 @@ _PLATFORM_ATTR = {
         default = [str(Label("@local_config_apple_cc_toolchains//:all"))],
     ),
 }
+_WINDOWS_RUNTIME = Label("@dx_swift_windows_x86_64//:runtime_dlls")
+_WINDOWS_RUNTIME_ROOT = "..\\" + _WINDOWS_RUNTIME.workspace_root.removeprefix("external/")
+SWIFT_WINDOWS_RUNTIME_PATH = _WINDOWS_RUNTIME_ROOT + "\\runtime\\usr\\bin;" + _WINDOWS_RUNTIME_ROOT + "\\platform\\Developer\\Library\\XCTest-6.4.1\\usr\\bin64"
+SWIFT_WINDOWS_RUNTIME_DLLS = _WINDOWS_RUNTIME
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
 _INDEX = ["swift.index_while_building", "swift.disable_system_index", "-swift.index_store_compress"]
 _SPECS = [("swift", "swift")]
@@ -107,10 +111,14 @@ def _swift_runtime_kwargs(kwargs, platforms):
     env = dict(kwargs.get("env", {}))
     env.setdefault("LD_LIBRARY_PATH", "")
     out = {"platforms": platforms if platforms != None else swift_linux_platforms()}
-    out["data"] = dx_append_flags(kwargs, "data", [Label("//swift/toolchain:runtime_libs")])["data"]
+    out["data"] = dx_append_flags(kwargs, "data", [Label("//swift/toolchain:runtime_libs")] + select({
+        Label("//swift/platforms:is_windows_x86_64"): [SWIFT_WINDOWS_RUNTIME_DLLS],
+        "//conditions:default": [],
+    }))["data"]
     out["env"] = select({
         Label("//swift/platforms:is_linux_aarch64"): dict(env, LD_LIBRARY_PATH = "../bazel_linux_packages++apt+dx_swift_sysroot_linux_aarch64/host_libs"),
         Label("//swift/platforms:is_linux_x86_64"): dict(env, LD_LIBRARY_PATH = "../bazel_linux_packages++apt+dx_swift_sysroot_linux_x86_64/host_libs"),
+        Label("//swift/platforms:is_windows_x86_64"): dict(env, PATH = SWIFT_WINDOWS_RUNTIME_PATH),
         "//conditions:default": env,
     })
     return out

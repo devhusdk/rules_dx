@@ -1,6 +1,6 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//swift/rules:defs.bzl", "swift_binary", "swift_library", "swift_test")
+load("//swift/rules:defs.bzl", "SWIFT_WINDOWS_RUNTIME_DLLS", "SWIFT_WINDOWS_RUNTIME_PATH", "swift_binary", "swift_library", "swift_test")
 load("//swift/rules:tests.bzl", "swift_binary_provider_test", "swift_library_provider_test", "swift_test_coverage_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 
@@ -11,9 +11,16 @@ package(
 
 _LINUX = ["@platforms//os:linux"]
 
+_POSIX = select({
+    "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
+    "//conditions:default": ["@platforms//:incompatible"],
+})
+
 _NATIVE = select({
     "@platforms//os:linux": [],
     "@platforms//os:macos": [],
+    "@platforms//os:windows": ["@platforms//cpu:x86_64"],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 
@@ -46,7 +53,7 @@ swift_test(
 
 swift_test_coverage_test(
     name = "xctest_coverage_test",
-    target_compatible_with = _NATIVE,
+    target_compatible_with = _POSIX,
     target_under_test = ":xctest",
 )
 
@@ -57,7 +64,7 @@ swift_library_provider_test(
 
 swift_binary_provider_test(
     name = "hello_providers_test",
-    target_compatible_with = _NATIVE,
+    target_compatible_with = _POSIX,
     target_under_test = ":hello",
 )
 
@@ -86,6 +93,8 @@ sh_test(
 dx_hello_output_test(
     name = "hello_output_test",
     binary = ":hello",
+    condition_data = {"//swift/platforms:is_windows_x86_64": [SWIFT_WINDOWS_RUNTIME_DLLS]},
+    condition_env = {"//swift/platforms:is_windows_x86_64": {"PATH": SWIFT_WINDOWS_RUNTIME_PATH}},
     expected = "Hello, swift!",
     target_compatible_with = _NATIVE,
 )

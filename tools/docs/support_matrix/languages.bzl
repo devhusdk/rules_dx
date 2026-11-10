@@ -674,8 +674,7 @@ LANGUAGES = [
         doc = struct(tool = "swift-symbolgraph-extract", shard = "swift_doc_shard"),
         coverage = ["llvm-cov"],
         not_applicable = {
-            "windows_arm64": "rules_dx registers no Swift toolchain for Windows",
-            "windows_x86_64": "rules_dx registers no Swift toolchain for Windows"
+            "windows_arm64": "rules_dx registers no Swift toolchain for Windows arm64",
         },
     ),
     _language(

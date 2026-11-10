@@ -50,3 +50,92 @@ swift_format_macos_repo = repository_rule(
     implementation = _swift_format_macos_impl,
     doc = "The sha256-pinned swift-format macOS arm64 binary.",
 )
+
+_SWIFT_WINDOWS_VERSION = "6.4.1"
+_SWIFT_WINDOWS = {
+    "x86_64": struct(
+        url = "https://download.swift.org/swift-6.4.1-release/windows10/swift-6.4.1-RELEASE/swift-6.4.1-RELEASE-windows10.exe",
+        sha256 = "9382e14919eeae5e7b5dbfe0575452fe2154178e089a595c8b44d03960d91d59",
+    ),
+}
+
+_SWIFT_WINDOWS_BUILD = """load("@rules_swift//swift/toolchains:swift_tools.bzl", "swift_tools")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([".swift-version"])
+
+filegroup(
+    name = "runtime_dlls",
+    srcs = glob(
+        [
+            "runtime/usr/bin/*.dll",
+            "platform/**/*.dll",
+        ],
+        allow_empty = True,
+    ),
+)
+
+swift_tools(
+    name = "tools",
+    additional_inputs = glob(
+        [
+            "toolchain/**",
+            "runtime/**",
+            "platform/**",
+        ],
+        exclude = ["**/*.pdb"],
+        allow_empty = True,
+    ),
+    swift_autolink_extract = "toolchain/usr/bin/swiftc.exe",
+    swift_driver = "toolchain/usr/bin/swiftc.exe",
+    swift_symbolgraph_extract = "toolchain/usr/bin/swift-symbolgraph-extract.exe",
+)
+"""
+
+def _swift_windows_impl(repository_ctx):
+    cpu = repository_ctx.attr.cpu
+    pin = _SWIFT_WINDOWS[cpu]
+    repository_ctx.file("BUILD.bazel", _SWIFT_WINDOWS_BUILD)
+    repository_ctx.file(".swift-version", _SWIFT_WINDOWS_VERSION + "\n")
+    if host_cell(repository_ctx) != "windows_" + cpu:
+        for path in ["toolchain/usr/bin/swiftc.exe", "toolchain/usr/bin/swift-symbolgraph-extract.exe"]:
+            repository_ctx.file(path, "")
+        return
+    repository_ctx.download(
+        url = pin.url,
+        output = "swift.exe",
+        sha256 = pin.sha256,
+        canonical_id = "swift-windows-" + _SWIFT_WINDOWS_VERSION + "-" + cpu,
+    )
+    pwsh = repository_ctx.path(Label("@dx_powershell_toolchains__windows_{}//:pwsh.exe".format(cpu)))
+    script = repository_ctx.path(Label(":extract_windows.ps1"))
+    result = repository_ctx.execute(
+        [
+            pwsh,
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            script,
+            "-Exe",
+            repository_ctx.path("swift.exe"),
+            "-Out",
+            repository_ctx.path("."),
+            "-Work",
+            repository_ctx.path("_work"),
+            "-XCTestVersion",
+            _SWIFT_WINDOWS_VERSION,
+        ],
+        timeout = 3600,
+    )
+    if result.return_code != 0:
+        fail("extracting the Swift Windows installer failed ({}):\n{}\n{}".format(result.return_code, result.stdout, result.stderr))
+    repository_ctx.delete("swift.exe")
+
+swift_windows_repo = repository_rule(
+    implementation = _swift_windows_impl,
+    attrs = {"cpu": attr.string(mandatory = True, values = ["x86_64"])},
+    doc = "The sha256-pinned swift.org Windows toolchain, unpacked on a Windows host and stubbed elsewhere.",
+)

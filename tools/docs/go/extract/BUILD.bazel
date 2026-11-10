@@ -45,7 +45,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/go/go_extract",
         normal = True,
-    ) + [":dx_docs_go_extract"],
+    ) + [
+        ":dx_docs_go_extract",
+        "//tools/docs/ir/ir:documentation_ir",
+    ],
 )
 
 rust_test(

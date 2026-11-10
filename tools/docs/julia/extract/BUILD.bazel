@@ -45,7 +45,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "tools/docs/julia/julia_extract",
         normal = True,
-    ) + [":dx_docs_julia_extract"],
+    ) + [
+        ":dx_docs_julia_extract",
+        "//tools/docs/ir/ir:documentation_ir",
+    ],
 )
 
 rust_test(

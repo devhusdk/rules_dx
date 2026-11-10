@@ -9,8 +9,8 @@ TscInfo = provider(
     doc = "Output of one non-failing tsc run over a TypeScript project.",
     fields = {
         "inputs": "depset of File: what the ts_project's tsc action reads, empty for js_library.",
-        "status": "File: tsc exit code.",
-        "stdout": "File: tsc diagnostics (`--pretty false`), cwd-relative to the bin directory.",
+        "logs": "list of File: tsc diagnostics (`--pretty false`) of each checker, cwd-relative to the bin directory.",
+        "statuses": "list of File: tsc exit code of each checker, in the order of logs.",
         "tsconfig": "File: the bin copy of the ts_project's tsconfig, None for js_library.",
     },
 )
@@ -123,31 +123,7 @@ def _tsc_js_impl(target, ctx):
         files = [f for f in sources if f.extension == fw] + (plain if i == 0 else [])
         name = target.label.name if len(present) == 1 else "%s.%s" % (target.label.name, fw)
         outputs.append(_tsc_js_run(ctx, target, name, fw, files, base, up))
-    if len(outputs) == 1:
-        stdout, status = outputs[0]
-        return [TscInfo(stdout = stdout, status = status, inputs = depset(), tsconfig = None)]
-
-    stdout = ctx.actions.declare_file("dx_tsc/%s.stdout" % target.label.name)
-    status = ctx.actions.declare_file("dx_tsc/%s.exit" % target.label.name)
-    args = ctx.actions.args()
-    args.add(stdout)
-    args.add(status)
-    for out, code in outputs:
-        args.add(out)
-        args.add(code)
-
-    # run_shell: concatenates the checkers' diagnostics and keeps the highest exit code.
-    ctx.actions.run_shell(
-        inputs = [f for pair in outputs for f in pair],
-        outputs = [stdout, status],
-        command = "out=$1; st=$2; shift 2; : > \"$out\"; worst=0; " +
-                  "while [ $# -gt 0 ]; do cat \"$1\" >> \"$out\"; c=$(cat \"$2\"); " +
-                  "if [ \"$c\" -gt \"$worst\" ]; then worst=$c; fi; shift 2; done; printf %s \"$worst\" > \"$st\"",
-        arguments = [args],
-        mnemonic = "TscMerge",
-        progress_message = "merging tsc diagnostics %{label}",
-    )
-    return [TscInfo(stdout = stdout, status = status, inputs = depset(), tsconfig = None)]
+    return [TscInfo(logs = [out[0] for out in outputs], statuses = [out[1] for out in outputs], inputs = depset(), tsconfig = None)]
 
 def _tsc_impl(target, ctx):
     attrs = ctx.rule.attr
@@ -194,7 +170,7 @@ def _tsc_impl(target, ctx):
         },
         resource_set = dx_heavy_resources,
     )
-    return [TscInfo(stdout = stdout, status = status, inputs = inputs, tsconfig = tsconfig)]
+    return [TscInfo(logs = [stdout], statuses = [status], inputs = inputs, tsconfig = tsconfig)]
 
 tsc_aspect = aspect(
     implementation = _tsc_impl,

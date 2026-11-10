@@ -37,7 +37,18 @@ js_library(
         kind = kind,
         target = ":" + case,
     )
-    for case in ["tier", "loose", "mixed"]
+    for case in ["tier", "loose"]
+    for kind in ["stdout", "exit"]
+]
+
+[
+    tsc_report(
+        name = "mixed_%s_%s_report" % (checker, kind),
+        index = index,
+        kind = kind,
+        target = ":mixed",
+    )
+    for index, checker in enumerate(["vue", "mdx"])
     for kind in ["stdout", "exit"]
 ]
 
@@ -47,7 +58,16 @@ js_library(
         file1 = "%s.exit.expected" % case,
         file2 = ":%s_exit_report" % case,
     )
-    for case in ["tier", "loose", "mixed"]
+    for case in ["tier", "loose"]
+]
+
+[
+    diff_test(
+        name = "mixed_%s_exit_test" % checker,
+        file1 = "mixed.exit.expected",
+        file2 = ":mixed_%s_exit_report" % checker,
+    )
+    for checker in ["vue", "mdx"]
 ]
 
 [
@@ -56,18 +76,31 @@ js_library(
         diagnostics = {
             "tier": """implicit_any.js(1,26): error TS7006: Parameter 'value' implicitly has an 'any' type.
 """,
-            "mixed": """bad.vue(2,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
-bad.vue(4,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
-page.mdx(1,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
-page.mdx(3,27): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
-page.mdx(7,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
-""",
         }.get(case, ""),
         expected = "%s.stdout.expected" % case,
         report = ":%s_stdout_report" % case,
     )
-    for case in ["tier", "loose", "mixed"]
+    for case in ["tier", "loose"]
 ]
+
+tsc_stdout_test(
+    name = "mixed_vue_stdout_test",
+    diagnostics = """bad.vue(2,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+bad.vue(4,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+""",
+    expected = "mixed.stdout.expected",
+    report = ":mixed_vue_stdout_report",
+)
+
+tsc_stdout_test(
+    name = "mixed_mdx_stdout_test",
+    diagnostics = """page.mdx(1,18): error TS2305: Module '"./lib.js"' has no exported member 'missing'.
+page.mdx(3,27): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+page.mdx(7,20): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+""",
+    expected = "mixed.stdout.expected",
+    report = ":mixed_mdx_stdout_report",
+)
 
 real_source_target(
     name = "corpus_starlark",

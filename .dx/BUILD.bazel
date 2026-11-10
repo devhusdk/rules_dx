@@ -54,8 +54,6 @@ dx_generated_policy(
     bases = {
         "detekt": "@rules_dx//core/quality/tiers/detekt:standard",
         "errcheck": "@rules_dx//core/quality/tiers/errcheck:standard",
-        "ffmt": "@rules_dx//core/quality/tiers/ffmt:standard",
-        "fortitude": "@rules_dx//core/quality/tiers/fortitude:standard",
         "govet": "@rules_dx//core/quality/tiers/govet:standard",
         "pmd": "@rules_dx//core/quality/tiers/pmd:standard",
         "ruff": "@rules_dx//core/quality/tiers/ruff:standard",
@@ -153,7 +151,6 @@ dx_generated_policy(
                 "fortitude",
                 "typos",
             ],
-            "tier": "standard",
         },
         "go": {
             "disabled": ["audit"],

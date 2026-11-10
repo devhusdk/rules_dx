@@ -171,7 +171,11 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
     let policy = "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\nreview = []\ndeny = []\n[distribution]\ninternal = [\"//cc/private/context:internal\"]\n";
     for (license, code) in [("Zlib", 0), ("ISC", 0), ("MIT", 0), ("AGPL-3.0-only", 1)] {
         let (code_seen, out, err) = run_with(
-            &["license", "//cc/private/context:internal", "--report=sarif=-"],
+            &[
+                "license",
+                "//cc/private/context:internal",
+                "--report=sarif=-",
+            ],
             &AuditRunner::clean(),
             &|harness| {
                 write_demo_license(harness, license);
@@ -187,7 +191,11 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
         ("AGPL-3.0-only", "license/AGPL-3.0-only"),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//cc/private/context:distributed", "--report=sarif=-"],
+            &[
+                "license",
+                "//cc/private/context:distributed",
+                "--report=sarif=-",
+            ],
             &AuditRunner::clean(),
             &|harness| {
                 write_demo_license(harness, license);
@@ -838,7 +846,10 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     let events = json_events(&out);
     let license = finding(&events, "license");
     assert_eq!(license["rule"], serde_json::json!("license/AGPL-3.0-only"));
-    assert_eq!(license["path"], serde_json::json!("cc/private/context/Cargo.lock"));
+    assert_eq!(
+        license["path"],
+        serde_json::json!("cc/private/context/Cargo.lock")
+    );
     let message = license["message"].as_str().expect("message");
     assert!(
         message.starts_with("demo@1.0.0 license AGPL-3.0-only"),

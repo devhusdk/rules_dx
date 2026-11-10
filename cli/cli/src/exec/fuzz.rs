@@ -245,8 +245,15 @@ mod tests {
             .lines()
             .map(|line| serde_json::from_str(line).expect("json"))
             .collect();
-        let kinds: Vec<&str> = events.iter().map(|e| e["event"].as_str().unwrap()).collect();
-        assert_eq!(kinds, ["command_started", "notice", "command_finished"], "{out}");
+        let kinds: Vec<&str> = events
+            .iter()
+            .map(|e| e["event"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            kinds,
+            ["command_started", "notice", "command_finished"],
+            "{out}"
+        );
         let crash = &events[1];
         assert_eq!(crash["code"], "fuzz_crash");
         assert_eq!(crash["target"], "//fixture:x");
@@ -254,7 +261,14 @@ mod tests {
         assert_eq!(crash["crash_path"], ".dx/local/fuzz/fixture/x/crash-abc");
         assert_eq!(
             crash["repro"],
-            serde_json::json!(["dx", "run", "//fixture:x_run", "--", "--repro", ".dx/local/fuzz/fixture/x/crash-abc"])
+            serde_json::json!([
+                "dx",
+                "run",
+                "//fixture:x_run",
+                "--",
+                "--repro",
+                ".dx/local/fuzz/fixture/x/crash-abc"
+            ])
         );
         assert!(!out.contains("bazel"), "{out}");
         assert_eq!(events[2]["exit_code"], 1);

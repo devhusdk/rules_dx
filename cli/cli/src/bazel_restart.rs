@@ -74,11 +74,7 @@ pub fn cache_off_argv(argv: &[String]) -> Option<Vec<String>> {
     if !is_bazel(argv) {
         return None;
     }
-    let command = argv
-        .iter()
-        .skip(1)
-        .position(|arg| !arg.starts_with('-'))?
-        + 1;
+    let command = argv.iter().skip(1).position(|arg| !arg.starts_with('-'))? + 1;
     if !CACHE_COMMANDS.contains(&argv[command].as_str()) {
         return None;
     }

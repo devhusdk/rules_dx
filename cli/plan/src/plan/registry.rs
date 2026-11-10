@@ -278,12 +278,12 @@ mod tests {
             )));
         }
         assert!(
-            labels.contains(&"@rules_dx//core/quality:families/core.bzl%real_lint_aspect".to_owned())
-        );
-        assert!(
             labels
-                .contains(&"@rules_dx//core/quality:families/core.bzl%real_typecheck_aspect".to_owned())
+                .contains(&"@rules_dx//core/quality:families/core.bzl%real_lint_aspect".to_owned())
         );
+        assert!(labels.contains(
+            &"@rules_dx//core/quality:families/core.bzl%real_typecheck_aspect".to_owned()
+        ));
         assert!(labels.contains(&dx_codegen::aspect_label(super::super::rules_dx_repo())));
         assert!(labels.contains(&dx_env_plan::aspect_label(super::super::rules_dx_repo())));
         let mut sorted = labels.clone();
@@ -333,7 +333,9 @@ mod tests {
     fn probes_for_lists_the_core_probe_and_the_present_families_probes() {
         let extensions = extensions(&[".py", ".rs", ".swift"]);
         let probes = probes_for(Command::Lint, consumer(&extensions));
-        assert!(probes.contains(&"core/quality:families/core_probe.bzl%real_core_lint_probe_aspect"));
+        assert!(
+            probes.contains(&"core/quality:families/core_probe.bzl%real_core_lint_probe_aspect")
+        );
         assert!(probes.contains(&"core/quality:families/python.bzl%real_python_lint_probe_aspect"));
         assert!(probes.contains(&"rust/private/quality:rust.bzl%real_rust_lint_probe_aspect"));
         assert!(probes.contains(&"core/quality:families/swift.bzl%real_swift_lint_probe_aspect"));
@@ -371,7 +373,11 @@ mod tests {
                 );
             }
             assert!(labels.iter().any(|label| label.contains("families/go.bzl")));
-            assert!(labels.iter().any(|label| label.contains("families/core.bzl")));
+            assert!(
+                labels
+                    .iter()
+                    .any(|label| label.contains("families/core.bzl"))
+            );
             assert!(labels.len() < entry.aspects.len());
         }
         let probes = probes_for(Command::Lint, consumer(&extensions));
@@ -442,8 +448,9 @@ mod tests {
                 {
                     continue;
                 }
-                let probe =
-                    format!("core/quality:families/{file}.bzl%real_{file}_{capability}_probe_aspect");
+                let probe = format!(
+                    "core/quality:families/{file}.bzl%real_{file}_{capability}_probe_aspect"
+                );
                 assert!(
                     entry.probes.contains(&probe.as_str()),
                     "{command:?}: {aspect} has no probe {probe}"
@@ -471,7 +478,10 @@ mod tests {
     fn assert_core_then_languages(entry: &CommandSpec) {
         let core = match entry.command {
             Command::Lint => (registry_gen::LINT_ASPECTS, registry_gen::LINT_PROBES),
-            Command::Typecheck => (registry_gen::TYPECHECK_ASPECTS, registry_gen::TYPECHECK_PROBES),
+            Command::Typecheck => (
+                registry_gen::TYPECHECK_ASPECTS,
+                registry_gen::TYPECHECK_PROBES,
+            ),
             _ => (registry_gen::FORMAT_ASPECTS, registry_gen::FORMAT_PROBES),
         };
         assert_eq!(&entry.aspects[..core.0.len()], core.0);
@@ -524,7 +534,10 @@ mod tests {
         );
         let docs = spec(Command::Docs);
         assert_eq!(docs.aspects[0], "tools/docs:aspect.bzl%real_docs_aspect");
-        assert!(docs.aspects.contains(&"tools/docs/go:aspect.bzl%real_go_docs_aspect"));
+        assert!(
+            docs.aspects
+                .contains(&"tools/docs/go:aspect.bzl%real_go_docs_aspect")
+        );
         assert!(docs.probes.is_empty());
         assert!(docs.reports.is_empty());
         let run = spec(Command::Run);

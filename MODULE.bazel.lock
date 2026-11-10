@@ -7381,7 +7381,7 @@
     },
     "//qt:extensions.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "9W4gdWeZK4yOX+wWl8L1I6IqottyixeHrRgdl6l/fxg=",
+        "bzlTransitiveDigest": "7j+YDYbejh+8lhJCqIzP/psT3FS3Fr5050bEojISxOM=",
         "usagesDigest": "3BS0SqqE9nsbYI9+Bl0Un9zfcl6driMWFHsFPN6Mr1M=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_pins_data +dx_pins+dx_pins_data",

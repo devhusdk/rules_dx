@@ -198,6 +198,32 @@ fn section<'a>(
     }
 }
 
+/// Keys of a `moduleExtensions` evaluation that hash its `.bzl` files and its `MODULE.bazel` usages.
+const EXTENSION_INPUT_DIGESTS: &[&str] = &["bzlTransitiveDigest", "usagesDigest"];
+
+/// Whether two `moduleExtensions` entries record the same evaluations apart from the input digests.
+fn same_extension_result(before: Option<&Json>, after: Option<&Json>) -> bool {
+    let (Some(Json::Object(before)), Some(Json::Object(after))) = (before, after) else {
+        return false;
+    };
+    let results = |evaluations: &Map<String, Json>| -> Option<Vec<(String, Map<String, Json>)>> {
+        evaluations
+            .iter()
+            .map(|(platform, evaluation)| {
+                let mut evaluation = evaluation.as_object()?.clone();
+                for digest in EXTENSION_INPUT_DIGESTS {
+                    evaluation.remove(*digest);
+                }
+                Some((platform.clone(), evaluation))
+            })
+            .collect()
+    };
+    match (results(before), results(after)) {
+        (Some(before), Some(after)) => before == after,
+        _ => false,
+    }
+}
+
 /// The modules and module-owned keys that differ between two lock files.
 pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, dx_error::DxError> {
     let base = parse_lock(base)?;
@@ -217,6 +243,11 @@ pub(crate) fn lock_changes(base: &str, head: &str) -> Result<LockChanges, dx_err
         let entries: BTreeSet<&String> = before.keys().chain(after.keys()).collect();
         for entry in entries {
             if before.get(entry) == after.get(entry) {
+                continue;
+            }
+            if key == "moduleExtensions"
+                && same_extension_result(before.get(entry), after.get(entry))
+            {
                 continue;
             }
             match key.as_str() {
@@ -598,6 +629,31 @@ mod tests {
                 ("@@leaf+//:e.bzl%e".to_owned(), "leaf".to_owned()),
                 ("old@1.0".to_owned(), "old".to_owned()),
             ]
+        );
+    }
+
+    #[test]
+    fn lock_changes_skip_extensions_whose_only_change_is_an_input_digest() {
+        let extension = |digest: &str, usages: &str, repo: &str| {
+            lock(
+                "",
+                &format!(
+                    ", \"moduleExtensions\": {{\"//qt:extensions.bzl%qt_sdk\": {{\"general\": {{\"bzlTransitiveDigest\": \"{digest}\", \"usagesDigest\": \"{usages}\", \"generatedRepoSpecs\": {{\"sdk\": \"{repo}\"}}}}}}}}"
+                ),
+            )
+        };
+        let base = extension("a", "u", "r1");
+        assert_eq!(
+            lock_changes(&base, &extension("b", "v", "r1")),
+            Ok(LockChanges::default())
+        );
+        assert_eq!(
+            lock_changes(&base, &extension("b", "u", "r2")),
+            Err(lock_changed("//qt:extensions.bzl%qt_sdk"))
+        );
+        assert_eq!(
+            lock_changes(&lock("", ""), &base),
+            Err(lock_changed("//qt:extensions.bzl%qt_sdk"))
         );
     }
 

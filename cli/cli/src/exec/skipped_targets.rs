@@ -236,7 +236,9 @@ mod tests {
 
     fn fake_query(constraint: &str, _labels: &[String]) -> Option<Vec<String>> {
         match constraint {
-            "//php/private/toolchain:unsupported" => Some(vec!["//a:x".to_owned(), "//a:y".to_owned()]),
+            "//php/private/toolchain:unsupported" => {
+                Some(vec!["//a:x".to_owned(), "//a:y".to_owned()])
+            }
             _ => None,
         }
     }

@@ -126,10 +126,7 @@ mod tests {
         assert_eq!(found.severity, "error");
         assert_eq!(found.file.as_deref(), Some("src/a.c"));
         assert_eq!((found.line, found.column), (Some(3), Some(5)));
-        assert_eq!(
-            found.message,
-            "'x' undeclared (first use in this function)"
-        );
+        assert_eq!(found.message, "'x' undeclared (first use in this function)");
     }
 
     #[test]

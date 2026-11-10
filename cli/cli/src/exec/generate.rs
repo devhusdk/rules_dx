@@ -60,7 +60,10 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
     for manifest in &unlocked {
         let lock = lock_for(manifest);
         if !apply {
-            wiring.pending(env.err, format!("would create {lock}; run dx generate --apply"));
+            wiring.pending(
+                env.err,
+                format!("would create {lock}; run dx generate --apply"),
+            );
         } else if *manifest == "Cargo.toml" {
             match std::fs::write(workspace.join(lock), "") {
                 Ok(()) => seeded_cargo = true,
@@ -128,7 +131,10 @@ fn wire_maven_locks(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut W
     }
     for (lock, repository) in &plan.seeds {
         if !apply {
-            wiring.pending(env.err, format!("would pin {lock}; run dx generate --apply"));
+            wiring.pending(
+                env.err,
+                format!("would pin {lock}; run dx generate --apply"),
+            );
             continue;
         }
         let empty = dx_adopt::ModuleEdit {
@@ -213,7 +219,10 @@ fn seed_pnpm_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wir
         tool,
     );
     let Some(dir) = env.workspace.to_str() else {
-        wiring.failed(env.err, "pnpm-lock.yaml not created: non-UTF-8 path".to_owned());
+        wiring.failed(
+            env.err,
+            "pnpm-lock.yaml not created: non-UTF-8 path".to_owned(),
+        );
         return;
     };
     let command = ["install".to_owned(), "--lockfile-only".to_owned()];
@@ -326,12 +335,18 @@ impl Wiring {
 
     fn pending(&mut self, err: &mut dyn Write, message: String) {
         self.pending = true;
-        self.say(err, dx_output::NoticeEvent::warning("wiring_pending", message));
+        self.say(
+            err,
+            dx_output::NoticeEvent::warning("wiring_pending", message),
+        );
     }
 
     fn failed(&mut self, err: &mut dyn Write, message: String) {
         self.failed = true;
-        self.say(err, dx_output::NoticeEvent::warning("wiring_failed", message));
+        self.say(
+            err,
+            dx_output::NoticeEvent::warning("wiring_failed", message),
+        );
     }
 
     fn say(&mut self, err: &mut dyn Write, notice: dx_output::NoticeEvent) {

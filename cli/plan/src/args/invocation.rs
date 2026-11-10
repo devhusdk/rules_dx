@@ -9,6 +9,10 @@ use super::build_mode::{BuildMode, resolve_build_mode};
 pub struct AffectedHandoff {
     pub tests: Vec<String>,
     pub base: Option<String>,
+    /// Package patterns of the changed files, the scope of the generate phase.
+    pub generate: Vec<String>,
+    /// Rules that own the changed files, the scope of the format phase.
+    pub format: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -92,6 +96,7 @@ pub struct UmbrellaRequest {
     pub targets: Vec<String>,
     pub scope: HintScope,
     pub generate_targets: Vec<String>,
+    pub format_targets: Vec<String>,
     pub test: Option<Box<Invocation>>,
     pub bazel_options: Vec<String>,
     pub bazel_startup_options: Vec<String>,
@@ -214,7 +219,11 @@ impl UmbrellaRequest {
         Ok(QualityRequest {
             command: phase,
             mode,
-            targets: self.targets.clone(),
+            targets: if phase == Command::Format {
+                self.format_targets.clone()
+            } else {
+                self.targets.clone()
+            },
             bazel_options: self.bazel_options.clone(),
             bazel_startup_options: self.bazel_startup_options.clone(),
             workspace: self.workspace.clone(),
@@ -537,10 +546,13 @@ impl Invocation {
             } else {
                 HintScope::Targets(self.targets.clone())
             },
-            generate_targets: if affected {
-                crate::plan::generate_package_scope(&self.targets)
-            } else {
-                self.targets.clone()
+            generate_targets: match &self.affected_handoff {
+                Some(handoff) => handoff.generate.clone(),
+                None => self.targets.clone(),
+            },
+            format_targets: match &self.affected_handoff {
+                Some(handoff) => handoff.format.clone(),
+                None => self.targets.clone(),
             },
             test,
             commits_base: self
@@ -780,8 +792,12 @@ mod tests {
 
     #[test]
     fn umbrella_phases_carry_the_user_scope() {
-        let mut affected = invocation_for(Command::Check, &["//a:x", "//a:y"]);
-        affected.affected_handoff = Some(AffectedHandoff::default());
+        let mut affected = invocation_for(Command::Check, &["//a:x", "//a:y", "//b:user"]);
+        affected.affected_handoff = Some(AffectedHandoff {
+            generate: vec!["//a/...".to_owned()],
+            format: vec!["//a:x".to_owned()],
+            ..AffectedHandoff::default()
+        });
         let request = affected.umbrella_request().expect("umbrella");
         assert_eq!(request.scope, HintScope::Affected);
         let phase = request
@@ -794,7 +810,25 @@ mod tests {
                 scope: HintScope::Affected,
             })
         );
-        assert_eq!(phase.targets, vec!["//a:x".to_owned(), "//a:y".to_owned()]);
+        assert_eq!(phase.targets, vec!["//a:x".to_owned()]);
+        assert_eq!(
+            request
+                .verify_quality_request(Command::Format)
+                .expect("verify")
+                .targets,
+            vec!["//a:x".to_owned()]
+        );
+        assert_eq!(
+            request
+                .phase_quality_request(Command::Lint, Vec::new())
+                .expect("phase")
+                .targets,
+            vec![
+                "//a:x".to_owned(),
+                "//a:y".to_owned(),
+                "//b:user".to_owned()
+            ]
+        );
         assert_eq!(
             request.phase_generate_request(Vec::new()).targets,
             vec!["//a/...".to_owned()]
@@ -827,9 +861,12 @@ mod tests {
     fn affected_fix_scopes_generate_apply_and_verify_to_packages() {
         let mut fix = invocation_for(Command::Check, &["//a:x", "//b:y"]);
         fix.apply = true;
-        fix.affected_handoff = Some(AffectedHandoff::default());
-        let request = fix.umbrella_request().expect("umbrella");
         let want = vec!["//a/...".to_owned(), "//b/...".to_owned()];
+        fix.affected_handoff = Some(AffectedHandoff {
+            generate: want.clone(),
+            ..AffectedHandoff::default()
+        });
+        let request = fix.umbrella_request().expect("umbrella");
         let phase = request.phase_generate_request(Vec::new());
         assert_eq!(phase.mode, OperationMode::Apply);
         assert_eq!(phase.targets, want);
@@ -841,7 +878,10 @@ mod tests {
     #[test]
     fn affected_repo_scope_keeps_generate_repo_wide() {
         let mut check = invocation_for(Command::Check, &["//..."]);
-        check.affected_handoff = Some(AffectedHandoff::default());
+        check.affected_handoff = Some(AffectedHandoff {
+            generate: vec!["//...".to_owned()],
+            ..AffectedHandoff::default()
+        });
         let request = check.umbrella_request().expect("umbrella");
         assert_eq!(
             request.phase_generate_request(Vec::new()).targets,

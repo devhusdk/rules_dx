@@ -138,8 +138,8 @@ pub fn plan_workflow(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_error::ErrorKind;
     use crate::args::BuildMode;
+    use dx_error::ErrorKind;
     use dx_process::Scope;
     use dx_testing::cli::strings;
 
@@ -376,10 +376,7 @@ mod tests {
             &[],
         )
         .expect_err("build still rejects test args");
-        assert!(
-            err.kind() == ErrorKind::Usage,
-            "got {err:?}"
-        );
+        assert!(err.kind() == ErrorKind::Usage, "got {err:?}");
     }
 
     #[test]
@@ -444,10 +441,7 @@ mod tests {
                 &[],
             )
             .expect_err("conflicting dx build_mode must fail");
-            assert!(
-                err.kind() == ErrorKind::Usage,
-                "got {err:?}"
-            );
+            assert!(err.kind() == ErrorKind::Usage, "got {err:?}");
         }
         let err = plan_workflow(
             WorkflowVerb::Test,
@@ -558,10 +552,7 @@ mod tests {
             &[],
         )
         .expect_err("conflicting combined_report must fail");
-        assert!(
-            err.kind() == ErrorKind::Usage,
-            "got {err:?}"
-        );
+        assert!(err.kind() == ErrorKind::Usage, "got {err:?}");
         let err = plan_workflow(
             WorkflowVerb::Test,
             &resolved(&[]),
@@ -571,10 +562,7 @@ mod tests {
             &[],
         )
         .expect_err("BEP override must fail");
-        assert!(
-            err.kind() == ErrorKind::Usage,
-            "got {err:?}"
-        );
+        assert!(err.kind() == ErrorKind::Usage, "got {err:?}");
     }
 
     #[test]
@@ -875,10 +863,7 @@ mod tests {
             &[],
         )
         .expect_err("conflicting config must fail");
-        assert!(
-            err.kind() == ErrorKind::Usage,
-            "got {err:?}"
-        );
+        assert!(err.kind() == ErrorKind::Usage, "got {err:?}");
     }
 
     #[test]

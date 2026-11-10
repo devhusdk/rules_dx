@@ -457,9 +457,9 @@ pub fn partition_provenance_options(options: &[String]) -> (Vec<String>, Vec<Str
 #[cfg(test)]
 mod tests {
     use super::*;
-    use dx_error::ErrorKind;
     use crate::args::{ArgsError, parse};
     use crate::plan::BAZEL_SETTINGS;
+    use dx_error::ErrorKind;
 
     #[test]
     fn partition_provenance_options_cases() {
@@ -999,20 +999,31 @@ mod tests {
         assert!(
             plan.argv.iter().any(|arg| arg
                 .contains("@rules_dx//core/quality:families/core.bzl%real_typecheck_aspect")
-                && arg.contains("@rules_dx//rust/private/quality:rust.bzl%real_rust_typecheck_aspect")
+                && arg.contains(
+                    "@rules_dx//rust/private/quality:rust.bzl%real_rust_typecheck_aspect"
+                )
                 && arg.contains(
                     "@rules_dx//core/quality:families/dotnet.bzl%real_dotnet_typecheck_aspect"
                 )
-                && arg.contains("@rules_dx//javascript/private/quality:js.bzl%real_js_typecheck_aspect")
-                && arg.contains("@rules_dx//core/quality:families/jvm.bzl%real_jvm_typecheck_aspect")
+                && arg.contains(
+                    "@rules_dx//javascript/private/quality:js.bzl%real_js_typecheck_aspect"
+                )
+                && arg.contains(
+                    "@rules_dx//core/quality:families/jvm.bzl%real_jvm_typecheck_aspect"
+                )
                 && arg.contains("@rules_dx//core/quality:families/d.bzl%real_d_typecheck_aspect")
                 && arg.contains(
                     "@rules_dx//core/quality:families/fortran.bzl%real_fortran_typecheck_aspect"
                 )
-                && arg.contains("@rules_dx//core/quality:families/swift.bzl%real_swift_typecheck_aspect")
-                && arg.contains("@rules_dx//core/quality:families/zig.bzl%real_zig_typecheck_aspect")
-                && arg
-                    .contains("@rules_dx//core/quality:families/ocaml.bzl%real_ocaml_typecheck_aspect")
+                && arg.contains(
+                    "@rules_dx//core/quality:families/swift.bzl%real_swift_typecheck_aspect"
+                )
+                && arg.contains(
+                    "@rules_dx//core/quality:families/zig.bzl%real_zig_typecheck_aspect"
+                )
+                && arg.contains(
+                    "@rules_dx//core/quality:families/ocaml.bzl%real_ocaml_typecheck_aspect"
+                )
                 && arg.contains(
                     "@rules_dx//core/quality:families/haskell.bzl%real_haskell_typecheck_aspect"
                 )),
@@ -1087,10 +1098,7 @@ mod tests {
             None,
         )
         .expect_err("a second output group must fail");
-        assert!(
-            err.kind() == ErrorKind::Usage,
-            "{err:?}"
-        );
+        assert!(err.kind() == ErrorKind::Usage, "{err:?}");
     }
 
     #[test]

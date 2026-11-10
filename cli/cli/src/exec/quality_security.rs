@@ -137,7 +137,13 @@ mod tests {
     #[test]
     fn image_config_findings_follow_their_own_set() {
         let findings = vec![finding("trivy_image_config", "DS-0002", "BUILD.bazel")];
-        let text = exception("DS-0002", "BUILD.bazel", "trivy_image_config", "*", "2027-01-01");
+        let text = exception(
+            "DS-0002",
+            "BUILD.bazel",
+            "trivy_image_config",
+            "*",
+            "2027-01-01",
+        );
         assert!(run(Some(&text), findings.clone()).is_empty());
         let other = exception("DS-0002", "BUILD.bazel", TOOL, "*", "2027-01-01");
         assert_eq!(run(Some(&other), findings.clone()), findings);

@@ -909,9 +909,13 @@ pub(super) fn audit_live_obsolete_security_toml_exception_fails_the_run() {
 #[test]
 pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["security", "//cc/private/context:hello"], &runner, &|harness| {
-        write_cargo_lock(harness);
-    });
+    let (code, out, err) = run_with(
+        &["security", "//cc/private/context:hello"],
+        &runner,
+        &|harness| {
+            write_cargo_lock(harness);
+        },
+    );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
         err.contains("dx: advisory_pin_missing: audit security:"),
@@ -923,11 +927,15 @@ pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
 #[test]
 pub(super) fn audit_live_old_advisory_pin_warns_and_still_assesses() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["security", "//cc/private/context:hello"], &runner, &|harness| {
-        write_cargo_lock(harness);
-        let url = dx_audit::advisory::advisory_source("cargo").expect("source");
-        write_pin(harness, "cargo", url, "2000-01-01", "[]");
-    });
+    let (code, out, err) = run_with(
+        &["security", "//cc/private/context:hello"],
+        &runner,
+        &|harness| {
+            write_cargo_lock(harness);
+            let url = dx_audit::advisory::advisory_source("cargo").expect("source");
+            write_pin(harness, "cargo", url, "2000-01-01", "[]");
+        },
+    );
     assert_eq!(code, 0, "{out}{err}");
     assert!(
         format!("{out}{err}").contains("advisory_pin_old"),
@@ -1045,13 +1053,17 @@ pub(super) fn audit_live_missing_advisory_json_error_code_is_advisory_refresh_fa
 #[test]
 pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["security", "//cc/private/context:hello"], &runner, &|harness| {
-        write_cargo_lock(harness);
-        let url = dx_audit::advisory::advisory_source("cargo").expect("source");
-        write_pin(harness, "cargo", url, TEST_AUDIT_TODAY, "[]");
-        let sha = dx_digest::sha256_hex(b"[]");
-        harness.write_source(&format!(".dx/local/advisory/{sha}/cargo.json"), "[ ]");
-    });
+    let (code, out, err) = run_with(
+        &["security", "//cc/private/context:hello"],
+        &runner,
+        &|harness| {
+            write_cargo_lock(harness);
+            let url = dx_audit::advisory::advisory_source("cargo").expect("source");
+            write_pin(harness, "cargo", url, TEST_AUDIT_TODAY, "[]");
+            let sha = dx_digest::sha256_hex(b"[]");
+            harness.write_source(&format!(".dx/local/advisory/{sha}/cargo.json"), "[ ]");
+        },
+    );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
         err.contains("dx: advisory_pin_mismatch: audit security:"),
@@ -1074,9 +1086,13 @@ pub(super) fn audit_live_license_clean_and_denied() {
     assert!(err.contains("audit_failed"), "{err}");
 
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["license", "//cc/private/context:hello"], &runner, &|harness| {
-        write_cargo_license_set(harness);
-    });
+    let (code, out, err) = run_with(
+        &["license", "//cc/private/context:hello"],
+        &runner,
+        &|harness| {
+            write_cargo_license_set(harness);
+        },
+    );
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("audit license: clean"), "{out}");
 }

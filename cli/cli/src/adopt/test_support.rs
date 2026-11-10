@@ -182,7 +182,10 @@ mod tests {
     #[test]
     fn run_reports_the_code_and_what_reached_each_stream() {
         let scratch = dx_test_scratch::scratch("dx-adopt-run-streams-");
-        let (code, out, err) = run(&invocation(&["init", "--apply", "--ci=none"]), scratch.path());
+        let (code, out, err) = run(
+            &invocation(&["init", "--apply", "--ci=none"]),
+            scratch.path(),
+        );
         assert_eq!(code, 0);
         assert!(out.contains(".dx/pins"), "{out}");
         assert_eq!(err.lines().count(), 1, "{err}");

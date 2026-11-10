@@ -480,9 +480,8 @@ mod tests {
         assert_eq!(code, 0, "{words:?}: {out}{err}");
         let argv = harness.build_argv.borrow()[0].clone();
         assert!(
-            argv.iter().any(|arg| arg.starts_with(
-                "--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect"
-            )),
+            argv.iter().any(|arg| arg
+                .starts_with("--aspects=@rules_dx//tools/docs:aspect.bzl%real_docs_aspect")),
             "{argv:?}"
         );
         assert!(

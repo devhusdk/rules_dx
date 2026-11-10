@@ -31,7 +31,10 @@ fn read_stderr(path: &Path) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
-fn stderr_diagnostics(failure: &BuildFailure, parse: fn(&[u8]) -> Vec<ActionDiagnostic>) -> Diagnostics {
+fn stderr_diagnostics(
+    failure: &BuildFailure,
+    parse: fn(&[u8]) -> Vec<ActionDiagnostic>,
+) -> Diagnostics {
     let StderrRef::Local(path) = &failure.stderr else {
         return Diagnostics {
             status: "unavailable",
@@ -83,7 +86,11 @@ pub(super) fn to_event(failure: &BuildFailure) -> BuildFailureEvent {
         None => false,
     };
     let tool = if is_rustc {
-        Some(if mnemonic == Some("Clippy") { "clippy" } else { "rustc" })
+        Some(if mnemonic == Some("Clippy") {
+            "clippy"
+        } else {
+            "rustc"
+        })
     } else {
         mnemonic.and_then(compiler_tool)
     };

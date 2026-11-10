@@ -296,8 +296,7 @@ fn coverage_merges_the_lcov_a_julia_test_writes() {
 
 #[test]
 fn coverage_merges_the_lcov_a_haskell_test_writes() {
-    let lcov =
-        "SF:haskell/private/coverage/fixture/Greeter.hs\nDA:4,1\nDA:7,0\nLF:2\nLH:1\nend_of_record\n";
+    let lcov = "SF:haskell/private/coverage/fixture/Greeter.hs\nDA:4,1\nDA:7,0\nLF:2\nLH:1\nend_of_record\n";
     let harness = coverage_harness("cov-haskell-hpc", lcov.as_bytes());
     let harness = with_sources(
         harness,

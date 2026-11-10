@@ -1270,7 +1270,11 @@ mod tests {
         let slot_path = |slot: u32| PathBuf::from(format!("/cache/slots/{slot}"));
         let target = slot_target(Some("28"), PathBuf::from("/nonexistent/cwd/28"), slot_path);
         assert_eq!(target, PathBuf::from("/cache/slots/28"));
-        let kept = slot_target(Some("x28"), PathBuf::from("/nonexistent/cwd/x28"), slot_path);
+        let kept = slot_target(
+            Some("x28"),
+            PathBuf::from("/nonexistent/cwd/x28"),
+            slot_path,
+        );
         assert_eq!(kept, PathBuf::from("/nonexistent/cwd/x28"));
         let none = slot_target(None, PathBuf::from("/ws"), slot_path);
         assert_eq!(none, PathBuf::from("/ws"));

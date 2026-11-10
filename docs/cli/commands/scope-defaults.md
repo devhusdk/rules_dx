@@ -27,7 +27,7 @@ dx check --affected --output=json
 - Labels and patterns: `//...`, `//pkg:target`. Only `dx run` accepts `@repo//...`.
 - Files and directories: workspace-relative paths. A file resolves to the rules that use it. A directory becomes `//dir/...`. Paths with control characters are refused.
 - `--here`: the current directory tree, as `//path/...` (`//...` at the root). Under `bazel run` it uses `BUILD_WORKING_DIRECTORY`. It does not combine with scopes. Accepted by `build`, `test`, `coverage`, `bench`, `fuzz`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, `license`, and `docs`.
-- `--affected`: the targets your changes reach. It does not combine with scopes or `--here`. Accepted by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, `check`, `security`, and `license`. `generate` and `docs` reject it.
+- `--affected`: the targets your changes reach. `format` and the format phase of `check` use only the rules that own a changed file. `generate` and the generate phase of `check` use the directories of the changed files. A `MODULE.bazel.lock` change that only rewrites the `bzlTransitiveDigest` or `usagesDigest` of a module extension selects nothing. It does not combine with scopes or `--here`. Accepted by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, `generate`, `check`, `security`, and `license`. `docs` rejects it.
 
 Targets that do not fit the target platform are skipped by `build`, `test`, `coverage`, `lint`, `typecheck`, `format`, and `check`. Skipped tests report `skipped`. Pass `-- --noskip_incompatible_explicit_targets` to fail on them. `dx run` fails on them.
 

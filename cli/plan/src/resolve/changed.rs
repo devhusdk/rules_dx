@@ -642,6 +642,13 @@ fn module_change(
         module_text(ROOT_LOCK, changed(ROOT_LOCK), workspace, runner, base)?;
     let lock = module_inputs::lock_changes(&base_lock, &head_lock)?;
     module_inputs::lock_pins(&head_lock, &updated)?;
+    if updated.is_empty() && lock.modules.is_empty() && lock.owned.is_empty() {
+        return Ok(ModuleEdit {
+            path: first.to_owned(),
+            modules: BTreeSet::new(),
+            loads: Vec::new(),
+        });
+    }
     let read_include = |label: &str| {
         dx_module_bazel::label_path(label)
             .and_then(|rel| std::fs::read_to_string(workspace.join(&rel)).map_err(|_| rel))

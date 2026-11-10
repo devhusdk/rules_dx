@@ -228,7 +228,11 @@ const EXAMPLES: &[(Command, &[&str])] = &[
     ),
     (
         Command::Generate,
-        &["generate", "generate --apply //pkg/...", "generate --affected"],
+        &[
+            "generate",
+            "generate --apply //pkg/...",
+            "generate --affected",
+        ],
     ),
     (
         Command::Build,
@@ -660,13 +664,13 @@ mod tests {
             };
             let want = if accepts_output(command, "text") {
                 {
-                let streamed = if command.output_caps().streamed {
-                    " (json streams events while the command runs)"
-                } else {
-                    ""
-                };
-                format!("Output: --output {}{streamed}; {report}", modes.join("|"))
-            }
+                    let streamed = if command.output_caps().streamed {
+                        " (json streams events while the command runs)"
+                    } else {
+                        ""
+                    };
+                    format!("Output: --output {}{streamed}; {report}", modes.join("|"))
+                }
             } else {
                 format!("Output: text only; {report}")
             };

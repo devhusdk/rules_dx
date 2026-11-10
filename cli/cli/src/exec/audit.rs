@@ -1052,7 +1052,8 @@ fn collect_target(
     let parsed = match target {
         AuditTarget::Configured(set) => parse_locked_for_configured(set, &locks),
     };
-    let (packages, lock_paths) = parsed.map_err(|error| (CODE_AUDIT_FAILED, DxError::from(&error)))?;
+    let (packages, lock_paths) =
+        parsed.map_err(|error| (CODE_AUDIT_FAILED, DxError::from(&error)))?;
     if !target.advisory_covered() {
         if packages.is_empty() || accepted_uncovered.contains(&label.as_str()) {
             return Ok(None);

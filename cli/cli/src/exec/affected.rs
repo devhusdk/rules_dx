@@ -30,6 +30,10 @@ pub(crate) struct AffectedPlan {
     pub(crate) changed_files: Vec<String>,
     pub(crate) targets: Vec<String>,
     pub(crate) tests: Vec<String>,
+    /// `check`: the package patterns of the changed files, for the generate phase.
+    pub(crate) generate: Vec<String>,
+    /// `check`: the rules that own the changed files, for the format phase.
+    pub(crate) format: Vec<String>,
     pub(crate) widened: Vec<WidenedScope>,
     pub(crate) unscoped: bool,
     /// External-repo test labels dropped because the test phase rejects them.
@@ -218,8 +222,12 @@ pub(crate) fn since_base(
     rev: &str,
 ) -> Result<String, PlanError> {
     let spec = format!("{rev}^{{commit}}");
-    git_text(runner, workspace, &["rev-parse", "--verify", "--quiet", &spec])
-        .ok_or_else(|| PlanError::Git(format!("--since {rev:?} does not name a commit")))
+    git_text(
+        runner,
+        workspace,
+        &["rev-parse", "--verify", "--quiet", &spec],
+    )
+    .ok_or_else(|| PlanError::Git(format!("--since {rev:?} does not name a commit")))
 }
 
 pub(crate) fn affected_base(
@@ -236,7 +244,8 @@ pub(crate) fn named_base(
 ) -> Result<(String, String), PlanError> {
     let git = PathBuf::from("git");
     let branch = default_branch(runner, workspace)?;
-    let base = merge_base(&git, workspace, runner, &branch, "HEAD").map_err(|error| PlanError::Git(error.to_string()))?;
+    let base = merge_base(&git, workspace, runner, &branch, "HEAD")
+        .map_err(|error| PlanError::Git(error.to_string()))?;
     Ok((branch, base))
 }
 
@@ -248,12 +257,15 @@ pub(crate) fn plan(
     base: String,
 ) -> Result<AffectedPlan, PlanError> {
     let git = PathBuf::from("git");
-    let mut changes =
-        collect_range(&git, workspace, runner, &base, "HEAD").map_err(|error| PlanError::Git(error.to_string()))?;
-    changes.extend(collect_working_tree(&git, workspace, runner).map_err(|error| PlanError::Git(error.to_string()))?);
+    let mut changes = collect_range(&git, workspace, runner, &base, "HEAD")
+        .map_err(|error| PlanError::Git(error.to_string()))?;
+    changes.extend(
+        collect_working_tree(&git, workspace, runner)
+            .map_err(|error| PlanError::Git(error.to_string()))?,
+    );
     let changes = dx_adopt::dedupe_changes(changes);
-    let overrides =
-        local_override_changes(&git, workspace, runner, &base).map_err(|error| PlanError::Git(error.to_string()))?;
+    let overrides = local_override_changes(&git, workspace, runner, &base)
+        .map_err(|error| PlanError::Git(error.to_string()))?;
     let mut changed_files: Vec<String> = overrides.clone();
     for change in &changes {
         changed_files.push(change.path.clone());
@@ -268,6 +280,8 @@ pub(crate) fn plan(
         changed_files,
         targets: Vec::new(),
         tests: Vec::new(),
+        generate: Vec::new(),
+        format: Vec::new(),
         widened: Vec::new(),
         unscoped: false,
         skipped_external: Vec::new(),
@@ -309,6 +323,8 @@ pub(crate) fn plan(
     if selection.targets.iter().any(|target| target == "//...") {
         if command == Command::Check {
             plan.tests = vec!["//...".to_owned()];
+            plan.generate = vec!["//...".to_owned()];
+            plan.format = vec!["//...".to_owned()];
         }
         plan.targets = vec!["//...".to_owned()];
         return Ok(plan);
@@ -334,13 +350,27 @@ pub(crate) fn plan(
     } else {
         Vec::new()
     };
+    let mut owners = if matches!(command, Command::Format | Command::Check) {
+        graph.selected(&selection.targets)
+    } else {
+        Vec::new()
+    };
+    owners.retain(|rule| !exclude::covered(&excludes, rule));
     plan.targets = if tests_only(command) {
         tests.clone()
+    } else if command == Command::Format {
+        owners.clone()
     } else {
         rules
     };
     if command == Command::Check && !plan.targets.is_empty() {
         plan.tests = tests;
+        plan.generate = generate_scope(workspace, &plan.changed_files);
+        plan.format = if owners.is_empty() {
+            plan.targets.clone()
+        } else {
+            owners
+        };
     }
     if matches!(command, Command::Security | Command::License) {
         plan.targets.retain(|target| audit_owned(workspace, target));
@@ -550,6 +580,8 @@ pub(crate) fn execute_affected(invocation: &Invocation, env: Env<'_>) -> i32 {
     next.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         tests: plan.tests.clone(),
         base: Some(plan.base.clone()),
+        generate: plan.generate.clone(),
+        format: plan.format.clone(),
     });
     if invocation.output != OutputMode::Json {
         return execute(
@@ -608,6 +640,8 @@ mod tests {
             changed_files: vec!["core/quality/fixtures.bzl".to_string()],
             targets: Vec::new(),
             tests: Vec::new(),
+            generate: Vec::new(),
+            format: Vec::new(),
             widened: entries
                 .iter()
                 .map(|(scope, reason)| WidenedScope {
@@ -778,7 +812,10 @@ mod tests {
             names.iter().map(|name| (*name).to_owned()).collect()
         };
         assert_eq!(
-            generate_scope(dir.path(), &files(&["svc/new.py", "svc/gone/x.py", "lib/a/b.py"])),
+            generate_scope(
+                dir.path(),
+                &files(&["svc/new.py", "svc/gone/x.py", "lib/a/b.py"])
+            ),
             files(&["//lib/a/...", "//svc/..."])
         );
         assert_eq!(
@@ -1214,6 +1251,37 @@ mod tests {
     }
 
     #[test]
+    fn check_scopes_generate_to_changed_packages_and_format_to_owners() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let graph = graph();
+        let (plan, _) = run(dir.path(), Command::Check, &[&graph, "//a:t\n"]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+        assert_eq!(plan.generate, ["//a/..."]);
+        assert_eq!(plan.format, ["//a:lib"]);
+    }
+
+    #[test]
+    fn format_selects_owners_without_their_users() {
+        let dir = repo();
+        write(dir.path(), "a/a.txt", "changed\n");
+        let (plan, _) = run(dir.path(), Command::Format, &[&graph()]);
+        assert_eq!(plan.targets, ["//a:lib"]);
+        let (plan, _) = run(dir.path(), Command::Lint, &[&graph()]);
+        assert_eq!(plan.targets, ["//a:lib", "//a:t"]);
+    }
+
+    #[test]
+    fn check_widened_to_everything_keeps_generate_and_format_repo_wide() {
+        let dir = repo();
+        write(dir.path(), "MODULE.bazel", "module(name = \"changed\")\n");
+        let (plan, _) = run(dir.path(), Command::Check, &[]);
+        assert_eq!(plan.targets, ["//..."]);
+        assert_eq!(plan.generate, ["//..."]);
+        assert_eq!(plan.format, ["//..."]);
+    }
+
+    #[test]
     fn check_json_reports_the_selected_tests() {
         let dir = repo();
         write(dir.path(), "a/a.txt", "changed\n");
@@ -1253,6 +1321,8 @@ mod tests {
             changed_files: Vec::new(),
             targets: Vec::new(),
             tests: Vec::new(),
+            generate: Vec::new(),
+            format: Vec::new(),
             widened: Vec::new(),
             unscoped: false,
             skipped_external: Vec::new(),

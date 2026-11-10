@@ -221,6 +221,23 @@ impl RuleGraph {
             .collect()
     }
 
+    /// Rules the scopes name or match, without their users and without manual rules.
+    pub fn selected(&self, scopes: &[String]) -> Vec<String> {
+        let mut rules: Vec<String> = self
+            .inputs
+            .keys()
+            .filter(|rule| !self.manual.contains(*rule))
+            .filter(|rule| {
+                scopes.iter().any(|scope| {
+                    scope == *rule || (is_pattern(scope) && matches_scope(scope, rule))
+                })
+            })
+            .cloned()
+            .collect();
+        rules.sort();
+        rules
+    }
+
     /// Rules affected by the scopes, without manual rules.
     pub fn affected(&self, scopes: &[String]) -> Vec<String> {
         self.keep(self.reach(scopes), |label| !self.manual.contains(label))
@@ -708,6 +725,21 @@ mod tests {
         assert!(!affected.contains(&"//c:m".to_owned()), "{affected:?}");
         assert!(affected.contains(&"//c:t".to_owned()), "{affected:?}");
         assert!(affected.contains(&"//a:t".to_owned()), "{affected:?}");
+    }
+
+    #[test]
+    fn selected_names_matched_rules_without_users_or_manual_rules() {
+        let graph = sample();
+        assert_eq!(graph.selected(&strings(&["//a:lib"])), ["//a:lib"]);
+        let package = graph.selected(&strings(&["//c:all"]));
+        assert!(package.contains(&"//c:t".to_owned()), "{package:?}");
+        assert!(!package.contains(&"//c:m".to_owned()), "{package:?}");
+        assert!(!package.contains(&"//a:t".to_owned()), "{package:?}");
+        assert!(
+            graph
+                .selected(&strings(&["//a:a.rs", "@@x+//:y"]))
+                .is_empty()
+        );
     }
 
     #[test]

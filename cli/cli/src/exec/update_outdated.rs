@@ -1054,7 +1054,10 @@ mod tests {
 
     #[test]
     fn stack_lock_without_freeze_is_refused() {
-        let locks = vec!["app/stack.yaml.lock".to_owned(), "cabal.project.freeze".to_owned()];
+        let locks = vec![
+            "app/stack.yaml.lock".to_owned(),
+            "cabal.project.freeze".to_owned(),
+        ];
         let errors = stack_lock_errors("hackage", &locks);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].package, "app/stack.yaml.lock");

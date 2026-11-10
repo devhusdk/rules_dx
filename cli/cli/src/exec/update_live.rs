@@ -154,7 +154,9 @@ impl ScriptRunner {
         {
             "uv".to_owned()
         } else if argv.contains(&"uv".to_owned())
-            && argv.iter().any(|arg| arg.contains("core/quality/tools/python"))
+            && argv
+                .iter()
+                .any(|arg| arg.contains("core/quality/tools/python"))
         {
             "uv-tools".to_owned()
         } else if argv.contains(&"uv".to_owned())

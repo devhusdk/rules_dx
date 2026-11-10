@@ -172,7 +172,10 @@ fn every_agent_has_a_marker_or_a_reason() {
             Agent::Copilot => None,
         };
         if let Some(marker) = marker {
-            assert!(dx_adopt::defaults::AGENT_ENVS.contains(&marker), "{agent:?}");
+            assert!(
+                dx_adopt::defaults::AGENT_ENVS.contains(&marker),
+                "{agent:?}"
+            );
         }
     }
 }

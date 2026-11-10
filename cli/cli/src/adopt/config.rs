@@ -2,8 +2,8 @@ use std::collections::BTreeSet;
 use std::io::Write;
 use std::path::Path;
 
-use dx_error::DxError;
 use dx_diff::{FilePatch, PatchKind, render_patch};
+use dx_error::DxError;
 use dx_generate::tools_gen::{TOOL_CONFIGS, ToolConfig};
 use dx_output::{
     ConfigFileEvent, FinishedCounts, OutputMode, command_finished, command_started,

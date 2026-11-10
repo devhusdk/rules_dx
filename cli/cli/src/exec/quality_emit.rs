@@ -39,7 +39,10 @@ pub(crate) struct EmitCounts {
 const DEFAULT_MAX_FINDINGS: u32 = 50;
 
 /// Keeps the first `limit` records of each tool and says how many it dropped; 0 keeps all.
-fn cap_per_tool(records: Vec<FindingRecord>, limit: u32) -> (Vec<FindingRecord>, BTreeMap<String, u64>) {
+fn cap_per_tool(
+    records: Vec<FindingRecord>,
+    limit: u32,
+) -> (Vec<FindingRecord>, BTreeMap<String, u64>) {
     let mut seen: BTreeMap<String, u64> = BTreeMap::new();
     let mut omitted: BTreeMap<String, u64> = BTreeMap::new();
     let mut kept = Vec::new();

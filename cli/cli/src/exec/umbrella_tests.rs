@@ -2531,7 +2531,11 @@ fn check_affected_hints_name_dx_check_apply_with_the_affected_flag() {
     let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
     inv.affected = false;
     inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
-    inv.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
+    inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
+        generate: vec!["//test/...".to_owned()],
+        format: vec!["//test:corpus".to_owned()],
+        ..Default::default()
+    });
     let (code, out, err) = harness.execute_with(&inv, &harness.runner());
     assert_eq!(code, 1, "{out}{err}");
     assert!(
@@ -2567,6 +2571,8 @@ fn commits_harness(name: &str, config: &str, subject: &str) -> (Harness, Invocat
     inv.targets = vec!["//test:corpus".to_owned()];
     inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
         base: Some(base),
+        generate: vec!["//test/...".to_owned()],
+        format: inv.targets.clone(),
         ..Default::default()
     });
     (harness, inv)
@@ -2615,7 +2621,11 @@ fn check_affected_generate_runs_on_affected_packages() {
     let mut inv = umbrella_invocation(&harness, &["check", "--affected", "--output=text"]);
     inv.affected = false;
     inv.targets = vec!["//test:corpus".to_owned(), "//test:other".to_owned()];
-    inv.affected_handoff = Some(dx_plan::args::AffectedHandoff::default());
+    inv.affected_handoff = Some(dx_plan::args::AffectedHandoff {
+        generate: vec!["//test/...".to_owned()],
+        format: vec!["//test:corpus".to_owned()],
+        ..Default::default()
+    });
     let (code, out, err) = harness.execute_with(&inv, &harness.runner());
     assert_eq!(code, 0, "{out}{err}");
     assert!(out.contains("Running generate for //test/..."), "{out}");

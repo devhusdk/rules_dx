@@ -1,6 +1,6 @@
 """Build settings of every quality test configuration."""
 
-MAX_TEST_CONFIGS = 37
+MAX_TEST_CONFIGS = 39
 
 _CLIPPY_STANDARD = ["-Wclippy::all", "-Dwarnings"]
 
@@ -122,3 +122,8 @@ TEST_CONFIGS = {
     "scalafix_aux": _config("//core/quality/testdata/scalafix_aux:policy"),
     "tool_defaults": _config(_TOOL_OVERRIDE_POLICY),
     "tool_overrides": _config(_TOOL_OVERRIDE_POLICY, tools = _TOOL_OVERRIDES),
+    "workspace": _config("//.dx:policy"),
+    "zanuda_owned": _config("//core/quality/testdata/zanuda_owned:policy"),
+}
+
+TEST_CONFIG_SETTINGS = sorted(TEST_CONFIGS["default"].keys())

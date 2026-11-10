@@ -967,3 +967,25 @@ ci_rust_test(
     },
     deps = ["//tools/testing:dx_testing"],
 )
+
+ci_rust_test(
+    name = "lock_registry_test",
+    size = "small",
+    data = [
+        "lock_registry_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:paths.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:paths.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+        "LOCK_REGISTRY_ALLOWLIST": "$(rlocationpath lock_registry_allowlist.txt)",
+    },
+    deps = [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)

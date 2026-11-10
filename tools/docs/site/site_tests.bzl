@@ -14,7 +14,7 @@ def site_unit_tests(name):
             expect_equal(
                 "the pinned mdBook version stays explicit",
                 _MDBOOK["linux_x86_64"]["upstream_version"],
-                "0.4.52",
+                "0.5.4",
             ),
             expect_equal(
                 "the user book opens with the generated index page",

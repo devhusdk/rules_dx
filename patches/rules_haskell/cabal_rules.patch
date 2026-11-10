@@ -65,7 +65,7 @@ index 9fbe27f..b09270f 100644
      if hs.toolchain.is_darwin:
          env["SDKROOT"] = "macosx"  # See haskell/private/actions/link.bzl
  
-@@ -277,6 +280,13 @@ def _prepare_cabal_inputs(
+@@ -277,6 +280,15 @@ def _prepare_cabal_inputs(
          extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
          extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
  
@@ -75,6 +75,8 @@ index 9fbe27f..b09270f 100644
 +    if hs.toolchain.is_darwin:
 +        extra_args.extend(["--ghc-option=-optc" + flag for flag in cc.compiler_flags])
 +        extra_args.extend(["--ghc-option=-optl" + flag for flag in cc.linker_flags])
++        extra_args.append("--ghc-option=-pgmotool=" + paths.join(ar_bindir, "llvm-otool"))
++        extra_args.append("--ghc-option=-pgminstall_name_tool=" + paths.join(ar_bindir, "llvm-install-name-tool"))
 +
      ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
      if dynamic_file:
@@ -190,7 +192,7 @@ index 6e2a40e..271609e 100755
      if "RUNFILES_MANIFEST_FILE" in os.environ:
          del os.environ["RUNFILES_MANIFEST_FILE"]
      runghc_args = [arg.replace("./", execroot + "/") for arg in runghc_args]
-+    extra_args = [re.sub(r"^(--ghc-option=-opt[cl](?:-[LBIF]|-isystem|-iframework|--sysroot=|-resource-dir=)?)((?:external|bazel-out)/)", lambda m: m.group(1) + execroot + "/" + m.group(2), a) for a in extra_args]
++    extra_args = [re.sub(r"^(--ghc-option=(?:-opt[cl](?:-[LBIF]|-isystem|-iframework|--sysroot=|-resource-dir=)?|-pgm(?:otool|install_name_tool)=))((?:external|bazel-out)/)", lambda m: m.group(1) + execroot + "/" + m.group(2), a) for a in extra_args]
 +    ghc_cc_args = toolchain_info["ghc_cc_args"]
 +    if "-pgmlm" in ghc_cc_args:
 +        ghc_cc_args = ghc_cc_args[:ghc_cc_args.index("-pgmlm")]

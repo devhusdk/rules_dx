@@ -762,6 +762,45 @@ mod tests {
     }
 
     #[test]
+    fn test_args_with_spaces_and_unicode_reach_bazel_as_single_arguments() {
+        let unicode = "--test_arg=--name=h\u{e9}llo w\u{f6}rld \u{65e5}\u{672c}";
+        for command in ["test", "coverage"] {
+            let harness = Harness::new("wf-test-args-verbatim");
+            harness.query.script_stdout("py_test rule //pkg:unit\n");
+            let inv = invocation(&[
+                command,
+                "--",
+                unicode,
+                "--test_arg=--sentinel",
+                "--test_arg=--ignored",
+            ]);
+            let run = harness.probe_with(&inv, &[Some(0)]);
+            assert_eq!(run.argv.len(), 1, "{command}: {run:?}");
+            let argv = &run.argv[0];
+            let position = argv
+                .iter()
+                .position(|arg| arg == unicode)
+                .expect("the unicode test_arg reaches bazel");
+            assert_eq!(
+                &argv[position..position + 3],
+                &[
+                    unicode.to_owned(),
+                    "--test_arg=--sentinel".to_owned(),
+                    "--test_arg=--ignored".to_owned()
+                ],
+                "{command}: {argv:?}"
+            );
+            assert_eq!(
+                argv.iter()
+                    .filter(|arg| arg.starts_with("--test_arg"))
+                    .count(),
+                3,
+                "{command}: {argv:?}"
+            );
+        }
+    }
+
+    #[test]
     fn test_filter_reaches_rust_test_binaries_as_a_libtest_filter() {
         for command in ["test", "coverage"] {
             let harness = Harness::new("wf-rust-filter");

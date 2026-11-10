@@ -42,7 +42,7 @@ rust_test(
         "@platforms//os:linux",
     ],
     deps = [
-        "//cc/context:cc_context",
+        "//cc/private/context:cc_context",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/testing:dx_testing",
         "//tools/testing/lsp:dx_lsp",

@@ -69,14 +69,14 @@ rust_test(
     srcs = ["consumer_report_test.rs"],
     data = [
         ":consumer_report_wasi",
-        "@rules_dx//wasi/runtime:wasmtime",
+        "@rules_dx//wasi:wasmtime",
     ],
     env = {
         "REPORT_WASM": "$(rootpath :consumer_report_wasi)",
-        "WASMTIME": "$(rootpath @rules_dx//wasi/runtime:wasmtime)",
+        "WASMTIME": "$(rootpath @rules_dx//wasi:wasmtime)",
     },
     tags = ["block-network"],
-    deps = ["@rules_dx//wasi/testing:wasi_run"],
+    deps = ["@rules_dx//wasi:wasi_run"],
 )
 
 # keep
@@ -97,16 +97,16 @@ rust_test(
         "assets/board.txt",
         "assets/notes.txt",
         ":tasks_wasi",
-        "@rules_dx//wasi/runtime:wasmtime",
+        "@rules_dx//wasi:wasmtime",
     ],
     env = {
         "BOARD": "$(rootpath assets/board.txt)",
         "NOTES": "$(rootpath assets/notes.txt)",
         "TASKS_WASM": "$(rootpath :tasks_wasi)",
-        "WASMTIME": "$(rootpath @rules_dx//wasi/runtime:wasmtime)",
+        "WASMTIME": "$(rootpath @rules_dx//wasi:wasmtime)",
     },
     tags = ["block-network"],
-    deps = ["@rules_dx//wasi/testing:wasi_run"],
+    deps = ["@rules_dx//wasi:wasi_run"],
 )
 
 rust_test(

@@ -65,7 +65,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 
 ## Compilers
 
-Select one with `--@rules_dx//cc/toolchains:compiler=<value>`. Blocked on names a platform the compiler targets whose evidence is still waiting, with the reason.
+Select one with `--@rules_dx//cc:compiler=<value>`. Blocked on names a platform the compiler targets whose evidence is still waiting, with the reason.
 
 | Compiler | Driver | Coverage | Not supported on | Blocked on |
 | --- | --- | --- | --- | --- |

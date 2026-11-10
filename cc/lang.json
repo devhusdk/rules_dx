@@ -27,7 +27,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "toolchains/pins.bzl"
+    "private/toolchains/pins.bzl"
   ],
   "entry_points": [
     "cc_coverage_features",

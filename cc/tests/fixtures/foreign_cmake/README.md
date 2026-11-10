@@ -28,7 +28,7 @@ in a log. `foreign_cmake_cross_test` checks that lld rejects the archive.
 `foreign_cmake_log_test` reads it through `zlib_log_gcc_copy` to check that
 switching compilers reconfigures CMake instead of reusing a stale cache.
 
-On windows_x86_64 with `--//cc/toolchains:compiler=msvc`, `zlib_msvc_static` and
+On windows_x86_64 with `--//cc:compiler=msvc`, `zlib_msvc_static` and
 `zlib_msvc_shared` build the same zlib with cl.exe through the Ninja generator
 (`zlibstatic.lib`, `zlib.lib` and `zlib.dll`; zlib only names the DLL `zlib1.dll`
 under MinGW). The root MODULE.bazel uses the prebuilt ninja on Windows and noop

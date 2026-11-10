@@ -1,6 +1,6 @@
 """The appimage_tools module extension."""
 
-load(":repos.bzl", "HUB_NAME", "tools_repo")
+load("//appimage/private:repos.bzl", "HUB_NAME", "tools_repo")
 
 def _extension_impl(mctx):
     tools_repo(name = HUB_NAME)

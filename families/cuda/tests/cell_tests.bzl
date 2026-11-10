@@ -3,7 +3,7 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//rules:defs.bzl", "CUDA_TARGET")
 
-_COMPILER = str(Label("@rules_dx//cc/toolchains:compiler"))
+_COMPILER = str(Label("@rules_dx//cc:compiler"))
 _INCOMPATIBLE = [str(Label("@platforms//:incompatible"))]
 
 _CompatInfo = provider(doc = "The constraints CUDA_TARGET resolved to.", fields = ["labels"])

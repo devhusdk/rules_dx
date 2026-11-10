@@ -2,7 +2,7 @@
 
 load("@rules_dx_apple//ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
 load("@rules_dx_cuda//toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
-load("//cc/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
+load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//d/private:kwargs.bzl", D_SUPPORT = "PLATFORM_SUPPORT")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")
@@ -14,7 +14,7 @@ load("//julia/private:platforms.bzl", JULIA_SUPPORT = "PLATFORM_SUPPORT")
 load("//ocaml/private:kwargs.bzl", OCAML_SUPPORT = "PLATFORM_SUPPORT")
 load("//perl/private:platforms.bzl", PERL_SUPPORT = "PLATFORM_SUPPORT")
 load("//php/private:defs.bzl", PHP_SUPPORT = "PLATFORM_SUPPORT")
-load("//qt/sdk:repos.bzl", QT_SUPPORT = "PLATFORM_SUPPORT")
+load("//qt/private/sdk:repos.bzl", QT_SUPPORT = "PLATFORM_SUPPORT")
 load("//tools/platforms:defs.bzl", "WINDOWS_MSVC_HOST_CONSTRAINTS")
 load("//tools/testing/hermetic:defs.bzl", HERMETIC_SUPPORT = "PLATFORM_SUPPORT")
 
@@ -87,20 +87,20 @@ ROWS = [
     {
         "ci_tests": [
             "//cc/tests/gcc_linux_arm64:native_arm64_test",
-            "//cc/toolchains:gcc_arm64_asan_test",
-            "//cc/toolchains:gcc_arm64_c_test",
-            "//cc/toolchains:gcc_arm64_dynamic_libstdcxx_test",
-            "//cc/toolchains:gcc_arm64_hello_c_test",
-            "//cc/toolchains:gcc_arm64_hello_test",
-            "//cc/toolchains:gcc_arm64_shared_test",
-            "//cc/toolchains:gcc_arm64_ubsan_test",
-            "//cc/toolchains:gcc_asan_test",
-            "//cc/toolchains:gcc_c_test",
-            "//cc/toolchains:gcc_hello_test",
-            "//cc/toolchains:gcc_hello_c_test",
-            "//cc/toolchains:gcc_hello_lib_test",
-            "//cc/toolchains:gcc_shared_test",
-            "//cc/toolchains:gcc_ubsan_test",
+            "//cc/private/toolchains:gcc_arm64_asan_test",
+            "//cc/private/toolchains:gcc_arm64_c_test",
+            "//cc/private/toolchains:gcc_arm64_dynamic_libstdcxx_test",
+            "//cc/private/toolchains:gcc_arm64_hello_c_test",
+            "//cc/private/toolchains:gcc_arm64_hello_test",
+            "//cc/private/toolchains:gcc_arm64_shared_test",
+            "//cc/private/toolchains:gcc_arm64_ubsan_test",
+            "//cc/private/toolchains:gcc_asan_test",
+            "//cc/private/toolchains:gcc_c_test",
+            "//cc/private/toolchains:gcc_hello_test",
+            "//cc/private/toolchains:gcc_hello_c_test",
+            "//cc/private/toolchains:gcc_hello_lib_test",
+            "//cc/private/toolchains:gcc_shared_test",
+            "//cc/private/toolchains:gcc_ubsan_test",
         ],
         "consumer_tests": ["//tools/testing/hermetic:c_fixture_gcc", "//tools/testing/hermetic:cpp_fixture_gcc"],
         "compiler": "gcc",
@@ -119,17 +119,17 @@ ROWS = [
     },
     {
         "ci_tests": [
-            "//cc/toolchains:msvc_arm64_hello_test",
-            "//cc/toolchains:msvc_arm64_pe_machine_test",
-            "//cc/toolchains:msvc_c_test",
-            "//cc/toolchains:msvc_hello_c_test",
-            "//cc/toolchains:msvc_hello_lib_test",
-            "//cc/toolchains:msvc_hello_test",
-            "//cc/toolchains:msvc_shared_dbg_test",
-            "//cc/toolchains:msvc_shared_opt_test",
-            "//cc/toolchains:msvc_shared_test",
-            "//cc/toolchains:msvc_spaced_test",
-            "//cc/toolchains:msvc_static_crt_test",
+            "//cc/private/toolchains:msvc_arm64_hello_test",
+            "//cc/private/toolchains:msvc_arm64_pe_machine_test",
+            "//cc/private/toolchains:msvc_c_test",
+            "//cc/private/toolchains:msvc_hello_c_test",
+            "//cc/private/toolchains:msvc_hello_lib_test",
+            "//cc/private/toolchains:msvc_hello_test",
+            "//cc/private/toolchains:msvc_shared_dbg_test",
+            "//cc/private/toolchains:msvc_shared_opt_test",
+            "//cc/private/toolchains:msvc_shared_test",
+            "//cc/private/toolchains:msvc_spaced_test",
+            "//cc/private/toolchains:msvc_static_crt_test",
         ],
         "compiler": "msvc",
         "consumer_tests": ["//tools/testing/hermetic:c_fixture_msvc", "//tools/testing/hermetic:cpp_fixture_msvc"],
@@ -272,7 +272,7 @@ ROWS = [
         "section": "targets",
         "title": "Qt",
     },
-    {"ci_tests": ["//wasi/testing:wasi_run_unit_test", "//wasi/testing:wasi_guest_test", "//wasi/testing:wasi_guest_analysis_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
+    {"ci_tests": ["//wasi/private/testing:wasi_run_unit_test", "//wasi/private/testing:wasi_guest_test", "//wasi/private/testing:wasi_guest_analysis_test"], "families": [], "consumer_tests": ["//tools/testing/hermetic:rust_wasi"], "name": "wasi", "section": "targets", "title": "WASI"},
     {"name": "css", "section": "formats", "title": "CSS"},
     {"name": "graphql", "section": "formats", "title": "GraphQL"},
     {"name": "markdown", "section": "formats", "title": "Markdown"},
@@ -743,12 +743,12 @@ PENDING_COMPILERS = {}
 COMPILER_BLOCKERS = {}
 
 # The identity test of each compiler that has one.
-COMPILER_PROBES = {"gcc": "//cc/toolchains:identity_gcc", "llvm": "//cc/toolchains:identity", "msvc": "//cc/toolchains:identity_msvc"}
+COMPILER_PROBES = {"gcc": "//cc/private/toolchains:identity_gcc", "llvm": "//cc/private/toolchains:identity", "msvc": "//cc/private/toolchains:identity_msvc"}
 
 # The identity test of a compiler on a platform where its COMPILER_PROBES test does not run.
 COMPILER_PLATFORM_PROBES = {
-    "gcc": {"linux_arm64": "//cc/toolchains:identity_gcc_arm64_native"},
-    "msvc": {"windows_arm64": "//cc/toolchains:identity_msvc_arm64_native"},
+    "gcc": {"linux_arm64": "//cc/private/toolchains:identity_gcc_arm64_native"},
+    "msvc": {"windows_arm64": "//cc/private/toolchains:identity_msvc_arm64_native"},
 }
 
 

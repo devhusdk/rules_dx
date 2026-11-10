@@ -1,7 +1,7 @@
 """A consumer-owned native ABI library built outside the consumer graph."""
 
 _BUILD_BAZEL = '''load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_import")
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc:defs.bzl", "cc_library")
 
 _C17 = select({
     "@platforms//os:windows": ["/clang:-std=c17"],

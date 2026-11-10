@@ -5,7 +5,7 @@ load("@rules_cc//cc:find_cc_toolchain.bzl", "find_cc_toolchain", "use_cc_toolcha
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 def _arm64_impl(_settings, _attr):
-    return {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))}
+    return {"//command_line_option:platforms": str(Label("//appimage:linux_arm64"))}
 
 _arm64 = transition(
     implementation = _arm64_impl,

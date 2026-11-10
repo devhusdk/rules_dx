@@ -656,22 +656,22 @@ osx.libraries(names = ["libffi"])
 # Gated on the Haskell-only flag, so it must come before the general C toolchains.
 register_toolchains("@dx_haskell_toolchains//cc:all")
 
-register_toolchains("//cc/toolchains:gcc_linux_x86_64")
+register_toolchains("//cc/private/toolchains:gcc_linux_x86_64")
 
-register_toolchains("//cc/toolchains:gcc_linux_x86_64_to_arm64")
+register_toolchains("//cc/private/toolchains:gcc_linux_x86_64_to_arm64")
 
-register_toolchains("//cc/toolchains:gcc_linux_arm64")
+register_toolchains("//cc/private/toolchains:gcc_linux_arm64")
 
-register_toolchains("//cc/toolchains:gcc_unsupported")
+register_toolchains("//cc/private/toolchains:gcc_unsupported")
 
-register_toolchains("//cc/toolchains:msvc_windows_x86_64")
+register_toolchains("//cc/private/toolchains:msvc_windows_x86_64")
 
-register_toolchains("//cc/toolchains:msvc_windows_x86_64_to_arm64")
+register_toolchains("//cc/private/toolchains:msvc_windows_x86_64_to_arm64")
 
-register_toolchains("//cc/toolchains:msvc_windows_arm64")
+register_toolchains("//cc/private/toolchains:msvc_windows_arm64")
 
 # The guard must stay last among the MSVC entries.
-register_toolchains("//cc/toolchains:msvc_unsupported")
+register_toolchains("//cc/private/toolchains:msvc_unsupported")
 
 # Swift on macOS selects this toolchain through its wrapper transition.
 apple_cc_configure = use_extension("@apple_support//crosstool:setup.bzl", "apple_cc_configure_extension")
@@ -693,7 +693,7 @@ gcc_toolchains.toolchain(
 )
 use_repo(gcc_toolchains, "custom_gcc_x86_64")
 
-gcc = use_extension("//cc/toolchains:extensions.bzl", "gcc")
+gcc = use_extension("//cc:extensions.bzl", "gcc")
 use_repo(gcc, "dx_gcc_linux_aarch64", "dx_gcc_linux_aarch64_cross", "dx_gcc_linux_x86_64")
 
 protoc_prebuilt = use_extension("@protobuf//bazel/private/oss/toolchains/prebuilt:protoc_extension.bzl", "protoc")
@@ -1981,10 +1981,10 @@ crate.annotation(
 )
 crate.from_cargo(
     name = "dx_crates",
-    cargo_lockfile = "//cc/context:Cargo.lock",
+    cargo_lockfile = "//cc/private/context:Cargo.lock",
     lockfile = "//:cargo-bazel-lock.json",
     manifests = [
-        "//cc/context:Cargo.toml",
+        "//cc/private/context:Cargo.toml",
         "//cli/process:Cargo.toml",
         "//cli/apply:Cargo.toml",
         "//cli/atomic_fs:Cargo.toml",
@@ -2966,16 +2966,16 @@ use_repo(windows_msvc_runtime, "msvc_runtime")
 windows_sdk_ext = use_extension("@windows_support//windows:extensions.bzl", "windows_sdk")
 use_repo(windows_sdk_ext, "windows_sdk")
 
-msvc = use_extension("//cc/toolchains/msvc:extensions.bzl", "msvc")
+msvc = use_extension("//cc:extensions.bzl", "msvc")
 use_repo(msvc, "dx_msvc")
 
-msvc_dev = use_extension("//cc/toolchains/msvc:extensions.bzl", "msvc", dev_dependency = True)
+msvc_dev = use_extension("//cc:extensions.bzl", "msvc", dev_dependency = True)
 msvc_dev.license(accept = ["visual-studio-build-tools"])
 
 cuda_license_dev = use_extension("@rules_dx_cuda//toolchain:extensions.bzl", "cuda_license", dev_dependency = True)
 cuda_license_dev.license(accept = ["cuda-eula"])
 
-qt_sdk = use_extension("//qt/sdk:extensions.bzl", "qt_sdk", dev_dependency = True)
+qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk", dev_dependency = True)
 qt_sdk.configure(modules = [
     "qtdeclarative",
     "qttools",

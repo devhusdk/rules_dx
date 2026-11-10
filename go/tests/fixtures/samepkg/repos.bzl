@@ -1,6 +1,6 @@
 """An external Go repository whose package path matches the samepkg fixture."""
 
-_BUILD_BAZEL = '''load("@rules_dx//go/rules:defs.bzl", "go_library")
+_BUILD_BAZEL = '''load("@rules_dx//go:defs.bzl", "go_library")
 
 go_library(
     name = "helper",

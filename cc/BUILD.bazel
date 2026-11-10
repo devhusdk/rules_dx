@@ -1,0 +1,45 @@
+load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//cc/private/toolchains:bindings.bzl", "CC_COMPILERS")
+
+string_flag(
+    name = "compiler",
+    build_setting_default = "llvm",
+    values = sorted(CC_COMPILERS.keys()),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "gcc_linux_glibc",
+    actual = "//cc/private/toolchains:gcc_linux_glibc",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "gcc_linux_libstdcxx",
+    actual = "//cc/private/toolchains:gcc_linux_libstdcxx",
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "README.md",
+    "defs.bzl",
+    "extensions.bzl",
+    "lang.json",
+])
+
+filegroup(
+    name = "module_srcs",
+    srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
+    visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)

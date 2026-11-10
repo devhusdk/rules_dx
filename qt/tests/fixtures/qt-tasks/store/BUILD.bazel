@@ -1,4 +1,4 @@
-load("@rules_dx//qt/rules:defs.bzl", "qt_qml_module")
+load("@rules_dx//qt:defs.bzl", "qt_qml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//:__subpackages__"])

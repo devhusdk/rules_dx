@@ -35,7 +35,7 @@ def _data_paths_impl(ctx):
 data_paths_test = analysistest.make(
     _data_paths_impl,
     attrs = {"expected": attr.string_list(mandatory = True)},
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_x86_64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage:linux_x86_64"))},
 )
 
 def _dedup_impl(ctx):
@@ -49,15 +49,15 @@ def _dedup_impl(ctx):
 
 dedup_action_test = analysistest.make(
     _dedup_impl,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_x86_64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage:linux_x86_64"))},
 )
 
 unsupported_cpu_test = analysistest.make(
     _unsupported_impl,
     expect_failure = True,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_riscv64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage:linux_riscv64"))},
 )
 
-arm64_action_test = _make_action_test("//appimage/platforms:linux_arm64")
+arm64_action_test = _make_action_test("//appimage:linux_arm64")
 
-x86_64_action_test = _make_action_test("//appimage/platforms:linux_x86_64")
+x86_64_action_test = _make_action_test("//appimage:linux_x86_64")

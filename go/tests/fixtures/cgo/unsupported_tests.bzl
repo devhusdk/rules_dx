@@ -6,15 +6,15 @@ _WINDOWS = "x86_64-pc-windows-msvc"
 
 _CASES = {
     "clang_cl": (
-        "//cc/toolchains/external:clang_cl_toolchain",
+        "//cc/private/toolchains/external:clang_cl_toolchain",
         "cgo needs a GCC/Clang-style driver, but the C++ toolchain is clang-cl for " + _WINDOWS + ".",
     ),
     "clang_msvc": (
-        "//cc/toolchains/external:clang_msvc_toolchain",
+        "//cc/private/toolchains/external:clang_msvc_toolchain",
         "Go cgo on Windows needs the MinGW (GNU) ABI, but the C++ toolchain is clang for " + _WINDOWS + ".",
     ),
     "msvc_cl": (
-        "//cc/toolchains/external:msvc_cl_toolchain",
+        "//cc/private/toolchains/external:msvc_cl_toolchain",
         "cgo needs a GCC/Clang-style driver, but the C++ toolchain is msvc-cl for " + _WINDOWS + ".",
     ),
 }

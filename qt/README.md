@@ -4,7 +4,7 @@ Acquire a pinned Qt 6.11.3 SDK and its runtime closure without system
 packages. Nothing is fetched until a target needs it.
 
 ```python
-qt_sdk = use_extension("@rules_dx//qt/sdk:extensions.bzl", "qt_sdk")
+qt_sdk = use_extension("@rules_dx//qt:extensions.bzl", "qt_sdk")
 
 qt_sdk.configure(
     modules = ["qtdeclarative"],
@@ -57,8 +57,8 @@ qt_sdk.cell(
 Start from a pinned spec:
 
 ```sh
-bazel build @rules_dx//qt/sdk:linux_x86_64_cell
-cp bazel-bin/external/rules_dx+/qt/sdk/linux_x86_64_cell.json third_party/qt/custom_x86_64.json
+bazel build @rules_dx//qt/private/sdk:linux_x86_64_cell
+cp bazel-bin/external/rules_dx+/qt/private/sdk/linux_x86_64_cell.json third_party/qt/custom_x86_64.json
 ```
 
 The spec is checked like the pinned cells. Every archive and runtime package
@@ -119,10 +119,10 @@ dx format --apply -- --@rules_dx//config:tool_qmlformat=@dx_qt//:qmlformat
 
 ## Rules
 
-Load the rules from `@rules_dx//qt/rules:defs.bzl`:
+Load the rules from `@rules_dx//qt:defs.bzl`:
 
 ```python
-load("@rules_dx//qt/rules:defs.bzl", "qt_cc_binary", "qt_cc_test", "qt_qml_module")
+load("@rules_dx//qt:defs.bzl", "qt_cc_binary", "qt_cc_test", "qt_qml_module")
 
 qt_qml_module(
     name = "tally",
@@ -153,18 +153,18 @@ qt_cc_test(
 Build and test for the Qt platform. Add to `.bazelrc`:
 
 ```text
-build --platforms=@rules_dx//qt/platforms:linux_x86_64
+build --platforms=@rules_dx//qt:linux_x86_64
 build --use_target_platform_for_tests
 ```
 
-On Linux arm64, use `@rules_dx//qt/platforms:linux_arm64`.
+On Linux arm64, use `@rules_dx//qt:linux_arm64`.
 
 Every `qt_*` macro gates its targets to the qualified cells. The gate selects
 on the os and cpu of each qualified cell, so the targets build on every
 qualified cell and are skipped elsewhere:
 
 ```python
-load("@rules_dx//qt/rules:defs.bzl", "qt_cc_binary")
+load("@rules_dx//qt:defs.bzl", "qt_cc_binary")
 
 qt_cc_binary(
     name = "app",
@@ -250,10 +250,10 @@ Generated `moc`, `uic`, `rcc` and registration sources are never checked.
 ## Rust
 
 `qt_rust_library` builds a Rust crate with CXX-Qt bridges and the Qt C++
-library generated from them. Load it from `@rules_dx//qt/rules:rust.bzl`:
+library generated from them. Load it from `@rules_dx//qt:defs.bzl`:
 
 ```python
-load("@rules_dx//qt/rules:rust.bzl", "qt_rust_library")
+load("@rules_dx//qt:defs.bzl", "qt_rust_library")
 
 qt_rust_library(
     name = "model",
@@ -287,7 +287,7 @@ Attributes:
 - `uri`, `version`, `qml_srcs`, `qml_depends`, `modules`, `qt`, `copts`: as on
   `qt_qml_module`. `modules` defaults to `["qml"]` with a `uri`, else `["core"]`.
 
-`qt_rust_cc_library` from `@rules_dx//qt/rules:defs.bzl` builds only the C++
+`qt_rust_cc_library` from `@rules_dx//qt:defs.bzl` builds only the C++
 side for an existing Rust static library, passed as `rust`.
 
 Link one `qt_rust_library` per binary: each carries the Rust standard
@@ -371,8 +371,8 @@ constraints:
 
 | Platform | `@llvm` constraints |
 | --- | --- |
-| `@rules_dx//qt/platforms:linux_x86_64` | `libstdcxx.11.5.0`, `gnu.2.34` |
-| `@rules_dx//qt/platforms:linux_arm64` | `libstdcxx.14.3.0`, `gnu.2.39` |
+| `@rules_dx//qt:linux_x86_64` | `libstdcxx.11.5.0`, `gnu.2.34` |
+| `@rules_dx//qt:linux_arm64` | `libstdcxx.14.3.0`, `gnu.2.39` |
 
 Without the rules, compile with `-fPIC` and link dynamically:
 
@@ -398,8 +398,8 @@ newer on x86_64, 2.39 or newer on arm64.
 | `linux_x86_64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `linux_arm64` | Qualified: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin with software rendering, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, `qt_bundle` archives, `qt_rust_library`. `xcb` and `wayland` plugins in `qt_bundle` archives, loaded without host libraries. Not qualified: a real display, GPU rendering |
 | `macos_arm64` | Qualified in run 42036054315: `gui_test`, `plugin_path_test`, the `qt-app` fixture tests, the `qt-tasks` `board_quick_test` and `browser_test`, the `qt-rust` ledger crate tests, and the `qt-rust` `ledger_test` and `ledger_symbols_test` in run 42081489900. The `qt-rust` ledger archive builds in run 42061372713. The `qt-tasks` `tasks_release` and `board_release` archives build in run 42100686276. The `ledger_release`, `tasks_release` and `board_release` archives pass `consumer_identity_test_macos_arm64` in run 42114414112. Running `ledger` from the extracted archive (ad-hoc signed) passes in run 42161013346. Not qualified: `qt_test`, hermetic consumer tests (#6187) |
-| `windows_arm64` | Builds with cl.exe (`--//cc/toolchains:compiler=msvc`); `qt_test` and `gui_test` pass on the native `windows-11-arm` runner (evidence run 42161129657). `qt_bundle` has the same pinned PE needs table as `windows_x86_64`, built from the arm64 archives; `qt-app` `counter_test`, `panel_test` and `tally_quick_test` pass (run 42325837276). `qt_test_msvc` and `gui_test_msvc` run in CI on this runner (evidence run 42385700174). Not qualified: a real display, GPU rendering |
-| `windows_x86_64` | Builds with cl.exe; `qt_test` and `gui_test` pass under cl.exe (evidence run 42157725963); the platform-plugin refusal test finishes in about a second. Intended coverage: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, built with cl.exe (`--//cc/toolchains:compiler=msvc`; Qt's msvc2022 DLLs export Microsoft STL types, which LLVM's libc++ cannot link). `qt_test_msvc` and `gui_test_msvc` rebuild `qt_test` and `gui_test` with cl.exe without the flag, so CI keeps this cell green. Without the flag, Qt targets are incompatible on Windows and skipped; `qt_test` builds its probes with cl.exe through `cc_toolchain_binary`. `qt_bundle` has a pinned PE needs table (the Qt DLLs next to the executable, plugins under `resources/`). Proven on the cl.exe cell (evidence runs 42153871765, 42158112570): `ledger_test` and the `qt_bundle` release archives with the Qt DLLs next to the exe, `qt.conf` and the app-local MSVC runtime. Not qualified: a real display, GPU rendering |
+| `windows_arm64` | Builds with cl.exe (`--//cc:compiler=msvc`); `qt_test` and `gui_test` pass on the native `windows-11-arm` runner (evidence run 42161129657). `qt_bundle` has the same pinned PE needs table as `windows_x86_64`, built from the arm64 archives; `qt-app` `counter_test`, `panel_test` and `tally_quick_test` pass (run 42325837276). `qt_test_msvc` and `gui_test_msvc` run in CI on this runner (evidence run 42385700174). Not qualified: a real display, GPU rendering |
+| `windows_x86_64` | Builds with cl.exe; `qt_test` and `gui_test` pass under cl.exe (evidence run 42157725963); the platform-plugin refusal test finishes in about a second. Intended coverage: Core, Network, QML, QtTest, Gui, Widgets, Quick and Quick Test on the `offscreen` plugin, `moc`, `rcc`, `uic`, `qmltyperegistrar`, `lrelease`, `qmlformat`, `qmllint`, built with cl.exe (`--//cc:compiler=msvc`; Qt's msvc2022 DLLs export Microsoft STL types, which LLVM's libc++ cannot link). `qt_test_msvc` and `gui_test_msvc` rebuild `qt_test` and `gui_test` with cl.exe without the flag, so CI keeps this cell green. Without the flag, Qt targets are incompatible on Windows and skipped; `qt_test` builds its probes with cl.exe through `cc_toolchain_binary`. `qt_bundle` has a pinned PE needs table (the Qt DLLs next to the executable, plugins under `resources/`). Proven on the cl.exe cell (evidence runs 42153871765, 42158112570): `ledger_test` and the `qt_bundle` release archives with the Qt DLLs next to the exe, `qt.conf` and the app-local MSVC runtime. Not qualified: a real display, GPU rendering |
 
 Other platforms fail analysis and list the qualified cells. Fetching needs a
 Linux x86_64 or Linux arm64 host.

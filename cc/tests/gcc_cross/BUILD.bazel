@@ -1,5 +1,5 @@
-load("//cc/rules:defs.bzl", "cc_binary")
-load("//cc/toolchains:select.bzl", "cc_toolchain_files")
+load("//cc:defs.bzl", "cc_binary")
+load("//cc/private/toolchains:select.bzl", "cc_toolchain_files")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 

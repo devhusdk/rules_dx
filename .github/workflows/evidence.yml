@@ -28,11 +28,11 @@ on:
         required: false
         default: false
       flags:
-        description: "Extra Bazel flags, only --//label=value and --config flags, such as --//cc/toolchains:compiler=msvc."
+        description: "Extra Bazel flags, only --//label=value and --config flags, such as --//cc:compiler=msvc."
         required: false
         default: ""
       qualify:
-        description: "Run //cc/context:qualify. windows_x86_64: llvm and msvc; linux_x86_64: custom GCC via --extra_toolchains."
+        description: "Run //cc/private/context:qualify. windows_x86_64: llvm and msvc; linux_x86_64: custom GCC via --extra_toolchains."
         type: boolean
         required: false
         default: false
@@ -348,7 +348,7 @@ jobs:
               grep -E '^ *(name|version|default_[a-z_]*version|aliases) *=' "$repo/BUILD" || true
             done
           } 2>&1 | tee "$RUNNER_TEMP/evidence/executor.txt"
-      - name: Qualify cc/context exports
+      - name: Qualify cc/private/context exports
         if: ${{ inputs.qualify && matrix.platform == 'windows_x86_64' }}
         run: |
           mkdir -p "$RUNNER_TEMP/evidence"
@@ -356,17 +356,17 @@ jobs:
           bazel_bin="$(cygpath -w "$(command -v bazel)")"
           failed=0
           for c in llvm msvc; do
-            if ! bazel run --noshow_progress //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --compiler "$c" --bazel "$bazel_bin" --output "$(cygpath -w "$RUNNER_TEMP/evidence/qualify-$c.json")" 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-$c.log"; then
+            if ! bazel run --noshow_progress //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --compiler "$c" --bazel "$bazel_bin" --output "$(cygpath -w "$RUNNER_TEMP/evidence/qualify-$c.json")" 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-$c.log"; then
               failed=1
             fi
           done
           exit "$failed"
-      - name: Qualify cc/context exports with a custom toolchain
+      - name: Qualify cc/private/context exports with a custom toolchain
         if: ${{ inputs.qualify && matrix.platform == 'linux_x86_64' }}
         run: |
           set -o pipefail
           mkdir -p "$RUNNER_TEMP/evidence"
-          bazel run --noshow_progress //cc/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --output "$RUNNER_TEMP/evidence/qualify-custom-gcc.json" -- --extra_toolchains=//cc/toolchains/external:custom_gcc_x86_64 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-custom-gcc.log"
+          bazel run --noshow_progress //cc/private/context:qualify -- --target //cc/tests/fixtures/compilation_db:probe_plain --output "$RUNNER_TEMP/evidence/qualify-custom-gcc.json" -- --extra_toolchains=//cc/private/toolchains/external:custom_gcc_x86_64 2>&1 | tee "$RUNNER_TEMP/evidence/qualify-custom-gcc.log"
       - name: Build the APKs for the inspect tests
         if: ${{ inputs.android && matrix.platform == 'linux_x86_64' }}
         run: |

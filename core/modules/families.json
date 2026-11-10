@@ -439,8 +439,8 @@
         "zig"
       ],
       "extensions": [
-        "//cc/toolchains/msvc:extensions.bzl%msvc",
-        "//cc/toolchains:extensions.bzl%gcc",
+        "//cc:extensions.bzl%msvc",
+        "//cc:extensions.bzl%gcc",
         "//cli/prebuilt:extension.bzl%dx_prebuilt",
         "//dart:extensions.bzl%pub",
         "//dart/private:extensions.bzl%dart_tools",
@@ -627,14 +627,14 @@
         "@gazelle//internal:go_repository.bzl%go_repository"
       ],
       "toolchains": [
-        "//cc/toolchains:gcc_linux_arm64",
-        "//cc/toolchains:gcc_linux_x86_64",
-        "//cc/toolchains:gcc_linux_x86_64_to_arm64",
-        "//cc/toolchains:gcc_unsupported",
-        "//cc/toolchains:msvc_unsupported",
-        "//cc/toolchains:msvc_windows_arm64",
-        "//cc/toolchains:msvc_windows_x86_64",
-        "//cc/toolchains:msvc_windows_x86_64_to_arm64",
+        "//cc/private/toolchains:gcc_linux_arm64",
+        "//cc/private/toolchains:gcc_linux_x86_64",
+        "//cc/private/toolchains:gcc_linux_x86_64_to_arm64",
+        "//cc/private/toolchains:gcc_unsupported",
+        "//cc/private/toolchains:msvc_unsupported",
+        "//cc/private/toolchains:msvc_windows_arm64",
+        "//cc/private/toolchains:msvc_windows_x86_64",
+        "//cc/private/toolchains:msvc_windows_x86_64_to_arm64",
         "//lua/private/toolchain:all",
         "//msix/private/toolchains:all",
         "//swift/private/toolchain:all",

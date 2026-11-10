@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_library")
+load("//cc:defs.bzl", "cc_library")
 load("//d:defs.bzl", "D_COMPATIBLE_WITH", "d_binary")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 

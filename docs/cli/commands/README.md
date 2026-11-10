@@ -220,7 +220,7 @@ Language rules:
 - `@rules_dx_apple//ios:app.bzl`: iOS apps, tests and frameworks.
 - `@rules_dx_apple//ios:defs.bzl`: iOS libraries.
 - `@rules_dx_apple//macos:app.bzl`: macOS apps.
-- `@rules_dx//cc/rules:defs.bzl`: C and C++.
+- `@rules_dx//cc:defs.bzl`: C and C++.
 - `@rules_dx//csharp:defs.bzl`: C#.
 - `@rules_dx_cuda//rules:defs.bzl`: CUDA.
 - `@rules_dx//dockerfile:defs.bzl`: Dockerfiles.
@@ -230,7 +230,7 @@ Language rules:
 - `@rules_dx//elixir:defs.bzl`: Elixir.
 - `@rules_dx//erlang:defs.bzl`: Erlang.
 - `@rules_dx//fsharp:defs.bzl`: F#.
-- `@rules_dx//go/rules:defs.bzl`: Go.
+- `@rules_dx//go:defs.bzl`: Go.
 - `@rules_dx//haskell:defs.bzl`: Haskell.
 - `@rules_dx//java:defs.bzl`: Java.
 - `@rules_dx//javascript:defs.bzl`: JavaScript.
@@ -245,8 +245,7 @@ Language rules:
 - `@rules_dx//php:defs.bzl`: PHP.
 - `@rules_dx//powershell:defs.bzl`: PowerShell.
 - `@rules_dx//python:defs.bzl`: Python.
-- `@rules_dx//qt/rules:defs.bzl`: Qt.
-- `@rules_dx//qt/rules:rust.bzl`: Rust libraries for Qt.
+- `@rules_dx//qt:defs.bzl`: Qt.
 - `@rules_dx//quality:defs.bzl`: CUE, Gherkin, HTML templates, Jsonnet, Jupyter, LaTeX, Nix, Pkl, Typst, XML, YAML.
 - `@rules_dx//rego:defs.bzl`: Rego.
 - `@rules_dx//ruby:defs.bzl`: Ruby.
@@ -271,8 +270,8 @@ dx rule that wraps it.
 | `@rules_apple//apple:ios.bzl` | `ios_unit_test` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_app_test` |
 | `@rules_apple//apple:apple.bzl` | `apple_xcframework` | `@rules_dx_apple//ios:app.bzl` | `apple_ios_xcframework` |
 | `@rules_apple//apple:macos.bzl` | `macos_application` | `@rules_dx_apple//macos:app.bzl` | `apple_macos_app` |
-| `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc/rules:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
-| `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc/rules:defs.bzl` | `objc_library` |
+| `@rules_cc//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` | `@rules_dx//cc:defs.bzl` | `cc_binary`, `cc_library`, `cc_test` |
+| `@rules_cc//cc:objc_library.bzl` | `objc_library` | `@rules_dx//cc:defs.bzl` | `objc_library` |
 | `@rules_dotnet//dotnet:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` | `@rules_dx//csharp:defs.bzl` | `csharp_binary`, `csharp_library`, `csharp_test` |
 | `@rules_cuda//cuda:defs.bzl` | `cuda_library`, `cuda_objects` | `@rules_dx_cuda//rules:defs.bzl` | `cuda_library`, `cuda_objects` |
 | `@rules_d//d:defs.bzl` | `d_binary`, `d_library`, `d_test` | `@rules_dx//d:defs.bzl` | `d_binary`, `d_library`, `d_test` |
@@ -284,7 +283,7 @@ dx rule that wraps it.
 | `@rules_erlang//:escript.bzl` | `escript_archive` | `@rules_dx//erlang:defs.bzl` | `erlang_escript_archive` |
 | `@rules_erlang//:eunit2.bzl` | `eunit` | `@rules_dx//erlang:defs.bzl` | `erlang_eunit_test` |
 | `@rules_dotnet//dotnet:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` | `@rules_dx//fsharp:defs.bzl` | `fsharp_binary`, `fsharp_library`, `fsharp_test` |
-| `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go/rules:defs.bzl` | `go_binary`, `go_library`, `go_test` |
+| `@rules_go//go:def.bzl` | `go_binary`, `go_library`, `go_test` | `@rules_dx//go:defs.bzl` | `go_binary`, `go_library`, `go_test` |
 | `@rules_haskell//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` | `@rules_dx//haskell:defs.bzl` | `haskell_binary`, `haskell_library`, `haskell_test` |
 | `@rules_java//java:defs.bzl` | `java_binary`, `java_library`, `java_test` | `@rules_dx//java:defs.bzl` | `java_binary`, `java_library`, `java_test` |
 | `@aspect_rules_js//js:defs.bzl` | `js_binary` | `@rules_dx//javascript:defs.bzl` | `javascript_binary` |
@@ -319,14 +318,14 @@ dx rule that wraps it.
 |  |  | `@rules_dx//bicep/private:defs.bzl` | `bicep_registry_module` |
 |  |  | `@rules_dx//capnproto/private:defs.bzl` | `capnp_library` |
 |  |  | `@rules_dx//capnproto/private:defs.bzl` | `std_import_path` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_bench` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_features` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_mismatch` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_probe` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_settings` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_coverage_unsupported` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_fuzz_test` |
-|  |  | `@rules_dx//cc/rules:defs.bzl` | `cc_param_file_features` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_bench` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_coverage_features` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_coverage_mismatch` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_coverage_probe` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_coverage_settings` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_coverage_unsupported` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_fuzz_test` |
+|  |  | `@rules_dx//cc:defs.bzl` | `cc_param_file_features` |
 |  |  | `@rules_dx//cloudformation/private:defs.bzl` | `cloudformation_library` |
 |  |  | `@rules_dx//cmake/private:defs.bzl` | `cmake_library` |
 |  |  | `@rules_dx//csharp/private:defs.bzl` | `csharp_bench` |
@@ -457,8 +456,8 @@ dx rule that wraps it.
 |  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_fuzz_test` |
 |  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_library` |
 |  |  | `@rules_dx//fsharp/private:defs.bzl` | `fsharp_test` |
-|  |  | `@rules_dx//go/rules:defs.bzl` | `go_bench` |
-|  |  | `@rules_dx//go/rules:defs.bzl` | `go_fuzz_test` |
+|  |  | `@rules_dx//go:defs.bzl` | `go_bench` |
+|  |  | `@rules_dx//go:defs.bzl` | `go_fuzz_test` |
 |  |  | `@rules_dx//haskell:defs.bzl` | `haskell_bench` |
 |  |  | `@rules_dx//haskell:defs.bzl` | `with_gmp` |
 |  |  | `@rules_dx//helm/private:defs.bzl` | `helm_chart` |
@@ -546,14 +545,14 @@ dx rule that wraps it.
 |  |  | `@rules_dx//python/private:defs.bzl` | `python_main_rejection` |
 |  |  | `@rules_dx//python/private:defs.bzl` | `python_test` |
 |  |  | `@rules_dx//python/private:defs.bzl` | `python_test_rejection` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_cc_binary` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_cc_library` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_cc_test` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_frameworks` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_library_stem` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_qml_module` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_cc_library` |
-|  |  | `@rules_dx//qt/rules:defs.bzl` | `qt_rust_runtime` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_binary` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_library` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_cc_test` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_frameworks` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_library_stem` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_qml_module` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_rust_cc_library` |
+|  |  | `@rules_dx//qt:defs.bzl` | `qt_rust_runtime` |
 |  |  | `@rules_dx//rego/private:defs.bzl` | `rego_library` |
 |  |  | `@rules_dx//rego/private:defs.bzl` | `rego_test` |
 |  |  | `@rules_dx//rst/private:defs.bzl` | `rst_library` |

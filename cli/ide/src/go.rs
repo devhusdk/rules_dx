@@ -11,7 +11,7 @@ const WRAPPER: &str = if cfg!(windows) {
 pub const PLUGIN: Plugin = Plugin {
     name: "go",
     extensions: &["go"],
-    labels: &["go/ide:gopackagesdriver"],
+    labels: &["go/private/ide:gopackagesdriver"],
     outputs: &[WRAPPER],
     write,
 };

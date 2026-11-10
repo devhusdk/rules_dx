@@ -3,7 +3,7 @@ set -eu
 
 bin="$1"
 export TEST_UNDECLARED_OUTPUTS_DIR="$TEST_TMPDIR/outputs"
-./cc/rules/bench_run.sh "$bin" --benchmark_min_time=10x >/dev/null
+./cc/private/bench_run.sh "$bin" --benchmark_min_time=10x >/dev/null
 
 json="$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json"
 [ -f "$json" ] || { echo "dx-bench.json was not written" >&2; exit 1; }

@@ -41,7 +41,7 @@ var conformanceRows = map[string]conformanceRow{
 	},
 	"cc": {
 		files: map[string]string{"demo.cc": "#include <string>\n"},
-		kind:  "cc_library", target: "demo", defs: "cc/rules:defs.bzl",
+		kind:  "cc_library", target: "demo", defs: "cc:defs.bzl",
 		symbols:    []string{"cc_library", "cc_test"},
 		extraLoads: map[string][]string{"@rules_dx_cuda//rules:defs.bzl": {"cuda_library"}},
 	},
@@ -92,7 +92,7 @@ var conformanceRows = map[string]conformanceRow{
 	"go": {
 		files: map[string]string{"demo.go": "package demo\n"},
 		inert: []string{"notes.txt"},
-		kind:  "go_library", target: "demo", defs: "go/rules:defs.bzl",
+		kind:  "go_library", target: "demo", defs: "go:defs.bzl",
 		symbols: []string{"go_library", "go_binary", "go_test", "go_bench"},
 	},
 	"haskell": {

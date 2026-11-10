@@ -136,7 +136,7 @@ gcc_hermetic_toolchain_test = analysistest.make(
     _hermetic_impl,
     doc = "Asserts nvcc under the gcc toolchain does not get --allow-unsupported-compiler.",
     attrs = {"allow_unsupported": attr.bool(default = False)},
-    config_settings = {str(Label("@rules_dx//cc/toolchains:compiler")): "gcc"},
+    config_settings = {str(Label("@rules_dx//cc:compiler")): "gcc"},
     extra_target_under_test_aspects = [_compile_aspect],
 )
 
@@ -144,6 +144,6 @@ gcc_device_link_hermetic_test = analysistest.make(
     _device_link_impl,
     doc = "Asserts the device link under the gcc toolchain does not get --allow-unsupported-compiler.",
     attrs = {"allow_unsupported": attr.bool(default = False)},
-    config_settings = {str(Label("@rules_dx//cc/toolchains:compiler")): "gcc"},
+    config_settings = {str(Label("@rules_dx//cc:compiler")): "gcc"},
     extra_target_under_test_aspects = [_link_aspect],
 )

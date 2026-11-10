@@ -9,7 +9,7 @@
   "tools": [],
   "platforms": [],
   "pins": [
-    "sdk/pins.bzl"
+    "private/sdk/pins.bzl"
   ],
   "entry_points": [
     "qt_identifier",

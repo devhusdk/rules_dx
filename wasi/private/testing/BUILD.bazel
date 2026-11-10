@@ -1,0 +1,77 @@
+load("@crates//:crates.bzl", "aliases")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust/private:wrapper_tests.bzl", "dx_wasi_test_tests")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "wasi_run",
+    testonly = True,
+    srcs = ["wasi_run.rs"],
+    aliases = aliases(
+        package_name = "wasi/private/wasi_testing",
+        normal = True,
+    ),
+    crate_name = "wasi_run",
+    crate_root = "wasi_run.rs",
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "wasi_run_unit_test",
+    aliases = aliases(
+        package_name = "wasi/private/wasi_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":wasi_run",
+    deps = [],
+)
+
+rust_binary(
+    name = "wasi_test_runner",
+    testonly = True,
+    srcs = ["wasi_test_runner.rs"],
+    aliases = aliases(
+        package_name = "wasi/private/wasi_testing",
+        normal = True,
+    ),
+    crate_name = "wasi_test_runner",
+    crate_root = "wasi_test_runner.rs",
+    deps = [
+        ":wasi_run",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+rust_test(
+    name = "wasi_guest_test",
+    srcs = ["wasi_guest_test.rs"],
+    crate_root = "wasi_guest_test.rs",
+    env = {"DX_WASI_DECLARED": "declared"},
+    preopens = {"/data": ":input.txt"},
+    wasm = "wasi",
+)
+
+dx_wasi_test_tests(
+    name = "wasi_guest_analysis_test",
+    target = ":wasi_guest_test",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

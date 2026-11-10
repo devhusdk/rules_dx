@@ -8,7 +8,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:dx_fixture_testonly true
 # gazelle:resolve rust dx_deploy_tools //deploy/private:dx_deploy_tools
 # gazelle:resolve rust doc_ir_proto //tools/docs/ir/proto:doc_ir_proto_rs
-# gazelle:resolve rust marker_proto //env/proto:marker_proto_rs
+# gazelle:resolve rust marker_proto //env/private/proto:marker_proto_rs
 # gazelle:resolve rust proto //quality/result/proto:result_proto_rs
 # gazelle:resolve rust result_proto //quality/result/proto:result_proto_rs
 # gazelle:resolve rust prost @rules_rust_prost//private/3rdparty/crates:prost
@@ -23,7 +23,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:dx_external maven third_party/jvm/dokka_install.json dx_dokka
 # gazelle:exclude gazelle/rust/testdata
 # gazelle:exclude go/tests/fixtures/gotype
-# gazelle:exclude go/tools/modfmt
+# gazelle:exclude go/private/tools/modfmt
 # gazelle:exclude tools/docs/components/fixture
 # gazelle:exclude d/tests/fixtures
 # gazelle:exclude haskell/tests/fixtures/bench/bench_src
@@ -80,12 +80,12 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude tools/docs/lua/dx_ldoc_json.lua
 # gazelle:exclude tools/docs/go/godoc
 # gazelle:exclude cli/depcheck/testdata
-# gazelle:exclude go/tools/analysis
+# gazelle:exclude go/private/tools/analysis
 # gazelle:exclude go/tests/fixtures/cgo
 # gazelle:exclude go/tests/fixtures/golint
 # gazelle:exclude go/tests/fixtures/testonly_binary
 # gazelle:exclude cc/tests/fixtures/hello
-# gazelle:exclude cc/rules/testdata
+# gazelle:exclude cc/private/testdata
 # gazelle:exclude cc/tests/fixtures/no_srcs
 # gazelle:exclude cc/tests/fixtures/consumer_cc
 # gazelle:exclude appimage/tests/fixtures
@@ -206,7 +206,6 @@ exports_files([
     "MODULE.bazel",
     "MODULE.bazel.lock",
     "README.md",
-    "go/README.md",
     "cargo-bazel-lock.json",
     "package.json",
     "pnpm-lock.yaml",
@@ -285,7 +284,7 @@ real_source_target(
         "SECURITY.md",
         "//d:README.md",
         "//fortran:README.md",
-        "go/README.md",
+        "//go:README.md",
         "//java:README.md",
         "//javascript:README.md",
         "//kotlin:README.md",

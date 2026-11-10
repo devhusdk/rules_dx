@@ -1,4 +1,4 @@
-load("//cc/rules:defs.bzl", "cc_library", "cc_test")
+load("//cc:defs.bzl", "cc_library", "cc_test")
 load("//ocaml:defs.bzl", "ocaml_module", "ocaml_test")
 load("//ocaml/private:wrapper_tests.bzl", "ocaml_sys_coverage_test")
 load(":defs.bzl", "sys_cell_test")

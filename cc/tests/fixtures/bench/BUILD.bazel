@@ -18,7 +18,7 @@ sh_test(
     args = ["$(rootpath :parse_bench_bin)"],
     data = [
         ":parse_bench_bin",
-        "//cc/rules:bench_run.sh",
+        "//cc/private:bench_run.sh",
     ],
     target_compatible_with = ["@platforms//os:linux"],
     timeout = "short",

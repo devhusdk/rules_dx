@@ -1,19 +1,19 @@
 platform(
     name = "qt_linux_arm64",
-    parents = ["@rules_dx//qt/platforms:linux_arm64"],
+    parents = ["@rules_dx//qt:linux_arm64"],
 )
 
 platform(
     name = "qt_macos_arm64",
-    parents = ["@rules_dx//qt/platforms:macos_arm64"],
+    parents = ["@rules_dx//qt:macos_arm64"],
 )
 
 platform(
     name = "qt_linux_x86_64",
-    parents = ["@rules_dx//qt/platforms:linux_x86_64"],
+    parents = ["@rules_dx//qt:linux_x86_64"],
 )
 
 platform(
     name = "qt_windows_x86_64",
-    parents = ["@rules_dx//qt/platforms:windows_x86_64"],
+    parents = ["@rules_dx//qt:windows_x86_64"],
 )

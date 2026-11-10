@@ -1,1 +1,1 @@
-build --@rules_dx//cc/toolchains:compiler=gcc
+build --@rules_dx//cc:compiler=gcc

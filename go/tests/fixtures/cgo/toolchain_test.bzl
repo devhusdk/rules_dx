@@ -76,7 +76,7 @@ def _make(compiler):
         doc = "Asserts cgo compile and link use the %s toolchain and keep copts and clinkopts." % compiler,
         attrs = {"compiler": attr.string(default = compiler)},
         extra_target_under_test_aspects = [_aspect],
-        config_settings = {str(Label("//cc/toolchains:compiler")): compiler},
+        config_settings = {str(Label("//cc:compiler")): compiler},
     )
 
 _llvm_test = _make("llvm")

@@ -125,9 +125,9 @@ bazel_dep(name = "rules_py", version = "2.0.0-alpha.11")
 crate = use_extension("@rules_rust//crate_universe:extensions.bzl", "crate")
 crate.from_cargo(
     name = "cargo",
-    cargo_lockfile = "//cc/context:Cargo.lock",
+    cargo_lockfile = "//cc/private/context:Cargo.lock",
     lockfile = "//:cargo-bazel-lock.json",
-    manifests = ["//cc/context:Cargo.toml"],
+    manifests = ["//cc/private/context:Cargo.toml"],
 )
 
 maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
@@ -217,7 +217,7 @@ pub(super) fn write_cargo_license_set(harness: &Harness) {
 pub(super) fn write_cargo_lock(harness: &Harness) {
     harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
     harness.write_source(
-        "cc/context/Cargo.lock",
+        "cc/private/context/Cargo.lock",
         "[[package]]\nname = \"serde\"\nversion = \"1.0.100\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
 }
@@ -225,7 +225,7 @@ pub(super) fn write_cargo_lock(harness: &Harness) {
 fn write_empty_cargo_lock(harness: &Harness) {
     harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
     harness.write_source(
-        "cc/context/Cargo.lock",
+        "cc/private/context/Cargo.lock",
         "[[package]]\nname = \"demo\"\nversion = \"0.1.0\"\n",
     );
 }
@@ -323,7 +323,7 @@ const SERDE_YANKED: &str = r#"[{"id":"YANKED-1.0.100","package":"serde","version
 pub(super) fn audit_live_yanked_cargo_version_fails_only_under_the_strict_base() {
     for (profile, expected) in [("standard", 0), ("strict", 1)] {
         let (code, out, err) = run_with(
-            &["security", "//cc/context:hello"],
+            &["security", "//cc/private/context:hello"],
             &AuditRunner::clean(),
             &|harness| {
                 write_cargo_lock(harness);
@@ -351,7 +351,7 @@ tier = \"{profile}\"
 #[test]
 pub(super) fn audit_live_missing_yanked_snapshot_only_warns() {
     let (code, out, err) = run_with(
-        &["security", "//cc/context:hello"],
+        &["security", "//cc/private/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_lock(harness);
@@ -368,7 +368,7 @@ pub(super) fn audit_live_missing_yanked_snapshot_only_warns() {
 #[test]
 pub(super) fn audit_live_missing_yanked_snapshot_is_incomplete_under_the_strict_base() {
     let (code, out, err) = run_with(
-        &["security", "//cc/context:hello"],
+        &["security", "//cc/private/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_lock(harness);
@@ -641,7 +641,7 @@ pub(super) fn audit_live_vuln_findings_fail_and_git_is_incomplete() {
     let (code, _out, err) = run_with(&["security"], &runner, &|harness| {
         harness.write_source("cargo-bazel-lock.json", r#"{"packages": {}}"#);
         harness.write_source(
-            "cc/context/Cargo.lock",
+            "cc/private/context/Cargo.lock",
             "[[package]]\nname = \"git-dep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/example/git-dep#abc123\"\n",
         );
         write_npm_locks(harness);
@@ -909,7 +909,7 @@ pub(super) fn audit_live_obsolete_security_toml_exception_fails_the_run() {
 #[test]
 pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["security", "//cc/context:hello"], &runner, &|harness| {
+    let (code, out, err) = run_with(&["security", "//cc/private/context:hello"], &runner, &|harness| {
         write_cargo_lock(harness);
     });
     assert_eq!(code, 1, "{out}{err}");
@@ -923,7 +923,7 @@ pub(super) fn audit_live_missing_advisory_fails_never_empty_clean() {
 #[test]
 pub(super) fn audit_live_old_advisory_pin_warns_and_still_assesses() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["security", "//cc/context:hello"], &runner, &|harness| {
+    let (code, out, err) = run_with(&["security", "//cc/private/context:hello"], &runner, &|harness| {
         write_cargo_lock(harness);
         let url = dx_audit::advisory::advisory_source("cargo").expect("source");
         write_pin(harness, "cargo", url, "2000-01-01", "[]");
@@ -958,7 +958,7 @@ fn write_cargo_pin_from_file(harness: &Harness, json: &str, cached: bool) -> Str
 pub(super) fn audit_live_pinned_snapshot_ignores_a_newer_upstream_advisory() {
     let newer = r#"[{"id":"RUSTSEC-9999-0001","package":"hello","versions":">=0.0.0","severity":"high","fixed":[],"set":"cargo"}]"#;
     let (code, out, err) = run_with(
-        &["security", "//cc/context:hello"],
+        &["security", "//cc/private/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             let cache = write_cargo_pin_from_file(harness, "[]", true);
@@ -977,7 +977,7 @@ pub(super) fn audit_live_pinned_snapshot_ignores_a_newer_upstream_advisory() {
 pub(super) fn audit_live_pinned_snapshot_is_fetched_into_the_cache_on_a_miss() {
     let cache_rel = std::cell::RefCell::new(String::new());
     let (code, out, err) = run_with(
-        &["security", "//cc/context:hello"],
+        &["security", "//cc/private/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             *cache_rel.borrow_mut() = write_cargo_pin_from_file(harness, "[]", false);
@@ -990,7 +990,7 @@ pub(super) fn audit_live_pinned_snapshot_is_fetched_into_the_cache_on_a_miss() {
 #[test]
 pub(super) fn audit_live_changed_pin_sha_fails_with_a_mismatch() {
     let (code, out, err) = run_with(
-        &["security", "--output=json", "//cc/context:hello"],
+        &["security", "--output=json", "//cc/private/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_pin_from_file(harness, "[]", false);
@@ -1007,7 +1007,7 @@ pub(super) fn audit_live_changed_pin_sha_fails_with_a_mismatch() {
 #[test]
 pub(super) fn audit_live_offline_never_fetches_an_uncached_pin() {
     let (code, out, err) = run_with(
-        &["security", "--offline", "//cc/context:hello"],
+        &["security", "--offline", "//cc/private/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_pin_from_file(harness, "[]", false);
@@ -1023,7 +1023,7 @@ pub(super) fn audit_live_offline_never_fetches_an_uncached_pin() {
 #[test]
 pub(super) fn audit_live_missing_advisory_json_error_code_is_advisory_refresh_failed() {
     let (code, out, err) = run_with(
-        &["security", "--output=json", "//cc/context:hello"],
+        &["security", "--output=json", "//cc/private/context:hello"],
         &AuditRunner::clean(),
         &|harness| {
             write_cargo_lock(harness);
@@ -1045,7 +1045,7 @@ pub(super) fn audit_live_missing_advisory_json_error_code_is_advisory_refresh_fa
 #[test]
 pub(super) fn audit_live_tampered_advisory_fails_on_sha_mismatch() {
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["security", "//cc/context:hello"], &runner, &|harness| {
+    let (code, out, err) = run_with(&["security", "//cc/private/context:hello"], &runner, &|harness| {
         write_cargo_lock(harness);
         let url = dx_audit::advisory::advisory_source("cargo").expect("source");
         write_pin(harness, "cargo", url, TEST_AUDIT_TODAY, "[]");
@@ -1074,7 +1074,7 @@ pub(super) fn audit_live_license_clean_and_denied() {
     assert!(err.contains("audit_failed"), "{err}");
 
     let runner = AuditRunner::clean();
-    let (code, out, err) = run_with(&["license", "//cc/context:hello"], &runner, &|harness| {
+    let (code, out, err) = run_with(&["license", "//cc/private/context:hello"], &runner, &|harness| {
         write_cargo_license_set(harness);
     });
     assert_eq!(code, 0, "{out}{err}");

@@ -1,4 +1,4 @@
-load("//qt/rules:defs.bzl", "qt_qml_module")
+load("//qt:defs.bzl", "qt_qml_module")
 load("//quality:fixtures.bzl", "real_source_target")
 
 qt_qml_module(

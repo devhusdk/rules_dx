@@ -3,7 +3,7 @@
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_cuda//cuda:defs.bzl", _cuda_library = "cuda_library", _cuda_objects = "cuda_objects")
 load("@rules_cuda//cuda/private:providers.bzl", "CudaInfo")
-load("@rules_dx//cc/rules:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
+load("@rules_dx//cc:defs.bzl", _cc_binary = "cc_binary", _cc_test = "cc_test")
 load("//rules:components.bzl", _cuda_component_library = "cuda_component_library")
 load("//toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//toolchain:settings.bzl", "PLATFORM_SUPPORT")
@@ -65,7 +65,7 @@ _UPSTREAM_ONLY_UNDER_TRANSITION = select({
 
 # nvcc rejects clang newer than CUDA_MAX_HOST_CLANG_MAJOR; the main @llvm is ahead of it.
 _ALLOW_UNSUPPORTED_COMPILER = select({
-    Label("@rules_dx//cc/toolchains:gcc_selected"): [],
+    Label("@rules_dx//cc/private/toolchains:gcc_selected"): [],
     "//conditions:default": ["nvcc_allow_unsupported_compiler"],
 })
 

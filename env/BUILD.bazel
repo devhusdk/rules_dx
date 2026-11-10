@@ -1,16 +1,20 @@
 # gazelle:ignore
 load("//core:failure_test.bzl", "failure_test")
 load("//quality:fixtures.bzl", "real_source_target")
-load(":defs.bzl", "environment_config", "environment_metadata", "environment_tool", "environment_tree")
-load(":defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
-load(":plan.bzl", "dx_env_shard", "env_plan_subject", "rust_env_shard")
-load(":plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests", "env_shard_argv_test")
+load("//env/private:defs.bzl", "environment_config", "environment_metadata", "environment_tool", "environment_tree")
+load("//env/private:defs_tests.bzl", "env_config_analysis_tests", "env_default_config_analysis_tests", "env_default_tree_analysis_tests", "env_defs_unit_tests", "env_tree_analysis_tests")
+load("//env/private:plan.bzl", "dx_env_shard", "env_plan_subject", "rust_env_shard")
+load("//env/private:plan_tests.bzl", "env_plan_analysis_tests", "env_plan_defs_unit_tests", "env_shard_argv_test")
 
 package(default_visibility = ["//visibility:public"])
 
+exports_files([
+    "defs.bzl",
+])
+
 alias(
     name = "tool_sh",
-    actual = "//env/stubs:tool_sh",
+    actual = "//env/private/stubs:tool_sh",
 )
 
 environment_tool(
@@ -127,9 +131,9 @@ dx_env_shard(
 
 rust_env_shard(
     name = "env_rust_fixture",
-    entries = ["runtime|stable-x86_64|env/env_shard/src/lib.rs"],
+    entries = ["runtime|stable-x86_64|env/private/env_shard/src/lib.rs"],
     integration = "rust",
-    target = "//env/env_shard",
+    target = "//env/private/env_shard",
 )
 
 env_plan_subject(
@@ -167,7 +171,7 @@ env_shard_argv_test(
         "--integration",
         "rust",
         "--entry",
-        "runtime|stable-x86_64|env/env_shard/src/lib.rs",
+        "runtime|stable-x86_64|env/private/env_shard/src/lib.rs",
         "--output",
     ],
     output = "env/env_rust_fixture.dxenv.pb",
@@ -176,7 +180,7 @@ env_shard_argv_test(
 
 alias(
     name = "doctor",
-    actual = "//env/stubs:doctor",
+    actual = "//env/private/stubs:doctor",
 )
 
 environment_tool(
@@ -309,10 +313,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "defs_tests.bzl",
-        "plan.bzl",
-        "plan_tests.bzl",
-        "validate.bzl",
     ],
     tags = ["corpus"],
 )

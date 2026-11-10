@@ -48,9 +48,7 @@ php:defs.bzl
 powershell:defs.bzl
 powershell:extensions.bzl
 python:defs.bzl
-qt/rules:defs.bzl
-qt/rules:rust.bzl
-qt/sdk:repos.bzl
+qt:defs.bzl
 quality/private:generated_policy.bzl
 ansible/private/quality:ansible.bzl
 quality:defs.bzl

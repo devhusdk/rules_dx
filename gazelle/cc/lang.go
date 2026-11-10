@@ -59,7 +59,7 @@ func NewLanguage() language.Language {
 		LanguageName:   languageName,
 		LibraryKind:    LibraryKind,
 		Kinds:          ccKinds,
-		DefsPackage:    "cc/rules:defs.bzl",
+		DefsPackage:    "cc:defs.bzl",
 		ExtraKinds:     []string{CudaKind, TestKind},
 		KindDefs:       map[string]string{CudaKind: "@rules_dx_cuda//rules:defs.bzl"},
 		IndexKinds:     []string{CudaKind},

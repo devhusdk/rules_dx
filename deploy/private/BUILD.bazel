@@ -1427,7 +1427,7 @@ pypi_deploy(
     wheel = ":native_probe_msvc_wheel",
 )
 
-# Run with --//cc/toolchains:compiler=msvc and the dx_msvc license accepted.
+# Run with --//cc:compiler=msvc and the dx_msvc license accepted.
 rust_test(
     name = "pypi_native_msvc_verify",
     srcs = ["//deploy:verify_test.rs"],

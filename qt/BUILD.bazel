@@ -7,12 +7,66 @@ exports_files(["README.md"])
 filegroup(
     name = "module_srcs",
     srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
         "//:module_srcs",
-        "//qt/platforms:module_srcs",
-        "//qt/rules:module_srcs",
-        "//qt/rust:module_srcs",
-        "//qt/sdk:module_srcs",
+        "//qt/private/platforms:module_srcs",
+        "//qt/private:module_srcs",
+        "//qt/private/rust:module_srcs",
+        "//qt/private/sdk:module_srcs",
     ],
+)
+
+platform(
+    name = "linux_arm64",
+    constraint_values = [
+        "@llvm//constraints/cxxstdlib:libstdcxx.14.3.0",
+        "@llvm//constraints/libc:gnu.2.39",
+        "@platforms//cpu:arm64",
+        "@platforms//os:linux",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+platform(
+    name = "linux_x86_64",
+    constraint_values = [
+        "@llvm//constraints/cxxstdlib:libstdcxx.11.5.0",
+        "@llvm//constraints/libc:gnu.2.34",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+platform(
+    name = "macos_arm64",
+    constraint_values = [
+        "@platforms//cpu:arm64",
+        "@platforms//os:macos",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+platform(
+    name = "windows_arm64",
+    constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
+        "@platforms//cpu:arm64",
+        "@platforms//os:windows",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+platform(
+    name = "windows_x86_64",
+    constraint_values = [
+        "@llvm//constraints/windows/abi:msvc",
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(
@@ -27,4 +81,8 @@ real_source_target(
     tags = ["corpus"],
 )
 
-exports_files(["lang.json"])
+exports_files([
+    "defs.bzl",
+    "extensions.bzl",
+    "lang.json",
+])

@@ -256,7 +256,7 @@ archive_deploy(
   amount. Building fails when the tarball is larger, and prints both sizes
   in bytes. Empty means no budget.
 
-For an app built with GCC on Linux, `@rules_dx//cc/toolchains:gcc_linux_glibc`
+For an app built with GCC on Linux, `@rules_dx//cc:gcc_linux_glibc`
 is a reviewed `os_supplied` runtime that records the pinned glibc floor.
 
 Outputs: `<name>_archive` builds `<name>.tar.gz` and `<name>_checksum`
@@ -350,7 +350,7 @@ in `deploy/private/src/imports.rs`, also used by release cells), or listed in an
 `<member>: not shipped and not a system import: [...]`. Files that are not
 binary images are skipped. Set `check_imports = False` to opt out.
 
-`//cc/toolchains:gcc_linux_libstdcxx` is an `app_local` runtime with the
+`//cc:gcc_linux_libstdcxx` is an `app_local` runtime with the
 pinned GCC's `libstdc++.so.6` and `libgcc_s.so.1` and the GCC Runtime Library
 Exception notice. Build the app with `extra_features = ["dynamic_libstdcxx"]`
 on `cc_toolchain_binary`, which adds `-Wl,-rpath,$ORIGIN`, and list it in

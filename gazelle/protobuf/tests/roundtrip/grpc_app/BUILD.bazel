@@ -1,7 +1,7 @@
 load("@grpc//bazel:cc_grpc_library.bzl", "cc_grpc_library")
 load("@protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("@rules_dx//cc/rules:defs.bzl", "cc_test")
+load("@rules_dx//cc:defs.bzl", "cc_test")
 
 proto_library(
     name = "greeter_proto",

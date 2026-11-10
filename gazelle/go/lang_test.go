@@ -286,7 +286,7 @@ func TestGenerateCustomTaggedTestKept(t *testing.T) {
 func TestGenerateOnlyExcludedSourcesSweep(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/gen.go", "//go:build ignore\n\npackage main\n")
-	existing, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte("load(\"@rules_dx//go/rules:defs.bzl\", \"go_library\", \"go_test\")\n\ngo_library(name = \"demo\", srcs = [\"gen.go\"])\n\ngo_test(name = \"demo_test\", srcs = [\"old_test.go\"], embed = [\":demo\"])\n"))
+	existing, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte("load(\"@rules_dx//go:defs.bzl\", \"go_library\", \"go_test\")\n\ngo_library(name = \"demo\", srcs = [\"gen.go\"])\n\ngo_test(name = \"demo_test\", srcs = [\"old_test.go\"], embed = [\":demo\"])\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +428,7 @@ func TestGenerateTestKindMismatchFails(t *testing.T) {
 func TestGenerateStaleTestSwept(t *testing.T) {
 	root := t.TempDir()
 	writeFixture(t, root, "pkg/demo/demo.go", "package demo\n")
-	existing, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte("load(\"@rules_dx//go/rules:defs.bzl\", \"go_library\", \"go_test\")\n\ngo_library(name = \"demo\", srcs = [\"demo.go\"])\n\ngo_test(name = \"demo_test\", srcs = [\"old_test.go\"], embed = [\":demo\"])\n"))
+	existing, err := rule.LoadData("BUILD.bazel", "pkg/demo", []byte("load(\"@rules_dx//go:defs.bzl\", \"go_library\", \"go_test\")\n\ngo_library(name = \"demo\", srcs = [\"demo.go\"])\n\ngo_test(name = \"demo_test\", srcs = [\"old_test.go\"], embed = [\":demo\"])\n"))
 	if err != nil {
 		t.Fatal(err)
 	}

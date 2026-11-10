@@ -82,7 +82,7 @@ fn license_policy_read_failures_and_empty_default_are_explicit() {
 
 fn write_demo_license(harness: &Harness, license: &str) {
     harness.write_source(
-        "cc/context/Cargo.lock",
+        "cc/private/context/Cargo.lock",
         "[[package]]\nname = \"demo\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
     );
     harness.write_source(
@@ -113,7 +113,7 @@ fn the_built_in_license_table_passes_only_its_allow_list() {
         ("Zlib", "license/Zlib"),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//cc/context:demo", "--report=sarif=-"],
+            &["license", "//cc/private/context:demo", "--report=sarif=-"],
             &AuditRunner::clean(),
             &|harness| {
                 write_demo_license(harness, license);
@@ -168,10 +168,10 @@ fn an_invalid_dx_toml_fails_both_policies() {
 
 #[test]
 fn an_internal_license_scope_skips_the_review_and_notice_tables() {
-    let policy = "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\nreview = []\ndeny = []\n[distribution]\ninternal = [\"//cc/context:internal\"]\n";
+    let policy = "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\nreview = []\ndeny = []\n[distribution]\ninternal = [\"//cc/private/context:internal\"]\n";
     for (license, code) in [("Zlib", 0), ("ISC", 0), ("MIT", 0), ("AGPL-3.0-only", 1)] {
         let (code_seen, out, err) = run_with(
-            &["license", "//cc/context:internal", "--report=sarif=-"],
+            &["license", "//cc/private/context:internal", "--report=sarif=-"],
             &AuditRunner::clean(),
             &|harness| {
                 write_demo_license(harness, license);
@@ -187,7 +187,7 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
         ("AGPL-3.0-only", "license/AGPL-3.0-only"),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//cc/context:distributed", "--report=sarif=-"],
+            &["license", "//cc/private/context:distributed", "--report=sarif=-"],
             &AuditRunner::clean(),
             &|harness| {
                 write_demo_license(harness, license);
@@ -205,7 +205,7 @@ fn an_internal_license_scope_skips_the_review_and_notice_tables() {
 #[test]
 fn a_repo_wide_internal_policy_covers_sub_scopes_and_affected_labels() {
     let policy = "schema_version = 1\n[policy]\nblocked = [\"AGPL-3.0-only\"]\n[policy.distributed]\nallow = []\nreview = []\ndeny = []\n[distribution]\ninternal = [\"//...\"]\n";
-    for scope in ["//cc/context:all", "//cc/context:app"] {
+    for scope in ["//cc/private/context:all", "//cc/private/context:app"] {
         for (license, code) in [("MIT", 0), ("AGPL-3.0-only", 1)] {
             let (code_seen, out, err) = run_with(
                 &["license", scope, "--report=sarif=-"],
@@ -300,7 +300,7 @@ fn license_exceptions_only_approve_matching_current_findings() {
         ),
     ] {
         let (code, out, err) = run_with(
-            &["license", "//cc/context:demo", "--output=json"],
+            &["license", "//cc/private/context:demo", "--output=json"],
             &AuditRunner::clean(),
             &|h| {
                 write_demo_license(h, license);
@@ -310,16 +310,16 @@ fn license_exceptions_only_approve_matching_current_findings() {
         assert_eq!(code, expected, "{license}: {out}{err}");
     }
     let (code, out, err) = run_with(
-        &["license", "//cc/context:demo"],
+        &["license", "//cc/private/context:demo"],
         &AuditRunner::clean(),
         &|h| {
             h.write_source("cargo-bazel-lock.json", "{}");
-            h.write_source("cc/context/Cargo.lock", "{");
+            h.write_source("cc/private/context/Cargo.lock", "{");
         },
     );
     assert_eq!(code, 1, "{out}{err}");
     assert!(
-        err.contains("could not parse cc/context/Cargo.lock"),
+        err.contains("could not parse cc/private/context/Cargo.lock"),
         "{err}"
     );
 }
@@ -333,7 +333,7 @@ fn license_accept_writes_an_exception_that_covers_the_finding() {
     let policy = "# keep this comment\nschema_version = 1\n[policy.distributed]\nallow = []\ndeny = [\"GPL-3.0-only\"]\n\n[[inventory]]\npackage = \"demo\"\nset = \"cargo\"\nlicense = \"GPL-3.0-only\"\nversions = \"1.0.0\"\ntext_present = true\n";
     harness.write_source("license.toml", policy);
     let run = |extra: &[&str]| {
-        let mut argv = vec!["license", "//cc/context:demo", "--output=json"];
+        let mut argv = vec!["license", "//cc/private/context:demo", "--output=json"];
         argv.extend_from_slice(extra);
         let words: Vec<String> = argv.iter().map(|word| (*word).to_owned()).collect();
         let invocation = dx_plan::args::parse(&words).expect("parse");
@@ -830,7 +830,7 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     );
 
     let (code, out, err) = run_with(
-        &["license", "--output=json", "//cc/context:demo"],
+        &["license", "--output=json", "//cc/private/context:demo"],
         &AuditRunner::clean(),
         &denied_license,
     );
@@ -838,7 +838,7 @@ fn audit_json_emits_each_vulnerability_and_license_finding() {
     let events = json_events(&out);
     let license = finding(&events, "license");
     assert_eq!(license["rule"], serde_json::json!("license/AGPL-3.0-only"));
-    assert_eq!(license["path"], serde_json::json!("cc/context/Cargo.lock"));
+    assert_eq!(license["path"], serde_json::json!("cc/private/context/Cargo.lock"));
     let message = license["message"].as_str().expect("message");
     assert!(
         message.starts_with("demo@1.0.0 license AGPL-3.0-only"),
@@ -872,7 +872,7 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
     assert!(line.ends_with("[vuln/GHSA-go-test-0001]"), "{line}");
 
     let (code, out, err) = run_with(
-        &["license", "//cc/context:demo", "--report=sarif=-"],
+        &["license", "//cc/private/context:demo", "--report=sarif=-"],
         &AuditRunner::clean(),
         &denied_license,
     );
@@ -883,7 +883,7 @@ fn audit_text_prints_one_line_per_vulnerability_and_license_finding() {
         .find(|line| line.contains("AGPL-3.0-only"))
         .unwrap_or_else(|| panic!("no license line: {err}"));
     assert!(
-        line.starts_with("cc/context/Cargo.lock: error: demo@1.0.0 license AGPL-3.0-only"),
+        line.starts_with("cc/private/context/Cargo.lock: error: demo@1.0.0 license AGPL-3.0-only"),
         "{line}"
     );
 }
@@ -897,7 +897,7 @@ fn audit_reports_sarif_to_file() {
     write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
-        "//cc/context:hello".to_owned(),
+        "//cc/private/context:hello".to_owned(),
         "--report=sarif=out.sarif".to_owned(),
     ])
     .expect("parse");
@@ -939,7 +939,7 @@ fn license_spdx_report_is_valid_and_repeatable() {
         write_cargo_license_set(&harness);
         let invocation = parse(&[
             "license".to_owned(),
-            "//cc/context:hello".to_owned(),
+            "//cc/private/context:hello".to_owned(),
             "--report=spdx=out.spdx.json".to_owned(),
         ])
         .expect("parse");
@@ -975,7 +975,7 @@ fn license_writes_spdx_and_cyclonedx_from_one_run() {
         write_cargo_license_set(&harness);
         let invocation = parse(&[
             "license".to_owned(),
-            "//cc/context:hello".to_owned(),
+            "//cc/private/context:hello".to_owned(),
             "--report=spdx=out.spdx.json".to_owned(),
             "--report=cyclonedx=out.cdx.json".to_owned(),
         ])
@@ -1029,7 +1029,7 @@ fn audit_sarif_run_shape_pins_family_tools_and_ordering() {
     write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
-        "//cc/context:hello".to_owned(),
+        "//cc/private/context:hello".to_owned(),
         "--report=sarif=out.sarif".to_owned(),
     ])
     .expect("parse");
@@ -1257,7 +1257,7 @@ fn audit_sarif_write_failures_are_fail_closed() {
         write_cargo_license_set(&harness);
         let invocation = parse(&[
             "license".to_owned(),
-            "//cc/context:hello".to_owned(),
+            "//cc/private/context:hello".to_owned(),
             format!("--report={format}={path}"),
         ])
         .expect("parse");
@@ -1280,7 +1280,7 @@ fn audit_report_write_failure_json_reports_error_event() {
     write_cargo_license_set(&harness);
     let invocation = parse(&[
         "license".to_owned(),
-        "//cc/context:hello".to_owned(),
+        "//cc/private/context:hello".to_owned(),
         "--report=sarif=missing-dir/out.sarif".to_owned(),
         "--output=json".to_owned(),
     ])

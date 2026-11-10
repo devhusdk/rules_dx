@@ -29224,11 +29224,11 @@
     "proptest 1.11.0"
   ],
   "workspace_members": {
-    "appimage_packer 0.0.0": "appimage/appimage_packer",
+    "appimage_packer 0.0.0": "appimage/private/appimage_packer",
     "avro_extract 0.0.0": "tools/docs/avro/avro_extract",
     "bazelisk_wrapper 0.0.0": "tools/bazelisk_wrapper",
     "capnpc_rust_dx 0.0.0": "capnproto/private/tools/capnpc_rust_dx",
-    "cc_context 0.0.0": "cc/cc_context",
+    "cc_context 0.0.0": "cc/private/cc_context",
     "cc_extract 0.0.0": "tools/docs/cc/cc_extract",
     "cc_tests 0.0.0": "cc/cc_tests",
     "ci_coverage_cells 0.0.0": "tools/ci/ci_coverage_cells",
@@ -29315,8 +29315,8 @@
     "dx_tool_resolve 0.0.0": "cli/dx_tool_resolve",
     "dx_update 0.0.0": "cli/dx_update",
     "dx_worktree 0.0.0": "cli/dx_worktree",
-    "env_shard 0.0.0": "env/env_shard",
-    "env_stubs 0.0.0": "env/env_stubs",
+    "env_shard 0.0.0": "env/private/env_shard",
+    "env_stubs 0.0.0": "env/private/env_stubs",
     "fortran_extract 0.0.0": "tools/docs/fortran/fortran_extract",
     "generation_result 0.0.0": "cli/generation_result",
     "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",
@@ -29342,7 +29342,7 @@
     "protobuf_extract 0.0.0": "tools/docs/protobuf/protobuf_extract",
     "python_docs_tests 0.0.0": "tools/docs/python_docs_tests",
     "python_extract 0.0.0": "tools/docs/python/python_extract",
-    "qt_rust_bridge 0.0.0": "qt/qt_rust_bridge",
+    "qt_rust_bridge 0.0.0": "qt/private/qt_rust_bridge",
     "quality_adapter 0.0.0": "quality/quality_adapter",
     "quality_markdown 0.0.0": "quality/quality_markdown",
     "quality_notebook 0.0.0": "quality/quality_notebook",
@@ -29368,7 +29368,7 @@
     "tiers 0.0.0": "tools/docs/tiers",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",
-    "wasi_testing 0.0.0": "wasi/wasi_testing",
+    "wasi_testing 0.0.0": "wasi/private/wasi_testing",
     "zig_extract 0.0.0": "tools/docs/zig/zig_extract"
   }
 }

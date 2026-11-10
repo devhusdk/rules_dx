@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 
-_COMPILER = str(Label("//cc/toolchains:compiler"))
+_COMPILER = str(Label("//cc/private/toolchains:compiler"))
 _DEP_GROUP = str(Label("@rules_py//uv/private/constraints/dep_group:dep_group"))
 _FLAGS = ["CFLAGS", "LDSHAREDFLAGS"]
 

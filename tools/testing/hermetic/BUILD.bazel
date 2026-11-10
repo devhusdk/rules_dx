@@ -676,9 +676,9 @@ hermetic_qualification(
     module_fragment = "consumers/qt_tasks/module_fragment.bazel",
     patterns = ["//..."],
     platform = select({
-        "//qt/platforms:cell_linux_arm64": "//:qt_linux_arm64",
-        "//qt/platforms:cell_macos_arm64": "//:qt_macos_arm64",
-        "//qt/platforms:cell_windows_x86_64": "//:qt_windows_x86_64",
+        "//qt/private/platforms:cell_linux_arm64": "//:qt_linux_arm64",
+        "//qt/private/platforms:cell_macos_arm64": "//:qt_macos_arm64",
+        "//qt/private/platforms:cell_windows_x86_64": "//:qt_windows_x86_64",
         "//conditions:default": "//:qt_linux_x86_64",
     }),
 )
@@ -975,9 +975,9 @@ hermetic_qualification(
     module_fragment = "consumers/qt_rust/module_fragment.bazel",
     patterns = ["//..."],
     platform = select({
-        "//qt/platforms:cell_linux_arm64": "//:qt_linux_arm64",
-        "//qt/platforms:cell_macos_arm64": "//:qt_macos_arm64",
-        "//qt/platforms:cell_windows_x86_64": "//:qt_windows_x86_64",
+        "//qt/private/platforms:cell_linux_arm64": "//:qt_linux_arm64",
+        "//qt/private/platforms:cell_macos_arm64": "//:qt_macos_arm64",
+        "//qt/private/platforms:cell_windows_x86_64": "//:qt_windows_x86_64",
         "//conditions:default": "//:qt_linux_x86_64",
     }),
 )

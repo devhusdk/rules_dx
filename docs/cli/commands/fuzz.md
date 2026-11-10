@@ -16,7 +16,7 @@ A fuzz target is a rule tagged `dx-fuzz` with a runner named `<name>_run` next t
 
 Every `<lang>_fuzz_test` macro has the same shape. `<name>` is the manual `dx-fuzz` target dx runs, the program is a private `<name>_bin`, and `<name>_run` is the runner. `args` and `target_compatible_with` go to `<name>`; `go_fuzz_test` also takes `size`, `timeout`, `env`, `data`, `flaky` and `shard_count` there. The other attributes go to `<name>_bin`. `tags` are merged with `dx-fuzz` and `manual`.
 
-Go: `go_fuzz_test(name, target = "FuzzParse", srcs = ..., ...)` from `//go/rules:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
+Go: `go_fuzz_test(name, target = "FuzzParse", srcs = ..., ...)` from `//go:defs.bzl` declares the test, tags it and adds the `<name>_run` runner.
 
 D: `d_fuzz_test(name, srcs)` from `//d:defs.bzl` builds with LDC's `-fsanitize=fuzzer,address` and the pinned LLVM's libFuzzer. `srcs` define `LLVMFuzzerTestOneInput`, for example through `ldc.libfuzzer`.
 

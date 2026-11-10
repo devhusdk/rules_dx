@@ -53,7 +53,7 @@ outputs, and writes the `test NAME ... bench: N ns/iter (+/- M)` lines to
 bazel build //pkg:tool
 ```
 
-On a libstdc++ platform, such as `@rules_dx//qt/platforms:linux_x86_64`,
+On a libstdc++ platform, such as `@rules_dx//qt:linux_x86_64`,
 crates and their dependencies build without the static C++ runtime.
 Binaries and tests link LLVM libunwind. The private `<name>_upstream`
 targets are incompatible there; build `<name>`.
@@ -128,8 +128,8 @@ harness. `env` and `preopens` guest paths are literal.
 | `runtime` | Executable that acts like `wasmtime run`. Default Wasmtime. Needs `wasm = "wasi"`. |
 
 To check a built `wasm = "wasi"` binary from outside, use a native
-`rust_test`. Put `@rules_dx//wasi/runtime:wasmtime` and the module in
-`data` and `@rules_dx//wasi/testing:wasi_run` in `deps`. Pass their
+`rust_test`. Put `@rules_dx//wasi:wasmtime` and the module in
+`data` and `@rules_dx//wasi:wasi_run` in `deps`. Pass their
 `$(rootpath)` values in `env`. Then call
 `wasi_run::run(runtime, module, args, env, preopens) -> Output` and
 assert on the exit code, stdout, and stderr. Preopens map a guest

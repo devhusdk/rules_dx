@@ -3,7 +3,7 @@
 Build, test, format and typecheck Go with `rules_go`.
 
 ```python
-load("@rules_dx//go/rules:defs.bzl", "go_binary", "go_library", "go_test")
+load("@rules_dx//go:defs.bzl", "go_binary", "go_library", "go_test")
 
 go_library(
     name = "greet",

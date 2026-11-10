@@ -26,7 +26,7 @@ SOURCE_LABEL = "@rules_dx//cli/cli:dx"
 SOURCE_TOOLS = {
     "codegen_shard_writer": "@rules_dx//cli/codegen_shard:codegen_shard_writer",
     "collect_native": "@rules_dx//tools/coverage/collect:collect_native",
-    "env_shard_writer": "@rules_dx//env/env_shard:env_shard_writer",
+    "env_shard_writer": "@rules_dx//env/private/env_shard:env_shard_writer",
     "lsp_check": "@rules_dx//quality/lsp_check:lsp_check",
     "quality_markdown": "@rules_dx//quality/markdown:quality_markdown",
     "quality_notebook": "@rules_dx//quality/notebook:quality_notebook",

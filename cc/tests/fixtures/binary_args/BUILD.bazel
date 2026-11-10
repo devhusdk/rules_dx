@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
-load("//cc/rules:defs.bzl", "cc_binary")
+load("//cc:defs.bzl", "cc_binary")
 
 package(default_visibility = ["//:__subpackages__"])
 

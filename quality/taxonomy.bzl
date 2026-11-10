@@ -30,7 +30,7 @@ TAXONOMY = {
         classes = ["capnp"],
     ),
     "cc": struct(
-        owner = "//cc/rules:defs.bzl",
+        owner = "//cc:defs.bzl",
         classes = ["c", "cpp"],
     ),
     "cloudformation": struct(
@@ -98,7 +98,7 @@ TAXONOMY = {
         classes = ["gherkin"],
     ),
     "go": struct(
-        owner = "//go/rules:defs.bzl",
+        owner = "//go:defs.bzl",
         classes = ["go"],
     ),
     "go_module": struct(
@@ -182,7 +182,7 @@ TAXONOMY = {
         classes = ["nix"],
     ),
     "objc": struct(
-        owner = "//cc/rules:defs.bzl",
+        owner = "//cc:defs.bzl",
         classes = ["objc", "objcpp"],
     ),
     "ocaml": struct(
@@ -214,7 +214,7 @@ TAXONOMY = {
         classes = ["python", "python_stub"],
     ),
     "qml": struct(
-        owner = "//qt/rules:defs.bzl",
+        owner = "//qt:defs.bzl",
         classes = ["qml"],
     ),
     "rego": struct(

@@ -11,5 +11,5 @@ def _link_impl(ctx):
 
 aarch64_link_test = analysistest.make(
     _link_impl,
-    config_settings = {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))},
+    config_settings = {"//command_line_option:platforms": str(Label("//appimage:linux_arm64"))},
 )

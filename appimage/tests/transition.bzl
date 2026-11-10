@@ -1,7 +1,7 @@
 """Builds targets for the linux_arm64 cell from any host."""
 
 def _arm64_impl(_settings, _attr):
-    return {"//command_line_option:platforms": str(Label("//appimage/platforms:linux_arm64"))}
+    return {"//command_line_option:platforms": str(Label("//appimage:linux_arm64"))}
 
 _arm64 = transition(
     implementation = _arm64_impl,

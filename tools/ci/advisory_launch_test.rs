@@ -107,7 +107,7 @@ fn launch(archive_bytes: Option<Vec<u8>>) -> Launch {
     let root_tmp = dx_test_scratch::scratch("advisory-launch");
     let root = root_tmp.path().to_path_buf();
     let workspace = root.join("check out");
-    let lock = workspace.join("cc/context/Cargo.lock");
+    let lock = workspace.join("cc/private/context/Cargo.lock");
     fs::create_dir_all(lock.parent().expect("parent")).expect("lock dir");
     fs::write(&lock, "version = 4\n").expect("lock");
     let runfiles = root.join("runfiles tree");

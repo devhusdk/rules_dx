@@ -325,7 +325,7 @@ pub fn render(facts: &Facts, platforms: &BTreeMap<String, RowPlatforms>) -> Stri
     out.push_str(&build_table(facts, platforms, "targets", "Target"));
     out.push_str("\n## Compilers\n\n");
     out.push_str(
-        "Select one with `--@rules_dx//cc/toolchains:compiler=<value>`. \
+        "Select one with `--@rules_dx//cc:compiler=<value>`. \
          Blocked on names a platform the compiler targets whose evidence is still waiting, with the reason.\n\n",
     );
     out.push_str(&compiler_table(facts, platforms));

@@ -25,7 +25,7 @@ sh_test(
     args = ["$(rootpath :parse_bench_bin)"],
     data = [
         ":parse_bench_bin",
-        "//go/rules:bench_run.sh",
+        "//go/private:bench_run.sh",
     ],
     timeout = "short",
 )

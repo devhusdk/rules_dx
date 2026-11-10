@@ -52,7 +52,7 @@ missing library and a truncated image.
 Build for arm64:
 
 ```sh
-bazel build //appimage/tests/fixtures/appimage-app/app --platforms=//appimage/platforms:linux_arm64
+bazel build //appimage/tests/fixtures/appimage-app/app --platforms=//appimage:linux_arm64
 ```
 
 Supported hosts and run routes: [AppImage supported tuples](https://github.com/devhusdk/rules_dx/blob/main/appimage/README.md#supported-tuples).

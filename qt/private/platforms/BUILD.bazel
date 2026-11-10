@@ -1,0 +1,57 @@
+load("@bazel_skylib//lib:selects.bzl", "selects")
+load("//qt/private/sdk:pins.bzl", "CELLS")
+load("//qt/private/sdk:repos.bzl", "qualified_cells")
+load("//quality:fixtures.bzl", "real_source_target")
+load(":libc.bzl", "glibc_at_least")
+
+package(default_visibility = ["//visibility:public"])
+
+# One setting per qualified Qt cell. QT_COMPATIBLE_WITH and the consumer
+# identity selects in //qt:defs.bzl key on these. A Linux cell matches
+# only glibc at or above the SDK floor; musl and older glibc do not match.
+[
+    config_setting(
+        name = "cell_" + cell,
+        constraint_values = CELLS[cell].constraints,
+        flag_values = {"//cc:compiler": CELLS[cell].layout.compiler} if CELLS[cell].layout.compiler else {},
+    )
+    for cell in qualified_cells()
+    if CELLS[cell].layout.os != "linux"
+]
+
+[
+    config_setting(
+        name = "cell_{}_gnu.{}".format(cell, version),
+        constraint_values = CELLS[cell].constraints + ["@llvm//constraints/libc:gnu." + version],
+    )
+    for cell in qualified_cells()
+    if CELLS[cell].layout.os == "linux"
+    for version in glibc_at_least(CELLS[cell].runtime.glibc)
+]
+
+[
+    selects.config_setting_group(
+        name = "cell_" + cell,
+        match_any = [
+            ":cell_{}_gnu.{}".format(cell, version)
+            for version in glibc_at_least(CELLS[cell].runtime.glibc)
+        ],
+    )
+    for cell in qualified_cells()
+    if CELLS[cell].layout.os == "linux"
+]
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "libc.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+filegroup(
+    name = "module_srcs",
+    srcs = glob(["**"]),
+    visibility = ["//:__subpackages__"],
+)

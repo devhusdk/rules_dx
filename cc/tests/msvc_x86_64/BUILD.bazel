@@ -41,8 +41,8 @@ consumer_archive(
     notice = "//deploy/tests/fixtures/consumer_archive:consumer_notice_files",
     platform = ":windows_x86_64",
     runtime = [
-        "//cc/toolchains:msvc_vcruntime",
-        "//cc/toolchains:windows_ucrt",
+        "//cc/private/toolchains:msvc_vcruntime",
+        "//cc/private/toolchains:windows_ucrt",
     ],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X64,

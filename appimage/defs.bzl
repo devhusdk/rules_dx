@@ -1,4 +1,4 @@
-"""Linux AppImage packaging for target binaries."""
+"""Public AppImage API."""
 
 load("//appimage:pins.bzl", "MKSQUASHFS_VERSION", "RUNTIME_VERSION", "TOOL_VERSION")
 load("//core:packaging.bzl", "claim_dest", "data_path")
@@ -108,11 +108,5 @@ _appimage_package = rule(
     cfg = platform_transition,
 )
 
-def appimage_package(name, target_compatible_with = None, **kwargs):
-    """Packages one Linux target binary and its files as an AppImage."""
-    target_compatible_with = target_compatible_with or []
-    _appimage_package(
-        name = name,
-        target_compatible_with = ["@platforms//os:linux"] + [c for c in target_compatible_with if c != "@platforms//os:linux"],
-        **kwargs
-    )
+AppImageInfo = _AppImageInfo
+appimage_package = _appimage_package

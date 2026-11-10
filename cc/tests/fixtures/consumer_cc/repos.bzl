@@ -1,6 +1,6 @@
 """A consumer-side C++ greeting repository for the own-source wrapper fixture."""
 
-_BUILD_BAZEL = '''load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+_BUILD_BAZEL = '''load("@rules_dx//cc:defs.bzl", "cc_library")
 
 exports_files([
     "greeting.cc",

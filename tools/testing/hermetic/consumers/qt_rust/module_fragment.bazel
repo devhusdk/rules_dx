@@ -1,6 +1,6 @@
 bazel_dep(name = "platforms", version = "1.1.0")
 
-qt_sdk = use_extension("@my_dx//qt/sdk:extensions.bzl", "qt_sdk")
+qt_sdk = use_extension("@my_dx//qt:extensions.bzl", "qt_sdk")
 qt_sdk.configure(modules = ["qtdeclarative"])
 use_repo(qt_sdk, "dx_qt")
 

@@ -93,7 +93,7 @@ Linux x86_64 and Linux arm64 (sbsa) are qualified. CUDA targets are incompatible
 so `bazel build //...` skips them.
 
 Windows x86_64 and Windows arm64 (CUDA 13.4.2 redist) are qualified with
-`--//cc/toolchains:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default
+`--//cc:compiler=msvc`: nvcc on Windows only drives `cl.exe`. With the default
 `llvm` compiler CUDA targets are incompatible there, so Windows builds skip them instead of
 failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
 (bazel-contrib/rules_cuda#528).

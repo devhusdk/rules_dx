@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("//go/rules:defs.bzl", "go_library")
+load("//go:defs.bzl", "go_library")
 load("//quality:native_config.bzl", "staticcheck_config")
 load("//quality:fixtures.bzl", "real_source_target")
 

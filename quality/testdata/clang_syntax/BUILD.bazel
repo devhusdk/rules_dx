@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("//cc/rules:defs.bzl", "objc_library")
+load("//cc:defs.bzl", "objc_library")
 load("//quality:native_config.bzl", "clang_tidy_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
 

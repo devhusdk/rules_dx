@@ -85,7 +85,7 @@ filegroup(
 
 dx_native_probe_runtime_files(
     name = "msvc_runtime_files",
-    runtime = "//cc/toolchains:msvc_vcruntime",
+    runtime = "//cc/private/toolchains:msvc_vcruntime",
     tags = ["manual"],
     target_compatible_with = [
         "@platforms//os:windows",
@@ -95,7 +95,7 @@ dx_native_probe_runtime_files(
 
 filegroup(
     name = "msvc_vcruntime_notice",
-    srcs = ["//cc/toolchains:msvc_vcruntime"],
+    srcs = ["//cc/private/toolchains:msvc_vcruntime"],
     output_group = "notice",
     tags = ["manual"],
     target_compatible_with = [

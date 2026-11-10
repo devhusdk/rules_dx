@@ -198,9 +198,9 @@ fn with_flags(flags: &str) -> Result<Vec<(String, String)>, String> {
 
 #[test]
 fn accepts_label_and_config_flags() {
-    let outputs = with_flags("--//cc/toolchains:compiler=msvc  --config=ci").unwrap();
+    let outputs = with_flags("--//cc:compiler=msvc  --config=ci").unwrap();
     let flags = outputs.iter().find(|(key, _)| key == "flags").unwrap();
-    assert_eq!(flags.1, "--//cc/toolchains:compiler=msvc --config=ci");
+    assert_eq!(flags.1, "--//cc:compiler=msvc --config=ci");
 }
 
 #[test]

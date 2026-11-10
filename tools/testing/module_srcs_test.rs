@@ -19,8 +19,8 @@ const ENTRY_POINTS: &[&str] = &[
     "//deploy/private:deployment.bzl",
     "//erlang:defs.bzl",
     "//erlang:extensions.bzl",
-    "//qt/rules:defs.bzl",
-    "//qt/sdk:extensions.bzl",
+    "//qt:defs.bzl",
+    "//qt:extensions.bzl",
 ];
 
 #[test]

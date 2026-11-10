@@ -1173,7 +1173,7 @@ def _unsupported_platform_impl(ctx):
 _unsupported_platform_test = analysistest.make(
     _unsupported_platform_impl,
     config_settings = {
-        "//command_line_option:extra_execution_platforms": str(Label("//qt/platforms:macos_arm64")),
+        "//command_line_option:extra_execution_platforms": str(Label("//qt:macos_arm64")),
         str(Label("//config:workspace")): str(Label("//quality/testdata/haskell_owned:hlint_policy")),
     },
     extra_target_under_test_aspects = [real_haskell_lint_aspect],
@@ -1191,13 +1191,13 @@ def _marked_tool_test(platform):
         config_settings = {"//command_line_option:platforms": str(Label(platform))},
     )
 
-_zanuda_marked_test = _marked_tool_test("//qt/platforms:macos_arm64")
-_swift_format_marked_test = _marked_tool_test("//qt/platforms:windows_x86_64")
+_zanuda_marked_test = _marked_tool_test("//qt:macos_arm64")
+_swift_format_marked_test = _marked_tool_test("//qt:windows_x86_64")
 
 _zanuda_policy_test = analysistest.make(
     _unsupported_platform_impl,
     config_settings = {
-        "//command_line_option:extra_execution_platforms": str(Label("//qt/platforms:macos_arm64")),
+        "//command_line_option:extra_execution_platforms": str(Label("//qt:macos_arm64")),
         str(Label("//config:workspace")): str(Label("//quality/testdata/ocaml_owned:zanuda_policy")),
     },
     extra_target_under_test_aspects = [real_ocaml_lint_aspect],

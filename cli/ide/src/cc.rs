@@ -13,9 +13,9 @@ pub const PLUGIN: Plugin = Plugin {
     name: "cc",
     extensions: &["c", "cc", "cpp", "cxx", "h", "hh", "hpp", "m", "mm"],
     labels: &[
-        "cc/context:clangd",
-        "cc/context:identity",
-        "cc/context:identity_exec",
+        "cc/private/context:clangd",
+        "cc/private/context:identity",
+        "cc/private/context:identity_exec",
     ],
     outputs: &["compile_commands.json", "clangd"],
     write,

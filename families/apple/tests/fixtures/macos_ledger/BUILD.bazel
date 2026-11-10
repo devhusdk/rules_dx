@@ -1,5 +1,5 @@
 # gazelle:ignore
-load("@rules_dx//cc/rules:defs.bzl", "cc_binary", "cc_library", "cc_test")
+load("@rules_dx//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 
 _MACOS_ARM64 = [
     "@platforms//os:macos",

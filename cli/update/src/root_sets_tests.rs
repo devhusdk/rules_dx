@@ -89,11 +89,11 @@ fn dx_crates_starts_with_the_manifest_beside_its_cargo_lock() {
     let cargo = set("dx_crates");
     assert_eq!(cargo.ecosystem, Ecosystem::Cargo);
     assert_eq!(cargo.repository.as_deref(), Some("dx_crates"));
-    assert_eq!(cargo.manifests[0], "cc/context/Cargo.toml");
+    assert_eq!(cargo.manifests[0], "cc/private/context/Cargo.toml");
     assert_eq!(
         cargo.locks,
         [
-            "cc/context/Cargo.lock",
+            "cc/private/context/Cargo.lock",
             "cargo-bazel-lock.json"
         ]
     );

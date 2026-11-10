@@ -10,7 +10,7 @@ _VISIBILITY = [
     "//cli/generate:__subpackages__",
     "//quality/runner:__subpackages__",
     "//go/tests:__subpackages__",
-    "//go/tools/analysis:__subpackages__",
+    "//go/private/tools/analysis:__subpackages__",
     "//quality/testdata:__subpackages__",
     "//quality/tests/fixtures:__subpackages__",
     "//typescript/tests:__subpackages__",

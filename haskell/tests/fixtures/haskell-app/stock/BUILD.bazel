@@ -1,4 +1,4 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_library")
+load("@rules_dx//cc:defs.bzl", "cc_library")
 load("@rules_dx//haskell:defs.bzl", "HASKELL_COMPATIBLE_WITH", "haskell_library", "haskell_test")
 load("//quality:fixtures.bzl", "real_source_target")
 

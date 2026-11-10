@@ -9,14 +9,14 @@ RELEASE_MATRIX_SCHEMA = "release-matrix/v1"
 
 # Top-level archive members each runtime target ships. The Universal CRT is supplied by Windows.
 RUNTIME_MEMBERS = {
-    "//cc/toolchains:msvc_vcruntime": [
+    "//cc/private/toolchains:msvc_vcruntime": [
         "msvcp140.dll",
         "msvcp140_1.dll",
         "msvcp140_2.dll",
         "vcruntime140.dll",
         "vcruntime140_1.dll",
     ],
-    "//cc/toolchains:windows_ucrt": [],
+    "//cc/private/toolchains:windows_ucrt": [],
 }
 
 def _cell(os, arch, min_runtime):
@@ -33,7 +33,7 @@ def _cell(os, arch, min_runtime):
         "min_runtime": min_runtime,
         "name": "dx-" + os + "-" + arch,
         "os": os,
-        "runtime": ["//cc/toolchains:msvc_vcruntime", "//cc/toolchains:windows_ucrt"] if windows else [],
+        "runtime": ["//cc/private/toolchains:msvc_vcruntime", "//cc/private/toolchains:windows_ucrt"] if windows else [],
     }
 
 RELEASE_MATRIX = [

@@ -90,18 +90,18 @@ rust_test(
         ":consumer_wasi_module",
         ":data/input.txt",
         ":data/secret.txt",
-        "@rules_dx//wasi/runtime:wasmtime",
+        "@rules_dx//wasi:wasmtime",
     ],
     edition = "2021",
     env = {
         "DX_WASI_HOSTILE": "1",
         "DX_WASI_INPUT": "$(rootpath :data/input.txt)",
         "DX_WASI_MODULE": "$(rootpath :consumer_wasi_module)",
-        "DX_WASI_RUNTIME": "$(rootpath @rules_dx//wasi/runtime:wasmtime)",
+        "DX_WASI_RUNTIME": "$(rootpath @rules_dx//wasi:wasmtime)",
     },
     deps = [
         "@rules_dx//tools/testing:dx_testing",
-        "@rules_dx//wasi/testing:wasi_run",
+        "@rules_dx//wasi:wasi_run",
     ],
 )
 

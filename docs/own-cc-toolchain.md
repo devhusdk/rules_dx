@@ -43,7 +43,7 @@ Bazel picks the first matching toolchain in this order:
 2. `register_toolchains` in the root module, first one wins.
 3. The registrations rules_dx adds as a dependency.
 
-`--@rules_dx//cc/toolchains:compiler` only switches between rules_dx's own toolchains. It does not select yours. See [Bazel toolchains](https://bazel.build/extending/toolchains).
+`--@rules_dx//cc:compiler` only switches between rules_dx's own toolchains. It does not select yours. See [Bazel toolchains](https://bazel.build/extending/toolchains).
 
 ## Private download sources
 
@@ -57,7 +57,7 @@ common --credential_helper=<host>=<path to helper>
 
 ## GCC-specific behaviour
 
-Under an external GCC toolchain, `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` from the resolved toolchain, not from the dx flag. Coverage features follow `--compiler=<name>`, because a transition cannot see the resolved toolchain. Pass `--compiler=gcc` (or `--@rules_dx//cc/toolchains:compiler=gcc`) with `--collect_code_coverage` under GCC. Without it the build fails at analysis with a message naming the flag, instead of compiling with LLVM coverage features.
+Under an external GCC toolchain, `cc_test` sets `ASAN_OPTIONS=verify_asan_link_order=0` from the resolved toolchain, not from the dx flag. Coverage features follow `--compiler=<name>`, because a transition cannot see the resolved toolchain. Pass `--compiler=gcc` (or `--@rules_dx//cc:compiler=gcc`) with `--collect_code_coverage` under GCC. Without it the build fails at analysis with a message naming the flag, instead of compiling with LLVM coverage features.
 
 ## Support
 

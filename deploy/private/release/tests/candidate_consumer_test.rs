@@ -131,7 +131,7 @@ fn snapshot_commit(root: &Path, scratch: &Path) -> (PathBuf, String) {
     (git_dir, sha)
 }
 
-const GCC_BUILD: &str = r#"load("@my_dx//cc/rules:defs.bzl", "cc_binary")
+const GCC_BUILD: &str = r#"load("@my_dx//cc:defs.bzl", "cc_binary")
 
 cc_binary(
     name = "app",
@@ -275,7 +275,7 @@ fn assert_gcc_consumer(case: &Case) {
     let repo_env = format!("--repo_env={path}");
     let action_env = format!("--action_env={path}");
     let flags = [
-        "--@my_dx//cc/toolchains:compiler=gcc",
+        "--@my_dx//cc:compiler=gcc",
         repo_env.as_str(),
         action_env.as_str(),
     ];

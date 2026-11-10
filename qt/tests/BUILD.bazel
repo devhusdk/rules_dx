@@ -2,9 +2,8 @@
 
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_binary", "platform_transition_filegroup")
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("//cc/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
-load("//qt/rules:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module")
-load("//qt/rules:rust.bzl", "qt_rust_library")
+load("//cc/private/toolchains:select.bzl", "cc_toolchain_binary", "cc_toolchain_test")
+load("//qt:defs.bzl", "qt_bundle", "qt_cc_binary", "qt_cc_library", "qt_cc_test", "qt_frameworks", "qt_qml_module", "qt_rust_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:child_runfiles.bzl", "child_runfiles")
@@ -62,7 +61,7 @@ platform_transition_binary(
     binary = ":probe",
     tags = ["manual"],
     target_compatible_with = _LINUX_X86_64,
-    target_platform = "//qt/platforms:linux_x86_64",
+    target_platform = "//qt:linux_x86_64",
 )
 
 platform_transition_binary(
@@ -70,7 +69,7 @@ platform_transition_binary(
     binary = ":probe",
     tags = ["manual"],
     target_compatible_with = _LINUX_ARM64,
-    target_platform = "//qt/platforms:linux_arm64",
+    target_platform = "//qt:linux_arm64",
 )
 
 platform_transition_binary(
@@ -78,7 +77,7 @@ platform_transition_binary(
     binary = ":probe",
     tags = ["manual"],
     target_compatible_with = _MACOS_ARM64,
-    target_platform = "//qt/platforms:macos_arm64",
+    target_platform = "//qt:macos_arm64",
 )
 
 # Qt's msvc2022 DLLs export Microsoft STL types, so Windows builds with cl.exe.
@@ -86,7 +85,7 @@ cc_toolchain_binary(
     name = "probe_windows_x86_64",
     binary = ":probe",
     compiler = "msvc",
-    platforms = ["//qt/platforms:windows_x86_64"],
+    platforms = ["//qt:windows_x86_64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X86_64,
 )
@@ -95,7 +94,7 @@ cc_toolchain_binary(
     name = "probe_windows_arm64",
     binary = ":probe",
     compiler = "msvc",
-    platforms = ["//qt/platforms:windows_arm64"],
+    platforms = ["//qt:windows_arm64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_ARM64,
 )
@@ -116,7 +115,7 @@ alias(
 alias(
     name = "needs_native",
     actual = select({
-        "@platforms//os:windows": "//qt/sdk:windows_x86_64.bzl",
+        "@platforms//os:windows": "//qt/private/sdk:windows_x86_64.bzl",
         "//conditions:default": "@dx_qt//:needs",
     }),
     tags = ["manual"],
@@ -150,7 +149,7 @@ _QT_FONTS = select({
 _WINDOWS_CHILDREN = [":" + name + "_child" for name in _WINDOWS_CHILD_TOOLS]
 
 _VCRUNTIME = select({
-    "@platforms//os:windows": ["//cc/toolchains:msvc_vcruntime"],
+    "@platforms//os:windows": ["//cc/private/toolchains:msvc_vcruntime"],
     "//conditions:default": [],
 })
 
@@ -206,12 +205,12 @@ rust_test(
             _QT_TEST_ENV,
             DX_QT_CONSOLE_FIXTURE = "$(rootpath :console_fixture_windows_x86_64)",
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
-            DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
+            DX_QT_VCRUNTIME = "$(rootpaths //cc/private/toolchains:msvc_vcruntime)",
         ),
         "@platforms//os:windows": dict(
             _QT_TEST_ENV,
             DX_QT_FONTS = "$(rootpaths @dx_qt//:fonts)",
-            DX_QT_VCRUNTIME = "$(rootpaths //cc/toolchains:msvc_vcruntime)",
+            DX_QT_VCRUNTIME = "$(rootpaths //cc/private/toolchains:msvc_vcruntime)",
         ),
         "//conditions:default": dict(
             _QT_TEST_ENV,
@@ -296,7 +295,7 @@ platform_transition_binary(
     binary = ":gui_check",
     tags = ["manual"],
     target_compatible_with = _LINUX_X86_64,
-    target_platform = "//qt/platforms:linux_x86_64",
+    target_platform = "//qt:linux_x86_64",
 )
 
 platform_transition_binary(
@@ -305,7 +304,7 @@ platform_transition_binary(
     binary = ":gui_check",
     tags = ["manual"],
     target_compatible_with = _LINUX_ARM64,
-    target_platform = "//qt/platforms:linux_arm64",
+    target_platform = "//qt:linux_arm64",
 )
 
 platform_transition_binary(
@@ -314,7 +313,7 @@ platform_transition_binary(
     binary = ":gui_check",
     tags = ["manual"],
     target_compatible_with = _MACOS_ARM64,
-    target_platform = "//qt/platforms:macos_arm64",
+    target_platform = "//qt:macos_arm64",
 )
 
 cc_toolchain_binary(
@@ -322,7 +321,7 @@ cc_toolchain_binary(
     testonly = True,
     binary = ":gui_check",
     compiler = "msvc",
-    platforms = ["//qt/platforms:windows_x86_64"],
+    platforms = ["//qt:windows_x86_64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X86_64,
 )
@@ -332,7 +331,7 @@ cc_toolchain_binary(
     testonly = True,
     binary = ":gui_check",
     compiler = "msvc",
-    platforms = ["//qt/platforms:windows_arm64"],
+    platforms = ["//qt:windows_arm64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_ARM64,
 )
@@ -368,7 +367,7 @@ cc_toolchain_binary(
     testonly = True,
     binary = ":console_fixture",
     compiler = "msvc",
-    platforms = ["//qt/platforms:windows_x86_64"],
+    platforms = ["//qt:windows_x86_64"],
     tags = ["manual"],
     target_compatible_with = _WINDOWS_X86_64,
 )
@@ -519,7 +518,7 @@ qt_cc_test(
             "//qt/tests/fixtures/qt-tasks/app:tasks_release_archive",
         ],
         tags = ["manual"],
-        target_platform = "//qt/platforms:" + cell,
+        target_platform = "//qt:" + cell,
     )
     for cell in [
         "linux_x86_64",

@@ -63,7 +63,7 @@ func newLang() *goLang {
 		LibraryKind:    LibraryKind,
 		ExtraKinds:     []string{BinaryKind, TestKind, BenchmarkKind},
 		Kinds:          goKinds,
-		DefsPackage:    "go/rules:defs.bzl",
+		DefsPackage:    "go:defs.bzl",
 		IsStdLib:       IsStdLib,
 		External:       "go",
 		UnresolvedHint: "add a go_library with that importpath, require its module directly in go.mod, or an exact # gazelle:resolve mapping",

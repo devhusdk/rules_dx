@@ -1,0 +1,29 @@
+load("//cc:defs.bzl", "cc_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
+
+package(default_visibility = ["//:__subpackages__"])
+
+cc_binary(
+    name = "version",
+    srcs = ["version.cc"],
+)
+
+ide_acquisition_test(
+    name = "ide_acquisition_test",
+    binary = ":version",
+    expected = ".",
+)
+
+ide_acquisition_test(
+    name = "clangd_acquisition_test",
+    binary = "@llvm//tools:clangd",
+    expected = "clangd",
+    version_args = ["--version"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

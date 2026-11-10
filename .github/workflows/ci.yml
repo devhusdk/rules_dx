@@ -296,7 +296,7 @@ jobs:
           done
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel run --noshow_progress "$@" --//cc/toolchains:compiler=msvc //tools/testing/hermetic:appcontainer_run -- \
+          bazel run --noshow_progress "$@" --//cc:compiler=msvc //tools/testing/hermetic:appcontainer_run -- \
             --backend user --ensure-host-denies "${denies[@]}"
       - name: Qualify the MSVC consumers without Visual Studio or network
         env:
@@ -332,9 +332,9 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
-          bazel build --noshow_progress --//cc/toolchains:compiler=gcc "$@" //cc/tests/gcc_cross:gcc_arm64
+          bazel build --noshow_progress --//cc:compiler=gcc "$@" //cc/tests/gcc_cross:gcc_arm64
           mkdir -p "$RUNNER_TEMP/gcc-arm64"
-          bazel cquery --noshow_progress --//cc/toolchains:compiler=gcc "$@" --output=files //cc/tests/gcc_cross:gcc_arm64 2>/dev/null | while read -r file; do
+          bazel cquery --noshow_progress --//cc:compiler=gcc "$@" --output=files //cc/tests/gcc_cross:gcc_arm64 2>/dev/null | while read -r file; do
             cp "$file" "$RUNNER_TEMP/gcc-arm64/"
           done
           find "$RUNNER_TEMP/gcc-arm64" -type f

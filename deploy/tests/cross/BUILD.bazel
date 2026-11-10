@@ -31,7 +31,7 @@ archive_deploy(
 cross_deployment(
     name = "aarch64_release",
     deployment = ":cross_release",
-    platform = "//appimage/platforms:linux_arm64",
+    platform = "//appimage:linux_arm64",
 )
 
 rust_test(

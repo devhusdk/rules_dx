@@ -18,7 +18,7 @@ cell_settings(
         name = "cell_%s_msvc" % cell,
         match_all = [
             ":cell_" + cell,
-            "@rules_dx//cc/toolchains:msvc_selected",
+            "@rules_dx//cc/private/toolchains:msvc_selected",
         ],
     )
     for cell in CUDA_CELLS

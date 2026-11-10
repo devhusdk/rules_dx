@@ -1,5 +1,5 @@
-load("@rules_dx//cc/rules:defs.bzl", "cc_test")
-load("@rules_dx//cc/toolchains:select.bzl", "cc_toolchain_files")
+load("@rules_dx//cc:defs.bzl", "cc_test")
+load("@rules_dx//cc/private/toolchains:select.bzl", "cc_toolchain_files")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_foreign_cc//foreign_cc:defs.bzl", "cmake")
 load(

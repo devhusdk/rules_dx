@@ -5,7 +5,7 @@ load("//quality/testdata:real_aspect_subject.bzl", "real_aspect_subject")
 load("//quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
 load("//quality/testdata:runner_matrix_tests.bzl", "compatible")
 
-_COMPILER = str(Label("//cc/toolchains:compiler"))
+_COMPILER = str(Label("//cc:compiler"))
 _PROFILE = str(Label("//config:config_profile"))
 
 def _policy_transition_impl(settings, attr):
@@ -53,7 +53,7 @@ _results = rule(
         "policy": attr.string(mandatory = True),
         "rustc_flags": attr.string_list(),
         "tool_dialyzer": attr.label(default = "//erlang/private/tools:dialyzer"),
-        "tool_govet": attr.label(default = "//go/tools/analysis/cmd/dx_govet"),
+        "tool_govet": attr.label(default = "//go/private/tools/analysis/cmd/dx_govet"),
         "subject": attr.label(mandatory = True, cfg = _policy_transition),
     },
 )
@@ -77,7 +77,7 @@ def real_result_test(name, target, policy, contains = [], absent = [], tool_dial
         rustc_flags = rustc_flags,
         policy = str(native.package_relative_label(policy)),
         tool_dialyzer = tool_dialyzer or "//erlang/private/tools:dialyzer",
-        tool_govet = tool_govet or "//go/tools/analysis/cmd/dx_govet",
+        tool_govet = tool_govet or "//go/private/tools/analysis/cmd/dx_govet",
         subject = name + "_subject",
         tags = ["manual"],
         testonly = True,

@@ -17,4 +17,4 @@ Both tests pass (`greet_test`, `pure_test`).
 bazel build --features=treat_warnings_as_errors //cc/tests/fixtures/adopt-cpp/...
 ```
 
-See `cc/rules/README.md` for the wrapper contract.
+See `cc/README.md` for the wrapper contract.

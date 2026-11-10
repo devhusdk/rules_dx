@@ -1,7 +1,7 @@
-load("//cc/toolchains/msvc:toolchain.bzl", "msvc_cc_toolchain")
+load("//cc/private/toolchains/msvc:toolchain.bzl", "msvc_cc_toolchain")
 
 package(default_visibility = [
-    "//cc/toolchains:__subpackages__",
+    "//cc/private/toolchains:__subpackages__",
     "//python/tests/sdist_native/msvc:__pkg__",
 ])
 

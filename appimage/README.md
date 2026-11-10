@@ -98,10 +98,10 @@ Failures:
 Build for arm64 from any Linux host:
 
 ```sh
-bazel build //pkg:app --platforms=//appimage/platforms:linux_arm64
+bazel build //pkg:app --platforms=//appimage:linux_arm64
 ```
 
-Or set `platform = "//appimage/platforms:linux_arm64"` on the target. Unset uses the
+Or set `platform = "//appimage:linux_arm64"` on the target. Unset uses the
 current target platform.
 
 The image is packaged from the arm64 target bytes. Running it needs an arm64

@@ -1,2 +1,2 @@
-msvc = use_extension("@rules_dx//cc/toolchains/msvc:extensions.bzl", "msvc")
+msvc = use_extension("@rules_dx//cc:extensions.bzl", "msvc")
 msvc.license(accept = ["visual-studio-build-tools"])

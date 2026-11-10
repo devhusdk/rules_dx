@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "julia_lint"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "lint_cli_test"
+path = "lint_cli_test.rs"

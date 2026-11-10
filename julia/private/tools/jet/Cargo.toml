@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "julia_jet"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "jet_cli_test"
+path = "jet_cli_test.rs"

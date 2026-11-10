@@ -8,7 +8,7 @@ rust_binary(
     name = "preflight",
     srcs = ["preflight_main.rs"],
     aliases = aliases(
-        package_name = "api_spec/openapi_codegen_preflight",
+        package_name = "api_spec/private/openapi_codegen_preflight",
         normal = True,
     ),
     crate_name = "preflight",
@@ -30,7 +30,7 @@ real_source_target(
 rust_test(
     name = "preflight_test",
     aliases = aliases(
-        package_name = "api_spec/openapi_codegen_preflight",
+        package_name = "api_spec/private/openapi_codegen_preflight",
         normal = True,
         normal_dev = True,
     ),

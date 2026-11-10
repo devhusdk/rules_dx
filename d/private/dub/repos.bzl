@@ -1,32 +1,14 @@
 """Repository rule and hub for DUB packages fetched from dub.selections.json."""
 
+load("//core:pins.bzl", "fetch_and_extract", "pin_entry_json")
 load("//core:repo.bzl", "hub_repo")
-load(":lock.bzl", "analyze", "dependency_names", "hub_package_build", "hub_root_build", "pin_entry_json", "spoke_build")
+load(":lock.bzl", "analyze", "dependency_names", "hub_package_build", "hub_root_build", "spoke_build")
 
 _DEFS_BZL = str(Label("//d/private:defs.bzl"))
 
 def _package_impl(rctx):
     attrs = rctx.attr
-    kwargs = {"url": [attrs.url], "output": "_archive.zip"}
-    if attrs.sha256:
-        kwargs["sha256"] = attrs.sha256
-    download = rctx.download(**kwargs)
-    if attrs.unpinned:
-        rctx.delete("_archive.zip")
-        fail("%s %s\nDownloaded sha256 is %s. Review it and commit to dub.digests.json:\n%s" % (
-            attrs.package,
-            attrs.unpinned,
-            download.sha256,
-            pin_entry_json(attrs.package, attrs.version, download.sha256),
-        ))
-    rctx.extract("_archive.zip", output = "_probe")
-    top = rctx.path("_probe").readdir()
-    strip = ""
-    if len(top) == 1 and top[0].is_dir:
-        strip = top[0].basename
-    rctx.delete("_probe")
-    rctx.extract("_archive.zip", strip_prefix = strip)
-    rctx.delete("_archive.zip")
+    fetch_and_extract(rctx, "_archive.zip", lambda sha256: pin_entry_json(attrs.package, "version", attrs.version, sha256))
     if rctx.path("dub.json").exists:
         manifest = json.decode(rctx.read("dub.json"))
     elif rctx.path("package.json").exists:

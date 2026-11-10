@@ -3,11 +3,13 @@
 Nothing here runs DUB. DUB wrote the selections file; Bazel only reads it.
 """
 
+load("//core:pins.bzl", "pin_problem", _spoke_name = "spoke_name")
+
 _DEFAULT_SOURCE_DIRS = ["source", "src"]
 
 def spoke_name(hub, package):
     """Returns the repository name of one package: <hub>__<name>."""
-    return hub + "__" + package.replace(":", "_")
+    return _spoke_name(hub, package, ":")
 
 def package_url(name, version):
     """Returns the code.dlang.org archive URL of one package version."""
@@ -36,20 +38,6 @@ def parse_digests(text):
         return {}, ["dub.digests.json must be {\"packages\": {...}}"]
     return data["packages"], []
 
-def pin_problem(version, pin):
-    """Returns why a package has no usable digest ("" when it is pinned)."""
-    if not pin:
-        return "has no entry in dub.digests.json"
-    if pin.get("version", "") != version:
-        return "is pinned to version %r but dub.selections.json has %r; re-pin it" % (pin.get("version", ""), version)
-    if len(pin.get("sha256", "")) != 64:
-        return "has no 64 hex character sha256; re-pin it"
-    return ""
-
-def pin_entry_json(name, version, sha256):
-    """Returns the sidecar entry to commit for one package."""
-    return json.encode_indent({name: {"version": version, "sha256": sha256}}, indent = "  ")
-
 def analyze(hub, selections_text, digests_text):
     """Validates one selections file and its sidecar.
 
@@ -62,7 +50,7 @@ def analyze(hub, selections_text, digests_text):
     packages = {}
     for name, version in versions.items():
         pin = pins.get(name)
-        problem = pin_problem(version, pin)
+        problem = pin_problem("dub.digests.json", "version", version, "dub.selections.json", pin)
         packages[name] = struct(
             name = name,
             version = version,

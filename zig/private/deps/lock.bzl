@@ -3,9 +3,11 @@
 Nothing here runs Zig. Bazel only reads the manifest and its digest sidecar.
 """
 
+load("//core:pins.bzl", "pin_problem", _spoke_name = "spoke_name")
+
 def spoke_name(hub, package):
     """Returns the repository name of one package: <hub>__<name>."""
-    return hub + "__" + package.replace(".", "_").replace("-", "_")
+    return _spoke_name(hub, package, ".-")
 
 def _next_quoted(quoted, escaped, ch):
     """Returns (quoted, escaped) after one character of Zig source."""
@@ -136,20 +138,6 @@ def parse_digests(text):
         return {}, ["zig.digests.json must be {\"packages\": {...}}"]
     return data["packages"], []
 
-def pin_problem(pkg_hash, pin):
-    """Returns why a package has no usable digest ("" when it is pinned)."""
-    if not pin:
-        return "has no entry in zig.digests.json"
-    if pin.get("hash", "") != pkg_hash:
-        return "is pinned to hash %r but build.zig.zon has %r; re-pin it" % (pin.get("hash", ""), pkg_hash)
-    if len(pin.get("sha256", "")) != 64:
-        return "has no 64 hex character sha256; re-pin it"
-    return ""
-
-def pin_entry_json(name, pkg_hash, sha256):
-    """Returns the sidecar entry to commit for one package."""
-    return json.encode_indent({name: {"hash": pkg_hash, "sha256": sha256}}, indent = "  ")
-
 def analyze(hub, zon_text, digests_text):
     """Validates one manifest and its sidecar.
 
@@ -164,7 +152,7 @@ def analyze(hub, zon_text, digests_text):
         if not archive_type(dep.url):
             errors.append("%s uses %s; supported archives are .tar.gz, .tgz, .tar.xz, .tar.zst and .zip" % (name, dep.url))
             continue
-        problem = pin_problem(dep.hash, pins.get(name))
+        problem = pin_problem("zig.digests.json", "hash", dep.hash, "build.zig.zon", pins.get(name))
         packages[name] = struct(
             name = name,
             spoke = spoke_name(hub, name),

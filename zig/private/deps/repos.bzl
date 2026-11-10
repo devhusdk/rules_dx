@@ -1,33 +1,15 @@
 """Repository rule and hub for Zig packages fetched from build.zig.zon."""
 
+load("//core:pins.bzl", "fetch_and_extract", "pin_entry_json")
 load("//core:repo.bzl", "hub_repo")
-load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "hub_root_build", "main_candidates", "main_file", "pin_entry_json", "spoke_build")
+load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "hub_root_build", "main_candidates", "main_file", "spoke_build")
 
 _DEFS_BZL = str(Label("//zig/private:defs.bzl"))
 
 def _package_impl(rctx):
     attrs = rctx.attr
     archive = "_archive." + archive_type(attrs.url)
-    kwargs = {"url": [attrs.url], "output": archive}
-    if attrs.sha256:
-        kwargs["sha256"] = attrs.sha256
-    download = rctx.download(**kwargs)
-    if attrs.unpinned:
-        rctx.delete(archive)
-        fail("%s %s\nDownloaded sha256 is %s. Review it and commit to zig.digests.json:\n%s" % (
-            attrs.package,
-            attrs.unpinned,
-            download.sha256,
-            pin_entry_json(attrs.package, attrs.hash, download.sha256),
-        ))
-    rctx.extract(archive, output = "_probe")
-    top = rctx.path("_probe").readdir()
-    strip = ""
-    if len(top) == 1 and top[0].is_dir:
-        strip = top[0].basename
-    rctx.delete("_probe")
-    rctx.extract(archive, strip_prefix = strip)
-    rctx.delete(archive)
+    fetch_and_extract(rctx, archive, lambda sha256: pin_entry_json(attrs.package, "hash", attrs.hash, sha256))
     existing = []
     for suffix in ["", "src/"]:
         directory = rctx.path(suffix) if suffix else rctx.path(".")

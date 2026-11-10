@@ -1,9 +1,7 @@
-use dx_testing::read_runfiles;
 use serde_json::{Value, json};
 
 fn workflow() -> Value {
-    yaml_serde::from_str(&read_runfiles(".github/workflows/evidence.yml"))
-        .expect("evidence.yml is valid YAML")
+    ci_workflow::document(".github/workflows/evidence.yml")
 }
 
 fn run_text(workflow: &Value, job: &str) -> String {

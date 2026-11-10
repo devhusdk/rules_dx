@@ -2,6 +2,11 @@ use dx_testing::{read_runfiles, resolve_runfiles};
 use evidence_inputs::{PLATFORMS, validate};
 use std::process::Command;
 
+#[path = "evidence_rules/status.rs"]
+mod status;
+
+const WORKFLOW: &str = ".github/workflows/evidence.yml";
+
 const SCRIPT: &str = "tools/ci/evidence_inputs.sh";
 
 const VARS: [&str; 7] = [
@@ -250,10 +255,10 @@ fn rejects_bad_relocate() {
 
 #[test]
 fn the_workflow_runner_map_matches_platforms() {
-    let text = read_runfiles(".github/workflows/evidence.yml");
-    let map = text
-        .lines()
-        .find_map(|line| line.trim().strip_prefix("runs-on: ${{ fromJSON('"))
+    let document = ci_workflow::document(WORKFLOW);
+    let runs_on = ci_workflow::text_at(&document["jobs"]["evidence"]["runs-on"], "evidence runs-on");
+    let map = runs_on
+        .strip_prefix("${{ fromJSON('")
         .and_then(|rest| rest.split_once("')"))
         .map(|(map, _)| map)
         .expect("evidence.yml runs-on runner map");
@@ -295,12 +300,15 @@ fn the_script_accepts_spaced_platform_lists() {
 
 #[test]
 fn the_workflow_validates_with_the_script_before_setting_up_bazel() {
-    let text = read_runfiles(".github/workflows/evidence.yml");
-    let validate = text
-        .find("run: bash tools/ci/evidence_inputs.sh")
+    let steps = ci_workflow::steps(WORKFLOW, "evidence");
+    let position = |field: &str, value: &str| {
+        steps
+            .iter()
+            .position(|step| step[field].as_str() == Some(value))
+    };
+    let validate = position("run", "bash tools/ci/evidence_inputs.sh")
         .expect("evidence.yml runs evidence_inputs.sh");
-    let setup = text
-        .find("uses: ./.github/actions/setup-bazel")
+    let setup = position("uses", "./.github/actions/setup-bazel")
         .expect("evidence.yml sets up Bazel");
     assert!(validate < setup);
 }

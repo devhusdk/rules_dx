@@ -93,7 +93,10 @@ rust_test(
 
 rust_test(
     name = "evidence_inputs_test",
-    srcs = ["evidence_inputs_test.rs"],
+    srcs = [
+        "evidence_inputs_test.rs",
+        "evidence_rules/status.rs",
+    ],
     aliases = aliases(
         package_name = "tools/ci_tests",
         normal = True,
@@ -111,31 +114,10 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/ci/evidence_inputs",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",
-    ],
-)
-
-rust_test(
-    name = "evidence_status_test",
-    srcs = ["evidence_status_test.rs"],
-    aliases = aliases(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ),
-    crate_name = "evidence_status_test",
-    crate_root = "evidence_status_test.rs",
-    data = ["//.github:workflows/evidence.yml"],
-    deps = all_crate_deps(
-        package_name = "tools/ci_tests",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        "//tools/testing:dx_testing",
-        "@crates//:serde_json",
-        "@crates//:yaml_serde",
     ],
 )
 

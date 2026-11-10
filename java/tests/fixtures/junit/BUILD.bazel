@@ -36,6 +36,18 @@ jvm_coverage_env_test(
     target = ":hello_jupiter_test",
 )
 
+java_test(
+    name = "InferredMainTest",
+    srcs = ["InferredMainTest.java"],
+    use_testrunner = False,
+)
+
+jvm_coverage_env_test(
+    name = "inferred_main_coverage_env_test",
+    main_class = "tests.fixtures.junit.InferredMainTest",
+    target = ":InferredMainTest",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

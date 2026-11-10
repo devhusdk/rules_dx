@@ -2,7 +2,7 @@ load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":jazzer.bzl", "jazzer_target_class")
-load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors")
+load(":kwargs.bzl", "java_entry_class", "java_entry_error", "java_entry_kwargs", "java_javacopts_with_warnings_as_errors", "java_test_main_class")
 
 package(default_visibility = ["//java:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
 
@@ -333,6 +333,21 @@ dx_wrapper_contract_tests(
                 "main_class",
             ),
             {},
+        ),
+        expect_equal(
+            "test forwards explicit main class",
+            java_test_main_class("T", ["T.java"], "java/x", {"main_class": "a.B"}, "R"),
+            "a.B",
+        ),
+        expect_equal(
+            "test forwards runner by default",
+            java_test_main_class("T", ["T.java"], "java/x", {}, "R"),
+            "R",
+        ),
+        expect_equal(
+            "test without testrunner forwards inferred class",
+            java_test_main_class("T", ["T.java"], "java/x", {"use_testrunner": False}, "R"),
+            "x.T",
         ),
         expect_equal(
             "javacopts survive inference",

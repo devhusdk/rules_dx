@@ -128,7 +128,15 @@ Depend on `@rocks//inspect`. `luarocks.lock` is the file `luarocks --pin` writes
 fails the fetch and prints the digest to commit. A module named `x.init` is
 rejected; list it as `x`.
 
-`dx security` and `dx license` read `luarocks.lock`. `dx security` reports the set as uncovered because OSV has no LuaRocks ecosystem; accept it with `--accept uncovered:<set>`. `dx update` does not resolve it.
+`dx security` and `dx license` read `luarocks.lock`. `dx security` reports the set as uncovered because OSV has no LuaRocks ecosystem; accept it with `--accept uncovered:<set>`.
+
+Add `luarocks_lock(name = "lock")` from `@rules_dx//lua/luarocks:defs.bzl` next to
+the lock. `dx update` runs it: it moves the named rocks (all of them for a full
+update) to their newest release in `luarocks.lock`, then rewrites
+`luarocks.digests.json` from the rockspecs and the downloaded sources.
+`dx update --outdated` lists newer releases from `https://luarocks.org/manifest-5.4.json`.
+Only `build.type = "builtin"` rocks with Lua modules are accepted. A `git+` source
+must be a GitHub URL with a `tag`.
 
 Alternatively, pin a pure-Lua package with `http_archive` and
 a `build_file` that declares a `lua_library`:

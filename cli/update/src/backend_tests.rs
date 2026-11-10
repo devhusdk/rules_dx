@@ -805,6 +805,75 @@ fn ansible_update_runs_the_lock_target_per_collection() {
     assert!(error.to_string().contains("add an ansible_lock"));
 }
 
+fn luarocks_set() -> ResolvedSet {
+    ResolvedSet {
+        name: "rocks".to_owned(),
+        ecosystem: Ecosystem::LuaRocks,
+        dir: "lua".to_owned(),
+        manifests: vec!["lua/luarocks.lock".to_owned()],
+        locks: vec![
+            "lua/luarocks.lock".to_owned(),
+            "lua/luarocks.digests.json".to_owned(),
+        ],
+        repository: None,
+    }
+}
+
+#[test]
+fn luarocks_update_runs_the_lock_target_with_the_rocks() {
+    let dir = dx_test_scratch::scratch("luarocks_backend");
+    dx_test_scratch::write(
+        dir.path(),
+        "lua/BUILD.bazel",
+        "luarocks_lock(name = \"lock\")\n",
+    );
+    dx_test_scratch::write(
+        dir.path(),
+        "lua/luarocks.lock",
+        "return {\n   dependencies = {\n      lua = \"5.4\",\n      inspect = \"3.1.3-0\",\n      [\"penlight\"] = \"1.13.1-1\",\n   },\n}\n",
+    );
+    let plan = |request: &Selection, offline: bool| {
+        plan_configured(
+            dir.path(),
+            &luarocks_set(),
+            request,
+            offline,
+            false,
+            &no_head(),
+            &UvClosure::default(),
+        )
+    };
+    let BackendPlan::Run { argv, .. } = plan(&Selection::Full, false).expect("plan") else {
+        panic!("expected a run");
+    };
+    assert_eq!(
+        argv[argv.len() - 4..].join(" "),
+        "//lua:lock -- inspect penlight"
+    );
+    let BackendPlan::Run { argv, .. } =
+        plan(&Selection::Packages(vec!["inspect".to_owned()]), false).expect("plan")
+    else {
+        panic!("expected a run");
+    };
+    assert_eq!(argv[argv.len() - 3..].join(" "), "//lua:lock -- inspect");
+    assert!(matches!(
+        plan(&Selection::Full, true),
+        Err(BackendError::OfflineRequired { .. })
+    ));
+    let bare = dx_test_scratch::scratch("luarocks_backend_bare");
+    let error = plan_configured(
+        bare.path(),
+        &luarocks_set(),
+        &Selection::Full,
+        false,
+        false,
+        &no_head(),
+        &UvClosure::default(),
+    )
+    .expect_err("refused");
+    assert!(error.to_string().contains("add a luarocks_lock"));
+}
+
 fn cabal_set() -> ResolvedSet {
     ResolvedSet {
         name: "hackage".to_owned(),
@@ -1304,21 +1373,6 @@ fn pinned_sets() -> Vec<(ResolvedSet, &'static str, &'static str)> {
             },
             "Pester",
             "PSGallery.lock.json by hand",
-        ),
-        (
-            ResolvedSet {
-                name: "rocks".to_owned(),
-                ecosystem: Ecosystem::LuaRocks,
-                dir: "apps/lua".to_owned(),
-                manifests: vec!["apps/lua/luarocks.lock".to_owned()],
-                locks: vec![
-                    "apps/lua/luarocks.lock".to_owned(),
-                    "apps/lua/luarocks.digests.json".to_owned(),
-                ],
-                repository: None,
-            },
-            "inspect",
-            "edit luarocks.lock and luarocks.digests.json by hand",
         ),
     ]
 }

@@ -600,13 +600,82 @@ fn pinned_selective(set: &ResolvedSet) -> BackendError {
                 "dx does not resolve Swift packages; edit Package.swift and regenerate Package.resolved with `swift package resolve`"
             }
             Ecosystem::LuaRocks => {
-                "dx does not resolve LuaRocks rocks; edit luarocks.lock and luarocks.digests.json by hand"
+                "dx checks no LuaRocks pins; run `dx update` to move them and rewrite luarocks.digests.json"
             }
             _ => {
                 "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
             }
         },
     }
+}
+
+/// Runs the luarocks_lock target once, so the named rocks (all of them for a full update) move to their newest release.
+fn luarocks_plan(
+    workspace: &Path,
+    set: &ResolvedSet,
+    request: &Selection,
+    offline: bool,
+    frozen: bool,
+    head: &dx_process::BazelHead,
+) -> Result<BackendPlan, BackendError> {
+    if offline {
+        return Err(BackendError::OfflineRequired {
+            set: set.name.clone(),
+        });
+    }
+    if frozen {
+        return Err(BackendError::FrozenLocked {
+            set: set.name.clone(),
+        });
+    }
+    let unsupported = |reason: &'static str| BackendError::Unsupported {
+        set: set.name.clone(),
+        reason,
+    };
+    let lock = set
+        .locks
+        .iter()
+        .find(|lock| lock.ends_with("luarocks.lock"))
+        .ok_or_else(|| unsupported("the luarocks.lock tag names no lock"))?;
+    let dir = lock.rsplit_once('/').map_or(".", |(dir, _)| dir);
+    let Some(target) = dependency_sets::target_label_in(workspace, dir, "luarocks_lock") else {
+        return Err(unsupported(
+            "add a luarocks_lock next to luarocks.lock; it rewrites luarocks.lock and luarocks.digests.json from luarocks.org",
+        ));
+    };
+    let names = match request {
+        Selection::Packages(packages) => packages.clone(),
+        Selection::Full => {
+            let text = std::fs::read_to_string(workspace.join(lock))
+                .map_err(|_| unsupported("luarocks.lock cannot be read"))?;
+            luarocks_names(&text)
+        }
+    };
+    if names.is_empty() {
+        return Ok(BackendPlan::Noop);
+    }
+    let mut tail = vec![target.as_str(), "--"];
+    tail.extend(names.iter().map(String::as_str));
+    Ok(BackendPlan::Run {
+        argv: bazel(head, "run", &tail),
+        env: Vec::new(),
+    })
+}
+
+/// The rock names pinned in a luarocks.lock, without `lua`.
+fn luarocks_names(text: &str) -> Vec<String> {
+    text.lines()
+        .filter_map(|line| {
+            let (key, value) = line.split_once('=')?;
+            let value = value.trim().trim_end_matches(',');
+            if !(value.starts_with('"') && value.ends_with('"') && value.len() > 1) {
+                return None;
+            }
+            let key = key.trim().trim_start_matches("[\"").trim_end_matches("\"]");
+            (!key.is_empty() && key != "lua" && !key.contains(char::is_whitespace))
+                .then(|| key.to_owned())
+        })
+        .collect()
 }
 
 /// Runs the ansible_lock target once per collection, so each one moves to its latest Galaxy version.
@@ -787,7 +856,6 @@ pub fn plan_configured(
             | Ecosystem::Dub
             | Ecosystem::Fpm
             | Ecosystem::Zig
-            | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Full,
         ) => Ok(BackendPlan::Noop),
@@ -798,11 +866,15 @@ pub fn plan_configured(
             | Ecosystem::Dub
             | Ecosystem::Fpm
             | Ecosystem::Zig
-            | Ecosystem::LuaRocks
             | Ecosystem::Bicep,
             Selection::Packages(_),
         ) => Err(pinned_selective(set)),
-        (Ecosystem::Ansible, request) => ansible_plan(workspace, set, request, offline, frozen, head),
+        (Ecosystem::Ansible, request) => {
+            ansible_plan(workspace, set, request, offline, frozen, head)
+        }
+        (Ecosystem::LuaRocks, request) => {
+            luarocks_plan(workspace, set, request, offline, frozen, head)
+        }
         (Ecosystem::Hex, _) if is_rebar(set) => Err(BackendError::Unsupported {
             set: set.name.clone(),
             reason: "rebar.lock refresh: #9884",

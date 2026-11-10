@@ -12,6 +12,7 @@
 pub mod cache;
 pub mod compose;
 pub mod footprint;
+pub mod record;
 
 use std::cell::{Ref, RefCell};
 use std::ffi::OsString;
@@ -28,6 +29,12 @@ pub const DEFAULT_HEAP: &str = "1536m";
 pub const PINNED_ENV: &str = "DX_NESTED_BAZEL_PINNED";
 pub const SHIM_ENV: &str = "DX_NESTED_BAZEL_SHIM";
 pub const CPUS: u32 = 2;
+/// The variable naming the cache set of the test; with the network flag it turns on record mode.
+pub const CACHE_SET_ENV: &str = "DX_NESTED_CACHE_SET";
+/// The variable naming the runfiles keys of the checked-in consumer locks, space separated.
+pub const LOCKS_ENV: &str = "DX_NESTED_LOCKS";
+const OUTPUTS_ENV: &str = "TEST_UNDECLARED_OUTPUTS_DIR";
+const RECORD_LOGS: &str = "record-logs";
 /// The variable naming the test's private temp directory; everything the harness writes is below it.
 pub const TMPDIR_ENV: &str = "TEST_TMPDIR";
 /// The `PATH` every nested command gets after the harness `bin` directory.
@@ -87,6 +94,8 @@ pub struct Config {
     pub shim: Option<PathBuf>,
     /// The declared downloads, as sha256 and file, that make up the repository cache.
     pub cache: Vec<(String, PathBuf)>,
+    /// Record mode: the directory that receives the cache set and the locks of this run.
+    pub record: Option<PathBuf>,
 }
 
 impl Config {
@@ -126,13 +135,26 @@ impl Config {
                 cache.push((sha256, resolve(cache::MANIFESTS_ENV, &file)?));
             }
         }
+        let offline = lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty());
+        let record = if offline || text(CACHE_SET_ENV).is_none_or(|set| set.is_empty()) {
+            None
+        } else {
+            let outputs = env_path(lookup, OUTPUTS_ENV).ok_or_else(|| {
+                format!("{OUTPUTS_ENV} is not set; record mode runs only inside a test")
+            })?;
+            if shim.is_none() {
+                return Err(format!("{SHIM_ENV} is not set; record mode needs the native shim"));
+            }
+            Some(outputs.join("nested_cache"))
+        };
         Ok(Config {
             root,
             bazel,
             heap,
-            offline: lookup("DX_NESTED_BAZEL_NETWORK").is_none_or(|v| v.is_empty()),
+            offline,
             shim,
             cache,
+            record,
         })
     }
 }
@@ -290,9 +312,34 @@ pub fn shim_main() -> i32 {
         eprintln!("nested bazel shim: {} names no Bazel", sidecar.display());
         return 2;
     };
+    if let Ok(record) = std::fs::read_to_string(me.with_extension("record"))
+        && let Err(error) = write_record_rc(&record)
+    {
+        eprintln!("nested bazel shim: {error}");
+        return 2;
+    }
     let mut command = Command::new(&program);
     command.args(&args);
     run_shim(command, &program)
+}
+
+/// Writes the rc file of one call from a `.record` sidecar: the rc path, then the log directory.
+fn write_record_rc(record: &str) -> Result<(), String> {
+    let mut lines = record.lines();
+    let (Some(rc), Some(logs)) = (lines.next(), lines.next()) else {
+        return Err("the .record sidecar needs an rc path and a log directory".to_owned());
+    };
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |elapsed| elapsed.as_nanos());
+    let log = Path::new(logs).join(format!("{}-{nanos}.log", std::process::id()));
+    write(
+        Path::new(rc),
+        &format!(
+            "common --experimental_workspace_rules_log_file={}\n",
+            slashed(&log)
+        ),
+    )
 }
 
 #[cfg(unix)]
@@ -404,6 +451,13 @@ pub fn bazelrc(
         ));
         text.push_str("common --lockfile_mode=error\n");
     }
+    if config.record.is_some() {
+        text.push_str("common --lockfile_mode=update\n");
+        text.push_str(&format!(
+            "try-import {}\n",
+            slashed(&record_rc(&config.root))
+        ));
+    }
     text.push_str("common --disk_cache=\n");
     text.push_str("common --remote_cache=\n");
     text.push_str(&format!(
@@ -413,6 +467,10 @@ pub fn bazelrc(
     text.push_str("common --repo_env=BAZEL_HTTP_RULES_URLS_AS_DEFAULT_CANONICAL_ID=0\n");
     text.push_str("build --spawn_strategy=local\n");
     text
+}
+
+fn record_rc(home: &Path) -> PathBuf {
+    home.join("record.rc")
 }
 
 /// Bazel reads a backslash in a bazelrc as an escape, so Windows paths use slashes.
@@ -966,7 +1024,9 @@ impl Server {
         let rc = server.home.join("bazelrc");
         let downloader = server.home.join("downloader.cfg");
         let repository_cache = server.repository_cache();
-        cache::install(&repository_cache, &server.config.cache)?;
+        if server.config.record.is_none() {
+            cache::install(&repository_cache, &server.config.cache)?;
+        }
         write(&downloader, DOWNLOADER)?;
         let registry = dx_testing::rules_dx_source().join("patches");
         write(
@@ -979,6 +1039,15 @@ impl Server {
             Some(shim) => {
                 install_shim(shim, &wrapper)?;
                 write(&wrapper.with_extension("args"), &shim_args(&argv)?)?;
+                if server.config.record.is_some() {
+                    let logs = server.home.join(RECORD_LOGS);
+                    let rc = record_rc(&server.home);
+                    write(&rc, "")?;
+                    write(
+                        &wrapper.with_extension("record"),
+                        &format!("{}\n{}\n", rc.display(), logs.display()),
+                    )?;
+                }
             }
             None if cfg!(unix) => {
                 write(
@@ -1177,6 +1246,7 @@ impl Drop for Server {
 }
 
 const DOWNLOADER: &str = "block *\n";
+const STALE_LOCK: &str = "--lockfile_mode=update";
 const BLOCKED: &str = "Configured URL rewriter blocked all URLs:";
 
 /// Explains a failed offline run whose download the nested downloader blocked.
@@ -1185,6 +1255,12 @@ fn blocked_download(offline: bool, run: &Run) -> Option<String> {
         return None;
     }
     let combined = run.combined();
+    if let Some(line) = combined.lines().find(|line| line.contains(STALE_LOCK)) {
+        return Some(format!(
+            "{}\nthe checked-in consumer lock is stale; regenerate it with `bazel run //tools/testing:nested_cache_update -- <this test's label>`",
+            line.trim()
+        ));
+    }
     let line = combined.lines().find(|line| line.contains(BLOCKED))?;
     Some(format!(
         "{}\nthe URL is not in the test's nested_repository_cache sets; add the set or regenerate its list with `bazel run //tools/testing:nested_cache_update`",
@@ -1234,7 +1310,77 @@ pub fn release() {
         Err(std::sync::TryLockError::Poisoned(poisoned)) => poisoned.into_inner().take(),
         Err(std::sync::TryLockError::WouldBlock) => None,
     };
+    if let Some(server) = &taken
+        && let Err(error) = finish_record(server)
+    {
+        eprintln!("nested bazel: record mode: {error}");
+        std::process::abort();
+    }
     drop(taken);
+}
+
+static RECORDED: Mutex<Vec<(String, PathBuf)>> = Mutex::new(Vec::new());
+
+/// True when the test runs online with a cache set: the run records the set and the locks.
+pub fn recording() -> bool {
+    let set = |name: &str| std::env::var_os(name).is_some_and(|value| !value.is_empty());
+    set("DX_NESTED_BAZEL_NETWORK") && set(CACHE_SET_ENV)
+}
+
+fn read_dir_files(dir: &Path) -> Vec<PathBuf> {
+    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map(|entries| entries.filter_map(|entry| entry.ok().map(|e| e.path())).collect())
+        .unwrap_or_default();
+    files.sort();
+    files
+}
+
+/// Writes the cache set and the locks of a record mode run into the record directory.
+fn finish_record(server: &Server) -> Result<(), String> {
+    let Some(dir) = server.config.record.as_ref() else {
+        return Ok(());
+    };
+    let set = std::env::var(CACHE_SET_ENV).map_err(|error| format!("{CACHE_SET_ENV}: {error}"))?;
+    let roots = std::mem::take(&mut *RECORDED.lock().unwrap_or_else(PoisonError::into_inner));
+    if roots.is_empty() {
+        return Ok(());
+    }
+    let repository_cache = server.repository_cache();
+    let fetched = |sha256: &str| std::fs::read(cache::entry(&repository_cache, sha256)).ok();
+    let mut entries: std::collections::BTreeMap<String, String> = Default::default();
+    let mut locks: std::collections::BTreeMap<String, String> = Default::default();
+    for (stem, root) in &roots {
+        let path = root.join("MODULE.bazel.lock");
+        let lock = std::fs::read_to_string(&path)
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        if locks.get(stem).is_some_and(|seen| *seen != lock) {
+            return Err(format!("the lock {stem} was recorded twice with different content"));
+        }
+        let module_path = root.join("MODULE.bazel");
+        let module = std::fs::read_to_string(&module_path)
+            .map_err(|error| format!("cannot read {}: {error}", module_path.display()))?;
+        for line in cache::list(&lock, &module, &fetched)?.lines() {
+            if let Some((url, sha256)) = line.split_once(' ') {
+                entries.insert(url.to_owned(), sha256.to_owned());
+            }
+        }
+        locks.insert(stem.clone(), lock);
+    }
+    for log in read_dir_files(&server.home.join(RECORD_LOGS)) {
+        let bytes = std::fs::read(&log)
+            .map_err(|error| format!("cannot read {}: {error}", log.display()))?;
+        for (url, sha256) in record::downloads(&bytes) {
+            entries.insert(url, sha256);
+        }
+    }
+    for (stem, lock) in &locks {
+        write(&dir.join(format!("{stem}.MODULE.bazel.lock")), lock)?;
+    }
+    let mut list = String::new();
+    for (url, sha256) in &entries {
+        list.push_str(&format!("{url} {sha256}\n"));
+    }
+    write(&dir.join(format!("{set}.txt")), &list)
 }
 
 type Lease = RefCell<MutexGuard<'static, Option<Server>>>;
@@ -1413,6 +1559,30 @@ pub fn bazel_in(root: &Path, args: &[&str]) -> Run {
 }
 
 impl Case {
+    /// Puts the checked-in lock `stem` into the workspace; in record mode removes it and records the workspace.
+    pub fn use_lock(&self, stem: &str) {
+        if recording() {
+            let _ = std::fs::remove_file(self.root.join("MODULE.bazel.lock"));
+            let mut roots = RECORDED.lock().unwrap_or_else(PoisonError::into_inner);
+            let entry = (stem.to_owned(), self.root.clone());
+            if !roots.contains(&entry) {
+                roots.push(entry);
+            }
+            return;
+        }
+        let name = format!("{stem}.MODULE.bazel.lock");
+        let locks = std::env::var(LOCKS_ENV)
+            .unwrap_or_else(|_| panic!("{LOCKS_ENV} is not set; declare the test with nested_bazel_test(cache = ...)"));
+        for key in locks.split_whitespace() {
+            let path = resolve_runfile(LOCKS_ENV, key).unwrap_or_else(|error| panic!("{error}"));
+            if path.file_name().is_some_and(|file| *file == *name) {
+                self.write("MODULE.bazel.lock", &dx_testing::read_text(&path));
+                return;
+            }
+        }
+        panic!("{LOCKS_ENV} has no {name}");
+    }
+
     /// Seeds this workspace's `MODULE.bazel.lock` with the extension facts of the rules_dx checkout.
     pub fn seed_rules_dx_lock(&self) {
         seed_rules_dx_lock(&self.root, &dx_testing::rules_dx_source());
@@ -1715,6 +1885,7 @@ mod tests {
             offline: false,
             shim: None,
             cache: Vec::new(),
+            record: None,
         }
     }
 
@@ -2561,6 +2732,7 @@ mod portable_tests {
             offline: true,
             shim: None,
             cache: Vec::new(),
+            record: None,
         };
         let argv = wrapper_argv(&config, Path::new("/b/0/u"), Path::new("/b/0/bazelrc"));
         let text = shim_args(&argv).expect("args");

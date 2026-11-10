@@ -1,11 +1,15 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files(
-    [
-        "harness.MODULE.bazel.lock",
-        "harness.txt",
-    ],
+    ["harness.txt"],
     visibility = ["//tools/testing:__pkg__"],
+)
+
+filegroup(
+    name = "harness_locks",
+    testonly = True,
+    srcs = ["harness.MODULE.bazel.lock"],
+    visibility = ["//visibility:public"],
 )
 
 real_source_target(

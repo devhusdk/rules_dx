@@ -111,7 +111,7 @@ tools/dx docs //lib:site
 | Protobuf | `@rules_dx//tools/docs/protobuf:defs.bzl` | `protobuf_doc_shard` | `proto`, `package` |
 | Avro | `@rules_dx//tools/docs/avro:defs.bzl` | `avro_doc_shard` | `avro`, `package` |
 
-Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Zig, Dart, C#, F# and Perl libraries in scope that have
+Rust, Go, Python, C, C++, CUDA, Fortran, Java, Kotlin, Scala, D, Haskell, Zig, Dart, C#, F#, Perl and PHP libraries in scope that have
 no shard get one automatically. A C# library needs `nullable = "disable"` and
 an F# library needs `generate_documentation_file = True`; others are skipped. A `javascript_library` of `.js`, `.mjs`, `.cjs` or `.jsx` files gets one when its package has exactly one `tsconfig.json` with `allowJs` among its sources.
 

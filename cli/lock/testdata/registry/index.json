@@ -1,0 +1,29 @@
+{
+  "packages": {
+    "alpha": {
+      "version": "1.2.0",
+      "archive": "alpha-1.2.0.pkg",
+      "deps": ["vendor/beta"],
+      "provides": ["alpha", "alpha/util"]
+    },
+    "vendor/beta": {
+      "version": "0.4.1",
+      "archive": "beta-0.4.1.pkg",
+      "deps": [],
+      "provides": ["beta"]
+    },
+    "gamma": {
+      "version": "3.0.0",
+      "archive": "gamma-3.0.0.pkg",
+      "sha256": "95bb4648507dbe41a2f66f43e1cde2d385a5867afd5671b4ebba341613548ec4",
+      "deps": ["vendor/beta"],
+      "provides": ["gamma"]
+    },
+    "delta": {
+      "version": "2.0.0",
+      "archive": "delta-2.0.0.pkg",
+      "deps": [],
+      "provides": ["delta"]
+    }
+  }
+}

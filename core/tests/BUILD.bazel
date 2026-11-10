@@ -15,6 +15,7 @@ load(":execution_tests.bzl", "fixture_execution_tests")
 load(":fuzz_tests.bzl", "fuzz_binary_tests")
 load(":harness_link_tests.bzl", "harness_link_tests")
 load(":license_tests.bzl", "license_tests")
+load(":lock_hub_tests.bzl", "lock_hub_tests")
 load(":packaging_tests.bzl", "packaging_unit_tests")
 load(":pins_tests.bzl", "pins_tests")
 load(":platform_tests.bzl", "platform_probe_tests")
@@ -88,6 +89,8 @@ arithmetic_load_tests(name = "arithmetic_load")
 cells_tests(name = "cells")
 
 pins_tests(name = "pins")
+
+lock_hub_tests(name = "lock_hub")
 
 entry_tests(name = "entry")
 
@@ -265,6 +268,7 @@ real_source_target(
         "execution_tests.bzl",
         "fuzz_tests.bzl",
         "license_tests.bzl",
+        "lock_hub_tests.bzl",
         "packaging_tests.bzl",
         "pins_tests.bzl",
         "repo_tests.bzl",

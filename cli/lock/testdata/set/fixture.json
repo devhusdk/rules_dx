@@ -1,0 +1,4 @@
+{
+  "require": ["alpha"],
+  "dev": ["gamma"]
+}

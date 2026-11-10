@@ -282,6 +282,7 @@ exports_files([
     "python.bzl",
     "families.json",
     "langs.bzl",
+    "lock.schema.json",
     "python_budget.json",
     "versions.bzl",
 ])

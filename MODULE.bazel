@@ -2194,6 +2194,7 @@ crate.from_cargo(
         "//tools/repin_all:Cargo.toml",
         "//cli/gomod:Cargo.toml",
         "//cli/archive:Cargo.toml",
+        "//cli/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",

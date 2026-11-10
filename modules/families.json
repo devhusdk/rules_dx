@@ -357,6 +357,7 @@
         "//quality/artifacts:extension.bzl%dx_tools",
         "//ruby/coverage:extensions.bzl%ruby_coverage",
         "//ruby/toolchain:extensions.bzl%ruby_tools",
+        "//ruby:extensions.bzl%ruby",
         "//swift/toolchain:extensions.bzl%swift_format_macos",
         "//swift/toolchain:extensions.bzl%swift_host",
         "//third_party/dotnet:extension.bzl%paket",

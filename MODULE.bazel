@@ -854,8 +854,10 @@ use_repo(
 )
 
 # The pinned Ruby is declared in families/ruby; deploy tests read its files.
-ruby = use_extension("//ruby:extensions.bzl", "ruby", dev_dependency = True)
-use_repo(ruby, "bundle", "ruby", "ruby_toolchains")
+use_extension("//ruby:extensions.bzl", "ruby")
+
+ruby_dev = use_extension("//ruby:extensions.bzl", "ruby", dev_dependency = True)
+use_repo(ruby_dev, "bundle", "ruby", "ruby_toolchains")
 
 # floor: equals tested
 bazel_dep(name = "rules_zig", version = "0.17.0")

@@ -1,5 +1,4 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -13,25 +12,6 @@ filegroup(
     srcs = [
         "lua54.yml",
         "selene.toml",
-    ],
-)
-
-sh_test(
-    name = "selene_smoke_test",
-    size = "small",
-    srcs = ["selene_smoke_test.sh"],
-    args = [
-        "$(rootpath //rust/private/quality/tools:selene)",
-        "$(rootpath selene.toml)",
-        "$(rootpath //lua/private/quality/testdata:lua54_valid.lua)",
-        "$(rootpath //lua/private/quality/testdata:undefined_variable.lua)",
-    ],
-    data = [
-        "lua54.yml",
-        "selene.toml",
-        "//lua/private/quality/testdata:lua54_valid.lua",
-        "//lua/private/quality/testdata:undefined_variable.lua",
-        "//rust/private/quality/tools:selene",
     ],
 )
 

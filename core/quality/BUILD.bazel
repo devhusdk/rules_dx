@@ -868,7 +868,11 @@ rust_test(
 rust_test(
     name = "core_load_graph_test",
     srcs = ["core_load_graph_test.rs"],
-    data = ["//:MODULE.bazel"],
+    data = [
+        "//:MODULE.bazel",
+        "//config:BUILD.bazel",
+        "real_aspect_labels.bzl",
+    ] + glob(["families/*.bzl"]),
     tags = [
         "external",
         "no-remote-exec",

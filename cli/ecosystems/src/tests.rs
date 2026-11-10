@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn shipped_table_has_every_ecosystem() {
-    assert_eq!(rows().len(), 24);
+    assert_eq!(rows().len(), 23);
     assert_eq!(rows().len(), Ecosystem::ALL.len());
 }
 
@@ -154,7 +154,7 @@ fn every_language_row_is_complete() {
         assert_eq!(Language::parse(language.name()), Some(language));
         assert!(!language.directory().is_empty(), "{language:?} has no row");
         assert!(
-            !language.ecosystems().is_empty(),
+            language == Language::Cc || !language.ecosystems().is_empty(),
             "{language:?} lists no ecosystem"
         );
     }
@@ -186,7 +186,6 @@ fn language_columns_resolve() {
 
 #[test]
 fn manifest_columns_resolve() {
-    assert_eq!(Ecosystem::Conan.alt_manifests(), ["conanfile.py"]);
     assert_eq!(Ecosystem::Dub.alt_manifests(), ["dub.sdl"]);
     assert_eq!(Ecosystem::Hex.alt_manifests(), ["rebar.config"]);
     assert!(Ecosystem::Uv.alt_manifests().is_empty());

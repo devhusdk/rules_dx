@@ -16,7 +16,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | --- | --- | --- | --- | --- |
 | Astro | none | `npm` | n/a | n/a |
 | Avro | none | none: schemas only, no packages | n/a | n/a |
-| C and C++ | none | `conan` (pinned, no advisories); none for `vcpkg.json`: conan is the supported manager, there is no vcpkg set | `cc_bench` | `cc_fuzz_test` |
+| C and C++ | none | none for `vcpkg.json`: there is no vcpkg set | `cc_bench` | `cc_fuzz_test` |
 | C# | none | `nuget` | `csharp_bench` | `csharp_fuzz_test` |
 | CUDA | `macos_arm64`: NVIDIA ships no CUDA toolkit for macOS | none: the CUDA toolkit is a pinned download | n/a | n/a |
 | D | none | `dub` (pinned, no advisories) | `d_bench` | `d_fuzz_test` |

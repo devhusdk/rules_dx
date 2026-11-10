@@ -101,7 +101,6 @@ pub(super) fn purl(package: &LicensedPackage) -> String {
         "hex" => "hex",
         "pub" => "pub",
         "cpan" => "cpan",
-        "conan" => "conan",
         BAZEL_SET => "generic",
         _ => "generic",
     };

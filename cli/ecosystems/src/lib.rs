@@ -12,7 +12,7 @@ use std::sync::OnceLock;
 
 use serde::Deserialize;
 
-pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, zig, luarocks, ansible, bicep";
+pub const SUPPORTED_ECOSYSTEMS: &str = "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, zig, luarocks, ansible, bicep";
 
 const TABLE: &str = include_str!("../ecosystems.json");
 const LANGUAGES: &str = include_str!("../languages.json");
@@ -230,7 +230,6 @@ pub enum Ecosystem {
     Go,
     Cpan,
     Pub,
-    Conan,
     Julia,
     Hex,
     Composer,
@@ -246,7 +245,7 @@ pub enum Ecosystem {
 }
 
 impl Ecosystem {
-    pub const ALL: [Ecosystem; 24] = [
+    pub const ALL: [Ecosystem; 23] = [
         Ecosystem::Uv,
         Ecosystem::Npm,
         Ecosystem::Bazel,
@@ -258,7 +257,6 @@ impl Ecosystem {
         Ecosystem::Go,
         Ecosystem::Cpan,
         Ecosystem::Pub,
-        Ecosystem::Conan,
         Ecosystem::Julia,
         Ecosystem::Hex,
         Ecosystem::Composer,

@@ -1594,48 +1594,6 @@ fn package_lock_skips_workspace_link_sources() {
 }
 
 #[test]
-fn conan_lock_lists_requires_without_revisions() {
-    let text = r#"{
-        "version": "0.5",
-        "requires": [
-            "zlib/1.3.1#aaa%1700000000.1",
-            "openssl/3.2.0@user/stable#bbb",
-            "zlib/1.3.1#ccc"
-        ],
-        "build_requires": ["cmake/3.28.1#ddd%1"],
-        "python_requires": []
-    }"#;
-    let packages = parse_conan_lock(text).expect("parses");
-    let pairs: Vec<_> = packages
-        .iter()
-        .map(|p| (p.set.as_str(), p.name.as_str(), p.version.as_str()))
-        .collect();
-    assert_eq!(
-        pairs,
-        [
-            ("conan", "cmake", "3.28.1"),
-            ("conan", "openssl", "3.2.0"),
-            ("conan", "zlib", "1.3.1"),
-        ]
-    );
-}
-
-#[test]
-fn conan_lock_rejects_malformed_input() {
-    for text in [
-        "not json",
-        "[]",
-        "{}",
-        r#"{"requires": "zlib/1.0"}"#,
-        r#"{"requires": [1]}"#,
-        r#"{"requires": ["zlib"]}"#,
-        r#"{"requires": ["/1.0"]}"#,
-    ] {
-        assert!(parse_conan_lock(text).is_err(), "{text}");
-    }
-}
-
-#[test]
 fn fpm_lock_lists_dependency_versions() {
     let text = "[dependencies.zeta]\nversion = \"1.2.0\"\nurl = \"https://x/z.tar.gz\"\nsha256 = \"ab\"\n\n[dependencies.alpha]\nversion = \"0.1.0\"\n";
     let packages = parse_fpm_lock(text).expect("parses");

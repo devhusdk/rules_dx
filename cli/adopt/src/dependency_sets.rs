@@ -29,10 +29,6 @@ pub const PUBSPEC_YAML: &str = "pubspec.yaml";
 
 pub const PUBSPEC_LOCK: &str = "pubspec.lock";
 
-const CONANFILES: [&str; 2] = ["conanfile.txt", "conanfile.py"];
-
-pub const CONAN_LOCK: &str = "conan.lock";
-
 pub const PROJECT_TOML: &str = "Project.toml";
 
 pub const JULIA_MANIFEST: &str = "Manifest.toml";
@@ -522,26 +518,6 @@ pub fn discover(
                 Ecosystem::Bicep,
                 vec![MODULE_BAZEL.to_owned()],
                 Vec::new(),
-            )?);
-        }
-        for label in module.conan_extensions() {
-            let bzl = dx_module_bazel::label_path(label)
-                .map_err(|detail| DependencySetsError::Module { detail })?;
-            let dir = manifest_dir(std::slice::from_ref(&bzl));
-            let parent = manifest_dir(std::slice::from_ref(&dir));
-            let found = [&dir, &parent].into_iter().find_map(|folder| {
-                CONANFILES
-                    .iter()
-                    .map(|file| in_dir(folder, file))
-                    .find(|candidate| read(candidate).is_ok())
-            });
-            let manifest = found.unwrap_or_else(|| in_dir(&dir, CONANFILES[0]));
-            let lock = in_dir(&manifest_dir(std::slice::from_ref(&manifest)), CONAN_LOCK);
-            sets.push(hub_set(
-                Ecosystem::Conan.name(),
-                Ecosystem::Conan,
-                vec![manifest],
-                vec![lock],
             )?);
         }
         for julia in module.julia_manifests().map_err(hub)? {

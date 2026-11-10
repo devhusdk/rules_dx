@@ -579,22 +579,6 @@ fn the_repos_own_dart_hub_becomes_a_pub_set() {
 }
 
 #[test]
-fn conan_extensions_become_conan_sets() {
-    let module = "conan = use_extension(\"//build/conan:conan_deps_module_extension.bzl\", \"conan_extension\")\n";
-    let read = |path: &str| match path {
-        "build/conanfile.py" => Ok(String::new()),
-        _ => Err("none".to_owned()),
-    };
-    let registry = discover(module, &read)
-        .expect("discovers")
-        .expect("registry");
-    let set = registry.find("conan").expect("set");
-    assert_eq!(set.ecosystem, Ecosystem::Conan);
-    assert_eq!(set.manifests, ["build/conanfile.py"]);
-    assert_eq!(set.locks, ["build/conan.lock"]);
-}
-
-#[test]
 fn bundle_fetches_become_ruby_sets() {
     let module = "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\n";
     let registry = found(module, &[]);
@@ -1127,7 +1111,7 @@ fn npm_sets_load_under_their_own_names() {
     assert_eq!(Ecosystem::Npm.supported_audit(), "audit");
     assert_eq!(
         SUPPORTED_ECOSYSTEMS,
-        "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, conan, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, zig, luarocks, ansible, bicep"
+        "uv, npm, bazel, ruby, powershell, cargo, maven, nuget, go, cpan, pub, julia, hex, composer, opam, swiftpm, cabal, dub, fpm, zig, luarocks, ansible, bicep"
     );
 }
 

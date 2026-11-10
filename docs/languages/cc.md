@@ -106,15 +106,15 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Ecosystems
 
-- conan
+None.
 
 Manifests:
 
-- `conanfile.txt`
+None.
 
 Lockfiles:
 
-- `conan.lock`
+None.
 
 ## Platforms
 

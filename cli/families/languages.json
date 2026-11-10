@@ -842,6 +842,21 @@
             "real_lua_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "luarocks",
+            "extension": "@rules_dx//lua/luarocks:extensions.bzl",
+            "hub": "luarocks",
+            "imports": "name",
+            "lock": "luarocks.lock",
+            "manifest": "*.rockspec",
+            "resolver": null,
+            "state": null,
+            "tag": "lock"
+          }
+        ]
       }
     },
     {
@@ -1502,6 +1517,21 @@
             "real_zig_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "zig",
+            "extension": "@rules_dx//zig:extensions.bzl",
+            "hub": "zig_deps",
+            "imports": "name",
+            "lock": "build.zig.zon",
+            "manifest": "build.zig.zon",
+            "resolver": null,
+            "state": null,
+            "tag": "lock"
+          }
+        ]
       }
     }
   ]

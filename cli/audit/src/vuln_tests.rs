@@ -1677,7 +1677,6 @@ fn exact_scope_round_trips_for_every_set() {
         ("packagist", "1.2.3"),
         ("hackage", "1.2.3"),
         ("cpan", "1.23"),
-        ("conan", "1.2.3"),
         ("other", "abc-1"),
     ] {
         let scope = exact_scope(set, version);

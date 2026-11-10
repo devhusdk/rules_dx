@@ -207,7 +207,7 @@ fn is_full_version(text: &str) -> bool {
         && c.chars().next().is_some_and(|c| c.is_ascii_digit())
 }
 
-/// Settles the grammars semver does not model: Maven, NuGet, RubyGems, Conan, PEP 440.
+/// Settles the grammars semver does not model: Maven, NuGet, RubyGems, PEP 440.
 pub(crate) fn satisfies_non_semver(spec: &str, locked: &str) -> bool {
     let mut s = normalize(spec);
     let locked_norm = strip_v_prefix(locked.trim());

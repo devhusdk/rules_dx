@@ -3,17 +3,11 @@
   "name": "cc",
   "title": "C and C++",
   "family": "core",
-  "ecosystems": [
-    "conan"
-  ],
+  "ecosystems": [],
   "depcheck": "cc",
   "semver": false,
-  "manifests": [
-    "conanfile.txt"
-  ],
-  "lockfiles": [
-    "conan.lock"
-  ],
+  "manifests": [],
+  "lockfiles": [],
   "tools": [
     "clang_format",
     "clang_syntax",

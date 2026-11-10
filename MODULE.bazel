@@ -5,23 +5,7 @@ module(
 )
 
 # floor: equals tested; patched (#2283, #3736)
-bazel_dep(name = "rules_rust", version = "0.75.0")
-single_version_override(
-    module_name = "rules_rust",
-    patch_strip = 1,
-    patches = [
-        "//patches/rules_rust:clippy_metadata_inputs.patch",
-        "//patches/rules_rust:pipelined_rmeta_path.patch",
-        "//patches/rules_rust:crate_universe_root_lookup.patch",
-        "//patches/rules_rust:exec_cc_toolchain_env.patch",
-        "//patches/rules_rust:msvc_pdb_output.patch",
-        "//patches/rules_rust:rust_lld_msvc_libpath.patch",
-        "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
-        "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
-        "//patches/rules_rust:exec_scope_universal.patch",
-    ],
-    version = "0.75.0",
-)
+bazel_dep(name = "rules_rust", version = "0.75.0.dx.1")
 
 # floor: equals tested
 bazel_dep(name = "rules_rust_wasm_bindgen", version = "0.75.0")

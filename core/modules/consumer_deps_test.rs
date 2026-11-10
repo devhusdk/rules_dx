@@ -111,13 +111,21 @@ fn violations(source: &str, table: &Table) -> Vec<String> {
     for family in SAME_FLOOR {
         let floors: Vec<&str> = family
             .iter()
-            .filter_map(|name| table.get(*name).map(|(floor, _)| floor.as_str()))
+            .filter_map(|name| table.get(*name).map(|(floor, _)| base_version(floor)))
             .collect();
         if floors.windows(2).any(|pair| pair[0] != pair[1]) {
             problems.push(format!("{family:?} must share one floor, got {floors:?}"));
         }
     }
     problems
+}
+
+/// The version without a `.dx.<digits>` registry suffix.
+fn base_version(version: &str) -> &str {
+    match version.rsplit_once(".dx.") {
+        Some((base, _)) if is_registry_patched(version) => base,
+        _ => version,
+    }
 }
 
 /// A version ending in `.dx.<digits>` is served by the rules_dx registry and needs no override.

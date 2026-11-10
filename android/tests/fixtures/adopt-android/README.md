@@ -51,7 +51,7 @@ Remove any `rules_android` override you added earlier; rules_dx now
 needs no `rules_android` patch.
 
 ```python
-bazel_dep(name = "rules_rust", version = "0.75.0")
+bazel_dep(name = "rules_rust", version = "0.75.0.dx.1")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(

@@ -67,7 +67,7 @@ Targets default to Rust edition 2024. Set `edition` on a target to build it with
 Add the Wasm triples for browser and WASI builds to your root `MODULE.bazel`:
 
 ```python
-bazel_dep(name = "rules_rust", version = "0.75.0")
+bazel_dep(name = "rules_rust", version = "0.75.0.dx.1")
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
 rust.toolchain(

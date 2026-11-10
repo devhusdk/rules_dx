@@ -15,6 +15,7 @@ exports_files([
     "kwargs.bzl",
     "proto.bzl",
     "sharpfuzz.bzl",
+    "sharpfuzz_check.bzl",
 ])
 
 dx_wrapper_contract_tests(
@@ -147,6 +148,7 @@ real_source_target(
         "defs.bzl",
         "kwargs.bzl",
         "sharpfuzz.bzl",
+        "sharpfuzz_check.bzl",
     ],
     tags = ["corpus"],
 )

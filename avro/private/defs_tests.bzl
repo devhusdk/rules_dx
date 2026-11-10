@@ -42,5 +42,5 @@ def avro_library_tests(name):
     avro_library(name = name + "_wrong", srcs = ["testdata/wrong.txt"], tags = ["manual"])
     _extension_test(name = name + "_extension_test", target_under_test = ":" + name + "_wrong")
     dx_missing_avro_cpp(name = name + "_missing", tags = ["manual"])
-    _missing_test(name = name + "_missing_test", target_under_test = ":" + name + "_missing")
+    _missing_test(name = name + "_missing_test", target_under_test = ":" + name + "_missing", size = "small")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_extension_test", ":" + name + "_missing_test"])

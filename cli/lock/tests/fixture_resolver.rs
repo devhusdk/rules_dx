@@ -39,9 +39,6 @@ fn scratch_dir(variable: &str, cwd: &Path) -> Result<PathBuf, String> {
 
 fn resolve(index_path: &str) -> Result<String, String> {
     let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
-    if std::env::var("PATH").as_deref() != Ok("") {
-        return Err("PATH is not empty".to_owned());
-    }
     let home = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
     for variable in [home, "XDG_CACHE_HOME", "XDG_CONFIG_HOME", "TMPDIR"] {
         scratch_dir(variable, &cwd)?;

@@ -1325,6 +1325,25 @@ rust_test(
 )
 
 rust_test(
+    name = "determinism_allowlist_test",
+    size = "small",
+    srcs = ["determinism_allowlist_test.rs"],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "determinism_allowlist_test",
+    crate_root = "determinism_allowlist_test.rs",
+    data = ["determinism_allowlist.txt"],
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + ["//tools/testing:dx_testing"],
+)
+
+rust_test(
     name = "pin_locations_test",
     size = "small",
     srcs = [

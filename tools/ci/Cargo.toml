@@ -98,6 +98,10 @@ name = "host_env_test"
 path = "host_env_test.rs"
 
 [[test]]
+name = "determinism_allowlist_test"
+path = "determinism_allowlist_test.rs"
+
+[[test]]
 name = "host_program_test"
 path = "host_program_test.rs"
 

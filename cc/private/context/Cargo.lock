@@ -2096,6 +2096,7 @@ dependencies = [
 name = "dx_testing"
 version = "0.0.0"
 dependencies = [
+ "ruzstd 0.9.1",
  "serde_json",
  "sha2",
  "tempfile",

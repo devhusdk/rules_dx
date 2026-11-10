@@ -1,5 +1,5 @@
 {
-  "checksum": "f03ea0a17572b843581c352fa41109bec5a431ea2ce5fd1d54212146ae5d985f",
+  "checksum": "e870785ba00a64f408e4cbea87a9e17fcb72241dfad92aacd2d6664215335bfa",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -9249,6 +9249,10 @@
       "common_attrs": {
         "deps": {
           "common": [
+            {
+              "id": "ruzstd 0.9.1",
+              "target": "ruzstd"
+            },
             {
               "id": "serde_json 1.0.151",
               "target": "serde_json"

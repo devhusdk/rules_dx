@@ -28,6 +28,17 @@ const EXEMPT: &[&str] = &[
     "core/quality/tiers/vale/styles/",
 ];
 
+const READ_WITHOUT_TIER_BASE: &[&str] = &[
+    "clippy",
+    "deadnix",
+    "gitleaks",
+    "gopls",
+    "julialint",
+    "prettier",
+    "tsconfig",
+    "zanuda",
+];
+
 fn paths(env: &str) -> BTreeSet<String> {
     std::env::var(env)
         .unwrap_or_else(|_| panic!("{env} must list runfiles"))
@@ -106,13 +117,19 @@ fn every_tool_with_a_tier_base_has_a_tier_dir() {
     let mut id = String::new();
     let mut dir = String::new();
     let mut missing = Vec::new();
+    let mut read: BTreeSet<String> = READ_WITHOUT_TIER_BASE
+        .iter()
+        .map(|dir| (*dir).to_owned())
+        .collect();
     for line in configs.lines().map(str::trim) {
         if let Some(value) = line.strip_prefix("id: \"") {
             id = value.trim_end_matches("\",").to_owned();
+            dir.clear();
         } else if let Some(value) = line.strip_prefix("tier_dir: \"") {
             dir = value.trim_end_matches("\",").to_owned();
         } else if line == "tier_base: true," {
             let dir = if dir.is_empty() { &id } else { &dir };
+            read.insert(dir.clone());
             let prefix = format!("core/quality/tiers/{dir}/");
             if !files.iter().any(|path| path.starts_with(&prefix)) {
                 missing.push(id.clone());
@@ -122,5 +139,15 @@ fn every_tool_with_a_tier_base_has_a_tier_dir() {
     assert!(
         missing.is_empty(),
         "tools with config metadata need a core/quality/tiers/<tool>/ dir: {missing:?}"
+    );
+
+    let dirs: BTreeSet<&str> = files
+        .iter()
+        .filter_map(|path| path.strip_prefix("core/quality/tiers/")?.split('/').next())
+        .collect();
+    let unread: Vec<&&str> = dirs.iter().filter(|dir| !read.contains(**dir)).collect();
+    assert!(
+        unread.is_empty(),
+        "tier dirs need a tier_base tool or an entry in READ_WITHOUT_TIER_BASE: {unread:?}"
     );
 }

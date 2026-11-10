@@ -2,12 +2,6 @@ _ID_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"
 
 _DIGITS = "0123456789"
 
-def bundle_platform_errors(kind, platforms, allowed):
-    """Returns one error string unless platforms holds exactly one allowed value."""
-    if len(platforms) != 1 or platforms[0] not in allowed:
-        return [kind + ": platforms takes one of " + ", ".join(allowed)]
-    return []
-
 def bundle_id_errors(kind, bundle_id):
     """Returns one error string when the bundle identifier leaves reverse-DNS."""
     if bundle_id == "":

@@ -1,8 +1,7 @@
 """Rust iOS library pin and selection coverage."""
 
 load("@rules_dx//libs/starlark:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load("//bundle:validate.bzl", "bundle_platform_errors")
-load(":defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "cell_settings", "deployment_env", "framework_linkopts", "ios_platforms", "platform_for", "split_platform")
+load(":defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "cell_settings", "deployment_env", "framework_linkopts", "ios_platform_errors", "ios_platforms", "platform_for", "platform_slice", "split_platform")
 load(":validate.bzl", "ios_arch_errors", "ios_arches", "ios_config_errors", "ios_default_config", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_framework_errors", "ios_sdk_errors", "ios_sdk_for", "ios_triple_errors", "ios_triple_for", "ios_xcode_errors")
 
 _IOS_DEVICE = Label("@apple_support//platforms:ios_arm64")
@@ -71,19 +70,19 @@ def _ios_checks():
     checks.append(expect_equal("simulator x86_64 triple", ios_triple_for("simulator", "x86_64"), "x86_64-apple-ios"))
     checks.append(expect_equal("device x86_64 triple is empty", ios_triple_for("device", "x86_64"), ""))
     checks.append(expect_equal("unknown environment triple is empty", ios_triple_for("watch", "arm64"), ""))
-    checks.append(expect_equal("device platform splits", split_platform(["device/arm64"]), ("device", "arm64")))
-    checks.append(expect_equal("simulator x86_64 platform splits", split_platform(["simulator/x86_64"]), ("simulator", "x86_64")))
-    checks.append(expect_equal("empty platforms split to nothing", split_platform([]), ("", "")))
-    checks.append(expect_equal("two platforms split to nothing", split_platform(["device/arm64", "simulator/arm64"]), ("", "")))
-    checks.append(expect_equal("unknown platform splits to nothing", split_platform(["watch/arm64"]), ("", "")))
-    checks.append(expect_equal("one platform is clean", bundle_platform_errors("apple_ios_lib", ["device/arm64"], ios_platforms()), []))
+    checks.append(expect_equal("device platform splits", split_platform("device/arm64"), ("device", "arm64")))
+    checks.append(expect_equal("simulator x86_64 platform splits", split_platform("simulator/x86_64"), ("simulator", "x86_64")))
+    checks.append(expect_equal("empty platform splits to nothing", split_platform(""), ("", "")))
+    checks.append(expect_equal("unknown platform splits to nothing", split_platform("watch/arm64"), ("", "")))
+    checks.append(expect_equal("device label names its slice", platform_slice(_IOS_DEVICE), "device/arm64"))
+    checks.append(expect_equal("simulator label names its slice", platform_slice(_IOS_SIM), "simulator/arm64"))
+    checks.append(expect_equal("macos label has no slice", platform_slice(_MACOS), ""))
+    checks.append(expect_equal("supported platform is clean", ios_platform_errors("apple_ios_lib", "device"), []))
     checks.append(expect_equal(
-        "empty platforms fail",
-        bundle_platform_errors("apple_ios_lib", [], ios_platforms()),
-        ["apple_ios_lib: platforms takes one of device/arm64, simulator/arm64, simulator/x86_64"],
+        "unsupported platform fails",
+        ios_platform_errors("apple_ios_lib", ""),
+        ["apple_ios_lib: platform takes one of " + ", ".join([str(_IOS_DEVICE), str(_IOS_SIM), str(_IOS_X86)])],
     ))
-    checks.append(expect_equal("two platforms fail", len(bundle_platform_errors("apple_ios_lib", ["device/arm64", "simulator/arm64"], ios_platforms())), 1))
-    checks.append(expect_equal("unknown platform fails", len(bundle_platform_errors("apple_ios_lib", ["watch/arm64"], ios_platforms())), 1))
     checks.append(expect_equal(
         "missing environment fails",
         ios_environment_errors(""),

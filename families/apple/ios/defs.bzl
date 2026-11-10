@@ -4,7 +4,6 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_rust//rust:defs.bzl", "rust_static_library")
 load("//bundle:defs.bzl", "archives", "check_cell", "display", "resolved_xcode")
-load("//bundle:validate.bzl", "bundle_platform_errors")
 load("//provisioning:defs.bzl", _deployment_floor = "deployment_floor")
 load("//provisioning:validate.bzl", _version_below = "provisioning_version_below")
 load(":cell.bzl", "APPLE_HOSTS", "CELL_ATTRS", "MACH_O_PLATFORMS", "ios_platform", "target_cell")
@@ -39,12 +38,31 @@ def ios_platforms():
     """Returns the supported iOS platform names, such as device/arm64."""
     return sorted(_PLATFORMS.keys())
 
-def split_platform(platforms):
-    """Returns the environment and arch of a one-entry platforms list, or empty strings."""
-    if len(platforms) != 1 or platforms[0] not in _PLATFORMS:
+def platform_slice(platform):
+    """Returns the environment/arch name of an iOS platform Label, or an empty string."""
+    for key, label in _PLATFORMS.items():
+        if label == platform:
+            return key
+    return ""
+
+def ios_slice(platform):
+    """Returns the environment/arch name of a platform label given to a macro, or an empty string."""
+    if platform == None:
+        return ""
+    return platform_slice(native.package_relative_label(platform))
+
+def split_platform(slice):
+    """Returns the environment and arch of an environment/arch name, or empty strings."""
+    if slice not in _PLATFORMS:
         return ("", "")
-    parts = platforms[0].split("/")
+    parts = slice.split("/")
     return (parts[0], parts[1])
+
+def ios_platform_errors(kind, environment):
+    """Returns one error string when the platform label is not a supported iOS platform."""
+    if environment != "":
+        return []
+    return [kind + ": platform takes one of " + ", ".join([str(_PLATFORMS[key]) for key in ios_platforms()])]
 
 def _label(value):
     return value if type(value) == "Label" else Label(value)
@@ -79,7 +97,7 @@ def deployment_env(environment, deployment):
     return {"IPHONEOS_DEPLOYMENT_TARGET": deployment if deployment != "" else _deployment_floor(ios_sdk_for(environment))}
 
 def _ios_lib_selection_impl(ctx):
-    selected = bundle_platform_errors("apple_ios_lib", list(ctx.attr.platforms), ios_platforms())
+    selected = ios_platform_errors("apple_ios_lib", ctx.attr.environment)
     if len(selected) > 0:
         fail("; ".join(selected))
     failures = ios_config_errors(struct(
@@ -119,10 +137,6 @@ _ios_lib_selection = rule(
         ),
         "frameworks": attr.string_list(
             doc = "Apple frameworks the Rust iOS library links against.",
-            mandatory = True,
-        ),
-        "platforms": attr.string_list(
-            doc = "The one environment/arch platform the library is built for.",
             mandatory = True,
         ),
         "rustc_flags": attr.string_list(
@@ -322,7 +336,7 @@ def apple_ios_lib(
         crate_name = None,
         edition = None,
         hdrs = [],
-        platforms = [],
+        platform = None,
         triple = "",
         sdk = "",
         deployment = "",
@@ -334,11 +348,10 @@ def apple_ios_lib(
         testonly = False,
         visibility = None):
     """Builds one Rust static library for one iOS device or simulator cell and checks its Mach-O."""
-    environment, arch = split_platform(platforms)
+    environment, arch = split_platform(ios_slice(platform))
     _ios_lib_selection(
         name = name + "_selection",
         arch = arch,
-        platforms = platforms,
         crate_features = crate_features,
         deployment = deployment,
         environment = environment,

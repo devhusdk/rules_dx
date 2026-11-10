@@ -11,7 +11,6 @@ load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dx//libs/starlark:resources.bzl", "dx_heavy_resources")
 load("//bundle:defs.bzl", "SIGNING_CERTIFICATE", "TOOL_PATH", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
-load("//bundle:validate.bzl", "bundle_platform_errors")
 load(
     ":cell.bzl",
     "APPLE_HOSTS",
@@ -21,7 +20,7 @@ load(
     "ios_platform",
     "target_cell",
 )
-load(":defs.bzl", "AppleIosLibInfo", "ios_platforms", "split_platform")
+load(":defs.bzl", "AppleIosLibInfo", "ios_platform_errors", "ios_slice", "split_platform")
 load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
 
@@ -70,7 +69,7 @@ _FRAMEWORK_INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 def _app_selection_impl(ctx):
-    selected = bundle_platform_errors("apple_ios_app", list(ctx.attr.platforms), ios_platforms())
+    selected = ios_platform_errors("apple_ios_app", ctx.attr.environment)
     if len(selected) > 0:
         fail("; ".join(selected))
     failures = ios_app_errors(struct(
@@ -111,10 +110,6 @@ _app_selection = rule(
         ),
         "entry": attr.string(
             doc = "Label text of the Swift @main module, or empty.",
-            mandatory = True,
-        ),
-        "platforms": attr.string_list(
-            doc = "The one environment/arch platform the app is built for.",
             mandatory = True,
         ),
         "environment": attr.string(
@@ -388,7 +383,7 @@ def apple_ios_app(
         srcs = None,
         hdrs = [],
         deps = None,
-        platforms = [],
+        platform = None,
         bundle_id = "",
         version = "",
         deployment = "",
@@ -406,11 +401,10 @@ def apple_ios_app(
     deps = deps or []
     tags = tags or []
     composed = library != None or len(frameworks) > 0 or entry != None
-    environment, arch = split_platform(platforms)
+    environment, arch = split_platform(ios_slice(platform))
     _app_selection(
         name = name + "_selection" if composed else name,
         arch = arch,
-        platforms = platforms,
         bundle_id = bundle_id,
         deployment = deployment,
         entitlements = label_text(entitlements),

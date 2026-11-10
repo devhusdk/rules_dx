@@ -52,52 +52,37 @@ apple_ios_lib(
 
 failure_test(
     name = "no_platforms_test",
-    expected_failure_substring = "apple_ios_lib: platforms takes one of",
+    expected_failure_substring = "apple_ios_lib: platform takes one of",
     target = ":no_platforms_selection",
 )
 
 apple_ios_lib(
     name = "bad_platform",
-    platforms = ["watch/arm64"],
+    platform = "@apple_support//platforms:macos_arm64",
     tags = ["manual"],
 )
 
 failure_test(
     name = "bad_platform_test",
-    expected_failure_substring = "apple_ios_lib: platforms takes one of",
+    expected_failure_substring = "apple_ios_lib: platform takes one of",
     target = ":bad_platform_selection",
 )
 
 apple_ios_lib(
-    name = "two_platforms",
-    platforms = [
-        "device/arm64",
-        "simulator/arm64",
-    ],
-    tags = ["manual"],
-)
-
-failure_test(
-    name = "two_platforms_test",
-    expected_failure_substring = "apple_ios_lib: platforms takes one of",
-    target = ":two_platforms_selection",
-)
-
-apple_ios_lib(
     name = "device_x86",
-    platforms = ["device/x86_64"],
+    platform = "@apple_support//platforms:macos_arm64",
     tags = ["manual"],
 )
 
 failure_test(
     name = "device_x86_test",
-    expected_failure_substring = "apple_ios_lib: platforms takes one of",
+    expected_failure_substring = "apple_ios_lib: platform takes one of",
     target = ":device_x86_selection",
 )
 
 apple_ios_lib(
     name = "device_triple_on_simulator",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     triple = "aarch64-apple-ios",
 )
@@ -110,7 +95,7 @@ failure_test(
 
 apple_ios_lib(
     name = "simulator_sdk_on_device",
-    platforms = ["device/arm64"],
+    platform = "@apple_support//platforms:ios_arm64",
     sdk = "iphonesimulator",
     tags = ["manual"],
 )
@@ -124,7 +109,7 @@ failure_test(
 apple_ios_lib(
     name = "old_deployment",
     deployment = "16.0",
-    platforms = ["device/arm64"],
+    platform = "@apple_support//platforms:ios_arm64",
     tags = ["manual"],
 )
 
@@ -137,7 +122,7 @@ failure_test(
 apple_ios_lib(
     name = "new_deployment",
     deployment = "19.0",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
 )
 
@@ -149,7 +134,7 @@ failure_test(
 
 apple_ios_lib(
     name = "old_xcode",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     xcode_version = "15.4",
 )
@@ -166,7 +151,7 @@ apple_ios_lib(
         "Foundation",
         "",
     ],
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
 )
 
@@ -217,7 +202,7 @@ apple_ios_app(
     bundle_id = "",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -233,7 +218,7 @@ apple_ios_app(
     bundle_id = "share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -249,7 +234,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "one",
 )
@@ -264,7 +249,7 @@ apple_ios_app(
     name = "no_library",
     bundle_id = "com.example.share",
     deployment = "17.0",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -280,7 +265,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -297,7 +282,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     entry = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -313,7 +298,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     entry = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
     xcode_version = "16.4",
@@ -338,7 +323,7 @@ apple_ios_app(
     name = "no_deployment",
     bundle_id = "com.example.share",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -354,7 +339,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["device/arm64"],
+    platform = "@apple_support//platforms:ios_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -370,7 +355,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["device/arm64"],
+    platform = "@apple_support//platforms:ios_arm64",
     provisioning_profile = "share.plist",
     tags = ["manual"],
     version = "1.0",
@@ -387,7 +372,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     provisioning_profile = "share.mobileprovision",
     tags = ["manual"],
     version = "1.0",
@@ -405,7 +390,7 @@ apple_ios_app(
     deployment = "17.0",
     entitlements = "Share.plist",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -421,7 +406,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
     xcode_version = "16.4",
@@ -461,7 +446,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
     xcode_version = "16.2",
@@ -479,7 +464,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_stub",
-    platforms = ["device/arm64"],
+    platform = "@apple_support//platforms:ios_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -496,7 +481,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":share_files",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )
@@ -894,7 +879,7 @@ apple_ios_app(
     bundle_id = "com.example.share",
     deployment = "17.0",
     library = ":device_share",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     tags = ["manual"],
     version = "1.0",
 )

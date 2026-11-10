@@ -82,7 +82,7 @@ apple_ios_lib(
     name = "share",
     srcs = ["share.rs"],
     hdrs = ["share_api.h"],
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     deployment = "17.0",
     xcode_version = "16.4",
     frameworks = ["Foundation"],
@@ -158,7 +158,7 @@ apple_ios_app(
     name = "ledger_app",
     srcs = ["main.m", "LedgerAppDelegate.m"],
     hdrs = ["LedgerAppDelegate.h"],
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "17.0",
@@ -265,7 +265,7 @@ apple_ios_app(
     name = "ledger_app",
     entry = ":ledger_main",
     library = ":ledger_rust",
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     bundle_id = "com.example.ledger",
     version = "1.0",
     deployment = "17.0",
@@ -290,8 +290,8 @@ non-Apple hosts the app targets are incompatible and skip.
 
 ### Device apps
 
-Set `platforms = ["device/arm64"]` and `provisioning_profile` to a
-`.mobileprovision` file:
+Set `platform = "@apple_support//platforms:ios_arm64"` and
+`provisioning_profile` to a `.mobileprovision` file:
 
 ```python
 apple_ios_app(
@@ -299,7 +299,7 @@ apple_ios_app(
     srcs = ["main.m"],
     bundle_id = "com.example.ledger",
     deployment = "17.0",
-    platforms = ["device/arm64"],
+    platform = "@apple_support//platforms:ios_arm64",
     library = ":ledger_rust",
     provisioning_profile = "ledger_dev.mobileprovision",
     version = "1.0",
@@ -503,7 +503,7 @@ apple_dynamic_xcframework_import(
 apple_ios_app(
     name = "till_app",
     srcs = ["main.m"],
-    platforms = ["simulator/arm64"],
+    platform = "@apple_support//platforms:ios_sim_arm64",
     bundle_id = "com.example.till",
     version = "2.0",
     deployment = "17.0",

@@ -1,12 +1,12 @@
 """Wrapper conformance tests for Erlang."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//erlang/private/toolchain:cells.bzl", "cell_cases")
 load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal")
+load("//erlang/private/toolchain:cells.bzl", "cell_cases")
 load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor", "runfiles_path")
-load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path")
+load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path")
 load(":providers.bzl", "BeamInfo")
 load(":rebar_lock.bzl", "rebar_lock_packages")
 
@@ -36,6 +36,13 @@ def erlang_wrapper_contract_tests(name):
             expect_equal("rebar.lock pkg entries become pins", [(p["package"], p["version"], p["sha256"], p["level"]) for p in rebar_lock_packages(_REBAR_LOCK)], [("cowboy", "2.10.0", "cccc", 0), ("cowlib", "2.12.1", "dddd", 1)]),
             expect_equal("erlang guard is a select by default", type(erlang_kwargs({})["target_compatible_with"]), "select"),
             expect_equal("erlang guard stays with a user list", type(erlang_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),
+            expect_equal("warnings_as_errors adds -Werror once", erlang_erlc_kwargs({"warnings_as_errors": True, "erlc_opts": ["-Werror", "+debug_info"]}, [])["erlc_opts"], ["+debug_info", "-Werror"]),
+            expect_equal("warnings_as_errors False drops -Werror", erlang_erlc_kwargs({"warnings_as_errors": False, "erlc_opts": ["-Werror", "+debug_info"]}, [])["erlc_opts"], ["+debug_info"]),
+            expect_equal("unset erlc_opts follow the flag", type(erlang_erlc_kwargs({}, ["+debug_info"])["erlc_opts"]), "select"),
+            expect_equal("erlc kwargs drop the attribute", "warnings_as_errors" in erlang_erlc_kwargs({"warnings_as_errors": True}, []), False),
+            expect_equal("apps with listed sources keep erlc_opts unset", "erlc_opts" in erlang_erlc_kwargs({"warnings_as_errors": True, "srcs": ["src/a.erl"]}, []), False),
+            expect_equal("bytecode hands back its erlc_opts target", erlang_bytecode_kwargs({"warnings_as_errors": True, "erlc_opts": ":opts"})[1:], (":opts", ["-Werror"])),
+            expect_equal("bytecode kwargs drop erlc_opts", "erlc_opts" in erlang_bytecode_kwargs({"erlc_opts": ":opts"})[0], False),
             expect_equal("erlang keeps user tags", erlang_kwargs({"tags": ["t"]})["tags"], ["t"]),
             expect_equal("native priv keeps libraries", native_priv_files(["priv/a.so", "priv/b.dylib", "priv/c.dll", "priv/d.txt", "priv/e.so.1"]), ["priv/a.so", "priv/b.dylib", "priv/c.dll"]),
             expect_contains("nif refusal names label", escript_nif_message("//x:cli", [("app", "x/priv/a.so")]), "//x:cli"),
@@ -170,7 +177,7 @@ def _release_layout_impl(ctx):
     asserts.equals(env, 1, len(actions), "expected one ErlangRelease action")
     script = "\n".join(actions[0].argv)
     for path in ctx.attr.paths:
-        asserts.true(env, ('/' + path + '"\n') in script + "\n", "release does not write " + path + ":\n" + script)
+        asserts.true(env, ("/" + path + '"\n') in script + "\n", "release does not write " + path + ":\n" + script)
     return analysistest.end(env)
 
 _release_layout_test = analysistest.make(

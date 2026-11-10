@@ -38,7 +38,7 @@ erlang_escript_archive(
 
 | Rule | What it makes |
 | --- | --- |
-| `erlang_app` | OTP application from `src/`, `include/` and `priv/`, compiled with `-Werror` |
+| `erlang_app` | OTP application from `src/`, `include/` and `priv/` |
 | `erlang_test_app` | The same application compiled with `-DTEST=1` for tests |
 | `erlang_bytecode` | `.beam` files from `srcs`, with `outs` and an `erlc_opts` target |
 | `erlc_opts` | Reusable `erlc` flags |
@@ -48,6 +48,8 @@ erlang_escript_archive(
 | `erlang_escript_archive` | Escript with the app and its deps, runnable with `bazel run` |
 | `erlang_release` | Release tree with `lib/<app>/ebin` and `lib/<app>/priv`, NIF libraries included |
 | `erlang_nif` | NIF shared library from declared C or C++ `srcs` and `hdrs`, other `cc_library` attributes pass through, placed at `priv/<name>.so` (`.dll` on Windows) |
+
+`erlang_app`, `erlang_test_app`, `erlang_bytecode` and `erlang_ct_suite_test` compile with `-Werror`. Set `warnings_as_errors = False` on a target to leave it out, or `True` to keep it whatever the flag says. Without the attribute, the target follows `//config:warnings_as_errors`, which is on by default. An `erlang_app` that lists `srcs`, `hdrs` or `beam_files` takes its flags from the `erlang_bytecode` that compiles them.
 
 ```python
 erlang_nif(

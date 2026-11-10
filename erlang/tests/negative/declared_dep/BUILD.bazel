@@ -1,7 +1,7 @@
 # gazelle:dx_rust_corpus false
 
-load("@rules_dx//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app")
-load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_warnings_as_errors_test")
+load("@rules_dx//erlang:defs.bzl", "ERLANG_COMPATIBLE_WITH", "erlang_app", "erlang_bytecode", "erlang_test_app", "erlc_opts")
+load("//erlang/tests/negative:negative_tests.bzl", "erlc_input_test", "erlc_warnings_as_errors_test", "erlc_warnings_flag_off_test")
 
 erlang_app(
     app_name = "needs_dep",
@@ -13,6 +13,71 @@ erlang_app(
 erlc_warnings_as_errors_test(
     name = "erlc_fails_on_warnings_test",
     target = ":beam_files",
+)
+
+erlc_warnings_flag_off_test(
+    name = "erlc_follows_flag_off_test",
+    target = ":beam_files",
+)
+
+erlang_test_app(
+    app_name = "needs_dep",
+    app_version = "1.0.0",
+    tags = ["manual"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    warnings_as_errors = True,
+    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+)
+
+erlc_warnings_flag_off_test(
+    name = "attr_true_wins_over_flag_test",
+    expected = True,
+    target = ":test_beam_files",
+)
+
+erlc_opts(
+    name = "strict_erlc_opts",
+    values = [
+        "-Werror",
+        "+debug_info",
+    ],
+)
+
+erlang_bytecode(
+    name = "bytecode",
+    srcs = glob(["src/*.erl"]),
+    dest = "bytecode",
+    erlc_opts = ":strict_erlc_opts",
+    tags = ["manual"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+)
+
+erlc_warnings_as_errors_test(
+    name = "bytecode_fails_on_warnings_test",
+    target = ":bytecode_upstream",
+)
+
+erlc_warnings_flag_off_test(
+    name = "bytecode_follows_flag_off_test",
+    target = ":bytecode_upstream",
+)
+
+erlang_bytecode(
+    name = "lenient_bytecode",
+    srcs = glob(["src/*.erl"]),
+    dest = "lenient",
+    erlc_opts = ":strict_erlc_opts",
+    tags = ["manual"],
+    target_compatible_with = ERLANG_COMPATIBLE_WITH,
+    warnings_as_errors = False,
+    deps = ["//erlang/tests/negative/base_dep:erlang_app"],
+)
+
+erlc_warnings_as_errors_test(
+    name = "attr_false_wins_over_flag_test",
+    expected = False,
+    target = ":lenient_bytecode_upstream",
 )
 
 erlc_input_test(

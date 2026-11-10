@@ -2,24 +2,24 @@
 
 load("@rules_cc//cc:defs.bzl", _cc_binary = "cc_binary")
 load("@rules_erlang//:ct.bzl", _ct_suite = "ct_suite")
-load("@rules_erlang//:erlang_app.bzl", _DEFAULT_TEST_ERLC_OPTS = "DEFAULT_TEST_ERLC_OPTS", _erlang_app = "erlang_app", _test_erlang_app = "test_erlang_app")
+load("@rules_erlang//:erlang_app.bzl", _DEFAULT_ERLC_OPTS = "DEFAULT_ERLC_OPTS", _DEFAULT_TEST_ERLC_OPTS = "DEFAULT_TEST_ERLC_OPTS", _erlang_app = "erlang_app", _test_erlang_app = "test_erlang_app")
 load("@rules_erlang//:erlang_app_info.bzl", "flat_deps", _ErlangAppInfo = "ErlangAppInfo")
-load("@rules_erlang//:erlang_bytecode2.bzl", _erlang_bytecode = "erlang_bytecode", _erlc_opts = "erlc_opts")
+load("@rules_erlang//:erlang_bytecode2.bzl", _ErlcOptsInfo = "ErlcOptsInfo", _erlang_bytecode = "erlang_bytecode", _erlc_opts = "erlc_opts")
 load("@rules_erlang//:erlang_xrl_yrl.bzl", _erlang_xrl_yrl = "erlang_xrl_yrl")
 load("@rules_erlang//:escript.bzl", _escript_archive = "escript_archive")
 load("@rules_erlang//:eunit2.bzl", _eunit = "eunit")
 load("@rules_erlang//tools:erlang_toolchain.bzl", "erlang_dirs")
 load("//cc:defs.bzl", "CC_COVERAGE_TRANSITION", _cc_library = "cc_library")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
+load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
+load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
+load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
+load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//erlang/private:beam.bzl", "beam_info")
 load("//erlang/private:providers.bzl", "BeamInfo", "ErlangNifInfo", "OtpToolInfo")
 load("//erlang/private/toolchain:cells.bzl", "otp_compatible_with")
 load("//erlang/private/toolchain:pins.bzl", "OTP_DIALYZER_UNPORTED_CELLS", "OTP_NIF_UNPORTED_CELLS")
-load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
-load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
-load("//core:wrapper.bzl", "DX_EXEC_PROVIDES", "dx_binary_forward_kwargs", "dx_binary_upstream_kwargs", "dx_executable_forward_rule", "dx_forward_data_attr", "dx_language_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_setdefaults", "dx_test_forward_kwargs", "dx_test_upstream_kwargs", "dx_upstream_tags", "dx_wrap", "dx_wrap_test")
-load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
-load("//core/quality:sources.bzl", "QualitySourcesInfo")
-load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH")
+load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path", _ERLANG_CELLS = "ERLANG_CELLS", _ERLANG_COMPATIBLE_WITH = "ERLANG_COMPATIBLE_WITH")
 
 ERLANG_CELLS = _ERLANG_CELLS
 ERLANG_COMPATIBLE_WITH = _ERLANG_COMPATIBLE_WITH
@@ -297,8 +297,8 @@ def app_sources(kwargs, glob = None):
     excluded = [entry for entry in _listed(kwargs, ["extra_srcs", "extra_hdrs"]) if not _is_label(entry)]
     return glob(ERLANG_SOURCE_GLOBS, exclude = excluded, allow_empty = True)
 
-def _app(upstream_macro, name, testonly, visibility, kwargs):
-    kwargs = erlang_kwargs(kwargs)
+def _app(upstream_macro, defaults, name, testonly, visibility, kwargs):
+    kwargs = erlang_erlc_kwargs(kwargs, defaults)
     tags = kwargs.pop("tags", None)
     nifs = kwargs.pop("nifs", [])
     if nifs:
@@ -501,15 +501,38 @@ erlang_release = rule(
 
 def erlang_app(name = "erlang_app", visibility = None, testonly = False, **kwargs):
     """Thin wrapper over the rules_erlang erlang_app macro."""
-    _app(_erlang_app, name, testonly, visibility, kwargs)
+    _app(_erlang_app, _DEFAULT_ERLC_OPTS, name, testonly, visibility, kwargs)
 
 def erlang_test_app(name = "test_erlang_app", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang test_erlang_app macro."""
-    _app(_test_erlang_app, name, True, visibility, kwargs)
+    _app(_test_erlang_app, _DEFAULT_TEST_ERLC_OPTS, name, True, visibility, kwargs)
+
+def _warning_erlc_opts_impl(ctx):
+    base = ctx.attr.base[_ErlcOptsInfo].values if ctx.attr.base else []
+    return [_ErlcOptsInfo(values = [opt for opt in base if opt != "-Werror"] + ctx.attr.values)]
+
+_warning_erlc_opts = rule(
+    implementation = _warning_erlc_opts_impl,
+    doc = "The erlc options of base without -Werror, followed by values.",
+    attrs = {
+        "base": attr.label(providers = [_ErlcOptsInfo], doc = "The erlc_opts target the build named."),
+        "values": attr.string_list(doc = "Options added after those of base."),
+    },
+    provides = [_ErlcOptsInfo],
+)
 
 def erlang_bytecode(name, srcs, visibility = None, **kwargs):
-    """Thin wrapper over rules_erlang erlang_bytecode."""
-    kwargs = erlang_kwargs(kwargs)
+    """Thin wrapper over rules_erlang erlang_bytecode. Adds -Werror to erlc_opts following warnings_as_errors."""
+    kwargs, base, flag = erlang_bytecode_kwargs(kwargs)
+    _warning_erlc_opts(
+        name = name + "_erlc_opts",
+        base = base,
+        values = flag,
+        testonly = kwargs.get("testonly", None),
+        tags = ["manual"],
+        visibility = ["//visibility:private"],
+    )
+    kwargs["erlc_opts"] = ":" + name + "_erlc_opts"
     dx_wrap(name, _erlang_bytecode, _erlang_bytecode_forward, srcs, visibility = visibility, **kwargs)
 
 def erlang_escript_archive(name, visibility = None, **kwargs):
@@ -546,7 +569,7 @@ def ct_run_args(extra_args):
 
 def erlang_ct_suite_test(name, *, suite_name = "", visibility = None, **kwargs):
     """Thin wrapper over the rules_erlang ct_suite macro. Adds -sname undefined and -start_epmd false unless ct_run_extra_args sets -sname or -name."""
-    kwargs = erlang_kwargs(kwargs)
+    kwargs = erlang_erlc_kwargs(kwargs, _DEFAULT_TEST_ERLC_OPTS)
     suite = suite_name if suite_name != "" else name
     kwargs["ct_run_extra_args"] = ct_run_args(kwargs.get("ct_run_extra_args", []))
 

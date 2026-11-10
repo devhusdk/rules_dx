@@ -13,7 +13,7 @@ def _inputs(env, mnemonic):
 def _warnings_as_errors_impl(ctx):
     env = analysistest.begin(ctx)
     action, _ = _inputs(env, "ERLC")
-    asserts.true(env, "-Werror" in " ".join(action.argv), "ERLC does not fail on warnings")
+    asserts.equals(env, ctx.attr.expected, "-Werror" in " ".join(action.argv), "ERLC -Werror")
     return analysistest.end(env)
 
 def _has_impl(ctx):
@@ -38,7 +38,15 @@ def _define_impl(ctx):
 
 _define_test = analysistest.make(_define_impl, attrs = {"define": attr.string()})
 
-_warnings_as_errors_test = analysistest.make(_warnings_as_errors_impl)
+_WERROR_ATTRS = {"expected": attr.bool(default = True)}
+
+_warnings_as_errors_test = analysistest.make(_warnings_as_errors_impl, attrs = _WERROR_ATTRS)
+
+_warnings_flag_off_test = analysistest.make(
+    _warnings_as_errors_impl,
+    attrs = _WERROR_ATTRS,
+    config_settings = {str(Label("//config:warnings_as_errors")): False},
+)
 _has_attrs = {
     "file": attr.string(),
     "present": attr.bool(),
@@ -46,8 +54,11 @@ _has_attrs = {
 _has_test = analysistest.make(_has_impl, attrs = _has_attrs)
 _header_test = analysistest.make(_header_impl, attrs = _has_attrs)
 
-def erlc_warnings_as_errors_test(name, target):
-    _warnings_as_errors_test(name = name, size = "small", target_under_test = target, target_compatible_with = _LINUX)
+def erlc_warnings_as_errors_test(name, target, expected = True):
+    _warnings_as_errors_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = _LINUX)
+
+def erlc_warnings_flag_off_test(name, target, expected = False):
+    _warnings_flag_off_test(name = name, size = "small", target_under_test = target, expected = expected, target_compatible_with = _LINUX)
 
 def erlc_input_test(name, target, file, present):
     _has_test(name = name, size = "small", target_under_test = target, file = file, present = present, target_compatible_with = _LINUX)

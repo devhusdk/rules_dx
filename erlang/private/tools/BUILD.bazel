@@ -1,7 +1,7 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//erlang/private:defs.bzl", "ERLANG_COMPATIBLE_WITH", "ERLANG_DIALYZER_COMPATIBLE_WITH")
 load("//erlang/private:dialyzer.bzl", "dialyzer_plt", "dialyzer_tool", "otp_tool_binary")
 load("//erlang/private/toolchain:pins.bzl", "DIALYZER_PLT_APPS", "DIALYZER_PLT_CORE")
-load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 

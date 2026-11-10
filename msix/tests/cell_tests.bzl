@@ -2,21 +2,6 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 
-def _fake_exe_impl(ctx):
-    exe = ctx.actions.declare_file(ctx.attr.out)
-    ctx.actions.write(exe, "MZ", is_executable = True)
-    return [DefaultInfo(executable = exe, files = depset([exe]), runfiles = ctx.runfiles(files = ctx.files.data))]
-
-fake_exe = rule(
-    implementation = _fake_exe_impl,
-    doc = "Declares a placeholder executable for analysis-only fixtures.",
-    attrs = {
-        "data": attr.label_list(allow_files = True, doc = "Files added to the runfiles."),
-        "out": attr.string(doc = "Output file name.", mandatory = True),
-    },
-    executable = True,
-)
-
 def _failure_impl(ctx):
     env = analysistest.begin(ctx)
     asserts.expect_failure(env, ctx.attr.expected)

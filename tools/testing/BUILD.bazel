@@ -22,6 +22,7 @@ exports_files(
         "nested_bazel.bzl",
         "node_diagnostics_test.rs",
         "node_format_test.rs",
+        "stub_target.bzl",
     ],
     visibility = VIS_TOOLS_PUBLIC,
 )

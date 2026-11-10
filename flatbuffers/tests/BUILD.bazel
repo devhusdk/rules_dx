@@ -5,7 +5,8 @@ load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
 load("//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_codegen_failure_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
+load("//core:failure_test.bzl", "failure_test")
+load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -230,58 +231,58 @@ flatbuffers_conform_test(
     tags = ["manual"],
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "java_language_mismatch_test",
-    message = "does not match",
-    target_under_test = ":java_shard_on_cc",
+    expected_failure_substring = "does not match",
+    target = ":java_shard_on_cc",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "conform_foreign_root_test",
-    message = "is not owned by",
-    target_under_test = ":foreign_root_conform_conform",
+    expected_failure_substring = "is not owned by",
+    target = ":foreign_root_conform_conform",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "conform_multi_baseline_test",
-    message = "root is required because",
-    target_under_test = ":multi_baseline_conform_conform",
+    expected_failure_substring = "root is required because",
+    target = ":multi_baseline_conform_conform",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "rust_missing_root_test",
-    message = "root is required because",
-    target_under_test = ":no_root_rs_generated",
+    expected_failure_substring = "root is required because",
+    target = ":no_root_rs_generated",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "rust_foreign_root_test",
-    message = "is not owned by",
-    target_under_test = ":foreign_root_rs_generated",
+    expected_failure_substring = "is not owned by",
+    target = ":foreign_root_rs_generated",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "rust_language_mismatch_test",
-    message = "does not match",
-    target_under_test = ":cpp_shard_on_rust",
+    expected_failure_substring = "does not match",
+    target = ":cpp_shard_on_rust",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "rust_stray_entry_test",
-    message = "matches no flatbuffers_generated_srcs artifact",
-    target_under_test = ":stray_rs_shard",
+    expected_failure_substring = "matches no flatbuffers_generated_srcs artifact",
+    target = ":stray_rs_shard",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "unclaimed_artifact_test",
-    message = "unreported flatbuffers_generated_srcs artifact",
-    target_under_test = ":unclaimed_shard",
+    expected_failure_substring = "unreported flatbuffers_generated_srcs artifact",
+    target = ":unclaimed_shard",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "non_admitted_pair_test",
-    message = "unsupported codegen pair ('flatbuffers', 'python')",
-    target_under_test = ":python_shard",
+    expected_failure_substring = "unsupported codegen pair ('flatbuffers', 'python')",
+    target = ":python_shard",
 )
 
 flatbuffers_library(
@@ -308,28 +309,28 @@ flatbuffers_rust_library(
     tags = ["manual"],
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "external_library_test",
-    message = "external_fbs: schema",
-    target_under_test = ":external_fbs",
+    expected_failure_substring = "external_fbs: schema",
+    target = ":external_fbs",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "external_cc_test",
-    message = "is in another Bazel repository",
-    target_under_test = ":external_cc",
+    expected_failure_substring = "is in another Bazel repository",
+    target = ":external_cc",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "external_java_test",
-    message = "is in another Bazel repository",
-    target_under_test = ":external_java",
+    expected_failure_substring = "is in another Bazel repository",
+    target = ":external_java",
 )
 
-flatbuffers_codegen_failure_test(
+failure_test(
     name = "external_rs_test",
-    message = "is in another Bazel repository",
-    target_under_test = ":external_rs_generated",
+    expected_failure_substring = "is in another Bazel repository",
+    target = ":external_rs_generated",
 )
 
 flatbuffers_cc_stage_test(

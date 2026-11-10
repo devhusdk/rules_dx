@@ -4,12 +4,13 @@ load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//rust:defs.bzl", "rust_test")
 load("//api_spec:defs.bzl", "api_spec_library", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
 load("//core:defs.bzl", "starlark_test")
+load("//core:failure_test.bzl", "failure_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//go:defs.bzl", "go_library")
 load("//python:defs.bzl", "python_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//typescript:defs.bzl", "typescript_library", "typescript_test")
-load(":failure_tests.bzl", "openapi_codegen_failure_test")
+
 
 package(default_visibility = ["//visibility:private"])
 
@@ -256,22 +257,22 @@ openapi_typescript_client(
     tags = ["manual"],
 )
 
-openapi_codegen_failure_test(
+failure_test(
     name = "unmatched_entry_test",
-    message = "matches no openapi_generated_srcs artifact",
-    target_under_test = ":unmatched_shard",
+    expected_failure_substring = "matches no openapi_generated_srcs artifact",
+    target = ":unmatched_shard",
 )
 
-openapi_codegen_failure_test(
+failure_test(
     name = "non_admitted_pair_test",
-    message = "unsupported codegen pair ('openapi', 'ruby')",
-    target_under_test = ":ruby_shard",
+    expected_failure_substring = "unsupported codegen pair ('openapi', 'ruby')",
+    target = ":ruby_shard",
 )
 
-openapi_codegen_failure_test(
+failure_test(
     name = "wrong_root_test",
-    message = "is not a root of",
-    target_under_test = ":wrong_root_client",
+    expected_failure_substring = "is not a root of",
+    target = ":wrong_root_client",
 )
 
 real_source_target(
@@ -279,7 +280,6 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "failure_tests.bzl",
     ],
     tags = ["corpus"],
 )

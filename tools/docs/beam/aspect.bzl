@@ -2,6 +2,7 @@
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
 load("//tools/docs/beam:shard.bzl", "ELIXIR_TOOLCHAIN", "OTP_TOOLCHAIN")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE")
 load("//tools/docs/elixir:defs.bzl", "elixir_shard_action")
 load("//tools/docs/erlang:defs.bzl", "erlang_shard_action")
 load("//tools/docs/ir:shard.bzl", "DocsShardInfo")
@@ -46,6 +47,7 @@ real_beam_docs_aspect = aspect(
         ),
     },
     toolchains = [
+        COREUTILS_TOOLCHAIN_TYPE,
         config_common.toolchain_type(ELIXIR_TOOLCHAIN, mandatory = False),
         config_common.toolchain_type(OTP_TOOLCHAIN, mandatory = False),
     ],

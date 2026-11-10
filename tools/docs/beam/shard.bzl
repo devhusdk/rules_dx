@@ -1,28 +1,33 @@
 """Shared actions of the Elixir and Erlang API doc shards: the pinned runtime reads the docs, beam_extract writes DocIr."""
 
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
+load("//core/coreutils:defs.bzl", "COREUTILS_TOOLCHAIN_TYPE", "coreutils")
 load("//tools/docs/ir:shard.bzl", "repo_relative", "srcs_manifest_line")
 
 OTP_TOOLCHAIN = "@rules_erlang//tools:toolchain_type"
 ELIXIR_TOOLCHAIN = "@rules_elixir//:toolchain_type"
 
-# The runtime is the pinned OTP and Elixir tree; /usr/bin and /bin only supply the coreutils the
-# launcher scripts call, the same as the credo and mix launchers.
 _ELIXIR_COMMAND = """set -eu
+PATH="$1"
+export PATH
+shift
 otp="$(cd "$(dirname "$1")" && pwd)"
 elixir="$(cd "$(dirname "$2")" && pwd)"
 shift 2
 mkdir -p "$1"
-export PATH="$otp/bin:$elixir/bin:/usr/bin:/bin" HOME="$PWD/$1" ELIXIR_ERL_OPTIONS="-elixir ansi_enabled false" LANG=C.UTF-8 LC_ALL=C.UTF-8
+export PATH="$otp/bin:$elixir/bin:$PATH" HOME="$PWD/$1" ELIXIR_ERL_OPTIONS="-elixir ansi_enabled false" LANG=C.UTF-8 LC_ALL=C.UTF-8
 shift
 exec "$elixir/bin/elixir" "$@"
 """
 
 _ERLANG_COMMAND = """set -eu
+PATH="$1"
+export PATH
+shift
 otp="$(cd "$(dirname "$1")" && pwd)"
 shift
 mkdir -p "$1"
-export PATH="$otp/bin:/usr/bin:/bin" HOME="$PWD/$1" LANG=C.UTF-8 LC_ALL=C.UTF-8
+export PATH="$otp/bin:$PATH" HOME="$PWD/$1" LANG=C.UTF-8 LC_ALL=C.UTF-8
 shift
 exec "$otp/bin/escript" "$@"
 """
@@ -64,9 +69,11 @@ def beam_shard_action(ctx, language, srcs, dep_beams, package, stem, driver, ext
     manifest = _manifest(ctx, stem, srcs)
     json = ctx.actions.declare_file(stem + ".dump.json")
     scratch = ctx.actions.declare_directory(stem + ".beam_scratch")
+    applets = coreutils(ctx)
     args = ctx.actions.args()
+    args.add(applets.path)
     args.add(otp.version_file)
-    transitive = [otp.tree]
+    transitive = [otp.tree, applets.files]
     if language == "elixir":
         elixir = ctx.toolchains[ELIXIR_TOOLCHAIN].elixirinfo
         args.add(elixir.version_file)

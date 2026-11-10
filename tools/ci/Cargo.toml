@@ -110,6 +110,10 @@ name = "pin_locations_test"
 path = "pin_locations_test.rs"
 
 [[test]]
+name = "lock_registry_test"
+path = "lock_registry_test.rs"
+
+[[test]]
 name = "pr_check_test"
 path = "pr_check_test.rs"
 

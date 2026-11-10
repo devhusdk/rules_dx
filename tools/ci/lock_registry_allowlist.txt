@@ -1,0 +1,224 @@
+digests-file d/tests/fixtures/d-app/dub.digests.json
+digests-file d/tests/fixtures/dub/dub.digests.json
+digests-file lua/tests/luarocks/luarocks.digests.json
+digests-file php/tests/fixtures/composer/composer.digests.json
+digests-file zig/tests/fixtures/zig-deps/zig.digests.json
+name ansible/lang.json MODULE.bazel
+name astro/lang.json package.json
+name astro/lang.json pnpm-lock.yaml
+name bicep/lang.json MODULE.bazel
+name cc/lang.json conan.lock
+name cc/lang.json conanfile.txt
+name core/modules/langs.bzl .terraform.lock.hcl
+name core/modules/langs.bzl Cargo.lock
+name core/modules/langs.bzl Cargo.toml
+name core/modules/langs.bzl Chart.lock
+name core/modules/langs.bzl Gemfile
+name core/modules/langs.bzl Gemfile.lock
+name core/modules/langs.bzl Manifest.toml
+name core/modules/langs.bzl PSGallery.lock.json
+name core/modules/langs.bzl PSGallery.requirements.psd1
+name core/modules/langs.bzl Package.resolved
+name core/modules/langs.bzl Package.swift
+name core/modules/langs.bzl Project.toml
+name core/modules/langs.bzl build.zig.zon
+name core/modules/langs.bzl cabal.project
+name core/modules/langs.bzl cabal.project.freeze
+name core/modules/langs.bzl composer.json
+name core/modules/langs.bzl composer.lock
+name core/modules/langs.bzl conan.lock
+name core/modules/langs.bzl conanfile.txt
+name core/modules/langs.bzl cpanfile
+name core/modules/langs.bzl cpanfile.snapshot
+name core/modules/langs.bzl dub.json
+name core/modules/langs.bzl dub.selections.json
+name core/modules/langs.bzl dune-project
+name core/modules/langs.bzl fpm.toml
+name core/modules/langs.bzl go.mod
+name core/modules/langs.bzl go.sum
+name core/modules/langs.bzl luarocks.lock
+name core/modules/langs.bzl maven_install.json
+name core/modules/langs.bzl mix.exs
+name core/modules/langs.bzl mix.lock
+name core/modules/langs.bzl package.json
+name core/modules/langs.bzl paket.dependencies
+name core/modules/langs.bzl paket.lock
+name core/modules/langs.bzl pnpm-lock.yaml
+name core/modules/langs.bzl pubspec.lock
+name core/modules/langs.bzl pubspec.yaml
+name core/modules/langs.bzl pyproject.toml
+name core/modules/langs.bzl tsconfig.json
+name core/modules/langs.bzl uv.lock
+name core/modules/python.bzl pyproject.toml
+name core/modules/python.bzl uv.lock
+name core/modules/rust.bzl Cargo.lock
+name core/modules/versions.bzl pnpm-lock.yaml
+name core/quality/dart_context.bzl pubspec.yaml
+name core/quality/fixtures.bzl go.mod
+name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
+name csharp/lang.json paket.dependencies
+name csharp/lang.json paket.lock
+name d/lang.json dub.json
+name d/lang.json dub.selections.json
+name d/private/dub/extensions.bzl dub.selections.json
+name d/private/dub/lock.bzl dub.json
+name d/private/dub/lock.bzl dub.selections.json
+name d/private/dub/repos.bzl dub.json
+name d/private/dub/repos.bzl dub.selections.json
+name d/private/dub/repos.bzl package.json
+name d/private/toolchain/pins.bzl dub.json
+name d/private/toolchain/pins.bzl dub.selections.json
+name d/private/toolchain/pins.bzl package.json
+name dart/lang.json pubspec.lock
+name dart/lang.json pubspec.yaml
+name dart/private/quality/dart.bzl pubspec.yaml
+name deploy/private/crates.bzl Cargo.toml
+name deploy/private/github.bzl go.mod
+name deploy/private/packagist.bzl composer.json
+name deploy/private/pub.bzl pubspec.yaml
+name deploy/private/release/inventory.bzl Cargo.toml
+name deploy/private/sbom.bzl go.mod
+name deploy/private/sbom.bzl maven_install.json
+name deploy/private/sbom.bzl uv.lock
+name deploy/private/validate_packagist.bzl composer.json
+name dotnet/lang.json paket.dependencies
+name dotnet/lang.json paket.lock
+name elixir/lang.json mix.exs
+name elixir/lang.json mix.lock
+name elixir/private/mix_lock.bzl mix.lock
+name elixir/private/toolchain/extensions.bzl mix.lock
+name elixir/private/toolchain/repos.bzl mix.lock
+name erlang/lang.json mix.exs
+name erlang/lang.json mix.lock
+name flutter/lang.json pubspec.lock
+name flutter/lang.json pubspec.yaml
+name fortran/lang.json fpm.toml
+name fsharp/lang.json paket.dependencies
+name fsharp/lang.json paket.lock
+name go/lang.json go.mod
+name go/lang.json go.sum
+name haskell/lang.json cabal.project
+name haskell/lang.json cabal.project.freeze
+name haskell/private/deps_resolve.bzl cabal.project.freeze
+name helm/lang.json Chart.lock
+name java/lang.json MODULE.bazel
+name java/lang.json maven_install.json
+name javascript/lang.json package.json
+name javascript/lang.json pnpm-lock.yaml
+name javascript/private/quality/js_tools.bzl tsconfig.json
+name julia/lang.json Manifest.toml
+name julia/lang.json Project.toml
+name julia/private/quality/julia.bzl Project.toml
+name kotlin/lang.json MODULE.bazel
+name kotlin/lang.json maven_install.json
+name lua/lang.json *.rockspec
+name lua/lang.json luarocks.lock
+name lua/luarocks/defs.bzl luarocks.lock
+name lua/luarocks/extensions.bzl luarocks.lock
+name lua/luarocks/lock.bzl luarocks.lock
+name lua/luarocks/repos.bzl luarocks.lock
+name mdx/lang.json package.json
+name mdx/lang.json pnpm-lock.yaml
+name ocaml/lang.json *.opam
+name ocaml/lang.json dune-project
+name ocaml/private/dune.bzl dune-project
+name ocaml/private/quality/repos.bzl dune-project
+name ocaml/private/toolchain/repos.bzl dune-project
+name perl/lang.json cpanfile
+name perl/lang.json cpanfile.snapshot
+name php/lang.json composer.json
+name php/lang.json composer.lock
+name php/private/composer/extensions.bzl composer.lock
+name php/private/composer/lock.bzl composer.lock
+name php/private/composer/repos.bzl composer.lock
+name php/private/php.bzl composer.lock
+name powershell/lang.json PSGallery.lock.json
+name powershell/lang.json PSGallery.requirements.psd1
+name python/lang.json pyproject.toml
+name python/lang.json uv.lock
+name python/private/sdist_cargo_vendor.bzl Cargo.lock
+name python/private/sdist_cargo_vendor.bzl uv.lock
+name ruby/lang.json Gemfile
+name ruby/lang.json Gemfile.lock
+name rust/lang.json Cargo.lock
+name rust/lang.json Cargo.toml
+name scala/lang.json MODULE.bazel
+name scala/lang.json maven_install.json
+name svelte/lang.json package.json
+name svelte/lang.json pnpm-lock.yaml
+name swift/lang.json Package.resolved
+name swift/lang.json Package.swift
+name terraform/lang.json .terraform.lock.hcl
+name third_party/dotnet/framework.bzl paket.dependencies
+name tools/docs/components/aspect.bzl tsconfig.json
+name tools/docs/dart/defs.bzl pubspec.yaml
+name tools/docs/javascript/aspect.bzl tsconfig.json
+name tools/docs/support_matrix/languages.bzl build.zig.zon
+name tools/docs/support_matrix/languages.bzl cabal.project.freeze
+name tools/docs/support_matrix/languages.bzl mix.lock
+name tools/testing/nested_bazel.bzl maven_install.json
+name typescript/lang.json package.json
+name typescript/lang.json pnpm-lock.yaml
+name typescript/lang.json tsconfig.json
+name typescript/private/quality/tsc.bzl tsconfig.json
+name vue/lang.json package.json
+name vue/lang.json pnpm-lock.yaml
+name zig/lang.json build.zig.zon
+name zig/private/deps/extensions.bzl build.zig.zon
+name zig/private/deps/lock.bzl build.zig.zon
+name zig/private/deps/repos.bzl build.zig.zon
+name zig/private/tools/digests.bzl build.zig.zon
+parser ansible/private/lock.bzl
+parser d/private/dub/lock.bzl
+parser elixir/private/mix_lock.bzl
+parser erlang/private/rebar_lock.bzl
+parser fortran/private/fpm_lock.bzl
+parser fortran/private/tools/fpm_lock.bzl
+parser lua/luarocks/lock.bzl
+parser php/private/composer/lock.bzl
+parser python/private/sdist_cargo_vendor.bzl
+parser zig/private/deps/lock.bzl
+registry ansible
+registry bicep
+registry cabal
+registry cargo
+registry composer
+registry conan
+registry cpan
+registry dub
+registry fpm
+registry go
+registry hex
+registry julia
+registry luarocks
+registry maven
+registry npm
+registry nuget
+registry opam
+registry powershell
+registry pub
+registry ruby
+registry swiftpm
+registry uv
+registry zig
+resolve-doc csharp/README.md 1
+resolve-doc elixir/README.md 1
+resolve-doc lua/README.md 1
+resolve-doc perl/README.md 1
+resolve-doc php/README.md 1
+tag-attr bicep/extensions.bzl digest
+tag-attr d/private/dub/extensions.bzl digests
+tag-attr lua/luarocks/extensions.bzl digests
+tag-attr php/private/composer/extensions.bzl digests
+tag-attr terraform/extensions.bzl sha256
+tag-attr terraform/extensions.bzl version
+tag-attr zig/private/deps/extensions.bzl digests
+tag-use MODULE.bazel composer.lock.digests
+tag-use MODULE.bazel dub.lock.digests
+tag-use MODULE.bazel luarocks.lock.digests
+tag-use MODULE.bazel ruby.bundle_fetch.gem_checksums
+tag-use MODULE.bazel ruby.toolchain.portable_ruby_checksums
+tag-use MODULE.bazel ruby.toolchain.version
+tag-use MODULE.bazel terraform.provider.sha256
+tag-use MODULE.bazel terraform.provider.version
+tag-use MODULE.bazel zig_deps.lock.digests

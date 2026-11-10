@@ -100,7 +100,7 @@ Minimal wrapper over cc_test. linkstatic defaults to true on macOS and Windows, 
 cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs)
 ```
 
-A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`.
+A libFuzzer binary with AddressSanitizer, or on Windows linked to a standalone driver, plus a `<name>_run` runner for `dx fuzz`.
 
 ### `cc_bench`
 

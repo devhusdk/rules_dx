@@ -791,7 +791,9 @@ mod tests {
                 "{command}: {argv:?}"
             );
             assert_eq!(
-                argv.iter().filter(|arg| arg.starts_with("--test_arg")).count(),
+                argv.iter()
+                    .filter(|arg| arg.starts_with("--test_arg"))
+                    .count(),
                 3,
                 "{command}: {argv:?}"
             );

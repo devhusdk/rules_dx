@@ -60,6 +60,11 @@ def _data(path, name):
         return True
     return path == "docs/cli/commands/README.md" or (path.startswith("docs/languages/") and name.endswith(".md"))
 
+def _code(path, name):
+    if name.endswith((".rs", ".sh", ".tpl")):
+        return True
+    return path == ".bazelrc" or (path.startswith(".dx/bazelrc/") and name.endswith(".bazelrc"))
+
 def _entry(parent, entry):
     is_dir = entry.is_dir
     return struct(
@@ -76,7 +81,7 @@ def _rust(path, name):
     return not any([part in _TEST_DIRS for part in path.split("/")])
 
 def _test_tags_sources_impl(rctx):
-    """Writes sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, and paths.json, every path under a language directory."""
+    """Writes sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template and rc files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):
@@ -88,9 +93,12 @@ def _test_tags_sources_impl(rctx):
     sources = {}
     files = {}
     rust = {}
+    code = {}
     paths = walk(ignored, readdir).files
     for path in paths:
         name = path.rpartition("/")[2]
+        if _code(path, name):
+            code[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         if _starlark(name):
             sources[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         elif _data(path, name):
@@ -109,10 +117,11 @@ def _test_tags_sources_impl(rctx):
     rctx.file("sources.json", json.encode(sources))
     rctx.file("files.json", json.encode(files))
     rctx.file("rust.json", json.encode(rust))
+    rctx.file("code.json", json.encode(code))
     rctx.file("paths.json", json.encode(sorted([path for path in paths if path.split("/")[0] in langs])))
-    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "paths.json"])\n')
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "code.json", "paths.json"])\n')
 
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,
-    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, language README, repository BUILD and language page files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
+    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, Rust, shell, template and rc code, language README, repository BUILD and language page files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
 )

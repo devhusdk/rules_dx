@@ -64,6 +64,19 @@ class DepsResolveTest(unittest.TestCase):
         self.assertEqual(foo["cabal_revision"], 2)
         self.assertEqual(foo["sdist_sha256"], "aa")
 
+    def test_cross_package_sublibrary_dependency(self):
+        plan = {"install-plan": [
+            {"type": "configured", "id": "hl-1-inplace-grammar", "pkg-name": "hl", "pkg-version": "1",
+             "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "aa", "pkg-cabal-sha256": "bb",
+             "component-name": "lib:grammar", "depends": []},
+            {"type": "configured", "id": "hp-1-inplace-exe", "pkg-name": "hp", "pkg-version": "1",
+             "pkg-src": {"type": "repo-tar"}, "pkg-src-sha256": "cc", "pkg-cabal-sha256": "dd",
+             "component-name": "exe:hp", "depends": ["hl-1-inplace-grammar"]},
+        ]}
+        by_name = {pkg["name"]: pkg for pkg in deps_resolve.sidecar_from_plan(plan, {})}
+        self.assertEqual(by_name["hl"]["components"], ["lib:grammar"])
+        self.assertEqual(by_name["hp"]["dependencies"], ["hl:grammar"])
+
     def test_remote_tarball_is_a_url_package(self):
         url = "https://example.invalid/bar-2.0.tar.gz"
         plan = {"install-plan": [

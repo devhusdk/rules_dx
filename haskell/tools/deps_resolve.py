@@ -159,9 +159,16 @@ def cabal_revisions(index_path, wanted):
 
 def component_kind(component):
     """Returns the component name when it is a library or executable, else None."""
-    if component == "lib" or component.startswith("exe:"):
+    if component == "lib" or component.startswith(("exe:", "lib:")):
         return component
     return None
+
+
+def dependency_name(package, component):
+    """Returns the dependency name of a component: the package, or package:sublibrary."""
+    if component.startswith("lib:"):
+        return "{}:{}".format(package, component[len("lib:"):])
+    return package
 
 
 def package_source(entry):
@@ -178,6 +185,7 @@ def sidecar_from_plan(plan, revisions):
     """Builds the package list of the sidecar from a cabal plan.json document."""
     entries = plan["install-plan"]
     names = {entry["id"]: entry["pkg-name"] for entry in entries}
+    components = {entry["id"]: entry.get("component-name", "lib") for entry in entries}
     packages = {}
     for entry in entries:
         key = (entry["pkg-name"], entry["pkg-version"])
@@ -201,7 +209,7 @@ def sidecar_from_plan(plan, revisions):
         package["components"].add(component)
         for dep in entry.get("depends", []) + entry.get("exe-depends", []):
             if names.get(dep) not in (None, key[0]):
-                package["dependencies"].add(names[dep])
+                package["dependencies"].add(dependency_name(names[dep], components[dep]))
     out = []
     for key in sorted(packages):
         package = packages[key]

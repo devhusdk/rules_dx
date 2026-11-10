@@ -43,15 +43,25 @@ def executables(package):
     """Returns the executable names of a package."""
     return [component[len("exe:"):] for component in package["components"] if component.startswith("exe:")]
 
+def sublibrary_target(package, sublibrary):
+    """Returns the target name of one public sublibrary of a package."""
+    return "{}-lib-{}".format(package, sublibrary)
+
+def sublibraries(package):
+    """Returns the sublibrary names of a package."""
+    return [component[len("lib:"):] for component in package["components"] if component.startswith("lib:")]
+
 def dependency_label(hub, sidecar, name):
     """Returns the label a package dependency points at, or None for local packages."""
+    name, _, sublibrary = name.partition(":")
     for package in sidecar["packages"]:
         if package["name"] != name:
             continue
         if package["source"] == "ghc":
             return "{}:{}".format(_TOOLCHAINS, name)
         if package["source"] in ("hackage", "url"):
-            return "@{}//:{}".format(repo_name(hub, name), name)
+            target = sublibrary_target(name, sublibrary) if sublibrary else name
+            return "@{}//:{}".format(repo_name(hub, name), target)
     return None
 
 def tool_labels(hub, sidecar, package):
@@ -92,6 +102,8 @@ def package_build(hub, sidecar, package):
     if has_lib:
         attrs = ['package_name = "{}"'.format(name), 'version = "{}"'.format(package["version"]), "haddock = False"]
         lines.append(_target("haskell_cabal_library", name, attrs, deps, tools))
+    for sub in sublibraries(package):
+        lines.append('alias(name = "{}", actual = ":{}")\n'.format(sublibrary_target(name, sub), name))
     for exe in executables(package):
         exe_deps = deps + [":" + name] if has_lib else deps
         lines.append(_target("haskell_cabal_binary", "{}-exe-{}".format(name, exe), ['exe_name = "{}"'.format(exe)], exe_deps, tools))
@@ -104,6 +116,9 @@ def hub_build(hub, sidecar):
         repo = repo_name(hub, name)
         if "lib" in package["components"]:
             lines.append('alias(name = "{name}", actual = "@{repo}//:{name}")\n'.format(name = name, repo = repo))
+        for sub in sublibraries(package):
+            target = sublibrary_target(name, sub)
+            lines.append('alias(name = "{target}", actual = "@{repo}//:{target}")\n'.format(target = target, repo = repo))
         for exe in executables(package):
             target = "{}-exe-{}".format(name, exe)
             lines.append('alias(name = "{target}", actual = "@{repo}//:{target}")\n'.format(target = target, repo = repo))

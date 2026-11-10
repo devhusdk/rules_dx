@@ -1,7 +1,7 @@
 """Runs the real aspect on a target and checks the result file for strings."""
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//core/quality/testdata:real_aspect_subject.bzl", "real_aspect_subject")
+load("//core/quality/testdata:real_aspect_subject.bzl", "REAL_SUBJECT_BY_CLASS")
 load("//core/quality/testdata:real_typecheck_subject.bzl", "real_typecheck_subject")
 load("//core/quality/testdata:runner_matrix_tests.bzl", "compatible")
 
@@ -14,8 +14,8 @@ def _policy_transition_impl(settings, attr):
         _COMPILER: attr.compiler or settings[_COMPILER],
         _PROFILE: attr.config_profile or settings[_PROFILE],
         "@rules_rust//rust/settings:clippy_flag": attr.clippy_flags,
-        "//config:tool_dialyzer": str(attr.tool_dialyzer),
-        "//config:tool_govet": str(attr.tool_govet),
+        "//config:tool_dialyzer": attr.tool_dialyzer,
+        "//config:tool_govet": attr.tool_govet,
         "//config:workspace": attr.policy,
         "@rules_rust//rust/settings:clippy_output_diagnostics": True,
         "@rules_rust//rust/settings:extra_rustc_flags": [],
@@ -42,6 +42,8 @@ _policy_transition = transition(
 
 def _results_impl(ctx):
     files = depset(transitive = [subject[OutputGroupInfo].dx_results for subject in ctx.attr.subject])
+    if not files.to_list():
+        fail("%s: no result files" % ctx.label)
     return [DefaultInfo(files = files, runfiles = ctx.runfiles(transitive_files = files))]
 
 _results = rule(
@@ -52,8 +54,8 @@ _results = rule(
         "config_profile": attr.string(),
         "policy": attr.string(mandatory = True),
         "rustc_flags": attr.string_list(),
-        "tool_dialyzer": attr.label(default = "//erlang/private/tools:dialyzer"),
-        "tool_govet": attr.label(default = "//go/private/tools/analysis/cmd/dx_govet"),
+        "tool_dialyzer": attr.string(default = str(Label("//erlang/private/tools:dialyzer"))),
+        "tool_govet": attr.string(default = str(Label("//go/private/tools/analysis/cmd/dx_govet"))),
         "subject": attr.label(mandatory = True, cfg = _policy_transition),
     },
 )
@@ -65,9 +67,11 @@ def check_args(contains, absent):
     """Returns real_result_check.sh args; quoted because Bazel shell-tokenizes args."""
     return [_quote("+" + s) for s in contains] + [_quote("-" + s) for s in absent]
 
-def real_result_test(name, target, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, rustc_flags = [], clippy_flags = [], config_profile = "", target_compatible_with = None, **flags):
+def real_result_test(name, target, file_class, policy, contains = [], absent = [], tool_dialyzer = None, tool_govet = None, compiler = "", typecheck_subject = False, rustc_flags = [], clippy_flags = [], config_profile = "", target_compatible_with = None, **flags):
     """Declares a test that greps the real aspect result of target under policy."""
-    subject_rule = real_typecheck_subject if typecheck_subject else real_aspect_subject
+    if file_class not in REAL_SUBJECT_BY_CLASS:
+        fail("%s: unknown file class %s" % (name, file_class))
+    subject_rule = real_typecheck_subject if typecheck_subject else REAL_SUBJECT_BY_CLASS[file_class]
     subject_rule(name = name + "_subject", target = target, tags = ["manual"], testonly = True)
     _results(
         name = name + "_results",
@@ -76,8 +80,8 @@ def real_result_test(name, target, policy, contains = [], absent = [], tool_dial
         config_profile = config_profile,
         rustc_flags = rustc_flags,
         policy = str(native.package_relative_label(policy)),
-        tool_dialyzer = tool_dialyzer or "//erlang/private/tools:dialyzer",
-        tool_govet = tool_govet or "//go/private/tools/analysis/cmd/dx_govet",
+        tool_dialyzer = str(native.package_relative_label(tool_dialyzer or "//erlang/private/tools:dialyzer")),
+        tool_govet = str(native.package_relative_label(tool_govet or "//go/private/tools/analysis/cmd/dx_govet")),
         subject = name + "_subject",
         tags = ["manual"],
         testonly = True,

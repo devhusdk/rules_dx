@@ -295,15 +295,69 @@ _REAL_ASPECTS = [
     real_yaml_lint_aspect,
 ]
 
-real_aspect_subject = rule(
-    implementation = _real_aspect_subject_impl,
-    attrs = {
-        "target": attr.label(
-            aspects = _REAL_ASPECTS,
-            mandatory = True,
-        ),
-    },
-)
+def _subject_rule(aspects):
+    return rule(
+        implementation = _real_aspect_subject_impl,
+        attrs = {
+            "target": attr.label(
+                aspects = aspects,
+                mandatory = True,
+            ),
+        },
+    )
+
+real_aspect_subject = _subject_rule(_REAL_ASPECTS)
+
+_CORE_ASPECTS = [real_lint_aspect, real_format_aspect, real_typecheck_aspect]
+
+real_rust_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_rust_lint_aspect, real_rust_format_aspect])
+
+real_go_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_go_lint_aspect, real_go_format_aspect, real_go_typecheck_aspect])
+
+real_haskell_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_haskell_lint_aspect, real_haskell_format_aspect, real_haskell_typecheck_aspect])
+
+real_ocaml_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_ocaml_lint_aspect, real_ocaml_format_aspect, real_ocaml_typecheck_aspect])
+
+real_jvm_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_jvm_typecheck_aspect])
+
+real_scala_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_jvm_lint_aspect, real_jvm_format_aspect, real_jvm_typecheck_aspect, real_scala_format_aspect, real_scala_lint_aspect])
+
+real_beam_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_erlang_lint_aspect, real_erlang_format_aspect, real_erlang_typecheck_aspect, real_elixir_format_aspect, real_elixir_lint_aspect])
+
+real_dotnet_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_dotnet_lint_aspect, real_dotnet_format_aspect, real_dotnet_typecheck_aspect])
+
+real_js_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_js_lint_aspect, real_js_format_aspect, real_js_typecheck_aspect])
+
+real_python_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_python_lint_aspect, real_python_format_aspect, real_python_typecheck_aspect])
+
+real_cc_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_cc_lint_aspect, real_cc_format_aspect, real_cc_typecheck_aspect])
+
+real_yaml_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_yaml_lint_aspect, real_yaml_format_aspect])
+
+real_sql_aspect_subject = _subject_rule(_CORE_ASPECTS + [real_sql_lint_aspect, real_sql_format_aspect])
+
+real_core_aspect_subject = _subject_rule(_CORE_ASPECTS)
+
+REAL_SUBJECT_BY_CLASS = {
+    "c": real_cc_aspect_subject,
+    "csharp": real_dotnet_aspect_subject,
+    "cuda": real_cc_aspect_subject,
+    "elixir": real_beam_aspect_subject,
+    "erlang": real_beam_aspect_subject,
+    "go": real_go_aspect_subject,
+    "haskell": real_haskell_aspect_subject,
+    "java": real_jvm_aspect_subject,
+    "kotlin": real_jvm_aspect_subject,
+    "objc": real_cc_aspect_subject,
+    "ocaml": real_ocaml_aspect_subject,
+    "python": real_python_aspect_subject,
+    "rust": real_rust_aspect_subject,
+    "scala": real_scala_aspect_subject,
+    "sql": real_sql_aspect_subject,
+    "starlark": real_core_aspect_subject,
+    "typescript": real_js_aspect_subject,
+    "yaml": real_yaml_aspect_subject,
+}
 
 def _probe_shards_of(target):
     if RealShardProbeInfo in target:

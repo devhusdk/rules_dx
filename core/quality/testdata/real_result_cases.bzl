@@ -712,6 +712,7 @@ def real_result_cases(name):
         real_result_test(
             name = case["name"],
             target = case["target"],
+            file_class = case["class"],
             policy = case["policy"],
             contains = case["contains"],
             absent = case["absent"],

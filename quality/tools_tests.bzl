@@ -120,6 +120,7 @@ EXPECTED_IDS = [
     "tinymist",
     "topiary",
     "trivy_config",
+    "trivy_image_config",
     "tsc",
     "ty",
     "typos",

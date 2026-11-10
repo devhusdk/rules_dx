@@ -85,6 +85,7 @@ FIXTURE_EXEMPT_CLASSES = [
     "julia",
     "less",
     "mdx",
+    "oci_image",
     "ocaml",
     "perl",
     "php",

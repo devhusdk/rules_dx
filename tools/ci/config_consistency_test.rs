@@ -1006,6 +1006,17 @@ fn host_dependent_extensions_are_locked_for_every_ci_platform() {
             missing.is_empty(),
             "MODULE.bazel.lock has no {extension} entry for {missing:?}; dispatch lock-refresh.yml and commit its MODULE.bazel.lock artifact"
         );
+        for digest in ["usagesDigest", "bzlTransitiveDigest"] {
+            let current = &entries[platforms[0]][digest];
+            let stale: Vec<&str> = platforms
+                .into_iter()
+                .filter(|platform| &entries[platform][digest] != current)
+                .collect();
+            assert!(
+                stale.is_empty(),
+                "MODULE.bazel.lock has a stale {extension} entry for {stale:?} ({digest}); dispatch lock-refresh.yml and commit its MODULE.bazel.lock artifact"
+            );
+        }
     }
 }
 

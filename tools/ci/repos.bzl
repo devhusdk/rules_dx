@@ -3,7 +3,7 @@
 _MAX_DIRS = 1000000
 
 def _skipped(name):
-    return name.startswith(".") or name.startswith("bazel-") or name == "node_modules"
+    return name == ".git" or name.startswith("bazel-") or name == "node_modules"
 
 def _starlark(name):
     return name == "BUILD" or name == "BUILD.bazel" or name.endswith(".bzl")

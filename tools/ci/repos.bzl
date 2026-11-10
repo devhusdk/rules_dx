@@ -85,8 +85,13 @@ def _rust(path, name):
         return False
     return not any([part in _TEST_DIRS for part in path.split("/")])
 
+def _lock_scan(path, name):
+    if name.endswith(".go"):
+        return not name.endswith("_test.go") and not any([part in _TEST_DIRS for part in path.split("/")])
+    return name.endswith(("module_fragment.bazel", "MODULE.bazel.fixture"))
+
 def _test_tags_sources_impl(rctx):
-    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template and rc files, and paths.json, every path under a language directory."""
+    """Writes consumer.json, every file under a language tests/consumer directory, prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, and lock_scan.json, the non-test Go files and the module fragment and fixture files, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template and rc files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):
@@ -101,11 +106,14 @@ def _test_tags_sources_impl(rctx):
     code = {}
     prose = {}
     all_rust = {}
+    lock_scan = {}
     paths = walk(ignored, readdir).files
     for path in paths:
         name = path.rpartition("/")[2]
         if _code(path, name):
             code[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+        if _lock_scan(path, name):
+            lock_scan[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         if name.endswith(".md"):
             prose[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         elif name.endswith(".rs"):
@@ -136,12 +144,13 @@ def _test_tags_sources_impl(rctx):
     rctx.file("rust.json", json.encode(rust))
     rctx.file("code.json", json.encode(code))
     rctx.file("paths.json", json.encode(sorted([path for path in paths if path.split("/")[0] in langs])))
+    rctx.file("lock_scan.json", json.encode(lock_scan))
     rctx.file("prose.json", json.encode(prose))
     rctx.file("all_rust.json", json.encode(all_rust))
     rctx.file("all_paths.json", json.encode(paths))
-    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "code.json", "paths.json", "prose.json", "all_rust.json", "all_paths.json", "consumer.json"])\n')
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "code.json", "paths.json", "prose.json", "all_rust.json", "all_paths.json", "consumer.json", "lock_scan.json"])\n')
 
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,
-    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, Rust, shell, template and rc code, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
+    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, non-test Go, module fragment, Rust, shell, template and rc code, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
 )

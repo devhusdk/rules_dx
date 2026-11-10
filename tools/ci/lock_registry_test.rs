@@ -53,6 +53,7 @@ struct Tree {
     sources: BTreeMap<String, String>,
     files: BTreeMap<String, String>,
     rust: BTreeMap<String, String>,
+    lock_scan: BTreeMap<String, String>,
     paths: Vec<String>,
 }
 
@@ -364,8 +365,19 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
             out.insert(format!("name {path} {name}"));
         }
     }
-    for (path, source) in &tree.files {
-        if path.rsplit('/').next() != Some("MODULE.bazel") {
+    for (path, source) in &tree.lock_scan {
+        if path.ends_with(".go") {
+            for name in stated_names(source).intersection(&names) {
+                out.insert(format!("name {path} {name}"));
+            }
+        }
+    }
+    for (path, source) in tree.files.iter().chain(&tree.lock_scan) {
+        if path.ends_with(".go")
+            || (path.rsplit('/').next() != Some("MODULE.bazel")
+                && !path.ends_with(".fixture")
+                && !path.ends_with("module_fragment.bazel"))
+        {
             continue;
         }
         for used in banned_tag_uses(path, source, &langs.with_set) {
@@ -468,6 +480,7 @@ fn tree_with_rust(
         sources: map(sources),
         files: map(files),
         rust: map(rust),
+        lock_scan: BTreeMap::new(),
         paths: paths.iter().map(|path| (*path).to_owned()).collect(),
     }
 }
@@ -489,6 +502,7 @@ fn the_tree_matches_the_allowlist() {
         sources: decode_texts("DX_SOURCES_JSON"),
         files: decode_texts("DX_FILES_JSON"),
         rust: decode_texts("DX_RUST_JSON"),
+        lock_scan: decode_texts("DX_LOCK_SCAN_JSON"),
         paths: decode_paths("DX_PATHS_JSON"),
     };
     assert!(
@@ -750,6 +764,26 @@ fn a_manifest_or_lock_name_outside_the_registry_fails() {
 }
 
 #[test]
+fn a_registry_name_in_go_source_or_a_banned_attr_in_a_fragment_fails() {
+    let mut tree = tree(&[], &[("php/lang.json", PHP_LANG)], &[]);
+    tree.lock_scan.insert(
+        "gazelle/php/lock.go".to_owned(),
+        "var lock = \"composer.lock.json\"\n".to_owned(),
+    );
+    tree.lock_scan.insert(
+        "tools/consumers/php/module_fragment.bazel".to_owned(),
+        "composer = use_extension(\"//php:extensions.bzl\", \"composer\")\ncomposer.lock(name = \"composer\", sha256 = \"x\")\n".to_owned(),
+    );
+    assert_eq!(
+        found(&tree),
+        [
+            "name gazelle/php/lock.go composer.lock.json",
+            "tag-use tools/consumers/php/module_fragment.bazel composer.lock.sha256",
+        ]
+    );
+}
+
+#[test]
 fn a_registry_name_in_rust_source_fails() {
     let tree = tree_with_rust(
         &[],
@@ -763,7 +797,10 @@ fn a_registry_name_in_rust_source_fails() {
                 "gazelle/php/lock.rs",
                 "fn lock(dir: &Path) -> PathBuf {\n    dir.join(\"composer.lock.json\")\n}\n",
             ),
-            ("cli/plan/src/lib.rs", "const MODULE: &str = \"MODULE.bazel\";\n"),
+            (
+                "cli/plan/src/lib.rs",
+                "const MODULE: &str = \"MODULE.bazel\";\n",
+            ),
         ],
         &[],
     );

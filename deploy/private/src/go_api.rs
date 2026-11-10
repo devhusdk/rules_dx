@@ -390,7 +390,7 @@ mod tests {
         let repo = git_fixture(scratch.path());
         write_crate_file(&repo, "lib/lib.go", "package lib\n");
         let cache = scratch.path().join("gocache");
-        let path = go_dir.clone();
+        let path = format!("{go_dir}:{}", std::env::var("PATH").unwrap_or_default());
         with_env(
             &[
                 ("PATH", Some(path.as_str())),

@@ -27,6 +27,9 @@ def _aspect_impl(target, ctx):
     runtime = target[DotnetAssemblyRuntimeInfo]
     if runtime.nuget_info != None:
         return [DxSharpFuzzInfo(runtime = runtime, files = depset())]
+    upstream = getattr(ctx.rule.attr, "upstream", None)
+    if type(upstream) == "Target" and DxSharpFuzzInfo in upstream:
+        return [upstream[DxSharpFuzzInfo]]
     dep_infos = [dep[DxSharpFuzzInfo] for dep in getattr(ctx.rule.attr, "deps", []) if DxSharpFuzzInfo in dep]
     dep_runtimes = [info.runtime for info in dep_infos]
     libs = []
@@ -62,7 +65,7 @@ def _aspect_impl(target, ctx):
 
 dx_sharpfuzz_aspect = aspect(
     implementation = _aspect_impl,
-    attr_aspects = ["deps"],
+    attr_aspects = ["deps", "upstream"],
     attrs = {
         "_instrument": attr.label(
             default = Label("@rules_dx//dotnet/fuzz:instrument"),

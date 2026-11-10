@@ -14,6 +14,13 @@ import (
 
 const languageName = "ownership"
 
+// The quality wrapper of an oci_image is named after the image with ociQualitySuffix.
+const (
+	ociImageKind     = "oci_image"
+	ociQualityKind   = "oci_image_quality"
+	ociQualitySuffix = "_quality"
+)
+
 type family struct {
 	kind     string
 	target   string
@@ -55,6 +62,11 @@ func kinds() map[string]rule.KindInfo {
 	for _, f := range families {
 		out[f.kind] = common.LibraryKindInfo()
 	}
+	out[ociQualityKind] = rule.KindInfo{
+		MatchAttrs:     []string{"image"},
+		NonEmptyAttrs:  map[string]bool{"image": true},
+		MergeableAttrs: map[string]bool{"image": true, "build_files": true},
+	}
 	return out
 }
 
@@ -78,6 +90,14 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 		result.Imports = append(result.Imports, nil)
 		claimants = append(claimants, common.Claimant{Name: f.target, Source: path.Join(args.Rel, srcs[0]), Kind: f.kind})
 	}
+	images := ociImageNames(args.File)
+	for _, image := range images {
+		r := rule.NewRule(ociQualityKind, image+ociQualitySuffix)
+		r.SetAttr("build_files", []string{":" + path.Base(args.File.Path)})
+		r.SetAttr("image", ":"+image)
+		result.Gen = append(result.Gen, r)
+		result.Imports = append(result.Imports, nil)
+	}
 	if err := common.CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(common.InPackage(args.Rel), "%s: %s: %v", languageName, args.Rel, err)
 		return language.GenerateResult{}
@@ -85,8 +105,33 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 	return common.MergeStaleOwned(args.File, result, kinds, func(existing *rule.Rule) bool {
 		return slices.ContainsFunc(families, func(f family) bool {
 			return f.kind == existing.Kind() && (f.target == existing.Name() || len(existing.AttrStrings("srcs")) == 0)
-		})
+		}) || ociStale(existing, images)
 	})
+}
+
+// ociImageNames lists the oci_image rules the BUILD file declares.
+func ociImageNames(file *rule.File) []string {
+	if file == nil {
+		return nil
+	}
+	var names []string
+	for _, r := range file.Rules {
+		if r.Kind() == ociImageKind && r.Name() != "" {
+			names = append(names, r.Name())
+		}
+	}
+	sort.Strings(names)
+	return names
+}
+
+// ociStale reports whether existing is a quality wrapper for an image the
+// package no longer declares.
+func ociStale(existing *rule.Rule, images []string) bool {
+	if existing.Kind() != ociQualityKind || !strings.HasSuffix(existing.Name(), ociQualitySuffix) {
+		return false
+	}
+	image := strings.TrimSuffix(existing.Name(), ociQualitySuffix)
+	return existing.AttrString("image") == ":"+image && !slices.Contains(images, image)
 }
 
 // handwritten reports whether the package already has a rule of the kind under
@@ -105,6 +150,8 @@ func NewLanguage() language.Language {
 		extra = append(extra, f.kind)
 		index = append(index, f.kind)
 	}
+	kindDefs[ociQualityKind] = "deploy:defs.bzl"
+	extra = append(extra, ociQualityKind)
 	return common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    families[0].kind,

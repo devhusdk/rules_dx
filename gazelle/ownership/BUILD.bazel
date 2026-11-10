@@ -39,4 +39,5 @@ go_test(
     srcs = ["lang_test.go"],
     embed = [":ownership"],
     pure = "on",
+    deps = ["@gazelle//v2/rule"],
 )

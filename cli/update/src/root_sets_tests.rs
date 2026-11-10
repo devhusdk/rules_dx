@@ -6,7 +6,7 @@ const MODULE_BAZEL: &str = include_str!("../../../MODULE.bazel");
 const PAKET_EXTENSION: &str = include_str!("../../../third_party/dotnet/extension.bzl");
 const PAKET_DEPENDENCIES: &str = include_str!("../../../third_party/dotnet/paket.dependencies");
 
-const EXPECTED_NAMES: [&str; 38] = [
+const EXPECTED_NAMES: [&str; 40] = [
     "d_app_dub",
     "dart_apitool_deps",
     "dub_fixture",
@@ -37,7 +37,9 @@ const EXPECTED_NAMES: [&str; 38] = [
     "haskell_app_hackage",
     "haskell_bench_hackage",
     "haskell_exe_hackage",
+    "haskell_hlint_hackage",
     "haskell_nixfmt_hackage",
+    "haskell_ormolu_hackage",
     "haskell_weeder_hackage",
     "maven",
     "nuget",

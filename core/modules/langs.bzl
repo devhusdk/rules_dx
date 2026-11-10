@@ -56,6 +56,21 @@ LANGS = json.decode("""{
         ".yml"
       ]
     },
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "ansible",
+          "extension": "@rules_dx//ansible:extensions.bzl",
+          "hub": "ansible_collections",
+          "imports": "name",
+          "lock": null,
+          "manifest": "MODULE.bazel",
+          "resolver": null,
+          "state": null,
+          "tag": null
+        }
+      ]
+    },
     "title": "ansible",
     "tools": [
       "ansible_lint",
@@ -2444,6 +2459,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "ruby",
+          "extension": "@rules_dx//ruby:extensions.bzl",
+          "hub": "bundle",
+          "imports": "name",
+          "lock": "Gemfile.lock",
+          "manifest": "Gemfile",
+          "resolver": null,
+          "state": null,
+          "tag": "bundle_fetch"
+        }
+      ]
+    },
     "title": "Ruby",
     "tools": [
       "rubocop",

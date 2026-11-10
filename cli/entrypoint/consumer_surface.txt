@@ -121,3 +121,6 @@ avro:defs.bzl
 capnproto:defs.bzl
 flatbuffers:defs.bzl
 thrift:defs.bzl
+csharp:defs.bzl
+fortran:defs.bzl
+fsharp:defs.bzl

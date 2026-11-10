@@ -5,6 +5,7 @@ package(default_visibility = ["//:__subpackages__"])
 exports_files([
     "Package.resolved",
     "Package.swift",
+    "swiftpm.lock.json",
     "README.md",
 ])
 

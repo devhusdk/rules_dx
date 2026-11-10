@@ -132,7 +132,6 @@ override single_version_override rules_java
 override single_version_override rules_julia
 override single_version_override rules_jvm_external
 override single_version_override rules_kotlin
-override single_version_override rules_multitool
 override single_version_override rules_nodejs
 override single_version_override rules_oci
 override single_version_override rules_perl
@@ -145,7 +144,6 @@ override single_version_override rules_rust_wasm_bindgen
 override single_version_override rules_scala
 override single_version_override rules_shell
 override single_version_override rules_swift
-override single_version_override rules_swift_package_manager
 override single_version_override rules_zig
 override single_version_override windows_support
 override single_version_override zlib

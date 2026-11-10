@@ -87,6 +87,7 @@ def _checks():
         expect_equal("no product leaves only the load", _NONE, 'load("%s", "swift_interop_hint", "swift_library", "swift_library_group")\nload("%s", "cc_library")\n' % (str(Label("//swift:defs.bzl")), str(Label("//cc:defs.bzl")))),
         expect_contains("a target is a swift_library", text, 'name = "LibCore",\n    module_name = "LibCore",\n    srcs = ["Sources/LibCore/a.swift"],'),
         expect_contains("a target and a product dependency are labels", text, 'deps = [":Helper", "//other:Other"],'),
+        expect_contains("a target does not fail on upstream warnings", text, "    warnings_as_errors = False,"),
         expect_contains("a product with another name is an alias", text, 'name = "Lib",\n    actual = ":LibCore",'),
         expect_contains("a C target is a cc_library with its include directory", c_text, 'name = "CCore",\n    srcs = ["Sources/CCore/ccore.c"] + glob(["Sources/CCore/private/**/*.h"]),\n    hdrs = glob(["Sources/CCore/include/**/*.h", "Sources/CCore/include/**/*.hh", "Sources/CCore/include/**/*.hpp", "Sources/CCore/include/**/*.hxx", "Sources/CCore/include/**/*.inc"]),\n    defines = [],\n    includes = ["Sources/CCore/include", "Sources/CCore/private"],'),
         expect_contains("a C target has an interop hint", c_text, 'aspect_hints = [":CCore_hint"],'),

@@ -1016,29 +1016,12 @@ register_toolchains("//swift/private/toolchain:all")
 swift_windows = use_extension("//swift:extensions.bzl", "swift_windows")
 use_repo(swift_windows, "dx_swift_windows_aarch64", "dx_swift_windows_x86_64")
 
-# floor: equals tested; dev only, for the swift-app fixture packages
-bazel_dep(name = "rules_swift_package_manager", version = "1.25.0", dev_dependency = True)
-single_version_override(
-    module_name = "rules_swift_package_manager",
-    patch_strip = 1,
-    patches = ["//patches/rules_swift_package_manager:swift_executable.patch"],
-    version = "1.25.0",
+swiftpm = use_extension("//swift:extensions.bzl", "swiftpm", dev_dependency = True)
+swiftpm.lock(
+    name = "swiftpkg",
+    lock = "//swift/tests/fixtures/swift-app:swiftpm.lock.json",
 )
-
-single_version_override(
-    module_name = "cgrindel_bazel_starlib",
-    patch_strip = 1,
-    patches = ["//patches/cgrindel_bazel_starlib:no_host_git.patch"],
-    version = "0.30.0",
-)
-
-swift_deps = use_extension("@rules_swift_package_manager//:extensions.bzl", "swift_deps", dev_dependency = True)
-swift_deps.from_package(
-    resolved = "//swift/tests/fixtures/swift-app:Package.resolved",
-    swift = "//swift/tests/fixtures/swift-app:Package.swift",
-    swift_executable = "@dx_swift_host//:swift",
-)
-use_repo(swift_deps, "swift_package", "swiftpkg_swift_argument_parser")
+use_repo(swiftpm, "swiftpkg")
 
 # floor: equals tested
 bazel_dep(name = "rules_dart", version = "0.8.1")
@@ -1409,14 +1392,6 @@ archive_override(
     urls = [
         "https://www.lua.org/ftp/lua-5.5.0.tar.gz",
     ],
-)
-
-# rules_multitool marks its extension reproducible, so the lockfile drops it and every CI job re-runs it (#8987).
-single_version_override(
-    module_name = "rules_multitool",
-    patch_strip = 1,
-    patches = ["//patches/rules_multitool:lock_extension.patch"],
-    version = "1.0.0",
 )
 
 lua_tools = use_extension("//lua:extensions.bzl", "lua")

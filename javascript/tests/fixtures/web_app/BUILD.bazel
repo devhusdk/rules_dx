@@ -293,7 +293,6 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "repos.bzl",
     ],
     tags = ["corpus"],
 )

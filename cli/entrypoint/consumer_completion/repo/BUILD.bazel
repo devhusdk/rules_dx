@@ -1,0 +1,75 @@
+genrule(
+    name = "consumer_completion_probe",
+    testonly = True,
+    outs = [
+        "completion_argv.txt",
+        "completion_env.txt",
+        "completion_failed_query.txt",
+        "completion_flag.txt",
+    ],
+    cmd = """
+set -eu
+unset CI
+export MSYS=winsymlinks:nativestrict MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*'
+public="$$PWD/$(location @rules_dx//:dx)"
+probe="$$PWD/$(location @rules_dx//tools/testing/process_probe)"
+out="$$PWD/$$(dirname "$(location completion_flag.txt)")"
+root="$$(cd "$$(mktemp -d)" && pwd -P)"
+trap 'rm -rf "$$root"' EXIT
+bin="$$root/bin"
+ext=
+native() { printf '%s' "$$1"; }
+case "$$probe" in
+  *.exe)
+    ext=.exe
+    root="$$(cygpath -m -l "$$root")"
+    native() { printf '%s' "$$(cygpath -m -l "$$1")"; }
+    ;;
+esac
+ws="$$root/consumer ws ü"
+other="$$root/other"
+start="$$root/start"
+mkdir -p "$$ws/pkg" "$$other/lib" "$$start" "$$root/bin"
+for dir in "$$ws" "$$other"; do
+  echo 'module(name = "consumer_completion", version = "0.0.0")' > "$$dir/MODULE.bazel"
+  touch "$$dir/BUILD.bazel"
+done
+touch "$$ws/pkg/BUILD.bazel" "$$other/lib/BUILD.bazel"
+ln -s "$$public" "$$root/bin/dx$$ext"
+cp "$$probe" "$$root/bin/bazel$$ext"
+"$$public" completion bash > "$$root/dx.bash"
+. "$$root/dx.bash"
+export PROCESS_PROBE_SHIM_LOG="$$root/argv.txt" PROCESS_PROBE_SHIM_EXIT=0
+export PROCESS_PROBE_SHIM_STDOUT='//pkg:alpha
+//pkg:beta
+WARNING: not a label
+//pkg:another
+'
+export PATH="$$bin:$$PATH"
+complete_words() {
+  dest="$$1"
+  shift
+  COMP_WORDS=("$$@")
+  COMP_CWORD=$$(($$# - 1))
+  COMP_TYPE=9
+  COMPREPLY=()
+  set +eu
+  _clap_complete_dx dx "$${COMP_WORDS[$$COMP_CWORD]}" "$${COMP_WORDS[$$COMP_CWORD - 1]}" 2> "$$root/stderr.txt"
+  for reply in "$${COMPREPLY[@]}"; do
+    echo "candidate=$$reply"
+  done > "$$dest"
+  set -eu
+  echo "stderr_bytes=$$(wc -c < "$$root/stderr.txt" | tr -d ' ')" >> "$$dest"
+}
+# Hermetic rc policy (BAZEL_TEST set) pins the --nohome_rc --nosystem_rc startup tokens on any host.
+(cd "$$start" && export BAZEL_TEST=1 && complete_words "$$out/completion_flag.txt" dx build --workspace "$$ws" "--bazel-startup-option=--output_base=$$root/base ü" "--bazel-startup-option=--output_user_root=$$root/user root" "//pkg:a")
+{ native "$$(head -n 1 "$$root/argv.txt")"; echo; tail -n +2 "$$root/argv.txt"; } | sed "s|$$root|ROOT|g" > "$$out/completion_argv.txt"
+(cd "$$start" && complete_words "$$out/completion_env.txt" dx build --workspace "$$other" "")
+(cd "$$start" && export PROCESS_PROBE_SHIM_EXIT=1 && complete_words "$$out/completion_failed_query.txt" dx build --workspace "$$ws" "//pkg:")
+""",
+    tools = [
+        "@rules_dx//:dx",
+        "@rules_dx//tools/testing/process_probe",
+    ],
+    visibility = ["//visibility:public"],
+)

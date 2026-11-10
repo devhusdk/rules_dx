@@ -1,0 +1,21 @@
+load("@rules_dx//javascript:defs.bzl", "javascript_web_app")
+load("@rules_dx//cli/web_server:server.bzl", "javascript_web_server")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+javascript_web_app(
+    name = "consumer_app",
+    html = ":index.html",
+    bindgen = "@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
+    assets = {":data.txt": "assets/data.txt"},
+)
+
+javascript_web_server(
+    name = "consumer_serve",
+    app = ":consumer_app",
+    port = 8123,
+    headers = {"X-Consumer": "web-consumer"},
+)

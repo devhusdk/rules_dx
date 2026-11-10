@@ -1,0 +1,11 @@
+load("@rules_dx//cc:defs.bzl", "cc_library")
+
+exports_files(["native.h"])
+
+cc_library(
+    name = "native",
+    srcs = ["native.c"],
+    hdrs = ["native.h"],
+    copts = ["-DCONSUMER_OFFSET=7"],
+    visibility = ["//visibility:public"],
+)

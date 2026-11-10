@@ -1,0 +1,22 @@
+load("@rules_dx//tools/docs/rust:site.bzl", "rust_docs_site")
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+package(default_visibility = ["//visibility:public"])
+
+rust_library(
+    name = "consumer_greeting",
+    srcs = [
+        "src/lib.rs",
+        "src/words.rs",
+    ],
+    crate_root = "src/lib.rs",
+    edition = "2021",
+)
+
+rust_docs_site(
+    name = "site",
+    book_toml = "book.toml",
+    prose = ["guide.md"],
+    libraries = [":consumer_greeting"],
+    source_url = "https://example.invalid/consumer/blob/main/",
+)

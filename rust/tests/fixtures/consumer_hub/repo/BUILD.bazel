@@ -1,0 +1,12 @@
+load("@rules_dx//rust:defs.bzl", "rust_library")
+
+exports_files(["crates.bzl"])
+
+rust_library(
+    name = "greeting",
+    srcs = ["greeting.rs"],
+    crate_name = "greeting",
+    crate_root = "greeting.rs",
+    edition = "2021",
+    visibility = ["//visibility:public"],
+)

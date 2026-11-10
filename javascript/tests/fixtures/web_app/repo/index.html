@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dx consumer web</title>
+</head>
+<body>
+<main>
+<h1>dx consumer web</h1>
+<p id="consumer-proof">loading</p>
+<p id="consumer-asset">loading</p>
+</main>
+<script type="module">
+import init, { greet } from "./wasm_hello_web.js";
+await init();
+document.getElementById("consumer-proof").textContent = greet("consumer");
+const asset = await (await fetch("./assets/data.txt")).text();
+document.getElementById("consumer-asset").textContent = asset.trim();
+</script>
+</body>
+</html>

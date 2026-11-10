@@ -1,0 +1,36 @@
+load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
+load("@rules_dx//deploy:defs.bzl", "consumer_archive", "dx_resources")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["NOTICE.txt", "banner.txt"])
+
+cc_library(
+    name = "external_greet",
+    srcs = ["external_greet.cc"],
+    hdrs = ["external_greet.h"],
+    copts = ["-std=c++17"],
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "external_app",
+    srcs = ["external_main.cc"],
+    copts = ["-std=c++17"],
+    visibility = ["//visibility:public"],
+    deps = [":external_greet"],
+)
+
+dx_resources(
+    name = "repo_res",
+    mappings = {":banner.txt": "banner.txt"},
+)
+
+consumer_archive(
+    name = "repo_root_release",
+    app = ":external_app",
+    min_runtime = "glibc-2.17",
+    notice = ":NOTICE.txt",
+    resources = [":repo_res"],
+)

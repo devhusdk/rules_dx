@@ -1,6 +1,4 @@
-"""A consumer-owned bundle of rules_dx wasm outputs."""
-
-_BUILD_BAZEL = '''load("@rules_dx//javascript:defs.bzl", javascript_wasm_bindgen_library = "javascript_wasm_bindgen_library")
+load("@rules_dx//javascript:defs.bzl", javascript_wasm_bindgen_library = "javascript_wasm_bindgen_library")
 
 genrule(
     name = "bundle_raw",
@@ -79,14 +77,4 @@ javascript_wasm_bindgen_library(
     bindgen = "@rules_dx//rust/tests/fixtures/wasm_bindgen:wasm_hello_web",
     testonly = True,
     visibility = ["//visibility:public"],
-)
-'''
-
-def _consumer_wasm_bindgen_repo_impl(ctx):
-    """Writes the bundle an independent consumer of rules_dx wasm would own."""
-    ctx.file("BUILD.bazel", _BUILD_BAZEL)
-    return ctx.repo_metadata(reproducible = True)
-
-consumer_wasm_bindgen_repo = repository_rule(
-    implementation = _consumer_wasm_bindgen_repo_impl,
 )

@@ -331,7 +331,6 @@ real_source_target(
         "BUILD.bazel",
         "js_parity.bzl",
         "raw_transition.bzl",
-        "repos.bzl",
     ],
     tags = ["corpus"],
 )

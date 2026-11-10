@@ -671,6 +671,7 @@ test-location haskell/tests/BUILD.bazel
 test-location java/private/BUILD.bazel
 test-location java/private/coverage_tests.bzl
 test-location java/private/ide/BUILD.bazel
+test-location java/private/jmh_tests.bzl
 test-location java/tests/BUILD.bazel
 test-location javascript/private/BUILD.bazel
 test-location javascript/private/dev_hub_tests.bzl

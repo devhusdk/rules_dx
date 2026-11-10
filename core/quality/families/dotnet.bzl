@@ -49,21 +49,18 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive C#/F# format family aspect (CSharpier/Fantomas).",
         "shard": "dotnet",
-        "suffix": "-dotnet",
     },
     "real_dotnet_lint": {
         "capability": "lint",
         "doc": "Additive C#/F# lint family aspect (Roslyn/FSharpLint).",
         "requires": [roslyn_aspect],
         "shard": "dotnet",
-        "suffix": "-dotnet",
     },
     "real_dotnet_typecheck": {
         "capability": "typecheck",
         "doc": "Additive C#/F# typecheck family aspect (csc and fsc compiler diagnostics).",
         "requires": [fsc_aspect, roslyn_aspect],
         "shard": "dotnet",
-        "suffix": "-dotnet",
     },
 }
 
@@ -141,10 +138,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_dotnet_format_aspect = real_make_aspect(_CFG, "real_dotnet_format")

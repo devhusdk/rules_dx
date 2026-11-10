@@ -218,12 +218,16 @@ def _expand_shard(tools_table, spec):
     tools = _shard_tools(tools_table, spec["shard"], spec["capability"])
     attr_tools = _shard_tools(tools_table, spec["shard"], None) if spec.get("shared_attrs", False) else tools
     return spec | {
+        "suffix": spec.get("suffix", "-" + spec["shard"]),
         "attrs": _real_attrs_for(tools_table, attr_tools) | spec.get("extra_attrs", {}) | _UNSAFE_FIXES_ATTR,
         "has_toolchain": len([tool for tool in tools if tools_table[tool]["kind"] == "toolchain"]) > 0,
         "tools": tools,
     }
 
-def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizers, harness_sources, toolchain, check_policy = True):
+def _direct_sources(_target, _capability, direct_sources):
+    return direct_sources
+
+def real_config(tools, shard_specs, hook_order = [], context_hooks = {}, source_recognizers = [], harness_sources = None, toolchain = None, check_policy = False):
     """Bundles the tool table and the family hooks the engine runs."""
     tools = {
         tool: spec if "capabilities" in spec else spec | {"capabilities": sorted(REAL_ADAPTERS[tool].keys())}
@@ -239,7 +243,7 @@ def real_config(tools, shard_specs, hook_order, context_hooks, source_recognizer
         hook_order = hook_order,
         context_hooks = context_hooks,
         source_recognizers = source_recognizers,
-        harness_sources = harness_sources,
+        harness_sources = harness_sources if harness_sources != None else _direct_sources,
         toolchain = toolchain,
         check_policy = check_policy,
     )

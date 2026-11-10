@@ -23,25 +23,17 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive Makefile lint family aspect (checkmake).",
         "shard": "make",
-        "suffix": "-make",
     },
     "real_make_format": {
         "capability": "format",
         "doc": "Additive Makefile format family aspect (mbake).",
         "shard": "make",
-        "suffix": "-make",
     },
 }
 
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = [],
-    context_hooks = {},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_make_lint_aspect = real_make_aspect(_CFG, "real_make_lint")

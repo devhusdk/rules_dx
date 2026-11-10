@@ -34,19 +34,16 @@ SHARD_SPECS = {
         "capability": "typecheck",
         "doc": "Additive Julia typecheck family aspect (JET).",
         "shard": "julia",
-        "suffix": "-julia",
     },
     "real_julia_format": {
         "capability": "format",
         "doc": "Additive Julia format family aspect (JuliaFormatter).",
         "shard": "julia",
-        "suffix": "-julia",
     },
     "real_julia_lint": {
         "capability": "lint",
         "doc": "Additive Julia lint family aspect (JuliaWorkspaces).",
         "shard": "julia",
-        "suffix": "-julia",
     },
 }
 
@@ -103,10 +100,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_julia_format_aspect = real_make_aspect(_CFG, "real_julia_format")

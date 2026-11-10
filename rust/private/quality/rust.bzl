@@ -34,7 +34,6 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Rust format family aspect (toolchain rustfmt).",
         "shard": "rust",
-        "suffix": "-rust",
         "toolchains": rust_toolchain_toolchains(),
     },
     "real_rust_lint": {
@@ -42,14 +41,12 @@ SHARD_SPECS = {
         "doc": "Additive Rust lint family aspect (delegated Clippy).",
         "requires": [dx_clippy_aspect],
         "shard": "rust",
-        "suffix": "-rust",
         "toolchains": rust_toolchain_toolchains(),
     },
     "real_rust_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Rust typecheck family aspect (delegated rustc).",
         "shard": "rust",
-        "suffix": "-rust",
         "toolchains": rust_toolchain_toolchains(),
     },
 }
@@ -186,7 +183,6 @@ _CFG = real_config(
     source_recognizers = [RECOGNIZER],
     harness_sources = harness_sources,
     toolchain = TOOLCHAIN,
-    check_policy = False,
 )
 
 real_rust_format_aspect = real_make_aspect(_CFG, "real_rust_format")

@@ -81,7 +81,6 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive C/C++ format family aspect (clang-format).",
         "shard": "cc",
-        "suffix": "-cc",
     },
     "real_cc_lint": {
         "capability": "lint",
@@ -91,14 +90,12 @@ SHARD_SPECS = {
         },
         "requires": [clang_syntax_aspect, _qml_context_aspect],
         "shard": "cc",
-        "suffix": "-cc",
     },
     "real_cc_typecheck": {
         "capability": "typecheck",
         "doc": "Additive C/C++/Objective-C/CUDA typecheck family aspect (compiler -fsyntax-only replay, nvcc -cuda replay).",
         "requires": [clang_syntax_aspect, nvcc_syntax_aspect, _qml_context_aspect],
         "shard": "cc",
-        "suffix": "-cc",
     },
 }
 
@@ -183,9 +180,6 @@ _CFG = real_config(
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
     source_recognizers = [RECOGNIZER],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_cc_format_aspect = real_make_aspect(_CFG, "real_cc_format")

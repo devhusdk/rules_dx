@@ -22,19 +22,12 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive text lint family aspect (keep-sorted, typos).",
         "shard": "text",
-        "suffix": "-text",
     },
 }
 
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = [],
-    context_hooks = {},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_text_lint_aspect = real_make_aspect(_CFG, "real_text_lint")

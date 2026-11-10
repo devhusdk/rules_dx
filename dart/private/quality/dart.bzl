@@ -23,19 +23,16 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Dart format family aspect (dart format).",
         "shard": "dart",
-        "suffix": "-dart",
     },
     "real_dart_lint": {
         "capability": "lint",
         "doc": "Additive Dart lint family aspect (dart analyze).",
         "shard": "dart",
-        "suffix": "-dart",
     },
     "real_dart_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Dart typecheck family aspect (dart analyze).",
         "shard": "dart",
-        "suffix": "-dart",
     },}
 
 _DART_PACKAGE_CONFIG_REL = ".dart_tool/package_config.json"
@@ -124,10 +121,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_dart_format_aspect = real_make_aspect(_CFG, "real_dart_format")

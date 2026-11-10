@@ -30,20 +30,17 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive Zig format family aspect (zig fmt).",
         "shard": "zig",
-        "suffix": "-zig",
     },
     "real_zig_lint": {
         "capability": "lint",
         "doc": "Additive Zig lint family aspect (zig ast-check).",
         "shard": "zig",
-        "suffix": "-zig",
     },
     "real_zig_typecheck": {
         "capability": "typecheck",
         "doc": "Additive Zig typecheck family aspect (zig -fno-emit-bin replay of the compile action).",
         "requires": [compile_check_aspect],
         "shard": "zig",
-        "suffix": "-zig",
     },
 }
 
@@ -52,10 +49,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = ["zig"],
     context_hooks = {"zig": compile_check_hook("zig")},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_zig_format_aspect = real_make_aspect(_CFG, "real_zig_format")

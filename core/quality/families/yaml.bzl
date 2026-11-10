@@ -23,25 +23,17 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive YAML format family aspect (yamlfmt).",
         "shard": "yaml",
-        "suffix": "-yaml",
     },
     "real_yaml_lint": {
         "capability": "lint",
         "doc": "Additive YAML lint family aspect (yamllint).",
         "shard": "yaml",
-        "suffix": "-yaml",
     },
 }
 
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = [],
-    context_hooks = {},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_yaml_format_aspect = real_make_aspect(_CFG, "real_yaml_format")

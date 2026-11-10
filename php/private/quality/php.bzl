@@ -31,14 +31,12 @@ SHARD_SPECS = {
         "capability": "lint",
         "doc": "Additive PHP lint family aspect (phpcs).",
         "shard": "php",
-        "suffix": "-php",
     },
     "real_php_typecheck": {
         "capability": "typecheck",
         "doc": "Additive PHP typecheck family aspect (phpstan).",
         "extra_attrs": _PHPSTAN_ATTRS,
         "shard": "php",
-        "suffix": "-php",
     },
 }
 
@@ -74,10 +72,6 @@ _CFG = real_config(
     shard_specs = SHARD_SPECS,
     hook_order = HOOK_ORDER,
     context_hooks = HOOKS,
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_php_lint_aspect = real_make_aspect(_CFG, "real_php_lint")

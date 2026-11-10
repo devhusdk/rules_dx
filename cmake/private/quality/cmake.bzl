@@ -23,25 +23,17 @@ SHARD_SPECS = {
         "capability": "format",
         "doc": "Additive CMake format family aspect (gersemi).",
         "shard": "cmake",
-        "suffix": "-cmake",
     },
     "real_cmake_lint": {
         "capability": "lint",
         "doc": "Additive CMake lint family aspect (cmakelint).",
         "shard": "cmake",
-        "suffix": "-cmake",
     },
 }
 
 _CFG = real_config(
     tools = TOOLS,
     shard_specs = SHARD_SPECS,
-    hook_order = [],
-    context_hooks = {},
-    source_recognizers = [],
-    harness_sources = lambda _target, _capability, direct_sources: direct_sources,
-    toolchain = None,
-    check_policy = False,
 )
 
 real_cmake_format_aspect = real_make_aspect(_CFG, "real_cmake_format")

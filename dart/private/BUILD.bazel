@@ -126,8 +126,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "extensions.bzl",
-        "pins.bzl",
         "platforms.bzl",
         "providers.bzl",
         "pub.bzl",

@@ -11,8 +11,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "extensions.bzl",
-        "pins.bzl",
         "rules_dotnet.bzl",
         "symbols.bzl",
     ],
@@ -22,5 +20,6 @@ real_source_target(
 
 exports_files([
     "lang.json",
+    "libfuzzer_dotnet.build",
     "pins.json",
 ])

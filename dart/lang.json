@@ -23,9 +23,7 @@
     "macos_arm64",
     "windows_x86_64"
   ],
-  "pins": [
-    "private/pins.bzl"
-  ],
+  "pins": [],
   "entry_points": [
     "dart_codegen",
     "dart_root_package_name",

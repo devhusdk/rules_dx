@@ -476,9 +476,6 @@ single_version_override(
     version = "3.7.2",
 )
 
-dotnet_tools = use_extension("//dotnet:extensions.bzl", "dotnet_tools")
-use_repo(dotnet_tools, "dx_libfuzzer_dotnet", "rules_dotnet")
-
 dotnet = use_extension("//dotnet:rules_dotnet.bzl", "dotnet")
 dotnet.toolchain(dotnet_version = "10.0.403")
 dotnet.toolchain(
@@ -710,9 +707,6 @@ bazel_dep(name = "bazel_features", version = "1.54.1")
 ruby_coverage = use_extension("//ruby/private/coverage:extensions.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
-ruby_tools = use_extension("//ruby/private/toolchain:extensions.bzl", "ruby_tools")
-use_repo(ruby_tools, "rules_ruby")
-
 dx_pins = use_extension("//core:extensions.bzl", "dx_pins")
 dx_pins.pin(
     name = "dx_sorbet",
@@ -795,10 +789,6 @@ dx_pins.data(
     pins = "//appimage/private:pins.json",
 )
 dx_pins.data(
-    name = "dx_dart",
-    pins = "//dart/private:pins.json",
-)
-dx_pins.data(
     name = "dx_cosign",
     pins = "//deploy/private/release:pins.json",
 )
@@ -806,12 +796,51 @@ dx_pins.data(
     name = "dx_cuda",
     pins = "//cuda/private/toolchain:pins.json",
 )
-dx_pins.data(
-    name = "dx_dotnet",
+dx_pins.archive(
+    name = "dx_rules_dart_pub",
+    dropped = ["MODULE.bazel"],
+    key = "rules_dart",
+    patches = ["//patches/rules_dart:hermetic_tar.patch"],
+    pins = "//dart/private:pins.json",
+)
+dx_pins.archive(
+    name = "dx_libfuzzer_dotnet",
+    build = "//dotnet:libfuzzer_dotnet.build",
+    key = "libfuzzer_dotnet",
+    patches = ["//patches/libfuzzer_dotnet:macos_section.patch"],
     pins = "//dotnet:pins.json",
+    required = ["libfuzzer-dotnet.cc"],
+)
+dx_pins.archive(
+    name = "rules_dotnet",
+    dropped = ["MODULE.bazel"],
+    patches = [
+        "//patches/rules_dotnet:reproducible.patch",
+        "//patches/rules_dotnet:fsharp_signature.patch",
+        "//patches/rules_dotnet:nuget_group_prefix.patch",
+        "//patches/rules_dotnet:sdk_versions.patch",
+        "//patches/rules_dotnet:canonical_labels.patch",
+    ],
+    pins = "//dotnet:pins.json",
+)
+dx_pins.archive(
+    name = "rules_powershell",
+    pins = "//powershell:pins.json",
+)
+dx_pins.archive(
+    name = "rules_ruby",
+    crlf = ["ruby/private/binary/binary.cmd.tpl"],
+    dropped = ["MODULE.bazel"],
+    patches = [
+        "//patches/rules_ruby:reproducible.patch",
+        "//patches/rules_ruby:coverage.patch",
+        "//patches/rules_ruby:rubyinstaller_archive.patch",
+    ],
+    pins = "//ruby:pins.json",
 )
 use_repo(
     dx_pins,
+    "dx_libfuzzer_dotnet",
     "dx_luals",
     "dx_pins_data",
     "dx_powershell_toolchains",
@@ -821,8 +850,12 @@ use_repo(
     "dx_powershell_toolchains__macos_x86_64",
     "dx_powershell_toolchains__windows_arm64",
     "dx_powershell_toolchains__windows_x86_64",
+    "dx_rules_dart_pub",
     "dx_sorbet",
     "dx_swift_format_macos_arm64",
+    "rules_dotnet",
+    "rules_powershell",
+    "rules_ruby",
 )
 
 ruby = use_extension("//ruby:extensions.bzl", "ruby")
@@ -1046,7 +1079,7 @@ use_repo(flutter_dev, "dx_flutter_app_deps", "dx_flutter_deps", "flutter_android
 # floor: equals tested
 bazel_dep(name = "tar.bzl", version = "0.10.9")
 
-# needed: @dx_rules_dart_pub (root dart_tools extension) loads @yaml.bzl
+# needed: @dx_rules_dart_pub (dx_pins extension) loads @yaml.bzl
 bazel_dep(name = "yaml.bzl", version = "0.1.2")
 
 bsd_tar_toolchains = use_extension("@tar.bzl//tar:extensions.bzl", "toolchains")
@@ -1059,9 +1092,6 @@ use_repo(
     "bsd_tar_toolchains_windows_amd64",
     "bsd_tar_toolchains_windows_arm64",
 )
-
-dart_tools = use_extension("//dart/private:extensions.bzl", "dart_tools")
-use_repo(dart_tools, "dx_rules_dart_pub")
 
 pub = use_extension(
     "//dart:extensions.bzl",
@@ -1276,11 +1306,8 @@ register_toolchains(
     "@dx_erlang_toolchains//:all",
 )
 
-# needed: @rules_powershell (powershell extension) loads @rules_batch
+# needed: @rules_powershell (dx_pins extension) loads @rules_batch
 bazel_dep(name = "rules_batch", version = "0.1.1")
-
-powershell = use_extension("//powershell:extensions.bzl", "powershell")
-use_repo(powershell, "rules_powershell")
 
 ocaml = use_extension("//ocaml:extensions.bzl", "ocaml")
 use_repo(ocaml, "dx_ocaml_dune", "dx_ocaml_toolchains", "rules_ocaml")

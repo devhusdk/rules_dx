@@ -6,7 +6,6 @@ package(default_visibility = ["//visibility:public"])
 exports_files([
     "BUILD.bazel",
     "metadata_tests.bzl",
-    "extensions.bzl",
     "pins.json",
     "sorbet.build",
 ])
@@ -20,7 +19,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "metadata_tests.bzl",
-            "extensions.bzl",
     ],
     tags = ["corpus"],
 )

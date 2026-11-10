@@ -637,9 +637,7 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "dart",
-    "pins": [
-      "private/pins.bzl"
-    ],
+    "pins": [],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -726,9 +724,7 @@ LANGS = json.decode("""{
       "paket.dependencies"
     ],
     "name": "dotnet",
-    "pins": [
-      "pins.bzl"
-    ],
+    "pins": [],
     "platforms": [],
     "quality": {
       "aspects": {

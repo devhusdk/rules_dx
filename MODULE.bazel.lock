@@ -511,14 +511,14 @@
         "bzlTransitiveDigest": "MCAkGWEocDiAr8gOmWX9RAc8IHnI6+Bq/NYs/pYVWdc=",
         "usagesDigest": "rf9yehiFKons6aVz7eWxd+cjGsPAM2uO1xjbeaHmRwg=",
         "recordedInputs": [
-          "REPO_MAPPING:,dx_rules_dart_pub +dart_tools+dx_rules_dart_pub",
-          "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
-          "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_darwin_arm64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_arm64",
-          "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_linux_amd64 tar.bzl++toolchains+bsd_tar_toolchains_linux_amd64",
-          "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_linux_arm64 tar.bzl++toolchains+bsd_tar_toolchains_linux_arm64",
-          "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_windows_amd64 tar.bzl++toolchains+bsd_tar_toolchains_windows_amd64",
-          "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,bsd_tar_toolchains_windows_arm64 tar.bzl++toolchains+bsd_tar_toolchains_windows_arm64",
-          "REPO_MAPPING:+dart_tools+dx_rules_dart_pub,yaml.bzl yaml.bzl+",
+          "REPO_MAPPING:,dx_rules_dart_pub +dx_pins+dx_rules_dart_pub",
+          "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_darwin_amd64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_amd64",
+          "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_darwin_arm64 tar.bzl++toolchains+bsd_tar_toolchains_darwin_arm64",
+          "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_linux_amd64 tar.bzl++toolchains+bsd_tar_toolchains_linux_amd64",
+          "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_linux_arm64 tar.bzl++toolchains+bsd_tar_toolchains_linux_arm64",
+          "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_windows_amd64 tar.bzl++toolchains+bsd_tar_toolchains_windows_amd64",
+          "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,bsd_tar_toolchains_windows_arm64 tar.bzl++toolchains+bsd_tar_toolchains_windows_arm64",
+          "REPO_MAPPING:+dx_pins+dx_rules_dart_pub,yaml.bzl yaml.bzl+",
           "FILE:@@//third_party/dart/pubspec.lock d5a738f744941bbb4f4c2787d00d18d741e1c465fbe950f181884843712971dc",
           "FILE:@@//dart/tests/padded_archive.pubspec.lock 387ec4ad36dc402444f6d88dc07d91027c1b65bdfa642254599ad4e7e2d513db",
           "FILE:@@//dart/private/tools/dart_apitool/pubspec.lock bcde4406b9a37a9d8df7f185033a0a067bfde50c4b786c71f5d6a38e9d138480",
@@ -526,7 +526,7 @@
         ],
         "generatedRepoSpecs": {
           "dart_pub___fe_analyzer_shared": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "_fe_analyzer_shared",
               "version": "103.0.0",
@@ -615,7 +615,7 @@
             }
           },
           "dart_pub__analyzer": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "analyzer",
               "version": "13.3.0",
@@ -704,7 +704,7 @@
             }
           },
           "dart_pub__args": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "args",
               "version": "2.7.0",
@@ -793,7 +793,7 @@
             }
           },
           "dart_pub__async": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "async",
               "version": "2.13.1",
@@ -882,7 +882,7 @@
             }
           },
           "dart_pub__boolean_selector": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "boolean_selector",
               "version": "2.1.2",
@@ -971,7 +971,7 @@
             }
           },
           "dart_pub__cli_config": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "cli_config",
               "version": "0.2.0",
@@ -1060,7 +1060,7 @@
             }
           },
           "dart_pub__collection": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "collection",
               "version": "1.19.1",
@@ -1149,7 +1149,7 @@
             }
           },
           "dart_pub__convert": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "convert",
               "version": "3.1.2",
@@ -1238,7 +1238,7 @@
             }
           },
           "dart_pub__coverage": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "coverage",
               "version": "1.15.1",
@@ -1327,7 +1327,7 @@
             }
           },
           "dart_pub__crypto": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "crypto",
               "version": "3.0.8",
@@ -1416,7 +1416,7 @@
             }
           },
           "dart_pub__file": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "file",
               "version": "7.0.1",
@@ -1505,7 +1505,7 @@
             }
           },
           "dart_pub__frontend_server_client": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "frontend_server_client",
               "version": "4.0.0",
@@ -1594,7 +1594,7 @@
             }
           },
           "dart_pub__glob": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "glob",
               "version": "2.2.0",
@@ -1683,7 +1683,7 @@
             }
           },
           "dart_pub__http_multi_server": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "http_multi_server",
               "version": "3.2.2",
@@ -1772,7 +1772,7 @@
             }
           },
           "dart_pub__http_parser": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "http_parser",
               "version": "4.1.2",
@@ -1861,7 +1861,7 @@
             }
           },
           "dart_pub__io": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "io",
               "version": "1.1.0",
@@ -1950,7 +1950,7 @@
             }
           },
           "dart_pub__lints": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "lints",
               "version": "6.1.0",
@@ -2039,7 +2039,7 @@
             }
           },
           "dart_pub__logging": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "logging",
               "version": "1.3.0",
@@ -2128,7 +2128,7 @@
             }
           },
           "dart_pub__matcher": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "matcher",
               "version": "0.12.20",
@@ -2217,7 +2217,7 @@
             }
           },
           "dart_pub__meta": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "meta",
               "version": "1.19.0",
@@ -2306,7 +2306,7 @@
             }
           },
           "dart_pub__mime": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "mime",
               "version": "2.1.0",
@@ -2395,7 +2395,7 @@
             }
           },
           "dart_pub__node_preamble": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "node_preamble",
               "version": "2.0.2",
@@ -2484,7 +2484,7 @@
             }
           },
           "dart_pub__package_config": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "package_config",
               "version": "2.2.0",
@@ -2573,7 +2573,7 @@
             }
           },
           "dart_pub__path": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "path",
               "version": "1.9.1",
@@ -2662,7 +2662,7 @@
             }
           },
           "dart_pub__pool": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "pool",
               "version": "1.5.3",
@@ -2751,7 +2751,7 @@
             }
           },
           "dart_pub__pub_semver": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "pub_semver",
               "version": "2.2.1",
@@ -2840,7 +2840,7 @@
             }
           },
           "dart_pub__shelf": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "shelf",
               "version": "1.4.2",
@@ -2929,7 +2929,7 @@
             }
           },
           "dart_pub__shelf_packages_handler": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "shelf_packages_handler",
               "version": "3.0.2",
@@ -3018,7 +3018,7 @@
             }
           },
           "dart_pub__shelf_static": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "shelf_static",
               "version": "1.1.3",
@@ -3107,7 +3107,7 @@
             }
           },
           "dart_pub__shelf_web_socket": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "shelf_web_socket",
               "version": "3.0.0",
@@ -3196,7 +3196,7 @@
             }
           },
           "dart_pub__source_map_stack_trace": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "source_map_stack_trace",
               "version": "2.1.2",
@@ -3285,7 +3285,7 @@
             }
           },
           "dart_pub__source_maps": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "source_maps",
               "version": "0.10.14",
@@ -3374,7 +3374,7 @@
             }
           },
           "dart_pub__source_span": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "source_span",
               "version": "1.10.2",
@@ -3463,7 +3463,7 @@
             }
           },
           "dart_pub__stack_trace": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "stack_trace",
               "version": "1.12.2",
@@ -3552,7 +3552,7 @@
             }
           },
           "dart_pub__stream_channel": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "stream_channel",
               "version": "2.1.4",
@@ -3641,7 +3641,7 @@
             }
           },
           "dart_pub__string_scanner": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "string_scanner",
               "version": "1.4.1",
@@ -3730,7 +3730,7 @@
             }
           },
           "dart_pub__term_glyph": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "term_glyph",
               "version": "1.2.2",
@@ -3819,7 +3819,7 @@
             }
           },
           "dart_pub__test": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "test",
               "version": "1.31.2",
@@ -3908,7 +3908,7 @@
             }
           },
           "dart_pub__test_api": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "test_api",
               "version": "0.7.13",
@@ -3997,7 +3997,7 @@
             }
           },
           "dart_pub__test_core": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "test_core",
               "version": "0.6.19",
@@ -4086,7 +4086,7 @@
             }
           },
           "dart_pub__typed_data": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "typed_data",
               "version": "1.4.0",
@@ -4175,7 +4175,7 @@
             }
           },
           "dart_pub__vm_service": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "vm_service",
               "version": "15.3.0",
@@ -4264,7 +4264,7 @@
             }
           },
           "dart_pub__watcher": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "watcher",
               "version": "1.2.1",
@@ -4353,7 +4353,7 @@
             }
           },
           "dart_pub__web": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "web",
               "version": "1.1.1",
@@ -4442,7 +4442,7 @@
             }
           },
           "dart_pub__web_socket": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "web_socket",
               "version": "1.0.1",
@@ -4531,7 +4531,7 @@
             }
           },
           "dart_pub__web_socket_channel": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "web_socket_channel",
               "version": "3.0.3",
@@ -4620,7 +4620,7 @@
             }
           },
           "dart_pub__webkit_inspection_protocol": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "webkit_inspection_protocol",
               "version": "1.2.1",
@@ -4709,7 +4709,7 @@
             }
           },
           "dart_pub__yaml": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "yaml",
               "version": "3.1.4",
@@ -4798,7 +4798,7 @@
             }
           },
           "dart_pub__nested": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "nested",
               "version": "1.0.0",
@@ -4887,7 +4887,7 @@
             }
           },
           "dart_pub__ansicolor": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "ansicolor",
               "version": "2.0.3",
@@ -4976,7 +4976,7 @@
             }
           },
           "dart_pub__archive": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "archive",
               "version": "4.6.0",
@@ -5065,7 +5065,7 @@
             }
           },
           "dart_pub__characters": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "characters",
               "version": "1.4.1",
@@ -5154,7 +5154,7 @@
             }
           },
           "dart_pub__checked_yaml": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "checked_yaml",
               "version": "2.0.4",
@@ -5243,7 +5243,7 @@
             }
           },
           "dart_pub__colorize": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "colorize",
               "version": "3.0.0",
@@ -5332,7 +5332,7 @@
             }
           },
           "dart_pub__colorize_lumberdash": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "colorize_lumberdash",
               "version": "3.0.0",
@@ -5421,7 +5421,7 @@
             }
           },
           "dart_pub__console": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "console",
               "version": "4.1.0",
@@ -5510,7 +5510,7 @@
             }
           },
           "dart_pub__dart_apitool": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "dart_apitool",
               "version": "0.23.2",
@@ -5599,7 +5599,7 @@
             }
           },
           "dart_pub__ffi": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "ffi",
               "version": "2.2.0",
@@ -5688,7 +5688,7 @@
             }
           },
           "dart_pub__freezed_annotation": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "freezed_annotation",
               "version": "3.1.0",
@@ -5777,7 +5777,7 @@
             }
           },
           "dart_pub__json_annotation": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "json_annotation",
               "version": "4.12.0",
@@ -5866,7 +5866,7 @@
             }
           },
           "dart_pub__lumberdash": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "lumberdash",
               "version": "3.0.0",
@@ -5955,7 +5955,7 @@
             }
           },
           "dart_pub__petitparser": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "petitparser",
               "version": "7.1.0",
@@ -6044,7 +6044,7 @@
             }
           },
           "dart_pub__plist_parser": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "plist_parser",
               "version": "0.2.7",
@@ -6133,7 +6133,7 @@
             }
           },
           "dart_pub__posix": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "posix",
               "version": "6.5.4",
@@ -6222,7 +6222,7 @@
             }
           },
           "dart_pub__pubspec_manager": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "pubspec_manager",
               "version": "1.0.3",
@@ -6311,7 +6311,7 @@
             }
           },
           "dart_pub__pubspec_parse": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "pubspec_parse",
               "version": "1.7.0",
@@ -6400,7 +6400,7 @@
             }
           },
           "dart_pub__simple_sparse_list": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "simple_sparse_list",
               "version": "0.1.4",
@@ -6489,7 +6489,7 @@
             }
           },
           "dart_pub__stack": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "stack",
               "version": "0.2.2",
@@ -6578,7 +6578,7 @@
             }
           },
           "dart_pub__strings": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "strings",
               "version": "4.2.0",
@@ -6667,7 +6667,7 @@
             }
           },
           "dart_pub__tuple": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "tuple",
               "version": "2.0.2",
@@ -6756,7 +6756,7 @@
             }
           },
           "dart_pub__unicode": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "unicode",
               "version": "1.1.9",
@@ -6845,7 +6845,7 @@
             }
           },
           "dart_pub__vector_math": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "vector_math",
               "version": "2.4.4",
@@ -6934,7 +6934,7 @@
             }
           },
           "dart_pub__xml": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "xml",
               "version": "6.6.1",
@@ -7023,7 +7023,7 @@
             }
           },
           "dart_pub__benchmark_harness": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_package.bzl%pub_lock_package",
             "attributes": {
               "package_name": "benchmark_harness",
               "version": "2.4.0",
@@ -7112,7 +7112,7 @@
             }
           },
           "dx_dart_deps": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
             "attributes": {
               "hub_name": "dx_dart_deps",
               "spoke_prefix": "dart_pub",
@@ -7169,7 +7169,7 @@
             }
           },
           "dx_dart_padded_archive": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
             "attributes": {
               "hub_name": "dx_dart_padded_archive",
               "spoke_prefix": "dart_pub",
@@ -7179,7 +7179,7 @@
             }
           },
           "dart_apitool_deps": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
             "attributes": {
               "hub_name": "dart_apitool_deps",
               "spoke_prefix": "dart_pub",
@@ -7231,7 +7231,7 @@
             }
           },
           "dx_dart_bench_deps": {
-            "repoRuleId": "@@+dart_tools+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
+            "repoRuleId": "@@+dx_pins+dx_rules_dart_pub//dart/pub:pub_lock_hub.bzl%pub_lock_hub",
             "attributes": {
               "hub_name": "dx_dart_bench_deps",
               "spoke_prefix": "dart_pub",
@@ -7261,101 +7261,101 @@
         "bzlTransitiveDigest": "TY3p2T9O4wQEDjKHmm6jRocuy7/SL/AKyW61FJOC3kE=",
         "usagesDigest": "lksutUrDL3EO6rE8orKbr4Vipe1ryfb4+qFi7dT7JbU=",
         "recordedInputs": [
-          "REPO_MAPPING:,rules_dotnet +dotnet_tools+rules_dotnet"
+          "REPO_MAPPING:,rules_dotnet +dx_pins+rules_dotnet"
         ],
         "generatedRepoSpecs": {
           "dotnet_x86_64-apple-darwin": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-apple-darwin",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_aarch64-apple-darwin": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "aarch64-apple-darwin",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_x86_64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-unknown-linux-gnu",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_arm64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-unknown-linux-gnu",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_x86_64-pc-windows-msvc": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-pc-windows-msvc",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_arm64-pc-windows-msvc": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-pc-windows-msvc",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_toolchains": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
             "attributes": {
               "user_repository_name": "dotnet"
             }
           },
           "dotnet_apphost_x86_64-apple-darwin": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-apple-darwin",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_apphost_aarch64-apple-darwin": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "aarch64-apple-darwin",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_apphost_x86_64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-unknown-linux-gnu",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_apphost_arm64-unknown-linux-gnu": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-unknown-linux-gnu",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_apphost_x86_64-pc-windows-msvc": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "x86_64-pc-windows-msvc",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_apphost_arm64-pc-windows-msvc": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet:repositories.bzl%dotnet_repositories",
             "attributes": {
               "platform": "arm64-pc-windows-msvc",
               "dotnet_version": "10.0.403"
             }
           },
           "dotnet_apphost_toolchains": {
-            "repoRuleId": "@@+dotnet_tools+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
+            "repoRuleId": "@@+dx_pins+rules_dotnet//dotnet/private:toolchains_repo.bzl%toolchains_repo",
             "attributes": {
               "user_repository_name": "dotnet_apphost"
             }
@@ -7382,7 +7382,7 @@
     },
     "//qt:extensions.bzl%qt_sdk": {
       "general": {
-        "bzlTransitiveDigest": "NBfJsE5+ww+dFNDKTYu8Fo2O+ChWabRd6kI/X/ilEZA=",
+        "bzlTransitiveDigest": "9W4gdWeZK4yOX+wWl8L1I6IqottyixeHrRgdl6l/fxg=",
         "usagesDigest": "3BS0SqqE9nsbYI9+Bl0Un9zfcl6driMWFHsFPN6Mr1M=",
         "recordedInputs": [
           "REPO_MAPPING:,dx_pins_data +dx_pins+dx_pins_data",

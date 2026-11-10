@@ -1,10 +1,11 @@
 """The dx_pins module extension."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load(":repo.bzl", "hub_repo")
+load(":repo.bzl", "hub_repo", "pinned_archive")
 load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "pins_hub")
 
 def _dx_pins_impl(mctx):
+    archives = {}
     data = {}
     sources = {}
     for mod in mctx.modules:
@@ -29,13 +30,40 @@ def _dx_pins_impl(mctx):
             for cell, pin in pins["cells"].items():
                 cell_archive_rule(name = cell_repo(tag.name, cell), build = build, pin = json.encode(pin), tool = tag.name)
             hub_repo(name = tag.name, files = {"BUILD.bazel": pins_hub(tag.name, pins["cells"].keys(), str(tag.toolchain_type), tag.compatible_with)})
-    hub_repo(name = "dx_pins_data", files = {"BUILD.bazel": "", "pins.bzl": "PINS = " + repr(data) + "\n\nDATA = " + repr(sources) + "\n"})
+        for tag in mod.tags.archive:
+            pin = json.decode(mctx.read(tag.pins))["archives"][tag.key or tag.name]
+            archives[tag.name] = pin
+            pinned_archive(
+                name = tag.name,
+                crlf = tag.crlf,
+                dropped = tag.dropped,
+                files = {"BUILD.bazel": mctx.read(tag.build)} if tag.build else {},
+                patches = tag.patches,
+                required = tag.required,
+                sha256 = pin["sha256"],
+                strip_prefix = pin.get("strip_prefix", ""),
+                urls = pin["urls"],
+            )
+    hub_repo(name = "dx_pins_data", files = {"BUILD.bazel": "", "pins.bzl": "PINS = " + repr(data) + "\n\nDATA = " + repr(sources) + "\n\nARCHIVES = " + repr(archives) + "\n"})
     return mctx.extension_metadata(reproducible = True)
 
 dx_pins = module_extension(
     implementation = _dx_pins_impl,
-    doc = "Creates the repositories of every pins.json: one per cell and a toolchain hub, or one host-selected repository.",
+    doc = "Creates the repositories of every pins.json: one per cell and a toolchain hub, one host-selected repository, or one patched source archive.",
     tag_classes = {
+        "archive": tag_class(
+            doc = "One source archive from an archives entry of a pins.json, pruned and patched. The entry is exported as ARCHIVES[name] from @dx_pins_data.",
+            attrs = {
+                "build": attr.label(allow_single_file = True, doc = "BUILD file written at the repository root."),
+                "crlf": attr.string_list(doc = "Paths rewritten with CRLF line endings after patching."),
+                "dropped": attr.string_list(doc = "Paths deleted after extraction."),
+                "key": attr.string(doc = "Entry under archives; defaults to name."),
+                "name": attr.string(mandatory = True, doc = "Repository name."),
+                "patches": attr.label_list(doc = "Patches applied in order with strip 1."),
+                "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file with an archives object."),
+                "required": attr.string_list(doc = "Paths the archive must ship."),
+            },
+        ),
         "data": tag_class(
             doc = "One pins.json read at load time only: no repository is made and the content is exported as DATA[name] from @dx_pins_data.",
             attrs = {

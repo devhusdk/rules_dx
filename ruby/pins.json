@@ -1,0 +1,12 @@
+{
+  "archives": {
+    "rules_ruby": {
+      "sha256": "c92c2102ead9f051b7bb19ed7075cc5c4617cdd20b313b5b2f598f9f45b3e315",
+      "strip_prefix": "rules_ruby-0.29.0",
+      "urls": [
+        "https://github.com/bazel-contrib/rules_ruby/releases/download/v0.29.0/rules_ruby-v0.29.0.tar.gz"
+      ],
+      "version": "0.29.0"
+    }
+  }
+}

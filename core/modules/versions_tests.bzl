@@ -1,8 +1,6 @@
 """Canonical version pins stay equal to MODULE.bazel literals."""
 
-load("@dx_pins_data//:pins.bzl", _DATA = "DATA", _PINS = "PINS")
-load("//dart/private:pins.bzl", _DART_STRIP_PREFIX = "RULES_DART_STRIP_PREFIX", _DART_URL = "RULES_DART_URL")
-load("//dotnet:pins.bzl", _DOTNET_STRIP_PREFIX = "RULES_DOTNET_STRIP_PREFIX", _DOTNET_URL = "RULES_DOTNET_URL")
+load("@dx_pins_data//:pins.bzl", _ARCHIVES = "ARCHIVES", _DATA = "DATA", _PINS = "PINS")
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":cuda.bzl", _CUDA_CELLS = "CUDA_CELLS", _CUDA_COMPONENTS = "CUDA_COMPONENTS", _CUDA_MAX_HOST_CLANG_MAJOR = "CUDA_MAX_HOST_CLANG_MAJOR", _CUDA_REDIST_SHA256 = "CUDA_REDIST_SHA256", _CUDA_REDIST_URL = "CUDA_REDIST_URL", _CUDA_REDIST_VERSION = "CUDA_REDIST_VERSION", _MOD_CUDA_VERSION = "CUDA_VERSION", _MOD_RULES_CUDA_VERSION = "RULES_CUDA_VERSION", _cuda_qualified_cells = "cuda_qualified_cells")
 load(":python.bzl", _MOD_PYTHON_VERSION = "PYTHON_VERSION")
@@ -69,12 +67,12 @@ def versions_contract_tests(name):
         checks = [
             expect_equal("ruby module follows canonical", _MOD_RUBY_VERSION, _RUBY_VERSION),
             expect_equal("python module follows canonical", _MOD_PYTHON_VERSION, _PYTHON_VERSION),
-            expect_equal("dart archive url follows canonical", _DART_URL, "https://github.com/aran/rules_dart/releases/download/v" + _RULES_DART_VERSION + "/rules_dart-v" + _RULES_DART_VERSION + ".tar.gz"),
-            expect_equal("dart archive strip prefix follows canonical", _DART_STRIP_PREFIX, "rules_dart-" + _RULES_DART_VERSION),
-            expect_equal("dotnet archive url follows canonical", _DOTNET_URL, "https://github.com/bazel-contrib/rules_dotnet/releases/download/v" + _RULES_DOTNET_VERSION + "/rules_dotnet-v" + _RULES_DOTNET_VERSION + ".tar.gz"),
-            expect_equal("dotnet archive strip prefix follows canonical", _DOTNET_STRIP_PREFIX, "rules_dotnet-" + _RULES_DOTNET_VERSION),
-            expect_equal("dart pins.json follows canonical", _DATA["dx_dart"]["archives"]["rules_dart"]["version"], _RULES_DART_VERSION),
-            expect_equal("dotnet pins.json follows canonical", _DATA["dx_dotnet"]["archives"]["rules_dotnet"]["version"], _RULES_DOTNET_VERSION),
+            expect_equal("dart archive url follows canonical", _ARCHIVES["dx_rules_dart_pub"]["urls"][0], "https://github.com/aran/rules_dart/releases/download/v" + _RULES_DART_VERSION + "/rules_dart-v" + _RULES_DART_VERSION + ".tar.gz"),
+            expect_equal("dart archive strip prefix follows canonical", _ARCHIVES["dx_rules_dart_pub"]["strip_prefix"], "rules_dart-" + _RULES_DART_VERSION),
+            expect_equal("dotnet archive url follows canonical", _ARCHIVES["rules_dotnet"]["urls"][0], "https://github.com/bazel-contrib/rules_dotnet/releases/download/v" + _RULES_DOTNET_VERSION + "/rules_dotnet-v" + _RULES_DOTNET_VERSION + ".tar.gz"),
+            expect_equal("dotnet archive strip prefix follows canonical", _ARCHIVES["rules_dotnet"]["strip_prefix"], "rules_dotnet-" + _RULES_DOTNET_VERSION),
+            expect_equal("dart pins.json follows canonical", _ARCHIVES["dx_rules_dart_pub"]["version"], _RULES_DART_VERSION),
+            expect_equal("dotnet pins.json follows canonical", _ARCHIVES["rules_dotnet"]["version"], _RULES_DOTNET_VERSION),
             expect_equal("cuda pins.json follows canonical", _DATA["dx_cuda"]["version"], _CUDA_REDIST_VERSION),
             expect_equal("rust module follows canonical", _MOD_RUST_VERSION, _RUST_VERSION),
             expect_equal("cuda module follows canonical", _MOD_CUDA_VERSION, _CUDA_VERSION),

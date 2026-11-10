@@ -63,7 +63,10 @@ android_adb_log(
 android_check(
     name = "check_apk_test",
     package = ":adopt_apk_unsigned_file",
-    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 sh_test(

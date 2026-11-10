@@ -50,7 +50,10 @@ rust_android_apk(
 android_check(
     name = "consumer_android_check_test",
     package = ":consumer_android_apk_unsigned_file",
-    tags = ["manual"],
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 android_sign(

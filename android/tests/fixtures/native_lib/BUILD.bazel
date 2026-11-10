@@ -4,7 +4,6 @@ load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android:defs.bzl", "android_native_library")
 
 package(
@@ -63,7 +62,6 @@ android_native_library(
 failure_test(
     name = "bad_api_test",
     expected_failure_substring = "api_level 29 is below 31",
-    tags = ["manual"],
     target = ":bad_api_device",
 )
 
@@ -74,22 +72,27 @@ rust_test(
     deps = [":native_lib_build_script"],
 )
 
-sh_test(
+rust_test(
     name = "native_lib_arch_test",
-    srcs = ["arch_test.sh"],
-    args = [
-        "$(location @android_ndk_toolchain//:llvm_readelf)",
-        "$(location :native_lib_device)",
-        "$(location :native_lib_emulator)",
-        "$(location :api34_device)",
-    ],
+    srcs = ["arch_test.rs"],
+    crate_name = "native_lib_arch_test",
+    crate_root = "arch_test.rs",
     data = [
         ":api34_device",
         ":native_lib_device",
         ":native_lib_emulator",
         "@android_ndk_toolchain//:llvm_readelf",
     ],
-    tags = ["manual"],
+    env = {
+        "DX_API34_SO": "$(rootpath :api34_device)",
+        "DX_DEVICE_SO": "$(rootpath :native_lib_device)",
+        "DX_EMULATOR_SO": "$(rootpath :native_lib_emulator)",
+        "DX_READELF": "$(rootpath @android_ndk_toolchain//:llvm_readelf)",
+    },
+    target_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
 )
 
 real_source_target(

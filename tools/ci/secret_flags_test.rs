@@ -36,8 +36,7 @@ fn ci_files() -> Vec<String> {
 }
 
 fn parse(path: &str) -> Value {
-    yaml_serde::from_str(&read_runfiles(path))
-        .unwrap_or_else(|error| panic!("{path} is not valid YAML: {error}"))
+    ci_workflow::document(path)
 }
 
 fn named_step(path: &str, name: &str) -> Value {
@@ -49,14 +48,9 @@ fn named_step(path: &str, name: &str) -> Value {
 }
 
 fn jobs(document: &Value) -> Vec<(String, Vec<Value>)> {
-    let Some(jobs) = document["jobs"].as_object() else {
-        return Vec::new();
-    };
-    jobs.iter()
-        .map(|(id, job)| {
-            let steps = job["steps"].as_array().cloned().unwrap_or_default();
-            (id.clone(), steps)
-        })
+    ci_workflow::jobs_of(document)
+        .into_iter()
+        .map(|(id, job)| (id.to_owned(), ci_workflow::steps_of(job).to_vec()))
         .collect()
 }
 

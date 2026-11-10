@@ -325,6 +325,7 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/ci/ci_workflow",
         "//tools/bazelrc:dx_preset",
         "//tools/testing:dx_testing",
         "@crates//:serde_json",

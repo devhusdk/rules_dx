@@ -15,6 +15,7 @@ load(
     "dx_test_forward_kwargs",
     "dx_run_environment",
     "dx_test_upstream_kwargs",
+    "dx_upstream",
     "dx_upstream_tags",
 )
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
@@ -153,9 +154,10 @@ def _run_environment(ctx, gui):
             environment["QT_QPA_PLATFORM"] = "offscreen"
             environment["QT_QUICK_BACKEND"] = "software"
             environment["QT_FORCE_STDERR_LOGGING"] = "1"
-    if RunEnvironmentInfo in ctx.attr.upstream:
-        environment.update(ctx.attr.upstream[RunEnvironmentInfo].environment)
-        inherited = ctx.attr.upstream[RunEnvironmentInfo].inherited_environment
+    upstream = dx_upstream(ctx)
+    if RunEnvironmentInfo in upstream:
+        environment.update(upstream[RunEnvironmentInfo].environment)
+        inherited = upstream[RunEnvironmentInfo].inherited_environment
     roots = [f for f in ctx.files.qml_imports if f.basename == "builtins.qmltypes"]
     if len(ctx.files.qml_imports) > 0 and len(roots) != 1:
         fail(str(ctx.label) + ": qml_imports holds no single builtins.qmltypes at the import root")
@@ -164,7 +166,7 @@ def _run_environment(ctx, gui):
     return RunEnvironmentInfo(environment = environment, inherited_environment = inherited)
 
 def _qt_executable_forward_impl(ctx):
-    upstream = ctx.attr.upstream
+    upstream = dx_upstream(ctx)
     gui = _links_gui(upstream)
     extra = ctx.files.qml_imports + ctx.files.plugins + (ctx.files.fonts + ctx.files.platforms if gui else [])
     run_environment = _run_environment(ctx, gui)

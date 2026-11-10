@@ -440,18 +440,29 @@ impl ArtifactReader for FsArtifacts {
     }
 }
 
+const UNREADABLE_BEP_PREFIX: &str = "failed to read build events: ";
+
+/// The stable code for a [`collect_targets`] error.
+pub(crate) fn bep_error_code(error: &dx_error::DxError) -> &'static str {
+    if error.message().starts_with(UNREADABLE_BEP_PREFIX) {
+        CODE_UNREADABLE_BEP
+    } else {
+        CODE_INVALID_BEP
+    }
+}
+
 /// Reads one build event file and returns the target outputs of one output group.
 pub(crate) fn collect_targets(
     bep: &Path,
     group: &str,
     workspace: &Path,
-) -> Result<Vec<dx_bep::TargetOutput>, (String, String)> {
-    let account = collect_output_account(bep, group, workspace)?;
+) -> Result<Vec<dx_bep::TargetOutput>, dx_error::DxError> {
+    let account = collect_output_account(bep, group, workspace)
+        .map_err(|(_, message)| dx_error::DxError::failure(message))?;
     if let Some(problem) = account.problem {
-        return Err((
-            CODE_INVALID_BEP.to_owned(),
-            format!("invalid build events: {problem}"),
-        ));
+        return Err(dx_error::DxError::failure(format!(
+            "invalid build events: {problem}"
+        )));
     }
     Ok(account.targets)
 }
@@ -465,7 +476,7 @@ pub(crate) fn collect_output_account(
     let file = std::fs::File::open(bep).map_err(|err| {
         (
             CODE_UNREADABLE_BEP.to_owned(),
-            format!("failed to read build events: {err}"),
+            format!("{UNREADABLE_BEP_PREFIX}{err}"),
         )
     })?;
     let config = dx_bep::CollectorConfig::new(group).map_err(|err| {

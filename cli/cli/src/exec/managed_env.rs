@@ -14,7 +14,8 @@ pub(crate) fn collect_managed_env(
     bep: &Path,
     workspace: &Path,
 ) -> Result<ManagedEnvCollection, (String, String)> {
-    let outputs = collect_targets(bep, dx_env_plan::OUTPUT_GROUP, workspace)?;
+    let outputs = collect_targets(bep, dx_env_plan::OUTPUT_GROUP, workspace)
+        .map_err(|error| (bep_error_code(&error).to_owned(), error.message().to_owned()))?;
     let plan = dx_env_plan::collect_plan(&outputs).map_err(|err| {
         (
             CODE_INVALID_RESULT.to_owned(),

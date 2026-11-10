@@ -1086,18 +1086,22 @@ fn write_report_file_resolves_absolute_destinations_as_given() {
 fn collect_targets_names_the_failure_by_stage() {
     let dir = tempfile::tempdir().expect("tempdir");
     let bep = dir.path().join("missing.json");
-    let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("absent");
-    assert_eq!(code, CODE_UNREADABLE_BEP);
+    let error = collect_targets(&bep, "dx_results", dir.path()).expect_err("absent");
+    let message = error.message();
+    assert_eq!(error.exit_code(), 1);
+    assert_eq!(bep_error_code(&error), CODE_UNREADABLE_BEP);
     assert!(message.contains("failed to read build events"), "{message}");
 
     std::fs::write(&bep, "").expect("bep");
-    let (code, message) = collect_targets(&bep, "", dir.path()).expect_err("empty group");
-    assert_eq!(code, CODE_INVALID_BEP);
+    let error = collect_targets(&bep, "", dir.path()).expect_err("empty group");
+    let message = error.message();
+    assert_eq!(error.exit_code(), 1);
     assert!(message.contains("invalid BEP config"), "{message}");
 
     std::fs::write(&bep, "{not json").expect("bep");
-    let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("bad");
-    assert_eq!(code, CODE_INVALID_BEP);
+    let error = collect_targets(&bep, "dx_results", dir.path()).expect_err("bad");
+    let message = error.message();
+    assert_eq!(error.exit_code(), 1);
     assert!(message.contains("invalid build events"), "{message}");
 }
 
@@ -1110,8 +1114,9 @@ fn collect_targets_rejects_a_cut_off_last_line() {
         "{\"id\": {\"namedSetOfFiles\": {\"id\": \"1\"}}}\n{\"id\":{\"targetCo",
     )
     .expect("bep");
-    let (code, message) = collect_targets(&bep, "dx_results", dir.path()).expect_err("cut");
-    assert_eq!(code, CODE_INVALID_BEP);
+    let error = collect_targets(&bep, "dx_results", dir.path()).expect_err("cut");
+    let message = error.message();
+    assert_eq!(error.exit_code(), 1);
     assert!(
         message.starts_with("invalid build events: line 2: invalid JSON"),
         "{message}"

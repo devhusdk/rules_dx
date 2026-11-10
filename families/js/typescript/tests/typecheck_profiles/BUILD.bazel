@@ -4,7 +4,7 @@ load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//quality:tsc_report.bzl", "tsc_report")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_library")
 
 package(
     default_testonly = True,

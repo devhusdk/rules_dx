@@ -1,4 +1,4 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_library")
 
 # gazelle:dx_ignore_import typescript @testing-library/jest-dom
 

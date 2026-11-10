@@ -3,7 +3,7 @@
 Build and test TypeScript with `tsc` type checking.
 
 ```python
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
+load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
 
 typescript_library(
     name = "greet",
@@ -42,7 +42,7 @@ browser is downloaded by Bazel, so none has to be installed. Add
 `@playwright/test` to the root `package.json`.
 
 ```python
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_playwright_test")
+load("@rules_dx//typescript:defs.bzl", "typescript_playwright_test")
 
 typescript_playwright_test(
     name = "app_e2e_test",

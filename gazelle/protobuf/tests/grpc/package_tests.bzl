@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//python/rules:defs.bzl", "python_grpc_library")
-load("//typescript/rules:proto.bzl", "ts_proto_srcs")
+load("//typescript/private:proto.bzl", "ts_proto_srcs")
 
 def _other_package_impl(ctx):
     env = analysistest.begin(ctx)

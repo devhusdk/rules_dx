@@ -4,7 +4,7 @@ use dx_error::DxError;
 pub const PLUGIN: Plugin = Plugin {
     name: "typescript",
     extensions: &["ts", "tsx", "mts", "cts"],
-    labels: &["typescript/ide:tsdk"],
+    labels: &["typescript/private/ide:tsdk"],
     outputs: &["lib"],
     write,
 };

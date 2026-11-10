@@ -274,7 +274,7 @@ TAXONOMY = {
         classes = ["toml"],
     ),
     "typescript": struct(
-        owner = "//typescript/rules:defs.bzl",
+        owner = "//typescript:defs.bzl",
         classes = ["tsx", "typescript"],
     ),
     "typst": struct(

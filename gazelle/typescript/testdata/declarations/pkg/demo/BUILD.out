@@ -1,4 +1,4 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_library")
 
 typescript_library(
     name = "widget",

@@ -363,7 +363,7 @@
         "//swift/toolchain:extensions.bzl%swift_host",
         "//third_party/dotnet:extension.bzl%paket",
         "//tools/bazelrc:extensions.bzl%bazel_version",
-        "//typescript/playwright:extensions.bzl%playwright",
+        "//typescript/private/playwright:extensions.bzl%playwright",
         "@apple_support//crosstool:setup.bzl%apple_cc_configure_extension",
         "@aspect_rules_js//npm:extensions.bzl%npm",
         "@aspect_rules_js//npm:extensions.bzl%pnpm",

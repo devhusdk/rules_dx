@@ -1,3 +1,5 @@
+
+visibility(["//..."])
 def typescript_inner_kwargs(tags, kwargs):
     """Returns the tags and target_compatible_with kwargs for inner targets."""
     out = {}

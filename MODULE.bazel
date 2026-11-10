@@ -2675,7 +2675,7 @@ use_repo(yard, "dx_yard")
 doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen", dev_dependency = True)
 use_repo(doxygen, "dx_doxygen")
 
-playwright = use_extension("//typescript/playwright:extensions.bzl", "playwright")
+playwright = use_extension("//typescript/private/playwright:extensions.bzl", "playwright")
 use_repo(
     playwright,
     "dx_playwright_chromium",

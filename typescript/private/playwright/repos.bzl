@@ -1,5 +1,7 @@
 """Pinned Chromium headless shell for typescript_playwright_test."""
 
+visibility(["//..."])
+
 CHROMIUM_REVISION = "1248"
 
 ARTIFACTS = {

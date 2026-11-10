@@ -1,5 +1,5 @@
 load("@rules_dx//javascript:defs.bzl", "javascript_binary")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_test", "typescript_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_test", "typescript_library")
 
 exports_files(["package.json"])
 

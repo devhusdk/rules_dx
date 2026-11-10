@@ -1,8 +1,9 @@
-"""Module extension for typescript/playwright."""
+"""Module extension for typescript/private/playwright."""
 
 load("//libs/starlark:repo.bzl", "hub_repo")
 load(":repos.bzl", "ARTIFACTS", "chromium_repo", "hub_build", "repository_name")
 
+visibility(["//..."])
 
 CHROMIUM_VERSION = "156.0.8078.4"
 

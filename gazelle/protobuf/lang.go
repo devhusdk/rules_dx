@@ -27,7 +27,7 @@ const (
 	tsSuffix     = "_ts"
 	tsModule     = "aspect_rules_ts"
 	tsRuntime    = "//:node_modules/@bufbuild/protobuf"
-	tsDefs       = "@rules_dx//typescript/rules:defs.bzl"
+	tsDefs       = "@rules_dx//typescript:defs.bzl"
 	csKind       = "csharp_proto_library"
 	csSuffix     = "_cs"
 	csModule     = "rules_dx_dotnet"

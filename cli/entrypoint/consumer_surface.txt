@@ -110,6 +110,6 @@ tools/docs/swift:defs.bzl
 tools/docs/typescript:defs.bzl
 tools/docs/zig:defs.bzl
 tools/docs:aspect.bzl
-typescript/rules:defs.bzl
+typescript:defs.bzl
 vue/rules:defs.bzl
 zig/rules:defs.bzl

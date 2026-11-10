@@ -589,7 +589,7 @@ func TestConfigureThreeFieldAndMalformed(t *testing.T) {
 func TestApparentLoadsDefault(t *testing.T) {
 	l := newLang()
 	got := l.ApparentLoads(func(string) string { return "" })
-	if len(got) != 3 || got[0].Name != "@rules_dx//typescript/rules:defs.bzl" {
+	if len(got) != 3 || got[0].Name != "@rules_dx//typescript:defs.bzl" {
 		t.Fatalf("default apparent loads = %+v", got)
 	}
 	if !strings.Contains(strings.Join(got[0].Symbols, ","), "typescript_binary") {

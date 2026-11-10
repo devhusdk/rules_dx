@@ -1,4 +1,4 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary")
+load("@rules_dx//typescript:defs.bzl", "typescript_binary")
 
 typescript_binary(
     name = "main_bin",

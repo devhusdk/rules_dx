@@ -1,5 +1,5 @@
 load("@protobuf//bazel:proto_library.bzl", "proto_library")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_proto_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_proto_library")
 
 proto_library(
     name = "api_proto",

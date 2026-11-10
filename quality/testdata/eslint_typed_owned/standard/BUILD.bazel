@@ -2,7 +2,7 @@ load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("//quality:native_config.bzl", "eslint_config")
 load("//quality:policy.bzl", "quality_family", "workspace_policy")
-load("//typescript/rules:defs.bzl", "typescript_library")
+load("//typescript:defs.bzl", "typescript_library")
 
 package(default_visibility = ["//quality/testdata:__pkg__"])
 

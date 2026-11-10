@@ -1,4 +1,4 @@
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
+load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
 
 # A user-owned rule must survive generation unchanged.
 filegroup(

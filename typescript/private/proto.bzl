@@ -3,6 +3,8 @@
 load("@protobuf//bazel/common:proto_info.bzl", "ProtoInfo")
 load("//libs/exec_os:defs.bzl", "ExecOsInfo")
 
+visibility(["//..."])
+
 def _es_files(proto_info):
     """Returns the proto path, relative to the import root, of each direct source."""
     root = proto_info.proto_source_root

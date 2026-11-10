@@ -4,7 +4,7 @@
 # gazelle:dx_ignore_import typescript widget
 load("@rules_dx//quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
-load("@rules_dx//typescript/rules:defs.bzl", "typescript_binary", "typescript_library")
+load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library")
 
 package(
     default_testonly = True,

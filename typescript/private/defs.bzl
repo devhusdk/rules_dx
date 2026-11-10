@@ -14,6 +14,8 @@ load("//quality:sources.bzl", "QualitySourcesInfo")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 load(":proto.bzl", "ts_proto_srcs")
 
+visibility(["//..."])
+
 _DX_TS_LIBRARY_PROVIDES = [
     _JsInfo,
     _TsConfigInfo,
@@ -474,7 +476,7 @@ def typescript_playwright_test(name, *, srcs, config, node_modules, app = None, 
         env["DX_PLAYWRIGHT_APP"] = "$(rlocationpath %s)" % app
         upstream_data.append(app)
     upstream_kwargs = {
-        "entry_point": Label("//typescript/playwright:runner"),
+        "entry_point": Label("//typescript/private/playwright:runner"),
         "no_copy_to_bin": [Label("@dx_playwright_chromium//:browsers"), Label("@dx_playwright_chromium//:marker")],
     }
     a = node_test_wrap_args(name, srcs, upstream_data, package_json, upstream_kwargs, env_inherit, kwargs)

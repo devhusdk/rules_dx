@@ -52,7 +52,7 @@ D: `d_bench(name, srcs)` from `//d/rules:defs.bzl` is a `d_binary` that writes `
 
 Rust: `rust_bench` from `//rust/rules:defs.bzl` runs a criterion or `#[bench]` target with `--output-format bencher` and writes `dx-bench.json` in ns/iter. Gazelle turns `[[bench]]` entries with `harness = false` into `rust_bench` targets.
 
-JavaScript and TypeScript: `javascript_bench(name, srcs, node_modules)` from `//javascript:defs.bzl` and `typescript_bench` from `//typescript/rules:defs.bzl` run a [tinybench](https://github.com/tinylibs/tinybench) `Bench` that the first source (or `main`) exports as its default export. Each task becomes one row, in milliseconds. List `tinybench` in `package.json` so `node_modules` links it. `typescript_bench` also takes the `typescript_test` attributes such as `deps` and `tsconfig`.
+JavaScript and TypeScript: `javascript_bench(name, srcs, node_modules)` from `//javascript:defs.bzl` and `typescript_bench` from `//typescript:defs.bzl` run a [tinybench](https://github.com/tinylibs/tinybench) `Bench` that the first source (or `main`) exports as its default export. Each task becomes one row, in milliseconds. List `tinybench` in `package.json` so `node_modules` links it. `typescript_bench` also takes the `typescript_test` attributes such as `deps` and `tsconfig`.
 
 Perl: `perl_bench` from `//perl/rules:defs.bzl` is a `perl_test` whose script calls `DxBench::run_benchmarks([name => sub { ... }, ...])`. It times each sub with the core `Benchmark` module and reports seconds per call.
 

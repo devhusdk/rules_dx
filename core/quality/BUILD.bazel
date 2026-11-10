@@ -7,6 +7,7 @@ load("//rust:defs.bzl", "rust_test")
 load(":clang_syntax_analysis_tests.bzl", "clang_syntax_analysis_tests")
 load(":consumer_policy_tests.bzl", "consumer_policy_tests", "policy_config_tests")
 load(":compile_check_tests.bzl", "compile_check_unit_tests")
+load(":sh_toolchain.bzl", "dx_sh_toolchain")
 load(":fsc_tests.bzl", "fsc_unit_tests")
 load(":coverage_sources_tests.bzl", "coverage_sources_analysis_tests")
 load(":curated_defaults_tests.bzl", "curated_defaults_unit_tests")
@@ -981,3 +982,18 @@ filegroup(
     visibility = ["//:__subpackages__"],
 )
 
+
+dx_sh_toolchain(
+    name = "busybox_sh",
+    executable = "@dx_busybox_sh//file",
+)
+
+toolchain(
+    name = "busybox_sh_linux_x86_64",
+    exec_compatible_with = [
+        "@platforms//os:linux",
+        "@platforms//cpu:x86_64",
+    ],
+    toolchain = ":busybox_sh",
+    toolchain_type = "@bazel_tools//tools/sh:toolchain_type",
+)

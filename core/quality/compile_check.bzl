@@ -370,12 +370,13 @@ def _compile_check_impl(target, ctx):
             if n > 0:
                 command.append("--dx-next--")
             command += steps[n]
+        sh = ctx.toolchains[_SH_TOOLCHAIN_TYPE]
         ctx.actions.run(
             mnemonic = "CompileCheck",
             progress_message = "Check %{label}: " + source,
-            executable = ctx.toolchains[_SH_TOOLCHAIN_TYPE].path,
+            executable = sh.path,
             arguments = [ctx.file._compile_check_exec.path] + command,
-            inputs = depset([ctx.file._compile_check_exec], transitive = [action.inputs]),
+            inputs = depset([ctx.file._compile_check_exec] + ([sh.executable] if getattr(sh, "executable", None) else []), transitive = [action.inputs]),
             outputs = outputs + [log, status],
             env = action.env,
             execution_requirements = getattr(action, "execution_info", None),

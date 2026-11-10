@@ -2,6 +2,25 @@ use dx_adopt::dependency_sets::{self, Ecosystem, ResolvedSet, Selection};
 use dx_error::DxError;
 use std::path::Path;
 
+mod ansible;
+mod bazel;
+mod cabal;
+mod cargo;
+mod composer;
+mod cpan;
+mod go;
+mod hex;
+mod julia;
+mod luarocks;
+mod maven;
+mod npm;
+mod nuget;
+mod opam;
+mod pinned;
+mod pub_dev;
+mod swiftpm;
+mod uv;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BackendPlan {
     Run {
@@ -423,38 +442,12 @@ pub fn host_env_refusal(
     check: bool,
     lookup: &dyn Fn(&str) -> bool,
 ) -> Option<BackendError> {
-    if set.ecosystem == Ecosystem::Go {
-        return GO_HOST_ENV
-            .iter()
-            .any(|key| lookup(key))
-            .then(|| BackendError::Unsupported {
-                set: set.name.clone(),
-                reason: GO_HOST_ENV_REASON,
-            });
+    match set.ecosystem {
+        Ecosystem::Go => go::host_env_refusal(set, lookup),
+        Ecosystem::Uv => uv::host_env_refusal(set, lookup),
+        Ecosystem::Maven => maven::host_env_refusal(set, check, lookup),
+        _ => None,
     }
-    if set.ecosystem == Ecosystem::Uv {
-        return UV_HOST_ENV
-            .iter()
-            .any(|key| lookup(key))
-            .then(|| BackendError::Unsupported {
-                set: set.name.clone(),
-                reason: UV_HOST_ENV_REASON,
-            });
-    }
-    if set.ecosystem != Ecosystem::Maven {
-        return None;
-    }
-    let reason = if check && MAVEN_REPIN_ENV.iter().any(|key| lookup(key)) {
-        "unset REPIN and RULES_JVM_EXTERNAL_REPIN: any value stops rules_jvm_external from failing a stale lock"
-    } else if MAVEN_COURSIER_ENV.iter().any(|key| lookup(key)) {
-        "unset COURSIER_MIRRORS, COURSIER_REPOSITORIES, COURSIER_CREDENTIALS, COURSIER_CONFIG_DIR and SCALA_CLI_CONFIG: they redirect where maven artifacts resolve from"
-    } else {
-        return None;
-    };
-    Some(BackendError::Unsupported {
-        set: set.name.clone(),
-        reason,
-    })
 }
 
 /// Fetches a configured hub repository (cargo or maven), re-evaluating its module extension.
@@ -564,184 +557,6 @@ pub fn pnpm_run_argv(
     .concat()
 }
 
-/// Refuses a package update in a pinned set; dx never rewrites its lock.
-fn pinned_selective(set: &ResolvedSet) -> BackendError {
-    BackendError::Unsupported {
-        set: set.name.clone(),
-        reason: match set.ecosystem {
-            Ecosystem::Ruby => {
-                "dx does not resolve gems; edit Gemfile and regenerate Gemfile.lock with `bundle lock`"
-            }
-            Ecosystem::Cpan => {
-                "dx refreshes cpanfile.snapshot with `carton update`; edit cpanfile and run `carton install`"
-            }
-            Ecosystem::Conan => {
-                "dx does not resolve Conan packages; edit conanfile and regenerate conan.lock with `conan lock create`"
-            }
-            Ecosystem::Fpm => {
-                "dx does not resolve fpm packages; edit fpm.toml and regenerate fpm.lock by hand"
-            }
-            Ecosystem::Dub => {
-                "dx does not resolve DUB packages; edit dub.json, run `dub upgrade`, and refresh dub.digests.json"
-            }
-            Ecosystem::Zig => {
-                "dx does not resolve Zig packages; edit build.zig.zon and refresh zig.digests.json"
-            }
-            Ecosystem::Composer => {
-                "dx does not resolve Composer packages; edit composer.json and regenerate composer.lock with `composer update`"
-            }
-            Ecosystem::Opam => {
-                "dx does not resolve opam packages; edit the .opam file and regenerate the .opam.locked file with `opam lock`"
-            }
-            Ecosystem::Bicep => {
-                "dx does not pick Bicep module versions; edit the ref in MODULE.bazel and set digest from `bazel run //bicep/private/tools:pin -- <ref>`"
-            }
-            Ecosystem::SwiftPm => {
-                "dx does not resolve Swift packages; edit Package.swift and regenerate Package.resolved with `swift package resolve`"
-            }
-            Ecosystem::LuaRocks => {
-                "dx checks no LuaRocks pins; run `dx update` to move them and rewrite luarocks.digests.json"
-            }
-            _ => {
-                "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
-            }
-        },
-    }
-}
-
-/// Runs the luarocks_lock target once, so the named rocks (all of them for a full update) move to their newest release.
-fn luarocks_plan(
-    workspace: &Path,
-    set: &ResolvedSet,
-    request: &Selection,
-    offline: bool,
-    frozen: bool,
-    head: &dx_process::BazelHead,
-) -> Result<BackendPlan, BackendError> {
-    if offline {
-        return Err(BackendError::OfflineRequired {
-            set: set.name.clone(),
-        });
-    }
-    if frozen {
-        return Err(BackendError::FrozenLocked {
-            set: set.name.clone(),
-        });
-    }
-    let unsupported = |reason: &'static str| BackendError::Unsupported {
-        set: set.name.clone(),
-        reason,
-    };
-    let lock = set
-        .locks
-        .iter()
-        .find(|lock| lock.ends_with("luarocks.lock"))
-        .ok_or_else(|| unsupported("the luarocks.lock tag names no lock"))?;
-    let dir = lock.rsplit_once('/').map_or(".", |(dir, _)| dir);
-    let Some(target) = dependency_sets::target_label_in(workspace, dir, "luarocks_lock") else {
-        return Err(unsupported(
-            "add a luarocks_lock next to luarocks.lock; it rewrites luarocks.lock and luarocks.digests.json from luarocks.org",
-        ));
-    };
-    let names = match request {
-        Selection::Packages(packages) => packages.clone(),
-        Selection::Full => {
-            let text = std::fs::read_to_string(workspace.join(lock))
-                .map_err(|_| unsupported("luarocks.lock cannot be read"))?;
-            luarocks_names(&text)
-        }
-    };
-    if names.is_empty() {
-        return Ok(BackendPlan::Noop);
-    }
-    let mut tail = vec![target.as_str(), "--"];
-    tail.extend(names.iter().map(String::as_str));
-    Ok(BackendPlan::Run {
-        argv: bazel(head, "run", &tail),
-        env: Vec::new(),
-    })
-}
-
-/// The rock names pinned in a luarocks.lock, without `lua`.
-fn luarocks_names(text: &str) -> Vec<String> {
-    text.lines()
-        .filter_map(|line| {
-            let (key, value) = line.split_once('=')?;
-            let value = value.trim().trim_end_matches(',');
-            if !(value.starts_with('"') && value.ends_with('"') && value.len() > 1) {
-                return None;
-            }
-            let key = key.trim().trim_start_matches("[\"").trim_end_matches("\"]");
-            (!key.is_empty() && key != "lua" && !key.contains(char::is_whitespace))
-                .then(|| key.to_owned())
-        })
-        .collect()
-}
-
-/// Runs the ansible_lock target once per collection, so each one moves to its latest Galaxy version.
-///
-/// A package that is not in the lock yet is added with its dependencies.
-fn ansible_plan(
-    workspace: &Path,
-    set: &ResolvedSet,
-    request: &Selection,
-    offline: bool,
-    frozen: bool,
-    head: &dx_process::BazelHead,
-) -> Result<BackendPlan, BackendError> {
-    if offline {
-        return Err(BackendError::OfflineRequired {
-            set: set.name.clone(),
-        });
-    }
-    if frozen {
-        return Err(BackendError::FrozenLocked {
-            set: set.name.clone(),
-        });
-    }
-    let unsupported = |reason: &'static str| BackendError::Unsupported {
-        set: set.name.clone(),
-        reason,
-    };
-    let lock = set
-        .locks
-        .first()
-        .ok_or_else(|| unsupported("the ansible.lock tag names no lock"))?;
-    let dir = lock.rsplit_once('/').map_or(".", |(dir, _)| dir);
-    let Some(target) = dependency_sets::target_label_in(workspace, dir, "ansible_lock") else {
-        return Err(unsupported(
-            "add an ansible_lock next to the collections lock; it writes lock.json from Galaxy",
-        ));
-    };
-    let names = match request {
-        Selection::Packages(packages) => packages.clone(),
-        Selection::Full => {
-            let text = std::fs::read_to_string(workspace.join(lock))
-                .map_err(|_| unsupported("the collections lock cannot be read"))?;
-            let json: serde_json::Value = serde_json::from_str(&text)
-                .map_err(|_| unsupported("the collections lock is not valid JSON"))?;
-            json.get("collections")
-                .and_then(serde_json::Value::as_array)
-                .map(Vec::as_slice)
-                .unwrap_or_default()
-                .iter()
-                .filter_map(|entry| entry.get("name")?.as_str().map(str::to_owned))
-                .collect()
-        }
-    };
-    let runs: Vec<Run> = names
-        .iter()
-        .map(|name| Run {
-            argv: bazel(head, "run", &[target.as_str(), "--", name.as_str()]),
-            env: Vec::new(),
-        })
-        .collect();
-    if runs.is_empty() {
-        return Ok(BackendPlan::Noop);
-    }
-    Ok(BackendPlan::Sequence(runs))
-}
-
 /// A process to run in a directory other than the workspace root.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DirRun {
@@ -843,428 +658,39 @@ pub fn plan_configured(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<BackendPlan, BackendError> {
-    match (set.ecosystem, request) {
-        (Ecosystem::Bazel, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
-        }),
-        (
-            Ecosystem::Ruby
-            | Ecosystem::PowerShell
-            | Ecosystem::Conan
-            | Ecosystem::Dub
-            | Ecosystem::Fpm
-            | Ecosystem::Zig
-            | Ecosystem::Bicep,
-            Selection::Full,
-        ) => Ok(BackendPlan::Noop),
-        (
-            Ecosystem::Ruby
-            | Ecosystem::PowerShell
-            | Ecosystem::Conan
-            | Ecosystem::Dub
-            | Ecosystem::Fpm
-            | Ecosystem::Zig
-            | Ecosystem::Bicep,
-            Selection::Packages(_),
-        ) => Err(pinned_selective(set)),
-        (Ecosystem::Ansible, request) => {
-            ansible_plan(workspace, set, request, offline, frozen, head)
+    match set.ecosystem {
+        Ecosystem::Uv => uv::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Npm => npm::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Bazel => bazel::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Cargo => cargo::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Maven => maven::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Nuget => nuget::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Go => go::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Cpan => cpan::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Pub => pub_dev::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Julia => julia::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Hex => hex::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::Composer => {
+            composer::plan(workspace, set, request, offline, frozen, head, closure)
         }
-        (Ecosystem::LuaRocks, request) => {
-            luarocks_plan(workspace, set, request, offline, frozen, head)
+        Ecosystem::Opam => opam::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::SwiftPm => {
+            swiftpm::plan(workspace, set, request, offline, frozen, head, closure)
         }
-        (Ecosystem::Hex, _) if is_rebar(set) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "rebar.lock refresh: #9884",
-        }),
-        (Ecosystem::Hex, request) => {
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let packages = match request {
-                Selection::Full => vec!["--all".to_owned()],
-                Selection::Packages(packages) => packages.clone(),
-            };
-            Ok(BackendPlan::Staged(hex_staged(
-                set,
-                head,
-                offline,
-                "deps.update",
-                &packages,
-            )?))
+        Ecosystem::Cabal => cabal::plan(workspace, set, request, offline, frozen, head, closure),
+        Ecosystem::LuaRocks => {
+            luarocks::plan(workspace, set, request, offline, frozen, head, closure)
         }
-        (Ecosystem::Pub, request) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let mut command = vec!["pub", "upgrade"];
-            if let Selection::Packages(packages) = request {
-                command.extend(packages.iter().map(String::as_str));
-            }
-            Ok(BackendPlan::Run {
-                argv: pub_argv(workspace, set, head, &command)?,
-                env: pub_env(),
-            })
+        Ecosystem::Ansible => {
+            ansible::plan(workspace, set, request, offline, frozen, head, closure)
         }
-        (Ecosystem::Composer, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Composer, Selection::Packages(packages)) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let mut command = vec!["update"];
-            command.extend(packages.iter().map(String::as_str));
-            command.extend(["--with-all-dependencies", "--no-install"]);
-            let mut runs = vec![Run {
-                argv: composer_argv(
-                    workspace,
-                    set,
-                    head,
-                    "@rules_dx//php/private/tools:composer",
-                    &command,
-                )?,
-                env: composer_env(),
-            }];
-            let digests = set
-                .locks
-                .iter()
-                .find(|lock| lock.ends_with(".json"))
-                .and_then(|lock| Path::new(lock).file_name())
-                .and_then(|name| name.to_str());
-            if let Some(digests) = digests {
-                runs.push(Run {
-                    argv: composer_argv(
-                        workspace,
-                        set,
-                        head,
-                        "@rules_dx//php/private/tools/digests:refresh_digests",
-                        &["composer.lock", digests],
-                    )?,
-                    env: composer_env(),
-                });
-            }
-            Ok(BackendPlan::Sequence(runs))
-        }
-        (Ecosystem::Cabal, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let Some(resolve) =
-                dependency_sets::julia_target_label(workspace, set, "haskell_deps_resolve")
-            else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a haskell_deps_resolve next to cabal.project; it keeps cabal.project.freeze and haskell_deps.json in step",
-                });
-            };
-            Ok(BackendPlan::Run {
-                argv: bazel(head, "run", &[resolve.as_str()]),
-                env: Vec::new(),
-            })
-        }
-        (Ecosystem::Cabal, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "haskell_deps_resolve resolves the whole cabal project again; select the set without a package",
-        }),
-        (Ecosystem::Julia, request) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let Some(resolve) =
-                dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve")
-            else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a julia_pkg_resolve next to Manifest.bazel.json; it keeps Manifest.bazel.json in step with Manifest.toml",
-                });
-            };
-            let dir = set_dir(workspace, set)?;
-            let mut update = vec!["@rules_dx//julia/private/tools:pkg_update", "--", dir.as_str()];
-            if let Selection::Packages(packages) = request {
-                update.extend(packages.iter().map(String::as_str));
-            }
-            Ok(BackendPlan::Sequence(vec![
-                Run {
-                    argv: bazel(head, "run", &update),
-                    env: julia_env(),
-                },
-                Run {
-                    argv: bazel(head, "run", &[resolve.as_str()]),
-                    env: julia_env(),
-                },
-            ]))
-        }
-        (Ecosystem::Opam, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::SwiftPm, selection) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let mut command = vec!["package".to_owned(), "update".to_owned()];
-            if let Selection::Packages(packages) = selection {
-                command.extend(packages.iter().map(|name| swift_identity(name)));
-            }
-            Ok(BackendPlan::Run {
-                argv: swift_argv(workspace, set, head, true, &command)?,
-                env: Vec::new(),
-            })
-        }
-        (Ecosystem::Opam, Selection::Packages(packages)) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let Some(manifest) = set.manifests.first().and_then(|m| m.rsplit('/').next()) else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "the set has no .opam file",
-                });
-            };
-            let mut upgrade = vec!["upgrade"];
-            upgrade.extend(packages.iter().map(String::as_str));
-            Ok(BackendPlan::Sequence(vec![
-                Run {
-                    argv: opam_argv(workspace, set, head, &upgrade)?,
-                    env: opam_env(),
-                },
-                Run {
-                    argv: opam_argv(workspace, set, head, &["lock", manifest])?,
-                    env: opam_env(),
-                },
-            ]))
-        }
-        (Ecosystem::Cpan, Selection::Full) => Ok(BackendPlan::Noop),
-        (Ecosystem::Cpan, Selection::Packages(modules)) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let Some(compiler) = dependency_sets::cpan_compiler_label(workspace, set) else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a cpan_compiler next to the cpanfile; it keeps cpanfile.snapshot.lock.json in step with cpanfile.snapshot",
-                });
-            };
-            let mut command = vec!["update"];
-            command.extend(modules.iter().map(String::as_str));
-            Ok(BackendPlan::Sequence(vec![
-                Run {
-                    argv: carton_argv(workspace, set, head, &command)?,
-                    env: carton_env(),
-                },
-                Run {
-                    argv: bazel(head, "run", &[&compiler, "--", "--incremental"]),
-                    env: carton_env(),
-                },
-            ]))
-        }
-        (Ecosystem::Uv, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            Ok(BackendPlan::Run {
-                argv: configured_uv_argv(set, closure, false, false)?,
-                env: vec![],
-            })
-        }
-        (Ecosystem::Uv, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "uv repin refreshes the whole uv lock; select the set without a package",
-        }),
-        (Ecosystem::Npm, request) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let backend = dependency_sets::npm_backend(set);
-            let command = match (backend, request) {
-                (Some(dependency_sets::NpmBackend::Yarn), Selection::Full) => {
-                    strings(&["install", "--mode=update-lockfile"])
-                }
-                (Some(dependency_sets::NpmBackend::Yarn), Selection::Packages(packages)) => [
-                    strings(&["up"]),
-                    packages.clone(),
-                    strings(&["--mode=update-lockfile"]),
-                ]
-                .concat(),
-                (Some(dependency_sets::NpmBackend::Npm), Selection::Full) => {
-                    strings(&["install", "--package-lock-only", "--ignore-scripts"])
-                }
-                (Some(dependency_sets::NpmBackend::Npm), Selection::Packages(packages)) => [
-                    strings(&["update"]),
-                    packages.clone(),
-                    strings(&["--package-lock-only", "--ignore-scripts"]),
-                ]
-                .concat(),
-                (_, Selection::Full) => strings(&["install", "--lockfile-only"]),
-                (_, Selection::Packages(packages)) => [
-                    strings(&["update"]),
-                    packages.clone(),
-                    strings(&["--lockfile-only"]),
-                ]
-                .concat(),
-            };
-            let argv = match configured_node_argv(workspace, set, closure, &command)? {
-                Some(argv) => argv,
-                None => configured_pnpm_argv(workspace, head, set, false, &command)?,
-            };
-            Ok(BackendPlan::Run {
-                argv,
-                env: npm_env(),
-            })
-        }
-        (Ecosystem::Cargo, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let repository = cargo_repository(set)?;
-            let visible = dependency_sets::cargo_fetch_repository(workspace, set)
-                .unwrap_or_else(|| repository.to_owned());
-            Ok(BackendPlan::Run {
-                argv: configured_fetch_argv(head, &visible, false),
-                env: cargo_env("workspace", repository),
-            })
-        }
-        (Ecosystem::Maven, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            Ok(BackendPlan::Run {
-                argv: maven_pin_argv(head, maven_repository(set)?),
-                env: maven_env(true),
-            })
-        }
-        (Ecosystem::Maven, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: MAVEN_ONE_PACKAGE,
-        }),
-        // paket.lock never changes, so a frozen run is a pinned fetch and stays allowed.
-        (Ecosystem::Nuget, Selection::Full) => {
-            Ok(BackendPlan::Staged(nuget_staged(set, head, offline)?))
-        }
-        (Ecosystem::Nuget, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: NUGET_PINS_EXACT,
-        }),
-        (Ecosystem::Go, Selection::Full) => {
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            Ok(BackendPlan::Staged(go_staged(set, head, offline)?))
-        }
-        (Ecosystem::Go, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: GO_WHOLE_GRAPH,
-        }),
-        (Ecosystem::Cargo, Selection::Packages(packages)) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            if frozen {
-                return Err(BackendError::FrozenLocked {
-                    set: set.name.clone(),
-                });
-            }
-            let repository = cargo_repository(set)?;
-            let visible = dependency_sets::cargo_fetch_repository(workspace, set)
-                .unwrap_or_else(|| repository.to_owned());
-            let [package] = packages.as_slice() else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: CARGO_ONE_PACKAGE,
-                });
-            };
-            if cargo_reserved_repin(package) {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: CARGO_RESERVED,
-                });
-            }
-            Ok(BackendPlan::Run {
-                argv: configured_fetch_argv(head, &visible, false),
-                env: cargo_env(package, repository),
-            })
-        }
+        Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Conan
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::Bicep => pinned::plan(set, request),
     }
 }
 
@@ -1277,258 +703,31 @@ pub fn check_configured(
     head: &dx_process::BazelHead,
     closure: &UvClosure,
 ) -> Result<CheckPlan, BackendError> {
-    match (set.ecosystem, request) {
-        (Ecosystem::Bazel, Selection::Full) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Bazel, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "bazel module pins change with `dx update <set>:<module> <version>`; refresh the lock with `bazel mod deps`",
-        }),
-        (
-            Ecosystem::Ruby
-            | Ecosystem::PowerShell
-            | Ecosystem::Conan
-            | Ecosystem::Dub
-            | Ecosystem::Fpm
-            | Ecosystem::Zig
-            | Ecosystem::LuaRocks
-            | Ecosystem::Ansible
-            | Ecosystem::Bicep,
-            Selection::Full,
-        ) => Ok(CheckPlan::Pinned),
-        (
-            Ecosystem::Ruby
-            | Ecosystem::PowerShell
-            | Ecosystem::Conan
-            | Ecosystem::Dub
-            | Ecosystem::Fpm
-            | Ecosystem::Zig
-            | Ecosystem::LuaRocks
-            | Ecosystem::Ansible
-            | Ecosystem::Bicep,
-            Selection::Packages(_),
-        ) => Err(pinned_selective(set)),
-        // Nothing refreshes a rebar.lock yet, so its check has nothing to run.
-        (Ecosystem::Hex, Selection::Full) if is_rebar(set) => Ok(CheckPlan::Pinned),
-        (Ecosystem::Hex, Selection::Packages(_)) if is_rebar(set) => Err(pinned_selective(set)),
-        (Ecosystem::Hex, Selection::Full) => Ok(CheckPlan::Staged(hex_staged(
-            set,
-            head,
-            offline,
-            "deps.get",
-            &[],
-        )?)),
-        (Ecosystem::Hex, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "mix deps.get checks the whole mix.lock; select the set without a package",
-        }),
-        (Ecosystem::Pub, Selection::Full) => {
-            let mut command = vec!["pub", "get", "--enforce-lockfile"];
-            if offline {
-                command.push("--offline");
-            }
-            Ok(CheckPlan::Run {
-                argv: pub_argv(workspace, set, head, &command)?,
-                env: pub_env(),
-            })
-        }
-        (Ecosystem::Pub, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "dart pub get checks the whole pubspec.lock; select the set without a package",
-        }),
-        (Ecosystem::Composer, Selection::Full) => Ok(CheckPlan::Run {
-            argv: composer_argv(
-                workspace,
-                set,
-                head,
-                "@rules_dx//php/private/tools:composer",
-                &["validate", "--check-lock", "--no-check-publish"],
-            )?,
-            env: composer_env(),
-        }),
-        (Ecosystem::Composer, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "composer validates the whole composer.lock; select the set without a package",
-        }),
-        (Ecosystem::Cabal, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            let Some(test) =
-                dependency_sets::julia_target_label(workspace, set, "haskell_deps_resolve_test")
-            else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a haskell_deps_resolve_test next to cabal.project; dx checks the set by running it",
-                });
-            };
-            Ok(CheckPlan::Run {
-                argv: bazel(head, "test", &[test.as_str()]),
-                env: Vec::new(),
-            })
-        }
-        (Ecosystem::Cabal, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "haskell_deps_resolve_test checks the whole cabal project; select the set without a package",
-        }),
-        (Ecosystem::Julia, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            let Some(test) =
-                dependency_sets::julia_target_label(workspace, set, "julia_pkg_resolve_test")
-            else {
-                return Err(BackendError::Unsupported {
-                    set: set.name.clone(),
-                    reason: "add a julia_pkg_resolve_test next to Manifest.bazel.json; dx checks the set by running it",
-                });
-            };
-            Ok(CheckPlan::Run {
-                argv: bazel(head, "test", &[test.as_str()]),
-                env: Vec::new(),
-            })
-        }
-        (Ecosystem::Julia, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "julia_pkg_resolve_test checks the whole Manifest.toml; select the set without a package",
-        }),
-        (Ecosystem::SwiftPm, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            Ok(CheckPlan::Run {
-                argv: swift_argv(
-                    workspace,
-                    set,
-                    head,
-                    false,
-                    &strings(&["package", "resolve"]),
-                )?,
-                env: Vec::new(),
-            })
-        }
-        (Ecosystem::SwiftPm, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "swift package resolve checks the whole Package.resolved; select the set without a package",
-        }),
-        (Ecosystem::Opam, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            Ok(CheckPlan::Run {
-                argv: opam_argv(
-                    workspace,
-                    set,
-                    head,
-                    &[
-                        "install",
-                        "--locked",
-                        "--deps-only",
-                        "--dry-run",
-                        "--show-actions",
-                        ".",
-                    ],
-                )?,
-                env: opam_env(),
-            })
-        }
-        (Ecosystem::Opam, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "opam checks the whole .opam.locked file; select the set without a package",
-        }),
-        (Ecosystem::Cpan, Selection::Full) => {
-            if offline {
-                return Err(BackendError::OfflineRequired {
-                    set: set.name.clone(),
-                });
-            }
-            Ok(CheckPlan::Run {
-                argv: carton_argv(workspace, set, head, &["install", "--deployment"])?,
-                env: carton_env(),
-            })
-        }
-        (Ecosystem::Cpan, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "carton checks the whole cpanfile.snapshot; select the set without a package",
-        }),
-        (Ecosystem::Uv, Selection::Full) => Ok(CheckPlan::Run {
-            argv: configured_uv_argv(set, closure, true, offline)?,
-            env: vec![],
-        }),
-        (Ecosystem::Uv, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "uv repin refreshes the whole uv lock; select the set without a package",
-        }),
-        (Ecosystem::Npm, Selection::Full) => {
-            let backend = dependency_sets::npm_backend(set);
-            let mut command = match backend {
-                Some(dependency_sets::NpmBackend::Yarn) => {
-                    strings(&["install", "--immutable", "--mode=update-lockfile"])
-                }
-                Some(dependency_sets::NpmBackend::Npm) => {
-                    strings(&["ci", "--dry-run", "--ignore-scripts"])
-                }
-                _ => strings(&["install", "--lockfile-only", "--frozen-lockfile"]),
-            };
-            if offline && backend != Some(dependency_sets::NpmBackend::Yarn) {
-                command.push("--offline".to_owned());
-            }
-            let argv = match configured_node_argv(workspace, set, closure, &command)? {
-                Some(argv) => argv,
-                None => configured_pnpm_argv(workspace, head, set, offline, &command)?,
-            };
-            Ok(CheckPlan::Run {
-                argv,
-                env: npm_env(),
-            })
-        }
-        (Ecosystem::Npm, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: "the npm package manager checks the whole lock; select the set without a package",
-        }),
-        (Ecosystem::Cargo, Selection::Full) => {
-            let repository = cargo_repository(set)?;
-            let visible = dependency_sets::cargo_fetch_repository(workspace, set)
-                .unwrap_or_else(|| repository.to_owned());
-            Ok(CheckPlan::Run {
-                argv: configured_fetch_argv(head, &visible, offline),
-                env: cargo_env("false", repository),
-            })
-        }
-        (Ecosystem::Cargo, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: CARGO_CHECK_SELECTIVE,
-        }),
-        (Ecosystem::Maven, Selection::Full) => {
-            let repository = maven_repository(set)?;
-            Ok(CheckPlan::Run {
-                argv: configured_fetch_argv(head, repository, offline),
-                env: maven_env(false),
-            })
-        }
-        (Ecosystem::Maven, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: MAVEN_ONE_PACKAGE,
-        }),
-        (Ecosystem::Go, Selection::Full) => Ok(CheckPlan::Staged(go_staged(set, head, offline)?)),
-        (Ecosystem::Go, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: GO_WHOLE_GRAPH,
-        }),
-        (Ecosystem::Nuget, Selection::Full) => {
-            Ok(CheckPlan::Staged(nuget_staged(set, head, offline)?))
-        }
-        (Ecosystem::Nuget, Selection::Packages(_)) => Err(BackendError::Unsupported {
-            set: set.name.clone(),
-            reason: NUGET_PINS_EXACT,
-        }),
+    match set.ecosystem {
+        Ecosystem::Uv => uv::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Npm => npm::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Bazel => bazel::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Cargo => cargo::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Maven => maven::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Nuget => nuget::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Go => go::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Cpan => cpan::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Pub => pub_dev::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Julia => julia::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Hex => hex::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Composer => composer::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Opam => opam::check(workspace, set, request, offline, head, closure),
+        Ecosystem::SwiftPm => swiftpm::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Cabal => cabal::check(workspace, set, request, offline, head, closure),
+        Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Conan
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::Bicep
+        | Ecosystem::LuaRocks
+        | Ecosystem::Ansible => pinned::check(set, request),
     }
 }
 
@@ -1755,7 +954,11 @@ fn carton_argv(
 ) -> Result<Vec<String>, BackendError> {
     let dir = set_dir(workspace, set)?;
     let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
-    let mut argv = bazel(head, "run", &[&under, "@rules_dx//perl/private/tools:carton", "--"]);
+    let mut argv = bazel(
+        head,
+        "run",
+        &[&under, "@rules_dx//perl/private/tools:carton", "--"],
+    );
     argv.extend(strings(command));
     Ok(argv)
 }
@@ -1876,7 +1079,11 @@ fn pub_argv(
         return Ok(argv);
     }
     let under = format!("--run_under=cd '{}' &&", dir.replace('\'', "'\\''"));
-    let mut argv = bazel(head, "run", &[&under, "@rules_dx//dart/private/tools:dart", "--"]);
+    let mut argv = bazel(
+        head,
+        "run",
+        &[&under, "@rules_dx//dart/private/tools:dart", "--"],
+    );
     argv.extend(strings(command));
     Ok(argv)
 }
@@ -1891,6 +1098,36 @@ fn bazel(head: &dx_process::BazelHead, verb: &str, args: &[&str]) -> Vec<String>
     let mut argv = head.argv(verb);
     argv.extend(strings(args));
     argv
+}
+
+#[cfg(test)]
+fn backend_module(ecosystem: Ecosystem) -> &'static str {
+    match ecosystem {
+        Ecosystem::Ruby
+        | Ecosystem::PowerShell
+        | Ecosystem::Conan
+        | Ecosystem::Dub
+        | Ecosystem::Fpm
+        | Ecosystem::Zig
+        | Ecosystem::Bicep => "pinned",
+        Ecosystem::Uv => "uv",
+        Ecosystem::Npm => "npm",
+        Ecosystem::Bazel => "bazel",
+        Ecosystem::Cargo => "cargo",
+        Ecosystem::Maven => "maven",
+        Ecosystem::Nuget => "nuget",
+        Ecosystem::Go => "go",
+        Ecosystem::Cpan => "cpan",
+        Ecosystem::Pub => "pub_dev",
+        Ecosystem::Julia => "julia",
+        Ecosystem::Hex => "hex",
+        Ecosystem::Composer => "composer",
+        Ecosystem::Opam => "opam",
+        Ecosystem::SwiftPm => "swiftpm",
+        Ecosystem::Cabal => "cabal",
+        Ecosystem::LuaRocks => "luarocks",
+        Ecosystem::Ansible => "ansible",
+    }
 }
 
 #[cfg(test)]

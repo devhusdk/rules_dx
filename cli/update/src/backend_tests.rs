@@ -551,7 +551,12 @@ fn cpan_update_runs_carton_then_the_compiler() {
         .position(|arg| arg.starts_with("--run_under="));
     assert_eq!(
         carton[tail.expect("run_under") + 1..],
-        ["@rules_dx//perl/private/tools:carton", "--", "update", "Try::Tiny"]
+        [
+            "@rules_dx//perl/private/tools:carton",
+            "--",
+            "update",
+            "Try::Tiny"
+        ]
     );
     assert_eq!(runs[0].env[0].0, "PERL_CARTON_PATH");
     assert_eq!(
@@ -2553,4 +2558,23 @@ fn configured_cargo_package_update_repins_one_crate() {
             env: cargo_env_expected("serde", "crates"),
         }
     );
+}
+
+#[test]
+fn every_ecosystem_row_has_a_backend() {
+    for ecosystem in Ecosystem::ALL {
+        let module = backend_module(ecosystem);
+        let expected = if ecosystem == Ecosystem::Pub {
+            "pub_dev"
+        } else {
+            ecosystem.name()
+        };
+        let pinned =
+            ecosystem.supported_check() == "pinned" && ecosystem.supported_update() == "pinned";
+        assert!(
+            module == expected || (module == "pinned" && pinned),
+            "{} dispatches to {module}",
+            ecosystem.name()
+        );
+    }
 }

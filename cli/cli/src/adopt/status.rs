@@ -877,11 +877,11 @@ mod tests {
     fn status_warns_about_an_unknown_family() {
         let files = [(
             "dx.toml",
-            "schema_version = 1\n[families.pyhton]\ntier = \"strict\"\n",
+            "schema_version = 1\n[families.nosuchfamily]\ntier = \"strict\"\n",
         )];
         let out = status_with(&files, &["status"]);
         assert!(out.contains("dx.toml: warn"), "{out}");
-        assert!(out.contains("unknown family `pyhton`"), "{out}");
+        assert!(out.contains("unknown family `nosuchfamily`"), "{out}");
         assert!(out.contains("tier: standard [source: default]\n"), "{out}");
     }
 

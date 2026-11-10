@@ -202,20 +202,13 @@ github_deploy(
 rust_binary(
     name = "dx_man",
     srcs = ["src/bin_man.rs"],
-    aliases = aliases(
-        package_name = "cli/dx_cli",
-        normal = True,
-    ),
     crate_name = "dx_man",
     crate_root = "src/bin_man.rs",
-    deps = all_crate_deps(
-        package_name = "cli/dx_cli",
-        normal = True,
-    ) + [
-        ":dx_cli",
+    deps = [
         "//cli/error:dx_error",
         "//cli/output:dx_output",
         "//cli/plan:dx_plan",
+        "@crates//:tracing",
     ],
 )
 
@@ -227,16 +220,10 @@ genrule(
     visibility = ["//visibility:public"],
 )
 
-# keep: tests the :dx_man binary; Gazelle would add the dx_cli crate deps
+# keep: tests the :dx_man binary
 rust_test(
     name = "dx_man_test",
     crate = ":dx_man",
-    deps = [
-        ":dx_cli",
-        "//cli/error:dx_error",
-        "//cli/output:dx_output",
-        "//cli/plan:dx_plan",
-    ],
 )
 
 rust_test(

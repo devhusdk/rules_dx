@@ -116,10 +116,7 @@ fn respond_partial(out: &mut TcpStream) -> std::io::Result<()> {
 }
 
 pub fn sha256_hex(bytes: &[u8]) -> String {
-    Sha256::digest(bytes)
-        .iter()
-        .map(|b| format!("{b:02x}"))
-        .collect()
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 pub fn dead_base() -> String {

@@ -57,10 +57,6 @@ fn read(bytes: &[u8], what: &str) -> Result<Elf, String> {
     })
 }
 
-fn hex(bytes: &[u8]) -> String {
-    bytes.iter().map(|b| format!("{b:02x}")).collect()
-}
-
 /// Returns the shared build-id and arch, or says why the two files do not match.
 pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, String> {
     let bin = read(binary, "binary")?;
@@ -68,8 +64,8 @@ pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, String> {
     if bin.build_id != dbg.build_id {
         return Err(format!(
             "build-id mismatch: binary {} debug file {}",
-            hex(&bin.build_id),
-            hex(&dbg.build_id)
+            hex::encode(&bin.build_id),
+            hex::encode(&dbg.build_id)
         ));
     }
     if bin.machine != dbg.machine || bin.arch != dbg.arch {
@@ -79,7 +75,7 @@ pub fn check_pair(binary: &[u8], debug: &[u8]) -> Result<Pair, String> {
         ));
     }
     Ok(Pair {
-        build_id: hex(&bin.build_id),
+        build_id: hex::encode(&bin.build_id),
         arch: format!("{:?}", bin.arch).to_lowercase(),
     })
 }
@@ -111,15 +107,15 @@ pub fn check_dsym(binary: &[u8], dwarf: &[u8]) -> Result<DsymPair, String> {
     if bin_uuid != dsym_uuid {
         return Err(format!(
             "uuid mismatch: binary {} dSYM {} (stale dSYM?)",
-            hex(&bin_uuid),
-            hex(&dsym_uuid)
+            hex::encode(bin_uuid),
+            hex::encode(dsym_uuid)
         ));
     }
     if bin_arch != dsym_arch {
         return Err(format!("arch mismatch: binary {bin_arch} dSYM {dsym_arch}"));
     }
     Ok(DsymPair {
-        uuid: hex(&bin_uuid),
+        uuid: hex::encode(bin_uuid),
         arch: bin_arch,
     })
 }
@@ -289,8 +285,8 @@ pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, String> {
     if pe.guid != pdb.guid {
         return Err(format!(
             "guid mismatch: binary {} pdb {} (stale or wrong PDB?)",
-            hex(&pe.guid),
-            hex(&pdb.guid)
+            hex::encode(pe.guid),
+            hex::encode(pdb.guid)
         ));
     }
     if pe.age != pdb.age {
@@ -312,7 +308,7 @@ pub fn compare_pdb(pe: &PeId, pdb: &PdbId) -> Result<PdbPair, String> {
         other => format!("machine_{other:#x}"),
     };
     Ok(PdbPair {
-        guid: hex(&pe.guid),
+        guid: hex::encode(pe.guid),
         age: pe.age,
         arch,
     })

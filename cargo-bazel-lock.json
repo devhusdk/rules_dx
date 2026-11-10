@@ -1,5 +1,5 @@
 {
-  "checksum": "0939e10af620a818821affbe4bf202ce97e6bb917cbe3e62bbde9391207e0f11",
+  "checksum": "2e5c732c21874a7265ddac3ae2d6c398350840b6028e66cda16b2f6c4939e9de",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -7351,6 +7351,14 @@
             "target": "flate2"
           },
           {
+            "id": "serde 1.0.229",
+            "target": "serde"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
             "id": "tar 0.4.46",
             "target": "tar"
           },
@@ -8873,6 +8881,10 @@
       "common_attrs": {
         "deps": [
           {
+            "id": "base64 0.22.1",
+            "target": "base64"
+          },
+          {
             "id": "serde 1.0.229",
             "target": "serde"
           },
@@ -9125,6 +9137,10 @@
     "dx_symbols 0.0.0": {
       "common_attrs": {
         "deps": [
+          {
+            "id": "hex 0.4.3",
+            "target": "hex"
+          },
           {
             "id": "object 0.36.7",
             "target": "object"

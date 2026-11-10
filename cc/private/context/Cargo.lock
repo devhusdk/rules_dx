@@ -1630,6 +1630,8 @@ dependencies = [
  "clap",
  "crc32fast",
  "flate2",
+ "serde",
+ "serde_json",
  "tar",
  "tempfile",
  "thiserror 2.0.20",
@@ -2005,6 +2007,7 @@ dependencies = [
 name = "dx_release_tools"
 version = "0.0.0"
 dependencies = [
+ "base64 0.22.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -2065,6 +2068,7 @@ dependencies = [
 name = "dx_symbols"
 version = "0.0.0"
 dependencies = [
+ "hex",
  "object",
  "serde_json",
  "sha2",

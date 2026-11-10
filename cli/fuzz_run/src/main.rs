@@ -15,5 +15,10 @@ mod run;
 mod run_tests;
 
 fn main() {
-    std::process::exit(run::main_code(std::env::args().skip(1).collect()));
+    std::process::exit(run::main_code(
+        std::env::args_os()
+            .skip(1)
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect(),
+    ));
 }

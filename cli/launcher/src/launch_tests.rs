@@ -133,11 +133,11 @@ fn plans_from_a_runfiles_tree() {
     assert_eq!(none.program, main.join("bin/php"));
     assert_eq!(none.args, expected_args(&main, false));
 
-    let empty = plan(&resolver, &descriptor, &|_| Some(String::new())).unwrap();
+    let empty = plan(&resolver, &descriptor, &|_| Some(OsString::new())).unwrap();
     assert_eq!(empty.args, expected_args(&main, false));
 
     let junit = plan(&resolver, &descriptor, &|name| {
-        (name == "XML_OUTPUT_FILE").then(|| "/out/junit.xml".to_owned())
+        (name == "XML_OUTPUT_FILE").then(|| OsString::from("/out/junit.xml"))
     })
     .unwrap();
     assert_eq!(junit.args, expected_args(&main, true));
@@ -193,7 +193,7 @@ fn runs_the_program_and_passes_the_exit_code() {
     let script = main.join("prog");
     dx_testing::executable_script(&script, "#!/bin/sh\nexit $(( $# + 4 ))\n");
     std::fs::write(dir.join("app.launch"), "program=_main/prog\narg=one\n").unwrap();
-    let code = run(&dir.join("app.exe"), &["two".to_owned()]).unwrap();
+    let code = run(&dir.join("app.exe"), &[OsString::from("two")]).unwrap();
     assert_eq!(code, 6);
 }
 
@@ -271,4 +271,24 @@ fn command_sets_descriptor_env() {
         std::ffi::OsStr::new("MIX_HOME"),
         Some(std::ffi::OsStr::new("/h"))
     )));
+}
+
+#[cfg(unix)]
+#[test]
+fn command_forwards_non_utf8_arguments() {
+    use std::os::unix::ffi::{OsStrExt, OsStringExt};
+    let plan = Plan {
+        program: PathBuf::from("prog"),
+        args: Vec::new(),
+    };
+    let raw = OsString::from_vec(vec![0x66, 0xff, 0x6f]);
+    let built = command(
+        &plan,
+        &[],
+        &[],
+        ("RUNFILES_DIR", PathBuf::from("/r")),
+        &[raw],
+    );
+    let args: Vec<_> = built.get_args().collect();
+    assert_eq!(args[0].as_bytes(), &[0x66, 0xff, 0x6f]);
 }

@@ -121,7 +121,11 @@ pub fn acquire_commit_lock(root: &ManagedRoot, timeout: Duration) -> Result<Comm
 }
 
 fn write_holder(root: &ManagedRoot) {
-    let command = std::env::args().nth(1).unwrap_or_default();
+    let command = std::env::args_os()
+        .nth(1)
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
     let text = format!("dx {command} (pid {})", std::process::id());
     let _ = std::fs::write(root.dir().join(COMMIT_HOLDER_FILE_NAME), text);
 }

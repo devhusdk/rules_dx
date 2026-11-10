@@ -192,7 +192,7 @@ fn locate(resolver: &Resolver, key: &str) -> io::Result<PathBuf> {
 pub fn plan(
     resolver: &Resolver,
     descriptor: &Descriptor,
-    env: &dyn Fn(&str) -> Option<String>,
+    env: &dyn Fn(&str) -> Option<OsString>,
 ) -> io::Result<Plan> {
     let program = locate(resolver, &descriptor.program)?;
     let mut args: Vec<OsString> = Vec::new();
@@ -208,7 +208,7 @@ pub fn plan(
             Item::EnvFlag(flag, var) => {
                 if let Some(value) = env(var).filter(|value| !value.is_empty()) {
                     args.push(flag.into());
-                    args.push(value.into());
+                    args.push(value);
                 }
             }
         }
@@ -232,7 +232,7 @@ pub fn command(
     unset: &[String],
     env: &[(String, String)],
     runfiles: (&str, PathBuf),
-    user_args: &[String],
+    user_args: &[OsString],
 ) -> Command {
     let mut command = Command::new(&plan.program);
     command.args(&plan.args).args(user_args);
@@ -245,13 +245,13 @@ pub fn command(
 }
 
 /// Runs the program named by the descriptor beside `exe` and returns its exit code.
-pub fn run(exe: &Path, user_args: &[String]) -> io::Result<i32> {
+pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
     let resolver = resolver_for(exe)?;
     let path = descriptor_path(exe);
     let text = std::fs::read_to_string(&path)
         .map_err(|error| io::Error::new(error.kind(), format!("{}: {error}", path.display())))?;
     let descriptor = parse(&text)?;
-    let plan = plan(&resolver, &descriptor, &|name| std::env::var(name).ok())?;
+    let plan = plan(&resolver, &descriptor, &|name| std::env::var_os(name))?;
     let status = command(
         &plan,
         &descriptor.unset,
@@ -271,7 +271,7 @@ pub fn run(exe: &Path, user_args: &[String]) -> io::Result<i32> {
 
 /// Runs the executable this process was started as.
 pub fn run_from_env() -> io::Result<i32> {
-    let argv: Vec<String> = std::env::args().collect();
+    let argv: Vec<OsString> = std::env::args_os().collect();
     let exe = argv.first().ok_or_else(|| bad("no argv[0]"))?;
     run(Path::new(exe), argv.get(1..).unwrap_or_default())
 }

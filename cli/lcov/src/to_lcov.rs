@@ -94,7 +94,10 @@ fn run(args: &[String]) -> Result<(), DxError> {
 
 // LCOV_EXCL_START - reason: process entry point that exits, issue: 8104, policy: docs/cli/commands/build-test-coverage.md
 fn main() -> ExitCode {
-    let args: Vec<String> = env::args().skip(1).collect();
+    let args: Vec<String> = env::args_os()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
     match run(&args) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {

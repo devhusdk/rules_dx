@@ -112,7 +112,10 @@ fn help(out: &mut impl std::io::Write) -> Result<(), DxError> {
 
 // LCOV_EXCL_START - reason: thin shim, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
 fn run() -> Result<(), DxError> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let args: Vec<String> = std::env::args_os()
+        .skip(1)
+        .map(|arg| arg.to_string_lossy().into_owned())
+        .collect();
     let (workspace, staged_bin, metadata, lock_timeout) = match plan(&args) {
         Ok(Plan::Help) => return help(&mut std::io::stdout().lock()),
         Ok(Plan::Install {

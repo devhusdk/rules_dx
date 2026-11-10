@@ -6,6 +6,7 @@ exports_files([
     "README.md",
     "defs.bzl",
     "extensions.bzl",
+    "lang.json",
 ])
 
 platform(

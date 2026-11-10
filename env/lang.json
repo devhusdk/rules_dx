@@ -1,0 +1,22 @@
+{
+  "$schema": "../core/modules/lang.schema.json",
+  "name": "env",
+  "title": "env",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [],
+  "pins": [],
+  "entry_points": [
+    "EnvironmentInfo",
+    "env_host_filename",
+    "env_tool_record",
+    "env_tree_metadata",
+    "environment_config",
+    "environment_metadata",
+    "environment_tool",
+    "environment_tree"
+  ]
+}

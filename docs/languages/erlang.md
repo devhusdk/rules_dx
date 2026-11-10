@@ -192,7 +192,27 @@ ct_suite run by dx bench: dx_bench:run in the suite runs erlperf and writes dx-b
 
 ## API docs
 
-No API doc tool yet.
+Tool: `edoc`.
+
+```python
+load("@rules_dx//tools/docs/erlang:defs.bzl", "erlang_doc_shard")
+```
+
+### `erlang_doc_shard`
+
+```python
+erlang_doc_shard(name, app, package = "", **kwargs)
+```
+
+Declares the DocIr shard of one Erlang app.
+
+Args:
+  name: Name of the shard target.
+  app: The documented erlang_app.
+  package: Package segment of every symbol id; defaults to the app name.
+  **kwargs: Common attributes such as tags and visibility.
+
+Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Tools
 

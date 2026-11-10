@@ -1,0 +1,18 @@
+{
+  "$schema": "../core/modules/lang.schema.json",
+  "name": "appimage",
+  "title": "appimage",
+  "family": "core",
+  "ecosystems": [],
+  "manifests": [],
+  "lockfiles": [],
+  "tools": [],
+  "platforms": [],
+  "pins": [
+    "private/pins.bzl"
+  ],
+  "entry_points": [
+    "AppImageInfo",
+    "appimage_package"
+  ]
+}

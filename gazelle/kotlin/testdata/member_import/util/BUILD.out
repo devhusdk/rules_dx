@@ -3,4 +3,5 @@ load("@rules_dx//kotlin:defs.bzl", "kotlin_library")
 kotlin_library(
     name = "util",
     srcs = ["Format.kt"],
+    visibility = ["//visibility:public"],
 )

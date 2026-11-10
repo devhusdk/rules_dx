@@ -11,6 +11,7 @@ package(default_visibility = VIS_TOOLS_CLI_TEST)
 
 exports_files(
     [
+        "action_input.bzl",
         "child_runfiles.bzl",
         "clang_diagnostics_test.rs",
         "clang_format_test.rs",

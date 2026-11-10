@@ -1,34 +1,13 @@
 """Analysis tests for the inputs and environment of OCaml build actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//tools/testing:action_input.bzl", "LINUX_X86_64", "action_input_test")
 
-_LINUX = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
 _EMITTER = str(Label("//ocaml/private/toolchain:emitter"))
-
-def _inputs_impl(ctx):
-    env = analysistest.begin(ctx)
-    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "CompileOCamlModule"]
-    asserts.equals(env, 1, len(actions), "expected one CompileOCamlModule action")
-    inputs = [f.short_path for f in actions[0].inputs.to_list()]
-    found = [p for p in inputs if p.endswith("/" + ctx.attr.file)]
-    asserts.equals(env, ctx.attr.present, len(found) > 0, "inputs: " + str(inputs))
-    return analysistest.end(env)
-
-_inputs_test = analysistest.make(_inputs_impl, attrs = {
-    "file": attr.string(),
-    "present": attr.bool(),
-})
 
 def ocaml_compile_input_test(name, target, file, present):
     """Checks whether the module's compile action receives file as an input."""
-    _inputs_test(
-        name = name,
-        size = "small",
-        target_under_test = target,
-        file = file,
-        present = present,
-        target_compatible_with = _LINUX,
-    )
+    action_input_test(name, target, "CompileOCamlModule", file, present)
 
 def _hermetic_impl(ctx):
     env = analysistest.begin(ctx)
@@ -52,7 +31,7 @@ def ocaml_hermetic_link_test(name, target):
         name = name,
         size = "small",
         target_under_test = target,
-        target_compatible_with = _LINUX,
+        target_compatible_with = LINUX_X86_64,
     )
 
 def _link_archive_impl(ctx):
@@ -77,5 +56,5 @@ def ocaml_link_archive_test(name, target, archive):
         size = "small",
         target_under_test = target,
         archive = archive,
-        target_compatible_with = _LINUX,
+        target_compatible_with = LINUX_X86_64,
     )

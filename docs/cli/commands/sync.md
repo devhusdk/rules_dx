@@ -61,7 +61,7 @@ Each pair has a library rule and a shard rule. The shard rule binds a plan entry
 
 | Pair | Library rule | Shard rule |
 | --- | --- | --- |
-| protobuf/rust | `rust_prost_library` | `prost_codegen_shard` in `@rules_dx//generation:codegen.bzl` |
+| protobuf/rust | `rust_prost_library` | `prost_codegen_shard` in `@rules_dx//core/codegen:codegen.bzl` |
 | openapi/typescript | `openapi_typescript_client` in `@rules_dx//api_spec:defs.bzl` | `openapi_codegen_shard` |
 | openapi/go | `openapi_go_client` in `@rules_dx//api_spec:defs.bzl` | `openapi_codegen_shard` |
 | openapi/python | `openapi_python_client` in `@rules_dx//api_spec:defs.bzl` | `openapi_codegen_shard` |
@@ -72,7 +72,7 @@ Each pair has a library rule and a shard rule. The shard rule binds a plan entry
 | avro | `avro_cc_library`, `avro_java_library` in `@rules_dx//avro:defs.bzl` | `avro_codegen_shard` |
 
 ```starlark
-load("@rules_dx//generation:codegen.bzl", "prost_codegen_shard")
+load("@rules_dx//core/codegen:codegen.bzl", "prost_codegen_shard")
 
 prost_codegen_shard(
     name = "api_codegen",

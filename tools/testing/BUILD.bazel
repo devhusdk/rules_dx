@@ -16,7 +16,6 @@ FAMILY_MODULES = [
     "cuda",
     "dotnet",
     "fortran",
-    "generation",
     "haskell",
     "js",
     "julia",

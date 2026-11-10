@@ -753,7 +753,7 @@ rust_test(
         "//examples/shared-rust:corpus_starlark",
         "//flutter/private:corpus_starlark",
         "//fortran/private:corpus_starlark",
-        "//generation:corpus_starlark",
+        "//core/codegen:corpus_starlark",
         "//go/rules:corpus_starlark",
         "//haskell/rules:corpus_starlark",
         "//helm/private:corpus_starlark",

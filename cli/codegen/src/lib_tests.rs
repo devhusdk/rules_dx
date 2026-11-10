@@ -137,7 +137,7 @@ fn frozen_identities_match_starlark() {
     assert_eq!(SOURCES_SUFFIX, ".dxcodegen.src");
     assert_eq!(
         CODEGEN_ASPECT,
-        "generation:codegen.bzl%dx_codegen_plan_aspect"
+        "core/codegen:codegen.bzl%dx_codegen_plan_aspect"
     );
     assert_eq!(REPOSITORY_TARGET, "dx:codegen");
     assert_eq!(SHARD_KIND_SUFFIX, "codegen_shard");
@@ -168,7 +168,7 @@ fn is_shard_kind_matches_shard_rules() {
 #[test]
 fn quote_matches_json_for_label_alphabet() {
     for label in [
-        "//generation:result_proto",
+        "//core/codegen:result_proto",
         "@repo//pkg:schema",
         "//pkg:a\"b\\c",
         "//a:b-c_d.e/f@g",
@@ -184,30 +184,30 @@ fn quote_matches_json_for_label_alphabet() {
 #[test]
 fn expand_roots_unions_schema_with_projections() {
     assert_eq!(
-        expand_roots("//generation:result_proto", &[]),
-        vec!["//generation:result_proto".to_owned()]
+        expand_roots("//core/codegen:result_proto", &[]),
+        vec!["//core/codegen:result_proto".to_owned()]
     );
     assert_eq!(
         expand_roots(
-            "//generation:result_proto",
+            "//core/codegen:result_proto",
             &[
-                "//generation:codegen_prost_fixture".to_owned(),
-                "//generation:codegen_shard_beta".to_owned(),
-                "//generation:codegen_prost_fixture".to_owned(),
+                "//core/codegen:codegen_prost_fixture".to_owned(),
+                "//core/codegen:codegen_shard_beta".to_owned(),
+                "//core/codegen:codegen_prost_fixture".to_owned(),
             ]
         ),
         vec![
-            "//generation:codegen_prost_fixture".to_owned(),
-            "//generation:codegen_shard_beta".to_owned(),
-            "//generation:result_proto".to_owned(),
+            "//core/codegen:codegen_prost_fixture".to_owned(),
+            "//core/codegen:codegen_shard_beta".to_owned(),
+            "//core/codegen:result_proto".to_owned(),
         ]
     );
     assert_eq!(
         expand_roots(
-            "//generation:codegen_shard_beta",
-            &["//generation:codegen_shard_beta".to_owned()]
+            "//core/codegen:codegen_shard_beta",
+            &["//core/codegen:codegen_shard_beta".to_owned()]
         ),
-        vec!["//generation:codegen_shard_beta".to_owned()]
+        vec!["//core/codegen:codegen_shard_beta".to_owned()]
     );
 }
 
@@ -253,7 +253,7 @@ fn root_plan_passes_aggregate_roots_through() {
 
 #[test]
 fn exact_labels_pass_through() {
-    for label in ["//gen:consumer", "@rules_dx//generation:result_proto_rs"] {
+    for label in ["//gen:consumer", "@rules_dx//core/codegen:result_proto_rs"] {
         let scope = resolve_scope(&[label.to_owned()]).expect("exact label");
         assert_eq!(scope, CodegenScope::Exact(label.to_owned()));
         assert_eq!(scope_targets(&scope, "rules_dx"), vec![label.to_owned()]);
@@ -535,27 +535,27 @@ fn fingerprint_matches_starlark_rendering() {
 fn fingerprint_matches_chain_fixture() {
     let records = vec![
         record(
-            "//generation:codegen_shard_beta",
+            "//core/codegen:codegen_shard_beta",
             "rust",
             vec![entry("gen/beta.rs", "gen", "beta")],
         ),
         record(
-            "//generation:codegen_shard_alpha",
+            "//core/codegen:codegen_shard_alpha",
             "rust",
             vec![entry("gen/alpha.rs", "gen", "alpha")],
         ),
     ];
     assert_eq!(
         fingerprint(&records).expect("fingerprint"),
-        "[{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/alpha.rs\",\"namespace\":\"alpha\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//generation:codegen_shard_alpha\"},\
-         {\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/beta.rs\",\"namespace\":\"beta\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//generation:codegen_shard_beta\"}]"
+        "[{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/alpha.rs\",\"namespace\":\"alpha\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//core/codegen:codegen_shard_alpha\"},\
+         {\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/beta.rs\",\"namespace\":\"beta\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//core/codegen:codegen_shard_beta\"}]"
     );
 }
 
 #[test]
 fn fingerprint_matches_prost_fixture() {
     let records = vec![record(
-        "//generation:codegen_prost_fixture",
+        "//core/codegen:codegen_prost_fixture",
         "rust",
         vec![entry_with_exec(
             "gen/prost_result.rs",
@@ -566,7 +566,7 @@ fn fingerprint_matches_prost_fixture() {
     )];
     assert_eq!(
         fingerprint(&records).expect("fingerprint"),
-        "[{\"entries\":[{\"exec_path\":\"result_proto.lib.rs\",\"import_root\":\"gen\",\"logical_path\":\"gen/prost_result.rs\",\"namespace\":\"result\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//generation:codegen_prost_fixture\"}]"
+        "[{\"entries\":[{\"exec_path\":\"result_proto.lib.rs\",\"import_root\":\"gen\",\"logical_path\":\"gen/prost_result.rs\",\"namespace\":\"result\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\",\"producer\":\"//core/codegen:codegen_prost_fixture\"}]"
     );
 }
 
@@ -966,7 +966,7 @@ fn renamed_repo_qualifies_labels() {
         vec![
             "build".to_owned(),
             "@dx//dx:codegen".to_owned(),
-            "--aspects=@dx//generation:codegen.bzl%dx_codegen_plan_aspect".to_owned(),
+            "--aspects=@dx//core/codegen:codegen.bzl%dx_codegen_plan_aspect".to_owned(),
             format!("--output_groups={OUTPUT_GROUP}"),
         ]
     );

@@ -22,10 +22,10 @@ Admitted-pairs evolution onboarding (issue #788): admitted-pairs evolution
 checklist with narrow ruleset-specific adapter plus dx_codegen_plans plus
 .dxcodegen.pb plus symlink-only read-only mirror plus FROZEN_STRATEGY plus
 cold_ms + WARM_WEIGHT; protobuf/rust via
-//generation:codegen_prost_fixture plus //generation:codegen_shard_alpha
-plus //generation:codegen_shard_beta with
-//generation:codegen_plan_chain_subject plus
-//generation:codegen_plan_prost_subject.
+//core/codegen:codegen_prost_fixture plus //core/codegen:codegen_shard_alpha
+plus //core/codegen:codegen_shard_beta with
+//core/codegen:codegen_plan_chain_subject plus
+//core/codegen:codegen_plan_prost_subject.
 
 Platform plus consumer plus release linkage (issue #787, beyond
 seed-host-delivered): platform hosts linux_x86_64 plus linux_arm64

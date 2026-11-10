@@ -1,5 +1,5 @@
 {
-  "checksum": "4e52e5016378297b4ae748119b9d9a8341572f5f48d6460ac4fc0265388f5c3e",
+  "checksum": "26a2519330e60c53f8a82943e8c452782118f4ca6ea4a83923c79bad8689921d",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -29037,7 +29037,7 @@
     "ci_tests 0.0.0": "tools/ci_tests",
     "ci_workflow 0.0.0": "tools/ci/ci_workflow",
     "cli_entrypoint_tests 0.0.0": "cli/cli_entrypoint_tests",
-    "codegen_shard 0.0.0": "generation/codegen_shard",
+    "codegen_shard 0.0.0": "cli/codegen_shard",
     "component_extract 0.0.0": "tools/docs/components/component_extract",
     "d_extract 0.0.0": "tools/docs/d/d_extract",
     "dart_extract 0.0.0": "tools/docs/dart/dart_extract",
@@ -29106,7 +29106,7 @@
     "env_shard 0.0.0": "env/env_shard",
     "env_stubs 0.0.0": "env/env_stubs",
     "fortran_extract 0.0.0": "tools/docs/fortran/fortran_extract",
-    "generation_result 0.0.0": "generation/generation_result",
+    "generation_result 0.0.0": "cli/generation_result",
     "go_docs_tests 0.0.0": "tools/docs/go_docs_tests",
     "go_extract 0.0.0": "tools/docs/go/go_extract",
     "gopls_gen 0.0.0": "quality/tiers/gopls_gen",

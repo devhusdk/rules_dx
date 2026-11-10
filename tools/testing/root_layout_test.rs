@@ -23,7 +23,6 @@ const PENDING: &[&str] = &[
     "dx",
     "env",
     "families",
-    "generation",
     "libs",
     "modules",
     "quality",

@@ -34,7 +34,7 @@ Scopes: dependency-set, package or target selectors. No scope means `//...`. See
 A scope selects sets by path. A `...` scope selects the nearest set above it in the table plus every set under it. A package selects its path's set. Each set reads its whole lockfile. A scope that owns no set exits `2`.
 
 ```text
-//cli/..., //tools/docs/..., //env/..., //generation/..., //quality/..., //rust/...    cargo
+//cli/..., //tools/docs/..., //env/..., //core/..., //quality/..., //rust/...    cargo
 //csharp/..., //fsharp/..., //third_party/dotnet/...                                  nuget
 //go/..., //third_party/go/...                                                         go
 //java/..., //kotlin/..., //scala/..., //third_party/jvm/...                          maven

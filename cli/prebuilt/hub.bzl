@@ -24,7 +24,7 @@ SOURCE_LABEL = "@rules_dx//cli/cli:dx"
 
 # dx runs these tools when started under their names, so a prebuilt dx stands in for each.
 SOURCE_TOOLS = {
-    "codegen_shard_writer": "@rules_dx//generation/codegen_shard:codegen_shard_writer",
+    "codegen_shard_writer": "@rules_dx//cli/codegen_shard:codegen_shard_writer",
     "collect_native": "@rules_dx//tools/coverage/collect:collect_native",
     "env_shard_writer": "@rules_dx//env/env_shard:env_shard_writer",
     "lsp_check": "@rules_dx//quality/lsp_check:lsp_check",

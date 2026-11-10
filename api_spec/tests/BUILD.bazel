@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//api_spec:defs.bzl", "api_spec_library", "openapi_codegen_shard", "openapi_go_client", "openapi_python_client", "openapi_rust_client", "openapi_typescript_client")
-load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//go/rules:defs.bzl", "go_library")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//typescript:defs.bzl", "typescript_library")

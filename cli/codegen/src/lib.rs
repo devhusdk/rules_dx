@@ -28,7 +28,7 @@ pub const SHARD_SUFFIX: &str = ".dxcodegen.pb";
 pub const SOURCES_SUFFIX: &str = ".dxcodegen.src";
 
 /// Repo-relative label; qualify it with [`aspect_label`].
-pub const CODEGEN_ASPECT: &str = "generation:codegen.bzl%dx_codegen_plan_aspect";
+pub const CODEGEN_ASPECT: &str = "core/codegen:codegen.bzl%dx_codegen_plan_aspect";
 
 /// Repo-relative label; qualify it with [`repository_target`].
 pub const REPOSITORY_TARGET: &str = "dx:codegen";

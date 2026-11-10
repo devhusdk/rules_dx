@@ -35,7 +35,7 @@ package_group(
     packages = [
         "-//env/...",
         "-//gazelle/...",
-        "-//generation/...",
+        "-//core/codegen/...",
         "-//quality/...",
         "-//tools/...",
         "public",
@@ -48,7 +48,7 @@ package_group(
         "-//cli/...",
         "-//env/...",
         "-//gazelle/...",
-        "-//generation/...",
+        "-//core/codegen/...",
         "-//quality/...",
         "-//tools/...",
         "public",

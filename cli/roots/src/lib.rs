@@ -186,7 +186,7 @@ mod tests {
         let argv = build_argv(
             &plan,
             "//dx:codegen",
-            &labels(&["//generation:codegen.bzl%dx_codegen_plan_aspect"]),
+            &labels(&["//core/codegen:codegen.bzl%dx_codegen_plan_aspect"]),
             &labels(&["dx_codegen_plans"]),
         );
         assert_eq!(
@@ -194,7 +194,7 @@ mod tests {
             vec![
                 "build".to_owned(),
                 "//dx:codegen".to_owned(),
-                "--aspects=//generation:codegen.bzl%dx_codegen_plan_aspect".to_owned(),
+                "--aspects=//core/codegen:codegen.bzl%dx_codegen_plan_aspect".to_owned(),
                 "--output_groups=dx_codegen_plans".to_owned(),
             ]
         );

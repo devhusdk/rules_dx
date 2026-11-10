@@ -128,7 +128,7 @@ mod tests {
                 crate::plan::CLIPPY_DIAGNOSTICS_FLAG,
                 crate::plan::RUSTC_DIAGNOSTICS_FLAG,
                 "--aspects=@rules_dx//env:plan.bzl%dx_env_plan_aspect",
-                "--aspects=@rules_dx//generation:codegen.bzl%dx_codegen_plan_aspect",
+                "--aspects=@rules_dx//core/codegen:codegen.bzl%dx_codegen_plan_aspect",
                 "--output_groups=dx_env_plans",
                 "--output_groups=dx_codegen_plans",
                 "--remote_download_outputs=toplevel",
@@ -154,22 +154,22 @@ mod tests {
     #[test]
     fn managed_expanded_roots_join_every_root_in_argv_and_summary() {
         let roots = strings(&[
-            "//generation:codegen_prost_fixture",
-            "//generation:result_proto",
+            "//core/codegen:codegen_prost_fixture",
+            "//core/codegen:result_proto",
         ]);
         let plan = plan_managed_with_roots(Command::Sync, &roots, &[], "/tmp/bep.json", &[])
             .expect("plan");
         assert_eq!(
             plan.argv.last(),
-            Some(&"//generation:result_proto".to_owned())
+            Some(&"//core/codegen:result_proto".to_owned())
         );
         assert!(
             plan.argv
-                .contains(&"//generation:codegen_prost_fixture".to_owned())
+                .contains(&"//core/codegen:codegen_prost_fixture".to_owned())
         );
         assert_eq!(
             plan.summary,
-            "Running sync for //generation:codegen_prost_fixture //generation:result_proto"
+            "Running sync for //core/codegen:codegen_prost_fixture //core/codegen:result_proto"
         );
         for command in [Command::Build, Command::Lint] {
             let err = plan_managed_with_roots(command, &roots, &[], "/tmp/bep.json", &[])

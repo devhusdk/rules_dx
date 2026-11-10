@@ -3,7 +3,7 @@
 # gazelle:dx_ignore_import cc avro/tests/shape.hh
 load("//avro:defs.bzl", "avro_cc_library", "avro_codegen_shard", "avro_java_library", "avro_library")
 load("//cc/rules:defs.bzl", "cc_test")
-load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
 

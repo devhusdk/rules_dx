@@ -4,7 +4,7 @@
 load("//quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc/rules:defs.bzl", "cc_test")
-load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
 load("//thrift:defs.bzl", "thrift_cc_library", "thrift_codegen_shard", "thrift_java_library", "thrift_rust_library")
 

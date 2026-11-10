@@ -367,37 +367,37 @@ def codegen_defs_unit_tests(name):
 _CHAIN_FINGERPRINT = (
     "[{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/alpha.rs\"," +
     "\"namespace\":\"alpha\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\"," +
-    "\"producer\":\"//generation:codegen_shard_alpha\"}," +
+    "\"producer\":\"//core/codegen:codegen_shard_alpha\"}," +
     "{\"entries\":[{\"exec_path\":\"\",\"import_root\":\"gen\",\"logical_path\":\"gen/beta.rs\"," +
     "\"namespace\":\"beta\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\"," +
-    "\"producer\":\"//generation:codegen_shard_beta\"}]"
+    "\"producer\":\"//core/codegen:codegen_shard_beta\"}]"
 )
 
 _PROST_FINGERPRINT = (
     "[{\"entries\":[{\"exec_path\":\"result_proto.lib.rs\",\"import_root\":\"gen\",\"logical_path\":\"gen/prost_result.rs\"," +
     "\"namespace\":\"result\",\"read_only\":true,\"replaces\":\"\"}],\"language\":\"rust\"," +
-    "\"producer\":\"//generation:codegen_prost_fixture\"}]"
+    "\"producer\":\"//core/codegen:codegen_prost_fixture\"}]"
 )
 
-EXPECTED_CODEGEN_PLAN_OBSERVATIONS = """subject //generation:codegen_plan_chain_subject
+EXPECTED_CODEGEN_PLAN_OBSERVATIONS = """subject //core/codegen:codegen_plan_chain_subject
 field files=codegen_shard_alpha.dxcodegen.pb,codegen_shard_alpha.dxcodegen.src,codegen_shard_beta.dxcodegen.pb,codegen_shard_beta.dxcodegen.src
 field fingerprint=%s
-field label=//generation:codegen_shard_beta
+field label=//core/codegen:codegen_shard_beta
 field record_count=2
 aspect_field aspect_seen=True
 aspect_field field_count=4
 aspect_field has_subject=True
-aspect_field subject_label=//generation:codegen_plan_chain_subject
+aspect_field subject_label=//core/codegen:codegen_plan_chain_subject
 aspect_field transitive_count=0
-subject //generation:codegen_plan_prost_subject
+subject //core/codegen:codegen_plan_prost_subject
 field files=codegen_prost_fixture.dxcodegen.pb,codegen_prost_fixture.dxcodegen.src,result_proto.lib.rs
 field fingerprint=%s
-field label=//generation:codegen_prost_fixture
+field label=//core/codegen:codegen_prost_fixture
 field record_count=1
 aspect_field aspect_seen=True
 aspect_field field_count=4
 aspect_field has_subject=True
-aspect_field subject_label=//generation:codegen_plan_prost_subject
+aspect_field subject_label=//core/codegen:codegen_plan_prost_subject
 aspect_field transitive_count=0""" % (_CHAIN_FINGERPRINT, _PROST_FINGERPRINT)
 
 def codegen_plan_analysis_tests(name):

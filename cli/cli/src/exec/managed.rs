@@ -427,21 +427,21 @@ mod tests {
         use dx_testing::cli::graph_rule_of_kind;
         vec![
             graph_rule_of_kind(
-                "//generation:result_proto",
+                "//core/codegen:result_proto",
                 "proto_library",
-                &["//generation:result.proto"],
+                &["//core/codegen:result.proto"],
                 &[],
             ),
             graph_rule_of_kind(
-                "//generation:result_proto_rs",
+                "//core/codegen:result_proto_rs",
                 "rust_prost_library",
-                &["//generation:result_proto"],
+                &["//core/codegen:result_proto"],
                 &[],
             ),
             graph_rule_of_kind(
-                "//generation:codegen_prost_fixture",
+                "//core/codegen:codegen_prost_fixture",
                 "prost_codegen_shard",
-                &["//generation:result_proto_rs"],
+                &["//core/codegen:result_proto_rs"],
                 &[],
             ),
         ]
@@ -451,11 +451,11 @@ mod tests {
     fn managed_exact_env_expands_bare_schema_to_projections() {
         let harness = Harness::new("managed-expand-live");
         harness.query.script_graph(&prost_fixture_graph());
-        let (code, out, err) = harness.run(&["sync", "//generation:result_proto"]);
+        let (code, out, err) = harness.run(&["sync", "//core/codegen:result_proto"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(
             out.contains(
-                "Running sync for //generation:codegen_prost_fixture //generation:result_proto"
+                "Running sync for //core/codegen:codegen_prost_fixture //core/codegen:result_proto"
             ),
             "{out}"
         );
@@ -472,7 +472,7 @@ mod tests {
             stdout: Vec::new(),
             stderr: b"query failed: blah".to_vec(),
         });
-        let (code, _, err) = harness.run(&["sync", "//generation:result_proto"]);
+        let (code, _, err) = harness.run(&["sync", "//core/codegen:result_proto"]);
         assert_eq!(code, 2, "{err}");
         assert!(err.contains("query failed: blah"), "{err}");
         assert!(

@@ -33,31 +33,31 @@ mod tests {
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[
             graph_rule_of_kind(
-                "//generation:result_proto",
+                "//core/codegen:result_proto",
                 "proto_library",
-                &["//generation:result.proto"],
+                &["//core/codegen:result.proto"],
                 &[],
             ),
             graph_rule_of_kind(
-                "//generation:result_proto_rs",
+                "//core/codegen:result_proto_rs",
                 "rust_prost_library",
-                &["//generation:result_proto"],
+                &["//core/codegen:result_proto"],
                 &[],
             ),
             graph_rule_of_kind(
-                "//generation:codegen_prost_fixture",
+                "//core/codegen:codegen_prost_fixture",
                 "prost_codegen_shard",
-                &["//generation:result_proto_rs"],
+                &["//core/codegen:result_proto_rs"],
                 &[],
             ),
         ]))]);
-        let got = expand_codegen_roots("//generation:result_proto", &workspace, &query, &[])
+        let got = expand_codegen_roots("//core/codegen:result_proto", &workspace, &query, &[])
             .expect("expand");
         assert_eq!(
             got,
             vec![
-                "//generation:codegen_prost_fixture".to_owned(),
-                "//generation:result_proto".to_owned(),
+                "//core/codegen:codegen_prost_fixture".to_owned(),
+                "//core/codegen:result_proto".to_owned(),
             ]
         );
         let calls = query.calls();
@@ -261,14 +261,14 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-empty-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::ok(&graph_stdout(&[graph_rule_of_kind(
-            "//generation:result_proto_rs",
+            "//core/codegen:result_proto_rs",
             "rust_prost_library",
-            &["//generation:result_proto"],
+            &["//core/codegen:result_proto"],
             &[],
         )]))]);
-        let got = expand_codegen_roots("//generation:result_proto", &workspace, &query, &[])
+        let got = expand_codegen_roots("//core/codegen:result_proto", &workspace, &query, &[])
             .expect("expand");
-        assert_eq!(got, vec!["//generation:result_proto".to_owned()]);
+        assert_eq!(got, vec!["//core/codegen:result_proto".to_owned()]);
         assert_no_rdeps(&query.calls());
     }
 
@@ -277,7 +277,7 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-resolve-test-codegen-expand-fail-");
         let workspace = scratch.path().to_path_buf();
         let query = FakeQuery::new(vec![FakeQuery::failed("\n  query failed: blah  \nmore\n")]);
-        let err = expand_codegen_roots("//generation:result_proto", &workspace, &query, &[])
+        let err = expand_codegen_roots("//core/codegen:result_proto", &workspace, &query, &[])
             .expect_err("failed");
         assert_eq!(
             err,

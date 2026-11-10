@@ -86,7 +86,7 @@ fn malformed_records_and_foreign_parent_files_fail_closed() {
 
 #[test]
 fn exact_labels_pass_through() {
-    for label in ["//app:server", "@rules_dx//generation:result_proto_rs"] {
+    for label in ["//app:server", "@rules_dx//core/codegen:result_proto_rs"] {
         let scope = resolve_scope(&[label.to_owned()]).expect("exact label");
         assert_eq!(scope, SetupScope::Exact(label.to_owned()));
     }

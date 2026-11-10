@@ -1,7 +1,7 @@
 # gazelle:ignore
 load("//cc/rules:defs.bzl", "cc_test")
 load("//flatbuffers:defs.bzl", "flatbuffers_cc_library", "flatbuffers_codegen_shard", "flatbuffers_conform_test", "flatbuffers_java_library", "flatbuffers_library", "flatbuffers_rust_library")
-load("//generation:codegen_tests.bzl", "codegen_shard_argv_test")
+load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":failure_tests.bzl", "flatbuffers_cc_stage_test", "flatbuffers_codegen_failure_test", "flatbuffers_java_stage_test", "flatbuffers_stage_args_test", "flatbuffers_undeclared_java_test", "flatbuffers_undeclared_rust_test")

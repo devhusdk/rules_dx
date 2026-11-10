@@ -1,0 +1,23 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//typescript:defs.bzl", "typescript_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_library(
+    name = "lib",
+    testonly = True,
+    srcs = ["lib.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

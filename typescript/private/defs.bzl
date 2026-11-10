@@ -4,6 +4,7 @@ load("@aspect_rules_jest//jest:defs.bzl", _jest_test = "jest_test")
 load("@aspect_rules_js//js:defs.bzl", _js_binary = "js_binary", _js_test = "js_test")
 load("@aspect_rules_js//js:providers.bzl", _JsInfo = "JsInfo")
 load("@aspect_rules_ts//ts:defs.bzl", _TsConfigInfo = "TsConfigInfo", _ts_project = "ts_project")
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript:defs.bzl", "javascript_binary")
 load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "merge_tags", "with_default_size")
@@ -13,6 +14,7 @@ load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo")
 load("//typescript/private/playwright:closure.bzl", "CLOSURE_DIR")
 load("//typescript/private/playwright:repos.bzl", "CHROMIUM_REVISION", "PLAYWRIGHT_VERSION", "playwright_compatible_with")
+load("//typescript/private/quality:tsc_gate.bzl", "tsc_gate")
 load(":kwargs.bzl", "typescript_forward_kwargs", "typescript_inner_kwargs")
 load(":proto.bzl", "ts_proto_srcs")
 
@@ -391,18 +393,34 @@ def _typescript_test_project(name, srcs, deps, tsconfig, transpiler, declaration
         ts_kwargs["tsconfig"] = tsconfig
     ts_kwargs["transpiler"] = typescript_transpiler(transpiler)
     ts_kwargs.update(typescript_inner_kwargs(None, kwargs))
-    if ts_kwargs.get("tags") != None:
-        ts_kwargs["tags"] = upstream_tags(ts_kwargs["tags"])
+    user_tags = ts_kwargs.get("tags", None)
+    ts_kwargs["tags"] = dx_upstream_tags(user_tags)
     if declaration != None:
         ts_kwargs["declaration"] = declaration
     upstream_srcs = typescript_upstream_srcs(srcs, declaration_srcs)
+    scoped = _dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
     _ts_project(
         name = name + "_ts",
         srcs = upstream_srcs,
         testonly = testonly,
         visibility = ["//visibility:private"],
-        **_dx_scoped_tsconfig(name + "_ts", upstream_srcs, ts_kwargs)
+        **scoped
     )
+    if scoped.get("isolated_typecheck", None) != False or scoped["transpiler"] != "tsc":
+        tsc_gate(
+            name = name + "_typecheck",
+            project = ":" + name + "_ts",
+            tags = upstream_tags(user_tags) + ["manual"],
+            testonly = testonly,
+            visibility = ["//visibility:private"],
+        )
+        build_test(
+            name = name + "_typecheck_test",
+            targets = [":" + name + "_typecheck"],
+            tags = upstream_tags(user_tags),
+            testonly = testonly,
+            size = "small",
+        )
 
 def typescript_test(name, *, srcs = None, main = None, runner = "jest", node_modules = None, data = None, deps = None, tsconfig = None, transpiler = None, declaration = None, declaration_srcs = None, package_json = None, visibility = None, env_inherit = None, **kwargs):
     """Minimal wrapper over jest_test, or js_test with runner = "node", for TypeScript sources. runner defaults to "jest"; declaration_srcs are outside quality ownership."""

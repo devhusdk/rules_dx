@@ -19,7 +19,7 @@ _RULES_TS = "aspect_rules_ts 3.10.1"
 
 _VERBOSE_FLAGS = ["--listFiles", "--listEmittedFiles", "--traceResolution", "--diagnostics", "--extendedDiagnostics"]
 
-def _bin_relative(ctx, file):
+def bin_relative(ctx, file):
     prefix = ctx.bin_dir.path + "/"
     if not file.path.startswith(prefix):
         fail("tsc: " + file.path + " is not under " + prefix)
@@ -82,7 +82,7 @@ def _tsc_js_run(ctx, target, name, framework, files, base, up):
         "include": [],
     }))
     args = ctx.actions.args()
-    args.add("--project", _bin_relative(ctx, tsconfig))
+    args.add("--project", bin_relative(ctx, tsconfig))
     args.add("--pretty", "false")
     npm = [target[JsInfo].npm_sources] if framework != None and framework != "mdx" else []
     js_binary_lib.run_binary_action(
@@ -94,8 +94,8 @@ def _tsc_js_run(ctx, target, name, framework, files, base, up):
         outputs = [stdout, status],
         arguments = [args],
         env = {
-            "JS_BINARY__STDOUT_OUTPUT_FILE": _bin_relative(ctx, stdout),
-            "JS_BINARY__EXIT_CODE_OUTPUT_FILE": _bin_relative(ctx, status),
+            "JS_BINARY__STDOUT_OUTPUT_FILE": bin_relative(ctx, stdout),
+            "JS_BINARY__EXIT_CODE_OUTPUT_FILE": bin_relative(ctx, status),
         },
         resource_set = dx_heavy_resources,
     )
@@ -153,7 +153,7 @@ def _tsc_impl(target, ctx):
     args = ctx.actions.args()
     args.add_all([a for a in attrs._options[OptionsInfo].args if a not in _VERBOSE_FLAGS])
     args.add_all(attrs.args)
-    args.add("--project", _bin_relative(ctx, tsconfig))
+    args.add("--project", bin_relative(ctx, tsconfig))
     args.add("--noEmit")
     args.add("--pretty", "false")
     js_binary_lib.run_binary_action(
@@ -165,8 +165,8 @@ def _tsc_impl(target, ctx):
         outputs = [stdout, status],
         arguments = [args],
         env = {
-            "JS_BINARY__STDOUT_OUTPUT_FILE": _bin_relative(ctx, stdout),
-            "JS_BINARY__EXIT_CODE_OUTPUT_FILE": _bin_relative(ctx, status),
+            "JS_BINARY__STDOUT_OUTPUT_FILE": bin_relative(ctx, stdout),
+            "JS_BINARY__EXIT_CODE_OUTPUT_FILE": bin_relative(ctx, status),
         },
         resource_set = dx_heavy_resources,
     )

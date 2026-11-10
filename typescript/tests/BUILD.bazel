@@ -71,7 +71,7 @@ javascript_test(
 test_suite(
     name = "fixture_tests",
     tests = [
-        "//typescript/tests/fixtures/declarations:main_bin_ts_typecheck_test",
+        "//typescript/tests/fixtures/declarations:main_bin_typecheck_test",
         "//typescript/tests/fixtures/declarations:main_output_test",
         "//typescript/tests/fixtures/hello:hello_output_test",
         "//typescript/tests/fixtures/hello:hello_test",

@@ -394,3 +394,88 @@ fn every_lang_json_aspect_is_loaded_from_its_bzl() {
     }
     assert!(problems.is_empty(), "{}", problems.join("\n"));
 }
+
+const LOADS_BEGIN: &str = "# BEGIN GENERATED LANG ASPECT LOADS\n";
+const LOADS_END: &str = "# END GENERATED LANG ASPECT LOADS\n";
+const EXPORTS_BEGIN: &str = "# BEGIN GENERATED LANG ASPECT EXPORTS\n";
+const EXPORTS_END: &str = "# END GENERATED LANG ASPECT EXPORTS\n";
+
+fn every_lang_aspect(root: &Path, families: &Value) -> BTreeSet<(String, String)> {
+    let mut found = BTreeSet::new();
+    for dir in language_dirs(root, families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        found.extend(lang_aspects(&manifest));
+    }
+    found
+}
+
+fn splice(text: &str, begin: &str, end: &str, body: &str) -> String {
+    let start = text.find(begin).unwrap_or_else(|| panic!("missing {begin:?}")) + begin.len();
+    let stop = text.find(end).unwrap_or_else(|| panic!("missing {end:?}"));
+    format!("{}{body}{}", &text[..start], &text[stop..])
+}
+
+#[test]
+fn aspect_registration_is_generated_from_every_lang_json() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+        .expect("families.json");
+    let aspects = every_lang_aspect(&root, &families);
+    let mut by_label: std::collections::BTreeMap<&str, Vec<&str>> = std::collections::BTreeMap::new();
+    for (label, name) in &aspects {
+        by_label.entry(label).or_default().push(name);
+    }
+    let loads: String = by_label
+        .iter()
+        .map(|(label, names)| {
+            let symbols: Vec<String> = names.iter().map(|n| format!("_{n} = \"{n}\"")).collect();
+            format!("load(\"//{label}\", {})\n", symbols.join(", "))
+        })
+        .collect();
+    let exports: Vec<String> = aspects.iter().map(|(_, n)| format!("{n} = _{n}")).collect();
+    let exports = format!("{}\n", exports.join("\n\n"));
+    let current = dx_testing::read_runfiles("core/quality/testdata/all_languages.bzl");
+    let text = splice(&current, LOADS_BEGIN, LOADS_END, &loads);
+    let text = splice(&text, EXPORTS_BEGIN, EXPORTS_END, &exports);
+    let scratch = dx_testing::mkscratch("all_languages_bzl").expect("scratch");
+    let actual = scratch.join("all_languages.bzl");
+    dx_testing::write_text(&actual, &text);
+    let expected = dx_testing::resolve_runfiles("core/quality/testdata/all_languages.bzl");
+    dx_testing::snapshot_diff(
+        &expected,
+        &actual,
+        Some("core/quality/testdata/all_languages.bzl"),
+    )
+    .expect("all_languages.bzl aspect registration is generated from every lang.json");
+}
+
+#[test]
+fn families_aspects_named_for_a_language_are_in_its_lang_json() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+        .expect("families.json");
+    let listed: BTreeSet<&str> = families["families"]
+        .as_object()
+        .expect("families")
+        .values()
+        .flat_map(|family| family["aspects"].as_array().expect("aspects").iter())
+        .map(|name| name.as_str().expect("aspect"))
+        .collect();
+    let mut problems = Vec::new();
+    for dir in language_dirs(&root, &families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        let own: BTreeSet<String> = lang_aspects(&manifest).into_iter().map(|(_, n)| n).collect();
+        let prefix = format!("real_{}_", manifest["name"].as_str().expect("name"));
+        for name in listed.iter().filter(|name| name.starts_with(&prefix)) {
+            if !own.contains(*name) {
+                problems.push(format!(
+                    "{}: families.json lists {name} but lang.json does not",
+                    dir.display()
+                ));
+            }
+        }
+    }
+    assert!(problems.is_empty(), "{}", problems.join("\n"));
+}

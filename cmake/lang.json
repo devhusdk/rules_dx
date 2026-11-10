@@ -22,5 +22,19 @@
   "pins": [],
   "entry_points": [
     "cmake_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "core/quality:families/cmake.bzl",
+    "file_extensions": [
+      ".cmake"
+    ],
+    "aspects": {
+      "format": [
+        "real_cmake_format_aspect"
+      ],
+      "lint": [
+        "real_cmake_lint_aspect"
+      ]
+    }
+  }
 }

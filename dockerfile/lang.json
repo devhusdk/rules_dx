@@ -20,5 +20,14 @@
   "pins": [],
   "entry_points": [
     "dockerfile_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "dockerfile/private/quality:dockerfile.bzl",
+    "file_extensions": [],
+    "aspects": {
+      "lint": [
+        "real_dockerfile_lint_aspect"
+      ]
+    }
+  }
 }

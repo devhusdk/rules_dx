@@ -16,5 +16,19 @@
   "pins": [],
   "entry_points": [
     "make_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "core/quality:families/make.bzl",
+    "file_extensions": [
+      ".mk"
+    ],
+    "aspects": {
+      "format": [
+        "real_make_format_aspect"
+      ],
+      "lint": [
+        "real_make_lint_aspect"
+      ]
+    }
+  }
 }

@@ -21,5 +21,18 @@
   "pins": [],
   "entry_points": [
     "cloudformation_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "cloudformation/private/quality:cloudformation.bzl",
+    "file_extensions": [
+      ".yaml",
+      ".yml",
+      ".json"
+    ],
+    "aspects": {
+      "lint": [
+        "real_cloudformation_lint_aspect"
+      ]
+    }
+  }
 }

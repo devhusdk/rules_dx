@@ -43,6 +43,18 @@ LANGS = json.decode("""{
       "linux_x86_64",
       "macos_arm64"
     ],
+    "quality": {
+      "aspects": {
+        "lint": [
+          "real_ansible_lint_aspect"
+        ]
+      },
+      "bzl": "ansible/private/quality:ansible.bzl",
+      "file_extensions": [
+        ".yaml",
+        ".yml"
+      ]
+    },
     "title": "ansible",
     "tools": [
       "ansible_lint",
@@ -451,6 +463,19 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "lint": [
+          "real_cloudformation_lint_aspect"
+        ]
+      },
+      "bzl": "cloudformation/private/quality:cloudformation.bzl",
+      "file_extensions": [
+        ".yaml",
+        ".yml",
+        ".json"
+      ]
+    },
     "title": "cloudformation",
     "tools": [
       "cfn_lint",
@@ -477,6 +502,20 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "format": [
+          "real_cmake_format_aspect"
+        ],
+        "lint": [
+          "real_cmake_lint_aspect"
+        ]
+      },
+      "bzl": "core/quality:families/cmake.bzl",
+      "file_extensions": [
+        ".cmake"
+      ]
+    },
     "title": "cmake",
     "tools": [
       "cmakelint",
@@ -697,6 +736,15 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "lint": [
+          "real_dockerfile_lint_aspect"
+        ]
+      },
+      "bzl": "dockerfile/private/quality:dockerfile.bzl",
+      "file_extensions": []
+    },
     "title": "dockerfile",
     "tools": [
       "hadolint",
@@ -1578,6 +1626,21 @@ LANGS = json.decode("""{
       "windows_arm64",
       "windows_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "format": [
+          "real_kubernetes_format_aspect"
+        ],
+        "lint": [
+          "real_kubernetes_lint_aspect"
+        ]
+      },
+      "bzl": "kubernetes/private/quality:kubernetes.bzl",
+      "file_extensions": [
+        ".yaml",
+        ".yml"
+      ]
+    },
     "title": "kubernetes",
     "tools": [
       "kubeconform",
@@ -1670,6 +1733,20 @@ LANGS = json.decode("""{
     "platforms": [
       "linux_x86_64"
     ],
+    "quality": {
+      "aspects": {
+        "format": [
+          "real_make_format_aspect"
+        ],
+        "lint": [
+          "real_make_lint_aspect"
+        ]
+      },
+      "bzl": "core/quality:families/make.bzl",
+      "file_extensions": [
+        ".mk"
+      ]
+    },
     "title": "make",
     "tools": [
       "checkmake",

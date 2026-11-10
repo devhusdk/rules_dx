@@ -22,5 +22,20 @@
   "entry_points": [
     "kubernetes_library",
     "kubernetes_schemas"
-  ]
+  ],
+  "quality": {
+    "bzl": "kubernetes/private/quality:kubernetes.bzl",
+    "file_extensions": [
+      ".yaml",
+      ".yml"
+    ],
+    "aspects": {
+      "format": [
+        "real_kubernetes_format_aspect"
+      ],
+      "lint": [
+        "real_kubernetes_lint_aspect"
+      ]
+    }
+  }
 }

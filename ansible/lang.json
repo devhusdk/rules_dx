@@ -22,5 +22,17 @@
   "pins": [],
   "entry_points": [
     "ansible_library"
-  ]
+  ],
+  "quality": {
+    "bzl": "ansible/private/quality:ansible.bzl",
+    "file_extensions": [
+      ".yaml",
+      ".yml"
+    ],
+    "aspects": {
+      "lint": [
+        "real_ansible_lint_aspect"
+      ]
+    }
+  }
 }

@@ -1,6 +1,4 @@
-bazel_dep(name = "rules_cuda", version = "0.4.0-beta1")
-
-cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
+cuda = use_extension("@rules_dx//cuda:extensions.bzl", "toolchain")
 cuda.redist_json(
     name = "cuda_redist",
     components = ["cccl", "crt", "cublas", "cudart", "cufft", "curand", "nvcc", "nvvm"],

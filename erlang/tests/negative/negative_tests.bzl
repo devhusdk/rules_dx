@@ -1,8 +1,8 @@
 """Analysis tests for the inputs and flags that make Erlang builds fail on bad code."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
+load("//core:defs.bzl", "starlark_test")
 load("//core/quality:families/cc.bzl", "real_cc_lint_aspect")
 
 _LINUX = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
@@ -57,15 +57,27 @@ _has_test = analysistest.make(_has_impl, attrs = _has_attrs)
 _header_test = analysistest.make(_header_impl, attrs = _has_attrs)
 
 def _nif_lint_results_impl(ctx):
-    results = ctx.attr.target[OutputGroupInfo].dx_results
-    if not results.to_list():
-        fail("no lint result for " + str(ctx.attr.target.label))
-    return [DefaultInfo(files = results)]
+    results = ctx.attr.target[OutputGroupInfo].dx_results.to_list()
+    if len(results) != 1:
+        fail("expected one lint result for " + str(ctx.attr.target.label) + ", got " + str(len(results)))
+    out = ctx.actions.declare_file(ctx.label.name + ".txt")
+    ctx.actions.run_shell(
+        inputs = results,
+        outputs = [out],
+        tools = [ctx.executable._printer],
+        command = '"$1" "$2" > "$3"',
+        arguments = [ctx.executable._printer.path, results[0].path, out.path],
+        mnemonic = "NifLintResult",
+    )
+    return [DefaultInfo(files = depset([out]))]
 
 _nif_lint_results = rule(
     implementation = _nif_lint_results_impl,
-    doc = "Builds the C lint result of one target.",
-    attrs = {"target": attr.label(doc = "Target to lint.", aspects = [real_cc_lint_aspect], mandatory = True)},
+    doc = "Renders the C lint result of one target as text.",
+    attrs = {
+        "target": attr.label(doc = "Target to lint.", aspects = [real_cc_lint_aspect], mandatory = True),
+        "_printer": attr.label(default = "//core/quality/result:print_result", executable = True, cfg = "exec"),
+    },
 )
 
 def erlc_warnings_as_errors_test(name, target, expected = True):
@@ -85,4 +97,10 @@ def nif_define_test(name, target, define):
 
 def nif_lint_test(name, target):
     _nif_lint_results(name = name + "_results", testonly = True, target = target, tags = ["manual"], target_compatible_with = _LINUX)
-    build_test(name = name, size = "small", targets = [name + "_results"], target_compatible_with = _LINUX)
+    starlark_test(
+        name = name,
+        size = "small",
+        mode = "execution",
+        file_checks = {name + "_results": "terminal 0"},
+        target_compatible_with = _LINUX,
+    )

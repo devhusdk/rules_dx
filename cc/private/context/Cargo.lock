@@ -3104,6 +3104,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "kotlin_app_cli_fixture"
+version = "0.0.0"
+
+[[package]]
 name = "kqueue"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

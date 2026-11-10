@@ -1,5 +1,5 @@
 {
-  "checksum": "ce71cc2634d99178e805d32c532d0c09ed6f6a62b5bc83ab49df37859b7e282f",
+  "checksum": "985d29a04339bee2e7ce9053f21f3ef00039349d314430d58d1fdab833c2615a",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -13986,6 +13986,19 @@
         }
       ],
       "version": "0.1.6"
+    },
+    "kotlin_app_cli_fixture 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "kotlin_app_cli_fixture",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
     },
     "kqueue 1.2.1": {
       "common_attrs": {
@@ -29373,6 +29386,7 @@
     "julia_tools 0.0.0": "julia/private/julia_tools",
     "jvm_convert 0.0.0": "tools/docs/jvm/jvm_convert",
     "jvm_test_support 0.0.0": "tools/docs/jvm_test_support",
+    "kotlin_app_cli_fixture 0.0.0": "kotlin/tests/fixtures/kotlin-app/kotlin_app_cli_fixture",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
     "modules_tests 0.0.0": "core/modules_tests",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",

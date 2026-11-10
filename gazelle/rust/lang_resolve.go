@@ -476,7 +476,7 @@ func (l *rustLang) Resolve(c *config.Config, ix *resolve.RuleIndex, _ *repo.Remo
 				continue
 			}
 			if imports.deferred[name] {
-				l.errors = append(l.errors, common.UnresolvedImportError(c, "rust", from, name, fmt.Sprintf("undeclared import: declare it in Cargo.toml, add a local rust_library with crate_name %q, or an exact # gazelle:resolve", name)))
+				l.errors = append(l.errors, common.UnresolvedImportError(c, "rust", from, name, fmt.Sprintf("undeclared import: declare it in the crate manifest, add a local rust_library with crate_name %q, or an exact # gazelle:resolve", name)))
 				continue
 			}
 			if crate, renamed := imports.renames[name]; renamed {

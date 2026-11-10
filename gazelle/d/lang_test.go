@@ -250,7 +250,7 @@ func TestDubRootMismatchFails(t *testing.T) {
 	lang, _ := dubGenerate(t, `{"name": "app", "importPaths": ["lib"]}`, "lib/app", map[string]string{
 		"util.d": "module util;\n",
 	})
-	if !failed(lang) || !strings.Contains(errorsOf(lang), "dub.json puts the import root at lib") {
+	if !failed(lang) || !strings.Contains(errorsOf(lang), "the dub manifest puts the import root at lib") {
 		t.Fatalf("errors: %s", errorsOf(lang))
 	}
 }

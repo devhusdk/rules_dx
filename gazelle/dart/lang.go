@@ -69,7 +69,7 @@ func NewLanguage() language.Language {
 		ImportAttr:     "srcs",
 		IsImportSource: func(name string) bool { return common.HasExt(name, []string{".dart"}) },
 		External:       "pub",
-		UnresolvedHint: "declare the package in pubspec.yaml, run pub get, and point # gazelle:dx_external pub at the pubspec.lock; or add an exact # gazelle:resolve dart mapping",
+		UnresolvedHint: "declare the package in the pub manifest, run pub get, and point # gazelle:dx_external pub at the pub lock; or add an exact # gazelle:resolve dart mapping",
 		Generate:       generateRules,
 	})}
 }

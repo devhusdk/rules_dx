@@ -367,7 +367,7 @@ func checkDubRoot(rel, dubRoot, root string) error {
 		want = strings.TrimSuffix(strings.Repeat("../", up), "/")
 	}
 	if root != want {
-		return fmt.Errorf("modules here need import root %q but dub.json puts the import root at %s; fix the module declarations or importPaths in dub.json", root, dubRoot)
+		return fmt.Errorf("modules here need import root %q but the dub manifest puts the import root at %s; fix the module declarations or importPaths there", root, dubRoot)
 	}
 	return nil
 }

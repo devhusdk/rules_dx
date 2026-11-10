@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// Pubspec is the part of a pubspec.yaml that generation reads.
+// Pubspec is the part of a pub manifest that generation reads.
 type Pubspec struct {
 	Name         string
 	Deps         map[string]bool
@@ -120,7 +120,7 @@ func isFlutterSDK(children []yamlLine) bool {
 	return false
 }
 
-// ParsePubspec reads the fields of a pubspec.yaml that generation needs.
+// ParsePubspec reads the fields of a pub manifest that generation needs.
 func ParsePubspec(content []byte) (*Pubspec, error) {
 	lines, err := yamlLines(content)
 	if err != nil {
@@ -193,7 +193,7 @@ func ParsePubspec(content []byte) (*Pubspec, error) {
 		i = j - 1
 	}
 	if p.Name == "" {
-		return nil, fmt.Errorf("pubspec.yaml has no name")
+		return nil, fmt.Errorf("the pub manifest has no name")
 	}
 	if err := ValidPackageName(p.Name); err != nil {
 		return nil, err

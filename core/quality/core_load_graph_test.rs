@@ -29,9 +29,6 @@ const LANGUAGE_HELPERS: &[&str] = &[
 const PENDING_TOOL_PACKAGES: &[&str] = &[
     "core/quality/tools/nixfmt",    // #10549
     "core/quality/tools/python",    // #10545
-    "haskell/private/tools/hlint",  // #10548
-    "haskell/private/tools/ormolu", // #10548
-    "haskell/private/tools/weeder", // #10548
 ];
 
 /// Quoted `//pkg:name` strings that follow `default = ` or `Label(` in `text`.

@@ -728,3 +728,28 @@ fn the_gate_job_merges_evidence_without_swallowing() {
         );
     }
 }
+
+#[test]
+fn issue_label_jobs_read_gh_output_before_searching_it() {
+    let workflow = ".github/workflows/issue-labels.yml";
+    for (id, _) in jobs(workflow) {
+        for line in ci_workflow::scripts(workflow, &id).lines() {
+            let (producer, consumer) = line.rsplit_once('|').unwrap_or(("", line));
+            let quiet = consumer
+                .split_whitespace()
+                .skip_while(|word| *word != "grep")
+                .any(|word| word.starts_with('-') && !word.starts_with("--") && word.contains('q'));
+            assert!(
+                !(quiet && producer.contains("gh ")),
+                "{workflow} job {id} pipes gh into a quiet grep, which exits before gh finishes writing: {line}"
+            );
+        }
+    }
+    for id in ["blocked-issues", "unreviewed-merges"] {
+        let script = ci_workflow::scripts(workflow, id);
+        assert!(
+            script.contains("comments=$(gh ") && script.contains(r#"[[ "$comments" != *"$marker"* ]]"#),
+            "{workflow} job {id} must test the reminder marker against the comments it has read in full"
+        );
+    }
+}

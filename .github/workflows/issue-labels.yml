@@ -85,7 +85,8 @@ jobs:
             line=$(printf '%s\n' "$body" | tr -d '\r' | grep -m1 -i '^Blocked on:' || true)
             if [ -z "$line" ]; then
               echo "::warning title=Blocked without blocker::#$n has the blocked label but no 'Blocked on:' line"
-              if ! gh issue view "$n" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+              comments=$(gh issue view "$n" --json comments --jq '.comments[].body')
+              if [[ "$comments" != *"$marker"* ]]; then
                 gh issue comment "$n" --body "$marker
           This issue has the \`blocked\` label but no \`Blocked on:\` line in its body. Add one naming the blocking issue (\`#N\`), a pull request URL, or the owner action. See CONTRIBUTING.md."
               fi
@@ -128,11 +129,13 @@ jobs:
           for n in $(gh pr list --state merged --search "merged:>=$since" --limit 200 --json number --jq '.[].number'); do
             paths=$(gh pr view "$n" --json files --jq '.files[].path' | tools/ci/review_paths.sh)
             [ -n "$paths" ] || continue
-            if gh pr view "$n" --json comments,reviews --jq '[.comments[].body, .reviews[].body] | .[]' | grep -q '^Review:'; then
+            bodies=$(gh pr view "$n" --json comments,reviews --jq '[.comments[].body, .reviews[].body] | .[]')
+            if grep -q '^Review:' <<< "$bodies"; then
               continue
             fi
             echo "::warning title=Unreviewed merge::#$n touched review paths and has no Review: comment"
-            if ! gh pr view "$n" --json comments --jq '.comments[].body' | grep -qF "$marker"; then
+            comments=$(gh pr view "$n" --json comments --jq '.comments[].body')
+            if [[ "$comments" != *"$marker"* ]]; then
               gh pr comment "$n" --body "$marker
           This pull request touched paths in \`.github/review-paths.txt\` and was merged without a \`Review:\` comment. See CONTRIBUTING.md."
             fi

@@ -1390,17 +1390,6 @@ impl ModuleFile {
         Ok(out)
     }
 
-    /// The `include()` labels of this file, in source order.
-    pub fn include_labels(&self) -> Vec<&str> {
-        self.calls_named("include")
-            .filter_map(
-                |call| match call.positional.first().or_else(|| call.arg("label")) {
-                    Some(Value::Str(literal)) => Some(literal.value.as_str()),
-                    _ => None,
-                },
-            )
-            .collect()
-    }
 
     /// The source with Maven coordinate `coordinate` appended to the `artifacts` list of the
     /// one rules_jvm_external `maven.install` tag that feeds the default `@maven` repository.

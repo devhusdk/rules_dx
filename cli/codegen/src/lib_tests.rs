@@ -221,37 +221,6 @@ fn empty_scope_selects_repository() {
 }
 
 #[test]
-fn root_plan_composes_baseline_invocation() {
-    let plan = dx_roots::repository_plan();
-    assert_eq!(
-        targets_for_root_plan(&plan, "rules_dx"),
-        vec!["@rules_dx//dx:codegen"]
-    );
-    assert_eq!(
-        build_argv_for_plan(&plan, "rules_dx"),
-        vec![
-            "build".to_owned(),
-            "@rules_dx//dx:codegen".to_owned(),
-            format!("--aspects={}", aspect_label("rules_dx")),
-            format!("--output_groups={OUTPUT_GROUP}"),
-        ]
-    );
-}
-
-#[test]
-fn root_plan_passes_aggregate_roots_through() {
-    let plan = dx_roots::RepositoryRootPlan::monolithic_aggregate("//dx:codegen_roots");
-    assert_eq!(
-        targets_for_root_plan(&plan, "rules_dx"),
-        vec!["//dx:codegen_roots".to_owned()]
-    );
-    assert_eq!(
-        build_argv_for_plan(&plan, "rules_dx")[1],
-        "//dx:codegen_roots".to_owned()
-    );
-}
-
-#[test]
 fn exact_labels_pass_through() {
     for label in ["//gen:consumer", "@rules_dx//core/codegen:result_proto_rs"] {
         let scope = resolve_scope(&[label.to_owned()]).expect("exact label");
@@ -960,16 +929,8 @@ fn collect_records_counts_one_file_reported_by_two_targets_once() {
 
 #[test]
 fn renamed_repo_qualifies_labels() {
-    let plan = dx_roots::repository_plan();
-    assert_eq!(
-        build_argv_for_plan(&plan, "dx"),
-        vec![
-            "build".to_owned(),
-            "@dx//dx:codegen".to_owned(),
-            "--aspects=@dx//core/codegen:codegen.bzl%dx_codegen_plan_aspect".to_owned(),
-            format!("--output_groups={OUTPUT_GROUP}"),
-        ]
-    );
+    assert_eq!(repository_target("dx"), "@dx//dx:codegen");
+    assert_eq!(aspect_label("dx"), "@dx//core/codegen:codegen.bzl%dx_codegen_plan_aspect");
 }
 
 #[test]

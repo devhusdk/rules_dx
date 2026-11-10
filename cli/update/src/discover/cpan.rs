@@ -2,7 +2,7 @@
 
 use dx_error::DxError;
 
-use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, wanted};
+use super::{Candidate, Fetch, Findings, LookupError, numeric_cmp, unquote, wanted};
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
@@ -79,11 +79,6 @@ fn declaration(line: &str) -> Option<(String, String)> {
     digits
         .starts_with(|c: char| c.is_ascii_digit())
         .then(|| (name.to_owned(), literal.to_owned()))
-}
-
-fn unquote(text: &str) -> Option<&str> {
-    let quote = text.chars().next().filter(|c| matches!(c, '"' | '\''))?;
-    text[1..].split_once(quote).map(|(inside, _)| inside)
 }
 
 fn newest(body: &str) -> Result<(String, Option<String>, bool), DxError> {

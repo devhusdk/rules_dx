@@ -137,7 +137,7 @@ fn copy_file(source: &Path, destination: &Path) -> io::Result<Mechanism> {
         .prefix(&crate::staging_prefix(destination))
         .suffix(crate::STAGING_SUFFIX)
         .tempfile_in(parent)?;
-    crate::persist_copy(input, staging, destination, crate::CopyMode::FromSource)
+    crate::persist_copy(input, staging, destination)
         .map(|()| Mechanism::Copied)
 }
 

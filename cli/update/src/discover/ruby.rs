@@ -3,7 +3,8 @@
 use dx_error::DxError;
 
 use super::{
-    Candidate, Fetch, Findings, LookupError, github_repo, numeric_cmp, release_cmp, wanted,
+    Candidate, Fetch, Findings, LookupError, github_repo, numeric_cmp, release_cmp, unquote,
+    wanted,
 };
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -103,12 +104,6 @@ fn declaration(line: &str) -> Option<(String, String)> {
         }
     }
     best.map(|current| (name.to_owned(), current.to_owned()))
-}
-
-fn unquote(text: &str) -> Option<&str> {
-    let quote = text.chars().next().filter(|c| matches!(c, '"' | '\''))?;
-    let inner = &text[1..];
-    inner.split_once(quote).map(|(inside, _)| inside)
 }
 
 pub(crate) fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool), DxError> {

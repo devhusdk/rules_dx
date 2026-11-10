@@ -91,9 +91,6 @@ const EXTRA_SPACING: Duration = Duration::from_secs(10);
 /// Sets how many nested Bazel test servers rules_dx tests run at once.
 pub const NESTED_BAZEL_SLOTS_ENV: &str = dx_path::nested_bazel::SLOTS_ENV;
 
-/// Nested Bazel test servers rules_dx tests run at once by default.
-pub const DEFAULT_NESTED_BAZEL_SLOTS: u64 = dx_path::nested_bazel::DEFAULT_SLOTS as u64;
-
 const POLL: Duration = Duration::from_millis(200);
 
 const STALE: Duration = Duration::from_secs(30);

@@ -166,6 +166,12 @@ impl Registry {
     }
 }
 
+/// The text inside a leading single- or double-quoted literal.
+pub(crate) fn unquote(text: &str) -> Option<&str> {
+    let quote = text.chars().next().filter(|c| matches!(c, '"' | '\''))?;
+    text[1..].split_once(quote).map(|(inside, _)| inside)
+}
+
 /// Compares dotted numeric versions; a missing segment counts as 0.
 pub(crate) fn numeric_cmp(a: &str, b: &str) -> std::cmp::Ordering {
     let segments = |text: &str| -> Vec<u64> {

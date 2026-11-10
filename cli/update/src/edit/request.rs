@@ -470,11 +470,6 @@ impl UpdateRequest {
         self.configured.as_ref().map(|set| set.manifests.as_slice())
     }
 
-    /// The ecosystem of the configured set this request edits, if it has one.
-    pub fn configured_kind(&self) -> Option<ConfiguredKind> {
-        self.configured.as_ref().map(|set| set.kind)
-    }
-
     /// The name of the configured set this request edits, if it has one.
     pub fn configured_name(&self) -> Option<&str> {
         self.configured.as_ref().map(|set| set.name.as_str())

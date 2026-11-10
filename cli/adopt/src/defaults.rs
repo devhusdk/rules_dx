@@ -29,9 +29,6 @@ pub const ENV_DEFAULTS: [(&str, &str, &str); 3] = [
     (DX_BUILD_SLOTS_WAIT_ENV, "--build-slots-wait", "duration"),
 ];
 
-/// Every documented `build-slots` spelling.
-pub const BUILD_SLOTS_SPELLINGS: &str = "auto|<n>|off";
-
 /// Read a slot wait: seconds, or a count with an `s`, `m` or `h` suffix. `0` means do not wait.
 pub fn parse_wait(value: &str) -> Option<std::time::Duration> {
     let value = value.trim().to_ascii_lowercase();

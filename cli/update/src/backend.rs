@@ -277,12 +277,6 @@ pub const UV_LABEL: &str = "@dx_tools//:uv";
 
 pub const UV_PYTHON_LABEL: &str = "@rules_dx//cli/update:python_interpreter";
 
-/// Shell command that exports the pinned uv path for a local run.
-pub const UV_RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @dx_tools//:uv --var DX_UV_BIN --print)\"";
-
-/// Shell command that exports the pinned uv Python interpreter path for a local run.
-pub const UV_PYTHON_RESOLVE_COMMAND: &str = "export \"$(bazel run @rules_dx//cli/tool_resolve -- --label @rules_dx//cli/update:python_interpreter --var DX_UV_PYTHON --print)\"";
-
 pub const UV_VERSION_LINE: &str = "uv 0.13.7";
 
 const UV_BIN_WHAT: &str = "the pinned uv 0.13.7 from @dx_tools//:uv";

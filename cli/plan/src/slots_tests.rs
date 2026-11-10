@@ -1,4 +1,6 @@
 use super::*;
+
+const DEFAULT_NESTED_BAZEL_SLOTS: u64 = dx_path::nested_bazel::DEFAULT_SLOTS as u64;
 use std::process::{Command as Process, Stdio};
 
 fn hold(

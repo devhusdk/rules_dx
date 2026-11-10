@@ -8,56 +8,6 @@
     )
 )]
 
-pub const REPOSITORY_PATTERN: &str = "//...";
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum RootStrategy {
-    RecursivePattern,
-    MonolithicAggregate,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct RepositoryRootPlan {
-    pub strategy: RootStrategy,
-    pub roots: Vec<String>,
-}
-
-impl RepositoryRootPlan {
-    pub fn baseline() -> RepositoryRootPlan {
-        RepositoryRootPlan {
-            strategy: RootStrategy::RecursivePattern,
-            roots: vec![REPOSITORY_PATTERN.to_owned()],
-        }
-    }
-
-    pub fn monolithic_aggregate(label: &str) -> RepositoryRootPlan {
-        RepositoryRootPlan {
-            strategy: RootStrategy::MonolithicAggregate,
-            roots: vec![label.to_owned()],
-        }
-    }
-}
-
-pub fn repository_plan() -> RepositoryRootPlan {
-    RepositoryRootPlan::baseline()
-}
-
-pub fn invocation_targets(plan: &RepositoryRootPlan, canonical: &str) -> Vec<String> {
-    invocation_targets_union(plan, &[canonical])
-}
-
-pub fn invocation_targets_union(plan: &RepositoryRootPlan, canonicals: &[&str]) -> Vec<String> {
-    if plan.strategy == RootStrategy::RecursivePattern
-        && plan.roots == vec![REPOSITORY_PATTERN.to_owned()]
-    {
-        return canonicals
-            .iter()
-            .map(|canonical| (*canonical).to_owned())
-            .collect();
-    }
-    plan.roots.clone()
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExactScopeError {
     MultipleTargets { count: usize },
@@ -105,32 +55,6 @@ pub fn resolve_exact_target(targets: &[String]) -> Result<Option<String>, ExactS
     }
 }
 
-pub fn build_argv(
-    plan: &RepositoryRootPlan,
-    canonical: &str,
-    aspects: &[String],
-    output_groups: &[String],
-) -> Vec<String> {
-    build_argv_union(plan, &[canonical], aspects, output_groups)
-}
-
-pub fn build_argv_union(
-    plan: &RepositoryRootPlan,
-    canonicals: &[&str],
-    aspects: &[String],
-    output_groups: &[String],
-) -> Vec<String> {
-    let mut argv = vec!["build".to_owned()];
-    argv.extend(invocation_targets_union(plan, canonicals));
-    for aspect in aspects {
-        argv.push(format!("--aspects={aspect}"));
-    }
-    for group in output_groups {
-        argv.push(format!("--output_groups={group}"));
-    }
-    argv
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -141,63 +65,6 @@ mod tests {
 
     fn labels(values: &[&str]) -> Vec<String> {
         values.iter().map(|value| label(value)).collect()
-    }
-
-    #[test]
-    fn baseline_plan_applies_aspects_to_recursive_pattern() {
-        let plan = RepositoryRootPlan::baseline();
-        assert_eq!(plan.strategy, RootStrategy::RecursivePattern);
-        assert_eq!(plan.roots, vec![REPOSITORY_PATTERN.to_owned()]);
-    }
-
-    #[test]
-    fn aggregate_plan_carries_its_label() {
-        let plan = RepositoryRootPlan::monolithic_aggregate("//dx:codegen_roots");
-        assert_eq!(plan.strategy, RootStrategy::MonolithicAggregate);
-        assert_eq!(plan.roots, vec![label("//dx:codegen_roots")]);
-    }
-
-    #[test]
-    fn repository_plan_is_the_baseline() {
-        assert_eq!(repository_plan(), RepositoryRootPlan::baseline());
-    }
-
-    #[test]
-    fn baseline_plan_keeps_the_canonical_selection_identity() {
-        let plan = repository_plan();
-        assert_eq!(
-            invocation_targets(&plan, "//dx:codegen"),
-            vec![label("//dx:codegen")]
-        );
-    }
-
-    #[test]
-    fn aggregate_plan_passes_its_root_through() {
-        let plan = RepositoryRootPlan::monolithic_aggregate("//dx:codegen_roots");
-        assert_eq!(
-            invocation_targets(&plan, "//dx:codegen"),
-            vec![label("//dx:codegen_roots")]
-        );
-    }
-
-    #[test]
-    fn build_argv_composes_baseline_invocation() {
-        let plan = repository_plan();
-        let argv = build_argv(
-            &plan,
-            "//dx:codegen",
-            &labels(&["//core/codegen:codegen.bzl%dx_codegen_plan_aspect"]),
-            &labels(&["dx_codegen_plans"]),
-        );
-        assert_eq!(
-            argv,
-            vec![
-                "build".to_owned(),
-                "//dx:codegen".to_owned(),
-                "--aspects=//core/codegen:codegen.bzl%dx_codegen_plan_aspect".to_owned(),
-                "--output_groups=dx_codegen_plans".to_owned(),
-            ]
-        );
     }
 
     #[test]
@@ -236,12 +103,5 @@ mod tests {
         let error = resolve_exact_target(&labels(&["//a", "//b"])).unwrap_err();
         assert_eq!(error, ExactScopeError::MultipleTargets { count: 2 });
         assert_eq!(error.to_string(), "expected at most one target, found 2");
-    }
-
-    #[test]
-    fn monolithic_plan_ignores_the_canonical_targets() {
-        let plan = RepositoryRootPlan::monolithic_aggregate("//:all");
-        assert_eq!(invocation_targets(&plan, "//x:y"), labels(&["//:all"]));
-        assert_eq!(repository_plan(), RepositoryRootPlan::baseline());
     }
 }

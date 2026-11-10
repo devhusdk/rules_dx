@@ -54,8 +54,6 @@ const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
 
 pub const LUAROCKS_LOCK: &str = "luarocks.lock";
 
-pub const LUAROCKS_DIGESTS: &str = "luarocks.digests.json";
-
 pub const COMPOSER_JSON: &str = "composer.json";
 
 pub const COMPOSER_LOCK: &str = "composer.lock";

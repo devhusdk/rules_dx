@@ -56,17 +56,6 @@ impl HeldSelection {
             .map(SharedLease::into_file)
             .collect()
     }
-
-    /// The `DX_MANAGED_LEASES` value naming the held generations.
-    ///
-    /// This is information for the child only: an environment string is not
-    /// a lock, so the leases themselves must travel as open files.
-    pub fn lease_env(&self) -> String {
-        lease::inherit_value(&[
-            (GenerationUse::Environment, self.pair.environment.as_str()),
-            (GenerationUse::Generated, self.pair.generated.as_str()),
-        ])
-    }
 }
 
 /// Holds shared leases on the current selection; `None` means nothing is selected.

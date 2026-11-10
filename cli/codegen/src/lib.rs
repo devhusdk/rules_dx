@@ -14,10 +14,7 @@ use std::path::Path;
 use codegen_shard::{Error, decode_validated};
 use dx_bep::TargetOutput;
 use dx_digest::blake3 as digest;
-use dx_roots::{
-    ExactScopeError, RepositoryRootPlan, build_argv, invocation_targets, repository_plan,
-    resolve_exact_target,
-};
+use dx_roots::{ExactScopeError, resolve_exact_target};
 use serde::Serialize;
 
 pub const OUTPUT_GROUP: &str = "dx_codegen_plans";
@@ -104,22 +101,9 @@ pub fn repository_target(repo: &str) -> String {
 
 pub fn scope_targets(scope: &CodegenScope, repo: &str) -> Vec<String> {
     match scope {
-        CodegenScope::Repository => targets_for_root_plan(&repository_plan(), repo),
+        CodegenScope::Repository => vec![repository_target(repo)],
         CodegenScope::Exact(label) => vec![label.clone()],
     }
-}
-
-pub fn targets_for_root_plan(plan: &RepositoryRootPlan, repo: &str) -> Vec<String> {
-    invocation_targets(plan, &repository_target(repo))
-}
-
-pub fn build_argv_for_plan(plan: &RepositoryRootPlan, repo: &str) -> Vec<String> {
-    build_argv(
-        plan,
-        &repository_target(repo),
-        &[aspect_label(repo)],
-        &[OUTPUT_GROUP.to_owned()],
-    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

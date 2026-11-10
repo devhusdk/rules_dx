@@ -37,17 +37,6 @@ pub fn has_executable_suffix(name: &str) -> bool {
     executable_suffix(name).is_some()
 }
 
-/// Removes an executable suffix from one name.
-pub fn strip_executable_suffix(name: &str) -> &str {
-    let lower = name.to_ascii_lowercase();
-    for suffix in EXECUTABLE_SUFFIXES {
-        if lower.ends_with(suffix) && name.len() > suffix.len() {
-            return &name[..name.len() - suffix.len()];
-        }
-    }
-    name
-}
-
 /// Reports whether one name is a device Windows reserves.
 pub fn is_reserved_device(name: &str) -> bool {
     let stem = name.split('.').next().unwrap_or(name).to_ascii_lowercase();
@@ -72,14 +61,6 @@ mod tests {
         assert_eq!(executable_suffix("prettier.EXE"), Some(".exe"));
         assert_eq!(executable_suffix("build.bat"), Some(".bat"));
         assert_eq!(executable_suffix("pydoclint"), None);
-    }
-
-    #[test]
-    fn a_suffix_strips_back_to_the_tool_name() {
-        assert_eq!(strip_executable_suffix("python.exe"), "python");
-        assert_eq!(strip_executable_suffix("build.bat"), "build");
-        assert_eq!(strip_executable_suffix("pydoclint"), "pydoclint");
-        assert_eq!(strip_executable_suffix(".exe"), ".exe");
     }
 
     #[test]

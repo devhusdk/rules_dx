@@ -1,0 +1,17 @@
+[package]
+license = "Apache-2.0"
+name = "cc_tests_gcc_linux_arm64"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "archive_test"
+path = "archive_test.rs"
+
+[[test]]
+name = "libstdcxx_archive_test"
+path = "libstdcxx_archive_test.rs"
+
+[[test]]
+name = "native_arm64_test"
+path = "native_arm64_test.rs"

@@ -597,6 +597,30 @@ name = "cc_tests"
 version = "0.0.0"
 
 [[package]]
+name = "cc_tests_gcc_cross"
+version = "0.0.0"
+
+[[package]]
+name = "cc_tests_gcc_linux_arm64"
+version = "0.0.0"
+
+[[package]]
+name = "cc_tests_gcc_linux_x86_64"
+version = "0.0.0"
+
+[[package]]
+name = "cc_tests_llvm_cross"
+version = "0.0.0"
+
+[[package]]
+name = "cc_tests_msvc_cross"
+version = "0.0.0"
+
+[[package]]
+name = "cc_tests_msvc_x86_64"
+version = "0.0.0"
+
+[[package]]
 name = "cfb-mode"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

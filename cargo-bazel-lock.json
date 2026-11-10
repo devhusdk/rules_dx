@@ -1,5 +1,5 @@
 {
-  "checksum": "341334c0134c277ace6388e37be60ee9ffcc54f0d78142076e736c12b500f7bf",
+  "checksum": "9b8cfc4426a7d036629acb799c3cdfc3a6bc419b213b2ad0af946e9e0bccadee",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -2994,6 +2994,84 @@
         "Apache-2.0"
       ],
       "name": "cc_tests",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "cc_tests_gcc_cross 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_tests_gcc_cross",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "cc_tests_gcc_linux_arm64 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_tests_gcc_linux_arm64",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "cc_tests_gcc_linux_x86_64 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_tests_gcc_linux_x86_64",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "cc_tests_llvm_cross 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_tests_llvm_cross",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "cc_tests_msvc_cross 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_tests_msvc_cross",
+      "repository": null,
+      "targets": [],
+      "version": "0.0.0"
+    },
+    "cc_tests_msvc_x86_64 0.0.0": {
+      "common_attrs": {
+        "edition": "2024"
+      },
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "cc_tests_msvc_x86_64",
       "repository": null,
       "targets": [],
       "version": "0.0.0"
@@ -31133,6 +31211,12 @@
     "cc_context 0.0.0": "cc/private/cc_context",
     "cc_extract 0.0.0": "tools/docs/cc/cc_extract",
     "cc_tests 0.0.0": "cc/cc_tests",
+    "cc_tests_gcc_cross 0.0.0": "cc/tests/cc_tests_gcc_cross",
+    "cc_tests_gcc_linux_arm64 0.0.0": "cc/tests/cc_tests_gcc_linux_arm64",
+    "cc_tests_gcc_linux_x86_64 0.0.0": "cc/tests/cc_tests_gcc_linux_x86_64",
+    "cc_tests_llvm_cross 0.0.0": "cc/tests/cc_tests_llvm_cross",
+    "cc_tests_msvc_cross 0.0.0": "cc/tests/cc_tests_msvc_cross",
+    "cc_tests_msvc_x86_64 0.0.0": "cc/tests/cc_tests_msvc_x86_64",
     "ci_coverage_cells 0.0.0": "tools/ci/ci_coverage_cells",
     "ci_docs_scope 0.0.0": "tools/ci/ci_docs_scope",
     "ci_evidence_inputs 0.0.0": "tools/ci/ci_evidence_inputs",

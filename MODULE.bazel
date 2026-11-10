@@ -2212,6 +2212,12 @@ crate.from_cargo(
         "//.devcontainer:Cargo.toml",
         "//appimage/private/packer:Cargo.toml",
         "//qt/private/rust:Cargo.toml",
+        "//cc/tests/msvc_x86_64:Cargo.toml",
+        "//cc/tests/msvc_cross:Cargo.toml",
+        "//cc/tests/llvm_cross:Cargo.toml",
+        "//cc/tests/gcc_linux_x86_64:Cargo.toml",
+        "//cc/tests/gcc_linux_arm64:Cargo.toml",
+        "//cc/tests/gcc_cross:Cargo.toml",
         "//csharp/tests/fixtures/roslyn:Cargo.toml",
     ],
     supported_platform_triples = [

@@ -1,0 +1,13 @@
+[package]
+license = "Apache-2.0"
+name = "cc_tests_msvc_cross"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "cross_arm64_test"
+path = "cross_arm64_test.rs"
+
+[[test]]
+name = "cross_x64_test"
+path = "cross_x64_test.rs"

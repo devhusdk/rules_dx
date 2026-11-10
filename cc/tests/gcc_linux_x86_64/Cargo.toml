@@ -1,0 +1,21 @@
+[package]
+license = "Apache-2.0"
+name = "cc_tests_gcc_linux_x86_64"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "archive_test"
+path = "archive_test.rs"
+
+[[test]]
+name = "artifacts_test"
+path = "artifacts_test.rs"
+
+[[test]]
+name = "imports_test"
+path = "imports_test.rs"
+
+[[test]]
+name = "libstdcxx_archive_test"
+path = "libstdcxx_archive_test.rs"

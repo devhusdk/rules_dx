@@ -186,6 +186,27 @@ rust_test(
 )
 
 rust_test(
+    name = "host_path_scan_test",
+    srcs = ["host_path_scan_test.rs"],
+    aliases = aliases(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "host_path_scan_test",
+    crate_root = "host_path_scan_test.rs",
+    data = [
+        "host_path_allowlist.txt",
+        "//:module_srcs",
+    ],
+    deps = all_crate_deps(
+        package_name = "tools/dx_testing",
+        normal = True,
+        normal_dev = True,
+    ) + [":dx_testing"],
+)
+
+rust_test(
     name = "module_srcs_test",
     srcs = ["module_srcs_test.rs"],
     aliases = aliases(

@@ -85,7 +85,6 @@ tools/docs/languages/BUILD.bazel no-sandbox 1
 tools/docs/rule_names/BUILD.bazel external 1
 tools/docs/rule_names/BUILD.bazel local 1
 tools/docs/rule_names/BUILD.bazel no-sandbox 1
-tools/docs/rust/fixture/BUILD.bazel manual 1
 tools/docs/support_matrix/BUILD.bazel external 1
 tools/docs/support_matrix/BUILD.bazel local 1
 tools/docs/support_matrix/BUILD.bazel no-sandbox 1

@@ -48,7 +48,6 @@ rust_library(
 rust_test(
     name = "docs_fixture_test",
     crate = ":docs_fixture",
-    tags = ["manual"],
 )
 
 rust_lint_config(

@@ -101,7 +101,7 @@ fn a_manifest_with_no_state_file_writes_the_golden_state_and_lock() {
     );
     let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
     let state = std::fs::read_to_string(dir.path().join(hub.state.as_deref().expect("state"))).expect("state");
-    assert_eq!(state, self::state("https://github.com/example/mini"));
+    assert_eq!(state, self::state("mini", "https://github.com/example/mini"));
     let actual = dir.path().join(hub.lock.as_deref().expect("lock"));
     dx_testing::snapshot_diff(&dx_testing::env_file("GOLDEN"), &actual, Some("swift/private/lock/testdata/golden.lock.json"))
         .expect("the lock matches the golden");

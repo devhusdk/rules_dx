@@ -50,7 +50,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | ruff | 0.16.7 | MIT |
 | scalafmt | 3.11.4 | Apache-2.0 |
 | shellcheck | 0.11.0 | GPL-3.0 |
-| shfmt | 3.12.0 | BSD-3-Clause |
+| shfmt | 3.14.1 | BSD-3-Clause |
 | spotbugs | 4.10.4 | LGPL-2.1-only |
 | stylua | 2.6.0 | MPL-2.0 |
 | taplo | 0.10.0 | MIT |

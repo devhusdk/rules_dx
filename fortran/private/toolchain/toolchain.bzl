@@ -2,7 +2,7 @@
 
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_fortran//fortran/private:providers.bzl", "FortranToolchainInfo")
-load("//fortran/private/toolchain:flags.bzl", "MODULE_FLAG_FORMAT")
+load("//core/quality:fortran_flags.bzl", "MODULE_FLAG_FORMAT")
 
 PREPROCESSOR_FLAG = "-cpp"
 

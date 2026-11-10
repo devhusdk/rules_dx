@@ -51,7 +51,6 @@ const CORE_PACKAGES: &[&str] = &["cli", "config", "core", "tools"];
 
 /// Files whose `//` loads and labels may still reach a language package; this list only shrinks.
 const PENDING_LANGUAGE_REACH: &[&str] = &[
-    "core/quality/compile_check.bzl",
     "core/quality/families/core_probe.bzl",
     "core/quality/fixtures.bzl",
     "core/quality/tiers/gopls/BUILD.bazel",

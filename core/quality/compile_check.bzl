@@ -5,7 +5,7 @@ directories, compiler), rewrites its command line so nothing is produced, and ru
 a sandboxed action that records stderr and the exit code. The runner only parses them.
 """
 
-load("//fortran/private/toolchain:flags.bzl", "MODULE_FLAG_FORMAT")
+load("//core/quality:fortran_flags.bzl", "MODULE_FLAG_FORMAT")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("//core/quality:family_hooks.bzl", "stage", "without")
 load("//core/quality:real_core.bzl", "real_context")

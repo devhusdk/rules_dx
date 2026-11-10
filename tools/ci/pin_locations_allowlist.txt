@@ -123,7 +123,6 @@ qt/private/sdk/macos_arm64.bzl digest-outside-pins 3
 qt/private/sdk/repos.bzl digest-outside-pins 1
 qt/private/sdk/windows_arm64.bzl digest-outside-pins 3
 qt/private/sdk/windows_x86_64.bzl digest-outside-pins 3
-swift/private/toolchain/repos.bzl digest-outside-pins 2
 tools/docs/cc/repos.bzl digest-outside-pins 4
 tools/docs/ruby/extensions.bzl digest-outside-pins 1
 tools/docs/site/browser/repos.bzl digest-outside-pins 2

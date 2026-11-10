@@ -1,7 +1,9 @@
-"""Analysis tests for the Swift Linux toolchains."""
+"""Tests for the Swift toolchains."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@dx_pins_data//:pins.bzl", "PINS")
 load("@rules_swift//swift:providers.bzl", "SwiftToolchainInfo")
+load("//core:defs.bzl", "expect_equal", "expect_true", "starlark_test")
 
 def _link_flags(cc_info):
     return [
@@ -47,4 +49,45 @@ def swift_cross_runtime_test(name, exec_cpu, target_cpu, **kwargs):
         target_compatible_with = ["@platforms//os:linux", "@platforms//cpu:" + target_cpu],
         target_under_test = "//swift/private/toolchain:swift_toolchain_%s_%s" % (exec_cpu, target_cpu),
         **kwargs
+    )
+
+_HEX = "0123456789abcdef"
+_WINDOWS_CELLS = ["windows_arm64", "windows_x86_64"]
+
+def _is_sha256(value):
+    return len(value) == 64 and all([c in _HEX for c in value.elems()])
+
+def _windows_pin_checks():
+    pins = PINS["dx_swift_format_macos_arm64"]
+    checks = []
+    for name in ["seven_zip_windows", "swift_windows"]:
+        cells = pins[name]["cells"]
+        checks.extend([
+            expect_equal(name + " cells", sorted(cells.keys()), _WINDOWS_CELLS),
+            expect_true(name + " sha256 digests", all([_is_sha256(cell["sha256"]) for cell in cells.values()])),
+            expect_true(name + " https urls", all([url.startswith("https://") for cell in cells.values() for url in cell["urls"]])),
+            expect_true(name + " one url per cell", all([len(cell["urls"]) == 1 for cell in cells.values()])),
+            expect_equal(name + " distinct digests", len({cell["sha256"]: True for cell in cells.values()}), len(cells)),
+        ])
+    checks.append(expect_true("installers carry the pinned version", all([
+        "swift-{}-RELEASE".format(pins["swift_windows"]["version"]) in url
+        for cell in pins["swift_windows"]["cells"].values()
+        for url in cell["urls"]
+    ])))
+    return checks
+
+def swift_windows_extract_test(name):
+    """Asserts the Swift Windows installer and its extractor are pinned for both cells and the repository rule unpacks with them.
+
+    Args:
+        name: The test name.
+    """
+    starlark_test(
+        name = name,
+        mode = "load",
+        checks = _windows_pin_checks(),
+        file_checks = {
+            "//swift/private/toolchain:extract_windows.ps1": "& $SevenZip x -y -bd",
+            "//swift/private/toolchain:repos.bzl": "repository_ctx.path(_SEVEN_ZIP + \"/full/7z.exe\")",
+        },
     )

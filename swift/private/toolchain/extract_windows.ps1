@@ -2,11 +2,12 @@ param(
     [Parameter(Mandatory = $true)][string]$Exe,
     [Parameter(Mandatory = $true)][string]$Out,
     [Parameter(Mandatory = $true)][string]$Work,
-    [Parameter(Mandatory = $true)][string]$XCTestVersion
+    [Parameter(Mandatory = $true)][string]$XCTestVersion,
+    [Parameter(Mandatory = $true)][string]$SevenZip
 )
 
 $ErrorActionPreference = "Stop"
-$system32 = Join-Path $env:SystemRoot "System32"
+[System.Text.Encoding]::RegisterProvider([System.Text.CodePagesEncodingProvider]::Instance)
 
 function Fail($message) {
     [Console]::Error.WriteLine("extract_windows: $message")
@@ -36,10 +37,173 @@ function Copy-Slice($source, $destination, [long]$offset, [long]$length) {
     }
 }
 
-function Expand-Cab($cab, $destination) {
+function Expand-Archive7($archive, $destination) {
     New-Item -ItemType Directory -Force -Path $destination | Out-Null
-    & (Join-Path $system32 "expand.exe") "-F:*" $cab $destination | Out-Null
-    if ($LASTEXITCODE -ne 0) { Fail "expand.exe failed on $cab with exit code $LASTEXITCODE" }
+    $output = & $SevenZip x -y -bd "-o$destination" $archive 2>&1
+    if ($LASTEXITCODE -ne 0) { Fail "7-Zip failed on $archive with exit code ${LASTEXITCODE}:`n$($output -join "`n")" }
+}
+
+function Read-Stream($database, $name) {
+    $path = Join-Path $database $name
+    if (-not (Test-Path -LiteralPath $path)) { return ,[byte[]]@() }
+    return ,[System.IO.File]::ReadAllBytes($path)
+}
+
+function Read-Strings($database) {
+    $pool = Read-Stream $database "!_StringPool"
+    $data = Read-Stream $database "!_StringData"
+    if ($pool.Length -lt 4) { Fail "$database has no string pool" }
+    $codepage = [System.BitConverter]::ToUInt16($pool, 0)
+    $wide = ([System.BitConverter]::ToUInt16($pool, 2) -band 0x8000) -ne 0
+    $encoding = if ($codepage -eq 0) { [System.Text.Encoding]::Latin1 } else { [System.Text.Encoding]::GetEncoding([int]$codepage) }
+    foreach ($highInMarker in @($false, $true)) {
+        $strings = New-Object System.Collections.Generic.List[string]
+        $strings.Add("")
+        $offset = 0
+        $whole = $true
+        for ($i = 4; $i + 4 -le $pool.Length; $i += 4) {
+            [long]$length = [System.BitConverter]::ToUInt16($pool, $i)
+            $references = [System.BitConverter]::ToUInt16($pool, $i + 2)
+            if ($length -eq 0 -and $references -ne 0) {
+                $i += 4
+                if ($i + 4 -gt $pool.Length) { $whole = $false; break }
+                $low = [System.BitConverter]::ToUInt16($pool, $i)
+                $high = if ($highInMarker) { $references } else { [System.BitConverter]::ToUInt16($pool, $i + 2) }
+                $length = ([long]$high -shl 16) + $low
+            }
+            if ($offset + $length -gt $data.Length) { $whole = $false; break }
+            $strings.Add($encoding.GetString($data, $offset, $length))
+            $offset += $length
+        }
+        if ($whole -and $offset -eq $data.Length) { return @{ Strings = $strings; Width = $(if ($wide) { 3 } else { 2 }) } }
+    }
+    Fail "the string pool of $database does not match its string data"
+}
+
+function Read-Reference($bytes, $offset, $width) {
+    $value = [int][System.BitConverter]::ToUInt16($bytes, $offset)
+    if ($width -eq 3) { $value += ([int]$bytes[$offset + 2]) -shl 16 }
+    return $value
+}
+
+function Read-Schema($database, $pool) {
+    $bytes = Read-Stream $database "!_Columns"
+    $width = $pool.Width
+    $rowSize = 2 * $width + 4
+    $rows = [int][Math]::Floor($bytes.Length / $rowSize)
+    $numberAt = $rows * $width
+    $nameAt = $numberAt + $rows * 2
+    $typeAt = $nameAt + $rows * $width
+    $schema = @{}
+    for ($row = 0; $row -lt $rows; $row++) {
+        $table = $pool.Strings[(Read-Reference $bytes ($row * $width) $width)]
+        $type = [System.BitConverter]::ToUInt16($bytes, $typeAt + $row * 2) -bxor 0x8000
+        $isString = ($type -band 0x800) -ne 0
+        $isBinary = ($type -band (-bnot 0x1000) -band 0xffff) -eq 0x900
+        $size = if ($isBinary) { 2 } elseif ($isString) { $width } elseif (($type -band 0xff) -le 2) { 2 } else { 4 }
+        if (-not $schema.ContainsKey($table)) { $schema[$table] = New-Object System.Collections.Generic.List[object] }
+        $schema[$table].Add(@{
+            Number = [System.BitConverter]::ToUInt16($bytes, $numberAt + $row * 2) -bxor 0x8000
+            Name = $pool.Strings[(Read-Reference $bytes ($nameAt + $row * $width) $width)]
+            Text = $isString -and -not $isBinary
+            Size = $size
+        })
+    }
+    return $schema
+}
+
+function Read-Table($database, $pool, $schema, $table, $wanted) {
+    $rows = New-Object System.Collections.Generic.List[object]
+    if (-not $schema.ContainsKey($table)) { return ,$rows }
+    $columns = @($schema[$table] | Sort-Object { $_.Number })
+    $rowSize = 0
+    foreach ($column in $columns) { $rowSize += $column.Size }
+    $bytes = Read-Stream $database "!$table"
+    $count = [int][Math]::Floor($bytes.Length / $rowSize)
+    if ($count * $rowSize -ne $bytes.Length) { Fail "table $table of $database is $($bytes.Length) bytes, not a multiple of its $rowSize byte row" }
+    for ($row = 0; $row -lt $count; $row++) { $rows.Add(@{}) }
+    $at = 0
+    foreach ($column in $columns) {
+        if ($wanted -contains $column.Name) {
+            for ($row = 0; $row -lt $count; $row++) {
+                $offset = $at + $row * $column.Size
+                $rows[$row][$column.Name] = if ($column.Text) {
+                    $pool.Strings[(Read-Reference $bytes $offset $column.Size)]
+                } elseif ($column.Size -eq 4) {
+                    [long][System.BitConverter]::ToUInt32($bytes, $offset) - 2147483648
+                } else {
+                    [int][System.BitConverter]::ToUInt16($bytes, $offset) - 32768
+                }
+            }
+        }
+        $at += $count * $column.Size
+    }
+    foreach ($name in $wanted) {
+        if ($count -gt 0 -and -not $rows[0].ContainsKey($name)) { Fail "table $table of $database has no column $name" }
+    }
+    return ,$rows
+}
+
+function Get-LongName($value) {
+    $name = $value.Split("|")[-1]
+    if ($name -eq "" -or $name -eq ".." -or $name.IndexOfAny([char[]]"/\:") -ge 0) { Fail "unsafe name '$value' in an MSI table" }
+    return $name
+}
+
+function Resolve-Directory($directories, $redirects, $resolved, $key, $depth) {
+    if ($resolved.ContainsKey($key)) { return $resolved[$key] }
+    if ($depth -gt 64 -or -not $directories.ContainsKey($key)) { Fail "directory $key does not resolve" }
+    if ($redirects.ContainsKey($key)) {
+        $resolved[$key] = Resolve-Directory $directories $redirects $resolved $redirects[$key] ($depth + 1)
+        return $resolved[$key]
+    }
+    $entry = $directories[$key]
+    $parent = $entry.Directory_Parent
+    $path = ""
+    if ($parent -ne "" -and $parent -ne $key) {
+        $path = Resolve-Directory $directories $redirects $resolved $parent ($depth + 1)
+        $name = Get-LongName $entry.DefaultDir.Split(":")[-1]
+        if ($name -ne ".") { $path = if ($path -eq "") { $name } else { Join-Path $path $name } }
+    }
+    $resolved[$key] = $path
+    return $path
+}
+
+function Expand-Msi($msi, $target, $scratch) {
+    $database = Join-Path $scratch "database"
+    Expand-Archive7 $msi.FullName $database
+    $pool = Read-Strings $database
+    $schema = Read-Schema $database $pool
+    $directories = @{}
+    foreach ($row in (Read-Table $database $pool $schema "Directory" @("Directory", "Directory_Parent", "DefaultDir"))) { $directories[$row.Directory] = $row }
+    $redirects = @{}
+    foreach ($row in (Read-Table $database $pool $schema "CustomAction" @("Type", "Source", "Target"))) {
+        if (($row.Type -band 0x3f) -eq 35 -and $row.Target -match '^\[([^\]]+)\]$' -and $directories.ContainsKey($Matches[1])) { $redirects[$row.Source] = $Matches[1] }
+    }
+    $components = @{}
+    foreach ($row in (Read-Table $database $pool $schema "Component" @("Component", "Directory_"))) { $components[$row.Component] = $row.Directory_ }
+    $files = Read-Table $database $pool $schema "File" @("File", "Component_", "FileName")
+    if ($files.Count -eq 0) { return }
+    $payload = Join-Path $scratch "files"
+    foreach ($row in (Read-Table $database $pool $schema "Media" @("Cabinet"))) {
+        if ($row.Cabinet -eq "") { continue }
+        $cabinet = if ($row.Cabinet.StartsWith("#")) { Join-Path $database $row.Cabinet.Substring(1) } else { Join-Path $msi.DirectoryName $row.Cabinet }
+        if (-not (Test-Path -LiteralPath $cabinet)) { Fail "cabinet $($row.Cabinet) of $($msi.Name) is missing" }
+        Expand-Archive7 $cabinet $payload
+        if (-not $row.Cabinet.StartsWith("#")) { Remove-Item -LiteralPath $cabinet -Force }
+    }
+    $sources = New-Object "System.Collections.Generic.Dictionary[string,string]" ([System.StringComparer]::OrdinalIgnoreCase)
+    if (Test-Path -LiteralPath $payload) {
+        foreach ($file in [System.IO.Directory]::EnumerateFiles($payload)) { $sources[[System.IO.Path]::GetFileName($file)] = $file }
+    }
+    $resolved = @{}
+    foreach ($row in $files) {
+        if (-not $sources.ContainsKey($row.File)) { Fail "file $($row.File) of $($msi.Name) is in none of its cabinets" }
+        if (-not $components.ContainsKey($row.Component_)) { Fail "file $($row.File) of $($msi.Name) names the unknown component $($row.Component_)" }
+        $directory = Join-Path $target (Resolve-Directory $directories $redirects $resolved $components[$row.Component_] 0)
+        $null = [System.IO.Directory]::CreateDirectory($directory)
+        [System.IO.File]::Move($sources[$row.File], (Join-Path $directory (Get-LongName $row.FileName)))
+    }
 }
 
 function Find-Dir($root, $filter) {
@@ -82,23 +246,28 @@ try {
     $signatureSize = $reader.ReadUInt32()
     $null = $reader.ReadUInt32()
     $containers = $reader.ReadUInt32()
-    if ($containers -ne 2) { Fail "expected 2 Burn containers, found $containers" }
+    if ($containers -lt 2) { Fail "expected a UX and an attached Burn container, found $containers" }
     $uxSize = $reader.ReadUInt32()
-    $attachedSize = $reader.ReadUInt32()
+    $attachedSizes = @()
+    for ($i = 1; $i -lt $containers; $i++) { $attachedSizes += $reader.ReadUInt32() }
 } finally {
     $stream.Dispose()
 }
 
-$uxCab = Join-Path $Work "ux.cab"
-$payloadCab = Join-Path $Work "payload.cab"
-Copy-Slice $Exe $uxCab $stubSize $uxSize
-Copy-Slice $Exe $payloadCab ($signatureOffset + $signatureSize) $attachedSize
-
 $ux = Join-Path $Work "ux"
 $payload = Join-Path $Work "payload"
-Expand-Cab $uxCab $ux
-Expand-Cab $payloadCab $payload
-Remove-Item -LiteralPath $uxCab, $payloadCab -Force
+$uxCab = Join-Path $Work "ux.cab"
+Copy-Slice $Exe $uxCab $stubSize $uxSize
+Expand-Archive7 $uxCab $ux
+Remove-Item -LiteralPath $uxCab -Force
+[long]$attachedOffset = $signatureOffset + $signatureSize
+foreach ($attachedSize in $attachedSizes) {
+    $payloadCab = Join-Path $Work "payload.cab"
+    Copy-Slice $Exe $payloadCab $attachedOffset $attachedSize
+    Expand-Archive7 $payloadCab $payload
+    Remove-Item -LiteralPath $payloadCab -Force
+    $attachedOffset += $attachedSize
+}
 
 $manifest = Join-Path $ux "0"
 if (-not (Test-Path -LiteralPath $manifest)) { Fail "the UX container has no BurnManifest.xml (file 0)" }
@@ -121,43 +290,20 @@ $msis = Get-ChildItem -LiteralPath $packages -Recurse -Filter "*.msi" | Sort-Obj
 if (-not $msis) { Fail "the bundle holds no MSI packages" }
 $trees = Join-Path $Work "trees"
 $index = 0
-$failed = @()
 foreach ($msi in $msis) {
-    if ($msi.BaseName -match "android") { continue }
+    if ($msi.BaseName -match "android|noasserts") { continue }
     $index++
     $target = Join-Path $trees ("{0:D2}" -f $index)
+    $scratch = Join-Path $Work ("msi{0:D2}" -f $index)
     New-Item -ItemType Directory -Force -Path $target | Out-Null
-    $log = Join-Path $Work ("msi{0:D2}.log" -f $index)
-    $code = $null
-    for ($attempt = 0; $attempt -lt 30; $attempt++) {
-        $proc = Start-Process -FilePath (Join-Path $system32 "msiexec.exe") -Wait -PassThru -NoNewWindow -ArgumentList @(
-            "/a", "`"$($msi.FullName)`"", "/qn", "/L*v", "`"$log`"", "TARGETDIR=`"$target`""
-        )
-        $code = $proc.ExitCode
-        if ($code -ne 1618) { break }
-        Start-Sleep -Seconds 10
-    }
-    if ($code -ne 0 -and $code -ne 3010) {
-        if (Test-Path -LiteralPath $log) {
-            [Console]::Error.WriteLine("extract_windows: $($msi.Name) log")
-            Get-Content -LiteralPath $log | Where-Object { $_ -notmatch "^Property\(" -and $_ -match "Action start|Action ended|Return value|Note: 1:|rror|ail|CustomAction|Cabinet|Media|Source" } |
-                Select-Object -First 120 | ForEach-Object { [Console]::Error.WriteLine($_) }
-        }
-        [Console]::Error.WriteLine("extract_windows: packages")
-        Get-ChildItem -LiteralPath $packages -Recurse | ForEach-Object { [Console]::Error.WriteLine("  $($_.FullName) $($_.Length)") }
-        $failed += "$($msi.Name) ($code)"
-        continue
-    }
+    Expand-Msi $msi $target $scratch
+    Remove-Item -LiteralPath $scratch -Recurse -Force
     Remove-Item -LiteralPath $msi.FullName -Force
-    $cab = Join-Path $msi.DirectoryName ($msi.BaseName + "*.cab")
-    Remove-Item -Path $cab -Force -ErrorAction SilentlyContinue
 }
-
-if ($failed.Count -gt 0) { [Console]::Error.WriteLine("extract_windows: msiexec /a failed for: $($failed -join ', ')") }
 
 $swiftc = Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftc.exe" |
     Where-Object { $_.Directory.Name -eq "bin" -and $_.Directory.Parent.Name -eq "usr" } | Select-Object -First 1
-if (-not $swiftc) { Fail "no usr\bin\swiftc.exe in the extracted packages; msiexec failures: $($failed -join ', ')" }
+if (-not $swiftc) { Fail "no usr\bin\swiftc.exe in the extracted packages" }
 $dlls = @(Get-ChildItem -LiteralPath $trees -Recurse -Filter "swiftCore.dll" | Where-Object { $_.Directory.Name -eq "bin" })
 $runtime = $dlls | Where-Object { $_.FullName -match "Runtimes" } | Select-Object -First 1
 if (-not $runtime) { $runtime = $dlls | Select-Object -First 1 }

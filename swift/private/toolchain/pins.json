@@ -11,5 +11,39 @@
       ]
     }
   },
+  "seven_zip_windows": {
+    "cells": {
+      "windows_arm64": {
+        "sha256": "036a00d478ef81f4b4b85fb37b0f934d558341f3f51aa7d36d2a26454740e625",
+        "urls": [
+          "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-arm64.exe"
+        ]
+      },
+      "windows_x86_64": {
+        "sha256": "9b697f65ecc2d9b0152f5ee96d72dde522a7827690349d9307935dacf40f42ec",
+        "urls": [
+          "https://github.com/ip7z/7zip/releases/download/26.06/7z2606-x64.exe"
+        ]
+      }
+    },
+    "version": "26.06"
+  },
+  "swift_windows": {
+    "cells": {
+      "windows_arm64": {
+        "sha256": "e4e5fdb6ca88b18ac430fbce3de35dd80e2249a84a484a02272d82d89f2c7969",
+        "urls": [
+          "https://download.swift.org/swift-6.4.2-release/windows10-arm64/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-windows10-arm64.exe"
+        ]
+      },
+      "windows_x86_64": {
+        "sha256": "8fe5d31ca1153dfe6be3a76de0b93347fd42a27599671e9f9ade23a3648e7184",
+        "urls": [
+          "https://download.swift.org/swift-6.4.2-release/windows10/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-windows10.exe"
+        ]
+      }
+    },
+    "version": "6.4.2"
+  },
   "version": "604.0.0"
 }

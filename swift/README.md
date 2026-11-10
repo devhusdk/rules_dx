@@ -94,8 +94,9 @@ dx test //app:tests
 
 On a Windows x86_64 host the rules build with the Swift 6.4.2 Windows installer
 from swift.org, pinned by sha256. The first Swift build downloads the 2 GB
-installer and unpacks it with the pinned PowerShell, `expand.exe` and
-`msiexec /a`; nothing is installed on the host.
+installer and unpacks it with the pinned PowerShell and the pinned 7-Zip;
+nothing is installed on the host and no host program runs. The toolchain is the
+`Asserts` one of the installer.
 
 Swift targets link with the Windows C/C++ toolchain, so `dx_msvc` with its
 license accepted must be configured. Binaries link the Swift runtime

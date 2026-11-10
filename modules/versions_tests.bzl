@@ -66,9 +66,7 @@ def versions_contract_tests(name):
         "    sha256 = \"" + BITFLAGS_SHA256 + "\",\n    strip_prefix = \"" + BITFLAGS_STRIP_PREFIX + "\",\n    type = \"tar.gz\",\n    urls = [\"" + BITFLAGS_URL + "\"],",
     ]
     mirror_pins = "\n".join(
-        go_archive_pins +
-        gem_pins +
-        portable_ruby_pins + [
+        go_archive_pins + [
             "rustfmt_version = \"" + _RUSTFMT_VERSION + "\"",
             "edition = \"" + _RUST_EDITION + "\"",
             "cargo_lockfile = \"" + _CRATE_CARGO_LOCK + "\"",
@@ -117,6 +115,7 @@ def versions_contract_tests(name):
             "//:.bazelrc": "common --check_direct_dependencies=error",
             "@rules_dx_cuda//:README.md": cuda_stanza,
             "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": cuda_stanza,
+            "@rules_dx_ruby//:MODULE.bazel": "\n".join(["version = \"" + _RUBY_VERSION + "\""] + gem_pins + portable_ruby_pins),
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//quality/tools/javascript:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//quality/tools/javascript:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",
@@ -166,7 +165,6 @@ def versions_contract_tests(name):
                                "dotnet_version = \"" + _DOTNET_VERSION + "\"\n" +
                                "version = \"" + _GO_SDK_VERSION + "\"\n" +
                                "go" + _GO_SDK_VERSION + ".linux-amd64.tar.gz\n" +
-                               "version = \"" + _RUBY_VERSION + "\"\n" +
                                "version = \"" + _TYPESCRIPT_VERSION + "\"\n" +
                                _TYPESCRIPT_INTEGRITY + "\n" +
                                "python_version = \"" + _PYTHON_VERSION + "\"\n" +

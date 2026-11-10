@@ -70,7 +70,7 @@ PWSH_VERSION = "7.5.13"
 RUBY_VERSION = "3.4.12"
 
 RULES_ZIG_VERSION = "0.17.0"
-ZIG_VERSION = "0.16.0"
+ZIG_VERSION = "0.17.0"
 
 RULES_SWIFT_VERSION = "4.2.2"
 SWIFT_VERSION = "6.4.1"
@@ -120,6 +120,10 @@ CONSUMER_BAZEL_DEPS = {
     "hermetic_launcher": struct(floor = "0.0.17", tested = "0.0.17"),
     "gcc_toolchain": struct(floor = "0.13.0", tested = "0.13.0"),
     "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
+    "google_benchmark": struct(floor = "1.9.5", tested = "1.9.5"),
+    "elfutils": struct(floor = "0.195", tested = "0.195"),
+    "zlib": struct(floor = "1.3.2.bcr.3", tested = "1.3.2.bcr.3"),
+    "rules_rust_prost": struct(floor = "0.75.0", tested = "0.75.0"),
 }
 
 NPM_HUBS = ["dx_npm_tools"]

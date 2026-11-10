@@ -2,12 +2,13 @@
 
 use dx_module_bazel::ModuleFile;
 
-const BASES: [(&str, &str); 5] = [
+const BASES: [(&str, &str); 6] = [
     ("distroless_static", "gcr.io/distroless/static-debian12"),
     ("distroless_cc", "gcr.io/distroless/cc-debian12"),
     ("distroless_python", "gcr.io/distroless/python3-debian12"),
     ("distroless_java", "gcr.io/distroless/java21-debian12"),
     ("distroless_nodejs", "gcr.io/distroless/nodejs22-debian12"),
+    ("dotnet_runtime", "mcr.microsoft.com/dotnet/runtime"),
 ];
 
 fn is_digest(text: &str) -> bool {

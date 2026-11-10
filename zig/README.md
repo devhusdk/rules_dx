@@ -1,7 +1,7 @@
 # Zig
 
 Build, run, test and format Zig with the pinned `rules_zig` 0.17.0 and Zig
-0.16.0 toolchain. Nothing needs to be installed.
+0.17.0 toolchain. Nothing needs to be installed.
 
 ```python
 load("@rules_dx//zig:defs.bzl", "zig_binary", "zig_library", "zig_test")

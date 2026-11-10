@@ -13,7 +13,7 @@ expect() {
     pattern="$3"
     shift 3
     set +e
-    out="$("$build" "$@" 2>&1)"
+    out="$("$build" apk-set "$@" 2>&1)"
     code="$?"
     set -e
     [ "$code" = "$want" ] || { echo "$label exited $code, want $want: $out"; exit 1; }

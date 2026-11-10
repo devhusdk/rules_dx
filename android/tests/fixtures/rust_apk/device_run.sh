@@ -18,7 +18,7 @@ if [ ! -x "$DX" ]; then
 fi
 mkdir -p "$2" || exit 2
 evidence="$(cd "$2" && pwd)"
-ADB="${ADB:-adb}"
+ADB="$(command -v "${ADB:-adb}")" || { echo "device_run: no adb executable ${ADB:-adb}" >&2; exit 127; }
 export ADB
 BAZEL="${BAZEL:-bazel}"
 pkg="//android/tests/fixtures/rust_apk"

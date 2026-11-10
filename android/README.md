@@ -145,8 +145,9 @@ android_adb_log(name = "log", serial = "emulator-5554")
 ```
 
 Run one with `bazel run //path:install`. `serial` names the target
-device or emulator; `ADB` selects the adb binary and defaults to
-`PATH`. `android_adb_install` takes exactly one of `apk` or `apk_set`;
+device or emulator. The launcher runs the pinned adb when
+`extra_packages` of the `android_sdk` extension lists `platform-tools`;
+`ADB` names another adb by path. `android_adb_install` takes exactly one of `apk` or `apk_set`;
 `apk_set` names an [`android_apk_set`](#apk-sets) and installs its
 split APKs with `adb install-multiple -r`. Neither or both fail at
 analysis.

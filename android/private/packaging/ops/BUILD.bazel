@@ -1,0 +1,33 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary", "rust_library")
+
+package(default_visibility = ["//android:__subpackages__"])
+
+rust_library(
+    name = "ops",
+    srcs = [
+        "src/adb.rs",
+        "src/apk_set.rs",
+        "src/check.rs",
+        "src/lib.rs",
+        "src/sign.rs",
+        "src/util.rs",
+    ],
+    crate_name = "dx_android_ops",
+    crate_root = "src/lib.rs",
+    deps = ["@crates//:zip"],
+)
+
+rust_binary(
+    name = "android_ops",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    visibility = ["//visibility:public"],
+    deps = [":ops"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -5,23 +5,15 @@ launcher="$2"
 fake_adb="$3"
 serial="emulator-5554"
 app="com.example.dxrustapk"
-export ADB="$fake_adb"
+fake_adb="$PWD/$fake_adb"
 export ADB_CAPTURE="$(mktemp)"
-export DX_ADB_SERIAL="$serial"
-export DX_ADB_OP="$op"
-if [ "$op" = "install" ]; then
-    export DX_ADB_APK="$4"
-elif [ "$op" = "install-multiple" ]; then
-    export DX_ADB_APKS="$4"
-elif [ "$op" = "start" ]; then
+if [ "$op" = "start" ]; then
     app="${4:-com.example.dxrustapk}"
-    export DX_ADB_APP="$app"
-    export DX_ADB_ACTIVITY="android.app.NativeActivity"
 fi
 if [ "$op" = "missing" ]; then
     out="$(mktemp)"
     set +e
-    ADB="/nonexistent/adb" "$launcher" 2>"$out"
+    "$launcher" --adb=/nonexistent/adb 2>"$out"
     code="$?"
     set -e
     if [ "$code" != "127" ]; then
@@ -33,7 +25,7 @@ if [ "$op" = "missing" ]; then
 fi
 if [ "${ADB_EXIT:-0}" != "0" ]; then
     set +e
-    "$launcher" 2>/dev/null
+    "$launcher" --adb="$fake_adb" 2>/dev/null
     code="$?"
     set -e
     if [ "$code" = "0" ]; then
@@ -46,7 +38,7 @@ if [ "${ADB_EXIT:-0}" != "0" ]; then
     fi
     exit 0
 fi
-"$launcher"
+"$launcher" --adb="$fake_adb"
 captured="$(cat "$ADB_CAPTURE")"
 case "$op" in
     install)

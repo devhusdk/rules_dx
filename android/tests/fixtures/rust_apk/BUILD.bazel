@@ -209,7 +209,7 @@ sh_test(
     name = "check_rejects_test",
     srcs = ["check_rejects.sh"],
     args = [
-        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging/ops:android_ops)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :unsigned.apk)",
         "$(rootpath :dummy.apk)",
@@ -222,7 +222,7 @@ sh_test(
         ":unsigned.apk",
         ":v2_only_fixture.apk",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging:check_package.sh",
+        "//android/private/packaging/ops:android_ops",
     ],
 )
 
@@ -231,7 +231,7 @@ sh_test(
     size = "small",
     srcs = ["check_aab_rejects.sh"],
     args = [
-        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging/ops:android_ops)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :dummy.apk)",
         "$(rootpath :unsigned.apk)",
@@ -240,7 +240,7 @@ sh_test(
         ":dummy.apk",
         ":unsigned.apk",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging:check_package.sh",
+        "//android/private/packaging/ops:android_ops",
     ],
 )
 
@@ -283,7 +283,7 @@ sh_test(
     name = "check_aab_missing_abi_test",
     srcs = ["check_aab_rejects_one.sh"],
     args = [
-        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging/ops:android_ops)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "'packages no base/lib/arm64-v8a/'",
@@ -293,7 +293,7 @@ sh_test(
     data = [
         ":custom_apk_aab_file",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging:check_package.sh",
+        "//android/private/packaging/ops:android_ops",
     ],
     target_compatible_with = [
         "@platforms//os:linux",
@@ -305,7 +305,7 @@ sh_test(
     name = "check_aab_missing_resource_test",
     srcs = ["check_aab_rejects_one.sh"],
     args = [
-        "$(rootpath //android/private/packaging:check_package.sh)",
+        "$(rootpath //android/private/packaging/ops:android_ops)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :custom_apk_aab_file)",
         "'does not resolve resource string/missing'",
@@ -315,7 +315,7 @@ sh_test(
     data = [
         ":custom_apk_aab_file",
         "//android/private/packaging:bundletool",
-        "//android/private/packaging:check_package.sh",
+        "//android/private/packaging/ops:android_ops",
     ],
     target_compatible_with = [
         "@platforms//os:linux",
@@ -754,7 +754,7 @@ sh_test(
     size = "small",
     srcs = ["apk_set_rejects.sh"],
     args = [
-        "$(rootpath //android/private/packaging:build_apk_set.sh)",
+        "$(rootpath //android/private/packaging/ops:android_ops)",
         "$(rootpath //android/private/packaging:bundletool)",
         "$(rootpath :test_bundle.aab)",
         "$(rootpath :device_arm64.json)",
@@ -763,7 +763,7 @@ sh_test(
     data = [
         ":device_arm64.json",
         ":test_bundle.aab",
-        "//android/private/packaging:build_apk_set.sh",
+        "//android/private/packaging/ops:android_ops",
         "//android/private/packaging:bundletool",
         "@rules_android//tools/android:debug_keystore",
     ],

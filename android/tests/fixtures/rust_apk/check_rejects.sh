@@ -6,13 +6,13 @@ unsigned="$3"
 malformed="$4"
 signed="$5"
 v2_only="$6"
-"$check" "$bundletool" "$unsigned" >/dev/null || { echo "check rejects the unsigned fixture"; exit 1; }
+"$check" check "$bundletool" "$unsigned" >/dev/null || { echo "check rejects the unsigned fixture"; exit 1; }
 reject() {
     label="$1"
     pattern="$2"
     shift 2
     set +e
-    out="$("$check" "$bundletool" "$@" 2>&1)"
+    out="$("$check" check "$bundletool" "$@" 2>&1)"
     code="$?"
     set -e
     [ "$code" != "0" ] || { echo "$label exited 0"; exit 1; }

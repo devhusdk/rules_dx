@@ -578,7 +578,6 @@ test-location android/private/sdk/BUILD.bazel
 test-location android/private/sdk/metadata_tests.bzl
 test-location android/private/toolchain/BUILD.bazel
 test-location android/private/toolchain/metadata_tests.bzl
-test-location android/tests/BUILD.bazel
 test-location ansible/private/BUILD.bazel
 test-location ansible/private/layout_tests.bzl
 test-location api_spec/private/codegen/BUILD.bazel

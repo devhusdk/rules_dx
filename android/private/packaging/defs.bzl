@@ -3,10 +3,9 @@
 load("@rules_android//providers:providers.bzl", "AndroidBundleInfo", "ApkInfo")
 load("@rules_android//rules:rules.bzl", "android_binary")
 load("@rules_android//rules/android_application:android_application_rule.bzl", "android_application")
+load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("@rules_java//java/common:java_common.bzl", "java_common")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//android/platforms:defs.bzl", "api_floor")
 load("//android/private/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
@@ -23,6 +22,21 @@ _JAVA_RUNTIME = Label("@rules_java//toolchains:current_java_runtime")
 _BUNDLETOOL = Label("//android/private/packaging:bundletool")
 
 _DEBUG_KEYSTORE = Label("@rules_android//tools/android:debug_keystore")
+
+_OPS = Label("//android/private/packaging/ops:android_ops")
+
+_ADB = Label("@dx_android_sdk//:adb")
+
+def _key(ctx, short_path):
+    if short_path.startswith("../"):
+        return short_path.removeprefix("../")
+    return ctx.workspace_name + "/" + short_path
+
+def _ops_launcher(ctx, lines, runfiles):
+    text = "\n".join(["program=" + _key(ctx, ctx.executable._ops.short_path)] + lines) + "\n"
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, text)
+    merged = launcher_runfiles.merge_all([ctx.attr._ops[DefaultInfo].default_runfiles] + runfiles)
+    return DefaultInfo(executable = launcher, runfiles = merged)
 
 def _manifest_text(app_id, activity, api_level, library, permissions, version_code, version_name):
     lines = [
@@ -431,6 +445,35 @@ _adb_selection = rule(
     },
 )
 
+def _adb_launcher_impl(ctx):
+    lines = ["arg=adb"]
+    files = []
+    for flag, found in [("--adb=", ctx.files._adb), ("--apk=", ctx.files.apk), ("--apks=", ctx.files.apk_set)]:
+        if len(found) > 0:
+            lines.append("prefixed=" + flag + "\t" + _key(ctx, found[0].short_path))
+            files.append(found[0])
+    for flag, value in [("--op=", ctx.attr.op), ("--serial=", ctx.attr.serial), ("--app=", ctx.attr.app_id), ("--activity=", ctx.attr.activity)]:
+        if value != "":
+            lines.append("arg=" + flag + value)
+    return [_ops_launcher(ctx, lines, [ctx.runfiles(files = files)])]
+
+_adb_launcher = rule(
+    implementation = _adb_launcher_impl,
+    doc = "Launcher that runs one adb operation against one device.",
+    executable = True,
+    attrs = {
+        "activity": attr.string(default = "", doc = "Activity the start operation launches."),
+        "apk": attr.label(allow_files = True, doc = "The APK the install operation installs."),
+        "apk_set": attr.label(allow_files = True, doc = "Directory of split APKs the install-multiple operation installs."),
+        "app_id": attr.string(default = "", doc = "Application id the start operation launches."),
+        "op": attr.string(mandatory = True, values = ["install", "install-multiple", "start", "log"], doc = "The adb operation."),
+        "selection": attr.label(doc = "Selection target that fails analysis on a rejected declaration."),
+        "serial": attr.string(default = "", doc = "Device or emulator serial the operation targets."),
+        "_adb": attr.label(default = _ADB, cfg = "exec", allow_files = True, doc = "Pinned adb; empty without the platform-tools package."),
+        "_ops": attr.label(default = _OPS, cfg = "target", executable = True, doc = "The Android operations program."),
+    } | NATIVE_LAUNCHER_ATTRS,
+)
+
 def android_adb_install(name, apk = None, serial = "", apk_set = None, visibility = None):
     """Declares an explicit APK or APK set install launcher; nothing runs at build time."""
     _adb_selection(
@@ -442,8 +485,8 @@ def android_adb_install(name, apk = None, serial = "", apk_set = None, visibilit
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    data = [":" + name + "_selection"]
-    env = {"DX_ADB_SERIAL": serial}
+    apk_file = None
+    apk_set_dir = None
     if apk_set != None:
         _apk_set_dir(
             name = name + "_apk_set",
@@ -451,9 +494,7 @@ def android_adb_install(name, apk = None, serial = "", apk_set = None, visibilit
             tags = ["manual"],
             visibility = ["//visibility:private"],
         )
-        data.insert(0, ":" + name + "_apk_set")
-        env["DX_ADB_APKS"] = "$(rootpath :" + name + "_apk_set)"
-        env["DX_ADB_OP"] = "install-multiple"
+        apk_set_dir = ":" + name + "_apk_set"
     if apk != None:
         _apk_file(
             name = name + "_apk",
@@ -461,14 +502,14 @@ def android_adb_install(name, apk = None, serial = "", apk_set = None, visibilit
             tags = ["manual"],
             visibility = ["//visibility:private"],
         )
-        data.insert(0, ":" + name + "_apk")
-        env["DX_ADB_APK"] = "$(location :" + name + "_apk)"
-        env["DX_ADB_OP"] = "install"
-    sh_binary(
+        apk_file = ":" + name + "_apk"
+    _adb_launcher(
         name = name,
-        srcs = [Label("//android/private/packaging:adb_ops.sh")],
-        data = data,
-        env = env,
+        apk = apk_file,
+        apk_set = apk_set_dir,
+        op = "install" if apk != None else "install-multiple",
+        selection = ":" + name + "_selection",
+        serial = serial,
         tags = ["manual"],
         visibility = visibility,
     )
@@ -484,16 +525,13 @@ def android_adb_start(name, app_id, activity = "android.app.NativeActivity", ser
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    sh_binary(
+    _adb_launcher(
         name = name,
-        srcs = [Label("//android/private/packaging:adb_ops.sh")],
-        data = [":" + name + "_selection"],
-        env = {
-            "DX_ADB_ACTIVITY": activity,
-            "DX_ADB_APP": app_id,
-            "DX_ADB_OP": "start",
-            "DX_ADB_SERIAL": serial,
-        },
+        activity = activity,
+        app_id = app_id,
+        op = "start",
+        selection = ":" + name + "_selection",
+        serial = serial,
         tags = ["manual"],
         visibility = visibility,
     )
@@ -506,14 +544,11 @@ def android_adb_log(name, serial = "", visibility = None):
         tags = ["manual"],
         visibility = ["//visibility:private"],
     )
-    sh_binary(
+    _adb_launcher(
         name = name,
-        srcs = [Label("//android/private/packaging:adb_ops.sh")],
-        data = [":" + name + "_selection"],
-        env = {
-            "DX_ADB_OP": "log",
-            "DX_ADB_SERIAL": serial,
-        },
+        op = "log",
+        selection = ":" + name + "_selection",
+        serial = serial,
         tags = ["manual"],
         visibility = visibility,
     )
@@ -552,42 +587,43 @@ _sign_selection = rule(
     },
 )
 
-def _rel(path):
-    if path.startswith("/") or path.startswith("../"):
+def _java_key(ctx, path):
+    if path.startswith("/"):
         return path
     if path.startswith("external/"):
-        return "../" + path.removeprefix("external/")
-    return "../" + path
+        return path.removeprefix("external/")
+    return _key(ctx, path)
+
+def _tool_line(ctx, flag, path):
+    key = _java_key(ctx, path)
+    if key.startswith("/"):
+        return "arg=" + flag + key
+    return "prefixed=" + flag + "\t" + key
 
 def _sign_launcher_impl(ctx):
-    env = {}
     is_apk = ctx.file.input.extension == "apk"
-    script = ctx.file._apk_script if is_apk else ctx.file._aab_script
-    runfiles = [ctx.runfiles(files = [ctx.file.input, script])]
     java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
+    runfiles = [
+        ctx.runfiles(files = [ctx.file.input], transitive_files = ctx.attr._java_runtime[DefaultInfo].files),
+    ]
+    lines = [
+        "arg=sign-apk" if is_apk else "arg=sign-aab",
+        _tool_line(ctx, "--apk=" if is_apk else "--aab=", ctx.file.input.short_path),
+        _tool_line(ctx, "--java=", java.java_executable_runfiles_path),
+    ]
     if is_apk:
-        env["DX_SIGN_APK"] = ctx.file.input.short_path
-        env["DX_SIGN_JAVA"] = _rel(java.java_executable_runfiles_path)
-        env["DX_SIGN_ZIPALIGN"] = ctx.file._zipalign.short_path
-        env["DX_SIGN_BUILD_TOOLS"] = BUILD_TOOLS
-        env["DX_SIGN_APKSIGNER_JAR"] = ctx.file._apksigner_jar.short_path
-        env["DX_SIGN_MIN_SDK"] = str(ctx.attr.min_sdk) if ctx.attr.min_sdk != 0 else ""
-        env["DX_SIGN_SCHEMES"] = ",".join(ctx.attr.schemes)
+        lines.append(_tool_line(ctx, "--zipalign=", ctx.file._zipalign.short_path))
+        lines.append(_tool_line(ctx, "--apksigner-jar=", ctx.file._apksigner_jar.short_path))
+        lines.append("arg=--build-tools=" + BUILD_TOOLS)
+        if ctx.attr.min_sdk != 0:
+            lines.append("arg=--min-sdk=" + str(ctx.attr.min_sdk))
+        lines.append("arg=--schemes=" + ",".join(ctx.attr.schemes))
         runfiles.append(ctx.runfiles(files = [ctx.file._zipalign, ctx.file._apksigner_jar]))
     else:
-        env["DX_SIGN_AAB"] = ctx.file.input.short_path
-        env["DX_SIGN_BUNDLETOOL"] = ctx.executable._bundletool.short_path
-        env["DX_SIGN_JAVABASE"] = _rel(java.java_home_runfiles_path)
+        lines.append(_tool_line(ctx, "--bundletool=", ctx.executable._bundletool.short_path))
         runfiles.append(ctx.attr._bundletool[DefaultInfo].default_runfiles)
         runfiles.append(ctx.runfiles(files = [ctx.executable._bundletool]))
-    runfiles.append(ctx.runfiles(transitive_files = ctx.attr._java_runtime[DefaultInfo].files))
-    out = ctx.actions.declare_file(ctx.label.name)
-    lines = ["#!/bin/sh"]
-    for key, value in sorted(env.items()):
-        lines.append("export {0}=\"${{{0}-{1}}}\"".format(key, value))
-    lines.append("exec \"$PWD/{}\" \"$@\"".format(script.short_path))
-    ctx.actions.write(out, "\n".join(lines) + "\n", is_executable = True)
-    return [DefaultInfo(executable = out, runfiles = ctx.runfiles().merge_all(runfiles))]
+    return [_ops_launcher(ctx, lines, runfiles)]
 
 _sign_launcher = rule(
     implementation = _sign_launcher_impl,
@@ -598,13 +634,12 @@ _sign_launcher = rule(
         "min_sdk": attr.int(default = 0, doc = "Lowest Android API level the signature must support."),
         "schemes": attr.string_list(doc = "APK signature schemes to use."),
         "selection": attr.label(doc = "Signing key selection to use."),
-        "_aab_script": attr.label(default = Label("//android/private/packaging:sign_aab.sh"), allow_single_file = True),
-        "_apk_script": attr.label(default = Label("//android/private/packaging:sign_apk.sh"), allow_single_file = True),
         "_apksigner_jar": attr.label(default = _APKSIGNER_JAR, cfg = "exec", allow_single_file = True),
         "_bundletool": attr.label(default = _BUNDLETOOL, cfg = "exec", executable = True),
         "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
+        "_ops": attr.label(default = _OPS, cfg = "target", executable = True, doc = "The Android operations program."),
         "_zipalign": attr.label(default = _ZIPALIGN, cfg = "exec", allow_single_file = True),
-    },
+    } | NATIVE_LAUNCHER_ATTRS,
 )
 
 def android_sign(name, package, schemes = None, min_sdk = 0, visibility = None):
@@ -660,6 +695,39 @@ def android_check_selection(name, package, platforms = [], resources = [], targe
         visibility = ["//visibility:private"],
     )
 
+def _package_check_test_impl(ctx):
+    packages = [file for file in ctx.files.package if file.extension in ["apk", "aab"]]
+    if len(packages) != 1:
+        fail("android_check: '" + str(ctx.attr.package.label) + "' built " + str(len(packages)) + " .apk/.aab files, want exactly one; point package at one APK or App Bundle")
+    lines = [
+        "arg=check",
+        "path=" + _key(ctx, ctx.executable._bundletool.short_path),
+        "path=" + _key(ctx, packages[0].short_path),
+    ]
+    for abi in ctx.attr.abis:
+        lines.extend(["arg=--abi", "arg=" + abi])
+    for resource in ctx.attr.resources:
+        lines.extend(["arg=--resource", "arg=" + resource])
+    runfiles = [
+        ctx.runfiles(files = [packages[0], ctx.executable._bundletool]),
+        ctx.attr._bundletool[DefaultInfo].default_runfiles,
+    ]
+    return [_ops_launcher(ctx, lines, runfiles)]
+
+_package_check_test = rule(
+    implementation = _package_check_test_impl,
+    doc = "Tests that the package is an unsigned APK or a valid App Bundle.",
+    test = True,
+    attrs = {
+        "abis": attr.string_list(default = [], doc = "ABIs the bundle must package."),
+        "package": attr.label(allow_files = True, mandatory = True, doc = "The APK or App Bundle to check."),
+        "resources": attr.string_list(default = [], doc = "type/name resources the bundle must resolve."),
+        "selection": attr.label(doc = "Selection target that fails analysis on a rejected declaration."),
+        "_bundletool": attr.label(default = _BUNDLETOOL, cfg = "target", executable = True, doc = "Pinned bundletool."),
+        "_ops": attr.label(default = _OPS, cfg = "target", executable = True, doc = "The Android operations program."),
+    } | NATIVE_LAUNCHER_ATTRS,
+)
+
 def android_check(name, package, platforms = [], resources = [], size = "small", tags = None, target_compatible_with = None, visibility = None):
     """Declares a test that the package is an unsigned APK or a valid App Bundle."""
     abis = abis_for_platforms(platforms)
@@ -670,16 +738,12 @@ def android_check(name, package, platforms = [], resources = [], size = "small",
         resources = resources,
         target_compatible_with = target_compatible_with,
     )
-    args = ["$(rootpath " + str(_BUNDLETOOL) + ")", "$(rootpath " + package + ")"]
-    for abi in abis:
-        args.extend(["--abi", abi])
-    for resource in resources:
-        args.extend(["--resource", resource])
-    sh_test(
+    _package_check_test(
         name = name,
-        srcs = [Label("//android/private/packaging:check_package.sh")],
-        args = args,
-        data = [package, _BUNDLETOOL, ":" + name + "_selection"],
+        abis = abis,
+        package = package,
+        resources = resources,
+        selection = ":" + name + "_selection",
         size = size,
         tags = tags,
         target_compatible_with = target_compatible_with,
@@ -697,8 +761,9 @@ def _apk_set_impl(ctx):
     bundletool = ctx.attr._bundletool[DefaultInfo].files_to_run
     java = ctx.attr._java_runtime[java_common.JavaRuntimeInfo]
     ctx.actions.run(
-        executable = ctx.executable._build_apk_set,
+        executable = ctx.executable._ops,
         arguments = [
+            "apk-set",
             bundletool.executable.path,
             aabs[0].path,
             specs[0].path,
@@ -726,15 +791,9 @@ android_apk_set = rule(
     attrs = {
         "aab": attr.label(allow_files = True, mandatory = True, doc = "Target that builds the App Bundle."),
         "device_spec": attr.label(allow_files = True, mandatory = True, doc = "bundletool device spec JSON."),
-        "_build_apk_set": attr.label(
-            default = Label("//android/private/packaging:build_apk_set.sh"),
-            doc = "Script that runs bundletool build-apks and extract-apks.",
-            allow_single_file = True,
-            executable = True,
-            cfg = "exec",
-        ),
         "_bundletool": attr.label(default = _BUNDLETOOL, executable = True, cfg = "exec", doc = "Pinned bundletool."),
         "_java_runtime": attr.label(default = _JAVA_RUNTIME, cfg = "exec", providers = [java_common.JavaRuntimeInfo]),
         "_keystore": attr.label(default = _DEBUG_KEYSTORE, allow_single_file = True, doc = "Public rules_android debug keystore; debug installs only."),
+        "_ops": attr.label(default = _OPS, executable = True, cfg = "exec", doc = "The Android operations program."),
     },
 )

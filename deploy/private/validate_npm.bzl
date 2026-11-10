@@ -1,6 +1,6 @@
 """Validators for the npm deploy rule."""
 
-load(":validate.bzl", "NAME_CHARS", "charset_error")
+load(":validate.bzl", "NAME_CHARS", "charset_error", "https_url_error")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
@@ -30,11 +30,8 @@ def npm_package_error(package):
 
 def npm_registry_url_error(registry_url):
     """Validates one npm registry URL value."""
-    if type(registry_url) != "string" or not registry_url.startswith("https://"):
-        return ("npm_deploy: invalid registry_url '" + str(registry_url) +
-                "': want an https:// URL " +
-                "(for example 'https://registry.npmjs.org')")
-    return ""
+    want = "an https:// URL (for example 'https://registry.npmjs.org')"
+    return https_url_error("npm_deploy", "registry_url", registry_url, want, want)
 
 def npm_access_error(package, access):
     """Validates one npm access value against the package scope."""

@@ -22,6 +22,9 @@ def github_tag_error(tag):
     if not only_chars(tag, _VALID_TAG_CHARS):
         return ("github_deploy: invalid release_tag '" + tag +
                 "': want only [A-Za-z0-9._-]")
+    if tag[0] in "-." or tag.endswith(".") or tag.endswith(".lock") or ".." in tag:
+        return ("github_deploy: invalid release_tag '" + tag +
+                "': want a git tag name: no leading '-' or '.', no '..', no trailing '.' or '.lock'")
     return ""
 
 def github_asset_collision_error(assets):

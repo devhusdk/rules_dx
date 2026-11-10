@@ -2,8 +2,8 @@
 
 use crate::archive::*;
 use crate::run::{
-    DeployRun, resolve_version, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text, print_redacted, run_publish,
-    scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    placeholder_refusal, print_redacted, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::ffi::OsString;
@@ -219,6 +219,37 @@ pub fn octopus_live_publish(
     0
 }
 
+/// Returns why a live push cannot run with this version and server, or None.
+fn octopus_live_refusal(version: &str, server: &str) -> Option<String> {
+    if let Some(refusal) = placeholder_refusal("octopus_deploy", version) {
+        return Some(refusal);
+    }
+    if server.is_empty() || server == "https://octopus.example.invalid" {
+        return Some(
+            "octopus_deploy: live push needs OCTOPUS_URL plus explicit owner approval (OCTOPUS_PUBLISH_APPROVED=1); refusing"
+                .to_owned(),
+        );
+    }
+    let host = server
+        .strip_prefix("https://")
+        .map(|rest| rest.split(['/', '?', '#']).next().unwrap_or(""));
+    match host {
+        Some(host) if host.contains('@') => Some(
+            "octopus_deploy: live push refuses a server URL with a user or password; refusing"
+                .to_owned(),
+        ),
+        Some(host)
+            if !host.is_empty() && !server.chars().any(|c| c.is_control() || c.is_whitespace()) =>
+        {
+            None
+        }
+        _ => Some(format!(
+            "octopus_deploy: live push needs an https server URL, got '{}'; refusing",
+            server.escape_debug()
+        )),
+    }
+}
+
 /// Runs the Octopus deploy tool.
 pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
     let Some(run) = DeployRun::start(
@@ -246,7 +277,9 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
         }
     };
     let space = std::env::var("OCTOPUS_SPACE").unwrap_or_else(|_| spec.space_default.to_owned());
-    let server = std::env::var("OCTOPUS_URL").unwrap_or_else(|_| spec.url_default.to_owned());
+    let server = Some(env_or_empty("OCTOPUS_URL"))
+        .filter(|url| !url.is_empty())
+        .unwrap_or_else(|| spec.url_default.to_owned());
     let deploy_to: Vec<String> = spec
         .deploy_to
         .iter()
@@ -263,14 +296,8 @@ pub fn octopus_main(spec: &OctopusLaunch<'_>, argv: &[String]) -> i32 {
         server: &server,
     };
     if OCTOPUS_GATE.requested(env_or_empty) {
-        if version == "0.0.0" {
-            eprintln!("octopus_deploy: live push refuses version 0.0.0; set a real version");
-            return 1;
-        }
-        if server.is_empty() || server == "https://octopus.example.invalid" {
-            eprintln!(
-                "octopus_deploy: live push needs OCTOPUS_URL plus explicit owner approval (OCTOPUS_PUBLISH_APPROVED=1); refusing"
-            );
+        if let Some(refusal) = octopus_live_refusal(&version, &server) {
+            eprintln!("{refusal}");
             return 1;
         }
         let secrets = match OCTOPUS_GATE.authorize(env_or_empty) {
@@ -318,6 +345,37 @@ mod tests {
         assert_eq!(octopus_archive_version("demo", "demo.tar.gz"), None);
         assert_eq!(octopus_archive_version("demo", "other.1.0.0.tar.gz"), None);
         assert_eq!(octopus_archive_version("demo", "demo.1.0.0.zip"), None);
+    }
+
+    #[test]
+    fn live_refusal_wants_a_real_version_and_an_https_server() {
+        let ok = "https://octopus.example.com";
+        assert_eq!(octopus_live_refusal("1.2.3", ok), None);
+        assert_eq!(octopus_live_refusal("1.2.3", "https://o.example:8443/api"), None);
+        for version in ["0.0.0", "v0.0.0", "0.0.0-dryrun"] {
+            let refusal = octopus_live_refusal(version, ok).expect("placeholder version");
+            assert!(refusal.contains("placeholder version"), "{refusal}");
+        }
+        for server in ["", "https://octopus.example.invalid"] {
+            let refusal = octopus_live_refusal("1.2.3", server).expect("no server");
+            assert!(refusal.contains("needs OCTOPUS_URL"), "{refusal}");
+        }
+        for server in [
+            "http://octopus.example.com",
+            "octopus.example.com",
+            "https://",
+            "https:///api",
+            "https://o.example/a b",
+            "https://o.example/\n--apiKey",
+        ] {
+            let refusal = octopus_live_refusal("1.2.3", server).expect("bad server");
+            assert!(refusal.contains("needs an https server URL"), "{server}: {refusal}");
+            assert!(!refusal.contains('\n'), "{refusal:?}");
+        }
+        let refusal =
+            octopus_live_refusal("1.2.3", "https://bot:hunter2@o.example").expect("credentials");
+        assert!(refusal.contains("user or password"), "{refusal}");
+        assert!(!refusal.contains("hunter2"), "{refusal}");
     }
 
     #[test]

@@ -1,6 +1,6 @@
 """Validators for the conan deploy rule."""
 
-load(":validate.bzl", "LOWER_ALNUM", "VERSION_CHARS", "charset_error")
+load(":validate.bzl", "LOWER_ALNUM", "VERSION_CHARS", "charset_error", "https_url_error")
 
 _VALID_NAME_CHARS = LOWER_ALNUM + "_.-"
 
@@ -41,10 +41,5 @@ def conan_remote_error(remote):
 
 def conan_remote_url_error(url):
     """Validates one Conan remote URL value."""
-    if type(url) != "string" or not url.startswith("https://"):
-        return ("conan_deploy: invalid remote_url '" + str(url) +
-                "': want an https:// URL")
-    if " " in url:
-        return ("conan_deploy: invalid remote_url '" + url +
-                "': want no spaces")
-    return ""
+    want = "an https:// URL"
+    return https_url_error("conan_deploy", "remote_url", url, want, want)

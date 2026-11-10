@@ -120,14 +120,7 @@ def cell_repo(name, cell):
     return name + "__" + cell
 
 def pins_hub(name, cells, toolchain_type, compatible_with = "exec"):
-    """Returns the hub BUILD file of a pin: one toolchain() per cell.
-
-    Args:
-        name: Pin name.
-        cells: Cell names.
-        toolchain_type: Label string of the toolchain type.
-        compatible_with: "exec" constrains exec_compatible_with, "target" target_compatible_with.
-    """
+    """Returns the hub BUILD file of a pin: one toolchain() per cell."""
     return "\n".join([
         toolchain_target(
             name = cell_repo(name, cell),

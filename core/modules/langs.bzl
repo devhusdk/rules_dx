@@ -87,7 +87,7 @@ LANGS = json.decode("""{
           "real_protobuf_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/generation.bzl",
+      "bzl": "core/quality:families/generation.bzl",
       "file_extensions": [
         ".proto"
       ],
@@ -237,7 +237,7 @@ LANGS = json.decode("""{
           "real_avro_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/generation.bzl",
+      "bzl": "core/quality:families/generation.bzl",
       "file_extensions": [
         ".avsc"
       ]
@@ -306,7 +306,10 @@ LANGS = json.decode("""{
     ],
     "platforms": [
       "linux_arm64",
-      "linux_x86_64"
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_arm64",
+      "windows_x86_64"
     ],
     "quality": {
       "aspects": {
@@ -317,7 +320,7 @@ LANGS = json.decode("""{
           "real_capnp_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/generation.bzl",
+      "bzl": "core/quality:families/generation.bzl",
       "file_extensions": [
         ".capnp"
       ]
@@ -394,7 +397,7 @@ LANGS = json.decode("""{
           "real_cc_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/cc.bzl",
+      "bzl": "core/quality:families/cc.bzl",
       "file_extensions": [
         ".c",
         ".cc",
@@ -582,7 +585,7 @@ LANGS = json.decode("""{
           "real_d_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/d.bzl",
+      "bzl": "core/quality:families/d.bzl",
       "file_extensions": [
         ".d"
       ],
@@ -655,7 +658,7 @@ LANGS = json.decode("""{
           "real_dart_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/dart.bzl",
+      "bzl": "core/quality:families/dart.bzl",
       "file_extensions": [
         ".dart"
       ],
@@ -739,7 +742,7 @@ LANGS = json.decode("""{
           "real_dotnet_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/dotnet.bzl",
+      "bzl": "core/quality:families/dotnet.bzl",
       "file_extensions": [
         ".cs",
         ".csproj",
@@ -815,7 +818,7 @@ LANGS = json.decode("""{
           "real_elixir_lint_aspect"
         ]
       },
-      "bzl": "quality:families/beam.bzl",
+      "bzl": "core/quality:families/beam.bzl",
       "file_extensions": [
         ".ex",
         ".exs"
@@ -900,7 +903,7 @@ LANGS = json.decode("""{
           "real_erlang_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/beam.bzl",
+      "bzl": "core/quality:families/beam.bzl",
       "file_extensions": [
         ".erl",
         ".hrl"
@@ -955,7 +958,7 @@ LANGS = json.decode("""{
           "real_flatbuffers_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/generation.bzl",
+      "bzl": "core/quality:families/generation.bzl",
       "file_extensions": [
         ".fbs"
       ]
@@ -1040,7 +1043,7 @@ LANGS = json.decode("""{
           "real_fortran_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/fortran.bzl",
+      "bzl": "core/quality:families/fortran.bzl",
       "file_extensions": [
         ".f",
         ".f03",
@@ -1152,7 +1155,7 @@ LANGS = json.decode("""{
           "real_go_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/go.bzl",
+      "bzl": "core/quality:families/go.bzl",
       "file_extensions": [
         ".go"
       ],
@@ -1228,7 +1231,7 @@ LANGS = json.decode("""{
           "real_haskell_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/haskell.bzl",
+      "bzl": "core/quality:families/haskell.bzl",
       "file_extensions": [
         ".hs"
       ],
@@ -1330,7 +1333,7 @@ LANGS = json.decode("""{
           "real_jvm_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/jvm.bzl",
+      "bzl": "core/quality:families/jvm.bzl",
       "file_extensions": [
         ".java"
       ],
@@ -1483,7 +1486,7 @@ LANGS = json.decode("""{
           "real_julia_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/julia.bzl",
+      "bzl": "core/quality:families/julia.bzl",
       "file_extensions": [
         ".jl"
       ],
@@ -1543,7 +1546,7 @@ LANGS = json.decode("""{
       "windows_x86_64"
     ],
     "quality": {
-      "bzl": "quality:families/jvm.bzl",
+      "bzl": "core/quality:families/jvm.bzl",
       "file_extensions": [
         ".kt",
         ".kts"
@@ -1610,7 +1613,7 @@ LANGS = json.decode("""{
     ],
     "name": "lua",
     "pins": [
-      "private/toolchain/pins.bzl"
+      "private/toolchain/pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -1631,7 +1634,7 @@ LANGS = json.decode("""{
           "real_lua_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/lua.bzl",
+      "bzl": "core/quality:families/lua.bzl",
       "file_extensions": [
         ".lua"
       ],
@@ -1798,7 +1801,7 @@ LANGS = json.decode("""{
           "real_ocaml_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/ocaml.bzl",
+      "bzl": "core/quality:families/ocaml.bzl",
       "file_extensions": [
         ".ml",
         ".mli"
@@ -1867,7 +1870,7 @@ LANGS = json.decode("""{
           "real_perl_lint_aspect"
         ]
       },
-      "bzl": "quality:families/perl.bzl",
+      "bzl": "core/quality:families/perl.bzl",
       "file_extensions": [
         ".pl",
         ".pm"
@@ -1935,7 +1938,7 @@ LANGS = json.decode("""{
           "real_php_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/php.bzl",
+      "bzl": "core/quality:families/php.bzl",
       "file_extensions": [
         ".php"
       ],
@@ -1982,7 +1985,7 @@ LANGS = json.decode("""{
           "real_pkl_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/pkl.bzl",
+      "bzl": "core/quality:families/pkl.bzl",
       "file_extensions": [
         ".pkl"
       ],
@@ -2051,7 +2054,7 @@ LANGS = json.decode("""{
           "real_powershell_lint_aspect"
         ]
       },
-      "bzl": "quality:families/powershell.bzl",
+      "bzl": "core/quality:families/powershell.bzl",
       "file_extensions": [
         ".ps1",
         ".psd1",
@@ -2126,7 +2129,7 @@ LANGS = json.decode("""{
           "real_python_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/python.bzl",
+      "bzl": "core/quality:families/python.bzl",
       "file_extensions": [
         ".py",
         ".pyi"
@@ -2184,7 +2187,7 @@ LANGS = json.decode("""{
     ],
     "platforms": [],
     "quality": {
-      "bzl": "quality:families/cc.bzl",
+      "bzl": "core/quality:families/cc.bzl",
       "file_extensions": [
         ".qml"
       ]
@@ -2301,7 +2304,7 @@ LANGS = json.decode("""{
           "real_ruby_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/ruby.bzl",
+      "bzl": "core/quality:families/ruby.bzl",
       "file_extensions": [
         ".rb",
         ".rbs"
@@ -2445,7 +2448,7 @@ LANGS = json.decode("""{
           "real_scala_lint_aspect"
         ]
       },
-      "bzl": "quality:families/jvm.bzl",
+      "bzl": "core/quality:families/jvm.bzl",
       "file_extensions": [
         ".sc",
         ".scala"
@@ -2484,7 +2487,7 @@ LANGS = json.decode("""{
           "real_sql_lint_aspect"
         ]
       },
-      "bzl": "quality:families/sql.bzl",
+      "bzl": "core/quality:families/sql.bzl",
       "file_extensions": [
         ".sql"
       ]
@@ -2582,7 +2585,7 @@ LANGS = json.decode("""{
           "real_swift_lint_aspect"
         ]
       },
-      "bzl": "quality:families/swift.bzl",
+      "bzl": "core/quality:families/swift.bzl",
       "file_extensions": [
         ".swift"
       ],
@@ -2676,7 +2679,7 @@ LANGS = json.decode("""{
           "real_thrift_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/generation.bzl",
+      "bzl": "core/quality:families/generation.bzl",
       "file_extensions": [
         ".thrift"
       ]
@@ -2866,7 +2869,7 @@ LANGS = json.decode("""{
           "real_zig_typecheck_aspect"
         ]
       },
-      "bzl": "quality:families/zig.bzl",
+      "bzl": "core/quality:families/zig.bzl",
       "file_extensions": [
         ".zig"
       ],

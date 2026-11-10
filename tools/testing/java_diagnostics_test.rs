@@ -29,7 +29,11 @@ fn pmd(source: &str) -> dx_testing::Run {
     )
     .expect("write ruleset");
     let ruleset = ruleset.to_string_lossy().into_owned();
-    let path = file(source).to_string_lossy().into_owned();
+    let original = file(source);
+    let dir = dx_testing::scratch_dir(&format!("pmd-{source}"));
+    let copy = dir.join(original.file_name().expect("source has a file name"));
+    std::fs::copy(&original, &copy).expect("copy source");
+    let path = copy.to_string_lossy().into_owned();
     dx_testing::run(
         &file("DX_PMD"),
         &[

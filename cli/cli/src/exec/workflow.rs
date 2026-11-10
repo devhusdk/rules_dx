@@ -190,13 +190,13 @@ fn execute_checked(
                     .push("--experimental_collect_local_sandbox_action_metrics".to_string());
                 Some(path)
             }
-            Err(message) => {
-                return operational(
-                    invocation,
+            Err(error) => {
+                return report_dx_error(
+                    invocation.output,
                     out,
                     err,
                     profile_report::CODE_PROFILE_UNREADABLE,
-                    &message,
+                    &error,
                 );
             }
         }
@@ -319,15 +319,22 @@ fn execute_checked(
 }
 
 /// Creates `.dx/local/timings` and returns the trace file Bazel should write.
-pub(super) fn prepare_trace(workspace: &std::path::Path, run_id: &str) -> Result<String, String> {
+pub(super) fn prepare_trace(
+    workspace: &std::path::Path,
+    run_id: &str,
+) -> Result<String, dx_error::DxError> {
     let dir = profile_report::dir(workspace);
-    std::fs::create_dir_all(&dir)
-        .map_err(|error| format!("could not create {}: {error}", dir.display()))?;
+    std::fs::create_dir_all(&dir).map_err(|error| {
+        dx_error::DxError::from_io(
+            format!("could not create {}: {error}", dir.display()),
+            &error,
+        )
+    })?;
     profile_report::prune(workspace);
     profile_report::profile_path(workspace, run_id)
         .to_str()
         .map(ToOwned::to_owned)
-        .ok_or_else(|| "profile path is not UTF-8".to_owned())
+        .ok_or_else(|| dx_error::DxError::failure("profile path is not UTF-8"))
 }
 
 /// Reads the trace Bazel wrote and reports where the time went: text on stderr, or a notice

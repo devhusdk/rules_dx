@@ -138,22 +138,24 @@ pub(super) fn render_report(
     detail: &str,
     format: StandardFormat,
     sources_document: Option<&str>,
-) -> Result<String, String> {
+) -> Result<String, dx_error::DxError> {
     if format == StandardFormat::Sources {
         return match sources_document {
             Some(document) if detail.is_empty() => Ok(document.to_owned()),
-            _ => Err(if detail.is_empty() {
-                "no coverage source account is available".to_owned()
+            _ => Err(dx_error::DxError::failure(if detail.is_empty() {
+                "no coverage source account is available"
             } else {
-                detail.to_owned()
-            }),
+                detail
+            })),
         };
     }
     match verb {
-        WorkflowVerb::Test => render_junit(suites).map_err(|error| error.to_string()),
+        WorkflowVerb::Test => {
+            render_junit(suites).map_err(|error| dx_error::DxError::failure(error.to_string()))
+        }
         WorkflowVerb::Coverage => {
             if lcov_documents.is_empty() {
-                Err(detail.to_owned())
+                Err(dx_error::DxError::failure(detail))
             } else {
                 let mut combined = lcov_documents.join("\n");
                 if !combined.ends_with('\n') {
@@ -162,7 +164,7 @@ pub(super) fn render_report(
                 Ok(combined)
             }
         }
-        _ => Err(detail.to_owned()), // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
+        _ => Err(dx_error::DxError::failure(detail)), // LCOV_EXCL_LINE - reason: defensive arm, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
     }
 }
 

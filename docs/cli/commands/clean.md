@@ -47,5 +47,6 @@ JSON emits one `notice` with code `clean_removed` per path, with `path` and the 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | The commit lock stayed busy, a delete failed, or `bazel clean` failed. |
+| `1` | The commit lock stayed busy, a missing path could not be deleted, or `bazel clean` failed. |
 | `2` | Usage error, including any scope or `--apply`. |
+| `3` | A delete failed on an I/O error such as permission denied. |

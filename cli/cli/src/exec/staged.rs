@@ -2,6 +2,7 @@
 //! directory and reports which declared locks it would change. The caller decides what
 //! to do with the result, so both `dx update` forms share the same checks.
 
+use dx_error::DxError;
 use dx_update::backend::StagedRun;
 use std::collections::BTreeMap;
 
@@ -245,7 +246,7 @@ pub(super) fn run_staged_core(
 pub(super) fn write_outputs(
     workspace: &std::path::Path,
     differing: Vec<Differing>,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     for (rel, bytes) in differing {
         let path = match dx_path::workspace::resolve_target_in_workspace(workspace, &rel) {
             Ok(path) => path,
@@ -253,13 +254,26 @@ pub(super) fn write_outputs(
                 let (parent, name) = rel.rsplit_once('/').unwrap_or((".", &rel));
                 match dx_path::workspace::resolve_target_in_workspace(workspace, parent) {
                     Ok(parent) => parent.join(name),
-                    Err(error) => return Err(format!("cannot write {rel}: {error}")),
+                    Err(error) => {
+                        return Err(DxError::from_io(
+                            format!("cannot write {rel}: {error}"),
+                            &error,
+                        ));
+                    }
                 }
             }
-            Err(error) => return Err(format!("cannot write {rel}: {error}")),
+            Err(error) => {
+                return Err(DxError::from_io(
+                    format!("cannot write {rel}: {error}"),
+                    &error,
+                ));
+            }
         };
         if let Err(error) = dx_atomic_fs::write_atomic(&path, &bytes) {
-            return Err(format!("cannot write {rel}: {error}"));
+            return Err(DxError::from_io(
+                format!("cannot write {rel}: {error}"),
+                &error,
+            ));
         }
     }
     Ok(())

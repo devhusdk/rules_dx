@@ -3,6 +3,7 @@ use super::common::{
     CODE_CHANGED_LINE_BELOW_MINIMUM, CODE_CHANGED_LINE_INCOMPLETE, CODE_CHANGED_LINE_UNAVAILABLE,
     emit_built, git_output,
 };
+use dx_error::DxError;
 use dx_lcov::{AddedLines, CellAccount, all_lines, changed_account, parse_added_lines};
 use dx_output::{ChangedLineCoverageEvent, OutputMode};
 use dx_plan::resolve::QueryRunner;
@@ -24,7 +25,7 @@ pub(super) fn changed_lines(
     workspace: &Path,
     runner: &dyn QueryRunner,
     merge_base: &str,
-) -> Result<AddedLines, String> {
+) -> Result<AddedLines, DxError> {
     let diff = git_output(
         runner,
         workspace,
@@ -59,12 +60,13 @@ pub(super) fn changed_lines(
         let meta = match std::fs::metadata(&full) {
             Ok(meta) => meta,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(error) => return Err(format!("{path}: {error}")),
+            Err(error) => return Err(DxError::from_io(format!("{path}: {error}"), &error)),
         };
         if !meta.is_file() {
             continue;
         }
-        let bytes = std::fs::read(&full).map_err(|error| format!("{path}: {error}"))?;
+        let bytes = std::fs::read(&full)
+            .map_err(|error| DxError::from_io(format!("{path}: {error}"), &error))?;
         let lines = all_lines(&String::from_utf8_lossy(&bytes));
         if !lines.is_empty() {
             added.insert(path.into_owned(), lines);
@@ -124,7 +126,7 @@ fn verdict(gate: &ChangedGate<'_>, minimum: u32) -> Verdict {
     event.merge_base = merge_base.clone();
     let added = match changed_lines(gate.workspace, gate.runner, &merge_base) {
         Ok(added) => added,
-        Err(message) => return unavailable(event, message),
+        Err(error) => return unavailable(event, error.message().to_owned()),
     };
     let changed = changed_account(account, gate.lcov_documents, &added, &|path| {
         std::fs::read(gate.workspace.join(path))

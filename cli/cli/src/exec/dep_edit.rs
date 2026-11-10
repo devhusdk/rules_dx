@@ -1,6 +1,7 @@
 //! The write, refresh and report tail shared by the dependency verbs (`dx update`).
 
 use super::common::*;
+use dx_error::DxError;
 use dx_output::{
     FinishedCounts, NoticeEvent, OutputMode, command_finished, error_event, notice_event,
 };
@@ -453,7 +454,7 @@ pub(crate) fn write_and_refresh(
                     out,
                     err,
                     manifest,
-                    &format!("unsupported refresh: {reason}"),
+                    &DxError::failure(format!("unsupported refresh: {reason}")),
                 );
             }
             dx_update::backend::BackendError::OfflineRequired { .. } => {
@@ -488,7 +489,7 @@ pub(crate) fn write_and_refresh(
                     out,
                     err,
                     manifest,
-                    &unavailable.to_string(),
+                    &DxError::failure(unavailable.to_string()),
                 );
             }
         },
@@ -500,7 +501,7 @@ pub(crate) fn write_and_refresh(
         )
     };
     let kept = &edit.kept;
-    let mut finish = |result: Result<(), String>, message: String| match result {
+    let mut finish = |result: Result<(), DxError>, message: String| match result {
         Ok(()) => match emit_refreshed(
             edit,
             invocation,
@@ -598,7 +599,7 @@ fn refresh_staged(
     subject: &str,
     manifest: &str,
     kept: &str,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let mut launch = |argv: &[String], env: &[(String, String)]| {
         let env_refs: Vec<(&str, &str)> = env
             .iter()
@@ -612,14 +613,18 @@ fn refresh_staged(
     let dir = manifest.rsplit_once('/').map_or(".", |(dir, _)| dir);
     let next = format!("run `go mod tidy` in {dir}, then `dx update {set}`");
     match super::staged::run_staged_core(run, workspace, subject, "refresh", &mut launch) {
-        Ok(differing) => super::staged::write_outputs(workspace, differing)
-            .map_err(|error| format!("failed to refresh {subject}: {error} ({kept}); {next}")),
+        Ok(differing) => super::staged::write_outputs(workspace, differing).map_err(|error| {
+            DxError::new(
+                error.kind(),
+                format!("failed to refresh {subject}: {error} ({kept}); {next}"),
+            )
+        }),
         Err(super::staged::StagedError::Failed { message, .. }) => {
-            Err(format!("{message} ({kept}); {next}"))
+            Err(DxError::failure(format!("{message} ({kept}); {next}")))
         }
-        Err(super::staged::StagedError::Exit(_)) => {
-            Err(format!("failed to refresh {subject} ({kept}); {next}"))
-        }
+        Err(super::staged::StagedError::Exit(_)) => Err(DxError::failure(format!(
+            "failed to refresh {subject} ({kept}); {next}"
+        ))),
     }
 }
 
@@ -632,23 +637,23 @@ fn launch_refresh(
     subject: &str,
     tool: &str,
     kept: &str,
-) -> Result<(), String> {
+) -> Result<(), DxError> {
     let env_refs: Vec<(&str, &str)> = env
         .iter()
         .map(|(key, value)| (key.as_str(), value.as_str()))
         .collect();
     match runner.run(argv, cwd, &env_refs) {
-        Err(error) => Err(format!(
+        Err(error) => Err(DxError::failure(format!(
             "failed to refresh {subject}: failed to launch {tool}: {error} ({kept})"
-        )),
+        ))),
         Ok(status) => match status.code {
             Some(0) => Ok(()),
-            Some(code) => Err(format!(
+            Some(code) => Err(DxError::failure(format!(
                 "failed to refresh {subject}: {tool} exited {code} ({kept})"
-            )),
-            None => Err(format!(
+            ))),
+            None => Err(DxError::failure(format!(
                 "failed to refresh {subject}: {tool} terminated by signal ({kept})"
-            )),
+            ))),
         },
     }
 }
@@ -704,8 +709,9 @@ fn refresh_failed(
     out: &mut dyn std::io::Write,
     err: &mut dyn std::io::Write,
     manifest: &str,
-    message: &str,
+    error: &DxError,
 ) -> i32 {
+    let message = error.message();
     let code = if message.contains(CODE_OFFLINE_REQUIRED) {
         CODE_OFFLINE_REQUIRED
     } else if message.contains(CODE_FROZEN_LOCKED) {
@@ -726,7 +732,7 @@ fn refresh_failed(
             return exit;
         }
         let finished = command_finished(
-            1,
+            error.exit_code(),
             &FinishedCounts {
                 results_complete: Some(false),
                 ..FinishedCounts::default()
@@ -736,7 +742,7 @@ fn refresh_failed(
             return exit;
         }
     }
-    dx_process::operational_code()
+    error.exit_code()
 }
 
 fn backend_failed(
@@ -753,10 +759,10 @@ fn backend_failed(
         out,
         err,
         manifest,
-        &format!(
+        &DxError::failure(format!(
             "failed to refresh {}: {error} ({})",
             edit.selector, edit.kept
-        ),
+        )),
     )
 }
 
@@ -929,7 +935,7 @@ mod tests {
             &mut out,
             &mut err,
             "Cargo.toml",
-            "",
+            &DxError::failure(""),
         );
         assert_eq!(code, dx_process::operational_code());
         let events: Vec<serde_json::Value> = String::from_utf8(out)
@@ -955,7 +961,7 @@ mod tests {
             &mut BrokenPipe,
             &mut err,
             "Cargo.toml",
-            "failed to refresh cargo:anyhow",
+            &DxError::failure("failed to refresh cargo:anyhow"),
         );
         assert_eq!(code, dx_process::broken_pipe_code());
     }

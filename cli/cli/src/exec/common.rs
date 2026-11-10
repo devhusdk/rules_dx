@@ -238,15 +238,17 @@ pub(super) fn git_output(
     workspace: &Path,
     what: &str,
     args: &[&str],
-) -> Result<Vec<u8>, String> {
+) -> Result<Vec<u8>, dx_error::DxError> {
     let mut argv = vec!["git".to_owned()];
     argv.extend(args.iter().map(ToString::to_string));
     let result = runner
         .run_query(&argv, workspace)
-        .map_err(|error| format!("git {what} failed: {error}"))?;
+        .map_err(|error| dx_error::DxError::infra(format!("git {what} failed: {error}")))?;
     if result.code != Some(0) {
         let detail = dx_output::first_diagnostic_line(&result.stderr, 200, "no Git diagnostic");
-        return Err(format!("git {what} failed: {detail}"));
+        return Err(dx_error::DxError::failure(format!(
+            "git {what} failed: {detail}"
+        )));
     }
     Ok(result.stdout)
 }
@@ -664,6 +666,21 @@ pub(crate) fn pre_exec(
         out,
         err,
         &Failure::new(CODE_INVALID_ARGUMENTS, message, pre_exec_code()),
+    )
+}
+
+/// Reports a [`dx_error::DxError`] refusal without usage text, exiting with the code its kind maps to.
+pub(crate) fn refusal_dx_error(
+    output: OutputMode,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+    error: &dx_error::DxError,
+) -> i32 {
+    report_failure(
+        output,
+        out,
+        err,
+        &Failure::new(CODE_INVALID_ARGUMENTS, error.message(), error.exit_code()).without_usage(),
     )
 }
 

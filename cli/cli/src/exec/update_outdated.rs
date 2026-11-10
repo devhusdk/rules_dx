@@ -197,7 +197,7 @@ fn run(invocation: &Invocation, env: Env<'_>, fetch: &dyn Fetch) -> i32 {
 const BAZEL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(1800);
 
 /// Finds the pinned opam-repository snapshot checkout through the pinned opam wrapper.
-fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, String> {
+fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, dx_error::DxError> {
     if let Some(dir) = std::env::var_os(OPAM_SNAPSHOT_ENV) {
         return Ok(PathBuf::from(dir));
     }
@@ -215,14 +215,16 @@ fn opam_snapshot_dir(workspace: &Path) -> Result<PathBuf, String> {
     )
     .map_err(|error| match error {
         dx_process::capture::RunError::Spawn { source, .. } => {
-            format!("cannot run bazel for the opam snapshot: {source}")
+            dx_error::DxError::infra(format!("cannot run bazel for the opam snapshot: {source}"))
         }
-        _ => "bazel could not provide the opam-repository snapshot".to_owned(),
+        _ => dx_error::DxError::failure("bazel could not provide the opam-repository snapshot"),
     })?;
     let text = output.stdout_text();
     match text.lines().last().map(str::trim).filter(|l| !l.is_empty()) {
         Some(dir) => Ok(PathBuf::from(dir)),
-        None => Err("the opam wrapper printed no snapshot directory".to_owned()),
+        None => Err(dx_error::DxError::failure(
+            "the opam wrapper printed no snapshot directory",
+        )),
     }
 }
 
@@ -403,7 +405,7 @@ pub(super) fn collect(
                     Err(reason) => found.errors.push(dx_update::discover::LookupError {
                         set: name.to_owned(),
                         package: String::new(),
-                        reason,
+                        reason: reason.message().to_owned(),
                     }),
                 }
             }

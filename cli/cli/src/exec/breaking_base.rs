@@ -3,6 +3,7 @@
 //! `--breaking-against` build setting.
 
 use super::pinned_tool::{PinnedTool, PinnedToolError, QueryBazel, resolve_pinned};
+use dx_error::DxError;
 use dx_plan::args::BREAKING_AGAINST_OPTION;
 use dx_plan::resolve::{QueryRunner, merge_base};
 use std::path::{Path, PathBuf};
@@ -25,7 +26,7 @@ pub(crate) struct Context<'a> {
 pub(crate) fn resolve_options(
     options: &[String],
     context: &Context<'_>,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, DxError> {
     let prefix = format!("{BREAKING_AGAINST_OPTION}=");
     let mut resolved = Vec::with_capacity(options.len());
     for option in options {
@@ -40,22 +41,25 @@ pub(crate) fn resolve_options(
     Ok(resolved)
 }
 
-fn build_image(reference: &str, context: &Context<'_>) -> Result<PathBuf, String> {
+fn build_image(reference: &str, context: &Context<'_>) -> Result<PathBuf, DxError> {
     let sha = merge_base(
         Path::new("git"),
         context.workspace,
         context.query_runner,
         "HEAD",
         reference,
-    ).map_err(|error| error.to_string())?;
+    )
+    .map_err(|error| DxError::infra(error.to_string()))?;
     let bazel = QueryBazel {
         query_runner: context.query_runner,
         workspace: context.workspace,
         startup: context.startup,
     };
     let buf = resolve_pinned(context.runner, &bazel, &BUF, false).map_err(|error| match error {
-        PinnedToolError::Invalid => "DX_BUF_BIN must be an absolute path".to_owned(),
-        PinnedToolError::Unresolved { detail } => format!("could not resolve buf: {detail}"),
+        PinnedToolError::Invalid => DxError::usage("DX_BUF_BIN must be an absolute path"),
+        PinnedToolError::Unresolved { detail } => {
+            DxError::infra(format!("could not resolve buf: {detail}"))
+        }
     })?;
     let image = context.temp_dir.join(format!("dx-buf-base-{sha}.binpb"));
     let argv = vec![
@@ -68,13 +72,15 @@ fn build_image(reference: &str, context: &Context<'_>) -> Result<PathBuf, String
     let result = context
         .query_runner
         .run_query(&argv, context.workspace)
-        .map_err(|error| format!("could not run buf build for {reference}: {error}"))?;
+        .map_err(|error| {
+            DxError::infra(format!("could not run buf build for {reference}: {error}"))
+        })?;
     if result.code != Some(0) {
         let stderr = String::from_utf8_lossy(&result.stderr);
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "buf build of {reference} ({sha}) failed: {}",
             stderr.trim()
-        ));
+        )));
     }
     Ok(image)
 }
@@ -124,7 +130,7 @@ mod tests {
         }
     }
 
-    fn run(buf_code: i32) -> (Result<Vec<String>, String>, Vec<Vec<String>>) {
+    fn run(buf_code: i32) -> (Result<Vec<String>, DxError>, Vec<Vec<String>>) {
         let fake = Fake {
             calls: RefCell::new(Vec::new()),
             buf_code,
@@ -164,7 +170,7 @@ mod tests {
         let (got, _) = run(1);
         let error = got.expect_err("failed");
         assert!(
-            error.contains("origin/main") && error.contains("no such ref"),
+            error.message().contains("origin/main") && error.message().contains("no such ref"),
             "{error}"
         );
     }

@@ -3,6 +3,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use dx_error::DxError;
 use dx_output::{NoticeEvent, OutputMode, notice_event};
 use dx_plan::resolve::QueryRunner;
 
@@ -16,13 +17,16 @@ struct BazelBuild<'a> {
 }
 
 impl BazelBuild<'_> {
-    fn run(&self, argv: &[String]) -> Result<String, String> {
+    fn run(&self, argv: &[String]) -> Result<String, DxError> {
         let result = self
             .query_runner
             .run_query(argv, self.workspace)
-            .map_err(|error| format!("could not run bazel: {error}"))?;
+            .map_err(|error| DxError::infra(format!("could not run bazel: {error}")))?;
         if result.code != Some(0) {
-            return Err(dx_tool_resolve::exit_detail(result.code, &result.stderr));
+            return Err(DxError::failure(dx_tool_resolve::exit_detail(
+                result.code,
+                &result.stderr,
+            )));
         }
         Ok(String::from_utf8_lossy(&result.stdout).into_owned())
     }
@@ -32,13 +36,13 @@ impl BazelBuild<'_> {
         verb: &str,
         options: &[String],
         labels: &[String],
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<Vec<String>, DxError> {
         dx_plan::plan::bazel_argv(verb, options, &[], &[], labels, self.startup)
-            .map_err(|error| format!("could not build the {verb} argv: {error}"))
+            .map_err(|error| DxError::infra(format!("could not build the {verb} argv: {error}")))
     }
 
     #[allow(clippy::disallowed_methods)] // info takes no build settings
-    fn info(&self, key: &str) -> Result<PathBuf, String> {
+    fn info(&self, key: &str) -> Result<PathBuf, DxError> {
         let mut argv = dx_process::startup_argv(self.startup);
         argv.extend(["info".to_owned(), key.to_owned()]);
         let text = self.run(&argv)?;
@@ -47,7 +51,7 @@ impl BazelBuild<'_> {
 }
 
 impl BazelBuild<'_> {
-    fn build_files(&self, labels: &[String], options: &[String]) -> Result<Vec<PathBuf>, String> {
+    fn build_files(&self, labels: &[String], options: &[String]) -> Result<Vec<PathBuf>, DxError> {
         self.run(&self.argv("build", options, labels)?)?;
         let mut cquery_options = options.to_vec();
         cquery_options.push("--output=files".to_owned());
@@ -78,7 +82,6 @@ impl dx_ide::Runner for BazelBuild<'_> {
             .map(|label| dx_plan::plan::rules_dx_label(label))
             .collect();
         self.build_files(&labels, &[])
-            .map_err(dx_error::DxError::infra)
     }
 
     fn build_group(
@@ -87,20 +90,16 @@ impl dx_ide::Runner for BazelBuild<'_> {
         group: &str,
     ) -> Result<Vec<PathBuf>, dx_error::DxError> {
         self.build_files(labels, &[format!("--output_groups={group}")])
-            .map_err(dx_error::DxError::infra)
     }
 
     fn aquery(&self, expr: &str) -> Result<String, dx_error::DxError> {
         let options = ["--output=jsonproto".to_owned()];
-        let argv = self
-            .argv("aquery", &options, &[expr.to_owned()])
-            .map_err(dx_error::DxError::infra)?;
-        self.run(&argv).map_err(dx_error::DxError::infra)
+        let argv = self.argv("aquery", &options, &[expr.to_owned()])?;
+        self.run(&argv)
     }
 
     fn execution_root(&self) -> Result<PathBuf, dx_error::DxError> {
         self.info("execution_root")
-            .map_err(dx_error::DxError::infra)
     }
 }
 

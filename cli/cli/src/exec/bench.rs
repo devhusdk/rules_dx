@@ -1,6 +1,7 @@
 use super::common::*;
 use super::failure::CODE_NO_TESTS;
 use dx_bep::{TestResultRecord, collect_test_events};
+use dx_error::DxError;
 use dx_output::OutputMode;
 use dx_plan::args::Invocation;
 use dx_plan::plan::{WorkflowVerb, bep_path, plan_workflow};
@@ -61,14 +62,14 @@ struct TargetResultsIn {
 }
 
 impl Baseline {
-    fn parse(bytes: &[u8]) -> Result<Baseline, String> {
-        let file: BaselineFile =
-            serde_json::from_slice(bytes).map_err(|error| format!("invalid baseline: {error}"))?;
+    fn parse(bytes: &[u8]) -> Result<Baseline, DxError> {
+        let file: BaselineFile = serde_json::from_slice(bytes)
+            .map_err(|error| DxError::failure(format!("invalid baseline: {error}")))?;
         if file.schema != SCHEMA {
-            return Err(format!(
+            return Err(DxError::failure(format!(
                 "invalid baseline: schema is {:?}, want {SCHEMA:?}",
                 file.schema
-            ));
+            )));
         }
         let mut rows: Vec<(Option<String>, Measurement)> =
             file.results.into_iter().map(|row| (None, row)).collect();
@@ -118,30 +119,31 @@ fn load_baseline(
     workspace: &Path,
     gh: &Path,
     scratch: &Path,
-) -> Result<Baseline, String> {
+) -> Result<Baseline, DxError> {
     let path = workspace.join(reference);
     if path.is_file() {
-        let bytes = std::fs::read(&path)
-            .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+        let bytes = std::fs::read(&path).map_err(|error| {
+            DxError::from_io(format!("cannot read {}: {error}", path.display()), &error)
+        })?;
         return Baseline::parse(&bytes);
     }
     let bytes = download_baseline(reference, gh, scratch)?;
     Baseline::parse(&bytes)
 }
 
-fn gh_output(gh: &Path, args: &[&str]) -> Result<String, String> {
+fn gh_output(gh: &Path, args: &[&str]) -> Result<String, DxError> {
     dx_process::capture::run_checked(
         std::process::Command::new(gh).args(args),
         dx_process::capture::DEFAULT_TIMEOUT,
     )
     .map(|output| output.stdout_text())
-    .map_err(|error| error.to_string())
+    .map_err(|error| DxError::infra(error.to_string()))
 }
 
 /// Downloads the `dx-bench-<platform>` artifact of the latest run on a ref.
-fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u8>, String> {
+fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u8>, DxError> {
     let platform = dx_plan::platform::platform_key(std::env::consts::OS, std::env::consts::ARCH)
-        .ok_or_else(|| "this platform has no dx-bench artifact".to_owned())?;
+        .ok_or_else(|| DxError::failure("this platform has no dx-bench artifact"))?;
     let listing = gh_output(
         gh,
         &[
@@ -159,19 +161,23 @@ fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u
     )?;
     let run = listing.trim();
     if run.is_empty() || run == "null" {
-        return Err(format!("no workflow run found on {reference:?}"));
+        return Err(DxError::failure(format!(
+            "no workflow run found on {reference:?}"
+        )));
     }
     let name = format!("dx-bench-{platform}");
     let dest = scratch.join("baseline");
     let dest_text = dest
         .to_str()
-        .ok_or_else(|| "the scratch path is not UTF-8".to_owned())?;
+        .ok_or_else(|| DxError::failure("the scratch path is not UTF-8"))?;
     gh_output(
         gh,
         &["run", "download", run, "--name", &name, "--dir", dest_text],
     )?;
     let mut files: Vec<_> = std::fs::read_dir(&dest)
-        .map_err(|error| format!("cannot read the {name} artifact: {error}"))?
+        .map_err(|error| {
+            DxError::from_io(format!("cannot read the {name} artifact: {error}"), &error)
+        })?
         .filter_map(Result::ok)
         .map(|entry| entry.path())
         .filter(|path| path.extension().is_some_and(|ext| ext == "json"))
@@ -181,8 +187,10 @@ fn download_baseline(reference: &str, gh: &Path, scratch: &Path) -> Result<Vec<u
         .iter()
         .find(|path| path.file_name().is_some_and(|name| name == "last.json"))
         .or_else(|| files.first())
-        .ok_or_else(|| format!("the {name} artifact holds no json file"))?;
-    std::fs::read(file).map_err(|error| format!("cannot read {}: {error}", file.display()))
+        .ok_or_else(|| DxError::failure(format!("the {name} artifact holds no json file")))?;
+    std::fs::read(file).map_err(|error| {
+        DxError::from_io(format!("cannot read {}: {error}", file.display()), &error)
+    })
 }
 
 /// The query that keeps the `dx-bench` tagged tests of a scope.
@@ -193,14 +201,14 @@ fn bench_expression(resolved: &ResolvedScope) -> String {
     )
 }
 
-fn parse_bench_file(bytes: &[u8]) -> Result<Vec<Measurement>, String> {
-    let file: BenchFile =
-        serde_json::from_slice(bytes).map_err(|error| format!("invalid {BENCH_FILE}: {error}"))?;
+fn parse_bench_file(bytes: &[u8]) -> Result<Vec<Measurement>, DxError> {
+    let file: BenchFile = serde_json::from_slice(bytes)
+        .map_err(|error| DxError::failure(format!("invalid {BENCH_FILE}: {error}")))?;
     if file.schema != SCHEMA {
-        return Err(format!(
+        return Err(DxError::failure(format!(
             "invalid {BENCH_FILE}: schema is {:?}, want {SCHEMA:?}",
             file.schema
-        ));
+        )));
     }
     Ok(file.results)
 }
@@ -208,15 +216,15 @@ fn parse_bench_file(bytes: &[u8]) -> Result<Vec<Measurement>, String> {
 const MAX_BENCH_BYTES: u64 = 16 << 20;
 
 /// Reads `dx-bench.json` out of the undeclared outputs zip one test result reports.
-fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, String> {
+fn read_result(result: &TestResultRecord) -> Result<Vec<Measurement>, DxError> {
     let zip = result
         .files
         .iter()
         .find(|file| file.name.ends_with("outputs.zip"))
-        .ok_or_else(|| format!("{BENCH_FILE} was not written"))?;
+        .ok_or_else(|| DxError::failure(format!("{BENCH_FILE} was not written")))?;
     let bytes = dx_archive::read_zip_member(&zip.exec_path, BENCH_FILE, MAX_BENCH_BYTES)
-        .map_err(|error| format!("cannot read the test outputs: {error}"))?
-        .ok_or_else(|| format!("{BENCH_FILE} was not written"))?;
+        .map_err(|error| DxError::infra(format!("cannot read the test outputs: {error}")))?
+        .ok_or_else(|| DxError::failure(format!("{BENCH_FILE} was not written")))?;
     parse_bench_file(&bytes)
 }
 
@@ -357,19 +365,23 @@ pub(crate) fn execute_bench(invocation: &Invocation, env: Env<'_>) -> i32 {
     let baseline = match &invocation.bench_compare {
         Some(reference) => {
             let loaded = tempfile::tempdir()
-                .map_err(|error| error.to_string())
+                .map_err(|error| DxError::from_io(error.to_string(), &error))
                 .and_then(|scratch| {
                     load_baseline(reference, workspace, Path::new("gh"), scratch.path())
                 });
             match loaded {
                 Ok(baseline) => Some(baseline),
-                Err(message) => {
-                    return operational(
-                        invocation,
+                Err(error) => {
+                    let error = DxError::new(
+                        error.kind(),
+                        format!("cannot compare with {reference:?}: {error}"),
+                    );
+                    return report_dx_error(
+                        invocation.output,
                         out,
                         err,
                         CODE_BENCH_COMPARE,
-                        &format!("cannot compare with {reference:?}: {message}"),
+                        &error,
                     );
                 }
             }
@@ -569,11 +581,17 @@ mod tests {
         let good = br#"{"schema":"dx-bench/v1","results":[{"name":"a","unit":"ms","mean":1.5,"stddev":0.1,"iterations":3}]}"#;
         assert_eq!(parse_bench_file(good).expect("parse").len(), 1);
         let other = br#"{"schema":"dx-bench/v2","results":[]}"#;
-        assert!(parse_bench_file(other).unwrap_err().contains("schema"));
+        assert!(
+            parse_bench_file(other)
+                .unwrap_err()
+                .message()
+                .contains("schema")
+        );
         let bad = br#"{"schema":"dx-bench/v1","results":[{"name":"a"}]}"#;
         assert!(
             parse_bench_file(bad)
                 .unwrap_err()
+                .message()
                 .starts_with("invalid dx-bench.json")
         );
     }

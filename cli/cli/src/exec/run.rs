@@ -101,8 +101,14 @@ impl Launcher<'_> {
                     options.push("--experimental_collect_local_sandbox_action_metrics".to_string());
                     Some(path)
                 }
-                Err(message) => {
-                    return Some(pre_exec(invocation.output, out, err, &message));
+                Err(error) => {
+                    return Some(report_dx_error(
+                        invocation.output,
+                        out,
+                        err,
+                        CODE_INVALID_ARGUMENTS,
+                        &error,
+                    ));
                 }
             }
         } else {

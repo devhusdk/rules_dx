@@ -113,8 +113,9 @@ pub(crate) fn without_libtest_harness(
         .collect())
 }
 
-pub(crate) fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, String> {
-    let text = std::str::from_utf8(stdout).map_err(|_| "query output is not UTF-8".to_owned())?;
+pub(crate) fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, dx_error::DxError> {
+    let text = std::str::from_utf8(stdout)
+        .map_err(|_| dx_error::DxError::failure("query output is not UTF-8"))?;
     let mut pairs: Vec<(String, String)> = Vec::new();
     for line in text.lines() {
         let line = line.trim();
@@ -127,9 +128,9 @@ pub(crate) fn parse_label_kind(stdout: &[u8]) -> Result<Vec<(String, String)>, S
                 pairs.push((kind.to_owned(), label.to_owned()));
             }
             _ => {
-                return Err(format!(
+                return Err(dx_error::DxError::failure(format!(
                     "query returned a malformed test observation: {line}"
-                ));
+                )));
             }
         }
     }
@@ -187,6 +188,9 @@ mod tests {
     #[test]
     fn parse_label_kind_rejects_malformed_rows() {
         let err = parse_label_kind(b"not a kind line\n").expect_err("malformed");
-        assert!(err.contains("malformed test observation"), "{err}");
+        assert!(
+            err.message().contains("malformed test observation"),
+            "{err}"
+        );
     }
 }

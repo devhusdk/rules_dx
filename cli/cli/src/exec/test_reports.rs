@@ -170,7 +170,7 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
             Err(reason) => {
                 reports_ok = false;
                 let message = format!("failed to render {name} report: {reason}");
-                let next = (!detail.is_empty() && reason == detail)
+                let next = (!detail.is_empty() && reason.message() == detail)
                     .then_some(super::guidance::EVIDENCE_GAP_NEXT);
                 if let Err(exit) = sink.failed(&message, next) {
                     return kept_child(err, bazel_code, exit);

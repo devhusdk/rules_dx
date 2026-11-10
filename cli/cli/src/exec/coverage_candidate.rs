@@ -101,7 +101,7 @@ pub(super) fn tracked_orphans(
         "ls-files",
         &["ls-files", "-z", "--cached"],
     )
-    .map_err(Unavailable::Failed)?;
+    .map_err(|error| Unavailable::Failed(error.message().to_owned()))?;
     let tracked: Vec<String> = listed
         .split(|byte| *byte == 0)
         .filter(|path| !path.is_empty())

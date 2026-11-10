@@ -7,8 +7,8 @@ mod breaking_base;
 mod build_failures;
 mod changed_coverage;
 mod clean;
-mod compiler_stderr;
 pub mod common;
+mod compiler_stderr;
 mod coverage_candidate;
 #[cfg(test)]
 mod current_dir_guard_tests;
@@ -108,12 +108,11 @@ fn hold_slot(
     command: Command,
     workspace: &std::path::Path,
     wait: std::time::Duration,
-) -> Option<Result<dx_atomic_fs::lease::SharedLease, String>> {
+) -> Option<Result<dx_atomic_fs::lease::SharedLease, dx_error::DxError>> {
     if slot_exempt(command) {
         return None;
     }
     dx_worktree::hold_busy(workspace, wait)
-        .map(|held| held.map_err(|error| error.message().to_owned()))
 }
 
 fn lease_refusal_for(
@@ -200,7 +199,7 @@ fn dispatch(invocation: &Invocation, env: Env<'_>) -> i32 {
     ) {
         Some(Err(refusal)) => {
             let Env { out, err, .. } = env;
-            return common::refusal(invocation.output, out, err, &refusal);
+            return common::refusal_dx_error(invocation.output, out, err, &refusal);
         }
         held => held
             .and_then(Result::ok)
@@ -730,7 +729,7 @@ mod tests {
             .expect("in a slot")
             .expect_err("refused");
         assert_eq!(
-            refusal,
+            refusal.message(),
             "slot 1 is being switched by dx worktree; run the command again"
         );
         drop(switching);

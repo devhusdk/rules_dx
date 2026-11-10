@@ -2,6 +2,7 @@ use super::common::*;
 use dx_atomic_fs::commit::{DEFAULT_COMMIT_LOCK_TIMEOUT, ManagedRoot, acquire_commit_lock};
 use dx_atomic_fs::lease;
 use dx_atomic_fs::managed::{EntryKind, classify, remove_managed};
+use dx_error::DxError;
 use dx_output::{FinishedCounts, NoticeEvent, command_finished, notice_event};
 use dx_path::state::{CLEAN_ENTRIES, LEASES, LOCAL_DIR, local_dir};
 use dx_plan::args::Invocation;
@@ -28,7 +29,9 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let removed = match remove_local_state(workspace) {
         Ok(removed) => removed,
-        Err(message) => return operational(invocation, out, err, CODE_CLEAN_FAILED, &message),
+        Err(error) => {
+            return report_dx_error(invocation.output, out, err, CODE_CLEAN_FAILED, &error);
+        }
     };
     let total: u64 = removed.iter().map(|entry| entry.bytes).sum();
     if json {
@@ -99,7 +102,7 @@ pub(crate) fn execute_clean(invocation: &Invocation, env: Env<'_>) -> i32 {
     0
 }
 
-fn remove_local_state(workspace: &Path) -> Result<Vec<Removed>, String> {
+fn remove_local_state(workspace: &Path) -> Result<Vec<Removed>, DxError> {
     let local = local_dir(workspace);
     if !local.is_dir() {
         return Ok(Vec::new());
@@ -108,7 +111,7 @@ fn remove_local_state(workspace: &Path) -> Result<Vec<Removed>, String> {
         &ManagedRoot::new(local.clone()),
         DEFAULT_COMMIT_LOCK_TIMEOUT,
     )
-    .map_err(|error| error.to_string())?;
+    .map_err(|error| DxError::failure(error.to_string()))?;
     let mut removed = Vec::new();
     for entry in CLEAN_ENTRIES {
         let path = local.join(entry);
@@ -118,7 +121,9 @@ fn remove_local_state(workspace: &Path) -> Result<Vec<Removed>, String> {
         } else {
             remove_entry(&path, &display, &mut removed)
         };
-        result.map_err(|error| format!("cannot remove {display}: {error}"))?;
+        result.map_err(|error| {
+            DxError::from_io(format!("cannot remove {display}: {error}"), &error)
+        })?;
     }
     Ok(removed)
 }

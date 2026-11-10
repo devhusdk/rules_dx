@@ -380,7 +380,15 @@ fn run_quality_request(
                 };
                 &rewritten
             }
-            Err(message) => return pre_exec(request.common.output, out, err, &message),
+            Err(error) => {
+                return report_dx_error(
+                    request.common.output,
+                    out,
+                    err,
+                    CODE_INVALID_ARGUMENTS,
+                    &error,
+                );
+            }
         }
     } else {
         request

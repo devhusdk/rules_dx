@@ -6,7 +6,7 @@ const UNOWNED_NAMES: &[(&str, &str, bool)] = &[
     ("rebar.lock", "hex", true),
     ("pubspec.lock", "pub", true),
     ("composer.lock", "composer", true),
-    ("stack.yaml.lock", "hackage", false),
+    ("stack.yaml.lock", "hackage", true),
     ("opam.locked", "opam", true),
     ("cpanfile.snapshot", "cpan", true),
     ("build.zig.zon", "zig", true),

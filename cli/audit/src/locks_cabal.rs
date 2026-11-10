@@ -38,6 +38,52 @@ pub fn parse_cabal_freeze(text: &str) -> Result<Vec<LockedPackage>, String> {
     Ok(out)
 }
 
+/// Reads the `hackage:` entries a `stack.yaml.lock` completes under `packages:`.
+pub fn parse_stack_lock(text: &str) -> Result<Vec<LockedPackage>, String> {
+    let mut in_packages = false;
+    let mut completed = false;
+    let mut out = Vec::new();
+    for line in text.lines() {
+        if !line.is_empty() && !line.starts_with([' ', '\t', '-']) {
+            in_packages = line.starts_with("packages:");
+            completed = false;
+            continue;
+        }
+        if !in_packages {
+            continue;
+        }
+        let trimmed = line.trim().trim_start_matches("- ").trim();
+        match trimmed {
+            "completed:" => completed = true,
+            "original:" => completed = false,
+            _ if completed => {
+                if let Some(rest) = trimmed.strip_prefix("hackage:") {
+                    let spec = rest.trim().split('@').next().unwrap_or_default();
+                    let Some((name, version)) = split_package_version(spec) else {
+                        return Err(format!("invalid stack.yaml.lock: hackage entry {spec:?}"));
+                    };
+                    out.push(LockedPackage::new("hackage", name, version));
+                }
+            }
+            _ => {}
+        }
+    }
+    out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));
+    out.dedup_by(|b, a| a.name == b.name && a.version == b.version);
+    Ok(out)
+}
+
+fn split_package_version(spec: &str) -> Option<(&str, &str)> {
+    let at = spec
+        .rmatch_indices('-')
+        .map(|(at, _)| at)
+        .find(|&at| {
+            let version = &spec[at + 1..];
+            !version.is_empty() && version.chars().all(|c| c.is_ascii_digit() || c == '.')
+        })?;
+    (at > 0).then(|| (&spec[..at], &spec[at + 1..]))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -89,5 +135,16 @@ mod tests {
     fn missing_constraints_is_an_error() {
         let error = parse_cabal_freeze("index-state: x\n").expect_err("error");
         assert!(error.contains("missing constraints"), "{error}");
+    }
+
+    #[test]
+    fn stack_lock_reads_completed_hackage_entries() {
+        let text = "packages:\n- completed:\n    hackage: acme-1.2.3@sha256:aa,100\n    pantry-tree:\n      size: 1\n  original:\n    hackage: acme-1.2\nsnapshots:\n- completed:\n    url: https://x\n";
+        let found = parse_stack_lock(text).expect("parsed");
+        let pairs: Vec<_> = found
+            .iter()
+            .map(|p| (p.name.as_str(), p.version.as_str()))
+            .collect();
+        assert_eq!(pairs, [("acme", "1.2.3")]);
     }
 }

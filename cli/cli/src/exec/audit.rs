@@ -432,6 +432,9 @@ fn parse_locked_for_configured(
                 Some(dx_adopt::dependency_sets::CABAL_FREEZE) => {
                     dx_audit::locks::parse_cabal_freeze(text)
                 }
+                Some(dx_adopt::dependency_sets::STACK_LOCK) => {
+                    dx_audit::locks::parse_stack_lock(text)
+                }
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Opam => dx_audit::locks::parse_opam_locked(text),

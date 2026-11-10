@@ -115,6 +115,8 @@ pub const CABAL_PROJECT: &str = "cabal.project";
 
 pub const CABAL_FREEZE: &str = "cabal.project.freeze";
 
+pub const STACK_LOCK: &str = "stack.yaml.lock";
+
 pub const PAKET_LOCK: &str = "paket.lock";
 
 pub const PSGALLERY_LOCK: &str = "PSGallery.lock.json";
@@ -817,11 +819,16 @@ pub fn discover(
         for haskell in module.haskell_packages().map_err(hub)? {
             let deps = path(haskell.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&deps));
+            let mut locks = vec![in_dir(&dir, CABAL_FREEZE), deps];
+            let stack = in_dir(&dir, STACK_LOCK);
+            if read(&stack).is_ok() {
+                locks.push(stack);
+            }
             sets.push(hub_set(
                 haskell.name,
                 Ecosystem::Cabal,
                 vec![in_dir(&dir, CABAL_PROJECT)],
-                vec![in_dir(&dir, CABAL_FREEZE), deps],
+                locks,
             )?);
         }
         for ansible in module.ansible_collections().map_err(hub)? {

@@ -696,6 +696,7 @@ haskell.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
 - A set takes no `set:package` without a version. `dx update <set>:<package> <version> --apply` rewrites the bound in `build-depends` first, then resolves again.
 - `dx update --outdated` compares the freeze pins with `hackage.haskell.org/package/<name>/preferred`.
 - `dx security` matches the `any.<name> ==<version>` pins of `cabal.project.freeze` against `.dx/local/advisory/hackage.json`. Flags and `installed` boot packages are skipped.
+- A `stack.yaml.lock` next to `cabal.project` joins the set's locks. `dx security` also reads the `hackage:` entries it completes under `packages:`. `haskell_deps_resolve(stack_lock = ...)` turns the lock into the freeze that `dx update` refreshes.
 
 ### ansible
 

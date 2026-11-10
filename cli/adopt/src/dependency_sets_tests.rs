@@ -165,6 +165,21 @@ fn haskell_packages_become_cabal_sets() {
 }
 
 #[test]
+fn a_stack_lock_beside_cabal_project_joins_the_cabal_set() {
+    let module = "haskell = use_extension(\"//haskell/toolchain:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+    let registry = found(module, &[("hs/stack.yaml.lock", "packages: []\n")]);
+    let set = registry.find("hackage").expect("set");
+    assert_eq!(
+        set.locks,
+        [
+            "hs/cabal.project.freeze",
+            "hs/haskell_deps.json",
+            "hs/stack.yaml.lock"
+        ]
+    );
+}
+
+#[test]
 fn cabal_layout_compares_freeze_and_sidecar_versions() {
     let scratch = dx_test_scratch::scratch("dx-dependency-sets-cabal-");
     let root = scratch.path();

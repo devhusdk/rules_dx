@@ -33,6 +33,11 @@ class RenderTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             render.render(MODULE.replace('["//patches/foo:a.patch"]', '["//patches/foo:a.patch", "//patches/foo:b.patch"]'), README)
 
+    def test_unlisted_module(self):
+        module = MODULE + MODULE.replace("foo", "bar")
+        with self.assertRaises(SystemExit):
+            render.render(module, README)
+
     def test_patches_across_rows(self):
         readme = README + "| `foo` | 1.0 | `b.patch` | More |\n"
         module = MODULE.replace('["//patches/foo:a.patch"]', '["//patches/foo:a.patch", "//patches/foo:b.patch"]')

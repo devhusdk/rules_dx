@@ -49,8 +49,11 @@ The Version column is generated from `MODULE.bazel`, and every patch it applies 
 | `windows_support` | 0.4.1 | `dx_msvc_layout.patch` | `@msvc_runtime` writes the MSVC header and library subsets that llvm's clang-cl toolchain searches and exposes them as `subdirectory` targets (#8912; upstream: hermeticbuild/windows_support#20 and PR #21; drop when a windows_support release has it) |
 | `windows_support` | 0.4.1 | `source_directory_headers.patch` | The Windows SDK `ucrt`, `shared`, `um` and `winrt` include targets give compiles one source directory each instead of about 4,000 loose headers, so Bazel caches their Merkle trees (#9135; upstream: hermeticbuild/windows_support#22 and PR #23; drop when a windows_support release has it) |
 | `windows_support` | 0.4.1 | `hostarm64_packages.patch` | `@msvc_runtime` selects the `Hostarm64` MSVC packages and their dependencies when `host_tools` is set |
+| `rules_go` | 0.65.0 | `lazy_nogo.patch`, `lock_extension.patch` | Toolchain registration does not load the Go rules, so builds without Go targets never fetch `@io_bazel_rules_nogo`; the `go_sdk` extension is not reproducible, so the lockfile keeps its result per platform |
+| `rules_flutter` | 0.0.8 | `lock_extension.patch`, `registrant_javacopts.patch` | The `flutter` extension is not reproducible, so the lockfile keeps its result (#8987); the generated plugin registrant compiles with `-Xlint:-options`, so `-Xlint:all` does not warn about its source 8 (#9085) |
+| `rules_multitool` | 1.0.0 | `lock_extension.patch` | The `multitool` extension is not reproducible, so the lockfile keeps its result and CI jobs do not run it again (#8987) |
 
-## elvis, rules_d, rules_dotnet, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml, rules_powershell, rules_ruby
+## elvis, rules_d, rules_dotnet, rules_elixir, rules_erlang, rules_fortran, rules_haskell, rules_ocaml, rules_ruby
 
 No action. `rules_dx` applies these patches in its own repository rules.
 

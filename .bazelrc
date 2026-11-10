@@ -7,7 +7,6 @@ try-import %workspace%/.dx/bazelrc/resources.bazelrc
 coverage --test_tag_filters=-no-coverage,-dx-no-coverage-collector
 
 test:retry --flaky_test_attempts=3
-test --test_timeout=60,300,900,3600
 common --local_resources=nested_bazel=2
 test --test_env=DX_NESTED_BAZEL_SLOTS
 test --test_env=DX_NESTED_BAZEL
@@ -68,7 +67,6 @@ build --@rules_rust//cargo/settings:cargo_toml_env_vars=False
 coverage:macos --copt=-fno-profile-instr-generate
 coverage:macos --copt=-fno-coverage-mapping
 
-
 # The conda ocamlc finds its stdlib relative to the unresolved executable path, which the darwin sandbox leaves without lib/ocaml.
 build:macos --modify_execution_info=CompileOcaml.*=+no-sandbox,CompileOCaml.*=+no-sandbox,ArchiveOCaml.*=+no-sandbox,LinkOCaml.*=+no-sandbox
 
@@ -87,19 +85,14 @@ common:ci --experimental_remote_downloader=grpcs://remote.buildbuddy.io
 common:ci --experimental_remote_downloader_local_fallback
 common:ci --build_metadata=ROLE=CI
 common:ci --build_metadata=DISABLE_COMMIT_STATUS_REPORTING=true
-# CI pins remotejdk_21; a JAVA_HOME that points nowhere stops @local_jdk from running java on every job.
-common:ci --repo_env=JAVA_HOME=dx-no-local-jdk
 
 common:rbe --remote_executor=grpcs://remote.buildbuddy.io
 common:rbe --remote_default_exec_properties=OSFamily=Linux
 common:rbe --remote_default_exec_properties=Arch=amd64
-common:rbe --remote_default_exec_properties=container-image=docker://gcr.io/flame-public/rbe-ubuntu24-04:latest
+common:rbe --remote_default_exec_properties=container-image=docker://gcr.io/flame-public/rbe-ubuntu24-04@sha256:be9853fc45092d2cf2bda3abed30d22182881659a50bf35c7125161d7cfc8a75
 common:rbe --remote_default_exec_properties=dockerUser=nobody
 common:rbe --remote_local_fallback
 common:rbe --strategy=TestRunner=remote,sandboxed,local
-
-# Fixture for consumer --config passthrough checks.
-build:dx_consumer_probe --copt=-DDX_CONSUMER_PROBE
 
 # Compilation modes for evidence.yml, which only accepts --config flags.
 build:cc_dbg --compilation_mode=dbg
@@ -114,6 +107,6 @@ build:linux --@rules_rust_wasm_bindgen//settings:test_browser=firefox
 # Source builds of Python sdists run without network.
 common --modify_execution_info=PySdist.*=+block-network
 
-try-import %workspace%/user.bazelrc
-
 build --//ruby/private/quality:rubocop=@bundle//bin:rubocop
+
+try-import %workspace%/user.bazelrc

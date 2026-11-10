@@ -23,7 +23,6 @@ bin
 out
 testlogs
 rules_dx
-families
 rust/tests/fixtures/consumer_hub/repo
 rust/tests/fixtures/consumer_native/repo
 rust/tests/fixtures/consumer_abi/repo

@@ -51,7 +51,7 @@ def _checks():
         expect_contains("the wrapper loads the closure", WRAPPER, "/lib${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}"),
         expect_equal("libdparse version", LIBDPARSE_VERSION, "0.25.1"),
         expect_equal("tool sources", sorted(TOOL_SOURCES.keys()), ["dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
-        expect_equal("dcd version", DCD_VERSION, "0.16.2"),
+        expect_equal("dcd version", DCD_VERSION, "0.19.4"),
         expect_equal("containers version", CONTAINERS_VERSION, "0.9.0"),
         expect_equal("inifiled version", INIFILED_VERSION, "1.3.3"),
         expect_equal("libddoc version", LIBDDOC_VERSION, "0.8.0"),

@@ -1,6 +1,6 @@
 # Swift
 
-Build Swift for Linux with `rules_swift` 4.2.2 and a pinned Swift 6.4.1
+Build Swift for Linux with `rules_swift` 4.2.2 and a pinned Swift 6.4.2
 toolchain. Nothing needs to be installed. `dx` registers the toolchain for
 Linux x86_64 and aarch64 hosts.
 
@@ -90,7 +90,7 @@ dx test //app:tests
 
 ## Windows x86_64
 
-On a Windows x86_64 host the rules build with the Swift 6.4.1 Windows installer
+On a Windows x86_64 host the rules build with the Swift 6.4.2 Windows installer
 from swift.org, pinned by sha256. The first Swift build downloads the 2 GB
 installer and unpacks it with the pinned PowerShell, `expand.exe` and
 `msiexec /a`; nothing is installed on the host.
@@ -104,7 +104,7 @@ This toolchain is not yet validated: `windows.msi` fails to extract with
 
 ## Windows arm64
 
-A Windows arm64 host uses the Swift 6.4.1 `windows10-arm64` installer, pinned by
+A Windows arm64 host uses the Swift 6.4.2 `windows10-arm64` installer, pinned by
 sha256 and unpacked the same way. It is registered but unverified, and Swift
 stays unsupported on windows_arm64 until it builds on a Windows ARM runner.
 
@@ -112,7 +112,7 @@ stays unsupported on windows_arm64 until it builds on a Windows ARM runner.
 
 The sections below describe the Linux toolchain.
 
-- The compiler is the Swift 6.4.1 Ubuntu 22.04 archive from swift.org.
+- The compiler is the Swift 6.4.2 Ubuntu 22.04 archive from swift.org.
 - Headers and C libraries come from a locked Ubuntu 22.04 package set.
 - Libraries `swiftc` needs on the build host, such as `libncurses`, come from the same package set.
 - C++ resolution stays with `@llvm`.

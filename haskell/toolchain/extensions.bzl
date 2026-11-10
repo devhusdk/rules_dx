@@ -16,6 +16,7 @@ def _haskell_impl(mctx):
             Label("//patches/rules_haskell:cabal_rules.patch"),
             Label("//patches/rules_haskell:cabal_mingw_transition.patch"),
             Label("//patches/rules_haskell:cc_wrapper_relpath_mount.patch"),
+            Label("//patches/rules_haskell:ghc_wrapper_runfiles_env.patch"),
             Label("//patches/rules_haskell:cc_toolchain_config_info.patch"),
         ],
         sha256 = RULES_HASKELL.sha256,

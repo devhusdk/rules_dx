@@ -209,7 +209,10 @@ def cc_test(name, *, srcs = None, visibility = None, **kwargs):
 
 def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
-    flags = ["-fsanitize=fuzzer,address"]
+    flags = select({
+        Label("@platforms//os:windows"): ["-fsanitize=fuzzer"],  # TODO(#9946)
+        "//conditions:default": ["-fsanitize=fuzzer,address"],
+    })
     dx_fuzz_test(name, cc_binary, {"srcs": srcs, "copts": flags + (copts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
 
 def cc_bench(name, *, srcs = None, visibility = None, tags = None, deps = None, **kwargs):

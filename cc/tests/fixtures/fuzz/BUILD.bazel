@@ -1,3 +1,4 @@
+load("@bazel_skylib//rules:native_binary.bzl", "native_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//cc:defs.bzl", "cc_fuzz_test")
 load("//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
@@ -28,6 +29,14 @@ sh_test(
     timeout = "short",
 )
 
+native_test(
+    name = "parse_fuzz_smoke_test",
+    src = ":parse_fuzz",
+    args = ["-runs=1000"],
+    target_compatible_with = ["@platforms//os:windows"],
+    timeout = "short",
+)
+
 cc_fuzz_test(
     name = "args_fuzz",
     srcs = ["parse.cc"],
@@ -36,10 +45,13 @@ cc_fuzz_test(
 
 dx_runner_attr_test(
     name = "args_fuzz_attrs",
-    expected = {
-        "args": ["-max_total_time=1"],
-        "tags": ["dx-fuzz", "manual"],
-    },
+    expected = {"args": ["-max_total_time=1"]},
+    runner = "args_fuzz_asan",
+)
+
+dx_runner_attr_test(
+    name = "args_fuzz_tags",
+    expected = {"tags": ["dx-fuzz", "manual"]},
     runner = "args_fuzz",
 )
 

@@ -34,10 +34,13 @@ d_fuzz_test(
 
 dx_runner_attr_test(
     name = "args_fuzz_attrs",
-    expected = {
-        "args": ["-max_total_time=1"],
-        "tags": ["dx-fuzz", "manual"],
-    },
+    expected = {"args": ["-max_total_time=1"]},
+    runner = "args_fuzz_asan",
+)
+
+dx_runner_attr_test(
+    name = "args_fuzz_tags",
+    expected = {"tags": ["dx-fuzz", "manual"]},
     runner = "args_fuzz",
 )
 

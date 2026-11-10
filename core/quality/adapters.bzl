@@ -75,9 +75,7 @@ NOT_APPLICABLE = {
 # Families whose Typecheck cell is `no` because the adapter is missing, mapped
 # to the tool that would fill it. A `no` cell must name one; otherwise the
 # family belongs in NOT_APPLICABLE["typecheck"] with a reason.
-TYPECHECK_CANDIDATES = {
-    "oci": "check-jsonschema against the OCI image-spec manifest and config schemas",
-}
+TYPECHECK_CANDIDATES = {}
 
 def not_applicable_error(not_applicable, adapters, class_to_family):
     """Validates a not-applicable declaration against the adapter registry."""

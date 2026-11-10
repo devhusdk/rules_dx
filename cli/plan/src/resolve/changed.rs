@@ -80,7 +80,7 @@ pub fn diff_name_status(
         }
         return Err(git_failure("diff", first_diagnostic(&result.stderr)));
     }
-    dx_adopt::parse_name_status_nul(&result.stdout).map_err(|error| error.to_string())
+    dx_adopt::parse_name_status_nul(&result.stdout)
 }
 
 pub fn merge_base(

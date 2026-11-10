@@ -13,7 +13,7 @@ Bazel via Bazelisk is required. In an empty directory, create three files.
 `.bazelversion`:
 
 ```text
-9.2.0
+9.3.1
 ```
 
 `MODULE.bazel`:

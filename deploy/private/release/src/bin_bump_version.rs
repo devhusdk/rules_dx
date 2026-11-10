@@ -59,6 +59,10 @@ fn targets() -> Vec<(&'static str, Vec<Edit>)> {
             ],
         ),
         (
+            "cli/shim/src/protocol.rs",
+            vec![version("SHIM_VERSION: &str = \"")],
+        ),
+        (
             "cli/adopt/src/scaffold.rs",
             vec![pin("CONSUMER_WORKFLOW_PIN: &str = \"")],
         ),
@@ -287,6 +291,10 @@ mod tests {
                 "pub const DX_VERSION: &str = \"0.0.0\";\npub const MODULE_VERSION: &str = \"0.0.0\";\n",
             ),
             (
+                "cli/shim/src/protocol.rs",
+                "pub const SHIM_VERSION: &str = \"0.0.0\";\n",
+            ),
+            (
                 "cli/adopt/src/scaffold.rs",
                 "pub const CONSUMER_WORKFLOW_PIN: &str = \"e97ab7b550d08e047c35edc5f50c7d242227842f\";\n",
             ),
@@ -315,7 +323,7 @@ mod tests {
     fn rewrites_every_file() {
         let dir = tempfile::tempdir().unwrap();
         fixture(dir.path());
-        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(6));
+        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(7));
         assert!(read(dir.path(), "MODULE.bazel").contains("    version = \"1.2.3\","));
         assert!(read(dir.path(), "MODULE.bazel").contains("name = \"x\", version = \"9.9.9\""));
         assert_eq!(
@@ -325,6 +333,10 @@ mod tests {
         let version = read(dir.path(), "cli/adopt/src/version.rs");
         assert!(version.contains("DX_VERSION: &str = \"1.2.3\";"));
         assert!(version.contains("MODULE_VERSION: &str = \"1.2.3\";"));
+        assert_eq!(
+            read(dir.path(), "cli/shim/src/protocol.rs"),
+            "pub const SHIM_VERSION: &str = \"1.2.3\";\n"
+        );
         assert!(read(dir.path(), "cli/adopt/src/scaffold.rs").contains(&format!("\"{NEW}\";")));
         assert_eq!(
             read(dir.path(), "tools/ci/starter_pin.sha256"),
@@ -347,7 +359,7 @@ mod tests {
         let path = dir.path().join("families/go/MODULE.bazel");
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(&path, family).unwrap();
-        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(7));
+        assert_eq!(bump(dir.path(), "1.2.3", NEW), Ok(8));
         assert_eq!(
             read(dir.path(), "families/go/MODULE.bazel"),
             "module(\n    name = \"rules_dx_go\",\n    version = \"1.2.3\",\n)\nbazel_dep(name = \"rules_dx\", version = \"1.2.3\")\nbazel_dep(name = \"x\", version = \"9.9.9\")\n"

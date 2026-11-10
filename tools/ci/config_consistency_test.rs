@@ -235,6 +235,21 @@ fn bazel_compatibility_floor_matches_bazelversion() {
 }
 
 #[test]
+fn docs_name_the_bazel_floor() {
+    let floor = bazel_floor(&read_runfiles("MODULE.bazel"));
+    let quickstart = format!("`.bazelversion`:\n\n```text\n{floor}\n```");
+    assert!(
+        read_runfiles("README.md").contains(&quickstart),
+        "README.md quickstart .bazelversion is not {floor}"
+    );
+    let required = format!("Bazel {floor} or later is required.");
+    assert!(
+        read_runfiles("docs/cli/commands/README.md").contains(&required),
+        "docs/cli/commands/README.md does not say: {required}"
+    );
+}
+
+#[test]
 fn toml_list_reads_one_line_and_commented_lists() {
     assert_eq!(toml_list("select = [\"B\", \"A\"]\n", "select"), ["A", "B"]);
     assert_eq!(

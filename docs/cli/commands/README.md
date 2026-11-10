@@ -566,7 +566,7 @@ Quality config:
 Every other file stays private.
 A private file is not a dependency.
 The Bazel version in `.bazelversion` is the tested baseline.
-Bazel 9.2.0 or later is required.
+Bazel 9.3.1 or later is required.
 
 rules_dx does not provide debugger acquisition, launch or attach integration,
 Debug Adapter Protocol adapters, or generated debugger configurations. These

@@ -10,6 +10,7 @@ Set `X.Y.Z` by hand in these places and merge to `main`. `bazel run //deploy/pri
 - `cli/prebuilt/pins.bzl`: `DX_VERSION`
 - `cli/adopt/src/version.rs`: `DX_VERSION`
 - `cli/adopt/src/version.rs`: `MODULE_VERSION`
+- `cli/shim/src/protocol.rs`: `SHIM_VERSION`
 - each `families/<f>/MODULE.bazel`: `module(version = ...)` and the `bazel_dep` on `rules_dx`
 
 The `source` job in `release.yml` compares the first four with the tag, and the source archive step compares every family module with it. A mismatch fails with `land the version bump first`.

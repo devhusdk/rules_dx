@@ -5,7 +5,7 @@ use std::process::Command;
 
 use documentation_ir::proto::SymbolKind;
 use documentation_ir::validate_shard;
-use jvm_test_support::{find, ids, line_of, runfile, shard, symbol};
+use shard_test_support::{find, ids, line_of, shard, symbol};
 
 const SHAPES: &str = "kotlin:shapes:dx.fixture.shapes.";
 
@@ -174,7 +174,7 @@ impl Driver {
     }
 
     fn run(&self, manifest: &Path, classpath: &Path) -> (i32, String) {
-        let output = Command::new(runfile("DX_DOKKA_EXTRACT"))
+        let output = Command::new(dx_testing::env_file("DX_DOKKA_EXTRACT"))
             .arg("--srcs-manifest")
             .arg(manifest)
             .arg("--classpath-file")
@@ -212,7 +212,7 @@ fn the_adapter_fails_on_a_missing_source_or_classpath_jar() {
     let (code, stderr) = driver.run(&driver.manifest(&[nope]), &driver.classpath(&[]));
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("missing source"), "{stderr}");
-    let manifest = driver.manifest(&[runfile("DX_SHAPE_KT")]);
+    let manifest = driver.manifest(&[dx_testing::env_file("DX_SHAPE_KT")]);
     let (code, stderr) = driver.run(&manifest, &driver.classpath(&["no-such.jar"]));
     assert_eq!(code, 1, "{stderr}");
     assert!(stderr.contains("missing classpath entry"), "{stderr}");

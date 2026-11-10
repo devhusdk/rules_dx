@@ -5,16 +5,12 @@ use std::process::Command;
 
 use documentation_ir::proto::{DocIr, Symbol};
 use documentation_ir::{decode_shard, encode_shard, validate_shard};
+use shard_test_support::extension;
 
 const LEDGER_DIR: &str = "tools/docs/powershell/fixture/Ledger";
 
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
 fn read_shard(var: &str) -> (Vec<u8>, DocIr) {
-    let bytes = std::fs::read(runfile(var)).expect("read the shard");
+    let bytes = std::fs::read(dx_testing::env_file(var)).expect("read the shard");
     let shard = decode_shard(&bytes).expect("the shard decodes");
     (bytes, shard)
 }
@@ -24,20 +20,7 @@ fn ledger() -> DocIr {
 }
 
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    let id = format!("powershell:{}:{name}", shard.package);
-    shard
-        .symbols
-        .iter()
-        .find(|s| s.id == id)
-        .unwrap_or_else(|| panic!("no symbol {id}"))
-}
-
-fn extension(symbol: &Symbol, key: &str) -> Option<String> {
-    symbol
-        .extensions
-        .iter()
-        .find(|e| e.key == key)
-        .map(|e| String::from_utf8(e.value.clone()).expect("utf8 extension"))
+    shard_test_support::symbol(shard, &format!("powershell:{}:{name}", shard.package))
 }
 
 fn assert_config(value: &str, manifest: &str, version: &str) {
@@ -117,7 +100,7 @@ fn a_function_with_two_parameter_sets_renders_both() {
     );
     let keys: Vec<&str> = add.extensions.iter().map(|e| e.key.as_str()).collect();
     assert_eq!(keys, ["powershell.aliases", "powershell.config"]);
-    assert_eq!(extension(add, "powershell.aliases").as_deref(), Some("ale"));
+    assert_eq!(extension(add, "powershell.aliases"), Some("ale"));
 }
 
 #[test]
@@ -150,10 +133,7 @@ fn a_function_without_help_is_marked_incomplete() {
     );
     assert_eq!(remove.doc_markdown, "");
     assert_eq!(remove.returns, None);
-    assert_eq!(
-        extension(remove, "powershell.incomplete").as_deref(),
-        Some("help")
-    );
+    assert_eq!(extension(remove, "powershell.incomplete"), Some("help"));
 }
 
 #[test]
@@ -169,7 +149,7 @@ fn a_crlf_source_maps_to_lf_text() {
         "Test-LedgerBalance [-Ledger] <object> [[-Tolerance] <int>] [<CommonParameters>]"
     );
     assert_eq!(
-        extension(test, "powershell.incomplete").as_deref(),
+        extension(test, "powershell.incomplete"),
         Some("params=Tolerance")
     );
     let source = std::fs::read(dx_testing::resolve_runfiles(&format!(
@@ -268,7 +248,7 @@ fn scratch(name: &str) -> PathBuf {
 
 #[test]
 fn the_mapper_fails_without_writing_on_bad_api_json() {
-    let mapper = runfile("DX_POWERSHELL_EXTRACT");
+    let mapper = dx_testing::env_file("DX_POWERSHELL_EXTRACT");
     let dir = scratch("bad_api");
     for (name, json) in [
         (

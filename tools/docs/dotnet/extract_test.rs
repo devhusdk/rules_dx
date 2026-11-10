@@ -1,22 +1,11 @@
 //! Checks the C# fixture shards: shapes, signatures, docs, sources and configuration.
 
-use std::path::PathBuf;
-
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
-use documentation_ir::{decode_shard, validate_shard};
+use documentation_ir::validate_shard;
+use shard_test_support::shard;
 
 const PREFIX: &str = "csharp:Dx.Fixture.Ledger:Dx.Fixture.Ledger.";
 const ACCOUNT: &str = "tools/docs/dotnet/fixture/csharp/ledger/Account.cs";
-
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn shard(var: &str) -> DocIr {
-    let bytes = std::fs::read(runfile(var)).expect("read the shard");
-    decode_shard(&bytes).expect("the shard decodes")
-}
 
 fn symbols<'a>(shard: &'a DocIr, name: &str) -> Vec<&'a Symbol> {
     let id = format!("{PREFIX}{name}");
@@ -119,7 +108,7 @@ fn the_defines_select_the_members() {
     assert!(symbols(&base, "Account.Freeze").is_empty());
     assert_eq!(symbols(&extra, "Account.Freeze").len(), 1);
     assert_ne!(
-        std::fs::read(runfile("DX_FIXTURE_SHARD")).expect("read"),
-        std::fs::read(runfile("DX_FIXTURE_EXTRA_SHARD")).expect("read")
+        std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("read"),
+        std::fs::read(dx_testing::env_file("DX_FIXTURE_EXTRA_SHARD")).expect("read")
     );
 }

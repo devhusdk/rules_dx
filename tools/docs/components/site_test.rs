@@ -1,13 +1,9 @@
 //! Feeds the Vue, Svelte, Astro and MDX fixture shards to the site aggregator.
 
+use shard_test_support::shard;
+
 fn fixture() -> documentation_ir::proto::DocIr {
     shard("DX_FIXTURE_SHARD")
-}
-
-fn shard(var: &str) -> documentation_ir::proto::DocIr {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    let bytes = std::fs::read(dx_testing::resolve_runfiles(&rel)).expect("read the shard");
-    documentation_ir::decode_shard(&bytes).expect("decode")
 }
 
 #[test]

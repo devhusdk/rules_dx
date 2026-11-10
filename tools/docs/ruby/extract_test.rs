@@ -5,47 +5,15 @@ use std::process::Command;
 
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use documentation_ir::{decode_shard, validate_shard};
+use shard_test_support::{extension, find, line_of, shard};
 
 const PREFIX: &str = "ruby:geometry:";
 const GEOMETRY: &str = "tools/docs/ruby/fixture/lib/geometry.rb";
 const SHAPES: &str = "tools/docs/ruby/fixture/lib/geometry/shapes.rb";
 const CRLF_SHAPES: &str = "tools/docs/ruby/fixture/crlf/shapes.rb";
 
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn shard(var: &str) -> DocIr {
-    let bytes = std::fs::read(runfile(var)).expect("read the shard");
-    decode_shard(&bytes).expect("the shard decodes")
-}
-
-fn find<'a>(shard: &'a DocIr, id: &str) -> Option<&'a Symbol> {
-    shard.symbols.iter().find(|s| s.id == id)
-}
-
-fn symbol<'a>(shard: &'a DocIr, qualified: &str) -> &'a Symbol {
-    let id = format!("{PREFIX}{qualified}");
-    find(shard, &id).unwrap_or_else(|| panic!("{id} is missing"))
-}
-
-fn extension<'a>(symbol: &'a Symbol, key: &str) -> Option<&'a str> {
-    symbol
-        .extensions
-        .iter()
-        .find(|e| e.key == key)
-        .map(|e| std::str::from_utf8(&e.value).expect("utf-8 extension"))
-}
-
-/// Returns the 1-based line of the first fixture line that contains `needle`.
-fn line_of(var: &str, needle: &str) -> u64 {
-    let text = std::fs::read_to_string(runfile(var)).expect("read the fixture");
-    let index = text
-        .lines()
-        .position(|line| line.contains(needle))
-        .unwrap_or_else(|| panic!("{needle} is not in the fixture"));
-    index as u64 + 1
+fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
 }
 
 #[test]
@@ -332,7 +300,7 @@ impl Driver {
     fn new(name: &str) -> Driver {
         let dir_tmp = dx_test_scratch::scratch(name);
         let dir = dir_tmp.path().to_path_buf();
-        let broken = runfile("DX_TESTDATA_BROKEN");
+        let broken = dx_testing::env_file("DX_TESTDATA_BROKEN");
         let root = broken
             .ancestors()
             .nth(6)
@@ -380,13 +348,13 @@ impl Driver {
         home: &Path,
         plugin_lib: Option<&Path>,
     ) -> (i32, String) {
-        let mut command = Command::new(runfile("DX_RUBY"));
+        let mut command = Command::new(dx_testing::env_file("DX_RUBY"));
         command.arg("--disable-gems").arg("-I").arg(yard_lib);
         if let Some(lib) = plugin_lib {
             command.arg("-I").arg(lib);
         }
         let output = command
-            .arg(runfile("DX_YARD_DUMP"))
+            .arg(dx_testing::env_file("DX_YARD_DUMP"))
             .arg("--own")
             .arg(own)
             .arg("--srcs")
@@ -415,11 +383,14 @@ impl Driver {
 }
 
 fn yard_lib() -> PathBuf {
-    runfile("DX_YARD_RB").parent().expect("lib").to_path_buf()
+    dx_testing::env_file("DX_YARD_RB")
+        .parent()
+        .expect("lib")
+        .to_path_buf()
 }
 
 fn testdata() -> PathBuf {
-    runfile("DX_TESTDATA_BROKEN")
+    dx_testing::env_file("DX_TESTDATA_BROKEN")
         .parent()
         .expect("testdata")
         .to_path_buf()
@@ -562,12 +533,13 @@ fn plugins_yardopts_and_home_config_are_never_loaded() {
         sources
     );
     let json = std::fs::read_to_string(driver.out()).expect("json");
-    let fixture = std::fs::read_to_string(runfile("DX_FIXTURE_JSON")).expect("fixture json");
+    let fixture =
+        std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_JSON")).expect("fixture json");
     assert_eq!(json, fixture);
 }
 
 fn extract(json: &Path, out: &Path) -> (i32, String) {
-    let output = Command::new(runfile("DX_RUBY_EXTRACT"))
+    let output = Command::new(dx_testing::env_file("DX_RUBY_EXTRACT"))
         .arg("--json")
         .arg(json)
         .arg("--package")
@@ -586,7 +558,8 @@ fn extract(json: &Path, out: &Path) -> (i32, String) {
 fn the_converter_rejects_a_new_format_and_truncated_json() {
     let dir_tmp = dx_test_scratch::scratch("ruby-extract");
     let dir = dir_tmp.path().to_path_buf();
-    let json = std::fs::read_to_string(runfile("DX_FIXTURE_JSON")).expect("driver json");
+    let json =
+        std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_JSON")).expect("driver json");
     assert!(json.contains("\"format\": 1,"));
     let out = dir.join("shard.ir.pb");
     for (name, text, needle) in [
@@ -608,6 +581,6 @@ fn the_converter_rejects_a_new_format_and_truncated_json() {
     assert_eq!(code, 0, "{stderr}");
     assert_eq!(
         std::fs::read(&out).expect("shard"),
-        std::fs::read(runfile("DX_FIXTURE_SHARD")).expect("fixture")
+        std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("fixture")
     );
 }

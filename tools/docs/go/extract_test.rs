@@ -1,40 +1,17 @@
 //! Checks the Go fixture shards and the driver's and converter's failure handling.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use documentation_ir::proto::{DocIr, Symbol, SymbolKind};
 use documentation_ir::{decode_shard, validate_shard};
+use shard_test_support::{extension, shard};
 
 const PREFIX: &str = "go:example.com/ledger/money:";
 const SOURCE: &str = "tools/docs/go/fixture/money.go";
 
-fn runfile(var: &str) -> PathBuf {
-    let rel = std::env::var(var).unwrap_or_else(|_| panic!("{var} must name a runfile"));
-    dx_testing::resolve_runfiles(&rel)
-}
-
-fn shard(var: &str) -> DocIr {
-    let bytes = std::fs::read(runfile(var)).expect("read the shard");
-    decode_shard(&bytes).expect("the shard decodes")
-}
-
 fn symbol<'a>(shard: &'a DocIr, name: &str) -> &'a Symbol {
-    let id = format!("{PREFIX}{name}");
-    shard
-        .symbols
-        .iter()
-        .find(|s| s.id == id)
-        .unwrap_or_else(|| panic!("{id} is missing"))
-}
-
-fn extension<'a>(symbol: &'a Symbol, key: &str) -> &'a str {
-    let found = symbol
-        .extensions
-        .iter()
-        .find(|e| e.key == key)
-        .unwrap_or_else(|| panic!("{} has no {key}", symbol.id));
-    std::str::from_utf8(&found.value).expect("utf-8 extension")
+    shard_test_support::symbol(shard, &format!("{PREFIX}{name}"))
 }
 
 #[test]
@@ -110,12 +87,12 @@ fn signatures_docs_and_sources_come_from_go_doc() {
         assert!(source.line > 0);
         assert_eq!(
             extension(symbol, "go.config"),
-            "goos=linux;goarch=amd64;tags=;cgo=0;json=1"
+            Some("goos=linux;goarch=amd64;tags=;cgo=0;json=1")
         );
     }
     assert_eq!(
         extension(module, "go.excluded"),
-        "tools/docs/go/fixture/windows.go"
+        Some("tools/docs/go/fixture/windows.go")
     );
 }
 
@@ -128,17 +105,17 @@ fn build_constraints_follow_the_configured_goos() {
         Some("tools/docs/go/fixture/windows.go")
     );
     let module = symbol(&windows, "money");
-    assert_eq!(extension(module, "go.excluded"), "");
+    assert_eq!(extension(module, "go.excluded"), Some(""));
     assert_eq!(
         extension(module, "go.config"),
-        "goos=windows;goarch=amd64;tags=;cgo=0;json=1"
+        Some("goos=windows;goarch=amd64;tags=;cgo=0;json=1")
     );
 }
 
 #[test]
 fn a_changed_doc_changes_the_shard_bytes() {
-    let base = std::fs::read(runfile("DX_FIXTURE_SHARD")).expect("read");
-    let changed = std::fs::read(runfile("DX_FIXTURE_CHANGED_SHARD")).expect("read");
+    let base = std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("read");
+    let changed = std::fs::read(dx_testing::env_file("DX_FIXTURE_CHANGED_SHARD")).expect("read");
     assert_ne!(base, changed);
     let changed = decode_shard(&changed).expect("decodes");
     assert_eq!(
@@ -148,7 +125,7 @@ fn a_changed_doc_changes_the_shard_bytes() {
 }
 
 fn run(var: &str, dir: &Path, args: &[&str]) -> (i32, String) {
-    let output = Command::new(runfile(var))
+    let output = Command::new(dx_testing::env_file(var))
         .args(args)
         .current_dir(dir)
         .output()
@@ -186,7 +163,8 @@ fn the_driver_fails_on_a_broken_package_and_writes_nothing() {
 fn the_converter_rejects_bad_json_and_writes_no_shard() {
     let dir_tmp = dx_test_scratch::scratch("go-extract");
     let dir = dir_tmp.path().to_path_buf();
-    let json = std::fs::read_to_string(runfile("DX_FIXTURE_JSON")).expect("driver json");
+    let json =
+        std::fs::read_to_string(dx_testing::env_file("DX_FIXTURE_JSON")).expect("driver json");
     assert!(json.contains("\"schema\": 1,"));
     std::fs::write(
         dir.join("new.json"),
@@ -211,6 +189,6 @@ fn the_converter_rejects_bad_json_and_writes_no_shard() {
     let written = std::fs::read(dir.join("shard.ir.pb")).expect("shard");
     assert_eq!(
         written,
-        std::fs::read(runfile("DX_FIXTURE_SHARD")).expect("fixture")
+        std::fs::read(dx_testing::env_file("DX_FIXTURE_SHARD")).expect("fixture")
     );
 }

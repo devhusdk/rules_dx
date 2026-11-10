@@ -58,6 +58,7 @@ rust_test(
     deps = [
         "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/ir/ir:documentation_ir",
+        "//tools/docs/ir/ir:shard_test_support",
         "//tools/testing:dx_testing",
     ],
 )
@@ -88,6 +89,7 @@ rust_test(
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//tools/docs/ir/ir:documentation_ir",
+        "//tools/docs/ir/ir:shard_test_support",
         "//tools/docs/site/aggregate:dx_site_aggregate",
         "//tools/testing:dx_testing",
     ],

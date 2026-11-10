@@ -1,5 +1,6 @@
 use documentation_ir::{decode_shard, proto};
-use proto::{DocIr, Symbol, SymbolKind};
+use proto::{DocIr, SymbolKind};
+use shard_test_support::symbol;
 
 const SHARD: &str = "tools/docs/rust/fixture/_dx_docs/docs_fixture.ir.pb";
 const CHANGED: &str = "tools/docs/rust/fixture/_dx_docs/docs_fixture_changed.ir.pb";
@@ -8,14 +9,6 @@ fn decoded(rel: &str) -> DocIr {
     let path = dx_testing::resolve_runfiles(rel);
     let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("read {rel}: {error}"));
     decode_shard(&bytes).unwrap_or_else(|error| panic!("{rel} does not decode: {error:?}"))
-}
-
-fn symbol<'a>(shard: &'a DocIr, id: &str) -> &'a Symbol {
-    shard
-        .symbols
-        .iter()
-        .find(|symbol| symbol.id == id)
-        .unwrap_or_else(|| panic!("no symbol {id}"))
 }
 
 #[test]

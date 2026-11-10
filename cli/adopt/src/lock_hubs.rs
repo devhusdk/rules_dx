@@ -74,6 +74,7 @@ const PUB: Ecosystem = Ecosystem {
     hub: "pub_deps",
 };
 const PUB_UPSTREAM_BZL: &str = "@rules_dart//dart/pub:extensions.bzl";
+const PUB_OWN_BZL: &str = "//dart:extensions.bzl";
 const TSCONFIG: &str = "tsconfig.json";
 
 const PNPM: Ecosystem = Ecosystem {
@@ -484,6 +485,7 @@ impl Planner<'_> {
         let wired = self.files.iter().any(|file| {
             !file.extension_bindings(PUB.bzl, PUB.ext).is_empty()
                 || !file.extension_bindings(PUB_UPSTREAM_BZL, PUB.ext).is_empty()
+                || !file.extension_bindings(PUB_OWN_BZL, PUB.ext).is_empty()
         });
         if wired {
             return Ok(());
@@ -739,6 +741,19 @@ mod tests {
             text.contains("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"),
             "{text}"
         );
+    }
+
+    #[test]
+    fn a_pub_extension_from_this_repository_is_left_alone() {
+        let dir = scratch("lock_hubs");
+        write(
+            dir.path(),
+            MODULE_FILE,
+            &format!("{MODULE}pub = use_extension(\"//dart:extensions.bzl\", \"pub\")\npub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"),
+        );
+        write(dir.path(), "pubspec.lock", "");
+        write(dir.path(), "pubspec.yaml", "");
+        assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
     #[test]

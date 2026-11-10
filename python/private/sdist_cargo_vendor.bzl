@@ -123,6 +123,7 @@ def _repo_impl(rctx):
     rctx.file(".cargo/config.toml", _CONFIG)
     rctx.file("layer.bzl", _LAYER)
     rctx.file("BUILD.bazel", _BUILD)
+    return rctx.repo_metadata(reproducible = True)
 
 sdist_cargo_vendor_repo = repository_rule(
     implementation = _repo_impl,
@@ -152,6 +153,7 @@ def _ext_impl(module_ctx):
                 package = tag.package,
                 cargo_lock_path = tag.cargo_lock_path,
             )
+    return module_ctx.extension_metadata(reproducible = True)
 
 sdist_cargo_vendor = module_extension(
     doc = "Vendors a sdist's Cargo.lock crates so wheel builds never reach crates.io.",

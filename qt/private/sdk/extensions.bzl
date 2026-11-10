@@ -65,6 +65,7 @@ def _qt_sdk_impl(module_ctx):
             no_match_error(table),
         )},
     )
+    return module_ctx.extension_metadata(reproducible = True)
 
 qt_sdk = module_extension(
     implementation = _qt_sdk_impl,

@@ -1,5 +1,7 @@
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//core:failure_test.bzl", "failure_test")
@@ -1944,10 +1946,20 @@ deploy_analysis_test(
     subject = "nuget+alias",
 )
 
-genrule(
+write_file(
+    name = "cpan_demo_meta",
+    out = "cpan_demo/META.json",
+    content = ["{}"],
+    newline = "unix",
+)
+
+pkg_tar(
     name = "cpan_demo_dist",
-    outs = ["Cpan-Demo-0.01.tar.gz"],
-    cmd = "mkdir -p $(@D)/stage/Cpan-Demo-0.01 && printf '{}' > $(@D)/stage/Cpan-Demo-0.01/META.json && tar -czf $@ -C $(@D)/stage Cpan-Demo-0.01",
+    srcs = [":cpan_demo_meta"],
+    out = "Cpan-Demo-0.01.tar.gz",
+    extension = "tar.gz",
+    mode = "0644",
+    package_dir = "Cpan-Demo-0.01",
 )
 
 cpan_deploy(
@@ -1985,10 +1997,24 @@ deploy_analysis_test(
     subject = "conan_demo",
 )
 
-genrule(
+write_file(
+    name = "hackage_demo_cabal",
+    out = "hackage_demo/hackage-demo.cabal",
+    content = [
+        "name: hackage-demo",
+        "version: 0.0.0",
+        "",
+    ],
+    newline = "unix",
+)
+
+pkg_tar(
     name = "hackage_demo_sdist",
-    outs = ["hackage-demo-0.0.0.tar.gz"],
-    cmd = "mkdir -p $(@D)/stage/hackage-demo-0.0.0 && printf 'name: hackage-demo\\nversion: 0.0.0\\n' > $(@D)/stage/hackage-demo-0.0.0/hackage-demo.cabal && tar -czf $@ -C $(@D)/stage hackage-demo-0.0.0",
+    srcs = [":hackage_demo_cabal"],
+    out = "hackage-demo-0.0.0.tar.gz",
+    extension = "tar.gz",
+    mode = "0644",
+    package_dir = "hackage-demo-0.0.0",
 )
 
 hackage_deploy(

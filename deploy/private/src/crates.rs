@@ -912,25 +912,12 @@ mod tests {
         write_crate_file(&repo, "pkg/Cargo.toml", "[package]\nname = \"pkg\"\n");
         write_crate_file(&repo, "pkg/src/lib.rs", "pub fn hello() {}\n");
         for args in [
-            vec!["init", "-q"],
-            vec!["add", "."],
-            vec![
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@example.com",
-                "commit",
-                "-q",
-                "-m",
-                "x",
-            ],
-            vec!["tag", "v1.2.0"],
+            &["init", "-q"][..],
+            &["add", "."],
+            &["commit", "-q", "-m", "x"],
+            &["tag", "v1.2.0"],
         ] {
-            dx_process::capture::run_checked(
-                dx_process::capture::git(&repo).args(&args),
-                dx_process::capture::DEFAULT_TIMEOUT,
-            )
-            .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
+            dx_test_scratch::git(&repo, &repo, args);
         }
         let files = nested_crate(&scratch.path().join("in/pkg"));
         let mapped = crates_package_paths(&files).expect("paths");
@@ -1016,25 +1003,12 @@ mod tests {
         write_crate_file(&repo, "pkg/Cargo.toml", manifest);
         write_crate_file(&repo, "pkg/src/lib.rs", "pub fn hello() {}\n");
         for args in [
-            vec!["init", "-q"],
-            vec!["add", "."],
-            vec![
-                "-c",
-                "user.name=t",
-                "-c",
-                "user.email=t@example.com",
-                "commit",
-                "-q",
-                "-m",
-                "x",
-            ],
-            vec!["tag", "v1.2.0"],
+            &["init", "-q"][..],
+            &["add", "."],
+            &["commit", "-q", "-m", "x"],
+            &["tag", "v1.2.0"],
         ] {
-            dx_process::capture::run_checked(
-                dx_process::capture::git(&repo).args(&args),
-                dx_process::capture::DEFAULT_TIMEOUT,
-            )
-            .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
+            dx_test_scratch::git(&repo, &repo, args);
         }
         let current = scratch.path().join("in/pkg");
         let files = vec![

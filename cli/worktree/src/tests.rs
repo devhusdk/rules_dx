@@ -338,26 +338,6 @@ impl Host for FakeHost {
     }
 }
 
-/// Makes a git command ignore the developer's global and system config (hooks, `insteadOf`, signing).
-pub(super) fn isolate(cmd: &mut std::process::Command) {
-    static HOME: std::sync::OnceLock<tempfile::TempDir> = std::sync::OnceLock::new();
-    let home = HOME.get_or_init(|| tempfile::tempdir().expect("git home"));
-    dx_test_scratch::isolate_git(cmd, home.path());
-}
-
-fn git(dir: &Path, args: &[&str]) -> String {
-    let mut command = dx_process::capture::git(dir);
-    command
-        .args(["-c", "user.name=t", "-c", "user.email=t@example.com"])
-        .args(["-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"])
-        .args(args);
-    isolate(&mut command);
-    let output =
-        dx_process::capture::run_checked(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
-            .unwrap_or_else(|error| panic!("git {args:?}: {error}"));
-    output.stdout_text().trim().to_owned()
-}
-
 struct Fixture {
     _scratch: tempfile::TempDir,
     main: PathBuf,
@@ -373,22 +353,24 @@ impl Fixture {
         let main = root.join("repo");
         let cache = root.join("cache");
         std::fs::create_dir_all(&origin).expect("origin dir");
-        git(
+        dx_test_scratch::git(
+            &origin,
             &origin,
             &["init", "--bare", "--quiet", "--initial-branch=main"],
         );
         std::fs::create_dir_all(&main).expect("main dir");
-        git(&main, &["init", "--quiet", "--initial-branch=main"]);
+        dx_test_scratch::git(&main, &main, &["init", "--quiet", "--initial-branch=main"]);
         std::fs::write(main.join("a.txt"), "one\n").expect("write");
         std::fs::write(main.join("MODULE.bazel.lock"), "{}\n").expect("lock");
-        git(&main, &["add", "."]);
-        git(&main, &["commit", "--quiet", "-m", "first"]);
-        git(
+        dx_test_scratch::git(&main, &main, &["add", "."]);
+        dx_test_scratch::git(&main, &main, &["commit", "--quiet", "-m", "first"]);
+        dx_test_scratch::git(
+            &main,
             &main,
             &["remote", "add", "origin", &origin.to_string_lossy()],
         );
-        git(&main, &["push", "--quiet", "-u", "origin", "main"]);
-        git(&main, &["remote", "set-head", "origin", "main"]);
+        dx_test_scratch::git(&main, &main, &["push", "--quiet", "-u", "origin", "main"]);
+        dx_test_scratch::git(&main, &main, &["remote", "set-head", "origin", "main"]);
         Fixture {
             _scratch: scratch,
             main,
@@ -401,8 +383,13 @@ impl Fixture {
         let root = fixture.cache.parent().expect("root").to_path_buf();
         let outer = root.join("super");
         std::fs::create_dir_all(&outer).expect("super dir");
-        git(&outer, &["init", "--quiet", "--initial-branch=main"]);
-        git(
+        dx_test_scratch::git(
+            &outer,
+            &outer,
+            &["init", "--quiet", "--initial-branch=main"],
+        );
+        dx_test_scratch::git(
+            &outer,
             &outer,
             &[
                 "-c",
@@ -414,10 +401,10 @@ impl Fixture {
                 "mod",
             ],
         );
-        git(&outer, &["commit", "--quiet", "-m", "add mod"]);
+        dx_test_scratch::git(&outer, &outer, &["commit", "--quiet", "-m", "add mod"]);
         let main = std::fs::canonicalize(outer.join("mod")).expect("canonical mod");
-        git(&main, &["checkout", "--quiet", "main"]);
-        git(&main, &["remote", "set-head", "origin", "main"]);
+        dx_test_scratch::git(&main, &main, &["checkout", "--quiet", "main"]);
+        dx_test_scratch::git(&main, &main, &["remote", "set-head", "origin", "main"]);
         Fixture { main, ..fixture }
     }
 
@@ -425,7 +412,8 @@ impl Fixture {
         let fixture = Fixture::new();
         let root = fixture.cache.parent().expect("root").to_path_buf();
         let sep = root.join("sep");
-        git(
+        dx_test_scratch::git(
+            &root,
             &root,
             &[
                 "clone",
@@ -436,7 +424,7 @@ impl Fixture {
             ],
         );
         let main = std::fs::canonicalize(&sep).expect("canonical sep");
-        git(&main, &["remote", "set-head", "origin", "main"]);
+        dx_test_scratch::git(&main, &main, &["remote", "set-head", "origin", "main"]);
         Fixture { main, ..fixture }
     }
 
@@ -456,7 +444,8 @@ impl Fixture {
     fn clone_origin(&self) -> PathBuf {
         let root = self.cache.parent().expect("parent");
         let clone = root.join("other");
-        git(
+        dx_test_scratch::git(
+            root,
             root,
             &[
                 "clone",
@@ -521,7 +510,10 @@ fn add_leases_a_slot_outside_the_repo_and_checks_out_the_branch() {
     assert_eq!(added.base.as_deref(), Some("origin/main"));
     assert!(added.path.starts_with(&fixture.cache));
     assert!(!added.path.starts_with(&fixture.main));
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
     assert!(added.path.join("a.txt").is_file());
     let listing = ops::list(&pool, &host, false).expect("list");
     let row = listing
@@ -541,7 +533,10 @@ fn assert_leases_a_slot(fixture: &Fixture) {
     host.live(10);
     let added = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     assert_eq!(added.slot, 1);
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
     let listing = ops::list(&pool, &host, false).expect("list");
     assert!(
         listing.rows.iter().all(|row| row.state != State::External),
@@ -577,7 +572,8 @@ fn same_named_repositories_opening_together_get_separate_pools() {
         .map(|side| {
             let main = root.join(side).join("shared");
             std::fs::create_dir_all(&main).expect("parent");
-            git(
+            dx_test_scratch::git(
+                &root,
                 &root,
                 &["clone", "--quiet", &origin, &main.to_string_lossy()],
             );
@@ -643,7 +639,8 @@ fn open_refuses_a_linked_worktree_of_a_bare_repository() {
     let fixture = Fixture::new();
     let origin = fixture.main.with_file_name("origin.git");
     let linked = fixture.main.with_file_name("bare-linked");
-    git(
+    dx_test_scratch::git(
+        &origin,
         &origin,
         &[
             "worktree",
@@ -698,7 +695,8 @@ fn add_warns_when_origin_cannot_be_fetched() {
     let host = FakeHost::new();
     host.live(10);
     let missing = fixture.main.parent().expect("root").join("missing.git");
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &["remote", "set-url", "origin", &missing.to_string_lossy()],
     );
@@ -712,7 +710,10 @@ fn add_warns_when_origin_cannot_be_fetched() {
         "{:?}",
         added.warnings
     );
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
 }
 
 #[test]
@@ -812,7 +813,8 @@ fn re_adding_a_held_branch_does_not_fetch_origin() {
     host.live(10);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     let missing = fixture.main.parent().expect("root").join("missing.git");
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &["remote", "set-url", "origin", &missing.to_string_lossy()],
     );
@@ -834,13 +836,17 @@ fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
     let me = who("s1", 10);
     let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
     std::fs::write(first.path.join("scratch.log"), "x").expect("scratch");
-    git(
+    dx_test_scratch::git(
+        &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
     let released = ops::release(&pool, &host, &me, &first.path, true).expect("release");
     assert_eq!(released.slot, Some(1));
-    assert_eq!(git(&first.path, &["branch", "--show-current"]), "");
+    assert_eq!(
+        dx_test_scratch::git(&first.path, &first.path, &["branch", "--show-current"]),
+        ""
+    );
     let row = ops::list(&pool, &host, false)
         .expect("list")
         .rows
@@ -853,7 +859,7 @@ fn release_frees_the_slot_and_the_next_add_reuses_it_without_leftovers() {
     assert_eq!(second.path, first.path);
     assert!(!second.path.join("scratch.log").exists());
     assert_eq!(
-        git(&second.path, &["branch", "--show-current"]),
+        dx_test_scratch::git(&second.path, &second.path, &["branch", "--show-current"]),
         "feature/b"
     );
 }
@@ -865,7 +871,8 @@ fn release_frees_a_slot_whose_lease_record_is_missing() {
     let host = FakeHost::new();
     let me = who("s1", 10);
     let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
-    git(
+    dx_test_scratch::git(
+        &added.path,
         &added.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -873,7 +880,10 @@ fn release_frees_a_slot_whose_lease_record_is_missing() {
     let released = ops::release(&pool, &host, &me, &added.path, false).expect("release");
     assert_eq!(released.slot, Some(added.slot));
     assert!(!released.already_free);
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        ""
+    );
     let row = ops::list(&pool, &host, false)
         .expect("list")
         .rows
@@ -1006,12 +1016,19 @@ fn release_of_a_record_less_slot_keeps_the_holder_check() {
     let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
     pool.remove(added.slot);
     std::fs::write(added.path.join("b.txt"), "new\n").expect("write");
-    git(&added.path, &["add", "."]);
-    git(&added.path, &["commit", "--quiet", "-m", "local"]);
+    dx_test_scratch::git(&added.path, &added.path, &["add", "."]);
+    dx_test_scratch::git(
+        &added.path,
+        &added.path,
+        &["commit", "--quiet", "-m", "local"],
+    );
     // The holder is unknown and the work is unpushed, so nobody releases it without --force.
     let err = ops::release(&pool, &host, &other, &added.path, false).expect_err("refused");
     assert_eq!(err.code, "slot_leased");
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
     ops::release(&pool, &host, &other, &added.path, true).expect("forced");
 }
 
@@ -1038,11 +1055,16 @@ fn release_refuses_commits_that_are_on_no_remote_unless_forced() {
     let me = who("s1", 10);
     let added = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
     std::fs::write(added.path.join("b.txt"), "new\n").expect("write");
-    git(&added.path, &["add", "."]);
-    git(&added.path, &["commit", "--quiet", "-m", "local"]);
+    dx_test_scratch::git(&added.path, &added.path, &["add", "."]);
+    dx_test_scratch::git(
+        &added.path,
+        &added.path,
+        &["commit", "--quiet", "-m", "local"],
+    );
     let refused = ops::release(&pool, &host, &me, &added.path, false).expect_err("unpushed");
     assert_eq!(refused.code, "unpushed_commits");
-    git(
+    dx_test_scratch::git(
+        &added.path,
         &added.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -1090,7 +1112,7 @@ fn a_stale_lease_does_not_release_the_slot_leased_again_after_it() {
     assert!(record.held);
     assert_eq!(record.branch.as_deref(), Some("worktree-c"));
     assert_eq!(
-        git(&again.path, &["branch", "--show-current"]),
+        dx_test_scratch::git(&again.path, &again.path, &["branch", "--show-current"]),
         "worktree-c"
     );
     assert_eq!(host.shutdown_count(), shutdowns);
@@ -1105,7 +1127,8 @@ fn another_live_agent_in_the_same_session_cannot_release_or_reuse_the_slot_witho
     let first = agent("s1", "a1", 10);
     let second = agent("s1", "a2", 10);
     let added = ops::add(&pool, &host, &first, &create("feature/a")).expect("add");
-    git(
+    dx_test_scratch::git(
+        &added.path,
         &added.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -1142,7 +1165,10 @@ fn another_live_agent_in_the_same_session_cannot_release_or_reuse_the_slot_witho
     let adopted = ops::add(&pool, &host, &second, &forced("feature/a")).expect("forced");
     assert!(adopted.reused);
     assert_eq!(adopted.slot, added.slot);
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
     assert!(pool.record(added.slot).expect("record").held_by(&second));
     ops::release(&pool, &host, &first, &added.path, true).expect("force releases");
 }
@@ -1159,7 +1185,11 @@ fn a_gone_holder_does_not_let_another_session_release_before_it_is_reclaimable()
         ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect_err("not yours");
     assert_eq!(refused.code, "slot_leased");
     assert!(refused.message.contains("(gone)"), "{}", refused.message);
-    git(&added.path, &["checkout", "--quiet", "--", "a.txt"]);
+    dx_test_scratch::git(
+        &added.path,
+        &added.path,
+        &["checkout", "--quiet", "--", "a.txt"],
+    );
     ops::release(&pool, &host, &who("s2", 20), &added.path, false).expect("reclaimable");
 }
 
@@ -1184,7 +1214,11 @@ fn a_failed_switch_still_deletes_the_stale_slots_it_took_the_records_of() {
     assert!(pool.record(first.slot).is_none());
     let freed = pool.record(second.slot).expect("slot 2 record kept");
     assert!(!freed.held, "slot 2 is marked free again");
-    let listing = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    let listing = dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["worktree", "list", "--porcelain"],
+    );
     let entry = listing
         .split("\n\n")
         .find(|block| block.contains(&second.path.to_string_lossy().into_owned()))
@@ -1266,7 +1300,11 @@ fn add_keeps_a_free_slot_with_a_process_in_it() {
 #[test]
 fn add_keeps_a_free_slot_with_an_ignored_file() {
     assert_refused(|_, slot| {
-        let common = git(&slot.path, &["rev-parse", "--path-format=absolute", "--git-common-dir"]);
+        let common = dx_test_scratch::git(
+            &slot.path,
+            &slot.path,
+            &["rev-parse", "--path-format=absolute", "--git-common-dir"],
+        );
         let exclude = Path::new(common.trim()).join("info");
         std::fs::create_dir_all(&exclude).expect("info");
         std::fs::write(exclude.join("exclude"), "ignored.txt\n").expect("exclude");
@@ -1284,7 +1322,8 @@ fn add_keeps_a_free_slot_with_an_untracked_file() {
 #[test]
 fn add_keeps_a_free_slot_in_the_middle_of_a_rebase() {
     assert_refused(|_, slot| {
-        let dir = git(&slot.path, &["rev-parse", "--absolute-git-dir"]);
+        let dir =
+            dx_test_scratch::git(&slot.path, &slot.path, &["rev-parse", "--absolute-git-dir"]);
         std::fs::create_dir_all(Path::new(dir.trim()).join("rebase-merge")).expect("state");
     });
 }
@@ -1352,8 +1391,8 @@ fn add_keeps_free_slots_with_unpushed_commits_above_the_limit() {
     let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
     let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
     std::fs::write(a.path.join("n.txt"), "n\n").expect("write");
-    git(&a.path, &["add", "n.txt"]);
-    git(&a.path, &["commit", "--quiet", "-m", "local"]);
+    dx_test_scratch::git(&a.path, &a.path, &["add", "n.txt"]);
+    dx_test_scratch::git(&a.path, &a.path, &["commit", "--quiet", "-m", "local"]);
     host.advance(10);
     ops::release(&pool, &host, &me, &a.path, true).expect("release a");
     ops::release(&pool, &host, &me, &b.path, true).expect("release b");
@@ -1393,7 +1432,11 @@ fn a_failed_add_on_a_fresh_slot_rolls_the_slot_back() {
     assert_eq!(error.code, "git_failed");
     assert!(pool.record(1).is_none());
     assert!(!pool.slot_path(1).exists());
-    let listing = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    let listing = dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["worktree", "list", "--porcelain"],
+    );
     assert!(!listing.contains(&pool.slot_path(1).to_string_lossy().into_owned()));
     std::fs::remove_file(heads.join("x.lock")).expect("unlock");
     let added = ops::add(&pool, &host, &me, &create("feature/x")).expect("retry");
@@ -1467,11 +1510,14 @@ fn a_missing_branch_starts_from_the_default_base() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let added = ops::add(&pool, &host, &who("s1", 10), &existing("nope")).expect("started");
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "nope");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        "nope"
+    );
     assert_eq!(added.base.as_deref(), Some("origin/main"));
     assert_eq!(
-        git(&added.path, &["rev-parse", "HEAD"]),
-        git(&fixture.main, &["rev-parse", "origin/main"])
+        dx_test_scratch::git(&added.path, &added.path, &["rev-parse", "HEAD"]),
+        dx_test_scratch::git(&fixture.main, &fixture.main, &["rev-parse", "origin/main"])
     );
     let unknown = AddRequest {
         create: Some("origin/nope".to_owned()),
@@ -1480,7 +1526,7 @@ fn a_missing_branch_starts_from_the_default_base() {
     let refused = ops::add(&pool, &host, &who("s2", 20), &unknown).expect_err("unknown base");
     assert!(refused.usage);
     assert_eq!(refused.code, "unknown_ref");
-    git(&fixture.main, &["branch", "other"]);
+    dx_test_scratch::git(&fixture.main, &fixture.main, &["branch", "other"]);
     let taken = ops::add(&pool, &host, &who("s1", 10), &create("other")).expect_err("exists");
     assert_eq!(taken.code, "branch_exists");
 }
@@ -1488,7 +1534,8 @@ fn a_missing_branch_starts_from_the_default_base() {
 #[test]
 fn default_base_skips_an_origin_head_whose_target_is_gone() {
     let fixture = Fixture::new();
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &[
             "symbolic-ref",
@@ -1503,7 +1550,8 @@ fn default_base_skips_an_origin_head_whose_target_is_gone() {
 #[test]
 fn default_base_refuses_when_origin_head_and_the_candidates_are_gone() {
     let fixture = Fixture::new();
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &[
             "symbolic-ref",
@@ -1511,7 +1559,8 @@ fn default_base_refuses_when_origin_head_and_the_candidates_are_gone() {
             "refs/remotes/origin/master",
         ],
     );
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &["update-ref", "-d", "refs/remotes/origin/main"],
     );
@@ -1535,7 +1584,8 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_after_the_quiet_period() 
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.advance(ops::STOP_GRACE_SECS);
-    git(
+    dx_test_scratch::git(
+        &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -1554,7 +1604,7 @@ fn a_dead_holder_with_a_clean_pushed_tree_is_reclaimed_after_the_quiet_period() 
     assert!(!second.reused);
     assert_eq!(second.base, None);
     assert_eq!(
-        git(&second.path, &["branch", "--show-current"]),
+        dx_test_scratch::git(&second.path, &second.path, &["branch", "--show-current"]),
         "feature/a"
     );
     assert_eq!(host.shutdown_paths(), vec![first.path.clone()]);
@@ -1576,7 +1626,8 @@ fn a_slot_with_a_process_working_in_it_is_not_reclaimed() {
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.advance(ops::STOP_GRACE_SECS);
-    git(
+    dx_test_scratch::git(
+        &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -1599,7 +1650,8 @@ fn a_process_in_a_slot_with_a_gone_holder_blocks_a_release_by_another_session() 
     let host = FakeHost::new();
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.advance(ops::STOP_GRACE_SECS);
-    git(
+    dx_test_scratch::git(
+        &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -1654,7 +1706,8 @@ fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
     let host = FakeHost::new();
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
-    git(
+    dx_test_scratch::git(
+        &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -1680,12 +1733,18 @@ fn a_slot_with_a_running_dx_command_is_not_reclaimed_or_released() {
             refused.message
         );
     }
-    assert_eq!(git(&first.path, &["branch", "--show-current"]), "feature/a");
+    assert_eq!(
+        dx_test_scratch::git(&first.path, &first.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
     host.advance(ops::STOP_GRACE_SECS);
     drop(running);
     let third = ops::add(&pool, &host, &who("s2", 20), &create("feature/c")).expect("third");
     assert_eq!(third.slot, 1);
-    assert_eq!(git(&third.path, &["branch", "--show-current"]), "feature/c");
+    assert_eq!(
+        dx_test_scratch::git(&third.path, &third.path, &["branch", "--show-current"]),
+        "feature/c"
+    );
 }
 
 #[test]
@@ -1713,7 +1772,8 @@ fn a_dead_holder_with_a_dirty_tree_keeps_its_slot() {
     host.live(20);
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.advance(ops::STOP_GRACE_SECS);
-    git(
+    dx_test_scratch::git(
+        &first.path,
         &first.path,
         &["push", "--quiet", "-u", "origin", "feature/a"],
     );
@@ -1745,8 +1805,12 @@ fn a_dead_holder_with_unpushed_commits_keeps_its_slot() {
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.advance(ops::STOP_GRACE_SECS);
     std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
-    git(&first.path, &["add", "a.txt"]);
-    git(&first.path, &["commit", "--quiet", "-m", "work"]);
+    dx_test_scratch::git(&first.path, &first.path, &["add", "a.txt"]);
+    dx_test_scratch::git(
+        &first.path,
+        &first.path,
+        &["commit", "--quiet", "-m", "work"],
+    );
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
     assert!(
@@ -1769,8 +1833,12 @@ fn a_dead_holder_with_unpushed_commits_and_a_dirty_tree_reports_the_dirty_tree()
     let first = ops::add(&pool, &host, &who("s1", 10), &create("feature/a")).expect("add");
     host.advance(ops::STOP_GRACE_SECS);
     std::fs::write(first.path.join("a.txt"), "work\n").expect("write");
-    git(&first.path, &["add", "a.txt"]);
-    git(&first.path, &["commit", "--quiet", "-m", "work"]);
+    dx_test_scratch::git(&first.path, &first.path, &["add", "a.txt"]);
+    dx_test_scratch::git(
+        &first.path,
+        &first.path,
+        &["commit", "--quiet", "-m", "work"],
+    );
     std::fs::write(first.path.join("a.txt"), "dirty\n").expect("dirty");
     let listing = ops::list(&pool, &host, false).expect("list");
     assert_eq!(slot_one(&listing).state, State::Held);
@@ -1843,7 +1911,8 @@ fn a_slot_removed_with_git_worktree_remove_is_forgotten_and_its_number_reused() 
     let host = FakeHost::new();
     let me = who("s1", 10);
     let first = ops::add(&pool, &host, &me, &create("feature/a")).expect("add");
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &[
             "worktree",
@@ -1858,7 +1927,7 @@ fn a_slot_removed_with_git_worktree_remove_is_forgotten_and_its_number_reused() 
     let second = ops::add(&pool, &host, &me, &create("feature/b")).expect("add b");
     assert_eq!(second.slot, 1);
     assert_eq!(
-        git(&second.path, &["branch", "--show-current"]),
+        dx_test_scratch::git(&second.path, &second.path, &["branch", "--show-current"]),
         "feature/b"
     );
 }
@@ -1869,7 +1938,8 @@ fn hand_made_checkouts_are_listed_as_external() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = fixture.cache.parent().expect("parent").join("hand");
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &[
             "worktree",
@@ -1919,8 +1989,8 @@ fn the_slot_that_last_held_a_branch_is_picked_first() {
     let a = ops::add(&pool, &host, &me, &create("feature/a")).expect("a");
     let b = ops::add(&pool, &host, &me, &create("feature/b")).expect("b");
     for path in [&a.path, &b.path] {
-        let branch = git(path, &["branch", "--show-current"]);
-        git(path, &["push", "--quiet", "-u", "origin", &branch]);
+        let branch = dx_test_scratch::git(path, path, &["branch", "--show-current"]);
+        dx_test_scratch::git(path, path, &["push", "--quiet", "-u", "origin", &branch]);
     }
     ops::release(&pool, &host, &me, &a.path, false).expect("release a");
     host.advance(10);
@@ -3102,7 +3172,10 @@ fn release_of_a_slot_waits_for_the_pool_lock() {
     );
     let record = pool.record(added.slot).expect("record");
     assert!(record.held);
-    assert_eq!(git(&added.path, &["branch", "--show-current"]), "feature/a");
+    assert_eq!(
+        dx_test_scratch::git(&added.path, &added.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
 }
 
 #[test]
@@ -3165,9 +3238,17 @@ fn new_branches_start_from_the_default_branch_of_origin() {
     let host = FakeHost::new();
     let origin_clone = fixture.clone_origin();
     std::fs::write(origin_clone.join("new.txt"), "n\n").expect("write");
-    git(&origin_clone, &["add", "."]);
-    git(&origin_clone, &["commit", "--quiet", "-m", "newer"]);
-    git(&origin_clone, &["push", "--quiet", "origin", "main"]);
+    dx_test_scratch::git(&origin_clone, &origin_clone, &["add", "."]);
+    dx_test_scratch::git(
+        &origin_clone,
+        &origin_clone,
+        &["commit", "--quiet", "-m", "newer"],
+    );
+    dx_test_scratch::git(
+        &origin_clone,
+        &origin_clone,
+        &["push", "--quiet", "origin", "main"],
+    );
     let added = ops::add(
         &pool,
         &host,
@@ -3191,9 +3272,17 @@ fn worktreeinclude_files_are_copied_into_the_slot() {
     let fixture = Fixture::new();
     std::fs::write(fixture.main.join(".gitignore"), ".env\n").expect("ignore");
     std::fs::write(fixture.main.join(".worktreeinclude"), ".env\n").expect("include");
-    git(&fixture.main, &["add", "."]);
-    git(&fixture.main, &["commit", "--quiet", "-m", "include"]);
-    git(&fixture.main, &["push", "--quiet", "origin", "main"]);
+    dx_test_scratch::git(&fixture.main, &fixture.main, &["add", "."]);
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["commit", "--quiet", "-m", "include"],
+    );
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["push", "--quiet", "origin", "main"],
+    );
     std::fs::write(fixture.main.join(".env"), "SECRET=1\n").expect("env");
     let pool = fixture.pool();
     let host = FakeHost::new();
@@ -3825,7 +3914,8 @@ mod hooks {
         let first = agent("s1", "a1", 10);
         let second = agent("s1", "a2", 10);
         let added = ops::add(&pool, &host, &first, &create("feature/a")).expect("add");
-        git(
+        dx_test_scratch::git(
+            &added.path,
             &added.path,
             &["push", "--quiet", "-u", "origin", "feature/a"],
         );
@@ -3981,7 +4071,7 @@ mod hooks {
         let path = created.path;
         assert!(path.starts_with(&fixture.cache));
         assert_eq!(
-            git(&path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&path, &path, &["branch", "--show-current"]),
             "worktree-agent-one"
         );
         let removal = serde_json::json!({"worktree_path": path});
@@ -4005,7 +4095,8 @@ mod hooks {
         let host = FakeHost::new();
         host.live(10);
         let missing = fixture.main.parent().expect("root").join("missing.git");
-        git(
+        dx_test_scratch::git(
+            &fixture.main,
             &fixture.main,
             &["remote", "set-url", "origin", &missing.to_string_lossy()],
         );
@@ -4021,7 +4112,7 @@ mod hooks {
             created.warnings
         );
         assert_eq!(
-            git(&created.path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&created.path, &created.path, &["branch", "--show-current"]),
             "worktree-agent-one"
         );
     }
@@ -4145,12 +4236,20 @@ mod hooks {
     fn create_skips_an_agent_branch_that_exists_only_on_origin() {
         let fixture = Fixture::new();
         let clone = fixture.clone_origin();
-        git(&clone, &["checkout", "--quiet", "-b", "worktree-agent-two"]);
+        dx_test_scratch::git(
+            &clone,
+            &clone,
+            &["checkout", "--quiet", "-b", "worktree-agent-two"],
+        );
         std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
-        git(&clone, &["add", "."]);
-        git(&clone, &["commit", "--quiet", "-m", "agent work"]);
-        git(&clone, &["push", "--quiet", "origin", "worktree-agent-two"]);
-        let pushed = git(&clone, &["rev-parse", "HEAD"]);
+        dx_test_scratch::git(&clone, &clone, &["add", "."]);
+        dx_test_scratch::git(&clone, &clone, &["commit", "--quiet", "-m", "agent work"]);
+        dx_test_scratch::git(
+            &clone,
+            &clone,
+            &["push", "--quiet", "origin", "worktree-agent-two"],
+        );
+        let pushed = dx_test_scratch::git(&clone, &clone, &["rev-parse", "HEAD"]);
         let pool = fixture.pool();
         let host = FakeHost::new();
         let me = who("s1", 10);
@@ -4158,15 +4257,20 @@ mod hooks {
         let path = hook::create(&pool, &host, &me, &input)
             .expect("create")
             .path;
-        let base = git(&fixture.main, &["rev-parse", "origin/main"]);
+        let base =
+            dx_test_scratch::git(&fixture.main, &fixture.main, &["rev-parse", "origin/main"]);
         assert_ne!(base, pushed);
-        assert_eq!(git(&path, &["rev-parse", "HEAD"]), base);
         assert_eq!(
-            git(&path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&path, &path, &["rev-parse", "HEAD"]),
+            base
+        );
+        assert_eq!(
+            dx_test_scratch::git(&path, &path, &["branch", "--show-current"]),
             "worktree-agent-two-2"
         );
         assert_eq!(
-            git(
+            dx_test_scratch::git(
+                &path,
                 &path,
                 &[
                     "for-each-ref",
@@ -4182,18 +4286,18 @@ mod hooks {
             .expect("create again")
             .path;
         assert_eq!(
-            git(&again, &["branch", "--show-current"]),
+            dx_test_scratch::git(&again, &again, &["branch", "--show-current"]),
             "worktree-agent-two-2"
         );
     }
 
     fn push_agent_branch(fixture: &Fixture, branch: &str) -> PathBuf {
         let clone = fixture.clone_origin();
-        git(&clone, &["checkout", "--quiet", "-b", branch]);
+        dx_test_scratch::git(&clone, &clone, &["checkout", "--quiet", "-b", branch]);
         std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
-        git(&clone, &["add", "."]);
-        git(&clone, &["commit", "--quiet", "-m", "agent work"]);
-        git(&clone, &["push", "--quiet", "origin", branch]);
+        dx_test_scratch::git(&clone, &clone, &["add", "."]);
+        dx_test_scratch::git(&clone, &clone, &["commit", "--quiet", "-m", "agent work"]);
+        dx_test_scratch::git(&clone, &clone, &["push", "--quiet", "origin", branch]);
         clone
     }
 
@@ -4211,15 +4315,15 @@ mod hooks {
         assert_ne!(first.slot, same.slot);
         assert_ne!(same.slot, other.slot);
         assert_eq!(
-            git(&first.path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&first.path, &first.path, &["branch", "--show-current"]),
             "worktree-agent-two"
         );
         assert_eq!(
-            git(&same.path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&same.path, &same.path, &["branch", "--show-current"]),
             "worktree-agent-two-2"
         );
         assert_eq!(
-            git(&other.path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&other.path, &other.path, &["branch", "--show-current"]),
             "worktree-agent-two-3"
         );
     }
@@ -4259,7 +4363,11 @@ mod hooks {
             for result in results {
                 let added = result.expect("create");
                 slots.push(added.slot);
-                branches.push(git(&added.path, &["branch", "--show-current"]));
+                branches.push(dx_test_scratch::git(
+                    &added.path,
+                    &added.path,
+                    &["branch", "--show-current"],
+                ));
             }
             slots.sort_unstable();
             slots.dedup();
@@ -4274,8 +4382,13 @@ mod hooks {
     fn create_ignores_a_deleted_origin_branch() {
         let fixture = Fixture::new();
         let clone = push_agent_branch(&fixture, "worktree-agent-two");
-        git(&fixture.main, &["fetch", "--quiet", "origin"]);
-        git(
+        dx_test_scratch::git(
+            &fixture.main,
+            &fixture.main,
+            &["fetch", "--quiet", "origin"],
+        );
+        dx_test_scratch::git(
+            &clone,
             &clone,
             &[
                 "push",
@@ -4292,10 +4405,11 @@ mod hooks {
             .expect("create")
             .path;
         assert_eq!(
-            git(&path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&path, &path, &["branch", "--show-current"]),
             "worktree-agent-two"
         );
-        git(
+        dx_test_scratch::git(
+            &fixture.main,
             &fixture.main,
             &[
                 "show-ref",
@@ -4309,9 +4423,14 @@ mod hooks {
     fn create_falls_back_to_local_refs_when_origin_is_unreachable() {
         let fixture = Fixture::new();
         push_agent_branch(&fixture, "worktree-agent-two");
-        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+        dx_test_scratch::git(
+            &fixture.main,
+            &fixture.main,
+            &["fetch", "--quiet", "origin"],
+        );
         let missing = fixture.main.parent().expect("root").join("missing.git");
-        git(
+        dx_test_scratch::git(
+            &fixture.main,
             &fixture.main,
             &["remote", "set-url", "origin", &missing.to_string_lossy()],
         );
@@ -4321,19 +4440,23 @@ mod hooks {
         let created = hook::create(&pool, &host, &who("s1", 10), &input).expect("create");
         assert_eq!(created.warnings[0].code, "fetch_failed");
         assert_eq!(
-            git(&created.path, &["branch", "--show-current"]),
+            dx_test_scratch::git(&created.path, &created.path, &["branch", "--show-current"]),
             "worktree-agent-two-2"
         );
     }
 
     fn advance_origin_main(fixture: &Fixture) {
         let clone = fixture.clone_origin();
-        git(&clone, &["checkout", "--quiet", "main"]);
+        dx_test_scratch::git(&clone, &clone, &["checkout", "--quiet", "main"]);
         std::fs::write(clone.join("later.txt"), "l\n").expect("write");
-        git(&clone, &["add", "."]);
-        git(&clone, &["commit", "--quiet", "-m", "later"]);
-        git(&clone, &["push", "--quiet", "origin", "main"]);
-        git(&fixture.main, &["fetch", "--quiet", "origin"]);
+        dx_test_scratch::git(&clone, &clone, &["add", "."]);
+        dx_test_scratch::git(&clone, &clone, &["commit", "--quiet", "-m", "later"]);
+        dx_test_scratch::git(&clone, &clone, &["push", "--quiet", "origin", "main"]);
+        dx_test_scratch::git(
+            &fixture.main,
+            &fixture.main,
+            &["fetch", "--quiet", "origin"],
+        );
     }
 
     #[test]
@@ -4353,7 +4476,7 @@ mod hooks {
             .expect("create again")
             .path;
         assert_eq!(
-            git(&again, &["branch", "--show-current"]),
+            dx_test_scratch::git(&again, &again, &["branch", "--show-current"]),
             "worktree-agent-one-2"
         );
     }
@@ -4369,10 +4492,14 @@ mod hooks {
             .expect("create")
             .path;
         std::fs::write(path.join("work.txt"), "w\n").expect("write");
-        git(&path, &["add", "."]);
-        git(&path, &["commit", "--quiet", "-m", "work"]);
-        git(&path, &["push", "--quiet", "origin", "worktree-agent-one"]);
-        let work = git(&path, &["rev-parse", "HEAD"]);
+        dx_test_scratch::git(&path, &path, &["add", "."]);
+        dx_test_scratch::git(&path, &path, &["commit", "--quiet", "-m", "work"]);
+        dx_test_scratch::git(
+            &path,
+            &path,
+            &["push", "--quiet", "origin", "worktree-agent-one"],
+        );
+        let work = dx_test_scratch::git(&path, &path, &["rev-parse", "HEAD"]);
         let removal = serde_json::json!({"worktree_path": path});
         hook::remove(&pool, &host, &me, &removal).expect("remove");
         advance_origin_main(&fixture);
@@ -4380,10 +4507,13 @@ mod hooks {
             .expect("create again")
             .path;
         assert_eq!(
-            git(&again, &["branch", "--show-current"]),
+            dx_test_scratch::git(&again, &again, &["branch", "--show-current"]),
             "worktree-agent-one"
         );
-        assert_eq!(git(&again, &["rev-parse", "HEAD"]), work);
+        assert_eq!(
+            dx_test_scratch::git(&again, &again, &["rev-parse", "HEAD"]),
+            work
+        );
     }
 
     #[test]
@@ -4396,23 +4526,34 @@ mod hooks {
         let path = hook::create(&pool, &host, &me, &input)
             .expect("create")
             .path;
-        let local = git(&path, &["rev-parse", "HEAD"]);
+        let local = dx_test_scratch::git(&path, &path, &["rev-parse", "HEAD"]);
         let removal = serde_json::json!({"worktree_path": path});
         hook::remove(&pool, &host, &me, &removal).expect("remove");
         let clone = fixture.clone_origin();
-        git(&clone, &["checkout", "--quiet", "-b", "worktree-agent-one"]);
+        dx_test_scratch::git(
+            &clone,
+            &clone,
+            &["checkout", "--quiet", "-b", "worktree-agent-one"],
+        );
         std::fs::write(clone.join("agent.txt"), "a\n").expect("write");
-        git(&clone, &["add", "."]);
-        git(&clone, &["commit", "--quiet", "-m", "agent work"]);
-        git(&clone, &["push", "--quiet", "origin", "worktree-agent-one"]);
+        dx_test_scratch::git(&clone, &clone, &["add", "."]);
+        dx_test_scratch::git(&clone, &clone, &["commit", "--quiet", "-m", "agent work"]);
+        dx_test_scratch::git(
+            &clone,
+            &clone,
+            &["push", "--quiet", "origin", "worktree-agent-one"],
+        );
         let again = hook::create(&pool, &host, &me, &input)
             .expect("create again")
             .path;
         assert_eq!(
-            git(&again, &["branch", "--show-current"]),
+            dx_test_scratch::git(&again, &again, &["branch", "--show-current"]),
             "worktree-agent-one"
         );
-        assert_eq!(git(&again, &["rev-parse", "HEAD"]), local);
+        assert_eq!(
+            dx_test_scratch::git(&again, &again, &["rev-parse", "HEAD"]),
+            local
+        );
     }
 
     #[test]
@@ -4577,7 +4718,8 @@ mod hooks {
 
 fn hand_checkout(fixture: &Fixture, name: &str) -> PathBuf {
     let hand = fixture.cache.parent().expect("parent").join(name);
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &[
             "worktree",
@@ -4593,7 +4735,8 @@ fn hand_checkout(fixture: &Fixture, name: &str) -> PathBuf {
 
 fn detached_checkout(fixture: &Fixture, name: &str, rev: &str) -> PathBuf {
     let hand = fixture.cache.parent().expect("parent").join(name);
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &[
             "worktree",
@@ -4609,7 +4752,11 @@ fn detached_checkout(fixture: &Fixture, name: &str, rev: &str) -> PathBuf {
 
 /// Sets the times of the files git updates for `checkout` to `secs`.
 fn age_checkout(checkout: &Path, secs: u64) {
-    let admin = PathBuf::from(git(checkout, &["rev-parse", "--absolute-git-dir"]));
+    let admin = PathBuf::from(dx_test_scratch::git(
+        checkout,
+        checkout,
+        &["rev-parse", "--absolute-git-dir"],
+    ));
     for name in ["HEAD", "index", "logs/HEAD"] {
         let file = admin.join(name);
         if file.exists() {
@@ -4631,7 +4778,11 @@ fn release_removes_a_clean_pushed_external_worktree() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = hand_checkout(&fixture, "by-hand");
-    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    dx_test_scratch::git(
+        &hand,
+        &hand,
+        &["push", "--quiet", "-u", "origin", "by-hand"],
+    );
     host.serve(74, &hand);
     let released =
         ops::release(&pool, &host, &who("s1", 10), &hand, false).expect("release external");
@@ -4641,8 +4792,18 @@ fn release_removes_a_clean_pushed_external_worktree() {
     assert!(!hand.exists());
     assert_eq!(host.shutdown_count(), 1);
     assert!(host.servers().is_empty());
-    assert!(!git(&fixture.main, &["worktree", "list"]).contains("by-hand"));
-    assert!(git(&fixture.main, &["branch", "--list", "by-hand"]).contains("by-hand"));
+    assert!(
+        !dx_test_scratch::git(&fixture.main, &fixture.main, &["worktree", "list"])
+            .contains("by-hand")
+    );
+    assert!(
+        dx_test_scratch::git(
+            &fixture.main,
+            &fixture.main,
+            &["branch", "--list", "by-hand"]
+        )
+        .contains("by-hand")
+    );
 }
 
 #[test]
@@ -4651,7 +4812,11 @@ fn release_reports_busy_when_an_external_worktree_cannot_be_deleted() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = hand_checkout(&fixture, "by-hand");
-    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    dx_test_scratch::git(
+        &hand,
+        &hand,
+        &["push", "--quiet", "-u", "origin", "by-hand"],
+    );
     host.stick(&hand);
     let refused = ops::release(&pool, &host, &who("s1", 10), &hand, false).expect_err("busy");
     assert_eq!(refused.code, "busy");
@@ -4665,15 +4830,19 @@ fn release_refuses_a_dirty_or_unpushed_external_worktree_until_forced() {
     let host = FakeHost::new();
     let me = who("s1", 10);
     let hand = hand_checkout(&fixture, "by-hand");
-    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    dx_test_scratch::git(
+        &hand,
+        &hand,
+        &["push", "--quiet", "-u", "origin", "by-hand"],
+    );
     std::fs::write(hand.join("wip.txt"), "x").expect("wip");
     let dirty = ops::release(&pool, &host, &me, &hand, false).expect_err("dirty");
     assert_eq!(dirty.code, "dirty_slot");
     assert!(hand.exists());
     std::fs::remove_file(hand.join("wip.txt")).expect("clean");
     std::fs::write(hand.join("b.txt"), "y").expect("b");
-    git(&hand, &["add", "."]);
-    git(&hand, &["commit", "--quiet", "-m", "local"]);
+    dx_test_scratch::git(&hand, &hand, &["add", "."]);
+    dx_test_scratch::git(&hand, &hand, &["commit", "--quiet", "-m", "local"]);
     let ahead = ops::release(&pool, &host, &me, &hand, false).expect_err("unpushed");
     assert_eq!(ahead.code, "unpushed_commits");
     assert!(hand.exists());
@@ -4688,7 +4857,11 @@ fn release_rechecks_an_external_worktree_after_taking_the_lock() {
     let pool = fixture.pool();
     let host = FakeHost::new();
     let hand = hand_checkout(&fixture, "by-hand");
-    git(&hand, &["push", "--quiet", "-u", "origin", "by-hand"]);
+    dx_test_scratch::git(
+        &hand,
+        &hand,
+        &["push", "--quiet", "-u", "origin", "by-hand"],
+    );
     *host.edit_on_scan.lock().expect("edit") = Some(hand.join("late.txt"));
     let dirty = ops::release(&pool, &host, &who("s1", 10), &hand, false).expect_err("dirty");
     assert_eq!(dirty.code, "dirty_slot");
@@ -4752,7 +4925,11 @@ fn refusals_name_the_next_step() {
         "{}",
         unheld.message
     );
-    git(&fixture.main, &["remote", "remove", "origin"]);
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["remote", "remove", "origin"],
+    );
     let no_default = ops::add(&pool, &host, &me, &existing("feature/fresh")).expect_err("no base");
     assert_eq!(no_default.code, "no_default_branch");
     assert!(
@@ -4769,22 +4946,40 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     let host = FakeHost::new();
     let merged = hand_checkout(&fixture, "merged");
     std::fs::write(merged.join("m.txt"), "m").expect("m");
-    git(&merged, &["add", "."]);
-    git(&merged, &["commit", "--quiet", "-m", "merged work"]);
-    git(&merged, &["push", "--quiet", "-u", "origin", "merged"]);
-    git(&fixture.main, &["fetch", "--quiet", "origin"]);
-    git(
+    dx_test_scratch::git(&merged, &merged, &["add", "."]);
+    dx_test_scratch::git(
+        &merged,
+        &merged,
+        &["commit", "--quiet", "-m", "merged work"],
+    );
+    dx_test_scratch::git(
+        &merged,
+        &merged,
+        &["push", "--quiet", "-u", "origin", "merged"],
+    );
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["fetch", "--quiet", "origin"],
+    );
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &["merge", "--quiet", "--ff-only", "origin/merged"],
     );
-    git(&fixture.main, &["push", "--quiet", "origin", "HEAD"]);
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["push", "--quiet", "origin", "HEAD"],
+    );
     let fresh = hand_checkout(&fixture, "fresh");
     let locked = hand_checkout(&fixture, "locked-merged");
     let serving = hand_checkout(&fixture, "serving-merged");
     for hand in [&locked, &serving] {
-        git(hand, &["push", "--quiet", "-u", "origin", "HEAD"]);
+        dx_test_scratch::git(hand, hand, &["push", "--quiet", "-u", "origin", "HEAD"]);
     }
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &["worktree", "lock", &locked.to_string_lossy()],
     );
@@ -4798,9 +4993,9 @@ fn prune_removes_clean_external_worktrees_on_merged_branches_only() {
     let open = hand_checkout(&fixture, "open");
     let dirty = hand_checkout(&fixture, "dirty-merged");
     std::fs::write(open.join("c.txt"), "z").expect("c");
-    git(&open, &["add", "."]);
-    git(&open, &["commit", "--quiet", "-m", "open work"]);
-    git(&open, &["push", "--quiet", "-u", "origin", "open"]);
+    dx_test_scratch::git(&open, &open, &["add", "."]);
+    dx_test_scratch::git(&open, &open, &["commit", "--quiet", "-m", "open work"]);
+    dx_test_scratch::git(&open, &open, &["push", "--quiet", "-u", "origin", "open"]);
     std::fs::write(dirty.join("wip.txt"), "x").expect("wip");
     let roots = fixture.cache.join("bazel-root");
     let base = roots.join("merged-base");
@@ -4848,10 +5043,10 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
     let host = FakeHost::new();
     let hand = hand_checkout(&fixture, "topic");
     std::fs::write(hand.join("t.txt"), "t").expect("t");
-    git(&hand, &["add", "."]);
-    git(&hand, &["commit", "--quiet", "-m", "topic"]);
-    git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
-    git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
+    dx_test_scratch::git(&hand, &hand, &["add", "."]);
+    dx_test_scratch::git(&hand, &hand, &["commit", "--quiet", "-m", "topic"]);
+    dx_test_scratch::git(&hand, &hand, &["push", "--quiet", "-u", "origin", "topic"]);
+    dx_test_scratch::git(&hand, &hand, &["push", "--quiet", "origin", "topic:kept"]);
     let follower = tracking_checkout(&fixture, "follower", "origin/topic");
     assert!(
         ops::prune_plan(&pool, &host, ops::Trigger::LowDisk)
@@ -4859,11 +5054,16 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
             .externals
             .is_empty()
     );
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &["push", "--quiet", "origin", "--delete", "topic"],
     );
-    git(&fixture.main, &["fetch", "--quiet", "--prune", "origin"]);
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["fetch", "--quiet", "--prune", "origin"],
+    );
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     assert_eq!(plan.externals[0].path, hand);
@@ -4872,7 +5072,8 @@ fn prune_removes_external_worktrees_whose_upstream_branch_was_deleted() {
 
 fn tracking_checkout(fixture: &Fixture, name: &str, upstream: &str) -> PathBuf {
     let hand = fixture.cache.parent().expect("parent").join(name);
-    git(
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &[
             "worktree",
@@ -4895,7 +5096,8 @@ fn prune_keeps_unpushed_branch_created_from_the_default_branch() {
     let host = FakeHost::new();
     let fresh = tracking_checkout(&fixture, "fresh", "origin/main");
     assert_eq!(
-        git(
+        dx_test_scratch::git(
+            &fixture.main,
             &fixture.main,
             &["for-each-ref", "--format=%(upstream)", "refs/heads/fresh"]
         ),
@@ -4917,13 +5119,14 @@ fn prune_lists_detached_external_worktrees_as_removable_or_kept() {
     let fresh = detached_checkout(&fixture, "fresh", "origin/main");
     let ahead = detached_checkout(&fixture, "ahead", "origin/main");
     std::fs::write(ahead.join("a2.txt"), "a").expect("a2");
-    git(&ahead, &["add", "."]);
-    git(&ahead, &["commit", "--quiet", "-m", "local"]);
+    dx_test_scratch::git(&ahead, &ahead, &["add", "."]);
+    dx_test_scratch::git(&ahead, &ahead, &["commit", "--quiet", "-m", "local"]);
     let side = detached_checkout(&fixture, "side", "origin/main");
     std::fs::write(side.join("s.txt"), "s").expect("s");
-    git(&side, &["add", "."]);
-    git(&side, &["commit", "--quiet", "-m", "side"]);
-    git(
+    dx_test_scratch::git(&side, &side, &["add", "."]);
+    dx_test_scratch::git(&side, &side, &["commit", "--quiet", "-m", "side"]);
+    dx_test_scratch::git(
+        &side,
         &side,
         &["push", "--quiet", "origin", "HEAD:refs/heads/side"],
     );
@@ -4973,15 +5176,20 @@ fn prune_lists_detached_external_worktrees_as_removable_or_kept() {
 fn upstream_deleted_checkout(fixture: &Fixture) -> PathBuf {
     let hand = hand_checkout(fixture, "topic");
     std::fs::write(hand.join("t.txt"), "t").expect("t");
-    git(&hand, &["add", "."]);
-    git(&hand, &["commit", "--quiet", "-m", "topic"]);
-    git(&hand, &["push", "--quiet", "-u", "origin", "topic"]);
-    git(&hand, &["push", "--quiet", "origin", "topic:kept"]);
-    git(
+    dx_test_scratch::git(&hand, &hand, &["add", "."]);
+    dx_test_scratch::git(&hand, &hand, &["commit", "--quiet", "-m", "topic"]);
+    dx_test_scratch::git(&hand, &hand, &["push", "--quiet", "-u", "origin", "topic"]);
+    dx_test_scratch::git(&hand, &hand, &["push", "--quiet", "origin", "topic:kept"]);
+    dx_test_scratch::git(
+        &fixture.main,
         &fixture.main,
         &["push", "--quiet", "origin", "--delete", "topic"],
     );
-    git(&fixture.main, &["fetch", "--quiet", "--prune", "origin"]);
+    dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["fetch", "--quiet", "--prune", "origin"],
+    );
     hand
 }
 
@@ -5013,8 +5221,8 @@ fn prune_apply_keeps_external_worktree_that_gains_a_commit_after_plan() {
     let plan = ops::prune_plan(&pool, &host, ops::Trigger::LowDisk).expect("plan");
     assert_eq!(plan.externals.len(), 1);
     std::fs::write(hand.join("late.txt"), "l").expect("late");
-    git(&hand, &["add", "."]);
-    git(&hand, &["commit", "--quiet", "-m", "late"]);
+    dx_test_scratch::git(&hand, &hand, &["add", "."]);
+    dx_test_scratch::git(&hand, &hand, &["commit", "--quiet", "-m", "late"]);
     let kept = ops::prune_apply(&pool, &host, &plan, &pool.lock().expect("lock"))
         .expect("apply")
         .kept;
@@ -5529,7 +5737,11 @@ fn prune_apply_keeps_a_slot_whose_shutdown_was_interrupted() {
     assert!(paths.iter().all(|path| path.exists()));
     assert!(pool.records().iter().all(|record| !record.broken));
     assert_eq!(pool.records().len(), 2);
-    let listed = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    let listed = dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["worktree", "list", "--porcelain"],
+    );
     assert!(listed.contains(&paths[0].to_string_lossy().into_owned()));
 }
 
@@ -5547,8 +5759,15 @@ fn release_keeps_the_lease_when_the_shutdown_was_interrupted() {
     let error = ops::release(&pool, &host, &me, &a.path, true).expect_err("stopped");
     assert_eq!(error.signal, Some(15));
     assert!(pool.records().iter().all(|record| record.held));
-    assert_eq!(git(&a.path, &["branch", "--show-current"]), "feature/a");
-    let listed = git(&fixture.main, &["worktree", "list", "--porcelain"]);
+    assert_eq!(
+        dx_test_scratch::git(&a.path, &a.path, &["branch", "--show-current"]),
+        "feature/a"
+    );
+    let listed = dx_test_scratch::git(
+        &fixture.main,
+        &fixture.main,
+        &["worktree", "list", "--porcelain"],
+    );
     assert!(!listed.contains("dx: free"));
 }
 
@@ -6143,7 +6362,7 @@ fn a_hostile_global_git_config_does_not_break_add_or_release() {
     let mut command = dx_process::capture::git(&fixture.main);
     command.args(["config", "--get", "commit.gpgsign"]);
     command.env("GIT_CONFIG_GLOBAL", &config);
-    isolate(&mut command);
+    dx_test_scratch::isolate_git(&mut command, &fixture.main);
     let output =
         dx_process::capture::run_captured(&mut command, dx_process::capture::DEFAULT_TIMEOUT)
             .expect("git");

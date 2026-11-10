@@ -27,8 +27,10 @@ fn command(cwd: &Path) -> Command {
     // Tests must not see the developer's global hooks, `insteadOf` or signing config.
     #[cfg(test)]
     {
+        static SANDBOX: std::sync::OnceLock<dx_test_scratch::TempDir> = std::sync::OnceLock::new();
+        let sandbox = SANDBOX.get_or_init(|| dx_test_scratch::scratch("worktree-git"));
         let mut command = base(cwd);
-        super::tests::isolate(&mut command);
+        dx_test_scratch::isolate_git(&mut command, sandbox.path());
         command
     }
     #[cfg(not(test))]

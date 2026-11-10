@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use dx_testing::runfiles_root;
+use dx_testing::{rules_dx_source, runfiles_root};
 
 fn registered_crate_roots() -> usize {
     std::env::var("DX_CRATE_ROOTS")
@@ -18,6 +18,35 @@ fn rust_sources(dir: &Path, out: &mut Vec<PathBuf>) {
             rust_sources(&path, out);
         } else if path.extension().is_some_and(|ext| ext == "rs") {
             out.push(path);
+        }
+    }
+}
+
+fn is_skipped_dir(rel: &str, name: &str) -> bool {
+    name.starts_with('.')
+        || name.starts_with("bazel-")
+        || name == "node_modules"
+        || name == "fixtures"
+        || name == "testdata"
+        || rel == "examples"
+}
+
+fn checkout_crate_roots(dir: &Path, rel: &str, out: &mut BTreeSet<String>) {
+    for entry in std::fs::read_dir(dir).expect("readable checkout dir") {
+        let entry = entry.expect("readable dir entry");
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let child = if rel.is_empty() {
+            name.clone()
+        } else {
+            format!("{rel}/{name}")
+        };
+        let kind = entry.file_type().expect("readable file type");
+        if kind.is_dir() {
+            if !is_skipped_dir(&child, &name) {
+                checkout_crate_roots(&entry.path(), &child, out);
+            }
+        } else if kind.is_file() && is_crate_root(&child) {
+            out.insert(child);
         }
     }
 }
@@ -140,5 +169,21 @@ fn every_denied_lint_list_matches_the_documented_policy() {
     assert!(
         annotated >= registered_crate_roots(),
         "the lint sweep found {annotated} annotated sources; its data list stopped reaching them",
+    );
+}
+
+#[test]
+fn every_checkout_crate_root_is_registered() {
+    let registered: BTreeSet<String> = std::env::var("DX_CRATE_ROOTS")
+        .expect("DX_CRATE_ROOTS must list the registered crate roots")
+        .split_whitespace()
+        .map(str::to_owned)
+        .collect();
+    let mut found = BTreeSet::new();
+    checkout_crate_roots(&rules_dx_source(), "", &mut found);
+    let missing: Vec<&String> = found.difference(&registered).collect();
+    assert!(
+        missing.is_empty(),
+        "crate roots missing from _CLIPPY_POLICY_CRATE_ROOTS in core/quality/BUILD.bazel: {missing:?}",
     );
 }

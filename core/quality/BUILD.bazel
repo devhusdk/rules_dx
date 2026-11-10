@@ -1003,7 +1003,10 @@ _CLIPPY_POLICY_CRATE_ROOTS = [
 rust_test(
     name = "clippy_policy_test",
     srcs = ["clippy_policy_test.rs"],
-    data = ["//tools/workspace:clippy.toml"] + _CLIPPY_POLICY_CRATE_ROOTS,
+    data = [
+        "//:MODULE.bazel",
+        "//tools/workspace:clippy.toml",
+    ] + _CLIPPY_POLICY_CRATE_ROOTS,
     env = {"DX_CRATE_ROOTS": " ".join(["$(rootpath %s)" % label for label in _CLIPPY_POLICY_CRATE_ROOTS])},
     tags = ["no-coverage"],
     deps = ["//tools/testing:dx_testing"],

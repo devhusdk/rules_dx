@@ -1,6 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//libs/starlark:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("//ocaml/rules:defs.bzl", "OCAML_COMPATIBLE_WITH", "ocaml_bench")
+load("//ocaml/rules:wrapper_tests.bzl", "ocaml_native_launcher_test")
 load("//quality:fixtures.bzl", "real_source_target")
 
 package(
@@ -12,6 +13,12 @@ ocaml_bench(
     name = "sum_bench",
     struct = "sum_bench.ml",
     target_compatible_with = OCAML_COMPATIBLE_WITH,
+)
+
+ocaml_native_launcher_test(
+    name = "sum_bench_native_test",
+    launcher = "sum_bench",
+    target_under_test = ":sum_bench",
 )
 
 sh_test(

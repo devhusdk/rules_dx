@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+[ "$(head -c 2 "$1")" != "#!" ] || { echo "$1 is a launcher script, not a native executable" >&2; exit 1; }
+
 export TEST_UNDECLARED_OUTPUTS_DIR="$TEST_TMPDIR/outputs"
 mkdir -p "$TEST_UNDECLARED_OUTPUTS_DIR"
 "$1" >/dev/null

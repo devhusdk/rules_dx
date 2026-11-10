@@ -69,3 +69,18 @@ _sys_coverage_test = analysistest.make(
 def ocaml_sys_coverage_test(name, target_under_test, sources):
     """Asserts a native (sys) test runs under the bisect collector and, off macOS, lists its executable for LLVM coverage of its C stubs."""
     _sys_coverage_test(name = name, size = "small", target_under_test = target_under_test, sources = sources)
+
+def _native_launcher_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = analysistest.target_actions(env)
+    asserts.equals(env, ["ExecutableSymlink"], [a.mnemonic for a in actions if a.outputs.to_list()[0].basename == ctx.attr.launcher])
+    return analysistest.end(env)
+
+_native_launcher_test = analysistest.make(
+    _native_launcher_impl,
+    attrs = {"launcher": attr.string()},
+)
+
+def ocaml_native_launcher_test(name, target_under_test, launcher):
+    """Asserts the target resolves the sys emitter: its launcher is a symlink to the native executable, not an ocamlrun script."""
+    _native_launcher_test(name = name, size = "small", target_under_test = target_under_test, launcher = launcher)

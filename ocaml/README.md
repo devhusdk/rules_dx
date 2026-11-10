@@ -261,8 +261,7 @@ ocaml_bench(
 let () = Dx_bench.run [ ("sum", fun () -> ignore (Sys.opaque_identity (1 + 2))) ]
 ```
 
-Under the default bytecode emitter the numbers time the interpreter. Build with
-`--//ocaml/toolchain:emitter=sys` for native code.
+The benchmark always builds native code, whatever the emitter flag says.
 
 ## Platforms
 

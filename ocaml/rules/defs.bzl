@@ -87,6 +87,15 @@ _toolchain = transition(
     outputs = [OCAML_TOOLCHAIN_FLAG, _FEATURES],
 )
 
+def _native_impl(settings, _attr):
+    return dict(toolchain_settings(dict(settings, **{OCAML_EMITTER_FLAG: "sys"})), **{OCAML_EMITTER_FLAG: "sys"})
+
+_native = transition(
+    implementation = _native_impl,
+    inputs = [OCAML_TOOLCHAIN_FLAG, OCAML_EMITTER_FLAG] + CC_COVERAGE_INPUTS,
+    outputs = [OCAML_TOOLCHAIN_FLAG, OCAML_EMITTER_FLAG, _FEATURES],
+)
+
 def _cmt_providers(ctx, upstream):
     groups = upstream[OutputGroupInfo]
     cmts = groups.cmt.to_list() if hasattr(groups, "cmt") else []
@@ -262,18 +271,31 @@ _ocaml_forward_binary = rule(
     attrs = _launcher_attrs(),
 )
 
+def _test_attrs():
+    return _launcher_attrs(dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
+        "_bisect_collect": attr.label(default = "//tools/coverage/ocaml:collect", executable = True, cfg = "target"),
+        "_bisect_report": attr.label(default = "//tools/coverage/ocaml:report_or_none", cfg = "target"),
+        "_bisect_to_lcov": attr.label(default = "//tools/coverage/ocaml:to_lcov_or_none", cfg = "target"),
+        "_macos": attr.label(default = "@platforms//os:macos"),
+    })
+
 _ocaml_forward_test = rule(
     implementation = _launcher_impl,
     doc = "Runs one rules_ocaml bytecode test on the pinned ocamlrun.",
     test = True,
     provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
     toolchains = dx_native_coverage_toolchains(),
-    attrs = _launcher_attrs(dx_lcov_merger_attr() | dx_native_coverage_attrs() | {
-        "_bisect_collect": attr.label(default = "//tools/coverage/ocaml:collect", executable = True, cfg = "target"),
-        "_bisect_report": attr.label(default = "//tools/coverage/ocaml:report_or_none", cfg = "target"),
-        "_bisect_to_lcov": attr.label(default = "//tools/coverage/ocaml:to_lcov_or_none", cfg = "target"),
-        "_macos": attr.label(default = "@platforms//os:macos"),
-    }),
+    attrs = _test_attrs(),
+)
+
+_ocaml_forward_bench_test = rule(
+    implementation = _launcher_impl,
+    doc = "Runs one rules_ocaml native benchmark: the target and everything below it build with the sys emitter.",
+    test = True,
+    cfg = _native,
+    provides = [DefaultInfo, InstrumentedFilesInfo, QualitySourcesInfo],
+    toolchains = dx_native_coverage_toolchains(),
+    attrs = _test_attrs(),
 )
 
 def owned_sources(*files):
@@ -321,11 +343,14 @@ def ocaml_binary(name, *, visibility = None, **kwargs):
 
 def ocaml_test(name, *, visibility = None, **kwargs):
     """Builds one rules_ocaml bytecode executable and runs it as a test on the pinned ocamlrun."""
+    _test_shape(name, _ocaml_forward_test, visibility, kwargs)
+
+def _test_shape(name, forward_rule, visibility, kwargs):
     kwargs = ocaml_with_defaults(kwargs)
     upstream = ocaml_test_upstream_kwargs(dx_test_upstream_kwargs(ocaml_link_kwargs(kwargs)))
     upstream["tags"] = ocaml_upstream_tags(kwargs.get("tags"))
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
-    _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))
+    forward_rule(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))
 
 def ocaml_fuzz_test(name, *, main, deps = None, visibility = None, tags = None, **kwargs):
     """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual and not driven by `dx fuzz`."""
@@ -359,10 +384,8 @@ def ocaml_bench(name, *, struct, deps = None, visibility = None, tags = None, **
         visibility = ["//visibility:private"],
         **build
     )
-    ocaml_test(
-        name = name,
+    _test_shape(name, _ocaml_forward_bench_test, visibility, dict(
         main = ":" + name + "_bin",
         tags = merge_tags(tags, "dx-bench", "manual"),
-        visibility = visibility,
         **with_default_size(run)
-    )
+    ))

@@ -413,12 +413,14 @@ real_source_target(
     name = "fixture_real_cc",
     c_srcs = ["real_clean.c"],
     cpp_srcs = ["real_clean_cpp.cc"],
+    tags = ["no-lint", "no-typecheck"],
 )
 
 real_source_target(
     name = "fixture_real_cc_hinted",
     c_srcs = ["real_clean.c"],
     cpp_srcs = ["real_clean_cpp.cc"],
+    tags = ["no-lint", "no-typecheck"],
 )
 
 real_source_target(

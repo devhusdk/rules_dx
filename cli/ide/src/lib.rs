@@ -416,6 +416,33 @@ mod tests {
     }
 
     #[test]
+    fn plugin_errors_are_failure_when_not_built_and_infra_when_the_write_fails() {
+        let scratch = dx_test_scratch::scratch("dx-ide-kinds-");
+        let root = scratch.path();
+        let runner = fake(root);
+        let dir = root.join("out");
+        let not_built = (typescript::PLUGIN.write)(&Ctx {
+            workspace: root,
+            dir: &dir,
+            outputs: &[],
+            runner: &runner,
+        })
+        .unwrap_err();
+        assert_eq!(not_built.kind(), dx_error::ErrorKind::Failure);
+        let built = vec![PathBuf::from("typescript")];
+        std::fs::write(&dir, "").expect("file in the way");
+        let link_failed = (typescript::PLUGIN.write)(&Ctx {
+            workspace: root,
+            dir: &dir,
+            outputs: &built,
+            runner: &runner,
+        })
+        .unwrap_err();
+        assert_eq!(link_failed.kind(), dx_error::ErrorKind::Infra);
+        scratch.close().expect("cleanup");
+    }
+
+    #[test]
     fn an_aquery_failure_fails_only_cc() {
         let scratch = dx_test_scratch::scratch("dx-ide-cc-fail-");
         let root = scratch.path();

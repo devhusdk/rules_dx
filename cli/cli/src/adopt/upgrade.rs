@@ -381,6 +381,7 @@ fn upgrade_with(
     };
     let ide_warning = query_runner.and_then(|runner| {
         crate::exec::ide_refresh::refresh(workspace, runner, &invocation.bazel_startup_options)
+            .map(|error| error.message().to_owned())
     });
     if is_json {
         if conflicts > 0 {

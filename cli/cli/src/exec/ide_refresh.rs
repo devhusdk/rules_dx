@@ -109,15 +109,18 @@ pub(crate) fn refresh(
     workspace: &Path,
     query_runner: &dyn QueryRunner,
     startup: &[String],
-) -> Option<String> {
+) -> Option<dx_error::DxError> {
     let bazel = BazelBuild {
         query_runner,
         workspace,
         startup,
     };
     match dx_ide::refresh(workspace, &bazel) {
-        Ok(report) => report.warning(),
-        Err(error) => Some(format!("ide refresh failed: {error}")),
+        Ok(report) => report.warning().map(dx_error::DxError::failure),
+        Err(error) => Some(dx_error::DxError::new(
+            error.kind(),
+            format!("ide refresh failed: {error}"),
+        )),
     }
 }
 
@@ -135,11 +138,12 @@ pub(crate) fn refresh_and_warn(
     out: &mut dyn Write,
     err: &mut dyn Write,
 ) {
-    let Some(message) = refresh(workspace, query_runner, startup) else {
+    let Some(error) = refresh(workspace, query_runner, startup) else {
         return;
     };
+    let message = error.message();
     if output == OutputMode::Json {
-        if emit_built(out, warning_event(&message)).is_ok() {
+        if emit_built(out, warning_event(message)).is_ok() {
             let _ = flush_out(out);
         }
     } else {

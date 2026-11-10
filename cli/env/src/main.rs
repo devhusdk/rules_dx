@@ -239,6 +239,12 @@ mod tests {
     }
 
     #[test]
+    fn a_rejected_plan_is_a_usage_error() {
+        let error = plan_of(&["--staged-bin", "x"]).expect_err("plan must reject");
+        assert_eq!(error.kind(), dx_error::ErrorKind::Usage);
+    }
+
+    #[test]
     fn no_arguments_default_every_option() {
         let got = installed(&[]);
         assert_eq!(got.workspace, None);

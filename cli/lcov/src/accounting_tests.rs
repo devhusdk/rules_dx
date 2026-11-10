@@ -81,6 +81,8 @@ fn rejects_bad_headers_and_unknown_cells() {
         .unwrap_err()
         .to_string();
     assert!(error.contains("unknown cell"), "{error}");
+    let error = parse_source_manifest("").unwrap_err();
+    assert_eq!(error.kind(), dx_error::ErrorKind::Failure);
 }
 
 #[test]

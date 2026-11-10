@@ -134,6 +134,7 @@ examples/   tested examples
 - `dx update` rewrites the files. Nobody edits them by hand.
 - The manifest `pins` field names the language's pin files.
 - A language never ships its own pin-reading extension.
+- `//tools/ci:pin_locations_test` guards this. `tools/ci/pin_locations_allowlist.txt` lists what is left and only shrinks.
 
 ## Generated files
 

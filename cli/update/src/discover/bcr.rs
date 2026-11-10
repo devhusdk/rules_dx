@@ -75,6 +75,31 @@ pub fn latest_stable(name: &str, base: &str, fetch: &dyn Fetch) -> Result<String
     )
 }
 
+/// The text of a newest-version snapshot: a JSON object from each `bazel_dep` of `module` that no
+/// path, git or archive override replaces to its newest stable version in the registry at `base`.
+pub fn newest_snapshot(
+    module: &ModuleFile,
+    base: &str,
+    fetch: &dyn Fetch,
+) -> Result<String, DxError> {
+    let mut newest = std::collections::BTreeMap::new();
+    for call in module.calls_named("bazel_dep") {
+        let Some(Value::Str(name)) = call.arg("name") else {
+            continue;
+        };
+        let name = name.value.as_str();
+        if is_skipped(module, name) {
+            continue;
+        }
+        let version = latest_stable(name, base, fetch)
+            .map_err(|error| DxError::failure(format!("{name}: {error}")))?;
+        newest.insert(name.to_owned(), version);
+    }
+    let text =
+        serde_json::to_string_pretty(&newest).map_err(|e| DxError::failure(e.to_string()))?;
+    Ok(text + "\n")
+}
+
 fn repo(body: &str) -> Option<String> {
     let metadata: serde_json::Value = serde_json::from_str(body).ok()?;
     metadata["repository"]
@@ -192,6 +217,32 @@ mod tests {
     fn path_overrides_are_skipped() {
         let text = "bazel_dep(name = \"rules_x\", version = \"1.0.0\")\nlocal_path_override(module_name = \"rules_x\", path = \"x\")\n";
         assert_eq!(run(text, METADATA), Findings::default());
+    }
+
+    #[test]
+    fn the_newest_snapshot_lists_each_registry_module_once() {
+        let text = "bazel_dep(name = \"rules_b\", version = \"1.0.0\")\n\
+            bazel_dep(name = \"rules_a\", version = \"2.0.0\", dev_dependency = True)\n\
+            bazel_dep(name = \"patched\", version = \"1.0.0\")\n\
+            archive_override(module_name = \"patched\", urls = [\"https://example.com/p.tar.gz\"])\n";
+        let snapshot = newest_snapshot(&module(text), DEFAULT_BASE, &|url: &str| {
+            assert!(!url.contains("patched"), "{url}");
+            Ok(METADATA.to_owned())
+        });
+        assert_eq!(
+            snapshot.expect("snapshot"),
+            "{\n  \"rules_a\": \"1.2.0\",\n  \"rules_b\": \"1.2.0\"\n}\n"
+        );
+        let failed = newest_snapshot(&module(text), DEFAULT_BASE, &|_: &str| {
+            Err(DxError::failure("HTTP 404"))
+        });
+        assert!(
+            failed
+                .expect_err("lookup failure")
+                .to_string()
+                .contains("rules_b: HTTP 404"),
+            "names the module"
+        );
     }
 
     #[test]

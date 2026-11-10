@@ -94,6 +94,10 @@ name = "input_validation_test"
 path = "input_validation_test.rs"
 
 [[test]]
+name = "pin_locations_test"
+path = "pin_locations_test.rs"
+
+[[test]]
 name = "pr_check_test"
 path = "pr_check_test.rs"
 
@@ -108,6 +112,10 @@ path = "release_cells_runners_test.rs"
 [[test]]
 name = "release_workflow_test"
 path = "release_workflow_test.rs"
+
+[[test]]
+name = "repo_rule_refetch_test"
+path = "repo_rule_refetch_test.rs"
 
 [[test]]
 name = "reusable_callers_test"

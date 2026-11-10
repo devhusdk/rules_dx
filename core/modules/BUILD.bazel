@@ -32,6 +32,8 @@ rust_test(
     crate_name = "consumer_deps_test",
     crate_root = "consumer_deps_test.rs",
     data = [
+        "bazel_dep_allowlist.txt",
+        "bcr_newest.json",
         ":consumer_deps_json",
         "//:MODULE.bazel",
         "//third_party/go:go.sum",

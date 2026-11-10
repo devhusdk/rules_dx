@@ -1,0 +1,16 @@
+android/private/sdk/repos.bzl not-reproducible 5
+android/private/toolchain/repos.bzl not-reproducible 1
+ansible/extensions.bzl not-reproducible 1
+ansible/extensions.bzl watch 2
+appimage/private/repos.bzl not-reproducible 1
+bicep/private/registry.bzl not-reproducible 1
+cli/entrypoint/surface.bzl watch 1
+core/quality/artifacts/acquire_test/repos.bzl environ 1
+core/quality/artifacts/acquire_test/repos.bzl not-reproducible 1
+core/toolchain.bzl not-reproducible 2
+ruby/private/coverage/repos.bzl not-reproducible 2
+swift/private/toolchain/repos.bzl not-reproducible 2
+swift/private/toolchain/repos.bzl watch 1
+terraform/extensions.bzl not-reproducible 1
+tools/ci/repos.bzl not-reproducible 1
+tools/testing/nested_repository_cache.bzl not-reproducible 1

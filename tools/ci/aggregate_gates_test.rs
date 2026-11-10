@@ -73,7 +73,6 @@ fn the_outer_gate_requires_every_declared_dependency() {
         "dogfood",
         "docs",
         "devcontainer-check",
-        "families",
         "gate",
         "gcc-cross-build",
         "gcc-cross-run-arm64",

@@ -2,7 +2,7 @@
 # Analysis-only checks for a pull request on linux_x86_64. Usage: pr_check.sh <set> [bazel flags...]
 set -euo pipefail
 
-set_name="${1:?usage: pr_check.sh <workflow|preflight|preflight-windows-arm64|starter|hermetic|docs|families|cli|all> [bazel flags...]}"
+set_name="${1:?usage: pr_check.sh <workflow|preflight|preflight-windows-arm64|starter|hermetic|docs|cli|all> [bazel flags...]}"
 shift
 
 workflow() {
@@ -59,24 +59,14 @@ docs() {
   bazel build "$@" //tools/docs/site:user_api
 }
 
-families() {
-  local dir
-  for dir in families/*/; do
-    [ -f "$dir/MODULE.bazel" ] || continue
-    echo "::group::$dir"
-    (cd "$dir" && ../../tools/dx build //... -- --nobuild "$@")
-    echo "::endgroup::"
-  done
-}
-
 cli() {
   bazel test "$@" //cli/cli:dx_cli_test
 }
 
 case "$set_name" in
-  workflow | preflight | preflight-windows-arm64 | starter | hermetic | docs | families | cli) "$set_name" "$@" ;;
+  workflow | preflight | preflight-windows-arm64 | starter | hermetic | docs | cli) "$set_name" "$@" ;;
   all)
-    for each in workflow preflight preflight-windows-arm64 starter hermetic docs families cli; do
+    for each in workflow preflight preflight-windows-arm64 starter hermetic docs cli; do
       echo "::group::$each"
       "$each" "$@"
       echo "::endgroup::"

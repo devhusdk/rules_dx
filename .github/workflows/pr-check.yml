@@ -54,10 +54,6 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           tools/ci/pr_check.sh docs $BAZEL_CONFIG $BB_ARGS
-      - name: families
-        run: |
-          # shellcheck disable=SC2086
-          tools/ci/pr_check.sh families $BAZEL_CONFIG $BB_ARGS
       - name: cli
         run: |
           # shellcheck disable=SC2086

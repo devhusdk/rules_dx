@@ -5,6 +5,8 @@ _ARCHIVES = DATA["dx_deploy"]["archives"]
 
 SEMVER_CHECKS_PLATFORMS = {name[len("semver_checks_"):]: pin for name, pin in _ARCHIVES.items() if name.startswith("semver_checks_")}
 
+CONAN_PLATFORMS = {name[len("conan_"):]: pin for name, pin in _ARCHIVES.items() if name.startswith("conan_")}
+
 OPAM_PLATFORMS = {name[len("opam_"):]: pin for name, pin in _ARCHIVES.items() if name.startswith("opam_")}
 
 package(default_visibility = ["//visibility:public"])
@@ -69,6 +71,38 @@ alias(
         ":opam_" + key: "@opam_" + key + "//file"
         for key in OPAM_PLATFORMS
     } | {"//conditions:default": ":opam_none"}),
+)
+
+[
+    config_setting(
+        name = "conan_" + key,
+        constraint_values = [
+            "@platforms//os:" + pin["os"],
+            "@platforms//cpu:" + pin["cpu"],
+        ],
+    )
+    for key, pin in CONAN_PLATFORMS.items()
+]
+
+filegroup(
+    name = "conan_none",
+    srcs = [],
+)
+
+alias(
+    name = "conan",
+    actual = select({
+        ":conan_" + key: "@conan_" + key + "//:" + pin["exe"]
+        for key, pin in CONAN_PLATFORMS.items()
+    } | {"//conditions:default": ":conan_none"}),
+)
+
+alias(
+    name = "conan_files",
+    actual = select({
+        ":conan_" + key: "@conan_" + key + "//:files"
+        for key in CONAN_PLATFORMS
+    } | {"//conditions:default": ":conan_none"}),
 )
 
 alias(

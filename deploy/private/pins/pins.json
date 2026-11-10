@@ -7,6 +7,16 @@
       ],
       "version": "10.0.403"
     },
+    "conan_linux_x86_64": {
+      "cpu": "x86_64",
+      "exe": "bin/conan",
+      "os": "linux",
+      "sha256": "655177bf39c901ea6b532e02f55813eb03abaced931b5627307f1c8edc3627b6",
+      "urls": [
+        "https://github.com/conan-io/conan/releases/download/2.34.0/conan-2.34.0-linux-x86_64.tgz"
+      ],
+      "version": "2.34.0"
+    },
     "japicmp": {
       "sha256": "1b69870198a6d321139f3cfa9f47ccbf3eea4b91167fefd3c69c77e9cc213917",
       "urls": [

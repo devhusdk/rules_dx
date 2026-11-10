@@ -71,3 +71,19 @@ opam = module_extension(
     implementation = _opam_impl,
     doc = "Creates the pinned opam executable for each supported platform.",
 )
+
+def _conan_impl(mctx):
+    """Declares one pinned conan distribution per supported platform."""
+    for key, pin in _platforms("conan_").items():
+        http_archive(
+            name = "conan_" + key,
+            build_file_content = 'exports_files(["%s"])\nfilegroup(name = "files", srcs = glob(["bin/**"]), visibility = ["//visibility:public"])\n' % pin["exe"],
+            sha256 = pin["sha256"],
+            urls = pin["urls"],
+        )
+    return mctx.extension_metadata(reproducible = True)
+
+conan = module_extension(
+    implementation = _conan_impl,
+    doc = "Creates the pinned conan distribution for each supported platform.",
+)

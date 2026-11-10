@@ -2448,6 +2448,9 @@ use_repo(semver_checks, "cargo_semver_checks_linux_arm64", "cargo_semver_checks_
 opam = use_extension("//deploy/private/pins:extensions.bzl", "opam")
 use_repo(opam, "opam_linux_arm64", "opam_linux_x86_64", "opam_macos_arm64", "opam_macos_x86_64", "opam_windows_x86_64")
 
+conan = use_extension("//deploy/private/pins:extensions.bzl", "conan")
+use_repo(conan, "conan_linux_x86_64")
+
 japicmp = use_extension("//deploy/private/pins:extensions.bzl", "japicmp")
 use_repo(japicmp, "japicmp_jar")
 

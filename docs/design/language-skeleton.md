@@ -82,9 +82,9 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 - Where registration order matters, the hub names its targets so that name order is the order.
 - Every `use_extension` on a rules_dx label names `//<dir>:extensions.bzl`.
 - Every toolchain and SDK a public rule resolves is declared without `dev_dependency`. A consumer adds no `register_toolchains` line.
-- An extension has defaults for every tag. A consumer tag only selects a version, adds components or accepts a license.
-- An SDK under a license is declared for every consumer. Its repository fails with the acceptance line when it is fetched unaccepted.
-- A `dev_dependency` proxy of a language extension calls only license tags and tags that declare test dependencies.
+- The `<lang>` extension declares the default repos when no module sets a tag. Its consumer tag only picks another pinned version.
+- An SDK under a license is declared for every consumer. Only `dx_licenses` in `//core:extensions.bzl` accepts it. An unaccepted fetch fails and names the id.
+- A `dev_dependency` usage of a language extension calls only tags that declare a development hub or test dependencies.
 
 ## Tests
 
@@ -97,8 +97,9 @@ These names are reserved inside `<lang>/private/`. Code with that role uses that
 
 ## Fixtures
 
-- Fixtures live in `<lang>/tests/fixtures/<name>/`. `<name>` is lower-case with underscores.
-- A language that exports a name ending in a common kind has `tests/fixtures/hello/`. It holds the smallest target of each such kind. No other language has a `hello` fixture.
+- `<lang>/tests/conformance/` holds the conformance fixtures of `docs/design/tests.md`: the smallest targets of the language.
+- `<lang>/tests/consumer/` holds the consumer fixture of `docs/design/consumer-setup.md`.
+- Every other fixture lives in `<lang>/tests/fixtures/<name>/`. `<name>` is lower-case with underscores.
 - A fixture that is a workspace of its own lives in `tests/fixtures/<name>/repo/`.
 - The path of every fixture directory appears in a `BUILD.bazel`, `.bzl` or `MODULE.bazel` file outside that fixture.
 - `examples/` holds only workspaces that span several languages. A one-language example is a fixture.
@@ -129,7 +130,7 @@ A new language is these steps and no others.
 
 1. Add `<lang>/lang.json`.
 2. Add `<lang>/BUILD.bazel`, `<lang>/defs.bzl`, `<lang>/private/defs.bzl` and `<lang>/tests/BUILD.bazel`.
-3. Add `<lang>/tests/fixtures/hello/` when the language exports a common kind.
+3. Add `<lang>/tests/conformance/BUILD.bazel`, and `<lang>/tests/consumer/` when the manifest has `entry_points`.
 4. Add `<lang>/pins.json` when the language pins a toolchain, and `<lang>/extensions.bzl` when the toolchain takes consumer tags.
 5. Add the `dx_pins.pin`, `use_extension` and `register_toolchains` lines to `MODULE.bazel`.
 6. Run the generators.

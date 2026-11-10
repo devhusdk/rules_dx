@@ -5,8 +5,11 @@ load("//rust:defs.bzl", "rust_test")
 CONSUMER_FIXTURES = [
     "d",
     "go",
+    "julia",
     "lua",
     "perl",
+    "php",
+    "ruby",
     "rust",
     "zig",
 ]

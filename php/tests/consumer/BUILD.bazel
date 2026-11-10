@@ -1,0 +1,14 @@
+load("@rules_dx//php:defs.bzl", "php_library", "php_test")
+
+php_library(
+    name = "consumer",
+    srcs = ["src/Greet.php"],
+    visibility = ["//visibility:public"],
+)
+
+php_test(
+    name = "consumer_test",
+    size = "small",
+    srcs = ["test/GreetTest.php"],
+    deps = [":consumer"],
+)

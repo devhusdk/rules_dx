@@ -22,3 +22,13 @@ diff --git a/haskell/private/cc_wrapper.py.tpl b/haskell/private/cc_wrapper.py.t
          # may fail if the path does not exist or on dangling symlinks.
          pass
  
+@@ -1020,5 +1023,9 @@
+ def find_cc():
+     """Find the path to the actual compiler executable."""
++    if is_windows() and not CC.endswith(".exe"):
++        exe = CC + ".exe"
++        if os.path.isfile(exe):
++            return exe
+     if os.path.isfile(CC):
+         cc = CC
+     else:

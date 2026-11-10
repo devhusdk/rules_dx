@@ -221,6 +221,8 @@ GHC_DROPPED_PATHS = [
 
 NO_HOST_TOOL = "dx-no-host-tool"
 
+BUNDLED_TOOLS = ["Merge objects command"]
+
 SETTINGS = {
     "C compiler command": NO_HOST_TOOL,
     "C compiler flags": "",
@@ -373,6 +375,9 @@ def ghc_settings(source):
         key = stripped[2:stripped.index("\"", 2)]
         if key in SETTINGS:
             seen.append(key)
+            if key in BUNDLED_TOOLS and "\"$tooldir/" in stripped:
+                lines.append(line)
+                continue
             line = line[:line.index("(")] + "(" + repr(key) + ", " + repr(SETTINGS[key]) + ")"
         lines.append(line)
     missing = [key for key in SETTINGS if key not in seen]

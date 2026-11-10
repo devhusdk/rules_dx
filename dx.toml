@@ -23,6 +23,3 @@ tier = "standard"
 [families.go]
 tier = "standard"
 
-# The strict fortitude tier selects OB001, which the pinned fortitude removed.
-[families.fortran]
-tier = "standard"

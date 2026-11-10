@@ -462,7 +462,13 @@ fn phpstan(backend: &RealBackend, call: &CheckCall) -> Result<Vec<FileFinding>, 
     )
     .map_err(|err| execution(tool_id, format!("write phpstan config: {err}")))?;
     let path_refs: Vec<&Path> = owned.iter().map(|(real, _)| real.as_path()).collect();
-    let invocation = commands::phpstan_check(&tool.binary, &neon, None, &path_refs);
+    let autoload = tool
+        .tool_files
+        .iter()
+        .any(|(rel, _)| rel == "dx-phpstan/ext/autoload.php")
+        .then(|| root.join("dx-phpstan/ext/autoload.php"));
+    let invocation =
+        commands::phpstan_check(&tool.binary, &neon, autoload.as_deref(), &path_refs);
     let out = backend.run(tool_id, tool, &invocation, scratch)?;
     let real_names: Vec<String> = owned
         .iter()

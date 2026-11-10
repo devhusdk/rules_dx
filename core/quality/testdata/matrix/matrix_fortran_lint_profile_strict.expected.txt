@@ -5,7 +5,7 @@ stage fortitude classes=fortran sources=matrix/fortran_profile_strict.f90
 completed_rounds 1
 convergence STABLE
 initial 1
-initial ERROR fortitude S221 matrix/fortran_profile_strict.f90 89 116 fixable=false "Function missing result() specifier"
+initial WARNING fortitude S221 matrix/fortran_profile_strict.f90 89 116 fixable=false "Function missing result() specifier"
 terminal 1
-terminal ERROR fortitude S221 matrix/fortran_profile_strict.f90 89 116 fixable=false "Function missing result() specifier"
+terminal WARNING fortitude S221 matrix/fortran_profile_strict.f90 89 116 fixable=false "Function missing result() specifier"
 replacements 0

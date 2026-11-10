@@ -516,7 +516,7 @@ def _perltidy_default_impl(ctx):
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
     asserts.equals(env, "", fields["perltidy"])
-    asserts.true(env, fields["wrapper"].endswith("/Perl-Tidy_bin_perltidy") or fields["wrapper"].endswith("/Perl-Tidy_bin_perltidy.exe"), "want perltidy, got " + fields["wrapper"])
+    asserts.true(env, fields["wrapper"].endswith("bin_perltidy") or fields["wrapper"].endswith("bin_perltidy.exe"), "want perltidy, got " + fields["wrapper"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
     return analysistest.end(env)
 
@@ -526,7 +526,7 @@ def _perltidy_wired_impl(ctx):
     """Asserts the flag wires perltidy and a format stage result."""
     env = analysistest.begin(ctx)
     fields = _subject_under_test(env)[DxSubjectInfo].fields
-    asserts.true(env, fields["perltidy"].endswith("/perltidy") or fields["perltidy"].endswith("/perltidy.exe") or fields["perltidy"].endswith("/Perl-Tidy_bin_perltidy"), "want perltidy, got " + fields["perltidy"])
+    asserts.true(env, fields["perltidy"].endswith("/perltidy") or fields["perltidy"].endswith("/perltidy.exe") or fields["perltidy"].endswith("bin_perltidy"), "want perltidy, got " + fields["perltidy"])
     asserts.true(env, fields["results"] != "", "want a format stage result for the Perl target")
     return analysistest.end(env)
 

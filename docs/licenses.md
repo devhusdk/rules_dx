@@ -22,7 +22,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | cue | 0.17.1 | Apache-2.0 |
 | detekt | 1.23.8 | Apache-2.0 |
 | ffmt | 0.4.5 | MIT |
-| fortitude | 0.10.0 | MIT |
+| fortitude | 0.10.1 | MIT |
 | gersemi | 0.29.2 | MPL-2.0 |
 | gitleaks | 8.30.1 | MIT |
 | google_java_format | 1.35.0 | Apache-2.0 |
@@ -41,7 +41,7 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | mksquashfs | 4.6.1 | GPL-2.0-or-later |
 | nixfmt | 1.5.0 | MPL-2.0 |
 | odoc | 3.2.2 | ISC |
-| opa | 1.21.4 | Apache-2.0 |
+| opa | 1.22.2 | Apache-2.0 |
 | ormolu | 0.9.0.0 | BSD-3-Clause, LGPL-2.1-or-later, LGPL-3.0-or-later OR GPL-2.0-or-later, MIT |
 | pkl | 0.32.1 | Apache-2.0 |
 | pkl-lsp | 0.8.0 | Apache-2.0 |
@@ -55,11 +55,11 @@ Terraform is BUSL-1.1. That is not an open-source license and it restricts some 
 | stylua | 2.6.0 | MPL-2.0 |
 | taplo | 0.10.0 | MIT |
 | terraform | 1.16.1 | BUSL-1.1 |
-| tflint | 0.65.0 | MPL-2.0 |
+| tflint | 0.66.0 | MPL-2.0 |
 | tinymist | 0.15.12 | Apache-2.0 |
 | trivy | 0.76.2 | Apache-2.0 |
 | ty | 0.0.80 | MIT |
-| typos | 1.52.0 | Apache-2.0, MIT |
+| typos | 1.52.1 | Apache-2.0, MIT |
 | typstyle | 0.15.2 | Apache-2.0 |
 | uv | 0.13.7 | Apache-2.0, MIT |
 | vale | 3.20.0 | MIT |

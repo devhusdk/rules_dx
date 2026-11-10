@@ -14,6 +14,21 @@
   "lockfiles": [
     "luarocks.lock"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "luarocks",
+        "manifest": "*.rockspec",
+        "lock": "luarocks.lock",
+        "state": null,
+        "extension": "@rules_dx//lua/luarocks:extensions.bzl",
+        "tag": "lock",
+        "hub": "luarocks",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "selene",
     "stylua"

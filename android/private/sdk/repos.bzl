@@ -295,7 +295,6 @@ def default_request():
         api_level = 0,
         enabled = True,
         extra_packages = [],
-        local_path = "",
         mirror = "",
     )
 
@@ -316,8 +315,6 @@ def request_errors(request):
         elif package in seen:
             errors.append("android_sdk: extra package '" + package + "' is listed twice")
         seen.append(package)
-    if request.local_path != "":
-        return errors
     missing = [name for name in REQUIRED_LICENSES if name not in request.accept_licenses]
     if len(missing) > 0:
         quoted = ['"' + name + '"' for name in missing]
@@ -338,12 +335,11 @@ def app_sdk_layout(request):
     if not request.enabled:
         return []
     level = sdk_level(request)
-    local = request.local_path != ""
     host = "linux_x86_64"
     return [
-        struct(dest = "build-tools/" + BUILD_TOOLS, kind = "build-tools", artifact = None if local else BUILD_TOOLS_ARTIFACTS[host]),
-        struct(dest = "platforms/android-%d" % level, kind = "platform", artifact = None if local else PLATFORM_ARTIFACTS[level]),
-        struct(dest = "platform-tools", kind = "platform-tools", artifact = None if local else PLATFORM_TOOLS_ARTIFACTS[host]),
+        struct(dest = "build-tools/" + BUILD_TOOLS, kind = "build-tools", artifact = BUILD_TOOLS_ARTIFACTS[host]),
+        struct(dest = "platforms/android-%d" % level, kind = "platform", artifact = PLATFORM_ARTIFACTS[level]),
+        struct(dest = "platform-tools", kind = "platform-tools", artifact = PLATFORM_TOOLS_ARTIFACTS[host]),
     ]
 
 def app_sdk_substitutions(request = None):
@@ -434,18 +430,6 @@ def package_repositories(request):
     if not request.enabled:
         return {}
     level = sdk_level(request)
-    if request.local_path != "":
-        local = HUB_NAME + "_local"
-        repos = {
-            "build_tools": {"linux_x86_64": local},
-            "ndk": {"linux_x86_64": local},
-            "platform": {level: local},
-        }
-        if "platform-tools" in request.extra_packages:
-            repos["platform_tools"] = {"linux_x86_64": local}
-        if "emulator" in request.extra_packages:
-            repos["emulator"] = {"linux_x86_64": local}
-        return repos
     repos = {
         "build_tools": build_tools_repositories(),
         "ndk": ndk_repositories(),
@@ -460,7 +444,7 @@ def package_repositories(request):
 def fetches_payload(requests):
     """Returns whether any request downloads an NDK archive."""
     for request in requests:
-        if request.enabled and request.local_path == "":
+        if request.enabled:
             return True
     return False
 
@@ -725,92 +709,6 @@ def acquire_emulator(ctx):
     """Downloads, verifies, and extracts one pinned emulator archive."""
     return _acquire(ctx, artifact_errors(EMULATOR_ARTIFACTS, ""), emulator_build)
 
-def _require_local(ctx, package, path, required):
-    """Fails naming the missing path when a requested package is absent from a local SDK."""
-    full = ctx.attr.local_path + "/" + path
-    if required and not ctx.path(full).exists:
-        fail("android_sdk: '" + ctx.attr.local_path + "' holds no " + package + " at '" + full + "'")
-
-def _android_sdk_local_repo_impl(ctx):
-    if not ctx.path(ctx.attr.local_path + "/licenses/android-sdk-license").exists:
-        fail("android_sdk: '" + ctx.attr.local_path + "' shows no accepted android-sdk-license")
-    anchor = ctx.attr.local_path + "/ndk/" + ANDROID_NDK_REVISION + "/source.properties"
-    if not ctx.path(anchor).exists:
-        fail("android_sdk: '" + ctx.attr.local_path + "' holds no pinned NDK " + ANDROID_NDK_REVISION)
-    level = ctx.attr.api_level if ctx.attr.api_level != 0 else DEFAULT_PLATFORM_LEVEL
-    jar = "platforms/android-" + str(level) + "/android.jar"
-    _require_local(ctx, "platform android-" + str(level), jar, ctx.attr.api_level != 0)
-    _require_local(ctx, "platform-tools", "platform-tools/adb", "platform-tools" in ctx.attr.extra_packages)
-    _require_local(ctx, "emulator", "emulator/emulator", "emulator" in ctx.attr.extra_packages)
-    ctx.symlink(ctx.path(ctx.attr.local_path), "sdk")
-    tools = "sdk/build-tools/" + BUILD_TOOLS + "/"
-    ctx.file("BUILD.bazel", "\n".join([
-        "filegroup(",
-        '    name = "ndk",',
-        '    srcs = glob(["sdk/ndk/' + ANDROID_NDK_REVISION + '/**"]),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "ndk_anchor",',
-        '    srcs = ["sdk/ndk/' + ANDROID_NDK_REVISION + '/source.properties"],',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "zipalign",',
-        '    srcs = glob(["' + tools + 'zipalign"], allow_empty = True),',
-        '    data = glob(["' + tools + 'lib64/libc++.so*"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "aapt",',
-        '    srcs = glob(["' + tools + 'aapt"], allow_empty = True),',
-        '    data = glob(["' + tools + 'lib64/libc++.so*"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "dexdump",',
-        '    srcs = glob(["' + tools + 'dexdump"], allow_empty = True),',
-        '    data = glob(["' + tools + 'lib64/libc++.so*"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "apksigner_jar",',
-        '    srcs = glob(["' + tools + 'lib/apksigner.jar"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "build_tools_anchor",',
-        '    srcs = glob(["' + tools + 'source.properties"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "android_jar",',
-        '    srcs = glob(["sdk/' + jar + '"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "adb",',
-        '    srcs = glob(["sdk/platform-tools/adb"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-        "filegroup(",
-        '    name = "emulator",',
-        '    srcs = glob(["sdk/emulator/emulator"], allow_empty = True),',
-        '    data = glob(["sdk/emulator/**"], allow_empty = True),',
-        '    visibility = ["//visibility:public"],',
-        ")",
-        "",
-    ]))
-
 NDK_REPOSITORY_ATTRS = {
     "anchor": attr.string(
         doc = "Path inside the extracted archive that must exist.",
@@ -857,40 +755,19 @@ android_emulator_repo = repository_rule(
     attrs = NDK_REPOSITORY_ATTRS,
 )
 
-android_sdk_local_repo = repository_rule(
-    implementation = _android_sdk_local_repo_impl,
-    attrs = {
-        "api_level": attr.int(
-            doc = "Platform API level required, zero uses the default level.",
-            default = 0,
-        ),
-        "extra_packages": attr.string_list(
-            doc = "Extra SDK packages required locally, such as platform-tools or emulator.",
-            default = [],
-        ),
-        "local_path": attr.string(
-            doc = "Existing Android SDK directory used instead of downloads.",
-            mandatory = True,
-        ),
-    },
-)
-
 def _android_app_sdk_repo_impl(ctx):
     linux_x86_64 = ctx.os.name == "linux" and ctx.os.arch in ["amd64", "x86_64"]
     if len(ctx.attr.dirs) == 0 or not linux_x86_64:
         ctx.template("BUILD.bazel", Label("@rules_android//rules/android_sdk_repository:empty.template.bzl"))
         return ctx.repo_metadata(reproducible = True)
     for dest, fields in ctx.attr.dirs.items():
-        if ctx.attr.local_path != "":
-            ctx.symlink(ctx.attr.local_path + "/" + dest, dest)
-        else:
-            ctx.download_and_extract(
-                url = fields[0],
-                sha256 = fields[1],
-                canonical_id = fields[2],
-                output = dest,
-                strip_prefix = fields[3],
-            )
+        ctx.download_and_extract(
+            url = fields[0],
+            sha256 = fields[1],
+            canonical_id = fields[2],
+            output = dest,
+            strip_prefix = fields[3],
+        )
     ctx.symlink(Label("@rules_android//rules/android_sdk_repository:helper.bzl"), "helper.bzl")
     substitutions = dict(ctx.attr.substitutions)
     substitutions["__repository_name__"] = ctx.name
@@ -903,7 +780,6 @@ android_app_sdk_repo = repository_rule(
         "dirs": attr.string_list_dict(
             doc = "Directory under the SDK root to [url, sha256, canonical_id, strip_prefix].",
         ),
-        "local_path": attr.string(doc = "Existing Android SDK directory the directories are linked from."),
         "substitutions": attr.string_dict(doc = "Keys rules_android's SDK BUILD template takes."),
     },
 )

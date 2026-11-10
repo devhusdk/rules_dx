@@ -73,7 +73,6 @@ def _request(**kwargs):
         api_level = ANDROID_API_LEVEL,
         enabled = True,
         extra_packages = [],
-        local_path = "",
         mirror = "",
     )
     return struct(**{key: kwargs.get(key, getattr(base, key)) for key in [
@@ -81,7 +80,6 @@ def _request(**kwargs):
         "api_level",
         "enabled",
         "extra_packages",
-        "local_path",
         "mirror",
     ]})
 
@@ -204,7 +202,6 @@ def _android_checks():
     checks.append(expect_equal("default request is clean", request_errors(default_request()), []))
     checks.append(expect_false("no request fetches nothing", fetches_payload([])))
     checks.append(expect_false("disabled request fetches nothing", fetches_payload([_request(enabled = False)])))
-    checks.append(expect_false("installed request fetches nothing", fetches_payload([_request(local_path = "/opt/android-sdk")])))
     checks.append(expect_true("default request fetches", fetches_payload([default_request()])))
     checks.append(expect_equal(
         "missing license fails",
@@ -245,8 +242,8 @@ def _android_checks():
         ["android_sdk: api_level 35 is not pinned; want one of 31, 32, 33, 34"],
     ))
     checks.append(expect_equal(
-        "downgraded api level fails in local mode",
-        request_errors(_request(api_level = 29, local_path = "/opt/android-sdk")),
+        "downgraded api level fails",
+        request_errors(_request(api_level = 29)),
         ["android_sdk: api_level 29 is below 31"],
     ))
     checks.append(expect_equal("pinned api level passes", request_errors(_request(api_level = 32)), []))
@@ -311,10 +308,6 @@ def _android_checks():
         package_repositories(_request(extra_packages = ["emulator"]))["emulator"],
         {"linux_x86_64": "dx_android_emulator_linux_x86_64"},
     ))
-    local_repos = package_repositories(_request(local_path = "/opt/android-sdk"))
-    checks.append(expect_true("local request differs from disabled", local_repos != package_repositories(_request(enabled = False))))
-    checks.append(expect_equal("local ndk repository", local_repos["ndk"], {"linux_x86_64": "dx_android_sdk_local"}))
-    checks.append(expect_true("local request differs from remote", local_repos != package_repositories(_request())))
     checks.append(expect_equal(
         "disabled hub selects nothing",
         hub_build({}, {}, BUNDLETOOL_REPOSITORY),
@@ -424,9 +417,9 @@ def _android_checks():
     checks.append(expect_equal("app sdk dirs", [entry.dest for entry in pinned], ["build-tools/35.0.0", "platforms/android-34", "platform-tools"]))
     checks.append(expect_equal("app sdk build-tools archive", pinned[0].artifact.archive, "build-tools_r35_linux.zip"))
     checks.append(expect_equal("app sdk platform archive", pinned[1].artifact.archive, PLATFORM_ARTIFACTS[34].archive))
-    local = app_sdk_layout(_request(local_path = "/sdk", api_level = 33))
-    checks.append(expect_equal("app sdk local dirs", [entry.dest for entry in local], ["build-tools/35.0.0", "platforms/android-33", "platform-tools"]))
-    checks.append(expect_equal("app sdk local has no artifacts", [entry.artifact for entry in local], [None, None, None]))
+    leveled = app_sdk_layout(_request(api_level = 33))
+    checks.append(expect_equal("app sdk leveled dirs", [entry.dest for entry in leveled], ["build-tools/35.0.0", "platforms/android-33", "platform-tools"]))
+    checks.append(expect_equal("app sdk leveled platform archive", leveled[1].artifact.archive, PLATFORM_ARTIFACTS[33].archive))
     checks.append(expect_equal("app sdk disabled", app_sdk_layout(_request(enabled = False)), []))
     checks.append(expect_equal("app sdk substitutions", app_sdk_substitutions(_request(api_level = 33)), {
         "__api_levels__": '"33"',

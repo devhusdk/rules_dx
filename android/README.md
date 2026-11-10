@@ -40,13 +40,7 @@ The `dx_android_sdk` hub exposes `ndk`, `zipalign`, `apksigner_jar`,
 that were not requested are empty. Without a `configure` tag only the hub
 exists. Pass `mirror` to override the download host.
 
-`local_path` uses an installed SDK with an accepted license instead of
-downloading. The NDK must be present. An explicit `api_level` or a requested
-extra package must exist in the SDK, otherwise the error names the missing
-path. Without them a missing android-34 platform leaves `android_jar` empty.
-Build-tools are only used for signing, so a missing build-tools package does
-not fail the fetch; signing then exits 127 and names the
-`sdk/build-tools/<version>` path to install. The qualified host is Linux
+The qualified host is Linux
 x86_64 with NDK r27 targeting API 31.
 
 ## Native platforms
@@ -81,7 +75,7 @@ underlying Rust and C actions; build scripts stay on the host toolchain.
 ## NDK toolchain
 
 `android_ndk_toolchain_repo` from `@rules_dx//android:repos.bzl` defines
-NDK clang toolchains for both tuples from an installed SDK:
+NDK clang toolchains for both tuples from the pinned NDK download:
 
 ```python
 _android_ndk_toolchain_repo = use_repo_rule("@rules_dx//android:repos.bzl", "android_ndk_toolchain_repo")
@@ -93,13 +87,9 @@ _android_ndk_toolchain_repo(
 )
 ```
 
-Point it at an SDK with `local_path` or the `ANDROID_HOME` and
-`ANDROID_NDK_REVISION` environment names, then register
-`@android_ndk_toolchain//:ndk_cc_toolchain_device` and
-`@android_ndk_toolchain//:ndk_cc_toolchain_emulator`. Without an SDK the
-repository stays empty: host tests and metadata still run, while tuple
-links and the readelf architecture inspection stay manual until an SDK
-host runs them.
+Register `@android_ndk_toolchain//:ndk_cc_toolchain_device` and
+`@android_ndk_toolchain//:ndk_cc_toolchain_emulator`. The NDK comes from
+the `android_sdk` extension's pinned download on Linux x86_64.
 
 ## Application packaging
 
@@ -200,8 +190,6 @@ only then writes `DX_SIGN_OUT`. Set `--java_runtime_version`, for
 example to `remotejdk_21`; the default `local_jdk` is the host JDK.
 Neither `ANDROID_HOME` nor `PATH` supplies a tool. Missing inputs exit
 2. Missing build-tools (no `configure` tag) or no Java runtime exit 127.
-With `local_path`, the 127 error names the `sdk/build-tools/<version>` path
-to install into that SDK, where `<version>` is the pinned build-tools release.
 A wrong password, wrong alias or malformed package exits 1 without
 writing an APK. Apksigner enables the schemes the
 minimum SDK needs, so an API 31 package carries a v3 signature.

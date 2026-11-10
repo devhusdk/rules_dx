@@ -3,7 +3,7 @@
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 load("//core:license.bzl", "license_tag", "root_accepts")
 load("//core:repo.bzl", "hub_repo")
-load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "android_sdk_local_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "hub_build", "package_repositories", "request_errors", "sdk_level", "url_for")
+load(":repos.bzl", "APP_SDK_FILES_NAME", "APP_SDK_HUB_NAME", "BUILD_TOOLS_ARCHIVE_PREFIX", "BUILD_TOOLS_ARCHIVE_SEPARATOR", "BUILD_TOOLS_ARTIFACTS", "BUNDLETOOL_REPOSITORY", "BUNDLETOOL_SHA256", "DEFAULT_MIRROR", "EMULATOR_ARTIFACTS", "HUB_NAME", "NDK_ARTIFACTS", "PLATFORM_ARTIFACTS", "PLATFORM_TOOLS_ARCHIVE_PREFIX", "PLATFORM_TOOLS_ARTIFACTS", "android_app_sdk_hub_repo", "android_app_sdk_repo", "android_build_tools_repo", "android_emulator_repo", "android_ndk_repo", "android_platform_repo", "android_platform_tools_repo", "app_sdk_hub_build", "app_sdk_layout", "app_sdk_substitutions", "artifact_errors", "bundletool_url", "canonical_id_for", "hub_build", "package_repositories", "request_errors", "sdk_level", "url_for")
 
 def _configure_tag(request, accept_licenses):
     return struct(
@@ -11,7 +11,6 @@ def _configure_tag(request, accept_licenses):
         api_level = request.api_level,
         enabled = request.enabled,
         extra_packages = list(request.extra_packages),
-        local_path = request.local_path,
         mirror = request.mirror,
     )
 
@@ -33,15 +32,11 @@ def _declare_app_sdk(request):
     dirs = {}
     mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
     for entry in app_sdk_layout(request):
-        if entry.artifact == None:
-            dirs[entry.dest] = []
-            continue
         url = url_for(entry.artifact, mirror)
         dirs[entry.dest] = [url, entry.artifact.sha256, canonical_id_for(url, entry.kind), entry.artifact.directory]
     android_app_sdk_repo(
         name = APP_SDK_FILES_NAME,
         dirs = dirs,
-        local_path = request.local_path,
         substitutions = app_sdk_substitutions(request),
     )
     android_app_sdk_hub_repo(
@@ -82,14 +77,7 @@ def _android_sdk_impl(module_ctx):
         if len(failures) > 0:
             fail("android_sdk: " + "; ".join(failures))
         repos = package_repositories(request)
-        if request.local_path != "":
-            android_sdk_local_repo(
-                name = HUB_NAME + "_local",
-                api_level = request.api_level,
-                extra_packages = request.extra_packages,
-                local_path = request.local_path,
-            )
-        elif request.enabled:
+        if request.enabled:
             mirror = request.mirror if request.mirror != "" else DEFAULT_MIRROR
             for platform in sorted(repos["ndk"].keys()):
                 _declare(android_ndk_repo, repos["ndk"][platform], NDK_ARTIFACTS[platform], "ndk", mirror)
@@ -101,7 +89,7 @@ def _android_sdk_impl(module_ctx):
                 _declare(android_platform_tools_repo, repos["platform_tools"][host], PLATFORM_TOOLS_ARTIFACTS[host], "platform-tools", mirror)
             for host in sorted(repos.get("emulator", {}).keys()):
                 _declare(android_emulator_repo, repos["emulator"][host], EMULATOR_ARTIFACTS[host], "emulator", mirror)
-    _declare_app_sdk(requests[0] if len(requests) == 1 else struct(enabled = False, local_path = "", mirror = "", api_level = 0))
+    _declare_app_sdk(requests[0] if len(requests) == 1 else struct(enabled = False, mirror = "", api_level = 0))
     platform_repos = repos.get("platform", {})
     hub_repo(
         name = HUB_NAME,
@@ -132,10 +120,6 @@ android_sdk = module_extension(
             "extra_packages": attr.string_list(
                 doc = "Extra SDK packages to fetch, such as platform-tools or emulator.",
                 default = [],
-            ),
-            "local_path": attr.string(
-                doc = "Existing Android SDK directory used instead of downloading.",
-                default = "",
             ),
             "mirror": attr.string(
                 doc = "Https base URL that SDK archives are downloaded from.",

@@ -32,7 +32,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` |
 | Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | n/a | n/a |
 | Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` |
-| Lua | none | none: no LuaRocks support, rockspec packages are pinned with `http_archive` | n/a | n/a |
+| Lua | none | none: no LuaRocks support, rockspec packages are pinned with `http_archive` | `lua_bench` | n/a |
 | MDX | none | `npm` | n/a | n/a |
 | OCaml | `windows_x86_64`: conda-forge win-64 OCaml stops at 5.3.0, below the pinned 5.5.2; `windows_arm64`: conda-forge ships no win-arm64 OCaml package | `opam` | n/a | `ocaml_fuzz_test` |
 | Perl | `windows_arm64`: rules_perl 1.5.0 ships no Windows ARM64 perl build | `cpan` | `perl_bench` | n/a |

@@ -473,6 +473,7 @@ dx rule that wraps it.
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `fake_file` |
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `label_string` |
 |  |  | `@rules_dx//libs/starlark:defs.bzl` | `starlark_test` |
+|  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_bench` |
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_binary` |
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_library` |
 |  |  | `@rules_dx//lua/rules:defs.bzl` | `lua_test` |

@@ -1,7 +1,7 @@
 """Wrapper conformance tests for Ruby."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load("//core:entry.bzl", "dx_infer_main", "dx_main_candidates")
 load("//ruby/private/coverage:pins.bzl", "RUBY_COVERAGE_GEMS", "gem_dir")
@@ -55,17 +55,9 @@ def _coverage_env_impl(ctx):
         asserts.equals(env, [], [p for p in runfiles if "dx_ruby_coverage_gems" in p])
     return analysistest.end(env)
 
-_coverage_env_on_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {"coverage": attr.bool(default = True)},
-    config_settings = {"//command_line_option:collect_code_coverage": True},
-)
-
-_coverage_env_off_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {"coverage": attr.bool(default = False)},
-    config_settings = {"//command_line_option:collect_code_coverage": False},
-)
+_COVERAGE = coverage_env_tests(_coverage_env_impl)
+_coverage_env_on_test = _COVERAGE.on
+_coverage_env_off_test = _COVERAGE.off
 
 def ruby_coverage_env_test(name, target):
     """Asserts a Ruby test puts the pinned SimpleCov gems on RUBYLIB under coverage, and only then."""

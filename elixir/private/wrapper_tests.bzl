@@ -1,7 +1,7 @@
 """Wrapper conformance tests for Elixir."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
 load(":defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "escript_headers", "helper_first", "nif_priv")
 load(":kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
@@ -63,16 +63,9 @@ def _coverage_env_impl(ctx):
     asserts.equals(env, ctx.attr.apps != "", "DX_ELIXIR_COVER_SCRIPT" in run_env)
     return analysistest.end(env)
 
-_coverage_env_on_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {"apps": attr.string(), "sources": attr.string()},
-    config_settings = {"//command_line_option:collect_code_coverage": True},
-)
-
-_coverage_env_off_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {"apps": attr.string(), "sources": attr.string()},
-)
+_COVERAGE = coverage_env_tests(_coverage_env_impl, attrs = {"apps": attr.string(), "sources": attr.string()})
+_coverage_env_on_test = _COVERAGE.on
+_coverage_env_off_test = _COVERAGE.off
 
 def elixir_coverage_env_test(name, target, apps, sources):
     """Asserts an elixir_test names its workspace apps and sources for the cover script under coverage, and only then."""

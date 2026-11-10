@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load(":coverage.bzl", "DX_JVM_TEST_RUNNER")
+load("//core:conformance.bzl", "coverage_env_tests")
 
 def _coverage_env_impl(ctx):
     env = analysistest.begin(ctx)
@@ -13,23 +14,9 @@ def _coverage_env_impl(ctx):
         asserts.true(env, InstrumentedFilesInfo in target, "no InstrumentedFilesInfo")
     return analysistest.end(env)
 
-_coverage_env_on_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {
-        "coverage": attr.bool(default = True),
-        "main_class": attr.string(),
-    },
-    config_settings = {"//command_line_option:collect_code_coverage": True},
-)
-
-_coverage_env_off_test = analysistest.make(
-    _coverage_env_impl,
-    attrs = {
-        "coverage": attr.bool(default = False),
-        "main_class": attr.string(),
-    },
-    config_settings = {"//command_line_option:collect_code_coverage": False},
-)
+_COVERAGE = coverage_env_tests(_coverage_env_impl, attrs = {"main_class": attr.string()})
+_coverage_env_on_test = _COVERAGE.on
+_coverage_env_off_test = _COVERAGE.off
 
 def jvm_coverage_env_test(name, target, main_class = DX_JVM_TEST_RUNNER):
     """Asserts a JVM test sets JACOCO_MAIN_CLASS to main_class under coverage, which the Windows launcher leaves out."""

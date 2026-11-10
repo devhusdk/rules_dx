@@ -411,14 +411,14 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
     #[test]
     fn publisher_output_never_shows_the_secret() {
-        let out = dx_process::capture::run_captured(
-            std::process::Command::new("sh").args(["-c", "echo key-sekret; echo err key-sekret >&2"]),
-            dx_process::capture::DEFAULT_TIMEOUT,
-        )
-        .expect("run sh");
+        let out = dx_process::capture::Captured {
+            command: "publisher".to_owned(),
+            code: Some(0),
+            stdout: b"key-sekret\n".to_vec(),
+            stderr: b"err key-sekret\n".to_vec(),
+        };
         let (stdout, stderr) = redacted_streams(&out, "key-sekret");
         assert_eq!(stdout, "[redacted]\n");
         assert_eq!(stderr, "err [redacted]\n");

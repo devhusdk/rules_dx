@@ -433,8 +433,27 @@ mod tests {
     #[cfg(unix)]
     fn fake_gem(dir: &Path, body: &str) -> PathBuf {
         let fake = dir.join("gem");
-        dx_testing::executable_script(&fake, &format!("#!/bin/sh\n{body}\n"));
+        write_script(&fake, &format!("#!/bin/sh\n{body}\n"));
         fake
+    }
+
+    #[cfg(unix)]
+    fn write_script(path: &Path, text: &str) {
+        use std::os::unix::fs::PermissionsExt;
+        let _spawn = dx_testing::spawning();
+        std::fs::write(path, text).expect("write script");
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    }
+
+    /// A shell command that writes the bytes of `path` to `$4` using only builtins.
+    #[cfg(unix)]
+    fn emit_file(path: &Path) -> String {
+        use std::fmt::Write as _;
+        let mut escaped = String::new();
+        for byte in std::fs::read(path).expect("read gem") {
+            write!(escaped, "\\{byte:03o}").expect("format");
+        }
+        format!("printf '%b' '{escaped}' > \"$4\"")
     }
 
     #[cfg(unix)]
@@ -453,7 +472,7 @@ mod tests {
         std::fs::create_dir_all(&bin).expect("bin");
         let build = fake_gem(
             &bin,
-            &format!("[ \"$1\" = build ] && cp {} \"$4\"", prebuilt.display()),
+            &format!("[ \"$1\" = build ] && {}", emit_file(&prebuilt)),
         );
         let staging = scratch.path().join("staging");
         let (gem, version) =
@@ -468,7 +487,7 @@ mod tests {
         write_gem(&wrong, &["lib/demo.rb", "secret.rb"]);
         let bad = fake_gem(
             &bin,
-            &format!("[ \"$1\" = build ] && cp {} \"$4\"", wrong.display()),
+            &format!("[ \"$1\" = build ] && {}", emit_file(&wrong)),
         );
         let error =
             rubygems_build_checked(&bad, &mapped, &scratch.path().join("s2"), "demo", "1.2.3")

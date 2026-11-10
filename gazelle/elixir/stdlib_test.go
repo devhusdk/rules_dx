@@ -1,8 +1,8 @@
 package elixir
 
 import (
+	"encoding/json"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -36,16 +36,18 @@ func TestStdlibList(t *testing.T) {
 			t.Errorf("IsStdLib(%q) = true", not)
 		}
 	}
-	pins, err := os.ReadFile("../../elixir/private/toolchain/pins.bzl")
+	data, err := os.ReadFile("../../elixir/private/toolchain/pins.json")
 	if err != nil {
 		t.Fatal(err)
 	}
-	m := regexp.MustCompile(`ELIXIR_VERSION = "([^"]+)"`).FindSubmatch(pins)
-	if m == nil {
-		t.Fatal("no ELIXIR_VERSION in pins.bzl")
+	var pins struct {
+		Version string `json:"version"`
 	}
-	if !strings.HasPrefix(header, "# Elixir "+string(m[1])+":") {
-		t.Fatalf("stdlib_modules.txt header %q does not match ELIXIR_VERSION %s; regenerate it", header, m[1])
+	if err := json.Unmarshal(data, &pins); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(header, "# Elixir "+pins.Version+":") {
+		t.Fatalf("stdlib_modules.txt header %q does not match pins.json version %s; regenerate it", header, pins.Version)
 	}
 }
 

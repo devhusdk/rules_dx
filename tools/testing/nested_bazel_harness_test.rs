@@ -1,4 +1,4 @@
-//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk (#5689), a locked consumer resolves rules_dx extensions from its repository cache sets (#2978), and nested servers stop with their test binary.
+//! Offline self-tests of the nested Bazel harness: the pinned binary runs without bazelisk (#5689), a locked consumer resolves rules_dx extensions from its repository cache sets (#2978), and nested servers stop with their test binary, and a restarted server refetches no repository rule unless its declared environment changed.
 
 use std::time::{Duration, Instant};
 
@@ -43,6 +43,88 @@ fn seeded_consumer_resolves_python_interpreters_offline() {
     assert!(
         lock["facts"].get(PYTHON_FACTS).is_some(),
         "the consumer lock lost the python_interpreters facts: {lock}"
+    );
+}
+
+#[cfg(target_os = "linux")]
+/// Runs `args` with the workspace rules log at `name` under `TEST_TMPDIR`, and returns the rules that ran.
+fn refetched(case: &Case, name: &str, args: &[&str]) -> Vec<String> {
+    let tmpdir = std::path::PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
+    let log = tmpdir.join(name);
+    let flag = format!("--experimental_workspace_rules_log_file={}", log.display());
+    let mut full = args.to_vec();
+    full.push(&flag);
+    let run = case.bazel(&full);
+    assert!(run.status.success(), "{}", run.combined());
+    let bytes = std::fs::read(&log).unwrap_or_default();
+    nested::record::contexts(&bytes)
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_server_restart_refetches_no_repository() {
+    if nested::recording() {
+        return;
+    }
+    let (case, _) = locked_consumer("restart");
+    let run = case.bazel(nested::HARNESS_QUERY);
+    assert!(run.status.success(), "{}", run.combined());
+    case.shutdown_server();
+    let contexts = refetched(&case, "refetch.log", nested::HARNESS_QUERY);
+    assert!(
+        contexts.is_empty(),
+        "a restarted server refetched repositories: {contexts:?}"
+    );
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn a_changed_repo_env_refetches_the_probe() {
+    if nested::recording() {
+        return;
+    }
+    let (case, _) = locked_consumer("probe");
+    case.write(
+        "probe.bzl",
+        r#"def _impl(rctx):
+    value = rctx.os.environ.get("DX_REFETCH_PROBE")
+    rctx.file("BUILD.bazel", "filegroup(name = \"all\", srcs = [], tags = [\"" + str(value) + "\"])\n")
+
+probe = repository_rule(implementation = _impl, environ = ["DX_REFETCH_PROBE"])
+"#,
+    );
+    case.write("BUILD.bazel", "");
+    let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
+    case.write(
+        "MODULE.bazel",
+        &format!("{module}\nuse_repo_rule(\"//:probe.bzl\", \"probe\")\nprobe(name = \"probe\")\n"),
+    );
+    let query = |value: &str| {
+        vec![
+            "query".to_string(),
+            "--color=no".to_string(),
+            "--curses=no".to_string(),
+            format!("--repo_env=DX_REFETCH_PROBE={value}"),
+            "@probe//:all".to_string(),
+        ]
+    };
+    let run = |value: &str, log: &str| {
+        let args = query(value);
+        let args: Vec<&str> = args.iter().map(String::as_str).collect();
+        refetched(&case, log, &args)
+    };
+    run("a", "probe-1.log");
+    case.shutdown_server();
+    let changed = run("b", "probe-2.log");
+    assert!(
+        changed.iter().any(|context| context.contains("probe")),
+        "a changed repo env did not refetch the probe: {changed:?}"
+    );
+    case.shutdown_server();
+    let unchanged = run("b", "probe-3.log");
+    assert!(
+        unchanged.is_empty(),
+        "an unchanged repo env refetched: {unchanged:?}"
     );
 }
 

@@ -33,10 +33,5 @@ def real_result_test(name, target, file_class, config, contains = [], absent = [
         data = [":" + name + "_results"],
         size = "small",
         tags = ["no-coverage"],
-        target_compatible_with = target_compatible_with or compatible(
-            flags.get("macos_arm64", False),
-            flags.get("windows_x86_64", False),
-            flags.get("linux_arm64", False),
-            flags.get("windows_arm64", False),
-        ),
+        target_compatible_with = target_compatible_with or compatible(flags),
     )

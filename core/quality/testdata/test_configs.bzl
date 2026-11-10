@@ -38,25 +38,15 @@ _TOOL_DEFAULTS = {
     "//config:tool_zig_fmt": "//config:no_zig_fmt",
 }
 
-_TOOL_OVERRIDES = {
-    "//config:tool_credo": "//elixir/private/tools:credo",
+_TOOL_OVERRIDES = dict(_TOOL_DEFAULTS, **{
     "//config:tool_dart": "//dart/private/tools:dart",
-    "//config:tool_dialyzer": "//erlang/private/tools:dialyzer",
-    "//config:tool_elvis": "//erlang/private/tools:elvis",
-    "//config:tool_erlfmt": "//erlang/private/tools:erlfmt",
     "//config:tool_govet": "//go/private/tools/analysis/cmd/dx_errcheck",
-    "//config:tool_jet": "//julia/private/tools/jet:jet",
     "//config:tool_julia_format": "//julia/private/tools:julia_format",
-    "//config:tool_luals": "//lua/private/tools:luals",
-    "//config:tool_mix_format": "//elixir/private/tools:mix_format",
     "//config:tool_perlcritic": "//perl/private/tools:perlcritic",
     "//config:tool_perltidy": "//perl/private/tools:perltidy",
-    "//config:tool_phpcs": "//php/private/tools:phpcs",
-    "//config:tool_phpstan": "//php/private/tools:phpstan",
-    "//config:tool_sorbet": "//ruby/private/tools:sorbet",
     "//config:tool_zig_ast_check": "//zig/private/tools:zig",
     "//config:tool_zig_fmt": "//zig/private/tools:zig",
-}
+})
 
 def _config(policy, compiler = "llvm", profile = "strict", clippy_flags = [], tools = {}):
     """Returns the full settings of one configuration."""

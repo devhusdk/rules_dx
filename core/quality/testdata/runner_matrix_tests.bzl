@@ -8,31 +8,6 @@ load("//core/quality:support.bzl", "SUPPORT_PLATFORMS")
 load("//core/quality/private:native_config_impl.bzl", "native_config_scratch_rel", "staged_config_rel", "tier_base_dirs")
 load("//rust/private/toolchains:bindings.bzl", "rust_toolchain_toolchains", "rust_toolchain_tools")
 
-RUNNER_TIER_BASE_TOOLS = [
-    "bicep",
-    "biome",
-    "checkmake",
-    "credo",
-    "detekt",
-    "docstrfmt",
-    "elvis",
-    "ffmt",
-    "gersemi",
-    "gplint",
-    "hadolint",
-    "hlint",
-    "mbake",
-    "pmd",
-    "redocly",
-    "regal",
-    "rustfmt",
-    "scalafix",
-    "scalafmt",
-    "selene",
-    "stylelint",
-    "tflint",
-]
-
 def _single_file(target):
     files = target[DefaultInfo].files.to_list()
     if len(files) != 1:
@@ -412,8 +387,15 @@ _runner_matrix_test = rule(
     },
 )
 
-def compatible(macos_arm64, windows_x86_64, linux_arm64, windows_arm64 = False):
-    """Returns the platforms one matrix case runs on."""
+# Non-default platform ids, in `matrix_case_platforms` order; each is also the matrix case flag name.
+PLATFORM_FLAGS = ["linux_arm64", "macos_arm64", "windows_x86_64", "windows_arm64"]
+
+def compatible(flags):
+    """Returns the platforms one matrix case runs on; `flags` maps PLATFORM_FLAGS names to bool."""
+    linux_arm64 = flags.get("linux_arm64", False)
+    macos_arm64 = flags.get("macos_arm64", False)
+    windows_x86_64 = flags.get("windows_x86_64", False)
+    windows_arm64 = flags.get("windows_arm64", False)
     linux = ["@platforms//os:linux"] if linux_arm64 else ["@platforms//os:linux", "@platforms//cpu:x86_64"]
     if not macos_arm64 and not windows_x86_64 and not windows_arm64:
         return linux
@@ -432,24 +414,8 @@ def compatible(macos_arm64, windows_x86_64, linux_arm64, windows_arm64 = False):
     })
 
 def matrix_case_platforms(case):
-    """Returns the platform ids one matrix case runs on, mirroring `compatible`.
-
-    linux_x86_64 is always included. Keep this next to `compatible` so they cannot drift.
-    """
-    linux_arm64 = case.get("linux_arm64", False)
-    macos_arm64 = case.get("macos_arm64", False)
-    windows_x86_64 = case.get("windows_x86_64", False)
-    windows_arm64 = case.get("windows_arm64", False)
-    platforms = ["linux_x86_64"]
-    if linux_arm64:
-        platforms.append("linux_arm64")
-    if macos_arm64:
-        platforms.append("macos_arm64")
-    if windows_x86_64:
-        platforms.append("windows_x86_64")
-    if windows_arm64:
-        platforms.append("windows_arm64")
-    return platforms
+    """Returns the platform ids one matrix case runs on, per PLATFORM_FLAGS."""
+    return ["linux_x86_64"] + [flag for flag in PLATFORM_FLAGS if case.get(flag, False)]
 
 def matrix_case_tools(case):
     """Returns the tool names one matrix case really executes, mirroring the tool binding in the rule impl.
@@ -468,7 +434,7 @@ def matrix_platform_case_names(cases, platform):
 
 def _tier_base_tools(case):
     bound = case.get("config_tools", []) + case.get("upstream_tools", [])
-    return [t for t in matrix_case_tools(case) if t in RUNNER_TIER_BASE_TOOLS and t not in bound]
+    return [t for t in matrix_case_tools(case) if t in tier_base_dirs() and t not in bound]
 
 def runner_matrix_suite(name, cases, extra_cases = []):
     """Instantiates one _runner_matrix_test per matrix case plus a suite; extra_cases are existing tests."""
@@ -516,7 +482,7 @@ def runner_matrix_suite(name, cases, extra_cases = []):
             ambient_files = case.get("ambient_files", {}),
             size = "small",
             tags = ["no-coverage"] + case.get("tags", []),
-            target_compatible_with = compatible(case.get("macos_arm64", False), case.get("windows_x86_64", False), case.get("linux_arm64", False), case.get("windows_arm64", False)),
+            target_compatible_with = compatible(case),
         )
         tests.append(":" + case["name"])
     native.test_suite(name = name, tests = tests + [":" + case["name"] for case in extra_cases])

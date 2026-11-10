@@ -6,7 +6,7 @@ _TERRAFORM_ENV = [
     "terraform=TF_INPUT=0",
 ]
 
-_TFLINT_HEADER = "terraform {\n  required_version = \">= 1.5\"\n  required_providers {\n    null = {\n      source  = \"hashicorp/null\"\n      version = \">= 3.0\"\n    }\n  }\n}\n\n"
+TFLINT_HEADER = "terraform {\n  required_version = \">= 1.5\"\n  required_providers {\n    null = {\n      source  = \"hashicorp/null\"\n      version = \">= 3.0\"\n    }\n  }\n}\n\n"
 _TFLINT_UNUSED = "variable \"unused\" {\n  type = string\n}\n"
 _TFLINT_ENV = ["tflint=CHECKPOINT_DISABLE=1"]
 
@@ -1544,7 +1544,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_terraform_lint_pass",
         "generated": {
-            "matrix/tflint_clean/main.tf": _TFLINT_HEADER + "resource \"null_resource\" \"sample\" {}\n",
+            "matrix/tflint_clean/main.tf": TFLINT_HEADER + "resource \"null_resource\" \"sample\" {}\n",
         },
         "capability": "lint",
         "stages": ["tflint;terraform;matrix/tflint_clean/main.tf"],
@@ -1560,7 +1560,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_terraform_lint_fail",
         "generated": {
-            "matrix/tflint_dirty/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
+            "matrix/tflint_dirty/main.tf": TFLINT_HEADER + _TFLINT_UNUSED,
         },
         "capability": "lint",
         "stages": ["tflint;terraform;matrix/tflint_dirty/main.tf"],
@@ -1592,8 +1592,8 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_terraform_lint_module",
         "generated": {
-            "matrix/tflint_module/a/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
-            "matrix/tflint_module/b/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
+            "matrix/tflint_module/a/main.tf": TFLINT_HEADER + _TFLINT_UNUSED,
+            "matrix/tflint_module/b/main.tf": TFLINT_HEADER + _TFLINT_UNUSED,
         },
         "capability": "lint",
         "stages": ["tflint;terraform;matrix/tflint_module/a/main.tf,matrix/tflint_module/b/main.tf"],
@@ -1609,7 +1609,7 @@ FILE_FAMILY_CASES = [
     {
         "name": "matrix_terraform_lint_config",
         "generated": {
-            "matrix/tflint_config/main.tf": _TFLINT_HEADER + _TFLINT_UNUSED,
+            "matrix/tflint_config/main.tf": TFLINT_HEADER + _TFLINT_UNUSED,
         },
         "capability": "lint",
         "stages": ["tflint;terraform;matrix/tflint_config/main.tf"],
@@ -1630,7 +1630,7 @@ FILE_FAMILY_CASES = [
         "name": "matrix_terraform_lint_profile_standard",
         "generated": {
             "matrix/tflint_profile_standard/variables.tf": "variable \"name\" {\n  type = string\n}\n",
-            "matrix/tflint_profile_standard/main.tf": _TFLINT_HEADER + "resource \"null_resource\" \"sample\" {\n  triggers = {\n    name = var.name\n  }\n}\n",
+            "matrix/tflint_profile_standard/main.tf": TFLINT_HEADER + "resource \"null_resource\" \"sample\" {\n  triggers = {\n    name = var.name\n  }\n}\n",
         },
         "capability": "lint",
         "stages": ["tflint;terraform;matrix/tflint_profile_standard/main.tf,matrix/tflint_profile_standard/variables.tf"],
@@ -1651,7 +1651,7 @@ FILE_FAMILY_CASES = [
         "name": "matrix_terraform_lint_profile_strict",
         "generated": {
             "matrix/tflint_profile_strict/variables.tf": "variable \"name\" {\n  type = string\n}\n",
-            "matrix/tflint_profile_strict/main.tf": _TFLINT_HEADER + "resource \"null_resource\" \"sample\" {\n  triggers = {\n    name = var.name\n  }\n}\n",
+            "matrix/tflint_profile_strict/main.tf": TFLINT_HEADER + "resource \"null_resource\" \"sample\" {\n  triggers = {\n    name = var.name\n  }\n}\n",
         },
         "capability": "lint",
         "stages": ["tflint;terraform;matrix/tflint_profile_strict/main.tf,matrix/tflint_profile_strict/variables.tf"],

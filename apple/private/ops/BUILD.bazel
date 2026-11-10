@@ -6,8 +6,12 @@ package(default_visibility = ["//apple:__subpackages__"])
 rust_library(
     name = "ops",
     srcs = [
+        "src/codesign.rs",
+        "src/export.rs",
         "src/lib.rs",
+        "src/notarize.rs",
         "src/run_macos.rs",
+        "src/signing.rs",
         "src/simctl.rs",
         "src/test_sim.rs",
         "src/util.rs",
@@ -58,6 +62,9 @@ rust_binary(
         ],
     )
     for name in [
+        "codesign",
+        "export",
+        "notarize",
         "run_macos",
         "simctl",
         "test_sim",

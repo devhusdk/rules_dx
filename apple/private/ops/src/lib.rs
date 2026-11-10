@@ -1,4 +1,4 @@
-//! The Apple operations: simulators, test simulators and running a macOS app.
+//! The Apple operations: simulators, test simulators, running a macOS app, export, signing and notarization.
 
 #![cfg_attr(
     not(test),
@@ -10,7 +10,11 @@
     )
 )]
 
+pub mod codesign;
+pub mod export;
+pub mod notarize;
 pub mod run_macos;
+pub mod signing;
 pub mod simctl;
 pub mod test_sim;
 pub mod util;
@@ -46,6 +50,24 @@ pub fn run(args: &[String]) -> u8 {
                 simctl::run(&tools, rest, &process_env)
             }),
         ),
+        "export" | "codesign" | "notarize" => report(
+            match name {
+                "export" => export::PREFIX,
+                "codesign" => codesign::PREFIX,
+                _ => notarize::PREFIX,
+            },
+            xcode::for_launcher(&process_env).and_then(|developer_dir| {
+                let tools = Tools {
+                    developer_dir: Some(developer_dir),
+                    runner: &System,
+                };
+                match name {
+                    "export" => export::run(&tools, rest, &process_env),
+                    "codesign" => codesign::run(&tools, rest, &process_env),
+                    _ => notarize::run(&tools, rest, &process_env),
+                }
+            }),
+        ),
         "run-macos-app" => {
             let tools = Tools {
                 developer_dir: None,
@@ -55,7 +77,7 @@ pub fn run(args: &[String]) -> u8 {
         }
         _ => report(
             "dx-apple-ops",
-            Err(util::usage("usage: apple_ops <simctl|run-macos-app> ...")),
+            Err(util::usage("usage: apple_ops <simctl|run-macos-app|export|codesign|notarize> ...")),
         ),
     }
 }

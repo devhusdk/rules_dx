@@ -6,9 +6,7 @@ load(":signing_tests.bzl", "apple_signing_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "codesign_app.sh",
     "defs.bzl",
-    "notarize_app.sh",
     "signing_tests.bzl",
     "validate.bzl",
 ])

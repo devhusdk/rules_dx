@@ -9,6 +9,8 @@ pub const CODESIGN: &str = "/usr/bin/codesign";
 pub const SECURITY: &str = "/usr/bin/security";
 pub const PLUTIL: &str = "/usr/bin/plutil";
 pub const DITTO: &str = "/usr/bin/ditto";
+pub const OPENSSL: &str = "/usr/bin/openssl";
+pub const SPCTL: &str = "/usr/sbin/spctl";
 
 /// Where installed Xcode applications live.
 pub const APPLICATIONS: &str = "/Applications";

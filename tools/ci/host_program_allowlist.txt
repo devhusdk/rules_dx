@@ -1,6 +1,4 @@
-apple/tests/device_script_test.rs spawn-by-name 1
 apple/tests/macos_app_script_test.rs env-path 1
-apple/tests/signing_script_test.rs spawn-by-name 1
 apple/tests/simulator_script_test.rs env-path 1
 apple/tests/xcframework_script_test.rs env-path 1
 cc/tests/gcc_linux_arm64/archive_test.rs spawn-by-name 1

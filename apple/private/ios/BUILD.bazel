@@ -20,7 +20,6 @@ exports_files([
     "cell.bzl",
     "defs.bzl",
     "device.bzl",
-    "export_ops.sh",
     "lib_tests.bzl",
     "metadata_tests.bzl",
     "simulator.bzl",

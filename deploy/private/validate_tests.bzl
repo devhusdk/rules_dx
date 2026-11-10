@@ -1,7 +1,7 @@
 """Unit tests for the shared deploy charset validators."""
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
-load(":validate.bzl", "NAME_CHARS", "genrule_arg", "only_chars", "parse_size_budget", "size_budget_error")
+load(":validate.bzl", "NAME_CHARS", "charset_error", "genrule_arg", "https_url_error", "only_chars", "parse_size_budget", "size_budget_error", "suffix_error")
 
 def validate_unit_tests(name):
     """Declares unit tests for the shared deploy validators."""
@@ -24,6 +24,16 @@ def validate_unit_tests(name):
                 only_chars("", NAME_CHARS),
                 True,
             ),
+            expect_equal("charset_error accepts a value inside the charset", charset_error("r", "name", "a-b", NAME_CHARS, "E", "C"), ""),
+            expect_equal("charset_error rejects an empty value", charset_error("r", "name", "", NAME_CHARS, "E", "C"), "r: invalid name '': want E"),
+            expect_equal("charset_error rejects a non-string value", charset_error("r", "name", 7, NAME_CHARS, "E", "C"), "r: invalid name '7': want E"),
+            expect_equal("charset_error rejects a char outside the charset", charset_error("r", "name", "a;b", NAME_CHARS, "E", "C"), "r: invalid name 'a;b': want C"),
+            expect_equal("https_url_error accepts an https URL", https_url_error("r", "url", "https://x", "E", "S"), ""),
+            expect_equal("https_url_error rejects an empty value", https_url_error("r", "url", "", "E", "S"), "r: invalid url '': want E"),
+            expect_equal("https_url_error rejects http", https_url_error("r", "url", "http://x", "E", "S"), "r: invalid url 'http://x': want S"),
+            expect_equal("suffix_error accepts the suffix", suffix_error("r", "file", "a.whl", ".whl", "E", "S"), ""),
+            expect_equal("suffix_error rejects an empty value", suffix_error("r", "file", "", ".whl", "E", "S"), "r: invalid file '': want E"),
+            expect_equal("suffix_error rejects another suffix", suffix_error("r", "file", "a.zip", ".whl", "E", "S"), "r: invalid file 'a.zip': want S"),
             expect_equal("genrule_arg quotes a plain value", genrule_arg("dx"), "'dx'"),
             expect_equal("genrule_arg escapes a single quote", genrule_arg("O'Neil"), "'O'\\''Neil'"),
             expect_equal("genrule_arg doubles dollars", genrule_arg("a$HOME"), "'a$$HOME'"),

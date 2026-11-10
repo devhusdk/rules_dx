@@ -21,6 +21,30 @@ def genrule_arg(value):
     """Shell-quotes a string for a native.genrule cmd."""
     return shell.quote(value).replace("$", "$$")
 
+def charset_error(rule, what, value, chars, want_empty, want_chars):
+    """Returns "" or the message for an empty, non-string or out-of-charset value."""
+    if type(value) != "string" or value == "":
+        return rule + ": invalid " + what + " '" + str(value) + "': want " + want_empty
+    if not only_chars(value, chars):
+        return rule + ": invalid " + what + " '" + value + "': want " + want_chars
+    return ""
+
+def https_url_error(rule, what, value, want_empty, want_scheme):
+    """Returns "" or the message for an empty, non-string or non-https value."""
+    if type(value) != "string" or value == "":
+        return rule + ": invalid " + what + " '" + str(value) + "': want " + want_empty
+    if not value.startswith("https://"):
+        return rule + ": invalid " + what + " '" + value + "': want " + want_scheme
+    return ""
+
+def suffix_error(rule, what, value, suffix, want_empty, want_suffix):
+    """Returns "" or the message for an empty, non-string or wrongly suffixed value."""
+    if type(value) != "string" or value == "":
+        return rule + ": invalid " + what + " '" + str(value) + "': want " + want_empty
+    if not value.endswith(suffix):
+        return rule + ": invalid " + what + " '" + value + "': want " + want_suffix
+    return ""
+
 def size_budget_error(value):
     """Validates one size_budget such as '25MB'; '' means no budget."""
     if value == "":

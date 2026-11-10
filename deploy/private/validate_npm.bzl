@@ -1,6 +1,6 @@
 """Validators for the npm deploy rule."""
 
-load(":validate.bzl", "NAME_CHARS", "only_chars")
+load(":validate.bzl", "NAME_CHARS", "charset_error")
 
 _VALID_TAG_CHARS = NAME_CHARS
 
@@ -8,23 +8,25 @@ _VALID_PACKAGE_CHARS = _VALID_TAG_CHARS + "@/"
 
 def npm_tag_error(tag):
     """Validates one npm dist-tag value."""
-    if type(tag) != "string" or tag == "":
-        return ("npm_deploy: invalid dist_tag '" + str(tag) +
-                "': want a non-empty tag (for example 'latest')")
-    if not only_chars(tag, _VALID_TAG_CHARS):
-        return ("npm_deploy: invalid dist_tag '" + tag +
-                "': want only [A-Za-z0-9._-]")
-    return ""
+    return charset_error(
+        "npm_deploy",
+        "dist_tag",
+        tag,
+        _VALID_TAG_CHARS,
+        "a non-empty tag (for example 'latest')",
+        "only [A-Za-z0-9._-]",
+    )
 
 def npm_package_error(package):
     """Validates one npm package name value."""
-    if type(package) != "string" or package == "":
-        return ("npm_deploy: invalid package '" + str(package) +
-                "': want a non-empty package name (for example 'npm-demo')")
-    if not only_chars(package, _VALID_PACKAGE_CHARS):
-        return ("npm_deploy: invalid package '" + package +
-                "': want only [A-Za-z0-9@/_.-]")
-    return ""
+    return charset_error(
+        "npm_deploy",
+        "package",
+        package,
+        _VALID_PACKAGE_CHARS,
+        "a non-empty package name (for example 'npm-demo')",
+        "only [A-Za-z0-9@/_.-]",
+    )
 
 def npm_registry_url_error(registry_url):
     """Validates one npm registry URL value."""

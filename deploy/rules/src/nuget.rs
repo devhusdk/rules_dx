@@ -7,7 +7,7 @@ use crate::api_compat::{
 use crate::archive::*;
 use crate::run::{
     DOTNET_CHILD_ENV_EXTRA, DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode,
-    env_or_empty, print_redacted, scrubbed_command,
+    env_or_empty, exit_text, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -297,7 +297,7 @@ pub fn nuget_live_push(
         ],
     );
     probe.arg("nuget").arg("--version");
-    let reported = match probe.output() {
+    let reported = match run_publish(&mut probe) {
         Ok(out) => String::from_utf8_lossy(&out.stdout).into_owned(),
         Err(error) => {
             eprintln!("nuget_deploy: {error}");
@@ -324,8 +324,8 @@ pub fn nuget_live_push(
         .arg("--source")
         .arg(source)
         .arg("--skip-duplicate");
-    match cmd.output() {
-        Ok(out) if out.status.success() => {
+    match run_publish(&mut cmd) {
+        Ok(out) if out.success() => {
             print_redacted(&out, token);
             let stdout = String::from_utf8_lossy(&out.stdout);
             let stderr = String::from_utf8_lossy(&out.stderr);
@@ -335,7 +335,7 @@ pub fn nuget_live_push(
         }
         Ok(out) => {
             print_redacted(&out, token);
-            eprintln!("nuget_deploy: dotnet failed with {}", out.status);
+            eprintln!("nuget_deploy: dotnet failed with {}", exit_text(&out));
             1
         }
         Err(error) => {
@@ -445,9 +445,10 @@ fn nuget_api_check(
     let home = work.join("home");
     let output = std::fs::write(&old_nupkg, old)
         .and_then(|()| std::fs::create_dir_all(&home))
+        .map_err(|error| error.to_string())
         .and_then(|()| {
             let home = home.display().to_string();
-            scrubbed_command(
+            run_publish(scrubbed_command(
                 dotnet,
                 &[PUBLISH_CHILD_ENV_KEEP],
                 &[
@@ -463,8 +464,8 @@ fn nuget_api_check(
             .arg("package")
             .arg(nupkg)
             .arg("--baseline-package")
-            .arg(&old_nupkg)
-            .output()
+            .arg(&old_nupkg))
+            .map_err(|error| error.to_string())
         });
     let _ = std::fs::remove_dir_all(&work);
     let output = output.map_err(|error| format!("nuget_deploy: ApiCompat: {error}"))?;
@@ -473,7 +474,7 @@ fn nuget_api_check(
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
-    let success = output.status.success();
+    let success = output.success();
     Ok(Outcome::Compared {
         previous,
         changes: changes_or_failure(apicompat_changes(&text), success, "ApiCompat", &text),

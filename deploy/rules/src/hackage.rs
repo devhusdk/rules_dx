@@ -3,7 +3,7 @@
 use crate::archive::basename;
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, print_redacted, scrubbed_command,
+    exit_text, placeholder_refusal, print_redacted, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io::{self, Read};
@@ -114,15 +114,15 @@ fn hackage_live_upload(
         .arg("--publish")
         .arg(format!("--token={token}"))
         .arg(sdist);
-    match cmd.output() {
-        Ok(out) if out.status.success() => {
+    match run_publish(&mut cmd) {
+        Ok(out) if out.success() => {
             print_redacted(&out, token);
             println!("hackage_deploy: uploaded {package} {version}");
             0
         }
         Ok(out) => {
             print_redacted(&out, token);
-            eprintln!("hackage_deploy: cabal failed with {}", out.status);
+            eprintln!("hackage_deploy: cabal failed with {}", exit_text(&out));
             1
         }
         Err(error) => {

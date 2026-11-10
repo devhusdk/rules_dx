@@ -18,6 +18,7 @@ def starter_consumer_test(name, *, bazel_deps):
         data = ["//cli/cli:dx"] + ["//tools/testing/starters/fixtures:" + fixture for fixture in fixtures],
         env = env,
         size = "small",
+        tags = ["starter-consumer"],
         deps = [
             "//cli/test_scratch:dx_test_scratch",
             "//tools/testing/starters:starter_scaffold",

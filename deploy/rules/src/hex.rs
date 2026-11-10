@@ -2,7 +2,7 @@
 
 use crate::run::{
     DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    placeholder_refusal, resolve_version, scrubbed_command,
+    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::io;
@@ -104,7 +104,7 @@ fn hex_stage(mapped: &[(PathBuf, String)], staging: &Path) -> Result<(), String>
 }
 
 /// Returns the last output lines of a failed child with the key removed.
-fn hex_failure_lines(out: &std::process::Output, key: &str) -> String {
+fn hex_failure_lines(out: &dx_process::capture::Captured, key: &str) -> String {
     let text = crate::run::pages_redact(
         &format!(
             "{}\n{}",
@@ -134,17 +134,17 @@ fn hex_run(program: &Path, args: &[&str], dir: &Path, key: &str) -> Result<(), S
         ],
     );
     cmd.args(args).current_dir(dir);
-    let output = cmd.output();
+    let output = run_publish(&mut cmd);
     let _ = std::fs::remove_dir_all(&home);
     let output = output.map_err(|error| format!("hex_deploy: {error}"))?;
-    if output.status.success() {
+    if output.success() {
         return Ok(());
     }
     Err(format!(
         "hex_deploy: {} {} failed with {}{}",
         program.display(),
         args.join(" "),
-        output.status,
+        exit_text(&output),
         hex_failure_lines(&output, key)
     ))
 }

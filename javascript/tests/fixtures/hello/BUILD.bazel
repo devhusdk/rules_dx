@@ -51,17 +51,6 @@ javascript_test(
     tags = ["manual"],
 )
 
-# size: large, manual fixture that checks size forwarding, never run
-javascript_test(
-    name = "plain_large_test",
-    runner = "node",
-    size = "large",
-    srcs = ["plain_test.js"],
-    data = [":hello_lib"],
-    main = "plain_test.js",
-    tags = ["manual"],
-)
-
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

@@ -1963,7 +1963,7 @@ const TSC_OWNED: &str =
 fn tsc_tool(report: &Path, exit: Option<&str>) -> RealTool {
     let mut tool = delegated_tool(report.to_path_buf());
     tool.tool_files = exit
-        .map(|text| vec![("dx-tsc/exit".to_owned(), text.as_bytes().to_vec())])
+        .map(|text| vec![("dx-tsc/exit/0".to_owned(), text.as_bytes().to_vec())])
         .unwrap_or_default();
     tool
 }

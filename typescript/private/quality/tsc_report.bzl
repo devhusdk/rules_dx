@@ -8,13 +8,14 @@ load("//typescript/private/quality:tsc.bzl", "TscInfo", "tsc_aspect")
 def _tsc_report_impl(ctx):
     info = ctx.attr.target[TscInfo]
     if ctx.attr.kind == "exit":
-        return [DefaultInfo(files = depset([info.status]))]
-    return [DefaultInfo(files = depset([info.stdout]))]
+        return [DefaultInfo(files = depset([info.statuses[ctx.attr.index]]))]
+    return [DefaultInfo(files = depset([info.logs[ctx.attr.index]]))]
 
 tsc_report = rule(
     implementation = _tsc_report_impl,
     doc = "Exposes the tsc stdout or the exit status file of a target.",
     attrs = {
+        "index": attr.int(doc = "Which checker of the target to expose.", default = 0),
         "kind": attr.string(doc = "Which tsc output to expose.", values = ["stdout", "exit"], mandatory = True),
         "target": attr.label(doc = "Target the tsc aspect runs on.", mandatory = True, aspects = [tsc_aspect]),
     },

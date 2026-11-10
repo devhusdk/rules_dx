@@ -675,27 +675,41 @@ impl RealBackend {
             .iter()
             .map(|(workspace, _)| workspace.as_str())
             .collect();
-        let [path] = tool.upstream_diagnostics.as_slice() else {
+        if tool.upstream_diagnostics.is_empty() {
             return Err(execution(
                 tool_id,
                 "tsc needs the diagnostics of the target project; the TypeScript aspect did not supply them"
                     .to_owned(),
             ));
-        };
-        let code = tool
+        }
+        let codes: Vec<i32> = tool
             .tool_files
             .iter()
-            .find(|(rel, _)| rel == "dx-tsc/exit")
-            .and_then(|(_, bytes)| std::str::from_utf8(bytes).ok())
-            .and_then(|text| text.trim().parse::<i32>().ok())
+            .filter(|(rel, _)| rel.starts_with("dx-tsc/exit/"))
+            .filter_map(|(_, bytes)| {
+                std::str::from_utf8(bytes)
+                    .ok()
+                    .and_then(|text| text.trim().parse::<i32>().ok())
+            })
+            .collect();
+        let code = codes
+            .iter()
+            .copied()
+            .max()
+            .filter(|_| codes.len() == tool.upstream_diagnostics.len())
             .ok_or_else(|| {
                 execution(
                     tool_id,
                     "tsc needs its exit status; the TypeScript aspect did not supply it".to_owned(),
                 )
             })?;
-        let bytes = std::fs::read(path)
-            .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?;
+        let mut bytes = Vec::new();
+        for path in &tool.upstream_diagnostics {
+            bytes.extend(
+                std::fs::read(path)
+                    .map_err(|err| execution(tool_id, format!("upstream diagnostics: {err}")))?,
+            );
+        }
         let mut findings = parsed(tool_id, parsers::parse_tsc(&bytes, Some(code), &workspaces))?;
         for found in &mut findings {
             let absolute = reanchor(tool_id, pairs, &found.file)?;

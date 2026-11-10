@@ -93,7 +93,11 @@ def _tsc_hook(target, _ctx, resolved, _capability, _what, _shared):
     if TscInfo not in target:
         return without(resolved, "tsc")
     info = target[TscInfo]
-    return real_context(upstream = [info.stdout], late_tool_files = [("dx-tsc/exit", info.status)], late_inputs = [info.stdout, info.status])
+    return real_context(
+        upstream = info.logs,
+        late_tool_files = [("dx-tsc/exit/%d" % i, status) for i, status in enumerate(info.statuses)],
+        late_inputs = info.logs + info.statuses,
+    )
 
 def _eslint_hook(target, _ctx, _resolved, _capability, _what, shared):
     if TscInfo not in target or target[TscInfo].tsconfig == None:

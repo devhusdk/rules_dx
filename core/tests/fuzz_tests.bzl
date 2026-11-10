@@ -2,17 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:fuzz.bzl", "DxFuzzBinaryInfo", "dx_fuzz_binary_select")
-
-def _stub_impl(ctx):
-    executable = ctx.actions.declare_file(ctx.label.name)
-    ctx.actions.write(executable, "", is_executable = True)
-    return [DefaultInfo(executable = executable)]
-
-_stub_binary = rule(
-    implementation = _stub_impl,
-    doc = "An executable that needs no toolchain.",
-    executable = True,
-)
+load("//tools/testing:stub_target.bzl", "stub_target")
 
 def _settings_impl(ctx):
     env = analysistest.begin(ctx)
@@ -36,7 +26,7 @@ _linux_test = analysistest.make(
 
 def fuzz_binary_tests(name):
     """Declares the dx_fuzz_binary_select platform tests."""
-    _stub_binary(name = name + "_stub", testonly = True)
+    stub_target(name = name + "_stub", testonly = True)
     dx_fuzz_binary_select(name = name + "_subject", binary = ":" + name + "_stub")
     _windows_test(name = name + "_windows_test", target_under_test = ":" + name + "_subject", want_asan = False, want_fuzzer = False)
     _linux_test(name = name + "_linux_test", target_under_test = ":" + name + "_subject", want_asan = True, want_fuzzer = True)

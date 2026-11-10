@@ -1,10 +1,10 @@
 load("//capnproto:defs.bzl", "capnp_cc_library", "capnp_codegen_shard", "capnp_java_library", "capnp_rust_library")
 load("//cc:defs.bzl", "cc_test")
+load("//core:failure_test.bzl", "failure_test")
 load("//core/codegen:codegen_tests.bzl", "codegen_shard_argv_test")
 load("//java:defs.bzl", "java_test")
 load("//rust:defs.bzl", "rust_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":failure_tests.bzl", "capnp_codegen_failure_test")
 
 package(default_visibility = ["//visibility:private"])
 
@@ -243,28 +243,28 @@ capnp_codegen_shard(
     tags = ["manual"],
 )
 
-capnp_codegen_failure_test(
+failure_test(
     name = "unclaimed_artifact_test",
-    message = "unreported capnp_generated_srcs artifact",
-    target_under_test = ":unclaimed_shard",
+    expected_failure_substring = "unreported capnp_generated_srcs artifact",
+    target = ":unclaimed_shard",
 )
 
-capnp_codegen_failure_test(
+failure_test(
     name = "stray_entry_test",
-    message = "matches no capnp_generated_srcs artifact",
-    target_under_test = ":stray_shard",
+    expected_failure_substring = "matches no capnp_generated_srcs artifact",
+    target = ":stray_shard",
 )
 
-capnp_codegen_failure_test(
+failure_test(
     name = "non_admitted_pair_test",
-    message = "unsupported codegen pair ('capnp', 'python')",
-    target_under_test = ":python_shard",
+    expected_failure_substring = "unsupported codegen pair ('capnp', 'python')",
+    target = ":python_shard",
 )
 
-capnp_codegen_failure_test(
+failure_test(
     name = "rust_shard_on_cc_test",
-    message = "does not match //capnproto/tests:shapes_cc, which generates cpp",
-    target_under_test = ":rust_shard_on_cc",
+    expected_failure_substring = "does not match //capnproto/tests:shapes_cc, which generates cpp",
+    target = ":rust_shard_on_cc",
 )
 
 # A rust crate whose library depends on base, but whose deps omit base_rs.
@@ -274,16 +274,16 @@ capnp_rust_library(
     tags = ["manual"],
 )
 
-capnp_codegen_failure_test(
+failure_test(
     name = "rust_missing_crate_dep_test",
-    message = "has no capnp_rust_library in deps",
-    target_under_test = ":api_rs_nodep_generated",
+    expected_failure_substring = "has no capnp_rust_library in deps",
+    target = ":api_rs_nodep_generated",
 )
 
-capnp_codegen_failure_test(
+failure_test(
     name = "rust_duplicate_module_test",
-    message = "generate module common_capnp",
-    target_under_test = "//capnproto/tests/dup:dup_rs_generated",
+    expected_failure_substring = "generate module common_capnp",
+    target = "//capnproto/tests/dup:dup_rs_generated",
 )
 
 real_source_target(
@@ -291,7 +291,6 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
-        "failure_tests.bzl",
     ],
     tags = ["corpus"],
     visibility = ["//:__pkg__"],

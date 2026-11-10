@@ -871,3 +871,99 @@ ci_rust_test(
     },
     deps = ["//tools/testing:dx_testing"],
 )
+
+
+ci_rust_test(
+    name = "command_docs_test",
+    size = "small",
+    data = [
+        "command_docs_allowlist.txt",
+        "//docs:command_docs",
+    ],
+    env = {
+        "DX_ALLOWLIST": "$(rlocationpath command_docs_allowlist.txt)",
+        "DX_COMMAND_DOCS": "$(rlocationpaths //docs:command_docs)",
+    },
+    deps = [
+        "//cli/plan:dx_plan",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+ci_rust_test(
+    name = "prose_rules_test",
+    size = "small",
+    srcs = [
+        "guards/shared.rs",
+        "prose_rules_test.rs",
+    ],
+    data = [
+        "prose_rules_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:all_paths.json",
+        "@dx_test_tags_sources//:prose.json",
+        "@dx_test_tags_sources//:all_rust.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_ALLOWLIST": "$(rlocationpath prose_rules_allowlist.txt)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
+        "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
+        "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:all_rust.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+ci_rust_test(
+    name = "unreferenced_files_test",
+    size = "small",
+    srcs = [
+        "guards/shared.rs",
+        "unreferenced_files_test.rs",
+    ],
+    data = [
+        "unreferenced_files_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:all_paths.json",
+        "@dx_test_tags_sources//:prose.json",
+        "@dx_test_tags_sources//:all_rust.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_ALLOWLIST": "$(rlocationpath unreferenced_files_allowlist.txt)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
+        "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
+        "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:all_rust.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+ci_rust_test(
+    name = "zero_compat_test",
+    size = "small",
+    srcs = [
+        "guards/shared.rs",
+        "zero_compat_test.rs",
+    ],
+    data = [
+        "zero_compat_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:all_paths.json",
+        "@dx_test_tags_sources//:prose.json",
+        "@dx_test_tags_sources//:all_rust.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_ALLOWLIST": "$(rlocationpath zero_compat_allowlist.txt)",
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
+        "DX_PROSE_JSON": "$(rlocationpath @dx_test_tags_sources//:prose.json)",
+        "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:all_rust.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)

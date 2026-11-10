@@ -407,16 +407,21 @@ pub fn rules_dx_source() -> PathBuf {
         .to_path_buf()
 }
 
-/// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON`, `DX_FILES_JSON` and, when set, `DX_RUST_JSON` into a scratch tree and names its root.
+/// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON`, `DX_FILES_JSON` and, when set, `DX_RUST_JSON` and `DX_PROSE_JSON` into a scratch tree and names its root.
 pub fn source_snapshot() -> PathBuf {
     static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
     ROOT.get_or_init(|| {
         let root = mkscratch("source-snapshot").expect("snapshot scratch dir");
-        let optional = std::env::var_os("DX_RUST_JSON").map(|_| "DX_RUST_JSON");
-        for variable in ["DX_SOURCES_JSON", "DX_FILES_JSON"]
-            .into_iter()
-            .chain(optional)
-        {
+        for variable in [
+            "DX_SOURCES_JSON",
+            "DX_FILES_JSON",
+            "DX_PROSE_JSON",
+            "DX_RUST_JSON",
+        ] {
+            let optional = matches!(variable, "DX_PROSE_JSON" | "DX_RUST_JSON");
+            if optional && std::env::var_os(variable).is_none() {
+                continue;
+            }
             let key = env_text(variable);
             let path = rlocation(key.trim()).unwrap_or_else(|error| panic!("{variable}: {error}"));
             let files: std::collections::BTreeMap<String, String> =
@@ -429,6 +434,13 @@ pub fn source_snapshot() -> PathBuf {
         root
     })
     .clone()
+}
+
+/// Every path in the `@dx_test_tags_sources` snapshot named by `DX_PATHS_JSON`, sorted.
+pub fn source_paths() -> Vec<String> {
+    let key = env_text("DX_PATHS_JSON");
+    let path = rlocation(key.trim()).unwrap_or_else(|error| panic!("DX_PATHS_JSON: {error}"));
+    serde_json::from_str(&read_text(&path)).unwrap_or_else(|error| panic!("DX_PATHS_JSON: {error}"))
 }
 
 /// Writes `text` to `path`, creating its parent directories, and panics with the path on failure.

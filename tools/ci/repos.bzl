@@ -2,7 +2,7 @@
 
 _MAX_DIRS = 1000000
 
-_SKIPPED_NAMES = [".git", "node_modules", "target"]
+_SKIPPED_NAMES = [".cache", ".direnv", ".git", ".opencode", ".ruff_cache", ".tmp", "__pycache__", "node_modules", "target"]
 
 def ignored_paths(bazelignore):
     """Returns the root-relative paths a .bazelignore text lists, without trailing slashes."""
@@ -15,7 +15,7 @@ def ignored_paths(bazelignore):
 
 def skipped(path, entry, ignored):
     """True when the walk leaves out the entry at the root-relative path: an ignored path, a skipped name, or a directory symlink."""
-    if path in ignored or entry.name in _SKIPPED_NAMES or entry.name.startswith("bazel-"):
+    if path in ignored or path == ".dx/local" or entry.name in _SKIPPED_NAMES or entry.name.startswith("bazel-"):
         return True
     return entry.is_dir and entry.is_link
 
@@ -81,7 +81,7 @@ def _rust(path, name):
     return not any([part in _TEST_DIRS for part in path.split("/")])
 
 def _test_tags_sources_impl(rctx):
-    """Writes sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template and rc files, and paths.json, every path under a language directory."""
+    """Writes prose.json, every .md file, all_rust.json, every .rs file, and all_paths.json, every path, besides sources.json, a map from each BUILD and .bzl path to its text, files.json, the same for the other files tests read, rust.json, the same for the non-test .rs files, code.json, the same for Rust, shell, template and rc files, and paths.json, every path under a language directory."""
     root = rctx.path(Label("//:MODULE.bazel")).dirname
 
     def readdir(path):
@@ -94,11 +94,17 @@ def _test_tags_sources_impl(rctx):
     files = {}
     rust = {}
     code = {}
+    prose = {}
+    all_rust = {}
     paths = walk(ignored, readdir).files
     for path in paths:
         name = path.rpartition("/")[2]
         if _code(path, name):
             code[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+        if name.endswith(".md"):
+            prose[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
+        elif name.endswith(".rs"):
+            all_rust[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         if _starlark(name):
             sources[path] = rctx.read(root.get_child(*path.split("/")), watch = "yes")
         elif _data(path, name):
@@ -119,7 +125,10 @@ def _test_tags_sources_impl(rctx):
     rctx.file("rust.json", json.encode(rust))
     rctx.file("code.json", json.encode(code))
     rctx.file("paths.json", json.encode(sorted([path for path in paths if path.split("/")[0] in langs])))
-    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "code.json", "paths.json"])\n')
+    rctx.file("prose.json", json.encode(prose))
+    rctx.file("all_rust.json", json.encode(all_rust))
+    rctx.file("all_paths.json", json.encode(paths))
+    rctx.file("BUILD.bazel", 'exports_files(["sources.json", "files.json", "rust.json", "code.json", "paths.json", "prose.json", "all_rust.json", "all_paths.json"])\n')
 
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,

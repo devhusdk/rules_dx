@@ -36,14 +36,17 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["ecosystem", "manifest", "extension", "hub"],
+            "required": ["ecosystem", "manifest", "lock", "state", "extension", "tag", "hub", "resolver", "imports"],
             "properties": {
               "ecosystem": {"type": "string", "minLength": 1},
               "manifest": {"type": "string", "minLength": 1},
-              "lock": {"type": "string", "minLength": 1},
+              "lock": {"type": ["string", "null"], "minLength": 1},
+              "state": {"type": ["string", "null"], "minLength": 1},
               "extension": {"type": "string", "minLength": 1},
-              "tag": {"type": "string", "minLength": 1},
-              "hub": {"type": "string", "minLength": 1}
+              "tag": {"type": ["string", "null"], "minLength": 1},
+              "hub": {"type": "string", "minLength": 1},
+              "resolver": {"type": ["string", "null"], "minLength": 1},
+              "imports": {"enum": ["name", "provides"]}
             }
           }
         }

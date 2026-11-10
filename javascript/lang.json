@@ -20,15 +20,23 @@
         "ecosystem": "npm",
         "manifest": "package.json",
         "lock": "pnpm-lock.yaml",
+        "state": null,
         "extension": "@rules_dx//javascript:extensions.bzl",
         "tag": "npm_translate_lock",
-        "hub": "npm"
+        "hub": "npm",
+        "resolver": null,
+        "imports": "name"
       },
       {
         "ecosystem": "pnpm",
         "manifest": "package.json",
+        "lock": null,
+        "state": null,
         "extension": "@rules_dx//javascript:extensions.bzl",
-        "hub": "pnpm"
+        "tag": null,
+        "hub": "pnpm",
+        "resolver": null,
+        "imports": "name"
       }
     ]
   },

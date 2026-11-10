@@ -20,9 +20,12 @@
         "ecosystem": "uv",
         "manifest": "pyproject.toml",
         "lock": "uv.lock",
+        "state": null,
         "extension": "@rules_dx//python:extensions.bzl",
         "tag": "project",
-        "hub": "pypi"
+        "hub": "pypi",
+        "resolver": null,
+        "imports": "name"
       }
     ]
   },

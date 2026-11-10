@@ -14,6 +14,21 @@
   "lockfiles": [
     "dub.selections.json"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "dub",
+        "manifest": "dub.json",
+        "lock": "dub.selections.json",
+        "state": null,
+        "extension": "@rules_dx//d:extensions.bzl",
+        "tag": "lock",
+        "hub": "dub",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [],
   "platforms": [],
   "pins": [

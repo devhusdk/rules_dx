@@ -79,7 +79,7 @@ impl DocsFiles {
 pub struct Hub {
     /// The ecosystem id, which is also the extension name in `extension`.
     pub ecosystem: String,
-    /// The manifest file name, like `Cargo.toml`.
+    /// The manifest file name.
     pub manifest: String,
     /// The lock file name next to the manifest. `None` for a hub with no lock and no tag.
     pub lock: Option<String>,
@@ -89,6 +89,12 @@ pub struct Hub {
     pub tag: Option<String>,
     /// The default hub repository name.
     pub hub: String,
+    /// The state file a resolver writes for itself.
+    pub state: Option<String>,
+    /// The label of the runnable target that writes the lock.
+    pub resolver: Option<String>,
+    /// How Gazelle maps an import: `name` or `provides`.
+    pub imports: String,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]

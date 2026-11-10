@@ -1,0 +1,16 @@
+load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
+
+lua_library(
+    name = "consumer",
+    srcs = ["hello.lua"],
+    strip_import_prefix = "/lua/tests/consumer",
+    visibility = ["//visibility:public"],
+)
+
+lua_test(
+    name = "consumer_test",
+    srcs = ["hello_test.lua"],
+    main = "hello_test.lua",
+    size = "small",
+    deps = [":consumer"],
+)

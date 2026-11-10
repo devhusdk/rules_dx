@@ -1,0 +1,149 @@
+dev-registration //java/private/toolchains:all
+dev-registration //kotlin/private/toolchain:unused_deps
+dev-registration //scala/private/toolchain:semanticdb
+dev-registration //scala/private/toolchain:semanticdb_scala3
+dev-registration @android_ndk_toolchain//:ndk_cc_toolchain_device
+dev-registration @android_ndk_toolchain//:ndk_cc_toolchain_emulator
+dev-repo cuda_redistrib_json core/modules/versions_tests.bzl
+dev-repo custom_gcc_x86_64 cc/private/toolchains/external/BUILD.bazel
+dev-repo dx_android_ndk_linux_x86_64 android/private/sdk/metadata_tests.bzl
+dev-repo dx_consumer_completion cli/entrypoint/BUILD.bazel
+dev-repo dx_consumer_entry cli/entrypoint/BUILD.bazel
+dev-repo dx_consumer_scaffold cli/entrypoint/BUILD.bazel
+dev-repo dx_consumer_sets cli/entrypoint/BUILD.bazel
+dev-repo dx_consumer_surface cli/entrypoint/BUILD.bazel
+dev-repo dx_dart_deps core/quality/testdata/BUILD.bazel
+dev-repo dx_hub_fixture_taplo_linux_arm64 core/quality/artifacts/hub_test/selection.bzl
+dev-repo dx_hub_fixture_taplo_linux_x86_64 core/quality/artifacts/hub_test/selection.bzl
+dev-repo dx_hub_fixture_taplo_macos_arm64 core/quality/artifacts/hub_test/selection.bzl
+dev-repo dx_hub_fixture_taplo_macos_x86_64 core/quality/artifacts/hub_test/selection.bzl
+dev-repo dx_hub_fixture_taplo_windows_x86_64 core/quality/artifacts/hub_test/selection.bzl
+dev-repo dx_npm javascript/private/dev_hub_tests.bzl
+dev-repo dx_qt core/quality/families/cc.bzl
+dev-repo dx_qt core/quality/testdata/runner_matrix_structured.bzl
+dev-repo dx_qt qt/private/constants.bzl
+dev-repo dx_qt qt/private/sdk/BUILD.bazel
+dev-repo dx_test_tags_sources cli/entrypoint/BUILD.bazel
+dev-repo dx_test_tags_sources core/modules/BUILD.bazel
+dev-repo dx_test_tags_sources core/quality/BUILD.bazel
+dev-repo googletest cuda/private/testing/BUILD.bazel
+dev-repo llvm-project patches/llvm/BUILD.bazel
+dev-repo maven core/quality/testdata/runner_matrix_scala_dotnet.bzl
+dev-repo maven core/quality/testdata/scalafix_aux/BUILD.bazel
+dev-repo maven core/quality/testdata/spotbugs_owned/BUILD.bazel
+dev-repo maven gazelle/java/BUILD.bazel
+dev-repo maven gazelle/scala/BUILD.bazel
+dev-repo nodejs_darwin_amd64 env/BUILD.bazel
+dev-repo nodejs_darwin_arm64 env/BUILD.bazel
+dev-repo nodejs_linux_amd64 deploy/private/validate_image.bzl
+dev-repo nodejs_linux_amd64 env/BUILD.bazel
+dev-repo nodejs_linux_arm64 deploy/private/validate_image.bzl
+dev-repo nodejs_linux_arm64 env/BUILD.bazel
+dev-repo nodejs_windows_amd64 env/BUILD.bazel
+dev-repo nodejs_windows_arm64 env/BUILD.bazel
+fixture android
+fixture ansible
+fixture api_spec
+fixture appimage
+fixture apple
+fixture asciidoc
+fixture astro
+fixture avro
+fixture bicep
+fixture capnproto
+fixture cc
+fixture cloudformation
+fixture cmake
+fixture csharp
+fixture cuda
+fixture d
+fixture dart
+fixture dockerfile
+fixture elixir
+fixture env
+fixture erlang
+fixture flatbuffers
+fixture flutter
+fixture fortran
+fixture fsharp
+fixture haskell
+fixture helm
+fixture java
+fixture javascript
+fixture julia
+fixture kotlin
+fixture kubernetes
+fixture make
+fixture mdx
+fixture msix
+fixture ocaml
+fixture perl
+fixture php
+fixture powershell
+fixture python
+fixture qt
+fixture rego
+fixture rst
+fixture ruby
+fixture scala
+fixture sql
+fixture svelte
+fixture swift
+fixture terraform
+fixture thrift
+fixture typescript
+fixture vue
+fixture zig
+init go
+init lua
+init rust
+override archive_override lua
+override archive_override rules_flutter
+override archive_override rules_py
+override override_repo androidsdk
+override single_version_override apple_support
+override single_version_override aspect_rules_jest
+override single_version_override aspect_rules_js
+override single_version_override aspect_rules_ts
+override single_version_override avro-cpp
+override single_version_override bazel_lib
+override single_version_override bazel_linux_packages
+override single_version_override bazel_skylib
+override single_version_override elfutils
+override single_version_override envoy_api
+override single_version_override fmt
+override single_version_override gazelle
+override single_version_override gcc_toolchain
+override single_version_override google_benchmark
+override single_version_override grpc-java
+override single_version_override hermetic_launcher
+override single_version_override llvm
+override single_version_override platforms
+override single_version_override protobuf
+override single_version_override rules_android
+override single_version_override rules_apple
+override single_version_override rules_cc
+override single_version_override rules_cuda
+override single_version_override rules_dart
+override single_version_override rules_go
+override single_version_override rules_java
+override single_version_override rules_julia
+override single_version_override rules_jvm_external
+override single_version_override rules_kotlin
+override single_version_override rules_multitool
+override single_version_override rules_nodejs
+override single_version_override rules_oci
+override single_version_override rules_perl
+override single_version_override rules_pkg
+override single_version_override rules_proto
+override single_version_override rules_python
+override single_version_override rules_rust
+override single_version_override rules_rust_prost
+override single_version_override rules_rust_wasm_bindgen
+override single_version_override rules_scala
+override single_version_override rules_shell
+override single_version_override rules_swift
+override single_version_override rules_swift_package_manager
+override single_version_override rules_zig
+override single_version_override windows_support
+override single_version_override zlib

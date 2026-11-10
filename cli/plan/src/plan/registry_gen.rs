@@ -22,6 +22,7 @@ pub const FORMAT_ASPECTS: &[&str] = &[
 
 pub const LINT_ASPECTS: &[&str] = &[
     "dockerfile/private/quality:dockerfile.bzl%real_dockerfile_lint_aspect",
+    "quality:families/oci_image.bzl%real_oci_image_lint_aspect",
     "quality:families/make.bzl%real_make_lint_aspect",
     "quality:families/cmake.bzl%real_cmake_lint_aspect",
     "quality:families/core.bzl%real_lint_aspect",

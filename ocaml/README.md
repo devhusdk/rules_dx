@@ -214,7 +214,7 @@ dependencies are supported. A package that is not built with dune needs
 `ocaml_fuzz_test` builds the module `main` that registers
 [Crowbar](https://github.com/stedolan/crowbar) tests and runs it in quickcheck
 mode as a test. Crowbar's flags, such as `-r 5000` or `-s <seed>`, go in `args`.
-The target is `manual`, tagged `dx-fuzz`, and takes the `ocaml_test` size and
+The target is tagged `dx-fuzz` and takes the `ocaml_test` size and
 timeout. `<name>_run` runs `-s <seed> -r 500` rounds with fresh seeds until
 `--time` is up; a failing seed is written to `crash-<hash>` and replays with
 `--repro`. Opam sets crowbar, cmdliner and afl-persistent with the BUILD files
@@ -244,7 +244,7 @@ ocaml_fuzz_test(
 ### Benchmarks
 
 `ocaml_bench(name, main, deps)` builds the module `main` and runs it as the
-manual `dx-bench` test `dx bench` runs. `main` calls `Dx_bench.run` from
+`dx-bench` test `dx bench` runs. `main` calls `Dx_bench.run` from
 `//ocaml/bench:dx_bench` with a list of named jobs. Each job runs once to warm
 up, then in 10 timed samples of `iterations` calls (default 1000), and the
 results go to `$TEST_UNDECLARED_OUTPUTS_DIR/dx-bench.json` in ns/iter.

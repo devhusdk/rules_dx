@@ -84,7 +84,7 @@ elixir_bench(
 )
 ```
 
-The target is tagged `dx-bench` and `manual`. Benchee has no coverage-guided fuzzer on the BEAM, so there is no `elixir_fuzz_test`.
+The target is tagged `dx-bench`. Benchee has no coverage-guided fuzzer on the BEAM, so there is no `elixir_fuzz_test`.
 
 ## Hex packages
 

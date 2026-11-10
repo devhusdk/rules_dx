@@ -50,7 +50,7 @@ def _runner_and_test(name, test, runtime_deps, tags, run, inner):
     test(
         name,
         runtime_deps = runtime_deps + [name + "_jmh_runner"],
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         testonly = True,
         **dict(run, size = run.get("size", DEFAULT_SIZE))
     )

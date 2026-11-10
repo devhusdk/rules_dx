@@ -332,7 +332,7 @@ def _test_shape(name, forward_rule, visibility, kwargs):
     forward_rule(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))
 
 def ocaml_fuzz_test(name, *, main = None, deps = None, visibility = None, tags = None, **kwargs):
-    """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual, tagged `dx-fuzz`, and `<name>_run` drives it for `dx fuzz`."""
+    """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is tagged `dx-fuzz`, and `<name>_run` drives it for `dx fuzz`."""
     main = dx_infer_main("ocaml_fuzz_test", name, main, None, dx_main_candidates(name, ".ml"))
     build, run = split_test_kwargs(kwargs)
     ocaml_module(
@@ -340,21 +340,21 @@ def ocaml_fuzz_test(name, *, main = None, deps = None, visibility = None, tags =
         testonly = True,
         struct = main,
         deps = deps,
-        tags = merge_tags(tags, "manual"),
+        tags = tags,
         visibility = ["//visibility:private"],
         **build
     )
     ocaml_test(
         name = name,
         main = ":" + name + "_bin",
-        tags = merge_tags(tags, "dx-fuzz", "manual"),
+        tags = merge_tags(tags, "dx-fuzz"),
         visibility = visibility,
         **with_default_size(run)
     )
     dx_fuzz_runner(name, ":" + name, engine = "crowbar", visibility = visibility)
 
 def ocaml_bench(name, *, main = None, deps = None, visibility = None, tags = None, **kwargs):
-    """A benchmark `dx bench` runs: `main` calls `Dx_bench.run`, which writes `dx-bench.json`. It is manual and tagged `dx-bench`."""
+    """A benchmark `dx bench` runs: `main` calls `Dx_bench.run`, which writes `dx-bench.json`. It is tagged `dx-bench`."""
     main = dx_infer_main("ocaml_bench", name, main, None, dx_main_candidates(name, ".ml"))
     build, run = split_test_kwargs(kwargs)
     ocaml_module(
@@ -362,12 +362,12 @@ def ocaml_bench(name, *, main = None, deps = None, visibility = None, tags = Non
         testonly = True,
         struct = main,
         deps = (deps or []) + [Label("//ocaml/bench:dx_bench")],
-        tags = merge_tags(tags, "manual"),
+        tags = tags,
         visibility = ["//visibility:private"],
         **build
     )
     _test_shape(name, _ocaml_forward_bench_test, visibility, dict(
         main = ":" + name + "_bin",
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(run)
     ))

@@ -125,7 +125,7 @@ erlang_bench(
 )
 ```
 
-It needs the `erlang_app` and `test_erlang_app` of the package, like `ct_suite`. The target is tagged `dx-bench` and `manual`. No coverage-guided fuzzer exists for the BEAM, so there is no `erlang_fuzz_test`.
+It needs the `erlang_app` and `test_erlang_app` of the package, like `ct_suite`. The target is tagged `dx-bench`. No coverage-guided fuzzer exists for the BEAM, so there is no `erlang_fuzz_test`.
 
 ## Runtime
 

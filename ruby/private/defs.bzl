@@ -125,6 +125,6 @@ def ruby_bench(name, *, srcs = None, main = None, data = None, env = None, tags 
             DX_BENCH_IPS = "$(rlocationpath %s)" % ips,
             DX_BENCH_SCRIPT = "$(rlocationpath %s)" % main,
         ),
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )

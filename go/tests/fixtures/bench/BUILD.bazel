@@ -45,7 +45,7 @@ dx_runner_attr_test(
     expected = {
         "args": ["$(rootpath :sized_bench_bin)", "-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1", "-test.short"],
         "size": "large",
-        "tags": ["dx-bench", "extra", "manual"],
+        "tags": ["dx-bench", "extra"],
         "timeout": "long",
     },
     runner = "sized_bench",

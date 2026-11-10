@@ -37,7 +37,7 @@ sh_test(
 dx_runner_attr_test(
     name = "parse_fuzz_attrs",
     expected = {
-        "tags": ["dx-fuzz", "manual"],
+        "tags": ["dx-fuzz"],
         "target_compatible_with": ["@@platforms//os:linux", "@@platforms//cpu:x86_64"],
     },
     runner = "parse_fuzz",

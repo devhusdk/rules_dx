@@ -74,6 +74,6 @@ def lua_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwa
         srcs = srcs,
         main = main,
         deps = (deps or []) + [Label("//lua/private:bench")],
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **kwargs
     )

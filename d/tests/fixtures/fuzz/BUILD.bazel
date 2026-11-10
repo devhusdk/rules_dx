@@ -40,7 +40,7 @@ dx_runner_attr_test(
 
 dx_runner_attr_test(
     name = "args_fuzz_tags",
-    expected = {"tags": ["dx-fuzz", "manual"]},
+    expected = {"tags": ["dx-fuzz"]},
     runner = "args_fuzz",
 )
 

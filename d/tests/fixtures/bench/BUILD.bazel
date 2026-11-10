@@ -26,7 +26,7 @@ dx_runner_attr_test(
     name = "parse_bench_attrs",
     expected = {
         "size": "small",
-        "tags": ["dx-bench", "manual"],
+        "tags": ["dx-bench"],
     },
     runner = "parse_bench",
 )

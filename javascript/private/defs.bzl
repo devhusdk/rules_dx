@@ -188,7 +188,7 @@ def javascript_bench(name, *, srcs, main = None, node_modules, data = None, args
         main = Label("//javascript/private:bench_driver"),
         data = list(data or []) + [node_modules],
         args = ["$(rootpath %s)" % _source_label(main or srcs[0])] + list(args or []),
-        tags = merge_tags(tags, "dx-bench", "manual"),
+        tags = merge_tags(tags, "dx-bench"),
         **with_default_size(kwargs)
     )
 

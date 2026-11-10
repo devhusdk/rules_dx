@@ -1,6 +1,7 @@
 //! Reads a launch descriptor, resolves its runfiles and runs the program it names.
 //!
-//! The descriptor sits beside the executable as `<stem>.launch`, one entry per line:
+//! The descriptor sits beside the executable as `<name>.launch`, where `<name>` drops a
+//! trailing `.exe`, one entry per line:
 //! `program=<key>` or `real_program=<key>` (the program with symlinks resolved), `arg=<literal>`, `path=<key>`,
 //! `prefixed=<prefix>\t<key>`, `env_flag=<flag>\t<VAR>`, `env=<VAR>\t<value>`,
 //! `env_dir=<VAR>\t<key>`, `env_default=<VAR>\t<value>` and `unset=<VAR>`.
@@ -148,13 +149,25 @@ pub fn parse(text: &str) -> io::Result<Descriptor> {
 /// A wrapper macro may rename the executable of an `<name>_upstream` rule, so
 /// the descriptor of the `_upstream` target also counts.
 pub fn descriptor_candidates(exe: &Path) -> Vec<PathBuf> {
-    let mut found = vec![exe.with_extension("launch")];
-    if let (Some(dir), Some(stem)) = (exe.parent(), exe.file_stem()) {
-        let mut name = stem.to_os_string();
-        name.push("_upstream.launch");
-        found.push(dir.join(name));
-    }
-    found
+    let is_exe = exe
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("exe"));
+    let stem = if is_exe {
+        exe.file_stem()
+    } else {
+        exe.file_name()
+    };
+    let Some(stem) = stem else {
+        return vec![exe.with_extension("launch")];
+    };
+    [".launch", "_upstream.launch"]
+        .iter()
+        .map(|suffix| {
+            let mut name = stem.to_os_string();
+            name.push(suffix);
+            exe.with_file_name(name)
+        })
+        .collect()
 }
 
 /// Returns the first descriptor that exists beside one executable.

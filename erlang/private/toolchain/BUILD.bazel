@@ -8,6 +8,7 @@ load(":metadata_tests.bzl", "erlang_metadata_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "pins.json",
     "cells.bzl",
     "cells_tests.bzl",
     "metadata_tests.bzl",

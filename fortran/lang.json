@@ -20,7 +20,7 @@
     "linux_x86_64"
   ],
   "pins": [
-    "private/toolchain/pins.bzl"
+    "private/toolchain/pins.json"
   ],
   "entry_points": [
     "library_name",

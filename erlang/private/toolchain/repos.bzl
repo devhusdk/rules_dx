@@ -297,7 +297,7 @@ def _prune(rctx, windows):
 def _otp_repo_impl(rctx):
     cell = CELLS[rctx.attr.cell]
     rctx.download_and_extract(
-        url = cell.otp_url,
+        url = cell.otp_urls,
         sha256 = cell.otp_sha256,
         stripPrefix = cell.strip_prefix,
     )

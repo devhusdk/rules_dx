@@ -1,7 +1,7 @@
 """Module extension for d/private/toolchain."""
 
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "LDC_CELLS", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
+load(":pins.bzl", "LDC_CELLS", "RULES_D_SHA256", "RULES_D_URLS", "RULES_D_VERSION", "TOOL_SOURCES")
 load(":repos.bzl", "DROPPED_PATHS", "HUB_NAME", "ROOT_BUILD", "hub_build", "ldc_repo", "ldc_repository_name", "tool_build")
 
 
@@ -22,7 +22,7 @@ def _d_impl(mctx):
         ],
         sha256 = RULES_D_SHA256,
         strip_prefix = "rules_d-" + RULES_D_VERSION,
-        urls = [RULES_D_URL],
+        urls = RULES_D_URLS,
     )
     for cell in sorted(LDC_CELLS.keys()):
         ldc_repo(name = ldc_repository_name(cell), cell = cell)
@@ -35,7 +35,7 @@ def _d_impl(mctx):
             files = tool_files(tool),
             sha256 = source.sha256,
             strip_prefix = source.strip_prefix,
-            urls = [source.url],
+            urls = source.urls,
         )
     return mctx.extension_metadata(reproducible = True)
 

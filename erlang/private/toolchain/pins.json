@@ -1,0 +1,104 @@
+{
+  "version": "29.1.2",
+  "erts_version": "17.1.1",
+  "otp_release": "29",
+  "cells": {
+    "linux_x86_64": {
+      "sha256": "1df9e6285b4d14319a789176db60c273131abebdfa6b5474a084dba49b0e54a2",
+      "strip_prefix": "OTP-29.1.2",
+      "urls": [
+        "https://builds.hex.pm/builds/otp/amd64/ubuntu-22.04/OTP-29.1.2.tar.gz"
+      ]
+    },
+    "linux_arm64": {
+      "sha256": "8e16954a07278e83de260489ed4af9bcca0e22ab7e99eb11de781ec6f01e95d9",
+      "strip_prefix": "OTP-29.1.2",
+      "urls": [
+        "https://builds.hex.pm/builds/otp/arm64/ubuntu-22.04/OTP-29.1.2.tar.gz"
+      ]
+    },
+    "macos_arm64": {
+      "sha256": "579af3bb043e0692503f7f24c6e65b620bdf1802a13567a7247d1d18f1ec5470",
+      "strip_prefix": "",
+      "urls": [
+        "https://github.com/erlef/otp_builds/releases/download/OTP-29.1.2/OTP-29.1.2-macos-arm64.tar.gz"
+      ]
+    },
+    "windows_x86_64": {
+      "sha256": "4efe9772a84c6c1ef75377e9326815584958776c905f2bf687b62509e2d809c0",
+      "strip_prefix": "",
+      "urls": [
+        "https://github.com/erlang/otp/releases/download/OTP-29.1.2/otp_win64_29.1.2.zip"
+      ]
+    },
+    "windows_arm64": {
+      "sha256": "4efe9772a84c6c1ef75377e9326815584958776c905f2bf687b62509e2d809c0",
+      "strip_prefix": "",
+      "urls": [
+        "https://github.com/erlang/otp/releases/download/OTP-29.1.2/otp_win64_29.1.2.zip"
+      ]
+    }
+  },
+  "archives": {
+    "rules_erlang": {
+      "version": "13977b3309fd0b0d6795f322cffd86a8c161be64",
+      "sha256": "830823cc562431cb61d7787bc716f3fa8101ef3afe57350c40f92379f262fde9",
+      "strip_prefix": "rules_erlang-13977b3309fd0b0d6795f322cffd86a8c161be64",
+      "urls": [
+        "https://github.com/bazelverse/rules_erlang/archive/13977b3309fd0b0d6795f322cffd86a8c161be64.tar.gz"
+      ]
+    },
+    "dx_elvis": {
+      "version": "6.0.0",
+      "sha256": "ea0d3438062d94b686b375e98995584ed7b6b8863582f77b1966971299e400f4",
+      "strip_prefix": "elvis-6.0.0",
+      "urls": [
+        "https://github.com/inaka/elvis/archive/refs/tags/6.0.0.tar.gz"
+      ]
+    },
+    "dx_elvis_core": {
+      "version": "6.0.0",
+      "sha256": "b93a464eb500e9e3f199d0dec280af6f2000335c0e0c8bb21af3782119fc5b73",
+      "strip_prefix": "elvis_core-6.0.0",
+      "urls": [
+        "https://github.com/inaka/elvis_core/archive/refs/tags/6.0.0.tar.gz"
+      ]
+    },
+    "dx_erlfmt": {
+      "version": "1.8.0",
+      "sha256": "c7205f3a28dac589c623f21546d63d5b04cc669545d03485cb88552de0117f43",
+      "strip_prefix": "erlfmt-1.8.0",
+      "urls": [
+        "https://github.com/WhatsApp/erlfmt/archive/refs/tags/v1.8.0.tar.gz"
+      ]
+    },
+    "dx_erlang_getopt": {
+      "version": "1.0.3",
+      "sha256": "e5a4ec9c6312ec5a850dea13ffa2cd50850e694fd79597cf76acb548287134d9",
+      "strip_prefix": "getopt-1.0.3",
+      "urls": [
+        "https://github.com/jcomellas/getopt/archive/refs/tags/v1.0.3.tar.gz"
+      ]
+    },
+    "dx_katana_code": {
+      "version": "2.5.3",
+      "sha256": "da09a4b30d191bc000d3fbe8fd08e4161acc43a5cfc67c123c07b78b75562133",
+      "strip_prefix": "katana-code-2.5.3",
+      "urls": [
+        "https://github.com/inaka/katana-code/archive/refs/tags/2.5.3.tar.gz"
+      ]
+    }
+  },
+  "hex": {
+    "dx_erlang_argparse": {
+      "package": "argparse",
+      "version": "2.0.0",
+      "sha256": "525979122bea3641a1dd3abc53f2add19f7f427d507018f8c7caf0693a6e78c8"
+    },
+    "dx_erlperf": {
+      "package": "erlperf",
+      "version": "2.3.0",
+      "sha256": "c6fc9b9c784facaca01b826b7721efb3bcd7675b228902a182d9e0816f880029"
+    }
+  }
+}

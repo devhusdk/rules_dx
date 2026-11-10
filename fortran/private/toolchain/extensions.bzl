@@ -2,7 +2,7 @@
 
 load("//fortran/private:fpm_lock.bzl", "fpm_lock_packages")
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "FORTRAN_CELLS", "RULES_FORTRAN_COMMIT", "RULES_FORTRAN_SHA256", "RULES_FORTRAN_URL")
+load(":pins.bzl", "FORTRAN_CELLS", "RULES_FORTRAN_COMMIT", "RULES_FORTRAN_SHA256", "RULES_FORTRAN_URLS")
 load(":repos.bzl", "DROPPED_PATHS", "FLANG_PREFIX", "FLANG_RT_NAME", "HUB_NAME", "flang_build", "flang_rt_repo", "fpm_build", "fpm_hub_build", "hub_build")
 
 def _declare_fpm(mctx, tag):
@@ -26,7 +26,7 @@ def _fortran_impl(mctx):
         ],
         sha256 = RULES_FORTRAN_SHA256,
         strip_prefix = "rules_fortran-" + RULES_FORTRAN_COMMIT,
-        urls = [RULES_FORTRAN_URL],
+        urls = RULES_FORTRAN_URLS,
     )
     for cell in sorted(FORTRAN_CELLS.keys()):
         pinned_archive(
@@ -34,7 +34,7 @@ def _fortran_impl(mctx):
             files = {"BUILD.bazel": flang_build(cell)},
             sha256 = FORTRAN_CELLS[cell].sha256,
             strip_prefix = FORTRAN_CELLS[cell].strip_prefix,
-            urls = [FORTRAN_CELLS[cell].url],
+            urls = FORTRAN_CELLS[cell].urls,
         )
     flang_rt_repo(name = FLANG_RT_NAME, build_file = Label("//fortran/private/toolchain:flang_rt.BUILD.bazel"))
     hub_repo(name = HUB_NAME, files = hub_build())

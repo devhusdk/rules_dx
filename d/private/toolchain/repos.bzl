@@ -4,7 +4,7 @@ load("//core:jammy_runtime.bzl", "JAMMY_RUNTIME", "JAMMY_RUNTIME_MIRROR")
 load("//core:deb_closure.bzl", "deb_closure")
 load("//core:seven_zip.bzl", "seven_zip_extract", "seven_zip_fetch")
 load("//core:toolchain.bzl", "toolchain_target")
-load(":pins.bzl", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION")
+load(":pins.bzl", "LDC_CELLS", "LDC_VERSION")
 
 HUB_NAME = "dx_d_toolchains"
 
@@ -236,7 +236,7 @@ def _extract_7z(rctx, cell):
     """
     seven_zip = seven_zip_fetch(rctx, SEVEN_ZIP_DIR)
     archive = SCRATCH_DIR + "/" + cell.archive
-    rctx.download(url = LDC_RELEASES + cell.archive, output = archive, sha256 = cell.sha256)
+    rctx.download(url = cell.urls, output = archive, sha256 = cell.sha256)
     seven_zip_extract(rctx, seven_zip, archive, SCRATCH_DIR + "/out")
     rctx.delete(archive)
     for child in rctx.path(SCRATCH_DIR + "/out/" + cell.strip_prefix).readdir():
@@ -245,7 +245,7 @@ def _extract_7z(rctx, cell):
 
 def _overlay_addon(rctx, addon):
     """Overlays the kept paths of an LDC addon package onto the repository root."""
-    rctx.download_and_extract(url = LDC_RELEASES + addon.archive, sha256 = addon.sha256, output = ADDON_DIR)
+    rctx.download_and_extract(url = addon.urls, sha256 = addon.sha256, output = ADDON_DIR)
     for path in addon.keep:
         rctx.rename(ADDON_DIR + "/" + path, path)
     rctx.delete(ADDON_DIR)
@@ -256,7 +256,7 @@ def _ldc_impl(rctx):
         _extract_7z(rctx, cell)
     else:
         rctx.download_and_extract(
-            url = LDC_RELEASES + cell.archive,
+            url = cell.urls,
             sha256 = cell.sha256,
             stripPrefix = cell.strip_prefix,
         )

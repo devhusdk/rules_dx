@@ -4,6 +4,7 @@ load(":metadata_tests.bzl", "elixir_metadata_tests")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
+    "pins.json",
     "elixir.bzl",
     "extensions.bzl",
     "metadata_tests.bzl",

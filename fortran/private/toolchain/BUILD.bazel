@@ -9,6 +9,7 @@ exports_files([
     "flags.bzl",
     "metadata_tests.bzl",
     "pins.bzl",
+    "pins.json",
     "repos.bzl",
     "extensions.bzl",
     "toolchain.bzl",

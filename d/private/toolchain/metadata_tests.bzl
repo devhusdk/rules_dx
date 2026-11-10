@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
-load(":pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_RELEASES", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_SHA256", "RULES_D_URL", "RULES_D_VERSION", "TOOL_SOURCES")
+load(":pins.bzl", "CONTAINERS_VERSION", "DCD_VERSION", "INIFILED_VERSION", "LDC_CELLS", "LDC_VERSION", "LIBDDOC_VERSION", "LIBDPARSE_VERSION", "RULES_D_VERSION", "TOOL_SOURCES")
 load(":repos.bzl", "DROPPED_PATHS", "LDC_BUILD", "TOOL_BUILDS", "WRAPPER", "hub_build", "ldc_build", "ldc_required_paths", "ldc_runtime")
 
 def _checks():
@@ -13,14 +13,10 @@ def _checks():
     hub = hub_build()
     return hub_checks(hub, "//d:toolchain_type", len(LDC_CELLS), ["@rules_d//"]) + [
         expect_equal("rules_d version", RULES_D_VERSION, "0.12.1"),
-        expect_equal("rules_d digest", len(RULES_D_SHA256), 64),
-        expect_contains("rules_d url names the version", RULES_D_URL, "v" + RULES_D_VERSION + ".tar.gz"),
         expect_equal("ldc version", LDC_VERSION, "1.43.0"),
-        expect_equal("release url", LDC_RELEASES, "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/"),
         expect_equal("pinned cells", sorted(LDC_CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("arm64 linux archive", LDC_CELLS["linux_arm64"].archive, "ldc2-1.43.0-linux-aarch64.tar.xz"),
         expect_equal("macos archive", LDC_CELLS["macos_arm64"].archive, "ldc2-1.43.0-osx-arm64.tar.xz"),
-        expect_true("every digest is a sha256", all([len(cell.sha256) == 64 for cell in LDC_CELLS.values()])),
         expect_true("every prefix names the version", all([LDC_VERSION in cell.strip_prefix for cell in LDC_CELLS.values()])),
         expect_equal("linux arm64 constraints", LDC_CELLS["linux_arm64"].exec_compatible_with, ["@platforms//os:linux", "@platforms//cpu:aarch64"]),
         expect_equal("macos constraints", LDC_CELLS["macos_arm64"].exec_compatible_with, ["@platforms//os:macos", "@platforms//cpu:aarch64"]),
@@ -28,7 +24,6 @@ def _checks():
         expect_equal("macos has no runtime closure", ldc_runtime("macos_arm64"), []),
         expect_equal("linux arm64 runtime closure", sorted([package.package for package in ldc_runtime("linux_arm64")]), ["gcc-12-base", "libgcc-s1", "zlib1g"]),
         expect_equal("linux archive", linux.archive, "ldc2-1.43.0-linux-x86_64.tar.xz"),
-        expect_equal("linux digest", len(linux.sha256), 64),
         expect_contains("linux prefix names the version", linux.strip_prefix, LDC_VERSION),
         expect_equal("linux runtime closure", sorted([package.package for package in ldc_runtime("linux_x86_64")]), ["gcc-12-base", "libgcc-s1", "zlib1g"]),
         expect_true("the upstream toolchain extension is dropped", "d/extensions.bzl" in DROPPED_PATHS),
@@ -56,17 +51,10 @@ def _checks():
         expect_contains("the wrapper loads the closure", WRAPPER, "/lib${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}"),
         expect_equal("libdparse version", LIBDPARSE_VERSION, "0.25.1"),
         expect_equal("tool sources", sorted(TOOL_SOURCES.keys()), ["dx_d_containers", "dx_d_dcd", "dx_d_inifiled", "dx_d_libddoc", "dx_d_libdparse"]),
-        expect_equal("libdparse digest", len(TOOL_SOURCES["dx_d_libdparse"].sha256), 64),
-        expect_contains("libdparse url names the version", TOOL_SOURCES["dx_d_libdparse"].url, "v" + LIBDPARSE_VERSION + ".tar.gz"),
         expect_equal("dcd version", DCD_VERSION, "0.16.2"),
         expect_equal("containers version", CONTAINERS_VERSION, "0.9.0"),
         expect_equal("inifiled version", INIFILED_VERSION, "1.3.3"),
         expect_equal("libddoc version", LIBDDOC_VERSION, "0.8.0"),
-        expect_true("every source digest is a sha256", all([len(source.sha256) == 64 for source in TOOL_SOURCES.values()])),
-        expect_contains("dcd url names the version", TOOL_SOURCES["dx_d_dcd"].url, "v" + DCD_VERSION + ".tar.gz"),
-        expect_contains("containers url names the version", TOOL_SOURCES["dx_d_containers"].url, "v" + CONTAINERS_VERSION + ".tar.gz"),
-        expect_contains("inifiled url names the version", TOOL_SOURCES["dx_d_inifiled"].url, "v" + INIFILED_VERSION + ".tar.gz"),
-        expect_contains("libddoc url names the version", TOOL_SOURCES["dx_d_libddoc"].url, "v" + LIBDDOC_VERSION + ".tar.gz"),
         expect_true("only dsymbol of the GPL-3.0 dcd is compiled", "src/dcd" not in TOOL_BUILDS["dx_d_dcd"] and "dsymbol/src/**" in TOOL_BUILDS["dx_d_dcd"]),
         expect_true("the dcd client and server sources are dropped", "src" in TOOL_SOURCES["dx_d_dcd"].dropped),
         expect_equal("one libdparse source", len([name for name in TOOL_SOURCES if "libdparse" in name]), 1),

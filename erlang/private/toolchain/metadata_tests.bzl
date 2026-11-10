@@ -26,8 +26,8 @@ def _checks():
     return [
         expect_equal("cells", sorted(CELLS.keys()), ["linux_arm64", "linux_x86_64", "macos_arm64", "windows_arm64", "windows_x86_64"]),
         expect_equal("only the windows cells are windows", sorted([name for name in CELLS if is_windows_cell(CELLS[name])]), ["windows_arm64", "windows_x86_64"]),
-        expect_equal("windows cells share one archive", CELLS["windows_arm64"].otp_url, CELLS["windows_x86_64"].otp_url),
-        expect_true("windows ships a zip", CELLS["windows_x86_64"].otp_url.endswith(".zip")),
+        expect_equal("windows cells share one archive", CELLS["windows_arm64"].otp_urls, CELLS["windows_x86_64"].otp_urls),
+        expect_true("windows ships a zip", CELLS["windows_x86_64"].otp_urls[0].endswith(".zip")),
         expect_equal("windows keeps the runtime tree", [path for path in ["bin", "erts-" + ERTS_VERSION, "lib", "releases"] if path in WINDOWS_DROPPED_PATHS], []),
         expect_equal("runtime packages", packages, ["libtinfo6", "zlib1g", "gcc-12-base", "libgcc-s1", "libstdc++6", "libssl3"]),
         expect_equal("arm64 ships the same packages", [package.package for package in arm.runtime], packages),

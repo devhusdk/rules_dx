@@ -770,6 +770,22 @@ dx_pins.pin(
     name = "dx_php",
     pins = "//php/private/toolchain:pins.json",
 )
+dx_pins.data(
+    name = "dx_d",
+    pins = "//d/private/toolchain:pins.json",
+)
+dx_pins.data(
+    name = "dx_elixir",
+    pins = "//elixir/private/toolchain:pins.json",
+)
+dx_pins.data(
+    name = "dx_erlang",
+    pins = "//erlang/private/toolchain:pins.json",
+)
+dx_pins.data(
+    name = "dx_fortran",
+    pins = "//fortran/private/toolchain:pins.json",
+)
 use_repo(
     dx_pins,
     "dx_pins_data",

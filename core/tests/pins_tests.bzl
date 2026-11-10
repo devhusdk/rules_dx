@@ -1,6 +1,6 @@
 """The checks every pins.json shares."""
 
-load("@dx_pins_data//:pins.bzl", "PINS")
+load("@dx_pins_data//:pins.bzl", "DATA", "PINS")
 load("//core:defs.bzl", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "pin_checks")
 
@@ -21,6 +21,15 @@ def _checks():
         ] + [
             check
             for check in pin_checks(cells, pins["version"])
+        ]
+    for name, pins in DATA.items():
+        entries = pins.get("cells", {}).values() + pins.get("archives", {}).values() + pins.get("hex", {}).values()
+        archives = [entry for entry in entries if "urls" in entry]
+        checks += [
+            expect_true(name + " has entries", len(entries) > 0),
+            expect_true(name + " digests are sha256", all([len(entry["sha256"]) == 64 for entry in entries])),
+            expect_true(name + " urls are https", all([all([url.startswith("https://") for url in entry["urls"]]) for entry in archives])),
+            expect_true(name + " cells are host cells", all([cell in ["linux_arm64", "linux_x86_64", "macos_arm64", "macos_x86_64", "windows_arm64", "windows_x86_64"] for cell in pins.get("cells", {})])),
         ]
     return checks
 

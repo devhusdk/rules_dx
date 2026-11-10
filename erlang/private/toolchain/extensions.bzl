@@ -3,7 +3,7 @@
 load("//elixir/private:hex.bzl", "hex_package")
 load("//erlang/private:rebar_lock.bzl", "rebar_lock_packages")
 load("//core:repo.bzl", "hub_repo", "pinned_archive")
-load(":pins.bzl", "CELLS", "HEX_SOURCES", "RULES_ERLANG_COMMIT", "RULES_ERLANG_SHA256", "RULES_ERLANG_URL", "TOOL_SOURCES")
+load(":pins.bzl", "CELLS", "HEX_SOURCES", "RULES_ERLANG_COMMIT", "RULES_ERLANG_SHA256", "RULES_ERLANG_URLS", "TOOL_SOURCES")
 load(":repos.bzl", "HEX_BUILD", "HUB_NAME", "PRIVATE_BUILD", "ROOT_BUILD", "TOOL_BUILDS", "cell_repository_name", "hub_build", "otp_repo", "rebar_build", "rebar_hub_build")
 
 
@@ -39,7 +39,7 @@ def _erlang_impl(mctx):
         sha256 = RULES_ERLANG_SHA256,
         strip_prefix = "rules_erlang-" + RULES_ERLANG_COMMIT,
         type = "tar.gz",
-        urls = [RULES_ERLANG_URL],
+        urls = RULES_ERLANG_URLS,
     )
     for cell in sorted(CELLS.keys()):
         otp_repo(name = cell_repository_name(cell), cell = cell)
@@ -53,7 +53,7 @@ def _erlang_impl(mctx):
             patches = source.patches,
             sha256 = source.sha256,
             strip_prefix = source.strip_prefix,
-            urls = [source.url],
+            urls = source.urls,
         )
     for name, hex in sorted(HEX_SOURCES.items()):
         hex_package(

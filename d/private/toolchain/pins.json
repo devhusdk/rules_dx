@@ -1,0 +1,97 @@
+{
+  "version": "1.43.0",
+  "cells": {
+    "linux_arm64": {
+      "sha256": "f2b24edc254d4b9944234f641de3c4b3a36d5752639ec30cb2bbe122931b2283",
+      "strip_prefix": "ldc2-1.43.0-linux-aarch64",
+      "urls": [
+        "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/ldc2-1.43.0-linux-aarch64.tar.xz"
+      ]
+    },
+    "linux_x86_64": {
+      "sha256": "35805db60f47fd1a162b2035da84d96beec37e6d1e7b1edf60498a90acfaedce",
+      "strip_prefix": "ldc2-1.43.0-linux-x86_64",
+      "urls": [
+        "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/ldc2-1.43.0-linux-x86_64.tar.xz"
+      ]
+    },
+    "macos_arm64": {
+      "sha256": "5e332349c784d4e0b1c4622284803880f89d97ef1ef97c6b25aa4d6b094c5fed",
+      "strip_prefix": "ldc2-1.43.0-osx-arm64",
+      "urls": [
+        "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/ldc2-1.43.0-osx-arm64.tar.xz"
+      ]
+    },
+    "windows_arm64": {
+      "sha256": "60ae3d5e34287aa25433c7550520060a52f9f212e3d5ff6472a9067d8d17e47e",
+      "strip_prefix": "ldc2-1.43.0-windows-x64",
+      "urls": [
+        "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/ldc2-1.43.0-windows-x64.7z"
+      ]
+    },
+    "windows_x86_64": {
+      "sha256": "60ae3d5e34287aa25433c7550520060a52f9f212e3d5ff6472a9067d8d17e47e",
+      "strip_prefix": "ldc2-1.43.0-windows-x64",
+      "urls": [
+        "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/ldc2-1.43.0-windows-x64.7z"
+      ]
+    }
+  },
+  "archives": {
+    "dx_d_containers": {
+      "version": "0.9.0",
+      "sha256": "5e256b84bbdbd2bd625cba0472ea27a1fde6d673d37a85fe971a20d52874acaa",
+      "strip_prefix": "containers-0.9.0",
+      "urls": [
+        "https://github.com/dlang-community/containers/archive/refs/tags/v0.9.0.tar.gz"
+      ]
+    },
+    "dx_d_dcd": {
+      "version": "0.16.2",
+      "sha256": "3c333269fdd8b3b2f7278d4f3a5693ec8450547c2091312a805b9605149b205a",
+      "strip_prefix": "DCD-0.16.2",
+      "urls": [
+        "https://github.com/dlang-community/DCD/archive/refs/tags/v0.16.2.tar.gz"
+      ]
+    },
+    "dx_d_inifiled": {
+      "version": "1.3.3",
+      "sha256": "017432594651ab12abaf93aae0918c3d609d0a65800d79168e0b4bd0326ca136",
+      "strip_prefix": "inifiled-1.3.3",
+      "urls": [
+        "https://github.com/burner/inifiled/archive/refs/tags/v1.3.3.tar.gz"
+      ]
+    },
+    "dx_d_libddoc": {
+      "version": "0.8.0",
+      "sha256": "9e5657de8aea225f622a00b5cb5ca9f1dac091dd98970152d65876a92669e18e",
+      "strip_prefix": "libddoc-0.8.0",
+      "urls": [
+        "https://github.com/dlang-community/libddoc/archive/refs/tags/v0.8.0.tar.gz"
+      ]
+    },
+    "dx_d_libdparse": {
+      "version": "0.25.1",
+      "sha256": "83825fda4ce67cac49e1bfdce0051a9e2499a5fadbf3a7f4d0853b487eaebc82",
+      "strip_prefix": "libdparse-0.25.1",
+      "urls": [
+        "https://github.com/dlang-community/libdparse/archive/refs/tags/v0.25.1.tar.gz"
+      ]
+    },
+    "ldc_windows_addon": {
+      "version": "1.43.0",
+      "sha256": "88c6679eccfcbbf82b90dc15b731d07eca74aea088fe0a20e1a2780e4c2bc45d",
+      "urls": [
+        "https://github.com/ldc-developers/ldc/releases/download/v1.43.0/ldc2-1.43.0-addon-windows.tar.xz"
+      ]
+    },
+    "rules_d": {
+      "version": "0.12.1",
+      "sha256": "87aaf9bc99f0635df22efcbea67a95bce2d8b4fad172012e0314e2cb79149816",
+      "strip_prefix": "rules_d-0.12.1",
+      "urls": [
+        "https://github.com/bazel-contrib/rules_d/archive/refs/tags/v0.12.1.tar.gz"
+      ]
+    }
+  }
+}

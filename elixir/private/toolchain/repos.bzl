@@ -3,7 +3,7 @@
 load("//elixir/private:hex.bzl", "hex_extract")
 load("//erlang/private/toolchain:pins.bzl", "CELLS")
 load("//core:toolchain.bzl", "toolchain_target")
-load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_SHA256", "ELIXIR_URL", "ELIXIR_VERSION")
+load(":pins.bzl", "CREDO_PACKAGES", "DIALYZER_PLT_ELIXIR", "ELIXIR_APPLICATIONS", "ELIXIR_SHA256", "ELIXIR_URLS", "ELIXIR_VERSION")
 
 HUB_NAME = "dx_elixir_toolchains"
 
@@ -136,7 +136,7 @@ credo_repo = repository_rule(
 )
 
 def _dist_impl(rctx):
-    rctx.download_and_extract(url = ELIXIR_URL, sha256 = ELIXIR_SHA256, type = "zip")
+    rctx.download_and_extract(url = ELIXIR_URLS, sha256 = ELIXIR_SHA256, type = "zip")
     if rctx.read("VERSION").strip() != ELIXIR_VERSION:
         fail("Elixir archive is not release " + ELIXIR_VERSION)
     for app in ELIXIR_APPLICATIONS:

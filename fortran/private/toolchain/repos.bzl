@@ -5,7 +5,7 @@ load(
     ":pins.bzl",
     "FLANG_RT_PREFIX",
     "FLANG_RT_SHA256",
-    "FLANG_RT_URL",
+    "FLANG_RT_URLS",
     "FLANG_VERSION",
     "FORTRAN_CELLS",
 )
@@ -91,7 +91,7 @@ def flang_build(cell):
 
 def _flang_rt_impl(rctx):
     archive = "_src/llvm-project.tar.xz"
-    rctx.download(url = FLANG_RT_URL, output = archive, sha256 = FLANG_RT_SHA256)
+    rctx.download(url = FLANG_RT_URLS, output = archive, sha256 = FLANG_RT_SHA256)
     for tree in FLANG_RT_TREES:
         rctx.extract(archive, output = tree, strip_prefix = FLANG_RT_PREFIX + "/" + tree)
     rctx.delete("_src")

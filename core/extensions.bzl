@@ -5,6 +5,10 @@ load(":toolchain.bzl", "cell_archive_rule", "cell_repo", "host_archive_rule", "p
 
 def _dx_pins_impl(mctx):
     data = {}
+    sources = {}
+    for mod in mctx.modules:
+        for tag in mod.tags.data:
+            sources[tag.name] = json.decode(mctx.read(tag.pins))
     for mod in mctx.modules:
         for tag in mod.tags.pin:
             pins = json.decode(mctx.read(tag.pins))
@@ -24,13 +28,20 @@ def _dx_pins_impl(mctx):
             for cell, pin in pins["cells"].items():
                 cell_archive_rule(name = cell_repo(tag.name, cell), build = build, pin = json.encode(pin), tool = tag.name)
             hub_repo(name = tag.name, files = {"BUILD.bazel": pins_hub(tag.name, pins["cells"].keys(), str(tag.toolchain_type), tag.compatible_with)})
-    hub_repo(name = "dx_pins_data", files = {"BUILD.bazel": "", "pins.bzl": "PINS = " + repr(data) + "\n"})
+    hub_repo(name = "dx_pins_data", files = {"BUILD.bazel": "", "pins.bzl": "PINS = " + repr(data) + "\n\nDATA = " + repr(sources) + "\n"})
     return mctx.extension_metadata(reproducible = True)
 
 dx_pins = module_extension(
     implementation = _dx_pins_impl,
     doc = "Creates the repositories of every pins.json: one per cell and a toolchain hub, or one host-selected repository.",
     tag_classes = {
+        "data": tag_class(
+            doc = "One pins.json read at load time only: no repository is made and the content is exported as DATA[name] from @dx_pins_data.",
+            attrs = {
+                "name": attr.string(mandatory = True, doc = "Key of the content in DATA."),
+                "pins": attr.label(mandatory = True, allow_single_file = True, doc = "JSON file of version, cells and archives."),
+            },
+        ),
         "pin": tag_class(
             doc = "One pins.json. With a toolchain_type it makes a repository per cell and a hub of toolchain() targets; without, one repository of the host cell.",
             attrs = {

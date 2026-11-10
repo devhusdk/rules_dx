@@ -13,6 +13,6 @@ def vue_build(name, srcs, config, node_modules, package_json = None, public = No
     """Builds one Vite Vue app into a bundled web app tree and an optional SSR tree."""
     dx_framework_build(name, "vue_build", "Vue", ["vite", "@vitejs/plugin-vue", "vue"], srcs, config, node_modules, package_json = package_json, public = public, ssr_entry = ssr_entry, deps = deps, visibility = visibility, **kwargs)
 
-def vue_test(name, srcs, node_modules, data = None, **kwargs):
+def vue_test(name, *, srcs, node_modules, data = None, **kwargs):
     """Runs jest over Vue components, compiled by the linked @vue/compiler-sfc. Coverage maps back to the .vue sources."""
     dx_framework_test(name, srcs, Label("//vue/rules:jest_config"), Label("//vue/rules:jest_transform"), ["@vue/compiler-sfc", "vue"], node_modules, data = data, **kwargs)

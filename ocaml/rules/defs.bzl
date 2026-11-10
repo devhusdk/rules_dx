@@ -311,7 +311,7 @@ def ocaml_library(name, visibility = None, **kwargs):
     """Thin wrapper over the rules_ocaml ocaml_library rule."""
     _library_shape(name, _ocaml_library, _library_forward, [], visibility, kwargs, {"manifest": kwargs.get("manifest", [])})
 
-def ocaml_binary(name, visibility = None, **kwargs):
+def ocaml_binary(name, *, visibility = None, **kwargs):
     """Binary on the pinned ocamlrun, compatible only with the qualified OCaml cells."""
     kwargs = ocaml_with_defaults(kwargs)
     upstream = dx_binary_upstream_kwargs(ocaml_link_kwargs(kwargs), None)
@@ -319,7 +319,7 @@ def ocaml_binary(name, visibility = None, **kwargs):
     _ocaml_binary(name = name + "_upstream", **upstream)
     _ocaml_forward_binary(name = name, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_binary_forward_kwargs(kwargs))
 
-def ocaml_test(name, visibility = None, **kwargs):
+def ocaml_test(name, *, visibility = None, **kwargs):
     """Builds one rules_ocaml bytecode executable and runs it as a test on the pinned ocamlrun."""
     kwargs = ocaml_with_defaults(kwargs)
     upstream = ocaml_test_upstream_kwargs(dx_test_upstream_kwargs(ocaml_link_kwargs(kwargs)))
@@ -327,7 +327,7 @@ def ocaml_test(name, visibility = None, **kwargs):
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
     _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))
 
-def ocaml_fuzz_test(name, struct, deps = None, visibility = None, tags = None, **kwargs):
+def ocaml_fuzz_test(name, *, struct, deps = None, visibility = None, tags = None, **kwargs):
     """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual and not driven by `dx fuzz`."""
     build, run = split_test_kwargs(kwargs)
     ocaml_module(

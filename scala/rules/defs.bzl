@@ -66,11 +66,11 @@ def scala_library(name, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_library."""
     dx_wrap(name, _scala_library, _scala_library_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))
 
-def scala_binary(name, srcs = None, visibility = None, **kwargs):
+def scala_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_binary. -Xfatal-warnings is on unless warnings_as_errors is False."""
     dx_wrap_binary(name, _scala_binary, _scala_binary_forward, srcs, visibility = visibility, upstream_kwargs = scala_scalacopts_with_warnings_as_errors(kwargs), **dx_without_warnings_attr(kwargs))
 
-def scala_test(name, srcs = None, visibility = None, **kwargs):
+def scala_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over scala_test. The dx test runner runs unless main_class is set. -Xfatal-warnings is on unless warnings_as_errors is False."""
     dx_wrap_test(
         name,
@@ -88,6 +88,6 @@ def scala_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visi
     target_class = jazzer_target_class("scala_fuzz_test", name, srcs, target_class, native.package_name(), ".scala")
     jazzer_fuzz(name, scala_library, srcs, deps, target_class, visibility, tags, kwargs)
 
-def scala_bench(name, srcs, deps = None, tags = None, **kwargs):
+def scala_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     """Runs the JMH benchmarks in Scala srcs and writes dx-bench.json for dx bench."""
     jmh_bench_generated(name, scala_library, java_jmh_test, srcs, deps or [], tags or [], kwargs)

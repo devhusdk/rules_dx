@@ -69,12 +69,12 @@ def java_library(name, srcs = None, visibility = None, **kwargs):
     upstream_kwargs = java_javacopts_with_warnings_as_errors(kwargs)
     dx_wrap(name, _java_library, _java_library_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
-def java_binary(name, srcs = None, visibility = None, **kwargs):
+def java_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_binary. main_class is inferred from the name and srcs when unset. -Xlint:all is on; warnings are errors unless warnings_as_errors is False."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "main_class")
     dx_wrap_binary(name, _java_binary, _java_binary_forward, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, **dx_without_warnings_attr(kwargs))
 
-def java_test(name, srcs = None, visibility = None, **kwargs):
+def java_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over java_test. test_class is inferred from the name and srcs when unset; the dx test runner runs unless use_testrunner = False. -Xlint:all is on; warnings are errors unless warnings_as_errors is False."""
     upstream_kwargs = _java_entry_kwargs_or_fail(name, srcs, java_javacopts_with_warnings_as_errors(kwargs), "test_class")
     main_class = kwargs.get("main_class") if kwargs.get("use_testrunner") == False else DX_JVM_TEST_RUNNER
@@ -107,6 +107,6 @@ def java_fuzz_test(name, *, srcs = None, target_class = None, deps = None, visib
     target_class = jazzer_target_class("java_fuzz_test", name, srcs, target_class, native.package_name(), ".java")
     jazzer_fuzz(name, java_library, srcs, deps, target_class, visibility, tags, kwargs)
 
-def java_bench(name, srcs, deps = None, tags = None, **kwargs):
+def java_bench(name, *, srcs, deps = None, tags = None, **kwargs):
     """Runs the JMH benchmarks in srcs and writes dx-bench.json for dx bench."""
     jmh_bench(name, java_library, java_jmh_test, srcs, deps or [], tags or [], kwargs)

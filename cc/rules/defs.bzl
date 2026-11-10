@@ -180,7 +180,7 @@ def objc_library(name, visibility = None, **kwargs):
     """The upstream objc_library under the caller's name, so rules_apple and rules_swift see it unchanged."""
     _objc_library(name = name, visibility = visibility, **kwargs)
 
-def cc_binary(name, srcs = None, visibility = None, **kwargs):
+def cc_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_binary. Linux adds -Wl,--build-id=sha1. Warnings are errors unless warnings_as_errors is False."""
     kwargs = _cc_kwargs(kwargs, srcs)
     linkopts = kwargs.pop("linkopts", None) or []
@@ -190,7 +190,7 @@ def cc_binary(name, srcs = None, visibility = None, **kwargs):
     })
     dx_wrap_binary(name, _cc_binary, _cc_binary_forward, srcs, visibility = visibility, linkopts = build_id + linkopts, **kwargs)
 
-def cc_test(name, srcs = None, visibility = None, **kwargs):
+def cc_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over cc_test. linkstatic defaults to true on macOS and Windows, else false. Under GCC, ASAN_OPTIONS=verify_asan_link_order=0 unless env sets it. Warnings are errors unless warnings_as_errors is False."""
     kwargs = _cc_kwargs(kwargs, srcs)
     caller_env = kwargs.pop("env", None) or {}
@@ -206,12 +206,12 @@ def cc_test(name, srcs = None, visibility = None, **kwargs):
         })
     dx_wrap_test(name, _cc_test, _cc_forward_test, srcs, visibility = visibility, env = gcc_env | caller_env, **kwargs)
 
-def cc_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
+def cc_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`."""
     flags = ["-fsanitize=fuzzer,address"]
     dx_fuzz_test(name, cc_binary, {"srcs": srcs, "copts": flags + (copts or []), "linkopts": flags + (linkopts or [])}, tags = tags, visibility = visibility, **kwargs)
 
-def cc_bench(name, srcs = None, visibility = None, tags = None, deps = None, **kwargs):
+def cc_bench(name, *, srcs = None, visibility = None, tags = None, deps = None, **kwargs):
     """A Google Benchmark binary plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
     dx_bench_test(
         name,

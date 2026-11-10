@@ -102,10 +102,10 @@ def fortran_library(name, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_fortran fortran_library rule."""
     dx_wrap(name, _fortran_library, _library_forward, srcs or [], visibility = visibility, **fortran_with_defaults(kwargs))
 
-def fortran_binary(name, srcs = None, visibility = None, **kwargs):
+def fortran_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Compiles Fortran sources with rules_fortran and links them with cc_binary."""
     dx_wrap_binary(name, _fortran_cc_binary, _binary_forward, srcs or [], visibility = visibility, **fortran_with_defaults(kwargs))
 
-def fortran_test(name, srcs = None, visibility = None, **kwargs):
+def fortran_test(name, *, srcs = None, visibility = None, **kwargs):
     """Compiles Fortran sources with rules_fortran and links them with cc_test."""
     dx_wrap_test(name, _fortran_cc_test, _fortran_forward_test, srcs or [], visibility = visibility, extra_forward_kwargs = {"deps": kwargs.get("deps", [])}, **fortran_with_defaults(kwargs))

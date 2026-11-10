@@ -90,7 +90,7 @@ def swift_library(name, srcs = None, visibility = None, platforms = None, **kwar
     """Wraps swift_library and builds it for Linux, or with Xcode on macOS."""
     dx_wrap(name, _swift_library, _swift_library_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
-def swift_binary(name, srcs = None, visibility = None, platforms = None, **kwargs):
+def swift_binary(name, *, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_binary and builds it for Linux, or with Xcode on macOS."""
     dx_wrap_binary(name, _swift_binary, _swift_binary_forward, srcs, visibility = visibility, upstream_kwargs = dx_append_flags(kwargs, "features", _STATIC + _INDEX), quality_srcs = srcs or [], extra_forward_kwargs = {"platforms": platforms if platforms != None else swift_linux_platforms()}, **kwargs)
 
@@ -122,11 +122,11 @@ def _swift_coverage_kwargs(kwargs):
         "//conditions:default": [],
     }))
 
-def swift_test(name, srcs = None, visibility = None, platforms = None, **kwargs):
+def swift_test(name, *, srcs = None, visibility = None, platforms = None, **kwargs):
     """Wraps swift_test and builds it for Linux, or with Xcode on macOS."""
     dx_wrap_test(name, _swift_test, _swift_forward_test, srcs, visibility = visibility, upstream_kwargs = _swift_coverage_kwargs(kwargs), quality_srcs = srcs or [], extra_forward_kwargs = _swift_runtime_kwargs(kwargs, platforms), **kwargs)
 
-def swift_fuzz_test(name, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
+def swift_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts = None, linkopts = None, **kwargs):
     """A libFuzzer binary with AddressSanitizer plus a `<name>_run` runner for `dx fuzz`. Linux only."""
     binary_kwargs = {
         "srcs": srcs,

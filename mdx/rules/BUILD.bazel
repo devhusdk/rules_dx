@@ -1,3 +1,4 @@
+load("//libs/starlark:conformance.bzl", "dx_wrapper_signature_test")
 # gazelle:ignore
 load("@bazel_lib//lib:copy_to_bin.bzl", "copy_to_bin")
 load("//quality:fixtures.bzl", "real_source_target")
@@ -28,3 +29,5 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
+
+dx_wrapper_signature_test(name = "wrapper_signature_test")

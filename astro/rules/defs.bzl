@@ -15,6 +15,6 @@ def astro_build(name, srcs, config, node_modules, package_json = None, public = 
     """Builds one Astro site into a bundled web app tree and an optional SSR tree. The config is a package-relative file path."""
     dx_framework_build(name, "astro_build", "Astro", ["astro"], srcs, config, node_modules, package_json = package_json, public = public, ssr_entry = ssr_entry, deps = deps, visibility = visibility, tool = _ASTRO_TOOL, **kwargs)
 
-def astro_test(name, srcs, node_modules, data = None, **kwargs):
+def astro_test(name, *, srcs, node_modules, data = None, **kwargs):
     """Runs jest over Astro components, compiled by the linked @astrojs/compiler-rs. Coverage maps back to the .astro sources."""
     dx_framework_test(name, srcs, Label("//astro/rules:jest_config"), Label("//astro/rules:jest_transform"), ["@astrojs/compiler-rs", "astro"], node_modules, data = data, **kwargs)

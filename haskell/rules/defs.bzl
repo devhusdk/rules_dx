@@ -92,7 +92,7 @@ def haskell_library(name, srcs = None, visibility = None, testonly = False, **kw
     _haskell_library(name = name + "_upstream", srcs = srcs, testonly = testonly, visibility = ["//visibility:private"], **upstream)
     _haskell_library_forward(name = name, upstream = ":" + name + "_upstream", srcs = srcs, visibility = visibility, **_forward_kwargs(kwargs, testonly))
 
-def haskell_binary(name, srcs = None, visibility = None, **kwargs):
+def haskell_binary(name, *, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_binary macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False."""
     srcs = srcs or []
     kwargs = haskell_kwargs(kwargs)
@@ -100,7 +100,7 @@ def haskell_binary(name, srcs = None, visibility = None, **kwargs):
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_binary(name, _haskell_binary, _haskell_forward_binary, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
 
-def haskell_test(name, srcs = None, visibility = None, **kwargs):
+def haskell_test(name, *, srcs = None, visibility = None, **kwargs):
     """Thin wrapper over the rules_haskell haskell_test macro. ghcopts default to the strict or standard profile set and GMP is added to deps. Warnings are errors unless warnings_as_errors is False."""
     srcs = srcs or []
     kwargs = haskell_kwargs(kwargs)
@@ -108,7 +108,7 @@ def haskell_test(name, srcs = None, visibility = None, **kwargs):
     upstream["deps"] = with_gmp(upstream.get("deps"))
     dx_wrap_test(name, _haskell_test, _haskell_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream, **kwargs)
 
-def haskell_bench(name, srcs = None, visibility = None, tags = None, **kwargs):
+def haskell_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
     """A haskell_binary of tasty-bench benchmarks plus a `<name>` runner that writes dx-bench.json for `dx bench`."""
     dx_bench_test(
         name,

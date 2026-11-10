@@ -478,6 +478,7 @@ def _executable(rule_kind, name, srcs, hdrs, moc_hdrs, forms, resources, resourc
 
 def qt_cc_binary(
         name,
+        *,
         srcs = None,
         hdrs = [],
         moc_hdrs = [],
@@ -499,6 +500,7 @@ def qt_cc_binary(
 
 def qt_cc_test(
         name,
+        *,
         srcs = None,
         hdrs = [],
         moc_hdrs = [],

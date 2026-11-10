@@ -1,3 +1,4 @@
+load("//libs/starlark:conformance.bzl", "dx_wrapper_signature_test")
 load("//quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "cc_coverage_probe", "objc_library")
 load(":wrapper_tests.bzl", "cc_wrapper_contract_tests", "objc_library_tests")
@@ -58,3 +59,5 @@ filegroup(
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
 )
+
+dx_wrapper_signature_test(name = "wrapper_signature_test")

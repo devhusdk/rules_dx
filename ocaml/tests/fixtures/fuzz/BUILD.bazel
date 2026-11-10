@@ -24,7 +24,7 @@ ocaml_fuzz_test(
         "-w",
         "-40-42",
     ],
-    struct = "reverse_fuzz.ml",
+    main = "reverse_fuzz.ml",
     deps = ["@ocaml_fuzz//:crowbar"],
 )
 

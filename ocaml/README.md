@@ -209,7 +209,9 @@ dependencies are supported. A package that is not built with dune needs
 
 ### Fuzz tests with Crowbar
 
-`ocaml_fuzz_test` builds a module that registers
+`ocaml_binary` and `ocaml_test` take modules through `deps` and `main`, not `srcs`.
+
+`ocaml_fuzz_test` builds the module `main` that registers
 [Crowbar](https://github.com/stedolan/crowbar) tests and runs it in quickcheck
 mode as a test. Crowbar's flags, such as `-r 5000` or `-s <seed>`, go in `args`.
 The target is `manual`, takes the `ocaml_test` size and timeout, and does not
@@ -233,7 +235,7 @@ use_repo(ocaml, "ocaml_fuzz")
 # BUILD.bazel
 ocaml_fuzz_test(
     name = "reverse_fuzz_test",
-    struct = "reverse_fuzz.ml",
+    main = "reverse_fuzz.ml",
     deps = ["@ocaml_fuzz//:crowbar"],
 )
 ```

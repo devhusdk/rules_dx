@@ -17,7 +17,7 @@ go_fuzz_test(
     name = "parse_fuzz",
     srcs = ["parse_test.go"],
     embed = [":parse"],
-    fuzz = "FuzzParse",
+    target = "FuzzParse",
 )
 
 sh_test(

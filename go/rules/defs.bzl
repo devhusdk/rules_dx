@@ -89,8 +89,8 @@ def go_test(name, *, srcs = None, visibility = None, **kwargs):
     """Minimal wrapper over go_test. cgo is off unless set."""
     dx_wrap_test(name, _go_test, _go_forward_test, srcs, visibility = visibility, extra_forward_kwargs = _cgo_kwargs(kwargs), **kwargs)
 
-def go_fuzz_test(name, *, fuzz, srcs = None, visibility = None, tags = None, **kwargs):
-    """A go_test plus a `<name>_run` runner that fuzzes the function `fuzz` for `dx fuzz`."""
+def go_fuzz_test(name, *, target, srcs = None, visibility = None, tags = None, **kwargs):
+    """A go_test plus a `<name>_run` runner that fuzzes the function `target` for `dx fuzz`."""
     dx_fuzz_test(
         name,
         go_test,
@@ -100,7 +100,7 @@ def go_fuzz_test(name, *, fuzz, srcs = None, visibility = None, tags = None, **k
         fuzz_rule = native_test,
         fuzz_kwargs = {"src": ":" + name + "_bin"},
         engine = "go",
-        target = fuzz,
+        target = target,
         test = True,
         **kwargs
     )

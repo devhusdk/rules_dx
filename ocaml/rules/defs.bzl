@@ -327,13 +327,13 @@ def ocaml_test(name, *, visibility = None, **kwargs):
     _ocaml_binary(name = name + "_upstream", testonly = True, **upstream)
     _ocaml_forward_test(name = name, testonly = True, upstream = ":" + name + "_upstream", srcs = [], visibility = visibility, **dx_test_forward_kwargs(kwargs))
 
-def ocaml_fuzz_test(name, *, struct, deps = None, visibility = None, tags = None, **kwargs):
+def ocaml_fuzz_test(name, *, main, deps = None, visibility = None, tags = None, **kwargs):
     """A Crowbar test in quickcheck mode: `deps` must hold the crowbar package, and the test takes Crowbar's flags such as `-r` in `args`. It is manual and not driven by `dx fuzz`."""
     build, run = split_test_kwargs(kwargs)
     ocaml_module(
         name = name + "_main",
         testonly = True,
-        struct = struct,
+        struct = main,
         deps = deps,
         visibility = ["//visibility:private"],
         **build

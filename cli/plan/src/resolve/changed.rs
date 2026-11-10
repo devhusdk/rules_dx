@@ -830,13 +830,12 @@ fn widen_bzl_changes(
     aspect_labels: &[String],
     widened: &mut Vec<WidenedScope>,
 ) {
-    let impact =
-        dx_adopt::bzl_impact(workspace, paths, aspect_labels).map_err(|error| error.to_string());
+    let impact = dx_adopt::bzl_impact(workspace, paths, aspect_labels);
     widen_impact(impact, "", widened);
 }
 
 fn widen_impact(
-    impact: Result<BTreeMap<String, dx_adopt::BzlImpact>, String>,
+    impact: Result<BTreeMap<String, dx_adopt::BzlImpact>, dx_error::DxError>,
     prefix: &str,
     widened: &mut Vec<WidenedScope>,
 ) {
@@ -1014,8 +1013,7 @@ pub fn resolve_affected(
                 reason.message().to_owned(),
             ),
             Ok(found) => {
-                let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels)
-                    .map_err(|error| error.to_string());
+                let impact = dx_adopt::repo_impact(workspace, &found.loads, aspect_labels);
                 widen_impact(impact, "@", &mut widened);
                 update = Some(found).filter(|found| !found.modules.is_empty());
             }

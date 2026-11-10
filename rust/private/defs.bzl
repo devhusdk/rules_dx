@@ -9,9 +9,8 @@ load("//core:fuzz.bzl", "dx_fuzz_test")
 load("//core:fuzz_bench.bzl", "dx_bench_test")
 load("//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "dx_msvc_crt_aspect", "dx_msvc_crt_validate", "msvc_crt_static_settings", "msvc_crt_static_flag")
 load("//core:resources.bzl", "dx_test_resource_tags")
-load("//core:wrapper.bzl", "dx_warnings_flags", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs", "dx_without_warnings_attr")
+load("//core:wrapper.bzl", "dx_warnings_flags", "dx_data_coverage_aspect", "dx_executable_forward_rule", "dx_forwarded_test_kwargs", "dx_lcov_merger_attr", "dx_library_forward_rule", "dx_quality_sources", "dx_run_env_attrs", "dx_run_environment", "dx_symlink_default_info", "dx_symlink_executable", "dx_upstream", "dx_upstream_tags", "dx_wrap", "dx_wrap_binary", "dx_wrap_forward_kwargs", "dx_wrap_test", "dx_wrap_upstream_kwargs", "dx_without_warnings_attr")
 load("//core:native_coverage.bzl", "dx_native_coverage_attrs", "dx_native_coverage_toolchains", "dx_native_test_coverage")
-load("//core/quality:pipeline.bzl", "upstream_tags")
 load("//core/quality:sources.bzl", "QualitySourcesInfo", "RUST")
 load(":edition.bzl", "RUST_EDITION")
 load(":pdb.bzl", "REPRODUCIBLE_PDB_LINK_FLAGS")
@@ -271,7 +270,7 @@ def _rust_browser_binary(name, srcs, crate_name, edition, visibility, **kwargs):
         **dx_wrap_upstream_kwargs(_libstdcxx_upstream(dict(kwargs, crate_name = _crate_name(name, crate_name), edition = edition), link = True), srcs)
     )
     private = {
-        "tags": ["manual"],
+        "tags": dx_upstream_tags(None),
         "testonly": kwargs.get("testonly"),
         "target_compatible_with": kwargs.get("target_compatible_with"),
         "visibility": ["//visibility:private"],
@@ -321,7 +320,7 @@ def rust_test(
                 edition = edition,
                 wasm = "browser",
                 testonly = True,
-                tags = ["manual"],
+                tags = dx_upstream_tags(None),
                 visibility = ["//visibility:private"],
                 target_compatible_with = kwargs.get("target_compatible_with"),
                 **binary
@@ -519,6 +518,28 @@ _BROWSER_CELLS = {
     Label("//rust/private:browser_linux_x86_64"): "firefox",
 }
 
+def _browser_compatible_with(kwargs):
+    """Returns the caller's constraints limited to the qualified browser cells."""
+    return (kwargs.get("target_compatible_with") or []) + select(
+        {cell: [] for cell in _BROWSER_CELLS.keys()} | {"//conditions:default": [_INCOMPATIBLE]},
+    )
+
+_RustBrowserCrateInfo = provider(doc = "Marks a crate accepted for a browser test.", fields = [])
+
+def _rust_browser_crate_impl(ctx):
+    """Rejects a crate that is not a wasm-bindgen bundle."""
+    if RustWasmBindgenInfo not in ctx.attr.crate:
+        fail("rust_test: wasm = \"browser\" needs crate '{}' to be a rust_binary with wasm = \"browser\"".format(ctx.attr.crate.label))
+    return [_RustBrowserCrateInfo()]
+
+rust_browser_crate = rule(
+    implementation = _rust_browser_crate_impl,
+    doc = "Accepts the crate of one rust_test with wasm = \"browser\".",
+    attrs = {
+        "crate": attr.label(doc = "The crate under test.", mandatory = True),
+    },
+)
+
 def _browser_transition_impl(settings, attr):
     """Pins the managed test browser for the qualified platform cell."""
     browser = attr.browser or settings[_TEST_BROWSER]
@@ -549,6 +570,7 @@ _rust_wasm_bindgen_browser_test = rule(
     test = True,
     attrs = {
         "browser": attr.string(doc = "The managed browser of this platform cell, or empty."),
+        "browser_crate": attr.label(doc = "The rust_browser_crate of this test.", mandatory = True, providers = [_RustBrowserCrateInfo]),
         "crate": attr.label(
             doc = "The Rust crate whose providers format and lint checks read.",
             mandatory = True,
@@ -574,20 +596,27 @@ def _rust_browser_test(name, wasm, **kwargs):
     _rust_wasm_bindgen_test(
         name = name + "_upstream",
         wasm = wasm,
-        tags = ["manual", _NO_REMOTE_EXEC] + [t for t in upstream_tags(user_tags) if t not in ("manual", _NO_REMOTE_EXEC)],
+        tags = dx_upstream_tags(user_tags) + ([] if _NO_REMOTE_EXEC in user_tags else [_NO_REMOTE_EXEC]),
         visibility = ["//visibility:private"],
         **{k: v for k, v in upstream.items() if k != "visibility"}
+    )
+    compatible_with = _browser_compatible_with(kwargs)
+    rust_browser_crate(
+        name = name + "_browser_crate",
+        crate = wasm,
+        target_compatible_with = compatible_with,
+        testonly = True,
+        visibility = ["//visibility:private"],
     )
     cells = {cell: browser for cell, browser in _BROWSER_CELLS.items()}
     _rust_wasm_bindgen_browser_test(
         name = name,
         crate = wasm,
+        browser_crate = name + "_browser_crate",
         upstream = name + "_upstream",
         browser = select(cells | {"//conditions:default": ""}),
         tags = dx_test_resource_tags(forward["size"], user_tags + ([] if _NO_REMOTE_EXEC in user_tags else [_NO_REMOTE_EXEC])),
-        target_compatible_with = (kwargs.get("target_compatible_with") or []) + select(
-            {cell: [] for cell in _BROWSER_CELLS.keys()} | {"//conditions:default": [_INCOMPATIBLE]},
-        ),
+        target_compatible_with = compatible_with,
         visibility = kwargs.get("visibility"),
         **forward
     )

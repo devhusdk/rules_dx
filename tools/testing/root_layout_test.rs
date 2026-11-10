@@ -24,7 +24,6 @@ const PENDING: &[&str] = &[
     "env",
     "families",
     "libs",
-    "modules",
     "quality",
 ];
 

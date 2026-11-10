@@ -159,8 +159,9 @@ fn problems(root: &Path, dir: &Path, schema: &Value) -> Vec<String> {
 #[test]
 fn every_language_dir_has_a_valid_lang_json() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
+    let families: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+            .expect("families.json");
     let schema: Value =
         serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
             .expect("lang.schema.json");
@@ -190,8 +191,9 @@ fn schema_rejects_a_bad_manifest() {
 #[test]
 fn ecosystems_are_dx_ids_and_every_id_is_used() {
     let root = dx_testing::rules_dx_source();
-    let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
-        .expect("families.json");
+    let families: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+            .expect("families.json");
     let table: Value =
         serde_json::from_str(&dx_testing::read_runfiles("cli/ecosystems/ecosystems.json"))
             .expect("ecosystems.json");

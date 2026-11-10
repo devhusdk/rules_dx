@@ -303,7 +303,9 @@ fn every_item_is_in_exactly_one_family() {
     actual.insert("gazelle", gazelle_languages(&module));
     actual.insert(
         "aspects",
-        aspect_names(&dx_testing::read_runfiles("quality/testdata/all_languages.bzl")),
+        aspect_names(&dx_testing::read_runfiles(
+            "quality/testdata/all_languages.bzl",
+        )),
     );
     let paths = family_paths(&dx_testing::read_runfiles("core/modules/families.json"));
     let mut problems = extension_problems(&kinds);
@@ -593,7 +595,8 @@ fn family_load(family: &str) -> String {
 #[test]
 fn family_files_define_aspects_listed_in_families_json() {
     let json: serde_json::Value =
-        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json")).expect("json");
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+            .expect("json");
     let listed: BTreeSet<&str> = json["families"]
         .as_object()
         .expect("families")

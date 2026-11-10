@@ -746,7 +746,6 @@ NOT_LANGUAGES = [
     "families",
     "gazelle",
     "libs",
-    "modules",
     "patches",
     "quality",
     "third_party",

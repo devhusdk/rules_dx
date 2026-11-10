@@ -88,9 +88,6 @@ pub const BYTES_PER_REMOTE_SLOT: u64 = 3 << 29;
 /// Fewest seconds between two extra slot grants.
 const EXTRA_SPACING: Duration = Duration::from_secs(10);
 
-/// Sets how many nested Bazel test servers rules_dx tests run at once.
-pub const NESTED_BAZEL_SLOTS_ENV: &str = dx_path::nested_bazel::SLOTS_ENV;
-
 const POLL: Duration = Duration::from_millis(200);
 
 const STALE: Duration = Duration::from_secs(30);
@@ -288,8 +285,7 @@ pub fn nested_reserve(workspace: &Path, env_get: &dyn Fn(&str) -> Option<String>
     if !dx_process::rc::nested_bazel_selected(env_get, workspace, &read, read_user_rc, &[], &[]) {
         return 0;
     }
-    let servers = dx_path::nested_bazel::servers(env_get(NESTED_BAZEL_SLOTS_ENV).as_deref());
-    u64::from(servers).saturating_mul(BYTES_PER_NESTED_BAZEL)
+    u64::from(dx_path::nested_bazel::SERVERS).saturating_mul(BYTES_PER_NESTED_BAZEL)
 }
 
 /// Slots for remote-execution runs on a machine with `memory` bytes, `reserved` of them kept aside.

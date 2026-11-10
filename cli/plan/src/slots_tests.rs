@@ -1,6 +1,6 @@
 use super::*;
 
-const DEFAULT_NESTED_BAZEL_SLOTS: u64 = dx_path::nested_bazel::DEFAULT_SLOTS as u64;
+const DEFAULT_NESTED_BAZEL_SLOTS: u64 = dx_path::nested_bazel::SERVERS as u64;
 use std::process::{Command as Process, Stdio};
 
 fn hold(
@@ -694,15 +694,10 @@ fn rules_dx_reserve_is_zero_when_tag_filters_exclude_nested_bazel() {
 }
 
 #[test]
-fn rules_dx_reserve_follows_the_nested_slot_env() {
+fn rules_dx_reserve_ignores_the_environment() {
     let scratch = rules_dx_layout("dx-slots-rules-dx-env-");
-    let with = |value: &'static str| {
-        move |name: &str| (name == NESTED_BAZEL_SLOTS_ENV).then(|| value.to_owned())
-    };
-    assert_eq!(nested_reserve(scratch.path(), &with("5")), 10 << 30);
-    for fallback in ["0", "x", ""] {
-        assert_eq!(nested_reserve(scratch.path(), &with(fallback)), 6 << 30);
-    }
+    let set = |name: &str| (name == "DX_NESTED_BAZEL_SLOTS").then(|| "5".to_owned());
+    assert_eq!(nested_reserve(scratch.path(), &set), 6 << 30);
 }
 
 #[test]

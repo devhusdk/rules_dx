@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
@@ -18,24 +19,42 @@ rust_library(
         "src/gcov.rs",
         "src/lib.rs",
     ],
+    aliases = aliases(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+    ),
     crate_name = "collect_native",
     crate_root = "src/lib.rs",
     visibility = VIS_TOOLS + ["//cli/cli:__pkg__"],
-    deps = ["@crates//:serde_json"],
+    deps = all_crate_deps(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+    ) + ["@crates//:serde_json"],
 )
 
 rust_binary(
     name = "collect_native",
     srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+    ),
     crate_name = "collect_native",
     crate_root = "src/main.rs",
     visibility = ["//visibility:public"],
-    deps = [":collect_native_lib"],
+    deps = all_crate_deps(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+    ) + [":collect_native_lib"],
 )
 
 rust_binary(
     name = "apple_post_action",
     srcs = ["src/apple_main.rs"],
+    aliases = aliases(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+    ),
     crate_name = "apple_post_action",
     crate_root = "src/apple_main.rs",
     data = [
@@ -47,32 +66,30 @@ rust_binary(
         "DX_LLVM_PROFDATA": "$(rlocationpath @llvm//tools:llvm-profdata)",
     },
     visibility = ["//visibility:public"],
-    deps = [
+    deps = all_crate_deps(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+    ) + [
         ":collect_native_lib",
         "@rules_rust//rust/runfiles",
     ],
 )
 
 rust_test(
-    name = "collect_test",
-    srcs = [
-        "src/apple.rs",
-        "src/collect.rs",
-        "src/gcov.rs",
-        "src/lib.rs",
-    ],
-    crate_root = "src/lib.rs",
-    deps = ["@crates//:serde_json"],
-)
-
-rust_test(
     name = "gcov_native_test",
     srcs = ["tests/gcov_native_test.rs"],
+    aliases = aliases(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "gcov_native_test",
+    crate_root = "tests/gcov_native_test.rs",
     data = [
         ":collect_native",
-        "@bazel_tools//tools/test:lcov_merger",
         "//cc/tests/fixtures/gcc_coverage:gcov_fixture",
         "//cc/tests/fixtures/gcc_coverage:gcov_fixture_alt",
+        "@bazel_tools//tools/test:lcov_merger",
     ],
     env = {
         "COLLECT_NATIVE": "$(rootpath :collect_native)",
@@ -84,5 +101,30 @@ rust_test(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
+    deps = all_crate_deps(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+        normal_dev = True,
+    ) + [":collect_native_lib"],
 )
 
+rust_test(
+    name = "collect_native_test",
+    aliases = aliases(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":collect_native_lib",
+    deps = all_crate_deps(
+        package_name = "tools/coverage/collect_native",
+        normal = True,
+        normal_dev = True,
+    ),
+)
+
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

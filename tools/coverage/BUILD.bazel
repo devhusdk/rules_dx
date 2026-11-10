@@ -2,6 +2,9 @@ load("//quality:fixtures.bzl", "real_source_target")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
+# gazelle:exclude kcov
+# gazelle:exclude haskell
+# gazelle:exclude ocaml
 
 exports_files(
     ["cells.txt"],

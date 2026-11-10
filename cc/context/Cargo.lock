@@ -793,6 +793,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "collect_native"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -872,6 +879,10 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "coverlet_launcher"
+version = "0.0.0"
 
 [[package]]
 name = "cpufeatures"
@@ -1188,6 +1199,10 @@ dependencies = [
  "quote",
  "syn 3.0.5",
 ]
+
+[[package]]
+name = "d_coverage_launcher"
+version = "0.0.0"
 
 [[package]]
 name = "d_extract"

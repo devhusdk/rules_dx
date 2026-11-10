@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "coverlet_launcher"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "coverlet_launcher"
+path = "src/main.rs"

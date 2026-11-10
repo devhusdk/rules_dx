@@ -1,3 +1,4 @@
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
@@ -16,17 +17,29 @@ rust_binary(
         "src/lst.rs",
         "src/main.rs",
     ],
+    aliases = aliases(
+        package_name = "tools/coverage/d_coverage_launcher",
+        normal = True,
+    ),
     crate_name = "d_coverage_launcher",
     crate_root = "src/main.rs",
     visibility = VIS_TOOLS_PUBLIC,
+    deps = [],
 )
 
 rust_test(
-    name = "d_coverage_launcher_test",
-    srcs = [
-        "src/lst.rs",
-        "src/main.rs",
-    ],
-    crate_root = "src/main.rs",
+    name = "d_coverage_launcher_bin_test",
+    aliases = aliases(
+        package_name = "tools/coverage/d_coverage_launcher",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate = ":d_coverage_launcher",
+    deps = [],
 )
 
+real_source_target(
+    name = "corpus_toml",
+    tags = ["corpus"],
+    toml_srcs = ["Cargo.toml"],
+)

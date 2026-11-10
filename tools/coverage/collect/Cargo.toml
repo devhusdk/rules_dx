@@ -1,0 +1,24 @@
+[package]
+license = "Apache-2.0"
+name = "collect_native"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+name = "collect_native"
+path = "src/lib.rs"
+
+[dependencies]
+serde_json = "1"
+
+[[bin]]
+name = "collect_native"
+path = "src/main.rs"
+
+[[bin]]
+name = "apple_post_action"
+path = "src/apple_main.rs"
+
+[[test]]
+name = "gcov_native_test"
+path = "tests/gcov_native_test.rs"

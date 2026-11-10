@@ -2,7 +2,7 @@
 
 load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":bindings.bzl", "CC_TOOLCHAIN_TYPE", "cc_compiler_identity", "cc_toolchain_identity")
-load(":pins.bzl", "LLVM_CLANG_VERSION")
+load(":pins.bzl", "GCC_GLIBC", "GCC_VERSION", "LLVM_CLANG_VERSION")
 
 _CLANG_MAJOR = LLVM_CLANG_VERSION.split(".")[0]
 
@@ -23,14 +23,18 @@ aspect_field has_subject=True
 aspect_field subject_label=//cc/private/toolchains:identity_under_test
 aspect_field transitive_count=0""" % (_CLANG_MAJOR, _CLANG_MAJOR)
 
-EXPECTED_GCC_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchains:identity_under_test_gcc
+
+def _gcc(template):
+    return template.replace("@GCCU@", GCC_VERSION.replace(".", "_")).replace("@GCC@", GCC_VERSION).replace("@GLIBC@", GCC_GLIBC)
+
+EXPECTED_GCC_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchains:identity_under_test_gcc
 field cc.abi=itanium
-field cc.builtin_includes=external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/include/c++/16.2.0 | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/include/c++/16.2.0/backward | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/include/c++/16.2.0/x86_64-linux | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/lib/gcc/x86_64-linux/16.2.0/include | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/lib/gcc/x86_64-linux/16.2.0/include-fixed | external/+gcc+dx_gcc_linux_x86_64_16_2_0/external/+gcc+dx_gcc_linux_x86_64_16_2_0/sysroot/usr/include
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@/backward | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@/x86_64-linux | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
 field cc.coverage=gcov
 field cc.driver=gnu
 field cc.family=gcc
-field cc.libc=glibc_2.28
+field cc.libc=@GLIBC@
 field cc.syntax_only=-fsyntax-only
 field cc.sysroot=None
 field cc.target=x86_64-linux-gnu
@@ -38,16 +42,16 @@ aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
 aspect_field subject_label=//cc/private/toolchains:identity_under_test_gcc
-aspect_field transitive_count=0"""
+aspect_field transitive_count=0""")
 
-EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchains:identity_under_test_gcc_arm64
+EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchains:identity_under_test_gcc_arm64
 field cc.abi=itanium
-field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include/c++/16.2.0 | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include/c++/16.2.0/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/aarch64-linux/include/c++/16.2.0/backward | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/lib/gcc/aarch64-linux/16.2.0/include | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/lib/gcc/aarch64-linux/16.2.0/include-fixed | external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/external/+gcc+dx_gcc_linux_aarch64_cross_16_2_0/sysroot/usr/include
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@/backward | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
 field cc.coverage=gcov
 field cc.driver=gnu
 field cc.family=gcc
-field cc.libc=glibc_2.28
+field cc.libc=@GLIBC@
 field cc.syntax_only=-fsyntax-only
 field cc.sysroot=None
 field cc.target=aarch64-linux-gnu
@@ -55,16 +59,16 @@ aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
 aspect_field subject_label=//cc/private/toolchains:identity_under_test_gcc_arm64
-aspect_field transitive_count=0"""
+aspect_field transitive_count=0""")
 
-EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchains:identity_under_test_gcc_arm64_native
+EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchains:identity_under_test_gcc_arm64_native
 field cc.abi=itanium
-field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_16_2_0/external/+gcc+dx_gcc_linux_aarch64_16_2_0/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_16_2_0/external/+gcc+dx_gcc_linux_aarch64_16_2_0/include/c++/16.2.0 | external/+gcc+dx_gcc_linux_aarch64_16_2_0/external/+gcc+dx_gcc_linux_aarch64_16_2_0/include/c++/16.2.0/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_16_2_0/external/+gcc+dx_gcc_linux_aarch64_16_2_0/include/c++/16.2.0/backward | external/+gcc+dx_gcc_linux_aarch64_16_2_0/external/+gcc+dx_gcc_linux_aarch64_16_2_0/lib/gcc/aarch64-linux/16.2.0/include | external/+gcc+dx_gcc_linux_aarch64_16_2_0/external/+gcc+dx_gcc_linux_aarch64_16_2_0/lib/gcc/aarch64-linux/16.2.0/include-fixed | external/+gcc+dx_gcc_linux_aarch64_16_2_0/external/+gcc+dx_gcc_linux_aarch64_16_2_0/sysroot/usr/include
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@/backward | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
 field cc.coverage=gcov
 field cc.driver=gnu
 field cc.family=gcc
-field cc.libc=glibc_2.28
+field cc.libc=@GLIBC@
 field cc.syntax_only=-fsyntax-only
 field cc.sysroot=None
 field cc.target=aarch64-linux-gnu
@@ -72,7 +76,7 @@ aspect_field aspect_seen=True
 aspect_field field_count=10
 aspect_field has_subject=True
 aspect_field subject_label=//cc/private/toolchains:identity_under_test_gcc_arm64_native
-aspect_field transitive_count=0"""
+aspect_field transitive_count=0""")
 
 EXPECTED_MSVC_IDENTITY_OBSERVATIONS = """subject //cc/private/toolchains:identity_under_test_msvc
 field cc.abi=msvc

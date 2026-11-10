@@ -78,7 +78,7 @@ hermetic_toolchain_test = analysistest.make(
 def _component_sources_impl(ctx):
     env = analysistest.begin(ctx)
     target = analysistest.target_under_test(env)
-    asserts.true(env, QualitySourcesInfo in target, "component must declare its owned sources so real aspects skip it (#3832)")
+    asserts.true(env, QualitySourcesInfo in target, "component must declare its owned sources so real aspects skip it")
     if QualitySourcesInfo in target:
         asserts.equals(env, {}, target[QualitySourcesInfo].direct_sources)
     return analysistest.end(env)

@@ -1,10 +1,5 @@
 use dx_testing::fatbin::{self, Entry, Kind};
 
-fn runfile(path: &str) -> Vec<u8> {
-    let resolved = dx_testing::resolve_runfiles(path);
-    std::fs::read(&resolved).unwrap_or_else(|e| panic!("read {}: {e}", resolved.display()))
-}
-
 /// `compute_80:compute_80,sm_80` gives PTX and SASS for 8.0; `sm_90` gives SASS only.
 fn expected() -> Vec<Entry> {
     vec![
@@ -34,7 +29,7 @@ fn kernels_archive_holds_device_code_for_each_arch() {
     let archives = std::env::var("DX_CUDA_ARCHIVES").unwrap();
     let mut checked = 0;
     for path in archives.split_whitespace().filter(|p| p.ends_with(".a")) {
-        let entries = fatbin::device_code(&runfile(path)).unwrap();
+        let entries = fatbin::device_code(&dx_testing::read_runfile(path)).unwrap();
         assert_eq!(sorted(entries), sorted(expected()), "{path}");
         checked += 1;
     }
@@ -43,7 +38,7 @@ fn kernels_archive_holds_device_code_for_each_arch() {
 
 #[test]
 fn app_holds_device_code_and_links_the_static_runtime() {
-    let binary = runfile(&std::env::var("DX_CUDA_BINARY").unwrap());
+    let binary = dx_testing::read_runfile(&std::env::var("DX_CUDA_BINARY").unwrap());
     assert_eq!(
         sorted(fatbin::device_code(&binary).unwrap()),
         sorted(expected())

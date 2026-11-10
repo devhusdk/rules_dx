@@ -14,18 +14,12 @@ fn gcc_arm64_artifacts_target_aarch64_glibc() {
             "{rel}: machine"
         );
         assert!(
-            contains(&bytes, b"/lib/ld-linux-aarch64.so.1"),
+            dx_testing::contains_bytes(&bytes, b"/lib/ld-linux-aarch64.so.1"),
             "{rel}: missing the aarch64 glibc interpreter"
         );
         assert!(
-            !contains(&bytes, b"libstdc++.so"),
+            !dx_testing::contains_bytes(&bytes, b"libstdc++.so"),
             "{rel}: links libstdc++ dynamically"
         );
     }
-}
-
-fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-    haystack
-        .windows(needle.len())
-        .any(|window| window == needle)
 }

@@ -19,17 +19,17 @@ fn gcc_x86_64_artifacts_carry_the_pinned_compiler_and_glibc_floor() {
             "{rel}: machine"
         );
         assert!(
-            contains(&bytes, stamp.as_bytes()),
+            dx_testing::contains_bytes(&bytes, stamp.as_bytes()),
             "{rel}: missing {stamp:?}"
         );
-        assert!(!contains(&bytes, b"clang version"), "{rel}: built by clang");
+        assert!(!dx_testing::contains_bytes(&bytes, b"clang version"), "{rel}: built by clang");
         assert!(
-            !contains(&bytes, b"libstdc++.so"),
+            !dx_testing::contains_bytes(&bytes, b"libstdc++.so"),
             "{rel}: links libstdc++ dynamically"
         );
         if !rel.ends_with(".so") {
             assert!(
-                contains(&bytes, b"/lib64/ld-linux-x86-64.so.2"),
+                dx_testing::contains_bytes(&bytes, b"/lib64/ld-linux-x86-64.so.2"),
                 "{rel}: missing the glibc interpreter"
             );
         }
@@ -69,10 +69,4 @@ fn highest_glibc(bytes: &[u8]) -> (u32, u32) {
         }
     }
     highest
-}
-
-fn contains(haystack: &[u8], needle: &[u8]) -> bool {
-    haystack
-        .windows(needle.len())
-        .any(|window| window == needle)
 }

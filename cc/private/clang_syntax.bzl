@@ -168,7 +168,6 @@ def _msvc_tidy_argv(tidy, argv, src, identity, config, env):
         if imsvc:
             imsvc.append("/X")
 
-    # driver mode must follow `--`; clang-tidy strips /-flags otherwise (LLVM #66553, CMake #25708).
     return struct(argv = [tidy] + _config_flag(config) + [src, "--", "--driver-mode=cl"] + target + imsvc + flags, error = "")
 
 def clang_tidy_argv(tidy, argv, src, identity, config = "", env = {}):

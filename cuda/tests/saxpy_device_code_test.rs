@@ -1,10 +1,5 @@
 use dx_testing::fatbin::{self, Entry, Kind};
 
-fn runfile(path: &str) -> Vec<u8> {
-    let resolved = dx_testing::resolve_runfiles(path);
-    std::fs::read(&resolved).unwrap_or_else(|e| panic!("read {}: {e}", resolved.display()))
-}
-
 fn expected() -> Vec<Entry> {
     vec![
         Entry {
@@ -36,7 +31,7 @@ fn archive_holds_sass_for_each_sm_and_ptx_for_each_compute() {
         .split_whitespace()
         .filter(|p| p.ends_with(".a") || p.ends_with(".lib"))
     {
-        let bytes = runfile(path);
+        let bytes = dx_testing::read_runfile(path);
         let members: Vec<_> = fatbin::archive_members(&bytes)
             .unwrap()
             .iter()
@@ -51,7 +46,7 @@ fn archive_holds_sass_for_each_sm_and_ptx_for_each_compute() {
 
 #[test]
 fn binary_holds_device_code_and_links_the_static_runtime() {
-    let binary = runfile(&std::env::var("DX_CUDA_BINARY").unwrap());
+    let binary = dx_testing::read_runfile(&std::env::var("DX_CUDA_BINARY").unwrap());
     assert_eq!(
         sorted(fatbin::device_code(&binary).unwrap()),
         sorted(expected())

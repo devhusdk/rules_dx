@@ -9,7 +9,6 @@ def _library_paths(cc_info):
     paths = [f.path for f in cc_info.compilation_context.headers.to_list()]
     for linker_input in cc_info.linking_context.linker_inputs.to_list():
         for library in linker_input.libraries:
-            # The solib symlink path mangles the repo name; check the file it points at.
             shared = library.resolved_symlink_dynamic_library or library.dynamic_library
             for f in (shared, library.static_library, library.pic_static_library):
                 if f != None:

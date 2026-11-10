@@ -333,6 +333,17 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
     find_runfile(rel).unwrap_or_else(|error| panic!("runfile {rel}: {error}"))
 }
 
+/// Reads one test input resolved through `resolve_runfiles`, panicking when it cannot be read.
+pub fn read_runfile(rel: &str) -> Vec<u8> {
+    let resolved = resolve_runfiles(rel);
+    std::fs::read(&resolved).unwrap_or_else(|e| panic!("read {}: {e}", resolved.display()))
+}
+
+/// Reports whether `needle` occurs in `haystack`.
+pub fn contains_bytes(haystack: &[u8], needle: &[u8]) -> bool {
+    haystack.windows(needle.len()).any(|w| w == needle)
+}
+
 fn find_runfile(rel: &str) -> std::io::Result<PathBuf> {
     let direct = Path::new(rel);
     if direct.is_absolute() {

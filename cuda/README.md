@@ -108,7 +108,7 @@ failing. rules_dx patches rules_cuda 0.4.0-beta1 for the windows-arm64 toolkit
 | `dx_cuda: @rules_cuda//cuda:compiler is '<compiler>'; dx CUDA targets compile with nvcc only` | Remove the `@rules_cuda//cuda:compiler` setting. |
 | `dx_cuda: the CUDA toolkit is not the pinned redistributable (nvcc at '<path>'); declare the cuda.redist_json and cuda.toolkit tags from the dx CUDA README` | Add the `cuda.redist_json` and `cuda.toolkit` tags from Setup. |
 | `dx_cuda: the CUDA toolkit is <version>; dx CUDA targets need 13.4` | Use the versions from Setup. |
-| `dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux x86_64` | Build for Linux x86_64. |
+| `dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux_x86_64, linux_arm64, windows_x86_64, windows_arm64` | Build for one of the listed platforms. |
 | nvcc fails with `unsupported clang version!` | Move the stanza before `register_toolchains("@llvm//toolchain:all")`. |
 
 ## Library components

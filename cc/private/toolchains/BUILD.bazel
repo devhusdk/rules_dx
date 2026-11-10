@@ -518,7 +518,6 @@ real_source_target(
         "identity_subject.bzl",
         "identity_tests.bzl",
         "pins.bzl",
-        "repos.bzl",
         "extensions.bzl",
         "select.bzl",
         "unavailable.bzl",

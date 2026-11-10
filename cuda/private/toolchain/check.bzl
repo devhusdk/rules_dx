@@ -148,7 +148,7 @@ cuda_check = rule(
 def _toolkit_check_impl(ctx):
     toolchain = ctx.toolchains[_TOOLCHAIN_TYPE]
     if toolchain == None:
-        fail("dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for linux x86_64")
+        fail("dx_cuda: no nvcc toolchain for this target; dx CUDA targets build for " + ", ".join(cuda_qualified_cells()))
     toolkit = toolchain.cuda_toolkit[CudaToolkitInfo]
     errors = toolkit_errors(
         toolchain.compiler_executable,

@@ -2,6 +2,7 @@ load("@rules_cc//cc:cc_library.bzl", "cc_library")
 load("//cuda:defs.bzl", "CUDA_TARGET", "cuda_component_library", "cuda_gpu_env", "cuda_library", "cuda_test")
 load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check", "cuda_license")
 load("//cuda/private/toolchain:repos.bzl", "UNACCEPTED")
+load("//core/modules:cuda.bzl", "CUDA_VERSION")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
@@ -151,6 +152,7 @@ rust_test(
     env = {
         "DX_CUDA_ARCHIVES": "$(rootpaths //cuda/tests/fixtures/cublas)",
         "DX_CUDA_BINARY": "$(rootpath //cuda/tests/fixtures/cublas:cublas_app)",
+        "DX_CUDA_MAJOR": CUDA_VERSION.split(".")[0],
     },
     target_compatible_with = CUDA_TARGET,
     deps = ["//tools/testing:dx_testing"],

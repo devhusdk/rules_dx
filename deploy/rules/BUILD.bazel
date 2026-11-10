@@ -1700,6 +1700,9 @@ deploy_analysis_test(
 
 deploy_analysis_test(
     name = "pub_alias_analysis",
+    artifacts = [
+        "//deploy/rules:pub_demo_package",
+    ],
     subject = "pub-demo-alias",
 )
 

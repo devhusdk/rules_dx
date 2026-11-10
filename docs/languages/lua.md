@@ -81,7 +81,7 @@ Manifests:
 
 Lockfiles:
 
-None.
+- `luarocks.lock`
 
 ## Platforms
 

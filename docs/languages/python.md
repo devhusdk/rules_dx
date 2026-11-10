@@ -116,12 +116,11 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Ecosystems
 
-- pypi
+- uv
 
 Manifests:
 
 - `pyproject.toml`
-- `requirements.txt`
 
 Lockfiles:
 

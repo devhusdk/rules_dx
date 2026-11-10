@@ -24,12 +24,11 @@ None.
 
 Manifests:
 
-- `*.csproj`
-- `*.fsproj`
+- `paket.dependencies`
 
 Lockfiles:
 
-- `packages.lock.json`
+- `paket.lock`
 
 ## Platforms
 

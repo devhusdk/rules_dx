@@ -86,7 +86,7 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Ecosystems
 
-- zig packages
+- zig
 
 Manifests:
 

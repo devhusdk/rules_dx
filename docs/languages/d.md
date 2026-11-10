@@ -98,11 +98,10 @@ None.
 Manifests:
 
 - `dub.json`
-- `dub.sdl`
 
 Lockfiles:
 
-None.
+- `dub.selections.json`
 
 ## Platforms
 

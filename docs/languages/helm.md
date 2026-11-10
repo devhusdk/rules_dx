@@ -38,7 +38,7 @@ Owns one Helm chart, the package holding Chart.yaml, for dx lint.
 
 ## Ecosystems
 
-- helm charts
+None.
 
 Manifests:
 

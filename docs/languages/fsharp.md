@@ -88,11 +88,11 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 Manifests:
 
-- `*.fsproj`
+- `paket.dependencies`
 
 Lockfiles:
 
-- `packages.lock.json`
+- `paket.lock`
 
 ## Platforms
 

@@ -207,11 +207,11 @@ No API doc tool yet.
 
 Manifests:
 
-- `rebar.config`
+- `mix.exs`
 
 Lockfiles:
 
-- `rebar.lock`
+- `mix.lock`
 
 ## Platforms
 

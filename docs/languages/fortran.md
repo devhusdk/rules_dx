@@ -81,7 +81,7 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Ecosystems
 
-None.
+- fpm
 
 Manifests:
 

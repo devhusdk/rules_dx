@@ -96,11 +96,11 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 Manifests:
 
-- `*.csproj`
+- `paket.dependencies`
 
 Lockfiles:
 
-- `packages.lock.json`
+- `paket.lock`
 
 ## Platforms
 

@@ -35,11 +35,11 @@ Owns the Ansible and plain YAML files of one package for dx quality, split by An
 
 ## Ecosystems
 
-None.
+- ansible
 
 Manifests:
 
-None.
+- `MODULE.bazel`
 
 Lockfiles:
 

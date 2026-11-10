@@ -44,7 +44,7 @@ Owns the Terraform files of one module for dx format and lint.
 
 ## Ecosystems
 
-- terraform registry
+None.
 
 Manifests:
 

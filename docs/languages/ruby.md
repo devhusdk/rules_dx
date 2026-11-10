@@ -90,12 +90,11 @@ Build the docs with `tools/dx docs`; see [docs](../cli/commands/docs.md).
 
 ## Ecosystems
 
-- rubygems
+- ruby
 
 Manifests:
 
 - `Gemfile`
-- `*.gemspec`
 
 Lockfiles:
 

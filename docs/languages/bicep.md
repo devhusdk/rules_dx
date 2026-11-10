@@ -46,11 +46,11 @@ A restored Bicep registry module and its cache files.
 
 ## Ecosystems
 
-None.
+- bicep
 
 Manifests:
 
-None.
+- `MODULE.bazel`
 
 Lockfiles:
 

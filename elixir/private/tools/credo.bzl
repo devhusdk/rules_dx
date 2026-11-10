@@ -3,15 +3,7 @@
 load("@rules_erlang//:erlang_app_info.bzl", "ErlangAppInfo")
 load("//core:rlocation.bzl", "runfiles_path")
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "target_is_windows", "write_native_launcher")
-load(":launcher.bzl", "launcher_preamble", "launcher_root", "windows_descriptor")
-
-_EXEC = """PATH="$otp/bin:$elixir/bin:$PATH" exec "$elixir/bin/elixir"{paths} "$runfiles/{driver}" "$@"
-"""
-
-def credo_script(otp, elixir, ebins, driver):
-    """Returns the Credo launcher for runfiles-relative roots, tool ebin directories and driver."""
-    paths = "".join([' -pa "$runfiles/{}"'.format(ebin) for ebin in ebins])
-    return launcher_preamble(otp, elixir) + _EXEC.format(paths = paths, driver = driver)
+load(":launcher.bzl", "elixir_descriptor", "launcher_key")
 
 def _credo_impl(ctx):
     otp = ctx.toolchains["@rules_erlang//tools:toolchain_type"].otpinfo
@@ -31,15 +23,10 @@ def _credo_impl(ctx):
             ebins.append(runfiles_path(ctx.workspace_name, beam.short_path))
             files.append(beam)
     driver = ctx.file.driver
-    otp_root = launcher_root(ctx, otp.version_file)
-    elixir_root = launcher_root(ctx, elixir.version_file)
+    otp_key = launcher_key(ctx, otp.version_file)
+    elixir_root = launcher_key(ctx, elixir.version_file).rpartition("/")[0]
     driver_key = runfiles_path(ctx.workspace_name, driver.short_path)
-    if target_is_windows(ctx):
-        launcher, _, launcher_runfiles = write_native_launcher(ctx, windows_descriptor(otp_root, elixir_root, ebins, driver_key))
-    else:
-        launcher = ctx.actions.declare_file(ctx.label.name)
-        ctx.actions.write(launcher, credo_script(otp_root, elixir_root, ebins, driver_key), is_executable = True)
-        launcher_runfiles = ctx.runfiles([launcher])
+    launcher, _, launcher_runfiles = write_native_launcher(ctx, elixir_descriptor(otp_key, elixir_root, ebins, driver_key, target_is_windows(ctx)))
     runfiles = launcher_runfiles.merge(ctx.runfiles(
         files = [driver] + files,
         transitive_files = depset(transitive = [otp.tree, elixir.tree]),

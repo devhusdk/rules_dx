@@ -1,6 +1,6 @@
 """Elixir toolchain pin and launcher tests."""
 
-load("//elixir/private/tools:launcher.bzl", "MIX_FORMAT_ENV", "launcher_preamble")
+load("//elixir/private/tools:launcher.bzl", "MIX_FORMAT_ENV", "elixir_descriptor")
 load("//erlang/private/toolchain:pins.bzl", "CELLS", "OTP_VERSION")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "starlark_test")
 load(":pins.bzl", "CREDO_PACKAGES", "ELIXIR_CELLS", "ELIXIR_OTP_MAJOR")
@@ -19,7 +19,7 @@ set -- "$ERTS_BIN$ERL_EXEC" -noshell -pa "$SCRIPT_PATH"/../lib/elixir/ebin $ELIX
 """
 
 def _credo_checks():
-    preamble = launcher_preamble("otp", "elixir")
+    descriptor = elixir_descriptor("otp/VERSION", "elixir", [], "elixir/bin/mix", False)
     return [
         expect_contains("mix package depends on its repo", mix_build({"deps": ["decimal"], "package": "jason", "version": "1.4.4"}, "hub"), '["@hub_decimal//:erlang_app"]'),
         expect_contains("mix hub aliases each package", mix_hub_build([{"package": "jason"}], "hub"), 'actual = "@hub_jason//:erlang_app"'),
@@ -29,7 +29,8 @@ def _credo_checks():
         expect_equal("other files pass through", credo_rewrites("credo", "lib/other.ex", "Mix.env()", "1"), "Mix.env()"),
         expect_contains("credo builds with the dependency chain", credo_build("credo"), '"//file_system:erlang_app"'),
         expect_contains("vendored apps do not fail on warnings", credo_build("jason"), "warnings_as_errors = False"),
-        expect_contains("launcher locks the home down", preamble, "export HOME='/nonexistent/dx_mix_format'"),
+        expect_contains("launcher locks the home down", descriptor, "env=HOME\t/nonexistent/dx_mix_format"),
+        expect_contains("launcher roots OTP at its tree", descriptor, "env_dir=ERL_ROOTDIR\totp/VERSION"),
         expect_equal("launcher env keeps its name", MIX_FORMAT_ENV["HEX_OFFLINE"], "1"),
     ]
 

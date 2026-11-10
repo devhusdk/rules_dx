@@ -335,3 +335,20 @@ fn env_dir_is_the_directory_of_the_runfiles_file() {
     assert!(Path::new(&out[0].1).is_absolute());
     assert!(out[0].1.ends_with("bin"));
 }
+
+#[cfg(unix)]
+#[test]
+fn real_program_resolves_symlinks() {
+    let tree = scratch("real_program");
+    std::fs::create_dir_all(tree.join("_main/real")).unwrap();
+    std::fs::write(tree.join("_main/real/tool"), "").unwrap();
+    std::os::unix::fs::symlink(tree.join("_main/real/tool"), tree.join("_main/tool")).unwrap();
+    let resolver = Resolver::for_tree(&tree).unwrap();
+    let plain = parse("program=_main/tool\n").unwrap();
+    assert!(!plain.real_program);
+    let real = parse("real_program=_main/tool\n").unwrap();
+    assert!(real.real_program);
+    let planned = plan(&resolver, &real, &|_| None).unwrap();
+    assert!(planned.program.ends_with("_main/real/tool"));
+    assert!(parse("program=a\nreal_program=b\n").is_err());
+}

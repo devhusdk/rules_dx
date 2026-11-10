@@ -1,0 +1,14 @@
+load("@rules_dx//cc:defs.bzl", "cc_library")
+
+exports_files([
+    "greeting.cc",
+    "greeting.h",
+])
+
+cc_library(
+    name = "greeting",
+    srcs = ["greeting.cc"],
+    hdrs = ["greeting.h"],
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)

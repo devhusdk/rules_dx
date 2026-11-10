@@ -1,0 +1,16 @@
+load("@rules_dx//deploy:defs.bzl", "consumer_archive", "dx_resources")
+
+package(default_visibility = ["//visibility:public"])
+
+dx_resources(
+    name = "repo_res",
+    mappings = {"//:banner.txt": "banner.txt"},
+)
+
+consumer_archive(
+    name = "repo_nested_release",
+    app = "//:external_app",
+    min_runtime = "glibc-2.17",
+    notice = "//:NOTICE.txt",
+    resources = [":repo_res"],
+)

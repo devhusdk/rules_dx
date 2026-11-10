@@ -1,0 +1,5 @@
+[book]
+title = "consumer"
+authors = ["rules_dx fixture"]
+language = "en"
+src = "src"

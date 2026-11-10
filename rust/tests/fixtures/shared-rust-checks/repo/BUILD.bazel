@@ -1,0 +1,104 @@
+load("@rules_dx//android:defs.bzl", "rust_android_apk")
+load("@rules_dx//examples/shared-rust:release.bzl", "release_artifact")
+load("@rules_dx//javascript:defs.bzl", "javascript_web_app")
+load("@rules_dx//cli/web_server:server.bzl", "javascript_web_server")
+load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+javascript_web_app(
+    name = "consumer_app",
+    html = ":index.html",
+    bindgen = "@rules_dx//examples/shared-rust:shared_tasks",
+    assets = {
+        ":assets/board.txt": "data/board.txt",
+        ":assets/notes.txt": "data/notes.txt",
+    },
+)
+
+javascript_web_server(
+    name = "consumer_serve",
+    app = ":consumer_app",
+    port = 8124,
+    headers = {"X-Consumer": "shared-consumer"},
+)
+
+rust_binary(
+    name = "consumer_report",
+    srcs = ["report.rs"],
+    crate_features = ["csv"],
+    crate_root = "report.rs",
+    rustc_flags = ["--cfg=consumer_build"],
+    deps = ["@rules_dx//examples/shared-rust:tasks_core"],
+)
+
+release_artifact(
+    name = "consumer_release",
+    target = ":consumer_report",
+)
+
+genrule(
+    name = "consumer_probe",
+    srcs = [":assets/board.txt"],
+    tools = [":consumer_report"],
+    outs = ["probe.txt"],
+    cmd = "$(location :consumer_report) $(location :assets/board.txt) 'add Consumer native task' > $@",
+)
+
+rust_binary(
+    name = "consumer_report_wasi",
+    srcs = ["report.rs"],
+    crate_features = ["csv"],
+    crate_root = "report.rs",
+    rustc_flags = ["--cfg=consumer_build"],
+    wasm = "wasi",
+    deps = ["@rules_dx//examples/shared-rust:tasks_core"],
+)
+
+rust_test(
+    name = "consumer_wasi_test",
+    srcs = ["wasi_test.rs"],
+    crate_root = "wasi_test.rs",
+    data = [
+        ":assets/board.txt",
+        ":consumer_report_wasi",
+        "@rules_dx//wasi:wasmtime",
+    ],
+    env = {
+        "BOARD": "$(rootpath :assets/board.txt)",
+        "REPORT_WASM": "$(rootpath :consumer_report_wasi)",
+        "WASMTIME": "$(rootpath @rules_dx//wasi:wasmtime)",
+    },
+    tags = ["block-network"],
+    deps = ["@rules_dx//wasi:wasi_run"],
+)
+
+rust_test(
+    name = "consumer_wasi_runtime_test",
+    srcs = ["wasi_runtime_test.rs"],
+    crate_root = "wasi_runtime_test.rs",
+    runtime = "wrapped_runtime.sh",
+    tags = ["block-network"],
+    wasm = "wasi",
+)
+
+rust_android_apk(
+    name = "consumer_apk",
+    testonly = True,
+    app_id = "org.example.consumer.tasks",
+    platforms = ["@rules_dx//android/platforms:x86_64"],
+    api_level = 33,
+    assets = [
+        ":assets/board.txt",
+        ":assets/notes.txt",
+    ],
+    assets_dir = "assets",
+    permissions = ["android.permission.VIBRATE"],
+    resource_files = [":res/values/strings.xml"],
+    version_code = 3,
+    version_name = "3.0",
+    deps = ["@rules_dx//examples/shared-rust:tasks_activity"],
+)

@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>dx shared consumer</title>
+</head>
+<body>
+<main>
+<h1>dx shared consumer</h1>
+<ol id="c-tasks"></ol>
+<p id="c-summary">loading</p>
+<button id="c-add" type="button">Add consumer task</button>
+<p id="c-reply">pending</p>
+<p id="c-asset">loading</p>
+<p id="c-version">loading</p>
+</main>
+<script type="module">
+import init, { WebBoard, asset_report, core_version } from "./shared_tasks.js";
+await init();
+const board = new WebBoard(await (await fetch("./data/board.txt")).text());
+const render = () => {
+  document.getElementById("c-tasks").replaceChildren(...board.lines().map((line) => {
+    const item = document.createElement("li");
+    item.textContent = line;
+    return item;
+  }));
+  document.getElementById("c-summary").textContent = board.summary();
+};
+document.getElementById("c-add").addEventListener("click", () => {
+  document.getElementById("c-reply").textContent = board.apply("add Consumer browser task");
+  render();
+});
+render();
+const notes = new Uint8Array(await (await fetch("./data/notes.txt")).arrayBuffer());
+document.getElementById("c-asset").textContent = asset_report("notes.txt", notes);
+document.getElementById("c-version").textContent = core_version();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+load("@rules_dx//go:defs.bzl", "go_library")
+
+go_library(
+    name = "helper",
+    srcs = ["helper.go"],
+    importpath = "example.test/samepkg/helper",
+    visibility = ["//visibility:public"],
+)

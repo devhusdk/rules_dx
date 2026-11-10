@@ -1,0 +1,78 @@
+genrule(
+    name = "consumer_scaffold_probe",
+    outs = [
+        "new_removed.txt",
+        "init_dir_apply.txt",
+        "init_dir_reapply.txt",
+        "init_apply.txt",
+        "init_check.txt",
+        "init_clean.txt",
+        "init_bad.txt",
+        "foreign/myproj/MODULE.bazel",
+        "foreign/myproj/.bazelversion",
+        "foreign/myproj/.dx/pins",
+        "fortree/.dx/pins",
+    ],
+    cmd = """
+set -eu
+public="$(location @rules_dx//:dx)"
+root="$$(dirname "$(location init_apply.txt)")"
+foreign="$$root/foreign"
+fortree="$$root/fortree"
+checktree="$$root/checktree"
+rm -rf "$$foreign" "$$fortree" "$$checktree"
+mkdir -p "$$foreign" "$$fortree" "$$checktree"
+echo "keep" > "$$fortree/README.md"
+mkdir -p "$$fortree/src"
+echo "keep" > "$$fortree/src/keep.txt"
+echo 'module(name = "mine")' > "$$fortree/MODULE.bazel"
+echo "keep" > "$$checktree/README.md"
+if "$$public" new --apply cpp bad --workspace "$$foreign" > "$(location new_removed.txt)" 2>&1; then
+  echo "dx new still runs" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location new_removed.txt)"
+fi
+grep -q "unrecognized subcommand 'new'" "$(location new_removed.txt)"
+test ! -e "$$foreign/bad"
+"$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_apply.txt)" 2>&1
+echo "exit=0" >> "$(location init_dir_apply.txt)"
+grep -q "wrote myproj/.dx/pins" "$(location init_dir_apply.txt)"
+test -f "$$foreign/myproj/MODULE.bazel"
+test -f "$$foreign/myproj/.bazelversion"
+test -f "$$foreign/myproj/.dx/pins"
+grep -q 'name = "myproj"' "$$foreign/myproj/MODULE.bazel"
+cp "$$foreign/myproj/MODULE.bazel" "$$root/module.orig"
+"$$public" init --apply myproj --workspace "$$foreign" > "$(location init_dir_reapply.txt)" 2>&1
+echo "exit=0" >> "$(location init_dir_reapply.txt)"
+cmp "$$root/module.orig" "$$foreign/myproj/MODULE.bazel"
+"$$public" init --apply --workspace "$$fortree" > "$(location init_apply.txt)" 2>&1
+echo "exit=0" >> "$(location init_apply.txt)"
+grep -q "wrote .dx/pins" "$(location init_apply.txt)"
+test -f "$$fortree/.dx/pins"
+grep -q 'name = "mine"' "$$fortree/MODULE.bazel"
+if "$$public" init --workspace "$$checktree" > "$(location init_check.txt)" 2>&1; then
+  echo "check-mode applied a scaffold" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location init_check.txt)"
+fi
+grep -q "would create" "$(location init_check.txt)"
+test ! -e "$$checktree/.dx"
+"$$public" init --workspace "$$fortree" > "$(location init_clean.txt)" 2>&1
+echo "exit=0" >> "$(location init_clean.txt)"
+grep -q "init current: my_project" "$(location init_clean.txt)"
+if "$$public" init ../evil --workspace "$$fortree" > "$(location init_bad.txt)" 2>&1; then
+  echo "init accepted a directory outside the workspace" >&2
+  exit 1
+else
+  echo "exit=$$?" >> "$(location init_bad.txt)"
+fi
+grep -q "invalid directory for dx init" "$(location init_bad.txt)"
+test ! -e "$$root/evil"
+""",
+    tools = [
+        "@rules_dx//:dx",
+    ],
+    visibility = ["//visibility:public"],
+)

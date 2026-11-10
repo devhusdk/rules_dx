@@ -1,0 +1,2 @@
+external-release NOTICE
+Third-party licenses for the external consumer application.

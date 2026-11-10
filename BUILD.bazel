@@ -137,6 +137,7 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude deploy/private/testdata
 # gazelle:exclude deploy/private/typed_probe
 # gazelle:exclude deploy/private/web_demo
+# gazelle:exclude cmake/tests/fixtures
 # gazelle:exclude deploy/tests/fixtures
 # gazelle:exclude deploy/tests/cross/cross_app.c
 # gazelle:exclude quality/artifacts

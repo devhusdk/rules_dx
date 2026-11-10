@@ -266,7 +266,7 @@ archive_deploy(
 # keep
 rust_test(
     name = "release_verify",
-    srcs = ["@rules_dx//deploy/private:verify_test.rs"],
+    srcs = ["@rules_dx//deploy:verify_test.rs"],
     data = [
         ":release_archive",
         ":release_checksum",

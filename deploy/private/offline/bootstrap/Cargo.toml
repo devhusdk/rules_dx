@@ -7,7 +7,3 @@ edition = "2024"
 [lib]
 name = "dx_bootstrap"
 path = "src/lib.rs"
-
-[[bin]]
-name = "bootstrap_offline"
-path = "src/main.rs"

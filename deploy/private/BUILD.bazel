@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("@rules_python//python:packaging.bzl", "py_wheel_rule")
@@ -178,7 +179,6 @@ exports_files([
     "validate_resources.bzl",
     "validate_rubygems.bzl",
     "validate_tests.bzl",
-    "verify_test.rs",
 ])
 
 filegroup(
@@ -591,7 +591,7 @@ resources_processed_analysis_tests(name = "resources_processed_analysis")
 
 rust_test(
     name = "resources_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":resources_demo_plain",
         ":resources_demo_processed",
@@ -746,7 +746,7 @@ deploy_analysis_test(
 
 rust_test(
     name = "helm_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         "//config:tool_helm",
         "//deploy/tests/fixtures/helm_chart:helm_demo",
@@ -768,7 +768,7 @@ helm_unit_tests(name = "helm_unit")
 
 rust_test(
     name = "oci_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":oci_demo",
         ":oci_demo_config",
@@ -785,7 +785,7 @@ rust_test(
 
 rust_test(
     name = "oci_demo_layout_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":oci_demo",
         ":oci_demo_config",
@@ -807,7 +807,7 @@ rust_test(
 
 rust_test(
     name = "release_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":release_demo_archive",
         ":release_demo_checksum",
@@ -825,7 +825,7 @@ rust_test(
 
 rust_test(
     name = "release_demo_debug_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":release_demo_debug_archive",
         ":release_demo_debug_checksum",
@@ -988,7 +988,7 @@ failure_test(
 
 rust_test(
     name = "github_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":github_demo",
         ":github_demo_config",
@@ -1007,7 +1007,7 @@ rust_test(
 
 rust_test(
     name = "github_sbom_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         "//deploy/private/sbom_demo:app_release",
         "//deploy/private/sbom_demo:app_release_config",
@@ -1029,7 +1029,7 @@ linux_package_unit_tests(name = "linux_package_unit")
 
 rust_test(
     name = "linux_package_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         "//deploy/tests/fixtures/linux_package:demo",
         "//deploy/tests/fixtures/linux_package:demo_apk",
@@ -1091,7 +1091,7 @@ deploy_analysis_test(
 
 rust_test(
     name = "homebrew_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":homebrew_demo",
         ":homebrew_demo_config",
@@ -1293,7 +1293,7 @@ pypi_deploy(
 
 rust_test(
     name = "pypi_native_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":dx_native_probe",
         ":dx_native_probe_config",
@@ -1353,7 +1353,7 @@ pypi_deploy(
 # Run with --//cc/toolchains:compiler=msvc and the dx_msvc license accepted.
 rust_test(
     name = "pypi_native_msvc_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":native_probe_msvc",
         ":native_probe_msvc_config",
@@ -1432,7 +1432,7 @@ pypi_deploy(
 
 rust_test(
     name = "pypi_native_linked_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":native_probe_linked",
         ":native_probe_linked_config",
@@ -1466,7 +1466,7 @@ rust_test(
 
 rust_test(
     name = "pypi_probe_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":dx_pypi_probe",
         ":dx_pypi_probe_config",
@@ -1563,7 +1563,7 @@ failure_test(
 
 rust_test(
     name = "cloudflare_demo_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":cloudflare_default_wrangler",
         ":cloudflare_default_wrangler_config",
@@ -1734,7 +1734,7 @@ deploy_analysis_test(
 
 rust_test(
     name = "rubygems_verify",
-    srcs = ["verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":rubygems_demo",
         ":rubygems_demo_config",

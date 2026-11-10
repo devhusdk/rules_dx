@@ -1,6 +1,6 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("//quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
@@ -8,23 +8,7 @@ package(default_visibility = VIS_PUBLIC)
 exports_files([
     "Cargo.toml",
     "src/lib.rs",
-    "src/main.rs",
 ])
-
-rust_binary(
-    name = "bootstrap_offline",
-    srcs = ["src/main.rs"],
-    aliases = aliases(
-        package_name = "deploy/private/offline/dx_bootstrap",
-        normal = True,
-    ),
-    crate_name = "bootstrap_offline",
-    crate_root = "src/main.rs",
-    deps = all_crate_deps(
-        package_name = "deploy/private/offline/dx_bootstrap",
-        normal = True,
-    ) + [":dx_bootstrap"],
-)
 
 real_source_target(
     name = "corpus_starlark",

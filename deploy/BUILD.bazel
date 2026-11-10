@@ -1,10 +1,13 @@
+load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_binary")
 
 package(default_visibility = ["//:__subpackages__"])
 
 exports_files([
     "README.md",
     "defs.bzl",
+    "verify_test.rs",
 ])
 
 platform(
@@ -25,10 +28,21 @@ platform(
     visibility = ["//visibility:public"],
 )
 
-alias(
+# keep
+rust_binary(
     name = "bootstrap_offline",
-    actual = "//deploy/private/offline/bootstrap:bootstrap_offline",
+    srcs = ["bootstrap_offline.rs"],
+    aliases = aliases(
+        package_name = "deploy/private/offline/dx_bootstrap",
+        normal = True,
+    ),
+    crate_name = "bootstrap_offline",
+    crate_root = "bootstrap_offline.rs",
     visibility = ["//visibility:public"],
+    deps = all_crate_deps(
+        package_name = "deploy/private/offline/dx_bootstrap",
+        normal = True,
+    ) + ["//deploy/private/offline/bootstrap:dx_bootstrap"],
 )
 
 filegroup(
@@ -41,6 +55,15 @@ filegroup(
 
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+    ],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
     tags = ["corpus"],
 )

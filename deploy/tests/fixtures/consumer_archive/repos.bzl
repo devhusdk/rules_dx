@@ -1,8 +1,7 @@
 """A consumer-owned native application repository packaged outside the main graph."""
 
 _BUILD_BAZEL = '''load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library")
-load("@rules_dx//deploy/private:archive.bzl", "consumer_archive")
-load("@rules_dx//deploy/private:resources.bzl", "dx_resources")
+load("@rules_dx//deploy:defs.bzl", "consumer_archive", "dx_resources")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -39,8 +38,7 @@ consumer_archive(
 )
 '''
 
-_PKG_BUILD_BAZEL = '''load("@rules_dx//deploy/private:archive.bzl", "consumer_archive")
-load("@rules_dx//deploy/private:resources.bzl", "dx_resources")
+_PKG_BUILD_BAZEL = '''load("@rules_dx//deploy:defs.bzl", "consumer_archive", "dx_resources")
 
 package(default_visibility = ["//visibility:public"])
 

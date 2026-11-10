@@ -3,8 +3,8 @@
 `offline_bundle` assembles a vendored bundle for an airgapped host. The `bootstrap_offline` tool installs Bazel from the bundle and fills `.dx/local/advisory`. It is not a `dx` command.
 
 ```sh
-bazel build //deploy/private/offline:offline_demo
-bazel run @rules_dx//deploy:bootstrap_offline -- --bundle bazel-bin/deploy/private/offline/offline_demo
+bazel build //:offline_demo
+bazel run @rules_dx//deploy:bootstrap_offline -- --bundle bazel-bin/offline_demo
 bazel run @rules_dx//deploy:bootstrap_offline -- --bundle DIR --install-dir ~/bin --workspace .
 ```
 

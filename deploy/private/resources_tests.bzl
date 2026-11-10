@@ -120,23 +120,3 @@ def resources_processed_analysis_tests(name):
         subjects = [":resources_demo_processed"],
         expected_observations = EXPECTED_RESOURCES_PROCESSED_OBSERVATIONS,
     )
-
-EXPECTED_CONSUMER_PLAIN_OBSERVATIONS = """subject //deploy/tests/fixtures/consumer_resources:consumer_plain
-file banner.txt
-file sprite.bin
-field count=2
-field paths=banner.txt,generated/sprite.bin
-field processor=
-aspect_field aspect_seen=True
-aspect_field field_count=3
-aspect_field has_subject=True
-aspect_field subject_label=//deploy/tests/fixtures/consumer_resources:consumer_plain
-aspect_field transitive_count=0"""
-
-def resources_consumer_analysis_tests(name):
-    starlark_test(
-        name = name,
-        mode = "analysis",
-        subjects = [":consumer_plain"],
-        expected_observations = EXPECTED_CONSUMER_PLAIN_OBSERVATIONS,
-    )

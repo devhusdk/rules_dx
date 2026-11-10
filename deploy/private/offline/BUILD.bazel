@@ -24,11 +24,6 @@ exports_files(
     visibility = ["//visibility:private"],
 )
 
-alias(
-    name = "bootstrap_offline",
-    actual = "//deploy/private/offline/bootstrap:bootstrap_offline",
-)
-
 offline_bundle(
     name = "offline_demo",
     advisory = {"cargo": ":demo/cargo.json"},
@@ -61,15 +56,15 @@ rust_test(
     crate_name = "bootstrap_test",
     crate_root = "bootstrap_test.rs",
     data = [
-        ":bootstrap_offline",
         ":offline.bzl",
         ":offline_demo",
         ":offline_demo/advisory/SHA256SUMS",
         ":offline_demo/bazelisk/SHA256SUMS",
+        "//deploy:bootstrap_offline",
         "//deploy/private/offline/bootstrap:src/lib.rs",
     ],
     env = {
-        "DX_BOOTSTRAP": "$(rootpath :bootstrap_offline)",
+        "DX_BOOTSTRAP": "$(rootpath //deploy:bootstrap_offline)",
         "DX_OFFLINE_BZL": "$(rootpath :offline.bzl)",
         "DX_OFFLINE_DEMO": "$(rootpath :offline_demo/bazelisk/SHA256SUMS)",
         "DX_BOOTSTRAP_SRC": "$(rootpath //deploy/private/offline/bootstrap:src/lib.rs)",

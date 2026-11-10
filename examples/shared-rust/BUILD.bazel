@@ -231,7 +231,7 @@ archive_deploy(
 
 rust_test(
     name = "tasks_deploy_verify",
-    srcs = ["//deploy/private:verify_test.rs"],
+    srcs = ["//deploy:verify_test.rs"],
     data = [
         ":tasks_deploy_archive",
         ":tasks_deploy_checksum",

@@ -36,7 +36,11 @@ sh_test(
         "@rules_dx//dotnet/fuzz:libfuzzer_dotnet",
         "@rules_dx//cli/fuzz_run:fuzz_run",
     ],
-    target_compatible_with = ["@platforms//os:linux"],
+    target_compatible_with = select({
+        "@platforms//os:linux": [],
+        "@platforms//os:macos": [],
+        "//conditions:default": ["@platforms//:incompatible"],
+    }),
     timeout = "short",
 )
 

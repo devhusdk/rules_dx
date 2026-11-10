@@ -5,6 +5,7 @@ load("@rules_dx//rust:defs.bzl", "rust_binary")
 
 _SUPPORTED = select({
     "@platforms//os:linux": [],
+    "@platforms//os:macos": [],
     "//conditions:default": ["@platforms//:incompatible"],
 })
 

@@ -7,7 +7,7 @@ RUST_VERSION = "1.99.1"
 RUSTFMT_VERSION = "1.99.1"
 RUST_EDITION = "2024"
 
-RULES_CC_VERSION = "0.2.27"
+RULES_CC_VERSION = "0.2.28"
 GOOGLETEST_VERSION = "1.18.0.bcr.1"
 LLVM_VERSION = "0.8.26"
 RULES_CUDA_VERSION = "0.4.0-beta1"
@@ -17,7 +17,7 @@ CUDA_REDIST_VERSION = "13.4.2"
 TESTED_RULES_GO = "0.65.0"
 GAZELLE_VERSION = "0.54.0"
 RULES_SHELL_VERSION = "0.8.0"
-TESTED_APPLE_SUPPORT = "2.11.0"
+TESTED_APPLE_SUPPORT = "2.12.0"
 TESTED_RULES_APPLE = "5.4.0"
 PLATFORMS_VERSION = "1.1.0"
 BAZEL_SKYLIB_VERSION = "1.9.2"
@@ -39,7 +39,7 @@ RULES_PYTHON_VERSION = "2.4.6"
 RULES_PY_VERSION = "2.0.0-alpha.11"
 PYTHON_VERSION = "3.12"
 
-ASPECT_RULES_JS_VERSION = "3.5.2"
+ASPECT_RULES_JS_VERSION = "3.6.0"
 ASPECT_RULES_TS_VERSION = "3.10.1"
 ASPECT_RULES_JEST_VERSION = "0.26.0"
 RULES_NODEJS_VERSION = "6.7.7"
@@ -55,7 +55,7 @@ PNPM_VERSION = "10.34.5"
 NODE_VERSION_PREFIX = "v22."
 
 RULES_JAVA_VERSION = "9.9.0"
-RULES_ANDROID_VERSION = "0.8.0"
+RULES_ANDROID_VERSION = "0.8.1"
 TESTED_RULES_KOTLIN = "2.4.21"
 TESTED_RULES_SCALA = "7.4.1"
 SCALA_VERSION = "2.13.18"
@@ -118,7 +118,7 @@ CONSUMER_BAZEL_DEPS = {
     "hermetic_launcher": struct(floor = "0.0.17", tested = "0.0.17"),
     "gcc_toolchain": struct(floor = "0.13.0", tested = "0.13.0"),
     "windows_support": struct(floor = "0.4.1", tested = "0.4.1"),
-    "google_benchmark": struct(floor = "1.9.5", tested = "1.9.5"),
+    "google_benchmark": struct(floor = "1.10.0", tested = "1.10.0"),
     "elfutils": struct(floor = "0.195", tested = "0.195"),
     "zlib": struct(floor = "1.3.2.bcr.3", tested = "1.3.2.bcr.3"),
     "rules_rust_prost": struct(floor = "0.75.0", tested = "0.75.0"),

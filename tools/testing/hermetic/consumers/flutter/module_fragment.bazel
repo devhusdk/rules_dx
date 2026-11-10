@@ -9,7 +9,7 @@ flutter.pub(
 )
 use_repo(flutter, "dx_flutter_app_deps", "flutter_android_engine_arm64", "flutter_android_engine_x64")
 
-bazel_dep(name = "rules_android", version = "0.8.0")
+bazel_dep(name = "rules_android", version = "0.8.1")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 android_sdk = use_extension("@rules_dx//android:extensions.bzl", "android_sdk")

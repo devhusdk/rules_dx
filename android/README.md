@@ -104,7 +104,7 @@ host runs them.
 ## Application packaging
 
 `rust_android_apk` from `@rules_dx//android:defs.bzl` builds one installable
-APK from static native deps through the qualified upstream backend (`rules_android` 0.8.0):
+APK from static native deps through the qualified upstream backend (`rules_android` 0.8.1):
 
 ```python
 load("@rules_dx//android:defs.bzl", "rust_android_apk")
@@ -369,9 +369,9 @@ android_sdk_repository = use_extension("@rules_android//rules/android_sdk_reposi
 override_repo(android_sdk_repository, androidsdk = "dx_androidsdk")
 ```
 
-`rules_android` 0.8.0 needs build-tools 35.0.0 or newer; the pinned ones are 35.0.0.
+`rules_android` 0.8.1 needs build-tools 35.0.0 or newer; the pinned ones are 35.0.0.
 
-Breaking change for consumers (#3739): the `rules_android` floor is 0.8.0, the
+Breaking change for consumers (#3739): the `rules_android` floor is 0.8.1, the
 patch and its `single_version_override` are gone (remove them from your
 `MODULE.bazel`), and any repo not set up by `dx init --apply` must add
 `build --tool_java_runtime_version=remotejdk_21` and
@@ -419,7 +419,7 @@ whole scenario from the repository root and writes logs, `logcat-default.txt`,
 ## Backend decision
 
 Packaging stays on the upstream backend: `rust_android_apk` composes
-`android_binary` from `rules_android` 0.8.0, so manifest merge,
+`android_binary` from `rules_android` 0.8.1, so manifest merge,
 resources, native ABI placement, DEX, and signing come from the
 upstream rules plus the installed SDK. There is no owned APK
 packager: a native-only reimplementation would still need the same

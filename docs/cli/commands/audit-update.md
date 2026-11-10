@@ -467,7 +467,7 @@ For every set, `--apply --offline` fails with `offline_required` and `--apply --
 ### npm
 
 ```starlark
-bazel_dep(name = "aspect_rules_js", version = "3.5.2")
+bazel_dep(name = "aspect_rules_js", version = "3.6.0")
 
 npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(

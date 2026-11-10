@@ -763,3 +763,43 @@ ci_rust_test(
         "@crates//:starlark_syntax",
     ],
 )
+
+ci_rust_test(
+    name = "pin_locations_test",
+    size = "small",
+    srcs = [
+        "guard_rules/scan.rs",
+        "pin_locations_test.rs",
+    ],
+    data = [
+        "pin_locations_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:rust.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_RUST_JSON": "$(rlocationpath @dx_test_tags_sources//:rust.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+ci_rust_test(
+    name = "repo_rule_refetch_test",
+    size = "small",
+    srcs = [
+        "guard_rules/scan.rs",
+        "repo_rule_refetch_test.rs",
+    ],
+    data = [
+        "repo_rule_refetch_allowlist.txt",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)

@@ -1,7 +1,7 @@
-//! The root MODULE.bazel agrees with the CONSUMER_BAZEL_DEPS floor and tested table.
+//! The root MODULE.bazel agrees with the CONSUMER_BAZEL_DEPS floor and tested table, and every bazel_dep carries one floor comment and is at its newest version in core/modules/bcr_newest.json, outside core/modules/bazel_dep_allowlist.txt.
 
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use dx_module_bazel::{ModuleFile, Value, compare_module_versions};
 
@@ -361,7 +361,10 @@ fn disagreeing_fixtures_fail() {
         ),
         (
             rust("1", "1"),
-            fixture_table(&[("rules_rust", "1", "1"), ("rules_rust_wasm_bindgen", "2", "2")]),
+            fixture_table(&[
+                ("rules_rust", "1", "1"),
+                ("rules_rust_wasm_bindgen", "2", "2"),
+            ]),
             "must share one floor",
         ),
     ] {
@@ -369,6 +372,246 @@ fn disagreeing_fixtures_fail() {
         assert!(
             problems.iter().any(|problem| problem.contains(needle)),
             "{needle}: {problems:?}"
+        );
+    }
+}
+
+/// The allowlist path named in failures.
+const BAZEL_DEP_ALLOWLIST: &str = "core/modules/bazel_dep_allowlist.txt";
+
+/// The newest-version snapshot path named in failures.
+const BCR_NEWEST: &str = "core/modules/bcr_newest.json";
+
+/// Overrides that take a module from outside the registry.
+const NON_REGISTRY_OVERRIDES: [&str; 3] =
+    ["archive_override", "git_override", "local_path_override"];
+
+/// True when the comment lines directly above line `line` of `source` are one `# floor: <reason>` line.
+fn has_one_floor_comment(source: &str, line: usize) -> bool {
+    let lines: Vec<&str> = source.lines().collect();
+    let comments: Vec<&str> = lines[..line.saturating_sub(1).min(lines.len())]
+        .iter()
+        .rev()
+        .take_while(|above| above.starts_with('#'))
+        .copied()
+        .collect();
+    matches!(
+        comments.as_slice(),
+        [only] if only.strip_prefix("# floor: ").is_some_and(|reason| !reason.trim().is_empty())
+    )
+}
+
+/// The gaps of `source` as allowlist lines, `<module> no-floor` and `<module> behind <version>`, and every way `newest` and the declared modules disagree.
+fn bazel_dep_gaps(
+    source: &str,
+    newest: &BTreeMap<String, String>,
+) -> (BTreeSet<String>, Vec<String>) {
+    let module = match ModuleFile::parse(source) {
+        Ok(module) => module,
+        Err(error) => return (BTreeSet::new(), vec![error.to_string()]),
+    };
+    let mut gaps = BTreeSet::new();
+    let mut problems = Vec::new();
+    let mut registry = BTreeSet::new();
+    for call in module.calls_named("bazel_dep") {
+        let Some(name) = call.str("name") else {
+            problems.push(format!(
+                "bazel_dep at line {} has no literal name",
+                call.line
+            ));
+            continue;
+        };
+        if !has_one_floor_comment(source, call.line) {
+            gaps.insert(format!("{name} no-floor"));
+        }
+        let outside = NON_REGISTRY_OVERRIDES.iter().any(|kind| {
+            module
+                .calls_named(kind)
+                .any(|call| call.str("module_name") == Some(name))
+        });
+        if outside {
+            continue;
+        }
+        registry.insert(name.to_owned());
+        let Some(newest) = newest.get(name) else {
+            problems.push(format!("{BCR_NEWEST} has no entry for bazel_dep {name:?}"));
+            continue;
+        };
+        let declared = module
+            .bazel_dep_version(name)
+            .map(|version| version.value.clone());
+        let overridden = module
+            .override_version(name)
+            .map(|version| version.value.clone());
+        let lowest = [declared, overridden]
+            .into_iter()
+            .flatten()
+            .min_by(|a, b| compare_module_versions(a, b));
+        match lowest {
+            Some(lowest) if compare_module_versions(&lowest, newest) == Ordering::Less => {
+                gaps.insert(format!("{name} behind {lowest}"));
+            }
+            Some(_) => {}
+            None => problems.push(format!("bazel_dep {name:?} has no literal version")),
+        }
+    }
+    for name in newest.keys() {
+        if !registry.contains(name) {
+            problems.push(format!(
+                "{BCR_NEWEST} entry {name:?} has no registry bazel_dep in MODULE.bazel"
+            ));
+        }
+    }
+    (gaps, problems)
+}
+
+/// Every way `gaps` and the allowlist text disagree; empty when they are equal.
+fn allowlist_problems(gaps: &BTreeSet<String>, allowlist: &str) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut allowed = BTreeSet::new();
+    let mut previous: Option<&str> = None;
+    for line in allowlist.lines() {
+        let fields: Vec<&str> = line.split(' ').collect();
+        let well_formed = match fields.as_slice() {
+            [module, "no-floor"] => !module.is_empty(),
+            [module, "behind", version] => !module.is_empty() && !version.is_empty(),
+            _ => false,
+        };
+        if !well_formed {
+            problems.push(format!(
+                "{BAZEL_DEP_ALLOWLIST}: {line:?} is not `<module> no-floor` or `<module> behind <version>`"
+            ));
+        }
+        if previous.is_some_and(|before| before >= line) {
+            problems.push(format!(
+                "{BAZEL_DEP_ALLOWLIST}: {line:?} is not sorted after the line above it"
+            ));
+        }
+        previous = Some(line);
+        allowed.insert(line.to_owned());
+    }
+    for gap in gaps.difference(&allowed) {
+        problems.push(format!("{gap}: not in {BAZEL_DEP_ALLOWLIST}"));
+    }
+    for spare in allowed.difference(gaps) {
+        problems.push(format!(
+            "{BAZEL_DEP_ALLOWLIST}: spare line {spare:?} matches no gap: delete it"
+        ));
+    }
+    problems
+}
+
+fn newest(json: &str) -> BTreeMap<String, String> {
+    serde_json::from_str(json).unwrap_or_else(|error| panic!("{BCR_NEWEST}: {error}"))
+}
+
+#[test]
+fn every_bazel_dep_has_a_floor_comment_and_is_newest() {
+    let source = dx_testing::read_runfiles("MODULE.bazel");
+    let newest = newest(&dx_testing::read_runfiles(BCR_NEWEST));
+    let (gaps, mut problems) = bazel_dep_gaps(&source, &newest);
+    problems.extend(allowlist_problems(
+        &gaps,
+        &dx_testing::read_runfiles(BAZEL_DEP_ALLOWLIST),
+    ));
+    assert!(
+        problems.is_empty(),
+        "{}\n\nwanted {BAZEL_DEP_ALLOWLIST}:\n{}",
+        problems.join("\n"),
+        gaps.iter()
+            .map(|gap| format!("{gap}\n"))
+            .collect::<String>()
+    );
+}
+
+#[test]
+fn floor_and_newest_gaps_are_found() {
+    let newest = newest(r#"{"demo": "1.2.0", "dev": "9.0.0"}"#);
+    let floored = good("1.2.0", "1.2.0").replace(
+        "bazel_dep(name = \"dev\"",
+        "# floor: dev only\nbazel_dep(name = \"dev\"",
+    );
+    let gaps = |source: &str| {
+        let (gaps, problems) = bazel_dep_gaps(source, &newest);
+        assert_eq!(problems, Vec::<String>::new());
+        gaps.into_iter().collect::<Vec<String>>()
+    };
+    assert_eq!(gaps(&floored), Vec::<String>::new());
+    assert_eq!(gaps(&good("1.2.0", "1.2.0")), ["dev no-floor"]);
+    for comment in [
+        "# dev only: a fixture",
+        "# floor:",
+        "# floor: one\n# floor: two",
+        "# why\n# floor: one",
+        "# floor: one\n",
+    ] {
+        let source = floored.replace("# floor: dev only", comment);
+        assert_eq!(gaps(&source), ["dev no-floor"], "{comment:?}");
+    }
+    assert_eq!(
+        gaps(&floored.replace("version = \"1.2.0\")", "version = \"1.1.0\")")),
+        ["demo behind 1.1.0"]
+    );
+    assert_eq!(
+        gaps(&floored.replace("    version = \"1.2.0\",", "    version = \"1.0.0\",")),
+        ["demo behind 1.0.0"]
+    );
+    assert_eq!(
+        gaps(&floored.replace("9.0.0", "8.9.0")),
+        ["dev behind 8.9.0"]
+    );
+    assert_eq!(
+        gaps(&floored.replace("9.0.0", "9.1.0")),
+        Vec::<String>::new()
+    );
+}
+
+#[test]
+fn the_newest_snapshot_lists_exactly_the_registry_modules() {
+    let source = "# floor: equals tested\nbazel_dep(name = \"demo\", version = \"1.2.0\")\n# floor: patched\nbazel_dep(name = \"patched\", version = \"1\")\narchive_override(module_name = \"patched\", urls = [\"https://example.com/p.tar.gz\"])\n";
+    let check = |json: &str| bazel_dep_gaps(source, &newest(json)).1;
+    assert_eq!(check(r#"{"demo": "1.2.0"}"#), Vec::<String>::new());
+    let missing = check("{}");
+    assert!(
+        missing[0].contains("has no entry for bazel_dep \"demo\""),
+        "{missing:?}"
+    );
+    for spare in ["gone", "patched"] {
+        let problems = check(&format!(r#"{{"demo": "1.2.0", "{spare}": "1"}}"#));
+        assert!(
+            problems[0].contains("has no registry bazel_dep"),
+            "{spare}: {problems:?}"
+        );
+    }
+}
+
+#[test]
+fn the_bazel_dep_allowlist_only_shrinks() {
+    let gaps: BTreeSet<String> = ["a behind 1.0", "b no-floor"].map(str::to_owned).into();
+    assert_eq!(
+        allowlist_problems(&gaps, "a behind 1.0\nb no-floor\n"),
+        Vec::<String>::new()
+    );
+    for (allowlist, needle) in [
+        ("a behind 1.0\n", "b no-floor: not in"),
+        (
+            "a behind 1.0\nb no-floor\nc no-floor\n",
+            "spare line \"c no-floor\"",
+        ),
+        ("a behind 0.9\nb no-floor\n", "spare line \"a behind 0.9\""),
+        ("b no-floor\na behind 1.0\n", "is not sorted"),
+        ("a behind 1.0\nb no-floor\nb no-floor\n", "is not sorted"),
+        ("a behind\nb no-floor\n", "is not `<module> no-floor`"),
+        ("a behind 1.0\nb  no-floor\n", "is not `<module> no-floor`"),
+        (
+            "# note\na behind 1.0\nb no-floor\n",
+            "is not `<module> no-floor`",
+        ),
+    ] {
+        let problems = allowlist_problems(&gaps, allowlist);
+        assert!(
+            problems.iter().any(|problem| problem.contains(needle)),
+            "{allowlist:?} {needle}: {problems:?}"
         );
     }
 }

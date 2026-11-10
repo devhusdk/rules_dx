@@ -1,0 +1,10 @@
+bazel_features no-floor
+googletest no-floor
+m4 no-floor
+make no-floor
+ninja no-floor
+pkgconf no-floor
+rules_android no-floor
+rules_batch no-floor
+rules_foreign_cc no-floor
+yaml.bzl no-floor

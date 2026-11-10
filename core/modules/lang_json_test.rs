@@ -74,64 +74,69 @@ fn type_problem(path: &str, value: &Value, schema: &Value) -> Option<String> {
     (!ok).then(|| format!("{path}: expected {wanted}"))
 }
 
-fn item_problems(path: &str, items: &[Value], schema: &Value, defs: &Value) -> Vec<String> {
+fn value_problems(path: &str, value: &Value, schema: &Value, defs: &Value) -> Vec<String> {
     let schema = match schema["$ref"].as_str() {
         Some(reference) => &defs[reference.trim_start_matches("#/$defs/")],
         None => schema,
     };
-    let mut problems: Vec<String> = type_problem(path, &Value::Array(items.to_vec()), schema)
-        .into_iter()
-        .collect();
-    let seen: BTreeSet<String> = items.iter().map(Value::to_string).collect();
-    if schema["uniqueItems"] == true && seen.len() != items.len() {
-        problems.push(format!("{path}: duplicate items"));
+    if let Some(problem) = type_problem(path, value, schema) {
+        return vec![problem];
     }
-    let item_schema = &schema["items"];
-    for item in items {
-        if let Some(allowed) = item_schema["enum"].as_array() {
-            if !allowed.contains(item) {
-                problems.push(format!("{path}: {item} is not allowed"));
+    let mut problems = Vec::new();
+    if let Some(allowed) = schema["enum"].as_array()
+        && !allowed.contains(value)
+    {
+        problems.push(format!("{path}: {value} is not allowed"));
+    }
+    match value {
+        Value::String(text) => {
+            let min = schema["minLength"].as_u64().unwrap_or(0) as usize;
+            if text.len() < min {
+                problems.push(format!("{path}: empty string"));
             }
         }
-        match item.as_str() {
-            Some(text) => {
-                let min = item_schema["minLength"].as_u64().unwrap_or(0) as usize;
-                if text.len() < min {
-                    problems.push(format!("{path}: empty string"));
+        Value::Array(items) => {
+            let seen: BTreeSet<String> = items.iter().map(Value::to_string).collect();
+            if schema["uniqueItems"] == true && seen.len() != items.len() {
+                problems.push(format!("{path}: duplicate items"));
+            }
+            for item in items {
+                problems.extend(value_problems(path, item, &schema["items"], defs));
+            }
+        }
+        Value::Object(object) => {
+            let Some(properties) = schema["properties"].as_object() else {
+                return problems;
+            };
+            let child = |key: &str| match path {
+                "" => key.to_owned(),
+                _ => format!("{path}.{key}"),
+            };
+            for key in schema["required"].as_array().into_iter().flatten() {
+                let key = key.as_str().expect("required key");
+                if !object.contains_key(key) {
+                    problems.push(format!("{}: missing", child(key)));
                 }
             }
-            None => problems.push(format!("{path}: item {item} is not a string")),
+            for (key, value) in object {
+                match properties.get(key) {
+                    Some(property) => {
+                        problems.extend(value_problems(&child(key), value, property, defs));
+                    }
+                    None => problems.push(format!("{}: not in the schema", child(key))),
+                }
+            }
         }
+        _ => {}
     }
     problems
 }
 
 fn schema_problems(manifest: &Value, schema: &Value) -> Vec<String> {
-    let Some(object) = manifest.as_object() else {
+    if !manifest.is_object() {
         return vec!["not an object".to_owned()];
-    };
-    let properties = schema["properties"].as_object().expect("properties");
-    let mut problems = Vec::new();
-    for key in schema["required"].as_array().expect("required") {
-        let key = key.as_str().expect("required key");
-        if !object.contains_key(key) {
-            problems.push(format!("{key}: missing"));
-        }
     }
-    for (key, value) in object {
-        let Some(property) = properties.get(key) else {
-            problems.push(format!("{key}: not in the schema"));
-            continue;
-        };
-        if let Some(items) = value.as_array() {
-            problems.extend(item_problems(key, items, property, &schema["$defs"]));
-        } else if let Some(problem) = type_problem(key, value, property) {
-            problems.push(problem);
-        } else if property["minLength"].as_u64().is_some() && value.as_str() == Some("") {
-            problems.push(format!("{key}: empty string"));
-        }
-    }
-    problems
+    value_problems("", manifest, schema, &schema["$defs"])
 }
 
 fn problems(root: &Path, dir: &Path, schema: &Value) -> Vec<String> {
@@ -184,6 +189,63 @@ fn schema_rejects_a_bad_manifest() {
     assert!(found.contains("extra: not in the schema"), "{found}");
     assert!(found.contains("is not allowed"), "{found}");
     assert!(found.contains("duplicate items"), "{found}");
+}
+
+#[test]
+fn schema_rejects_a_bad_setup() {
+    let schema: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/lang.schema.json"))
+            .expect("schema");
+    let bad = serde_json::json!({"setup": {
+        "extra": [],
+        "flags": [""],
+        "licenses": [{"id": "x"}],
+        "hubs": [{"ecosystem": "", "manifest": "m", "hub": 1, "version": "1"}],
+    }});
+    let found = schema_problems(&bad, &schema);
+    for want in [
+        "setup.extra: not in the schema",
+        "setup.flags: empty string",
+        "setup.licenses.platforms: missing",
+        "setup.hubs.extension: missing",
+        "setup.hubs.ecosystem: empty string",
+        "setup.hubs.hub: expected string",
+        "setup.hubs.version: not in the schema",
+    ] {
+        assert!(found.iter().any(|problem| problem == want), "{want}: {found:?}");
+    }
+}
+
+#[test]
+fn every_hub_names_an_extension_its_own_language_exports() {
+    let root = dx_testing::rules_dx_source();
+    let families: Value =
+        serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
+            .expect("families.json");
+    let mut hubs = 0;
+    let mut found = Vec::new();
+    for dir in language_dirs(&root, &families) {
+        let text = std::fs::read_to_string(root.join(&dir).join("lang.json")).expect("lang.json");
+        let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
+        for hub in manifest["setup"]["hubs"].as_array().into_iter().flatten() {
+            hubs += 1;
+            let ecosystem = hub["ecosystem"].as_str().expect("ecosystem");
+            let want = format!("@rules_dx//{}:extensions.bzl", dir.display());
+            if hub["extension"] != want.as_str() {
+                found.push(format!("{}: {ecosystem} extension must be {want}", dir.display()));
+            }
+            let exports = std::fs::read_to_string(root.join(&dir).join("extensions.bzl"))
+                .unwrap_or_default();
+            if !exports.lines().any(|line| line.starts_with(&format!("{ecosystem} = "))) {
+                found.push(format!("{}/extensions.bzl exports no {ecosystem}", dir.display()));
+            }
+            if hub["lock"].is_null() != hub["tag"].is_null() {
+                found.push(format!("{}: {ecosystem} needs lock and tag together", dir.display()));
+            }
+        }
+    }
+    assert!(hubs >= 5, "found only {hubs} hubs");
+    assert!(found.is_empty(), "{}", found.join("\n"));
 }
 
 #[test]
@@ -258,7 +320,7 @@ fn languages_json_lists_every_depcheck_language() {
 }
 
 #[test]
-fn families_languages_json_lists_every_quality_and_docs_entry() {
+fn families_languages_json_lists_every_quality_docs_and_setup_entry() {
     let root = dx_testing::rules_dx_source();
     let families: Value = serde_json::from_str(&dx_testing::read_runfiles("core/modules/families.json"))
         .expect("families.json");
@@ -268,7 +330,7 @@ fn families_languages_json_lists_every_quality_and_docs_entry() {
         let manifest: Value = serde_json::from_str(&text).expect("lang.json parses");
         let mut row = serde_json::Map::new();
         row.insert("name".to_owned(), manifest["name"].clone());
-        for key in ["quality", "docs"] {
+        for key in ["quality", "docs", "setup"] {
             if !manifest[key].is_null() {
                 row.insert(key.to_owned(), manifest[key].clone());
             }

@@ -14,6 +14,41 @@
     "semver": {"type": "boolean"},
     "manifests": {"$ref": "#/$defs/strings"},
     "lockfiles": {"$ref": "#/$defs/strings"},
+    "setup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "licenses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "platforms"],
+            "properties": {
+              "id": {"type": "string", "minLength": 1},
+              "platforms": {"$ref": "#/$defs/strings"}
+            }
+          }
+        },
+        "flags": {"$ref": "#/$defs/strings"},
+        "hubs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["ecosystem", "manifest", "extension", "hub"],
+            "properties": {
+              "ecosystem": {"type": "string", "minLength": 1},
+              "manifest": {"type": "string", "minLength": 1},
+              "lock": {"type": "string", "minLength": 1},
+              "extension": {"type": "string", "minLength": 1},
+              "tag": {"type": "string", "minLength": 1},
+              "hub": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    },
     "tools": {"$ref": "#/$defs/strings"},
     "platforms": {
       "type": "array",

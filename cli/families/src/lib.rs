@@ -1,4 +1,4 @@
-//! The quality and docs aspect files of the `<lang>/lang.json` manifests.
+//! The quality and docs aspect files and the dependency hubs of the `<lang>/lang.json` manifests.
 
 #![cfg_attr(
     not(test),
@@ -73,6 +73,30 @@ impl DocsFiles {
     }
 }
 
+/// One `setup.hubs` entry of a `<lang>/lang.json`: the stanza `dx init` writes for a manifest.
+#[derive(Debug, Clone, Default, Eq, PartialEq, Deserialize)]
+#[serde(default)]
+pub struct Hub {
+    /// The ecosystem id, which is also the extension name in `extension`.
+    pub ecosystem: String,
+    /// The manifest file name, like `Cargo.toml`.
+    pub manifest: String,
+    /// The lock file name next to the manifest. `None` for a hub with no lock and no tag.
+    pub lock: Option<String>,
+    /// The extension file label, like `@rules_dx//rust:extensions.bzl`.
+    pub extension: String,
+    /// The tag that takes the lock label.
+    pub tag: Option<String>,
+    /// The default hub repository name.
+    pub hub: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct Setup {
+    hubs: Vec<Hub>,
+}
+
 const LANGUAGES: &str = include_str!("../languages.json");
 
 #[derive(Deserialize)]
@@ -90,6 +114,26 @@ fn shipped() -> Vec<Manifest> {
 struct Manifest {
     quality: Option<QualityFiles>,
     docs: Option<DocsFiles>,
+    setup: Option<Setup>,
+}
+
+/// The `setup.hubs` entries of every `lang.json`, sorted by ecosystem.
+pub fn hubs() -> &'static [Hub] {
+    static ALL: OnceLock<Vec<Hub>> = OnceLock::new();
+    ALL.get_or_init(|| {
+        let mut hubs: Vec<Hub> = shipped()
+            .into_iter()
+            .filter_map(|manifest| manifest.setup)
+            .flat_map(|setup| setup.hubs)
+            .collect();
+        hubs.sort_by(|a, b| a.ecosystem.cmp(&b.ecosystem));
+        hubs
+    })
+}
+
+/// The hub entry of `ecosystem`, if a `lang.json` has one.
+pub fn hub(ecosystem: &str) -> Option<&'static Hub> {
+    hubs().iter().find(|hub| hub.ecosystem == ecosystem)
 }
 
 /// Merges the `quality` entries of `lang.json` texts by aspect file, sorted by file. A text

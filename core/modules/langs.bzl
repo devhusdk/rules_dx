@@ -707,6 +707,18 @@ LANGS = json.decode("""{
       }
     },
     "semver": true,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "pub",
+          "extension": "@rules_dx//dart:extensions.bzl",
+          "hub": "pub_deps",
+          "lock": "pubspec.lock",
+          "manifest": "pubspec.yaml",
+          "tag": "from_lock"
+        }
+      ]
+    },
     "title": "Dart",
     "tools": [
       "dart"
@@ -1452,6 +1464,24 @@ LANGS = json.decode("""{
       }
     },
     "semver": true,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "npm",
+          "extension": "@rules_dx//javascript:extensions.bzl",
+          "hub": "npm",
+          "lock": "pnpm-lock.yaml",
+          "manifest": "package.json",
+          "tag": "npm_translate_lock"
+        },
+        {
+          "ecosystem": "pnpm",
+          "extension": "@rules_dx//javascript:extensions.bzl",
+          "hub": "pnpm",
+          "manifest": "package.json"
+        }
+      ]
+    },
     "title": "JavaScript",
     "tools": [
       "biome",
@@ -2190,6 +2220,18 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "uv",
+          "extension": "@rules_dx//python:extensions.bzl",
+          "hub": "pypi",
+          "lock": "uv.lock",
+          "manifest": "pyproject.toml",
+          "tag": "project"
+        }
+      ]
+    },
     "title": "Python",
     "tools": [
       "pydoclint",
@@ -2426,6 +2468,18 @@ LANGS = json.decode("""{
       }
     },
     "semver": true,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "cargo",
+          "extension": "@rules_dx//rust:extensions.bzl",
+          "hub": "crates",
+          "lock": "Cargo.lock",
+          "manifest": "Cargo.toml",
+          "tag": "from_cargo"
+        }
+      ]
+    },
     "title": "Rust",
     "tools": [
       "clippy",
@@ -2777,6 +2831,16 @@ LANGS = json.decode("""{
       ]
     },
     "semver": true,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "typescript",
+          "extension": "@rules_dx//typescript:extensions.bzl",
+          "hub": "npm_typescript",
+          "manifest": "tsconfig.json"
+        }
+      ]
+    },
     "title": "TypeScript",
     "tools": [
       "biome",

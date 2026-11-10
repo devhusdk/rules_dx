@@ -14,6 +14,18 @@
   "lockfiles": [
     "uv.lock"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "uv",
+        "manifest": "pyproject.toml",
+        "lock": "uv.lock",
+        "extension": "@rules_dx//python:extensions.bzl",
+        "tag": "project",
+        "hub": "pypi"
+      }
+    ]
+  },
   "tools": [
     "pydoclint",
     "ruff",

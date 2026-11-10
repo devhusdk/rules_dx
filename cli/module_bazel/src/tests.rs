@@ -1138,6 +1138,41 @@ fn pub_locks_follow_the_rules_dart_rules_flutter_and_own_extensions() {
 }
 
 #[test]
+fn hub_tags_follow_the_rules_dx_extensions() {
+    let file = parse(
+        "bazel_dep(name = \"rules_dx\", version = \"1.0.0\", repo_name = \"dx\")\ncargo = use_extension(\"@dx//rust:extensions.bzl\", \"cargo\")\ncargo.from_cargo(name = \"crates\", cargo_lockfile = \"//:Cargo.lock\", manifests = [\"//:Cargo.toml\"])\nuv = use_extension(\"@dx//python:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", pyproject = \"//:pyproject.toml\", lock = \"//:uv.lock\")\nnpm = use_extension(\"@dx//javascript:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\")\npub = use_extension(\"@dx//dart:extensions.bzl\", \"pub\")\npub.from_lock(name = \"pub_deps\", lock = \"//:pubspec.lock\")\nown = use_extension(\"//rust:extensions.bzl\", \"cargo\")\nown.from_cargo(name = \"own\", manifests = [\"//:Cargo.toml\"])\nother = use_extension(\"@rules_dx//rust:extensions.bzl\", \"cargo\")\nother.from_cargo(name = \"no\", manifests = [\"//:Cargo.toml\"])\nrust = use_extension(\"@dx//rust:extensions.bzl\", \"crate\")\nrust.from_cargo(name = \"no\", manifests = [\"//:Cargo.toml\"])\n",
+    );
+    let cargo: Vec<_> = file
+        .cargo_hubs()
+        .expect("hubs")
+        .iter()
+        .map(|hub| (hub.name, hub.cargo_lockfile))
+        .collect();
+    assert_eq!(cargo, [("crates", Some("//:Cargo.lock")), ("own", None)]);
+    let uv: Vec<_> = file
+        .uv_projects()
+        .expect("projects")
+        .iter()
+        .map(|project| (project.hub_name, project.lock))
+        .collect();
+    assert_eq!(uv, [("pypi", "//:uv.lock")]);
+    let npm: Vec<_> = file
+        .npm_translate_locks()
+        .expect("locks")
+        .iter()
+        .map(|lock| (lock.name, lock.pnpm_lock))
+        .collect();
+    assert_eq!(npm, [("npm", Some("//:pnpm-lock.yaml"))]);
+    let pub_locks: Vec<_> = file
+        .pub_locks()
+        .expect("locks")
+        .iter()
+        .map(|entry| (entry.name, entry.lock))
+        .collect();
+    assert_eq!(pub_locks, [("pub_deps", "//:pubspec.lock")]);
+}
+
+#[test]
 fn julia_manifests_follow_the_rules_julia_pkg_extension() {
     let file = parse(
         "pkg = use_extension(\"@rules_julia//julia/pkg:extensions.bzl\", \"pkg\")\npkg.from_manifest(name = \"deps\", lockfile = \"//julia:Manifest.bazel.json\")\npkg.pkg_annotation(dep = \"X\")\nother = use_extension(\"//julia:extensions.bzl\", \"pkg\")\nother.from_manifest(name = \"x\", lockfile = \"//x:Manifest.bazel.json\")\n",

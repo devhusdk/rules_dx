@@ -14,6 +14,18 @@
   "lockfiles": [
     "Cargo.lock"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "cargo",
+        "manifest": "Cargo.toml",
+        "lock": "Cargo.lock",
+        "extension": "@rules_dx//rust:extensions.bzl",
+        "tag": "from_cargo",
+        "hub": "crates"
+      }
+    ]
+  },
   "tools": [
     "clippy",
     "rustc",

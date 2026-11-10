@@ -7,21 +7,31 @@ def spoke_name(hub, package):
     """Returns the repository name of one package: <hub>__<name>."""
     return hub + "__" + package.replace(".", "_").replace("-", "_")
 
+def _next_quoted(quoted, escaped, ch):
+    """Returns (quoted, escaped) after one character of Zig source."""
+    if escaped:
+        return quoted, False
+    if quoted and ch == "\\":
+        return quoted, True
+    if ch == "\"":
+        return not quoted, False
+    return quoted, False
+
 def strip_comments(text):
     """Removes `//` comments that are outside string literals."""
     lines = []
     for line in text.split("\n"):
         quoted = False
+        escaped = False
         prev = ""
         cut = len(line)
         for i in range(len(line)):
             ch = line[i]
-            if ch == "\"" and prev != "\\":
-                quoted = not quoted
             if not quoted and ch == "/" and prev == "/":
                 cut = i - 1
                 break
-            prev = ch
+            quoted, escaped = _next_quoted(quoted, escaped, ch)
+            prev = "" if quoted else ch
         lines.append(line[:cut])
     return "\n".join(lines)
 
@@ -29,18 +39,16 @@ def _matching_brace(text, start):
     """Returns the index of the `}` closing the brace opened just before `start`."""
     depth = 1
     quoted = False
-    prev = ""
+    escaped = False
     for i in range(start, len(text)):
         ch = text[i]
-        if ch == "\"" and prev != "\\":
-            quoted = not quoted
-        elif not quoted and ch == "{":
+        if not quoted and ch == "{":
             depth += 1
         elif not quoted and ch == "}":
             depth -= 1
             if depth == 0:
                 return i
-        prev = ch
+        quoted, escaped = _next_quoted(quoted, escaped, ch)
     return len(text)
 
 def _string_field(body, field):
@@ -71,7 +79,7 @@ def _name(raw):
 def parse_dependencies(text):
     """Parses the `.dependencies` of a build.zig.zon; returns (deps dict, errors).
 
-    Each dep has url, hash and lazy. Path dependencies carry no hash and are skipped.
+    Each dep has url and hash. Path dependencies carry no hash and are skipped.
     """
     text = strip_comments(text)
     marker = text.find(".dependencies")
@@ -102,13 +110,13 @@ def parse_dependencies(text):
         if not url:
             errors.append("%s has no .url" % name)
             continue
-        if not (url.startswith("https://") or url.startswith("http://")) or url.startswith("git+"):
+        if not (url.startswith("https://") or url.startswith("http://")):
             errors.append("%s uses %s; only http(s) archive URLs are supported" % (name, url))
             continue
         if not pkg_hash:
             errors.append("%s has no .hash" % name)
             continue
-        deps[name] = struct(url = url, hash = pkg_hash, lazy = ".lazy = true" in body)
+        deps[name] = struct(url = url, hash = pkg_hash)
     return deps, errors
 
 def archive_type(url):
@@ -170,9 +178,13 @@ def analyze(hub, zon_text, digests_text):
             errors.append("zig.digests.json pins %s, which is not in build.zig.zon; remove it" % name)
     return struct(errors = errors, packages = packages)
 
+def main_candidates(name):
+    """Returns the module root paths tried for a package, best first."""
+    return ["src/%s.zig" % name, "src/root.zig", "%s.zig" % name, "src/main.zig", "root.zig", "main.zig"]
+
 def main_file(name, existing):
     """Returns the module root of a package from the files it contains, or ""."""
-    for candidate in ["src/%s.zig" % name, "src/root.zig", "%s.zig" % name, "src/main.zig", "root.zig", "main.zig"]:
+    for candidate in main_candidates(name):
         if candidate in existing:
             return candidate
     return ""

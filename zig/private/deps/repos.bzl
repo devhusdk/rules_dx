@@ -1,7 +1,7 @@
 """Repository rule and hub for Zig packages fetched from build.zig.zon."""
 
 load("//core:repo.bzl", "hub_repo")
-load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "hub_root_build", "main_file", "pin_entry_json", "spoke_build")
+load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "hub_root_build", "main_candidates", "main_file", "pin_entry_json", "spoke_build")
 
 _DEFS_BZL = str(Label("//zig/private:defs.bzl"))
 
@@ -35,7 +35,7 @@ def _package_impl(rctx):
             existing += [suffix + entry.basename for entry in directory.readdir() if not entry.is_dir]
     main = main_file(attrs.package, existing)
     if not main:
-        fail("%s has no root source file; expected src/%s.zig, src/root.zig, %s.zig or src/main.zig" % (attrs.package, attrs.package, attrs.package))
+        fail("%s has no root source file; expected one of %s" % (attrs.package, ", ".join(main_candidates(attrs.package))))
     zon = rctx.read("build.zig.zon") if rctx.path("build.zig.zon").exists else ""
     deps = [attrs.selected[name] for name in dependency_names(zon, attrs.selected)]
     rctx.file("REPO.bazel", "")

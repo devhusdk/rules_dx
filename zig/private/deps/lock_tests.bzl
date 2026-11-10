@@ -1,7 +1,7 @@
 """Tests for the pure build.zig.zon logic."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
-load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "main_file", "parse_dependencies", "spoke_build")
+load(":lock.bzl", "analyze", "archive_type", "dependency_names", "hub_package_build", "main_file", "parse_dependencies", "spoke_build", "strip_comments")
 
 _SHA = "a" * 64
 
@@ -24,11 +24,28 @@ _ZON = """
 }
 """
 
+_ESCAPED_ZON = """
+.{
+    .dependencies = .{
+        .a = .{
+            .url = "https://example.com/a.tar.gz",
+            .hash = "h",
+            .note = "C:\\\\", // }
+        },
+        .b = .{
+            .url = "https://example.com/b.tar.gz",
+            .hash = "h",
+        },
+    },
+}
+"""
+
 def _digests(pins):
     return json.encode({"packages": {name: {"hash": h, "sha256": _SHA} for name, h in pins.items()}})
 
 def _checks():
     deps, errors = parse_dependencies(_ZON)
+    escaped, _ = parse_dependencies(_ESCAPED_ZON)
     ok = analyze("hub", _ZON, _digests({"xxhash": "N-V-__8AAA", "wire-fmt": "N-V-__8AAB"}))
     missing = analyze("hub", _ZON, "")
     stale = analyze("hub", _ZON, _digests({"xxhash": "other", "wire-fmt": "N-V-__8AAB"}))
@@ -41,7 +58,10 @@ def _checks():
         expect_equal("a clean manifest has no parse errors", errors, []),
         expect_equal("url", deps["xxhash"].url, "https://example.com/xxhash-1.tar.gz"),
         expect_equal("hash", deps["xxhash"].hash, "N-V-__8AAA"),
-        expect_equal("lazy", [deps["xxhash"].lazy, deps["wire-fmt"].lazy], [False, True]),
+        expect_equal("an escaped backslash closes its string", sorted(escaped.keys()), ["a", "b"]),
+        expect_equal("a comment after an escaped backslash is stripped", strip_comments("\"C:\\\\\" // {"), "\"C:\\\\\" "),
+        expect_equal("slashes inside a string stay", strip_comments("\"https://x\" // y"), "\"https://x\" "),
+        expect_equal("an escaped quote keeps the string open", strip_comments("\"a\\\"// b\" // c"), "\"a\\\"// b\" "),
         expect_equal("a good manifest has no errors", ok.errors, []),
         expect_equal("pinned packages carry the digest", ok.packages["xxhash"].sha256, _SHA),
         expect_equal("spoke names are repository safe", ok.packages["wire-fmt"].spoke, "hub__wire_fmt"),

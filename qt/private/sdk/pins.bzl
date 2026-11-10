@@ -17,8 +17,6 @@ QT_VERSION = _PINS["version"]
 
 QT_MIRROR = _PINS["qt_mirror"]
 
-ICU_VERSION = _PINS["icu_version"]
-
 RUNTIME_MIRROR = _PINS["runtime_mirror"]
 
 RUNTIME_REPOSITORIES = ["AppStream", "BaseOS"]

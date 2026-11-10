@@ -79,3 +79,67 @@ fn a_pin_outside_github_fails() {
     let error = lock(dir.path(), &Archives(RefCell::default())).expect_err("refused");
     assert!(error.to_string().contains("only github.com is supported"), "{error}");
 }
+
+#[test]
+fn a_package_with_dependencies_fails() {
+    let manifest = MANIFEST.replace("name: \"app\"", "name: \"mini\"");
+    let mut builder = tar::Builder::new(Vec::new());
+    let mut header = tar::Header::new_gnu();
+    header.set_size(manifest.len() as u64);
+    header.set_mode(0o644);
+    header.set_cksum();
+    builder.append_data(&mut header, format!("mini-{REVISION}/Package.swift"), manifest.as_bytes()).expect("entry");
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    std::io::Write::write_all(&mut encoder, &builder.into_inner().expect("tar")).expect("gzip");
+    let bytes = encoder.finish().expect("gzip");
+    struct Fixed(Vec<u8>);
+    impl Download for Fixed {
+        fn bytes(&self, _url: &str) -> Result<Vec<u8>, Error> {
+            Ok(self.0.clone())
+        }
+    }
+    let dir = set("https://github.com/example/mini");
+    let hub = dx_families::hub("swiftpm").expect("swiftpm is registered");
+    let spec = Swift::spec(hub);
+    let download = Fixed(bytes);
+    let resolver = Swift::new(dx_testing::env_file("SWIFT"), &spec, &download);
+    let error = run(&spec, &Args { dir: dir.path().to_owned(), check: false }, &resolver, &NoFetch).expect_err("refused");
+    assert!(error.to_string().contains("declares dependencies"), "{error}");
+}
+
+fn described(products: &str, targets: &str) -> serde_json::Value {
+    serde_json::from_str(&format!("{{\"products\": {products}, \"targets\": {targets}}}")).expect("json")
+}
+
+#[test]
+fn a_product_with_a_c_target_is_left_out() {
+    let value = described(
+        r#"[{"name": "Swifty", "targets": ["Swifty"], "type": {"library": ["automatic"]}},
+            {"name": "Native", "targets": ["Native"], "type": {"library": ["automatic"]}}]"#,
+        r#"[{"name": "Swifty", "module_type": "SwiftTarget", "type": "library", "target_dependencies": []},
+            {"name": "Native", "module_type": "ClangTarget", "type": "library", "target_dependencies": []}]"#,
+    );
+    let (products, targets) = swift_lock::library_targets(&value).expect("targets");
+    assert_eq!(products.keys().collect::<Vec<_>>(), ["Swifty"]);
+    assert_eq!(targets.keys().collect::<Vec<_>>(), ["Swifty"]);
+}
+
+#[test]
+fn a_product_depending_on_a_macro_target_is_left_out() {
+    let value = described(
+        r#"[{"name": "Lib", "targets": ["Lib"], "type": {"library": ["automatic"]}}]"#,
+        r#"[{"name": "Lib", "module_type": "SwiftTarget", "type": "library", "target_dependencies": ["Macros"]},
+            {"name": "Macros", "module_type": "SwiftTarget", "type": "macro", "target_dependencies": []}]"#,
+    );
+    let (products, targets) = swift_lock::library_targets(&value).expect("targets");
+    assert!(products.is_empty() && targets.is_empty());
+}
+
+#[test]
+fn a_product_with_two_targets_fails() {
+    let value = described(
+        r#"[{"name": "Lib", "targets": ["A", "B"], "type": {"library": ["automatic"]}}]"#,
+        "[]",
+    );
+    assert!(swift_lock::library_targets(&value).is_err());
+}

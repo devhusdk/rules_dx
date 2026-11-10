@@ -50,7 +50,7 @@ swift_hub_tests(name = "hub", size = "small")
 
 rust_test(
     name = "resolve_test",
-    size = "medium",
+    size = "small",
     srcs = ["tests/resolve_test.rs"],
     aliases = aliases(
         package_name = "swift/private/swift_lock",

@@ -121,6 +121,21 @@ impl<'a> Swift<'a> {
         Ok(pins)
     }
 
+    fn package_json(&self, scratch: &Scratch, package: &std::path::Path, command: &str, args: &[&str]) -> Result<Value, String> {
+        let output = scratch
+            .command(&self.swift)
+            .arg("package")
+            .arg(command)
+            .args(args)
+            .current_dir(package)
+            .output()
+            .map_err(|error| format!("swift: {error}"))?;
+        if !output.status.success() {
+            return Err(format!("swift package {command} failed:\n{}", String::from_utf8_lossy(&output.stderr)));
+        }
+        serde_json::from_slice(&output.stdout).map_err(|error| error.to_string())
+    }
+
     fn describe(&self, scratch: &Scratch, pin: Pin) -> Result<Described, Error> {
         let identity = &pin.identity;
         let failed = |message: String| Error::new(format!("pin {identity}: {message}"));
@@ -133,23 +148,28 @@ impl<'a> Swift<'a> {
             .unpack(&source)
             .map_err(|error| failed(error.to_string()))?;
         let package = source.join(&pin.strip_prefix);
-        let output = scratch
-            .command(&self.swift)
-            .args(["package", "describe", "--type", "json"])
-            .current_dir(&package)
-            .output()
-            .map_err(|error| failed(format!("swift: {error}")))?;
-        if !output.status.success() {
-            return Err(failed(format!("swift package describe failed:\n{}", String::from_utf8_lossy(&output.stderr))));
+        let dumped = self.package_json(scratch, &package, "dump-package", &[]).map_err(failed)?;
+        if !elements(&dumped["dependencies"]).is_empty() {
+            return Err(failed("declares dependencies on other packages; only packages without dependencies are supported".to_owned()));
         }
-        let described: Value = serde_json::from_slice(&output.stdout).map_err(|error| failed(error.to_string()))?;
+        let described = self.package_json(scratch, &package, "describe", &["--type", "json"]).map_err(failed)?;
         let (products, targets) = library_targets(&described).map_err(failed)?;
         Ok(Described { pin, sha256, products, targets })
     }
 }
 
+fn elements(value: &Value) -> &[Value] {
+    value.as_array().map_or(&[], Vec::as_slice)
+}
+
 /// The library products of a described package and the targets they need, by name.
-fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String>>, BTreeMap<String, Value>), String> {
+///
+/// A product whose targets include one that is not a Swift library, such as a C, macro or executable
+/// target, is left out.
+///
+/// # Errors
+/// Fails when a product has more than one target or a target is not described.
+pub fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String>>, BTreeMap<String, Value>), String> {
     let mut products = BTreeMap::new();
     for product in described["products"].as_array().into_iter().flatten() {
         if product["type"].get("library").is_none() {
@@ -168,20 +188,30 @@ fn library_targets(described: &Value) -> Result<(BTreeMap<String, Vec<String>>, 
         .flatten()
         .filter_map(|target| Some((target["name"].as_str()?, target)))
         .collect();
+    let mut kept = BTreeMap::new();
     let mut targets = BTreeMap::new();
-    let mut pending: Vec<String> = products.values().flatten().cloned().collect();
-    while let Some(name) = pending.pop() {
-        if targets.contains_key(&name) {
-            continue;
+    for (product, roots) in products {
+        let mut closure = BTreeMap::new();
+        let mut pending = roots.clone();
+        let mut supported = true;
+        while let Some(name) = pending.pop() {
+            if closure.contains_key(&name) {
+                continue;
+            }
+            let target = all.get(name.as_str()).ok_or(format!("target {name} is not described"))?;
+            if target["module_type"] != "SwiftTarget" || target["type"] != "library" {
+                supported = false;
+                break;
+            }
+            pending.extend(strings(&target["target_dependencies"]));
+            closure.insert(name, (*target).clone());
         }
-        let target = all.get(name.as_str()).ok_or(format!("target {name} is not described"))?;
-        if target["module_type"] != "SwiftTarget" || target["type"] != "library" {
-            return Err(format!("target {name} is not a Swift library"));
+        if supported {
+            kept.insert(product, roots);
+            targets.extend(closure);
         }
-        pending.extend(strings(&target["target_dependencies"]));
-        targets.insert(name, (*target).clone());
     }
-    Ok((products, targets))
+    Ok((kept, targets))
 }
 
 impl Resolver for Swift<'_> {

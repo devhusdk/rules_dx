@@ -14,6 +14,11 @@ def build_file(package):
     names = {}
     for name, target in extra["swift_targets"].items():
         names[name] = True
+        if not target["srcs"]:
+            fail("target %s of %s has no sources" % (name, package["name"]))
+        for src in target["srcs"]:
+            if not src.startswith(target["path"] + "/"):
+                fail("source %s of target %s is outside %s" % (src, name, target["path"]))
         deps = [":" + dep for dep in target["deps"]]
         for product_dep in target["product_deps"]:
             identity, product = product_dep.split(":")
@@ -29,7 +34,10 @@ def build_file(package):
             "",
         ]
     for product, targets in extra["swift_products"].items():
-        if product not in names:
+        if product in names:
+            if targets[0] != product:
+                fail("product %s of %s is also the name of another target" % (product, package["name"]))
+        else:
             names[product] = True
             lines += [
                 "alias(",

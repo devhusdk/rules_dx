@@ -322,6 +322,11 @@ fn hub_label(line: &str) -> bool {
     })
 }
 
+/// Whether the file is generated from the registry, so its names are the registry's own.
+fn registry_generated(source: &str) -> bool {
+    source.starts_with("\"\"\"Generated from every <lang>/lang.json ")
+}
+
 /// One allowlist line per broken rule.
 fn violations(tree: &Tree) -> BTreeSet<String> {
     let langs = languages(&tree.files);
@@ -351,7 +356,7 @@ fn violations(tree: &Tree) -> BTreeSet<String> {
         if lock_parser(path, source) {
             out.insert(format!("parser {path}"));
         }
-        if path != "core/modules/langs.bzl" {
+        if !registry_generated(source) {
             for name in stated_names(source).intersection(&names) {
                 out.insert(format!("name {path} {name}"));
             }
@@ -763,6 +768,20 @@ fn a_manifest_or_lock_name_outside_the_registry_fails() {
             "registry ruby",
         ]
     );
+}
+
+#[test]
+fn a_registry_name_in_a_file_generated_from_the_registry_passes() {
+    let tree = tree(
+        &[
+            ("core/modules/langs.bzl", "\"\"\"Generated from every <lang>/lang.json by a test.\"\"\"\nX = \"composer.lock\"\n"),
+            ("php/private/php.bzl", "\"\"\"Hand written.\"\"\"\nX = \"composer.lock\"\n"),
+        ],
+        &[("php/lang.json", PHP_LANG)],
+        &[],
+    );
+    assert!(found(&tree).iter().all(|line| !line.contains("langs.bzl")), "{:?}", found(&tree));
+    assert!(found(&tree).contains(&"name php/private/php.bzl composer.lock".to_owned()));
 }
 
 #[test]

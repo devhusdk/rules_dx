@@ -12,8 +12,10 @@ def _swift_host_impl(repository_ctx):
         swift = repository_ctx.path(Label("@dx_swift_linux_{}//:usr/bin/swift".format(arch)))
         sysroot = repository_ctx.path(Label("@dx_swift_sysroot_linux_{}//:REPO.bazel".format(arch))).dirname
         host_libs = sysroot.get_child("host_libs")
-        script = 'LD_LIBRARY_PATH="{host_libs}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}" exec "{swift}" "$@"'.format(
+        repository_ctx.symlink(repository_ctx.path(Label("@dx_swift_linux_{}//:usr/bin/ld.lld".format(arch))), "linker/ld")
+        script = 'COMPILER_PATH="{linker}" LD_LIBRARY_PATH="{host_libs}${{LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}}" exec "{swift}" "$@"'.format(
             host_libs = host_libs,
+            linker = repository_ctx.path("linker"),
             swift = swift,
         )
     repository_ctx.file("swift", "#!/bin/sh\n{}\n".format(script), executable = True)

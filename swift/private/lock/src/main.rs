@@ -9,7 +9,12 @@ fn main() -> ExitCode {
         eprintln!("swiftpm has no registry entry");
         return ExitCode::from(2);
     };
-    let swift = std::env::var_os("RUNFILES_DIR")
+    let runfiles = std::env::var_os("RUNFILES_DIR").map(std::path::PathBuf::from).or_else(|| {
+        let mut name = std::env::current_exe().ok()?.into_os_string();
+        name.push(".runfiles");
+        Some(name.into())
+    });
+    let swift = runfiles
         .zip(std::env::var_os("SWIFT"))
         .and_then(|(runfiles, path)| std::fs::canonicalize(std::path::Path::new(&runfiles).join(path)).ok());
     let Some(swift) = swift else {

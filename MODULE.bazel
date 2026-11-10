@@ -740,6 +740,10 @@ dx_pins.data(
     pins = "//cc/private/toolchains:pins.json",
 )
 dx_pins.data(
+    name = "dx_deploy",
+    pins = "//deploy/private/pins:pins.json",
+)
+dx_pins.data(
     name = "dx_d",
     pins = "//d/private/toolchain:pins.json",
 )

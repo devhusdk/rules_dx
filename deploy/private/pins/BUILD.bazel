@@ -1,16 +1,18 @@
-load(":opam_pins.bzl", "OPAM_PLATFORMS")
-load(":semver_checks_pins.bzl", "SEMVER_CHECKS_PLATFORMS")
+load("@dx_pins_data//:pins.bzl", "DATA")
 load("//deploy/private:go_sdk.bzl", "dx_go_binary_file")
+
+_ARCHIVES = DATA["dx_deploy"]["archives"]
+
+SEMVER_CHECKS_PLATFORMS = {name[len("semver_checks_"):]: pin for name, pin in _ARCHIVES.items() if name.startswith("semver_checks_")}
+
+OPAM_PLATFORMS = {name[len("opam_"):]: pin for name, pin in _ARCHIVES.items() if name.startswith("opam_")}
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "apicompat_pins.bzl",
-    "japicmp_pins.bzl",
-    "opam_pins.bzl",
-    "repos.bzl",
     "extensions.bzl",
-    "semver_checks_pins.bzl",
+    "pins.json",
+    "repos.bzl",
 ])
 
 [

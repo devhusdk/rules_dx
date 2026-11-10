@@ -1,0 +1,108 @@
+{
+  "archives": {
+    "apicompat": {
+      "sha256": "9f1ff5a1a05d8086f78af35ecaa6346c15dd8619026bf61303350a11f7a6978e",
+      "urls": [
+        "https://api.nuget.org/v3-flatcontainer/microsoft.dotnet.apicompat.tool/10.0.403/microsoft.dotnet.apicompat.tool.10.0.403.nupkg"
+      ],
+      "version": "10.0.403"
+    },
+    "japicmp": {
+      "sha256": "1b69870198a6d321139f3cfa9f47ccbf3eea4b91167fefd3c69c77e9cc213917",
+      "urls": [
+        "https://repo1.maven.org/maven2/com/github/siom79/japicmp/japicmp/0.27.0/japicmp-0.27.0-jar-with-dependencies.jar"
+      ],
+      "version": "0.27.0"
+    },
+    "opam_linux_arm64": {
+      "cpu": "aarch64",
+      "exe": "opam",
+      "os": "linux",
+      "sha256": "8b24ef2f3f44a31763f54878454fb52afa1f2db7e00abed58b8d4e7ee7e290a6",
+      "urls": [
+        "https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-arm64-linux"
+      ],
+      "version": "2.6.1"
+    },
+    "opam_linux_x86_64": {
+      "cpu": "x86_64",
+      "exe": "opam",
+      "os": "linux",
+      "sha256": "b533d393a6967150d6ef41cb3d71e147e93ecbabeb59e921aa412c0ae79ebe3d",
+      "urls": [
+        "https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-x86_64-linux"
+      ],
+      "version": "2.6.1"
+    },
+    "opam_macos_arm64": {
+      "cpu": "aarch64",
+      "exe": "opam",
+      "os": "macos",
+      "sha256": "3e7f67bda3ba0bf72f597917b17dc337ed5a1bd48224df8b747bb35ce05c569e",
+      "urls": [
+        "https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-arm64-macos"
+      ],
+      "version": "2.6.1"
+    },
+    "opam_macos_x86_64": {
+      "cpu": "x86_64",
+      "exe": "opam",
+      "os": "macos",
+      "sha256": "c5bb19c813ae9a4317b5ff2845ba52a51c96648c08faa0ecc14900fb61b198c7",
+      "urls": [
+        "https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-x86_64-macos"
+      ],
+      "version": "2.6.1"
+    },
+    "opam_windows_x86_64": {
+      "cpu": "x86_64",
+      "exe": "opam.exe",
+      "os": "windows",
+      "sha256": "2548f0592abfa728432c85ef6d08bf97c295c1859ddca61876e33884336c130c",
+      "urls": [
+        "https://github.com/ocaml/opam/releases/download/2.6.1/opam-2.6.1-x86_64-windows.exe"
+      ],
+      "version": "2.6.1"
+    },
+    "semver_checks_linux_arm64": {
+      "cpu": "aarch64",
+      "exe": "cargo-semver-checks",
+      "os": "linux",
+      "sha256": "a7355f6d36edab9f76ea3fe565b9f5727394ca64f6ad751b8be24ac65a902136",
+      "urls": [
+        "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-aarch64-unknown-linux-musl.tar.gz"
+      ],
+      "version": "v0.51.0"
+    },
+    "semver_checks_linux_x86_64": {
+      "cpu": "x86_64",
+      "exe": "cargo-semver-checks",
+      "os": "linux",
+      "sha256": "396c8508d973c83de52660943a057e971b586f7511c3ba695762373452b43d5b",
+      "urls": [
+        "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-x86_64-unknown-linux-musl.tar.gz"
+      ],
+      "version": "v0.51.0"
+    },
+    "semver_checks_macos_arm64": {
+      "cpu": "aarch64",
+      "exe": "cargo-semver-checks",
+      "os": "macos",
+      "sha256": "3cec5da41eee9a3336d75ad43d1f30a5c9680818f4ba209024786f452cabab5b",
+      "urls": [
+        "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-aarch64-apple-darwin.tar.gz"
+      ],
+      "version": "v0.51.0"
+    },
+    "semver_checks_windows_x86_64": {
+      "cpu": "x86_64",
+      "exe": "cargo-semver-checks.exe",
+      "os": "windows",
+      "sha256": "9bd49e09c7487c323a9f4479c5d2b0b50d29a45662ba28344b7a0f5423eb0444",
+      "urls": [
+        "https://github.com/obi1kenobi/cargo-semver-checks/releases/download/v0.51.0/cargo-semver-checks-x86_64-pc-windows-msvc.tar.gz"
+      ],
+      "version": "v0.51.0"
+    }
+  }
+}

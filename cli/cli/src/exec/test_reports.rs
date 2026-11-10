@@ -84,7 +84,9 @@ pub(crate) fn execute_test_reports(request: TestReportsRequest<'_>) -> i32 {
     let _ = std::fs::remove_file(bep);
     let (events, stream_problem) = match read {
         Ok(read) => read,
-        Err((code, message)) => return operational(invocation, out, err, code, &message),
+        Err(error) => {
+            return report_dx_error(invocation.output, out, err, bep_error_code(&error), &error);
+        }
     };
     let reader = FsArtifacts;
     let mut evidence = Evidence::default();

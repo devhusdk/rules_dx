@@ -13,12 +13,13 @@ use super::quality_reports::{
 use super::results::{collect_results, invert_repo_mapping};
 use dx_apply::{FileSystem, RealFileSystem};
 use dx_output::{
-    ActionCounts, FindingCounts, FinishedCounts, NoticeEvent, OutputMode, Severity, command_finished,
-    meets_threshold, notice_event, quality_started,
+    ActionCounts, FindingCounts, FinishedCounts, NoticeEvent, OutputMode, Severity,
+    command_finished, meets_threshold, notice_event, quality_started,
 };
 use dx_plan::args::{BREAKING_AGAINST_OPTION, Command, Invocation, QualityRequest};
 use dx_plan::plan::{
-    SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Consumer, Selection, bep_path, plan_build_with, plan_probe,
+    Consumer, SHARD_OUTPUT_GROUP, SKIP_OUTPUT_GROUP, Selection, bep_path, plan_build_with,
+    plan_probe,
 };
 use dx_plan::reports::{Destination, plan_reports};
 use dx_plan::resolve::{path_filter, resolve};
@@ -546,10 +547,16 @@ fn run_quality_request(
     };
     let mut collected = match collect_results(&bep, workspace, &repo_mapping) {
         Ok(collected) => collected,
-        Err((code, message)) => {
+        Err(error) => {
             let _ = std::fs::remove_file(&bep);
             *kind = PhaseKind::Incomplete;
-            return operational_output(request.common.output, out, err, &code, &message);
+            return report_dx_error(
+                request.common.output,
+                out,
+                err,
+                bep_error_code(&error),
+                &error,
+            );
         }
     };
     for note in read_skip_notes(&bep, workspace) {
@@ -776,7 +783,10 @@ fn run_quality_request(
         ..FindingCounts::default()
     };
     for diagnostic in &status {
-        *finding_counts.by_tool.entry(diagnostic.tool.clone()).or_insert(0) += 1;
+        *finding_counts
+            .by_tool
+            .entry(diagnostic.tool.clone())
+            .or_insert(0) += 1;
         if let Some(rule) = &diagnostic.rule {
             *finding_counts.by_rule.entry(rule.clone()).or_insert(0) += 1;
         }

@@ -1,21 +1,17 @@
-use super::common::*;
 use dx_atomic_fs::lease::{GenerationUse, SharedLease};
 use dx_setup::{ENVIRONMENTS_DIR_NAME, GENERATED_DIR_NAME};
 use std::io;
 use std::path::{Path, PathBuf};
 
-fn generation_use(dir_name: &str) -> Result<GenerationUse, (String, String)> {
+fn generation_use(dir_name: &str) -> Result<GenerationUse, dx_error::DxError> {
     if dir_name == ENVIRONMENTS_DIR_NAME {
         Ok(GenerationUse::Environment)
     } else if dir_name == GENERATED_DIR_NAME {
         Ok(GenerationUse::Generated)
     } else {
-        Err((
-            CODE_MANAGED_COMMIT_FAILED.to_owned(),
-            format!(
-                "{dir_name} is not a managed directory; expected {ENVIRONMENTS_DIR_NAME} or {GENERATED_DIR_NAME}"
-            ),
-        ))
+        Err(dx_error::DxError::failure(format!(
+            "{dir_name} is not a managed directory; expected {ENVIRONMENTS_DIR_NAME} or {GENERATED_DIR_NAME}"
+        )))
     }
 }
 
@@ -23,12 +19,12 @@ pub(crate) fn ensure_generation_dir(
     workspace: &Path,
     dir_name: &str,
     hex: &str,
-) -> Result<(PathBuf, SharedLease), (String, String)> {
+) -> Result<(PathBuf, SharedLease), dx_error::DxError> {
     if !workspace.is_dir() {
-        return Err((
-            CODE_MANAGED_COMMIT_FAILED.to_owned(),
-            format!("workspace root {} is not a directory", workspace.display()),
-        ));
+        return Err(dx_error::DxError::failure(format!(
+            "workspace root {} is not a directory",
+            workspace.display()
+        )));
     }
     let lease = dx_atomic_fs::lease::acquire_shared(
         &dx_path::state::local_dir(workspace),
@@ -37,10 +33,7 @@ pub(crate) fn ensure_generation_dir(
         std::time::Duration::from_secs(10),
     )
     .map_err(|error| {
-        (
-            CODE_MANAGED_COMMIT_FAILED.to_owned(),
-            format!("cannot lease generation {hex}: {error}"),
-        )
+        dx_error::DxError::failure(format!("cannot lease generation {hex}: {error}"))
     })?;
     let dir = dx_path::state::local_dir(workspace)
         .join(dir_name)
@@ -48,21 +41,15 @@ pub(crate) fn ensure_generation_dir(
     match std::fs::symlink_metadata(&dir) {
         Ok(meta) => {
             if !meta.file_type().is_dir() || meta.file_type().is_symlink() {
-                return Err((
-                    CODE_MANAGED_COMMIT_FAILED.to_owned(),
-                    format!(
-                        "{} is not a managed generation directory; refusing to adopt foreign state",
-                        dir.display()
-                    ),
-                ));
+                return Err(dx_error::DxError::failure(format!(
+                    "{} is not a managed generation directory; refusing to adopt foreign state",
+                    dir.display()
+                )));
             }
         }
         Err(_) => {
             std::fs::create_dir_all(&dir).map_err(|e| {
-                (
-                    CODE_MANAGED_COMMIT_FAILED.to_owned(),
-                    format!("cannot create {}: {e}", dir.display()),
-                )
+                dx_error::DxError::failure(format!("cannot create {}: {e}", dir.display()))
             })?;
         }
     }
@@ -105,18 +92,18 @@ mod tests {
             "foreign",
         )
         .expect("foreign file");
-        let (code, message) =
-            ensure_generation_dir(workspace, GENERATED_DIR_NAME, &other).expect_err("refuse");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        let message = ensure_generation_dir(workspace, GENERATED_DIR_NAME, &other)
+            .expect_err("refuse")
+            .to_string();
         assert!(
             message.contains("not a managed generation directory"),
             "{message}"
         );
         let file_workspace = workspace.join("ws-file");
         std::fs::write(&file_workspace, "not a dir").expect("workspace file");
-        let (code, message) = ensure_generation_dir(&file_workspace, GENERATED_DIR_NAME, &other)
-            .expect_err("workspace file");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        let message = ensure_generation_dir(&file_workspace, GENERATED_DIR_NAME, &other)
+            .expect_err("workspace file")
+            .to_string();
         assert!(message.contains("is not a directory"), "{message}");
     }
 
@@ -130,9 +117,9 @@ mod tests {
             "file",
         )
         .expect("blocker");
-        let (code, message) = ensure_generation_dir(workspace, GENERATED_DIR_NAME, &"1".repeat(64))
-            .expect_err("create fails");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        let message = ensure_generation_dir(workspace, GENERATED_DIR_NAME, &"1".repeat(64))
+            .expect_err("create fails")
+            .to_string();
         assert!(message.contains("cannot create"), "{message}");
     }
 }

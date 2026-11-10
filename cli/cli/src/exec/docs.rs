@@ -1,5 +1,5 @@
 use super::common::*;
-use super::docs_index::{build_index, built_shards, execution_root};
+use super::docs_index::{CODE_INDEX_FAILED, build_index, built_shards, execution_root};
 use dx_output::{FinishedCounts, OutputMode, command_finished, command_started, operation_event};
 use dx_plan::args::Invocation;
 use dx_plan::plan::{DOCS_SITE_OUTPUT_GROUP, bep_path, plan_docs};
@@ -58,7 +58,7 @@ impl RunningPreview for StdRunning {
 }
 
 /// The site trees the docs aspect named in its site manifests.
-fn built_sites(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, (String, String)> {
+fn built_sites(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, dx_error::DxError> {
     let account = collect_output_account(bep, DOCS_SITE_OUTPUT_GROUP, workspace)?;
     let mut sites: Vec<PathBuf> = account
         .targets
@@ -71,32 +71,26 @@ fn built_sites(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, (String, St
     Ok(sites)
 }
 
-/// The tree to preview: the one built site, else the API index, as a `(code, detail)` error otherwise.
+/// The tree to preview: the one built site, else the API index.
 fn serve_tree(
     sites: Vec<PathBuf>,
     index: Option<PathBuf>,
     scope_text: &str,
-) -> Result<PathBuf, (String, String)> {
+) -> Result<PathBuf, dx_error::DxError> {
     if let (true, Some(index)) = (sites.is_empty(), index) {
         return Ok(index);
     }
     let [dir] = sites.as_slice() else {
-        return Err((
-            CODE_SERVE_FAILED.to_owned(),
-            format!(
-                "{scope_text} built {} docs sites; serve needs exactly one (pass a single site target)",
-                sites.len()
-            ),
-        ));
+        return Err(dx_error::DxError::failure(format!(
+            "{scope_text} built {} docs sites; serve needs exactly one (pass a single site target)",
+            sites.len()
+        )));
     };
     if !dir.join("index.html").is_file() {
-        return Err((
-            CODE_SERVE_FAILED.to_owned(),
-            format!(
-                "the built site for {scope_text} has no index.html entry page at {}",
-                dir.display()
-            ),
-        ));
+        return Err(dx_error::DxError::failure(format!(
+            "the built site for {scope_text} has no index.html entry page at {}",
+            dir.display()
+        )));
     }
     Ok(dir.clone())
 }
@@ -226,14 +220,20 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
                     }
                     index = Some(dir);
                 }
-                Err((code, detail)) => {
+                Err(error) => {
                     let _ = std::fs::remove_file(&bep);
-                    return operational(invocation, out, err, &code, &detail);
+                    return report_dx_error(invocation.output, out, err, CODE_INDEX_FAILED, &error);
                 }
             },
-            Err((code, detail)) => {
+            Err(error) => {
                 let _ = std::fs::remove_file(&bep);
-                return operational(invocation, out, err, &code, &detail);
+                return report_dx_error(
+                    invocation.output,
+                    out,
+                    err,
+                    bep_error_code(&error),
+                    &error,
+                );
             }
         }
     }
@@ -252,8 +252,8 @@ fn execute_docs_with(invocation: &Invocation, env: Env<'_>, preview: &dyn Previe
     let site = sites.and_then(|sites| serve_tree(sites, index, &scope_text));
     let serve_dir = match site {
         Ok(dir) => dir,
-        Err((code, detail)) => {
-            return operational(invocation, out, err, &code, &detail);
+        Err(error) => {
+            return report_dx_error(invocation.output, out, err, CODE_SERVE_FAILED, &error);
         }
     };
     let serve_dir_text = serve_dir.display().to_string();

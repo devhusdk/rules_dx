@@ -1,16 +1,34 @@
 use std::path::{Path, PathBuf};
 
-use super::common::*;
+use super::common::{
+    CODE_INVALID_BEP, CODE_INVALID_RESULT, CODE_MANAGED_COMMIT_FAILED, CODE_UNREADABLE_BEP,
+};
 use super::managed_codegen::{collect_managed_codegen, empty_generated_id, stage_codegen_side};
 use super::managed_env::{collect_managed_env, empty_env_id, stage_env_side};
 
-pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> (String, String) {
+pub(crate) fn map_commit_error(error: dx_setup::CommitError) -> dx_error::DxError {
     match error {
-        dx_setup::CommitError::NoCapability => (
-            CODE_MANAGED_NO_CAPABILITY.to_owned(),
-            "selected scope provides neither environment nor codegen capability".to_owned(),
+        dx_setup::CommitError::NoCapability => dx_error::DxError::failure(
+            "selected scope provides neither environment nor codegen capability",
         ),
-        other => (CODE_MANAGED_COMMIT_FAILED.to_owned(), other.to_string()),
+        other => dx_error::DxError::failure(other.to_string()),
+    }
+}
+
+/// The stable code for a [`prepare_managed_sides`] error.
+pub(crate) fn prepare_error_code(error: &dx_error::DxError) -> &'static str {
+    let message = error.message();
+    if message.starts_with("failed to read build events: ") {
+        CODE_UNREADABLE_BEP
+    } else if message.starts_with("invalid build events")
+        || message.starts_with("invalid BEP config")
+    {
+        CODE_INVALID_BEP
+    } else if message.starts_with("invalid codegen plan") || message.starts_with("invalid env plan")
+    {
+        CODE_INVALID_RESULT
+    } else {
+        CODE_MANAGED_COMMIT_FAILED
     }
 }
 
@@ -26,7 +44,7 @@ pub(crate) fn prepare_managed_sides(
     workspace: &Path,
     state_root: &Path,
     bep: &Path,
-) -> Result<PreparedSync, (String, String)> {
+) -> Result<PreparedSync, dx_error::DxError> {
     let (_, env_plan) = collect_managed_env(bep, workspace)?;
     let (_, codegen_plan) = collect_managed_codegen(bep, workspace)?;
     let (environment, env_lease) = stage_env_side(state_root, &env_plan)?;
@@ -54,16 +72,16 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn managed_commit_errors_map_to_stable_codes() {
-        let (code, message) = map_commit_error(dx_setup::CommitError::NoCapability);
-        assert_eq!(code, CODE_MANAGED_NO_CAPABILITY);
+    fn managed_commit_errors_map_to_failures() {
+        let error = map_commit_error(dx_setup::CommitError::NoCapability);
         assert!(
-            message.contains("neither environment nor codegen"),
-            "{message}"
+            error.message().contains("neither environment nor codegen"),
+            "{error}"
         );
-        let (code, _) = map_commit_error(dx_setup::CommitError::WorkspaceRoot {
+        assert_eq!(error.exit_code(), dx_error::EXIT_FAILURE);
+        let error = map_commit_error(dx_setup::CommitError::WorkspaceRoot {
             path: PathBuf::from("missing"),
         });
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        assert_eq!(error.exit_code(), dx_error::EXIT_FAILURE);
     }
 }

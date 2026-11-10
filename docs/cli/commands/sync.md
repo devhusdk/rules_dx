@@ -42,14 +42,14 @@ Text starts with `Running sync for <roots>`, then one result line:
 
 `--quiet` hides all lines.
 
-JSON emits `command_started`, an `operation` event, a `selection` event, and `command_finished` with `actions`. Failures emit an `error` with a code such as `bazel_failed`, `invalid_result`, `no_capability`, `unreadable_bep`, or `managed_commit_failed`.
+JSON emits `command_started`, an `operation` event, a `selection` event, and `command_finished` with `actions`. Failures emit an `error` with a code such as `bazel_failed`, `no_capability`, or `managed_commit_failed`.
 
 ## Exit codes
 
 | Code | Meaning |
 | --- | --- |
 | `0` | Success. |
-| `1` | `invalid_result`, `no_capability`, `unreadable_bep`, `managed_commit_failed`, or a Bazel launch failure. |
+| `1` | `no_capability`, `managed_commit_failed`, or a Bazel launch failure. |
 | `2` | Usage or scope error, a conflicting diagnostics flag, a rejected arg, or a failed label query. |
 | Bazel's code | Bazel failed. |
 

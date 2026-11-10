@@ -21,12 +21,15 @@ struct Tools {
     site_build: PathBuf,
 }
 
-fn failed(detail: String) -> (String, String) {
-    (CODE_INDEX_FAILED.to_owned(), detail)
+fn failed(detail: String) -> dx_error::DxError {
+    dx_error::DxError::failure(detail)
 }
 
 /// The shard files the build reported, sorted and without repeats.
-pub(crate) fn built_shards(bep: &Path, workspace: &Path) -> Result<Vec<PathBuf>, (String, String)> {
+pub(crate) fn built_shards(
+    bep: &Path,
+    workspace: &Path,
+) -> Result<Vec<PathBuf>, dx_error::DxError> {
     let account = collect_output_account(bep, DOCS_SHARD_OUTPUT_GROUP, workspace)?;
     let mut shards: Vec<PathBuf> = account
         .targets
@@ -68,7 +71,7 @@ fn built_tools(
     bep: &Path,
     workspace: &Path,
     execution_root: Option<&Path>,
-) -> Result<Tools, (String, String)> {
+) -> Result<Tools, dx_error::DxError> {
     let account = collect_output_account(bep, DOCS_TOOLS_OUTPUT_GROUP, workspace)?;
     let mut tools = std::collections::BTreeMap::new();
     for artifact in account
@@ -137,7 +140,7 @@ fn run_tool(
     runner: &dyn Runner,
     workspace: &Path,
     argv: &[String],
-) -> Result<(), (String, String)> {
+) -> Result<(), dx_error::DxError> {
     let name = argv.first().map_or("", String::as_str);
     match runner.run(argv, workspace, &[]) {
         Ok(status) if status.code == Some(0) => Ok(()),
@@ -156,7 +159,7 @@ pub(crate) fn build_index(
     execution_root: Option<&Path>,
     shards: &[PathBuf],
     runner: &dyn Runner,
-) -> Result<PathBuf, (String, String)> {
+) -> Result<PathBuf, dx_error::DxError> {
     let tools = built_tools(bep, workspace, execution_root)?;
     let root = workspace.join(INDEX_DIR);
     let work = root.join("work");

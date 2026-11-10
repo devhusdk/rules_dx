@@ -1,5 +1,5 @@
 use super::common::*;
-use super::managed_prepare::{map_commit_error, prepare_managed_sides};
+use super::managed_prepare::{map_commit_error, prepare_error_code, prepare_managed_sides};
 use dx_output::{
     ActionCounts, FinishedCounts, OutputMode, command_finished, command_started, operation_event,
     selection_event,
@@ -142,9 +142,15 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     }
     let prepared = match prepare_managed_sides(workspace, workspace, &bep) {
         Ok(prepared) => prepared,
-        Err((code, message)) => {
+        Err(error) => {
             let _ = std::fs::remove_file(&bep);
-            return operational(invocation, out, err, &code, &message);
+            return report_dx_error(
+                invocation.output,
+                out,
+                err,
+                prepare_error_code(&error),
+                &error,
+            );
         }
     };
     let before = dx_setup::read_current_pair(workspace)
@@ -154,9 +160,14 @@ pub(crate) fn execute_managed(invocation: &Invocation, env: Env<'_>) -> i32 {
     let (pair, outcome) = match dx_setup::commit_prepared(workspace, prepared.sides) {
         Ok(committed) => committed,
         Err(error) => {
-            let (code, message) = map_commit_error(error);
+            let code = if matches!(error, dx_setup::CommitError::NoCapability) {
+                CODE_MANAGED_NO_CAPABILITY
+            } else {
+                CODE_MANAGED_COMMIT_FAILED
+            };
+            let error = map_commit_error(error);
             let _ = std::fs::remove_file(&bep);
-            return operational(invocation, out, err, &code, &message);
+            return report_dx_error(invocation.output, out, err, code, &error);
         }
     };
     drop(prepared.leases);

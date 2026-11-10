@@ -497,7 +497,7 @@ pub(crate) fn collect_results(
     bep: &Path,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,
-) -> Result<Collected, (String, String)> {
+) -> Result<Collected, dx_error::DxError> {
     collect_results_in(bep, OUTPUT_GROUP, workspace, repo_mapping)
 }
 
@@ -506,7 +506,7 @@ pub(crate) fn collect_results_in(
     group: &str,
     workspace: &Path,
     repo_mapping: RepoMapping<'_>,
-) -> Result<Collected, (String, String)> {
+) -> Result<Collected, dx_error::DxError> {
     let account = collect_output_account(bep, group, workspace)?;
     let mut tools = BTreeSet::new();
     let mut initial = Vec::new();
@@ -521,9 +521,8 @@ pub(crate) fn collect_results_in(
         problems.push(format!("build events cut off at {problem}"));
     }
     // `--nobuild` stops after analysis, so no target reports a result and none is missing.
-    let missing = |gap: &&dx_bep::EventGap| {
-        !gap.is_skipped() && gap.aborted.as_deref() != Some("NO_BUILD")
-    };
+    let missing =
+        |gap: &&dx_bep::EventGap| !gap.is_skipped() && gap.aborted.as_deref() != Some("NO_BUILD");
     for gap in account.gaps.iter().filter(missing) {
         problems.push(gap.describe());
     }
@@ -663,7 +662,6 @@ pub(crate) fn collect_results_in(
 mod tests {
     use super::super::test_support::*;
     use super::*;
-    use crate::exec::common::CODE_INVALID_BEP;
     use quality_result::{encode_validated, proto};
 
     #[test]
@@ -847,11 +845,10 @@ mod tests {
         let dir = temp_dir("group-tmp");
         let bep = dir.path().join("empty.json");
         std::fs::write(&bep, "").expect("bep");
-        let Err((code, message)) = collect_results_in(&bep, "", dir.path(), &|| None) else {
+        let Err(error) = collect_results_in(&bep, "", dir.path(), &|| None) else {
             panic!("empty output group must fail"); // LCOV_EXCL_LINE - reason: defensive branch, issue: 1055, policy: docs/cli/commands/build-test-coverage.md
         };
-        assert_eq!(code, CODE_INVALID_BEP);
-        assert!(message.contains("invalid BEP config"));
+        assert!(error.message().contains("invalid BEP config"));
     }
 
     const ASPECT: &str = "//quality:families/core.bzl%real_lint_aspect";

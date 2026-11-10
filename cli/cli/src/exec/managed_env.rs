@@ -13,15 +13,10 @@ pub(crate) type ManagedEnvCollection = (Vec<dx_bep::TargetOutput>, dx_env_plan::
 pub(crate) fn collect_managed_env(
     bep: &Path,
     workspace: &Path,
-) -> Result<ManagedEnvCollection, (String, String)> {
-    let outputs = collect_targets(bep, dx_env_plan::OUTPUT_GROUP, workspace)
-        .map_err(|error| (bep_error_code(&error).to_owned(), error.message().to_owned()))?;
-    let plan = dx_env_plan::collect_plan(&outputs).map_err(|err| {
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid env plan: {err}"),
-        )
-    })?;
+) -> Result<ManagedEnvCollection, dx_error::DxError> {
+    let outputs = collect_targets(bep, dx_env_plan::OUTPUT_GROUP, workspace)?;
+    let plan = dx_env_plan::collect_plan(&outputs)
+        .map_err(|err| dx_error::DxError::failure(format!("invalid env plan: {err}")))?;
     Ok((outputs, plan))
 }
 
@@ -45,66 +40,53 @@ pub(crate) fn stage_env_generation(
     state_root: &Path,
     id: &dx_setup::GenerationId,
     projection: &[dx_env_plan::ProjectionEntry],
-) -> Result<SharedLease, (String, String)> {
+) -> Result<SharedLease, dx_error::DxError> {
     let (dir, lease) =
         ensure_generation_dir(state_root, dx_setup::ENVIRONMENTS_DIR_NAME, id.as_str())?;
     let mut seen: BTreeMap<&str, (&str, &str)> = BTreeMap::new();
     for entry in projection {
-        validate_env_key(&entry.key).map_err(|reason| {
-            (
-                CODE_INVALID_RESULT.to_owned(),
-                format!("invalid env plan: {reason}"),
-            )
-        })?;
+        validate_env_key(&entry.key)
+            .map_err(|reason| dx_error::DxError::failure(format!("invalid env plan: {reason}")))?;
         if let Some((value, artifact)) = seen.insert(
             entry.key.as_str(),
             (entry.value.as_str(), entry.artifact.as_str()),
         ) && (value != entry.value.as_str() || artifact != entry.artifact.as_str())
         {
-            return Err((
-                CODE_INVALID_RESULT.to_owned(),
-                format!("env identity key {} maps to multiple inputs", entry.key),
-            ));
+            return Err(dx_error::DxError::failure(format!(
+                "env identity key {} maps to multiple inputs",
+                entry.key
+            )));
         }
     }
     let artifacts = dir.join(ENV_ARTIFACTS_DIR);
     std::fs::create_dir_all(&artifacts).map_err(|e| {
-        (
-            CODE_MANAGED_COMMIT_FAILED.to_owned(),
-            format!("cannot create {}: {e}", artifacts.display()),
-        )
+        dx_error::DxError::failure(format!("cannot create {}: {e}", artifacts.display()))
     })?;
     for entry in projection {
         let artifact = Path::new(&entry.artifact);
         if artifact.symlink_metadata().is_err() {
-            return Err((
-                CODE_INVALID_RESULT.to_owned(),
-                format!(
-                    "invalid env plan: referenced artifact {} is missing; Bazel owns materialization",
-                    entry.artifact
-                ),
-            ));
+            return Err(dx_error::DxError::failure(format!(
+                "invalid env plan: referenced artifact {} is missing; Bazel owns materialization",
+                entry.artifact
+            )));
         }
         let leaf = artifacts.join(&entry.key);
         let needs_link = match std::fs::symlink_metadata(&leaf) {
             Ok(meta) => {
                 if meta.file_type().is_dir() && !meta.file_type().is_symlink() {
-                    return Err((
-                        CODE_INVALID_RESULT.to_owned(),
-                        format!(
-                            "invalid env plan: env identity key {} collides within its generation",
-                            entry.key
-                        ),
-                    ));
+                    return Err(dx_error::DxError::failure(format!(
+                        "invalid env plan: env identity key {} collides within its generation",
+                        entry.key
+                    )));
                 }
                 match std::fs::read_link(&leaf) {
                     Ok(current) if current == *artifact => false,
                     _ => {
                         std::fs::remove_file(&leaf).map_err(|e| {
-                            (
-                                CODE_MANAGED_COMMIT_FAILED.to_owned(),
-                                format!("cannot replace {}: {e}", leaf.display()),
-                            )
+                            dx_error::DxError::failure(format!(
+                                "cannot replace {}: {e}",
+                                leaf.display()
+                            ))
                         })?;
                         true
                     }
@@ -114,10 +96,7 @@ pub(crate) fn stage_env_generation(
         };
         if needs_link {
             symlink_leaf(artifact, &leaf).map_err(|e| {
-                (
-                    CODE_MANAGED_COMMIT_FAILED.to_owned(),
-                    format!("cannot link {}: {e}", leaf.display()),
-                )
+                dx_error::DxError::failure(format!("cannot link {}: {e}", leaf.display()))
             })?;
         }
     }
@@ -125,18 +104,11 @@ pub(crate) fn stage_env_generation(
         .iter()
         .map(|(key, (value, _))| (*key, *value))
         .collect();
-    let rendered = serde_json::to_string(&values).map_err(|e| {
-        (
-            CODE_MANAGED_COMMIT_FAILED.to_owned(),
-            format!("cannot render values.json: {e}"),
-        )
-    })?;
+    let rendered = serde_json::to_string(&values)
+        .map_err(|e| dx_error::DxError::failure(format!("cannot render values.json: {e}")))?;
     let target = dir.join(ENV_VALUES_FILE);
     dx_atomic_fs::write_atomic(&target, rendered.as_bytes()).map_err(|e| {
-        (
-            CODE_MANAGED_COMMIT_FAILED.to_owned(),
-            format!("cannot publish {}: {e}", target.display()),
-        )
+        dx_error::DxError::failure(format!("cannot publish {}: {e}", target.display()))
     })?;
     Ok(lease)
 }
@@ -144,7 +116,7 @@ pub(crate) fn stage_env_generation(
 pub(crate) fn stage_env_side(
     state_root: &Path,
     plan: &dx_env_plan::CollectedPlan,
-) -> Result<(dx_setup::GenerationId, SharedLease), (String, String)> {
+) -> Result<(dx_setup::GenerationId, SharedLease), dx_error::DxError> {
     let id = dx_setup::GenerationId::from_digest(plan.digest);
     let lease = stage_env_generation(state_root, &id, &plan.projection)?;
     Ok((id, lease))
@@ -270,26 +242,24 @@ mod tests {
         let second = fixture.second.clone();
         let id = empty_env_id();
         for key in ["", "a/b", ".", ".."] {
-            let (code, message) =
-                stage_env_generation(&workspace, &id, &[env_entry(key, "v", &first)])
-                    .expect_err("bad key");
-            assert_eq!(code, CODE_INVALID_RESULT);
+            let message = stage_env_generation(&workspace, &id, &[env_entry(key, "v", &first)])
+                .expect_err("bad key")
+                .to_string();
             assert!(message.contains("invalid env plan"), "{message}");
         }
         for projection in [
             vec![env_entry("k", "v1", &first), env_entry("k", "v2", &first)],
             vec![env_entry("k", "v", &first), env_entry("k", "v", &second)],
         ] {
-            let (code, message) =
-                stage_env_generation(&workspace, &id, &projection).expect_err("conflict");
-            assert_eq!(code, CODE_INVALID_RESULT);
+            let message = stage_env_generation(&workspace, &id, &projection)
+                .expect_err("conflict")
+                .to_string();
             assert!(message.contains("multiple inputs"), "{message}");
         }
         let missing = workspace.join("no-such-artifact.txt");
-        let (code, message) =
-            stage_env_generation(&workspace, &id, &[env_entry("k", "v", &missing)])
-                .expect_err("missing artifact");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        let message = stage_env_generation(&workspace, &id, &[env_entry("k", "v", &missing)])
+            .expect_err("missing artifact")
+            .to_string();
         assert!(message.contains("Bazel owns materialization"), "{message}");
         let dir_id = dx_setup::GenerationId::new(&"4".repeat(64)).expect("fixture id");
         let (dir, _lease) =
@@ -297,10 +267,9 @@ mod tests {
                 .expect("gen dir");
         std::fs::create_dir_all(dir.join("artifacts")).expect("artifacts dir");
         std::fs::create_dir_all(dir.join("artifacts/k")).expect("blocking dir");
-        let (code, message) =
-            stage_env_generation(&workspace, &dir_id, &[env_entry("k", "v", &first)])
-                .expect_err("generation collision");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        let message = stage_env_generation(&workspace, &dir_id, &[env_entry("k", "v", &first)])
+            .expect_err("generation collision")
+            .to_string();
         assert!(
             message.contains("collides within its generation"),
             "{message}"
@@ -310,10 +279,9 @@ mod tests {
             ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, blocked_id.as_str())
                 .expect("gen dir");
         std::fs::write(blocked_dir.join("artifacts"), "file").expect("blocking file");
-        let (code, message) =
-            stage_env_generation(&workspace, &blocked_id, &[env_entry("k", "v", &first)])
-                .expect_err("artifacts creation");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        let message = stage_env_generation(&workspace, &blocked_id, &[env_entry("k", "v", &first)])
+            .expect_err("artifacts creation")
+            .to_string();
         assert!(message.contains("cannot create"), "{message}");
         let staging_id = dx_setup::GenerationId::new(&"6".repeat(64)).expect("fixture id");
         let (staging_dir, _staged) =
@@ -327,10 +295,9 @@ mod tests {
             ensure_generation_dir(&workspace, ENVIRONMENTS_DIR_NAME, publish_id.as_str())
                 .expect("gen dir");
         std::fs::create_dir_all(publish_dir.join("values.json")).expect("blocking dir");
-        let (code, message) =
-            stage_env_generation(&workspace, &publish_id, &[env_entry("k", "v", &first)])
-                .expect_err("values publish");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        let message = stage_env_generation(&workspace, &publish_id, &[env_entry("k", "v", &first)])
+            .expect_err("values publish")
+            .to_string();
         assert!(message.contains("cannot publish"), "{message}");
     }
 
@@ -347,15 +314,13 @@ mod tests {
             .join(ENVIRONMENTS_DIR_NAME)
             .join(id.as_str());
         set_mode(&dir.join("artifacts"), 0o555);
-        let (code, message) =
-            stage_env_generation(&workspace, &id, &[env_entry("k", "v", &second)])
-                .expect_err("cannot replace");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        let message = stage_env_generation(&workspace, &id, &[env_entry("k", "v", &second)])
+            .expect_err("cannot replace")
+            .to_string();
         assert!(message.contains("cannot replace"), "{message}");
-        let (code, message) =
-            stage_env_generation(&workspace, &id, &[env_entry("fresh", "v", &second)])
-                .expect_err("cannot link");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        let message = stage_env_generation(&workspace, &id, &[env_entry("fresh", "v", &second)])
+            .expect_err("cannot link")
+            .to_string();
         assert!(message.contains("cannot link"), "{message}");
         set_mode(&dir.join("artifacts"), 0o755);
     }

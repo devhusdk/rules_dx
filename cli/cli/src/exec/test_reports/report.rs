@@ -425,7 +425,7 @@ pub(super) fn read_events(
     bep: &Path,
     bazel_code: i32,
     query_runner: &dyn QueryRunner,
-) -> Result<(TestEvents, Option<String>), (&'static str, String)> {
+) -> Result<(TestEvents, Option<String>), dx_error::DxError> {
     let file = match std::fs::File::open(bep) {
         Ok(file) => file,
         Err(error) if bazel_code != 0 => {
@@ -435,19 +435,18 @@ pub(super) fn read_events(
             ));
         }
         Err(error) => {
-            return Err((
-                CODE_UNREADABLE_BEP,
-                format!("failed to read build events: {error}"),
-            ));
+            return Err(dx_error::DxError::failure(format!(
+                "failed to read build events: {error}"
+            )));
         }
     };
     match collect_test_events(BufReader::new(file), || {
         Some(output_locations(invocation, workspace, verb, query_runner))
     }) {
         Ok(events) => match events.problem.clone() {
-            Some(problem) if bazel_code == 0 => {
-                Err((CODE_INVALID_BEP, format!("invalid build events: {problem}")))
-            }
+            Some(problem) if bazel_code == 0 => Err(dx_error::DxError::failure(format!(
+                "invalid build events: {problem}"
+            ))),
             Some(problem) => Ok((events, Some(format!("build events end early: {problem}")))),
             None => Ok((events, None)),
         },
@@ -455,6 +454,8 @@ pub(super) fn read_events(
             TestEvents::default(),
             Some(format!("invalid build events: {error}")),
         )),
-        Err(error) => Err((CODE_INVALID_BEP, format!("invalid build events: {error}"))),
+        Err(error) => Err(dx_error::DxError::failure(format!(
+            "invalid build events: {error}"
+        ))),
     }
 }

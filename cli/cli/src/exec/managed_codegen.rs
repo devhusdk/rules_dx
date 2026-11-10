@@ -10,15 +10,10 @@ pub(crate) type ManagedCodegenCollection = (Vec<dx_bep::TargetOutput>, dx_codege
 pub(crate) fn collect_managed_codegen(
     bep: &Path,
     workspace: &Path,
-) -> Result<ManagedCodegenCollection, (String, String)> {
-    let outputs = collect_targets(bep, dx_codegen::OUTPUT_GROUP, workspace)
-        .map_err(|error| (bep_error_code(&error).to_owned(), error.message().to_owned()))?;
-    let plan = dx_codegen::collect_plan(&outputs).map_err(|err| {
-        (
-            CODE_INVALID_RESULT.to_owned(),
-            format!("invalid codegen plan: {err}"),
-        )
-    })?;
+) -> Result<ManagedCodegenCollection, dx_error::DxError> {
+    let outputs = collect_targets(bep, dx_codegen::OUTPUT_GROUP, workspace)?;
+    let plan = dx_codegen::collect_plan(&outputs)
+        .map_err(|err| dx_error::DxError::failure(format!("invalid codegen plan: {err}")))?;
     Ok((outputs, plan))
 }
 
@@ -42,11 +37,8 @@ fn logical_path(path: &str) -> Result<WorkspaceRelativePath, ExecError> {
     })
 }
 
-fn invalid_plan(reason: impl std::fmt::Display) -> (String, String) {
-    (
-        CODE_INVALID_RESULT.to_owned(),
-        format!("invalid codegen plan: {reason}"),
-    )
+fn invalid_plan(reason: impl std::fmt::Display) -> dx_error::DxError {
+    dx_error::DxError::failure(format!("invalid codegen plan: {reason}"))
 }
 
 struct LogicalEntry<'a> {
@@ -57,7 +49,7 @@ struct LogicalEntry<'a> {
 
 fn resolve_logical_entries(
     projection: &[dx_codegen::ProjectionEntry],
-) -> Result<Vec<LogicalEntry<'_>>, (String, String)> {
+) -> Result<Vec<LogicalEntry<'_>>, dx_error::DxError> {
     let mut entries = Vec::with_capacity(projection.len());
     for entry in projection {
         let path = logical_path(&entry.logical_path).map_err(invalid_plan)?;
@@ -103,7 +95,7 @@ pub(crate) fn stage_codegen_generation(
     workspace: &Path,
     id: &dx_setup::GenerationId,
     projection: &[dx_codegen::ProjectionEntry],
-) -> Result<SharedLease, (String, String)> {
+) -> Result<SharedLease, dx_error::DxError> {
     let entries = resolve_logical_entries(projection)?;
     let (dir, lease) =
         ensure_generation_dir(state_root, dx_setup::GENERATED_DIR_NAME, id.as_str())?;
@@ -131,10 +123,7 @@ pub(crate) fn stage_codegen_generation(
         let leaf = resolved.path.join_to_root(&dir);
         if let Some(parent) = leaf.parent() {
             std::fs::create_dir_all(parent).map_err(|e| {
-                (
-                    CODE_MANAGED_COMMIT_FAILED.to_owned(),
-                    format!("cannot create {}: {e}", parent.display()),
-                )
+                dx_error::DxError::failure(format!("cannot create {}: {e}", parent.display()))
             })?;
         }
         let needs_link = match std::fs::symlink_metadata(&leaf) {
@@ -149,10 +138,10 @@ pub(crate) fn stage_codegen_generation(
                     Ok(current) if current == *artifact => false,
                     _ => {
                         std::fs::remove_file(&leaf).map_err(|e| {
-                            (
-                                CODE_MANAGED_COMMIT_FAILED.to_owned(),
-                                format!("cannot replace {}: {e}", leaf.display()),
-                            )
+                            dx_error::DxError::failure(format!(
+                                "cannot replace {}: {e}",
+                                leaf.display()
+                            ))
                         })?;
                         true
                     }
@@ -162,10 +151,7 @@ pub(crate) fn stage_codegen_generation(
         };
         if needs_link {
             symlink_leaf(artifact, &leaf).map_err(|e| {
-                (
-                    CODE_MANAGED_COMMIT_FAILED.to_owned(),
-                    format!("cannot link {}: {e}", leaf.display()),
-                )
+                dx_error::DxError::failure(format!("cannot link {}: {e}", leaf.display()))
             })?;
         }
     }
@@ -176,7 +162,7 @@ pub(crate) fn stage_codegen_side(
     state_root: &Path,
     workspace: &Path,
     plan: &dx_codegen::CollectedPlan,
-) -> Result<(dx_setup::GenerationId, SharedLease), (String, String)> {
+) -> Result<(dx_setup::GenerationId, SharedLease), dx_error::DxError> {
     let id = dx_setup::GenerationId::from_digest(plan.digest);
     let lease = stage_codegen_generation(state_root, workspace, &id, &plan.projection)?;
     Ok((id, lease))
@@ -273,14 +259,14 @@ mod tests {
         .enumerate()
         {
             let id = dx_setup::GenerationId::new(&format!("{index:064x}")).expect("fixture id");
-            let (code, message) = stage_codegen_generation(
+            let message = stage_codegen_generation(
                 &workspace,
                 &workspace,
                 &id,
                 &[codegen_entry(bad, &first)],
             )
-            .expect_err("bad logical path");
-            assert_eq!(code, CODE_INVALID_RESULT);
+            .expect_err("bad logical path")
+            .to_string();
             assert!(message.contains("invalid codegen plan"), "{message}");
             assert!(
                 !dx_path::state::local_dir(&workspace)
@@ -354,13 +340,12 @@ mod tests {
             vec![codegen_entry("/absolute", &first)],
             vec![codegen_entry("../escape", &first)],
         ] {
-            let (code, message) =
-                stage_codegen_generation(&workspace, &workspace, &id, &projection)
-                    .expect_err("bad path");
-            assert_eq!(code, CODE_INVALID_RESULT);
+            let message = stage_codegen_generation(&workspace, &workspace, &id, &projection)
+                .expect_err("bad path")
+                .to_string();
             assert!(message.contains("invalid codegen plan"), "{message}");
         }
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
@@ -369,10 +354,10 @@ mod tests {
                 codegen_entry("gen/a.txt", &second),
             ],
         )
-        .expect_err("conflict");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        .expect_err("conflict")
+        .to_string();
         assert!(message.contains("multiple artifacts"), "{message}");
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
@@ -381,45 +366,45 @@ mod tests {
                 codegen_entry("src/model.rs", &second),
             ],
         )
-        .expect_err("case conflict");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        .expect_err("case conflict")
+        .to_string();
         assert!(message.contains("differ only by case"), "{message}");
         std::fs::create_dir_all(workspace.join("gen")).expect("source dir");
         std::fs::write(workspace.join("gen/owned.txt"), "source").expect("source");
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
             &[codegen_entry("gen/owned.txt", &first)],
         )
-        .expect_err("workspace collision");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        .expect_err("workspace collision")
+        .to_string();
         assert!(
             message.contains("collides with a workspace source"),
             "{message}"
         );
         let missing = workspace.join("no-such-artifact.txt");
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
             &[codegen_entry("gen/missing.txt", &missing)],
         )
-        .expect_err("missing artifact");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        .expect_err("missing artifact")
+        .to_string();
         assert!(message.contains("Bazel owns materialization"), "{message}");
         let dir_id = dx_setup::GenerationId::new(&"2".repeat(64)).expect("fixture id");
         let (dir, _lease) = ensure_generation_dir(&workspace, GENERATED_DIR_NAME, dir_id.as_str())
             .expect("gen dir");
         std::fs::create_dir_all(dir.join("gen/blocked")).expect("blocking dir");
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &dir_id,
             &[codegen_entry("gen/blocked", &first)],
         )
-        .expect_err("generation collision");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        .expect_err("generation collision")
+        .to_string();
         assert!(
             message.contains("collides within its generation"),
             "{message}"
@@ -429,14 +414,14 @@ mod tests {
             ensure_generation_dir(&workspace, GENERATED_DIR_NAME, parent_id.as_str())
                 .expect("gen dir");
         std::fs::write(parent_dir.join("sub"), "file").expect("blocking file");
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &parent_id,
             &[codegen_entry("sub/leaf.txt", &first)],
         )
-        .expect_err("parent creation");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        .expect_err("parent creation")
+        .to_string();
         assert!(message.contains("cannot create"), "{message}");
     }
 
@@ -448,14 +433,14 @@ mod tests {
         let id = empty_generated_id();
         std::fs::create_dir_all(workspace.join("gen")).expect("source dir");
         std::fs::write(workspace.join("gen/owned.txt"), "source").expect("source");
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
             &[codegen_entry("gen/owned.txt", &first)],
         )
-        .expect_err("workspace collision");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        .expect_err("workspace collision")
+        .to_string();
         assert!(
             message.contains("collides with a workspace source"),
             "{message}"
@@ -485,9 +470,9 @@ mod tests {
             namespace: String::new(),
             replaces: "gen/other.txt".to_owned(),
         };
-        let (code, message) = stage_codegen_generation(&workspace, &workspace, &id, &[bad])
-            .expect_err("cross-path contract");
-        assert_eq!(code, CODE_INVALID_RESULT);
+        let message = stage_codegen_generation(&workspace, &workspace, &id, &[bad])
+            .expect_err("cross-path contract")
+            .to_string();
         assert!(message.contains("replacement contract"), "{message}");
     }
 
@@ -510,16 +495,16 @@ mod tests {
             .join(GENERATED_DIR_NAME)
             .join(id.as_str());
         set_mode(&dir, 0o555);
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
             &[codegen_entry("a.txt", &second)],
         )
-        .expect_err("cannot replace");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        .expect_err("cannot replace")
+        .to_string();
         assert!(message.contains("cannot replace"), "{message}");
-        let (code, message) = stage_codegen_generation(
+        let message = stage_codegen_generation(
             &workspace,
             &workspace,
             &id,
@@ -528,8 +513,8 @@ mod tests {
                 codegen_entry("fresh.txt", &second),
             ],
         )
-        .expect_err("cannot link");
-        assert_eq!(code, CODE_MANAGED_COMMIT_FAILED);
+        .expect_err("cannot link")
+        .to_string();
         assert!(message.contains("cannot link"), "{message}");
         set_mode(&dir, 0o755);
     }

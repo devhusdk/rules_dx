@@ -28,10 +28,10 @@ pub(super) fn collect_sources(bep: &Path, workspace: &Path) -> Sources {
     };
     let account = match collect_output_account(bep, SOURCES_OUTPUT_GROUP, workspace) {
         Ok(account) => account,
-        Err((_, message)) => {
-            sources.missing.push(format!(
-                "coverage source manifests are unreadable: {message}"
-            ));
+        Err(error) => {
+            sources
+                .missing
+                .push(format!("coverage source manifests are unreadable: {error}"));
             return sources;
         }
     };

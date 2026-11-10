@@ -1,0 +1,43 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//typescript:defs.bzl", "typescript_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_test(
+    name = "args_test",
+    srcs = ["args_test.ts"],
+    args = [
+        "--marker",
+        "$(rootpath :marker.txt)",
+    ],
+    data = [":marker.txt"],
+    declaration = True,
+    main = "args_test.js",
+    package_json = "//:package_json",
+    runner = "node",
+    tsconfig = "tsconfig.json",
+)
+
+exports_files([
+    "args_test.ts",
+    "marker.txt",
+    "tsconfig.json",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+ts_config(
+    name = "tsconfig",
+    testonly = True,
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)

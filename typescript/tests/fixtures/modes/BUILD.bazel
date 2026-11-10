@@ -1,0 +1,71 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//typescript:defs.bzl", "typescript_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_library(
+    name = "ok",
+    testonly = True,
+    srcs = ["ok.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "base.tsconfig.json",
+)
+
+typescript_library(
+    name = "isolated",
+    testonly = True,
+    srcs = ["isolated.ts"],
+    declaration = True,
+    isolated_typecheck = True,
+    transpiler = "tsc",
+    tsconfig = "base.tsconfig.json",
+)
+
+typescript_library(
+    name = "coupled",
+    testonly = True,
+    srcs = ["coupled.ts"],
+    declaration = True,
+    isolated_typecheck = False,
+    transpiler = "tsc",
+    tsconfig = "base.tsconfig.json",
+)
+
+typescript_library(
+    name = "loose",
+    testonly = True,
+    srcs = ["loose.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = ":lax_config",
+)
+
+typescript_library(
+    name = "chosen",
+    testonly = True,
+    srcs = ["chosen.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = select({
+        "//conditions:default": "base.tsconfig.json",
+    }),
+)
+
+ts_config(
+    name = "lax_config",
+    testonly = True,
+    src = "lax.tsconfig.json",
+    deps = ["base.tsconfig.json"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

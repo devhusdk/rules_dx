@@ -171,7 +171,7 @@ impl ScriptRunner {
             "uv-adopt-polyglot".to_owned()
         } else if argv
             .iter()
-            .any(|arg| arg.contains("families/js/javascript/tests/fixtures/adopt-js-ts"))
+            .any(|arg| arg.contains("javascript/tests/fixtures/adopt-js-ts"))
         {
             "npm-adopt".to_owned()
         } else if argv

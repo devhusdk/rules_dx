@@ -2,7 +2,7 @@
   "$schema": "../core/modules/lang.schema.json",
   "name": "mdx",
   "title": "MDX",
-  "family": "js",
+  "family": "core",
   "ecosystems": [
     "npm"
   ],

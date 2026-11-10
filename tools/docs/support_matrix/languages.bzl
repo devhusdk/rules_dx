@@ -90,7 +90,7 @@ def _starter_consumers(*starters):
 # consumer_tests: golden checks of dx init output and hermetic manifests, or tests that
 # build a target in another module. CI selects the hermetic ones by the hermetic-consumer tag.
 ROWS = [
-    {"ci_tests": _hello("astro", "@rules_dx_js"), "consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": "Astro"},
+    {"ci_tests": _hello("astro"), "consumer_tests": _starter_consumers("astro"), "name": "astro", "section": "languages", "title": "Astro"},
     {
         "ci_tests": _hello("cc"),
         "consumer_tests": _starter_consumers("c", "cpp"),
@@ -189,11 +189,11 @@ ROWS = [
     {"ci_tests": _hello("go"), "consumer_tests": _starter_consumers("go"), "name": "go", "section": "languages", "title": "Go"},
     {"ci_tests": ["//haskell/tests/runtime:probe_test"], "consumer_tests": _starter_consumers("haskell"), "name": "haskell", "section": "languages", "title": "Haskell"},
     {"ci_tests": _hello("java"), "consumer_tests": _starter_consumers("java"), "name": "java", "section": "languages", "title": "Java"},
-    {"ci_tests": _hello("javascript", "@rules_dx_js"), "consumer_tests": _starter_consumers("javascript"), "name": "javascript", "section": "languages", "title": "JavaScript"},
+    {"ci_tests": _hello("javascript"), "consumer_tests": _starter_consumers("javascript"), "name": "javascript", "section": "languages", "title": "JavaScript"},
     {"ci_tests": ["//julia/tests/fixtures/hello:greet_test"], "consumer_tests": _starter_consumers("julia"), "name": "julia", "section": "languages", "title": "Julia"},
     {"ci_tests": _hello("kotlin"), "name": "kotlin", "section": "languages", "title": "Kotlin"},
     {"ci_tests": ["//lua/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:lua"] + _starter_consumers("lua"), "name": "lua", "section": "languages", "title": "Lua"},
-    {"ci_tests": _hello("mdx", "@rules_dx_js") + ["@rules_dx_js//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": "MDX"},
+    {"ci_tests": _hello("mdx") + ["//mdx/tests/app:site_static_test"], "consumer_tests": _starter_consumers("mdx"), "name": "mdx", "section": "languages", "title": "MDX"},
     {"ci_tests": ["//ocaml/tests/runtime:greet_test"], "consumer_tests": ["//tools/testing/hermetic:ocaml"] + _starter_consumers("ocaml"), "name": "ocaml", "section": "languages", "title": "OCaml"},
     {"ci_tests": ["//perl/tests/runtime:probe_test"], "consumer_tests": ["//tools/testing/hermetic:perl"] + _starter_consumers("perl"), "name": "perl", "section": "languages", "title": "Perl"},
     {"ci_tests": ["//php/tests/fixtures/hello:greeter_test"], "consumer_tests": _starter_consumers("php"), "name": "php", "section": "languages", "title": "PHP"},
@@ -217,10 +217,10 @@ ROWS = [
         "title": "Rust",
     },
     {"ci_tests": _hello("scala"), "consumer_tests": ["//tools/testing/hermetic:scala_scalafix"], "name": "scala", "section": "languages", "title": "Scala"},
-    {"ci_tests": _hello("svelte", "@rules_dx_js"), "consumer_tests": _starter_consumers("svelte"), "name": "svelte", "section": "languages", "title": "Svelte"},
+    {"ci_tests": _hello("svelte"), "consumer_tests": _starter_consumers("svelte"), "name": "svelte", "section": "languages", "title": "Svelte"},
     {"ci_tests": ["//swift/tests/fixtures/hello:hello_output_test"], "name": "swift", "section": "languages", "title": "Swift"},
-    {"ci_tests": _hello("typescript", "@rules_dx_js"), "consumer_tests": _starter_consumers("typescript"), "name": "typescript", "section": "languages", "title": "TypeScript"},
-    {"ci_tests": _hello("vue", "@rules_dx_js"), "consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "title": "Vue"},
+    {"ci_tests": _hello("typescript"), "consumer_tests": _starter_consumers("typescript"), "name": "typescript", "section": "languages", "title": "TypeScript"},
+    {"ci_tests": _hello("vue"), "consumer_tests": _starter_consumers("vue"), "name": "vue", "section": "languages", "title": "Vue"},
     {"ci_tests": ["//zig/tests/fixtures/hello:greet_test"], "consumer_tests": ["//tools/testing/hermetic:zig"] + _starter_consumers("zig"), "name": "zig", "section": "languages", "title": "Zig"},
     {
         "ci_tests": [

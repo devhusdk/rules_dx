@@ -1,5 +1,0 @@
-{
-  "integrity": "",
-  "strip_prefix": "rules_dx_js-{VERSION}",
-  "url": "https://github.com/{OWNER}/{REPO}/releases/download/{TAG}/rules_dx_js-{VERSION}.tar.gz"
-}

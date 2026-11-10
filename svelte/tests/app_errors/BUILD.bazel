@@ -1,0 +1,51 @@
+load("//javascript:defs.bzl", "javascript_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+_VITE = [
+    "//:node_modules/@sveltejs/vite-plugin-svelte",
+    "//:node_modules/svelte",
+    "//:node_modules/vite",
+]
+
+javascript_test(
+    name = "build_errors_test",
+    srcs = ["build_errors.test.js"],
+    data = glob(["build_fail/**"]) + ["//javascript/private:vite_tool_entry"] + _VITE,
+    env = {"VITE_TOOL": "$(rlocationpath //javascript/private:vite_tool_entry)"},
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+javascript_test(
+    name = "render_ssr_test",
+    srcs = ["render_ssr.test.js"],
+    data = ["//svelte/tests/app_errors/throwing:site_ssr"],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+javascript_test(
+    name = "render_client_test",
+    srcs = ["render_client.test.js"],
+    data = [
+        "//:node_modules/jest-environment-jsdom",
+        "//svelte/tests/app_errors/throwing:site",
+    ],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

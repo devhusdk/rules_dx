@@ -211,7 +211,6 @@ fn split_label(label: &str) -> Result<(String, &str), String> {
         "@rules_dx_android",
         "@rules_dx_apple",
         "@rules_dx_cuda",
-        "@rules_dx_js",
         "@rules_dx_powershell",
     ]
     .into_iter()

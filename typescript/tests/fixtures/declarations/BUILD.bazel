@@ -1,0 +1,114 @@
+# gazelle:dx_ignore_import typescript absent
+# gazelle:dx_ignore_import typescript bindings
+# gazelle:dx_ignore_import typescript greeting
+# gazelle:dx_ignore_import typescript widget
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+load("//typescript:defs.bzl", "typescript_binary", "typescript_library")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_library(
+    name = "greet",
+    testonly = True,
+    srcs = ["greet.ts"],
+    declaration = True,
+    declaration_srcs = ["greeting.d.ts"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_binary(
+    name = "main_bin",
+    testonly = True,
+    srcs = ["main.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":greet"],
+)
+
+genrule(
+    name = "bindings",
+    testonly = True,
+    srcs = [],
+    outs = ["bindings.d.ts"],
+    cmd = "printf 'export interface Point {\\n\\tx: number;\\n\\ty: number;\\n}\\n' > $@",
+)
+
+typescript_library(
+    name = "shapes",
+    testonly = True,
+    srcs = ["shapes.ts"],
+    declaration = True,
+    declaration_srcs = [":bindings"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_library(
+    name = "missing_import",
+    testonly = True,
+    srcs = ["missing_import.ts"],
+    declaration = True,
+    tags = ["manual"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_library(
+    name = "broken_user",
+    testonly = True,
+    srcs = ["broken_user.ts"],
+    declaration = True,
+    declaration_srcs = ["broken.d.ts"],
+    tags = ["manual"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_library(
+    name = "widget_user",
+    testonly = True,
+    srcs = ["widget_user.ts"],
+    declaration = True,
+    declaration_srcs = ["widget.d.mts"],
+    tags = ["manual"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_library(
+    name = "panel",
+    testonly = True,
+    declaration = True,
+    declaration_srcs = ["panel.d.ts"],
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+)
+
+typescript_library(
+    name = "panel_user",
+    testonly = True,
+    srcs = ["panel_user.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":panel"],
+)
+
+dx_hello_output_test(
+    name = "main_output_test",
+    binary = ":main_bin",
+    expected = "hello world",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

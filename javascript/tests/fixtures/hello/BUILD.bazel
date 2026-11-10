@@ -1,0 +1,80 @@
+load("//javascript:defs.bzl", "javascript_binary", "javascript_library", "javascript_test")
+load("//javascript/private:wrapper_tests.bzl", "javascript_run_environment_tests")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_library(
+    name = "hello_lib",
+    srcs = ["hello.js"],
+)
+
+javascript_binary(
+    name = "hello",
+    data = [":hello_lib"],
+    main = "main.js",
+)
+
+javascript_test(
+    name = "hello_test",
+    srcs = ["hello.test.js"],
+    data = [":hello_lib"],
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+)
+
+dx_hello_output_test(
+    name = "hello_output_test",
+    binary = ":hello",
+    expected = "hello world",
+)
+
+javascript_test(
+    name = "plain_test",
+    runner = "node",
+    srcs = ["plain_test.js"],
+    data = [":hello_lib"],
+    main = "plain_test.js",
+)
+
+javascript_test(
+    name = "env_forward_test",
+    runner = "node",
+    srcs = ["plain_test.js"],
+    main = "plain_test.js",
+    env = {"FOO": "1"},
+    tags = ["manual"],
+)
+
+# size: large, manual fixture that checks size forwarding, never run
+javascript_test(
+    name = "plain_large_test",
+    runner = "node",
+    size = "large",
+    srcs = ["plain_test.js"],
+    data = [":hello_lib"],
+    main = "plain_test.js",
+    tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)
+
+javascript_run_environment_tests(
+    name = "run_environment_forward_test",
+    target_under_test = ":env_forward_test",
+)

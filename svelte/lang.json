@@ -2,7 +2,7 @@
   "$schema": "../core/modules/lang.schema.json",
   "name": "svelte",
   "title": "Svelte",
-  "family": "js",
+  "family": "core",
   "ecosystems": [
     "npm"
   ],

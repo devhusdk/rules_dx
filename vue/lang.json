@@ -2,7 +2,7 @@
   "$schema": "../core/modules/lang.schema.json",
   "name": "vue",
   "title": "Vue",
-  "family": "js",
+  "family": "core",
   "ecosystems": [
     "npm"
   ],

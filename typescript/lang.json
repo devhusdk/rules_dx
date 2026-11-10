@@ -2,7 +2,7 @@
   "$schema": "../core/modules/lang.schema.json",
   "name": "typescript",
   "title": "TypeScript",
-  "family": "js",
+  "family": "core",
   "ecosystems": [
     "npm"
   ],

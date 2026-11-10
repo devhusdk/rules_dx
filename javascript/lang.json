@@ -2,7 +2,7 @@
   "$schema": "../core/modules/lang.schema.json",
   "name": "javascript",
   "title": "JavaScript",
-  "family": "js",
+  "family": "core",
   "ecosystems": [
     "npm"
   ],

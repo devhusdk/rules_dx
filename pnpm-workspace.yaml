@@ -8,3 +8,11 @@ packageExtensions:
     peerDependenciesMeta:
       rollup:
         optional: true
+  # @jazzer.js requires @babel packages it does not declare.
+  "@jazzer.js/instrumentor":
+    dependencies:
+      "@babel/types": "^7.25.0"
+  "@jazzer.js/bug-detectors":
+    dependencies:
+      "@babel/core": "^7.25.2"
+      "@babel/types": "^7.25.0"

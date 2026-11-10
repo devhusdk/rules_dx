@@ -1,4 +1,5 @@
 exports_files([
     "defs.bzl",
+    "README.md",
     "lang.json",
 ])

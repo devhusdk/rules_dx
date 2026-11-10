@@ -1,0 +1,63 @@
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("//javascript:defs.bzl", "javascript_library")
+load("//mdx:defs.bzl", "mdx_library", "mdx_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+mdx_library(
+    name = "hello_lib",
+    srcs = ["Hello.mdx"],
+)
+
+javascript_library(
+    name = "helper_lib",
+    srcs = ["helper.js"],
+)
+
+mdx_test(
+    name = "hello_test",
+    srcs = ["Hello.test.js"],
+    data = [
+        ":Hello.mdx",
+        ":helper_lib",
+        "//:node_modules/preact",
+        "//:node_modules/preact-render-to-string",
+    ],
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+)
+
+rust_test(
+    name = "coverage_test",
+    srcs = ["coverage_test.rs"],
+    data = [":hello_test"],
+    env = {"HELLO_TEST": "$(rootpath :hello_test)"},
+    tags = ["no-remote-exec"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+build_test(
+    name = "hello_aggregate_test",
+    targets = [
+        ":hello_lib",
+        ":hello_test",
+        ":coverage_test",
+    ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+exports_files(
+    ["BUILD.bazel"],
+    visibility = ["//tools/docs/support_matrix:__pkg__"],
+)

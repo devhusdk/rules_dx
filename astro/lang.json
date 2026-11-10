@@ -2,7 +2,7 @@
   "$schema": "../core/modules/lang.schema.json",
   "name": "astro",
   "title": "Astro",
-  "family": "js",
+  "family": "core",
   "ecosystems": [
     "npm"
   ],

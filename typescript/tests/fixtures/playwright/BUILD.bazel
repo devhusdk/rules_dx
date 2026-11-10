@@ -1,0 +1,31 @@
+# gazelle:ignore
+load("//javascript:defs.bzl", "javascript_binary")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//typescript:defs.bzl", "typescript_playwright_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_binary(
+    name = "server",
+    main = "server.cjs",
+)
+
+typescript_playwright_test(
+    name = "hello_test",
+    srcs = ["hello.spec.ts"],
+    app = ":server",
+    config = "playwright.config.ts",
+    node_modules = "//:node_modules",
+    package_json = "//:package_json",
+    tags = ["no-remote"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

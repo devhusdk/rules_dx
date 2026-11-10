@@ -1,5 +1,7 @@
 node_modules
 javascript/private/quality/node_modules
+javascript/tests/fixtures/node-app/node_modules
+javascript/tests/fixtures/node-app/registry/node_modules
 .opencode/
 .claude/
 .dx/local

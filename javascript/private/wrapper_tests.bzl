@@ -7,6 +7,8 @@ load("//core:wrapper.bzl", "dx_args_label_error", "dx_args_label_references")
 load(":defs.bzl", "javascript_binary_upstream_data", "javascript_test_rejection")
 load("//core:node_test.bzl", "NODE_JEST_WINDOWS_ARGS", "node_jest_upstream_attrs", "node_test_env", "node_test_upstream_data", "node_test_wrap_args")
 
+visibility(["//..."])
+
 def _wrap_args(kwargs):
     return node_test_wrap_args("t", ["a.js"], ["a.js"], None, {}, None, kwargs)
 

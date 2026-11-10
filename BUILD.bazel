@@ -154,6 +154,24 @@ load("//quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude cc/tests/fixtures/strict_generation
 # gazelle:exclude quality/tests/fixtures/strict_preset
 # gazelle:exclude quality/tests/fixtures/consumer_policy
+# gazelle:exclude astro/tests/app
+# gazelle:exclude astro/tests/app_config/configs
+# gazelle:exclude astro/tests/app_config/src
+# gazelle:exclude astro/tests/fixtures/hello
+# gazelle:exclude astro/tests/typecheck
+# gazelle:exclude mdx/tests/app
+# gazelle:exclude mdx/tests/fixtures/hello
+# gazelle:exclude mdx/tests/typecheck
+# gazelle:exclude svelte/tests/app
+# gazelle:exclude svelte/tests/app_errors
+# gazelle:exclude svelte/tests/fixtures/hello
+# gazelle:exclude svelte/tests/typecheck
+# gazelle:exclude typescript/tests/tags
+# gazelle:exclude typescript/tests/fixtures/declarations
+# gazelle:exclude typescript/tests/fixtures/hello
+# gazelle:exclude vue/tests/app
+# gazelle:exclude vue/tests/fixtures/hello
+# gazelle:exclude vue/tests/typecheck
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -272,6 +290,7 @@ real_source_target(
         "//fortran:README.md",
         "go/README.md",
         "//java:README.md",
+        "//javascript:README.md",
         "//kotlin:README.md",
         "//lua:README.md",
         "ocaml/README.md",
@@ -284,6 +303,7 @@ real_source_target(
         "//rust:README.md",
         "//scala:README.md",
         "swift/README.md",
+        "//typescript:README.md",
         "//zig:README.md",
         "CLAUDE.md",
         "RELEASING.md",

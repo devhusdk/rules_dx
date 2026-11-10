@@ -1,3 +1,0 @@
-load("@rules_dx//javascript:defs.bzl", "javascript_library")
-
-filegroup(name = "loads")

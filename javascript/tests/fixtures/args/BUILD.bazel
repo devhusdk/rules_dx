@@ -1,0 +1,31 @@
+load("//javascript:defs.bzl", "javascript_test")
+load("//quality:fixtures.bzl", "real_source_target")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+javascript_test(
+    name = "args_test",
+    srcs = ["args_test.mjs"],
+    args = [
+        "--marker",
+        "$(rootpath :marker.txt)",
+    ],
+    data = [":marker.txt"],
+    main = "args_test.mjs",
+    runner = "node",
+)
+
+exports_files([
+    "args_test.mjs",
+    "marker.txt",
+])
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

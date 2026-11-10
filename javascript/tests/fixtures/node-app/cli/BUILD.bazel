@@ -1,0 +1,102 @@
+load("//javascript:defs.bzl", "javascript_binary")
+load("//typescript:defs.bzl", "typescript_library", "typescript_test")
+load("//quality:fixtures.bzl", "real_source_target")
+load("//rust:defs.bzl", "rust_test")
+
+package(default_visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"])
+
+exports_files(
+    [
+        "cli.ts",
+        "cli_test.ts",
+        "main.js",
+        "jest.config.cjs",
+        "tsconfig.json",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+typescript_library(
+    name = "cli",
+    srcs = ["cli.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = ["//javascript/tests/fixtures/node-app:node_modules/@node-app/registry"],
+)
+
+javascript_binary(
+    name = "registry",
+    srcs = ["main.js"],
+    data = [
+        ":cli",
+        "//javascript/tests/fixtures/node-app:node_modules/@node-app/registry",
+        "//javascript/tests/fixtures/node-app:node_modules/semver",
+        "//javascript/tests/fixtures/node-app:package_json",
+        "//javascript/tests/fixtures/node-app/registry",
+    ],
+    main = "main.js",
+    visibility = ["//visibility:public"],
+)
+
+typescript_test(
+    name = "cli_test",
+    srcs = ["cli_test.ts"],
+    config = "jest.config.cjs",
+    declaration = True,
+    node_modules = "//javascript/tests/fixtures/node-app:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//javascript/tests/fixtures/node-app:package_json",
+    transpiler = "tsc",
+    tsconfig = "tsconfig.json",
+    deps = [":cli"],
+)
+
+rust_test(
+    name = "exit_codes_test",
+    srcs = ["exit_codes_test.rs"],
+    data = [
+        ":registry",
+        "//javascript/tests/fixtures/node-app/registry:malformed/bad_entry.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/bad_version.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/duplicate.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/not_array.json",
+        "//javascript/tests/fixtures/node-app/registry:malformed/not_json.txt",
+        "//javascript/tests/fixtures/node-app/registry:packages.json",
+    ],
+    env = {
+        "REGISTRY_BAD_ENTRY": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/bad_entry.json)",
+        "REGISTRY_BAD_VERSION": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/bad_version.json)",
+        "REGISTRY_BIN": "$(rootpath :registry)",
+        "REGISTRY_DUPLICATE": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/duplicate.json)",
+        "REGISTRY_JSON": "$(rootpath //javascript/tests/fixtures/node-app/registry:packages.json)",
+        "REGISTRY_NOT_ARRAY": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/not_array.json)",
+        "REGISTRY_NOT_JSON": "$(rootpath //javascript/tests/fixtures/node-app/registry:malformed/not_json.txt)",
+    },
+    deps = ["//tools/testing:dx_testing"],
+)
+
+rust_test(
+    name = "coverage_test",
+    srcs = ["coverage_test.rs"],
+    data = [
+        ":cli_test",
+        "//:package_json",
+        "//javascript/tests/fixtures/node-app/registry:registry_test",
+    ],
+    env = {
+        "CLI_TEST": "$(rootpath :cli_test)",
+        "REGISTRY_TEST": "$(rootpath //javascript/tests/fixtures/node-app/registry:registry_test)",
+    },
+    tags = ["no-remote-exec"],
+    deps = ["//tools/testing:dx_testing"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+    visibility = [
+        "//tools/ci:__pkg__",
+    ],
+)

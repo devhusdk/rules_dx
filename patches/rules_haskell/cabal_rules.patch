@@ -32,10 +32,16 @@ index f28ba6d..7b6c5dc 100644
      name = "pkgdb_to_bzl",
      srcs = ["private/pkgdb_to_bzl.py"],
 diff --git a/haskell/cabal.bzl b/haskell/cabal.bzl
-index 03ccd67..991b465 100644
+index 9fbe27f..b09270f 100644
 --- a/haskell/cabal.bzl
 +++ b/haskell/cabal.bzl
-@@ -162,7 +162,6 @@ def _cabal_toolchain_info(hs, cc, workspace_name, runghc):
+@@ -160,10 +160,12 @@ def _cabal_toolchain_info(hs, cc, workspace_name, runghc):
+         ghc_cc_args = ghc_cc_program_args(hs, "$CC", "$LD"),
+     )
+ 
++def _python_dir(ctx):
++    return ctx.toolchains["@rules_python//python:toolchain_type"].py3_runtime.interpreter.dirname
++
  def _prepare_cabal_inputs(
          hs,
          cc,
@@ -43,7 +49,7 @@ index 03ccd67..991b465 100644
          workspace_name,
          dep_info,
          cc_info,
-@@ -238,10 +237,11 @@ def _prepare_cabal_inputs(
+@@ -239,10 +241,11 @@ def _prepare_cabal_inputs(
      transitive_compile_libs = get_ghci_library_files(hs, cc.cc_libraries_info, cc.transitive_libraries)
      transitive_link_libs = _concat(get_library_files(hs, cc.cc_libraries_info, cc.transitive_libraries))
      env = dicts.add(hs.env, cc.env)
@@ -59,7 +65,17 @@ index 03ccd67..991b465 100644
      if hs.toolchain.is_darwin:
          env["SDKROOT"] = "macosx"  # See haskell/private/actions/link.bzl
  
-@@ -333,7 +333,7 @@ def _prepare_cabal_inputs(
+@@ -277,6 +280,9 @@ def _prepare_cabal_inputs(
+         extra_args.append("--haddock-option=--optghc=-pgmotool=" + paths.join(ar_bindir, "otool"))
+         extra_args.append("--haddock-option=--optghc=-pgminstall_name_tool=" + paths.join(ar_bindir, "install_name_tool"))
+ 
++    if not (hs.toolchain.is_darwin or hs.toolchain.is_windows):
++        extra_args.append("--ghc-option=-optl-fuse-ld=lld")
++
+     ghc_version = [int(x) for x in hs.toolchain.version.split(".")]
+     if dynamic_file:
+         # See Note [No PIE when linking] in haskell/private/actions/link.bzl
+@@ -334,7 +340,7 @@ def _prepare_cabal_inputs(
      if with_profiling:
          extra_args.append("--enable-profiling")
  
@@ -68,7 +84,7 @@ index 03ccd67..991b465 100644
  
      # Redundant with _binary_paths() above, but better be explicit when we can.
  
-@@ -488,7 +488,6 @@ def _haskell_cabal_library_impl(ctx):
+@@ -489,7 +495,6 @@ def _haskell_cabal_library_impl(ctx):
              if CcInfo in dep and not HaskellInfo in dep
          ],
      )
@@ -76,7 +92,7 @@ index 03ccd67..991b465 100644
      package_name = ctx.attr.package_name if ctx.attr.package_name else hs.label.name
      package_id = "{}-{}{}".format(
          package_name,
-@@ -561,7 +560,6 @@ def _haskell_cabal_library_impl(ctx):
+@@ -562,7 +567,6 @@ def _haskell_cabal_library_impl(ctx):
      c = _prepare_cabal_inputs(
          hs,
          cc,
@@ -84,14 +100,16 @@ index 03ccd67..991b465 100644
          ctx.workspace_name,
          dep_info,
          cc_info,
-@@ -608,12 +606,13 @@ def _haskell_cabal_library_impl(ctx):
+@@ -605,7 +609,7 @@ def _haskell_cabal_library_impl(ctx):
+     ctx.actions.write(json_args, json.encode(c.args))
+ 
+     # Ensure that dependent tools can be found.
+-    paths = []
++    paths = [_python_dir(ctx)]
      if "PATH" in c.env:
          paths.append(c.env["PATH"])
      paths.extend([t.executable.dirname for t in attr_tools])
--    c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
-+    if paths:
-+        c.env["PATH"] = join_path_list(hs.toolchain.is_windows, paths)
- 
+@@ -614,7 +618,7 @@ def _haskell_cabal_library_impl(ctx):
      ctx.actions.run(
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
@@ -100,15 +118,16 @@ index 03ccd67..991b465 100644
          tools = attr_tools +
                  [c.cabal_wrapper, ctx.executable._runghc, hs.toolchain.cc_wrapper.as_tool] +
                  hs.tools_config.tools_for_ghc,
-@@ -804,7 +803,6 @@ haskell_cabal_library = rule(
+@@ -809,7 +813,7 @@ haskell_cabal_library = rule(
      },
      toolchains = use_cc_toolchain() + [
          "@rules_haskell//haskell:toolchain",
 -        "@rules_sh//sh/posix:toolchain_type",
++        "@rules_python//python:toolchain_type",
      ],
      fragments = ["cpp"],
      doc = """\
-@@ -869,7 +867,6 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -874,7 +878,6 @@ def _haskell_cabal_binary_impl(ctx):
              if CcInfo in dep and not HaskellInfo in dep
          ],
      )
@@ -116,7 +135,7 @@ index 03ccd67..991b465 100644
  
      exe_name = ctx.attr.exe_name if ctx.attr.exe_name else hs.label.name
      user_cabalopts = _expand_make_variables("cabalopts", ctx, ctx.attr.cabalopts)
-@@ -903,7 +900,6 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -908,7 +911,6 @@ def _haskell_cabal_binary_impl(ctx):
      c = _prepare_cabal_inputs(
          hs,
          cc,
@@ -124,7 +143,14 @@ index 03ccd67..991b465 100644
          ctx.workspace_name,
          dep_info,
          cc_info,
-@@ -933,7 +929,7 @@ def _haskell_cabal_binary_impl(ctx):
+@@ -935,10 +937,14 @@ def _haskell_cabal_binary_impl(ctx):
+     )
+     json_args = ctx.actions.declare_file("{}_cabal_wrapper_args.json".format(ctx.label.name))
+     ctx.actions.write(json_args, json.encode(c.args))
++    c.env["PATH"] = join_path_list(
++        hs.toolchain.is_windows,
++        [_python_dir(ctx)] + ([c.env["PATH"]] if "PATH" in c.env else []),
++    )
      ctx.actions.run(
          executable = c.cabal_wrapper,
          arguments = [json_args.path],
@@ -133,24 +159,23 @@ index 03ccd67..991b465 100644
          outputs = [
              package_database,
              binary,
-@@ -1047,7 +1043,6 @@ haskell_cabal_binary = rule(
+@@ -1056,7 +1062,7 @@ haskell_cabal_binary = rule(
      },
      toolchains = use_cc_toolchain() + [
          "@rules_haskell//haskell:toolchain",
 -        "@rules_sh//sh/posix:toolchain_type",
++        "@rules_python//python:toolchain_type",
      ],
      fragments = ["cpp"],
      doc = """\
 diff --git a/haskell/private/cabal_wrapper.py b/haskell/private/cabal_wrapper.py
-index 6e2a40e..979cbfd 100755
+index 6e2a40e..271609e 100755
 --- a/haskell/private/cabal_wrapper.py
 +++ b/haskell/private/cabal_wrapper.py
-@@ -95,7 +95,10 @@ def canonicalize_path(path):
- # Remove any relative entries, because we'll be changing CWD shortly.
+@@ -96,6 +96,9 @@ def canonicalize_path(path):
  os.environ["LD_LIBRARY_PATH"] = canonicalize_path(os.getenv("LD_LIBRARY_PATH", ""))
  os.environ["LIBRARY_PATH"] = canonicalize_path(os.getenv("LIBRARY_PATH", ""))
--os.environ["PATH"] = canonicalize_path(os.getenv("PATH", ""))
-+os.environ["PATH"] = canonicalize_path(os.environ.get("PATH") or ("" if is_windows else "/usr/bin:/bin"))
+ os.environ["PATH"] = canonicalize_path(os.getenv("PATH", ""))
 +if is_windows and not os.environ["PATH"]:
 +    _ghc_root = os.path.dirname(os.path.dirname(os.path.abspath(os.environ["RULES_HASKELL_GHC_PATH"]))) if os.environ.get("RULES_HASKELL_GHC_PATH") else ""
 +    os.environ["PATH"] = os.pathsep.join([os.path.join(_ghc_root, "mingw", "bin"), os.path.join(_ghc_root, "bin")])

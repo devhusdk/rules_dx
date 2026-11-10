@@ -2,7 +2,7 @@ load("@rules_py//py:defs.bzl", "py_binary", "py_unittest_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
 
-package(default_visibility = ["//:__subpackages__"])
+package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "pyproject.toml",

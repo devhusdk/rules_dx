@@ -23,7 +23,6 @@ cc_library(
 cc_test(
     name = "main_test",
     srcs = ["main.cc"],
-    tags = ["manual"],
     target_compatible_with = _GCC_ONLY,
     deps = [":lib"],
 )
@@ -40,7 +39,6 @@ cc_library(
 cc_test(
     name = "main_alt_test",
     srcs = ["main.cc"],
-    tags = ["manual"],
     target_compatible_with = _GCC_ONLY,
     deps = [":lib_alt"],
 )

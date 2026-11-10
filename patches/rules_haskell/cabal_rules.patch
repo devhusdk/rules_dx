@@ -190,7 +190,7 @@ index 6e2a40e..271609e 100755
      if "RUNFILES_MANIFEST_FILE" in os.environ:
          del os.environ["RUNFILES_MANIFEST_FILE"]
      runghc_args = [arg.replace("./", execroot + "/") for arg in runghc_args]
-+    extra_args = [re.sub(r"^(--ghc-option=-opt[cl](?:-[LBIF]|-isystem|-iframework)?)((?:external|bazel-out)/)", lambda m: m.group(1) + execroot + "/" + m.group(2), a) for a in extra_args]
++    extra_args = [re.sub(r"^(--ghc-option=-opt[cl](?:-[LBIF]|-isystem|-iframework|--sysroot=|-resource-dir=)?)((?:external|bazel-out)/)", lambda m: m.group(1) + execroot + "/" + m.group(2), a) for a in extra_args]
 +    ghc_cc_args = toolchain_info["ghc_cc_args"]
 +    if "-pgmlm" in ghc_cc_args:
 +        ghc_cc_args = ghc_cc_args[:ghc_cc_args.index("-pgmlm")]

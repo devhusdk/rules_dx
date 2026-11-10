@@ -1,42 +1,29 @@
 #!/usr/bin/env python3
-"""Keep the Rule names table in docs/cli/commands/README.md in step with defs.bzl.
+"""Keep the Rule names table in docs/cli/commands/README.md in step with lang.json.
 
-Rows with an upstream rule are written by hand. Every other public rule or
-macro that a defs.bzl or app.bzl in the repo exports gets a generated row with
-an empty upstream column. Run with --write to regenerate, or without to check.
+Rows with an upstream rule are written by hand. Every other entry point listed
+in a <lang>/lang.json gets a generated row with an empty upstream column. Run with --write to regenerate, or without to check.
 """
 
+import json
 import os
 import re
 import sys
 
 DOC = "docs/cli/commands/README.md"
 HEADER = "| Upstream load | Upstream rule | dx load | dx rule |\n| --- | --- | --- | --- |\n"
-EXPORT = re.compile(r"^(?:def ([a-z]\w*)\(|([a-z]\w*) = (?:rule|macro)\()", re.M)
-
-
-def dx_load(path):
-    parts = path.split("/")
-    if parts[0] == "families":
-        return "@rules_dx_%s//%s:%s" % (parts[1], "/".join(parts[2:-1]), parts[-1])
-    return "@rules_dx//%s:%s" % ("/".join(parts[:-1]), parts[-1])
-
-
-def scanned(root):
-    for dirpath, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if not d.startswith((".", "bazel-"))]
-        for name in files:
-            if name in ("defs.bzl", "app.bzl"):
-                yield os.path.relpath(os.path.join(dirpath, name), root).replace(os.sep, "/")
 
 
 def exports(root):
     found = {}
-    for path in sorted(scanned(root)):
-        with open(os.path.join(root, path), encoding="utf-8") as f:
-            names = sorted({a or b for a, b in EXPORT.findall(f.read())})
+    for lang in sorted(os.listdir(root)):
+        path = os.path.join(root, lang, "lang.json")
+        if lang.startswith((".", "bazel-")) or not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8") as f:
+            names = sorted(set(json.load(f).get("entry_points", [])))
         if names:
-            found[dx_load(path)] = names
+            found["@rules_dx//%s:defs.bzl" % lang] = names
     return found
 
 
@@ -89,9 +76,9 @@ def main():
             f.write(want)
         return 0
     if want != text:
-        print("%s is out of date with the defs.bzl exports; run: bazel run //tools/docs/rule_names:rule_names_bin -- --write" % DOC, file=sys.stderr)
+        print("%s is out of date with the lang.json entry points; run: bazel run //tools/docs/rule_names:rule_names_bin -- --write" % DOC, file=sys.stderr)
         return 1
-    print("Rule names table covers every public export")
+    print("Rule names table covers every lang.json entry point")
     return 0
 
 

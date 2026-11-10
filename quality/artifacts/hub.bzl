@@ -70,7 +70,9 @@ PARTIAL_TOOL_PLATFORMS = {
 
 # Tools built from a locked source tree on a platform with no pinned artifact.
 SOURCE_BUILT_TOOL_PLATFORMS = {
+    "hlint": ["linux_arm64"],
     "nixfmt": ["linux_arm64"],
+    "ormolu": ["linux_arm64"],
 }
 
 # Name of the empty target a partial tool resolves to on an unpinned platform.

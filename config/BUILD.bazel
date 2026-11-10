@@ -55,7 +55,7 @@ label_flag(
 
 label_flag(
     name = "tool_hlint",
-    build_setting_default = "@dx_tools//:hlint",
+    build_setting_default = "//quality/tools/hlint",
 )
 
 label_flag(
@@ -85,7 +85,7 @@ label_flag(
 
 label_flag(
     name = "tool_ormolu",
-    build_setting_default = "@dx_tools//:ormolu",
+    build_setting_default = "//quality/tools/ormolu",
 )
 
 label_flag(

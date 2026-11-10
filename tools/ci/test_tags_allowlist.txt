@@ -1,10 +1,6 @@
 cc/tests/fixtures/bench/BUILD.bazel manual 1
 cc/tests/fixtures/fuzz/BUILD.bazel manual 1
 cc/tests/fixtures/sanitize/BUILD.bazel manual 4
-cli/cli/tests/agents/BUILD.bazel local 1
-cli/cli/tests/agents/BUILD.bazel no-sandbox 1
-cli/cli/tests/uv_sets/BUILD.bazel local 1
-cli/cli/tests/uv_sets/BUILD.bazel no-sandbox 1
 core/fuzz.bzl manual 1
 csharp/private/defs.bzl manual 1
 csharp/tests/fixtures/fuzz/BUILD.bazel manual 1

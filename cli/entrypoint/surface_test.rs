@@ -28,7 +28,13 @@ fn every_listed_file_was_followed_without_reaching_a_dev_only_repository() {
 
 #[test]
 fn entry_points_are_listed_in_the_consumer_surface() {
-    let entry = lines(&read("DX_SURFACE_ENTRY_POINTS"));
+    let entry: BTreeSet<String> = dx_testing::source_paths()
+        .iter()
+        .filter_map(|path| path.strip_suffix("/defs.bzl"))
+        .filter(|dir| !dir.contains('/'))
+        .map(str::to_string)
+        .collect();
+    assert!(!entry.is_empty(), "the snapshot holds no <lang>/defs.bzl");
     let listed = lines(&read("DX_SURFACE_LIST"));
     for name in &entry {
         let label = format!("{name}:defs.bzl");

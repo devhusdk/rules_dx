@@ -49,15 +49,7 @@ def _consumer_surface_repo_impl(ctx):
     if bad:
         fail("supported files load dev-only repositories: " + ", ".join(bad))
     ctx.file("closure.txt", "\n".join(sorted(seen)) + "\n")
-    entry_points = []
-    root = ctx.path(Label("//:MODULE.bazel")).dirname
-    for child in root.readdir(watch = "yes"):
-        if not child.is_dir:
-            continue
-        if child.get_child("defs.bzl").exists:
-            entry_points.append(child.basename)
-    ctx.file("entry_points.txt", "\n".join(sorted(entry_points)) + "\n")
-    ctx.file("BUILD.bazel", 'exports_files(["closure.txt", "entry_points.txt"], visibility = ["//visibility:public"])\n')
+    ctx.file("BUILD.bazel", 'exports_files(["closure.txt"], visibility = ["//visibility:public"])\n')
     return ctx.repo_metadata(reproducible = True)
 
 consumer_surface_repo = repository_rule(

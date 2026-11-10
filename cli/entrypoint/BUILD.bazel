@@ -138,11 +138,11 @@ rust_test(
     data = [
         "consumer_surface.txt",
         "@dx_consumer_surface//:closure.txt",
-        "@dx_consumer_surface//:entry_points.txt",
+        "@dx_test_tags_sources//:all_paths.json",
     ],
     env = {
+        "DX_PATHS_JSON": "$(rlocationpath @dx_test_tags_sources//:all_paths.json)",
         "DX_SURFACE_CLOSURE": "$(rootpath @dx_consumer_surface//:closure.txt)",
-        "DX_SURFACE_ENTRY_POINTS": "$(rootpath @dx_consumer_surface//:entry_points.txt)",
         "DX_SURFACE_LIST": "$(rootpath consumer_surface.txt)",
     },
     tags = ["no-coverage"],

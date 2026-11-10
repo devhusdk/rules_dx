@@ -1,5 +1,5 @@
 """Public Zig module extensions."""
 
-load("//zig/private/deps:extensions.bzl", _zig_deps = "zig_deps")
+load("//zig/private/lock:hub.bzl", _zig = "zig")
 
-zig = _zig_deps
+zig = _zig

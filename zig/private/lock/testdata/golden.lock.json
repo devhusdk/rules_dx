@@ -1,0 +1,51 @@
+{
+  "ecosystem": "zig",
+  "inputs": {
+    "build.zig.zon": "a8b9b2fb7140e173cfe77e77025f50bc5a70a4ef8c87c9a7815acdde5e88505b"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "044f47be6e4d823df7c7a4010362f9682934b2371f2213b8ec21c1980ebd7d93",
+          "strip_prefix": "base-1",
+          "urls": [
+            "https://example.com/base-1.zip"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "zig_main": "root.zig"
+      },
+      "name": "base",
+      "provides": [
+        "base"
+      ],
+      "version": "base-1"
+    },
+    {
+      "archives": [
+        {
+          "sha256": "39e7449a41c316a9ec6bbd0c6fd652862c4bbc66b0467bc53b74442650349efc",
+          "strip_prefix": "mini-1",
+          "urls": [
+            "https://example.com/mini-1.tar.gz"
+          ]
+        }
+      ],
+      "deps": [
+        "base"
+      ],
+      "extra": {
+        "zig_main": "src/mini.zig"
+      },
+      "name": "mini",
+      "provides": [
+        "mini"
+      ],
+      "version": "mini-1"
+    }
+  ],
+  "schema": 1
+}

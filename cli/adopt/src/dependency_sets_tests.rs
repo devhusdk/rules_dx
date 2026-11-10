@@ -421,7 +421,7 @@ fn ansible_and_bicep_tags_become_sets() {
 
 #[test]
 fn zig_locks_become_zig_sets() {
-    let module = "zig = use_extension(\"@rules_dx//zig:extensions.bzl\", \"zig_deps\")\nzig.lock(name = \"zig_pkgs\", lock = \"//app:build.zig.zon\", digests = \"//app:zig.digests.json\")\n";
+    let module = "zig = use_extension(\"@rules_dx//zig:extensions.bzl\", \"zig\")\nzig.lock(name = \"zig_pkgs\", lock = \"//app:zig.lock.json\")\n";
     let read = |_: &str| Err("none".to_owned());
     let registry = discover(module, &read)
         .expect("discovers")
@@ -429,7 +429,7 @@ fn zig_locks_become_zig_sets() {
     let set = registry.find("zig_pkgs").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Zig);
     assert_eq!(set.manifests, ["app/build.zig.zon"]);
-    assert_eq!(set.locks, ["app/zig.digests.json"]);
+    assert_eq!(set.locks, ["app/zig.lock.json"]);
     assert_eq!(Ecosystem::parse("zig"), Some(Ecosystem::Zig));
 }
 

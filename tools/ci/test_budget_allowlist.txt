@@ -806,9 +806,6 @@ vue/tests/fixtures/hello/BUILD.bazel no-size 1
 wasi/private/testing/BUILD.bazel no-size 1
 wasi/tests/BUILD.bazel no-size 2
 zig/private/BUILD.bazel no-size 1
-zig/private/deps/BUILD.bazel no-size 1
-zig/private/deps/lock_tests.bzl no-size 1
-zig/private/tools/BUILD.bazel no-size 1
 zig/tests/fixtures/bench/BUILD.bazel no-size 3
 zig/tests/fixtures/bench/BUILD.bazel size-large 1
 zig/tests/fixtures/bench/BUILD.bazel timeout-long 1

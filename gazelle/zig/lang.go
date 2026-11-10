@@ -47,6 +47,7 @@ func NewLanguage() language.Language {
 		IsImportSource: isSupported,
 		IsTestSource:   IsTestSource,
 		IsStdLib:       IsStdLib,
+		External:       "zig",
 		UnresolvedHint: "add a zig_library with that name or import_name, or an exact # gazelle:resolve zig mapping",
 		Generate:       generateRules,
 	})}

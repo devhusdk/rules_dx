@@ -578,16 +578,15 @@ fortran.fpm(
 ### zig
 
 ```starlark
-zig_deps = use_extension("@rules_dx//zig:extensions.bzl", "zig")
-zig_deps.lock(
+zig_hub = use_extension("@rules_dx//zig:extensions.bzl", "zig")
+zig_hub.lock(
     name = "zig_packages",
-    digests = "//:zig.digests.json",
-    lock = "//:build.zig.zon",
+    lock = "//:zig.lock.json",
 )
 ```
 
-- `build.zig.zon` is `lock` and the manifest; `zig.digests.json` must sit beside it.
-- A zig set: `dx update` runs the `zig_digests` target next to `build.zig.zon`, which re-hashes each archive dependency into `zig.digests.json`; `<set>:<package>` re-hashes one. It does not move versions, and `dx update --outdated` checks no registry. Without the target it refuses.
+- `zig.lock.json` is `lock`; `build.zig.zon` is the manifest and must sit beside it.
+- A zig set: `dx update` runs `bazel run @rules_dx//zig:lock -- --dir <set directory>`, which downloads each archive dependency and rewrites `zig.lock.json`. It does not move versions, `<set>:<package>` is refused, and `dx update --outdated` checks no registry.
 - OSV and the GitHub Advisory Database have no Zig ecosystem, so `dx security` has no advisory source.
 
 ### opam

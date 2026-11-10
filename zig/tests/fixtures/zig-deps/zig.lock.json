@@ -1,0 +1,29 @@
+{
+  "ecosystem": "zig",
+  "inputs": {
+    "build.zig.zon": "1d9003da3675504bf9c656f8057193d816be3077d6d6ff84751fc5c34c631c05"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "0ba90c98fe4b50ca912bf593ff22c87d40e8acda811326fdef215eb9526b4806",
+          "strip_prefix": "zig-clap-05faf3905e8548f5cc269a8836e154065e70128d",
+          "urls": [
+            "https://github.com/Hejsil/zig-clap/archive/05faf3905e8548f5cc269a8836e154065e70128d.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "zig_main": "clap.zig"
+      },
+      "name": "clap",
+      "provides": [
+        "clap"
+      ],
+      "version": "clap-05faf39"
+    }
+  ],
+  "schema": 1
+}

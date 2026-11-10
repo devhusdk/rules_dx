@@ -76,6 +76,7 @@
       "minProperties": 1,
       "additionalProperties": false,
       "properties": {
+        "zig_main": {"type": "string", "minLength": 1},
         "swift_products": {
           "type": "object",
           "additionalProperties": {

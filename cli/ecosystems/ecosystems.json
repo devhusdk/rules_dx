@@ -374,11 +374,11 @@
       "audit": true,
       "advisory_family": null,
       "uses_repository": false,
-      "lockfiles": ["zig.digests.json"],
+      "lockfiles": ["zig.lock.json"],
       "osv_source": null,
       "license_audit": false,
       "lock_required": true,
-      "pinned_reason": "dx checks no archive pins; run `dx update` to re-hash them"
+      "pinned_reason": "dx checks no archive pins; run `dx update` to resolve them"
     },
     {
       "name": "luarocks",

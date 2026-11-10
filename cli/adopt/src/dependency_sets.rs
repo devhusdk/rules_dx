@@ -44,8 +44,6 @@ pub const DUB_DIGESTS: &str = "dub.digests.json";
 
 pub const ZIG_ZON: &str = "build.zig.zon";
 
-pub const ZIG_DIGESTS: &str = "zig.digests.json";
-
 const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
 
 pub const LUAROCKS_LOCK: &str = "luarocks.lock";
@@ -467,7 +465,7 @@ pub fn discover(
                 zig.name,
                 Ecosystem::Zig,
                 vec![in_dir(&dir, ZIG_ZON)],
-                vec![path(zig.digests)?],
+                vec![lock],
             )?);
         }
         for luarocks in module.luarocks_locks().map_err(hub)? {

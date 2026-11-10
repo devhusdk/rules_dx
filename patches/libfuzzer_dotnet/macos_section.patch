@@ -1,0 +1,17 @@
+--- a/libfuzzer-dotnet.cc
++++ b/libfuzzer-dotnet.cc
+@@ -21,7 +21,13 @@
+ #define CTL_FD_VAR "__LIBFUZZER_CONTROL_PIPE_ID"
+ #define ST_FD_VAR "__LIBFUZZER_STATUS_PIPE_ID"
+ 
+-__attribute__((weak, section("__libfuzzer_extra_counters")))
++#ifdef __APPLE__
++#define EXTRA_COUNTERS_SECTION "__DATA,__libfuzzer_extra_counters"
++#else
++#define EXTRA_COUNTERS_SECTION "__libfuzzer_extra_counters"
++#endif
++
++__attribute__((weak, section(EXTRA_COUNTERS_SECTION)))
+ uint8_t extra_counters[MAP_SIZE];
+ 
+ static const char *target_path_name = "--target_path";

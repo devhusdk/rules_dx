@@ -49,7 +49,7 @@ csharp_test(
 | `csharp_binary` | Executable run with `bazel run`. `srcs` is optional |
 | `csharp_test` | Test executable run with `bazel test` |
 | `csharp_bench` | `csharp_test` that runs `[Benchmark]` classes with BenchmarkDotNet and writes `dx-bench.json` for `dx bench`; BenchmarkDotNet comes with rules_dx, so `paket.dependencies` needs no entry |
-| `csharp_fuzz_test` | SharpFuzz harness whose `Main` calls `Fuzzer.LibFuzzer.Run`, plus a `<name>_run` runner for `dx fuzz`. The libraries in `deps` are instrumented at build time. Linux only; SharpFuzz comes with rules_dx |
+| `csharp_fuzz_test` | SharpFuzz harness whose `Main` calls `Fuzzer.LibFuzzer.Run`, plus a `<name>_run` runner for `dx fuzz`. The libraries in `deps` are instrumented at build time. Linux and macOS; SharpFuzz comes with rules_dx |
 
 - `target_frameworks` defaults to `["net10.0"]`. Set it to change it.
 - `warnings_as_errors` follows `//config:warnings_as_errors`, which is on by

@@ -1,0 +1,9 @@
+load("@rules_dx//quality:fixtures.bzl", "real_source_target")
+
+exports_files(["macos_section.patch"])
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

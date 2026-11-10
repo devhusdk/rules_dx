@@ -7,6 +7,7 @@ def _dotnet_tools_impl(mctx):
     pinned_archive(
         name = "dx_libfuzzer_dotnet",
         files = {"BUILD.bazel": "exports_files([\"libfuzzer-dotnet.cc\"])\n"},
+        patches = [Label("//patches/libfuzzer_dotnet:macos_section.patch")],
         required = ["libfuzzer-dotnet.cc"],
         sha256 = LIBFUZZER_DOTNET_SHA256,
         strip_prefix = LIBFUZZER_DOTNET_STRIP_PREFIX,

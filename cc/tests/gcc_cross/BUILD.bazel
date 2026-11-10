@@ -5,14 +5,6 @@ load("//rust:defs.bzl", "rust_test")
 
 package(default_testonly = True)
 
-platform(
-    name = "linux_arm64",
-    constraint_values = [
-        "@platforms//cpu:arm64",
-        "@platforms//os:linux",
-    ],
-)
-
 cc_binary(
     name = "hello_c",
     srcs = ["hello_c.c"],
@@ -26,7 +18,7 @@ cc_toolchain_files(
         "//rust/tests/fixtures/native_call:native_call_bin",
     ],
     compiler = "gcc",
-    platforms = ["//cc/tests/gcc_cross:linux_arm64"],
+    platforms = ["//tools/platforms:linux_arm64"],
     target_compatible_with = [
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",

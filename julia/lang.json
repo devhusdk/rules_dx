@@ -29,7 +29,8 @@
     "julia_library",
     "julia_binary",
     "julia_test",
-    "julia_standalone_binary"
+    "julia_standalone_binary",
+    "julia_bench"
   ],
   "quality": {
     "bzl": "julia/private/quality:julia.bzl",

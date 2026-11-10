@@ -1,0 +1,31 @@
+load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//julia:defs.bzl", "julia_bench", "julia_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
+
+julia_bench(
+    name = "sum_bench",
+    srcs = ["sum_bench.jl"],
+)
+
+julia_test(
+    name = "bench_report_test",
+    srcs = ["report_test.jl"],
+    deps = ["@rules_dx//julia/private/bench:DxBench"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+dx_runner_attr_test(
+    name = "sum_bench_default_size",
+    expected = {"size": "small"},
+    runner = "sum_bench",
+)

@@ -516,6 +516,7 @@ LANGUAGES = [
     ),
     _language(
         "julia",
+        bench = "julia_bench",
         deps = "`julia`",
         doc = struct(tool = "documenter", shard = "julia_doc_shard"),
         dead_code = ["none"],

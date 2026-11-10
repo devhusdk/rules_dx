@@ -1,0 +1,15 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
+load("//julia/private:defs.bzl", "julia_library")
+
+package(default_visibility = ["//visibility:public"])
+
+julia_library(
+    name = "DxBench",
+    srcs = ["src/DxBench.jl"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)

@@ -11,7 +11,7 @@ to precompile. Libraries precompile at build time, so a syntax error fails
 `bazel build`.
 
 ```python
-load("@rules_dx//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
+load("@rules_dx//julia:defs.bzl", "julia_bench", "julia_binary", "julia_library", "julia_test")
 
 julia_library(
     name = "Greet",
@@ -35,6 +35,8 @@ The wrappers forward to `rules_julia` and add the `julia` quality class.
 [`julia-app`](tests/fixtures/julia-app/README.md) is a multi-package app
 with a lockfile hub, a `Bzip2_jll` binary dependency, runfiles data and a
 diagnostics package.
+
+`julia_bench(name, srcs, main, deps)` declares the manual `dx-bench` test `dx bench` runs. Its main calls `DxBench.run_benchmarks(["name" => fn, ...])`, which times each function with `time_ns` and writes `dx-bench.json` to `TEST_UNDECLARED_OUTPUTS_DIR`. `DxBench` is added to `deps`. See `tests/fixtures/bench`.
 
 `julia_standalone_binary(name, binary)` compiles a `julia_library` into a
 system image and a launcher that runs after the runfiles are copied out of

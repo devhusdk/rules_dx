@@ -30,7 +30,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Haskell | `windows_arm64`: GHC 9.10.3 ships no Windows arm64 bindist | `hackage` from `cabal.project.freeze`; none for `stack.yaml.lock`, which `haskell_deps_resolve` reads to write it | `haskell_bench` | n/a |
 | Java | none | `maven` | `java_bench` | `java_fuzz_test` |
 | JavaScript | none | `npm` | `javascript_bench` | `javascript_fuzz_test` |
-| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | n/a | n/a |
+| Julia | `windows_arm64`: julialang.org and rules_julia 0.8.0 ship no Windows arm64 Julia build | `julia` | `julia_bench` | n/a |
 | Kotlin | none | `maven` | `kotlin_bench` | `kotlin_fuzz_test` |
 | Lua | none | `luarocks` (pinned, no advisories) | `lua_bench` | n/a |
 | MDX | none | `npm` | n/a | n/a |

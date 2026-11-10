@@ -48,6 +48,8 @@ pub fn languages() -> &'static [Language] {
 struct Row {
     name: String,
     manifest: String,
+    alt_manifests: Vec<String>,
+    shared_manifest: bool,
     check: bool,
     update: bool,
     audit: bool,
@@ -236,6 +238,16 @@ impl Ecosystem {
     /// Names the file every manifest of this ecosystem must have.
     pub fn manifest_name(self) -> &'static str {
         self.row().map_or("", |row| row.manifest.as_str())
+    }
+
+    /// Names the other file names a manifest of this ecosystem may have.
+    pub fn alt_manifests(self) -> &'static [String] {
+        self.row().map_or(&[], |row| row.alt_manifests.as_slice())
+    }
+
+    /// Tells whether this ecosystem's manifest is a file other ecosystems write too.
+    pub fn shared_manifest(self) -> bool {
+        self.row().is_some_and(|row| row.shared_manifest)
     }
 
     /// Tells whether records of this ecosystem name the Bazel repository dx resolves through.

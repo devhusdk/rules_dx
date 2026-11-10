@@ -3,6 +3,8 @@
     {
       "name": "uv",
       "manifest": "pyproject.toml",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": true,
       "update": true,
       "audit": true,
@@ -14,6 +16,8 @@
     {
       "name": "npm",
       "manifest": "package.json",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": true,
       "update": true,
       "audit": true,
@@ -25,6 +29,8 @@
     {
       "name": "bazel",
       "manifest": "MODULE.bazel",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -36,6 +42,8 @@
     {
       "name": "ruby",
       "manifest": "Gemfile",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -47,6 +55,8 @@
     {
       "name": "powershell",
       "manifest": "PSGallery.requirements.psd1",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -58,6 +68,8 @@
     {
       "name": "cargo",
       "manifest": "Cargo.toml",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": true,
       "update": true,
       "audit": true,
@@ -69,6 +81,8 @@
     {
       "name": "maven",
       "manifest": "MODULE.bazel",
+      "alt_manifests": [],
+      "shared_manifest": true,
       "check": true,
       "update": true,
       "audit": true,
@@ -80,6 +94,8 @@
     {
       "name": "nuget",
       "manifest": "paket.dependencies",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": true,
       "update": true,
       "audit": true,
@@ -91,6 +107,8 @@
     {
       "name": "go",
       "manifest": "go.mod",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": true,
       "update": true,
       "audit": true,
@@ -102,6 +120,8 @@
     {
       "name": "cpan",
       "manifest": "cpanfile",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -113,6 +133,8 @@
     {
       "name": "pub",
       "manifest": "pubspec.yaml",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -124,6 +146,8 @@
     {
       "name": "conan",
       "manifest": "conanfile.txt",
+      "alt_manifests": ["conanfile.py"],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -135,6 +159,8 @@
     {
       "name": "julia",
       "manifest": "Project.toml",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -146,6 +172,8 @@
     {
       "name": "hex",
       "manifest": "mix.exs",
+      "alt_manifests": ["rebar.config"],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -157,6 +185,8 @@
     {
       "name": "composer",
       "manifest": "composer.json",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -168,6 +198,8 @@
     {
       "name": "opam",
       "manifest": "<name>.opam",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -179,6 +211,8 @@
     {
       "name": "swiftpm",
       "manifest": "Package.swift",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": true,
       "update": true,
       "audit": true,
@@ -190,6 +224,8 @@
     {
       "name": "cabal",
       "manifest": "cabal.project",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -201,6 +237,8 @@
     {
       "name": "dub",
       "manifest": "dub.json",
+      "alt_manifests": ["dub.sdl"],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -212,6 +250,8 @@
     {
       "name": "fpm",
       "manifest": "fpm.toml",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": true,
       "audit": true,
@@ -223,6 +263,8 @@
     {
       "name": "zig",
       "manifest": "build.zig.zon",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": true,
       "audit": true,
@@ -234,6 +276,8 @@
     {
       "name": "luarocks",
       "manifest": "luarocks.lock",
+      "alt_manifests": [],
+      "shared_manifest": false,
       "check": false,
       "update": false,
       "audit": true,
@@ -245,6 +289,8 @@
     {
       "name": "ansible",
       "manifest": "MODULE.bazel",
+      "alt_manifests": [],
+      "shared_manifest": true,
       "check": false,
       "update": true,
       "audit": true,
@@ -256,6 +302,8 @@
     {
       "name": "bicep",
       "manifest": "MODULE.bazel",
+      "alt_manifests": [],
+      "shared_manifest": true,
       "check": false,
       "update": false,
       "audit": true,

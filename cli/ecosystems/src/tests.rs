@@ -14,6 +14,11 @@ fn rows_are_complete_and_unique() {
     for row in rows() {
         assert!(!row.name.is_empty());
         assert!(!row.manifest.is_empty(), "{} has no manifest", row.name);
+        assert!(
+            row.alt_manifests.iter().all(|alt| !alt.is_empty() && *alt != row.manifest),
+            "{} has a bad alternate manifest",
+            row.name
+        );
         assert!(seen.insert(row.name.as_str()), "duplicate {}", row.name);
         assert!(
             Ecosystem::parse(&row.name).is_some(),
@@ -101,4 +106,16 @@ fn languages_name_known_ecosystems() {
             assert!(Ecosystem::parse(id).is_some(), "{} lists {id}", language.name);
         }
     }
+}
+
+#[test]
+fn manifest_columns_resolve() {
+    assert_eq!(Ecosystem::Conan.alt_manifests(), ["conanfile.py"]);
+    assert_eq!(Ecosystem::Dub.alt_manifests(), ["dub.sdl"]);
+    assert_eq!(Ecosystem::Hex.alt_manifests(), ["rebar.config"]);
+    assert!(Ecosystem::Uv.alt_manifests().is_empty());
+    assert!(Ecosystem::Maven.shared_manifest());
+    assert!(Ecosystem::Ansible.shared_manifest());
+    assert!(Ecosystem::Bicep.shared_manifest());
+    assert!(!Ecosystem::Cargo.shared_manifest());
 }

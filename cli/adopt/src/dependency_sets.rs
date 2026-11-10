@@ -680,13 +680,8 @@ fn validate_set(set: &DependencySet) -> Result<(), DependencySetsError> {
     }
     for manifest in &set.manifests {
         let file = manifest.rsplit('/').next().unwrap_or(manifest);
-        let allowed = match set.ecosystem {
-            Ecosystem::Conan => CONANFILES.contains(&file),
-            Ecosystem::Dub => DUB_MANIFESTS.contains(&file),
-            Ecosystem::Opam => file.ends_with(".opam") && file != ".opam",
-            Ecosystem::Hex => file == REBAR_CONFIG,
-            _ => false,
-        };
+        let allowed = set.ecosystem.alt_manifests().iter().any(|alt| alt == file)
+            || (set.ecosystem == Ecosystem::Opam && file.ends_with(".opam") && file != ".opam");
         if file != set.ecosystem.manifest_name() && !allowed {
             return Err(DependencySetsError::InvalidManifest {
                 name: name.clone(),
@@ -783,10 +778,7 @@ fn check_conflicts(sets: &[DependencySet]) -> Result<(), DependencySetsError> {
     }
     let mut writers: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
     for set in sets {
-        let manifests: &[String] = if matches!(
-            set.ecosystem,
-            Ecosystem::Maven | Ecosystem::Ansible | Ecosystem::Bicep
-        ) {
+        let manifests: &[String] = if set.ecosystem.shared_manifest() {
             &[]
         } else {
             &set.manifests

@@ -1,0 +1,9 @@
+[package]
+license = "Apache-2.0"
+name = "deploy_bootstrap_offline"
+version = "0.0.0"
+edition = "2024"
+
+[[bin]]
+name = "bootstrap_offline"
+path = "bootstrap_offline.rs"

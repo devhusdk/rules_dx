@@ -1,0 +1,21 @@
+[package]
+license = "Apache-2.0"
+name = "cuda_tests"
+version = "0.0.0"
+edition = "2024"
+
+[[test]]
+name = "cublas_device_code_test"
+path = "cublas_device_code_test.rs"
+
+[[test]]
+name = "rdc_device_code_test"
+path = "rdc_device_code_test.rs"
+
+[[test]]
+name = "saxpy_device_code_test"
+path = "saxpy_device_code_test.rs"
+
+[[test]]
+name = "saxpy_gpu_unavailable_test"
+path = "saxpy_gpu_unavailable_test.rs"

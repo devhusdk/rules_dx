@@ -170,6 +170,7 @@ rust_test(
 
 rust_binary(
     name = "appcontainer_run",
+    testonly = True,
     srcs = [
         "appcontainer/args.rs",
         "appcontainer/main.rs",

@@ -1,5 +1,5 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
+load("//tools/testing:test_macros.bzl", "dx_diagnostics_test", "dx_format_test")
 
 package(default_visibility = ["//javascript/tests/fixtures/node-app:__subpackages__"])
 
@@ -22,9 +22,9 @@ alias(
     }),
 )
 
-rust_test(
+dx_diagnostics_test(
     name = "diagnostics_test",
-    srcs = ["//tools/testing:node_diagnostics_test.rs"],
+    language = "node",
     data = [
         "clean.ts",
         "isolated_declarations.ts",
@@ -53,15 +53,11 @@ rust_test(
         "DX_TSC": "$(rootpath @npm_typescript//:tsc)",
         "DX_TYPE": "$(rootpath type_error.ts)",
     },
-    deps = ["//tools/testing:dx_testing"],
 )
 
-rust_test(
+dx_format_test(
     name = "format_test",
-    srcs = ["//tools/testing:node_format_test.rs"],
-    data = [
-        ":biome",
-        "//:biome.json",
+    srcs = [
         "//javascript/tests/fixtures/node-app/cli:cli.ts",
         "//javascript/tests/fixtures/node-app/cli:cli_test.ts",
         "//javascript/tests/fixtures/node-app/cli:jest.config.cjs",
@@ -71,21 +67,13 @@ rust_test(
         "//javascript/tests/fixtures/node-app/registry:registry.ts",
         "//javascript/tests/fixtures/node-app/registry:registry_test.ts",
     ],
-    env = {
-        "DX_BIOME": "$(rootpath :biome)",
-        "DX_CONFIG": "$(rootpath //:biome.json)",
-        "DX_FORMAT_SRCS": " ".join([
-            "$(rootpath //javascript/tests/fixtures/node-app/cli:cli.ts)",
-            "$(rootpath //javascript/tests/fixtures/node-app/cli:cli_test.ts)",
-            "$(rootpath //javascript/tests/fixtures/node-app/cli:jest.config.cjs)",
-            "$(rootpath //javascript/tests/fixtures/node-app/cli:main.js)",
-            "$(rootpath //javascript/tests/fixtures/node-app/registry:jest.config.cjs)",
-            "$(rootpath //javascript/tests/fixtures/node-app/registry:plain_test.ts)",
-            "$(rootpath //javascript/tests/fixtures/node-app/registry:registry.ts)",
-            "$(rootpath //javascript/tests/fixtures/node-app/registry:registry_test.ts)",
-        ]),
-    },
-    deps = ["//tools/testing:dx_testing"],
+    args = [
+        "check",
+        "--config-path={config}",
+        "{src}",
+    ],
+    config = "//:biome.json",
+    tool = ":biome",
 )
 
 real_source_target(

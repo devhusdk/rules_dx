@@ -1,15 +1,7 @@
-use std::path::PathBuf;
-
-fn file(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} is set")))
-}
-
-fn text(path: PathBuf) -> String {
-    path.to_string_lossy().into_owned()
-}
+use dx_testing::env_file as file;
 
 fn tsc(source: &str, extra: &[&str]) -> dx_testing::Run {
-    let path = text(file(source));
+    let path = dx_testing::path_text(&file(source));
     let mut args = vec![
         "--noEmit",
         "--strict",
@@ -26,8 +18,8 @@ fn tsc(source: &str, extra: &[&str]) -> dx_testing::Run {
 }
 
 fn biome(command: &str, source: &str, config: &str) -> dx_testing::Run {
-    let path = text(file(source));
-    let config_arg = format!("--config-path={}", text(file(config)));
+    let path = dx_testing::path_text(&file(source));
+    let config_arg = format!("--config-path={}", dx_testing::path_text(&file(config)));
     dx_testing::run(
         &file("DX_BIOME"),
         &[command, config_arg.as_str(), path.as_str()],

@@ -1,5 +1,5 @@
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//rust:defs.bzl", "rust_test")
+load("@rules_dx//tools/testing:test_macros.bzl", "dx_diagnostics_test", "dx_format_test")
 load("@rules_java//java:defs.bzl", "java_binary")
 
 package(default_visibility = ["//java/tests/fixtures/java-app:__subpackages__"])
@@ -11,9 +11,9 @@ java_binary(
     runtime_deps = [],
 )
 
-rust_test(
+dx_diagnostics_test(
     name = "diagnostics_test",
-    srcs = ["@rules_dx//tools/testing:java_diagnostics_test.rs"],
+    language = "java",
     data = [
         "Clean.java",
         "RawType.java",
@@ -54,13 +54,11 @@ rust_test(
         "DX_TYPE": "$(rootpath TypeError.java)",
         "DX_WARNING": "$(rootpath RawType.java)",
     },
-    deps = ["@rules_dx//tools/testing:dx_testing"],
 )
 
-rust_test(
+dx_format_test(
     name = "format_test",
-    srcs = ["@rules_dx//tools/testing:jvm_format_test.rs"],
-    data = [
+    srcs = [
         "//java/tests/fixtures/java-app/billing:ClasspathTest.java",
         "//java/tests/fixtures/java-app/billing:Invoice.java",
         "//java/tests/fixtures/java-app/billing:InvoiceException.java",
@@ -72,26 +70,13 @@ rust_test(
         "//java/tests/fixtures/java-app/cli:Cli.java",
         "//java/tests/fixtures/java-app/cli:CliTest.java",
         "//java/tests/fixtures/java-app/cli:Main.java",
-        "@rules_dx//core/quality/tools/jvm:google_java_format",
-        "@rules_dx//core/quality/tools/jvm:pmd",
     ],
-    env = {
-        "DX_FORMATTER": "$(rootpath @rules_dx//core/quality/tools/jvm:google_java_format)",
-        "DX_FORMAT_SRCS": " ".join([
-            "$(rootpath //java/tests/fixtures/java-app/billing:ClasspathTest.java)",
-            "$(rootpath //java/tests/fixtures/java-app/billing:Invoice.java)",
-            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceException.java)",
-            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceReader.java)",
-            "$(rootpath //java/tests/fixtures/java-app/billing:InvoiceReaderTest.java)",
-            "$(rootpath //java/tests/fixtures/java-app/billing:LineItem.java)",
-            "$(rootpath //java/tests/fixtures/java-app/billing:Totals.java)",
-            "$(rootpath //java/tests/fixtures/java-app/billing:TotalsTest.java)",
-            "$(rootpath //java/tests/fixtures/java-app/cli:Cli.java)",
-            "$(rootpath //java/tests/fixtures/java-app/cli:CliTest.java)",
-            "$(rootpath //java/tests/fixtures/java-app/cli:Main.java)",
-        ]),
-    },
-    deps = ["@rules_dx//tools/testing:dx_testing"],
+    args = [
+        "--dry-run",
+        "--set-exit-if-changed",
+        "{src}",
+    ],
+    tool = "@rules_dx//core/quality/tools/jvm:google_java_format",
 )
 
 real_source_target(

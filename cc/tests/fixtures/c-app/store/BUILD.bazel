@@ -1,6 +1,6 @@
 load("@rules_dx//cc:defs.bzl", "cc_library", "cc_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
+load("//tools/testing:test_macros.bzl", "CLANG_FORMAT_ARGS", "dx_format_test")
 
 package(default_visibility = ["//cc/tests/fixtures/c-app:__subpackages__"])
 
@@ -56,23 +56,17 @@ cc_test(
     deps = [":store"],
 )
 
-rust_test(
+dx_format_test(
     name = "format_test",
-    srcs = ["//tools/testing:clang_format_test.rs"],
-    data = [
+    srcs = [
         "linkage_test.cc",
         "store.c",
         "store.h",
         "store_test.c",
-        "//:.clang-format",
-        "@llvm//tools:clang-format",
     ],
-    env = {
-        "DX_CLANG_FORMAT": "$(rootpath @llvm//tools:clang-format)",
-        "DX_CLANG_FORMAT_STYLE": "$(rootpath //:.clang-format)",
-        "DX_FORMAT_SRCS": "$(rootpath linkage_test.cc) $(rootpath store.c) $(rootpath store.h) $(rootpath store_test.c)",
-    },
-    deps = ["//tools/testing:dx_testing"],
+    args = CLANG_FORMAT_ARGS,
+    config = "//:.clang-format",
+    tool = "@llvm//tools:clang-format",
 )
 
 filegroup(

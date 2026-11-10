@@ -1,11 +1,11 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_test")
+load("//tools/testing:test_macros.bzl", "dx_diagnostics_test")
 
 package(default_visibility = ["//cc/tests/fixtures/c-app:__subpackages__"])
 
-rust_test(
+dx_diagnostics_test(
     name = "diagnostics_test",
-    srcs = ["//tools/testing:clang_diagnostics_test.rs"],
+    language = "clang",
     data = [
         "clean.c",
         "lint_error.c",
@@ -32,7 +32,6 @@ rust_test(
         "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
-    deps = ["//tools/testing:dx_testing"],
 )
 
 real_source_target(

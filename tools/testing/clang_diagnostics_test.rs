@@ -1,12 +1,4 @@
-use std::path::PathBuf;
-
-fn file(var: &str) -> PathBuf {
-    dx_testing::resolve_runfiles(&std::env::var(var).unwrap_or_else(|_| panic!("{var} is set")))
-}
-
-fn text(var: &str) -> String {
-    std::env::var(var).unwrap_or_else(|_| panic!("{var} is set"))
-}
+use dx_testing::{env_file as file, env_text as text};
 
 fn compile(source: &str) -> dx_testing::Run {
     let clang = file("DX_CLANG");

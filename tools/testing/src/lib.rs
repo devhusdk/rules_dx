@@ -333,6 +333,43 @@ pub fn resolve_runfiles(rel: &str) -> PathBuf {
     find_runfile(rel).unwrap_or_else(|error| panic!("runfile {rel}: {error}"))
 }
 
+/// Resolves the runfile named by environment variable `var`, panicking when it is unset.
+pub fn env_file(var: &str) -> PathBuf {
+    resolve_runfiles(&env_text(var))
+}
+
+/// Reads environment variable `var`, panicking when it is unset.
+pub fn env_text(var: &str) -> String {
+    std::env::var(var).unwrap_or_else(|_| panic!("{var} is set"))
+}
+
+/// Resolves every whitespace separated runfile named by environment variable `var`.
+pub fn env_files(var: &str) -> Vec<PathBuf> {
+    env_text(var)
+        .split_whitespace()
+        .map(resolve_runfiles)
+        .collect()
+}
+
+/// Renders a path as an owned string.
+pub fn path_text(path: &Path) -> String {
+    path.to_string_lossy().into_owned()
+}
+
+/// Creates and returns the directory `name` under `TEST_TMPDIR`.
+pub fn scratch_dir(name: &str) -> PathBuf {
+    let dir = PathBuf::from(env_text("TEST_TMPDIR")).join(name);
+    std::fs::create_dir_all(&dir).unwrap_or_else(|e| panic!("create {}: {e}", dir.display()));
+    dir
+}
+
+/// Joins the runfiles named by environment variables `vars` into a classpath string.
+pub fn classpath(vars: &[&str]) -> String {
+    let joined = std::env::join_paths(vars.iter().map(|var| env_file(var)))
+        .unwrap_or_else(|e| panic!("classpath entries join: {e}"));
+    joined.to_string_lossy().into_owned()
+}
+
 /// Reads one test input resolved through `resolve_runfiles`, panicking when it cannot be read.
 pub fn read_runfile(rel: &str) -> Vec<u8> {
     let resolved = resolve_runfiles(rel);

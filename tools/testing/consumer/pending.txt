@@ -8,7 +8,6 @@ fixture asciidoc
 fixture astro
 fixture avro
 fixture bicep
-fixture capnproto
 fixture cc
 fixture cloudformation
 fixture cmake

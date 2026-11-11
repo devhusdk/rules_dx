@@ -4,6 +4,7 @@ load("//apple/private/ios:cell.bzl", APPLE_SUPPORT = "PLATFORM_SUPPORT")
 load("//cc/private/toolchains:pins.bzl", "GCC_VERSION", "LLVM_CLANG_VERSION")
 load("//cuda/private/toolchain:settings.bzl", CUDA_SUPPORT = "PLATFORM_SUPPORT")
 load("//core/modules:langs.bzl", "LANGS")
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load("//d/private:kwargs.bzl", D_SUPPORT = "PLATFORM_SUPPORT")
 load("//dart/private:platforms.bzl", DART_SUPPORT = "PLATFORM_SUPPORT")
 load("//elixir/private:kwargs.bzl", ELIXIR_SUPPORT = "PLATFORM_SUPPORT")
@@ -692,7 +693,7 @@ LANGUAGES = [
     _language(
         "zig",
         bench = "zig_bench",
-        deps = "`zig_deps` (`build.zig.zon` `.dependencies`, pinned by sha256)",
+        deps = "`zig_deps` (`" + LOCK_REGISTRY["zig"]["manifest"] + "` `.dependencies`, pinned by sha256)",
         doc = struct(tool = "zig std.zig.Ast", shard = "zig_doc_shard"),
         dead_code = ["zig ast-check unused local, unused parameter"],
         coverage = ["kcov"],

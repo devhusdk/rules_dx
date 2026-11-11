@@ -489,7 +489,7 @@ if not exist "%DX_MODULE%" goto bazel
 findstr /r /c:"module_name *= *.rules_dx." "%DX_MODULE%" >nul && goto bazel
 set "DX_N=0"
 set "VERSION="
-findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*[^ ]" "%DX_MODULE%" >nul && goto bazel
+findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*[!-~]" "%DX_MODULE%" >nul && goto bazel
 for /f tokens^=4^ delims^=^" %%V in ('findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V")
 if not "%DX_N%"=="1" goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
@@ -789,7 +789,7 @@ mod tests {
     #[test]
     fn cmd_module_pattern_has_a_single_anchor() {
         let script = cmd();
-        assert!(script.contains("findstr /b /r /c:\"bazel_dep("), "{script}");
+        assert!(script.contains("findstr /r /c:\"^bazel_dep("), "{script}");
         assert!(!script.contains("\"^^"), "{script}");
         assert!(!script.contains(")[ ]*$"), "{script}");
     }

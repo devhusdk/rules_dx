@@ -1064,12 +1064,15 @@ bazel_dep(name = "rules_flutter", version = "0.0.8")
 
 # Pinned to the commit with aran/rules_flutter#5 until it is released.
 # registrant_javacopts.patch keeps -Xlint:all quiet about the registrant's source 8 (#9085).
+# engine_labels.patch and engine_use_repo.patch name the engine repos through rules_flutter's own repo mapping, so consumers need no use_repo for them (#11470).
 # lock_extension.patch marks the flutter extension non-reproducible so the lockfile keeps its result (#8987).
 archive_override(
     module_name = "rules_flutter",
     integrity = "sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=",
     patch_strip = 1,
     patches = [
+        "//patches/rules_flutter:engine_labels.patch",
+        "//patches/rules_flutter:engine_use_repo.patch",
         "//patches/rules_flutter:lock_extension.patch",
         "//patches/rules_flutter:registrant_javacopts.patch",
     ],
@@ -1081,20 +1084,16 @@ flutter = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter")
 flutter.toolchain(flutter_version = "3.47.8")
 use_repo(flutter, "flutter_dev_root", "flutter_toolchains", "flutter_web_sdk")
 
-flutter_dev = use_extension("@rules_flutter//flutter:extensions.bzl", "flutter", dev_dependency = True)
 flutter_pub = use_extension("//flutter:extensions.bzl", "pub", dev_dependency = True)
 flutter_pub.pub(
     name = "dx_flutter_app_deps",
-    flutter_version = "3.47.8",
     lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
 )
 flutter_pub.pub(
     name = "dx_flutter_deps",
-    flutter_version = "3.47.8",
     lock = "//flutter/tests/runtime:pubspec.lock",
 )
 use_repo(flutter_pub, "dx_flutter_app_deps", "dx_flutter_deps")
-use_repo(flutter_dev, "flutter_android_engine_arm64", "flutter_android_engine_x64", "flutter_ios_engine")
 
 # floor: equals tested
 bazel_dep(name = "tar.bzl", version = "0.10.9")

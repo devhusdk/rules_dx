@@ -118,11 +118,15 @@ def _analyzer(target, ctx, attrs, implicit):
         prefix + "strict-deps-mode:warn",
         prefix + "dependency-tracking-method:ast",
         prefix + "current-target:" + str(target.label),
-        prefix + "direct-jars:" + _plugin_param(direct_jars),
-        prefix + "direct-targets:" + _plugin_param(direct_targets),
-        prefix + "indirect-jars:" + _plugin_param([i["jar"] for i in indirect]),
-        prefix + "indirect-targets:" + _plugin_param([i["label"] for i in indirect]),
     ]
+    for name, values in (
+        ("direct-jars", direct_jars),
+        ("direct-targets", direct_targets),
+        ("indirect-jars", [i["jar"] for i in indirect]),
+        ("indirect-targets", [i["label"] for i in indirect]),
+    ):
+        if values:
+            options.append(prefix + name + ":" + _plugin_param(values))
     if ignored:
         options.append(prefix + "unused-deps-ignored-targets:" + _plugin_param(ignored))
     return struct(jars = jars, options = options)

@@ -10,5 +10,6 @@ rust_binary(
     visibility = [
         "//cli/cli/tests/adopt:__pkg__",
         "//cli/cli/tests/agents:__pkg__",
+        "//tools/testing/consumer:__pkg__",
     ],
 )

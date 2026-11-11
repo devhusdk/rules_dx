@@ -192,10 +192,6 @@ name cli/update/src/recovery.rs Cargo.lock
 name cli/update/src/recovery.rs maven_install.json
 name cli/update/src/recovery.rs pnpm-lock.yaml
 name cli/update/src/recovery.rs uv.lock
-name core/modules/python.bzl pyproject.toml
-name core/modules/python.bzl uv.lock
-name core/modules/rust.bzl Cargo.lock
-name core/modules/versions.bzl pnpm-lock.yaml
 name core/quality/adapter/src/commands.rs go.mod
 name core/quality/adapter/src/commands.rs pyproject.toml
 name core/quality/adapter/src/parsers/modfmt.rs go.mod
@@ -205,9 +201,7 @@ name core/quality/fixtures.bzl go.mod
 name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
 name d/private/toolchain/pins.bzl package.json
 name dart/private/quality/dart.bzl pubspec.yaml
-name deploy/private/crates.bzl Cargo.toml
 name deploy/private/github.bzl go.mod
-name deploy/private/pub.bzl pubspec.yaml
 name deploy/private/release/src/inventory.rs Cargo.toml
 name deploy/private/release/src/tool.rs go.mod
 name deploy/private/sbom.bzl go.mod

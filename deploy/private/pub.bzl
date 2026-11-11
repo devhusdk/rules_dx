@@ -1,9 +1,12 @@
 """Local-first pub.dev publisher for dx deploy."""
 
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load(":api_compat.bzl", "API_COMPAT_ATTRS", "api_compat_error")
 load(":config.bzl", "DEPLOY_TOOL", "deploy_attrs", "deploy_config", "deploy_identity", "deployment_budget", "rlocation_path")
 load(":deployment.bzl", "dx_deployment")
 load(":validate_pub.bzl", "PUB_DEFAULT_REGISTRY_URL", "pub_name_error", "pub_registry_url_error", "pub_version_error")
+
+_MANIFEST = LOCK_REGISTRY["pub"]["manifest"]
 
 _FLUTTER_TOOLCHAIN = "@rules_flutter//flutter:toolchain_type"
 
@@ -11,7 +14,7 @@ def _pub_config_impl(ctx):
     """Writes the deploy config for one pub.dev deployment."""
     package_files = ctx.files.srcs
     if len(package_files) == 0:
-        fail("pub_deploy " + str(ctx.label) + ": srcs provide no files, want at least pubspec.yaml")
+        fail("pub_deploy " + str(ctx.label) + ": srcs provide no files, want at least " + _MANIFEST)
     rlocs = [rlocation_path(ctx, f) for f in package_files]
     values = {
         "registry_url": ctx.attr.registry_url,
@@ -23,16 +26,16 @@ def _pub_config_impl(ctx):
     if ctx.attr.api_compat != "off":
         package_dir = ""
         if ctx.attr.api_baseline == "git":
-            pubspecs = [f for f in package_files if f.basename == "pubspec.yaml"]
+            pubspecs = [f for f in package_files if f.basename == _MANIFEST]
             if len(pubspecs) == 0:
-                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a pubspec.yaml in srcs of " +
+                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a " + _MANIFEST + " in srcs of " +
                      str(ctx.label))
             pubspec = pubspecs[0]
             if not pubspec.is_source:
-                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a checked-in pubspec.yaml, " +
+                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a checked-in " + _MANIFEST + ", " +
                      "but " + pubspec.short_path + " is generated; use api_baseline = \"registry\"")
             if pubspec.owner.workspace_name != "":
-                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a pubspec.yaml in this " +
+                fail("pub_deploy " + str(ctx.label) + ": api_baseline = \"git\" needs a " + _MANIFEST + " in this " +
                      "repository, but " + pubspec.short_path + " comes from an external repository")
             package_dir = pubspec.short_path.rpartition("/")[0]
         dill = [f for f in ctx.files._dart_apitool if f.extension == "dill"]

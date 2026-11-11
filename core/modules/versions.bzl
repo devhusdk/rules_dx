@@ -1,5 +1,7 @@
 """Toolchain and ruleset versions."""
 
+load(":lock_registry.bzl", "LOCK_REGISTRY")
+
 RULES_RUST_VERSION = "0.75.0"
 RULES_RUST_PROST_VERSION = "0.75.0"
 RULES_RUST_WASM_BINDGEN_VERSION = "0.75.0"
@@ -128,8 +130,8 @@ CONSUMER_BAZEL_DEPS = {
 NPM_HUBS = ["dx_npm_tools"]
 NPM_DEV_HUBS = ["dx_npm"]
 NPM_LOCKS = [
-    "//:pnpm-lock.yaml",
-    "//javascript/private/quality:pnpm-lock.yaml",
+    "//:" + LOCK_REGISTRY["npm"]["lock"],
+    "//javascript/private/quality:" + LOCK_REGISTRY["npm"]["lock"],
 ]
 
 JVM_TOOL_VERSIONS = {

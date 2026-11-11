@@ -328,7 +328,7 @@ pub fn discover(
                 continue;
             };
             let lock = path(lock)?;
-            let manifest = beside(&lock, "package.json");
+            let manifest = beside(&lock, manifest_of("npm"));
             sets.push(hub_set(
                 npm.name,
                 Ecosystem::Npm,
@@ -382,10 +382,10 @@ pub fn discover(
                 vec![in_dir(&dir, lock_of("pub"))],
             )?);
         }
-        for mix in module.mix_locks().map_err(hub)? {
-            let dir = manifest_dir(std::slice::from_ref(&path(mix.lock)?));
+        for entry in module.mix_locks().map_err(hub)? {
+            let dir = manifest_dir(std::slice::from_ref(&path(entry.lock)?));
             sets.push(hub_set(
-                mix.name,
+                entry.name,
                 Ecosystem::Hex,
                 vec![in_dir(&dir, manifest_of("hex"))],
                 vec![in_dir(&dir, mix_lock())],
@@ -531,7 +531,7 @@ pub fn discover(
             sets.push(hub_set(
                 "nuget",
                 Ecosystem::Nuget,
-                vec![in_dir(&parent, "paket.dependencies")],
+                vec![in_dir(&parent, manifest_of("nuget"))],
                 locks,
             )?);
         }
@@ -1952,7 +1952,7 @@ fn check_uv_settings(workspace: &Path, set: &ResolvedSet) -> Result<(), Dependen
             });
         }
         if current != set.dir {
-            let parent = format!("{prefix}pyproject.toml");
+            let parent = format!("{prefix}{}", manifest_of("uv"));
             if uv_workspace_root(&workspace.join(&parent)) {
                 return Err(DependencySetsError::UnsupportedSettings {
                     name: set.name.clone(),

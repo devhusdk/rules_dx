@@ -1,10 +1,14 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":cuda_redistrib_tests.bzl", "cuda_redistrib_tests")
 
 package(default_visibility = ["//visibility:public"])
 
-cuda_redistrib_tests(name = "cuda_redistrib", size = "small")
+cuda_redistrib_tests(
+    name = "cuda_redistrib",
+    size = "small",
+)
 
 rust_test(
     name = "loaders_test",
@@ -36,7 +40,6 @@ rust_test(
     ],
 )
 
-
 rust_test(
     name = "families_test",
     size = "small",
@@ -49,12 +52,12 @@ rust_test(
     crate_name = "families_test",
     crate_root = "families_test.rs",
     data = [
-        "//core/modules:families.json",
         "//:MODULE.bazel",
         "//ansible/private/quality:ansible.bzl",
         "//bicep/private/quality:bicep.bzl",
         "//cloudformation/private/quality:cloudformation.bzl",
         "//cmake/private/quality:cmake.bzl",
+        "//core/modules:families.json",
         "//core/quality:families/beam.bzl",
         "//core/quality:families/cc.bzl",
         "//core/quality:families/core.bzl",
@@ -65,24 +68,14 @@ rust_test(
         "//core/quality:families/jsonnet.bzl",
         "//core/quality:families/jvm.bzl",
         "//core/quality:families/latex.bzl",
-        "//lua/private/quality:lua.bzl",
         "//core/quality:families/nix.bzl",
-        "//ocaml/private/quality:ocaml.bzl",
         "//core/quality:families/oci_image.bzl",
-        "//perl/private/quality:perl.bzl",
-        "//php/private/quality:php.bzl",
         "//core/quality:families/pkl.bzl",
-        "//powershell/private/quality:powershell.bzl",
-        "//python/private/quality:python.bzl",
-        "//ruby/private/quality:ruby.bzl",
         "//core/quality:families/shell.bzl",
-        "//sql/private/quality:sql.bzl",
-        "//swift/private/quality:swift.bzl",
         "//core/quality:families/text.bzl",
         "//core/quality:families/typst.bzl",
         "//core/quality:families/xml.bzl",
         "//core/quality:families/yaml.bzl",
-        "//zig/private/quality:zig.bzl",
         "//core/quality:real_core.bzl",
         "//core/quality/testdata:all_languages.bzl",
         "//d/private/quality:d.bzl",
@@ -94,10 +87,20 @@ rust_test(
         "//javascript/private/quality:js.bzl",
         "//julia/private/quality:julia.bzl",
         "//kubernetes/private/quality:kubernetes.bzl",
+        "//lua/private/quality:lua.bzl",
         "//make/private/quality:make.bzl",
+        "//ocaml/private/quality:ocaml.bzl",
+        "//perl/private/quality:perl.bzl",
+        "//php/private/quality:php.bzl",
+        "//powershell/private/quality:powershell.bzl",
+        "//python/private/quality:python.bzl",
         "//rego/private/quality:rego.bzl",
+        "//ruby/private/quality:ruby.bzl",
         "//rust/private/quality:rust.bzl",
+        "//sql/private/quality:sql.bzl",
+        "//swift/private/quality:swift.bzl",
         "//terraform/private/quality:terraform.bzl",
+        "//zig/private/quality:zig.bzl",
         "@dx_test_tags_sources//:files.json",
         "@dx_test_tags_sources//:sources.json",
     ],
@@ -123,4 +126,14 @@ test_suite(
         ":families_test",
         ":loaders_test",
     ],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "cuda_redistrib_tests.bzl",
+    ],
+    tags = ["corpus"],
 )

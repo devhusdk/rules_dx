@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load(":bundle.bzl", "python_tools_bundle")
 
@@ -12,7 +13,16 @@ _PLATFORMS = {
     "linux_arm64": ("aarch64-unknown-linux-gnu", "python_3_12_aarch64_unknown_linux_gnu", False, []),
     "linux_x86_64": ("x86_64-unknown-linux-gnu", "python_3_12_x86_64_unknown_linux_gnu", False, []),
     "macos_arm64": ("aarch64-apple-darwin", "python_3_12_aarch64_apple_darwin", False, []),
-    "windows_arm64": ("aarch64-pc-windows-msvc", "python_3_12_aarch64_pc_windows_msvc", True, ["ansible-lint", "ansible-core", "cryptography"]),
+    "windows_arm64": (
+        "aarch64-pc-windows-msvc",
+        "python_3_12_aarch64_pc_windows_msvc",
+        True,
+        [
+            "ansible-lint",
+            "ansible-core",
+            "cryptography",
+        ],
+    ),
     "windows_x86_64": ("x86_64-pc-windows-msvc", "python_3_12_x86_64_pc_windows_msvc", True, []),
 }
 
@@ -36,10 +46,28 @@ _PLATFORMS = {
         tool_bootstrap = "//core/quality/tools/python:tool_bootstrap.py",
         tool_sources = [
             "//core/quality/tools/python:{}_main.py".format(tool)
-            for tool in ["ansible_lint", "cfn_lint", "cmakelint", "djlint", "docstrfmt", "mbake", "sqlfluff", "yamllint"]
+            for tool in [
+                "ansible_lint",
+                "cfn_lint",
+                "cmakelint",
+                "djlint",
+                "docstrfmt",
+                "mbake",
+                "sqlfluff",
+                "yamllint",
+            ]
         ],
         uv_platform = uv_platform,
         windows = windows,
     )
     for platform, (uv_platform, repo, windows, skip) in _PLATFORMS.items()
 ]
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "bundle.bzl",
+    ],
+    tags = ["corpus"],
+)

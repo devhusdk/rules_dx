@@ -1,3 +1,5 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
@@ -9,4 +11,10 @@ filegroup(
     name = "module_srcs",
     srcs = glob(["**"]),
     visibility = ["//:__subpackages__"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

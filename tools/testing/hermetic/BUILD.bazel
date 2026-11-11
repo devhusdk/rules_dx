@@ -1269,6 +1269,7 @@ compiler_fixture(
     target_compatible_with = WINDOWS,
 )
 
+# keep
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [

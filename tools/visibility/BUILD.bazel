@@ -33,10 +33,10 @@ package_group(
 package_group(
     name = "dx_roots",
     packages = [
-        "-//env/...",
-        "-//gazelle/...",
         "-//core/codegen/...",
         "-//core/quality/...",
+        "-//env/...",
+        "-//gazelle/...",
         "-//tools/...",
         "public",
     ],
@@ -46,10 +46,10 @@ package_group(
     name = "dx_commands",
     packages = [
         "-//cli/...",
-        "-//env/...",
-        "-//gazelle/...",
         "-//core/codegen/...",
         "-//core/quality/...",
+        "-//env/...",
+        "-//gazelle/...",
         "-//tools/...",
         "public",
     ],

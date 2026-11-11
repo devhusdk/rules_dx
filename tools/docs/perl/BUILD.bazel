@@ -11,7 +11,6 @@ exports_files(
     visibility = VIS_TOOLS,
 )
 
-
 # gazelle:exclude pod_dump.pl
 
 real_source_target(

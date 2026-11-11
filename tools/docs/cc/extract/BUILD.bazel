@@ -27,9 +27,7 @@ rust_library(
     deps = all_crate_deps(
         package_name = "tools/docs/cc/cc_extract",
         normal = True,
-    ) + [
-        "//tools/docs/ir/ir:documentation_ir",
-    ],
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
 )
 
 rust_binary(
@@ -68,9 +66,7 @@ rust_test(
         package_name = "tools/docs/cc/cc_extract",
         normal = True,
         normal_dev = True,
-    ) + [
-        "//tools/docs/ir/ir:documentation_ir",
-    ],
+    ) + ["//tools/docs/ir/ir:documentation_ir"],
 )
 
 real_source_target(

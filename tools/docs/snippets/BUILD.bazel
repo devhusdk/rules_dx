@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//python:defs.bzl", "python_binary", "python_test")
 
 python_binary(
@@ -18,4 +19,10 @@ python_test(
     ],
     main = "embed_snippets.py",
     runner = "plain",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

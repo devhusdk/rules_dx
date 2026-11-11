@@ -9,6 +9,7 @@ load("//tools/visibility:visibility.bzl", "VIS_TOOLS")
 
 package(default_visibility = VIS_TOOLS)
 
+# keep
 rust_library(
     name = "documentation_ir",
     srcs = [
@@ -31,6 +32,7 @@ rust_library(
     ],
 )
 
+# keep
 rust_library(
     name = "shard_test_support",
     testonly = True,
@@ -43,6 +45,7 @@ rust_library(
     ],
 )
 
+# keep
 rust_test(
     name = "documentation_ir_test",
     aliases = aliases(

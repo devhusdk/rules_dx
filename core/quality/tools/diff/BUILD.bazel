@@ -3,6 +3,7 @@ load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:private"])
 
+# keep
 rust_library(
     name = "diff_lib",
     srcs = ["src/lib.rs"],
@@ -11,6 +12,7 @@ rust_library(
     deps = ["@crates//:similar"],
 )
 
+# keep
 rust_binary(
     name = "diff",
     srcs = ["src/main.rs"],

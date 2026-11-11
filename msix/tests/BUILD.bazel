@@ -6,6 +6,7 @@ load("//msix/private:toolchain.bzl", "msix_toolchain")
 load("//powershell:defs.bzl", "powershell_test")
 load("//tools/testing:stub_target.bzl", "stub_target")
 load(":cell_tests.bzl", "arch_on_arm64_test", "arch_on_x64_test", "arm64_action_test", "attribute_failure_test", "data_paths_test", "no_windows_exec_test", "sign_build_test", "sign_env_test", "unaccepted_license_test", "unsupported_cell_test", "x64_action_test")
+load(":toolchain_tests.bzl", "msix_metadata_tests")
 load(":transition.bzl", "msix_variant")
 
 # gazelle:exclude argv_signtool.c
@@ -593,12 +594,18 @@ test_suite(
     ],
 )
 
+msix_metadata_tests(
+    name = "metadata",
+    size = "small",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
         "cell_tests.bzl",
+        "toolchain_tests.bzl",
         "transition.bzl",
     ],
     tags = ["corpus"],

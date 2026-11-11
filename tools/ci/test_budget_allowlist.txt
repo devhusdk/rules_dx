@@ -523,15 +523,11 @@ lua/tests/runtime/BUILD.bazel no-size 2
 make/tests/BUILD.bazel no-size 1
 mdx/tests/app/BUILD.bazel no-size 4
 mdx/tests/fixtures/hello/BUILD.bazel no-size 1
-msix/private/BUILD.bazel no-size 1
-msix/private/metadata_tests.bzl no-size 1
 msix/tests/BUILD.bazel no-size 26
 msix/tests/BUILD.bazel size-medium 1
 ocaml/private/BUILD.bazel no-size 1
 ocaml/private/quality/BUILD.bazel no-size 1
 ocaml/private/quality/tools_tests.bzl no-size 1
-ocaml/private/toolchain/BUILD.bazel no-size 1
-ocaml/private/toolchain/metadata_tests.bzl no-size 1
 ocaml/tests/fixtures/bench/BUILD.bazel no-size 4
 ocaml/tests/fixtures/bench/BUILD.bazel size-large 1
 ocaml/tests/fixtures/bench/BUILD.bazel timeout-long 1
@@ -592,8 +588,7 @@ python/tests/sdist_native/BUILD.bazel no-size 5
 python/tests/sdist_native/msvc/BUILD.bazel no-size 1
 qt/private/BUILD.bazel no-size 1
 qt/private/rust/BUILD.bazel no-size 1
-qt/private/sdk/BUILD.bazel no-size 2
-qt/private/sdk/metadata_tests.bzl no-size 1
+qt/private/sdk/BUILD.bazel no-size 1
 qt/tests/BUILD.bazel no-size 8
 qt/tests/fixtures/qt-app/app/BUILD.bazel no-size 3
 qt/tests/fixtures/qt-rust/app/BUILD.bazel no-size 2

@@ -1,6 +1,6 @@
 @namespace("dx.test")
 protocol Top {
-  import schema "avro/private/testdata/base.avsc";
+  import schema "avro/tests/fixtures/closure/base.avsc";
   record Wrapper {
     Base base;
   }

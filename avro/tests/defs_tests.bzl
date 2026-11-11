@@ -1,9 +1,9 @@
 """Analysis tests for avro_library."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load(":defs.bzl", "avro_library")
-load(":missing.bzl", "dx_missing_avro_cpp")
-load(":providers.bzl", "AvroInfo")
+load("//avro/private:defs.bzl", "avro_library")
+load("//avro/private:missing.bzl", "dx_missing_avro_cpp")
+load("//avro/private:providers.bzl", "AvroInfo")
 
 def _closure_impl(ctx):
     env = analysistest.begin(ctx)
@@ -35,10 +35,10 @@ def avro_library_tests(name):
     Args:
       name: Name of the test suite.
     """
-    avro_library(name = name + "_base", srcs = ["testdata/base.avsc"], tags = ["manual"])
-    avro_library(name = name + "_top", srcs = ["testdata/top.avdl"], deps = [":" + name + "_base"], tags = ["manual"])
+    avro_library(name = name + "_base", srcs = ["fixtures/closure/base.avsc"], tags = ["manual"])
+    avro_library(name = name + "_top", srcs = ["fixtures/closure/top.avdl"], deps = [":" + name + "_base"], tags = ["manual"])
     _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top")
-    avro_library(name = name + "_wrong", srcs = ["testdata/wrong.txt"], tags = ["manual"])
+    avro_library(name = name + "_wrong", srcs = ["fixtures/closure/wrong.txt"], tags = ["manual"])
     _extension_test(name = name + "_extension_test", target_under_test = ":" + name + "_wrong")
     dx_missing_avro_cpp(name = name + "_missing", tags = ["manual"])
     _missing_test(name = name + "_missing_test", target_under_test = ":" + name + "_missing", size = "small")

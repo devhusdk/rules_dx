@@ -419,12 +419,9 @@ platforms-option swift/private/platforms/transition.bzl
 platforms-option swift/private/platforms/transition_tests.bzl
 platforms-type qt/private/defs.bzl
 platforms-type swift/private/defs.bzl
-private-names avro/private/testdata
-private-names capnproto/private/testdata
 private-names cc/private/context/tests
 private-names cc/private/testdata
 private-names cc/private/toolchains
-private-names thrift/private/testdata
 provider-name capnproto/defs.bzl
 provider-name dart/defs.bzl
 readme-headings android/README.md
@@ -497,10 +494,6 @@ test-location apple/private/provisioning/probe_tests.bzl
 test-location apple/private/signing/BUILD.bazel
 test-location apple/private/signing/signing_tests.bzl
 test-location astro/private/ide/BUILD.bazel
-test-location avro/private/BUILD.bazel
-test-location avro/private/defs_tests.bzl
-test-location capnproto/private/BUILD.bazel
-test-location capnproto/private/defs_tests.bzl
 test-location cc/private/BUILD.bazel
 test-location cc/private/clang_syntax_tests.bzl
 test-location cc/private/context/BUILD.bazel
@@ -636,8 +629,6 @@ test-location scala/private/BUILD.bazel
 test-location scala/tests/BUILD.bazel
 test-location swift/private/platforms/BUILD.bazel
 test-location swift/private/platforms/transition_tests.bzl
-test-location thrift/private/BUILD.bazel
-test-location thrift/private/defs_tests.bzl
 test-location typescript/private/BUILD.bazel
 test-location typescript/private/ide/BUILD.bazel
 test-location zig/private/BUILD.bazel

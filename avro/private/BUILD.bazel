@@ -1,5 +1,4 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":defs_tests.bzl", "avro_library_tests")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -10,12 +9,9 @@ package(default_visibility = [
 exports_files([
     "codegen.bzl",
     "defs.bzl",
-    "defs_tests.bzl",
     "missing.bzl",
     "providers.bzl",
 ])
-
-avro_library_tests(name = "avro_library_tests")
 
 real_source_target(
     name = "corpus_starlark",
@@ -23,7 +19,6 @@ real_source_target(
         "BUILD.bazel",
         "codegen.bzl",
         "defs.bzl",
-        "defs_tests.bzl",
         "missing.bzl",
         "providers.bzl",
     ],

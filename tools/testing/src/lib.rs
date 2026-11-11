@@ -537,7 +537,7 @@ pub fn executable_script(path: &Path, body: &str) {
 
 /// Links `tool`, the fake generate binary, into `dir` as `bazel`, `uv` and `python`
 /// for a `dx generate` run, which answers with a clean, complete result manifest and
-/// fills the lock files `dx generate` seeds; returns a PATH with `dir` first.
+/// fills the lock files `dx generate` seeds; returns a PATH of `dir` alone.
 #[cfg(unix)]
 pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
     std::fs::create_dir_all(dir).expect("fake bazel dir");
@@ -546,11 +546,7 @@ pub fn fake_generate_bazel_path(dir: &Path, tool: &Path) -> String {
         let _ = std::fs::remove_file(&link);
         std::os::unix::fs::symlink(tool, &link).expect("link fake generate tool");
     }
-    format!(
-        "{}:{}",
-        dir.display(),
-        std::env::var("PATH").unwrap_or_default()
-    )
+    dir.display().to_string()
 }
 
 /// Waits up to 10s for the process holding the alive lock at `lock` to die.

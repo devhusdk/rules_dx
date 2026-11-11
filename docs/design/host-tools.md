@@ -62,7 +62,7 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 - Each converted rule has a test that fails when a host directory returns to its `PATH`.
 - `//core/coreutils:applet_probe_test` runs one applet by name with only the applet directory on `PATH`.
 - `//tools/ci:host_env_test` parses every `BUILD`, `.bzl` and repository `*.BUILD` file and scans Rust, shell, template and rc files. Its kinds:
-  - `host-path`: `/usr/bin`, `/bin`, `/usr/local/bin`, `$PATH` or `${PATH}` in a string or line. In Starlark, shell, template and rc files also `:/windows`, `:\windows`, `/system32`, `\system32`, `%systemroot%`, `%windir%`, `$env:systemroot` or `$env:windir` in any case. Rust is not covered for these yet (#11745).
+  - `host-path`: `/usr/bin`, `/bin`, `/usr/local/bin`, `$PATH` or `${PATH}` in a string or line. In Starlark, shell, template and rc files also `:/windows`, `:\windows`, `/system32`, `\system32`, `%systemroot%`, `%windir%`, `$env:systemroot` or `$env:windir` in any case. Rust is not covered for these yet.
   - `home`: the string `HOME` in Starlark, `$HOME` or `${HOME}` in Starlark, shell and templates.
   - `env-inherit`: an `env_inherit` argument or key.
   - `default-shell-env`: `use_default_shell_env` set to anything but `False`, or passed as a key.

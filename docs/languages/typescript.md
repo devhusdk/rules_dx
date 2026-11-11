@@ -37,10 +37,10 @@ Compiles a proto_library to TypeScript with protoc-gen-es; deps should hold @buf
 ### `typescript_binary`
 
 ```python
-typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, visibility = None, **kwargs)
+typescript_binary(name, *, srcs = None, main = None, deps = None, data = None, tsconfig = None, transpiler = None, declaration = None, size = "small", visibility = None, **kwargs)
 ```
 
-Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src.
+Minimal wrapper over js_binary for TypeScript sources: compiles srcs with a private ts_project and runs the compiled main. main defaults to the only src. size is the size of the typecheck test.
 
 ### `typescript_test`
 

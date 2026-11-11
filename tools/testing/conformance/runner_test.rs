@@ -28,9 +28,7 @@ fn subject_matches_mode() {
     let subject = stage(&subject, &subject_key, std::path::Path::new(&tmp));
     let srcdir = std::env::var("TEST_SRCDIR").unwrap_or_default();
     let runfiles = std::env::var("RUNFILES_DIR").unwrap_or_else(|_| srcdir.clone());
-    let path = std::env::var("PATH").unwrap_or_default();
     let mut envs = vec![
-        ("PATH", path.as_str()),
         ("TEST_TMPDIR", tmp.as_str()),
         ("TEST_SRCDIR", srcdir.as_str()),
         ("RUNFILES_DIR", runfiles.as_str()),

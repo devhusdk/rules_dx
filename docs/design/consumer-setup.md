@@ -31,7 +31,7 @@ This page fixes what a consumer writes to use rules_dx, and what rules_dx writes
 - Each patch is root-only, upstream and then in the Bazel Central Registry, or rules_dx code or an extension.
 - A root-only patch is a `single_version_override` in the root `MODULE.bazel`. Bazel ignores it in a non-root module.
 - A consumer never applies a patch.
-- `rules_py` is pinned in the test harness until its release is in the Bazel Central Registry (#11398).
+- `rules_py` is pinned in the test harness until its release is in the Bazel Central Registry.
 
 ## Root module
 

@@ -19,7 +19,6 @@ Every test target and test macro follows these rules.
 
 ## Host tools
 
-- A test runs no host tool.
 - Every program a test starts is a runfile or comes from a pinned toolchain checked by `sha256`.
 - A test starts a program by its runfiles path with an empty `PATH`.
 - The rules in `docs/design/host-tools.md` apply to tests.
@@ -34,7 +33,6 @@ Every test target and test macro follows these rules.
 
 - A test that needs a device the machine may lack is incompatible until the machine declares the device with build flags.
 - The declared device is an input of the test. The test fails when the device it finds is not the declared one.
-- The test counts the device with a `resources:<name>:<n>` tag.
 - Its rule behaviour is also proven by a unit, analysis or in-graph fixture test that needs no device.
 
 ## Test kinds
@@ -48,18 +46,14 @@ A test is the first of four kinds that can prove the behaviour.
 | In-graph fixture | A test that depends on real fixture targets in this workspace and checks their built outputs. | The behaviour needs an action to run: a compiler, a linter, a packager. |
 | Nested | A test that runs a second Bazel in a consumer workspace. | No other kind can prove the same thing. |
 
-- A test that only checks rule behaviour is an analysis test or an in-graph fixture test.
-- A fixture target that must fail to build is the subject of an analysis failure test, not a test target.
 - A fixture is a library, binary or file target, or a conformance subject.
-- A fixture whose test proves a property of a test rule is a test target. It passes in the default set.
+- A fixture whose test proves a property of a test rule is a test target.
 
 ## Nested Bazel
 
 - Every test that needs Bazel uses the one shared harness in `tools/testing/nested`.
-- The harness runs the pinned Bazel from runfiles.
 - The nested build is offline.
 - Every repository the nested build reads is a declared input of the test.
-- The nested build sees no host `PATH`.
 
 ## Speed
 
@@ -74,7 +68,7 @@ A test is the first of four kinds that can prove the behaviour.
 - A passing test runs that executable from runfiles and asserts its exit code and output.
 - An analysis failure is asserted with `failure_test` on the non-test target.
 - A language test that must fail is a conformance subject.
-- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`. An action replays the compile action of the fixture library and writes the exit code and the output to a file. A passing test asserts both.
+- A compile that must fail is recorded by `compile_log` in `//tools/testing/hermetic:compilers.bzl`. An action replays the compile action of the fixture library and writes its exit code and output to a file. A passing test asserts both.
 
 ## Conformance
 
@@ -103,24 +97,22 @@ A test is the first of four kinds that can prove the behaviour.
 - `tools/testing/conformance/pending.bzl` holds a `<lang> <test> <platform>` line per suite test that does not pass yet; `*` is every `lang.json` platform. Such a test is incompatible on that platform. The list only shrinks. A language without a suite has a `*` line for each test; its manifest rows are `pending`.
 - The suite declares `:manifest`, compatible on every platform, with no dependency on a suite test. It records the label, the reason or `pending` of each test on each platform.
 - `//tools/testing/conformance:manifest` depends on the `:manifest` of every language in `core/modules/langs.bzl`. A language without a suite fails its build.
-- `docs/support-matrix.md` takes each suite test cell from the manifest. No hand-written table states one.
+- `docs/support-matrix.md` takes each suite test cell from the manifest.
 
 ## Wrapper upstream
 
 - A public test wrapper is the test. Its private `<name>_upstream` target is the executable the wrapper runs.
 - `DX_UPSTREAM_TAG` in `core/wrapper.bzl` is `manual`. `dx_upstream_tags` is its only writer.
 - Every private upstream target carries `DX_UPSTREAM_TAG`. Nothing else does.
-- No BUILD file tags an upstream target.
 - Expected-tag data names the upstream tag as `DX_UPSTREAM_TAG`, never as a string.
 - A tag-forwarding probe uses a tag that is not banned.
-- A test whose tags a probe reads runs in the default set.
 
 ## Bench and fuzz
 
-- A bench target is a test tagged `dx-bench`. It runs in the default set with a bounded run that fits its size.
+- A bench target is a test tagged `dx-bench`. It runs a bounded run that fits its size.
 - `dx bench` runs the same test and reads its `dx-bench.json`.
 - A fuzz target is a `testonly` binary tagged `dx-fuzz`. `dx fuzz` runs its `<name>_run` runner for a time budget.
-- A fuzz target that is a test runs a bounded number of cases in the default set.
+- A fuzz target that is a test runs a bounded number of cases.
 - No bench or fuzz macro adds `manual` to a target it declares.
 - A bench or fuzz target for only some platforms says so with `target_compatible_with`.
 
@@ -133,5 +125,3 @@ A test is the first of four kinds that can prove the behaviour.
 ## Guard
 
 - `docs/design/test-guards.md` holds the rules of the guards that check these rules.
-- `docs/design/test-budget.md` covers `//tools/ci:test_budget_test`.
-- `docs/design/test-guards.md` covers `//tools/ci:test_duplicates_test`.

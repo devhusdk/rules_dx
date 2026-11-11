@@ -52,13 +52,12 @@ Compiles .cu sources to relocatable device objects for the deps of an rdc cuda_l
 
 ### `cuda_component_library`
 
-Forwards one pinned CUDA library component after the EULA gate and the pin check.
+Forwards one pinned CUDA library component after the pin check.
 
 | Attribute | Type | Required | Description |
 | --- | --- | --- | --- |
 | `component` | `label` | yes | The rules_cuda component target, for example @cuda//:cublas. |
 | `component_name` | `string` | yes | rules_cuda short name of the component. |
-| `license` | `label` | no | CUDA Toolkit EULA state. |
 
 ### `cuda_gpu_env`
 

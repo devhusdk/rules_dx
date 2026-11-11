@@ -4,8 +4,6 @@ load("//powershell:defs.bzl", "powershell_test")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 
-# gazelle:dx_ignore_import powershell Pester
-
 package(default_visibility = VIS_TOOLS_PUBLIC)
 
 exports_files(

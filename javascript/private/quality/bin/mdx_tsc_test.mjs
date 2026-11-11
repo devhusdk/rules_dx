@@ -9,10 +9,16 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tool = path.join(here, "mdx_tsc.mjs");
 
+const sources = {
+  "bad.mdx": "import { missing } from \"./lib\";\n\nexport const bad = double(\"x\");\n\n# Bad\n\n<div title={double(\"y\")}>text</div>\n",
+  "clean.mdx": "---\ntitle: Clean\n---\n\nimport { double } from \"./lib\";\n\nexport const four = double(2);\n\n# Clean\n\nA table:\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\nValue is {double(four)}.\n\n<div title={String(double(1))}>text</div>\n",
+  "lib.ts": "export function double(n: number): number {\n  return n * 2;\n}\n",
+};
+
 function check(name) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "mdx-tsc-"));
   for (const file of [`${name}.mdx`, "lib.ts"]) {
-    fs.copyFileSync(path.join(here, "testdata", "mdx", file), path.join(dir, file));
+    fs.writeFileSync(path.join(dir, file), sources[file]);
   }
   fs.writeFileSync(
     path.join(dir, "tsconfig.json"),

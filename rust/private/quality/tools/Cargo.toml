@@ -51,7 +51,7 @@ tempfile = "=3.27.0"
 thiserror = "2.0.21"
 toml = "1.2.0+spec-1.1.0"
 
-# selene @ 0.32.0 (built from source, //rust/private/quality/tools:selene.BUILD.bazel).
+# selene @ 0.32.0 (built from source, //rust/private:selene.BUILD.bazel).
 # Shared crates (serde, serde_json, lazy_static) reuse the pins above; the
 # rest use compatible ranges so they resolve alongside statix/deadnix. toml 0.7
 # is renamed because statix needs toml 1.

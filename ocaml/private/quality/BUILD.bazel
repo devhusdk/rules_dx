@@ -79,13 +79,13 @@ ocaml_tools_tests(name = "pins_test")
 ocaml_cmt_list(
     name = "dirty_cmts",
     testonly = True,
-    target = "//ocaml/private/quality/testdata:dirty",
+    target = "//ocaml/tests/fixtures/zanuda:dirty",
 )
 
 ocaml_cmt_list(
     name = "clean_cmts",
     testonly = True,
-    target = "//ocaml/private/quality/testdata:clean",
+    target = "//ocaml/tests/fixtures/zanuda:clean",
 )
 
 sh_test(

@@ -424,11 +424,6 @@ private-names capnproto/private/testdata
 private-names cc/private/context/tests
 private-names cc/private/testdata
 private-names cc/private/toolchains
-private-names javascript/private/quality/bin/testdata
-private-names lua/private/quality/testdata
-private-names ocaml/private/quality/testdata
-private-names perl/private/tools/testdata
-private-names rust/private/quality/tools/selene.BUILD.bazel
 private-names thrift/private/testdata
 provider-name capnproto/defs.bzl
 provider-name dart/defs.bzl

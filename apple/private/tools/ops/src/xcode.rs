@@ -61,7 +61,10 @@ pub fn developer_dir(
     if version.is_empty() {
         return Err(usage("no Xcode version is configured for this program"));
     }
-    if let Some(preset) = preset.map(PathBuf::from).filter(|dir| installed(dir, version)) {
+    if let Some(preset) = preset
+        .map(PathBuf::from)
+        .filter(|dir| installed(dir, version))
+    {
         return Ok(preset);
     }
     let mut apps: Vec<PathBuf> = std::fs::read_dir(applications)
@@ -88,13 +91,21 @@ pub fn developer_dir(
 /// The developer directory the launcher's `DX_XCODE_VERSION` selects.
 pub fn for_launcher(env: Env) -> Result<PathBuf, Failure> {
     let version = env("DX_XCODE_VERSION").unwrap_or_default();
-    developer_dir(&version, env("DEVELOPER_DIR").as_deref(), Path::new(APPLICATIONS))
+    developer_dir(
+        &version,
+        env("DEVELOPER_DIR").as_deref(),
+        Path::new(APPLICATIONS),
+    )
 }
 
 /// The developer directory a rules_apple test runner selects.
 pub fn for_test_runner(env: Env) -> Result<PathBuf, Failure> {
     if let Some(version) = env("XCODE_VERSION_OVERRIDE") {
-        return developer_dir(&version, env("DEVELOPER_DIR").as_deref(), Path::new(APPLICATIONS));
+        return developer_dir(
+            &version,
+            env("DEVELOPER_DIR").as_deref(),
+            Path::new(APPLICATIONS),
+        );
     }
     env("DEVELOPER_DIR").map(PathBuf::from).ok_or_else(|| {
         usage("neither XCODE_VERSION_OVERRIDE nor DEVELOPER_DIR is set; the test runner selects no Xcode")
@@ -115,7 +126,12 @@ impl Tools<'_> {
             env: self
                 .developer_dir
                 .iter()
-                .map(|dir| ("DEVELOPER_DIR".to_owned(), dir.to_string_lossy().into_owned()))
+                .map(|dir| {
+                    (
+                        "DEVELOPER_DIR".to_owned(),
+                        dir.to_string_lossy().into_owned(),
+                    )
+                })
                 .collect(),
         }
     }

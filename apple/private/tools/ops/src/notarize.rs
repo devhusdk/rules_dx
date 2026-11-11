@@ -24,7 +24,14 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     };
     let flags = Flags::parse(
         flag_args,
-        &["app", "keychain-profile", "key", "key-id", "issuer", "timeout"],
+        &[
+            "app",
+            "keychain-profile",
+            "key",
+            "key-id",
+            "issuer",
+            "timeout",
+        ],
         HELP,
     )?;
     let (profile, key, key_id, issuer) = (
@@ -39,7 +46,9 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
         "2h"
     };
     if flags.get("app").is_empty() {
-        return Err(usage(format!("--app names the signed .app to notarize; {HELP}")));
+        return Err(usage(format!(
+            "--app names the signed .app to notarize; {HELP}"
+        )));
     }
     if timeout.is_empty() {
         return Err(usage(format!("--timeout needs a duration like 2h; {HELP}")));
@@ -53,7 +62,9 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
         }
     } else if given.iter().any(|value| !value.is_empty()) {
         if given.iter().any(|value| value.is_empty()) {
-            return Err(usage(format!("--key, --key-id and --issuer go together; {HELP}")));
+            return Err(usage(format!(
+                "--key, --key-id and --issuer go together; {HELP}"
+            )));
         }
     } else {
         return Err(usage(format!(
@@ -64,14 +75,28 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     let caller = caller(env);
     let app = absolute(flags.get("app"), &caller);
     if !text(&app).ends_with(".app") {
-        return Err(usage(format!("--app {} must name an .app bundle", app.display())));
+        return Err(usage(format!(
+            "--app {} must name an .app bundle",
+            app.display()
+        )));
     }
     if !app.is_dir() {
-        return Err(usage(format!("--app {} is not a bundle directory", app.display())));
+        return Err(usage(format!(
+            "--app {} is not a bundle directory",
+            app.display()
+        )));
     }
-    let parent = app.parent().unwrap_or(&caller).canonicalize().map_err(|e| usage(e.to_string()))?;
+    let parent = app
+        .parent()
+        .unwrap_or(&caller)
+        .canonicalize()
+        .map_err(|e| usage(e.to_string()))?;
     let app = parent.join(app.file_name().unwrap_or_default());
-    let key = if key.is_empty() { PathBuf::new() } else { absolute(key, &caller) };
+    let key = if key.is_empty() {
+        PathBuf::new()
+    } else {
+        absolute(key, &caller)
+    };
     if !key.as_os_str().is_empty() && !key.is_file() {
         return Err(usage(format!("--key {} is not a file", key.display())));
     }
@@ -86,15 +111,28 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     if bundle_id.is_empty() {
         return Err(usage("the launcher names no bundle_id"));
     }
-    let name = app.file_name().unwrap_or_default().to_string_lossy().into_owned();
-    let app_id = value(tools, "CFBundleIdentifier", &app.join("Contents/Info.plist"))
-        .ok_or_else(|| usage(format!("{name} names no CFBundleIdentifier")))?;
+    let name = app
+        .file_name()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .into_owned();
+    let app_id = value(
+        tools,
+        "CFBundleIdentifier",
+        &app.join("Contents/Info.plist"),
+    )
+    .ok_or_else(|| usage(format!("{name} names no CFBundleIdentifier")))?;
     if &app_id != bundle_id {
-        return Err(usage(format!("{name} is {app_id}, not the declared {bundle_id}")));
+        return Err(usage(format!(
+            "{name} is {app_id}, not the declared {bundle_id}"
+        )));
     }
     let details = describe(tools, &["-dv"], &app)
         .ok_or_else(|| usage(format!("{name} is not signed; run apple_macos_sign first")))?;
-    if details.lines().any(|line| line.starts_with("Signature=adhoc")) {
+    if details
+        .lines()
+        .any(|line| line.starts_with("Signature=adhoc"))
+    {
         return Err(usage(format!(
             "{name} carries an ad hoc signature; run apple_macos_sign first"
         )));
@@ -106,8 +144,13 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     }
 
     let work = Scratch::new(env, "notarize")?;
-    let zip = work.path().join(format!("{}.zip", name.trim_end_matches(".app")));
-    let zipped = tools.tool(DITTO, &["-c", "-k", "--keepParent", &text(&app), &text(&zip)]);
+    let zip = work
+        .path()
+        .join(format!("{}.zip", name.trim_end_matches(".app")));
+    let zipped = tools.tool(
+        DITTO,
+        &["-c", "-k", "--keepParent", &text(&app), &text(&zip)],
+    );
     if !zipped.success() {
         return Err(usage(format!("cannot zip {}", app.display())));
     }
@@ -130,7 +173,9 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     let status = value(tools, "status", &json).unwrap_or_default();
     if id.is_empty() {
         eprint!("{}", submitted.stderr);
-        if submitted.stderr.contains("NSURLErrorDomain") || submitted.stderr.contains("appears to be offline") {
+        if submitted.stderr.contains("NSURLErrorDomain")
+            || submitted.stderr.contains("appears to be offline")
+        {
             return Err(Failure {
                 code: 3,
                 message: "the Apple notary service is not reachable; retry when online".to_owned(),
@@ -181,7 +226,9 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     let staple = tools.xcrun(&["stapler", "staple", &app_text]);
     if !staple.success() {
         eprint!("{}", combined(&staple));
-        return Err(reject(format!("cannot staple the notarization ticket to {name}")));
+        return Err(reject(format!(
+            "cannot staple the notarization ticket to {name}"
+        )));
     }
     let validate = tools.xcrun(&["stapler", "validate", &app_text]);
     if !validate.success() {
@@ -191,8 +238,12 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     let assess = tools.tool(SPCTL, &["--assess", "--type", "execute", "-vv", &app_text]);
     if !assess.success() {
         eprint!("{}", combined(&assess));
-        return Err(reject(format!("stapled {name} fails spctl --assess --type execute")));
+        return Err(reject(format!(
+            "stapled {name} fails spctl --assess --type execute"
+        )));
     }
-    println!("{PREFIX}: notarized and stapled {app_text} (submission {id}); notary log at {log_text}");
+    println!(
+        "{PREFIX}: notarized and stapled {app_text} (submission {id}); notary log at {log_text}"
+    );
     Ok(0)
 }

@@ -58,7 +58,9 @@ fn udid(tools: &Tools, env: Env) -> Result<String, Failure> {
             "no available simulator named '{want}'; create one with xcrun simctl create"
         ))),
         1 => Ok(found.remove(0).to_owned()),
-        count => Err(usage(format!("'{want}' names {count} simulators; pass one UDID"))),
+        count => Err(usage(format!(
+            "'{want}' names {count} simulators; pass one UDID"
+        ))),
     }
 }
 

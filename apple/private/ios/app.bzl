@@ -9,8 +9,9 @@ load("@rules_apple//apple/testing/default_runner:ios_xctestrun_runner.bzl", "ios
 load("@rules_cc//cc:objc_library.bzl", "objc_library")
 load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
-load("//core:resources.bzl", "dx_heavy_resources")
 load("//apple/private/bundle:defs.bzl", "NO_PATH", "SIGNING_CERTIFICATE", "archives", "check_cell", "display", "flat_resources", "framework_binaries", "label_text", "resolved_xcode")
+load("//core:resources.bzl", "dx_heavy_resources")
+load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(
     ":cell.bzl",
     "APPLE_HOSTS",
@@ -21,7 +22,6 @@ load(
     "target_cell",
 )
 load(":defs.bzl", "AppleIosLibInfo", "ios_platform_errors", "ios_platforms", "ios_slice", "split_platform")
-load(":app_validate.bzl", "ios_app_errors", "ios_test_coverage_kwargs", "ios_test_errors", "ios_test_source_errors", "ios_xcframework_errors", "ios_xcframework_header_name_errors")
 load(":validate.bzl", "ios_arch_errors", "ios_environment_errors", "ios_sdk_for")
 
 _INFO_PLIST = """<?xml version="1.0" encoding="UTF-8"?>

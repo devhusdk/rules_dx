@@ -94,8 +94,8 @@ pub fn create(
 
 /// Shuts down and deletes the simulator `SIMULATOR_UDID` names; a failed delete only warns.
 pub fn delete(tools: &Tools, env: Env) -> Outcome {
-    let udid =
-        env("SIMULATOR_UDID").ok_or_else(|| usage("SIMULATOR_UDID names the simulator to delete"))?;
+    let udid = env("SIMULATOR_UDID")
+        .ok_or_else(|| usage("SIMULATOR_UDID names the simulator to delete"))?;
     quiet(tools, &["simctl", "shutdown", &udid]);
     let deleted = tools.xcrun(&["simctl", "delete", &udid]);
     if !deleted.success() {

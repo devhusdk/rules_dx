@@ -1,8 +1,7 @@
 """Simulator application, app test, and XCFramework selection coverage."""
 
-load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
-load(":cell.bzl", "apple_build_host")
+load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load(
     ":app_validate.bzl",
     "ios_app_errors",
@@ -21,6 +20,7 @@ load(
     "ios_xcframework_header_name_errors",
     "ios_xcframework_resource_errors",
 )
+load(":cell.bzl", "apple_build_host")
 load(":simulator.bzl", "simulator_errors")
 
 def _app(**kwargs):

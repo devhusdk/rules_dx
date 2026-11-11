@@ -33,7 +33,13 @@ fn sysctl(name: &str) -> String {
     let mut size: libc::size_t = 0;
     // SAFETY: a null buffer asks sysctlbyname for the size of the value.
     let rc = unsafe {
-        libc::sysctlbyname(key.as_ptr(), std::ptr::null_mut(), &mut size, std::ptr::null_mut(), 0)
+        libc::sysctlbyname(
+            key.as_ptr(),
+            std::ptr::null_mut(),
+            &mut size,
+            std::ptr::null_mut(),
+            0,
+        )
     };
     if rc != 0 || size == 0 {
         return String::new();
@@ -53,7 +59,10 @@ fn sysctl(name: &str) -> String {
         return String::new();
     }
     buffer.truncate(size);
-    let end = buffer.iter().position(|byte| *byte == 0).unwrap_or(buffer.len());
+    let end = buffer
+        .iter()
+        .position(|byte| *byte == 0)
+        .unwrap_or(buffer.len());
     String::from_utf8_lossy(&buffer[..end]).into_owned()
 }
 
@@ -75,8 +84,16 @@ pub fn executor() -> Executor {
     };
     let darwin = system == "Darwin";
     Executor {
-        macos: if darwin { sysctl("kern.osproductversion") } else { String::new() },
-        macos_build: if darwin { sysctl("kern.osversion") } else { String::new() },
+        macos: if darwin {
+            sysctl("kern.osproductversion")
+        } else {
+            String::new()
+        },
+        macos_build: if darwin {
+            sysctl("kern.osversion")
+        } else {
+            String::new()
+        },
         system,
         arch,
     }
@@ -102,14 +119,28 @@ fn xcrun(tools: &Tools, args: &[&str]) -> Result<String, Failure> {
     if output.success() {
         Ok(output.stdout.trim_end_matches('\n').to_owned())
     } else {
-        Err(reject(format!("xcrun {} failed: {}", args.join(" "), text(&output))))
+        Err(reject(format!(
+            "xcrun {} failed: {}",
+            args.join(" "),
+            text(&output)
+        )))
     }
 }
 
 /// Runs the probe `args` name and writes the report on success.
 pub fn run(tools: &Tools, executor: &Executor, args: &[String], env: Env) -> Outcome {
-    let [out, route, host, xcode, sdk, sdk_version, deployment, macos_floor, compiler, rest @ ..] =
-        args
+    let [
+        out,
+        route,
+        host,
+        xcode,
+        sdk,
+        sdk_version,
+        deployment,
+        macos_floor,
+        compiler,
+        rest @ ..,
+    ] = args
     else {
         return Err(usage(
             "usage: apple_ops probe <out> <route> <host> <xcode> <sdk> <sdk-version> <deployment> <macos-floor> <compiler> [endpoint]",
@@ -129,10 +160,14 @@ pub fn run(tools: &Tools, executor: &Executor, args: &[String], env: Env) -> Out
         )));
     }
     if host == "macos_arm64" && arch != "arm64" {
-        return Err(reject(format!("executor is {arch}, not the arm64 host {host}")));
+        return Err(reject(format!(
+            "executor is {arch}, not the arm64 host {host}"
+        )));
     }
     if components(macos) < components(macos_floor) {
-        return Err(reject(format!("executor runs macOS {macos}, below {macos_floor}")));
+        return Err(reject(format!(
+            "executor runs macOS {macos}, below {macos_floor}"
+        )));
     }
 
     let license = tools.xcrun(&["xcodebuild", "-license", "check"]);
@@ -158,7 +193,10 @@ pub fn run(tools: &Tools, executor: &Executor, args: &[String], env: Env) -> Out
             "executor runs Xcode {actual} ({build}) but Bazel resolved {xcode}"
         )));
     }
-    if let Some(resolved) = xcode.split('.').nth(3).filter(|resolved| !resolved.is_empty())
+    if let Some(resolved) = xcode
+        .split('.')
+        .nth(3)
+        .filter(|resolved| !resolved.is_empty())
         && *resolved != build
     {
         return Err(reject(format!(

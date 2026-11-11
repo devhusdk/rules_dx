@@ -100,7 +100,12 @@ fn a_missing_test_runtime_fails_instead_of_using_the_sdk_runtime() {
 fn a_request_needs_both_names_and_never_reuses() {
     let fake = simulator();
     let partial = env(&[("SIMULATOR_DEVICE_TYPE", "iPhone 16")]);
-    assert_eq!(create(&tools(&fake), &partial, 9, &|_| true).unwrap_err().code, 2);
+    assert_eq!(
+        create(&tools(&fake), &partial, 9, &|_| true)
+            .unwrap_err()
+            .code,
+        2
+    );
     let reuse = env(&[
         ("SIMULATOR_DEVICE_TYPE", "iPhone 16"),
         ("SIMULATOR_OS_VERSION", "18.5"),
@@ -130,7 +135,10 @@ fn a_test_simulator_that_cannot_boot_is_deleted() {
     });
     let failure = create(&tools(&fake), &request(), 9, &|_| true).unwrap_err();
     assert_eq!(failure.code, 5);
-    assert_eq!(fake.log().last().unwrap(), &format!("simctl delete {CREATED}"));
+    assert_eq!(
+        fake.log().last().unwrap(),
+        &format!("simctl delete {CREATED}")
+    );
 }
 
 #[test]
@@ -162,7 +170,10 @@ fn a_failed_sweep_still_creates() {
             ok(CREATED)
         }
     });
-    assert_eq!(create(&tools(&fake), &request(), 9, &|_| true).unwrap(), CREATED);
+    assert_eq!(
+        create(&tools(&fake), &request(), 9, &|_| true).unwrap(),
+        CREATED
+    );
 }
 
 #[test]
@@ -176,19 +187,35 @@ fn list_failures_keep_the_simctl_exit_code() {
 #[test]
 fn a_test_simulator_is_shut_down_and_deleted_after_the_run() {
     let fake = simulator();
-    assert_eq!(delete(&tools(&fake), &env(&[("SIMULATOR_UDID", CREATED)])), Ok(0));
+    assert_eq!(
+        delete(&tools(&fake), &env(&[("SIMULATOR_UDID", CREATED)])),
+        Ok(0)
+    );
     assert_eq!(
         fake.log(),
-        [format!("simctl shutdown {CREATED}"), format!("simctl delete {CREATED}")]
+        [
+            format!("simctl shutdown {CREATED}"),
+            format!("simctl delete {CREATED}")
+        ]
     );
     let failure = delete(&tools(&fake), &env(&[])).unwrap_err();
-    assert_eq!(failure.message, "SIMULATOR_UDID names the simulator to delete");
+    assert_eq!(
+        failure.message,
+        "SIMULATOR_UDID names the simulator to delete"
+    );
 }
 
 #[test]
 fn a_failed_delete_does_not_fail_the_test() {
     let fake = Fake::new(|cmd| {
-        if cmd.args[1] == "delete" { fail(1, "busy") } else { ok("") }
+        if cmd.args[1] == "delete" {
+            fail(1, "busy")
+        } else {
+            ok("")
+        }
     });
-    assert_eq!(delete(&tools(&fake), &env(&[("SIMULATOR_UDID", CREATED)])), Ok(0));
+    assert_eq!(
+        delete(&tools(&fake), &env(&[("SIMULATOR_UDID", CREATED)])),
+        Ok(0)
+    );
 }

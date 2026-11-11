@@ -47,7 +47,11 @@ fn probe(
     xcode: &str,
     sdk_version: &str,
     floor: &str,
-) -> (Result<u8, String>, std::path::PathBuf, dx_test_scratch::TempDir) {
+) -> (
+    Result<u8, String>,
+    std::path::PathBuf,
+    dx_test_scratch::TempDir,
+) {
     let root = scratch("probe");
     let out = root.path().join("report.txt");
     let text = out.to_string_lossy().into_owned();

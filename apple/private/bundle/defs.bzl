@@ -1,7 +1,7 @@
 """Shared Apple bundle checks for iOS and macOS rules."""
 
-load("//core:resources.bzl", "dx_heavy_resources")
 load("//apple/private/provisioning:defs.bzl", "version_matches")
+load("//core:resources.bzl", "dx_heavy_resources")
 
 NO_PATH = "/dx_no_path"
 

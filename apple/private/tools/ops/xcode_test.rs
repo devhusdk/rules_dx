@@ -5,8 +5,8 @@ mod fake;
 use std::path::PathBuf;
 
 use dx_apple_ops::xcode::{
-    CODESIGN, DITTO, PLUTIL, SECURITY, Tools, XCRUN, developer_dir, for_test_runner,
-    short_version, version_matches,
+    CODESIGN, DITTO, PLUTIL, SECURITY, Tools, XCRUN, developer_dir, for_test_runner, short_version,
+    version_matches,
 };
 use dx_test_scratch::{scratch, write};
 use fake::{Fake, env, ok};
@@ -53,11 +53,11 @@ fn a_preset_developer_directory_wins_only_for_the_same_version() {
     let other = install(root.path(), "Other.app", "15.2");
     let first = install(root.path(), "A.app", "15.2");
     let preset = other.to_string_lossy().into_owned();
+    assert_eq!(developer_dir("15.2", Some(&preset), root.path()), Ok(other));
     assert_eq!(
-        developer_dir("15.2", Some(&preset), root.path()),
-        Ok(other)
+        developer_dir("16.0", Some(&preset), root.path()).map_err(|f| f.code),
+        Err(127)
     );
-    assert_eq!(developer_dir("16.0", Some(&preset), root.path()).map_err(|f| f.code), Err(127));
     assert_eq!(developer_dir("15.2", None, root.path()), Ok(first));
 }
 
@@ -76,7 +76,11 @@ fn a_missing_or_unset_version_fails_instead_of_guessing() {
 fn the_test_runner_needs_a_version_or_a_developer_directory() {
     let neither = for_test_runner(&env(&[])).unwrap_err();
     assert_eq!(neither.code, 2);
-    assert!(neither.message.contains("neither XCODE_VERSION_OVERRIDE nor DEVELOPER_DIR"));
+    assert!(
+        neither
+            .message
+            .contains("neither XCODE_VERSION_OVERRIDE nor DEVELOPER_DIR")
+    );
     assert_eq!(
         for_test_runner(&env(&[("DEVELOPER_DIR", "/x/Developer")])),
         Ok(PathBuf::from("/x/Developer"))

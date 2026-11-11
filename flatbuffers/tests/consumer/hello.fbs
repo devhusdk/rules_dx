@@ -1,0 +1,7 @@
+namespace consumer;
+
+table Greeting {
+  name: string;
+}
+
+root_type Greeting;

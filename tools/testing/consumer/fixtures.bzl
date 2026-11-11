@@ -10,6 +10,7 @@ CONSUMER_FIXTURES = [
     "dart",
     "elixir",
     "erlang",
+    "flatbuffers",
     "fsharp",
     "go",
     "haskell",

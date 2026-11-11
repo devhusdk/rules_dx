@@ -229,6 +229,41 @@ dx_conformance_manifest = rule(
     doc = "Writes one JSON with the entries of every language and the platforms of each.",
 )
 
+def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
+    """Declares a test that runs subject under code coverage and requires covered_source to be fully executed.
+
+    Args:
+      name: Name of the test.
+      subject: Test target to run; built under the coverage transition.
+      covered_source: File name whose lines the subject must cover.
+      size: Size of the test.
+      **kwargs: Forwarded to the test.
+    """
+    _coverage_subject(
+        name = name + "_subject",
+        subject = subject,
+        instrumentation_filter = "^//%s[/:]" % native.package_name(),
+        windows = select({
+            "@platforms//os:windows": True,
+            "//conditions:default": False,
+        }),
+        testonly = True,
+        visibility = ["//visibility:private"],
+    )
+    rust_test(
+        name = name,
+        srcs = [Label("//tools/testing/conformance:runner_test.rs")],
+        data = [":" + name + "_subject"],
+        deps = [Label("//tools/testing:dx_testing")],
+        env = {
+            "DX_CONFORMANCE_MODE": "coverage",
+            "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths :%s_subject)" % name,
+            "DX_CONFORMANCE_TEXT": covered_source,
+        },
+        size = size,
+        **kwargs
+    )
+
 def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, not_applicable = {}, size = "small", **kwargs):
     """Declares build_test, coverage_test, pass_test and fail_test for one language.
 

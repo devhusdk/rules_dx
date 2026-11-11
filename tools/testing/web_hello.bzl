@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//javascript:defs.bzl", "javascript_library")
-load("//rust:defs.bzl", "rust_test")
+load("//tools/testing/conformance:defs.bzl", "dx_coverage_test")
 
 def dx_web_hello_fixture(component, library_rule):
     """Declares the hello component library, helper, coverage test and aggregate build test around the :hello_test the package declares."""
@@ -16,16 +16,16 @@ def dx_web_hello_fixture(component, library_rule):
         srcs = ["helper.js"],
     )
 
-    rust_test(
+    dx_coverage_test(
         name = "coverage_test",
-        srcs = [Label("//tools/testing:web_hello_coverage_test.rs")],
-        data = [":hello_test"],
-        env = {
-            "HELLO_SOURCES": "hello/%s hello/helper.js" % component,
-            "HELLO_TEST": "$(rootpath :hello_test)",
-        },
-        tags = ["no-remote-exec"],
-        deps = [Label("//tools/testing:dx_testing")],
+        subject = ":hello_test",
+        covered_source = "hello/helper.js",
+    )
+
+    dx_coverage_test(
+        name = "component_coverage_test",
+        subject = ":hello_test",
+        covered_source = "hello/%s" % component,
     )
 
     build_test(
@@ -34,5 +34,6 @@ def dx_web_hello_fixture(component, library_rule):
             ":hello_lib",
             ":hello_test",
             ":coverage_test",
+            ":component_coverage_test",
         ],
     )

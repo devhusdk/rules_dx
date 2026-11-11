@@ -24,7 +24,6 @@ load("//make/private/quality:make.bzl", _real_make_format_aspect = "real_make_fo
 load("//ocaml/private/quality:ocaml.bzl", _real_ocaml_format_aspect = "real_ocaml_format_aspect", _real_ocaml_format_probe_aspect = "real_ocaml_format_probe_aspect", _real_ocaml_lint_aspect = "real_ocaml_lint_aspect", _real_ocaml_lint_probe_aspect = "real_ocaml_lint_probe_aspect", _real_ocaml_typecheck_aspect = "real_ocaml_typecheck_aspect", _real_ocaml_typecheck_probe_aspect = "real_ocaml_typecheck_probe_aspect")
 load("//perl/private/quality:perl.bzl", _real_perl_format_aspect = "real_perl_format_aspect", _real_perl_format_probe_aspect = "real_perl_format_probe_aspect", _real_perl_lint_aspect = "real_perl_lint_aspect", _real_perl_lint_probe_aspect = "real_perl_lint_probe_aspect")
 load("//php/private/quality:php.bzl", _real_php_lint_aspect = "real_php_lint_aspect", _real_php_lint_probe_aspect = "real_php_lint_probe_aspect", _real_php_typecheck_aspect = "real_php_typecheck_aspect", _real_php_typecheck_probe_aspect = "real_php_typecheck_probe_aspect")
-load("//pkl/private/quality:pkl.bzl", _real_pkl_format_aspect = "real_pkl_format_aspect", _real_pkl_format_probe_aspect = "real_pkl_format_probe_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect", _real_pkl_lint_probe_aspect = "real_pkl_lint_probe_aspect", _real_pkl_typecheck_aspect = "real_pkl_typecheck_aspect", _real_pkl_typecheck_probe_aspect = "real_pkl_typecheck_probe_aspect")
 load("//powershell/private/quality:powershell.bzl", _real_powershell_format_aspect = "real_powershell_format_aspect", _real_powershell_format_probe_aspect = "real_powershell_format_probe_aspect", _real_powershell_lint_aspect = "real_powershell_lint_aspect", _real_powershell_lint_probe_aspect = "real_powershell_lint_probe_aspect")
 load("//python/private/quality:python.bzl", _real_python_format_aspect = "real_python_format_aspect", _real_python_format_probe_aspect = "real_python_format_probe_aspect", _real_python_lint_aspect = "real_python_lint_aspect", _real_python_lint_probe_aspect = "real_python_lint_probe_aspect", _real_python_typecheck_aspect = "real_python_typecheck_aspect", _real_python_typecheck_probe_aspect = "real_python_typecheck_probe_aspect")
 load("//rego/private/quality:rego.bzl", _real_rego_format_aspect = "real_rego_format_aspect", _real_rego_lint_aspect = "real_rego_lint_aspect", _real_rego_typecheck_aspect = "real_rego_typecheck_aspect")
@@ -81,7 +80,7 @@ load("//core/quality:families/typst.bzl", _real_typst_format_aspect = "real_typs
 load("//core/quality:families/xml.bzl", _real_xml_lint_aspect = "real_xml_lint_aspect", _XML_SHARD_SPECS = "SHARD_SPECS", _XML_TOOLS = "TOOLS")
 load("//core/quality:families/yaml.bzl", _real_yaml_format_aspect = "real_yaml_format_aspect", _real_yaml_lint_aspect = "real_yaml_lint_aspect", _YAML_SHARD_SPECS = "SHARD_SPECS", _YAML_TOOLS = "TOOLS")
 load("//core/quality:families/cue.bzl", _real_cue_format_aspect = "real_cue_format_aspect", _real_cue_typecheck_aspect = "real_cue_typecheck_aspect", _CUE_HOOKS = "HOOKS", _CUE_SHARD_SPECS = "SHARD_SPECS", _CUE_TOOLS = "TOOLS")
-load("//pkl/private/quality:pkl.bzl", _PKL_HOOKS = "HOOKS", _PKL_SHARD_SPECS = "SHARD_SPECS", _PKL_TOOLS = "TOOLS")
+load("//core/quality:families/pkl.bzl", _real_pkl_format_aspect = "real_pkl_format_aspect", _real_pkl_lint_aspect = "real_pkl_lint_aspect", _real_pkl_typecheck_aspect = "real_pkl_typecheck_aspect", _PKL_HOOKS = "HOOKS", _PKL_SHARD_SPECS = "SHARD_SPECS", _PKL_TOOLS = "TOOLS")
 load("//core/quality:families/jsonnet.bzl", _real_jsonnet_format_aspect = "real_jsonnet_format_aspect", _real_jsonnet_lint_aspect = "real_jsonnet_lint_aspect", _JSONNET_HOOKS = "HOOKS", _JSONNET_SHARD_SPECS = "SHARD_SPECS", _JSONNET_TOOLS = "TOOLS")
 load("//rego/private/quality:rego.bzl", _REGO_HOOKS = "HOOKS", _REGO_SHARD_SPECS = "SHARD_SPECS", _REGO_TOOLS = "TOOLS")
 load("//bicep/private/quality:bicep.bzl", _BICEP_HOOKS = "HOOKS", _BICEP_SHARD_SPECS = "SHARD_SPECS", _BICEP_TOOLS = "TOOLS")
@@ -343,18 +342,6 @@ real_php_lint_probe_aspect = _real_php_lint_probe_aspect
 real_php_typecheck_aspect = _real_php_typecheck_aspect
 
 real_php_typecheck_probe_aspect = _real_php_typecheck_probe_aspect
-
-real_pkl_format_aspect = _real_pkl_format_aspect
-
-real_pkl_format_probe_aspect = _real_pkl_format_probe_aspect
-
-real_pkl_lint_aspect = _real_pkl_lint_aspect
-
-real_pkl_lint_probe_aspect = _real_pkl_lint_probe_aspect
-
-real_pkl_typecheck_aspect = _real_pkl_typecheck_aspect
-
-real_pkl_typecheck_probe_aspect = _real_pkl_typecheck_probe_aspect
 
 real_powershell_format_aspect = _real_powershell_format_aspect
 
@@ -673,6 +660,12 @@ real_docs_aspects = [
 real_cue_format_aspect = _real_cue_format_aspect
 
 real_cue_typecheck_aspect = _real_cue_typecheck_aspect
+
+real_pkl_format_aspect = _real_pkl_format_aspect
+
+real_pkl_lint_aspect = _real_pkl_lint_aspect
+
+real_pkl_typecheck_aspect = _real_pkl_typecheck_aspect
 
 real_jsonnet_format_aspect = _real_jsonnet_format_aspect
 

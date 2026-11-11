@@ -771,7 +771,6 @@ rust_test(
         "//perl/private/quality:corpus_starlark",
         "//php/private:corpus_starlark",
         "//php/private/quality:corpus_starlark",
-        "//pkl/private/quality:corpus_starlark",
         "//powershell/private:corpus_starlark",
         "//powershell/private/quality:corpus_starlark",
         "//python/private:corpus_starlark",

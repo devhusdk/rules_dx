@@ -287,7 +287,6 @@ filegroup(
         "//ocaml/private/quality:module_srcs",
         "//perl/private/quality:module_srcs",
         "//php/private/quality:module_srcs",
-        "//pkl/private/quality:module_srcs",
         "//powershell/private/quality:module_srcs",
         "//python/private/quality:module_srcs",
         "//rego/private/quality:module_srcs",
@@ -423,7 +422,6 @@ real_source_target(
     toml_srcs = [".gitleaks.toml"],
 )
 
-exports_files(["pkl/lang.json"])
 
 # dx:begin exports
 exports_files(

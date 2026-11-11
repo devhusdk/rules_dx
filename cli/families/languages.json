@@ -1114,37 +1114,6 @@
       }
     },
     {
-      "name": "pkl",
-      "quality": {
-        "aspects": {
-          "format": [
-            "real_pkl_format_aspect"
-          ],
-          "lint": [
-            "real_pkl_lint_aspect"
-          ],
-          "typecheck": [
-            "real_pkl_typecheck_aspect"
-          ]
-        },
-        "bzl": "pkl/private/quality:pkl.bzl",
-        "file_extensions": [
-          ".pkl"
-        ],
-        "probes": {
-          "format": [
-            "real_pkl_format_probe_aspect"
-          ],
-          "lint": [
-            "real_pkl_lint_probe_aspect"
-          ],
-          "typecheck": [
-            "real_pkl_typecheck_probe_aspect"
-          ]
-        }
-      }
-    },
-    {
       "docs": {
         "aspects": [
           "real_powershell_docs_aspect"

@@ -6,9 +6,6 @@ entries apple/platforms
 entries cuda/components
 entries ocaml/bench
 entries ocaml/packages
-entries pkl/BUILD.bazel
-entries pkl/defs.bzl
-entries pkl/tests
 entries swift/bench
 entry-points ansible/lang.json
 entry-points api_spec/lang.json
@@ -438,7 +435,6 @@ fixture-referenced typescript/tests/fixtures/modes
 fixture-referenced typescript/tests/fixtures/playwright
 fixture-referenced zig/tests/fixtures/bench
 fixture-referenced zig/tests/fixtures/calc
-membership pkl
 name-prefix android/defs.bzl
 name-prefix api_spec/defs.bzl
 name-prefix capnproto/defs.bzl
@@ -742,7 +738,6 @@ title flatbuffers/lang.json
 title helm/lang.json
 title kubernetes/lang.json
 title make/lang.json
-title pkl/lang.json
 title qt/lang.json
 title rego/lang.json
 title rst/lang.json

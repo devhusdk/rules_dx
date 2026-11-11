@@ -12,6 +12,7 @@ The CUDA rules load from `@rules_dx//cuda:defs.bzl`. rules_dx declares the
 pinned toolkit and the nvcc toolchain. Add this to the root `MODULE.bazel`:
 
 ```python
+cuda = use_extension("@rules_cuda//cuda:extensions.bzl", "toolchain")
 cuda.license(accept = ["cuda-eula"])
 ```
 

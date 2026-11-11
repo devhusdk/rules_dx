@@ -13,7 +13,7 @@ def _checks():
         expect_equal("root accepts", cuda_license_error([_module(True, "cuda-eula")]), ""),
         expect_equal("nothing accepted", cuda_license_error([_module(True)]), _UNACCEPTED),
         expect_equal("only a non-root module accepts", cuda_license_error([_module(False, "cuda-eula"), _module(True)]), _UNACCEPTED),
-        expect_equal("message text", _UNACCEPTED, "dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda.license(accept = [\"cuda-eula\"]) to the root MODULE.bazel"),
+        expect_equal("message text", cuda_license_error([]), "dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda.license(accept = [\"cuda-eula\"]) to the root MODULE.bazel"),
     ]
 
 def cuda_license_gate_tests(name):

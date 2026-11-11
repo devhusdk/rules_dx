@@ -14,6 +14,6 @@ otherwise. The test checks host-side logic only and launches no kernel.
 
 ## License
 
-`MODULE.bazel` contains `cuda.license(accept = ["cuda-eula"])`. That line accepts
+`MODULE.bazel` uses the `cuda` extension from `@rules_cuda` and contains `cuda.license(accept = ["cuda-eula"])`. That line accepts
 the NVIDIA CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) on your behalf.
 Remove it to decline; CUDA targets then fail to build with a message that names the license.

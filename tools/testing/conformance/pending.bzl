@@ -150,10 +150,7 @@ powershell build_test *
 powershell coverage_test *
 powershell fail_test *
 powershell pass_test *
-python build_test *
 python coverage_test *
-python fail_test *
-python pass_test *
 qt build_test *
 qt coverage_test *
 qt fail_test *

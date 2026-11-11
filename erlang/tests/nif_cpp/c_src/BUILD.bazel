@@ -1,10 +1,21 @@
+load("@rules_dx//cc:defs.bzl", "cc_library")
+
 # gazelle:dx_rust_corpus false
 
-# gazelle:ignore
 exports_files(
     [
         "dx_cpp_a_nif.cc",
         "dx_cpp_b_nif.cc",
     ],
     visibility = ["//erlang/tests/nif_cpp:__pkg__"],
+)
+
+cc_library(
+    name = "c_src",
+    testonly = True,
+    srcs = [
+        "dx_cpp_a_nif.cc",
+        "dx_cpp_b_nif.cc",
+    ],
+    visibility = ["//visibility:public"],
 )

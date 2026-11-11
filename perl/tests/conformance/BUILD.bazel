@@ -1,4 +1,4 @@
-# gazelle:ignore
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//perl:defs.bzl", "perl_binary", "perl_library", "perl_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -9,6 +9,7 @@ package(
 
 perl_library(
     name = "conformance",
+    testonly = True,
     srcs = ["lib/Greet.pm"],
 )
 
@@ -21,6 +22,7 @@ perl_binary(
 perl_test(
     name = "pass_subject_test",
     size = "small",
+    testonly = True,
     srcs = ["t/pass_test.t"],
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
@@ -29,6 +31,7 @@ perl_test(
 perl_test(
     name = "fail_subject_test",
     size = "small",
+    testonly = True,
     srcs = ["t/fail_test.t"],
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
@@ -36,6 +39,7 @@ perl_test(
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "lib/Greet.pm",
     expected = "hello world",
@@ -43,5 +47,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "perl",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

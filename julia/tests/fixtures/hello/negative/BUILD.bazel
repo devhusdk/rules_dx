@@ -1,18 +1,25 @@
-# gazelle:ignore
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//julia:defs.bzl", "julia_library")
 
 package(default_visibility = ["//visibility:public"])
 
 julia_library(
     name = "Broken",
+    testonly = True,
     srcs = ["src/Broken.jl"],
     tags = ["manual"],
-    testonly = True,
 )
 
 julia_library(
     name = "Missing",
+    testonly = True,
     srcs = ["src/Missing.jl"],
     tags = ["manual"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
     testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

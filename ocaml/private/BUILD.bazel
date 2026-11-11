@@ -1,14 +1,17 @@
-# gazelle:ignore
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal", "fake_file", "label_string")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//core:wrapper.bzl", "DX_UPSTREAM_TAG", "dx_test_forward_kwargs", "dx_test_upstream_kwargs")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//core:rlocation.bzl", "runfiles_path")
 load(":defs.bzl", "launcher_descriptor", "owned_sources", "toolchain_choice")
 load(":kwargs.bzl", "ocaml_coverage_kwargs", "ocaml_default_module_name", "ocaml_link_kwargs", "ocaml_test_upstream_kwargs", "ocaml_upstream_tags", "ocaml_with_defaults")
 load(":providers.bzl", "STANDARD_WARNING_OPTS", "STRICT_WARNING_OPTS", "WARNINGS_AS_ERRORS_OPTS", "bin_annot_opts", "cmt_entries", "profile_warning_opts")
 
-package(default_visibility = ["//ocaml:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//ocaml:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "dune.bzl",
@@ -163,7 +166,10 @@ dx_wrapper_contract_tests(
                 "env": {"K": "1"},
                 "env_inherit": ["HOME"],
             })),
-            {"tags": [DX_UPSTREAM_TAG], "visibility": ["//visibility:private"]},
+            {
+                "tags": [DX_UPSTREAM_TAG],
+                "visibility": ["//visibility:private"],
+            },
         ),
         expect_equal(
             "env and env_inherit reach the test forwarder",

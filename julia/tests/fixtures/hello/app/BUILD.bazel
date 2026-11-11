@@ -1,4 +1,6 @@
-# gazelle:ignore
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
+# gazelle:resolve julia Greet //julia/tests/fixtures/hello:Greet
 load("@rules_dx//julia:defs.bzl", "julia_library", "julia_standalone_binary")
 
 package(
@@ -8,6 +10,7 @@ package(
 
 julia_library(
     name = "HelloApp",
+    testonly = True,
     srcs = ["src/HelloApp.jl"],
     data = ["Project.toml"],
     deps = ["//julia/tests/fixtures/hello:Greet"],
@@ -16,4 +19,18 @@ julia_library(
 julia_standalone_binary(
     name = "hello_standalone",
     binary = ":HelloApp",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_toml",
+    testonly = True,
+    tags = ["corpus"],
+    toml_srcs = ["Project.toml"],
 )

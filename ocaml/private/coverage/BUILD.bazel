@@ -1,12 +1,11 @@
-# gazelle:ignore
 load("@bazel_skylib//lib:selects.bzl", "selects")
 load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//ocaml/private:dune.bzl", "dx_dune_build", "dx_dune_library")
-load("//ocaml:defs.bzl", "ocaml_library", "ocaml_module", "ocaml_signature")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//ocaml:defs.bzl", "ocaml_library", "ocaml_module", "ocaml_signature")
+load("//ocaml/private:dune.bzl", "dx_dune_build", "dx_dune_library")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC", "VIS_TOOLS", "VIS_TOOLS_PUBLIC")
 load(":marker.bzl", "ocaml_executable_marker")
 
@@ -188,8 +187,8 @@ sh_binary(
     name = "collect",
     srcs = ["collect.sh"],
     data = ["//tools/coverage/lib:runfile.sh"],
-    deps = ["@bazel_tools//tools/bash/runfiles"],
     visibility = VIS_TOOLS_PUBLIC,
+    deps = ["@bazel_tools//tools/bash/runfiles"],
 )
 
 sh_binary(

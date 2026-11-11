@@ -10,6 +10,7 @@ CONSUMER_FIXTURES = [
     "avro",
     "bicep",
     "capnproto",
+    "cloudformation",
     "csharp",
     "cuda",
     "d",

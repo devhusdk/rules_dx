@@ -578,7 +578,7 @@
         "//java/private/toolchains:all",
         "//kotlin/private/toolchain:unused_deps",
         "//lua/private/toolchain:all",
-        "//msix/private/toolchains:all",
+        "//msix/private/toolchain:all",
         "//scala/private/toolchain:semanticdb",
         "//scala/private/toolchain:semanticdb_scala3",
         "//swift/private/toolchain:all",

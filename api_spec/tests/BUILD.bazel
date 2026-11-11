@@ -273,6 +273,69 @@ failure_test(
     target = ":wrong_root_client",
 )
 
+api_spec_library(
+    name = "multi_root_spec",
+    srcs = [
+        "openapi.yaml",
+        "petstore.yaml",
+    ],
+    refs = ["refs/order.yaml"],
+    deps = ["//api_spec/tests/shared"],
+)
+
+openapi_go_client(
+    name = "multi_root_go_client",
+    package = "multi",
+    spec = ":multi_root_spec",
+    tags = ["manual"],
+)
+
+openapi_go_client(
+    name = "wrong_root_go_client",
+    package = "wrong",
+    root = "//api_spec/tests/shared:error.yaml",
+    spec = ":spec",
+    tags = ["manual"],
+)
+
+openapi_python_client(
+    name = "wrong_root_python_client",
+    root = "//api_spec/tests/shared:error.yaml",
+    spec = ":spec",
+    tags = ["manual"],
+)
+
+openapi_rust_client(
+    name = "wrong_root_rust_client",
+    root = "//api_spec/tests/shared:error.yaml",
+    spec = ":spec",
+    tags = ["manual"],
+)
+
+failure_test(
+    name = "multi_root_go_test",
+    expected_failure_substring = "openapi_go_client //api_spec/tests:multi_root_go_client: ",
+    target = ":multi_root_go_client",
+)
+
+failure_test(
+    name = "wrong_root_go_test",
+    expected_failure_substring = "openapi_go_client //api_spec/tests:wrong_root_go_client: root ",
+    target = ":wrong_root_go_client",
+)
+
+failure_test(
+    name = "wrong_root_python_test",
+    expected_failure_substring = "openapi_python_client //api_spec/tests:wrong_root_python_client: root ",
+    target = ":wrong_root_python_client",
+)
+
+failure_test(
+    name = "wrong_root_rust_test",
+    expected_failure_substring = "openapi_rust_client //api_spec/tests:wrong_root_rust_client: root ",
+    target = ":wrong_root_rust_client",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,

@@ -460,7 +460,6 @@ private-names java/private/toolchains
 private-names javascript/private/quality/bin/testdata
 private-names lua/private/quality/testdata
 private-names lua/private/toolchain/luals.build
-private-names msix/private/toolchains
 private-names ocaml/private/quality/testdata
 private-names perl/private/tools/testdata
 private-names php/private/toolchain/pcov.BUILD
@@ -510,7 +509,7 @@ register-label core/quality
 register-label java/private/toolchains
 register-label kotlin/private/toolchain
 register-label lua/private/toolchain
-register-label msix/private/toolchains
+register-label msix/private/toolchain
 register-label scala/private/toolchain
 register-label swift/private/toolchain
 register-label tools/platforms

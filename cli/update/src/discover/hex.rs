@@ -1,4 +1,4 @@
-//! Lists locked hex packages whose newest release on hex.pm is newer than the one in mix.lock.
+//! Lists locked hex packages whose newest release on hex.pm is newer than the one in the lock.
 
 use dx_error::DxError;
 
@@ -8,7 +8,7 @@ use std::collections::BTreeMap;
 
 pub const DEFAULT_BASE: &str = "https://hex.pm";
 
-/// Checks each hexpm package of the mix.lock files against the API at `base`.
+/// Checks each hexpm package of the lock files against the API at `base`.
 pub fn outdated(
     set: &str,
     lockfiles: &[String],
@@ -90,7 +90,7 @@ fn rebar_packages(lock: &str) -> Vec<(String, String)> {
 }
 
 /// Reads `(package, version)` of every `{:hex, :package, "version", ...}` entry on the
-/// default hexpm repository of a mix.lock, and every pkg entry of a rebar.lock; git entries
+/// default hexpm repository of a hex lock, and every pkg entry of a rebar.lock; git entries
 /// and other repositories are skipped.
 fn locked_packages(lock: &str) -> Vec<(String, String)> {
     let mut out = rebar_packages(lock);

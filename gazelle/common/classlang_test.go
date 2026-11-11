@@ -328,17 +328,23 @@ func TestAndroidVariantSupportLibNotSelected(t *testing.T) {
 	}
 }
 
-func TestAndroidVariantKindSwitchFails(t *testing.T) {
-	l, _ := clsAndroidGenerate(t, rule.NewRule(clsKind, "demo"), map[string]string{"A.cls": "package com.x\nimport android.os.Bundle\n"})
-	if !l.Failed() {
-		t.Fatal("kind switch to the Android kind must fail")
+func TestAndroidVariantKindSwitchReplaces(t *testing.T) {
+	l, res := clsAndroidGenerate(t, rule.NewRule(clsKind, "demo"), map[string]string{"A.cls": "package com.x\nimport android.os.Bundle\n"})
+	if l.Failed() {
+		t.Fatal("kind switch to the Android kind must not fail")
+	}
+	if res.Gen[0].Kind() != clsAndroidKind || len(res.Empty) != 1 || res.Empty[0].Kind() != clsKind || res.Empty[0].Name() != "demo" {
+		t.Fatalf("gen = %s, empty = %v; want %s replacing %s", res.Gen[0].Kind(), res.Empty, clsAndroidKind, clsKind)
 	}
 }
 
-func TestAndroidVariantReverseSwitchFails(t *testing.T) {
-	l, _ := clsAndroidGenerate(t, rule.NewRule(clsAndroidKind, "demo"), map[string]string{"A.cls": "package com.x\nimport other.Thing\n"})
-	if !l.Failed() {
-		t.Fatal("kind switch back to the host kind must fail")
+func TestAndroidVariantReverseSwitchReplaces(t *testing.T) {
+	l, res := clsAndroidGenerate(t, rule.NewRule(clsAndroidKind, "demo"), map[string]string{"A.cls": "package com.x\nimport other.Thing\n"})
+	if l.Failed() {
+		t.Fatal("kind switch back to the host kind must not fail")
+	}
+	if res.Gen[0].Kind() != clsKind || len(res.Empty) != 1 || res.Empty[0].Kind() != clsAndroidKind || res.Empty[0].Name() != "demo" {
+		t.Fatalf("gen = %s, empty = %v; want %s replacing %s", res.Gen[0].Kind(), res.Empty, clsKind, clsAndroidKind)
 	}
 }
 

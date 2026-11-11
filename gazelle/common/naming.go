@@ -150,6 +150,9 @@ type Claimant struct {
 	Name   string
 	Source string
 	Kind   string
+	// Kinds are the other kinds generation owns for Name; an existing rule of
+	// one of them is replaced by Kind instead of refused.
+	Kinds []string
 }
 
 type CollisionError struct {

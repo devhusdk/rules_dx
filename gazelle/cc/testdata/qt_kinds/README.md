@@ -7,3 +7,6 @@ a `Qt` module directory, such as `<QtCore/QString>`, is generated as
 The `qt` directory gets the Qt kinds and the `plain` directory keeps `cc_library`
 and `cc_test`. The `rerun` directory already holds the generated Qt rules and
 stays unchanged.
+
+The `flip` directory holds `cc_library` and `cc_test` over Qt sources and ends with
+only `qt_cc_library` and `qt_cc_test`.

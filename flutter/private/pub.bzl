@@ -33,7 +33,7 @@ _pub_tag = tag_class(attrs = {
 
 def _pub_impl(mctx):
     for mod in mctx.modules:
-        for tag in mod.tags.pub:
+        for tag in mod.tags.lock:
             _hub(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
@@ -93,6 +93,6 @@ def _hub(mctx, tag):
 
 pub = module_extension(
     implementation = _pub_impl,
-    tag_classes = {"pub": _pub_tag},
+    tag_classes = {"lock": _pub_tag},
     doc = "Resolves a Flutter pub lock into a hub of Flutter packages fetched with the pinned bsdtar.",
 )

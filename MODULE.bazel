@@ -1094,11 +1094,11 @@ use_repo(
 )
 
 flutter_pub = use_extension("//flutter:extensions.bzl", "pub", dev_dependency = True)
-flutter_pub.pub(
+flutter_pub.lock(
     name = "dx_flutter_app_deps",
     lock = "//flutter/tests/fixtures/flutter-app:pubspec.lock",
 )
-flutter_pub.pub(
+flutter_pub.lock(
     name = "dx_flutter_deps",
     lock = "//flutter/tests/runtime:pubspec.lock",
 )

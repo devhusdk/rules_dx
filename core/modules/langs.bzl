@@ -573,6 +573,21 @@ LANGS = json.decode("""{
       "windows_x86_64"
     ],
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "nuget",
+          "extension": "@rules_dx//csharp:extensions.bzl",
+          "hub": "nuget",
+          "imports": "name",
+          "lock": null,
+          "manifest": "paket.dependencies",
+          "resolver": null,
+          "state": null,
+          "tag": null
+        }
+      ]
+    },
     "title": "C#",
     "tools": [
       "csc",

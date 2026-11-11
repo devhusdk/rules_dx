@@ -264,6 +264,24 @@
       }
     },
     {
+      "name": "csharp",
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "nuget",
+            "extension": "@rules_dx//csharp:extensions.bzl",
+            "hub": "nuget",
+            "imports": "name",
+            "lock": null,
+            "manifest": "paket.dependencies",
+            "resolver": null,
+            "state": null,
+            "tag": null
+          }
+        ]
+      }
+    },
+    {
       "docs": {
         "aspects": [
           "real_d_docs_aspect"

@@ -65,6 +65,7 @@ def julia_wrapper_contract_tests(name):
     """Declares the Julia wrapper contract tests."""
     dx_wrapper_contract_tests(
         name = name,
+        size = "small",
         extra_checks = [
             expect_equal(
                 "wrappers carry julia_format",

@@ -38,6 +38,7 @@ def perl_wrapper_contract_tests(name):
     """Declares the Perl wrapper contract tests."""
     dx_wrapper_contract_tests(
         name = name,
+        size = "small",
         extra_checks = [
             expect_equal(
                 "wrappers carry perlcritic and perltidy",

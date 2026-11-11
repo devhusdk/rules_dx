@@ -222,7 +222,7 @@ def dx_wrapper_forward_observations(package, name, kinds, overrides = None):
         lines.append("aspect_field transitive_count=0")
     return "\n".join(lines)
 
-def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, include_forwarder_checks = True, wrappers = None, known_gaps = None):
+def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, include_forwarder_checks = True, wrappers = None, known_gaps = None, **kwargs):
     """Instantiates one wrapper contract test from shared checks."""
     classes = file_classes if file_classes != None else []
     extras = extra_checks if extra_checks != None else []
@@ -235,6 +235,7 @@ def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, in
         name = name,
         mode = "unit",
         checks = checks,
+        **kwargs
     )
     if wrappers == None:
         return
@@ -254,6 +255,7 @@ def dx_wrapper_contract_tests(name, file_classes = None, extra_checks = None, in
         testonly = True,
         subjects = [":" + name + "_" + kind for kind in kinds],
         expected_observations = dx_wrapper_forward_observations(native.package_name(), name, kinds, known_gaps),
+        **kwargs
     )
 
 def coverage_env_tests(impl, attrs = {}, features = []):

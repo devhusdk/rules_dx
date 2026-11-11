@@ -39,7 +39,6 @@ init scala
 init sql
 init swift
 init typescript
-init zig
 override archive_override lua
 override archive_override rules_flutter
 override archive_override rules_py

@@ -99,6 +99,7 @@ def swift_windows_extract_test(name):
                 "\"Path\": None,",
                 "\"SystemRoot\": None,",
             ]),
+            "//swift/private/toolchain:windows.bzl": "env = {\"PATH\": runtime, \"Path\": runtime},",
         },
     )
 

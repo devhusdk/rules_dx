@@ -167,10 +167,7 @@ ruby build_test *
 ruby coverage_test *
 ruby fail_test *
 ruby pass_test *
-rust build_test *
 rust coverage_test *
-rust fail_test *
-rust pass_test *
 scala build_test *
 scala coverage_test *
 scala fail_test *

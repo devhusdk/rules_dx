@@ -34,13 +34,17 @@ version = "1.0.0"
 source = "git+https://example.com/dep"
 """
 
-package(default_visibility = ["//python:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//python:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 python_library(
     name = "bench_plugin",
-    visibility = ["//visibility:public"],
     srcs = ["dx_bench_plugin.py"],
     imports = ["."],
+    visibility = ["//visibility:public"],
 )
 
 exports_files([

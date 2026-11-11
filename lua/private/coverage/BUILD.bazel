@@ -1,3 +1,4 @@
+# gazelle:ignore
 # gazelle:dx_ignore_import lua luacov.runner
 # gazelle:dx_ignore_import lua luacov.reporter
 # gazelle:dx_ignore_import lua luacov.reporter.lcov

@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//julia:defs.bzl", "julia_library")
 
 package(default_visibility = ["//visibility:public"])

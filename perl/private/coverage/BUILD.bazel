@@ -1,5 +1,5 @@
-load("//perl:defs.bzl", "perl_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//perl:defs.bzl", "perl_library")
 
 exports_files(["DxLcov.pm"])
 

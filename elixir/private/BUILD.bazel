@@ -1,7 +1,11 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":wrapper_tests.bzl", "elixir_wrapper_contract_tests")
 
-package(default_visibility = ["//elixir:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//elixir:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "defs.bzl",
@@ -25,7 +29,6 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
 
 filegroup(
     name = "module_srcs",

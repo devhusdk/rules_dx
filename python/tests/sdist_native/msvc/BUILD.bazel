@@ -1,8 +1,8 @@
 load("@bazel_skylib//rules:write_file.bzl", "write_file")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_py//py/private/toolchain:tools.bzl", "dummy_toolchain")
 load("@rules_python//python:py_runtime.bzl", "py_runtime")
 load("@rules_python//python:py_runtime_pair.bzl", "py_runtime_pair")
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_test")
 load(":msvc_sdist_tests.bzl", "msvc_sdist_tests")
 

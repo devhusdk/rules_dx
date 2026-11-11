@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//haskell:defs.bzl", "haskell_deps_resolve", "haskell_deps_resolve_test")
 

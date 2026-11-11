@@ -262,7 +262,7 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 	}
 	sort.Strings(sources)
 	if len(sources) == 0 {
-		return MergeStale(args.File, language.GenerateResult{}, kinds)
+		return MergeStaleOwned(args.File, language.GenerateResult{}, kinds, singleFileOwns(args, spec, nil))
 	}
 	type plan struct {
 		name    string
@@ -317,7 +317,30 @@ func GenerateSingleFile(args language.GenerateArgs, kinds map[string]rule.KindIn
 			r.SetAttr("testonly", true)
 		}
 	}
-	return MergeStale(args.File, result, kinds)
+	generated := make(map[string]bool, len(plans))
+	for _, p := range plans {
+		generated[p.name] = true
+	}
+	return MergeStaleOwned(args.File, result, kinds, singleFileOwns(args, spec, generated))
+}
+
+// singleFileOwns limits stale removal to rules named like a generated target or
+// naming no existing source, when spec.OwnsByName is set.
+func singleFileOwns(args language.GenerateArgs, spec SingleFileSpec, generated map[string]bool) func(*rule.Rule) bool {
+	if !spec.OwnsByName {
+		return nil
+	}
+	return func(r *rule.Rule) bool {
+		if generated[r.Name()] {
+			return true
+		}
+		for _, src := range r.AttrStrings("srcs") {
+			if _, err := os.Stat(filepath.Join(args.Dir, filepath.FromSlash(src))); err == nil {
+				return false
+			}
+		}
+		return true
+	}
 }
 
 var utf8BOM = []byte{0xEF, 0xBB, 0xBF}

@@ -24,6 +24,7 @@ func NewWebComponentLang(name string, exts []string, parseImports func([]byte, s
 				LanguageName: name,
 				LibraryKind:  kind,
 				IsSource:     isSource,
+				OwnsByName:   true,
 				TargetName:   func(n string) (string, error) { return Normalize(Stem(n, exts)) },
 				ParseImports: parseImports,
 				IsStdLib:     IsNodeBuiltin,

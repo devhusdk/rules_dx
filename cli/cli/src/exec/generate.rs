@@ -94,6 +94,15 @@ fn wire_module(request: &GenerateRequest, env: &mut Env<'_>) -> Wiring {
         "stanzas for the lock files at the root",
         hubs,
     );
+    wire(
+        workspace,
+        apply,
+        env.err,
+        &mut wiring,
+        "avro-cpp",
+        "the avro-cpp dependency and override_repo",
+        dx_adopt::plan_avro_cpp(workspace).map(|plan| (plan.notes, plan.edit)),
+    );
     if seeded_cargo {
         fill_cargo_lock(request, env, &mut wiring);
     }

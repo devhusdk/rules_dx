@@ -8,6 +8,7 @@ package(default_visibility = VIS_CLI)
 rust_library(
     name = "dx_adopt",
     srcs = [
+        "src/avro_cpp.rs",
         "src/build_output.rs",
         "src/defaults.rs",
         "src/dependency_sets.rs",
@@ -79,6 +80,7 @@ rust_test(
     name = "dx_adopt_test",
     size = "small",
     srcs = [
+        "src/avro_cpp.rs",
         "src/build_output.rs",
         "src/defaults.rs",
         "src/dependency_sets.rs",

@@ -8,6 +8,7 @@
     )
 )]
 
+pub mod avro_cpp;
 pub mod build_output;
 pub mod defaults;
 pub mod dependency_sets;
@@ -35,6 +36,7 @@ pub mod watch;
 mod local_paths_tests;
 
 pub use error::AdoptError;
+pub use avro_cpp::plan_avro_cpp;
 pub use families::{detected_families, file_extensions};
 pub use git_changes::{
     ChangeKind, DEFAULT_BRANCH_CANDIDATES, GitChange, dedupe_changes, dx_config_git_ignored,

@@ -161,6 +161,8 @@ def _swift_windows_impl(repository_ctx):
             version,
             "-SevenZip",
             repository_ctx.path(_SEVEN_ZIP + "/full/7z.exe"),
+            "-Cell",
+            cell,
         ],
         environment = _NO_HOST_TOOLS,
         timeout = 3600,

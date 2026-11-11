@@ -34,7 +34,7 @@ benchmark becomes one row, in seconds.
 
 ## Dependencies
 
-Declare a `uv` hub named `pypi` in `MODULE.bazel`:
+Add the package to `pyproject.toml`, then run `dx generate --apply`. dx writes a missing `uv.lock` and the `pypi` hub in `MODULE.bazel`:
 
 ```starlark
 uv = use_extension("@rules_py//uv:extensions.bzl", "uv")
@@ -47,9 +47,9 @@ uv.project(
 use_repo(uv, "pypi")
 ```
 
-Run `uv lock`, then `dx generate --apply`. An import whose top-level module
-matches a package in `uv.lock` resolves to `@pypi//<name>`. To use another
-hub name, add `# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
+An import whose top-level module matches a package in `uv.lock` resolves to
+`@pypi//<name>`. To use another hub name, add
+`# gazelle:dx_external python <path> <repo>` to a `BUILD` file.
 
 ## Quality tools
 

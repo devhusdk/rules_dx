@@ -198,6 +198,23 @@ fn scan_files(files: &[(String, String)]) -> Counts {
     let mut counts = Counts::new();
     let mut digest_files: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
     let mut pair_files: BTreeMap<String, BTreeSet<&str>> = BTreeMap::new();
+    let mut overrides: BTreeMap<String, String> = BTreeMap::new();
+    for (_, text) in files.iter().filter(|(path, _)| path == "MODULE.bazel") {
+        let source = masked(text);
+        for call in calls(&source, "archive_override") {
+            let Some(digest) = call
+                .keyword("integrity")
+                .and_then(|value| digests(value).into_iter().next())
+            else {
+                continue;
+            };
+            if let Some(module) = call.keyword("module_name") {
+                let module = module.trim().trim_matches(['"', '\'']);
+                overrides.insert(digest, module.to_owned());
+            }
+        }
+    }
+    let mut mirrored: BTreeSet<(String, &str)> = BTreeSet::new();
     for (path, text) in files {
         let name = path.rsplit('/').next().unwrap_or(path);
         if path == ".bazelrc" {
@@ -225,6 +242,17 @@ fn scan_files(files: &[(String, String)]) -> Counts {
             let value: serde_json::Value =
                 serde_json::from_str(text).unwrap_or_else(|error| panic!("{path}: {error}"));
             pin_pairs(&value, None, &mut pairs);
+            if let Some(archives) = value.get("archives").and_then(|v| v.as_object()) {
+                for (module, entry) in archives {
+                    let Some(sha256) = entry.get("sha256").and_then(|v| v.as_str()) else {
+                        continue;
+                    };
+                    let digest = sha256.to_ascii_lowercase();
+                    if overrides.get(&digest) == Some(module) {
+                        mirrored.insert((digest, path));
+                    }
+                }
+            }
             for pair in pairs {
                 pair_files.entry(pair).or_default().insert(path);
             }
@@ -242,7 +270,18 @@ fn scan_files(files: &[(String, String)]) -> Counts {
             add(&mut counts, path, MUTABLE, mutable_starlark(&source));
         }
     }
-    for holders in digest_files.values().chain(pair_files.values()) {
+    let one_pin = |digest: &String, holders: &BTreeSet<&str>| {
+        holders.len() == 2
+            && holders.contains("MODULE.bazel")
+            && holders
+                .iter()
+                .any(|path| mirrored.contains(&(digest.clone(), *path)))
+    };
+    let shared = digest_files
+        .iter()
+        .filter(|(digest, holders)| !one_pin(digest, holders))
+        .map(|(_, holders)| holders);
+    for holders in shared.chain(pair_files.values()) {
         if holders.len() > 1 {
             for path in holders {
                 add(&mut counts, path, DUPLICATE, 1);
@@ -370,6 +409,36 @@ fn a_digest_or_a_name_and_version_in_two_files_is_counted() {
     let sri = "PIN = \"sha256-V8zDK7vQBcq3W8xSREBSU1r2kXiduiuQFtXFBkDWiz0=\"\n";
     let hex = "PIN = \"57ccc32bbbd005cab75bcc52444052535af691789dba2b9016d5c50640d68b3d\"\n";
     assert!(hits(&[("a.bzl", sri), ("b.bzl", hex)]).contains("b.bzl duplicate-pin 1\n"));
+}
+
+#[test]
+fn a_root_override_mirrored_in_pins_json_is_one_pin() {
+    let module = "archive_override(\n    module_name = \"m\",\n    integrity = \"sha256-V8zDK7vQBcq3W8xSREBSU1r2kXiduiuQFtXFBkDWiz0=\",\n)\n";
+    let hex = "57ccc32bbbd005cab75bcc52444052535af691789dba2b9016d5c50640d68b3d";
+    let pins = |name: &str| {
+        format!("{{\"archives\": {{\"{name}\": {{\"sha256\": \"{hex}\", \"version\": \"1\"}}}}}}")
+    };
+    assert_eq!(
+        hits(&[("MODULE.bazel", module), ("x/pins.json", &pins("m"))]),
+        "MODULE.bazel digest-outside-pins 1\n"
+    );
+    assert_eq!(
+        hits(&[("MODULE.bazel", module), ("x/pins.json", &pins("other"))]),
+        "MODULE.bazel digest-outside-pins 1\nMODULE.bazel duplicate-pin 1\nx/pins.json duplicate-pin 1\n"
+    );
+    let third = format!("PIN = \"{hex}\"\n");
+    assert_eq!(
+        hits(&[
+            ("MODULE.bazel", module),
+            ("x/pins.json", &pins("m")),
+            ("y/pin.bzl", &third)
+        ]),
+        "MODULE.bazel digest-outside-pins 1\nMODULE.bazel duplicate-pin 1\nx/pins.json duplicate-pin 1\ny/pin.bzl digest-outside-pins 1\ny/pin.bzl duplicate-pin 1\n"
+    );
+    assert_eq!(
+        hits(&[("x/MODULE.bazel", module), ("x/pins.json", &pins("m"))]),
+        "x/MODULE.bazel digest-outside-pins 1\nx/MODULE.bazel duplicate-pin 1\nx/pins.json duplicate-pin 1\n"
+    );
 }
 
 #[test]

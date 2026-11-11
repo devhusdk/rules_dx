@@ -652,7 +652,8 @@ pub fn candidate_named_module_file(
     Ok(format!("{}{version}{}", &text[..start], &text[end..]))
 }
 
-fn file_url(path: &Path) -> String {
+/// Returns one absolute path as a `file://` URL with forward slashes.
+pub fn file_url(path: &Path) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
     if text.starts_with('/') {
         format!("file://{text}")

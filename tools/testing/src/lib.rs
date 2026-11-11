@@ -403,9 +403,10 @@ pub fn rules_dx_source() -> PathBuf {
         )
     });
     let real = std::fs::canonicalize(&module).unwrap_or_else(|error| panic!("{module:?}: {error}"));
-    real.parent()
-        .unwrap_or_else(|| panic!("no checkout above {real:?}"))
-        .to_path_buf()
+    dx_path::without_verbatim(
+        real.parent()
+            .unwrap_or_else(|| panic!("no checkout above {real:?}")),
+    )
 }
 
 /// Writes the `@dx_test_tags_sources` snapshot named by `DX_SOURCES_JSON`, `DX_FILES_JSON` and, when set, `DX_RUST_JSON` and `DX_PROSE_JSON` into a scratch tree and names its root.

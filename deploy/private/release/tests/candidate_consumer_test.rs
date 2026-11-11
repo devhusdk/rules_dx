@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use dx_nested::{self as nested, Case};
 use dx_release_tools::candidate::{
-    Candidate, build_source_archive, source_archive_error, stage_local_registry,
+    Candidate, build_source_archive, file_url, source_archive_error, stage_local_registry,
 };
 use dx_testing::{Run, mkscratch, resolve_runfiles, rules_dx_source};
 
@@ -147,8 +147,8 @@ fn consumer(candidate: &Candidate, archive: &Path, registry: &Path) -> Case {
     let mut rc: Vec<u8> = dx_testing::preset_rc().into_bytes();
     rc.extend_from_slice(
         format!(
-            "\ncommon --registry=file://{}\ncommon --registry=https://bcr.bazel.build\n",
-            registry.display()
+            "\ncommon --registry={}\ncommon --registry=https://bcr.bazel.build\n",
+            file_url(registry)
         )
         .as_bytes(),
     );
@@ -224,15 +224,13 @@ fn assert_registry_consumer(candidate: &Candidate, archive: &Path, built_integri
     let repo = case.bazel(&["mod", "show_repo", "@my_dx"]);
     ok(&repo, "mod show_repo");
     let shown = repo.stdout.clone();
-    let mirror = format!("file://{}/mirror/github.com/", registry.display());
+    let registry_url = file_url(&registry);
+    let mirror = format!("{registry_url}/mirror/github.com/");
     for want in [
         built_integrity.to_owned(),
         candidate.strip_prefix(),
         mirror,
-        format!(
-            "{}/modules/rules_dx/{VERSION}/MODULE.bazel",
-            registry.display()
-        ),
+        format!("{registry_url}/modules/rules_dx/{VERSION}/MODULE.bazel"),
     ] {
         assert!(shown.contains(&want), "show_repo lacks {want:?}: {shown}");
     }

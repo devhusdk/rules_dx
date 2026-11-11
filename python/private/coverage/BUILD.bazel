@@ -1,0 +1,14 @@
+load("//python:defs.bzl", "python_library")
+
+package(default_visibility = ["//python:__subpackages__"])
+
+config_setting(
+    name = "coverage_on",
+    values = {"collect_code_coverage": "true"},
+)
+
+python_library(
+    name = "sitecustomize",
+    srcs = ["sitecustomize.py"],
+    imports = ["."],
+)

@@ -122,6 +122,10 @@ def python_test(name, *, srcs = None, main = None, runner = "pytest", visibility
     if rejection != None:
         fail(rejection)
     if runner == "plain":
+        kwargs["deps"] = kwargs.get("deps", []) + select({
+            Label("//python/private/coverage:coverage_on"): [Label("//python/private/coverage:sitecustomize")],
+            "//conditions:default": [],
+        })
         upstream_kwargs = _python_main_kwargs("python_test", name, srcs, kwargs)
         dx_wrap_test(name, _py_test, _python_forward_test, srcs, visibility = visibility, upstream_kwargs = upstream_kwargs, quality_srcs = dx_entry_quality_srcs(main if main != None else python_main(name, srcs), srcs), **kwargs)
     else:

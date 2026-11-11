@@ -49,7 +49,7 @@ _export = rule(
     attrs = {
         "meta": attr.label(doc = "The export_meta target of the app.", mandatory = True, providers = [_ExportInfo]),
         "_ops": attr.label(
-            default = Label("//apple/private/ops:apple_ops"),
+            default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
             cfg = "target",
         ),

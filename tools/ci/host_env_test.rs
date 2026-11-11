@@ -23,7 +23,7 @@ const KINDS: [&str; 9] = [
 const HOST_DIRS: [&str; 4] = ["/usr/bin", "/usr/local/bin", "$PATH", "${PATH}"];
 
 /// The one file that names the Xcode tools by absolute path.
-const XCODE_FILE: &str = "apple/private/ops/src/xcode.rs";
+const XCODE_FILE: &str = "apple/private/tools/ops/src/xcode.rs";
 
 /// The strings that file may hold, whole.
 const XCODE_TOOLS: [&str; 6] = [
@@ -243,8 +243,8 @@ pub const DITTO: &str = "/usr/bin/ditto";
 "#;
     assert_eq!(scan_all(&[(XCODE_FILE, rust)]), lines(&[]));
     assert_eq!(
-        scan_all(&[("apple/private/ops/src/other.rs", rust)]),
-        lines(&[("apple/private/ops/src/other.rs", "host-path", 5)]),
+        scan_all(&[("apple/private/tools/ops/src/other.rs", rust)]),
+        lines(&[("apple/private/tools/ops/src/other.rs", "host-path", 5)]),
     );
     let near = "const A: &str = \"/usr/bin/xcrunx\";\nconst B: &str = \"/usr/bin/xcrun --x\";\nconst C: &str = \"/usr/bin/lipo\";\n";
     assert_eq!(

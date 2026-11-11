@@ -60,7 +60,7 @@ _simctl = rule(
             mandatory = True,
         ),
         "_ops": attr.label(
-            default = Label("//apple/private/ops:apple_ops"),
+            default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
             cfg = "target",
         ),

@@ -46,7 +46,10 @@ pub fn run(tools: &Tools, args: &[String], env: Env) -> Outcome {
     let Some(app) = apps.first() else {
         return Err(reject("the archive holds no .app"));
     };
-    let plist = app.join("Contents/Info.plist").to_string_lossy().into_owned();
+    let plist = app
+        .join("Contents/Info.plist")
+        .to_string_lossy()
+        .into_owned();
     let read = tools.tool(
         PLUTIL,
         &["-extract", "CFBundleExecutable", "raw", "-o", "-", &plist],

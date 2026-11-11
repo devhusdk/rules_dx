@@ -1,6 +1,6 @@
 """Apple iOS and provisioning pin and selection coverage."""
 
-load("//apple/private/ios:defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "cell_settings", "deployment_env", "framework_linkopts", "ios_platform_errors", "ios_platforms", "platform_for", "platform_slice", "split_platform")
+load("//apple/private/ios:defs.bzl", "CELL_SETTINGS", "DEVICE_ENV", "SIMULATOR_ENV", "cell_settings", "deployment_env", "framework_linkopts", "ios_platform_errors", "platform_for", "platform_slice", "split_platform")
 load("//apple/private/ios:validate.bzl", "ios_arch_errors", "ios_arches", "ios_config_errors", "ios_default_config", "ios_deployment_errors", "ios_environment_errors", "ios_environments", "ios_framework_errors", "ios_sdk_errors", "ios_sdk_for", "ios_triple_errors", "ios_triple_for", "ios_xcode_errors")
 load("//apple/private/provisioning:defs.bzl", "LOCAL_ROUTE", "MANAGED_ROUTE", "MINIMUM_MACOS", "MINIMUM_XCODE", "QUALIFIED_HOST", "REQUIRED_LICENSES", "XCODE_LINEAGE", "ceiling_for", "deployment_floor", "host_constraints")
 load("//apple/private/provisioning:validate.bzl", "provisioning_default_selection", "provisioning_errors", "provisioning_host_errors", "provisioning_hosts", "provisioning_license_errors", "provisioning_route_errors", "provisioning_routes", "provisioning_sdk_errors", "provisioning_sdk_names", "provisioning_version_errors", "provisioning_xcode_errors")

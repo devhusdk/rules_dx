@@ -1,7 +1,7 @@
 """macOS application selection coverage."""
 
-load("//core:defs.bzl", "expect_equal", "starlark_test")
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
+load("//core:defs.bzl", "expect_equal", "starlark_test")
 load(":app.bzl", "owner_relative_path")
 load(":validate.bzl", "macos_app_errors", "macos_default_app", "macos_plugin_errors")
 

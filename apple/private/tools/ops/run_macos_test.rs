@@ -35,7 +35,11 @@ fn scripted(app: bool) -> Fake {
 fn the_app_is_unpacked_and_run_with_the_arguments() {
     let root = scratch("macos-run");
     write(root.path(), "Ledger.zip", "PK");
-    let zipped = root.path().join("Ledger.zip").to_string_lossy().into_owned();
+    let zipped = root
+        .path()
+        .join("Ledger.zip")
+        .to_string_lossy()
+        .into_owned();
     let tmp = root.path().join("tmp");
     std::fs::create_dir_all(&tmp).unwrap();
     let tmp_text = tmp.to_string_lossy().into_owned();
@@ -51,7 +55,11 @@ fn the_app_is_unpacked_and_run_with_the_arguments() {
     assert_eq!(calls[0].program, DITTO);
     assert_eq!(&calls[0].args[..3], ["-x", "-k", zipped.as_str()]);
     assert_eq!(calls[1].program, PLUTIL);
-    assert!(calls[2].program.ends_with("Ledger.app/Contents/MacOS/Ledger"));
+    assert!(
+        calls[2]
+            .program
+            .ends_with("Ledger.app/Contents/MacOS/Ledger")
+    );
     assert_eq!(calls[2].args, ["--flag", "two"]);
     assert_eq!(std::fs::read_dir(&tmp).unwrap().count(), 0);
 }
@@ -60,7 +68,11 @@ fn the_app_is_unpacked_and_run_with_the_arguments() {
 fn the_exit_code_of_the_app_is_kept() {
     let root = scratch("macos-code");
     write(root.path(), "Ledger.zip", "PK");
-    let zipped = root.path().join("Ledger.zip").to_string_lossy().into_owned();
+    let zipped = root
+        .path()
+        .join("Ledger.zip")
+        .to_string_lossy()
+        .into_owned();
     let tmp = root.path().to_string_lossy().into_owned();
     let fake = Fake::new(|cmd| {
         if cmd.program == DITTO {
@@ -92,7 +104,11 @@ fn a_missing_archive_or_argument_fails_before_running_anything() {
 fn a_host_without_ditto_fails_with_127() {
     let root = scratch("macos-noditto");
     write(root.path(), "Ledger.zip", "PK");
-    let zipped = root.path().join("Ledger.zip").to_string_lossy().into_owned();
+    let zipped = root
+        .path()
+        .join("Ledger.zip")
+        .to_string_lossy()
+        .into_owned();
     let tmp = root.path().to_string_lossy().into_owned();
     let fake = Fake::new(|_| Output {
         code: None,
@@ -108,7 +124,11 @@ fn a_host_without_ditto_fails_with_127() {
 fn an_archive_without_an_app_fails() {
     let root = scratch("macos-noapp");
     write(root.path(), "Ledger.zip", "PK");
-    let zipped = root.path().join("Ledger.zip").to_string_lossy().into_owned();
+    let zipped = root
+        .path()
+        .join("Ledger.zip")
+        .to_string_lossy()
+        .into_owned();
     let tmp = root.path().to_string_lossy().into_owned();
     let fake = scripted(false);
     let failure = run(&tools(&fake), &args(&[&zipped]), &env(&[("TMPDIR", &tmp)])).unwrap_err();
@@ -120,7 +140,11 @@ fn an_archive_without_an_app_fails() {
 fn a_failed_unpack_keeps_the_ditto_exit_code() {
     let root = scratch("macos-badzip");
     write(root.path(), "Ledger.zip", "PK");
-    let zipped = root.path().join("Ledger.zip").to_string_lossy().into_owned();
+    let zipped = root
+        .path()
+        .join("Ledger.zip")
+        .to_string_lossy()
+        .into_owned();
     let tmp = root.path().to_string_lossy().into_owned();
     let fake = Fake::new(|_| fail(9, "corrupt"));
     let failure = run(&tools(&fake), &args(&[&zipped]), &env(&[("TMPDIR", &tmp)])).unwrap_err();

@@ -7,7 +7,7 @@ load("//apple/private/bundle:defs.bzl", "archives", "check_cell", "display", "re
 load("//apple/private/provisioning:defs.bzl", _deployment_floor = "deployment_floor")
 load("//apple/private/provisioning:validate.bzl", _version_below = "provisioning_version_below")
 load(":cell.bzl", "APPLE_HOSTS", "CELL_ATTRS", "MACH_O_PLATFORMS", "ios_platform", "target_cell")
-load(":validate.bzl", _DEVICE_ENV = "DEVICE_ENV", "IOS_PLATFORMS", "ios_config_errors", "ios_sdk_for", "ios_triple_for")
+load(":validate.bzl", "IOS_PLATFORMS", "ios_config_errors", "ios_sdk_for", "ios_triple_for", _DEVICE_ENV = "DEVICE_ENV")
 
 DEVICE_ENV = _DEVICE_ENV
 

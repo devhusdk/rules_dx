@@ -106,7 +106,9 @@ pub fn outside_bazel_out(
         return Ok(());
     };
     let whole = text(&bazel_out);
-    let base = whole.split_once("/execroot/").map_or(whole.as_str(), |(base, _)| base);
+    let base = whole
+        .split_once("/execroot/")
+        .map_or(whole.as_str(), |(base, _)| base);
     for root in [bazel_out.as_path(), Path::new(base)] {
         if dir.starts_with(root) {
             return Err(usage(format!(
@@ -121,7 +123,11 @@ pub fn outside_bazel_out(
 /// The sorted entries of `dir`.
 pub fn entries(dir: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = std::fs::read_dir(dir)
-        .map(|read| read.filter_map(Result::ok).map(|entry| entry.path()).collect())
+        .map(|read| {
+            read.filter_map(Result::ok)
+                .map(|entry| entry.path())
+                .collect()
+        })
         .unwrap_or_default();
     found.sort();
     found
@@ -129,7 +135,8 @@ pub fn entries(dir: &Path) -> Vec<PathBuf> {
 
 /// Whether `path` is a symbolic link.
 pub fn is_link(path: &Path) -> bool {
-    path.symlink_metadata().is_ok_and(|meta| meta.file_type().is_symlink())
+    path.symlink_metadata()
+        .is_ok_and(|meta| meta.file_type().is_symlink())
 }
 
 /// Every file or directory below `dir`, without following links.
@@ -168,7 +175,8 @@ pub fn macho(path: &Path) -> bool {
 /// The value of `key` in the plist `file`.
 pub fn value(tools: &Tools, key: &str, file: &Path) -> Option<String> {
     let out = tools.tool(PLUTIL, &["-extract", key, "raw", "-o", "-", &text(file)]);
-    out.success().then(|| out.stdout.trim_end_matches('\n').to_owned())
+    out.success()
+        .then(|| out.stdout.trim_end_matches('\n').to_owned())
 }
 
 /// The top-level keys of an XML plist.
@@ -182,7 +190,12 @@ pub fn keys(plist: &str) -> BTreeSet<String> {
             depth -= 1;
         } else if depth == 1 && line.contains("<key>") {
             let after = line.rsplit_once("<key>").map_or("", |(_, after)| after);
-            found.insert(after.split_once("</key>").map_or(after, |(key, _)| key).to_owned());
+            found.insert(
+                after
+                    .split_once("</key>")
+                    .map_or(after, |(key, _)| key)
+                    .to_owned(),
+            );
         }
     }
     found
@@ -208,7 +221,10 @@ pub fn hardened(details: &str) -> bool {
     details.lines().any(|line| {
         line.starts_with("CodeDirectory ")
             && line.match_indices("flags=").any(|(at, _)| {
-                line[at + 6..].split(' ').next().is_some_and(|flags| flags.contains("runtime"))
+                line[at + 6..]
+                    .split(' ')
+                    .next()
+                    .is_some_and(|flags| flags.contains("runtime"))
             })
     })
 }
@@ -240,7 +256,16 @@ pub fn base64_decode(encoded: &str) -> Option<Vec<u8>> {
 pub fn fingerprint(tools: &Tools, file: &Path, form: &str) -> Option<String> {
     let out = tools.tool(
         OPENSSL,
-        &["x509", "-in", &text(file), "-inform", form, "-noout", "-fingerprint", "-sha1"],
+        &[
+            "x509",
+            "-in",
+            &text(file),
+            "-inform",
+            form,
+            "-noout",
+            "-fingerprint",
+            "-sha1",
+        ],
     );
     let line = out.stdout.lines().next()?;
     let print: String = line
@@ -278,7 +303,12 @@ pub fn read_identity(
     cert: &Path,
     password_file: &Path,
 ) -> Result<Identity, Failure> {
-    let unreadable = || usage(format!("cannot read {} with the password in --password-file", cert.display()));
+    let unreadable = || {
+        usage(format!(
+            "cannot read {} with the password in --password-file",
+            cert.display()
+        ))
+    };
     let source = format!("file:{}", password_file.display());
     let pem = work.join("identity.pem");
     let password = random(tools)?;
@@ -286,7 +316,16 @@ pub fn read_identity(
     std::fs::write(&transfer, &password).map_err(|_| unreadable())?;
     let read = tools.tool(
         OPENSSL,
-        &["pkcs12", "-in", &text(cert), "-passin", &source, "-nodes", "-out", &text(&pem)],
+        &[
+            "pkcs12",
+            "-in",
+            &text(cert),
+            "-passin",
+            &source,
+            "-nodes",
+            "-out",
+            &text(&pem),
+        ],
     );
     let p12 = work.join("identity.p12");
     let exported = read.success()
@@ -294,10 +333,20 @@ pub fn read_identity(
             .tool(
                 OPENSSL,
                 &[
-                    "pkcs12", "-export", "-in", &text(&pem),
-                    "-passout", &format!("file:{}", transfer.display()),
-                    "-keypbe", "PBE-SHA1-3DES", "-certpbe", "PBE-SHA1-3DES", "-macalg", "sha1",
-                    "-out", &text(&p12),
+                    "pkcs12",
+                    "-export",
+                    "-in",
+                    &text(&pem),
+                    "-passout",
+                    &format!("file:{}", transfer.display()),
+                    "-keypbe",
+                    "PBE-SHA1-3DES",
+                    "-certpbe",
+                    "PBE-SHA1-3DES",
+                    "-macalg",
+                    "sha1",
+                    "-out",
+                    &text(&p12),
                 ],
             )
             .success();
@@ -308,11 +357,30 @@ pub fn read_identity(
     let certs = work.join("identity-cert.pem");
     let listed = tools.tool(
         OPENSSL,
-        &["pkcs12", "-in", &text(cert), "-passin", &source, "-nokeys", "-clcerts", "-out", &text(&certs)],
+        &[
+            "pkcs12",
+            "-in",
+            &text(cert),
+            "-passin",
+            &source,
+            "-nokeys",
+            "-clcerts",
+            "-out",
+            &text(&certs),
+        ],
     );
-    let sha1 = if listed.success() { fingerprint(tools, &certs, "PEM") } else { None };
-    let sha1 = sha1.ok_or_else(|| usage(format!("{} holds no signing certificate", cert.display())))?;
-    Ok(Identity { p12, password, sha1 })
+    let sha1 = if listed.success() {
+        fingerprint(tools, &certs, "PEM")
+    } else {
+        None
+    };
+    let sha1 =
+        sha1.ok_or_else(|| usage(format!("{} holds no signing certificate", cert.display())))?;
+    Ok(Identity {
+        p12,
+        password,
+        sha1,
+    })
 }
 
 /// A throwaway keychain on the user's search list, removed when dropped.
@@ -346,22 +414,51 @@ impl<'a> Keychain<'a> {
         let saved = search_list(&listing.stdout);
         let secret = random(tools)?;
         let path = work.join(format!("{label}.keychain-db"));
-        let mut keychain = Keychain { tools, path, saved: None };
+        let mut keychain = Keychain {
+            tools,
+            path,
+            saved: None,
+        };
         let at = text(&keychain.path);
         let p12 = text(&identity.p12);
         let steps: [(Vec<&str>, String); 5] = [
-            (vec!["create-keychain", "-p", &secret, &at], format!("cannot create the {label} keychain")),
-            (vec!["set-keychain-settings", &at], format!("cannot configure the {label} keychain")),
-            (vec!["unlock-keychain", "-p", &secret, &at], format!("cannot unlock the {label} keychain")),
+            (
+                vec!["create-keychain", "-p", &secret, &at],
+                format!("cannot create the {label} keychain"),
+            ),
+            (
+                vec!["set-keychain-settings", &at],
+                format!("cannot configure the {label} keychain"),
+            ),
+            (
+                vec!["unlock-keychain", "-p", &secret, &at],
+                format!("cannot unlock the {label} keychain"),
+            ),
             (
                 vec![
-                    "import", &p12, "-k", &at, "-f", "pkcs12",
-                    "-P", &identity.password, "-T", crate::xcode::CODESIGN,
+                    "import",
+                    &p12,
+                    "-k",
+                    &at,
+                    "-f",
+                    "pkcs12",
+                    "-P",
+                    &identity.password,
+                    "-T",
+                    crate::xcode::CODESIGN,
                 ],
                 format!("cannot import {} into the {label} keychain", cert.display()),
             ),
             (
-                vec!["set-key-partition-list", "-S", "apple-tool:,apple:", "-s", "-k", &secret, &at],
+                vec![
+                    "set-key-partition-list",
+                    "-S",
+                    "apple-tool:,apple:",
+                    "-s",
+                    "-k",
+                    &secret,
+                    &at,
+                ],
                 format!("cannot grant codesign access to the {label} keychain"),
             ),
         ];
@@ -374,7 +471,9 @@ impl<'a> Keychain<'a> {
         let mut list = vec!["list-keychains", "-d", "user", "-s", &at];
         list.extend(saved.iter().map(String::as_str));
         if !tools.tool(SECURITY, &list).success() {
-            return Err(usage(format!("cannot add the {label} keychain to the search list")));
+            return Err(usage(format!(
+                "cannot add the {label} keychain to the search list"
+            )));
         }
         let found = tools.tool(SECURITY, &["find-identity", "-v", "-p", "codesigning", &at]);
         if !found.success() || !found.stdout.contains(&identity.sha1) {
@@ -395,7 +494,9 @@ impl Drop for Keychain<'_> {
             list.extend(saved.iter().map(String::as_str));
             let _ = self.tools.tool(SECURITY, &list);
         }
-        let _ = self.tools.tool(SECURITY, &["delete-keychain", &text(&self.path)]);
+        let _ = self
+            .tools
+            .tool(SECURITY, &["delete-keychain", &text(&self.path)]);
     }
 }
 
@@ -412,7 +513,10 @@ pub fn codesign(tools: &Tools, args: &[&str]) -> Result<(), Failure> {
             message: "the Apple timestamp service is not reachable; retry when online".to_owned(),
         });
     }
-    Err(Failure { code: exit_code(out.code), message: "codesign failed".to_owned() })
+    Err(Failure {
+        code: exit_code(out.code),
+        message: "codesign failed".to_owned(),
+    })
 }
 
 /// The combined output of codesign when it describes `target`.
@@ -421,5 +525,6 @@ pub fn describe(tools: &Tools, flags: &[&str], target: &Path) -> Option<String> 
     let at = text(target);
     args.push(&at);
     let out = tools.tool(crate::xcode::CODESIGN, &args);
-    out.success().then(|| format!("{}{}", out.stdout, out.stderr))
+    out.success()
+        .then(|| format!("{}{}", out.stdout, out.stderr))
 }

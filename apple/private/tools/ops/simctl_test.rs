@@ -71,7 +71,10 @@ fn a_udid_selects_its_simulator() {
     let outcome = run(
         &tools(&fake),
         &args(&["launch"]),
-        &env(&[("DX_SIMCTL_DEVICE", UDID), ("DX_SIMCTL_BUNDLE_ID", "com.example.ledger")]),
+        &env(&[
+            ("DX_SIMCTL_DEVICE", UDID),
+            ("DX_SIMCTL_BUNDLE_ID", "com.example.ledger"),
+        ]),
     );
     assert_eq!(outcome, Ok(0));
     assert_eq!(
@@ -90,14 +93,20 @@ fn launch_needs_a_bundle_id() {
     )
     .unwrap_err();
     assert_eq!(failure.code, 2);
-    assert_eq!(failure.message, "DX_SIMCTL_BUNDLE_ID names the installed app");
+    assert_eq!(
+        failure.message,
+        "DX_SIMCTL_BUNDLE_ID names the installed app"
+    );
 }
 
 #[test]
 fn simulator_selection_never_falls_back() {
     let fake = simulator();
     let none = run(&tools(&fake), &args(&["boot"]), &env(&[])).unwrap_err();
-    assert_eq!(none.message, "DX_SIMCTL_DEVICE names the simulator by name or UDID");
+    assert_eq!(
+        none.message,
+        "DX_SIMCTL_DEVICE names the simulator by name or UDID"
+    );
     let unknown = run(
         &tools(&fake),
         &args(&["boot"]),
@@ -105,14 +114,21 @@ fn simulator_selection_never_falls_back() {
     )
     .unwrap_err();
     assert_eq!(unknown.code, 2);
-    assert!(unknown.message.starts_with("no available simulator named 'iPad'"));
+    assert!(
+        unknown
+            .message
+            .starts_with("no available simulator named 'iPad'")
+    );
     let twice = run(
         &tools(&fake),
         &args(&["boot"]),
         &env(&[("DX_SIMCTL_DEVICE", "iPhone 16 Pro")]),
     )
     .unwrap_err();
-    assert_eq!(twice.message, "'iPhone 16 Pro' names 2 simulators; pass one UDID");
+    assert_eq!(
+        twice.message,
+        "'iPhone 16 Pro' names 2 simulators; pass one UDID"
+    );
     let op = run(
         &tools(&fake),
         &args(&["erase"]),
@@ -132,8 +148,18 @@ fn simctl_failures_keep_their_exit_code() {
     )
     .unwrap_err();
     assert_eq!(failure.code, 69);
-    assert!(failure.message.contains("cannot list simulators: no service"));
-    let boot = Fake::new(|cmd| if is_list(cmd) { ok(DEVICES) } else { fail(3, "") });
+    assert!(
+        failure
+            .message
+            .contains("cannot list simulators: no service")
+    );
+    let boot = Fake::new(|cmd| {
+        if is_list(cmd) {
+            ok(DEVICES)
+        } else {
+            fail(3, "")
+        }
+    });
     assert_eq!(
         run(
             &tools(&boot),
@@ -165,7 +191,11 @@ fn a_host_without_xcrun_fails_with_127() {
 fn install_passes_an_app_bundle_through() {
     let root = scratch("simctl-app");
     write(root.path(), "Ledger.app/Info.plist", "x");
-    let app = root.path().join("Ledger.app").to_string_lossy().into_owned();
+    let app = root
+        .path()
+        .join("Ledger.app")
+        .to_string_lossy()
+        .into_owned();
     let fake = simulator();
     let outcome = run(
         &tools(&fake),
@@ -182,7 +212,10 @@ fn install_unpacks_the_ipa_and_installs_its_app_bundle() {
     let ipa = root.path().join("Ledger.ipa");
     let mut writer = zip::ZipWriter::new(std::fs::File::create(&ipa).unwrap());
     writer
-        .start_file("Payload/Ledger.app/Info.plist", zip::write::SimpleFileOptions::default())
+        .start_file(
+            "Payload/Ledger.app/Info.plist",
+            zip::write::SimpleFileOptions::default(),
+        )
         .unwrap();
     writer.write_all(b"plist").unwrap();
     writer.finish().unwrap();
@@ -220,5 +253,8 @@ fn install_rejects_a_missing_or_foreign_app() {
     let missing = run(&tools(&fake), &args(&["install", "/nope.ipa"]), &device).unwrap_err();
     assert_eq!(missing.code, 2);
     let foreign = run(&tools(&fake), &args(&["install", &notes]), &device).unwrap_err();
-    assert_eq!(foreign.message, format!("{notes} is neither an .ipa nor an .app"));
+    assert_eq!(
+        foreign.message,
+        format!("{notes} is neither an .ipa nor an .app")
+    );
 }

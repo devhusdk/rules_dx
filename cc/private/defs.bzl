@@ -58,8 +58,10 @@ _LLVM_COVERAGE_FEATURES = ["llvm_coverage_map_format", "-gcc_coverage_map_format
 _COMPILER_FLAG = str(Label("//cc:compiler"))
 
 def cc_coverage_features(features, collect_code_coverage, compiler = ""):
-    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage and an LLVM or unset compiler."""
+    """Returns the features a cc_test builds with: LLVM coverage maps only under coverage, an LLVM or unset compiler, and no `-coverage` or `-llvm_coverage_map_format` in `features`."""
     if not collect_code_coverage:
+        return features
+    if "-coverage" in features or "-llvm_coverage_map_format" in features:
         return features
     if compiler and cc_compiler_identity(compiler, "").coverage != "llvm":
         return features

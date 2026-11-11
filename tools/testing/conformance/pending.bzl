@@ -142,10 +142,6 @@ php build_test *
 php coverage_test *
 php fail_test *
 php pass_test *
-pkl build_test *
-pkl coverage_test *
-pkl fail_test *
-pkl pass_test *
 powershell build_test *
 powershell coverage_test *
 powershell fail_test *
@@ -200,10 +196,6 @@ vue build_test *
 vue coverage_test *
 vue fail_test *
 vue pass_test *
-wasi build_test *
-wasi coverage_test *
-wasi fail_test *
-wasi pass_test *
 zig build_test *
 zig coverage_test *
 zig fail_test *

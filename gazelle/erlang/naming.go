@@ -9,14 +9,22 @@ import (
 )
 
 const (
-	AppKind      = "erlang_app"
-	NifKind      = "erlang_nif"
-	AppTarget    = "erlang_app"
-	RebarConfig  = "rebar.config"
-	SrcDir       = "src"
-	IncludeDir   = "include"
-	NifDir       = "c_src"
-	languageName = "erlang"
+	AppKind        = "erlang_app"
+	NifKind        = "erlang_nif"
+	TestAppKind    = "erlang_test_app"
+	OptsKind       = "erlc_opts"
+	BytecodeKind   = "erlang_bytecode"
+	EunitKind      = "erlang_eunit_test"
+	AppTarget      = "erlang_app"
+	RebarConfig    = "rebar.config"
+	SrcDir         = "src"
+	IncludeDir     = "include"
+	NifDir         = "c_src"
+	TestDir        = "test"
+	TestAppTarget  = "test_erlang_app"
+	TestOptsTarget = "test_erlc_opts"
+	TestModules    = "test_modules"
+	languageName   = "erlang"
 )
 
 var atomPattern = regexp.MustCompile(`^[a-z][A-Za-z0-9_@]*$`)
@@ -41,6 +49,11 @@ func IsAppSource(src string) bool {
 // IsAppHeader reports whether src is an include/**/*.hrl file.
 func IsAppHeader(src string) bool {
 	return isLocal(src) && strings.HasPrefix(src, IncludeDir+"/") && strings.HasSuffix(src, ".hrl")
+}
+
+// IsEunitSource reports whether src is a test/*_tests.erl file.
+func IsEunitSource(src string) bool {
+	return isLocal(src) && path.Dir(src) == TestDir && strings.HasSuffix(src, "_tests.erl")
 }
 
 // IsNifSource reports whether src is a C or C++ source under c_src.
@@ -69,9 +82,19 @@ func IsNifHeader(src string) bool {
 
 // Owns reports whether generation could have produced r, so a stale r may be
 // removed. The generator asks only in directories that hold an Erlang app.
-func Owns(r *rule.Rule) bool {
+func Owns(r *rule.Rule, app string) bool {
 	if r.Name() == "" {
 		return false
+	}
+	switch r.Kind() {
+	case TestAppKind:
+		return r.Name() == TestAppTarget
+	case OptsKind:
+		return r.Name() == TestOptsTarget
+	case EunitKind:
+		return r.Name() == app+"_test"
+	case BytecodeKind:
+		return r.Name() == TestModules
 	}
 	srcs := r.AttrStrings("srcs")
 	if len(srcs) == 0 {

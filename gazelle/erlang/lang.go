@@ -34,8 +34,12 @@ func kinds() map[string]rule.KindInfo {
 	app := ruleKind("srcs", "hdrs", "deps", "nifs", "extra_apps")
 	app.ResolveAttrs = map[string]bool{"deps": true}
 	return map[string]rule.KindInfo{
-		AppKind: app,
-		NifKind: ruleKind("srcs", "hdrs"),
+		AppKind:      app,
+		NifKind:      ruleKind("srcs", "hdrs"),
+		TestAppKind:  {MergeableAttrs: map[string]bool{"app_name": true, "app_version": true}},
+		OptsKind:     {MergeableAttrs: map[string]bool{"values": true}},
+		BytecodeKind: ruleKind("srcs", "outs", "erlc_opts", "deps"),
+		EunitKind:    {MergeableAttrs: map[string]bool{"compiled_suites": true, "target": true}},
 	}
 }
 
@@ -47,7 +51,7 @@ func NewLanguage() language.Language {
 	return &erlangLang{SingleLang: common.NewSingleLang(common.SingleLangSpec{
 		LanguageName:   languageName,
 		LibraryKind:    AppKind,
-		ExtraKinds:     []string{NifKind},
+		ExtraKinds:     []string{NifKind, TestAppKind, OptsKind, BytecodeKind, EunitKind},
 		Kinds:          kinds(),
 		DefsPackage:    "erlang:defs.bzl",
 		ImportAttr:     "srcs",
@@ -175,6 +179,10 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	if err != nil {
 		return fail("%v", err)
 	}
+	eunits, err := listSources(args.Dir, TestDir, IsEunitSource)
+	if err != nil {
+		return fail("%v", err)
+	}
 	nifHdrs, err := listSources(args.Dir, NifDir, IsNifHeader)
 	if err != nil {
 		return fail("%v", err)
@@ -188,7 +196,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 		return fail("%v", err)
 	}
 	if !slices.ContainsFunc(erls, IsErlSource) {
-		return common.MergeStaleOwned(args.File, language.GenerateResult{}, kinds, Owns)
+		return common.MergeStaleOwned(args.File, language.GenerateResult{}, kinds, func(r *rule.Rule) bool { return Owns(r, meta.Name) })
 	}
 	name := AppTarget
 	if args.File != nil {
@@ -294,7 +302,42 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	result.Gen = append(result.Gen, r)
 	result.Imports = append(result.Imports, common.WrapImportSet(imports))
-	return common.MergeStaleOwned(args.File, result, kinds, Owns)
+	if len(eunits) > 0 {
+		for _, t := range eunitRules(meta, name, eunits) {
+			result.Gen = append(result.Gen, t)
+			result.Imports = append(result.Imports, common.WrapImportSet(nil))
+		}
+	}
+	return common.MergeStaleOwned(args.File, result, kinds, func(r *rule.Rule) bool { return Owns(r, meta.Name) })
+}
+
+var testErlcOpts = []string{"+deterministic", "+debug_info", "+warn_export_vars", "+warn_shadow_vars", "+warn_obsolete_guard", "-DTEST=1"}
+
+// eunitRules returns the rules that compile test/*_tests.erl and run them
+// against a test build of the app.
+func eunitRules(meta AppSrc, app string, tests []string) []*rule.Rule {
+	testApp := rule.NewRule(TestAppKind, TestAppTarget)
+	testApp.SetAttr("app_name", meta.Name)
+	if meta.Version != "" {
+		testApp.SetAttr("app_version", meta.Version)
+	}
+	opts := rule.NewRule(OptsKind, TestOptsTarget)
+	opts.SetAttr("values", testErlcOpts)
+	outs := make([]string, len(tests))
+	for i, t := range tests {
+		outs[i] = strings.TrimSuffix(t, ".erl") + ".beam"
+	}
+	code := rule.NewRule(BytecodeKind, TestModules)
+	code.SetAttr("testonly", true)
+	code.SetAttr("srcs", tests)
+	code.SetAttr("outs", outs)
+	code.SetAttr("erlc_opts", ":"+TestOptsTarget)
+	code.SetAttr("deps", []string{":" + TestAppTarget})
+	run := rule.NewRule(EunitKind, meta.Name+"_test")
+	run.SetAttr("size", "small")
+	run.SetAttr("compiled_suites", []string{":" + TestModules})
+	run.SetAttr("target", ":"+TestAppTarget)
+	return []*rule.Rule{testApp, opts, code, run}
 }
 
 // scan merges the references of every file.

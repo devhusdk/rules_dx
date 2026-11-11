@@ -1,0 +1,4 @@
+{application, kv, [
+    {description, "Key-value."},
+    {vsn, "0.2.0"}
+]}.

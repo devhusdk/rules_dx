@@ -101,9 +101,6 @@ js_test(
     size = "small",
     data = [
         "mdx_tsc.mjs",
-        "testdata/mdx/bad.mdx",
-        "testdata/mdx/clean.mdx",
-        "testdata/mdx/lib.ts",
         "//javascript/private/quality:node_modules/@mdx-js/language-service",
         "//javascript/private/quality:node_modules/@mdx-js/mdx",
         "//javascript/private/quality:node_modules/@volar/typescript",

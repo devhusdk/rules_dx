@@ -36,12 +36,12 @@ sh_test(
     srcs = ["perlcritic_smoke_test.sh"],
     args = [
         "$(rootpath :perlcritic)",
-        "$(rootpath testdata/clean.pl)",
-        "$(rootpath testdata/dirty.pl)",
+        "$(rootpath critic/testdata/clean.pl)",
+        "$(rootpath critic/testdata/dirty.pl)",
     ],
     data = [
-        "testdata/clean.pl",
-        "testdata/dirty.pl",
+        "critic/testdata/clean.pl",
+        "critic/testdata/dirty.pl",
         ":perlcritic",
     ],
 )

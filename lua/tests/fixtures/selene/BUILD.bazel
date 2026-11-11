@@ -7,7 +7,7 @@ exports_files([
 ])
 
 lua_library(
-    name = "testdata",
+    name = "selene",
     testonly = True,
     srcs = [
         "lua54_valid.lua",

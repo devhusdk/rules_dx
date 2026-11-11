@@ -145,7 +145,7 @@ rust_test(
         "//core/quality:families/oci_image.bzl",
         "//perl/private/quality:perl.bzl",
         "//php/private/quality:php.bzl",
-        "//pkl/private/quality:pkl.bzl",
+        "//core/quality:families/pkl.bzl",
         "//powershell/private/quality:powershell.bzl",
         "//python/private/quality:python.bzl",
         "//ruby/private/quality:ruby.bzl",

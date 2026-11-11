@@ -15,15 +15,18 @@ REAL_ASPECT_LABELS = {
         "core/quality:families/jsonnet.bzl%real_jsonnet_lint_aspect",
         "core/quality:families/typst.bzl%real_typst_lint_aspect",
         "core/quality:families/xml.bzl%real_xml_lint_aspect",
+        "core/quality:families/pkl.bzl%real_pkl_lint_aspect",
         "core/quality:families/latex.bzl%real_latex_lint_aspect",
     ],
     "typecheck": [
         "core/quality:families/core.bzl%real_typecheck_aspect",
         "core/quality:families/cue.bzl%real_cue_typecheck_aspect",
+        "core/quality:families/pkl.bzl%real_pkl_typecheck_aspect",
         "core/quality:families/oci_image.bzl%real_oci_image_typecheck_aspect",
     ],
     "format": [
         "core/quality:families/cue.bzl%real_cue_format_aspect",
+        "core/quality:families/pkl.bzl%real_pkl_format_aspect",
         "core/quality:families/core.bzl%real_format_aspect",
         "core/quality:families/jsonnet.bzl%real_jsonnet_format_aspect",
         "core/quality:families/nix.bzl%real_nix_format_aspect",

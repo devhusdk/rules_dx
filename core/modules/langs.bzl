@@ -2171,53 +2171,6 @@ LANGS = json.decode("""{
       "prettier"
     ]
   },
-  "pkl": {
-    "ecosystems": [],
-    "entry_points": [],
-    "family": "core",
-    "lockfiles": [],
-    "manifests": [],
-    "name": "pkl",
-    "pins": [],
-    "platforms": [
-      "linux_arm64",
-      "linux_x86_64",
-      "macos_arm64",
-      "windows_x86_64"
-    ],
-    "quality": {
-      "aspects": {
-        "format": [
-          "real_pkl_format_aspect"
-        ],
-        "lint": [
-          "real_pkl_lint_aspect"
-        ],
-        "typecheck": [
-          "real_pkl_typecheck_aspect"
-        ]
-      },
-      "bzl": "pkl/private/quality:pkl.bzl",
-      "file_extensions": [
-        ".pkl"
-      ],
-      "probes": {
-        "format": [
-          "real_pkl_format_probe_aspect"
-        ],
-        "lint": [
-          "real_pkl_lint_probe_aspect"
-        ],
-        "typecheck": [
-          "real_pkl_typecheck_probe_aspect"
-        ]
-      }
-    },
-    "title": "pkl",
-    "tools": [
-      "pkl"
-    ]
-  },
   "powershell": {
     "depcheck": "powershell",
     "docs": {

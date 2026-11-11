@@ -652,6 +652,21 @@
             "real_go_typecheck_probe_aspect"
           ]
         }
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "go",
+            "extension": "@rules_dx//go:extensions.bzl",
+            "hub": "*",
+            "imports": "name",
+            "lock": "go.sum",
+            "manifest": "go.mod",
+            "resolver": null,
+            "state": null,
+            "tag": "from_file"
+          }
+        ]
       }
     },
     {

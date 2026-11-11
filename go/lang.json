@@ -14,7 +14,22 @@
   "lockfiles": [
     "go.sum"
   ],
-  "tools": [
+  "setup": {
+  "hubs": [
+   {
+    "ecosystem": "go",
+    "manifest": "go.mod",
+    "lock": "go.sum",
+    "state": null,
+    "extension": "@rules_dx//go:extensions.bzl",
+    "tag": "from_file",
+    "hub": "*",
+    "resolver": null,
+    "imports": "name"
+   }
+  ]
+ },
+ "tools": [
     "errcheck",
     "gofumpt",
     "gotype",

@@ -1293,6 +1293,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": true,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "go",
+          "extension": "@rules_dx//go:extensions.bzl",
+          "hub": "*",
+          "imports": "name",
+          "lock": "go.sum",
+          "manifest": "go.mod",
+          "resolver": null,
+          "state": null,
+          "tag": "from_file"
+        }
+      ]
+    },
     "title": "Go",
     "tools": [
       "errcheck",

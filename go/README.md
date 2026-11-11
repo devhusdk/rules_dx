@@ -32,8 +32,8 @@ module path plus the directory.
 Add the module to `go.mod` and wire it in `MODULE.bazel`:
 
 ```starlark
-go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
-go_deps.from_file(go_mod = "//:go.mod")
+go = use_extension("@rules_dx//go:extensions.bzl", "go")
+go.from_file(go_mod = "//:go.mod")
 ```
 
 Then run `dx generate --apply`. An import under a module that `go.mod`

@@ -78,7 +78,7 @@ probe = repository_rule(implementation = _impl, environ = ["DX_REFETCH_PROBE"])
     let module = dx_testing::read_text(&case.root().join("MODULE.bazel"));
     case.write(
         "MODULE.bazel",
-        &format!("{module}\nuse_repo_rule(\"//:probe.bzl\", \"probe\")\nprobe(name = \"probe\")\n"),
+        &format!("{module}\nprobe = use_repo_rule(\"//:probe.bzl\", \"probe\")\nprobe(name = \"probe\")\n"),
     );
     let query = |value: &str| {
         vec![

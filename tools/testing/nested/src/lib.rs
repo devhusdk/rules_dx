@@ -1573,7 +1573,8 @@ impl Case {
         );
     }
 
-    /// Stops the server, reruns `args` with the workspace rules log at `log` under `TEST_TMPDIR`, and returns the repository rules that ran.
+    /// Stops the server, reruns `args` with the workspace rules log at `log` under `TEST_TMPDIR`, and returns the repository rules that ran,
+    /// without the modules that the consumer's MODULE.bazel overrides with `local_path_override`.
     pub fn refetched_after_restart(&self, args: &[&str], log: &str) -> Vec<String> {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
@@ -1585,7 +1586,13 @@ impl Case {
         let run = self.bazel(&full);
         assert!(run.status.success(), "{}", run.combined());
         let bytes = std::fs::read(&log).unwrap_or_default();
+        let local = compose::local_override_repos(&dx_testing::read_text(
+            &self.root().join("MODULE.bazel"),
+        ));
         record::contexts(&bytes)
+            .into_iter()
+            .filter(|context| !local.contains(context))
+            .collect()
     }
 
     /// Stops the server, reruns `args`, and fails with the repository rules that ran.

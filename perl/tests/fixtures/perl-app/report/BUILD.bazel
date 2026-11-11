@@ -1,4 +1,5 @@
-# gazelle:ignore
+# gazelle:dx_ignore_import perl Text::CSV
+# gazelle:dx_ignore_import perl Runfiles
 load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 

@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
 load("@rules_dx//julia:defs.bzl", "julia_binary", "julia_library", "julia_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")

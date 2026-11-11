@@ -1,4 +1,4 @@
-# gazelle:ignore
+# gazelle:dx_ignore_import julia OrderedCollections
 load("@rules_dx//julia:defs.bzl", "julia_library", "julia_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 

@@ -154,8 +154,12 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
     std::fs::copy(subject, &staged).expect("subject must copy");
     if let Ok(tree) = std::env::var("RUNFILES_DIR") {
         #[cfg(unix)]
-        std::os::unix::fs::symlink(&tree, with_suffix(&staged, ".runfiles"))
-            .expect("runfiles must link");
+        {
+            std::os::unix::fs::symlink(&tree, with_suffix(&staged, ".runfiles"))
+                .expect("runfiles must link");
+            std::os::unix::fs::symlink(&tree, with_suffix(&staged, "_upstream.runfiles"))
+                .expect("upstream runfiles must link");
+        }
         #[cfg(not(unix))]
         let _ = tree;
     }

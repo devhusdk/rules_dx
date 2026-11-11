@@ -13,7 +13,7 @@ ansible/tests/BUILD.bazel no-size 3
 ansible/tests/layout_tests.bzl no-size 1
 ansible/tests/lock_tests.bzl no-size 1
 api_spec/private/codegen/BUILD.bazel no-size 1
-api_spec/tests/BUILD.bazel no-size 13
+api_spec/tests/BUILD.bazel no-size 12
 appimage/private/packer/BUILD.bazel no-size 1
 appimage/tests/BUILD.bazel no-size 10
 apple/private/ios/BUILD.bazel no-size 57
@@ -304,7 +304,6 @@ env/BUILD.bazel no-size 12
 env/private/defs_tests.bzl no-size 5
 env/private/env_shard/BUILD.bazel no-size 1
 env/private/plan_tests.bzl no-size 2
-erlang/private/BUILD.bazel no-size 2
 erlang/private/toolchain/BUILD.bazel no-size 2
 erlang/tests/fixtures/bench/BUILD.bazel no-size 2
 erlang/tests/fixtures/erlang-app/checksum/BUILD.bazel no-size 1
@@ -344,7 +343,6 @@ fsharp/tests/fixtures/adopt-fsharp/solo/BUILD.bazel no-size 1
 fsharp/tests/fixtures/bench/BUILD.bazel no-size 2
 fsharp/tests/fixtures/fuzz/BUILD.bazel no-size 7
 fsharp/tests/fixtures/hello/BUILD.bazel no-size 2
-fsharp/tests/fixtures/layouts/BUILD.bazel no-size 1
 fsharp/tests/fixtures/order/BUILD.bazel no-size 1
 fsharp/tests/fixtures/profiles/BUILD.bazel no-size 1
 fsharp/tests/fixtures/select/BUILD.bazel no-size 1

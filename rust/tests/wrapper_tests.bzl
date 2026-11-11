@@ -234,6 +234,7 @@ def dx_wrapper_conformance_tests(name, subjects):
     """Instantiates Rust wrapper conformance tests."""
     starlark_test(
         name = name,
+        size = "small",
         mode = "analysis",
         subjects = subjects,
         expected_observations = EXPECTED_OBSERVATIONS,

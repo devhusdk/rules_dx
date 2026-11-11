@@ -7,7 +7,10 @@ package(default_visibility = ["//visibility:private"])
 
 exports_files(["wrapper_tests.bzl"])
 
-erlang_wrapper_contract_tests(name = "wrapper_contract_tests")
+erlang_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    size = "small",
+)
 
 dialyzer_plt(
     name = "empty_plt",
@@ -18,6 +21,7 @@ dialyzer_plt(
 
 dialyzer_plt_needs_input_test(
     name = "plt_needs_input_test",
+    size = "small",
     target = ":empty_plt",
 )
 

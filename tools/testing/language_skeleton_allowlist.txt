@@ -66,17 +66,14 @@ fixture-hello cmake/tests/conformance/BUILD.bazel
 fixture-hello csharp/tests/conformance/BUILD.bazel
 fixture-hello cuda/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
-fixture-hello dotnet/tests/conformance/BUILD.bazel
 fixture-hello env/tests/conformance/BUILD.bazel
 fixture-hello env/tests/consumer
-fixture-hello erlang/tests/conformance/BUILD.bazel
 fixture-hello flatbuffers/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/consumer
 fixture-hello fortran/tests/conformance/BUILD.bazel
 fixture-hello fortran/tests/consumer
 fixture-hello fsharp/tests/conformance/BUILD.bazel
-fixture-hello haskell/tests/conformance/BUILD.bazel
 fixture-hello helm/tests/conformance/BUILD.bazel
 fixture-hello helm/tests/consumer
 fixture-hello kubernetes/tests/conformance/BUILD.bazel

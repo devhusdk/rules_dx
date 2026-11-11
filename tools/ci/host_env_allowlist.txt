@@ -210,12 +210,10 @@ deploy/private/validate_tests.bzl home 2
 deploy/tests/fixtures/consumer_resources/BUILD.bazel genrule 1
 deploy/tests/fixtures/linux_package/BUILD.bazel genrule 2
 deploy/tests/runfiles/deploy_runfiles_test.rs shebang 1
-elixir/private/toolchain/metadata_tests.bzl shebang 1
 elixir/private/tools/launcher.bzl home 2
 elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel genrule 1
 env/private/stubs/BUILD.bazel sh-rule 1
 env/private/stubs/BUILD.bazel shebang 1
-erlang/private/toolchain/metadata_tests.bzl shebang 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/interaction.sh shebang 1

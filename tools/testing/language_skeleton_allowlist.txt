@@ -537,11 +537,7 @@ test-location javascript/private/quality/bin/graphql_eslint_config_test.mjs
 test-location javascript/private/quality/bin/mdx_tsc_test.mjs
 test-location javascript/private/quality/launcher/BUILD.bazel
 test-location javascript/private/quality/launcher/src/lib_tests.rs
-test-location julia/private/BUILD.bazel
 test-location julia/private/coverage/BUILD.bazel
-test-location julia/private/precompile_tests.bzl
-test-location julia/private/wrapper_tests.bzl
-test-location julia/tests/BUILD.bazel
 test-location kotlin/private/BUILD.bazel
 test-location kotlin/tests/BUILD.bazel
 test-location lua/private/BUILD.bazel
@@ -560,9 +556,6 @@ test-location ocaml/private/quality/zanuda_test.sh
 test-location ocaml/private/toolchain/BUILD.bazel
 test-location ocaml/private/toolchain/metadata_tests.bzl
 test-location ocaml/private/wrapper_tests.bzl
-test-location perl/private/BUILD.bazel
-test-location perl/private/wrapper_tests.bzl
-test-location perl/tests/BUILD.bazel
 test-location php/private/BUILD.bazel
 test-location php/private/BenchTest.php
 test-location php/private/coverage/BUILD.bazel

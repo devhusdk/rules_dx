@@ -1,7 +1,7 @@
 """Analysis tests that Julia libraries precompile and forward JuliaInfo."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load(":defs.bzl", "JULIA_COMPATIBLE_WITH", "JuliaInfo")
+load("//julia/private:defs.bzl", "JULIA_COMPATIBLE_WITH", "JuliaInfo")
 
 def _precompile_impl(ctx):
     env = analysistest.begin(ctx)

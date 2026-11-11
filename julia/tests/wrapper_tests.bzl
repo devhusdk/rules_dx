@@ -1,6 +1,11 @@
 """Analysis tests for Julia coverage on test forwarders."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
+load("//core:defs.bzl", "expect_equal")
+load("//core:entry.bzl", "dx_entry_quality_srcs")
+load("//julia/private:defs.bzl", "JULIA_QUALITY_TOOLS", "JULIA_SOURCE_EXTS", "JULIA_SOURCE_SPECS")
+load("//julia/private:platforms.bzl", "JULIA_PLATFORMS")
 
 def _config_content(env):
     for action in analysistest.target_actions(env):
@@ -55,3 +60,62 @@ _wrapper_action_test = analysistest.make(_wrapper_action_impl)
 def julia_wrapper_action_test(name, target):
     """Asserts the wrapper script is rendered by an action, not read at analysis time."""
     _wrapper_action_test(name = name, size = "small", target_under_test = target)
+
+def julia_wrapper_contract_tests(name):
+    """Declares the Julia wrapper contract tests."""
+    dx_wrapper_contract_tests(
+        name = name,
+        extra_checks = [
+            expect_equal(
+                "wrappers carry julia_format",
+                sorted(JULIA_QUALITY_TOOLS.keys()),
+                ["julia_format"],
+            ),
+            expect_equal(
+                "one julia class owns every source",
+                JULIA_SOURCE_SPECS,
+                [("julia", "jl")],
+            ),
+            expect_equal(
+                "wrappers accept only Julia sources",
+                JULIA_SOURCE_EXTS,
+                [".jl"],
+            ),
+            expect_equal(
+                "main leads the owned sources",
+                dx_entry_quality_srcs(
+                    "main.jl",
+                    ["util.jl"],
+                ),
+                [
+                    "main.jl",
+                    "util.jl",
+                ],
+            ),
+            expect_equal(
+                "main listed in srcs is owned once",
+                dx_entry_quality_srcs(
+                    "main.jl",
+                    [
+                        "main.jl",
+                        "util.jl",
+                    ],
+                ),
+                [
+                    "main.jl",
+                    "util.jl",
+                ],
+            ),
+            expect_equal(
+                "no main and no srcs owns nothing",
+                dx_entry_quality_srcs(None, None),
+                [],
+            ),
+            expect_equal(
+                "windows arm64 has no Julia build",
+                [name for name, (os, cpu) in JULIA_PLATFORMS.items() if os == "windows" and cpu == "arm64"],
+                [],
+            ),
+        ],
+        file_classes = ["julia"],
+    )

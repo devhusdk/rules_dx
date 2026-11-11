@@ -1,0 +1,50 @@
+--- a/rust/private/rustc.bzl
++++ b/rust/private/rustc.bzl
+@@ -2927,7 +2927,8 @@
+         ambiguous_libs,
+         get_lib_name,
+         for_darwin = False,
+-        flavor_msvc = False):
++        flavor_msvc = False,
++        link_static_library_by_path = False):
+     """_summary_
+ 
+     Args:
+@@ -2937,6 +2938,7 @@
+         get_lib_name (_type_): _description_
+         for_darwin (bool, optional): _description_. Defaults to False.
+         flavor_msvc (bool, optional): _description_. Defaults to False.
++        link_static_library_by_path (bool, optional): Link the static library by its path. Defaults to False.
+ 
+     Returns:
+         _type_: _description_
+@@ -2985,6 +2987,11 @@
+                 "-lstatic=%s" % get_lib_name(artifact),
+                 "-Clink-arg={}".format(artifact.basename),
+             ]
++        elif link_static_library_by_path:
++            return [
++                "-lstatic=%s" % get_lib_name(artifact),
++                "-Clink-arg={}".format(artifact.path),
++            ]
+         else:
+             return [
+                 "-lstatic=%s" % get_lib_name(artifact),
+@@ -3043,7 +3050,7 @@
+                 ("-Clink-arg=%s%s" % (prefix, get_preferred_artifact(lib, use_pic).path)),
+             ])
+         elif include_link_flags:
+-            ret.extend(portable_link_flags(lib, use_pic, ambiguous_libs, get_lib_name_default, for_darwin = True))
++            ret.extend(portable_link_flags(lib, use_pic, ambiguous_libs, get_lib_name_default, for_darwin = True, link_static_library_by_path = True))
+     _add_user_link_flags(ret, linker_input)
+     return ret
+ 
+@@ -3059,7 +3066,7 @@
+                 ("-Clink-arg=%s--no-whole-archive" % prefix),
+             ])
+         elif include_link_flags:
+-            ret.extend(portable_link_flags(lib, use_pic, ambiguous_libs, get_lib_name_default))
++            ret.extend(portable_link_flags(lib, use_pic, ambiguous_libs, get_lib_name_default, link_static_library_by_path = True))
+     _add_user_link_flags(ret, linker_input)
+     return ret
+ 

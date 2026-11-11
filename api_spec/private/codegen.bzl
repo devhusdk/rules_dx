@@ -25,15 +25,15 @@ _ENV = {
     "REDOCLY_TELEMETRY": "off",
 }
 
-def _root(ctx, info):
+def _root(ctx, info, rule):
     label = display_label(ctx.label)
     if ctx.file.root:
         for candidate in info.roots:
             if candidate.path == ctx.file.root.path:
                 return candidate
-        fail("openapi_typescript_client " + label + ": root " + display_label(ctx.attr.root.label) + " is not a root of " + display_label(ctx.attr.spec.label))
+        fail(rule + " " + label + ": root " + display_label(ctx.attr.root.label) + " is not a root of " + display_label(ctx.attr.spec.label))
     if len(info.roots) != 1:
-        fail("openapi_typescript_client " + label + ": " + display_label(ctx.attr.spec.label) + " has " + str(len(info.roots)) + " roots; set root")
+        fail(rule + " " + label + ": " + display_label(ctx.attr.spec.label) + " has " + str(len(info.roots)) + " roots; set root")
     return info.roots[0]
 
 def _preflight(ctx, info, root):
@@ -62,7 +62,7 @@ def _client_providers(ctx, out):
 
 def _client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info)
+    root = _root(ctx, info, "openapi_typescript_client")
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".ts")
     stamp = _preflight(ctx, info, root)
     ctx.actions.run(
@@ -93,7 +93,7 @@ openapi_typescript_client = rule(
 
 def _go_client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info)
+    root = _root(ctx, info, "openapi_go_client")
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".go")
     stamp = _preflight(ctx, info, root)
     sdk = ctx.toolchains["@rules_go//go:toolchain"].sdk
@@ -127,7 +127,7 @@ openapi_go_client = rule(
 
 def _python_client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info)
+    root = _root(ctx, info, "openapi_python_client")
     out = ctx.actions.declare_directory(ctx.attr.out if ctx.attr.out else ctx.label.name)
     stamp = _preflight(ctx, info, root)
     ctx.actions.run(
@@ -164,7 +164,7 @@ openapi_python_client = rule(
 
 def _rust_client_impl(ctx):
     info = ctx.attr.spec[ApiSpecInfo]
-    root = _root(ctx, info)
+    root = _root(ctx, info, "openapi_rust_client")
     out = ctx.actions.declare_file(ctx.attr.out if ctx.attr.out else ctx.label.name + ".rs")
     stamp = _preflight(ctx, info, root)
     ctx.actions.run(

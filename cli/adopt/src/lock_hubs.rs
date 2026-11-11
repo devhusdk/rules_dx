@@ -172,7 +172,8 @@ pub fn plan_lock_hubs(root: &Path) -> Result<LockHubs, AdoptError> {
         plan.cargo()?;
         plan.uv()?;
         plan.npm()?;
-        plan.pub_()
+        plan.pub_()?;
+        plan.go()
     })
 }
 
@@ -528,6 +529,28 @@ impl Planner<'_> {
         self.add(pubs, &tags, &[pubs.hub.as_str()])
     }
 
+    fn go(&mut self) -> Result<(), AdoptError> {
+        let go = hub_of("go")?;
+        if !self.exists(&go.manifest) {
+            return Ok(());
+        }
+        let manifest = root_label(&go.manifest);
+        for file in self.files {
+            let Ok(named) = file.go_deps_files() else {
+                self.notes.push(format!(
+                    "a go_deps.from_file has computed arguments; {} not wired",
+                    go.manifest
+                ));
+                return Ok(());
+            };
+            if named.iter().any(|f| f.go_mod == manifest) {
+                return Ok(());
+            }
+        }
+        let tags = vec![tag("from_file", vec![("go_mod", string(&manifest))])];
+        self.add(go, &tags, &[])
+    }
+
     fn pnpm(&mut self) -> Result<(), AdoptError> {
         let pnpm = hub_of("pnpm")?;
         if self.files.iter().any(|file| binds_name(file, pnpm)) {
@@ -761,6 +784,35 @@ mod tests {
             text.contains(&format!("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n", lock_of("pub"))),
             "{text}"
         );
+    }
+
+    #[test]
+    fn go_mod_gets_a_go_from_file_tag() {
+        let hubs = plan(&[(manifest_of("go"), "module example.com/app\n")]);
+        let text = new_text(&hubs);
+        assert!(
+            text.contains(&format!(
+                "go = use_extension(\"@rules_dx//go:extensions.bzl\", \"go\")\ngo.from_file(go_mod = \"//:{}\")\n",
+                manifest_of("go")
+            )) || text.contains(&format!("go.from_file(\n    go_mod = \"//:{}\",\n)\n", manifest_of("go"))),
+            "{text}"
+        );
+        assert!(!text.contains("use_repo"), "{text}");
+    }
+
+    #[test]
+    fn a_wired_go_mod_is_left_alone() {
+        let dir = scratch("lock_hubs");
+        write(
+            dir.path(),
+            MODULE_FILE,
+            &format!(
+                "{MODULE}go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \"//:{}\")\n",
+                manifest_of("go")
+            ),
+        );
+        write(dir.path(), manifest_of("go"), "module example.com/app\n");
+        assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
     #[test]

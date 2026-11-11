@@ -6,6 +6,7 @@ CONSUMER_FIXTURES = [
     "csharp",
     "cuda",
     "d",
+    "dart",
     "elixir",
     "erlang",
     "fsharp",

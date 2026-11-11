@@ -18,7 +18,6 @@ fixture capnproto
 fixture cc
 fixture cloudformation
 fixture cmake
-fixture dart
 fixture dockerfile
 fixture env
 fixture flatbuffers

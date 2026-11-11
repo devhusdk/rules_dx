@@ -88,6 +88,12 @@ def swift_windows_extract_test(name):
         checks = _windows_pin_checks(),
         file_checks = {
             "//swift/private/toolchain:extract_windows.ps1": "& $SevenZip x -y -bd",
-            "//swift/private/toolchain:repos.bzl": "repository_ctx.path(_SEVEN_ZIP + \"/full/7z.exe\")",
+            "//swift/private/toolchain:repos.bzl": "\n".join([
+                "repository_ctx.path(_SEVEN_ZIP + \"/full/7z.exe\")",
+                "environment = _NO_HOST_TOOLS,",
+                "\"PATH\": None,",
+                "\"Path\": None,",
+                "\"SystemRoot\": None,",
+            ]),
         },
     )

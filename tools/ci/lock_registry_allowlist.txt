@@ -4,7 +4,6 @@ name cli/adopt/src/dependency_sets.rs paket.dependencies
 name cli/adopt/src/dependency_sets.rs pyproject.toml
 name cli/cli/src/adopt/init_files.rs package.json
 name cli/cli/src/adopt/init_files.rs pnpm-lock.yaml
-name cli/cli/src/exec/affected.rs pnpm-lock.yaml
 name cli/cli/src/exec/audit_consumer.rs Cargo.lock
 name cli/cli/src/exec/audit_consumer.rs Cargo.toml
 name cli/cli/src/exec/audit_consumer.rs Gemfile
@@ -55,18 +54,6 @@ name cli/cli/src/exec/generate.rs package.json
 name cli/cli/src/exec/generate.rs pnpm-lock.yaml
 name cli/cli/src/exec/generate.rs pyproject.toml
 name cli/cli/src/exec/generate.rs uv.lock
-name cli/cli/src/exec/update_pr.rs Cargo.lock
-name cli/cli/src/exec/update_pr.rs Cargo.toml
-name cli/cli/src/exec/update_pr.rs Gemfile
-name cli/cli/src/exec/update_pr.rs Gemfile.lock
-name cli/cli/src/exec/update_pr.rs go.mod
-name cli/cli/src/exec/update_unused.rs Cargo.lock
-name cli/cli/src/exec/update_unused.rs Cargo.toml
-name cli/cli/src/exec/update_unused.rs go.mod
-name cli/cli/src/exec/update_unused.rs package.json
-name cli/cli/src/exec/update_unused.rs paket.dependencies
-name cli/cli/src/exec/update_unused.rs pyproject.toml
-name cli/cli/src/exec/update_unused.rs uv.lock
 name cli/depcheck/src/main.rs Cargo.lock
 name cli/depcheck/src/main.rs Cargo.toml
 name cli/depcheck/src/missing.rs Cargo.lock

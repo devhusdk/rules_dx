@@ -664,9 +664,10 @@ mod tests {
 
     #[test]
     fn root_package_labels_are_audited_only_when_a_root_scoped_set_exists() {
+        let lock = dx_adopt::dependency_sets::Ecosystem::Npm.lockfiles()[0].as_str();
         let set = |package: &str| {
             format!(
-                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//{package}:pnpm-lock.yaml\")\n"
+                "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(name = \"web\", pnpm_lock = \"//{package}:{lock}\")\n"
             )
         };
         let root = dx_test_scratch::scratch("dx-affected-root-scope-");
@@ -1408,7 +1409,9 @@ mod tests {
         write(
             root,
             "MODULE.bazel",
-            &format!("crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{lock}\")\n"),
+            &format!(
+                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{lock}\")\n"
+            ),
         );
         write(root, lock, &cargo_lock("1.0.1"));
         dx_test_scratch::git(root, root, &["add", "."]);

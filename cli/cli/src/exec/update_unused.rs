@@ -361,7 +361,7 @@ fn lock_file_name(set: &ResolvedSet) -> &'static str {
 }
 
 /// Imports under the manifest's directory that no declared dependency covers, and hub labels
-/// that BUILD targets use but the manifest does not declare. Go reads `go.mod`; the other sets
+/// that BUILD targets use but the manifest does not declare. Go reads its manifest; the other sets
 /// compare their lock's packages with the manifest.
 pub(super) fn find_missing(
     workspace: &Path,
@@ -557,6 +557,14 @@ mod tests {
     use super::*;
     use dx_adopt::dependency_sets::{DependencySet, ResolvedSet};
 
+    fn manifest_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.manifest_name()
+    }
+
+    fn lock_of(ecosystem: Ecosystem) -> &'static str {
+        ecosystem.lockfiles()[0].as_str()
+    }
+
     fn target(set: &str, ecosystem: Ecosystem, manifest: &str) -> ResolvedTarget {
         ResolvedTarget {
             set: ResolvedSet::of(&DependencySet {
@@ -622,17 +630,27 @@ mod tests {
     }
 
     fn cargo_set_named(root: &Path, manifest: &str, visible: &str) -> Vec<ResolvedTarget> {
-        write(root, "rs/Cargo.toml", manifest);
+        write(
+            root,
+            &format!("rs/{}", manifest_of(Ecosystem::Cargo)),
+            manifest,
+        );
         write(
             root,
             "MODULE.bazel",
             &format!(
-                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"dx_crates\", cargo_lockfile = \"//rs:Cargo.lock\", manifests = [\"//rs:Cargo.toml\"])\nuse_repo(crate, {visible} = \"dx_crates\")\n"
+                "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(name = \"dx_crates\", cargo_lockfile = \"//rs:{}\", manifests = [\"//rs:{}\"])\nuse_repo(crate, {visible} = \"dx_crates\")\n",
+                lock_of(Ecosystem::Cargo),
+                manifest_of(Ecosystem::Cargo),
             ),
         );
-        let mut resolved = vec![target("crates", Ecosystem::Cargo, "rs/Cargo.toml")];
+        let mut resolved = vec![target(
+            "crates",
+            Ecosystem::Cargo,
+            &format!("rs/{}", manifest_of(Ecosystem::Cargo)),
+        )];
         resolved[0].set.repository = Some("dx_crates".to_owned());
-        resolved[0].set.locks = vec!["rs/Cargo.lock".to_owned()];
+        resolved[0].set.locks = vec![format!("rs/{}", lock_of(Ecosystem::Cargo))];
         resolved
     }
 
@@ -760,14 +778,22 @@ mod tests {
         write(
             root,
             "MODULE.bazel",
-            "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//py:uv.lock\", pyproject = \"//py:pyproject.toml\")\n",
+            &format!(
+                "uv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(hub_name = \"pypi\", lock = \"//py:{}\", pyproject = \"//py:{}\")\n",
+                lock_of(Ecosystem::Uv),
+                manifest_of(Ecosystem::Uv)
+            ),
         );
         write(
             root,
-            "py/pyproject.toml",
+            &format!("py/{}", manifest_of(Ecosystem::Uv)),
             "[project]\nname = \"x\"\nversion = \"1\"\ndependencies = [\"numpy>=1\", \"Requests\"]\n",
         );
-        let resolved = [target("pypi", Ecosystem::Uv, "py/pyproject.toml")];
+        let resolved = [target(
+            "pypi",
+            Ecosystem::Uv,
+            &format!("py/{}", manifest_of(Ecosystem::Uv)),
+        )];
         assert_eq!(
             unused_names(root, &resolved, "@@pypi//numpy:numpy\n"),
             ["Requests"]
@@ -780,10 +806,14 @@ mod tests {
         let root = dir.path();
         write(
             root,
-            "web/package.json",
+            &format!("web/{}", manifest_of(Ecosystem::Npm)),
             "{\n  \"dependencies\": {\n    \"left-pad\": \"1.0.0\",\n    \"react\": \"18.0.0\"\n  }\n}\n",
         );
-        let resolved = [target("web", Ecosystem::Npm, "web/package.json")];
+        let resolved = [target(
+            "web",
+            Ecosystem::Npm,
+            &format!("web/{}", manifest_of(Ecosystem::Npm)),
+        )];
         assert_eq!(
             unused_names(root, &resolved, "//web:node_modules/react\n"),
             ["left-pad"]
@@ -821,10 +851,14 @@ mod tests {
         let root = dir.path();
         write(
             root,
-            "dn/paket.dependencies",
+            &format!("dn/{}", manifest_of(Ecosystem::Nuget)),
             "source https://api.nuget.org/v3/index.json\nnuget Newtonsoft.Json 13.0.1\nnuget Serilog 3.0.0\n",
         );
-        let mut resolved = [target("nuget", Ecosystem::Nuget, "dn/paket.dependencies")];
+        let mut resolved = [target(
+            "nuget",
+            Ecosystem::Nuget,
+            &format!("dn/{}", manifest_of(Ecosystem::Nuget)),
+        )];
         resolved[0].set.locks = vec![
             format!("dn/{}", dx_adopt::lock_hubs::state_of("nuget")),
             "dn/deps/paket.main.bzl".to_owned(),
@@ -865,27 +899,38 @@ mod tests {
         let root = dir.path();
         write(
             root,
-            "rs/Cargo.toml",
+            &format!("rs/{}", manifest_of(Ecosystem::Cargo)),
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nregex = \"1\"\n",
         );
         write(root, "rs/src/lib.rs", "use serde::Serialize;\n");
         write(
             root,
-            "web/package.json",
+            &format!("web/{}", manifest_of(Ecosystem::Npm)),
             "{\n  \"dependencies\": {\n    \"left-pad\": \"1.0.0\",\n    \"react\": \"18.0.0\"\n  }\n}\n",
         );
         write(root, "web/index.js", "import React from 'react';\n");
         let resolved = [
-            target("crates", Ecosystem::Cargo, "rs/Cargo.toml"),
-            target("npm", Ecosystem::Npm, "web/package.json"),
+            target(
+                "crates",
+                Ecosystem::Cargo,
+                &format!("rs/{}", manifest_of(Ecosystem::Cargo)),
+            ),
+            target(
+                "npm",
+                Ecosystem::Npm,
+                &format!("web/{}", manifest_of(Ecosystem::Npm)),
+            ),
         ];
         let found = find(root, &resolved, &NoQuery, &[]);
         let mut out = Vec::new();
         emit_text(&mut out, &found).unwrap();
         assert_eq!(
             String::from_utf8_lossy(&out),
-            "unused: crates: regex (declared in rs/Cargo.toml:6)\n\
-             unused: npm: left-pad (declared in web/package.json:3)\n"
+            format!(
+                "unused: crates: regex (declared in rs/{}:6)\nunused: npm: left-pad (declared in web/{}:3)\n",
+                manifest_of(Ecosystem::Cargo),
+                manifest_of(Ecosystem::Npm)
+            )
         );
     }
 
@@ -895,10 +940,10 @@ mod tests {
         let root = dir.path();
         write(
             root,
-            "go.mod",
+            manifest_of(Ecosystem::Go),
             "module example.com/app\n\ngo 1.22\n\nrequire (\n\tgithub.com/a/b v1.0.0\n\tgithub.com/c/d v1.0.0\n)\n",
         );
-        let resolved = [target("go", Ecosystem::Go, "go.mod")];
+        let resolved = [target("go", Ecosystem::Go, manifest_of(Ecosystem::Go))];
         let names = |query: &dyn QueryRunner| -> Vec<String> {
             find(root, &resolved, query, &[])
                 .into_iter()
@@ -939,7 +984,7 @@ mod tests {
         );
         write(
             root,
-            "rs/Cargo.lock",
+            &format!("rs/{}", lock_of(Ecosystem::Cargo)),
             "version = 3\n\n[[package]]\nname = \"regex\"\nversion = \"1.0.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\n",
         );
         write(root, "rs/src/lib.rs", "use regex::Regex;\n");
@@ -956,13 +1001,21 @@ mod tests {
     fn lists_a_go_import_that_no_require_covers() {
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path();
-        write(root, "svc/go.mod", "module example.com/svc\n\ngo 1.22\n");
+        write(
+            root,
+            &format!("svc/{}", manifest_of(Ecosystem::Go)),
+            "module example.com/svc\n\ngo 1.22\n",
+        );
         write(
             root,
             "svc/main.go",
             "package main\n\nimport (\n\t\"fmt\"\n\t\"github.com/c/d\"\n)\n",
         );
-        let resolved = [target("go", Ecosystem::Go, "svc/go.mod")];
+        let resolved = [target(
+            "go",
+            Ecosystem::Go,
+            &format!("svc/{}", manifest_of(Ecosystem::Go)),
+        )];
         let found = find_missing(root, &resolved, &NoQuery, &[]);
         let mut out = Vec::new();
         emit_missing_text(&mut out, &found).unwrap();

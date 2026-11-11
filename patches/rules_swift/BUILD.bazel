@@ -2,10 +2,6 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "clang_cl_no_split_cold_code.patch",
-    "non_root_toolchain.patch",
-    "sysroot_host_libs.patch",
-    "target_runtime_root.patch",
-    "toolchain_sysroot_env.patch",
     "windows_absolute_sdk.patch",
     "windows_unknown_vendor.patch",
 ])

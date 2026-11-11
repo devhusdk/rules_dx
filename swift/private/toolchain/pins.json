@@ -28,6 +28,23 @@
     },
     "version": "26.06"
   },
+  "swift_linux": {
+    "cells": {
+      "linux_arm64": {
+        "sha256": "2f56ac2f5aa647beb85b27b637f0ba9653413ee26894570ca33434ec041d92cc",
+        "urls": [
+          "https://download.swift.org/swift-6.4.2-release/ubuntu2204-aarch64/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-ubuntu22.04-aarch64.tar.gz"
+        ]
+      },
+      "linux_x86_64": {
+        "sha256": "c3081b1817117c66e4764d2a148357d997200048922c778b0f08c795833ae06d",
+        "urls": [
+          "https://download.swift.org/swift-6.4.2-release/ubuntu2204/swift-6.4.2-RELEASE/swift-6.4.2-RELEASE-ubuntu22.04.tar.gz"
+        ]
+      }
+    },
+    "version": "6.4.2"
+  },
   "swift_windows": {
     "cells": {
       "windows_arm64": {

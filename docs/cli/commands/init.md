@@ -38,6 +38,16 @@ existing tree, for example `dx: src/ exists, treating this as an existing repo`.
 Nothing language-specific is chosen up front; languages are wired when their
 sources appear.
 
+### Flags
+
+| Flag | What it does |
+| --- | --- |
+| `--apply` | Scaffold instead of only checking. |
+| `--agents <list>` | Agent tools whose files init adds: `claude`, `codex`, `gemini`, `copilot`. |
+| `--ci <provider>` | CI provider whose workflow init writes: `github`, `gitlab`, `none`. |
+| `-o, --output text\|json` | Choose the output format. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+
 The module name is the directory name, lowercased, with every run of other
 characters folded to `_`, or `my_project` for the current directory. An
 absolute path, a `..` segment, or a name with no `[a-z0-9]` character fails
@@ -114,9 +124,15 @@ When the writes succeed, `--apply` then runs `dx generate --apply` over the dire
 
 Output: `--output text|json`. JSON covers the check only; see Init plan below.
 
-Exit codes: `0` check passed (absent paths may be named on stderr) or apply succeeded, `2` usage error, including
-extra positionals, an unknown flag, or an invalid directory, `1` check found drift or apply
-failed on content dx refuses, `3` apply could not read, write or start something, `141` apply wrote every file but stdout closed early.
+### Exit codes
+
+| Exit code | Meaning |
+| --- | --- |
+| `0` | Check passed (absent paths may be named on stderr) or apply succeeded. |
+| `1` | Check found drift or apply failed on content dx refuses. |
+| `2` | Usage error, including extra positionals, an unknown flag, or an invalid directory. |
+| `3` | Apply could not read, write or start something. |
+| `141` | Apply wrote every file but stdout closed early. |
 
 ## Fixed file set
 

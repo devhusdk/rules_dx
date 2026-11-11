@@ -1,6 +1,7 @@
 """Wrapper conformance tests for Erlang."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_erlang//tools:erlang_toolchain.bzl", "windows_tree_home_commands")
 load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal")
@@ -34,6 +35,7 @@ def erlang_wrapper_contract_tests(name):
         name,
         file_classes = ["erlang"],
         extra_checks = [
+            expect_equal("windows tree tests set the otp home from runfiles", windows_tree_home_commands("+erlang+dx_otp_windows_x86_64"), 'set "RULES_ERLANG_HOME=%TEST_SRCDIR%/+erlang+dx_otp_windows_x86_64"\nset "RULES_ERLANG_HOME=%RULES_ERLANG_HOME:/=\\%"\n'),
             expect_equal("rebar.lock pkg entries become pins", [(p["package"], p["version"], p["sha256"], p["level"]) for p in rebar_lock_packages(_REBAR_LOCK)], [("cowboy", "2.10.0", "cccc", 0), ("cowlib", "2.12.1", "dddd", 1)]),
             expect_equal("erlang guard is a select by default", type(erlang_kwargs({})["target_compatible_with"]), "select"),
             expect_equal("erlang guard stays with a user list", type(erlang_kwargs({"target_compatible_with": ["//x:y"]})["target_compatible_with"]), "select"),

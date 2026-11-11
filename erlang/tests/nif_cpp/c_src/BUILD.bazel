@@ -13,9 +13,11 @@ exports_files(
 cc_library(
     name = "c_src",
     testonly = True,
+    linkstatic = True,
     srcs = [
         "dx_cpp_a_nif.cc",
         "dx_cpp_b_nif.cc",
     ],
     visibility = ["//visibility:public"],
+    deps = ["@dx_erlang_toolchains//:erl_nif"],
 )

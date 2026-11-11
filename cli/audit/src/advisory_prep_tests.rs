@@ -354,7 +354,12 @@ fn every_audited_set_names_locks_and_one_advisory_family() {
         families, curated,
         "advisory prep must prepare every curated advisory set, and nothing else"
     );
-    let workspace = workspace_with(vuln_locks("cargo"));
+    let workspace = workspace_with(
+        &vuln_locks("cargo")
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+    );
     assert_eq!(
         families_of(workspace.path()),
         vec!["cargo"],

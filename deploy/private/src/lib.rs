@@ -72,6 +72,7 @@ pub use stage::*;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_ecosystems::Ecosystem;
     use crate::test_support::*;
     use std::io;
     use std::path::Path;
@@ -445,7 +446,7 @@ mod tests {
             || {
                 assert_eq!(
                     crates_main(
-                        &["Cargo.toml".to_owned(), "lib.rs".to_owned()],
+                        &[Ecosystem::Cargo.manifest_name().to_owned(), "lib.rs".to_owned()],
                         "crates_demo",
                         "1.0.0",
                         &argv
@@ -483,7 +484,7 @@ mod tests {
         let scratch = scratch_dir();
         let repo = scratch.path().join("repo");
         let runfiles = scratch.path().join("runfiles");
-        write_crate_file(&repo, "Cargo.toml", "[package]\nname = \"demo\"\nversion = \"1.2.0\"\n");
+        write_crate_file(&repo, Ecosystem::Cargo.manifest_name(), "[package]\nname = \"demo\"\nversion = \"1.2.0\"\n");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
         for args in [
             &["init", "-q"][..],
@@ -496,7 +497,7 @@ mod tests {
         let wheel = zip_archive(&[("demo-1.3.0.dist-info/RECORD", &b""[..], 0o644)]).expect("wheel");
         std::fs::write(runfiles.join("demo-1.3.0-py3-none-any.whl"), wheel).expect("wheel");
         std::fs::write(
-            runfiles.join("Cargo.toml"),
+            runfiles.join(Ecosystem::Cargo.manifest_name()),
             "[package]\nname = \"demo\"\nversion = \"1.3.0\"\n",
         )
         .expect("manifest");
@@ -557,7 +558,7 @@ mod tests {
                 };
                 assert_eq!(
                     crates_main_checked(
-                        &["Cargo.toml".to_owned(), "lib.rs".to_owned()],
+                        &[Ecosystem::Cargo.manifest_name().to_owned(), "lib.rs".to_owned()],
                         "demo",
                         "1.3.0",
                         &crates,
@@ -625,7 +626,7 @@ mod tests {
             ("release_demo.tar.gz", &b"package"[..]),
             ("octopus_demo.1.0.0.tar.gz", &b"package"[..]),
             (
-                "Cargo.toml",
+                Ecosystem::Cargo.manifest_name(),
                 &b"[package]\nname = \"crates_demo\"\nversion = \"1.0.0\"\n"[..],
             ),
             (
@@ -692,7 +693,7 @@ mod tests {
                 );
                 assert_eq!(
                     crates_main(
-                        &["Cargo.toml".to_owned(), "lib.rs".to_owned()],
+                        &[Ecosystem::Cargo.manifest_name().to_owned(), "lib.rs".to_owned()],
                         "crates_demo",
                         "1.0.0",
                         &argv

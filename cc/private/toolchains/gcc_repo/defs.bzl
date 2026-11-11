@@ -20,7 +20,6 @@
 """This module provides the definitions for registering a GCC toolchain for C and C++.
 """
 
-load("@bazel_lib//lib:utils.bzl", "is_bzlmod_enabled")
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("@bazel_tools//tools/build_defs/repo:utils.bzl", "read_user_netrc", "use_netrc")
@@ -29,7 +28,6 @@ _AUTO_BINARY_PREFIX = "auto"
 
 _TRIPLE_BINARY_PREFIXES = {
     "aarch64": "aarch64-linux-",
-    "armv7": "arm-linux-gnueabihf-",
     "x86_64": "x86_64-linux-",
 }
 
@@ -73,11 +71,7 @@ def _gcc_toolchain_impl(rctx):
         ]
 
     def _format_builtins(builtins):
-        # In bzlmod, external dependencies have their own canonical subdirectories, so we can't rely on %workspace%.
-        # Instead, we want to resolve paths relative to the root of the module where the toolchain is installed.
-        if is_bzlmod_enabled():
-            return [d.replace("%workspace%", toolchain_root) for d in builtins]
-        return builtins
+        return [d.replace("%workspace%", toolchain_root) for d in builtins]
 
     target_arch = rctx.attr.target_arch
 
@@ -90,8 +84,6 @@ def _gcc_toolchain_impl(rctx):
     include_prefix = None
     if target_arch == ARCHS.aarch64:
         include_prefix = "aarch64-linux/"
-    elif target_arch == ARCHS.armv7:
-        include_prefix = "arm-linux-gnueabihf/"
     elif target_arch == ARCHS.x86_64:
         include_prefix = "x86_64-linux/"
 
@@ -134,24 +126,10 @@ def _gcc_toolchain_impl(rctx):
             ]
         ])
 
-    f_builtin_includes = [
-        include.format(
-            gcc_version = rctx.attr.gcc_version,
-            include_prefix = include_prefix,
-        )
-        for include in [
-            "%workspace%/lib/gcc/{include_prefix}{gcc_version}/finclude",
-        ]
-    ]
-
     builtin_include_directories = []
     builtin_include_directories.extend(c_builtin_includes)
     builtin_include_directories.extend(cxx_builtin_includes)
-    if rctx.attr.enable_fortran:
-        builtin_include_directories.extend(f_builtin_includes)
     builtin_include_directories.extend(rctx.attr.includes)
-    if rctx.attr.enable_fortran:
-        builtin_include_directories.extend(rctx.attr.fincludes)
 
     extra_cflags = [
         "-nostdinc",
@@ -187,25 +165,6 @@ def _gcc_toolchain_impl(rctx):
         for include in rctx.attr.includes
     ])
     extra_cxxflags.extend(rctx.attr.extra_cxxflags)
-
-    extra_fflags = [
-        "-nostdinc",
-        "-B%workspace%/bin",
-        "-B%workspace%/xbin",
-    ]
-    extra_fflags.extend([
-        "-I{}".format(include)
-        for include in f_builtin_includes
-    ])
-    extra_fflags.extend([
-        "-I{}".format(include)
-        for include in c_builtin_includes
-    ])
-    extra_fflags.extend([
-        "-I{}".format(finclude)
-        for finclude in rctx.attr.fincludes
-    ])
-    extra_fflags.extend(rctx.attr.extra_fflags)
 
     # Note: we deliberately do NOT add `-B`/`-L` flags for the sysroot lib dirs
     # (`%workspace%/sysroot/lib`, `%workspace%/sysroot/usr/lib`). GCC already
@@ -249,8 +208,6 @@ def _gcc_toolchain_impl(rctx):
 
     rctx.file("BUILD.bazel", _TOOLCHAIN_BUILD_FILE_CONTENT.format(
         cc_toolchain_config_bzl = str(Label("//cc/private/toolchains/gcc_repo:cc_toolchain_config.bzl")),
-        gcc_toolchain_workspace_name = rctx.attr.gcc_toolchain_workspace_name,
-        enable_fortran = str(rctx.attr.enable_fortran),
         binary_prefix = binary_prefix,
         include_prefix = include_prefix,
 
@@ -260,7 +217,6 @@ def _gcc_toolchain_impl(rctx):
         # Flags
         extra_cflags = _format_flags(extra_cflags),
         extra_cxxflags = _format_flags(extra_cxxflags),
-        extra_fflags = _format_flags(extra_fflags) if rctx.attr.enable_fortran else [],
         extra_ldflags = _format_flags(extra_ldflags),
         extra_asmflags = _format_flags(extra_asmflags),
 
@@ -272,62 +228,13 @@ def _gcc_toolchain_impl(rctx):
         supports_param_files = 1 if rctx.attr.supports_param_files else 0,
         target_libc = rctx.attr.target_libc,
         target_system_name = "{}-linux-gnu".format(rctx.attr.target_arch),
-
-        # Fortran, if enabled
-        **_fortran_vars(
-            rctx.attr.enable_fortran,
-            rctx.attr.gcc_toolchain_workspace_name,
-            include_prefix,
-            binary_prefix,
-        )
     ))
     return rctx.repo_metadata(reproducible = True)
-
-def _fortran_vars(enable_fortran, gcc_toolchain_workspace_name, include_prefix, binary_prefix):
-    load_ = ""
-    toolchain = ""
-    includes = ""
-    bin_gfortran = ""
-    xbin_gfortran = ""
-    f951 = ""
-    specs = ""
-
-    if enable_fortran:
-        load_ = 'load("@{gcc_toolchain_workspace_name}//toolchain/fortran:defs.bzl", "fortran_toolchain")'.format(
-            gcc_toolchain_workspace_name = gcc_toolchain_workspace_name,
-        )
-        toolchain = '''fortran_toolchain(
-    name = "_fortran_toolchain",
-    cc_toolchain = ":_cc_toolchain",
-)'''
-        includes = '''
-        # Fortran includes
-        "lib/gcc/{include_prefix}*/finclude/**",'''.format(include_prefix = include_prefix)
-        bin_gfortran = '        "bin/{binary_prefix}gfortran",'.format(binary_prefix = binary_prefix)
-        xbin_gfortran = '        "xbin/gfortran",'
-        f951 = '        "**/libexec/gcc/**/f951",'
-        specs = '''        # Fortran spec files.
-        "**/lib*/libgfortran.spec",
-        "**/lib*/libgomp.spec",'''
-
-    return dict(
-        fortran_load = load_,
-        fortran_toolchain = toolchain,
-        fortran_includes = includes,
-        fortran_bin_gfortran = bin_gfortran,
-        fortran_xbin_gfortran = xbin_gfortran,
-        fortran_f951 = f951,
-        fortran_specs = specs,
-    )
 
 _FEATURE_ATTRS = {
     "binary_prefix": attr.string(
         doc = "An explicit prefix used by each binary in bin/. Defaults to detecting the prefix from the extracted toolchain.",
         default = _AUTO_BINARY_PREFIX,
-    ),
-    "enable_fortran": attr.bool(
-        doc = "Enable Fortran support in the toolchain (the default).",
-        default = True,
     ),
     "extra_cflags": attr.string_list(
         doc = "Extra flags for compiling C.",
@@ -335,10 +242,6 @@ _FEATURE_ATTRS = {
     ),
     "extra_cxxflags": attr.string_list(
         doc = "Extra flags for compiling C++.",
-        default = [],
-    ),
-    "extra_fflags": attr.string_list(
-        doc = "Extra flags for compiling Fortran, if enabled.",
         default = [],
     ),
     "extra_ldflags": attr.string_list(
@@ -377,10 +280,6 @@ _FEATURE_ATTRS = {
               " Off by default to preserve historical behavior.",
         default = False,
     ),
-    "gcc_toolchain_workspace_name": attr.string(
-        doc = "The name given to the gcc-toolchain repository, if the default was not used.",
-        default = "gcc_toolchain",
-    ),
     "gcc_version": attr.string(
         doc = "The version of GCC.",
         mandatory = True,
@@ -394,11 +293,6 @@ _FEATURE_ATTRS = {
         doc = "Extra includes for compiling C and C++." +
               " %workspace% is rendered to the toolchain root path." +
               " See https://github.com/bazelbuild/bazel/blob/a48e246e/src/main/java/com/google/devtools/build/lib/rules/cpp/CcToolchainProviderHelper.java#L234-L254.",
-        default = [],
-    ),
-    "fincludes": attr.string_list(
-        doc = "Extra includes for compiling Fortran, if enabled." +
-              " %workspace% is rendered to the toolchain root path.",
         default = [],
     ),
     "target_arch": attr.string(
@@ -527,21 +421,10 @@ def _gcc_toolchains_hub_impl(rctx):
             target_settings = [setting] + extra_target_settings,
             toolchain_repo = toolchain_repos[gcc_version],
         ))
-        if rctx.attr.enable_fortran:
-            content.append(_HUB_FORTRAN_TOOLCHAIN_TEMPLATE.format(
-                suffix = suffix,
-                target_compatible_with = target_compatible_with,
-                target_settings = [setting] + extra_target_settings,
-                toolchain_repo = toolchain_repos[gcc_version],
-                fortran_toolchain_type = str(rctx.attr._fortran_toolchain_type),
-            ))
 
     # Keep the targets of the selected toolchain reachable under the hub name, so that labels like
     # @gcc_toolchain_x86_64//:libstdcxx keep resolving and follow the selected version.
-    aliases = list(_HUB_ALIASED_TARGETS)
-    if rctx.attr.enable_fortran:
-        aliases.append("_fortran_toolchain")
-    for target in aliases:
+    for target in _HUB_ALIASED_TARGETS:
         actual = {
             ":_gcc_version_" + _sanitize_version(gcc_version): "@{}//:{}".format(toolchain_repo, target)
             for gcc_version, toolchain_repo in toolchain_repos.items()
@@ -562,10 +445,6 @@ _gcc_toolchains_hub = repository_rule(
                 doc = "The GCC version used when the gcc_version flag is not set.",
                 mandatory = True,
             ),
-            "enable_fortran": attr.bool(
-                doc = "Whether to declare the Fortran toolchains.",
-                default = True,
-            ),
             "target_arch": attr.string(
                 doc = "The target architecture the toolchains produce. E.g. x86_64.",
                 mandatory = True,
@@ -574,37 +453,12 @@ _gcc_toolchains_hub = repository_rule(
                 doc = "Maps each available GCC version to the repository holding its cc_toolchain.",
                 mandatory = True,
             ),
-            "_fortran_toolchain_type": attr.label(
-                default = Label("@gcc_toolchain//toolchain/fortran:toolchain_type"),
-            ),
             "_gcc_version_flag": attr.label(
                 default = Label("@gcc_toolchain//toolchain:gcc_version"),
             ),
         },
     ),
 )
-
-_SHAREABLE_ATTRS = dicts.add(_FEATURE_ATTRS, _TOOLCHAIN_DECLARATION_ATTRS)
-
-ATTRS_SHARED_WITH_MODULE_EXTENSION = {
-    attr_name: _SHAREABLE_ATTRS[attr_name]
-    for attr_name in [
-        "gcc_version",
-        "gcc_versions",
-        "enable_fortran",
-        "extra_cflags",
-        "extra_cxxflags",
-        "extra_ldflags",
-        "extra_fflags",
-        "extra_asmflags",
-        "extra_enabled_features",
-        "extra_known_features",
-        "extra_target_compatible_with",
-        "extra_target_settings",
-        "supports_param_files",
-        "target_libc",
-    ]
-}
 
 def _render_tool_paths(rctx, path_prefix, binary_prefix):
     relative_tool_paths = {
@@ -629,10 +483,6 @@ def _render_tool_paths(rctx, path_prefix, binary_prefix):
             binary_prefix = binary_prefix,
         ),
         "gcov": "{path_prefix}/bin/{binary_prefix}gcov".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "gfortran": "{path_prefix}/bin/{binary_prefix}gfortran".format(
             path_prefix = path_prefix,
             binary_prefix = binary_prefix,
         ),
@@ -695,9 +545,6 @@ def gcc_declare_toolchain(
     own repository holding the `cc_toolchain`, fetched only when that version is selected through
     the `@gcc_toolchain//toolchain:gcc_version` flag.
 
-    You should use `gcc_register_toolchain` unless you need to register toolchains manually,
-    e.g. if you are consuming this repository as a Bzlmod dependency.
-
     Args:
         name: The name of the hub repository holding the toolchain declarations.
         target_arch: The target architecture of the toolchain.
@@ -730,7 +577,6 @@ def gcc_declare_toolchain(
 
     default_gcc_version = kwargs.pop("gcc_version")
     gcc_versions = kwargs.pop("gcc_versions")
-    enable_fortran = kwargs.pop("enable_fortran", True)
     extra_target_compatible_with = kwargs.pop("extra_target_compatible_with", [])
     target_compatible_with = kwargs.pop("target_compatible_with", None)
     target_settings = kwargs.pop("target_settings", [])
@@ -741,13 +587,11 @@ def gcc_declare_toolchain(
 
     extra_cflags = kwargs.pop("extra_cflags", [])
     extra_cxxflags = kwargs.pop("extra_cxxflags", [])
-    extra_fflags = kwargs.pop("extra_fflags", [])
     extra_ldflags = kwargs.pop("extra_ldflags", [])
     extra_asmflags = kwargs.pop("extra_asmflags", [])
     extra_enabled_features = kwargs.pop("extra_enabled_features", [])
     extra_known_features = kwargs.pop("extra_known_features", [])
     includes = kwargs.pop("includes", [])
-    fincludes = kwargs.pop("fincludes", [])
 
     toolchain_repos = {}
     for gcc_version in json.decode(gcc_versions):
@@ -756,16 +600,13 @@ def gcc_declare_toolchain(
         gcc_toolchain(
             name = toolchain_repo,
             binary_prefix = binary_prefix,
-            enable_fortran = enable_fortran,
             extra_cflags = extra_cflags,
             extra_cxxflags = extra_cxxflags,
-            extra_fflags = extra_fflags,
             extra_ldflags = extra_ldflags,
             extra_asmflags = extra_asmflags,
             extra_enabled_features = extra_enabled_features,
             extra_known_features = extra_known_features,
             includes = includes,
-            fincludes = fincludes,
             gcc_version = gcc_version,
             gcc_versions = gcc_versions,
             target_arch = target_arch,
@@ -787,7 +628,6 @@ def gcc_declare_toolchain(
     _gcc_toolchains_hub(
         name = name,
         default_gcc_version = default_gcc_version,
-        enable_fortran = enable_fortran,
         extra_target_compatible_with = extra_target_compatible_with,
         extra_target_settings = extra_target_settings,
         target_arch = target_arch,
@@ -796,27 +636,8 @@ def gcc_declare_toolchain(
         **hub_kwargs
     )
 
-def gcc_register_toolchain(
-        name,
-        target_arch,
-        **kwargs):
-    """Declares a `gcc_toolchain` for every available GCC version and registers all of them.
-
-    Which one resolves is selected by the `@gcc_toolchain//toolchain:gcc_version` flag.
-
-    Args:
-        name: The name of the hub repository holding the toolchain declarations.
-        target_arch: The target architecture of the toolchain.
-        **kwargs: The extra arguments passed to `gcc_declare_toolchain`. See
-            `gcc_declare_toolchain` for more info.
-    """
-    enable_fortran = kwargs.pop("enable_fortran", True)
-    gcc_declare_toolchain(name, target_arch, enable_fortran = enable_fortran, **kwargs)
-    native.register_toolchains("@{}//:all".format(name))
-
 ARCHS = struct(
     aarch64 = "aarch64",
-    armv7 = "armv7",
     x86_64 = "x86_64",
 )
 
@@ -876,28 +697,12 @@ toolchain(
     toolchain_type = "@rules_cc//cc:toolchain_type",
 )'''
 
-_HUB_FORTRAN_TOOLCHAIN_TEMPLATE = '''\
-toolchain(
-    name = "fortran_toolchain{suffix}",
-    exec_compatible_with = [
-        "@platforms//os:linux",
-        "@platforms//cpu:x86_64",
-    ],
-    target_compatible_with = {target_compatible_with},
-    target_settings = {target_settings},
-    toolchain = "@{toolchain_repo}//:_fortran_toolchain",
-    toolchain_type = "{fortran_toolchain_type}",
-)'''
-
 _TOOLCHAIN_BUILD_FILE_CONTENT = """\
 load("@rules_cc//cc:defs.bzl", "cc_toolchain", "cc_library")
 load("{cc_toolchain_config_bzl}", "cc_toolchain_config")
-{fortran_load}
 load("//:tool_paths.bzl", "tool_paths")
 
 package(default_visibility = ["//visibility:public"])
-
-{fortran_toolchain}
 
 cc_toolchain(
     name = "_cc_toolchain",
@@ -920,10 +725,8 @@ cc_toolchain(
 cc_toolchain_config(
     name = "cc_toolchain_config",
     cxx_builtin_include_directories = {cxx_builtin_include_directories},
-    enable_fortran = {enable_fortran},
     extra_cflags = {extra_cflags},
     extra_cxxflags = {extra_cxxflags},
-    extra_fflags = {extra_fflags},
     extra_ldflags = {extra_ldflags},
     extra_asmflags = {extra_asmflags},
     target_libc = "{target_libc}",
@@ -1015,7 +818,6 @@ filegroup(
         # C++ includes
         "{include_prefix}include/c++/*/**",
         "include/c++/*/**",
-{fortran_includes}
     ], allow_empty=True),
     visibility = ["//visibility:public"],
 )
@@ -1044,15 +846,12 @@ filegroup(
         "bin/{binary_prefix}cpp",
         "bin/{binary_prefix}g++",
         "bin/{binary_prefix}gcc",
-{fortran_bin_gfortran}
         "xbin/cpp",
         "xbin/g++",
         "xbin/gcc",
-{fortran_xbin_gfortran}
     ] + glob([
         "**/libexec/gcc/**/cc1plus",
         "**/libexec/gcc/**/cc1",
-{fortran_f951}
         "**/libexec/gcc/**/collect2",
         "**/libexec/gcc/**/lto-wrapper",
         "**/libexec/gcc/**/lto1",
@@ -1060,7 +859,6 @@ filegroup(
         "lib/libgmp.so*",
         "lib/libmpc.so*",
         "lib/libmpfr.so*",
-{fortran_specs}
     ], allow_empty=True),
     visibility = ["//visibility:public"],
 )

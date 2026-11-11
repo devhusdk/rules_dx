@@ -21,7 +21,7 @@ pub fn scaffold_fixture(scratch: &Path, fixture: &str, name: &str, files: &str) 
     let rel = std::env::var("DX_BIN").unwrap_or_else(|_| panic!("DX_BIN must name dx"));
     let output = Command::new(dx_testing::resolve_runfiles(&rel))
         .current_dir(scratch)
-        .args(["init", "--apply", name])
+        .args(["init", "--apply", "--no-generate", name])
         .arg("--workspace")
         .arg(scratch)
         .output()

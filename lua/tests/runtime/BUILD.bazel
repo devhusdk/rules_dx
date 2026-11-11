@@ -1,5 +1,6 @@
+# gazelle:dx_ignore_import lua luacov.runner
+# gazelle:exclude lib.lua
 # gazelle:exclude pkg
-# gazelle:ignore
 load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 

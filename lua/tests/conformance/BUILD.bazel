@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("//lua:defs.bzl", "lua_binary", "lua_library", "lua_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 

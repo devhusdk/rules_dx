@@ -1,4 +1,7 @@
-# gazelle:ignore
+# gazelle:exclude missing_dep.lua
+# gazelle:exclude runtime_error.lua
+# gazelle:exclude syntax_error.lua
+# gazelle:exclude unformatted.lua
 load("@rules_dx//lua:defs.bzl", "lua_binary", "lua_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 

@@ -13,16 +13,27 @@ use crate::AdoptError;
 use crate::module_pin::ModuleEdit;
 
 const MODULE_FILE: &str = "MODULE.bazel";
-const CARGO_LOCK: &str = "Cargo.lock";
-const UV_LOCK: &str = "uv.lock";
-const PNPM_LOCK: &str = "pnpm-lock.yaml";
-const PUB_LOCK: &str = "pubspec.lock";
 
 /// The planned `MODULE.bazel` edit, if any, and what the planner could not do.
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct LockHubs {
     pub edit: Option<ModuleEdit>,
     pub notes: Vec<String>,
+}
+
+fn registry(ecosystem: &str) -> &'static Hub {
+    dx_families::hub(ecosystem).unwrap_or_else(|| panic!("no setup.hubs entry for {ecosystem}"))
+}
+
+fn lock_of(ecosystem: &str) -> &'static str {
+    registry(ecosystem)
+        .lock
+        .as_deref()
+        .unwrap_or_else(|| panic!("setup.hubs entry {ecosystem} has no lock"))
+}
+
+fn manifest_of(ecosystem: &str) -> &'static str {
+    &registry(ecosystem).manifest
 }
 
 fn hub_of(ecosystem: &str) -> Result<&'static Hub, AdoptError> {
@@ -79,36 +90,36 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
 /// `package.json` without a `pnpm-lock.yaml`.
 pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     let mut out = Vec::new();
-    let cargo_lock = std::fs::metadata(root.join(CARGO_LOCK));
-    if root.join("Cargo.toml").is_file() && cargo_lock.map_or(true, |meta| meta.len() == 0) {
-        out.push("Cargo.toml");
+    let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")));
+    if root.join(manifest_of("cargo")).is_file() && cargo_lock.map_or(true, |meta| meta.len() == 0) {
+        out.push(manifest_of("cargo"));
     }
-    let pyproject = std::fs::read_to_string(root.join("pyproject.toml"))
+    let pyproject = std::fs::read_to_string(root.join(manifest_of("uv")))
         .ok()
         .and_then(|text| text.parse::<toml::Table>().ok());
     if let Some(table) = pyproject {
         let tool = table.get("tool").and_then(|tool| tool.as_table());
         let other =
             tool.is_some_and(|tool| tool.contains_key("poetry") || tool.contains_key("pdm"));
-        if table.contains_key("project") && !other && !root.join(UV_LOCK).exists() {
-            out.push("pyproject.toml");
+        if table.contains_key("project") && !other && !root.join(lock_of("uv")).exists() {
+            out.push(manifest_of("uv"));
         }
     }
     if wants_pnpm_lock(root) {
-        out.push("package.json");
+        out.push(manifest_of("npm"));
     }
     out
 }
 
 fn wants_pnpm_lock(root: &Path) -> bool {
-    let Ok(text) = std::fs::read_to_string(root.join("package.json")) else {
+    let Ok(text) = std::fs::read_to_string(root.join(manifest_of("npm"))) else {
         return false;
     };
     let declared = serde_json::from_str::<serde_json::Value>(&text)
         .ok()
         .and_then(|json| json.get("packageManager")?.as_str().map(str::to_owned))
         .is_some_and(|manager| manager.starts_with("pnpm@"));
-    let other_lock = ["package-lock.json", "yarn.lock", PNPM_LOCK]
+    let other_lock = ["package-lock.json", "yarn.lock", lock_of("npm")]
         .iter()
         .any(|lock| root.join(lock).exists());
     (declared || root.join("pnpm-workspace.yaml").is_file()) && !other_lock
@@ -201,8 +212,8 @@ impl Planner<'_> {
     }
 
     fn report_extra_cargo_locks(&mut self) {
-        for dir in self.lock_dirs(CARGO_LOCK, "Cargo.toml") {
-            let label = dir_label(&dir, CARGO_LOCK);
+        for dir in self.lock_dirs(lock_of("cargo"), manifest_of("cargo")) {
+            let label = dir_label(&dir, lock_of("cargo"));
             let named = self.files.iter().any(|file| {
                 file.cargo_hubs().is_ok_and(|hubs| {
                     hubs.iter()
@@ -211,7 +222,7 @@ impl Planner<'_> {
             });
             if !dir.is_empty() && !named {
                 self.notes.push(format!(
-                    "{dir}/{CARGO_LOCK} is not wired; add a crate.from_cargo for it"
+                    "{dir}/{} is not wired; add a crate.from_cargo for it", lock_of("cargo")
                 ));
             }
         }
@@ -219,11 +230,11 @@ impl Planner<'_> {
 
     fn cargo(&mut self) -> Result<(), AdoptError> {
         self.report_extra_cargo_locks();
-        if !self.exists(CARGO_LOCK) || !self.exists("Cargo.toml") {
+        if !self.exists(lock_of("cargo")) || !self.exists(manifest_of("cargo")) {
             return Ok(());
         }
         let cargo = hub_of("cargo")?;
-        let lock = root_label(CARGO_LOCK);
+        let lock = root_label(lock_of("cargo"));
         let mut covered = false;
         for file in self.files {
             let Ok(hubs) = file.cargo_hubs() else {
@@ -258,8 +269,8 @@ impl Planner<'_> {
     }
 
     fn cargo_manifests(&mut self) -> Vec<String> {
-        let mut manifests = vec![root_label("Cargo.toml")];
-        let parsed = std::fs::read_to_string(self.root.join("Cargo.toml"))
+        let mut manifests = vec![root_label(manifest_of("cargo"))];
+        let parsed = std::fs::read_to_string(self.root.join(manifest_of("cargo")))
             .ok()
             .and_then(|text| text.parse::<toml::Table>().ok());
         let members = parsed
@@ -326,7 +337,7 @@ impl Planner<'_> {
 
     fn uv(&mut self) -> Result<(), AdoptError> {
         let uv = hub_of("uv")?;
-        let dirs = self.lock_dirs(UV_LOCK, "pyproject.toml");
+        let dirs = self.lock_dirs(lock_of("uv"), manifest_of("uv"));
         if dirs.is_empty() {
             return Ok(());
         }
@@ -348,7 +359,7 @@ impl Planner<'_> {
         }
         let mut tags = Vec::new();
         for dir in dirs {
-            let lock = dir_label(&dir, UV_LOCK);
+            let lock = dir_label(&dir, lock_of("uv"));
             if named.contains(&lock) {
                 continue;
             }
@@ -356,7 +367,7 @@ impl Planner<'_> {
                 "project",
                 vec![
                     ("hub_name", string(&uv.hub)),
-                    ("pyproject", string(&dir_label(&dir, "pyproject.toml"))),
+                    ("pyproject", string(&dir_label(&dir, manifest_of("uv")))),
                     ("lock", string(&lock)),
                 ],
             ));
@@ -372,7 +383,7 @@ impl Planner<'_> {
 
     fn npm(&mut self) -> Result<(), AdoptError> {
         let npm = hub_of("npm")?;
-        let dirs = self.lock_dirs(PNPM_LOCK, "package.json");
+        let dirs = self.lock_dirs(lock_of("npm"), manifest_of("npm"));
         if dirs.is_empty() {
             return Ok(());
         }
@@ -394,7 +405,7 @@ impl Planner<'_> {
         let mut tags = Vec::new();
         let mut hubs = Vec::new();
         for dir in dirs {
-            let lock = dir_label(&dir, PNPM_LOCK);
+            let lock = dir_label(&dir, lock_of("npm"));
             let hub = if dir.is_empty() {
                 npm.hub.clone()
             } else {
@@ -405,8 +416,8 @@ impl Planner<'_> {
             }
             if existing.iter().any(|(name, _)| *name == hub) {
                 self.notes.push(format!(
-                    "npm.npm_translate_lock \"{hub}\" reads another lock; {PNPM_LOCK} in {} not wired",
-                    if dir.is_empty() { "." } else { &dir }
+                    "npm.npm_translate_lock \"{hub}\" reads another lock; {} in {} not wired",
+                    lock_of("npm"), if dir.is_empty() { "." } else { &dir }
                 ));
                 continue;
             }
@@ -425,7 +436,7 @@ impl Planner<'_> {
 
     fn pub_(&mut self) -> Result<(), AdoptError> {
         let pubs = hub_of("pub")?;
-        let dirs = self.lock_dirs(PUB_LOCK, &pubs.manifest);
+        let dirs = self.lock_dirs(lock_of("pub"), &pubs.manifest);
         let Some(dir) = dirs.first() else {
             return Ok(());
         };
@@ -438,14 +449,14 @@ impl Planner<'_> {
         }
         for other in &dirs[1..] {
             self.notes.push(format!(
-                "{other}/{PUB_LOCK} is not wired; add a pub.from_lock for it"
+                "{other}/{} is not wired; add a pub.from_lock for it", lock_of("pub")
             ));
         }
         let tags = vec![tag(
             "from_lock",
             vec![
                 ("name", string(&pubs.hub)),
-                ("lock", string(&dir_label(dir, PUB_LOCK))),
+                ("lock", string(&dir_label(dir, lock_of("pub")))),
             ],
         )];
         self.add(pubs, &tags, &[pubs.hub.as_str()])
@@ -463,7 +474,7 @@ impl Planner<'_> {
         let ts = hub_of("typescript")?;
         let wanted = self.exists(&ts.manifest)
             || self
-                .lock_dirs(PNPM_LOCK, "package.json")
+                .lock_dirs(lock_of("npm"), manifest_of("npm"))
                 .iter()
                 .any(|dir| self.exists(&format!("{dir}/{}", ts.manifest)));
         if !wanted || self.files.iter().any(|file| binds_name(file, ts)) {

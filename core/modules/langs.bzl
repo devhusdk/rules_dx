@@ -725,7 +725,9 @@ LANGS = json.decode("""{
       "pubspec.yaml"
     ],
     "name": "dart",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [
       "linux_arm64",
       "linux_x86_64",
@@ -905,7 +907,7 @@ LANGS = json.decode("""{
     ],
     "name": "elixir",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -990,7 +992,7 @@ LANGS = json.decode("""{
     ],
     "name": "erlang",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -1980,7 +1982,7 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "msix",
     "pins": [
-      "private/pins.bzl"
+      "pins.json"
     ],
     "platforms": [
       "windows_arm64",
@@ -2193,7 +2195,7 @@ LANGS = json.decode("""{
     ],
     "name": "php",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",

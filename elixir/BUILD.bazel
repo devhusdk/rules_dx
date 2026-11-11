@@ -20,4 +20,5 @@ exports_files([
     "defs.bzl",
     "extensions.bzl",
     "lang.json",
+    "pins.json",
 ])

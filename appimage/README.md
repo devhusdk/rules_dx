@@ -16,7 +16,7 @@ Cells: `linux_x86_64` and `linux_arm64`. Any other target fails analysis with
 | type 2 runtime (x86_64, aarch64) | MIT |
 | mksquashfs | GPL-2.0-or-later |
 
-Versions are in `private/pins.json`.
+Versions are in `pins.json`.
 
 ## Use
 

@@ -10,7 +10,6 @@ exports_files([
     "cells.bzl",
     "metadata_tests.bzl",
     "php.bzl",
-    "pins.json",
     "repos.bzl",
     "extensions.bzl",
     "version_check.php",

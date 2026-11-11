@@ -12,7 +12,7 @@
     "windows_x86_64"
   ],
   "pins": [
-    "private/pins.bzl"
+    "pins.json"
   ],
   "entry_points": [
     "msix_package",

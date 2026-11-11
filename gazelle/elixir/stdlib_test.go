@@ -36,7 +36,7 @@ func TestStdlibList(t *testing.T) {
 			t.Errorf("IsStdLib(%q) = true", not)
 		}
 	}
-	data, err := os.ReadFile("../../elixir/private/toolchain/pins.json")
+	data, err := os.ReadFile("../../elixir/pins.json")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -716,7 +716,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ldc_clean",
         "target": "//core/quality/testdata/d_owned:clean",
-        "config": "d_owned",
+        "config": "shared",
         "tool": "ldc",
         "capability": "typecheck",
         "class": "d",
@@ -726,7 +726,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_ldc_dirty",
         "target": "//core/quality/testdata/d_owned:dirty",
-        "config": "d_owned",
+        "config": "shared",
         "tool": "ldc",
         "capability": "typecheck",
         "class": "d",
@@ -776,7 +776,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_sorbet_clean",
         "target": "//core/quality/testdata/ruby_owned:clean",
-        "config": "ruby_owned",
+        "config": "shared",
         "tool": "sorbet",
         "capability": "typecheck",
         "class": "ruby",
@@ -786,7 +786,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_sorbet_dirty",
         "target": "//core/quality/testdata/ruby_owned:dirty",
-        "config": "ruby_owned",
+        "config": "shared",
         "tool": "sorbet",
         "capability": "typecheck",
         "class": "ruby",
@@ -796,7 +796,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_fsc_clean",
         "target": "//core/quality/testdata/fsharp_owned:clean",
-        "config": "fsharp_owned",
+        "config": "shared",
         "tool": "fsc",
         "capability": "typecheck",
         "class": "fsharp",
@@ -806,7 +806,7 @@ REAL_RESULT_CASES = [
     {
         "name": "real_result_fsc_dirty",
         "target": "//core/quality/testdata/fsharp_owned:dirty",
-        "config": "fsharp_owned",
+        "config": "shared",
         "tool": "fsc",
         "capability": "typecheck",
         "class": "fsharp",

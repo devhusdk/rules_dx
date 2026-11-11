@@ -146,6 +146,7 @@ load("//core/quality:json_schema.bzl", "json_schema", "json_schemas")
 # gazelle:exclude ocaml/tests/consumer
 # gazelle:exclude kotlin/tests/consumer
 # gazelle:exclude scala/tests/consumer
+# gazelle:exclude csharp/tests/consumer
 # gazelle:exclude rego/tests/consumer
 # gazelle:exclude qt/tests/consumer
 # gazelle:exclude go/tests/fixtures/no_srcs

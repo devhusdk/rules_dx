@@ -256,13 +256,19 @@ pub(super) fn write_cargo_license_lock(harness: &Harness) {
 }
 
 pub(super) fn write_maven_lock(harness: &Harness) {
-    harness.write_source(&format!("third_party/jvm/{}", lock_of(Ecosystem::Maven)), r#"{"artifacts": {}}"#);
+    harness.write_source(
+        &format!("third_party/jvm/{}", lock_of(Ecosystem::Maven)),
+        r#"{"artifacts": {}}"#,
+    );
 }
 
 pub(super) fn write_nuget_lock(harness: &Harness) {
     harness.write_source("third_party/dotnet/deps/paket.main.bzl", "");
     harness.write_source(
-        &format!("third_party/dotnet/{}", dx_adopt::lock_hubs::state_of("nuget")),
+        &format!(
+            "third_party/dotnet/{}",
+            dx_adopt::lock_hubs::state_of("nuget")
+        ),
         "NUGET\n  remote: https://api.nuget.org/v3/index.json\n",
     );
 }
@@ -720,7 +726,10 @@ pub(super) fn audit_live_npm_family_locks_are_assessed_against_the_shared_npm_sn
     for (scope, rel) in [
         (
             "javascript/tests/fixtures/adopt-js-ts/app",
-            &format!("javascript/tests/fixtures/adopt-js-ts/{}", lock_of(Ecosystem::Npm)),
+            &format!(
+                "javascript/tests/fixtures/adopt-js-ts/{}",
+                lock_of(Ecosystem::Npm)
+            ),
         ),
         (
             "examples/adopt-polyglot/frontend",

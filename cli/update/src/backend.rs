@@ -778,10 +778,22 @@ fn nuget_staged(
     })
 }
 
-const GO_WHOLE_GRAPH: &str =
-    "go sums cover the whole module graph; edit the require in go.mod and run `dx update <set>`";
+fn go_sum_missing() -> &'static str {
+    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    TEXT.get_or_init(|| format!("a go set must list {} in locks", dx_adopt::lock_hubs::lock_of("go")))
+}
 
-/// Plans `go mod download all` on a staged copy of go.mod and go.sum.
+fn go_whole_graph() -> &'static str {
+    static TEXT: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    TEXT.get_or_init(|| {
+        format!(
+            "go sums cover the whole module graph; edit the require in {} and run `dx update <set>`",
+            dx_adopt::lock_hubs::manifest_of("go")
+        )
+    })
+}
+
+/// Plans `go mod download all` on a staged copy of the go manifest and sum file.
 fn go_staged(
     set: &ResolvedSet,
     head: &dx_process::BazelHead,
@@ -804,7 +816,7 @@ fn go_staged(
         .cloned()
         .ok_or_else(|| BackendError::Unsupported {
             set: set.name.clone(),
-            reason: "a go set must list go.sum in locks",
+            reason: go_sum_missing(),
         })?;
     let mut inputs = set.manifests.clone();
     inputs.push(sum.clone());

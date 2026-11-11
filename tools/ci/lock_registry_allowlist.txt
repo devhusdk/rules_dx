@@ -23,15 +23,11 @@ name cli/depcheck/src/usage.rs pubspec.yaml
 name cli/depcheck/src/usage.rs pyproject.toml
 name cli/depcheck/src/usage.rs uv.lock
 name cli/generate/src/sync.rs pyproject.toml
-name cli/gomod/src/lib.rs go.mod
-name cli/gomod/src/lib.rs go.sum
 name cli/ide/src/lib.rs uv.lock
 name cli/ide/src/python.rs uv.lock
 name cli/update/src/backend.rs Cargo.lock
 name cli/update/src/backend.rs Gemfile
 name cli/update/src/backend.rs Package.resolved
-name cli/update/src/backend.rs go.mod
-name cli/update/src/backend.rs go.sum
 name cli/update/src/backend.rs mix.exs
 name cli/update/src/backend.rs mix.lock
 name cli/update/src/backend.rs paket.dependencies

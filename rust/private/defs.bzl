@@ -621,7 +621,7 @@ def _rust_browser_test(name, wasm, **kwargs):
         **forward
     )
 
-_WASMTIME = Label("//wasi:wasmtime")
+_WASMTIME = Label("//tools/testing/wasi:wasmtime")
 
 _EXTRA_EXEC = "//command_line_option:extra_execution_platforms"
 
@@ -678,7 +678,7 @@ _rust_wasi_run_test = rule(
         "srcs": attr.label_list(doc = "The test crate sources.", allow_files = True),
         "upstream": attr.label(doc = "The test crate built for wasm32-wasip1.", mandatory = True, cfg = _wasi_test_transition),
         "_managed": attr.label(default = _WASMTIME, allow_single_file = True),
-        "_runner": attr.label(default = "//wasi/private/testing:wasi_test_runner", executable = True, cfg = _no_coverage_transition),
+        "_runner": attr.label(default = "//tools/testing/wasi:wasi_test_runner", executable = True, cfg = _no_coverage_transition),
     } | dx_run_env_attrs(),
 )
 

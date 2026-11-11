@@ -13,7 +13,7 @@ bazel_dep(name = "rules_dx", version = "<version>")
 Load the rules from `@rules_dx//swift:defs.bzl`:
 
 ```python
-load("@rules_dx//swift:defs.bzl", "swift_interop_hint", "swift_library", "swift_library_group", "swift_binary")
+load("@rules_dx//swift:defs.bzl", "swift_interop_hint", "swift_library", "swift_library_group")
 ```
 
 ## Rules

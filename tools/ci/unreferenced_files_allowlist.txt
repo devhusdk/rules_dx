@@ -143,6 +143,5 @@ typescript/private/ide/BUILD.bazel orphan-target 1
 vue/BUILD.bazel orphan-target 1
 vue/private/BUILD.bazel orphan-target 1
 vue/tests/fixtures/hello/helper.js unreferenced-fixture 1
-wasi/BUILD.bazel orphan-target 1
 zig/BUILD.bazel orphan-target 1
 zig/private/tools/digests.bzl unloaded-bzl 1

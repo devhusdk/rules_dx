@@ -81,6 +81,7 @@ examples/   tested examples
 - `gazelle/` holds the shared Gazelle plugins.
 - `ci/` holds one directory per CI system. Its file paths are public URLs.
 - `tools/` holds scripts that only maintainers run, and the generators.
+- WASI is a Rust target, not a language. Its test helpers `wasi_run` and `wasmtime` live in `//tools/testing/wasi`.
 - `patches/` holds upstream patches and the rules_dx registry. The patch table is generated from them.
 - `third_party/` holds vendored upstream sources.
 - `docs/` holds user docs. Per-language pages are generated from `lang.json`.

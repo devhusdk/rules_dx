@@ -366,7 +366,6 @@
         "tools",
         "typescript",
         "vue",
-        "wasi",
         "zig"
       ],
       "extensions": [

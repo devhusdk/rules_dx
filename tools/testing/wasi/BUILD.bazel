@@ -4,12 +4,17 @@ load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 package(default_visibility = ["//visibility:public"])
 
+alias(
+    name = "wasmtime",
+    actual = "@dx_tools//:wasmtime",
+)
+
 rust_library(
     name = "wasi_run",
     testonly = True,
     srcs = ["wasi_run.rs"],
     aliases = aliases(
-        package_name = "wasi/private/wasi_testing",
+        package_name = "tools/testing/wasi_testing",
         normal = True,
     ),
     crate_name = "wasi_run",
@@ -19,8 +24,9 @@ rust_library(
 
 rust_test(
     name = "wasi_run_unit_test",
+    size = "small",
     aliases = aliases(
-        package_name = "wasi/private/wasi_testing",
+        package_name = "tools/testing/wasi_testing",
         normal = True,
         normal_dev = True,
     ),
@@ -33,7 +39,7 @@ rust_binary(
     testonly = True,
     srcs = ["wasi_test_runner.rs"],
     aliases = aliases(
-        package_name = "wasi/private/wasi_testing",
+        package_name = "tools/testing/wasi_testing",
         normal = True,
     ),
     crate_name = "wasi_test_runner",

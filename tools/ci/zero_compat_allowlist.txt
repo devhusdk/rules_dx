@@ -173,4 +173,3 @@ tools/testing/nested_bazel.bzl compat-word 5
 tools/testing/nested_bazel_shim.rs compat-word 1
 tools/testing/process_probe/probe_test.rs compat-word 6
 tools/testing/process_probe/src/main.rs compat-word 20
-wasi/BUILD.bazel alias 1

@@ -6,6 +6,7 @@ package(default_visibility = ["//visibility:public"])
 
 rust_test(
     name = "wasi_guest_test",
+    size = "small",
     srcs = ["wasi_guest_test.rs"],
     crate_root = "wasi_guest_test.rs",
     env = {"DX_WASI_DECLARED": "declared"},
@@ -15,6 +16,7 @@ rust_test(
 
 dx_wasi_test_tests(
     name = "wasi_guest_analysis_test",
+    size = "small",
     target = ":wasi_guest_test",
 )
 

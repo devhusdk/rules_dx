@@ -1,4 +1,4 @@
-load("@crates//:crates.bzl", "aliases", "all_crate_deps")
+load("@crates//:crates.bzl", "aliases")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI_PLATFORM")
@@ -14,21 +14,19 @@ rust_library(
     ),
     crate_name = "dx_error",
     crate_root = "src/lib.rs",
-    deps = all_crate_deps(
-        package_name = "cli/dx_error",
-        normal = True,
-    ),
+    deps = [],
 )
 
 rust_test(
     name = "dx_error_test",
     size = "small",
-    crate = ":dx_error",
-    deps = all_crate_deps(
+    aliases = aliases(
         package_name = "cli/dx_error",
         normal = True,
         normal_dev = True,
     ),
+    crate = ":dx_error",
+    deps = [],
 )
 
 real_source_target(

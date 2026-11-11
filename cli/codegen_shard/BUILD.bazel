@@ -25,8 +25,8 @@ rust_library(
         normal = True,
     ) + [
         "//cli/path:dx_path",
-        "//core/codegen/proto:codegen_proto_rs",
         "//cli/shard_writer:dx_shard_writer",
+        "//core/codegen/proto:codegen_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],
 )
@@ -34,10 +34,17 @@ rust_library(
 rust_binary(
     name = "codegen_shard_writer",
     srcs = ["src/main.rs"],
+    aliases = aliases(
+        package_name = "cli/codegen_shard",
+        normal = True,
+    ),
     crate_name = "codegen_shard_writer",
     crate_root = "src/main.rs",
     visibility = ["//visibility:public"],
-    deps = [":codegen_shard"],
+    deps = all_crate_deps(
+        package_name = "cli/codegen_shard",
+        normal = True,
+    ) + [":codegen_shard"],
 )
 
 rust_test(
@@ -53,6 +60,7 @@ rust_test(
         normal = True,
         normal_dev = True,
     ) + [
+        "//cli/shard_writer:dx_shard_writer",
         "//core/codegen/proto:codegen_proto_rs",
         "@rules_rust_prost//private/3rdparty/crates:prost",
     ],

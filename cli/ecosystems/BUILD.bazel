@@ -7,10 +7,7 @@ package(default_visibility = VIS_CLI_DEPLOY_QUALITY_TOOLS)
 
 rust_library(
     name = "dx_ecosystems",
-    srcs = [
-        "src/lib.rs",
-        "src/tests.rs",
-    ],
+    srcs = ["src/lib.rs"],
     aliases = aliases(
         package_name = "cli/dx_ecosystems",
         normal = True,
@@ -24,12 +21,19 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_ecosystems",
         normal = True,
-    ) + ["//cli/families:dx_families"],
+    ) + [
+        "//cli/families:dx_families",
+        "@crates//:serde",
+    ],
 )
 
 rust_test(
     name = "dx_ecosystems_test",
     size = "small",
+    srcs = [
+        "src/lib.rs",
+        "src/tests.rs",
+    ],
     aliases = aliases(
         package_name = "cli/dx_ecosystems",
         normal = True,
@@ -39,12 +43,17 @@ rust_test(
         "ecosystems.json",
         "languages.json",
     ],
-    crate = ":dx_ecosystems",
+    coverage_lib = ":dx_ecosystems",
+    crate_name = "dx_ecosystems",
+    crate_root = "src/lib.rs",
     deps = all_crate_deps(
         package_name = "cli/dx_ecosystems",
         normal = True,
         normal_dev = True,
-    ) + ["//cli/families:dx_families"],
+    ) + [
+        "//cli/families:dx_families",
+        "@crates//:serde",
+    ],
 )
 
 real_source_target(

@@ -1,5 +1,5 @@
 {
-  "checksum": "afacdb90b29f552f10b82d25e3afb900ae0c4f4a62e1d3119fea5019ff6a1553",
+  "checksum": "75513dd7a7d4eb003d0d4cdad3008fb62b5326109e7dfdd280ca8dc4f1eaaaba",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -18793,6 +18793,47 @@
       ],
       "version": "0.0.0"
     },
+    "php_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "md-5 0.10.6",
+            "target": "md5"
+          },
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          },
+          {
+            "id": "zip 9.1.2",
+            "target": "zip"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "php_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "php_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "php_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "pin-project-lite 0.2.17": {
       "common_attrs": {
         "edition": "2018"
@@ -31563,6 +31604,7 @@
     "openapi_codegen_preflight 0.0.0": "api_spec/private/openapi_codegen_preflight",
     "perl_extract 0.0.0": "tools/docs/perl/perl_extract",
     "php_extract 0.0.0": "tools/docs/php/php_extract",
+    "php_lock 0.0.0": "php/private/php_lock",
     "powershell_extract 0.0.0": "tools/docs/powershell/powershell_extract",
     "process_probe 0.0.0": "tools/testing/process_probe",
     "protobuf_extract 0.0.0": "tools/docs/protobuf/protobuf_extract",

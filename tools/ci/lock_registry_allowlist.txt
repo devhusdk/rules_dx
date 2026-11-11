@@ -54,7 +54,6 @@ name cli/adopt/src/lock_hubs.rs pubspec.yaml
 name cli/adopt/src/lock_hubs.rs pyproject.toml
 name cli/adopt/src/lock_hubs.rs tsconfig.json
 name cli/adopt/src/lock_hubs.rs uv.lock
-name cli/advisory_prep/src/yanked.rs uv.lock
 name cli/audit/src/backend.rs Cargo.lock
 name cli/audit/src/backend.rs Gemfile.lock
 name cli/audit/src/backend.rs PSGallery.lock.json
@@ -62,7 +61,6 @@ name cli/audit/src/backend.rs go.mod
 name cli/audit/src/backend.rs maven_install.json
 name cli/audit/src/backend.rs paket.lock
 name cli/audit/src/backend.rs pnpm-lock.yaml
-name cli/audit/src/locks_uv.rs uv.lock
 name cli/cli/src/adopt/init_files.rs package.json
 name cli/cli/src/adopt/init_files.rs pnpm-lock.yaml
 name cli/cli/src/exec.rs maven_install.json

@@ -9,7 +9,6 @@ use dx_update::discover::pypi::{DEFAULT_BASE as PYPI_BASE, yanked_releases};
 use crate::{PrepareOptions, fetch_many};
 
 pub const CARGO_YANKED: &str = "cargo-yanked";
-const UV_LOCK: &str = "uv.lock";
 pub const PYPI_YANKED: &str = "pypi-yanked";
 
 /// Where the cargo index is read from: the options value or the crates.io sparse index.
@@ -103,7 +102,7 @@ fn fetch_bodies(
 /// Normalized package name to its locked versions, for packages from the PyPI index only.
 fn locked_pypi_packages(workspace: &Path) -> Result<BTreeMap<String, BTreeSet<String>>, PrepError> {
     let mut out: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-    for rel in set_locks(workspace, Ecosystem::Uv, UV_LOCK)? {
+    for rel in set_locks(workspace, Ecosystem::Uv, dx_adopt::lock_hubs::lock_of("uv"))? {
         let Ok(text) = std::fs::read_to_string(workspace.join(&rel)) else {
             continue;
         };

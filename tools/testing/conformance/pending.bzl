@@ -37,10 +37,7 @@ capnproto build_test *
 capnproto coverage_test *
 capnproto fail_test *
 capnproto pass_test *
-cc build_test *
 cc coverage_test *
-cc fail_test *
-cc pass_test *
 cloudformation build_test *
 cloudformation coverage_test *
 cloudformation fail_test *

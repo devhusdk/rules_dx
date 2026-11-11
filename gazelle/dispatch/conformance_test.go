@@ -81,7 +81,7 @@ var conformanceRows = map[string]conformanceRow{
 			"src/demo.erl":     "-module(demo).\n-export([f/0]).\nf() -> true.\n",
 		},
 		kind: "erlang_app", target: "erlang_app", defs: "erlang:defs.bzl",
-		symbols: []string{"erlang_app", "erlang_nif"},
+		symbols: []string{"erlang_app", "erlang_nif", "erlang_test_app", "erlc_opts", "erlang_bytecode", "erlang_eunit_test"},
 		oldSrcs: []string{"src/old.erl"},
 	},
 	"fsharp": {
@@ -148,10 +148,14 @@ var conformanceRows = map[string]conformanceRow{
 		kind:  "dockerfile_library", target: "dockerfile", defs: "dockerfile:defs.bzl",
 		symbols: []string{"dockerfile_library"},
 		extraLoads: map[string][]string{
-			"@rules_dx//cmake:defs.bzl":    {"cmake_library"},
-			"@rules_dx//bicep:defs.bzl":    {"bicep_library"},
-			"@rules_dx//asciidoc:defs.bzl": {"asciidoc_library"},
-			"@rules_dx//deploy:defs.bzl":   {"oci_image_quality"},
+			"@rules_dx//cmake:defs.bzl":          {"cmake_library"},
+			"@rules_dx//bicep:defs.bzl":          {"bicep_library"},
+			"@rules_dx//asciidoc:defs.bzl":       {"asciidoc_library"},
+			"@rules_dx//deploy:defs.bzl":         {"oci_image_quality"},
+			"@rules_dx//ansible:defs.bzl":        {"ansible_library"},
+			"@rules_dx//cloudformation:defs.bzl": {"cloudformation_library"},
+			"@rules_dx//rst:defs.bzl":            {"rst_library"},
+			"@rules_dx//sql:defs.bzl":            {"sql_library"},
 		},
 	},
 	"perl": {
@@ -164,6 +168,7 @@ var conformanceRows = map[string]conformanceRow{
 		files: map[string]string{"Demo.php": "<?php\nclass Demo {}\n"},
 		kind:  "php_library", target: "demo", defs: "php:defs.bzl",
 		symbols: []string{"php_library", "php_test"},
+		oldSrcs: []string{"Old.php"},
 		inert:   []string{"bin/x.php"},
 	},
 	"powershell": {
@@ -456,14 +461,18 @@ func checkMetadata(t *testing.T, name string, row conformanceRow, lang language.
 	}
 }
 
-func writeRowFiles(t *testing.T, root, rel string, files map[string]string, inert []string) (string, []string) {
+func writeRowFiles(t *testing.T, root, rel string, files map[string]string, inert []string) (string, []string, []string) {
 	t.Helper()
 	dir := filepath.Join(root, filepath.FromSlash(rel))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	var regular []string
+	seen := map[string]bool{}
 	write := func(name, content string) {
+		if first, _, nested := strings.Cut(name, "/"); nested {
+			seen[first] = true
+		}
 		path := filepath.Join(dir, filepath.FromSlash(name))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 			t.Fatal(err)
@@ -482,20 +491,21 @@ func writeRowFiles(t *testing.T, root, rel string, files map[string]string, iner
 		write(name, "not a source\n")
 	}
 	sort.Strings(regular)
-	return dir, regular
+	return dir, regular, slices.Sorted(mapKeys(seen))
 }
 
 func generateRow(t *testing.T, lang language.Language, row conformanceRow, files map[string]string, f *rule.File) language.GenerateResult {
 	t.Helper()
 	c := freshConfig(t)
 	lang.Configure(c, row.relPath(), f)
-	dir, regular := writeRowFiles(t, c.RepoRoot, row.relPath(), files, row.inertFiles())
+	dir, regular, subdirs := writeRowFiles(t, c.RepoRoot, row.relPath(), files, row.inertFiles())
 	return lang.GenerateRules(language.GenerateArgs{
 		Config:       c,
 		Dir:          dir,
 		Rel:          row.relPath(),
 		File:         f,
 		RegularFiles: regular,
+		Subdirs:      subdirs,
 	})
 }
 

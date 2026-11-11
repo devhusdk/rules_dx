@@ -1,4 +1,4 @@
-# Elixir 1.20.4: unzip -Z1 v1.20.4-otp-29.zip | grep -E '^lib/(eex|elixir|ex_unit|iex|logger|mix)/ebin/Elixir\..*\.beam$' | sed -E 's|.*/Elixir\.(.*)\.beam|\1|' | LC_ALL=C sort -u
+# Elixir 1.20.5: unzip -Z1 v1.20.5-otp-29.zip | grep -E '^lib/(eex|elixir|ex_unit|iex|logger|mix)/ebin/Elixir\..*\.beam$' | sed -E 's|.*/Elixir\.(.*)\.beam|\1|' | LC_ALL=C sort -u
 Access
 Agent
 Agent.Server

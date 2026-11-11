@@ -315,12 +315,12 @@ fn setting_only_dx_remote_cache_turns_on_the_remote_cache() {
         .unwrap_or_else(|| panic!("{path}: before_script never reads DX_REMOTE_CACHE"));
     let run = |env: &[(&str, &str)]| -> String {
         let scratch = dx_test_scratch::scratch("gitlab-remote-cache");
-        let mut command = std::process::Command::new("sh");
+        let mut command = std::process::Command::new("/bin/sh");
         command
             .args(["-c", &line])
             .current_dir(scratch.path())
-            .env_remove("DX_REMOTE_CACHE")
-            .env_remove("DX_REMOTE_CACHE_HEADER");
+            .env_clear()
+            .env("PATH", "");
         for (name, value) in env {
             command.env(name, value);
         }

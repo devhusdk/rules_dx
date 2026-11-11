@@ -1,13 +1,17 @@
-# gazelle:ignore
+# gazelle:exclude BenchTest.php
 load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "fake_file", "label_string")
-load("//core:rlocation.bzl", "runfiles_path")
 load("//core:entry.bzl", "dx_entry_quality_srcs", "dx_infer_main", "dx_main_candidates")
+load("//core:rlocation.bzl", "runfiles_path")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "PHP_COMPATIBLE_WITH", "PHP_DEFERRED_SKIP_TAGS", "PHP_SOURCE_SPECS")
 load(":php.bzl", "PHP_SOURCE_EXTS", "autoloader_suffix", "coverage_descriptor", "env_flag", "ini_flags", "launcher_descriptor", "lit", "rf", "rf_prefixed", "staged_path")
 
-package(default_visibility = ["//php:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//php:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "BenchTest.php",
@@ -103,7 +107,10 @@ dx_wrapper_contract_tests(
                 "php_binary",
                 "hello",
                 None,
-                ["src/A.php", "hello.php"],
+                [
+                    "src/A.php",
+                    "hello.php",
+                ],
                 dx_main_candidates("hello", ".php"),
             ),
             "hello.php",
@@ -218,6 +225,7 @@ real_source_target(
         "defs.bzl",
         "php.bzl",
         "providers.bzl",
+        "pcov.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

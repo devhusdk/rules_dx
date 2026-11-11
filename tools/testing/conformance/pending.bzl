@@ -54,10 +54,7 @@ cuda build_test *
 cuda coverage_test *
 cuda fail_test *
 cuda pass_test *
-d build_test *
 d coverage_test *
-d fail_test *
-d pass_test *
 dart build_test *
 dart coverage_test *
 dart fail_test *

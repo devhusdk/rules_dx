@@ -48,12 +48,9 @@ JSON emits `command_started` with `mode` `check`, or `default` with `--apply`. I
 
 ## Add a dependency
 
-Add the package with its own tool, then run `dx generate --apply`:
+Add the package to the manifest (`Cargo.toml`, `pyproject.toml`, or `package.json`), then run `dx generate --apply`. `dx update --apply --add-missing` adds a missing dependency. dx writes a missing `Cargo.lock`, `uv.lock`, or `pnpm-lock.yaml` with its pinned tool.
 
 ```sh
-cargo add serde
-uv add requests
-pnpm add left-pad
 dx generate --apply
 ```
 
@@ -119,31 +116,6 @@ An import resolves in this order:
 | `javascript`, `typescript` | Root `package.json`, as `//:node_modules/<package>`. |
 | `julia` | `[deps]` of `Project.toml`. Anything else needs a `resolve` line. |
 | `csharp`, `fsharp`, `lua`, `ruby`, `perl`, `php`, others | One `resolve` line per import. |
-
-## Python hub
-
-Export the lockfile, then parse it in `MODULE.bazel`:
-
-```sh
-uv export --format requirements.txt --no-hashes --no-emit-project > requirements_lock.txt
-```
-
-```starlark
-bazel_dep(name = "rules_python", version = "2.4.6")
-
-python = use_extension("@rules_python//python/extensions:python.bzl", "python")
-python.toolchain(python_version = "3.12")
-
-pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
-pip.parse(
-    hub_name = "pypi",
-    python_version = "3.12",
-    requirements_lock = "//:requirements_lock.txt",
-)
-use_repo(pip, "pypi")
-```
-
-`python_version` in `pip.parse` must match the toolchain version.
 
 ## Generated targets by language
 

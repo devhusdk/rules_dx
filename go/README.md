@@ -47,6 +47,10 @@ LLVM (the default) and with GCC on Linux x86_64. Under GCC, libstdc++ links
 statically. Race mode has its own test target (`gcc_cgo_race_test`) so a race
 failure never hides ordinary cgo. Windows and MSVC are not supported yet.
 
+cgo needs a GNU-style C++ driver and ABI. With `cgo = True`, an MSVC or clang-cl
+toolchain fails at analysis, because rules_go would otherwise build the package
+without cgo.
+
 ## Quality tools
 
 | Check | Default tool | Opt-in tools |
@@ -54,12 +58,6 @@ failure never hides ordinary cgo. Windows and MSVC are not supported yet.
 | Format | `gofumpt` | |
 | Typecheck | `gotype` | |
 | Lint | none | `errcheck`, `govet`, `staticcheck` |
-
-## cgo
-
-cgo needs a GNU-style C++ driver and ABI. With `cgo = True`, an MSVC or clang-cl
-toolchain fails at analysis, because rules_go would otherwise build the package
-without cgo.
 
 ## Platforms
 

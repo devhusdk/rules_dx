@@ -78,8 +78,8 @@ platform the test is skipped.
 
 ## Third-party packages
 
-Add the package to the root `package.json`, run `pnpm install` to update
-`pnpm-lock.yaml`, then run `dx generate --apply`. An import of a package listed
+Add the package to the root `package.json`, then run `dx generate --apply`. dx
+writes a missing `pnpm-lock.yaml`. An import of a package listed
 in the root `package.json` resolves to `//:node_modules/<package>`. Imports
 that match `paths` in the nearest `tsconfig.json` resolve to local targets.
 

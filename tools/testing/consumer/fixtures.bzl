@@ -24,6 +24,7 @@ CONSUMER_FIXTURES = [
     "ruby",
     "rust",
     "scala",
+    "swift",
     "zig",
 ]
 

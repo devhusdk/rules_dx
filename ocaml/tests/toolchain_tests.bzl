@@ -3,7 +3,7 @@
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
 load("//core:toolchain.bzl", "hub_checks")
 load("//ocaml/private/toolchain:ocaml.bzl", "COMPILERS", "NATIVE_CC_TOOLS", "TOOLS", "native_cc_env", "toolchain_fields")
-load("//ocaml/private/toolchain:opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url")
+load("//ocaml/private/toolchain:opam.bzl", "is_toolchain_package", "parse_depend_names", "parse_depends", "parse_url", "pick_annotation")
 load("//ocaml/private/toolchain:pins.bzl", "OCAML_CELLS", "OCAML_VERSION")
 load("//ocaml/private/toolchain:repos.bzl", "DROPPED_PATHS", "EMITTERS", "conda_stem", "dune_package_build", "hub_build", "package_repo_name", "packages_hub_build", "placeholder_files", "relative_prefix")
 
@@ -130,6 +130,11 @@ def _checks():
         expect_true("libraries do not", not any([is_toolchain_package(n) for n in ["astring", "dune-configurator", "ocaml-compiler-libs"]])),
         expect_equal("package repository name", package_repo_name("deps", "ppx-base.v"), "dx_opam_deps_ppx_base_v"),
         expect_contains("hub aliases a package", packages_hub_build("deps", {"astring": "1"}), "alias(name = \"astring\", actual = \"@dx_opam_deps_astring//:astring\""),
+        expect_equal("afl-persistent default", [str(pick_annotation("afl-persistent", {}).build_file), pick_annotation("afl-persistent", {}).strip_prefix], [str(Label("//ocaml/private:afl-persistent.BUILD.bazel")), "ocaml-afl-persistent-1.4"]),
+        expect_equal("cmdliner default", [str(pick_annotation("cmdliner", {}).build_file), pick_annotation("cmdliner", {}).strip_prefix], [str(Label("//ocaml/private:cmdliner.BUILD.bazel")), ""]),
+        expect_equal("crowbar default", [str(pick_annotation("crowbar", {}).build_file), pick_annotation("crowbar", {}).strip_prefix], [str(Label("//ocaml/private:crowbar.BUILD.bazel")), ""]),
+        expect_equal("consumer annotation replaces the default", pick_annotation("crowbar", {"crowbar": struct(build_file = "x", library = "", strip_prefix = "")}).build_file, "x"),
+        expect_equal("unknown package has no annotation", pick_annotation("astring", {}), None),
         expect_equal("toolchain fields gain extras", toolchain_fields(struct(a = 1), {"b": 2}), {"a": 1, "b": 2}),
     ]
 

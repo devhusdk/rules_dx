@@ -217,20 +217,13 @@ mode as a test. Crowbar's flags, such as `-r 5000` or `-s <seed>`, go in `args`.
 The target is tagged `dx-fuzz` and takes the `ocaml_test` size and
 timeout. `<name>_run` runs `-s <seed> -r 500` rounds with fresh seeds until
 `--time` is up; a failing seed is written to `crash-<hash>` and replays with
-`--repro`. Opam sets crowbar, cmdliner and afl-persistent with the BUILD files
-in `@rules_dx//ocaml/private`; `{hub}` in them becomes the hub name.
+`--repro`. Opam builds crowbar, cmdliner and afl-persistent itself. An `opam.annotation`
+for one of them replaces the whole default, including `strip_prefix`.
 
 ```python
 # MODULE.bazel
 opam = use_extension("@rules_dx//ocaml:extensions.bzl", "opam")
 opam.lock(name = "ocaml_fuzz", lock = "//:ocaml_fuzz.opam.locked")
-opam.annotation(
-    package = "afl-persistent",
-    build_file = "@rules_dx//ocaml/private:afl-persistent.BUILD.bazel",
-    strip_prefix = "ocaml-afl-persistent-1.4",
-)
-opam.annotation(package = "cmdliner", build_file = "@rules_dx//ocaml/private:cmdliner.BUILD.bazel")
-opam.annotation(package = "crowbar", build_file = "@rules_dx//ocaml/private:crowbar.BUILD.bazel")
 use_repo(opam, "ocaml_fuzz")
 
 # BUILD.bazel

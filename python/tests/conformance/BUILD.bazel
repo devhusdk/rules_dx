@@ -1,0 +1,53 @@
+load("//python:defs.bzl", "python_binary", "python_library", "python_test")
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+python_library(
+    name = "conformance",
+    srcs = ["greet.py"],
+    imports = ["."],
+)
+
+python_binary(
+    name = "hello",
+    srcs = ["main.py"],
+    imports = ["."],
+    main = "main.py",
+    deps = [":conformance"],
+)
+
+python_test(
+    name = "pass_subject_test",
+    srcs = ["pass_test.py"],
+    imports = ["."],
+    runner = "plain",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+python_test(
+    name = "fail_subject_test",
+    srcs = ["fail_test.py"],
+    imports = ["."],
+    runner = "plain",
+    size = "small",
+    target_compatible_with = subject_compatible_with(),
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    binary = ":hello",
+    covered_source = "greet.py",
+    expected = "hello world",
+    failing_case = "test_failing_case",
+    failing_test = ":fail_subject_test",
+    lang = "python",
+    passing_test = ":pass_subject_test",
+    size = "small",
+)

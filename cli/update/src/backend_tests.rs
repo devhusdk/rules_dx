@@ -423,7 +423,7 @@ fn composer_update_runs_the_lock_step() {
     };
     assert_eq!(
         argv[argv.len() - 5..].join(" "),
-        format!("run @rules_dx//php:lock -- --dir {}", ws().join("php").display())
+        format!("run @rules_dx//php/private/tools/lock -- --dir {}", ws().join("php").display())
     );
 }
 
@@ -436,7 +436,7 @@ fn composer_update_upgrades_only_the_requested_packages() {
     assert_eq!(
         argv[argv.len() - 7..].join(" "),
         format!(
-            "run @rules_dx//php:lock -- --dir {} --upgrade psr/log",
+            "run @rules_dx//php/private/tools/lock -- --dir {} --upgrade psr/log",
             ws().join("php").display()
         )
     );
@@ -837,7 +837,7 @@ fn luarocks_update_runs_the_lock_step() {
     assert_eq!(
         argv[argv.len() - 5..].join(" "),
         format!(
-            "run @rules_dx//lua:lock -- --dir {}",
+            "run @rules_dx//lua/private/tools/lock -- --dir {}",
             dir.path().join("lua").display()
         )
     );
@@ -894,7 +894,7 @@ fn zig_runs_the_lock_step_and_fpm_runs_the_rehash_target() {
     assert_eq!(
         argv[argv.len() - 5..].join(" "),
         format!(
-            "run @rules_dx//zig:lock -- --dir {}",
+            "run @rules_dx//zig/private/tools/lock -- --dir {}",
             dir.path().join("native").display()
         )
     );

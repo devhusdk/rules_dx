@@ -22,7 +22,7 @@
         "extension": "@rules_dx//zig:extensions.bzl",
         "tag": "lock",
         "hub": "zig",
-        "resolver": "@rules_dx//zig:lock",
+        "resolver": "@rules_dx//zig/private/tools/lock",
         "imports": "provides"
       }
     ]

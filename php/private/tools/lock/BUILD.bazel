@@ -32,7 +32,7 @@ rust_binary(
     ),
     crate_name = "php_lock_bin",
     crate_root = "src/main.rs",
-    visibility = ["//php:__pkg__"],
+    visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "php/private/tools/php_lock",
         normal = True,

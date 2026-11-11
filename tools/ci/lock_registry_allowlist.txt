@@ -71,6 +71,7 @@ name cli/cli/src/exec/audit_consumer.rs pnpm-lock.yaml
 name cli/cli/src/exec/audit_consumer.rs pubspec.lock
 name cli/cli/src/exec/audit_consumer.rs pubspec.yaml
 name cli/cli/src/exec/audit_consumer.rs pyproject.toml
+name cli/cli/src/exec/audit_consumer.rs swiftpm.lock.json
 name cli/cli/src/exec/audit_consumer.rs uv.lock
 name cli/cli/src/exec/audit_live.rs Cargo.lock
 name cli/cli/src/exec/audit_live.rs Cargo.toml

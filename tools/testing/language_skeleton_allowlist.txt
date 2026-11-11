@@ -52,7 +52,6 @@ extension-name typescript/private/playwright/extensions.bzl
 fixture-hello android/tests/conformance/BUILD.bazel
 fixture-hello android/tests/consumer
 fixture-hello ansible/tests/conformance/BUILD.bazel
-fixture-hello ansible/tests/consumer
 fixture-hello api_spec/tests/conformance/BUILD.bazel
 fixture-hello api_spec/tests/consumer
 fixture-hello appimage/tests/conformance/BUILD.bazel
@@ -60,16 +59,12 @@ fixture-hello appimage/tests/consumer
 fixture-hello apple/tests/conformance/BUILD.bazel
 fixture-hello apple/tests/consumer
 fixture-hello asciidoc/tests/conformance/BUILD.bazel
-fixture-hello asciidoc/tests/consumer
 fixture-hello astro/tests/conformance/BUILD.bazel
-fixture-hello astro/tests/consumer
 fixture-hello avro/tests/conformance/BUILD.bazel
-fixture-hello avro/tests/consumer
 fixture-hello bicep/tests/conformance/BUILD.bazel
 fixture-hello capnproto/tests/conformance/BUILD.bazel
 fixture-hello cc/tests/conformance/BUILD.bazel
 fixture-hello cloudformation/tests/conformance/BUILD.bazel
-fixture-hello cloudformation/tests/consumer
 fixture-hello cmake/tests/conformance/BUILD.bazel
 fixture-hello cmake/tests/consumer
 fixture-hello csharp/tests/conformance/BUILD.bazel
@@ -77,7 +72,6 @@ fixture-hello cuda/tests/conformance/BUILD.bazel
 fixture-hello d/tests/conformance/BUILD.bazel
 fixture-hello dart/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
-fixture-hello dockerfile/tests/consumer
 fixture-hello dotnet/tests/conformance/BUILD.bazel
 fixture-hello elixir/tests/conformance/BUILD.bazel
 fixture-hello env/tests/conformance/BUILD.bazel

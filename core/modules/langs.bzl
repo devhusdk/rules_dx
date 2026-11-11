@@ -685,7 +685,7 @@ LANGS = json.decode("""{
           "imports": "provides",
           "lock": "dub.lock.json",
           "manifest": "dub.json",
-          "resolver": "@rules_dx//d:lock",
+          "resolver": "@rules_dx//d/private/tools/lock",
           "state": "dub.selections.json",
           "tag": "lock"
         }
@@ -1881,7 +1881,7 @@ LANGS = json.decode("""{
           "imports": "provides",
           "lock": "luarocks.lock.json",
           "manifest": "*.rockspec",
-          "resolver": "@rules_dx//lua:lock",
+          "resolver": "@rules_dx//lua/private/tools/lock",
           "state": null,
           "tag": "lock"
         }
@@ -2236,7 +2236,7 @@ LANGS = json.decode("""{
           "imports": "provides",
           "lock": "composer.lock.json",
           "manifest": "composer.json",
-          "resolver": "@rules_dx//php:lock",
+          "resolver": "@rules_dx//php/private/tools/lock",
           "state": "composer.lock",
           "tag": "lock"
         }
@@ -2901,7 +2901,7 @@ LANGS = json.decode("""{
           "imports": "provides",
           "lock": "swiftpm.lock.json",
           "manifest": "Package.swift",
-          "resolver": "@rules_dx//swift:lock",
+          "resolver": "@rules_dx//swift/private/tools/lock",
           "state": "Package.resolved",
           "tag": "lock"
         }
@@ -3188,7 +3188,7 @@ LANGS = json.decode("""{
           "imports": "provides",
           "lock": "zig.lock.json",
           "manifest": "build.zig.zon",
-          "resolver": "@rules_dx//zig:lock",
+          "resolver": "@rules_dx//zig/private/tools/lock",
           "state": null,
           "tag": "lock"
         }

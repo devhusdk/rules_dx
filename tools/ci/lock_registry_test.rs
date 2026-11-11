@@ -496,7 +496,7 @@ fn found(tree: &Tree) -> Vec<String> {
     violations(tree).into_iter().collect()
 }
 
-const PHP_LANG: &str = r#"{"name": "php", "ecosystems": ["composer"], "manifests": ["composer.json"], "lockfiles": ["composer.lock.json"], "setup": {"hubs": [{"ecosystem": "composer", "manifest": "composer.json", "lock": "composer.lock.json", "state": "composer.lock", "extension": "@rules_dx//php:extensions.bzl", "tag": "lock", "hub": "composer", "resolver": "@rules_dx//php:lock", "imports": "provides"}]}}"#;
+const PHP_LANG: &str = r#"{"name": "php", "ecosystems": ["composer"], "manifests": ["composer.json"], "lockfiles": ["composer.lock.json"], "setup": {"hubs": [{"ecosystem": "composer", "manifest": "composer.json", "lock": "composer.lock.json", "state": "composer.lock", "extension": "@rules_dx//php:extensions.bzl", "tag": "lock", "hub": "composer", "resolver": "@rules_dx//php/private/tools/lock", "imports": "provides"}]}}"#;
 
 const LOCK_TAG: &str = r#"
 _lock = tag_class(attrs = {"name": attr.string(), "lock": attr.label()})

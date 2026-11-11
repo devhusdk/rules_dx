@@ -127,7 +127,6 @@ deploy/private/src/pub_dev.rs compat-word 16
 deploy/private/src/pypi.rs compat-word 5
 deploy/private/validate_pypi.bzl compat-word 1
 deploy/verify_test.rs compat-word 3
-dotnet/extensions.bzl reexport 1
 env/BUILD.bazel alias 2
 env/private/env_shard/src/main.rs compat-word 2
 env/private/env_shard/src/writer.rs compat-word 2

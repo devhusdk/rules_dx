@@ -14,14 +14,12 @@ cli/cli/src/adopt/watch.rs tmp-path 1
 cli/cli/src/exec/first_run.rs tmp-path 1
 cli/cli/src/exec/test_reports_tests.rs tmp-path 1
 cli/cli/src/exec/umbrella_tests.rs tmp-path 6
-cli/cli/src/exec/worktree.rs tmp-path 8
 cli/cli/src/main.rs tmp-path 1
 cli/cli/tests/startup_consistency/tests/startup_consistency.rs tmp-path 3
 cli/env/src/main.rs tmp-path 2
 cli/fuzz_run/src/run.rs tmp-path 1
 cli/launcher/src/launch_tests.rs tmp-path 1
 cli/ocaml_cc_driver/src/dune.rs tmp-path 1
-cli/path/src/nested_bazel.rs tmp-path 4
 cli/path/src/spelling.rs tmp-path 7
 cli/path/src/uri.rs tmp-path 19
 cli/plan/src/args/completion.rs tmp-path 3

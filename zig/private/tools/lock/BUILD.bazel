@@ -32,7 +32,7 @@ rust_binary(
     ),
     crate_name = "zig_lock_bin",
     crate_root = "src/main.rs",
-    visibility = ["//zig:__pkg__"],
+    visibility = ["//visibility:public"],
     deps = all_crate_deps(
         package_name = "zig/private/tools/zig_lock",
         normal = True,

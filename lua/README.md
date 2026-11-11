@@ -103,7 +103,7 @@ luarocks.lock(
 use_repo(luarocks, "rocks")
 ```
 
-Depend on `@rocks//inspect`. `bazel run @rules_dx//lua:lock -- --dir third_party/lua`
+Depend on `@rocks//inspect`. `bazel run @rules_dx//lua/private/tools/lock -- --dir third_party/lua`
 resolves the `dependencies` of the `*.rockspec` in that directory from
 `https://luarocks.org/manifest-5.5.json` and writes `luarocks.lock.json` with each
 rock's modules and archive sha256. Unchanged rocks are kept. `dx update` runs it.

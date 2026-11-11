@@ -78,7 +78,7 @@ An import resolves to `@dub//<package>` when its first segment is the name of a 
 
 ## DUB packages
 
-`dx update` runs `bazel run @rules_dx//d:lock -- --dir <set directory>`. It reads `dub.json`,
+`dx update` runs `bazel run @rules_dx//d/private/tools/lock -- --dir <set directory>`. It reads `dub.json`,
 resolves exact versions from the `code.dlang.org` API, downloads each archive and writes
 `dub.lock.json` and the state file `dub.selections.json`. Unchanged packages are kept without a download.
 

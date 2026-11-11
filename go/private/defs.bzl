@@ -125,5 +125,5 @@ def go_bench(name, *, srcs = None, visibility = None, tags = None, **kwargs):
         binary_kwargs = {"srcs": srcs},
         runner_kwargs = {"srcs": [Label("//go/private:bench_run.sh")]},
         pass_binary = True,
-        argv = ["-test.bench=.", "-test.run=^$", "-test.benchmem", "-test.count=1"],
+        argv = ["-test.bench=.", "-test.run=^$$", "-test.benchmem", "-test.count=1"],
     )

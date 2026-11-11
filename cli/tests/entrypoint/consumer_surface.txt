@@ -131,4 +131,3 @@ vue:defs.bzl
 zig:defs.bzl
 apple:defs.bzl
 cuda:defs.bzl
-wasi:defs.bzl

@@ -1,4 +1,5 @@
 # gazelle:ignore
+# gazelle:exclude bin
 load("//php:defs.bzl", "php_binary", "php_library", "php_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 

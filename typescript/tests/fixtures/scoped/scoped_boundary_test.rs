@@ -44,7 +44,8 @@ fn list_files(dir: &Path, config: &str) -> (bool, Vec<String>, String) {
 
 #[test]
 fn scoped_tsconfig_lists_only_its_own_sources() {
-    let dir = dx_testing::mkscratch("scoped-boundary").expect("scratch dir");
+    let dir_guard = dx_test_scratch::scratch("scoped-boundary");
+    let dir = dir_guard.path();
     stage(&dir);
 
     let (_, inherited, _) = list_files(&dir, "tsconfig.json");

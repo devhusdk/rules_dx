@@ -70,7 +70,10 @@ rust_test(
     data = ["//julia/tests/fixtures/hello/app:hello_standalone"],
     env = {"DX_HELLO_BIN": "$(rootpath //julia/tests/fixtures/hello/app:hello_standalone)"},
     target_compatible_with = JULIA_COMPATIBLE_WITH,
-    deps = ["@rules_dx//tools/testing:dx_testing"],
+    deps = [
+        "@rules_dx//cli/test_scratch:dx_test_scratch",
+        "@rules_dx//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

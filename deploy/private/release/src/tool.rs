@@ -317,6 +317,7 @@ pub fn release_tool_run(argv: &[String]) -> i32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_ecosystems::Ecosystem;
 
     fn argv_of(parts: &[&str]) -> Vec<String> {
         parts.iter().map(ToString::to_string).collect()
@@ -417,6 +418,7 @@ mod tests {
 
     #[test]
     fn spdx_collects_lock_flags() {
+        let go_manifest = Ecosystem::Go.manifest_name();
         let Ok(Invocation::Spdx {
             inventory, locks, ..
         }) = parse(&argv_of(&[
@@ -428,7 +430,7 @@ mod tests {
             "rules_dx",
             "--lock=npm:package-lock.json",
             "inv",
-            "--lock=go:go.mod",
+            &format!("--lock=go:{go_manifest}"),
         ]))
         else {
             panic!("spdx did not parse");
@@ -438,7 +440,7 @@ mod tests {
             locks,
             vec![
                 ("npm".to_owned(), PathBuf::from("package-lock.json")),
-                ("go".to_owned(), PathBuf::from("go.mod")),
+                ("go".to_owned(), PathBuf::from(go_manifest)),
             ]
         );
     }

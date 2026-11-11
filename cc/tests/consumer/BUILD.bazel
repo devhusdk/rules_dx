@@ -11,6 +11,7 @@ cc_library(
 
 cc_test(
     name = "greet_test",
+    size = "small",
     srcs = ["greet_test.cc"],
     deps = [":my_project"],
 )

@@ -10,6 +10,7 @@ go_library(
 
 go_test(
     name = "my_project_test",
+    size = "small",
     srcs = ["greet_test.go"],
     embed = [":my_project"],
 )

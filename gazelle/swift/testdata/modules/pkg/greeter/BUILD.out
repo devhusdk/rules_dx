@@ -9,6 +9,7 @@ swift_library(
 
 swift_test(
     name = "greeter_tests",
+    size = "small",
     srcs = ["GreeterTests.swift"],
     deps = [":greeter"],
 )

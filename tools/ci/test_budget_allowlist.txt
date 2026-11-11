@@ -26,7 +26,7 @@ appimage/tests/BUILD.bazel no-size 10
 apple/private/ios/BUILD.bazel no-size 58
 apple/private/ios/app_tests.bzl no-size 1
 apple/private/ios/metadata_tests.bzl no-size 1
-apple/private/macos/BUILD.bazel no-size 20
+apple/private/macos/BUILD.bazel no-size 19
 apple/private/macos/app_tests.bzl no-size 1
 apple/private/provisioning/BUILD.bazel no-size 23
 apple/private/provisioning/metadata_tests.bzl no-size 1
@@ -482,7 +482,7 @@ javascript/tests/fixtures/bench/BUILD.bazel no-size 2
 javascript/tests/fixtures/entries/BUILD.bazel no-size 1
 javascript/tests/fixtures/fuzz/BUILD.bazel no-size 4
 javascript/tests/fixtures/hello/BUILD.bazel no-size 5
-javascript/tests/fixtures/node-app/cli/BUILD.bazel no-size 3
+javascript/tests/fixtures/node-app/cli/BUILD.bazel no-size 2
 javascript/tests/fixtures/node-app/diagnostics/BUILD.bazel no-size 2
 javascript/tests/fixtures/node-app/registry/BUILD.bazel no-size 2
 javascript/tests/fixtures/skip_tags/BUILD.bazel no-size 4
@@ -670,8 +670,7 @@ svelte/tests/app/BUILD.bazel no-size 4
 svelte/tests/app_errors/BUILD.bazel no-size 3
 svelte/tests/fixtures/hello/BUILD.bazel no-size 1
 swift/private/platforms/BUILD.bazel no-size 1
-swift/private/toolchain/tests.bzl no-size 1
-swift/tests/BUILD.bazel no-size 2
+swift/tests/BUILD.bazel no-size 1
 swift/tests/cross/BUILD.bazel no-size 2
 swift/tests/fixtures/bench/BUILD.bazel no-size 3
 swift/tests/fixtures/bench/BUILD.bazel size-large 1

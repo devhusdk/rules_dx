@@ -11,6 +11,7 @@ lua_library(
 
 lua_test(
     name = "catalog_test",
+    size = "small",
     srcs = ["catalog_test.lua"],
     main = "catalog_test.lua",
     deps = [":catalog"],

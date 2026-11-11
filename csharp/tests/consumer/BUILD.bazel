@@ -10,6 +10,7 @@ csharp_library(
 
 csharp_test(
     name = "greet_test",
+    size = "small",
     srcs = ["GreetTest.cs"],
     deps = [":my_project"],
 )

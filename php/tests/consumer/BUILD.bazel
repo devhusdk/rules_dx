@@ -10,6 +10,7 @@ php_library(
 
 php_test(
     name = "greet_test",
+    size = "small",
     srcs = ["test/GreetTest.php"],
     deps = [":my_project"],
 )

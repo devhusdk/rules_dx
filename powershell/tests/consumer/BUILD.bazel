@@ -12,6 +12,7 @@ powershell_library(
 
 powershell_test(
     name = "hello_test",
+    size = "small",
     srcs = ["Hello.Tests.ps1"],
     deps = [":consumer"],
 )

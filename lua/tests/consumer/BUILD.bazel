@@ -10,6 +10,7 @@ lua_library(
 
 lua_test(
     name = "hello_test",
+    size = "small",
     srcs = ["hello_test.lua"],
     main = "hello_test.lua",
     deps = [":my_project"],

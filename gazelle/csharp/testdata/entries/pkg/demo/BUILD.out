@@ -17,6 +17,7 @@ csharp_library(
 
 csharp_test(
     name = "helper_test",
+    size = "small",
     srcs = ["HelperTest.cs"],
     deps = [":demo"],
 )

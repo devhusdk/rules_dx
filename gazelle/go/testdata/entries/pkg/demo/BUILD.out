@@ -18,6 +18,7 @@ go_library(
 
 go_test(
     name = "demo_test",
+    size = "small",
     srcs = ["helper_test.go"],
     embed = [":demo"],
 )

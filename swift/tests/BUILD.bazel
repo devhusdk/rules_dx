@@ -19,12 +19,13 @@ swift_hub_tests(
     size = "small",
 )
 
-swift_host_test(name = "host_test")
+swift_host_test(name = "host_test", size = "small")
 
-swift_windows_extract_test(name = "windows_extract_test")
+swift_windows_extract_test(name = "windows_extract_test", size = "small")
 
 powershell_test(
     name = "toolchain_dlls_test_x86_64",
+    size = "small",
     srcs = ["toolchain_dlls_test.ps1"],
     data = [
         "@dx_swift_windows_x86_64//:toolchain/usr/bin/swiftc.exe",

@@ -16,10 +16,11 @@ def _checks():
         expect_equal("message text", cuda_license_error([]), "dx_cuda: the CUDA Toolkit EULA (https://docs.nvidia.com/cuda/eula/index.html) is not accepted; add cuda.license(accept = [\"cuda-eula\"]) to the root MODULE.bazel"),
     ]
 
-def cuda_license_gate_tests(name):
+def cuda_license_gate_tests(name, size):
     """Declares the CUDA EULA gate test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

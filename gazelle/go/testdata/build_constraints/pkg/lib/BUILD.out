@@ -11,6 +11,7 @@ go_library(
 
 go_test(
     name = "lib_test",
+    size = "small",
     srcs = ["integration_test.go"],
     embed = [":lib"],
 )

@@ -13,12 +13,14 @@ php_library(
 
 php_test(
     name = "item_test",
+    size = "small",
     srcs = ["tests/ItemTest.php"],
     deps = [":inventory"],
 )
 
 php_test(
     name = "ledger_test",
+    size = "small",
     srcs = ["tests/LedgerTest.php"],
     deps = [":inventory"],
 )

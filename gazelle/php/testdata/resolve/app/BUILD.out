@@ -17,6 +17,7 @@ php_library(
 
 php_test(
     name = "main_test",
+    size = "small",
     srcs = ["tests/MainTest.php"],
     deps = [":app"],
 )

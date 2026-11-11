@@ -10,6 +10,7 @@ zig_library(
 
 zig_test(
     name = "greet_test",
+    size = "small",
     main = "greet_test.zig",
     deps = [":my_project"],
 )

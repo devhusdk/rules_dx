@@ -15,6 +15,7 @@ julia_binary(
 
 julia_test(
     name = "Starter_test",
+    size = "small",
     srcs = ["test/runtests.jl"],
     deps = [":Starter"],
 )

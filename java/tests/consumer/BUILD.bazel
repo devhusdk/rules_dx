@@ -10,6 +10,7 @@ java_library(
 
 java_test(
     name = "greet_test",
+    size = "small",
     srcs = ["GreetTest.java"],
     test_class = "consumer.GreetTest",
     deps = [":my_project"],

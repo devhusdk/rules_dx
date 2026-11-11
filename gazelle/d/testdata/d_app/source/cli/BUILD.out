@@ -9,6 +9,7 @@ d_library(
 
 d_test(
     name = "cli_test",
+    size = "small",
     srcs = ["options.d"],
     imports = [".."],
 )

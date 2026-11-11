@@ -58,7 +58,7 @@ config_setting(
 
 exports_files(["runner_test.rs"])
 
-conformance_defs_tests(name = "defs_test")
+conformance_defs_tests(name = "defs_test", size = "small")
 
 dx_conformance_manifest(
     name = "manifest",

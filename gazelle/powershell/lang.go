@@ -141,6 +141,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 			return language.GenerateResult{}
 		}
 		r := rule.NewRule(TestKind, testNames[i])
+		common.SizeSmall(r)
 		r.SetAttr("srcs", []string{src})
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapImportSet(imports))

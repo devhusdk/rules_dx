@@ -8,6 +8,7 @@ dart_library(
 
 dart_test(
     name = "greet_test",
+    size = "small",
     main = "test/greet_test.dart",
     deps = [":consumer"],
 )

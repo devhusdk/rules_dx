@@ -13,6 +13,7 @@ d_library(
 
 d_test(
     name = "base_test",
+    size = "small",
     srcs = [
         "banner.d",
         "greeting.d",

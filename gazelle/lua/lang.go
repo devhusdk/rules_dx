@@ -148,6 +148,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	}
 	for _, src := range tests {
 		r := rule.NewRule(TestKind, testNames[src])
+		common.SizeSmall(r)
 		r.SetAttr("srcs", []string{src})
 		r.SetAttr("main", src)
 		result.Gen = append(result.Gen, r)

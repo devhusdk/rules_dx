@@ -12,12 +12,14 @@ scala_library(
 
 scala_test(
     name = "foo_spec",
+    size = "small",
     srcs = ["FooSpec.scala"],
     deps = [":demo"],
 )
 
 scala_test(
     name = "foo_suite",
+    size = "small",
     srcs = ["FooSuite.scala"],
     deps = [":demo"],
 )

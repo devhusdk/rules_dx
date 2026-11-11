@@ -247,6 +247,7 @@ func libraryTest(args language.GenerateArgs, lib *rule.Rule, imports []string) (
 		return nil, nil
 	}
 	test := rule.NewRule(TestKind, lib.Name()+"_test")
+	common.SizeSmall(test)
 	for _, attr := range []string{"srcs", "imports", "string_srcs"} {
 		if v := lib.AttrStrings(attr); len(v) > 0 {
 			test.SetAttr(attr, v)

@@ -11,6 +11,7 @@ fsharp_library(
 
 fsharp_test(
     name = "greet_test",
+    size = "small",
     srcs = ["GreetTest.fs"],
     deps = [":my_project"],
 )

@@ -328,6 +328,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 				return language.GenerateResult{}
 			}
 			r := rule.NewRule(testKind, p.name)
+			common.SizeSmall(r)
 			r.SetAttr("srcs", []string{p.src})
 			setTSConfig(r, tsconfig)
 			r.SetAttr("node_modules", rootNodeModules)

@@ -25,12 +25,24 @@ type TestSpec struct {
 	IsImplicit func(imp string) bool
 }
 
+// SizeSmall gives a generated test rule size = "small" unless it sets a size.
+func SizeSmall(r *rule.Rule) {
+	if r.Attr("size") == nil {
+		r.SetAttr("size", "small")
+	}
+}
+
 func (t *TestSpec) makeRule(name, src string, content []byte) (*rule.Rule, error) {
 	if t.Make != nil {
-		return t.Make(name, src, content)
+		r, err := t.Make(name, src, content)
+		if r != nil {
+			SizeSmall(r)
+		}
+		return r, err
 	}
 	r := rule.NewRule(t.Kind, name)
 	r.SetAttr("srcs", []string{src})
+	SizeSmall(r)
 	return r, nil
 }
 

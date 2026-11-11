@@ -170,6 +170,7 @@ rust_test(
         "//cli/docs_serve:dx_docs_serve",
         "//cli/test_scratch:dx_test_scratch",
         "//tools/docs/site/browser:dx_site_browser",
+        "//tools/docs/site/check:dx_site_check",
         "//tools/testing:dx_testing",
     ],
 )
@@ -190,6 +191,7 @@ rust_test(
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//cli/docs_serve:dx_docs_serve",
+        "//tools/docs/site/check:dx_site_check",
         "//tools/testing:dx_testing",
     ],
 )
@@ -224,6 +226,7 @@ rust_test(
     target_compatible_with = ["@platforms//os:linux"],
     deps = [
         "//cli/test_scratch:dx_test_scratch",
+        "//tools/docs/site/check:dx_site_check",
         "//tools/testing:dx_testing",
     ],
 )

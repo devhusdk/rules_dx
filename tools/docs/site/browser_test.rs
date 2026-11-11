@@ -56,13 +56,13 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
     );
     assert_eq!(
         browser
-            .text("return document.querySelector('main h1, #content h1').textContent.trim()")
+            .text("return document.querySelector('main h1, #mdbook-content h1').textContent.trim()")
             .expect("the landing heading"),
         "rules_dx"
     );
     assert!(
         browser
-            .count("return document.querySelectorAll('#sidebar a').length")
+            .count("return document.querySelectorAll('#mdbook-sidebar a').length")
             .expect("sidebar links")
             >= 30,
         "the sidebar must list the whole book"
@@ -70,7 +70,7 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
 
     let links = browser
         .script(
-            "return Array.from(document.querySelectorAll('#sidebar a'))\
+            "return Array.from(document.querySelectorAll('#mdbook-sidebar a'))\
              .map(function (a) { return a.getAttribute('href'); })",
         )
         .expect("sidebar routes");
@@ -121,13 +121,13 @@ fn the_site_navigates_searches_and_reaches_every_command_page_in_a_browser() {
     search_query(&mut browser, "scope");
     assert!(
         browser
-            .text("return document.querySelector('#searchresults-header').textContent")
+            .text("return document.querySelector('#mdbook-searchresults-header').textContent")
             .expect("the search summary")
             .contains("scope"),
         "the search summary must name the query"
     );
     let first = browser
-        .text("return document.querySelector('#searchresults a').getAttribute('href')")
+        .text("return document.querySelector('#mdbook-searchresults a').getAttribute('href')")
         .expect("the first result");
     let route = first.split(['?', '#']).next().unwrap_or_default();
     assert!(
@@ -178,7 +178,7 @@ fn keyboard_navigation_walks_the_book_forward_and_back() {
         browser
             .text("return document.activeElement.id")
             .expect("the focused element"),
-        "searchbar",
+        "mdbook-searchbar",
         "the slash key must focus the search bar"
     );
 }
@@ -195,22 +195,22 @@ fn the_sidebar_toggle_hides_the_navigation_and_focus_is_visible() {
         .expect("load the landing page");
 
     let shown = browser
-        .text("return getComputedStyle(document.getElementById('sidebar')).display")
+        .text("return getComputedStyle(document.getElementById('mdbook-sidebar')).display")
         .expect("the sidebar display");
     assert_ne!(shown, "none", "the sidebar must start open");
     assert!(
         browser
-            .truthy("return document.getElementById('sidebar').getBoundingClientRect().right > 0")
+            .truthy("return document.getElementById('mdbook-sidebar').getBoundingClientRect().right > 0")
             .expect("the open sidebar box"),
         "the sidebar must start on screen"
     );
     browser
-        .script("document.getElementById('sidebar-toggle').click(); return 1")
+        .script("document.getElementById('mdbook-sidebar-toggle').click(); return 1")
         .expect("toggle the sidebar");
     assert!(
         wait_for(
             &mut browser,
-            "return document.getElementById('sidebar').getAttribute('aria-hidden') === 'true'",
+            "return document.getElementById('mdbook-sidebar').getAttribute('aria-hidden') === 'true'",
             30,
         )
         .expect("poll the hidden sidebar"),
@@ -219,7 +219,7 @@ fn the_sidebar_toggle_hides_the_navigation_and_focus_is_visible() {
     assert!(
         wait_for(
             &mut browser,
-            "return document.getElementById('sidebar').getBoundingClientRect().right <= 0",
+            "return document.getElementById('mdbook-sidebar').getBoundingClientRect().right <= 0",
             30,
         )
         .expect("poll the hidden sidebar box"),
@@ -287,7 +287,7 @@ fn the_same_build_works_from_the_project_subdirectory_base() {
     );
     search_query(&mut browser, "build");
     let first = browser
-        .text("return document.querySelector('#searchresults a').getAttribute('href')")
+        .text("return document.querySelector('#mdbook-searchresults a').getAttribute('href')")
         .expect("the first result");
     assert!(
         first.contains("../../"),
@@ -315,18 +315,18 @@ fn a_phone_sized_viewport_collapses_the_navigation() {
     );
     assert_ne!(
         browser
-            .text("return getComputedStyle(document.getElementById('sidebar-toggle')).display")
+            .text("return getComputedStyle(document.getElementById('mdbook-sidebar-toggle')).display")
             .expect("the toggle display"),
         "none",
         "a phone must still be able to open the navigation"
     );
     browser
-        .script("document.getElementById('sidebar-toggle').click(); return 1")
+        .script("document.getElementById('mdbook-sidebar-toggle').click(); return 1")
         .expect("open the navigation on a phone");
     assert!(
         wait_for(
             &mut browser,
-            "return getComputedStyle(document.getElementById('sidebar')).display !== 'none'",
+            "return getComputedStyle(document.getElementById('mdbook-sidebar')).display !== 'none'",
             30,
         )
         .expect("poll the phone sidebar display"),
@@ -354,14 +354,14 @@ fn a_wide_viewport_shows_the_navigation_and_the_search_bar() {
 
     assert_ne!(
         browser
-            .text("return getComputedStyle(document.getElementById('sidebar')).display")
+            .text("return getComputedStyle(document.getElementById('mdbook-sidebar')).display")
             .expect("the wide sidebar display"),
         "none",
         "a wide viewport must show the navigation"
     );
     assert_ne!(
         browser
-            .text("return getComputedStyle(document.getElementById('searchbar')).display")
+            .text("return getComputedStyle(document.getElementById('mdbook-searchbar')).display")
             .expect("the search bar display"),
         "none",
         "a wide viewport must show the search bar"

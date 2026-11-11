@@ -1,6 +1,7 @@
 //! Serves the rendered site over real HTTP at every hosting base and walks it.
 
 use dx_docs_serve::{Handle, Site};
+use dx_site_check::rendered::asset;
 use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::net::TcpStream;
@@ -139,17 +140,16 @@ fn a_deep_nested_command_page_resolves_its_own_relative_assets() {
     let server = Server::start(root.clone(), "rules_dx");
     let page = server.get("/rules_dx/docs/cli/commands/docs.html");
     page.expect_ok("nested command page");
-    for asset in [
-        "../../../css/general.css",
-        "../../../css/chrome.css",
-        "../../../book.js",
-        "../../../highlight.js",
-        "../../../fonts/fonts.css",
+    for logical in [
+        "css/general.css",
+        "css/chrome.css",
+        "book.js",
+        "highlight.js",
+        "fonts/fonts.css",
     ] {
-        let target = format!(
-            "/rules_dx/{}",
-            resolve("docs/cli/commands/docs.html", asset)
-        );
+        let found = asset(&root, logical).expect("find the asset");
+        let relative = found.strip_prefix(&root).expect("asset under the site");
+        let target = format!("/rules_dx/{}", relative.to_string_lossy());
         let response = server.get(&target);
         response.expect_ok(&target);
     }
@@ -198,13 +198,15 @@ fn the_search_index_is_served_at_both_bases() {
     let root = site();
     let at_root = Server::start(root.clone(), "");
     let at_sub = Server::start(root.clone(), "rules_dx");
-    let body = at_root.get("/searchindex.js");
+    let index = asset(&root, "searchindex.js").expect("find the search index");
+    let index = index.file_name().expect("index name").to_string_lossy().into_owned();
+    let body = at_root.get(&format!("/{index}"));
     body.expect_ok("search index");
     assert!(
         body.body.contains("window.search"),
         "the index is not the mdBook index"
     );
-    let nested = at_sub.get("/rules_dx/searchindex.js");
+    let nested = at_sub.get(&format!("/rules_dx/{index}"));
     nested.expect_ok("search index");
     assert_eq!(
         nested.body, body.body,

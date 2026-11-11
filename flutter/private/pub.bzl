@@ -20,7 +20,7 @@ _pub_tag = tag_class(attrs = {
         default = [],
     ),
     "lock": attr.label(
-        doc = "The pubspec.lock to resolve.",
+        doc = "The Flutter pub lock file to resolve.",
         mandatory = True,
         allow_single_file = True,
     ),
@@ -92,5 +92,5 @@ def _hub(mctx, tag):
 pub = module_extension(
     implementation = _pub_impl,
     tag_classes = {"pub": _pub_tag},
-    doc = "Resolves a pubspec.lock into a hub of Flutter packages fetched with the pinned bsdtar.",
+    doc = "Resolves a Flutter pub lock into a hub of Flutter packages fetched with the pinned bsdtar.",
 )

@@ -1,7 +1,6 @@
-# gazelle:ignore
 load("@rules_dx//core:fuzz_bench_tests.bzl", "dx_runner_attr_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
-load("@rules_dx//java:defs.bzl", "java_bench")
+load("@rules_dx//java:defs.bzl", "java_bench", "java_library")
 load("@rules_dx//java/private:jmh_tests.bzl", "jmh_compile_flag_test", "jmh_inner_attr_test")
 
 package(default_visibility = ["//:__subpackages__"])
@@ -83,4 +82,11 @@ jmh_inner_attr_test(
     ],
     tags = ["bench-inner"],
     target_compatible_with = ["@platforms//:incompatible"],
+)
+
+java_library(
+    name = "bench",
+    testonly = True,
+    srcs = ["Sum.java"],
+    deps = ["@maven//:org_openjdk_jmh_jmh_core"],
 )

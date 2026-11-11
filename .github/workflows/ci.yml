@@ -309,7 +309,7 @@ jobs:
           set -- $BAZEL_CONFIG $BB_ARGS
           bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
   gcc-cross-build:
-    name: gcc-cross-build (linux_x86_64 -> linux_arm64 fixtures)
+    name: gcc-cross-build (gcc + llvm linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45
     runs-on: ubuntu-latest
     permissions:
@@ -332,6 +332,19 @@ jobs:
           done
           find "$RUNNER_TEMP/gcc-arm64" -type f
           test "$(find "$RUNNER_TEMP/gcc-arm64" -type f | wc -l)" -eq 3
+      - name: Cross-build the ARM64 conformance binaries with LLVM
+        run: |
+          # shellcheck disable=SC2086
+          set -- --lockfile_mode=error $BAZEL_CONFIG $BB_ARGS
+          mkdir -p "$RUNNER_TEMP/llvm-arm64"
+          for lang in cc go rust zig; do
+            bazel build --noshow_progress "$@" "//$lang/tests/conformance:cross_binary"
+            file="$(bazel cquery --noshow_progress "$@" --output=files "//$lang/tests/conformance:cross_binary" 2>/dev/null)"
+            test "$(printf '%s\n' "$file" | wc -l)" -eq 1
+            cp "$file" "$RUNNER_TEMP/llvm-arm64/$lang"
+          done
+          find "$RUNNER_TEMP/llvm-arm64" -type f
+          test "$(find "$RUNNER_TEMP/llvm-arm64" -type f | wc -l)" -eq 4
       - name: Check the upload holds no secret
         id: scan-gcc-arm64-fixtures
         uses: ./.github/actions/assert-no-secret
@@ -344,8 +357,20 @@ jobs:
           path: ${{ runner.temp }}/gcc-arm64
           retention-days: 3
           if-no-files-found: error
+      - name: Check the upload holds no secret
+        id: scan-llvm-arm64-fixtures
+        uses: ./.github/actions/assert-no-secret
+        with:
+          path: ${{ runner.temp }}/llvm-arm64
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ always() && steps.scan-llvm-arm64-fixtures.outcome == 'success' }}
+        with:
+          name: llvm-arm64-fixtures
+          path: ${{ runner.temp }}/llvm-arm64
+          retention-days: 3
+          if-no-files-found: error
   gcc-cross-run-arm64:
-    name: gcc-cross-run-arm64 (run x86_64-cross-built fixtures on native linux_arm64)
+    name: gcc-cross-run-arm64 (gcc + llvm x86_64-cross-built fixtures on native linux_arm64)
     needs: [gcc-cross-build]
     timeout-minutes: 10
     runs-on: ubuntu-24.04-arm
@@ -356,6 +381,10 @@ jobs:
         with:
           name: gcc-arm64-fixtures
           path: ${{ runner.temp }}/gcc-arm64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: llvm-arm64-fixtures
+          path: ${{ runner.temp }}/llvm-arm64
       - name: Run the fixtures without emulation
         run: |
           set -eu
@@ -365,6 +394,15 @@ jobs:
           test "$(./hello)" = "hello 42"
           test "$(./hello_c)" = "hello from c"
           test "$(./native_call_bin)" = "5"
+      - name: Run the LLVM conformance binaries without emulation
+        run: |
+          set -eu
+          test "$(uname -m)" = aarch64
+          cd "$RUNNER_TEMP/llvm-arm64"
+          for lang in cc go rust zig; do
+            chmod +x "$lang"
+            test "$("./$lang")" = "hello world"
+          done
   network:
     name: network (requires-network nested consumer tests)
     timeout-minutes: 75

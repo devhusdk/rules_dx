@@ -18,19 +18,39 @@ subject_transition = transition(
     outputs = [str(_FLAG)],
 )
 
-def _coverage_transition_impl(_settings, attr):
+# Mirrors the coverage:windows lines of .bazelrc.
+WINDOWS_COVERAGE_OFF = ["-coverage", "-gcc_coverage_map_format"]
+
+def coverage_subject_settings(features, windows, instrumentation_filter):
+    """Returns the build settings of a coverage subject.
+
+    Args:
+      features: Value of --features before the transition.
+      windows: Whether the subject targets Windows.
+      instrumentation_filter: Value of --instrumentation_filter.
+
+    Returns:
+      Dict of the settings the coverage transition sets.
+    """
+    if windows:
+        features = features + [f for f in WINDOWS_COVERAGE_OFF if f not in features]
     return {
         "//command_line_option:collect_code_coverage": True,
+        "//command_line_option:features": features,
         "//command_line_option:instrument_test_targets": True,
-        "//command_line_option:instrumentation_filter": attr.instrumentation_filter,
+        "//command_line_option:instrumentation_filter": instrumentation_filter,
         str(_FLAG): True,
     }
 
+def _coverage_transition_impl(settings, attr):
+    return coverage_subject_settings(settings["//command_line_option:features"], attr.windows, attr.instrumentation_filter)
+
 _coverage_transition = transition(
     implementation = _coverage_transition_impl,
-    inputs = [],
+    inputs = ["//command_line_option:features"],
     outputs = [
         "//command_line_option:collect_code_coverage",
+        "//command_line_option:features",
         "//command_line_option:instrument_test_targets",
         "//command_line_option:instrumentation_filter",
         str(_FLAG),
@@ -67,7 +87,10 @@ dx_conformance_subject = _subject_rule(
 
 _coverage_subject = _subject_rule(
     _coverage_transition,
-    {"instrumentation_filter": attr.string(mandatory = True)},
+    {
+        "instrumentation_filter": attr.string(mandatory = True),
+        "windows": attr.bool(),
+    },
     "Forwards a subject built with the subject flag and code coverage on.",
 )
 
@@ -233,19 +256,26 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
         name = prefix + "pass_subject",
         subject = passing_test,
         testonly = True,
+        target_compatible_with = _compatible_with(lang, "pass_test", not_applicable),
         visibility = ["//visibility:private"],
     )
     dx_conformance_subject(
         name = prefix + "fail_subject",
         subject = failing_test,
         testonly = True,
+        target_compatible_with = _compatible_with(lang, "fail_test", not_applicable),
         visibility = ["//visibility:private"],
     )
     _coverage_subject(
         name = prefix + "coverage_subject",
         subject = passing_test,
         instrumentation_filter = "^//%s[/:]" % native.package_name(),
+        windows = select({
+            "@platforms//os:windows": True,
+            "//conditions:default": False,
+        }),
         testonly = True,
+        target_compatible_with = _compatible_with(lang, "coverage_test", not_applicable),
         visibility = ["//visibility:private"],
     )
     runs = {

@@ -2,6 +2,7 @@ load("@bazel_skylib//rules:common_settings.bzl", "bool_flag")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":defs.bzl", "dx_conformance_manifest", "pending_langs", "suite_langs")
+load(":defs_tests.bzl", "conformance_defs_tests")
 
 package(default_visibility = ["//:__subpackages__"])
 
@@ -57,6 +58,8 @@ config_setting(
 
 exports_files(["runner_test.rs"])
 
+conformance_defs_tests(name = "defs_test")
+
 dx_conformance_manifest(
     name = "manifest",
     testonly = True,
@@ -87,6 +90,7 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
+        "defs_tests.bzl",
         "pending.bzl",
     ],
     tags = ["corpus"],

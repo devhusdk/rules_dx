@@ -10,7 +10,7 @@ This page fixes how every language locks, fetches and resolves third-party packa
 
 ## Registry
 
-- Each ecosystem has one entry under `setup.hubs` in the `lang.json` of its first language below. The other languages name the ecosystem only.
+- Each ecosystem has one entry under `setup.hubs` in the `lang.json` of its first language below; the others name only the ecosystem.
 - The entry holds `ecosystem`, `manifest`, `lock`, `state`, `extension`, `tag`, `hub`, `resolver` and `imports`.
 - `hub` is a repository name, or `*` for one repository per package.
 - Code reads these values through the generated registry. No other source file states a manifest name, lock name, hub name or extension label.
@@ -19,7 +19,7 @@ This page fixes how every language locks, fetches and resolves third-party packa
 
 ## Classes
 
-An ecosystem is in the upstream class when all three hold, else in the dx class.
+An ecosystem is in the upstream class when all three hold, else the dx class.
 
 1. An upstream extension builds the hub from one lock file.
 2. That file holds a digest for every archive.

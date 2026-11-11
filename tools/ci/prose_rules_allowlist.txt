@@ -1,7 +1,7 @@
 .github/workflows/README.md issue-number 4
 AGENTS.md history-word 2
 CONTRIBUTING.md issue-number 1
-MODULE.bazel issue-number 44
+MODULE.bazel issue-number 43
 README.md dead-link 1
 cli/adopt/src/preflight.rs issue-number 1
 cli/cli/BUILD.bazel issue-number 1
@@ -13,11 +13,11 @@ cli/process/src/runner_tests.rs issue-number 1
 cli/worktree/src/ops.rs issue-number 1
 core/modules/consumer_deps_test.rs issue-number 1
 core/quality/adapter/src/parsers/cmakelint.rs issue-number 1
-core/quality/tests/core_load_graph_test.rs issue-number 4
 core/quality/curated_defaults.bzl issue-number 2
 core/quality/jvm_classpath_policy_test.rs issue-number 1
 core/quality/policy.bzl link-chain 1
 core/quality/support_tests.bzl issue-number 1
+core/quality/tests/core_load_graph_test.rs issue-number 3
 docs/AGENTS.md history-word 1
 docs/README.md dead-link 1
 docs/cli/commands/audit-update.md history-word 1
@@ -28,12 +28,10 @@ docs/support-matrix.md issue-number 2
 docs/tutorial.md dead-link 1
 elixir/private/toolchain/pins.bzl issue-number 1
 erlang/private/toolchain/pins.bzl issue-number 1
-helm/README.md not-linted 1
 msix/tests/BUILD.bazel issue-number 1
 ocaml/README.md issue-number 1
 patches/README.md history-word 1
 patches/README.md issue-number 56
-php/README.md history-word 1
 qt/README.md issue-number 1
 tools/ci/prose_rules_test.rs link-chain 1
 tools/docs/jvm/fixture/jvm_prose.md not-linted 1

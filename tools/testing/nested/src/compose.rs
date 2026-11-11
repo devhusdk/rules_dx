@@ -89,7 +89,7 @@ pub fn compose_module(
     ))
 }
 
-/// Writes the files `rules_py_override` names into the consumer; #11398 deletes it and its call in `compose_module`.
+/// Writes the files `rules_py_override` names into the consumer.
 pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
     let dir = workspace.join("patches").join("rules_py");
     std::fs::create_dir_all(&dir)

@@ -1,5 +1,5 @@
-//! Plans the `MODULE.bazel` stanzas for `uv.lock` and `pnpm-lock.yaml` files anywhere in the
-//! repo and the root `Cargo.lock`. Other `Cargo.lock` files are reported.
+//! Plans the `MODULE.bazel` stanzas for the uv and pnpm lock files anywhere in the repo and the
+//! root cargo lock file. Other cargo lock files are reported.
 //!
 //! A lock file counts when its manifest sits next to it. A lock that an existing stanza
 //! already names is left alone, so a second run plans nothing.
@@ -87,9 +87,9 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
     }
 }
 
-/// The root manifests that `dx generate --apply` can lock: `Cargo.toml` without a `Cargo.lock`
-/// (an empty one counts as missing), a uv `pyproject.toml` without a `uv.lock`, and a pnpm
-/// `package.json` without a `pnpm-lock.yaml`.
+/// The root manifests that `dx generate --apply` can lock: a cargo manifest without a cargo lock
+/// (an empty one counts as missing), a uv manifest without a uv lock, and a pnpm manifest
+/// without a pnpm lock.
 pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     let mut out = Vec::new();
     let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")));
@@ -242,16 +242,19 @@ impl Planner<'_> {
         let mut covered = false;
         for file in self.files {
             let Ok(hubs) = file.cargo_hubs() else {
-                self.notes
-                    .push("a crate.from_cargo has computed arguments; Cargo.lock not wired".into());
+                self.notes.push(format!(
+                    "a crate.from_cargo has computed arguments; {} not wired",
+                    lock_of("cargo")
+                ));
                 return Ok(());
             };
             for hub in hubs {
                 covered |= hub.cargo_lockfile == Some(lock.as_str());
                 if hub.name == cargo.hub && hub.cargo_lockfile != Some(lock.as_str()) {
                     self.notes.push(format!(
-                        "crate.from_cargo \"{}\" reads another lock; Cargo.lock not wired",
-                        hub.name
+                        "crate.from_cargo \"{}\" reads another lock; {} not wired",
+                        hub.name,
+                        lock_of("cargo")
                     ));
                     return Ok(());
                 }
@@ -273,8 +276,9 @@ impl Planner<'_> {
     }
 
     fn cargo_manifests(&mut self) -> Vec<String> {
-        let mut manifests = vec![root_label(manifest_of("cargo"))];
-        let parsed = std::fs::read_to_string(self.root.join(manifest_of("cargo")))
+        let manifest = manifest_of("cargo");
+        let mut manifests = vec![root_label(manifest)];
+        let parsed = std::fs::read_to_string(self.root.join(manifest))
             .ok()
             .and_then(|text| text.parse::<toml::Table>().ok());
         let members = parsed
@@ -286,13 +290,13 @@ impl Planner<'_> {
             let member = member.trim_matches('/');
             if member.contains(['*', '?', '[']) {
                 self.notes.push(format!(
-                    "Cargo.toml member \"{member}\" is a glob; add its Cargo.toml to crate.from_cargo manifests"
+                    "{manifest} member \"{member}\" is a glob; add its {manifest} to crate.from_cargo manifests"
                 ));
-            } else if member != "." && self.exists(&format!("{member}/Cargo.toml")) {
-                manifests.push(format!("//{member}:Cargo.toml"));
+            } else if member != "." && self.exists(&format!("{member}/{manifest}")) {
+                manifests.push(format!("//{member}:{manifest}"));
             } else if member != "." {
                 self.notes
-                    .push(format!("Cargo.toml member \"{member}\" has no Cargo.toml"));
+                    .push(format!("{manifest} member \"{member}\" has no {manifest}"));
             }
         }
         manifests
@@ -352,8 +356,10 @@ impl Planner<'_> {
                 return Ok(());
             }
             let Ok(projects) = file.uv_projects() else {
-                self.notes
-                    .push("a uv.project has computed arguments; uv.lock not wired".into());
+                self.notes.push(format!(
+                    "a uv.project has computed arguments; {} not wired",
+                    lock_of("uv")
+                ));
                 return Ok(());
             };
             named.extend(projects.iter().map(|project| project.lock.to_owned()));
@@ -394,10 +400,10 @@ impl Planner<'_> {
         let mut existing: Vec<(String, Option<String>)> = Vec::new();
         for file in self.files {
             let Ok(locks) = file.npm_translate_locks() else {
-                self.notes.push(
-                    "an npm.npm_translate_lock has computed arguments; pnpm-lock.yaml not wired"
-                        .into(),
-                );
+                self.notes.push(format!(
+                    "an npm.npm_translate_lock has computed arguments; {} not wired",
+                    lock_of("npm")
+                ));
                 return Ok(());
             };
             existing.extend(
@@ -639,6 +645,17 @@ mod tests {
     use super::*;
     use dx_test_scratch::{scratch, write};
 
+    fn t(template: &str) -> &'static str {
+        let mut text = template.to_owned();
+        for eco in ["cargo", "npm", "uv", "typescript"] {
+            text = text.replace(&format!("{{{eco}:manifest}}"), manifest_of(eco));
+            if eco != "typescript" {
+                text = text.replace(&format!("{{{eco}:lock}}"), lock_of(eco));
+            }
+        }
+        Box::leak(text.into_boxed_str())
+    }
+
     const MODULE: &str =
         "module(name = \"app\")\n\nbazel_dep(name = \"rules_dx\", version = \"1.0.0\")\n";
 
@@ -658,19 +675,19 @@ mod tests {
     #[test]
     fn cargo_lock_gets_a_crates_hub_with_workspace_members() {
         let hubs = plan(&[
-            ("Cargo.lock", ""),
+            (t("{cargo:lock}"), ""),
             (
-                "Cargo.toml",
+                t("{cargo:manifest}"),
                 "[workspace]\nmembers = [\"app\", \"libs/*\", \"gone\"]\n",
             ),
-            ("app/Cargo.toml", ""),
+            (t("app/{cargo:manifest}"), ""),
         ]);
         let text = new_text(&hubs);
         assert!(text.starts_with(MODULE), "{text}");
         assert!(!text.contains("bazel_dep(name = \"rules_rust\""), "{text}");
         assert!(
             text.contains(
-                "cargo.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\n        \"//:Cargo.toml\",\n        \"//app:Cargo.toml\",\n    ],\n)\nuse_repo(cargo, \"crates\")\n"
+                t("cargo.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:{cargo:lock}\",\n    manifests = [\n        \"//:{cargo:manifest}\",\n        \"//app:{cargo:manifest}\",\n    ],\n)\nuse_repo(cargo, \"crates\")\n")
             ),
             "{text}"
         );
@@ -723,10 +740,10 @@ mod tests {
     fn a_nested_module_keeps_its_own_locks() {
         let hubs = plan(&[
             ("sub/MODULE.bazel", ""),
-            ("sub/package.json", "{}"),
-            ("sub/pnpm-lock.yaml", ""),
-            ("sub/Cargo.toml", ""),
-            ("sub/Cargo.lock", ""),
+            (t("sub/{npm:manifest}"), "{}"),
+            (t("sub/{npm:lock}"), ""),
+            (t("sub/{cargo:manifest}"), ""),
+            (t("sub/{cargo:lock}"), ""),
         ]);
         assert!(hubs.edit.is_none());
         assert!(hubs.notes.is_empty(), "{:?}", hubs.notes);
@@ -734,40 +751,58 @@ mod tests {
 
     #[test]
     fn a_missing_or_empty_cargo_lock_is_unlocked() {
-        assert_eq!(unlocked(&[("Cargo.toml", "")]), ["Cargo.toml"]);
         assert_eq!(
-            unlocked(&[("Cargo.toml", ""), ("Cargo.lock", "")]),
-            ["Cargo.toml"]
+            unlocked(&[(t("{cargo:manifest}"), "")]),
+            [t("{cargo:manifest}")]
         );
-        assert!(unlocked(&[("Cargo.toml", ""), ("Cargo.lock", "version = 4\n")]).is_empty());
-        assert!(unlocked(&[("Cargo.lock", "")]).is_empty());
+        assert_eq!(
+            unlocked(&[(t("{cargo:manifest}"), ""), (t("{cargo:lock}"), "")]),
+            [t("{cargo:manifest}")]
+        );
+        assert!(
+            unlocked(&[
+                (t("{cargo:manifest}"), ""),
+                (t("{cargo:lock}"), "version = 4\n")
+            ])
+            .is_empty()
+        );
+        assert!(unlocked(&[(t("{cargo:lock}"), "")]).is_empty());
     }
 
     #[test]
     fn only_uv_pyprojects_without_a_lock_are_unlocked() {
         let project = "[project]\nname = \"app\"\n";
-        assert_eq!(unlocked(&[("pyproject.toml", project)]), ["pyproject.toml"]);
-        assert!(unlocked(&[("pyproject.toml", project), ("uv.lock", "")]).is_empty());
-        assert!(unlocked(&[("pyproject.toml", "[tool.ruff]\n")]).is_empty());
+        assert_eq!(
+            unlocked(&[(t("{uv:manifest}"), project)]),
+            [t("{uv:manifest}")]
+        );
+        assert!(unlocked(&[(t("{uv:manifest}"), project), (t("{uv:lock}"), "")]).is_empty());
+        assert!(unlocked(&[(t("{uv:manifest}"), "[tool.ruff]\n")]).is_empty());
         for tool in ["[tool.poetry]\n", "[tool.pdm]\n"] {
             let text = format!("{project}{tool}");
-            assert!(unlocked(&[("pyproject.toml", &text)]).is_empty(), "{tool}");
+            assert!(
+                unlocked(&[(t("{uv:manifest}"), &text)]).is_empty(),
+                "{tool}"
+            );
         }
     }
 
     #[test]
     fn only_pnpm_packages_without_a_lock_are_unlocked() {
         let pnpm = "{\"packageManager\": \"pnpm@9.1.0\"}";
-        assert_eq!(unlocked(&[("package.json", pnpm)]), ["package.json"]);
         assert_eq!(
-            unlocked(&[("package.json", "{}"), ("pnpm-workspace.yaml", "")]),
-            ["package.json"]
+            unlocked(&[(t("{npm:manifest}"), pnpm)]),
+            [t("{npm:manifest}")]
         );
-        assert!(unlocked(&[("package.json", "{}")]).is_empty());
-        assert!(unlocked(&[("package.json", "{\"packageManager\": \"yarn@4\"}")]).is_empty());
-        for lock in ["pnpm-lock.yaml", "package-lock.json", "yarn.lock"] {
+        assert_eq!(
+            unlocked(&[(t("{npm:manifest}"), "{}"), ("pnpm-workspace.yaml", "")]),
+            [t("{npm:manifest}")]
+        );
+        assert!(unlocked(&[(t("{npm:manifest}"), "{}")]).is_empty());
+        assert!(unlocked(&[(t("{npm:manifest}"), "{\"packageManager\": \"yarn@4\"}")]).is_empty());
+        for lock in [t("{npm:lock}"), "package-lock.json", "yarn.lock"] {
             assert!(
-                unlocked(&[("package.json", pnpm), (lock, "")]).is_empty(),
+                unlocked(&[(t("{npm:manifest}"), pnpm), (lock, "")]).is_empty(),
                 "{lock}"
             );
         }
@@ -798,28 +833,31 @@ mod tests {
 
     #[test]
     fn uv_lock_gets_a_pypi_hub() {
-        let hubs = plan(&[("uv.lock", ""), ("pyproject.toml", "")]);
+        let hubs = plan(&[(t("{uv:lock}"), ""), (t("{uv:manifest}"), "")]);
         let text = new_text(&hubs);
         assert!(!text.contains("bazel_dep(name = \"rules_py\""), "{text}");
         assert!(
             text.contains("uv.declare_hub(\n    hub_name = \"pypi\",\n)"),
             "{text}"
         );
-        assert!(text.contains("lock = \"//:uv.lock\""), "{text}");
-        assert!(text.contains("pyproject = \"//:pyproject.toml\""), "{text}");
+        assert!(text.contains(t("lock = \"//:{uv:lock}\"")), "{text}");
+        assert!(
+            text.contains(t("pyproject = \"//:{uv:manifest}\"")),
+            "{text}"
+        );
         assert!(text.ends_with("use_repo(uv, \"pypi\")\n"), "{text}");
     }
 
     #[test]
     fn pnpm_lock_gets_an_npm_hub() {
-        let hubs = plan(&[("pnpm-lock.yaml", ""), ("package.json", "{}")]);
+        let hubs = plan(&[(t("{npm:lock}"), ""), (t("{npm:manifest}"), "{}")]);
         let text = new_text(&hubs);
         assert!(
             !text.contains("bazel_dep(name = \"aspect_rules_js\""),
             "{text}"
         );
         assert!(
-            text.contains("npm.npm_translate_lock(\n    name = \"npm\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n)\nuse_repo(npm, \"npm\")\n"),
+            text.contains(t("npm.npm_translate_lock(\n    name = \"npm\",\n    pnpm_lock = \"//:{npm:lock}\",\n)\nuse_repo(npm, \"npm\")\n")),
             "{text}"
         );
     }
@@ -827,9 +865,9 @@ mod tests {
     #[test]
     fn tsconfig_gets_the_typescript_hub() {
         let hubs = plan(&[
-            ("pnpm-lock.yaml", ""),
-            ("package.json", "{}"),
-            ("tsconfig.json", "{}"),
+            (t("{npm:lock}"), ""),
+            (t("{npm:manifest}"), "{}"),
+            (t("{typescript:manifest}"), "{}"),
         ]);
         let text = new_text(&hubs);
         assert!(
@@ -848,7 +886,7 @@ mod tests {
 
     #[test]
     fn no_tsconfig_means_no_typescript_hub() {
-        let hubs = plan(&[("pnpm-lock.yaml", ""), ("package.json", "{}")]);
+        let hubs = plan(&[(t("{npm:lock}"), ""), (t("{npm:manifest}"), "{}")]);
         assert!(!new_text(&hubs).contains("npm_typescript"));
     }
 
@@ -856,9 +894,9 @@ mod tests {
     fn a_second_typescript_run_plans_nothing() {
         let dir = scratch("lock_hubs_ts_twice");
         write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "tsconfig.json", "{}");
-        write(dir.path(), "pnpm-lock.yaml", "");
-        write(dir.path(), "package.json", "{}");
+        write(dir.path(), t("{typescript:manifest}"), "{}");
+        write(dir.path(), t("{npm:lock}"), "");
+        write(dir.path(), t("{npm:manifest}"), "{}");
         let first = plan_lock_hubs(dir.path()).expect("plan");
         assert!(new_text(&first).contains("npm_typescript"));
         write(dir.path(), MODULE_FILE, new_text(&first));
@@ -875,7 +913,7 @@ mod tests {
         );
         let dir = scratch("lock_hubs_ts_manual");
         write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), "tsconfig.json", "{}");
+        write(dir.path(), t("{typescript:manifest}"), "{}");
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -885,7 +923,7 @@ mod tests {
     #[test]
     fn a_lock_without_its_manifest_is_ignored() {
         assert_eq!(
-            plan(&[("Cargo.lock", ""), ("uv.lock", "")]),
+            plan(&[(t("{cargo:lock}"), ""), (t("{uv:lock}"), "")]),
             LockHubs::default()
         );
     }
@@ -893,12 +931,13 @@ mod tests {
     #[test]
     fn a_hand_written_stanza_is_left_alone() {
         let module = format!(
-            "{MODULE}\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"web\",\n    pnpm_lock = \"//:pnpm-lock.yaml\",\n)\nuse_repo(npm, \"web\")\n"
+            "{MODULE}\nnpm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\nnpm.npm_translate_lock(\n    name = \"web\",\n    pnpm_lock = \"//:{}\",\n)\nuse_repo(npm, \"web\")\n",
+            lock_of("npm")
         );
         let dir = scratch("lock_hubs_manual");
         write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), "pnpm-lock.yaml", "");
-        write(dir.path(), "package.json", "{}");
+        write(dir.path(), t("{npm:lock}"), "");
+        write(dir.path(), t("{npm:manifest}"), "{}");
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -909,12 +948,12 @@ mod tests {
     fn a_second_run_plans_nothing() {
         let dir = scratch("lock_hubs_twice");
         write(dir.path(), MODULE_FILE, MODULE);
-        write(dir.path(), "Cargo.lock", "");
-        write(dir.path(), "Cargo.toml", "");
-        write(dir.path(), "uv.lock", "");
-        write(dir.path(), "pyproject.toml", "");
-        write(dir.path(), "pnpm-lock.yaml", "");
-        write(dir.path(), "package.json", "{}");
+        write(dir.path(), t("{cargo:lock}"), "");
+        write(dir.path(), t("{cargo:manifest}"), "");
+        write(dir.path(), t("{uv:lock}"), "");
+        write(dir.path(), t("{uv:manifest}"), "");
+        write(dir.path(), t("{npm:lock}"), "");
+        write(dir.path(), t("{npm:manifest}"), "{}");
         let first = plan_lock_hubs(dir.path()).expect("plan");
         write(dir.path(), MODULE_FILE, new_text(&first));
         assert_eq!(
@@ -926,37 +965,43 @@ mod tests {
     #[test]
     fn a_stanza_for_a_gone_lock_is_reported_and_kept() {
         let module = format!(
-            "{MODULE}\nuv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(\n    hub_name = \"pypi\",\n    lock = \"//svc:uv.lock\",\n    pyproject = \"//svc:pyproject.toml\",\n)\n"
+            "{MODULE}\nuv = use_extension(\"@rules_py//uv:extensions.bzl\", \"uv\")\nuv.project(\n    hub_name = \"pypi\",\n    lock = \"//svc:{}\",\n    pyproject = \"//svc:{}\",\n)\n",
+            lock_of("uv"),
+            manifest_of("uv")
         );
         let dir = scratch("lock_hubs_gone");
         write(dir.path(), MODULE_FILE, &module);
         let hubs = plan_lock_hubs(dir.path()).expect("plan");
         assert_eq!(hubs.edit, None);
         assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
-        assert!(hubs.notes[0].contains("svc/uv.lock"), "{:?}", hubs.notes);
+        assert!(
+            hubs.notes[0].contains(t("svc/{uv:lock}")),
+            "{:?}",
+            hubs.notes
+        );
     }
 
     #[test]
     fn nested_uv_and_pnpm_locks_get_their_own_projects() {
         let hubs = plan(&[
-            ("uv.lock", ""),
-            ("pyproject.toml", ""),
-            ("svc/uv.lock", ""),
-            ("svc/pyproject.toml", ""),
-            ("web/app/pnpm-lock.yaml", ""),
-            ("web/app/package.json", "{}"),
-            ("pnpm-lock.yaml", ""),
-            ("package.json", "{}"),
-            ("node_modules/x/pnpm-lock.yaml", ""),
-            ("node_modules/x/package.json", "{}"),
+            (t("{uv:lock}"), ""),
+            (t("{uv:manifest}"), ""),
+            (t("svc/{uv:lock}"), ""),
+            (t("svc/{uv:manifest}"), ""),
+            (t("web/app/{npm:lock}"), ""),
+            (t("web/app/{npm:manifest}"), "{}"),
+            (t("{npm:lock}"), ""),
+            (t("{npm:manifest}"), "{}"),
+            (t("node_modules/x/{npm:lock}"), ""),
+            (t("node_modules/x/{npm:manifest}"), "{}"),
         ]);
         let text = new_text(&hubs);
-        assert!(text.contains("lock = \"//svc:uv.lock\""), "{text}");
-        assert!(text.contains("lock = \"//:uv.lock\""), "{text}");
+        assert!(text.contains(t("lock = \"//svc:{uv:lock}\"")), "{text}");
+        assert!(text.contains(t("lock = \"//:{uv:lock}\"")), "{text}");
         assert_eq!(text.matches("declare_hub").count(), 1, "{text}");
         assert!(text.contains("name = \"npm_web_app\""), "{text}");
         assert!(
-            text.contains("pnpm_lock = \"//web/app:pnpm-lock.yaml\""),
+            text.contains(t("pnpm_lock = \"//web/app:{npm:lock}\"")),
             "{text}"
         );
         assert!(
@@ -973,8 +1018,8 @@ mod tests {
         );
         let dir = scratch("lock_hubs_alias");
         write(dir.path(), MODULE_FILE, &module);
-        write(dir.path(), "uv.lock", "");
-        write(dir.path(), "pyproject.toml", "");
+        write(dir.path(), t("{uv:lock}"), "");
+        write(dir.path(), t("{uv:manifest}"), "");
         assert_eq!(
             plan_lock_hubs(dir.path()).expect("plan"),
             LockHubs::default()
@@ -984,23 +1029,26 @@ mod tests {
     #[test]
     fn fixture_testdata_and_example_locks_are_ignored() {
         let hubs = plan(&[
-            ("a/testdata/uv.lock", ""),
-            ("a/testdata/pyproject.toml", ""),
-            ("fixtures/x/pnpm-lock.yaml", ""),
-            ("fixtures/x/package.json", "{}"),
-            ("examples/app/pnpm-lock.yaml", ""),
-            ("examples/app/package.json", "{}"),
+            (t("a/testdata/{uv:lock}"), ""),
+            (t("a/testdata/{uv:manifest}"), ""),
+            (t("fixtures/x/{npm:lock}"), ""),
+            (t("fixtures/x/{npm:manifest}"), "{}"),
+            (t("examples/app/{npm:lock}"), ""),
+            (t("examples/app/{npm:manifest}"), "{}"),
         ]);
         assert_eq!(hubs, LockHubs::default());
     }
 
     #[test]
     fn an_extra_cargo_lock_is_reported_not_wired() {
-        let hubs = plan(&[("tools/Cargo.lock", ""), ("tools/Cargo.toml", "")]);
+        let hubs = plan(&[
+            (t("tools/{cargo:lock}"), ""),
+            (t("tools/{cargo:manifest}"), ""),
+        ]);
         assert_eq!(hubs.edit, None);
         assert_eq!(hubs.notes.len(), 1, "{:?}", hubs.notes);
         assert!(
-            hubs.notes[0].contains("tools/Cargo.lock"),
+            hubs.notes[0].contains(t("tools/{cargo:lock}")),
             "{:?}",
             hubs.notes
         );
@@ -1090,7 +1138,10 @@ mod tests {
         assert_eq!(plan.edits.len(), 1);
         assert_eq!(
             plan.edits[0].new,
-            format!("package(default_visibility = [\"//visibility:public\"])\n{}", maven_directive())
+            format!(
+                "package(default_visibility = [\"//visibility:public\"])\n{}",
+                maven_directive()
+            )
         );
 
         let module = maven_module().replace("//third_party:", "//:");

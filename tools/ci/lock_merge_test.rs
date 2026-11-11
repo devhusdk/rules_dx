@@ -15,13 +15,6 @@ const PLATFORMS: [(&str, &str); 5] = [
     ("windows_arm64", "os:windows,arch:aarch64"),
 ];
 
-fn has_jq() -> bool {
-    Command::new("jq")
-        .arg("--version")
-        .output()
-        .is_ok_and(|output| output.status.success())
-}
-
 fn entry(digest: &str, repos: &[String]) -> Value {
     let specs: serde_json::Map<String, Value> = repos
         .iter()
@@ -92,7 +85,9 @@ fn merge(locks: &[(String, Value)]) -> Option<Value> {
         .collect();
     write_locks(&inputs, &borrowed);
     let out = dir.path().join("MODULE.bazel.lock");
+    let jq = resolve_runfiles(&std::env::var("DX_JQ").expect("DX_JQ"));
     let output = Command::new("bash")
+        .env("DX_JQ", jq.to_string_lossy().replace('\\', "/"))
         .arg(resolve_runfiles(SCRIPT))
         .arg(inputs.to_string_lossy().replace('\\', "/"))
         .arg(out.to_string_lossy().replace('\\', "/"))
@@ -109,10 +104,6 @@ fn merge(locks: &[(String, Value)]) -> Option<Value> {
 
 #[test]
 fn every_factor_takes_its_own_platform_entry_whole() {
-    if !has_jq() {
-        eprintln!("skipping: jq is not on PATH");
-        return;
-    }
     let merged = merge(&fresh_locks()).expect("lock_merge.sh merges five fresh locks");
     let entries = &merged["moduleExtensions"][EXTENSION];
     for (_, factor) in PLATFORMS {
@@ -137,10 +128,6 @@ fn every_factor_takes_its_own_platform_entry_whole() {
 
 #[test]
 fn an_unknown_extension_key_fails() {
-    if !has_jq() {
-        eprintln!("skipping: jq is not on PATH");
-        return;
-    }
     let mut locks = fresh_locks();
     locks[2].1["moduleExtensions"][EXTENSION]["os:osx"] = entry("os only", &[]);
     assert_eq!(merge(&locks), None);
@@ -148,10 +135,6 @@ fn an_unknown_extension_key_fails() {
 
 #[test]
 fn a_missing_platform_fails() {
-    if !has_jq() {
-        eprintln!("skipping: jq is not on PATH");
-        return;
-    }
     let mut locks = fresh_locks();
     locks.remove(4);
     assert_eq!(merge(&locks), None);
@@ -159,10 +142,6 @@ fn a_missing_platform_fails() {
 
 #[test]
 fn an_unknown_platform_directory_fails() {
-    if !has_jq() {
-        eprintln!("skipping: jq is not on PATH");
-        return;
-    }
     let mut locks = fresh_locks();
     locks.push((
         "lock-freebsd_x86_64".to_owned(),

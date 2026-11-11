@@ -93,6 +93,57 @@ rust_test(
     ],
 )
 
+config_setting(
+    name = "linux_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+)
+
+config_setting(
+    name = "macos_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:macos",
+    ],
+)
+
+config_setting(
+    name = "windows_x86_64",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:windows",
+    ],
+)
+
+config_setting(
+    name = "windows_arm64",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:windows",
+    ],
+)
+
+alias(
+    name = "jq",
+    actual = select({
+        ":linux_arm64": "@dx_jq_linux_arm64//file",
+        ":linux_x86_64": "@dx_jq_linux_x86_64//file",
+        ":macos_arm64": "@dx_jq_macos_arm64//file",
+        ":windows_arm64": "@dx_jq_windows_arm64//file",
+        ":windows_x86_64": "@dx_jq_windows_x86_64//file",
+    }),
+)
+
 rust_test(
     name = "lock_merge_test",
     srcs = ["lock_merge_test.rs"],
@@ -103,7 +154,11 @@ rust_test(
     ),
     crate_name = "lock_merge_test",
     crate_root = "lock_merge_test.rs",
-    data = ["lock_merge.sh"],
+    data = [
+        ":jq",
+        "lock_merge.sh",
+    ],
+    env = {"DX_JQ": "$(rootpath :jq)"},
     deps = all_crate_deps(
         package_name = "tools/ci_tests",
         normal = True,
@@ -753,6 +808,7 @@ rust_test(
         "//elixir/private/bench:corpus_starlark",
         "//elixir/private/toolchain:corpus_starlark",
         "//elixir/private/tools:corpus_starlark",
+        "//elixir/tests:corpus_starlark",
         "//env:corpus_starlark",
         "//env/private:corpus_starlark",
         "//erlang/private:corpus_starlark",
@@ -777,6 +833,7 @@ rust_test(
         "//julia/private:corpus_starlark",
         "//julia/private/quality:corpus_starlark",
         "//julia/private/tools:corpus_starlark",
+        "//julia/tests:corpus_starlark",
         "//kotlin/private:corpus_starlark",
         "//kotlin/private/toolchain:corpus_starlark",
         "//kotlin/private/toolchain/impl:corpus_starlark",
@@ -795,6 +852,7 @@ rust_test(
         "//ocaml/private/toolchain:corpus_starlark",
         "//perl/private:corpus_starlark",
         "//perl/private/quality:corpus_starlark",
+        "//perl/tests:corpus_starlark",
         "//php/private:corpus_starlark",
         "//php/private/quality:corpus_starlark",
         "//powershell/private:corpus_starlark",

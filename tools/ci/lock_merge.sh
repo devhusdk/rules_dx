@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Usage: lock_merge.sh <locks_dir> <out>
+# Usage: DX_JQ=<jq> lock_merge.sh <locks_dir> <out>
 # <locks_dir> holds lock-<platform>/MODULE.bazel.lock for each lock-refresh.yml platform.
 # Each platform lock contributes only the module extension entries keyed by its own factor.
 set -euo pipefail
@@ -8,6 +8,7 @@ if [ "$#" -ne 2 ]; then
   echo "usage: lock_merge.sh <locks_dir> <out>" >&2
   exit 2
 fi
+jq="${DX_JQ:?DX_JQ names the jq binary}"
 locks="$1"
 out="$2"
 
@@ -46,7 +47,7 @@ factors+=']'
 
 for platform in "${platforms[@]}"; do
   lock="$locks/lock-$platform/MODULE.bazel.lock"
-  unknown="$(jq -r --argjson known "$factors" \
+  unknown="$("$jq" -r --argjson known "$factors" \
     '[.moduleExtensions // {} | .[] | keys[]] | unique | map(select(. as $k | $known | index($k) | not)) | join(" ")' "$lock")"
   if [ -n "$unknown" ]; then
     echo "lock_merge.sh: lock-$platform has extension keys that are not general or a platform factor: $unknown" >&2
@@ -59,7 +60,7 @@ next="$(mktemp)"
 trap 'rm -f "$merged" "$next"' EXIT
 cp "$locks/lock-${platforms[0]}/MODULE.bazel.lock" "$merged"
 for platform in "${platforms[@]:1}"; do
-  jq --arg factor "$(factor_of "$platform")" \
+  "$jq" --arg factor "$(factor_of "$platform")" \
     --slurpfile src "$locks/lock-$platform/MODULE.bazel.lock" \
     'reduce ($src[0].moduleExtensions // {} | to_entries[] | select(.value | has($factor))) as $e (.;
        .moduleExtensions[$e.key][$factor] = $e.value[$factor])

@@ -265,7 +265,7 @@ fn stage(subject: &std::path::Path, key: &str, tmp: &std::path::Path) -> std::pa
         for sibling in siblings.flatten() {
             let file = sibling.file_name();
             let Some(file) = file.to_str() else { continue };
-            if file.starts_with(&format!("{name}.")) {
+            if file.starts_with(&format!("{name}.")) && !dir.join(file).exists() {
                 std::fs::copy(sibling.path(), dir.join(file)).expect("sibling must copy");
             }
         }

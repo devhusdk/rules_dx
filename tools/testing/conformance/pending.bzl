@@ -77,10 +77,6 @@ fsharp build_test *
 fsharp coverage_test *
 fsharp fail_test *
 fsharp pass_test *
-haskell build_test *
-haskell coverage_test *
-haskell fail_test *
-haskell pass_test *
 helm build_test *
 helm coverage_test *
 helm fail_test *

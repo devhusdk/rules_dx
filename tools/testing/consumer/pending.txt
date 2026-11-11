@@ -13,7 +13,6 @@ fixture msix
 fixture terraform
 init ansible
 init cloudformation
-init csharp
 init d
 init elixir
 init erlang

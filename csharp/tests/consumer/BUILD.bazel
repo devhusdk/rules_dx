@@ -1,14 +1,15 @@
 load("@rules_dx//csharp:defs.bzl", "csharp_library", "csharp_test")
 
+# dx: written once, yours to edit
+
 csharp_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["Greet.cs"],
     visibility = ["//visibility:public"],
 )
 
 csharp_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["GreetTest.cs"],
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

@@ -1,6 +1,6 @@
-elixir = use_extension("@my_dx//elixir:extensions.bzl", "elixir")
-elixir.lock(
+hex = use_extension("@my_dx//elixir:extensions.bzl", "hex")
+hex.lock(
     name = "elixir_app_deps",
     lock = "//elixir/tests/fixtures/elixir-app:mix.lock",
 )
-use_repo(elixir, "elixir_app_deps")
+use_repo(hex, "elixir_app_deps")

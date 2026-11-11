@@ -475,6 +475,21 @@
           ".ex",
           ".exs"
         ]
+      },
+      "setup": {
+        "hubs": [
+          {
+            "ecosystem": "hex",
+            "extension": "@rules_dx//elixir:extensions.bzl",
+            "hub": "hex",
+            "imports": "name",
+            "lock": "mix.lock",
+            "manifest": "mix.exs",
+            "resolver": null,
+            "state": null,
+            "tag": "lock"
+          }
+        ]
       }
     },
     {

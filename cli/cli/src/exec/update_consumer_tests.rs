@@ -1609,7 +1609,7 @@ fn consumer_nuget_apply_writes_only_differing_declared_files() {
     assert!(!scratch_out(&runner).exists());
 }
 
-const HEX_MODULE: &str = "elixir = use_extension(\"//elixir:extensions.bzl\", \"elixir\")\nelixir.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
+const HEX_MODULE: &str = "hex = use_extension(\"//elixir:extensions.bzl\", \"hex\")\nhex.lock(name = \"deps\", lock = \"//third_party/elixir:mix.lock\")\n";
 
 fn hex_harness(name: &str) -> Harness {
     let harness = consumer_harness(name, HEX_MODULE, false);

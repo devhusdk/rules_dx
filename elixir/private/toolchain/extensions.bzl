@@ -37,14 +37,22 @@ def _elixir_impl(mctx):
     dist_repo(name = DIST_NAME)
     hub_repo(name = HUB_NAME, files = {"BUILD.bazel": hub_build(ELIXIR_CELLS)})
     credo_repo(name = CREDO_NAME)
-    for module in mctx.modules:
-        for tag in module.tags.lock:
-            _declare_mix(mctx, tag)
     return mctx.extension_metadata(reproducible = True)
 
 elixir = module_extension(
     implementation = _elixir_impl,
     doc = "Creates rules_elixir, the pinned Elixir tree and the toolchain hub.",
+)
+
+def _hex_impl(mctx):
+    for module in mctx.modules:
+        for tag in module.tags.lock:
+            _declare_mix(mctx, tag)
+    return mctx.extension_metadata(reproducible = True)
+
+hex = module_extension(
+    implementation = _hex_impl,
+    doc = "Builds the Hex packages of mix.lock files.",
     tag_classes = {
         "lock": tag_class(
             doc = "Declares a hex_package per Hex entry of a mix.lock and a hub repo with one alias per package.",

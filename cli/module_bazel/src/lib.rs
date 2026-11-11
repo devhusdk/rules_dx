@@ -348,7 +348,7 @@ pub struct PubLock<'a> {
     pub line: usize,
 }
 
-/// One `elixir.lock` tag of rules_dx or this repository.
+/// One `hex.lock` tag of rules_dx or this repository.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MixLock<'a> {
     pub name: &'a str,
@@ -955,18 +955,18 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `elixir.lock` tag of rules_dx or this repository's `//elixir:extensions.bzl`.
+    /// Every `hex.lock` tag of rules_dx or this repository's `//elixir:extensions.bzl`.
     pub fn mix_locks(&self) -> Result<Vec<MixLock<'_>>, ModuleError> {
-        const TAG: &str = "elixir.lock";
+        const TAG: &str = "hex.lock";
         let external = self.tags(
             RUBY_MODULE,
             "elixir:extensions.bzl",
-            "elixir",
+            "hex",
             "lock",
         );
         let own = self.tags_of(
             "//elixir:extensions.bzl".to_owned(),
-            "elixir",
+            "hex",
             "lock",
         );
         external

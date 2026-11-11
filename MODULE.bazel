@@ -1296,18 +1296,21 @@ erlang = use_extension("//erlang:extensions.bzl", "erlang")
 use_repo(erlang, "dx_elvis", "dx_erlang_argparse", "dx_erlfmt", "dx_erlperf", "dx_rebar3", "dx_erlang_toolchains", "dx_otp_windows_arm64", "dx_otp_windows_x86_64", "rules_erlang")
 
 elixir = use_extension("//elixir:extensions.bzl", "elixir")
-elixir.lock(
+use_repo(elixir, "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir")
+
+hex = use_extension("//elixir:extensions.bzl", "hex")
+hex.lock(
     name = "dx_benchee",
     lock = "//elixir/bench:mix.lock",
 )
-use_repo(elixir, "dx_benchee", "dx_credo", "dx_elixir", "dx_elixir_toolchains", "rules_elixir")
+use_repo(hex, "dx_benchee")
 
-elixir_dev = use_extension("//elixir:extensions.bzl", "elixir", dev_dependency = True)
-elixir_dev.lock(
+hex_dev = use_extension("//elixir:extensions.bzl", "hex", dev_dependency = True)
+hex_dev.lock(
     name = "elixir_app_deps",
     lock = "//elixir/tests/fixtures/elixir-app:mix.lock",
 )
-use_repo(elixir_dev, "elixir_app_deps")
+use_repo(hex_dev, "elixir_app_deps")
 
 _beam_http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 

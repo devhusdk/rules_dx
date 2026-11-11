@@ -387,13 +387,9 @@ name deploy/private/src/packagist.rs composer.json
 name deploy/private/src/pub_dev.rs pubspec.yaml
 name deploy/private/validate_packagist.bzl composer.json
 name dotnet/lang.json paket.lock
-name elixir/lang.json mix.exs
-name elixir/lang.json mix.lock
 name elixir/private/mix_lock.bzl mix.lock
 name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
-name erlang/lang.json mix.exs
-name erlang/lang.json mix.lock
 name fsharp/lang.json paket.lock
 name gazelle/common/external.go dub.json
 name gazelle/common/external.go dub.selections.json
@@ -466,7 +462,6 @@ parser fortran/private/tools/fpm_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 registry cpan
 registry go
-registry hex
 registry julia
 registry maven
 registry opam

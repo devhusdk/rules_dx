@@ -916,7 +916,7 @@ fn consumer_pinned_package_selection_is_unsupported_without_fallback() {
         let (code, out, err) = run_with(&["update", mode, "gems:rspec-core"], &runner, &harness);
         assert_ne!(code, 0, "{mode}: {out}{err}");
         assert!(err.contains("update_set_unsupported"), "{err}");
-        assert!(err.contains("bundle lock"), "{err}");
+        assert!(err.contains("dx only pins this set"), "{err}");
         assert!(!out.contains("pins are manual"), "{out}");
         assert!(runner.launches.borrow().is_empty());
         assert_pinned_files_unchanged(&harness);

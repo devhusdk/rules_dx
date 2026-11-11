@@ -191,6 +191,7 @@ func (l *rustLang) generateCargo(args language.GenerateArgs, files []string) lan
 	if manifest.virtual {
 		return l.finish(args, language.GenerateResult{})
 	}
+	manifest.applyHubLibNames(hubLibNames(args.Config.RepoRoot, args.Rel))
 	existsSet := make(map[string]bool, len(files))
 	for _, name := range files {
 		existsSet[name] = true

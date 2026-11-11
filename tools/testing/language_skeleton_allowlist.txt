@@ -84,7 +84,6 @@ fixture-hello cmake/tests/consumer
 fixture-hello csharp/tests/conformance/BUILD.bazel
 fixture-hello csharp/tests/consumer
 fixture-hello cuda/tests/conformance/BUILD.bazel
-fixture-hello cuda/tests/consumer
 fixture-hello d/tests/conformance/BUILD.bazel
 fixture-hello dart/tests/conformance/BUILD.bazel
 fixture-hello dart/tests/consumer

@@ -89,6 +89,8 @@ def versions_contract_tests(name):
         },
         file_checks = {
             "//:.bazelrc": "common --check_direct_dependencies=error",
+            "//cuda:README.md": "rules_cuda " + _RULES_CUDA_VERSION,
+            "//tools/testing/hermetic:consumers/cuda/module_fragment.bazel": "bazel_dep(name = \"rules_cuda\", version = \"" + _RULES_CUDA_VERSION + "\")",
             "//:package.json": "\"packageManager\": \"pnpm@" + _PNPM_VERSION + "\"",
             "//javascript/private/quality:package.json": "\"typedoc\": \"" + _TYPEDOC_VERSION + "\",\n    \"typescript\": \"" + _TYPESCRIPT_VERSION + "\",",
             "//javascript/private/quality:pnpm-lock.yaml": "  vue-component-meta@" + _VUE_COMPONENT_META_VERSION + ":\n",

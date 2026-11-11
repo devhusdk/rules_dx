@@ -1404,16 +1404,17 @@ mod tests {
     fn json_reports_the_crates_a_cargo_lock_update_selects() {
         let dir = repo();
         let root = dir.path();
+        let lock = dx_ecosystems::Ecosystem::Cargo.lockfiles()[0].as_str();
         write(
             root,
             "MODULE.bazel",
-            "crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:Cargo.lock\")\n",
+            &format!("crate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(cargo_lockfile = \"//:{lock}\")\n"),
         );
-        write(root, "Cargo.lock", &cargo_lock("1.0.1"));
+        write(root, lock, &cargo_lock("1.0.1"));
         dx_test_scratch::git(root, root, &["add", "."]);
         dx_test_scratch::git(root, root, &["commit", "--quiet", "-m", "crates"]);
         dx_test_scratch::git(root, root, &["branch", "--force", "main"]);
-        write(root, "Cargo.lock", &cargo_lock("1.0.2"));
+        write(root, lock, &cargo_lock("1.0.2"));
         let graph = [
             json!({"name": "//a:serde_user", "ruleInput": ["@@rules_rust++crate+crates//:serde"]}),
             json!({"name": "//a:lib", "ruleInput": ["//a:a.txt"]}),
@@ -1423,20 +1424,20 @@ mod tests {
         .collect::<Vec<_>>()
         .join("\n");
         let (plan, runner) = run(root, Command::Build, &[&graph]);
-        assert_eq!(plan.changed_files, ["Cargo.lock"]);
+        assert_eq!(plan.changed_files, [lock]);
         assert_eq!(plan.targets, ["//a:serde_user"]);
         assert_eq!(
             plan.json(Command::Build)["widened"],
             json!([{
                 "scope": "rdeps(//..., @crates//:serde)",
-                "reason": "changed crates in Cargo.lock",
+                "reason": format!("changed crates in {lock}"),
                 "repos": ["@crates//:serde"],
             }])
         );
         assert!(
-            plan.summary().contains(
-                "widened to rdeps(//..., @crates//:serde) (changed crates in Cargo.lock)"
-            ),
+            plan.summary().contains(&format!(
+                "widened to rdeps(//..., @crates//:serde) (changed crates in {lock})"
+            )),
             "{}",
             plan.summary()
         );

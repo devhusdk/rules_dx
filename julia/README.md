@@ -43,6 +43,17 @@ system image and a launcher that runs after the runfiles are copied out of
 `bazel-bin`. The library's module must define `julia_main()::Cint` and return
 the exit code. See `tests/fixtures/hello/app`.
 
+## Packages
+
+```python
+julia = use_extension("@rules_dx//julia:extensions.bzl", "julia")
+julia.from_manifest(
+    name = "app_pkgs",
+    lockfile = "//:Manifest.bazel.json",
+)
+use_repo(julia, "app_pkgs")
+```
+
 ## Generate
 
 `dx generate` reads `Project.toml` only. A `Project.toml` with a `name` and a

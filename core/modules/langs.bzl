@@ -1692,6 +1692,21 @@ LANGS = json.decode("""{
       }
     },
     "semver": false,
+    "setup": {
+      "hubs": [
+        {
+          "ecosystem": "julia",
+          "extension": "@rules_dx//julia:extensions.bzl",
+          "hub": "julia",
+          "imports": "name",
+          "lock": "Manifest.bazel.json",
+          "manifest": "Project.toml",
+          "resolver": null,
+          "state": "Manifest.toml",
+          "tag": "from_manifest"
+        }
+      ]
+    },
     "title": "Julia",
     "tools": [
       "julia_format",

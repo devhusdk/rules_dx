@@ -11,6 +11,7 @@ name cli/adopt/src/build_output.rs pyproject.toml
 name cli/adopt/src/build_output.rs uv.lock
 name cli/adopt/src/dependency_sets.rs Cargo.lock
 name cli/adopt/src/dependency_sets.rs Gemfile.lock
+name cli/adopt/src/dependency_sets.rs Manifest.bazel.json
 name cli/adopt/src/dependency_sets.rs Manifest.toml
 name cli/adopt/src/dependency_sets.rs PSGallery.lock.json
 name cli/adopt/src/dependency_sets.rs Package.resolved
@@ -416,14 +417,10 @@ name gazelle/rust/lang_generate.go Cargo.toml
 name gazelle/typescript/lang.go package.json
 name gazelle/typescript/lang.go tsconfig.json
 name gazelle/zig/naming.go build.zig.zon
-name go/lang.json go.mod
-name go/lang.json go.sum
 name haskell/private/deps_resolve.bzl cabal.project.freeze
 name haskell/private/deps_resolve.bzl haskell_deps.json
 name haskell/private/toolchain/extensions.bzl haskell_deps.json
 name javascript/private/quality/js_tools.bzl tsconfig.json
-name julia/lang.json Manifest.toml
-name julia/lang.json Project.toml
 name julia/private/quality/julia.bzl Project.toml
 name ocaml/lang.json dune-project
 name ocaml/private/dune.bzl dune-project
@@ -452,7 +449,6 @@ parser fortran/private/fpm_lock.bzl
 parser fortran/private/tools/fpm_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 registry cpan
-registry julia
 resolve-doc csharp/README.md 1
 resolve-doc elixir/README.md 1
 resolve-doc lua/README.md 1

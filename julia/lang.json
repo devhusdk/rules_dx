@@ -14,6 +14,21 @@
   "lockfiles": [
     "Manifest.toml"
   ],
+  "setup": {
+    "hubs": [
+      {
+        "ecosystem": "julia",
+        "manifest": "Project.toml",
+        "lock": "Manifest.bazel.json",
+        "state": "Manifest.toml",
+        "extension": "@rules_dx//julia:extensions.bzl",
+        "tag": "from_manifest",
+        "hub": "julia",
+        "resolver": null,
+        "imports": "name"
+      }
+    ]
+  },
   "tools": [
     "julia_format",
     "julialint"

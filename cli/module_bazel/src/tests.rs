@@ -1526,3 +1526,17 @@ fn a_parse_failure_is_a_parse_variant() {
     assert!(matches!(error, LoadError::Parse(_)), "{error:?}");
     assert_eq!(error.into_error(|_| 9), 9);
 }
+
+#[test]
+fn julia_manifests_follow_the_rules_dx_julia_extension() {
+    let file = parse(
+        "julia = use_extension(\"@rules_dx//julia:extensions.bzl\", \"julia\")\njulia.from_manifest(name = \"deps\", lockfile = \"//julia:Manifest.bazel.json\")\n",
+    );
+    let found: Vec<_> = file
+        .julia_manifests()
+        .expect("manifests")
+        .iter()
+        .map(|entry| (entry.name, entry.lockfile))
+        .collect();
+    assert_eq!(found, [("deps", "//julia:Manifest.bazel.json")]);
+}

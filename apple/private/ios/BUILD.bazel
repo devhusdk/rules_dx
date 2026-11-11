@@ -7,7 +7,6 @@ load(":app_tests.bzl", "apple_ios_app_tests")
 load(":defs.bzl", "apple_ios_lib", "ios_lib", "ios_lib_cell")
 load(":device.bzl", "apple_ios_export")
 load(":lib_tests.bzl", "ios_lib_test", "stub_archive", "stub_ios_lib")
-load(":metadata_tests.bzl", "apple_ios_tests")
 load(":simulator.bzl", "apple_simulator_boot", "apple_simulator_install", "apple_simulator_launch")
 
 package(default_visibility = ["//visibility:public"])
@@ -20,13 +19,10 @@ exports_files([
     "defs.bzl",
     "device.bzl",
     "lib_tests.bzl",
-    "metadata_tests.bzl",
     "simulator.bzl",
     "validate.bzl",
     "xcframework_check.sh",
 ])
-
-apple_ios_tests(name = "metadata")
 
 apple_ios_app_tests(name = "app_metadata")
 
@@ -157,7 +153,6 @@ real_source_target(
         "defs.bzl",
         "device.bzl",
         "lib_tests.bzl",
-        "metadata_tests.bzl",
         "simulator.bzl",
         "validate.bzl",
     ],

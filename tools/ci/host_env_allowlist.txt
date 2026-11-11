@@ -236,10 +236,10 @@ go/tests/fixtures/bench/run_test.sh shebang 1
 go/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 go/tests/fixtures/fuzz/run_test.sh shebang 1
 haskell/private/bench_run.sh shebang 1
-haskell/private/toolchain/metadata_tests.bzl host-path 4
 haskell/tests/fixtures/bench/BUILD.bazel sh-rule 1
 haskell/tests/fixtures/bench/run_test.sh shebang 1
 haskell/tests/fixtures/haskell-app/stock/BUILD.bazel genrule 1
+haskell/tests/toolchain_tests.bzl host-path 4
 java/tests/fixtures/fuzz/BUILD.bazel sh-rule 1
 java/tests/fixtures/fuzz/run_test.sh shebang 1
 java/tests/fixtures/hello/BUILD.bazel genrule 1

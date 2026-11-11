@@ -1,16 +1,10 @@
 """AppImage pin, host and name-rule coverage."""
 
+load("//appimage/private:pins.bzl", "RUNTIMES", "SUPPORTED_CELLS", "TOOLS", "TOOL_BINARIES")
+load("//appimage/private:repos.bzl", "host_arch", "host_error", "hub_build", "unsupported_build")
+load("//appimage/private:validate.bzl", "appimage_name_errors")
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_true", "starlark_test")
-load(":validate.bzl", "appimage_name_errors")
-load(
-    ":pins.bzl",
-    "RUNTIMES",
-    "SUPPORTED_CELLS",
-    "TOOLS",
-    "TOOL_BINARIES",
-)
 load("//core:host.bzl", "host_cell_of")
-load(":repos.bzl", "host_arch", "host_error", "hub_build", "unsupported_build")
 
 def _pin_checks():
     checks = []
@@ -44,10 +38,11 @@ def _checks():
         expect_true("wrong icon name", len(appimage_name_errors("app", "app.desktop", "other.png")) == 1),
     ]
 
-def appimage_metadata_tests(name):
+def appimage_metadata_tests(name, size):
     """Declares the AppImage metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

@@ -1,6 +1,7 @@
 load("@crates//:crates.bzl", "aliases")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load(":toolchain_tests.bzl", "apple_ios_tests", "apple_provisioning_tests")
 
 rust_test(
     name = "path_test",
@@ -82,10 +83,23 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+apple_ios_tests(
+    name = "ios_metadata",
+    size = "small",
+)
+
+apple_provisioning_tests(
+    name = "provisioning_metadata",
+    size = "small",
+)
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "toolchain_tests.bzl",
+    ],
     tags = ["corpus"],
     visibility = ["//visibility:public"],
 )

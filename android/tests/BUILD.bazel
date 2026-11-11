@@ -1,6 +1,7 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":platforms_tests.bzl", "android_platform_tests")
+load(":toolchain_tests.bzl", "android_metadata_tests", "android_packaging_tests", "android_toolchain_tests")
 
 rust_test(
     name = "ops_test",
@@ -18,11 +19,27 @@ android_platform_tests(
     size = "small",
 )
 
+android_packaging_tests(
+    name = "packaging_metadata",
+    size = "small",
+)
+
+android_metadata_tests(
+    name = "sdk_metadata",
+    size = "small",
+)
+
+android_toolchain_tests(
+    name = "toolchain_metadata",
+    size = "small",
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "platforms_tests.bzl",
+        "toolchain_tests.bzl",
     ],
     tags = ["corpus"],
 )

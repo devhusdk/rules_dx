@@ -1,6 +1,7 @@
 %% @doc Area helpers for simple shapes.
 -module(geometry).
 -export([area/2, perimeter/2]).
+-compile({nowarn_unused_function, [{hidden, 0}]}).
 
 %% @doc Returns the area of a rectangle.
 -spec area(number(), number()) -> number().

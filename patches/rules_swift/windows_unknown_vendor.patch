@@ -1,0 +1,16 @@
+--- a/swift/internal/target_triples.bzl
++++ b/swift/internal/target_triples.bzl
+@@ -134,6 +134,13 @@
+             os = os,
+             environment = environment,
+         )
++    if os == "windows":
++        return _make(
++            cpu = triple.cpu,
++            vendor = "unknown",
++            os = os,
++            environment = triple.environment,
++        )
+ 
+     return triple
+ 

@@ -30,13 +30,6 @@ name cli/adopt/src/dependency_sets.rs pnpm-lock.yaml
 name cli/adopt/src/dependency_sets.rs pubspec.lock
 name cli/adopt/src/dependency_sets.rs pubspec.yaml
 name cli/adopt/src/dependency_sets.rs pyproject.toml
-name cli/adopt/src/lock_hubs.rs Cargo.lock
-name cli/adopt/src/lock_hubs.rs Cargo.toml
-name cli/adopt/src/lock_hubs.rs package.json
-name cli/adopt/src/lock_hubs.rs pnpm-lock.yaml
-name cli/adopt/src/lock_hubs.rs pyproject.toml
-name cli/adopt/src/lock_hubs.rs tsconfig.json
-name cli/adopt/src/lock_hubs.rs uv.lock
 name cli/audit/src/backend.rs paket.lock
 name cli/cli/src/adopt/init_files.rs package.json
 name cli/cli/src/adopt/init_files.rs pnpm-lock.yaml

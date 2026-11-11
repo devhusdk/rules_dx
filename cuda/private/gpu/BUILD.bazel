@@ -26,13 +26,22 @@ cc_library(
     target_compatible_with = CUDA_TARGET,
 )
 
+cc_library(
+    name = "gpu_check",
+    testonly = True,
+    hdrs = ["gpu_check.h"],
+    include_prefix = "dx",
+    strip_include_prefix = "/cuda/private/gpu",
+    target_compatible_with = CUDA_TARGET,
+)
+
 cuda_library(
     name = "gpu_main",
     testonly = True,
     srcs = ["gpu_main.cu"],
-    hdrs = ["gpu_test.h"],
     cuda_archs = ["compute_75"],
     deps = [
+        ":gpu_check",
         ":gpu_device",
         ":gpu_facts",
     ],

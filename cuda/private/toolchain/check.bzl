@@ -101,7 +101,7 @@ def gpu_device_errors(compute_capability, driver):
 def gpu_device_source(compute_capability, driver):
     """Returns the C++ source that holds the declared GPU device."""
     return "\n".join([
-        "#include \"cuda/private/testing/gpu_device.h\"",
+        "#include \"cuda/private/gpu/gpu_device.h\"",
         "",
         "const char *dx_gpu_device_compute_capability(void) { return \"" + compute_capability + "\"; }",
         "",

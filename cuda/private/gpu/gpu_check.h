@@ -1,5 +1,5 @@
-#ifndef DX_CUDA_TESTING_GPU_TEST_H_
-#define DX_CUDA_TESTING_GPU_TEST_H_
+#ifndef DX_CUDA_GPU_CHECK_H_
+#define DX_CUDA_GPU_CHECK_H_
 
 #ifndef __cplusplus
 #include <stdbool.h>

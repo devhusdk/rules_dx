@@ -1064,7 +1064,7 @@ bazel_dep(name = "rules_flutter", version = "0.0.8")
 
 # Pinned to the commit with aran/rules_flutter#5 until it is released.
 # registrant_javacopts.patch keeps -Xlint:all quiet about the registrant's source 8 (#9085).
-# engine_labels.patch and engine_use_repo.patch name the engine repos through rules_flutter's own repo mapping, so consumers need no use_repo for them (#11470).
+# engine_labels.patch, engine_use_repo.patch: Android engine repos resolve in rules_flutter's repo mapping (#11470).
 # lock_extension.patch marks the flutter extension non-reproducible so the lockfile keeps its result (#8987).
 archive_override(
     module_name = "rules_flutter",

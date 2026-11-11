@@ -1,7 +1,11 @@
 package ownership
 
 import (
+	"io"
+	"os"
 	"path"
+	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -26,13 +30,24 @@ type family struct {
 	target   string
 	defs     string
 	isSource func(name string) bool
+	// sniff, when set, must also accept the first sniffBytes of the file.
+	sniff func(head []byte) bool
 }
 
+const sniffBytes = 4096
+
+var (
+	ansiblePlaybook = regexp.MustCompile(`(?m)^(?:- +hosts:|  hosts:)`)
+	cfnTemplate     = regexp.MustCompile(`(?m)^(?:AWSTemplateFormatVersion|Resources):`)
+)
+
 var families = []family{
-	{"dockerfile_library", "dockerfile", "dockerfile:defs.bzl", isDockerfile},
-	{"cmake_library", "cmake", "cmake:defs.bzl", isCMake},
-	{"bicep_library", "bicep", "bicep:defs.bzl", isBicep},
-	{"asciidoc_library", "asciidoc", "asciidoc:defs.bzl", isAsciiDoc},
+	{"dockerfile_library", "dockerfile", "dockerfile:defs.bzl", isDockerfile, nil},
+	{"cmake_library", "cmake", "cmake:defs.bzl", isCMake, nil},
+	{"bicep_library", "bicep", "bicep:defs.bzl", isBicep, nil},
+	{"asciidoc_library", "asciidoc", "asciidoc:defs.bzl", isAsciiDoc, nil},
+	{"ansible_library", "ansible", "ansible:defs.bzl", isYAML, isAnsiblePlaybook},
+	{"cloudformation_library", "cloudformation", "cloudformation:defs.bzl", isYAML, isCloudFormation},
 }
 
 // isDockerfile matches the names is_dockerfile_name in core/quality/sources.bzl accepts.
@@ -65,6 +80,31 @@ func isAsciiDoc(name string) bool {
 	return strings.HasSuffix(name, ".adoc") || strings.HasSuffix(name, ".asciidoc")
 }
 
+func isYAML(name string) bool {
+	return strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml")
+}
+
+func isAnsiblePlaybook(head []byte) bool { return ansiblePlaybook.Match(head) }
+
+func isCloudFormation(head []byte) bool { return cfnTemplate.Match(head) }
+
+// matches reports whether the file belongs to the family.
+func (f family) matches(dir, name string) bool {
+	if !f.isSource(path.Base(name)) {
+		return false
+	}
+	if f.sniff == nil {
+		return true
+	}
+	file, err := os.Open(filepath.Join(dir, name))
+	if err != nil {
+		return false
+	}
+	defer file.Close()
+	head, err := io.ReadAll(io.LimitReader(file, sniffBytes))
+	return err == nil && f.sniff(head)
+}
+
 func kinds() map[string]rule.KindInfo {
 	out := map[string]rule.KindInfo{}
 	for _, f := range families {
@@ -84,7 +124,7 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 	for _, f := range families {
 		var srcs []string
 		for _, name := range args.RegularFiles {
-			if f.isSource(path.Base(name)) {
+			if f.matches(args.Dir, name) {
 				srcs = append(srcs, name)
 			}
 		}

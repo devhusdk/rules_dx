@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//python:defs.bzl", "python_binary", "python_library", "python_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -8,6 +9,7 @@ package(
 
 python_library(
     name = "conformance",
+    testonly = True,
     srcs = ["greet.py"],
     imports = ["."],
 )
@@ -22,26 +24,27 @@ python_binary(
 
 python_test(
     name = "pass_subject_test",
+    size = "small",
     srcs = ["pass_test.py"],
     imports = ["."],
     runner = "plain",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 python_test(
     name = "fail_subject_test",
+    size = "small",
     srcs = ["fail_test.py"],
     imports = ["."],
     runner = "plain",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "greet.py",
     expected = "hello world",
@@ -49,5 +52,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "python",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

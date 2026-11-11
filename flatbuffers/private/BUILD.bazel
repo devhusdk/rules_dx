@@ -19,6 +19,9 @@ real_source_target(
         "codegen.bzl",
         "conform.bzl",
         "defs.bzl",
+        "bitflags.BUILD.bazel",
+        "java_runtime.BUILD.bazel",
+        "rust_runtime.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

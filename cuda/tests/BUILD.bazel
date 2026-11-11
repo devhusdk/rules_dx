@@ -10,8 +10,8 @@ load("//cuda/private/toolchain:check.bzl", "cuda_check", "cuda_gpu_check")
 load("//rust:defs.bzl", "rust_test")
 load("//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load(":cell_tests.bzl", "cuda_cell_tests")
-load(":license_gate_tests.bzl", "cuda_license_gate_tests")
 load(":defs.bzl", "component_sources_test", "device_link_hermetic_test", "gcc_device_link_hermetic_test", "gcc_hermetic_toolchain_test", "gpu_test_declared_test", "hermetic_toolchain_test", "with_clang_compiler", "with_gpu_device")
+load(":license_gate_tests.bzl", "cuda_license_gate_tests")
 
 # gazelle:lang rust,dx_dispatch
 

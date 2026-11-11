@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -6,46 +7,9 @@ package(
     default_visibility = ["//:__subpackages__"],
 )
 
-rust_library(
-    name = "conformance",
-    srcs = ["greet.rs"],
-    crate_name = "conformance",
-    crate_root = "greet.rs",
-    edition = "2024",
-)
-
-rust_binary(
-    name = "hello",
-    srcs = ["main.rs"],
-    crate_root = "main.rs",
-    edition = "2024",
-    deps = [":conformance"],
-)
-
-rust_test(
-    name = "pass_subject_test",
-    srcs = ["pass_test.rs"],
-    crate_name = "pass_subject_test",
-    crate_root = "pass_test.rs",
-    edition = "2024",
-    size = "small",
-    target_compatible_with = subject_compatible_with(),
-    deps = [":conformance"],
-)
-
-rust_test(
-    name = "fail_subject_test",
-    srcs = ["fail_test.rs"],
-    crate_name = "fail_subject_test",
-    crate_root = "fail_test.rs",
-    edition = "2024",
-    size = "small",
-    target_compatible_with = subject_compatible_with(),
-    deps = [":conformance"],
-)
-
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "greet.rs",
     expected = "hello world",
@@ -53,5 +17,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "rust",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

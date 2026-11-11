@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//kotlin:defs.bzl", "kotlin_binary", "kotlin_library", "kotlin_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -8,6 +9,7 @@ package(
 
 kotlin_library(
     name = "conformance",
+    testonly = True,
     srcs = ["Greet.kt"],
 )
 
@@ -20,24 +22,25 @@ kotlin_binary(
 
 kotlin_test(
     name = "pass_subject_test",
+    size = "small",
     srcs = ["PassTest.kt"],
     main_class = "conformance.PassTestKt",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 kotlin_test(
     name = "fail_subject_test",
+    size = "small",
     srcs = ["FailTest.kt"],
     main_class = "conformance.FailTestKt",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "Greet.kt",
     expected = "hello world",
@@ -45,5 +48,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "kotlin",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

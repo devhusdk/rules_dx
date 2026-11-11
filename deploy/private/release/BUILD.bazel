@@ -713,6 +713,7 @@ real_source_target(
         "repos.bzl",
         "extensions.bzl",
         "tool.bzl",
+        "consumer/consumer.BUILD.bazel",
     ],
     tags = ["corpus"],
 )

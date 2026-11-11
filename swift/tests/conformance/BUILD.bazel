@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//swift:defs.bzl", "swift_binary", "swift_library", "swift_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -8,7 +9,12 @@ package(
 
 swift_library(
     name = "conformance",
-    srcs = ["Greet.swift"],
+    testonly = True,
+    srcs = [
+        "FailTest.swift",
+        "Greet.swift",
+        "PassTest.swift",
+    ],
     module_name = "Conformance",
 )
 
@@ -20,22 +26,23 @@ swift_binary(
 
 swift_test(
     name = "pass_subject_test",
-    srcs = ["PassTest.swift"],
     size = "small",
+    srcs = ["PassTest.swift"],
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 swift_test(
     name = "fail_subject_test",
-    srcs = ["FailTest.swift"],
     size = "small",
+    srcs = ["FailTest.swift"],
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "Greet.swift",
     expected = "hello world",
@@ -43,5 +50,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "swift",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

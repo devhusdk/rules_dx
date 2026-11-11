@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//scala:defs.bzl", "scala_binary", "scala_library", "scala_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -8,6 +9,7 @@ package(
 
 scala_library(
     name = "conformance",
+    testonly = True,
     srcs = ["Greet.scala"],
 )
 
@@ -20,24 +22,25 @@ scala_binary(
 
 scala_test(
     name = "pass_subject_test",
+    size = "small",
     srcs = ["PassTest.scala"],
     main_class = "conformance.PassTest",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 scala_test(
     name = "fail_subject_test",
+    size = "small",
     srcs = ["FailTest.scala"],
     main_class = "conformance.FailTest",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     deps = [":conformance"],
 )
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "Greet.scala",
     expected = "hello world",
@@ -45,5 +48,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "scala",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

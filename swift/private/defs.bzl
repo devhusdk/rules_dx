@@ -34,6 +34,7 @@ _WINDOWS_RUNTIME = Label("@dx_swift_windows_x86_64//:runtime_dlls")
 _WINDOWS_RUNTIME_ROOT = "..\\" + _WINDOWS_RUNTIME.workspace_root.removeprefix("external/")
 SWIFT_WINDOWS_RUNTIME_PATH = _WINDOWS_RUNTIME_ROOT + "\\runtime\\usr\\bin;" + _WINDOWS_RUNTIME_ROOT + "\\platform\\Developer\\Library\\XCTest-6.4.2\\usr\\bin64"
 SWIFT_WINDOWS_RUNTIME_DLLS = _WINDOWS_RUNTIME
+SWIFT_FUZZ_COMPATIBLE_WITH = ["@platforms//os:linux"]
 _STATIC = ["swift.static_stdlib", "-static_link_cpp_runtimes"]
 _INDEX = ["swift.index_while_building", "swift.disable_system_index", "-swift.index_store_compress"]
 _SPECS = [("swift", "swift")]
@@ -151,7 +152,7 @@ def swift_fuzz_test(name, *, srcs = None, visibility = None, tags = None, copts 
         "linkopts": linkopts or [],
         "deps": kwargs.pop("deps", []) + [Label("//swift/private/toolchain:libfuzzer"), Label("//swift/private/toolchain:asan_runtime")],
         "features": kwargs.pop("features", []) + ["swift.no_entry_point_rename"],
-        "target_compatible_with": ["@platforms//os:linux"],
+        "target_compatible_with": SWIFT_FUZZ_COMPATIBLE_WITH,
     }
     dx_fuzz_test(name, swift_binary, binary_kwargs, tags = tags, visibility = visibility, pinned_libfuzzer = False, **kwargs)
 

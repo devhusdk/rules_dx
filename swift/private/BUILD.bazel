@@ -1,3 +1,4 @@
+load("//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
@@ -19,13 +20,23 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+dx_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    file_classes = ["swift"],
+    wrappers = {
+        "binary": "//swift/tests/fixtures/hello:hello",
+        "library": "//swift/tests/fixtures/hello:greet",
+        "test": "//swift/tests/fixtures/hello:xctest",
+    },
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
         "providers.bzl",
-        "tests.bzl",
+        "wrapper_tests.bzl",
         "swift_format.BUILD.bazel",
     ],
     tags = ["corpus"],

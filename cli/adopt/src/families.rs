@@ -3,6 +3,8 @@
 use std::collections::BTreeSet;
 use std::path::Path;
 
+use crate::lock_hubs::manifest_of;
+
 /// The quality families of `dx.toml` and the files that mean one is present: an extension with
 /// its dot, or an exact file name. Families found only by file content are left out.
 const QUALITY_FAMILIES: &[(&str, &[&str])] = &[
@@ -20,7 +22,6 @@ const QUALITY_FAMILIES: &[(&str, &[&str])] = &[
     ("dockerfile", &["Dockerfile", ".dockerfile"]),
     ("fortran", &[".f", ".f03", ".f08", ".f90", ".f95"]),
     ("go", &[".go"]),
-    ("go_module", &["go.mod"]),
     ("graphql", &[".gql", ".graphql"]),
     ("haskell", &[".hs"]),
     ("helm", &["Chart.yaml"]),
@@ -66,7 +67,7 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
         }
         names.insert(name.to_owned());
     }
-    QUALITY_FAMILIES
+    let mut found: BTreeSet<String> = QUALITY_FAMILIES
         .iter()
         .filter(|(_, marks)| {
             marks.iter().any(|mark| {
@@ -78,7 +79,11 @@ pub fn detected_families(root: &Path) -> BTreeSet<String> {
             })
         })
         .map(|(id, _)| (*id).to_owned())
-        .collect()
+        .collect();
+    if names.contains(manifest_of("go")) {
+        found.insert("go_module".to_owned());
+    }
+    found
 }
 
 /// Files recognized by exact name, reported alongside the extensions.

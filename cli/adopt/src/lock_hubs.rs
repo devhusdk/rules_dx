@@ -681,11 +681,11 @@ mod tests {
 
     #[test]
     fn pubspec_lock_gets_a_pub_deps_hub() {
-        let hubs = plan(&[("pubspec.lock", ""), ("pubspec.yaml", "")]);
+        let hubs = plan(&[(lock_of("pub"), ""), (manifest_of("pub"), "")]);
         let text = new_text(&hubs);
         assert!(!text.contains("bazel_dep(name = \"rules_dart\""), "{text}");
         assert!(
-            text.contains("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"),
+            text.contains(&format!("pub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n", lock_of("pub"))),
             "{text}"
         );
     }
@@ -697,17 +697,18 @@ mod tests {
             dir.path(),
             MODULE_FILE,
             &format!(
-                "{MODULE}pub = use_extension(\"//dart:extensions.bzl\", \"pub\")\npub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"
+                "{MODULE}pub = use_extension(\"//dart:extensions.bzl\", \"pub\")\npub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:{}\",\n)\nuse_repo(pub, \"pub_deps\")\n",
+                lock_of("pub")
             ),
         );
-        write(dir.path(), "pubspec.lock", "");
-        write(dir.path(), "pubspec.yaml", "");
+        write(dir.path(), lock_of("pub"), "");
+        write(dir.path(), manifest_of("pub"), "");
         assert_eq!(plan_lock_hubs(dir.path()).expect("plan").edit, None);
     }
 
     #[test]
     fn pubspec_lock_without_its_manifest_is_left_alone() {
-        assert_eq!(plan(&[("pubspec.lock", "")]).edit, None);
+        assert_eq!(plan(&[(lock_of("pub"), "")]).edit, None);
     }
 
     fn unlocked(files: &[(&str, &str)]) -> Vec<&'static str> {
@@ -1005,9 +1006,19 @@ mod tests {
         );
     }
 
-    const MAVEN_MODULE: &str = "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:maven_install.json\",\n)\nuse_repo(maven, \"maven\")\n";
-    const MAVEN_DIRECTIVE: &str =
-        "# gazelle:dx_external maven third_party/maven_install.json maven\n";
+    fn maven_module() -> String {
+        format!(
+            "maven = use_extension(\"@rules_jvm_external//:extensions.bzl\", \"maven\")\nmaven.install(\n    artifacts = [\"com.google.guava:guava:33.4.0-jre\"],\n    lock_file = \"//third_party:{}\",\n)\nuse_repo(maven, \"maven\")\n",
+            lock_of("maven")
+        )
+    }
+
+    fn maven_directive() -> String {
+        format!(
+            "# gazelle:dx_external maven third_party/{} maven\n",
+            lock_of("maven")
+        )
+    }
 
     fn maven_workspace(files: &[(&str, &str)]) -> dx_test_scratch::TempDir {
         let dir = scratch("maven_locks");
@@ -1019,13 +1030,13 @@ mod tests {
 
     #[test]
     fn maven_lock_gets_its_package_lock_and_directive() {
-        let dir = maven_workspace(&[("MODULE.bazel", MAVEN_MODULE)]);
+        let dir = maven_workspace(&[("MODULE.bazel", &maven_module())]);
         let plan = plan_maven_locks(dir.path()).expect("plan");
         assert_eq!(plan.notes, Vec::<String>::new());
         assert_eq!(
             plan.seeds,
             [(
-                "third_party/maven_install.json".to_owned(),
+                format!("third_party/{}", lock_of("maven")),
                 "maven".to_owned()
             )]
         );
@@ -1035,12 +1046,12 @@ mod tests {
                 ModuleEdit {
                     path: "third_party/BUILD.bazel".to_owned(),
                     old: String::new(),
-                    new: "exports_files([\"maven_install.json\"])\n".to_owned(),
+                    new: format!("exports_files([\"{}\"])\n", lock_of("maven")),
                 },
                 ModuleEdit {
                     path: "BUILD.bazel".to_owned(),
                     old: String::new(),
-                    new: MAVEN_DIRECTIVE.to_owned(),
+                    new: maven_directive(),
                 },
             ]
         );
@@ -1048,14 +1059,14 @@ mod tests {
 
     #[test]
     fn maven_lock_plans_nothing_the_second_time() {
-        let dir = maven_workspace(&[("MODULE.bazel", MAVEN_MODULE)]);
+        let dir = maven_workspace(&[("MODULE.bazel", &maven_module())]);
         let plan = plan_maven_locks(dir.path()).expect("plan");
         for edit in &plan.edits {
             crate::write_edit_or_create(dir.path(), edit).expect("write");
         }
         write(
             dir.path(),
-            "third_party/maven_install.json",
+            &format!("third_party/{}", lock_of("maven")),
             "{\"artifacts\": {}}",
         );
         assert_eq!(
@@ -1067,9 +1078,9 @@ mod tests {
     #[test]
     fn maven_lock_keeps_the_root_build_and_skips_a_root_lock() {
         let dir = maven_workspace(&[
-            ("MODULE.bazel", MAVEN_MODULE),
+            ("MODULE.bazel", &maven_module()),
             ("third_party/BUILD", ""),
-            ("third_party/maven_install.json", "{}"),
+            (&format!("third_party/{}", lock_of("maven")), "{}"),
             (
                 "BUILD.bazel",
                 "package(default_visibility = [\"//visibility:public\"])",
@@ -1079,11 +1090,11 @@ mod tests {
         assert_eq!(plan.edits.len(), 1);
         assert_eq!(
             plan.edits[0].new,
-            format!("package(default_visibility = [\"//visibility:public\"])\n{MAVEN_DIRECTIVE}")
+            format!("package(default_visibility = [\"//visibility:public\"])\n{}", maven_directive())
         );
 
-        let module = MAVEN_MODULE.replace("//third_party:", "//:");
-        let dir = maven_workspace(&[("MODULE.bazel", &module), ("maven_install.json", "{}")]);
+        let module = maven_module().replace("//third_party:", "//:");
+        let dir = maven_workspace(&[("MODULE.bazel", &module), (lock_of("maven"), "{}")]);
         assert_eq!(
             plan_maven_locks(dir.path()).expect("plan"),
             MavenLocks::default()
@@ -1092,7 +1103,7 @@ mod tests {
 
     #[test]
     fn maven_lock_behind_a_renamed_repo_gets_a_note() {
-        let module = MAVEN_MODULE.replace(
+        let module = maven_module().replace(
             "use_repo(maven, \"maven\")",
             "use_repo(maven, deps = \"maven\")",
         );

@@ -898,6 +898,7 @@ pub fn repo_impact(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::lock_hubs::{lock_of, manifest_of};
     use dx_test_scratch::write;
 
     #[test]
@@ -1072,14 +1073,17 @@ mod tests {
     fn module_inputs_collect_tag_repo_rule_override_and_include_labels() {
         let scratch = dx_test_scratch::scratch("dx-module-inputs-");
         let root = scratch.path();
+        let npm_lock = lock_of("npm");
+        let npm_manifest = manifest_of("npm");
+        let go_manifest = manifest_of("go");
         write(
             root,
             "MODULE.bazel",
-            concat!(
+            &[
                 "module(name = \"demo\")\n",
                 "bazel_dep(name = \"rules_go\", version = \"0.50.0\")\n",
                 "npm = use_extension(\"@aspect_rules_js//npm:extensions.bzl\", \"npm\")\n",
-                "npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:pnpm-lock.yaml\", data = [\"@demo//web:package.json\", \"@other//:x.json\"], dev = True)\n",
+                &format!("npm.npm_translate_lock(name = \"npm\", pnpm_lock = \"//:{npm_lock}\", data = [\"@demo//web:{npm_manifest}\", \"@other//:x.json\"], dev = True)\n"),
                 "pip = use_extension(\"@rules_python//python/extensions:pip.bzl\", \"pip\")\n",
                 "pip.parse(hub_name = \"pypi\", python_version = \"3.11\", requirements_by_platform = {\"//py:r.txt\": \"linux_*\"})\n",
                 "archive = use_repo_rule(\"@bazel_tools//tools/build_defs/repo:http.bzl\", \"http_archive\")\n",
@@ -1088,40 +1092,35 @@ mod tests {
                 "register_toolchains(\"//toolchains:all\")\n",
                 "use_repo(npm, \"npm\")\n",
                 "include(\"//deps:go.MODULE.bazel\")\n",
-            ),
+            ]
+            .concat(),
         );
         write(
             root,
             "deps/go.MODULE.bazel",
-            "go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \":go.mod\")\n",
+            &format!("go_deps = use_extension(\"@gazelle//:extensions.bzl\", \"go_deps\")\ngo_deps.from_file(go_mod = \":{go_manifest}\")\n"),
         );
-        assert_eq!(
-            input_paths(root),
-            (
-                [
-                    "deps/go.MODULE.bazel",
-                    "deps/go.mod",
-                    "patches/go.patch",
-                    "pnpm-lock.yaml",
-                    "py/r.txt",
-                    "third_party/zlib.BUILD",
-                    "web/package.json",
-                ]
-                .map(str::to_owned)
-                .to_vec(),
-                true
-            )
-        );
+        let mut expected = vec![
+            "deps/go.MODULE.bazel".to_owned(),
+            format!("deps/{go_manifest}"),
+            "patches/go.patch".to_owned(),
+            npm_lock.to_owned(),
+            "py/r.txt".to_owned(),
+            "third_party/zlib.BUILD".to_owned(),
+            format!("web/{npm_manifest}"),
+        ];
+        expected.sort();
+        assert_eq!(input_paths(root), (expected, true));
         let inputs = module_inputs(root).expect("module inputs");
         let lock = inputs
             .files
             .iter()
-            .find(|file| file.path == "pnpm-lock.yaml")
+            .find(|file| file.path == npm_lock)
             .expect("pnpm lock");
         assert_eq!(
             lock,
             &ModuleInput {
-                path: "pnpm-lock.yaml".to_owned(),
+                path: npm_lock.to_owned(),
                 extension: Some((
                     "@aspect_rules_js//npm:extensions.bzl".to_owned(),
                     "npm".to_owned()
@@ -1149,9 +1148,13 @@ mod tests {
         let scratch = dx_test_scratch::scratch("dx-module-inputs-computed-");
         let root = scratch.path();
         assert_eq!(input_paths(root), (Vec::new(), false));
+        let split = format!(
+            "npm.npm_translate_lock(pnpm_lock = \"//:\" + \"{}\")",
+            lock_of("npm")
+        );
         for tag in [
             "npm.npm_translate_lock(pnpm_lock = LOCK)",
-            "npm.npm_translate_lock(pnpm_lock = \"//:\" + \"pnpm-lock.yaml\")",
+            split.as_str(),
             "npm.npm_translate_lock(**KW)",
         ] {
             write(

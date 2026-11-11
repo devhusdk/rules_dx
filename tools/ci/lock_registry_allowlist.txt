@@ -115,7 +115,6 @@ name cli/depcheck/src/usage.rs pubspec.yaml
 name cli/depcheck/src/usage.rs pyproject.toml
 name cli/depcheck/src/usage.rs uv.lock
 name cli/generate/src/sync.rs pyproject.toml
-name cli/generate/src/tools_gen.rs tsconfig.json
 name cli/gomod/src/lib.rs go.mod
 name cli/gomod/src/lib.rs go.sum
 name cli/ide/src/lib.rs uv.lock
@@ -199,7 +198,6 @@ name core/modules/versions.bzl pnpm-lock.yaml
 name core/quality/adapter/src/commands.rs go.mod
 name core/quality/adapter/src/commands.rs pyproject.toml
 name core/quality/adapter/src/parsers/modfmt.rs go.mod
-name core/quality/adapter/src/parsers/tsc.rs tsconfig.json
 name core/quality/dart_context.bzl pubspec.yaml
 name core/quality/fixtures.bzl go.mod
 name core/quality/tools/python_bundle/bundle.bzl pyproject.toml
@@ -218,10 +216,8 @@ name elixir/private/toolchain/extensions.bzl mix.lock
 name elixir/private/toolchain/repos.bzl mix.lock
 name gazelle/common/external_npm.go pnpm-lock.yaml
 name gazelle/common/npmproject.go package.json
-name gazelle/common/npmproject.go tsconfig.json
 name gazelle/common/pnpmworkspace.go package.json
 name gazelle/common/pnpmworkspace.go pnpm-lock.yaml
-name gazelle/common/tsconfig.go tsconfig.json
 name gazelle/dart/generate.go pubspec.yaml
 name gazelle/elixir/naming.go mix.exs
 name gazelle/go/lang.go go.mod
@@ -233,11 +229,9 @@ name gazelle/rust/cargo.go Cargo.toml
 name gazelle/rust/lang.go Cargo.toml
 name gazelle/rust/lang_generate.go Cargo.toml
 name gazelle/typescript/lang.go package.json
-name gazelle/typescript/lang.go tsconfig.json
 name haskell/private/deps_resolve.bzl cabal.project.freeze
 name haskell/private/deps_resolve.bzl haskell_deps.json
 name haskell/private/toolchain/extensions.bzl haskell_deps.json
-name javascript/private/quality/js_tools.bzl tsconfig.json
 name julia/private/quality/julia.bzl Project.toml
 name ocaml/lang.json dune-project
 name ocaml/private/dune.bzl dune-project
@@ -247,15 +241,12 @@ name python/private/sdist_cargo_vendor.bzl Cargo.lock
 name python/private/sdist_cargo_vendor.bzl uv.lock
 name terraform/lang.json .terraform.lock.hcl
 name third_party/dotnet/framework.bzl paket.dependencies
-name tools/docs/components/aspect.bzl tsconfig.json
 name tools/docs/dart/defs.bzl pubspec.yaml
-name tools/docs/javascript/aspect.bzl tsconfig.json
 name tools/docs/support_matrix/languages.bzl cabal.project.freeze
 name tools/docs/support_matrix/languages.bzl mix.lock
 name tools/testing/hermetic/maven_pin.rs maven_install.json
 name tools/testing/nested/src/lib.rs maven_install.json
 name tools/testing/nested_bazel.bzl maven_install.json
-name typescript/private/quality/tsc.bzl tsconfig.json
 parser ansible/private/lock.bzl
 parser elixir/private/mix_lock.bzl
 parser erlang/private/rebar_lock.bzl

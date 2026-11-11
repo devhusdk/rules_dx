@@ -3034,8 +3034,7 @@ LANGS = json.decode("""{
       "pnpm-lock.yaml"
     ],
     "manifests": [
-      "package.json",
-      "tsconfig.json"
+      "package.json"
     ],
     "name": "typescript",
     "pins": [],

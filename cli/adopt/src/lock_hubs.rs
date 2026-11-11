@@ -122,7 +122,7 @@ pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     out
 }
 
-/// True when the `package.json` at `path` lists a package in a dependency table.
+/// True when the npm manifest at `path` lists a package in a dependency table.
 fn declares_dependency(path: &Path) -> bool {
     let Ok(text) = std::fs::read_to_string(path) else {
         return false;

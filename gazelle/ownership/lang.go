@@ -148,6 +148,12 @@ func generate(args language.GenerateArgs, kinds map[string]rule.KindInfo, rep co
 		result.Imports = append(result.Imports, nil)
 		claimants = append(claimants, common.Claimant{Name: f.target, Source: path.Join(args.Rel, srcs[0]), Kind: f.kind})
 	}
+	if args.File == nil && len(result.Gen) > 0 {
+		if owner, ok := common.AncestorOwner(args.Config, args.Rel); ok {
+			common.NoticeAncestorOwned(args.Rel, owner)
+			return language.GenerateResult{}
+		}
+	}
 	images := ociImageNames(args.File)
 	for _, image := range images {
 		r := rule.NewRule(ociQualityKind, image+ociQualitySuffix)

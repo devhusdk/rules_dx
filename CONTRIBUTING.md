@@ -89,7 +89,7 @@ tested versions are supported. `//core/modules:consumer_deps_test` fails when th
 
 A `# floor: equals tested` comment directly above each `bazel_dep` marks this.
 Tools parse that marker, so keep it as written. To bump a dep, set the `bazel_dep`
-version. Use
+version with
 `dx update bazel:<dep> <version>` and
 `dx update bazel:<dep> <version> --floor --reason "equals tested"`.
 

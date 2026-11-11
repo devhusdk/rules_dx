@@ -94,7 +94,6 @@ CONSUMER_BAZEL_DEPS = {
     "rules_go": struct(floor = TESTED_RULES_GO, tested = TESTED_RULES_GO),
     "gazelle": struct(floor = GAZELLE_VERSION, tested = GAZELLE_VERSION),
     "rules_shell": struct(floor = RULES_SHELL_VERSION, tested = RULES_SHELL_VERSION),
-    "rules_nodejs": struct(floor = RULES_NODEJS_VERSION, tested = RULES_NODEJS_VERSION),
     "apple_support": struct(floor = TESTED_APPLE_SUPPORT, tested = TESTED_APPLE_SUPPORT),
     "rules_apple": struct(floor = TESTED_RULES_APPLE, tested = TESTED_RULES_APPLE),
     "platforms": struct(floor = PLATFORMS_VERSION, tested = PLATFORMS_VERSION),

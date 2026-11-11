@@ -59,15 +59,15 @@ void ProbeDevice(dx_gpu::Probe* probe) {
   Versions v{"", cudaSuccess, probe->runtime, probe->driver,
              probe->device_count};
   unsigned long code = dx_gpu_guarded(&ReadVersions, &v);
+  probe->runtime = v.runtime;
+  probe->driver = v.driver;
+  probe->device_count = v.device_count;
   if (code != 0) {
     char raised[96];
     std::snprintf(raised, sizeof(raised), "%s: raised 0x%08lX", v.call, code);
     probe->error = raised;
     return;
   }
-  probe->runtime = v.runtime;
-  probe->driver = v.driver;
-  probe->device_count = v.device_count;
   if (Failed(v.status, v.call, probe) || probe->device_count <= 0) {
     return;
   }

@@ -11,21 +11,19 @@
   "manifests": [
     "*.rockspec"
   ],
-  "lockfiles": [
-    "luarocks.lock"
-  ],
+  "lockfiles": [],
   "setup": {
     "hubs": [
       {
         "ecosystem": "luarocks",
         "manifest": "*.rockspec",
-        "lock": "luarocks.lock",
+        "lock": "luarocks.lock.json",
         "state": null,
         "extension": "@rules_dx//lua:extensions.bzl",
         "tag": "lock",
-        "hub": "luarocks",
-        "resolver": null,
-        "imports": "name"
+        "hub": "rocks",
+        "resolver": "@rules_dx//lua:lock",
+        "imports": "provides"
       }
     ]
   },

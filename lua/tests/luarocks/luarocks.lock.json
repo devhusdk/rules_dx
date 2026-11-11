@@ -1,0 +1,31 @@
+{
+  "ecosystem": "luarocks",
+  "inputs": {
+    "fixture.rockspec": "b3ef9f74dff4653fdc77edef33bf87fd4e9a9dff593e9d91cafb043fbb3d7822"
+  },
+  "packages": [
+    {
+      "archives": [
+        {
+          "sha256": "43386a613f9916186af4919f36392d8b8dad8c4428a5f8c85ebac80acba71eeb",
+          "strip_prefix": "inspect.lua-3.1.3",
+          "urls": [
+            "https://github.com/kikito/inspect.lua/archive/v3.1.3.tar.gz"
+          ]
+        }
+      ],
+      "deps": [],
+      "extra": {
+        "lua_modules": {
+          "inspect": "inspect.lua"
+        }
+      },
+      "name": "inspect",
+      "provides": [
+        "inspect"
+      ],
+      "version": "3.1.3-0"
+    }
+  ],
+  "schema": 1
+}

@@ -529,8 +529,6 @@ kotlin/tests/fixtures/kotlin-app/diagnostics/BUILD.bazel no-size 2
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel no-size 3
 kotlin/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 kubernetes/tests/BUILD.bazel no-size 3
-lua/luarocks/BUILD.bazel no-size 3
-lua/luarocks/lock_tests.bzl no-size 1
 lua/private/BUILD.bazel no-size 1
 lua/private/runtime/BUILD.bazel no-size 1
 lua/private/toolchain/BUILD.bazel no-size 1

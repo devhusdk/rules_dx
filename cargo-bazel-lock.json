@@ -1,5 +1,5 @@
 {
-  "checksum": "75513dd7a7d4eb003d0d4cdad3008fb62b5326109e7dfdd280ca8dc4f1eaaaba",
+  "checksum": "7e4b47eed26cc90df03601943e78856f89d1ea7feba437aedfc440713ebce979",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -15893,6 +15893,39 @@
       ],
       "version": "0.0.0"
     },
+    "lua_lock 0.0.0": {
+      "common_attrs": {
+        "deps": [
+          {
+            "id": "serde_json 1.0.151",
+            "target": "serde_json"
+          }
+        ],
+        "deps_dev": [
+          {
+            "id": "tempfile 3.27.0",
+            "target": "tempfile"
+          }
+        ],
+        "edition": "2024"
+      },
+      "library_target_name": "lua_lock",
+      "license": "Apache-2.0",
+      "license_ids": [
+        "Apache-2.0"
+      ],
+      "name": "lua_lock",
+      "repository": null,
+      "targets": [
+        {
+          "Library": {
+            "crate_name": "lua_lock",
+            "crate_root": "src/resolve.rs"
+          }
+        }
+      ],
+      "version": "0.0.0"
+    },
     "lzma-rs 0.3.0": {
       "common_attrs": {
         "deps": [
@@ -31599,6 +31632,7 @@
     "jvm_docs_tests 0.0.0": "tools/docs/jvm_docs_tests",
     "kotlin_app_cli_fixture 0.0.0": "kotlin/tests/fixtures/kotlin-app/kotlin_app_cli_fixture",
     "lua_extract 0.0.0": "tools/docs/lua/lua_extract",
+    "lua_lock 0.0.0": "lua/private/lua_lock",
     "modules_tests 0.0.0": "core/modules_tests",
     "ocaml_extract 0.0.0": "tools/docs/ocaml/ocaml_extract",
     "openapi_codegen_preflight 0.0.0": "api_spec/private/openapi_codegen_preflight",

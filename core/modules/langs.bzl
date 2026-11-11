@@ -1749,9 +1749,7 @@ LANGS = json.decode("""{
       "lua_test"
     ],
     "family": "core",
-    "lockfiles": [
-      "luarocks.lock"
-    ],
+    "lockfiles": [],
     "manifests": [
       "*.rockspec"
     ],
@@ -1800,11 +1798,11 @@ LANGS = json.decode("""{
         {
           "ecosystem": "luarocks",
           "extension": "@rules_dx//lua:extensions.bzl",
-          "hub": "luarocks",
-          "imports": "name",
-          "lock": "luarocks.lock",
+          "hub": "rocks",
+          "imports": "provides",
+          "lock": "luarocks.lock.json",
           "manifest": "*.rockspec",
-          "resolver": null,
+          "resolver": "@rules_dx//lua:lock",
           "state": null,
           "tag": "lock"
         }

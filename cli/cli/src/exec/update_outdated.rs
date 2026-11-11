@@ -1459,7 +1459,7 @@ mod tests {
 fn outdated_hint(ecosystem: Ecosystem) -> String {
     match ecosystem {
         Ecosystem::LuaRocks => {
-            "edit luarocks.lock, then regenerate luarocks.digests.json".to_owned()
+            "edit the dependencies in the rockspec, then run dx update".to_owned()
         }
         _ => "edit dub.json, then run dx update".to_owned(),
     }

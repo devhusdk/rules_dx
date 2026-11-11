@@ -1433,11 +1433,10 @@ _lua_http_archive(
 
 luarocks = use_extension("//lua:extensions.bzl", "luarocks", dev_dependency = True)
 luarocks.lock(
-    name = "lua_rocks",
-    digests = "//lua/tests/luarocks:luarocks.digests.json",
-    lock = "//lua/tests/luarocks:luarocks.lock",
+    name = "rocks_lua.tests.luarocks",
+    lock = "//lua/tests/luarocks:luarocks.lock.json",
 )
-use_repo(luarocks, "lua_rocks")
+use_repo(luarocks, "rocks_lua.tests.luarocks")
 
 php = use_extension("//php:extensions.bzl", "php")
 use_repo(php, "dx_composer", "dx_php_toolchains", "dx_phpbench", "dx_phpcs", "dx_phpdocumentor", "dx_phpstan", "dx_phpstan_strict_rules", "dx_phpunit", "dx_unused_public", "dx_webmozart_assert")
@@ -2198,6 +2197,7 @@ crate.from_cargo(
         "//zig/private/lock:Cargo.toml",
         "//d/private/lock:Cargo.toml",
         "//php/private/lock:Cargo.toml",
+        "//lua/private/lock:Cargo.toml",
         "//cli/families:Cargo.toml",
         "//cli/module_bazel:Cargo.toml",
         "//tools/testing:Cargo.toml",

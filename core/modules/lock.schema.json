@@ -88,6 +88,11 @@
             "string_imports": {"$ref": "#/$defs/strings"}
           }
         },
+        "lua_modules": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "string", "minLength": 1}
+        },
         "swift_products": {
           "type": "object",
           "additionalProperties": {

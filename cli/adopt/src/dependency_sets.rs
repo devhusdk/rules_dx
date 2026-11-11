@@ -43,7 +43,7 @@ pub const ZIG_ZON: &str = "build.zig.zon";
 
 const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
 
-pub const LUAROCKS_LOCK: &str = "luarocks.lock";
+pub const LUAROCKS_LOCK: &str = "luarocks.lock.json";
 
 pub const COMPOSER_JSON: &str = "composer.json";
 
@@ -451,11 +451,12 @@ pub fn discover(
         }
         for luarocks in module.luarocks_locks().map_err(hub)? {
             let lock = path(luarocks.lock)?;
+            let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
                 luarocks.name,
                 Ecosystem::LuaRocks,
-                vec![lock.clone()],
-                vec![lock, path(luarocks.digests)?],
+                vec![in_dir(&dir, "*.rockspec")],
+                vec![lock],
             )?);
         }
         for opam in module.opam_packages().map_err(hub)? {

@@ -18,7 +18,6 @@ entries erlang/bench
 entries flatbuffers/bitflags.BUILD.bazel
 entries flatbuffers/java_runtime.BUILD.bazel
 entries flatbuffers/rust_runtime.BUILD.bazel
-entries lua/luarocks
 entries ocaml/bench
 entries ocaml/packages
 entries pkl/BUILD.bazel

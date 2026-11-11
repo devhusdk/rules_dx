@@ -1,4 +1,3 @@
-digests-file lua/tests/luarocks/luarocks.digests.json
 name cli/adopt/src/build_output.rs Cargo.lock
 name cli/adopt/src/build_output.rs Cargo.toml
 name cli/adopt/src/build_output.rs Gemfile.lock
@@ -441,10 +440,6 @@ name julia/lang.json Manifest.toml
 name julia/lang.json Project.toml
 name julia/private/quality/julia.bzl Project.toml
 name kotlin/lang.json maven_install.json
-name lua/luarocks/defs.bzl luarocks.lock
-name lua/luarocks/extensions.bzl luarocks.lock
-name lua/luarocks/lock.bzl luarocks.lock
-name lua/luarocks/repos.bzl luarocks.lock
 name ocaml/lang.json *.opam
 name ocaml/lang.json dune-project
 name ocaml/private/dune.bzl dune-project
@@ -474,7 +469,6 @@ parser elixir/private/mix_lock.bzl
 parser erlang/private/rebar_lock.bzl
 parser fortran/private/fpm_lock.bzl
 parser fortran/private/tools/fpm_lock.bzl
-parser lua/luarocks/lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
 registry cpan
 registry go
@@ -490,10 +484,8 @@ resolve-doc lua/README.md 1
 resolve-doc perl/README.md 1
 resolve-doc php/README.md 1
 tag-attr bicep/extensions.bzl digest
-tag-attr lua/luarocks/extensions.bzl digests
 tag-attr terraform/extensions.bzl sha256
 tag-attr terraform/extensions.bzl version
-tag-use MODULE.bazel luarocks.lock.digests
 tag-use MODULE.bazel ruby.bundle_fetch.gem_checksums
 tag-use MODULE.bazel ruby.toolchain.portable_ruby_checksums
 tag-use MODULE.bazel ruby.toolchain.version

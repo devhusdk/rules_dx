@@ -5,7 +5,6 @@ file flutter/tests/fixtures/flutter-app/.dart_tool/package_config.json
 file flutter/tests/fixtures/flutter-app/.dart_tool/package_graph.json
 file flutter/tests/fixtures/flutter-app/BUILD.bazel
 file flutter/tests/fixtures/flutter-app/android/BUILD.bazel
-file flutter/tests/fixtures/flutter-app/android/inspect_apk.sh
 file flutter/tests/fixtures/flutter-app/android/interaction.sh
 file flutter/tests/fixtures/flutter-app/app/BUILD.bazel
 file flutter/tests/fixtures/flutter-app/app/lib/app.dart

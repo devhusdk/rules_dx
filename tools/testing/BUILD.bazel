@@ -181,7 +181,10 @@ rust_binary(
 
 testing_rust_test(
     name = "root_layout_test",
-    data = ["//:module_srcs"],
+    data = [
+        "//:lang_json",
+        "//:module_srcs",
+    ],
     deps = [":dx_testing"],
 )
 

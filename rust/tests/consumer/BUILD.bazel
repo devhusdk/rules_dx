@@ -1,5 +1,7 @@
 load("@rules_dx//rust:defs.bzl", "rust_library", "rust_test")
 
+# dx: written once, yours to edit
+
 rust_library(
     name = "my_project",
     srcs = ["src/lib.rs"],
@@ -10,9 +12,5 @@ rust_library(
 
 rust_test(
     name = "my_project_test",
-    srcs = ["src/lib.rs"],
-    size = "small",
-    coverage_lib = ":my_project",
-    crate_name = "my_project",
-    crate_root = "src/lib.rs",
+    crate = ":my_project",
 )

@@ -1,5 +1,7 @@
 load("@rules_dx//julia:defs.bzl", "julia_library", "julia_test")
 
+# dx: written once, yours to edit
+
 julia_library(
     name = "Greet",
     srcs = ["src/Greet.jl"],
@@ -8,8 +10,7 @@ julia_library(
 )
 
 julia_test(
-    name = "consumer_test",
-    size = "small",
-    srcs = ["greet_test.jl"],
+    name = "Greet_test",
+    srcs = ["test/runtests.jl"],
     deps = [":Greet"],
 )

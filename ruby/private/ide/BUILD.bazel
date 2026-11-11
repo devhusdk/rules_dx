@@ -1,4 +1,4 @@
-load("//core/modules:ruby.bzl", "RUBY_VERSION")
+load("//core/modules:versions.bzl", "RUBY_VERSION")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")
 

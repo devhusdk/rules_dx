@@ -854,6 +854,30 @@ dx_pins.archive(
     ],
     pins = "//ruby:pins.json",
 )
+dx_pins.archive(
+    name = "nfpm_linux_x86_64",
+    build = "//deploy/private/tools:nfpm.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["nfpm"],
+)
+dx_pins.archive(
+    name = "nfpm_linux_arm64",
+    build = "//deploy/private/tools:nfpm.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["nfpm"],
+)
+dx_pins.archive(
+    name = "nfpm_macos_arm64",
+    build = "//deploy/private/tools:nfpm.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["nfpm"],
+)
+dx_pins.archive(
+    name = "nfpm_windows_x86_64",
+    build = "//deploy/private/tools:nfpm_windows.BUILD.bazel",
+    pins = "//deploy/private/pins:pins.json",
+    required = ["nfpm.exe"],
+)
 use_repo(
     dx_pins,
     "dx_coreutils",
@@ -878,6 +902,10 @@ use_repo(
     "dx_rules_flutter_pub",
     "dx_sorbet",
     "dx_swift_format_macos_arm64",
+    "nfpm_linux_arm64",
+    "nfpm_linux_x86_64",
+    "nfpm_macos_arm64",
+    "nfpm_windows_x86_64",
     "rules_dotnet",
     "rules_powershell",
     "rules_ruby",
@@ -2509,34 +2537,6 @@ _http_file(
     dev_dependency = True,
     sha256 = "015b97aa3977d4d0bade1631b226b6d4cbe48751cc841aad9193295df7f9047a",
     urls = ["https://developer.download.nvidia.com/compute/cuda/redist/redistrib_13.4.2.json"],
-)
-
-_http_archive(
-    name = "nfpm_linux_x86_64",
-    build_file_content = 'exports_files(["nfpm"])',
-    sha256 = "6d7f9a28b2f397934403950fcbba83f598b08d02edbe79a0815b3b4897341750",
-    urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_x86_64.tar.gz"],
-)
-
-_http_archive(
-    name = "nfpm_linux_arm64",
-    build_file_content = 'exports_files(["nfpm"])',
-    sha256 = "a9a75213763783b7669719e505474c748c5ad7dc66591a195619deb50f85c2f4",
-    urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Linux_arm64.tar.gz"],
-)
-
-_http_archive(
-    name = "nfpm_macos_arm64",
-    build_file_content = 'exports_files(["nfpm"])',
-    sha256 = "ae23377895437b18d4727b362e7ec4c2d38295eb9adf96008e0cbc813038df81",
-    urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Darwin_arm64.tar.gz"],
-)
-
-_http_archive(
-    name = "nfpm_windows_x86_64",
-    build_file_content = 'exports_files(["nfpm.exe"])',
-    sha256 = "8ce12620212f5db557e370e35e2279ac7b106ea51e6a546a2be37a1a5d5bd8de",
-    urls = ["https://github.com/goreleaser/nfpm/releases/download/v2.48.0/nfpm_2.48.0_Windows_x86_64.zip"],
 )
 
 _http_archive(

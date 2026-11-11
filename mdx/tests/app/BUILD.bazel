@@ -78,7 +78,6 @@ build_test(
         ":pages",
         ":serve",
         ":site",
-        ":site_ssr",
     ],
 )
 

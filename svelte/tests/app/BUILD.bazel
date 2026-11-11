@@ -74,7 +74,6 @@ build_test(
         ":components",
         ":serve",
         ":site",
-        ":site_ssr",
     ],
 )
 

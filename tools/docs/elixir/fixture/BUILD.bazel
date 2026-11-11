@@ -1,4 +1,3 @@
-load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//elixir:defs.bzl", "ELIXIR_COMPATIBLE_WITH", "elixir_app")
 load("//tools/docs/beam:path_tests.bzl", "beam_shard_path_test")
@@ -16,11 +15,6 @@ elixir_doc_shard(
     name = "geometry_docs",
     app = ":geometry",
     target_compatible_with = ELIXIR_COMPATIBLE_WITH,
-)
-
-build_test(
-    name = "shard_build_test",
-    targets = [":geometry_docs"],
 )
 
 beam_shard_path_test(

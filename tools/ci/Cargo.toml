@@ -170,6 +170,10 @@ name = "test_budget_test"
 path = "test_budget_test.rs"
 
 [[test]]
+name = "test_duplicates_test"
+path = "test_duplicates_test.rs"
+
+[[test]]
 name = "test_tags_test"
 path = "test_tags_test.rs"
 

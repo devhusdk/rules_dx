@@ -23,6 +23,14 @@ The guards check the rules of `docs/design/tests.md`.
 - The guard fails when a line allows more than the file has, or names a file with none.
 - The allowlist only shrinks. No change adds a line or raises a count.
 
+## Duplicates
+
+- `//tools/ci:test_duplicates_test` scans `sources.json` for test calls in `BUILD` and `BUILD.bazel` files.
+- Two calls in one file are duplicates when they have the same callee and the same arguments other than `name`, `tags` and `flaky`. Arguments compare by source text without whitespace.
+- It skips `test_suite`, calls that are not test calls, and calls with a positional or `**` argument.
+- The guard fails with `path:line name` for each duplicate.
+- It has no allowlist. A duplicate is deleted.
+
 ## Sandbox and host
 
 - `//tools/ci:sandbox_escape_test`, `//tools/ci:host_env_test` and `//tools/ci:host_program_test` scan `sources.json`, `code.json` and the repository `*.BUILD` files of `files.json`. They read `DX_SOURCES_JSON`, `DX_FILES_JSON` and `DX_CODE_JSON` as maps and write no scratch tree.

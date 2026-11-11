@@ -283,3 +283,60 @@ func TestGenerateSkipsSourcesOfHandwrittenRules(t *testing.T) {
 		t.Errorf("generated %v, want none", result.Gen)
 	}
 }
+
+func TestGenerateKeepsHandwrittenLibrarySplit(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg/hello", []byte(`
+php_library(name = "format", srcs = ["src/Hello/Format/Upper.php"])
+php_library(name = "greeter", srcs = ["src/Hello/Greeter.php"], deps = [":format"])
+php_binary(name = "hello", main = "bin/hello.php", deps = [":greeter"])
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{
+		"pkg/hello/src/Hello/Format/Upper.php": "<?php\nnamespace Hello\\Format;\nclass Upper {}\n",
+		"pkg/hello/src/Hello/Greeter.php":      "<?php\nnamespace Hello;\nuse Hello\\Format\\Upper;\nclass Greeter {}\n",
+		"pkg/hello/bin/hello.php":              "<?php\nnew Hello\\Greeter();\n",
+	})
+	lang := NewLanguage().(*phpLang)
+	result := lang.GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg/hello"), Rel: "pkg/hello", File: file})
+	if errs := lang.Errors(); len(errs) != 0 {
+		t.Fatalf("errors = %v, want none", errs)
+	}
+	var got []string
+	for _, r := range result.Gen {
+		got = append(got, r.Kind()+" "+r.Name()+" "+strings.Join(r.AttrStrings("srcs"), ","))
+	}
+	want := []string{
+		"php_library format src/Hello/Format/Upper.php",
+		"php_library greeter src/Hello/Greeter.php",
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("generated %v, want %v", got, want)
+	}
+	if len(result.Imports) != 2 {
+		t.Fatalf("imports = %v, want two sets", result.Imports)
+	}
+	if names, _ := common.UnwrapImportSet(result.Imports[1]); !reflect.DeepEqual(names, []string{`Hello\Format\Upper`}) {
+		t.Errorf("imports = %v, want greeter importing Hello\\Format\\Upper", result.Imports)
+	}
+}
+
+func TestGenerateKeepsEmptySrcsLibrary(t *testing.T) {
+	file, err := rule.LoadData("BUILD.bazel", "pkg", []byte(`
+php_library(name = "pkg", srcs = ["src/Keep.php"])
+php_library(name = "factory_deprecations", srcs = [], deps = [":pkg"])
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	writeFixture(t, root, map[string]string{"pkg/src/Keep.php": "<?php\nclass Keep {}\n"})
+	result := NewLanguage().GenerateRules(language.GenerateArgs{Config: &config.Config{RepoRoot: root}, Dir: filepath.Join(root, "pkg"), Rel: "pkg", File: file})
+	for _, r := range result.Empty {
+		if r.Name() == "factory_deprecations" {
+			t.Errorf("empty lists factory_deprecations, want it kept")
+		}
+	}
+}

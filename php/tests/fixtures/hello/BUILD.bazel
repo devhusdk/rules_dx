@@ -1,19 +1,23 @@
 # gazelle:exclude bin
-# gazelle:ignore
 load("@bazel_skylib//rules:build_test.bzl", "build_test")
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
 load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
-load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//visibility:public"])
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
 
 php_library(
     name = "format",
+    testonly = True,
     srcs = ["src/Hello/Format/Upper.php"],
 )
 
 php_library(
     name = "greeter",
+    testonly = True,
     srcs = ["src/Hello/Greeter.php"],
     visibility = ["@rules_dx//core/quality/testdata:__pkg__"],
     deps = [":format"],
@@ -30,18 +34,27 @@ php_binary(
 
 php_test(
     name = "greeter_test",
+    size = "small",
+    testonly = True,
     srcs = ["test/GreeterTest.php"],
     ini = {"precision": "7"},
-    deps = [":greeter"],
+    deps = [
+        ":format",
+        ":greeter",
+    ],
 )
 
 php_test(
     name = "pcov_test",
+    size = "small",
+    testonly = True,
     srcs = ["test/PcovTest.php"],
 )
 
 php_test(
     name = "cli_test",
+    size = "small",
+    testonly = True,
     srcs = ["test/CliTest.php"],
     data = [
         "data/name.txt",

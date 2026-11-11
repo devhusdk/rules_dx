@@ -1,0 +1,17 @@
+load("@rules_dx//php:defs.bzl", "php_binary", "php_library")
+
+php_library(
+    name = "format",
+    srcs = ["src/Split/Format/Upper.php"],
+)
+
+php_library(
+    name = "greeter",
+    srcs = ["src/Split/Greeter.php"],
+)
+
+php_binary(
+    name = "pkg",
+    main = "bin/pkg.php",
+    deps = [":greeter"],
+)

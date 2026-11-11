@@ -179,12 +179,14 @@ fn dx(case: &Case, command: &str, args: &[&str]) -> Run {
     let workspace = case.root().to_string_lossy().into_owned();
     let home = mkscratch("candidate-home").unwrap_or_else(|error| panic!("scratch: {error}"));
     let home = home.to_string_lossy().into_owned();
+    let applets = dx_testing::env_files("DX_COREUTILS");
+    let path = applets[0].parent().expect("applet directory").to_string_lossy().into_owned();
     let mut argv: Vec<&str> = vec![command, "--workspace", workspace.as_str()];
     argv.extend_from_slice(args);
     case.run(
         &resolve_runfiles(&rel),
         &argv,
-        &[("HOME", home.as_str()), ("PATH", "/usr/bin:/bin")],
+        &[("HOME", home.as_str()), ("PATH", path.as_str())],
     )
 }
 

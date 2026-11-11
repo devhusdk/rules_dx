@@ -186,7 +186,6 @@ deploy/private/release/sbom.bzl genrule 2
 deploy/private/release/src/bin_release_driver.rs shebang 1
 deploy/private/release/src/cell_tests.rs shebang 1
 deploy/private/release/src/release_lib_tests.rs shebang 2
-deploy/private/release/tests/candidate_consumer_test.rs host-path 1
 deploy/private/release/tests/candidate_consumer_test.rs shebang 1
 deploy/private/resources_demo/process.sh shebang 1
 deploy/private/src/archive.rs shebang 4
@@ -224,7 +223,6 @@ elixir/tests/fixtures/elixir-app/catalog/BUILD.bazel genrule 1
 env/private/stubs/BUILD.bazel sh-rule 1
 env/private/stubs/BUILD.bazel shebang 1
 erlang/private/toolchain/metadata_tests.bzl shebang 1
-examples/adopt-polyglot/consumer_test.rs host-path 1
 flutter/tests/fixtures/flutter-app/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/BUILD.bazel sh-rule 1
 flutter/tests/fixtures/flutter-app/android/interaction.sh shebang 1

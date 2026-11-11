@@ -306,7 +306,7 @@ jobs:
         run: |
           # shellcheck disable=SC2086
           set -- $BAZEL_CONFIG $BB_ARGS
-          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" //appimage/... //cli/archive/...
+          bazel run "$@" //tools/testing:determinism_check -- --bazel "$(command -v bazel)" --out "$RUNNER_TEMP/determinism" --kinds //appimage/... //cli/archive/...
   gcc-cross-build:
     name: gcc-cross-build (linux_x86_64 -> linux_arm64 fixtures)
     timeout-minutes: 45

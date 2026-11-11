@@ -148,8 +148,8 @@ core/quality/BUILD.bazel no-size 35
 core/quality/adapter/BUILD.bazel no-size 1
 core/quality/artifacts/BUILD.bazel no-size 4
 core/quality/artifacts/acquire_test/BUILD.bazel no-size 1
-core/quality/artifacts/hub_test/BUILD.bazel no-size 1
-core/quality/artifacts/hub_test/selection.bzl no-size 2
+core/quality/artifacts/tests/hub/BUILD.bazel no-size 1
+core/quality/artifacts/tests/hub/selection.bzl no-size 2
 core/quality/artifacts/metadata_tests.bzl no-size 1
 core/quality/artifacts/platforms_tests.bzl no-size 1
 core/quality/artifacts/update_test/BUILD.bazel no-size 1
@@ -231,7 +231,6 @@ csharp/tests/fixtures/proto/BUILD.bazel no-size 1
 csharp/tests/fixtures/roslyn/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
 cuda/private/BUILD.bazel no-size 1
-cuda/private/testing/BUILD.bazel no-size 1
 cuda/tests/BUILD.bazel no-size 32
 cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
 cuda/tests/fixtures/cuda-app/checks/BUILD.bazel no-size 2
@@ -482,7 +481,7 @@ java/tests/fixtures/junit/BUILD.bazel no-size 4
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 java/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
 javascript/private/BUILD.bazel no-size 2
-javascript/private/dev_hub_tests.bzl no-size 1
+javascript/tests/dev_hub_tests.bzl no-size 1
 javascript/private/ide/BUILD.bazel no-size 1
 javascript/private/quality/launcher/BUILD.bazel no-size 1
 javascript/private/wrapper_tests.bzl no-size 1

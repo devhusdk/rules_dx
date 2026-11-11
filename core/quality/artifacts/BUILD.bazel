@@ -64,8 +64,8 @@ test_suite(
         ":platforms",
         ":update_unit_test",
         "//core/quality/artifacts/acquire_test",
-        "//core/quality/artifacts/hub_test:hub_selection_analysis",
-        "//core/quality/artifacts/hub_test:hub_selection_unit",
+        "//core/quality/artifacts/tests/hub:hub_selection_analysis",
+        "//core/quality/artifacts/tests/hub:hub_selection_unit",
         "//core/quality/artifacts/update_test",
     ],
 )

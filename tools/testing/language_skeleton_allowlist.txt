@@ -610,7 +610,6 @@ test-location csharp/private/ide/BUILD.bazel
 test-location csharp/tests/BUILD.bazel
 test-location cuda/private/BUILD.bazel
 test-location cuda/private/testing/BUILD.bazel
-test-location cuda/private/testing/gpu_facts_test.cc
 test-location cuda/private/testing/gpu_test.h
 test-location d/private/BUILD.bazel
 test-location d/private/toolchain/BUILD.bazel
@@ -660,7 +659,6 @@ test-location java/private/ide/BUILD.bazel
 test-location java/private/jmh_tests.bzl
 test-location java/tests/BUILD.bazel
 test-location javascript/private/BUILD.bazel
-test-location javascript/private/dev_hub_tests.bzl
 test-location javascript/private/ide/BUILD.bazel
 test-location javascript/private/quality/bin/BUILD.bazel
 test-location javascript/private/quality/bin/graphql_eslint_config_test.mjs

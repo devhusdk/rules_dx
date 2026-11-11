@@ -133,7 +133,7 @@ env/BUILD.bazel alias 2
 env/private/env_shard/src/main.rs compat-word 2
 env/private/env_shard/src/writer.rs compat-word 2
 javascript/private/dev_hub.bzl compat-word 5
-javascript/private/dev_hub_tests.bzl compat-word 2
+javascript/tests/dev_hub_tests.bzl compat-word 2
 ocaml/BUILD.bazel alias 3
 ocaml/packages/afl-persistent.BUILD.bazel alias 1
 ocaml/private/BUILD.bazel compat-word 2

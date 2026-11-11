@@ -2994,7 +2994,7 @@ use_repo(
     "dx_firefox_linux_x86_64",
 )
 
-_hub_fixture_repo = use_repo_rule("//core/quality/artifacts/hub_test:repos.bzl", "hub_fixture_repo")
+_hub_fixture_repo = use_repo_rule("//core/quality/artifacts/tests/hub:repos.bzl", "hub_fixture_repo")
 
 _hub_fixture_repo(
     name = "dx_hub_fixture_taplo_linux_x86_64",

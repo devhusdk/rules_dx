@@ -144,6 +144,15 @@ pub fn find_unused(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use dx_ecosystems::Ecosystem;
+
+    fn cargo_toml() -> &'static str {
+        Ecosystem::Cargo.manifest_name()
+    }
+
+    fn pyproject() -> &'static str {
+        Ecosystem::Uv.manifest_name()
+    }
 
     fn write(dir: &Path, rel: &str, text: &str) {
         let path = dir.join(rel);
@@ -156,11 +165,11 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         write(
             dir.path(),
-            "Cargo.toml",
+            cargo_toml(),
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nregex = \"1\"\n",
         );
         write(dir.path(), "src/lib.rs", "use serde::Serialize;\n");
-        let manifest = dir.path().join("Cargo.toml");
+        let manifest = dir.path().join(cargo_toml());
         let found = find_unused(Language::Rust, &manifest, dir.path(), &[]).expect("find unused");
         assert_eq!(
             found,
@@ -179,10 +188,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         write(
             dir.path(),
-            "Cargo.toml",
+            cargo_toml(),
             "[package]\nname = \"x\"\n\n[dependencies]\nserde = \"1\"\nre = { package = \"regex\", version = \"1\" }\n",
         );
-        let manifest = dir.path().join("Cargo.toml");
+        let manifest = dir.path().join(cargo_toml());
         let got = declared(Language::Rust, &manifest).expect("declared");
         let hubs: Vec<(&str, &str)> = got
             .iter()
@@ -196,10 +205,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         write(
             dir.path(),
-            "Cargo.toml",
+            cargo_toml(),
             "[package]\nname = \"x\"\n\n[package.metadata.cargo-machete]\nignored = [\"cc\"]\n\n[dependencies]\nserde = \"1\"\ncc = \"1\"\n",
         );
-        let manifest = dir.path().join("Cargo.toml");
+        let manifest = dir.path().join(cargo_toml());
         let found = find_unused(Language::Rust, &manifest, dir.path(), &[]).expect("unused");
         let names: Vec<&str> = found.iter().map(|d| d.name.as_str()).collect();
         assert_eq!(names, vec!["serde"]);
@@ -212,10 +221,10 @@ mod tests {
         let dir = tempfile::tempdir().expect("tempdir");
         write(
             dir.path(),
-            "pyproject.toml",
+            pyproject(),
             "[project]\nname = \"x\"\nversion = \"1\"\ndependencies = [\"Requests>=2\", \"attrs>=1\"]\n\n[tool.deptry.per_rule_ignores]\nDEP002 = [\"requests\"]\n",
         );
-        let manifest = dir.path().join("pyproject.toml");
+        let manifest = dir.path().join(pyproject());
         let found = find_unused(Language::Python, &manifest, dir.path(), &[]).expect("unused");
         let names: Vec<&str> = found.iter().map(|d| d.name.as_str()).collect();
         assert_eq!(names, vec!["attrs"]);

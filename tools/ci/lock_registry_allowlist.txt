@@ -9,8 +9,6 @@ name cli/cli/src/exec/audit_live.rs go.mod
 name cli/cli/src/exec/audit_live.rs maven_install.json
 name cli/cli/src/exec/audit_live.rs package.json
 name cli/cli/src/exec/audit_live.rs pnpm-lock.yaml
-name cli/depcheck/src/main.rs Cargo.lock
-name cli/depcheck/src/main.rs Cargo.toml
 name cli/depcheck/src/missing.rs Cargo.lock
 name cli/depcheck/src/missing.rs Cargo.toml
 name cli/depcheck/src/missing.rs Gemfile
@@ -27,8 +25,6 @@ name cli/depcheck/src/missing.rs pnpm-lock.yaml
 name cli/depcheck/src/missing.rs pubspec.yaml
 name cli/depcheck/src/missing.rs pyproject.toml
 name cli/depcheck/src/missing.rs uv.lock
-name cli/depcheck/src/unused.rs Cargo.toml
-name cli/depcheck/src/unused.rs pyproject.toml
 name cli/depcheck/src/usage.rs Cargo.lock
 name cli/depcheck/src/usage.rs Cargo.toml
 name cli/depcheck/src/usage.rs Gemfile
@@ -108,8 +104,6 @@ name cli/update/src/edit/request_plans.rs mix.exs
 name cli/update/src/edit/request_plans.rs package.json
 name cli/update/src/edit/request_plans.rs pubspec.yaml
 name cli/update/src/edit/request_pyproject.rs pyproject.toml
-name cli/update/src/pr.rs Cargo.lock
-name cli/update/src/pr.rs Package.resolved
 name cli/update/src/recovery.rs Cargo.lock
 name cli/update/src/recovery.rs maven_install.json
 name cli/update/src/recovery.rs pnpm-lock.yaml

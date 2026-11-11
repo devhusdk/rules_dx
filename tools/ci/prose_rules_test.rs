@@ -54,6 +54,24 @@ const REPLACES_SECTION: &str = "What rules_dx replaces";
 /// Fewer scanned files than this means the sweep lost the tree.
 const MIN_FILES: usize = 3000;
 
+/// The page whose rows may end in a consumer fix issue.
+const CONSUMER_FIX_PAGE: &str = "patches/README.md";
+
+/// `text` without the `Consumer fix: #N` tails.
+fn without_consumer_fixes(text: &str) -> String {
+    let marker = "Consumer fix: #";
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(start) = rest.find(marker) {
+        out.push_str(&rest[..start]);
+        let tail = &rest[start + marker.len()..];
+        let digits = tail.bytes().take_while(u8::is_ascii_digit).count();
+        rest = &tail[digits..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// How often `#` and 3 to 5 digits, or an issue or pull request URL, stands in `text`.
 fn issue_numbers(text: &str) -> usize {
     let bytes = text.as_bytes();
@@ -285,7 +303,12 @@ fn scan(files: &BTreeMap<String, String>, paths: &[String]) -> Counts {
             continue;
         }
         if path.ends_with(".md") {
-            add(&mut counts, path, "issue-number", issue_numbers(text));
+            let numbered = if path == CONSUMER_FIX_PAGE {
+                without_consumer_fixes(text)
+            } else {
+                text.clone()
+            };
+            add(&mut counts, path, "issue-number", issue_numbers(&numbered));
             let told = if path == "README.md" {
                 without_section(text, REPLACES_SECTION)
             } else {
@@ -391,6 +414,19 @@ mod tests {
                 hit("a.md", "issue-number", 1),
                 hit("a.rs", "issue-number", 1),
             ]
+        );
+    }
+
+    #[test]
+    fn only_consumer_fix_tails_pass_in_the_patches_page() {
+        let found = hits(&[
+            LINTED,
+            ("patches/README.md", "| a | drop (#1234). Consumer fix: #5678 |\n| b | tracked in #9008 |\n"),
+            ("other.md", "Consumer fix: #5678\n"),
+        ]);
+        assert_eq!(
+            found,
+            [hit("other.md", "issue-number", 1), hit("patches/README.md", "issue-number", 2)]
         );
     }
 

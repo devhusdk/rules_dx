@@ -2,6 +2,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":hub_tests.bzl", "lua_hub_tests")
 load(":toolchain_tests.bzl", "lua_metadata_tests")
+load(":wrapper_tests.bzl", "lua_wrapper_contract_tests")
 
 rust_test(
     name = "selene_smoke_test",
@@ -34,6 +35,8 @@ lua_metadata_tests(
     size = "small",
 )
 
+lua_wrapper_contract_tests(name = "wrapper_contract_tests")
+
 real_source_target(
     name = "corpus_starlark",
     testonly = True,
@@ -41,6 +44,7 @@ real_source_target(
         "BUILD.bazel",
         "hub_tests.bzl",
         "toolchain_tests.bzl",
+        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

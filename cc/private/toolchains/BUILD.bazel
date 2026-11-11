@@ -55,6 +55,7 @@ cc_toolchain_identity_subject(
 cc_toolchain_identity_subject(
     name = "identity_under_test_msvc_arm64",
     compiler = "msvc",
+    tags = ["manual"],
     platforms = ["//tools/platforms:windows_arm64"],
     target_compatible_with = ["@platforms//os:windows"],
 )

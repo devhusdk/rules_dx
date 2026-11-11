@@ -18,6 +18,6 @@ def _checks():
         expect_equal("coverage on", windows["//command_line_option:collect_code_coverage"], True),
     ]
 
-def conformance_defs_tests(name):
+def conformance_defs_tests(name, size):
     """Declares the conformance defs tests."""
-    starlark_test(name = name, mode = "load", checks = _checks())
+    starlark_test(name = name, size = size, mode = "load", checks = _checks())

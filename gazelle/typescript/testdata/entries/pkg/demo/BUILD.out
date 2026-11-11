@@ -9,6 +9,7 @@ filegroup(
 # A hand-set nearest manifest must survive regeneration.
 typescript_test(
     name = "widget_test",
+    size = "small",
     srcs = ["widget_test.ts"],
     declaration = True,
     node_modules = "//:node_modules",
@@ -27,6 +28,7 @@ typescript_library(
 
 typescript_test(
     name = "helper_test",
+    size = "small",
     srcs = ["helper_test.ts"],
     declaration = True,
     node_modules = "//:node_modules",

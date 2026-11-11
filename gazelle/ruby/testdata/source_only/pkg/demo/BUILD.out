@@ -17,6 +17,7 @@ ruby_library(
 
 ruby_test(
     name = "demo_spec",
+    size = "small",
     srcs = ["demo_spec.rb"],
     deps = [":demo"],
 )

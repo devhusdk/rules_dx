@@ -77,14 +77,16 @@ def _windows_pin_checks():
     ])))
     return checks
 
-def swift_windows_extract_test(name):
+def swift_windows_extract_test(name, size):
     """Asserts the Swift Windows installer and its extractor are pinned for both cells and the repository rule unpacks with them.
 
     Args:
         name: The test name.
+        size: The test size.
     """
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _windows_pin_checks(),
         file_checks = {
@@ -104,14 +106,16 @@ def swift_windows_extract_test(name):
         },
     )
 
-def swift_host_test(name):
+def swift_host_test(name, size):
     """Checks which toolchain the host `swift` command resolves on each host cell.
 
     Args:
         name: The test name.
+        size: The test size.
     """
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = [
             expect_equal("windows_x86_64 names no toolchain", swift_host_labels("windows_x86_64"), {}),

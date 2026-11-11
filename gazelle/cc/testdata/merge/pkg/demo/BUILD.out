@@ -26,6 +26,7 @@ filegroup(
 
 cc_test(
     name = "demo_test",
+    size = "small",
     srcs = ["demo_test.cc"],
     deps = [":demo"],
 )

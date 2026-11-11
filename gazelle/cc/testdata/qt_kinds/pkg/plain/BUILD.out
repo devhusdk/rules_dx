@@ -8,6 +8,7 @@ cc_library(
 
 cc_test(
     name = "plain_test",
+    size = "small",
     srcs = ["plain_test.cc"],
     deps = [":plain"],
 )

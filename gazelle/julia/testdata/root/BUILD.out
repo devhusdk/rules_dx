@@ -9,6 +9,7 @@ julia_library(
 
 julia_test(
     name = "Demo_test",
+    size = "small",
     srcs = [
         "test/helpers.jl",
         "test/runtests.jl",

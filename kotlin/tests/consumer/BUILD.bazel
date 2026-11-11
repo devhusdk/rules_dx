@@ -10,6 +10,7 @@ kotlin_library(
 
 kotlin_test(
     name = "greet_test",
+    size = "small",
     srcs = ["GreetTest.kt"],
     test_class = "consumer.GreetTest",
     deps = [":my_project"],

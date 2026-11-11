@@ -267,6 +267,7 @@ func generateRules(args language.GenerateArgs, _ map[string]rule.KindInfo, rep c
 	}
 	if len(testSources) > 0 {
 		t := rule.NewRule(TestKind, testName)
+		common.SizeSmall(t)
 		t.SetAttr("srcs", testSrcs)
 		if !isMain {
 			t.SetAttr("embed", []string{":" + name})

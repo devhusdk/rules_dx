@@ -37,9 +37,9 @@ def avro_library_tests(name):
     """
     avro_library(name = name + "_base", srcs = ["fixtures/closure/base.avsc"], tags = ["manual"])
     avro_library(name = name + "_top", srcs = ["fixtures/closure/top.avdl"], deps = [":" + name + "_base"], tags = ["manual"])
-    _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top")
+    _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")
     avro_library(name = name + "_wrong", srcs = ["fixtures/closure/wrong.txt"], tags = ["manual"])
-    _extension_test(name = name + "_extension_test", target_under_test = ":" + name + "_wrong")
+    _extension_test(name = name + "_extension_test", target_under_test = ":" + name + "_wrong", size = "small")
     dx_missing_avro_cpp(name = name + "_missing", tags = ["manual"])
     _missing_test(name = name + "_missing_test", target_under_test = ":" + name + "_missing", size = "small")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_extension_test", ":" + name + "_missing_test"])

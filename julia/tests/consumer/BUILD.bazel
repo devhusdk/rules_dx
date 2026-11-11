@@ -11,6 +11,7 @@ julia_library(
 
 julia_test(
     name = "Greet_test",
+    size = "small",
     srcs = ["test/runtests.jl"],
     deps = [":Greet"],
 )

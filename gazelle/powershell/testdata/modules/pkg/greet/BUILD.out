@@ -10,6 +10,7 @@ powershell_binary(
 
 powershell_test(
     name = "greet_test",
+    size = "small",
     srcs = ["Greet.Tests.ps1"],
     data = ["Greet.Describe.ps1"],
     deps = [":greet"],

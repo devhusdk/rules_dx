@@ -8,6 +8,7 @@ filegroup(
 
 typescript_test(
     name = "demo_test",
+    size = "small",
     srcs = ["demo.spec.ts"],
     declaration = True,
     node_modules = "//:node_modules",
@@ -38,6 +39,7 @@ typescript_library(
 
 typescript_test(
     name = "helper_test",
+    size = "small",
     srcs = ["helper_test.mts"],
     declaration = True,
     node_modules = "//:node_modules",

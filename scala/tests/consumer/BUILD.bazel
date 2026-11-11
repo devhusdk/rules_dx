@@ -10,6 +10,7 @@ scala_library(
 
 scala_test(
     name = "greet_test",
+    size = "small",
     srcs = ["GreetTest.scala"],
     deps = [":my_project"],
 )

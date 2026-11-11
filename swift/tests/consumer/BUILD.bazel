@@ -11,6 +11,7 @@ swift_library(
 
 swift_test(
     name = "greet_tests",
+    size = "small",
     srcs = ["GreetTests.swift"],
     deps = [":my_project"],
 )

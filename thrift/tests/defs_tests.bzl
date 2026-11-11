@@ -31,7 +31,7 @@ def thrift_library_tests(name):
     """
     thrift_library(name = name + "_base", srcs = ["fixtures/closure/base.thrift"], tags = ["manual"])
     thrift_library(name = name + "_top", srcs = ["fixtures/closure/top.thrift"], deps = [":" + name + "_base"], tags = ["manual"])
-    _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top")
+    _closure_test(name = name + "_closure_test", target_under_test = ":" + name + "_top", size = "small")
     thrift_library(name = name + "_external", srcs = ["@dx_thrift//:sample_schema"], tags = ["manual"])
-    _external_test(name = name + "_external_test", target_under_test = ":" + name + "_external")
+    _external_test(name = name + "_external_test", target_under_test = ":" + name + "_external", size = "small")
     native.test_suite(name = name, tests = [":" + name + "_closure_test", ":" + name + "_external_test"])

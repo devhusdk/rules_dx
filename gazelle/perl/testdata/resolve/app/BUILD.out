@@ -15,6 +15,7 @@ perl_library(
 
 perl_test(
     name = "main_test",
+    size = "small",
     srcs = ["t/main.t"],
     deps = [":app"],
 )

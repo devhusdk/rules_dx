@@ -19,6 +19,7 @@ dart_binary(
 
 dart_test(
     name = "greet_test",
+    size = "small",
     srcs = ["test/helpers.dart"],
     main = "test/greet_test.dart",
     deps = [

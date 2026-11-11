@@ -161,6 +161,9 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	var result language.GenerateResult
 	add := func(kind, name string, files, extra []string) {
 		r := rule.NewRule(kind, name)
+		if kind == TestKind {
+			common.SizeSmall(r)
+		}
 		r.SetAttr("srcs", files)
 		result.Gen = append(result.Gen, r)
 		result.Imports = append(result.Imports, common.WrapImportSet(importsOf(args, append(append([]string{}, files...), extra...), kind == TestKind, rep)))

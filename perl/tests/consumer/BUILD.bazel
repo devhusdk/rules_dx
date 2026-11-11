@@ -10,6 +10,7 @@ perl_library(
 
 perl_test(
     name = "greet_test",
+    size = "small",
     srcs = ["t/greet.t"],
     deps = [":my_project"],
 )

@@ -17,6 +17,7 @@ java_library(
 
 java_test(
     name = "helper_test",
+    size = "small",
     srcs = ["HelperTest.java"],
     test_class = "demo.HelperTest",
     deps = [":demo"],

@@ -200,6 +200,7 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	result.Imports = append(result.Imports, common.WrapImportSet(sortedKeys(project.Deps)))
 	if tests != nil {
 		test := rule.NewRule(TestKind, testName)
+		common.SizeSmall(test)
 		test.SetAttr("srcs", tests)
 		if len(tests) > 1 {
 			test.SetAttr("main", TestEntry)

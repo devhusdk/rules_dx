@@ -10,6 +10,7 @@ ruby_library(
 
 ruby_test(
     name = "greet_test",
+    size = "small",
     srcs = ["greet_test.rb"],
     deps = [":my_project"],
 )

@@ -18,6 +18,7 @@ fsharp_library(
 
 fsharp_test(
     name = "helper_test",
+    size = "small",
     srcs = ["HelperTest.fs"],
     deps = [":demo"],
 )

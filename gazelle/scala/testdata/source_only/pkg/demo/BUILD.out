@@ -17,6 +17,7 @@ scala_library(
 
 scala_test(
     name = "demo_test",
+    size = "small",
     srcs = ["DemoTest.scala"],
     deps = [":demo"],
 )

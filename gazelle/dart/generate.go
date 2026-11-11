@@ -301,6 +301,9 @@ func generateRules(args language.GenerateArgs, kinds map[string]rule.KindInfo, r
 	result := language.GenerateResult{}
 	for _, e := range entries {
 		r := rule.NewRule(e.kind, e.name)
+		if e.kind == testKind {
+			common.SizeSmall(r)
+		}
 		if e.kind == libKind {
 			r.SetAttr("package_name", spec.Name)
 		} else {

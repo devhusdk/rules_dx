@@ -55,7 +55,7 @@ cc/private/BUILD.bazel no-size 3
 cc/private/clang_syntax_tests.bzl no-size 1
 cc/private/context/BUILD.bazel no-size 2
 cc/private/ide/BUILD.bazel no-size 2
-cc/private/toolchains/BUILD.bazel no-size 36
+cc/private/toolchains/BUILD.bazel no-size 34
 cc/private/toolchains/external/BUILD.bazel no-size 5
 cc/private/toolchains/external/custom_gcc_tests.bzl no-size 1
 cc/private/toolchains/external/tests.bzl no-size 1

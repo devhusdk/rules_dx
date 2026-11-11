@@ -1303,6 +1303,37 @@ rust_test(
 )
 
 rust_test(
+    name = "test_duplicates_test",
+    size = "small",
+    srcs = [
+        "test_calls.rs",
+        "test_duplicates_test.rs",
+    ],
+    aliases = aliases(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ),
+    crate_name = "test_duplicates_test",
+    crate_root = "test_duplicates_test.rs",
+    data = [
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = all_crate_deps(
+        package_name = "tools/ci_tests",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        "//tools/testing:dx_testing",
+        "@crates//:serde_json",
+        "@crates//:starlark_syntax",
+    ],
+)
+
+rust_test(
     name = "test_tags_test",
     size = "small",
     srcs = [

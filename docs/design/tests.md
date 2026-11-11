@@ -127,9 +127,11 @@ A test is the first of four kinds that can prove the behaviour.
 ## Duplicates
 
 - A test that proves what another test already proves is deleted.
+- Two test calls in one BUILD file with the same callee and the same arguments other than name, tags and flaky are duplicates.
 - A test that cannot fail is deleted.
 
 ## Guard
 
 - `docs/design/test-guards.md` holds the rules of the guards that check these rules.
 - `docs/design/test-budget.md` covers `//tools/ci:test_budget_test`.
+- `docs/design/test-guards.md` covers `//tools/ci:test_duplicates_test`.

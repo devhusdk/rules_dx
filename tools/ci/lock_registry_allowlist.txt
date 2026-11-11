@@ -205,7 +205,6 @@ parser erlang/private/rebar_lock.bzl
 parser fortran/private/fpm_lock.bzl
 parser fortran/private/tools/fpm_lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
-resolve-doc csharp/README.md 1
 tag-attr bicep/extensions.bzl digest
 tag-attr terraform/extensions.bzl sha256
 tag-attr terraform/extensions.bzl version

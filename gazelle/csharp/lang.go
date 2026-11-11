@@ -34,6 +34,7 @@ func NewLanguage() language.Language {
 		DefinesMain:    DefinesMain,
 		ParseImports:   ParseImports,
 		IsStdLib:       IsStdLib,
+		External:       "nuget",
 		Candidates:     namespaceCandidates,
 		Tests: &common.TestSpec{Kind: TestKind, Name: TestTargetName},
 	})

@@ -85,6 +85,13 @@ LOCK_REGISTRY = {
         "manifest": "package.json",
         "state": None,
     },
+    "nuget": {
+        "hub": "paket.main",
+        "imports": "name",
+        "lock": "paket.lock",
+        "manifest": "paket.dependencies",
+        "state": "paket.lock",
+    },
     "opam": {
         "hub": "opam",
         "imports": "name",

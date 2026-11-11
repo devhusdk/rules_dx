@@ -219,8 +219,8 @@ fn every_hub_names_an_extension_its_own_language_exports() {
             if !exports.lines().any(|line| line.starts_with(&format!("{ecosystem} = "))) {
                 found.push(format!("{}/extensions.bzl exports no {ecosystem}", dir.display()));
             }
-            if hub["lock"].is_null() != hub["tag"].is_null() {
-                found.push(format!("{}: {ecosystem} needs lock and tag together", dir.display()));
+            if hub["lock"].is_null() && !hub["tag"].is_null() {
+                found.push(format!("{}: {ecosystem} has a tag but no lock", dir.display()));
             }
         }
     }

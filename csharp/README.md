@@ -107,12 +107,9 @@ compile runs. Analyzer findings stay with `roslyn`.
 
 `dx generate` writes `csharp_library`, `csharp_binary` and `csharp_test`
 targets from your `.cs` files and `using` directives. A `using` of a namespace
-that a local library declares resolves to that library. Map any other
-namespace by its full name with a directive:
-
-```python
-# gazelle:resolve csharp Newtonsoft.Json @paket.main//newtonsoft.json
-```
+that a local library declares resolves to that library. Any other
+namespace resolves to the package in `paket.lock` that is named after it
+(`Newtonsoft.Json.Linq` is `newtonsoft.json`).
 
 The command reference covers `dx generate`. The `csharp/tests/fixtures/adopt-csharp` tree shows a full run.
 

@@ -35,7 +35,10 @@ lua_metadata_tests(
     size = "small",
 )
 
-lua_wrapper_contract_tests(name = "wrapper_contract_tests")
+lua_wrapper_contract_tests(
+    name = "wrapper_contract_tests",
+    size = "small",
+)
 
 real_source_target(
     name = "corpus_starlark",

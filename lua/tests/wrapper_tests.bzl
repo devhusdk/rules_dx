@@ -11,7 +11,7 @@ load(
 )
 load("//lua/private:defs.bzl", "LUA_ENTRY_SUFFIX")
 
-def lua_wrapper_contract_tests(name):
+def lua_wrapper_contract_tests(name, **kwargs):
     """Instantiates the lua wrapper contract test."""
     dx_wrapper_contract_tests(
         name = name,
@@ -123,4 +123,5 @@ def lua_wrapper_contract_tests(name):
             ),
         ],
         file_classes = ["lua"],
+        **kwargs
     )

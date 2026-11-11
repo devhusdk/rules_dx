@@ -442,14 +442,13 @@ java/tests/fixtures/bench/BUILD.bazel no-size 8
 java/tests/fixtures/bench/BUILD.bazel size-large 1
 java/tests/fixtures/bench/BUILD.bazel timeout-long 1
 java/tests/fixtures/fuzz/BUILD.bazel no-size 6
-java/tests/fixtures/hello/BUILD.bazel no-size 6
+java/tests/fixtures/hello/BUILD.bazel no-size 5
 java/tests/fixtures/java-app/billing/BUILD.bazel no-size 3
 java/tests/fixtures/java-app/cli/BUILD.bazel no-size 2
 java/tests/fixtures/java-app/diagnostics/BUILD.bazel no-size 2
-java/tests/fixtures/junit/BUILD.bazel no-size 4
+java/tests/fixtures/junit/BUILD.bazel no-size 3
 java/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 java/tests/fixtures/testonly_binary/BUILD.bazel no-size 1
-javascript/private/quality/launcher/BUILD.bazel no-size 1
 javascript/tests/BUILD.bazel no-size 1
 javascript/tests/fixtures/adopt-js-ts/app/BUILD.bazel no-size 2
 javascript/tests/fixtures/adopt-js-ts/web/BUILD.bazel no-size 2
@@ -494,12 +493,9 @@ kotlin/tests/fixtures/kotlin-app/diagnostics/BUILD.bazel no-size 2
 kotlin/tests/fixtures/kotlin-app/grades/BUILD.bazel no-size 3
 kotlin/tests/fixtures/no_srcs/BUILD.bazel no-size 3
 kubernetes/tests/BUILD.bazel no-size 3
-lua/private/BUILD.bazel no-size 1
 lua/private/runtime/BUILD.bazel no-size 1
 lua/tests/analysis/BUILD.bazel no-size 2
-lua/tests/bench/BUILD.bazel no-size 2
-lua/tests/fixtures/lua-app/catalog/BUILD.bazel no-size 1
-lua/tests/fixtures/lua-app/cli/BUILD.bazel no-size 1
+lua/tests/bench/BUILD.bazel no-size 1
 lua/tests/fixtures/lua-app/diagnostics/BUILD.bazel no-size 1
 lua/tests/fixtures/lua-app/report/BUILD.bazel no-size 1
 lua/tests/luarocks/BUILD.bazel no-size 1
@@ -532,7 +528,6 @@ perl/tests/BUILD.bazel no-size 1
 perl/tests/bench/BUILD.bazel no-size 3
 perl/tests/coverage/BUILD.bazel no-size 2
 perl/tests/fixtures/perl-app/cli/BUILD.bazel no-size 1
-perl/tests/fixtures/perl-app/inventory/BUILD.bazel no-size 2
 perl/tests/fixtures/perl-app/report/BUILD.bazel no-size 1
 perl/tests/negative/BUILD.bazel no-size 3
 perl/tests/runtime/BUILD.bazel no-size 2
@@ -544,7 +539,6 @@ php/tests/negative/BUILD.bazel no-size 3
 powershell/private/BUILD.bazel no-size 1
 powershell/private/ide/BUILD.bazel no-size 1
 powershell/tests/fixtures/adopt-powershell/greet/BUILD.bazel no-size 1
-powershell/tests/fixtures/adopt-powershell/solo/BUILD.bazel no-size 1
 powershell/tests/fixtures/hello/BUILD.bazel no-size 1
 powershell/tests/fixtures/pester/BUILD.bazel no-size 2
 python/private/BUILD.bazel no-size 1
@@ -581,11 +575,10 @@ rego/tests/BUILD.bazel no-size 4
 rst/tests/BUILD.bazel no-size 1
 ruby/private/coverage/extensions.bzl no-size 1
 ruby/private/ide/BUILD.bazel no-size 1
-ruby/tests/fixtures/adopt-ruby/greet/BUILD.bazel no-size 1
 ruby/tests/fixtures/adopt-ruby/solo/BUILD.bazel no-size 1
 ruby/tests/fixtures/bench/BUILD.bazel no-size 2
 ruby/tests/fixtures/hello/BUILD.bazel no-size 5
-ruby/tests/fixtures/rspec/BUILD.bazel no-size 2
+ruby/tests/fixtures/rspec/BUILD.bazel no-size 1
 rust/private/bench_report/BUILD.bazel no-size 1
 rust/private/ide/BUILD.bazel no-size 2
 rust/private/quality/tools/progenitor/BUILD.bazel no-size 1
@@ -722,7 +715,6 @@ tools/testing/nested/BUILD.bazel no-size 1
 tools/testing/process_probe/BUILD.bazel no-size 1
 tools/testing/signatures/BUILD.bazel no-size 1
 tools/testing/starters/BUILD.bazel no-size 1
-tools/testing/web_hello.bzl no-size 2
 tools/visibility/BUILD.bazel no-size 2
 tools/visibility/visibility_tests.bzl no-size 1
 tools/workspace/BUILD.bazel no-size 2
@@ -745,7 +737,7 @@ zig/private/BUILD.bazel no-size 1
 zig/tests/fixtures/bench/BUILD.bazel no-size 3
 zig/tests/fixtures/bench/BUILD.bazel size-large 1
 zig/tests/fixtures/bench/BUILD.bazel timeout-long 1
-zig/tests/fixtures/calc/BUILD.bazel no-size 2
+zig/tests/fixtures/calc/BUILD.bazel no-size 1
 zig/tests/fixtures/hello/BUILD.bazel no-size 2
 zig/tests/fixtures/zig-app/catalog/BUILD.bazel no-size 1
 zig/tests/fixtures/zig-app/cli/BUILD.bazel no-size 1

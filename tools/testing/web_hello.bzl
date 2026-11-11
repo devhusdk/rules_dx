@@ -19,17 +19,20 @@ def dx_web_hello_fixture(component, library_rule):
     dx_coverage_test(
         name = "coverage_test",
         subject = ":hello_test",
+        size = "small",
         covered_source = "hello/helper.js",
     )
 
     dx_coverage_test(
         name = "component_coverage_test",
         subject = ":hello_test",
+        size = "small",
         covered_source = "hello/%s" % component,
     )
 
     build_test(
         name = "hello_aggregate_test",
+        size = "small",
         targets = [
             ":hello_lib",
             ":hello_test",

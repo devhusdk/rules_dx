@@ -63,7 +63,6 @@ fixture-hello bicep/tests/conformance/BUILD.bazel
 fixture-hello capnproto/tests/conformance/BUILD.bazel
 fixture-hello cloudformation/tests/conformance/BUILD.bazel
 fixture-hello cmake/tests/conformance/BUILD.bazel
-fixture-hello csharp/tests/conformance/BUILD.bazel
 fixture-hello cuda/tests/conformance/BUILD.bazel
 fixture-hello dockerfile/tests/conformance/BUILD.bazel
 fixture-hello env/tests/conformance/BUILD.bazel
@@ -71,7 +70,6 @@ fixture-hello env/tests/consumer
 fixture-hello flatbuffers/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/conformance/BUILD.bazel
 fixture-hello flutter/tests/consumer
-fixture-hello fortran/tests/conformance/BUILD.bazel
 fixture-hello fortran/tests/consumer
 fixture-hello helm/tests/conformance/BUILD.bazel
 fixture-hello helm/tests/consumer
@@ -82,7 +80,6 @@ fixture-hello make/tests/consumer
 fixture-hello mdx/tests/conformance/BUILD.bazel
 fixture-hello msix/tests/conformance/BUILD.bazel
 fixture-hello msix/tests/consumer
-fixture-hello ocaml/tests/conformance/BUILD.bazel
 fixture-hello powershell/tests/conformance/BUILD.bazel
 fixture-hello qt/tests/conformance/BUILD.bazel
 fixture-hello rego/tests/conformance/BUILD.bazel
@@ -92,7 +89,6 @@ fixture-hello svelte/tests/conformance/BUILD.bazel
 fixture-hello terraform/tests/conformance/BUILD.bazel
 fixture-hello terraform/tests/consumer
 fixture-hello thrift/tests/conformance/BUILD.bazel
-fixture-hello typescript/tests/conformance/BUILD.bazel
 fixture-hello vue/tests/conformance/BUILD.bazel
 fixture-name android/tests/fixtures/adopt-android
 fixture-name ansible/tests/fixtures/site.yml
@@ -500,7 +496,6 @@ test-location java/private/jmh_tests.bzl
 test-location java/tests/BUILD.bazel
 test-location kotlin/private/BUILD.bazel
 test-location kotlin/tests/BUILD.bazel
-test-location lua/private/BUILD.bazel
 test-location lua/private/runtime/BUILD.bazel
 test-location lua/private/runtime/launcher_test.lua
 test-location ocaml/private/BUILD.bazel

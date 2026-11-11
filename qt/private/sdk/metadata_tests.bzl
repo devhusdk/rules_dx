@@ -35,6 +35,7 @@ load(
     "host_key",
     "hub_build",
     "hub_targets",
+    "implicit_request",
     "no_match_error",
     "pin_errors",
     "qualified_cells",
@@ -412,6 +413,8 @@ def _url_checks():
 def _request_checks():
     return [
         expect_equal("default request is clean", request_errors(default_request()), []),
+        expect_equal("implicit request is clean", request_errors(implicit_request()), []),
+        expect_equal("implicit request resolves every module", resolve_modules(implicit_request().modules), ["qtbase", "qtdeclarative", "qttools"]),
         expect_equal("other version fails", request_errors(_request(version = "6.8.3")), [
             "qt_sdk: version '6.8.3' is not pinned; want 6.11.3",
         ]),

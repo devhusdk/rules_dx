@@ -13,10 +13,6 @@ dev-repo dx_hub_fixture_taplo_macos_arm64 core/quality/artifacts/hub_test/select
 dev-repo dx_hub_fixture_taplo_macos_x86_64 core/quality/artifacts/hub_test/selection.bzl
 dev-repo dx_hub_fixture_taplo_windows_x86_64 core/quality/artifacts/hub_test/selection.bzl
 dev-repo dx_npm javascript/private/dev_hub_tests.bzl
-dev-repo dx_qt core/quality/families/cc.bzl
-dev-repo dx_qt core/quality/testdata/runner_matrix_structured.bzl
-dev-repo dx_qt qt/private/constants.bzl
-dev-repo dx_qt qt/private/sdk/BUILD.bazel
 dev-repo dx_test_tags_sources cli/entrypoint/BUILD.bazel
 dev-repo dx_test_tags_sources core/modules/BUILD.bazel
 dev-repo dx_test_tags_sources core/quality/BUILD.bazel
@@ -67,7 +63,6 @@ fixture msix
 fixture ocaml
 fixture powershell
 fixture python
-fixture qt
 fixture rego
 fixture rst
 fixture scala

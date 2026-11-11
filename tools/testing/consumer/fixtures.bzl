@@ -12,6 +12,7 @@ CONSUMER_FIXTURES = [
     "kotlin",
     "lua",
     "perl",
+    "qt",
     "php",
     "ruby",
     "rust",

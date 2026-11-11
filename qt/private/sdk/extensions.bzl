@@ -2,13 +2,11 @@
 
 load("//core:repo.bzl", "hub_repo")
 load(":pins.bzl", "DEFAULT_MODULES", "QT_VERSION")
-load(":repos.bzl", "HUB_NAME", "default_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
+load(":repos.bzl", "HUB_NAME", "default_request", "implicit_request", "cell_repository_name", "cell_spec", "consumer_cells", "effective_cells", "hub_build", "no_match_error", "pin_errors", "qt_cell_repo", "qualified_cells", "request_errors", "resolve_modules")
 
 def _merge(requests):
     """Returns the one request the configure tags of every module add up to."""
     request = default_request()
-    if len(requests) == 0:
-        return request
     modules = []
     fields = {"mirror": "", "runtime_mirror": "", "version": request.version}
     for tag in requests:
@@ -44,6 +42,10 @@ def _qt_sdk_impl(module_ctx):
                 name = tag.name,
                 spec = module_ctx.read(module_ctx.path(tag.spec)),
             ))
+        if len(module.tags.configure) > 0 and not module.is_root:
+            fail("qt_sdk: configure comes from module '" + module.name + "'; only the root module may call configure")
+        if len(module.tags.configure) > 1:
+            fail("qt_sdk: call qt_sdk.configure() at most once")
         for tag in module.tags.configure:
             requests.append(struct(
                 mirror = tag.mirror,
@@ -51,7 +53,7 @@ def _qt_sdk_impl(module_ctx):
                 runtime_mirror = tag.runtime_mirror,
                 version = tag.version,
             ))
-    request = _merge(requests)
+    request = _merge(requests) if len(requests) > 0 else implicit_request()
     failures = request_errors(request)
     if len(failures) > 0:
         fail("; ".join(failures))

@@ -3060,10 +3060,6 @@ cuda_license_dev = use_extension("//cuda:extensions.bzl", "cuda_license", dev_de
 cuda_license_dev.license(accept = ["cuda-eula"])
 
 qt_sdk = use_extension("//qt:extensions.bzl", "qt_sdk")
-qt_sdk.configure(modules = [
-    "qtdeclarative",
-    "qttools",
-])
 use_repo(qt_sdk, "dx_qt")
 
 rules_kotlin_extensions = use_extension("@rules_kotlin//src/main/starlark/core/repositories:bzlmod_setup.bzl", "rules_kotlin_extensions")

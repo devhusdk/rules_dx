@@ -9,6 +9,7 @@ package(default_visibility = ["//ruby:__subpackages__", "//tools/ci:__pkg__", "/
 exports_files([
     "bench_main.rb",
     "defs.bzl",
+    "sorbet.BUILD.bazel",
     "toolchain_tests.bzl",
     "wrapper_tests.bzl",
 ])

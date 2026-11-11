@@ -7,7 +7,6 @@ exports_files([
     "BUILD.bazel",
     "metadata_tests.bzl",
     "pins.json",
-    "sorbet.build",
 ])
 
 ruby_metadata_tests(name = "metadata")

@@ -5,6 +5,7 @@ package(default_visibility = ["//swift:__subpackages__", "//tools/ci:__pkg__", "
 exports_files([
     "defs.bzl",
     "providers.bzl",
+    "swift_format.BUILD.bazel",
 ])
 
 config_setting(

@@ -7,7 +7,6 @@ exports_files([
     "gallery.bzl",
     "metadata_tests.bzl",
     "pins.json",
-    "pwsh.build",
 ])
 
 powershell_metadata_tests(name = "metadata")

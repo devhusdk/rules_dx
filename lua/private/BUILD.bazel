@@ -17,6 +17,7 @@ package(default_visibility = ["//lua:__subpackages__", "//tools/ci:__pkg__", "//
 exports_files([
     "defs.bzl",
     "lua.bzl",
+    "luals.BUILD.bazel",
     "providers.bzl",
 ])
 

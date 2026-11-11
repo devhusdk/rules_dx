@@ -5,7 +5,6 @@ load(":pins.bzl", "FORTRAN_CELLS")
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
-    "flang_rt.BUILD.bazel",
     "metadata_tests.bzl",
     "pins.bzl",
     "pins.json",

@@ -5,6 +5,7 @@ package(default_visibility = ["//powershell:__subpackages__", "//tools/ci:__pkg_
 
 exports_files([
     "defs.bzl",
+    "pwsh.BUILD.bazel",
 ])
 
 dx_wrapper_contract_tests(

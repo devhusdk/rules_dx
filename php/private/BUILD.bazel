@@ -11,6 +11,7 @@ package(default_visibility = ["//php:__subpackages__", "//tools/ci:__pkg__", "//
 exports_files([
     "BenchTest.php",
     "defs.bzl",
+    "pcov.BUILD.bazel",
     "php.bzl",
     "providers.bzl",
     "tool.php",

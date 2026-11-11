@@ -127,8 +127,7 @@ resolve by PHP's lexical rules: the current namespace and the `use` aliases.
 
 - Classes, functions and constants that ship with PHP need no dep.
   `PHPUnit\` names need none in a `php_test`.
-- A Composer package needs one mapping, for example
-  `# gazelle:resolve php Monolog\Logger @vendor//monolog/monolog`.
+- A Composer package is resolved from the lock's `provides`; no directive.
 - Unqualified function and constant names are skipped, because PHP falls back
   to the global one. `require` and `include` are not read.
 - `php_binary` targets and `bin/` scripts stay hand-written. A hand-set

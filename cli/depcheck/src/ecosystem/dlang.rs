@@ -5,7 +5,7 @@ use crate::{DepInfo, DepcheckError};
 
 use super::{normalize_lower, put};
 
-/// Reads the `dependencies` of a `dub.json` or `dub.sdl`, chosen by the file extension.
+/// Reads the `dependencies` of a manifest, JSON or SDL chosen by the file extension.
 /// A sub-package dependency (`vibe-d:http`) counts as its base package.
 pub fn parse_d_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::ManifestIo)?;
@@ -87,7 +87,7 @@ fn d_spec(version: &str) -> String {
     spec
 }
 
-/// Reads a `dub.selections.json`: package name to selected version. A path selection has none.
+/// Reads a selections file: package name to selected version. A path selection has none.
 pub fn parse_d_lock(path: &Path) -> Result<BTreeMap<String, String>, DepcheckError> {
     let text = std::fs::read_to_string(path).map_err(DepcheckError::LockIo)?;
     let data: serde_json::Value = serde_json::from_str(&text).map_err(DepcheckError::LockJson)?;

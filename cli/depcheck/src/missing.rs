@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use crate::DepcheckError;
-use dx_ecosystems::Language;
+use dx_ecosystems::{Ecosystem, Language};
 
 /// A third-party import that no declared dependency covers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -213,17 +213,20 @@ pub fn find_missing(
         Language::Python => "pyproject.toml",
         Language::Ruby => "Gemfile",
         Language::Perl => "cpanfile",
-        Language::Zig => "build.zig.zon",
+        Language::Zig => Ecosystem::Zig.manifest_name(),
         Language::Julia => "Project.toml",
         Language::Dart => "pubspec.yaml",
-        Language::Php => "composer.json",
+        Language::Php => Ecosystem::Composer.manifest_name(),
         Language::Elixir => "mix.exs",
         Language::Erlang => "rebar.config",
         Language::Fortran => "fpm.toml",
-        Language::D => "dub.json",
+        Language::D => Ecosystem::Dub.manifest_name(),
         Language::Haskell => "package.cabal",
         Language::Swift => "Package.swift",
-        Language::Lua => "luarocks.lock.json",
+        Language::Lua => Ecosystem::LuaRocks
+            .lockfiles()
+            .first()
+            .map_or("", String::as_str),
         Language::Ocaml => "dune-project",
         _ => "package.json",
     };

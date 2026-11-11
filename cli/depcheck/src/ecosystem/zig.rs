@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::{DepInfo, DepcheckError};
 
-/// Reads the `.dependencies` of a `build.zig.zon`. A dependency's `.hash` is its lock, so it
+/// Reads the `.dependencies` of a manifest. A dependency's `.hash` is its lock, so it
 /// lands in `sha256`; `.lazy = true` marks it optional. Path dependencies have no hash and are
 /// skipped.
 pub fn parse_zig_manifest(path: &Path) -> Result<BTreeMap<String, DepInfo>, DepcheckError> {

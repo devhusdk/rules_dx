@@ -1322,11 +1322,7 @@ mod tests {
                         .env_clear()
                         .env(
                             "PATH",
-                            format!(
-                                "{}:{}",
-                                base.join("stub").display(),
-                                applet_dir().display()
-                            ),
+                            format!("{}:{}", base.join("stub").display(), applet_dir().display()),
                         )
                         .env("HOME", base.join("home"))
                         .env("USERPROFILE", base.join("home"))

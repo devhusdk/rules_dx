@@ -595,7 +595,9 @@ mod tests {
         krate.manifest = Some(text(dir.path(), &format!("c/{manifest}"), "[package]\n"));
         assert_eq!(
             join(&[krate.clone()], LOCK, ""),
-            Err(format!("inventory: bytes@1.7.1 (@crates//:bytes) is not in cargo-bazel-lock.json and its {manifest} declares no license"))
+            Err(format!(
+                "inventory: bytes@1.7.1 (@crates//:bytes) is not in cargo-bazel-lock.json and its {manifest} declares no license"
+            ))
         );
         krate.manifest = Some(dir.path().join("absent").join(manifest));
         assert!(

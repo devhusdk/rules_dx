@@ -1246,10 +1246,7 @@ mod tests {
         let (all, _) = split_builtin(&[]);
         assert!(all.selects_all_pins());
         let (one, rest) = split_builtin(&list(&["pins:ruby/pins.json"]));
-        assert_eq!(
-            one.pins,
-            Some(vec!["ruby/pins.json".to_owned()])
-        );
+        assert_eq!(one.pins, Some(vec!["ruby/pins.json".to_owned()]));
         assert!(!one.selects_all_pins() && rest.is_empty());
         let (whole, _) = split_builtin(&list(&["pins:a/pins.json", "pins"]));
         assert!(whole.selects_all_pins());
@@ -1392,7 +1389,10 @@ mod tests {
         let written = std::fs::read_to_string(root.join(BCR_NEWEST_FILE));
         let _ = std::fs::remove_dir_all(&root);
         assert!(collected.found.errors.is_empty());
-        assert_eq!(written.expect("snapshot"), "{\n  \"rules_cc\": \"0.2.0\"\n}\n");
+        assert_eq!(
+            written.expect("snapshot"),
+            "{\n  \"rules_cc\": \"0.2.0\"\n}\n"
+        );
         assert!(!split_builtin(&[]).0.bcr_newest);
     }
 

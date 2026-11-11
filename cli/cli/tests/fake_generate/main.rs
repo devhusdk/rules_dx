@@ -9,10 +9,16 @@ fn write(path: &str, text: &str) {
 
 /// Runs the gazelle binary named by `DX_FAKE_GAZELLE` for a `dx:generate` or `dx:generate_check` argument; false when it does not apply.
 fn gazelle(args: &[String]) -> bool {
-    let Some(bin) = std::env::var("DX_FAKE_GAZELLE").ok().filter(|v| !v.is_empty()) else {
+    let Some(bin) = std::env::var("DX_FAKE_GAZELLE")
+        .ok()
+        .filter(|v| !v.is_empty())
+    else {
         return false;
     };
-    let Some(target) = args.iter().find(|a| a.ends_with("dx:generate") || a.ends_with("dx:generate_check")) else {
+    let Some(target) = args
+        .iter()
+        .find(|a| a.ends_with("dx:generate") || a.ends_with("dx:generate_check"))
+    else {
         return false;
     };
     let cwd = std::env::current_dir().expect("current dir");

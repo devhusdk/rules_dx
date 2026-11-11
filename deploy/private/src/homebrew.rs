@@ -238,9 +238,7 @@ fn homebrew_push(launch: &HomebrewLaunch<'_>, tag: &str, formula: &str, token: &
     };
     let path = homebrew_formula_path(launch);
     let existing = match gh(&[&path, "--jq", ".sha"]) {
-        Ok(out) if out.success() => {
-            Some(String::from_utf8_lossy(&out.stdout).trim().to_owned())
-        }
+        Ok(out) if out.success() => Some(String::from_utf8_lossy(&out.stdout).trim().to_owned()),
         Ok(out) if String::from_utf8_lossy(&out.stderr).contains("(HTTP 404)") => None,
         Ok(out) => {
             eprintln!(
@@ -308,7 +306,10 @@ fn homebrew_syntax_check(formula: &Path) -> bool {
         }
         Ok(out) => {
             eprint!("{}", String::from_utf8_lossy(&out.stderr));
-            eprintln!("homebrew_tap_deploy: ruby -c failed with {}", exit_text(&out));
+            eprintln!(
+                "homebrew_tap_deploy: ruby -c failed with {}",
+                exit_text(&out)
+            );
             false
         }
         Err(error) => {
@@ -431,7 +432,10 @@ mod tests {
         l.desc = "A \"fast\" #{x} tool\\";
         l.binary = "b\"#{y}";
         let out = homebrew_render_formula(&l, "v1", &[]);
-        assert!(out.contains("desc \"A \\\"fast\\\" \\#{x} tool\\\\\""), "{out}");
+        assert!(
+            out.contains("desc \"A \\\"fast\\\" \\#{x} tool\\\\\""),
+            "{out}"
+        );
         assert!(out.contains("bin.install \"b\\\"\\#{y}\""), "{out}");
     }
 

@@ -313,7 +313,11 @@ fn init_and_completion_run_without_a_workspace() {
         ],
         &[("PATH", path.as_ref())],
     );
-    assert_eq!(code, Some(0), "--no-generate stops after the scaffold: {err}");
+    assert_eq!(
+        code,
+        Some(0),
+        "--no-generate stops after the scaffold: {err}"
+    );
     assert!(!err.contains("Running generate"), "{err}");
     assert!(out.contains("wrote bare/MODULE.bazel\n"), "{out}");
     let (code, out, err) = run_dx(root, &["completion", "bash"], &[]);

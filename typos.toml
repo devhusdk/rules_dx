@@ -5,6 +5,18 @@ locale = "en"
 PAKET = "PAKET"
 paket = "paket"
 Paket = "Paket"
+anc = "anc"
+udid = "udid"
+UDID = "UDID"
+flate = "flate"
+caf = "caf"
+unparseable = "unparseable"
+Unparseable = "Unparseable"
+configed = "configed"
+remvoe = "remvoe"
+fo = "fo"
+behaviou = "behaviou"
+secur = "secur"
 
 [files]
-extend-exclude = ["*.lock", "*.min.js", "*.svg"]
+extend-exclude = ["*.lock", "*.min.js", "*.svg", "**/*_test.rs", "**/*_tests.rs"]

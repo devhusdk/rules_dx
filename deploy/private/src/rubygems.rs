@@ -1,8 +1,8 @@
 //! RubyGems publisher: gem build from staged sources and the gem push.
 
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use std::collections::BTreeSet;

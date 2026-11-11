@@ -423,7 +423,10 @@ fn composer_update_runs_the_lock_step() {
     };
     assert_eq!(
         argv[argv.len() - 5..].join(" "),
-        format!("run @rules_dx//php/private/tools/lock -- --dir {}", ws().join("php").display())
+        format!(
+            "run @rules_dx//php/private/tools/lock -- --dir {}",
+            ws().join("php").display()
+        )
     );
 }
 
@@ -876,7 +879,12 @@ fn zig_runs_the_lock_step_and_fpm_runs_the_rehash_target() {
         "native/build.zig.zon",
         "native/zig.lock.json",
     );
-    let fpm = rehash_set("fpm", Ecosystem::Fpm, "native/fpm.toml", "native/fpm.lock.toml");
+    let fpm = rehash_set(
+        "fpm",
+        Ecosystem::Fpm,
+        "native/fpm.toml",
+        "native/fpm.lock.toml",
+    );
     let run = |set: &ResolvedSet, request: &Selection, offline: bool| {
         plan_configured(
             dir.path(),

@@ -169,18 +169,30 @@ mod tests {
                 .find(|entry| entry.path == path)
                 .unwrap_or_else(|| panic!("no entry for {path:?}"))
         };
-        let flag = |entry: &super::HelpSurface, name: &str| entry.flags.iter().find(|flag| flag.name == name).cloned();
+        let flag = |entry: &super::HelpSurface, name: &str| {
+            entry.flags.iter().find(|flag| flag.name == name).cloned()
+        };
         let root = find(&[]);
         assert_eq!(root.page, Some(ROOT_PAGE));
         assert!(flag(root, "--version").is_some(), "{root:?}");
         let test = find(&["test"]);
         assert_eq!(test.page, Some("build-test-coverage.md"));
         assert!(flag(test, "--affected").is_some(), "{test:?}");
-        assert!(flag(test, "--output").is_some_and(|output| output.aliases == ["-o"]), "{test:?}");
-        assert!(flag(test, "--help").is_none() && flag(test, "-o").is_none(), "{test:?}");
+        assert!(
+            flag(test, "--output").is_some_and(|output| output.aliases == ["-o"]),
+            "{test:?}"
+        );
+        assert!(
+            flag(test, "--help").is_none() && flag(test, "-o").is_none(),
+            "{test:?}"
+        );
         assert_eq!(test.exit_codes, ["0", "2", "1"]);
         for entry in surface.iter().filter(|entry| entry.path.len() > 1) {
-            assert_eq!(entry.page, find(&[entry.path[0].as_str()]).page, "{entry:?}");
+            assert_eq!(
+                entry.page,
+                find(&[entry.path[0].as_str()]).page,
+                "{entry:?}"
+            );
         }
         for command in PAGES.iter().map(|entry| entry.0) {
             assert_eq!(find(&[command.name()]).page, Some(command.page()));

@@ -137,7 +137,8 @@ impl Lock {
     /// # Errors
     /// Fails when the text is not a lock that passes [`Lock::problems`].
     pub fn from_json(text: &str) -> Result<Self, Error> {
-        let lock: Self = serde_json::from_str(text).map_err(|error| Error::new(error.to_string()))?;
+        let lock: Self =
+            serde_json::from_str(text).map_err(|error| Error::new(error.to_string()))?;
         match lock.problems().as_slice() {
             [] => Ok(lock),
             problems => Err(Error::new(problems.join("\n"))),
@@ -181,12 +182,18 @@ impl Lock {
             for archive in &package.archives {
                 let platform = archive.platform.as_str();
                 if !platform.is_empty() && !PLATFORMS.contains(&platform) {
-                    problems.push(format!("package {name} has the unknown platform {platform}"));
+                    problems.push(format!(
+                        "package {name} has the unknown platform {platform}"
+                    ));
                 }
                 if !platforms.insert(platform) {
                     problems.push(format!(
                         "package {name} has two archives for {}",
-                        if platform.is_empty() { "every platform" } else { platform }
+                        if platform.is_empty() {
+                            "every platform"
+                        } else {
+                            platform
+                        }
                     ));
                 }
                 if archive.urls.is_empty() {
@@ -235,7 +242,10 @@ impl Lock {
         for package in &self.packages {
             for archive in &package.archives {
                 if archive.sha256.is_empty() {
-                    problems.push(format!("package {} has an archive with no sha256", package.name));
+                    problems.push(format!(
+                        "package {} has an archive with no sha256",
+                        package.name
+                    ));
                 }
             }
         }
@@ -256,8 +266,10 @@ impl Lock {
 fn sorted(value: Value) -> Value {
     match value {
         Value::Object(map) => {
-            let ordered: BTreeMap<String, Value> =
-                map.into_iter().map(|(key, value)| (key, sorted(value))).collect();
+            let ordered: BTreeMap<String, Value> = map
+                .into_iter()
+                .map(|(key, value)| (key, sorted(value)))
+                .collect();
             Value::Object(ordered.into_iter().collect())
         }
         Value::Array(items) => Value::Array(items.into_iter().map(sorted).collect()),

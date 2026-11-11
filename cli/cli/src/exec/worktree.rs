@@ -1415,19 +1415,15 @@ mod tests {
 
     #[test]
     fn skipped_bases_print_slot_and_reason() {
-        let skipped = [
-            ops::PruneKeptBase {
-                dir: PathBuf::from("/bazel/bbb"),
-                workspace: PathBuf::from("/cache/slots/2"),
-                owner: ops::BaseOwner::Slot(2),
-                reason: "server",
-            },
-        ];
+        let skipped = [ops::PruneKeptBase {
+            dir: PathBuf::from("/bazel/bbb"),
+            workspace: PathBuf::from("/cache/slots/2"),
+            owner: ops::BaseOwner::Slot(2),
+            reason: "server",
+        }];
         assert_eq!(
             skipped_lines(&[], &skipped, &[]),
-            [
-                "skipped output base of free slot 2 (server): /bazel/bbb",
-            ]
+            ["skipped output base of free slot 2 (server): /bazel/bbb",]
         );
     }
 

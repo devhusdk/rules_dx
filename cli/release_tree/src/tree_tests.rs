@@ -33,8 +33,14 @@ fn copies_files_and_merges_directories() {
         "lib/app/priv/nested/lib.so",
     ]));
     assert_eq!(result, Ok(()));
-    assert_eq!(fs::read_to_string(out.join("lib/app/ebin/a.beam")).unwrap_or_default(), "a");
-    assert_eq!(fs::read_to_string(out.join("lib/app/priv/nested/lib.so")).unwrap_or_default(), "so");
+    assert_eq!(
+        fs::read_to_string(out.join("lib/app/ebin/a.beam")).unwrap_or_default(),
+        "a"
+    );
+    assert_eq!(
+        fs::read_to_string(out.join("lib/app/priv/nested/lib.so")).unwrap_or_default(),
+        "so"
+    );
 }
 
 #[test]

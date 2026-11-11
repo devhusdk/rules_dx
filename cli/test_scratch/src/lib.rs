@@ -141,7 +141,10 @@ fn output_within(
             None if start.elapsed() >= limit => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return Err(format!("did not finish within {}s and was killed", limit.as_secs()));
+                return Err(format!(
+                    "did not finish within {}s and was killed",
+                    limit.as_secs()
+                ));
             }
             None => std::thread::sleep(std::time::Duration::from_millis(50)),
         }

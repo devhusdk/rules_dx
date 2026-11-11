@@ -196,7 +196,9 @@ pub(super) fn dirty(
         READ_TIMEOUT,
         stop,
     )?;
-    Ok(status.lines().any(|line| !bazel_link(checkout, line, "?? ")))
+    Ok(status
+        .lines()
+        .any(|line| !bazel_link(checkout, line, "?? ")))
 }
 
 /// Whether the checkout has any change, untracked file or ignored file besides `bazel-*` links.
@@ -206,7 +208,12 @@ pub(super) fn holds_files(
 ) -> Result<bool, WorktreeError> {
     let status = run_until(
         checkout,
-        &["status", "--porcelain", "--ignored", "--untracked-files=normal"],
+        &[
+            "status",
+            "--porcelain",
+            "--ignored",
+            "--untracked-files=normal",
+        ],
         READ_TIMEOUT,
         stop,
     )?;
@@ -224,7 +231,10 @@ fn bazel_link(checkout: &Path, line: &str, prefix: &str) -> bool {
     if !name.starts_with("bazel-") {
         return false;
     }
-    let workspace = checkout.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+    let workspace = checkout
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or_default();
     name == "bazel-bin"
         || name == "bazel-out"
         || name == "bazel-testlogs"
@@ -238,7 +248,12 @@ pub(super) fn operation_in_progress(
     checkout: &Path,
     stop: &dyn Fn() -> Option<i32>,
 ) -> Result<bool, WorktreeError> {
-    let dir = run_until(checkout, &["rev-parse", "--absolute-git-dir"], READ_TIMEOUT, stop)?;
+    let dir = run_until(
+        checkout,
+        &["rev-parse", "--absolute-git-dir"],
+        READ_TIMEOUT,
+        stop,
+    )?;
     let dir = PathBuf::from(dir.trim());
     Ok([
         "rebase-merge",

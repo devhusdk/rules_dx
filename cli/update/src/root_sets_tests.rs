@@ -93,10 +93,7 @@ fn dx_crates_starts_with_the_manifest_beside_its_cargo_lock() {
     assert_eq!(cargo.manifests[0], "cc/private/context/Cargo.toml");
     assert_eq!(
         cargo.locks,
-        [
-            "cc/private/context/Cargo.lock",
-            "cargo-bazel-lock.json"
-        ]
+        ["cc/private/context/Cargo.lock", "cargo-bazel-lock.json"]
     );
 }
 
@@ -129,6 +126,9 @@ fn go_maven_and_uv_have_their_declared_shape() {
     assert_eq!(maven.manifests, ["MODULE.bazel"]);
     assert_eq!(maven.locks, ["third_party/jvm/maven_install.json"]);
     let tools = set("dx_pypi-python");
-    assert_eq!(tools.manifests, ["core/quality/tools/python/pyproject.toml"]);
+    assert_eq!(
+        tools.manifests,
+        ["core/quality/tools/python/pyproject.toml"]
+    );
     assert_eq!(tools.locks, ["core/quality/tools/python/uv.lock"]);
 }

@@ -382,8 +382,9 @@ fn run() -> i32 {
             | dx_plan::args::Command::Coverage
             | dx_plan::args::Command::Check
     ) && !invocation.no_retry;
-    let runner = RestartingRunner::new(dx_process::BinaryRunner::new(inherit_stdout, die_by_signal))
-        .with_cache_retry(cache_retry);
+    let runner =
+        RestartingRunner::new(dx_process::BinaryRunner::new(inherit_stdout, die_by_signal))
+            .with_cache_retry(cache_retry);
     let query_runner = RestartingQueryRunner::new(BinaryQueryRunner {
         runner: dx_process::BinaryRunner::new(inherit_stdout, die_by_signal),
     });

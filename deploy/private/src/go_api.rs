@@ -313,14 +313,21 @@ mod tests {
         std::fs::write(&archive, zip).expect("write");
         let dir = scratch.path().join("0");
         archive_extract(&archive, &dir).expect("extract");
-        assert!(dir.join(format!("example.com/Lib@v1.2.0/{}", manifest_name())).is_file());
+        assert!(
+            dir.join(format!("example.com/Lib@v1.2.0/{}", manifest_name()))
+                .is_file()
+        );
     }
 
     #[cfg(unix)]
     fn git_fixture(scratch: &Path) -> std::path::PathBuf {
         let repo = scratch.join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
-        write_crate_file(&repo, &format!("lib/{}", manifest_name()), "module example.com/lib\n\ngo 1.22\n");
+        write_crate_file(
+            &repo,
+            &format!("lib/{}", manifest_name()),
+            "module example.com/lib\n\ngo 1.22\n",
+        );
         write_crate_file(&repo, "lib/lib.go", "package lib\n\nfunc Hello() {}\n");
         for args in [
             &["init", "-q"][..],

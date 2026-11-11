@@ -89,11 +89,8 @@ fn resolve_pnpm_key(
     detail: &yaml_serde::Value,
     style: PnpmKeyStyle,
 ) -> Result<(String, String), DxError> {
-    let unresolved = || {
-        DxError::failure(format!(
-            "invalid lock: cannot resolve package key `{key}`"
-        ))
-    };
+    let unresolved =
+        || DxError::failure(format!("invalid lock: cannot resolve package key `{key}`"));
     let detail_str = |field: &str| {
         detail
             .get(field)

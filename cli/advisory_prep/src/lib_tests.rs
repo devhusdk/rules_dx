@@ -817,9 +817,7 @@ checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 "#;
 
 fn yanked_options(workspace: &TempDir, index: &TempDir) -> PrepareOptions {
-    let lock = workspace
-        .path()
-        .join("cc/private/context/Cargo.lock");
+    let lock = workspace.path().join("cc/private/context/Cargo.lock");
     std::fs::write(lock, LOCK).expect("writes the lock");
     let bad = index.path().join("3/b/bad");
     std::fs::create_dir_all(bad.parent().expect("parent")).expect("creates");

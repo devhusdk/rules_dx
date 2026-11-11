@@ -1,8 +1,8 @@
 //! Hex publisher: package staging and the mix or rebar3 build and publish.
 
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
 use dx_ecosystems::Ecosystem;
@@ -329,7 +329,11 @@ mod tests {
         let scratch = scratch_dir();
         let root = scratch.path().join("in");
         let files = vec![
-            write(&root, Ecosystem::Hex.manifest_name(), "version: \"1.0.0\",\n"),
+            write(
+                &root,
+                Ecosystem::Hex.manifest_name(),
+                "version: \"1.0.0\",\n",
+            ),
             write(&root, "lib/demo.ex", ""),
         ];
         let staging = scratch.path().join("staging");

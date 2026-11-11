@@ -404,9 +404,8 @@ pub fn copy_into(
     for (key, path) in copy {
         let source = locate(resolver, key)?;
         let dest = workspace.join(path);
-        let describe = |error: io::Error| {
-            io::Error::new(error.kind(), format!("{}: {error}", dest.display()))
-        };
+        let describe =
+            |error: io::Error| io::Error::new(error.kind(), format!("{}: {error}", dest.display()));
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent).map_err(describe)?;
         }
@@ -436,7 +435,9 @@ pub fn run(exe: &Path, user_args: &[OsString]) -> io::Result<i32> {
     if !descriptor.copy.is_empty() {
         let workspace = std::env::var_os("BUILD_WORKSPACE_DIRECTORY")
             .filter(|value| !value.is_empty())
-            .ok_or_else(|| bad("BUILD_WORKSPACE_DIRECTORY is not set: start this with bazel run"))?;
+            .ok_or_else(|| {
+                bad("BUILD_WORKSPACE_DIRECTORY is not set: start this with bazel run")
+            })?;
         copy_into(&resolver, &descriptor.copy, Path::new(&workspace))?;
         return Ok(0);
     }

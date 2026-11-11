@@ -3,8 +3,7 @@
 use dx_error::DxError;
 
 use super::{
-    Candidate, Fetch, Findings, LookupError, github_repo, numeric_cmp, release_cmp, unquote,
-    wanted,
+    Candidate, Fetch, Findings, LookupError, github_repo, numeric_cmp, release_cmp, unquote, wanted,
 };
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -106,7 +105,10 @@ fn declaration(line: &str) -> Option<(String, String)> {
     best.map(|current| (name.to_owned(), current.to_owned()))
 }
 
-pub(crate) fn newest(body: &str, prereleases: bool) -> Result<(String, Option<String>, bool), DxError> {
+pub(crate) fn newest(
+    body: &str,
+    prereleases: bool,
+) -> Result<(String, Option<String>, bool), DxError> {
     let json: serde_json::Value =
         serde_json::from_str(body).map_err(|e| DxError::failure(e.to_string()))?;
     json.as_array()

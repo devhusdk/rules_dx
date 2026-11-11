@@ -128,7 +128,8 @@ fn allowed(root: &Path) -> Vec<String> {
 
 fn is_lock_file(path: &str) -> bool {
     let name = path.rsplit('/').next().unwrap_or(path);
-    LOCK_FILES.contains(&name) || REGISTRY_LOCKS.iter().any(|eco| lock_of(eco) == name)
+    LOCK_FILES.contains(&name)
+        || REGISTRY_LOCKS.iter().any(|eco| lock_of(eco) == name)
         || REGISTRY_STATES.iter().any(|eco| state_of(eco) == name)
 }
 

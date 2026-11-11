@@ -12,17 +12,16 @@ pub fn parse_composer_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         let Some(entries) = root.get(key) else {
             continue;
         };
-        let entries = entries.as_array().ok_or_else(|| {
-            DxError::failure(format!("invalid lock: {key} is not a list"))
-        })?;
+        let entries = entries
+            .as_array()
+            .ok_or_else(|| DxError::failure(format!("invalid lock: {key} is not a list")))?;
         for entry in entries {
             let field = |name: &str| entry.get(name).and_then(serde_json::Value::as_str);
             let name = field("name").ok_or_else(|| {
                 DxError::failure(format!("invalid lock: {key} entry has no name"))
             })?;
-            let version = field("version").ok_or_else(|| {
-                DxError::failure(format!("invalid lock: {name} has no version"))
-            })?;
+            let version = field("version")
+                .ok_or_else(|| DxError::failure(format!("invalid lock: {name} has no version")))?;
             if version.starts_with("dev-") || version.ends_with("-dev") {
                 continue;
             }

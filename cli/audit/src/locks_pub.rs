@@ -11,16 +11,15 @@ pub fn parse_pubspec_lock(text: &str) -> Result<Vec<LockedPackage>, DxError> {
         .ok_or_else(|| DxError::failure("invalid lock: missing packages"))?;
     let mut out = Vec::new();
     for (name, detail) in packages {
-        let name = name.as_str().ok_or_else(|| {
-            DxError::failure("invalid lock: package name is not a string")
-        })?;
+        let name = name
+            .as_str()
+            .ok_or_else(|| DxError::failure("invalid lock: package name is not a string"))?;
         let field = |key: &str| detail.get(key).and_then(yaml_serde::Value::as_str);
         if field("source") != Some("hosted") {
             continue;
         }
-        let version = field("version").ok_or_else(|| {
-            DxError::failure(format!("invalid lock: {name} has no version"))
-        })?;
+        let version = field("version")
+            .ok_or_else(|| DxError::failure(format!("invalid lock: {name} has no version")))?;
         out.push(LockedPackage::new("pub", name, version));
     }
     out.sort_by(|a, b| (&a.name, &a.version).cmp(&(&b.name, &b.version)));

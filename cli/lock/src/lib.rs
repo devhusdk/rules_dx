@@ -114,18 +114,29 @@ impl Args {
                 "--check" => check = true,
                 "--dir" => dir = args.next(),
                 "--upgrade" => upgrade.extend(args.next()),
-                other => match (other.strip_prefix("--dir="), other.strip_prefix("--upgrade=")) {
+                other => match (
+                    other.strip_prefix("--dir="),
+                    other.strip_prefix("--upgrade="),
+                ) {
                     (Some(value), _) => dir = Some(value.to_owned()),
                     (_, Some(value)) => upgrade.push(value.to_owned()),
                     _ => return Err(Error::new(format!("unknown argument {other}\n{USAGE}"))),
                 },
             }
         }
-        let dir = PathBuf::from(dir.ok_or_else(|| Error::new(format!("--dir is missing\n{USAGE}")))?);
+        let dir =
+            PathBuf::from(dir.ok_or_else(|| Error::new(format!("--dir is missing\n{USAGE}")))?);
         if !dir.is_absolute() {
-            return Err(Error::new(format!("--dir {} is not absolute\n{USAGE}", dir.display())));
+            return Err(Error::new(format!(
+                "--dir {} is not absolute\n{USAGE}",
+                dir.display()
+            )));
         }
-        Ok(Self { dir, check, upgrade })
+        Ok(Self {
+            dir,
+            check,
+            upgrade,
+        })
     }
 }
 
@@ -133,16 +144,17 @@ impl Args {
 fn matches(pattern: &str, name: &str) -> bool {
     match pattern.split_once('*') {
         None => pattern == name,
-        Some((head, tail)) => name
-            .strip_prefix(head)
-            .is_some_and(|rest| (0..=rest.len()).any(|at| rest.is_char_boundary(at) && matches(tail, &rest[at..]))),
+        Some((head, tail)) => name.strip_prefix(head).is_some_and(|rest| {
+            (0..=rest.len()).any(|at| rest.is_char_boundary(at) && matches(tail, &rest[at..]))
+        }),
     }
 }
 
 /// The files of `dir` named by the first of `patterns` that names any, sorted.
 fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
     let mut names = Vec::new();
-    let entries = std::fs::read_dir(dir).map_err(|error| Error::new(format!("{}: {error}", dir.display())))?;
+    let entries = std::fs::read_dir(dir)
+        .map_err(|error| Error::new(format!("{}: {error}", dir.display())))?;
     for entry in entries {
         let entry = entry.map_err(|error| Error::new(format!("{}: {error}", dir.display())))?;
         if entry.path().is_file() {
@@ -151,7 +163,11 @@ fn named_files(dir: &Path, patterns: &[String]) -> Result<Vec<String>, Error> {
     }
     names.sort();
     for pattern in patterns {
-        let found: Vec<String> = names.iter().filter(|name| matches(pattern, name)).cloned().collect();
+        let found: Vec<String> = names
+            .iter()
+            .filter(|name| matches(pattern, name))
+            .cloned()
+            .collect();
         if !found.is_empty() {
             return Ok(found);
         }
@@ -186,9 +202,16 @@ impl Inputs {
     fn of(spec: &Spec, dir: &Path) -> Result<Self, Error> {
         let manifest = named_files(dir, &spec.manifest)?;
         if manifest.is_empty() {
-            return Err(Error::new(format!("{} has no {}", dir.display(), spec.manifest.join(" or "))));
+            return Err(Error::new(format!(
+                "{} has no {}",
+                dir.display(),
+                spec.manifest.join(" or ")
+            )));
         }
-        Ok(Self { manifest, state: named_files(dir, &spec.state)? })
+        Ok(Self {
+            manifest,
+            state: named_files(dir, &spec.state)?,
+        })
     }
 
     fn digests(&self, dir: &Path) -> Result<BTreeMap<String, String>, Error> {
@@ -232,7 +255,12 @@ fn fetched(fetch: &dyn Fetch, package: &Package, archive: &Archive) -> Result<St
 ///
 /// # Errors
 /// Fails when the set has no manifest, the resolver or a download fails, or a file cannot be written.
-pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch) -> Result<Outcome, Error> {
+pub fn run(
+    spec: &Spec,
+    args: &Args,
+    resolver: &dyn Resolver,
+    fetch: &dyn Fetch,
+) -> Result<Outcome, Error> {
     let dir = &args.dir;
     let lock_path = dir.join(spec.lock_name());
     let inputs = Inputs::of(spec, dir)?;
@@ -242,7 +270,9 @@ pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch)
         .and_then(|text| Lock::from_json(text).ok())
         .filter(|lock| lock.ecosystem == spec.ecosystem);
     if args.upgrade.is_empty()
-        && old.as_ref().is_some_and(|lock| inputs.digests(dir).is_ok_and(|now| now == lock.inputs))
+        && old
+            .as_ref()
+            .is_some_and(|lock| inputs.digests(dir).is_ok_and(|now| now == lock.inputs))
     {
         return Ok(Outcome::Fresh);
     }
@@ -272,11 +302,17 @@ pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch)
     lock.normalize();
     let problems = lock.shape_problems();
     if !problems.is_empty() {
-        return Err(Error::new(format!("the resolver returned an unusable closure:\n{}", problems.join("\n"))));
+        return Err(Error::new(format!(
+            "the resolver returned an unusable closure:\n{}",
+            problems.join("\n")
+        )));
     }
     for package in 0..lock.packages.len() {
         for archive in 0..lock.packages[package].archives.len() {
-            let (entry, wanted) = (&lock.packages[package], &lock.packages[package].archives[archive]);
+            let (entry, wanted) = (
+                &lock.packages[package],
+                &lock.packages[package].archives[archive],
+            );
             if !wanted.sha256.is_empty() {
                 continue;
             }
@@ -294,7 +330,11 @@ pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch)
             write(&dir.join(name), &bytes)?;
         }
     }
-    lock.inputs = Inputs { manifest: inputs.manifest, state }.digests(dir)?;
+    lock.inputs = Inputs {
+        manifest: inputs.manifest,
+        state,
+    }
+    .digests(dir)?;
     let text = lock.to_bytes();
     if old_text.as_deref() != Some(text.as_str()) {
         write(&lock_path, text.as_bytes())?;
@@ -304,8 +344,9 @@ pub fn run(spec: &Spec, args: &Args, resolver: &dyn Resolver, fetch: &dyn Fetch)
 
 /// The `main` of an ecosystem's resolver target: exit 0 when the lock is fresh or written, 1 when stale, 2 on failure.
 pub fn main(spec: &Spec, resolver: &dyn Resolver) -> ExitCode {
-    let outcome = Args::parse(std::env::args().skip(1))
-        .and_then(|args| run(spec, &args, resolver, &HttpFetch::new()).map(|outcome| (outcome, args)));
+    let outcome = Args::parse(std::env::args().skip(1)).and_then(|args| {
+        run(spec, &args, resolver, &HttpFetch::new()).map(|outcome| (outcome, args))
+    });
     match outcome {
         Ok((Outcome::Stale, args)) => {
             eprintln!(

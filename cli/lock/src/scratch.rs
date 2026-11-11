@@ -26,7 +26,10 @@ impl Scratch {
     /// Fails when a directory cannot be made.
     pub fn new() -> Result<Self, Error> {
         let failed = |error: std::io::Error| Error::new(format!("scratch directory: {error}"));
-        let root = tempfile::Builder::new().prefix("dx-lock-").tempdir().map_err(failed)?;
+        let root = tempfile::Builder::new()
+            .prefix("dx-lock-")
+            .tempdir()
+            .map_err(failed)?;
         let set = root.path().join("set");
         std::fs::create_dir(&set).map_err(failed)?;
         for (dir, _) in DIRS {

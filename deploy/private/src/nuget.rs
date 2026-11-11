@@ -448,23 +448,25 @@ fn nuget_api_check(
         .map_err(|error| error.to_string())
         .and_then(|()| {
             let home = home.display().to_string();
-            run_publish(scrubbed_command(
-                dotnet,
-                &[PUBLISH_CHILD_ENV_KEEP],
-                &[
-                    ("DOTNET_ROLL_FORWARD", "Major"),
-                    ("DOTNET_CLI_HOME", &home),
-                    ("DOTNET_NOLOGO", "1"),
-                    ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
-                    ("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1"),
-                ],
+            run_publish(
+                scrubbed_command(
+                    dotnet,
+                    &[PUBLISH_CHILD_ENV_KEEP],
+                    &[
+                        ("DOTNET_ROLL_FORWARD", "Major"),
+                        ("DOTNET_CLI_HOME", &home),
+                        ("DOTNET_NOLOGO", "1"),
+                        ("DOTNET_CLI_TELEMETRY_OPTOUT", "1"),
+                        ("DOTNET_SKIP_FIRST_TIME_EXPERIENCE", "1"),
+                    ],
+                )
+                .arg("exec")
+                .arg(apicompat)
+                .arg("package")
+                .arg(nupkg)
+                .arg("--baseline-package")
+                .arg(&old_nupkg),
             )
-            .arg("exec")
-            .arg(apicompat)
-            .arg("package")
-            .arg(nupkg)
-            .arg("--baseline-package")
-            .arg(&old_nupkg))
             .map_err(|error| error.to_string())
         });
     let _ = std::fs::remove_dir_all(&work);

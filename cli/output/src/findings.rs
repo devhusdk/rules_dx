@@ -408,7 +408,10 @@ fn check_notice(notice: &NoticeEvent) -> Result<(), OutputError> {
 /// Builds the event for a notice whose producer already validated it.
 pub fn notice_value(notice: &NoticeEvent) -> Value {
     let mut map = base("notice");
-    map.insert("severity".to_owned(), Value::String(notice.severity.clone()));
+    map.insert(
+        "severity".to_owned(),
+        Value::String(notice.severity.clone()),
+    );
     map.insert("code".to_owned(), Value::String(notice.code.clone()));
     map.insert("message".to_owned(), Value::String(notice.message.clone()));
     if let Some(related) = &notice.related_command {

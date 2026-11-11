@@ -1,7 +1,7 @@
 //! Lists LuaRocks pins whose newest version in the luarocks.org manifest is newer than the locked one.
 
-use dx_error::DxError;
 use super::{Candidate, Fetch, Findings, LookupError, wanted};
+use dx_error::DxError;
 use std::cmp::Ordering;
 
 pub const DEFAULT_BASE: &str = "https://luarocks.org";
@@ -23,7 +23,8 @@ pub fn outdated(
         return found;
     }
     let manifest = fetch.get(&format!("{base}/{MANIFEST}")).and_then(|body| {
-        serde_json::from_str::<serde_json::Value>(&body).map_err(|e| DxError::failure(e.to_string()))
+        serde_json::from_str::<serde_json::Value>(&body)
+            .map_err(|e| DxError::failure(e.to_string()))
     });
     let manifest = match manifest {
         Ok(manifest) => manifest,

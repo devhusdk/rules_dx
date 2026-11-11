@@ -243,7 +243,11 @@ mod tests {
     #[test]
     fn reads_identity_from_the_file_name_and_meta() {
         let dir = scratch_dir();
-        let dist = write_dist(dir.path(), "Demo-Dist-1.2.0.tar.gz", "Demo-Dist-1.2.0/META.json");
+        let dist = write_dist(
+            dir.path(),
+            "Demo-Dist-1.2.0.tar.gz",
+            "Demo-Dist-1.2.0/META.json",
+        );
         let identity = cpan_read_identity(&dist).expect("identity");
         assert_eq!(identity, ("Demo-Dist".to_owned(), "1.2.0".to_owned()));
         assert_eq!(cpan_check_identity(&identity, "Demo-Dist", "1.2.0"), Ok(()));

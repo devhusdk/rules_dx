@@ -86,7 +86,11 @@ fn rule_report_for(config: &ToolConfig, old: &[u8], new: &[u8]) -> Option<Vec<St
         return None;
     }
     let read = |bytes: &[u8]| {
-        rule_settings(config.ext, config.rule_keys, std::str::from_utf8(bytes).ok()?)
+        rule_settings(
+            config.ext,
+            config.rule_keys,
+            std::str::from_utf8(bytes).ok()?,
+        )
     };
     let report = rule_report(config.id, &read(old)?, &read(new)?);
     (!report.is_empty()).then_some(report)

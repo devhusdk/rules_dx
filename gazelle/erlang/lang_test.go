@@ -90,6 +90,21 @@ func TestOwns(t *testing.T) {
 	if !Owns(mk(NifKind, "n", "c_src/a.c")) {
 		t.Error("generated nif should be owned")
 	}
+	for _, c := range []struct {
+		kind, name string
+		want       bool
+	}{
+		{TestAppKind, TestAppTarget, true},
+		{TestAppKind, "mine", false},
+		{OptsKind, TestOptsTarget, true},
+		{OptsKind, "erlc_opts", false},
+		{EunitKind, "demo_test", true},
+		{EunitKind, "eunit", false},
+	} {
+		if got := Owns(rule.NewRule(c.kind, c.name)); got != c.want {
+			t.Errorf("Owns(%s %q) = %v, want %v", c.kind, c.name, got, c.want)
+		}
+	}
 }
 
 func TestSymlinkedSrcKeepsErlangApp(t *testing.T) {

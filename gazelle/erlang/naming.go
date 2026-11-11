@@ -87,8 +87,12 @@ func Owns(r *rule.Rule) bool {
 		return false
 	}
 	switch r.Kind() {
-	case TestAppKind, OptsKind, EunitKind:
-		return true
+	case TestAppKind:
+		return r.Name() == TestAppTarget
+	case OptsKind:
+		return r.Name() == TestOptsTarget
+	case EunitKind:
+		return strings.HasSuffix(r.Name(), "_test")
 	case BytecodeKind:
 		return r.Name() == TestModules
 	}

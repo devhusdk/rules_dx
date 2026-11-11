@@ -59,6 +59,8 @@ std::string CudaVersion(int encoded);
 
 std::string CallError(const char *call, const char *name, int status);
 
+int LinkedRuntime(bool read_ok, int reported, int linked);
+
 std::string FactsJson(const Probe &probe, const Declared &declared,
                       const Verdict &verdict);
 

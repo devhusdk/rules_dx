@@ -42,10 +42,9 @@ struct Versions {
 void ReadVersions(void* ctx) {
   Versions* v = static_cast<Versions*>(ctx);
   v->call = "cudaRuntimeGetVersion";
-  v->status = cudaRuntimeGetVersion(&v->runtime);
-  if (v->status != cudaSuccess) {
-    return;
-  }
+  cudaError_t rs = cudaRuntimeGetVersion(&v->runtime);
+  v->runtime =
+      dx_gpu::LinkedRuntime(rs == cudaSuccess, v->runtime, CUDART_VERSION);
   v->call = "cudaDriverGetVersion";
   v->status = cudaDriverGetVersion(&v->driver);
   if (v->status != cudaSuccess) {

@@ -81,7 +81,7 @@ def _native_fields(ctx):
     tool = lambda action: cc_common.get_tool_for_action(feature_configuration = features, action_name = action)
     drivers = cc_drivers(ctx)
     return {
-        "cc_files": depset(drivers + [ctx.executable._cc_driver], transitive = [cc.all_files]),
+        "cc_files": depset(drivers + [ctx.executable._cc_driver] + ctx.files.stdlib, transitive = [cc.all_files]),
         "cc_link_env_vars": native_cc_env(
             cc = tool(ACTION_NAMES.c_compile),
             assembler = tool(ACTION_NAMES.assemble),
@@ -102,7 +102,7 @@ def _native_fields(ctx):
 def _dx_ocaml_toolchain_impl(ctx):
     upstream = ctx.attr.adapter[platform_common.ToolchainInfo]
     extra = {
-        "cc_files": depset(),
+        "cc_files": depset(ctx.files.stdlib),
         "cc_link_env_vars": {},
         "dllibs": ctx.files.dllibs,
         "dllibs_path": ctx.files.dllibs[0].dirname,
@@ -119,6 +119,7 @@ dx_ocaml_toolchain = rule(
         "adapter": attr.label(mandatory = True, providers = [platform_common.ToolchainInfo], doc = "The ocaml_toolchain_adapter target."),
         "compiler": attr.label(allow_single_file = True, mandatory = True, doc = "The compiler; the lib directory beside its bin directory is searched when linking."),
         "dllibs": attr.label_list(allow_files = True, mandatory = True, doc = "Stub libraries ocamlrun loads."),
+        "stdlib": attr.label(allow_files = True, mandatory = True, doc = "The standard library tree the compiler finds beside its bin directory; every compile action stages it."),
         "native": attr.bool(default = False, doc = "Whether ocamlopt assembles and links with the C toolchain."),
         "vmruntime": attr.label(allow_single_file = True, executable = True, cfg = "exec", mandatory = True, doc = "The ocamlrun interpreter."),
         "_cc_driver": attr.label(default = Label("//cli/ocaml_cc_driver"), executable = True, cfg = "exec"),
@@ -165,6 +166,7 @@ def dx_ocaml_dist(name, emitters, licenses, version_file):
             compiler = compiler,
             dllibs = [":stublibs"],
             native = emitter == "sys",
+            stdlib = ":stdlib",
             vmruntime = TOOLS["vmruntime"],
         )
         ocaml_toolchain_profile(name = emitter + "_profile")

@@ -469,6 +469,7 @@ def _entry_path(rule, main):
 
 def typescript_bench(name, *, srcs, main = None, node_modules, data = None, args = None, tags = None, **kwargs):
     """A typescript_test run by dx bench. `main`, the first of srcs by default, exports a tinybench Bench as its default export; its results land in dx-bench.json. `node_modules` must link tinybench."""
+    kwargs["deps"] = list(kwargs.pop("deps", None) or []) + [node_modules + "/tinybench"]
     typescript_test(
         name = name,
         srcs = srcs,

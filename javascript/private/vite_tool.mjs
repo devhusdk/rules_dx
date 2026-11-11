@@ -84,7 +84,7 @@ async function build(out, config, ssrEntry) {
 	try {
 		await vite.build({
 			root,
-			plugins: process.env.VITE_TOOL_KEEP_ENTRY_PATH ? [keepEntryPath] : [],
+			plugins: [keepEntryPath],
 			configFile: path.resolve(root, config),
 			cacheDir,
 			logLevel: "warn",

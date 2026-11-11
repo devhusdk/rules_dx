@@ -94,10 +94,8 @@ _dx_framework_web_app = rule(
 
 _VITE_TOOL = Label("//javascript/private:vite_tool")
 
-def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, target_compatible_with, tool, ssr_entry = None, keep_entry_path = False):
+def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, target_compatible_with, tool, ssr_entry = None):
     env = {"VITE_TOOL_PACKAGE": native.package_name()}
-    if keep_entry_path:
-        env["VITE_TOOL_KEEP_ENTRY_PATH"] = "1"
     js_run_binary(
         resource_set = "mem_2g",
         name = name,
@@ -115,13 +113,13 @@ def _dx_framework_vite_run(name, out, srcs, config, node_modules, packages, mnem
         target_compatible_with = target_compatible_with,
     )
 
-def dx_framework_build(name, what, mnemonic, packages, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, tool = _VITE_TOOL, keep_entry_path = False, **kwargs):
+def dx_framework_build(name, what, mnemonic, packages, srcs, config, node_modules, package_json = None, public = None, ssr_entry = None, deps = None, visibility = None, tool = _VITE_TOOL, **kwargs):
     """Builds one framework app into a bundled web app tree and an optional SSR tree. Creates the private `<name>_dist` build target behind the web app `<name>`. With `ssr_entry` it also creates `<name>_ssr`, which takes the given visibility. `tags`, `testonly` and `target_compatible_with` reach every target."""
     tags = kwargs.get("tags", [])
     testonly = kwargs.get("testonly", False)
     compatible = kwargs.get("target_compatible_with", None)
     dist = name + "_dist"
-    _dx_framework_vite_run(dist, dist + ".out", srcs, config, node_modules, packages, mnemonic, package_json, public, deps, ["//visibility:private"], tags, testonly, compatible, tool, keep_entry_path = keep_entry_path)
+    _dx_framework_vite_run(dist, dist + ".out", srcs, config, node_modules, packages, mnemonic, package_json, public, deps, ["//visibility:private"], tags, testonly, compatible, tool)
     _dx_framework_web_app(name = name, dist = ":" + dist, what = what, visibility = visibility, **kwargs)
     if ssr_entry:
-        _dx_framework_vite_run(name + "_ssr", name + "_ssr", srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, compatible, tool, ssr_entry = ssr_entry, keep_entry_path = keep_entry_path)
+        _dx_framework_vite_run(name + "_ssr", name + "_ssr", srcs, config, node_modules, packages, mnemonic, package_json, public, deps, visibility, tags, testonly, compatible, tool, ssr_entry = ssr_entry)

@@ -4,6 +4,7 @@ use crate::api_compat::{Baseline, Outcome, fetch, highest_below, previous_git_ta
 use crate::archive::archive_extract;
 use crate::run::{PUBLISH_CHILD_ENV_KEEP, exit_text, run_publish, scrubbed_command};
 use crate::stage::tempfile_stage_dir;
+use dx_ecosystems::Ecosystem;
 use std::path::Path;
 
 /// Returns the lines under `Incompatible changes:` in apidiff output.
@@ -46,7 +47,12 @@ fn proxy_previous(list: &str, tag: &str) -> Option<String> {
         .map(|version| format!("v{version}"))
 }
 
-/// Returns the module path of a go.mod file.
+/// The file name of a Go module manifest.
+fn manifest_name() -> &'static str {
+    Ecosystem::Go.manifest_name()
+}
+
+/// Returns the module path of a Go module manifest.
 fn module_path(go_mod: &Path) -> Option<String> {
     let text = std::fs::read_to_string(go_mod).ok()?;
     text.lines().find_map(|line| {
@@ -133,7 +139,7 @@ pub(crate) fn go_api_check(
 ) -> Result<Vec<Outcome>, String> {
     let detected = [String::new()];
     let modules = if modules.is_empty() {
-        if !workspace.join("go.mod").is_file() {
+        if !workspace.join(manifest_name()).is_file() {
             return Ok(Vec::new());
         }
         &detected[..]
@@ -160,8 +166,11 @@ pub(crate) fn go_api_check(
     for (index, module) in modules.iter().enumerate() {
         let rel = module.trim_matches('/');
         let new = workspace.join(rel);
-        let Some(path) = module_path(&new.join("go.mod")) else {
-            checked = Err(format!("github_deploy: no module line in {module}/go.mod"));
+        let Some(path) = module_path(&new.join(manifest_name())) else {
+            checked = Err(format!(
+                "github_deploy: no module line in {module}/{}",
+                manifest_name()
+            ));
             break;
         };
         let old = if baseline == Baseline::Git {
@@ -181,9 +190,10 @@ pub(crate) fn go_api_check(
                 continue;
             }
         };
-        if !old.join("go.mod").is_file() {
+        if !old.join(manifest_name()).is_file() {
             outcomes.push(Outcome::Skipped(format!(
-                "no go.mod for {path} at {previous}"
+                "no {} for {path} at {previous}",
+                manifest_name()
             )));
             continue;
         }
@@ -292,7 +302,7 @@ mod tests {
         let scratch = scratch_dir();
         let zip = crate::archive::zip_archive(&[
             (
-                "example.com/Lib@v1.2.0/go.mod",
+                &format!("example.com/Lib@v1.2.0/{}", manifest_name()),
                 b"module example.com/Lib\n",
                 0o644,
             ),
@@ -303,14 +313,14 @@ mod tests {
         std::fs::write(&archive, zip).expect("write");
         let dir = scratch.path().join("0");
         archive_extract(&archive, &dir).expect("extract");
-        assert!(dir.join("example.com/Lib@v1.2.0/go.mod").is_file());
+        assert!(dir.join(format!("example.com/Lib@v1.2.0/{}", manifest_name())).is_file());
     }
 
     #[cfg(unix)]
     fn git_fixture(scratch: &Path) -> std::path::PathBuf {
         let repo = scratch.join("repo");
         std::fs::create_dir_all(&repo).expect("repo dir");
-        write_crate_file(&repo, "lib/go.mod", "module example.com/lib\n\ngo 1.22\n");
+        write_crate_file(&repo, &format!("lib/{}", manifest_name()), "module example.com/lib\n\ngo 1.22\n");
         write_crate_file(&repo, "lib/lib.go", "package lib\n\nfunc Hello() {}\n");
         for args in [
             &["init", "-q"][..],

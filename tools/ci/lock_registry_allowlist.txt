@@ -216,9 +216,6 @@ name deploy/private/sbom.bzl uv.lock
 name deploy/private/src/api_compat.rs Cargo.toml
 name deploy/private/src/api_compat.rs pubspec.yaml
 name deploy/private/src/crates.rs Cargo.toml
-name deploy/private/src/github.rs go.mod
-name deploy/private/src/go_api.rs go.mod
-name deploy/private/src/hex.rs mix.exs
 name deploy/private/src/lib.rs Cargo.toml
 name deploy/private/src/npm.rs package.json
 name deploy/private/src/pub_dev.rs pubspec.yaml

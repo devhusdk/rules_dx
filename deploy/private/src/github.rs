@@ -565,7 +565,7 @@ mod tests {
         let repo = scratch.path().join("repo");
         let runfiles = scratch.path().join("runfiles");
         let bin = scratch.path().join("bin");
-        write_crate_file(&repo, "go.mod", "module example.com/lib\n\ngo 1.22\n");
+        write_crate_file(&repo, dx_ecosystems::Ecosystem::Go.manifest_name(), "module example.com/lib\n\ngo 1.22\n");
         write_crate_file(&repo, "lib.go", "package lib\n");
         for dir in [&runfiles, &bin] {
             std::fs::create_dir_all(dir).expect("dir");

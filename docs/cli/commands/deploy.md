@@ -41,7 +41,7 @@ NPM_PUBLISH_APPROVED=1 tools/dx deploy --apply //pkg:npm
 
 In an agent session (`CLAUDECODE`, `CODEX_THREAD_ID` and the other agent variables), `--apply` without `CI=true` exits `1` with `deploy_needs_human`: a human or CI publishes. Run the dry run instead.
 
-- `dx init --agents=claude` adds `permissions.ask` rules for `tools/dx deploy --apply` to `.claude/settings.json`.
+- `dx init` for the Claude agent adds `permissions.ask` rules for `tools/dx deploy --apply` to `.claude/settings.json`.
 - The agent guard hook asks first (Claude, Copilot) or refuses (Codex, Gemini, Cursor) when a command runs `dx deploy` with `--apply`, in any word order.
 
 ## Registries released by tag

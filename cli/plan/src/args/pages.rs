@@ -16,7 +16,7 @@ pub const PAGES: [(Command, &str); 25] = [
     (Command::Coverage, "build-test-coverage.md"),
     (Command::Bench, "bench.md"),
     (Command::Run, "build-test-coverage.md"),
-    (Command::Deploy, "build-test-coverage.md"),
+    (Command::Deploy, "deploy.md"),
     (Command::Check, "check.md"),
     (Command::Clean, "clean.md"),
     (Command::Update, "audit-update.md"),

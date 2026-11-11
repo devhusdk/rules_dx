@@ -19,6 +19,7 @@ dx upgrade [--apply] [--to <version>]
 | `--to <version>` | Version to pin. Defaults to the newest stable `rules_dx` in the Bazel registry. |
 | `--apply` | Writes the changes instead of showing them. |
 | `--output text\|json` | Sets the output format. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 Scopes: none. Positional scopes are rejected.
 

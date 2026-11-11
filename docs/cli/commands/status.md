@@ -18,6 +18,7 @@ dx status [--capabilities] [--files] [--output text|json]
 | `--capabilities` | Adds one capability record per command and one for `workspace:tools`. |
 | `--files` | Adds one record per file `dx init` writes: its path, what dx owns (`whole`, `extends`, `keys`, `block`, `lines`, `pin` or `once`) and its state. |
 | `--output text\|json` | Sets the output format. |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
 
 Scopes: none.
 

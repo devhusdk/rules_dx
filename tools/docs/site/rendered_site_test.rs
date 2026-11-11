@@ -137,6 +137,7 @@ fn every_command_page_has_its_own_route() {
         "docs/cli/commands/quality.html",
         "docs/cli/commands/check.html",
         "docs/cli/commands/clean.html",
+        "docs/cli/commands/deploy.html",
         "docs/cli/commands/generate.html",
         "docs/cli/commands/docs.html",
         "docs/cli/commands/init.html",

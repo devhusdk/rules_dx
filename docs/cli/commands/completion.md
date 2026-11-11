@@ -27,7 +27,11 @@ Keep `dx` on your `PATH`. The script asks `dx` for candidates as you type.
 
 ## Flags
 
-None. `--output=json`, `--diff`, and `-- bazel-options` are usage errors. `DX_OUTPUT=json` falls back to text.
+| Flag | What it does |
+| --- | --- |
+| `--workspace`, `-q`, `-v`, `--color`, `--build-slots`, `--build-slots-wait`, `--bazel-startup-option` | Global flags. |
+
+No other flag. `--output=json`, `--diff`, and `-- bazel-options` are usage errors. `DX_OUTPUT=json` falls back to text.
 
 Scopes: exactly one shell. Unknown shells fail with `unknown shell`.
 

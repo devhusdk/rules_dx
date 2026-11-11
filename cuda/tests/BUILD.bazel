@@ -440,7 +440,10 @@ real_source_target(
 
 cuda_cell_tests(name = "cell_tests")
 
-cuda_license_gate_tests(name = "license_gate", size = "small")
+cuda_license_gate_tests(
+    name = "license_gate",
+    size = "small",
+)
 
 exports_files(
     ["BUILD.bazel"],

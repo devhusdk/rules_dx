@@ -12,6 +12,7 @@ zig_library(
 
 zig_test(
     name = "calc_test",
+    size = "small",
     main = "calc_test.zig",
     deps = [":calc"],
 )

@@ -19,9 +19,9 @@ dev_hub_tests(
 
 ide_acquisition_test(
     name = "ide_acquisition_test",
+    size = "small",
     binary = "//javascript/private/ide:node_tool",
     expected = NODE_VERSION_PREFIX,
-    size = "small",
     version_args = ["--version"],
 )
 

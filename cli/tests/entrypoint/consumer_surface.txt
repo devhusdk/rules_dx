@@ -33,6 +33,7 @@ haskell:defs.bzl
 haskell:extensions.bzl
 helm:defs.bzl
 java:defs.bzl
+java:extensions.bzl
 javascript:defs.bzl
 javascript/private/quality:js.bzl
 julia:defs.bzl

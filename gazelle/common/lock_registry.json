@@ -18,6 +18,12 @@
     "manifest": "*.rockspec"
   },
   {
+    "ecosystem": "maven",
+    "hub": "maven",
+    "lock": "maven_install.json",
+    "manifest": "MODULE.bazel"
+  },
+  {
     "ecosystem": "swiftpm",
     "hub": "swiftpkg",
     "lock": "swiftpm.lock.json",

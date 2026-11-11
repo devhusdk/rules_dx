@@ -421,12 +421,10 @@ name go/lang.json go.sum
 name haskell/private/deps_resolve.bzl cabal.project.freeze
 name haskell/private/deps_resolve.bzl haskell_deps.json
 name haskell/private/toolchain/extensions.bzl haskell_deps.json
-name java/lang.json maven_install.json
 name javascript/private/quality/js_tools.bzl tsconfig.json
 name julia/lang.json Manifest.toml
 name julia/lang.json Project.toml
 name julia/private/quality/julia.bzl Project.toml
-name kotlin/lang.json maven_install.json
 name ocaml/lang.json dune-project
 name ocaml/private/dune.bzl dune-project
 name ocaml/private/quality/repos.bzl dune-project
@@ -437,7 +435,6 @@ name powershell/lang.json PSGallery.lock.json
 name powershell/lang.json PSGallery.requirements.psd1
 name python/private/sdist_cargo_vendor.bzl Cargo.lock
 name python/private/sdist_cargo_vendor.bzl uv.lock
-name scala/lang.json maven_install.json
 name terraform/lang.json .terraform.lock.hcl
 name third_party/dotnet/framework.bzl paket.dependencies
 name tools/docs/components/aspect.bzl tsconfig.json
@@ -459,7 +456,6 @@ parser python/private/sdist_cargo_vendor.bzl
 registry cpan
 registry go
 registry julia
-registry maven
 registry powershell
 resolve-doc csharp/README.md 1
 resolve-doc elixir/README.md 1

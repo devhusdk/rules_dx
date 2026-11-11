@@ -243,6 +243,13 @@ consumer_archive(
     min_runtime = "glibc-2.17",
     notice = ":external_notice_files",
     resources = [":external_res"],
+    runtime = select({
+        "@platforms//os:windows": [
+            "//cc/private/toolchains:msvc_vcruntime",
+            "//cc/private/toolchains:windows_ucrt",
+        ],
+        "//conditions:default": [],
+    }),
 )
 
 rust_test(

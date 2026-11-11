@@ -1,6 +1,6 @@
 load("@bazel_skylib//rules:common_settings.bzl", "string_flag")
-load("//core/quality:fixtures.bzl", "real_source_target")
 load("//cc/private/toolchains:bindings.bzl", "CC_COMPILERS")
+load("//core/quality:fixtures.bzl", "real_source_target")
 
 string_flag(
     name = "compiler",
@@ -41,5 +41,15 @@ filegroup(
 real_source_target(
     name = "corpus_markdown",
     markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
     tags = ["corpus"],
 )

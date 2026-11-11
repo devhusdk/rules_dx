@@ -1,3 +1,4 @@
+# gazelle:ignore
 # gazelle:exclude fuzz_driver.cc
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":clang_syntax_tests.bzl", "clang_syntax_unit_tests")

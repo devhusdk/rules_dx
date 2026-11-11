@@ -1,5 +1,19 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":hub_tests.bzl", "zig_hub_tests")
 
 package(default_visibility = ["//visibility:private"])
 
-zig_hub_tests(name = "hub", size = "small")
+zig_hub_tests(
+    name = "hub",
+    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = [
+        "BUILD.bazel",
+        "hub_tests.bzl",
+    ],
+    tags = ["corpus"],
+)

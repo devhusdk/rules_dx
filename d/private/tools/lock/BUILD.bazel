@@ -20,6 +20,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "@crates//:serde_json",
     ],
 )
 

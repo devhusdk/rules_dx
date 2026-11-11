@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("//cc:defs.bzl", "cc_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//tools/ide:ide_acquisition.bzl", "ide_acquisition_test")

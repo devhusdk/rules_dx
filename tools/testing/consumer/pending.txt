@@ -8,14 +8,6 @@ dev-repo maven core/quality/testdata/scalafix_aux/BUILD.bazel
 dev-repo maven core/quality/testdata/spotbugs_owned/BUILD.bazel
 dev-repo maven gazelle/java/BUILD.bazel
 dev-repo maven gazelle/scala/BUILD.bazel
-dev-repo nodejs_darwin_amd64 env/BUILD.bazel
-dev-repo nodejs_darwin_arm64 env/BUILD.bazel
-dev-repo nodejs_linux_amd64 deploy/private/validate_image.bzl
-dev-repo nodejs_linux_amd64 env/BUILD.bazel
-dev-repo nodejs_linux_arm64 deploy/private/validate_image.bzl
-dev-repo nodejs_linux_arm64 env/BUILD.bazel
-dev-repo nodejs_windows_amd64 env/BUILD.bazel
-dev-repo nodejs_windows_arm64 env/BUILD.bazel
 fixture android
 fixture ansible
 fixture api_spec

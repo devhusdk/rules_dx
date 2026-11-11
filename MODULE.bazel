@@ -1665,13 +1665,13 @@ single_version_override(
 )
 
 # floor: equals tested
-bazel_dep(name = "rules_nodejs", version = "6.7.7", dev_dependency = True)
+bazel_dep(name = "rules_nodejs", version = "6.7.7")
 single_version_override(
     module_name = "rules_nodejs",
     version = "6.7.7",
 )
 
-node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node", dev_dependency = True)
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
 use_repo(
     node,
     "nodejs_darwin_amd64",

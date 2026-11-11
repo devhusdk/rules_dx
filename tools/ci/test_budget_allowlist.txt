@@ -1,6 +1,4 @@
 .devcontainer/BUILD.bazel no-size 1
-android/platforms/BUILD.bazel no-size 1
-android/platforms/metadata_tests.bzl no-size 1
 android/private/library/BUILD.bazel no-size 1
 android/private/library/defs_tests.bzl no-size 3
 android/private/packaging/BUILD.bazel no-size 26

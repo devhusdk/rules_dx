@@ -33,7 +33,7 @@ _floor_test = analysistest.make(_level_impl, attrs = _attrs)
 _selected_test = analysistest.make(
     _level_impl,
     attrs = _attrs,
-    config_settings = {str(Label("//android/platforms:api_level")): 34},
+    config_settings = {str(Label("//android:api_level")): 34},
 )
 
 def android_native_library_tests(name):

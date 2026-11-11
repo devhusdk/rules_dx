@@ -482,8 +482,7 @@ Packaging and deploy:
 
 SDK and toolchain extensions:
 
-- `@rules_dx//android:extensions.bzl`: Android SDK.
-- `@rules_dx//android:repos.bzl`: Android NDK toolchain.
+- `@rules_dx//android:extensions.bzl`: Android SDK and NDK toolchain.
 - `@rules_dx//apple/private/ios:simulator.bzl`: iOS simulator.
 - `@rules_dx//cuda:extensions.bzl`: CUDA license acceptance.
 - `@rules_dx//elixir:extensions.bzl`: Hex packages for Elixir.

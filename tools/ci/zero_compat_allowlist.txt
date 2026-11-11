@@ -1,7 +1,6 @@
 BUILD.bazel compat-word 1
 MODULE.bazel compat-word 3
 android/private/sdk/repos.bzl compat-word 4
-android/repos.bzl reexport 1
 apple/tests/simulator_script_test.rs compat-word 7
 capnproto/BUILD.bazel compat-word 1
 capnproto/private/defs_tests.bzl compat-word 3

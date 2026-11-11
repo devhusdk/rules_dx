@@ -70,19 +70,19 @@ failure_test(
 rust_android_apk(
     name = "bad_abi",
     app_id = "com.example.app",
-    platforms = ["//android/platforms:mips"],
+    platforms = ["//android:mips"],
     deps = [],
 )
 
 failure_test(
     name = "bad_abi_test",
-    expected_failure_substring = "//android/platforms:mips' is unknown",
+    expected_failure_substring = "//android:mips' is unknown",
     target = ":bad_abi",
 )
 
 failure_test(
     name = "bad_abi_aab_file_test",
-    expected_failure_substring = "//android/platforms:mips' is unknown",
+    expected_failure_substring = "//android:mips' is unknown",
     target = ":bad_abi_aab_file",
 )
 
@@ -123,8 +123,8 @@ rust_android_apk(
     name = "bad_dup_abis",
     app_id = "com.example.app",
     platforms = [
-        "//android/platforms:x86_64",
-        "//android/platforms:x86_64",
+        "//android:x86_64",
+        "//android:x86_64",
     ],
     deps = [],
 )
@@ -240,12 +240,12 @@ failure_test(
 android_check_selection(
     name = "bad_abi_aab_check",
     package = "//android/tests/fixtures/rust_apk:dummy.apk",
-    platforms = ["//android/platforms:mips"],
+    platforms = ["//android:mips"],
 )
 
 failure_test(
     name = "bad_abi_aab_check_test",
-    expected_failure_substring = "//android/platforms:mips' is unknown",
+    expected_failure_substring = "//android:mips' is unknown",
     target = ":bad_abi_aab_check_selection",
 )
 

@@ -1,7 +1,7 @@
 """NDK-backed C++ toolchain repositories for Android native builds."""
 
-load("//android/platforms:defs.bzl", "api_floor", "constraint_list")
-load("//android/platforms:validate.bzl", "android_cxx_runtime_errors", "android_ndk_revision_errors")
+load("//android/private/platforms:defs.bzl", "api_floor", "constraint_list")
+load("//android/private/platforms:validate.bzl", "android_cxx_runtime_errors", "android_ndk_revision_errors")
 load("//android/private/sdk:repos.bzl", "ANDROID_NDK_CLANG_VERSION", "ANDROID_NDK_REVISION", "NDK_PREBUILT", "ndk_repository_name")
 
 _QUALIFIED_HOST = "linux_x86_64"

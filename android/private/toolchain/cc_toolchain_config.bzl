@@ -144,7 +144,7 @@ ndk_cc_toolchain_config = rule(
             mandatory = True,
         ),
         "_api_level": attr.label(
-            default = Label("//android/platforms:api_level"),
+            default = Label("//android:api_level"),
         ),
         "clang": attr.label(
             doc = "NDK clang used to compile, assemble and link.",

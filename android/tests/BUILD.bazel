@@ -1,5 +1,6 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
+load(":platforms_tests.bzl", "android_platform_tests")
 
 rust_test(
     name = "ops_test",
@@ -12,8 +13,16 @@ rust_test(
     ],
 )
 
+android_platform_tests(
+    name = "platforms_tests",
+    size = "small",
+)
+
 real_source_target(
     name = "corpus_starlark",
-    starlark_srcs = ["BUILD.bazel"],
+    starlark_srcs = [
+        "BUILD.bazel",
+        "platforms_tests.bzl",
+    ],
     tags = ["corpus"],
 )

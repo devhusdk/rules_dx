@@ -16,7 +16,6 @@ const DECLARED: &[&str] = &[
 const ENTRY_POINTS: &[&str] = &[
     "//android:defs.bzl",
     "//android:extensions.bzl",
-    "//android:repos.bzl",
     "//apple:defs.bzl",
     "//cuda:defs.bzl",
     "//cuda:extensions.bzl",

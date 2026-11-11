@@ -6,7 +6,7 @@ load("@rules_android//rules/android_application:android_application_rule.bzl", "
 load("//cli/launcher:defs.bzl", "NATIVE_LAUNCHER_ATTRS", "write_native_launcher")
 load("//core:resources.bzl", "dx_heavy_resources")
 load("@rules_java//java/common:java_common.bzl", "java_common")
-load("//android/platforms:defs.bzl", "api_floor")
+load("//android/private/platforms:defs.bzl", "api_floor")
 load("//android/private/sdk:repos.bzl", "BUILD_TOOLS", "SDK_PLATFORM")
 load(":repos.bzl", "ABI_PLATFORMS", "abi_errors", "abi_platforms", "app_id_errors", "manifest_lib_name")
 load(":validate.bzl", "android_aab_check_errors", "android_apk_manifest_errors", "android_apk_set_errors", "android_release_sign_errors", "rust_android_apk_errors")
@@ -167,7 +167,7 @@ def rust_android_apk(
         name,
         app_id,
         deps,
-        platforms = [Label("//android/platforms:arm64-v8a"), Label("//android/platforms:x86_64")],
+        platforms = [Label("//android:arm64-v8a"), Label("//android:x86_64")],
         activity = "android.app.NativeActivity",
         api_level = 0,
         assets = [],

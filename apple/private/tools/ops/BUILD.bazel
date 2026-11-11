@@ -15,6 +15,7 @@ rust_library(
         "src/run_macos.rs",
         "src/signing.rs",
         "src/simctl.rs",
+        "src/swift.rs",
         "src/test_sim.rs",
         "src/util.rs",
         "src/xcode.rs",
@@ -32,6 +33,10 @@ rust_binary(
     name = "apple_ops",
     srcs = ["src/main.rs"],
     crate_root = "src/main.rs",
+    visibility = [
+        "//apple:__subpackages__",
+        "//swift/private/tools:__pkg__",
+    ],
     deps = [":ops"],
 )
 
@@ -140,6 +145,22 @@ rust_test(
         "fake.rs",
     ],
     crate_root = "simctl_test.rs",
+    deps = [
+        ":ops",
+        "//cli/test_scratch:dx_test_scratch",
+        "@crates//:zip",
+    ],
+)
+
+# keep
+rust_test(
+    name = "swift_test",
+    size = "small",
+    srcs = [
+        "swift_test.rs",
+        "fake.rs",
+    ],
+    crate_root = "swift_test.rs",
     deps = [
         ":ops",
         "//cli/test_scratch:dx_test_scratch",

@@ -95,6 +95,20 @@ func TestGenerateLeavesBinarySourcesOut(t *testing.T) {
 	}
 }
 
+func TestGenerateLeavesBenchSourcesOut(t *testing.T) {
+	build := `lua_bench(
+    name = "sum_bench",
+)
+`
+	result := generate(t, "app", build, map[string]string{
+		"app/hello.lua":     "return {}\n",
+		"app/sum_bench.lua": "return {}\n",
+	}, []string{"hello.lua", "sum_bench.lua"})
+	if len(result.Gen) != 1 || strings.Join(result.Gen[0].AttrStrings("srcs"), ",") != "hello.lua" {
+		t.Fatalf("generated %v, want one library over hello.lua", result.Gen)
+	}
+}
+
 func TestGenerateFixtureIsTestonly(t *testing.T) {
 	result := generate(t, "x/testdata/f", "", map[string]string{"x/testdata/f/a.lua": "return 1\n"}, []string{"a.lua"})
 	if len(result.Gen) != 1 || result.Gen[0].AttrBool("testonly") != true {

@@ -489,11 +489,9 @@ if not exist "%DX_MODULE%" goto bazel
 findstr /r /c:"module_name *= *.rules_dx." "%DX_MODULE%" >nul && goto bazel
 set "DX_N=0"
 set "VERSION="
-set "DX_TAIL="
-for /f tokens^=4^,5^ delims^=^" %%V in ('findstr /b /r /c:"bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V" & set "DX_TAIL=%%W")
+findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*[^ ]" "%DX_MODULE%" >nul && goto bazel
+for /f tokens^=4^ delims^=^" %%V in ('findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V")
 if not "%DX_N%"=="1" goto bazel
-set DX_TAIL | findstr /r /x "DX_TAIL=)[ ]*" >nul
-if errorlevel 1 goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
 if errorlevel 1 goto bazel
 set "DX_CACHE=%USERPROFILE%\.cache\dx"

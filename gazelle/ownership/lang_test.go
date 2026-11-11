@@ -69,6 +69,27 @@ func TestDockerfileNames(t *testing.T) {
 	}
 }
 
+func TestYAMLSniff(t *testing.T) {
+	for _, c := range []struct {
+		head string
+		f    func([]byte) bool
+		want bool
+	}{
+		{"---\n- name: Site\n  hosts: all\n", isAnsiblePlaybook, true},
+		{"- hosts: web\n", isAnsiblePlaybook, true},
+		{"- name: task\n  debug:\n    msg: x\n", isAnsiblePlaybook, false},
+		{"key: value\n", isAnsiblePlaybook, false},
+		{"AWSTemplateFormatVersion: \"2010-09-09\"\n", isCloudFormation, true},
+		{"# c\nResources:\n  B:\n", isCloudFormation, true},
+		{"  Resources:\n", isCloudFormation, false},
+		{"key: value\n", isCloudFormation, false},
+	} {
+		if got := c.f([]byte(c.head)); got != c.want {
+			t.Errorf("%q: got %v, want %v", c.head, got, c.want)
+		}
+	}
+}
+
 func TestOCIStale(t *testing.T) {
 	images := []string{"app"}
 	wrapper := func(name, image string) *rule.Rule {

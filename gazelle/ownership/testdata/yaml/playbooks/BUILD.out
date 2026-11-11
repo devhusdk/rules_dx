@@ -1,0 +1,7 @@
+load("@rules_dx//ansible:defs.bzl", "ansible_library")
+
+ansible_library(
+    name = "ansible",
+    srcs = ["site.yml"],
+    visibility = ["//visibility:public"],
+)

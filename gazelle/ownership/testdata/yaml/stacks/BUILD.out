@@ -1,0 +1,7 @@
+load("@rules_dx//cloudformation:defs.bzl", "cloudformation_library")
+
+cloudformation_library(
+    name = "cloudformation",
+    srcs = ["template.yaml"],
+    visibility = ["//visibility:public"],
+)

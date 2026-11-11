@@ -45,3 +45,17 @@ func TestLockResolvesEveryRegistryEcosystem(t *testing.T) {
 		})
 	}
 }
+
+func TestLockLookupTrimsNamespaceAndKeepsSharedProvides(t *testing.T) {
+	cfg, root := externalConfig(t)
+	dotFile(t, root, "composer.lock.json", `{"ecosystem": "composer", "packages": [
+		{"name": "psr/http-factory", "provides": ["Psr\\Http\\Message"]},
+		{"name": "psr/http-message", "provides": ["Psr\\Http\\Message"]}]}`)
+	if errs := ConfigureExternal(cfg, "", nil); errs != nil {
+		t.Fatal(errs)
+	}
+	got, _ := ExternalLabels(cfg, "composer", `Psr\Http\Message\RequestInterface`)
+	if want := "@composer//psr/http-factory:psr/http-factory,@composer//psr/http-message:psr/http-message"; labelStrings(got) != want {
+		t.Errorf("RequestInterface = %q, want %q", labelStrings(got), want)
+	}
+}

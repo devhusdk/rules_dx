@@ -1,17 +1,27 @@
-# gazelle:exclude bin
-# gazelle:ignore
-load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
-load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//visibility:public"])
+# gazelle:exclude bin
+# gazelle:dx_external composer //php/tests/fixtures/composer/composer.lock.json php_fixture_vendor
+# gazelle:resolve php Psr\Http\Message\RequestFactoryInterface @php_fixture_vendor//psr/http-factory
+# gazelle:resolve php Psr\Http\Message\RequestInterface @php_fixture_vendor//psr/http-message
+load("@rules_dx//php:defs.bzl", "PHP_COMPATIBLE_WITH", "php_binary", "php_library", "php_test")
+load("@rules_dx//php/private:php.bzl", "php_autoload_tree")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//visibility:public"],
+)
 
 exports_files(["composer.lock.json"])
 
 php_library(
     name = "factory",
+    testonly = True,
     srcs = ["src/Fixture/RequestFactory.php"],
-    deps = ["@php_fixture_vendor//psr/http-factory"],
+    deps = [
+        "@php_fixture_vendor//psr/http-factory",
+        "@php_fixture_vendor//psr/http-message",
+    ],
 )
 
 php_library(
@@ -31,8 +41,14 @@ php_binary(
 
 php_test(
     name = "request_factory_test",
+    size = "small",
+    testonly = True,
     srcs = ["test/RequestFactoryTest.php"],
-    deps = [":factory_deprecations"],
+    deps = [
+        ":factory",
+        ":factory_deprecations",  # keep
+        "@php_fixture_vendor//psr/http-factory",
+    ],
 )
 
 php_binary(
@@ -42,6 +58,8 @@ php_binary(
 
 php_test(
     name = "cli_test",
+    size = "small",
+    testonly = True,
     srcs = ["test/CliTest.php"],
     data = [
         ":autoload_a",

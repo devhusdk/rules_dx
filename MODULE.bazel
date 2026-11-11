@@ -14,7 +14,6 @@ single_version_override(
         "//patches/rules_rust:pipelined_rmeta_path.patch",
         "//patches/rules_rust:crate_universe_root_lookup.patch",
         "//patches/rules_rust:msvc_pdb_output.patch",
-        "//patches/rules_rust:rust_lld_msvc_libpath.patch",
         "//patches/rules_rust:static_archive_link_arg.patch",
         "//patches/rules_rust:crate_universe_lazy_host_tools.patch",
         "//patches/rules_rust:cargo_toml_env_vars_flag.patch",
@@ -81,6 +80,7 @@ single_version_override(
         "//patches/llvm:stage0_runtime_features.patch",
         "//patches/llvm:aarch64_outline_atomics.patch",
         "//patches/llvm:macos_sdk_resolve_symlinks.patch",
+        "//patches/llvm:msvc_link_lib_env.patch",
     ],
     version = "0.8.26",
 )

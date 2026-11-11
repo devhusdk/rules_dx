@@ -92,22 +92,48 @@ pub fn plan_secrets(
     })
 }
 
-pub fn vuln_locks(set: &str) -> &'static [&'static str] {
+fn lock_name(ecosystem: &str) -> String {
+    let hub = dx_families::hub(ecosystem)
+        .unwrap_or_else(|| panic!("no setup.hubs entry for {ecosystem}"));
+    hub.lock.clone().unwrap_or_else(|| hub.manifest.clone())
+}
+
+fn go_manifest() -> String {
+    dx_families::hub("go")
+        .unwrap_or_else(|| panic!("no setup.hubs entry for go"))
+        .manifest
+        .clone()
+}
+
+fn under(dir: &str, ecosystem: &str) -> String {
+    let name = lock_name(ecosystem);
+    if dir.is_empty() {
+        name
+    } else {
+        format!("{dir}/{name}")
+    }
+}
+
+pub fn vuln_locks(set: &str) -> Vec<String> {
     match set {
-        "cargo" => &["cc/private/context/Cargo.lock"],
-        "npm" => &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"],
-        "npm-adopt" => &["javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"],
-        "npm-adopt-polyglot" => &["examples/adopt-polyglot/pnpm-lock.yaml"],
-        "npm-tools" => &["javascript/private/quality/pnpm-lock.yaml"],
-        "maven" => &["third_party/jvm/maven_install.json"],
-        "nuget" => &["third_party/dotnet/paket.lock"],
-        "powershell" => &["third_party/powershell/PSGallery.lock.json"],
-        "go" => &["third_party/go/go.mod"],
-        "ruby" | "rubygems" => &[
-            "third_party/ruby/Gemfile.lock",
-            "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
+        "cargo" => vec![under("cc/private/context", "cargo")],
+        "npm" => vec![
+            under("", "npm"),
+            "package-lock.json".to_owned(),
+            "yarn.lock".to_owned(),
         ],
-        _ => &[],
+        "npm-adopt" => vec![under("javascript/tests/fixtures/adopt-js-ts", "npm")],
+        "npm-adopt-polyglot" => vec![under("examples/adopt-polyglot", "npm")],
+        "npm-tools" => vec![under("javascript/private/quality", "npm")],
+        "maven" => vec![under("third_party/jvm", "maven")],
+        "nuget" => vec!["third_party/dotnet/paket.lock".to_owned()],
+        "powershell" => vec![under("third_party/powershell", "powershell")],
+        "go" => vec![format!("third_party/go/{}", go_manifest())],
+        "ruby" | "rubygems" => vec![
+            under("third_party/ruby", "ruby"),
+            under("ruby/tests/fixtures/adopt-ruby", "ruby"),
+        ],
+        _ => Vec::new(),
     }
 }
 
@@ -230,35 +256,53 @@ mod tests {
 
     #[test]
     fn vuln_locks_pin_per_set_coverage() {
-        assert_eq!(vuln_locks("cargo"), &["cc/private/context/Cargo.lock"]);
+        let pnpm = lock_name("npm");
+        assert_eq!(
+            vuln_locks("cargo"),
+            [format!("cc/private/context/{}", lock_name("cargo"))]
+        );
         assert_eq!(
             vuln_locks("npm"),
-            &["pnpm-lock.yaml", "package-lock.json", "yarn.lock"]
+            [
+                pnpm.clone(),
+                "package-lock.json".to_owned(),
+                "yarn.lock".to_owned()
+            ]
         );
         assert_eq!(
             vuln_locks("npm-adopt"),
-            &["javascript/tests/fixtures/adopt-js-ts/pnpm-lock.yaml"]
+            [format!("javascript/tests/fixtures/adopt-js-ts/{pnpm}")]
         );
         assert_eq!(
             vuln_locks("npm-adopt-polyglot"),
-            &["examples/adopt-polyglot/pnpm-lock.yaml"]
+            [format!("examples/adopt-polyglot/{pnpm}")]
         );
         assert_eq!(
             vuln_locks("npm-tools"),
-            &["javascript/private/quality/pnpm-lock.yaml"]
+            [format!("javascript/private/quality/{pnpm}")]
         );
-        assert_eq!(vuln_locks("maven"), &["third_party/jvm/maven_install.json"]);
-        assert_eq!(vuln_locks("nuget"), &["third_party/dotnet/paket.lock"]);
-        assert_eq!(vuln_locks("go"), &["third_party/go/go.mod"]);
+        assert_eq!(
+            vuln_locks("maven"),
+            [format!("third_party/jvm/{}", lock_name("maven"))]
+        );
+        assert_eq!(vuln_locks("nuget"), ["third_party/dotnet/paket.lock"]);
+        assert_eq!(
+            vuln_locks("go"),
+            [format!("third_party/go/{}", go_manifest())]
+        );
         assert_eq!(
             vuln_locks("powershell"),
-            &["third_party/powershell/PSGallery.lock.json"]
+            [format!(
+                "third_party/powershell/{}",
+                lock_name("powershell")
+            )]
         );
+        let gemfile = lock_name("ruby");
         assert_eq!(
             vuln_locks("ruby"),
-            &[
-                "third_party/ruby/Gemfile.lock",
-                "ruby/tests/fixtures/adopt-ruby/Gemfile.lock",
+            [
+                format!("third_party/ruby/{gemfile}"),
+                format!("ruby/tests/fixtures/adopt-ruby/{gemfile}"),
             ]
         );
         assert!(!is_empty_set("ruby"));

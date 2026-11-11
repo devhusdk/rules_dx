@@ -3,10 +3,10 @@
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_equal")
-load(":defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "escript_headers", "helper_first", "nif_priv")
-load(":kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
-load(":hex.bzl", "hex_metadata_entry", "hex_tarball_url")
-load(":mix_lock.bzl", "mix_lock_packages")
+load("//elixir/private:defs.bzl", "COVER_LOAD", "ELIXIR_CELLS", "ELIXIR_SOURCE_GLOBS", "app_sources", "escript_headers", "helper_first", "nif_priv")
+load("//elixir/private:kwargs.bzl", "elixir_app_kwargs", "elixir_app_mod_entry", "elixir_kwargs")
+load("//elixir/private:hex.bzl", "hex_metadata_entry", "hex_tarball_url")
+load("//elixir/private:mix_lock.bzl", "mix_lock_packages")
 
 _MIX_LOCK = """%{
   # comment: with "quotes"

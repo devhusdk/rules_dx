@@ -1,5 +1,4 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
-load(":wrapper_tests.bzl", "elixir_wrapper_contract_tests")
 
 package(default_visibility = [
     "//:__pkg__",
@@ -12,10 +11,7 @@ exports_files([
     "hex.bzl",
     "kwargs.bzl",
     "mix_lock.bzl",
-    "wrapper_tests.bzl",
 ])
-
-elixir_wrapper_contract_tests(name = "wrapper_contract_tests")
 
 real_source_target(
     name = "corpus_starlark",
@@ -25,7 +21,6 @@ real_source_target(
         "hex.bzl",
         "kwargs.bzl",
         "mix_lock.bzl",
-        "wrapper_tests.bzl",
     ],
     tags = ["corpus"],
 )

@@ -311,6 +311,24 @@ nested_bazel_test(
 
 # keep
 rust_binary(
+    name = "determinism_check",
+    testonly = True,
+    srcs = ["determinism_check.rs"],
+    crate_name = "determinism_check",
+    crate_root = "determinism_check.rs",
+    deps = [":dx_testing"],
+)
+
+rust_test(
+    name = "determinism_check_test",
+    crate = ":determinism_check",
+    compile_data = [
+        "exec_log_fixtures/first.log.zst",
+        "exec_log_fixtures/second.log.zst",
+    ],
+)
+
+rust_binary(
     name = "nested_cache_update",
     testonly = True,
     srcs = ["nested_cache_update.rs"],

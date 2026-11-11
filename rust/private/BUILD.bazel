@@ -64,7 +64,6 @@ exports_files(
         "edition.bzl",
         "pdb.bzl",
         "probe.bzl",
-        "wrapper_tests.bzl",
     ],
     visibility = ["//:__subpackages__"],
 )
@@ -77,7 +76,6 @@ real_source_target(
         "edition.bzl",
         "pdb.bzl",
         "probe.bzl",
-        "wrapper_tests.bzl",
         "selene.BUILD.bazel",
     ],
     tags = ["corpus"],

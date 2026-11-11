@@ -479,7 +479,6 @@ test-location csharp/private/ide/BUILD.bazel
 test-location csharp/tests/BUILD.bazel
 test-location cuda/private/BUILD.bazel
 test-location d/private/BUILD.bazel
-test-location d/private/wrapper_tests.bzl
 test-location dart/private/BUILD.bazel
 test-location env/private/defs_tests.bzl
 test-location env/private/env_shard/BUILD.bazel
@@ -521,7 +520,6 @@ test-location ocaml/private/coverage/collect_test.sh
 test-location ocaml/private/quality/BUILD.bazel
 test-location ocaml/private/quality/tools_tests.bzl
 test-location ocaml/private/quality/zanuda_test.sh
-test-location ocaml/private/wrapper_tests.bzl
 test-location php/private/BUILD.bazel
 test-location php/private/BenchTest.php
 test-location php/private/coverage/BUILD.bazel
@@ -545,7 +543,6 @@ test-location rust/private/quality/tools/progenitor/BUILD.bazel
 test-location rust/private/quality/tools/topiary/BUILD.bazel
 test-location rust/private/toolchain/BUILD.bazel
 test-location rust/private/toolchain/identity_tests.bzl
-test-location rust/private/wrapper_tests.bzl
 test-location scala/private/BUILD.bazel
 test-location scala/tests/BUILD.bazel
 test-location swift/private/platforms/BUILD.bazel

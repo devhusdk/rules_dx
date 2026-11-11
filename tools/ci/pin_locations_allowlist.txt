@@ -1,5 +1,5 @@
-MODULE.bazel digest-outside-pins 83
-MODULE.bazel duplicate-pin 40
+MODULE.bazel digest-outside-pins 82
+MODULE.bazel duplicate-pin 11
 MODULE.bazel no-digest 1
 android/private/sdk/repos.bzl digest-outside-pins 9
 appimage/private/packer/src/lib.rs digest-outside-pins 1
@@ -13,7 +13,7 @@ cli/atomic_fs/src/lease.rs duplicate-pin 2
 cli/audit/src/advisory.rs digest-outside-pins 4
 cli/audit/src/advisory.rs duplicate-pin 1
 cli/cli/src/adopt/status_tools.rs digest-outside-pins 3
-cli/cli/src/adopt/status_tools.rs duplicate-pin 3
+cli/cli/src/adopt/status_tools.rs duplicate-pin 2
 cli/cli/src/exec/audit_consumer.rs digest-outside-pins 1
 cli/cli/src/exec/update_advisory.rs digest-outside-pins 2
 cli/cli/src/exec/update_advisory.rs duplicate-pin 2
@@ -28,8 +28,6 @@ cli/output/src/lifecycle.rs duplicate-pin 1
 cli/output/src/validation.rs digest-outside-pins 1
 cli/output/src/validation.rs duplicate-pin 1
 cli/sbom/schema/BUILD.bazel digest-outside-pins 4
-cli/tests/entrypoint/repos.bzl digest-outside-pins 3
-cli/tests/entrypoint/repos.bzl duplicate-pin 3
 cli/update/src/advisory.rs digest-outside-pins 2
 cli/update/src/advisory.rs duplicate-pin 2
 cli/update/src/discover/containers.rs digest-outside-pins 2
@@ -37,8 +35,6 @@ cli/update/src/discover/containers.rs duplicate-pin 2
 cli/update/src/discover/hex.rs digest-outside-pins 2
 cli/update/src/edit/version.rs digest-outside-pins 2
 core/jammy_runtime.bzl digest-outside-pins 12
-core/modules/ruby.bzl digest-outside-pins 30
-core/modules/ruby.bzl duplicate-pin 30
 core/modules/versions.bzl digest-outside-pins 6
 core/modules/versions.bzl duplicate-pin 6
 core/pins.bzl no-digest 1

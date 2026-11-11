@@ -29,7 +29,7 @@ def _gcc(template):
 
 EXPECTED_GCC_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchains:identity_under_test_gcc
 field cc.abi=itanium
-field cc.builtin_includes=external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@/backward | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@/x86_64-linux | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/sysroot/usr/include
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/include/c++/@GCC@/x86_64-linux | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/lib/gcc/x86_64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_x86_64_@GCCU@/external/+gcc+dx_gcc_linux_x86_64_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
 field cc.coverage=gcov
 field cc.driver=gnu
@@ -46,7 +46,7 @@ aspect_field transitive_count=0""")
 
 EXPECTED_GCC_ARM64_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchains:identity_under_test_gcc_arm64
 field cc.abi=itanium
-field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@/backward | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/sysroot/usr/include
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/aarch64-linux/include/c++/@GCC@/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_cross_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
 field cc.coverage=gcov
 field cc.driver=gnu
@@ -63,7 +63,7 @@ aspect_field transitive_count=0""")
 
 EXPECTED_GCC_ARM64_NATIVE_IDENTITY_OBSERVATIONS = _gcc("""subject //cc/private/toolchains:identity_under_test_gcc_arm64_native
 field cc.abi=itanium
-field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@/backward | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/sysroot/usr/include
+field cc.builtin_includes=external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/aarch64-linux/include | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@ | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/include/c++/@GCC@/aarch64-linux | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/lib/gcc/aarch64-linux/@GCC@/include-fixed | external/+gcc+dx_gcc_linux_aarch64_@GCCU@/external/+gcc+dx_gcc_linux_aarch64_@GCCU@/sysroot/usr/include
 field cc.compiler=gcc
 field cc.coverage=gcov
 field cc.driver=gnu

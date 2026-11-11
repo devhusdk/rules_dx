@@ -64,3 +64,29 @@ def swift_test_coverage_test(name, target_under_test, **kwargs):
         }),
         **kwargs
     )
+
+def _warnings_impl(ctx):
+    env = analysistest.begin(ctx)
+    actions = [a for a in analysistest.target_actions(env) if a.mnemonic == "SwiftCompile"]
+    asserts.true(env, len(actions) > 0, "no SwiftCompile action")
+    for action in actions:
+        asserts.equals(env, ctx.attr.expect, "-warnings-as-errors" in action.argv, "SwiftCompile argv: " + " ".join(action.argv))
+    return analysistest.end(env)
+
+_warnings_on_test = analysistest.make(
+    _warnings_impl,
+    attrs = {"expect": attr.bool(default = True)},
+    config_settings = {str(Label("//config:warnings_as_errors")): True},
+)
+
+_warnings_off_test = analysistest.make(
+    _warnings_impl,
+    attrs = {"expect": attr.bool(default = False)},
+    config_settings = {str(Label("//config:warnings_as_errors")): False},
+)
+
+def swift_warnings_as_errors_tests(name, target_under_test, **kwargs):
+    """Asserts the SwiftCompile action of target_under_test passes -warnings-as-errors exactly when //config:warnings_as_errors is true."""
+    _warnings_on_test(name = name + "_on", size = "small", target_under_test = target_under_test, **kwargs)
+    _warnings_off_test(name = name + "_off", size = "small", target_under_test = target_under_test, **kwargs)
+    native.test_suite(name = name, tests = [name + "_on", name + "_off"], **kwargs)

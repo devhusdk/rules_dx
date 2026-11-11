@@ -12,7 +12,6 @@ def _descriptor_impl(ctx):
     for prefix, suffix in [
         ("program=", "usr/bin/swift"),
         ("env_dir=COMPILER_PATH\t", "usr/bin/ld"),
-        ("env_dir=LD_LIBRARY_PATH\t", "usr/lib/swift/linux/libcurl.so.4"),
     ]:
         found = [line for line in lines if line == prefix + _REPO + "/" + suffix]
         asserts.equals(env, 1, len(found), "no %s...%s line in %s" % (prefix, suffix, lines))

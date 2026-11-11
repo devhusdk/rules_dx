@@ -468,3 +468,29 @@ func TestHandwrittenLibraryKeptWhenNamedDifferently(t *testing.T) {
 		t.Errorf("emptied %d rules, want only the stale old", len(result.Empty))
 	}
 }
+
+func TestGenerateQtIncludeSwitchesKinds(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/demo.cc":      "#include <QtCore/QString>\n",
+		"pkg/demo/demo_test.cc": "#include <QtCore/QString>\nint main() { return 0; }\n",
+	}, []string{"demo.cc", "demo_test.cc"})
+	if len(result.Gen) != 2 {
+		t.Fatalf("generated %d rules, want 2", len(result.Gen))
+	}
+	if got := result.Gen[0].Kind(); got != QtLibraryKind {
+		t.Errorf("library kind = %s, want %s", got, QtLibraryKind)
+	}
+	if got := result.Gen[1].Kind(); got != QtTestKind {
+		t.Errorf("test kind = %s, want %s", got, QtTestKind)
+	}
+}
+
+func TestGenerateBareQtHeaderKeepsCcKinds(t *testing.T) {
+	result := generateFixture(t, map[string]string{
+		"pkg/demo/demo.cc":      "#include <QString>\n",
+		"pkg/demo/demo_test.cc": "#include <QString>\nint main() { return 0; }\n",
+	}, []string{"demo.cc", "demo_test.cc"})
+	if len(result.Gen) != 2 || result.Gen[0].Kind() != LibraryKind || result.Gen[1].Kind() != TestKind {
+		t.Fatalf("kinds = %v, want cc_library and cc_test", result.Gen)
+	}
+}

@@ -470,7 +470,7 @@ func GenerateSingleDir(args language.GenerateArgs, kinds map[string]rule.KindInf
 		claimants = append(claimants, Claimant{Name: lib.name, Source: args.Rel, Kind: lib.kind})
 	}
 	for _, p := range plans {
-		claimants = append(claimants, Claimant{Name: p.name, Source: path.Join(args.Rel, p.src), Kind: spec.Tests.Kind})
+		claimants = append(claimants, Claimant{Name: p.name, Source: path.Join(args.Rel, p.src), Kind: p.rule.Kind()})
 	}
 	if err := CheckClaims(args.File, args.OtherGen, claimants); err != nil {
 		rep.Fail(InPackage(args.Rel), "%s: %s: %v", spec.LanguageName, args.Rel, err)

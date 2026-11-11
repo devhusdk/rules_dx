@@ -1,0 +1,13 @@
+load("@rules_dx//cc:defs.bzl", "cc_library", "cc_test")
+
+cc_library(
+    name = "plain",
+    srcs = ["plain.cc"],
+    visibility = ["//visibility:public"],
+)
+
+cc_test(
+    name = "plain_test",
+    srcs = ["plain_test.cc"],
+    deps = [":plain"],
+)

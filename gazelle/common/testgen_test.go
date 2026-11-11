@@ -249,3 +249,16 @@ func TestTestKindInfo(t *testing.T) {
 		t.Error("TestKindInfo changed LibraryKindInfo")
 	}
 }
+
+func TestGeneratedTestAcceptsAltKinds(t *testing.T) {
+	spec := fakeTestSpec()
+	spec.AltKinds = []string{"alt_fake_test"}
+	r := rule.NewRule("alt_fake_test", "a_test")
+	r.SetAttr("srcs", []string{"aTest.fk"})
+	if !spec.generatedTest(r) {
+		t.Errorf("generatedTest(%s) = false, want true", r.Kind())
+	}
+	if !ownsGeneratedTest(spec)(r) {
+		t.Errorf("ownsGeneratedTest(%s) = false, want true", r.Kind())
+	}
+}

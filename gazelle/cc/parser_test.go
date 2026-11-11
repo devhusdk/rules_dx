@@ -296,3 +296,17 @@ func TestDefinesAndroidEntry(t *testing.T) {
 		}
 	}
 }
+
+func TestIsQtInclude(t *testing.T) {
+	for path, want := range map[string]bool{
+		"QtCore/QString": true,
+		"QtWidgets":      true,
+		"QString":        false,
+		"qt/x.h":         false,
+		"Qtx/y":          false,
+	} {
+		if got := IsQtInclude(path); got != want {
+			t.Errorf("IsQtInclude(%q) = %v, want %v", path, got, want)
+		}
+	}
+}

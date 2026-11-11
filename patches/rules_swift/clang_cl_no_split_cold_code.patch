@@ -1,0 +1,62 @@
+diff --git a/tools/common/BUILD b/tools/common/BUILD
+--- a/tools/common/BUILD
++++ b/tools/common/BUILD
+@@ -11,7 +11,6 @@
+     hdrs = ["bazel_substitutions.h"],
+     copts = select({
+         "//tools:clang-cl": [
+-            "-Xclang=-fno-split-cold-code",
+             "/std:c++17",
+         ],
+         "//tools:msvc": [
+diff --git a/tools/worker/BUILD b/tools/worker/BUILD
+--- a/tools/worker/BUILD
++++ b/tools/worker/BUILD
+@@ -14,7 +14,6 @@
+     hdrs = ["compile_with_worker.h"],
+     copts = select({
+         "//tools:clang-cl": [
+-            "-Xclang=-fno-split-cold-code",
+             "/std:c++17",
+         ],
+         "//tools:msvc": [
+@@ -39,7 +38,6 @@
+     hdrs = ["compile_without_worker.h"],
+     copts = select({
+         "//tools:clang-cl": [
+-            "-Xclang=-fno-split-cold-code",
+             "/std:c++17",
+         ],
+         "//tools:msvc": [
+@@ -60,7 +58,6 @@
+     hdrs = ["hermetic_symlink.h"],
+     copts = select({
+         "//tools:clang-cl": [
+-            "-Xclang=-fno-split-cold-code",
+             "/std:c++17",
+         ],
+         "//tools:msvc": [
+@@ -78,7 +75,6 @@
+     hdrs = ["pcm_hermetic_runner.h"],
+     copts = select({
+         "//tools:clang-cl": [
+-            "-Xclang=-fno-split-cold-code",
+             "/std:c++17",
+         ],
+         "//tools:msvc": [
+@@ -104,7 +100,6 @@
+     hdrs = ["swift_runner.h"],
+     copts = select({
+         "//tools:clang-cl": [
+-            "-Xclang=-fno-split-cold-code",
+             "/std:c++17",
+         ],
+         "//tools:msvc": [
+@@ -145,7 +140,6 @@
+     hdrs = ["worker_protocol.h"],
+     copts = select({
+         "//tools:clang-cl": [
+-            "-Xclang=-fno-split-cold-code",
+             "/std:c++17",
+         ],
+         "//tools:msvc": [

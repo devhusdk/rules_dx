@@ -11,15 +11,6 @@ fn scratch(name: &str) -> PathBuf {
     dx_testing::mkscratch(name).unwrap_or_else(|error| panic!("test scratch: {error}"))
 }
 
-fn spelled(root: &Path) -> String {
-    let canonical = std::fs::canonicalize(root).expect("canonical bundle");
-    if cfg!(windows) {
-        dx_path::manifest(&canonical)
-    } else {
-        canonical.to_string_lossy().into_owned()
-    }
-}
-
 #[test]
 fn every_host_maps_to_the_launcher_its_bundle_carries() {
     assert_eq!(
@@ -153,12 +144,18 @@ fn a_bundle_without_the_two_bundle_dirs_is_refused() {
     };
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-01-01"),
-        format!("bundle has no bazelisk/ dir: {}", spelled(&root))
+        format!(
+            "bundle has no bazelisk/ dir: {}",
+            options.bundle.as_deref().unwrap()
+        )
     );
     std::fs::create_dir(root.join("bazelisk")).expect("bazelisk dir");
     assert_eq!(
         run(&options, "linux", "x86_64", "2026-01-01"),
-        format!("bundle has no advisory/ dir: {}", spelled(&root))
+        format!(
+            "bundle has no advisory/ dir: {}",
+            options.bundle.as_deref().unwrap()
+        )
     );
 }
 

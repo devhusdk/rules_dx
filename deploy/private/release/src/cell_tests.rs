@@ -554,7 +554,9 @@ fn qualify_rejects_an_extra_member_bad_modes_and_identity() {
     let record = qualify(&fixture.inputs, &FakeRunner::new());
     assert_failed(&record, "mode", "dx has mode 644");
     assert_failed(&record, "mode", "NOTICE has mode 755");
-    assert_failed(&record, "mode", "extracted dx is not mode 755");
+    if cfg!(unix) {
+        assert_failed(&record, "mode", "extracted dx is not mode 755");
+    }
     let fixture = synthetic("tar.gz", |members| {
         members[2].1 = b"name: dx-other\narch: aarch64\nos: linux\n".to_vec();
     });

@@ -588,7 +588,7 @@ linux_package_deploy(
 has its own `<name>_<format>` target. `dx deploy //pkg:demo` stages the
 packages like `github_deploy`, and the live run (`GITHUB_PUBLISH_APPROVED=1 dx deploy
 --apply`) attaches them to the draft release. `nfpm` runs on
-Linux x86_64, Linux arm64 and macOS arm64 hosts.
+Linux x86_64, Linux arm64, macOS arm64 and Windows x86_64 hosts.
 
 # pub_deploy
 

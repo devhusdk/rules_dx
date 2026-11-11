@@ -14,6 +14,7 @@ alias(
     name = "nfpm",
     actual = select({
         "@platforms//os:macos": "@nfpm_macos_arm64//:nfpm",
+        "@platforms//os:windows": "@nfpm_windows_x86_64//:nfpm.exe",
         ":linux_arm64": "@nfpm_linux_arm64//:nfpm",
         "//conditions:default": "@nfpm_linux_x86_64//:nfpm",
     }),

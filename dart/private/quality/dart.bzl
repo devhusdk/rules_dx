@@ -92,8 +92,7 @@ def _dart_hook(target, ctx, _resolved, capability, what, _shared):
             reserved.append((stub_path, "generated pubspec.yaml stub collides with the staged source " + stub_path))
 
     def _with_config(hint, config_rel):
-        # dart format reads `formatter:` from the nearest analysis_options.yaml, so the
-        # hinted config (or an empty one) sits at the scratch root and nowhere else.
+        # dart format reads the nearest analysis_options.yaml.
         options = dart_options
         tool_files = []
         inputs = []

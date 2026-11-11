@@ -1,0 +1,9 @@
+load("@rules_dx//avro:defs.bzl", "avro_library")
+
+# dx: written once, yours to edit
+
+avro_library(
+    name = "my_project",
+    srcs = ["point.avsc"],
+    visibility = ["//visibility:public"],
+)

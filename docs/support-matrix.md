@@ -23,7 +23,7 @@ Do not edit this page. Run `bazel run //tools/docs/support_matrix:update` to ref
 | Dart | `windows_arm64`: rules_dart 0.8.1 ships no Windows arm64 SDK | `pub` | `dart_bench` | n/a |
 | Elixir | none | `hex` | `elixir_bench` | n/a |
 | Erlang | none | `hex` from `mix.lock` or an `erlang.rebar` `rebar.lock` | `erlang_bench` | n/a |
-| Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.8 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a |
+| Flutter | `windows_arm64`: rules_flutter 0.0.8 and Flutter 3.47.9 ship no Windows arm64 host SDK (flutter/private/toolchains_repo.bzl HOST_PLATFORMS) | `pub` | n/a | n/a |
 | Fortran | `windows_arm64`: flang-releases v21.1.8 ships no Windows arm64 build | the `fpm.lock` tag of the `fpm` extension builds pinned archives from the fpm lock; `dx security` and `dx license` read it, `dx update` re-hashes the archives | n/a | n/a |
 | F# | none | `nuget` | `fsharp_bench` | `fsharp_fuzz_test` |
 | Go | none | `go`; cgo is not supported on `windows_x86_64` and `windows_arm64`: the hermetic Windows toolchain is MSVC ABI only, and cgo needs the MinGW (GNU) ABI | `go_bench` | `go_fuzz_test` |

@@ -167,6 +167,6 @@
   "generator": "pub",
   "generatorVersion": "3.13.7",
   "flutterRoot": "file:///home/trapsterdk/.cache/bazel/_bazel_trapsterdk/34bb920f974e264f68aa4f52d89af133/external/rules_flutter++flutter+flutter_dev_root",
-  "flutterVersion": "3.47.8",
+  "flutterVersion": "3.47.9",
   "pubCache": "file:///home/trapsterdk/.pub-cache"
 }

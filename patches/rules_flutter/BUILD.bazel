@@ -2,6 +2,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 exports_files([
     "engine_labels.patch",
+    "flutter_3_47_9.patch",
     "hermetic_pub.patch",
     "lock_extension.patch",
     "registrant_javacopts.patch",

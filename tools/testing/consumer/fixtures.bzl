@@ -7,6 +7,7 @@ CONSUMER_FIXTURES = [
     "elixir",
     "erlang",
     "go",
+    "haskell",
     "java",
     "julia",
     "kotlin",

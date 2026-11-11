@@ -31,5 +31,6 @@ d_library(
 d_library(
     name = "dirty",
     srcs = ["dirty.d"],
+    tags = ["manual"],
     target_compatible_with = D_COMPATIBLE_WITH,
 )

@@ -5,18 +5,24 @@ use crate::api_compat::{
     highest_below, previous_git_tag, workspace_dir,
 };
 use crate::run::{
-    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty,
-    exit_text, placeholder_refusal, resolve_version, run_publish, scrubbed_command,
+    DeployRun, OwnerGate, PUBLISH_CHILD_ENV_KEEP, deploy_build_mode, env_or_empty, exit_text,
+    placeholder_refusal, resolve_version, run_publish, scrubbed_command,
 };
 use crate::stage::*;
+use dx_ecosystems::Ecosystem;
 use std::io;
 use std::path::Path;
 
-/// Maps package input files to package-relative paths under the pubspec.yaml directory.
+/// The file name of the manifest.
+fn manifest_name() -> &'static str {
+    Ecosystem::Pub.manifest_name()
+}
+
+/// Maps package input files to package-relative paths under the manifest directory.
 pub fn pub_package_paths(
     package_files: &[std::path::PathBuf],
 ) -> io::Result<Vec<(std::path::PathBuf, String)>> {
-    package_relative_paths(package_files, "pubspec.yaml", "pub package")
+    package_relative_paths(package_files, manifest_name(), "pub package")
 }
 
 /// Owner approval gate for pub_deploy.
@@ -61,7 +67,8 @@ fn pubspec_refusal(text: &str, package_name: &str) -> Option<String> {
         return None;
     }
     Some(format!(
-        "pub_deploy: pubspec.yaml is {}, target is {package_name}; refusing",
+        "pub_deploy: {} is {}, target is {package_name}; refusing",
+        manifest_name(),
         name.as_deref().unwrap_or("(missing)")
     ))
 }
@@ -95,7 +102,7 @@ fn pub_stage(mapped: &[(std::path::PathBuf, String)], staging: &Path) -> Result<
     Ok(())
 }
 
-/// Stages the package, checks pubspec.yaml and CHANGELOG.md against the target and returns
+/// Stages the package, checks the manifest and CHANGELOG.md against the target and returns
 /// whether it is a flutter package with the resolved version.
 fn pub_checked_stage(
     mapped: &[(std::path::PathBuf, String)],
@@ -104,14 +111,14 @@ fn pub_checked_stage(
     version: &str,
 ) -> Result<(bool, String), String> {
     pub_stage(mapped, staging).map_err(|error| format!("pub_deploy: {error}"))?;
-    let pubspec = std::fs::read_to_string(staging.join("pubspec.yaml"))
-        .map_err(|error| format!("pub_deploy: cannot read pubspec.yaml: {error}"))?;
+    let pubspec = std::fs::read_to_string(staging.join(manifest_name()))
+        .map_err(|error| format!("pub_deploy: cannot read {}: {error}", manifest_name()))?;
     if let Some(error) = pubspec_refusal(&pubspec, package_name) {
         return Err(error);
     }
     let version = resolve_version(
         "pub_deploy",
-        "pubspec.yaml",
+        manifest_name(),
         pubspec_field(&pubspec, "version").as_deref(),
         version,
     )?;
@@ -126,12 +133,7 @@ fn tool_name(flutter: bool) -> &'static str {
     if flutter { "flutter" } else { "dart" }
 }
 
-fn failure_message(
-    step: &str,
-    status: &str,
-    out: &[u8],
-    token: &str,
-) -> String {
+fn failure_message(step: &str, status: &str, out: &[u8], token: &str) -> String {
     let text = crate::run::pages_redact(&String::from_utf8_lossy(out), token);
     let lines: Vec<&str> = text.lines().collect();
     let mut message = format!("pub_deploy: {step} failed with {status}");
@@ -154,12 +156,7 @@ fn pub_dry_run(program: &Path, staging: &Path) -> Result<(), String> {
     let status = exit_text(&output);
     let mut both = output.stdout;
     both.extend_from_slice(&output.stderr);
-    Err(failure_message(
-        "pub publish --dry-run",
-        &status,
-        &both,
-        "",
-    ))
+    Err(failure_message("pub publish --dry-run", &status, &both, ""))
 }
 
 /// Publishes the staged package with a token held only in a temporary pub cache.
@@ -183,7 +180,14 @@ fn pub_publish(
         cmd
     };
     let mut add = command();
-    add.args(["pub", "token", "add", registry_url, "--env-var", "PUB_TOKEN"]);
+    add.args([
+        "pub",
+        "token",
+        "add",
+        registry_url,
+        "--env-var",
+        "PUB_TOKEN",
+    ]);
     let added = run_publish(&mut add).map_err(|error| format!("pub_deploy: {error}"))?;
     if !added.success() {
         let status = exit_text(&added);
@@ -278,7 +282,7 @@ fn pub_api_check(
 ) -> Result<Outcome, String> {
     let baseline = Baseline::parse(baseline)
         .ok_or_else(|| format!("pub_deploy: invalid api_baseline '{baseline}'"))?;
-    let pubspec = std::fs::read_to_string(staging.join("pubspec.yaml")).unwrap_or_default();
+    let pubspec = std::fs::read_to_string(staging.join(manifest_name())).unwrap_or_default();
     let needs_flutter =
         pubspec_is_flutter(&pubspec) || pubspec.lines().any(|line| line.trim() == "sdk: flutter");
     if needs_flutter && (cfg!(not(unix)) || flutter.is_none()) {
@@ -373,11 +377,12 @@ fn pub_api_compare(
             Err(error) => return Ok(Outcome::Skipped(error)),
         };
         let dest = work.join("old");
-        match export_git_dir(workspace, package_dir, &tag, &dest, "pubspec.yaml") {
+        match export_git_dir(workspace, package_dir, &tag, &dest, manifest_name()) {
             Ok(true) => {}
             Ok(false) => {
                 return Ok(Outcome::Skipped(format!(
-                    "no pubspec.yaml at {package_dir} in {tag}"
+                    "no {} at {package_dir} in {tag}",
+                    manifest_name()
                 )));
             }
             Err(error) => return Err(format!("pub_deploy: api compat: {error}")),
@@ -459,7 +464,14 @@ pub fn pub_main(
         flutter_root_rloc: "",
         package_dir: "",
     };
-    pub_main_checked(package_rlocs, package_name, version, registry_url, &off, argv)
+    pub_main_checked(
+        package_rlocs,
+        package_name,
+        version,
+        registry_url,
+        &off,
+        argv,
+    )
 }
 
 /// Runs the pub deploy tool.
@@ -684,7 +696,7 @@ mod tests {
             let path = write_crate_file(root, rel, body);
             rlocs.push(path.display().to_string());
         };
-        put("pkg/pubspec.yaml", pubspec);
+        put(&format!("pkg/{}", manifest_name()), pubspec);
         put("pkg/lib/pub_demo.dart", "int one() => 1;\n");
         if let Some(changelog) = changelog {
             put("pkg/CHANGELOG.md", changelog);
@@ -730,7 +742,7 @@ mod tests {
             );
         });
         let house = outdir.join("pub_demo-package");
-        assert!(house.join("pubspec.yaml").is_file());
+        assert!(house.join(manifest_name()).is_file());
         assert!(house.join("lib/pub_demo.dart").is_file());
     }
 
@@ -847,7 +859,7 @@ mod tests {
             ),
         );
         let staging = scratch.path().join("stage");
-        write_crate_file(&staging, "pubspec.yaml", PUBSPEC);
+        write_crate_file(&staging, manifest_name(), PUBSPEC);
         let agent = crate::http::publish_agent_with_proxy(None);
         let run_with =
             |name: &str, version: &str, staging: &Path, flutter_sdk: Option<(&Path, &Path)>| {
@@ -895,7 +907,7 @@ mod tests {
         let flutter = scratch.path().join("flutter");
         write_crate_file(
             &flutter,
-            "pubspec.yaml",
+            manifest_name(),
             "name: pub_demo\ndependencies:\n  flutter:\n    sdk: flutter\n",
         );
         assert_eq!(

@@ -29,9 +29,9 @@ rust/tests/fixtures/consumer_abi/repo
 rust/tests/fixtures/wasm_bindgen/repo
 rust/tests/fixtures/shared-rust-checks/repo
 tools/docs/rust/fixture/consumer/repo
-cli/entrypoint/consumer_sets/repo
-cli/entrypoint/consumer_scaffold/repo
-cli/entrypoint/consumer_completion/repo
+cli/tests/entrypoint/consumer_sets/repo
+cli/tests/entrypoint/consumer_scaffold/repo
+cli/tests/entrypoint/consumer_completion/repo
 cc/tests/fixtures/consumer_cc/repo
 go/tests/fixtures/samepkg/repo
 deploy/tests/fixtures/consumer_resources/repo

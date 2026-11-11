@@ -115,7 +115,6 @@ cli/cli/tests/startup_consistency/BUILD.bazel no-size 1
 cli/cli/tests/uv_sets/BUILD.bazel no-size 1
 cli/codegen_shard/BUILD.bazel no-size 1
 cli/depcheck/BUILD.bazel no-size 4
-cli/entrypoint/BUILD.bazel no-size 4
 cli/env/BUILD.bazel no-size 3
 cli/exec_os/BUILD.bazel no-size 1
 cli/fuzz_run/BUILD.bazel no-size 1
@@ -131,6 +130,7 @@ cli/roots/BUILD.bazel no-size 1
 cli/shim/BUILD.bazel no-size 4
 cli/testing/BUILD.bazel no-size 1
 cli/testing/tested_stack_tests.bzl no-size 1
+cli/tests/entrypoint/BUILD.bazel no-size 4
 cli/tool_resolve/BUILD.bazel no-size 2
 cli/web_server/BUILD.bazel no-size 1
 cmake/tests/BUILD.bazel no-size 1

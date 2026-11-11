@@ -2099,7 +2099,7 @@ crate.from_cargo(
         "//cli/generate:Cargo.toml",
         "//cli/ide:Cargo.toml",
         "//cli/lcov:Cargo.toml",
-        "//cli/entrypoint:Cargo.toml",
+        "//cli/tests/entrypoint:Cargo.toml",
         "//cli/env:Cargo.toml",
         "//cli/codegen:Cargo.toml",
         "//cli/env_plan:Cargo.toml",
@@ -2342,14 +2342,14 @@ _fixture_repo(
     path = "tools/docs/rust/fixture/consumer/repo",
 )
 
-_consumer_dx_repo = use_repo_rule("//cli/entrypoint:repos.bzl", "consumer_dx_repo")
+_consumer_dx_repo = use_repo_rule("//cli/tests/entrypoint:repos.bzl", "consumer_dx_repo")
 
 _consumer_dx_repo(
     name = "dx_consumer_entry",
     dev_dependency = True,
 )
 
-_consumer_surface_repo = use_repo_rule("//cli/entrypoint:surface.bzl", "consumer_surface_repo")
+_consumer_surface_repo = use_repo_rule("//cli/tests/entrypoint:surface.bzl", "consumer_surface_repo")
 
 _consumer_surface_repo(
     name = "dx_consumer_surface",
@@ -2359,19 +2359,19 @@ _consumer_surface_repo(
 _fixture_repo(
     name = "dx_consumer_sets",
     dev_dependency = True,
-    path = "cli/entrypoint/consumer_sets/repo",
+    path = "cli/tests/entrypoint/consumer_sets/repo",
 )
 
 _fixture_repo(
     name = "dx_consumer_scaffold",
     dev_dependency = True,
-    path = "cli/entrypoint/consumer_scaffold/repo",
+    path = "cli/tests/entrypoint/consumer_scaffold/repo",
 )
 
 _fixture_repo(
     name = "dx_consumer_completion",
     dev_dependency = True,
-    path = "cli/entrypoint/consumer_completion/repo",
+    path = "cli/tests/entrypoint/consumer_completion/repo",
 )
 
 _fixture_repo(

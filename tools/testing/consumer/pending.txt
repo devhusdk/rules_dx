@@ -1,12 +1,6 @@
 dev-repo cuda_redistrib_json core/modules/versions_tests.bzl
 dev-repo custom_gcc_x86_64 cc/private/toolchains/external/BUILD.bazel
-dev-repo dx_consumer_completion cli/entrypoint/BUILD.bazel
-dev-repo dx_consumer_entry cli/entrypoint/BUILD.bazel
-dev-repo dx_consumer_scaffold cli/entrypoint/BUILD.bazel
-dev-repo dx_consumer_sets cli/entrypoint/BUILD.bazel
-dev-repo dx_consumer_surface cli/entrypoint/BUILD.bazel
 dev-repo dx_dart_deps core/quality/testdata/BUILD.bazel
-dev-repo dx_test_tags_sources cli/entrypoint/BUILD.bazel
 dev-repo dx_test_tags_sources core/modules/BUILD.bazel
 dev-repo dx_test_tags_sources core/quality/BUILD.bazel
 dev-repo maven core/quality/testdata/runner_matrix_scala_dotnet.bzl

@@ -54,7 +54,6 @@ cuda build_test *
 cuda coverage_test *
 cuda fail_test *
 cuda pass_test *
-dart coverage_test *
 dockerfile build_test *
 dockerfile coverage_test *
 dockerfile fail_test *

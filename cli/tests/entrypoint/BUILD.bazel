@@ -6,6 +6,7 @@ package(default_testonly = True)
 
 rust_test(
     name = "consumer_dx_entry",
+    testonly = True,
     srcs = ["entrypoint_test.rs"],
     aliases = aliases(
         package_name = "cli/tests/cli_entrypoint_tests",
@@ -101,6 +102,7 @@ rust_test(
 
 rust_test(
     name = "consumer_dx_completion",
+    testonly = True,
     srcs = ["completion_test.rs"],
     aliases = aliases(
         package_name = "cli/tests/cli_entrypoint_tests",
@@ -127,6 +129,7 @@ rust_test(
 
 rust_test(
     name = "consumer_surface",
+    testonly = True,
     srcs = ["surface_test.rs"],
     aliases = aliases(
         package_name = "cli/tests/cli_entrypoint_tests",
@@ -172,6 +175,7 @@ rust_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
         "repos.bzl",
@@ -194,6 +198,7 @@ real_source_target(
 
 real_source_target(
     name = "corpus_toml",
+    testonly = True,
     tags = ["corpus"],
     toml_srcs = ["Cargo.toml"],
 )

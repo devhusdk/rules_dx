@@ -416,5 +416,6 @@ real_source_target(
         "testdata/fortran/mixed/fpm.toml",
         "testdata/julia/mixed/Manifest.toml",
         "testdata/julia/mixed/Project.toml",
+        "testdata/fortran/mixed/fpm.lock.toml",
     ],
 )

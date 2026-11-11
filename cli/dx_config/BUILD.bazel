@@ -37,7 +37,10 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_config",
         normal = True,
-    ) + ["@crates//:serde"],
+    ) + [
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_test(
@@ -68,7 +71,10 @@ rust_test(
         package_name = "cli/dx_config",
         normal = True,
         normal_dev = True,
-    ) + ["@crates//:serde"],
+    ) + [
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
 )
 
 # keep: not in Cargo.toml; Gazelle would delete it

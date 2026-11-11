@@ -19,10 +19,10 @@ rust_library(
         normal = True,
     ) + [
         "//cli/bep:dx_bep",
+        "//cli/codegen_shard",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/roots:dx_roots",
-        "//cli/codegen_shard",
         "@crates//:serde",
     ],
 )
@@ -48,10 +48,10 @@ rust_test(
         normal_dev = True,
     ) + [
         "//cli/bep:dx_bep",
+        "//cli/codegen_shard",
         "//cli/digest:dx_digest",
         "//cli/fingerprint:dx_fingerprint",
         "//cli/roots:dx_roots",
-        "//cli/codegen_shard",
         "@crates//:serde",
     ],
 )

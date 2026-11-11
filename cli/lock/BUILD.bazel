@@ -3,7 +3,13 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 load("//tools/visibility:visibility.bzl", "VIS_CLI")
 
-package(default_visibility = VIS_CLI + ["//swift/private/tools/lock:__pkg__", "//zig/private/tools/lock:__pkg__", "//d/private/tools/lock:__pkg__", "//php/private/tools/lock:__pkg__", "//lua/private/tools/lock:__pkg__"])
+package(default_visibility = VIS_CLI + [
+    "//d/private/tools/lock:__pkg__",
+    "//lua/private/tools/lock:__pkg__",
+    "//php/private/tools/lock:__pkg__",
+    "//swift/private/tools/lock:__pkg__",
+    "//zig/private/tools/lock:__pkg__",
+])
 
 exports_files([
     "src/lib.rs",
@@ -26,7 +32,11 @@ rust_library(
     deps = all_crate_deps(
         package_name = "cli/dx_lock",
         normal = True,
-    ) + ["//cli/digest:dx_digest"],
+    ) + [
+        "//cli/digest:dx_digest",
+        "@crates//:serde",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_test(
@@ -58,7 +68,10 @@ rust_binary(
     deps = all_crate_deps(
         package_name = "cli/dx_lock",
         normal = True,
-    ),
+    ) + [
+        ":dx_lock",
+        "@crates//:serde_json",
+    ],
 )
 
 rust_test(
@@ -73,7 +86,6 @@ rust_test(
     crate_name = "lock_test",
     crate_root = "tests/lock_test.rs",
     data = [
-        ":fixture_resolver",
         "testdata/golden/fixture.lock.json",
         "testdata/registry/alpha-1.2.0.pkg",
         "testdata/registry/beta-0.4.1.pkg",
@@ -81,6 +93,7 @@ rust_test(
         "testdata/registry/gamma-3.0.0.pkg",
         "testdata/registry/index.json",
         "testdata/set/fixture.json",
+        ":fixture_resolver",
         "//core/modules:lock.schema.json",
     ],
     env = {

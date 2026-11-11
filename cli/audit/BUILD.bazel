@@ -84,8 +84,8 @@ rust_library(
     crate_name = "dx_audit",
     crate_root = "src/lib.rs",
     visibility = VIS_CLI + [
-        "//deploy/private/release:__pkg__",
         "//deploy/private:__pkg__",
+        "//deploy/private/release:__pkg__",
     ],
     deps = all_crate_deps(
         package_name = "cli/dx_audit",
@@ -97,10 +97,10 @@ rust_library(
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
-        "//cli/process:dx_process",
-        "//cli/sbom:dx_sbom",
         "//cli/gomod:dx_gomod",
         "//cli/module_bazel:dx_module_bazel",
+        "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
         "@crates//:serde",
     ],
 )
@@ -184,8 +184,8 @@ rust_test(
     crate_name = "dx_audit",
     crate_root = "src/lib.rs",
     visibility = VIS_CLI + [
-        "//deploy/private/release:__pkg__",
         "//deploy/private:__pkg__",
+        "//deploy/private/release:__pkg__",
     ],
     deps = all_crate_deps(
         package_name = "cli/dx_audit",
@@ -198,11 +198,11 @@ rust_test(
         "//cli/ecosystems:dx_ecosystems",
         "//cli/error:dx_error",
         "//cli/families:dx_families",
-        "//cli/process:dx_process",
-        "//cli/sbom/schema:dx_sbom_schema",
-        "//cli/sbom:dx_sbom",
         "//cli/gomod:dx_gomod",
         "//cli/module_bazel:dx_module_bazel",
+        "//cli/process:dx_process",
+        "//cli/sbom:dx_sbom",
+        "//cli/sbom/schema:dx_sbom_schema",
         "@crates//:serde",
     ],
 )

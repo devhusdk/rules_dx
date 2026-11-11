@@ -1151,7 +1151,12 @@ LANGS = json.decode("""{
     "pins": [
       "private/pins.json"
     ],
-    "platforms": [],
+    "platforms": [
+      "linux_arm64",
+      "linux_x86_64",
+      "macos_arm64",
+      "windows_x86_64"
+    ],
     "title": "Flutter",
     "tools": []
   },
@@ -2259,7 +2264,6 @@ LANGS = json.decode("""{
       "linux_arm64",
       "linux_x86_64",
       "macos_arm64",
-      "windows_arm64",
       "windows_x86_64"
     ],
     "quality": {

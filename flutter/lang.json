@@ -13,7 +13,12 @@
     "pubspec.lock"
   ],
   "tools": [],
-  "platforms": [],
+  "platforms": [
+    "linux_arm64",
+    "linux_x86_64",
+    "macos_arm64",
+    "windows_x86_64"
+  ],
   "pins": [
     "private/pins.json"
   ],

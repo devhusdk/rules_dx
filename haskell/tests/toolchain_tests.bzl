@@ -1,9 +1,9 @@
 """Haskell toolchain pin and settings tests."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "expect_false", "expect_true", "starlark_test")
-load(":pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
-load(":packages.bzl", "is_sha256", "package_build", "pin_problems")
-load(":repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
+load("//haskell/private/toolchain:packages.bzl", "is_sha256", "package_build", "pin_problems")
+load("//haskell/private/toolchain:pins.bzl", "CELLS", "GLIBC_FLOOR", "qualified_cells")
+load("//haskell/private/toolchain:repos.bzl", "CLOSURE_DIR", "NO_HOST_TOOL", "cell_matches_host", "closure_library_dirs", "drop_host_sdk_dirs", "dropped_import_libs", "ghc_library_dir", "ghc_settings", "host_path", "hub_files", "os_libraries", "toolchain_libraries")
 
 _SETTINGS = """[("C compiler command", "/usr/bin/gcc")
 ,("C compiler flags", "--target=x86_64-linux-gnu")
@@ -151,10 +151,11 @@ def _checks():
         checks += _cell_checks(name)
     return checks
 
-def haskell_metadata_tests(name):
+def haskell_metadata_tests(name, size):
     """Declares the Haskell toolchain metadata test."""
     starlark_test(
         name = name,
+        size = size,
         mode = "load",
         checks = _checks(),
     )

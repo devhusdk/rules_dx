@@ -8,6 +8,7 @@ load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_test")
 load(":cell_tests.bzl", "arm64_action_test", "data_paths_test", "dedup_action_test", "unsupported_cpu_test", "x86_64_action_test")
 load(":transition.bzl", "arm64_files")
+load(":toolchain_tests.bzl", "appimage_metadata_tests")
 
 _LINUX = ["@platforms//os:linux"]
 
@@ -288,11 +289,17 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+appimage_metadata_tests(
+    name = "metadata",
+    size = "small",
+)
+
 real_source_target(
     name = "corpus_starlark",
     starlark_srcs = [
         "BUILD.bazel",
         "cell_tests.bzl",
+        "toolchain_tests.bzl",
         "transition.bzl",
     ],
     tags = ["corpus"],

@@ -3,7 +3,6 @@ load("@apple_support//xcode:xcode_version.bzl", "xcode_version")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "apple_provisioning")
-load(":metadata_tests.bzl", "apple_provisioning_tests")
 load(":probe.bzl", "apple_toolchain_probe")
 load(":probe_tests.bzl", "probe_failure_test")
 
@@ -11,12 +10,9 @@ package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
-    "metadata_tests.bzl",
     "probe.bzl",
     "validate.bzl",
 ])
-
-apple_provisioning_tests(name = "metadata")
 
 apple_provisioning(
     name = "no_route",
@@ -246,7 +242,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "metadata_tests.bzl",
         "probe.bzl",
         "probe_tests.bzl",
         "validate.bzl",

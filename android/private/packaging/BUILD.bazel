@@ -4,20 +4,16 @@ load("@rules_java//java:java_import.bzl", "java_import")
 load("//core:failure_test.bzl", "failure_test")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load(":defs.bzl", "android_adb_install", "android_adb_log", "android_adb_start", "android_apk_set", "android_check_selection", "android_sign", "rust_android_apk")
-load(":metadata_tests.bzl", "android_packaging_tests")
 load(":rotation_tests.bzl", "keystore_properties_test")
 
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
     "defs.bzl",
-    "metadata_tests.bzl",
     "repos.bzl",
     "rotation_tests.bzl",
     "validate.bzl",
 ])
-
-android_packaging_tests(name = "metadata")
 
 copy_file(
     name = "rotated_second_key",
@@ -338,7 +334,6 @@ real_source_target(
     starlark_srcs = [
         "BUILD.bazel",
         "defs.bzl",
-        "metadata_tests.bzl",
         "repos.bzl",
         "rotation_tests.bzl",
         "validate.bzl",

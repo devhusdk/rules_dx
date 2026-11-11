@@ -1138,6 +1138,7 @@ rust_test(
         "//erlang/private/toolchain:corpus_starlark",
         "//fortran/private/toolchain:corpus_starlark",
         "//haskell/private/toolchain:corpus_starlark",
+        "//haskell/tests:corpus_starlark",
         "//javascript/tests/fixtures/web_app:corpus_starlark",
         "//lua/private/toolchain:corpus_starlark",
         "//ocaml/private/quality:corpus_starlark",

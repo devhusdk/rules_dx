@@ -2,8 +2,6 @@ dev-proxy-tags dart/extensions.bzl
 dev-proxy-tags python/extensions.bzl
 entries android/platforms
 entries android/repos.bzl
-entries apple/platforms
-entries cuda/components
 entry-points ansible/lang.json
 entry-points api_spec/lang.json
 entry-points appimage/lang.json

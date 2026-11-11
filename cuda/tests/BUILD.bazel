@@ -259,7 +259,7 @@ dx_hello_output_test(
 component_sources_test(
     name = "cublas_component_sources_test",
     target_compatible_with = CUDA_TARGET,
-    target_under_test = "//cuda/components:cublas",
+    target_under_test = "//cuda:cublas",
 )
 
 hermetic_toolchain_test(

@@ -112,7 +112,7 @@ cuda_library(
     name = "gemm",
     srcs = ["gemm.cu"],
     cuda_archs = ["sm_89"],
-    deps = ["@rules_dx//cuda/components:cublas"],  # or :cufft, :curand
+    deps = ["@rules_dx//cuda:cublas"],  # or :cufft, :curand
 )
 ```
 

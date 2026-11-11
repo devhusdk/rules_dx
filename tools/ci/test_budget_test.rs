@@ -279,6 +279,11 @@ fn scan_file(path: &str, source: &str) -> FileScan {
     scan
 }
 
+/// Whether `callee` is a binary macro, which takes no size even when it declares a test inside.
+fn binary(callee: &str) -> bool {
+    callee.split('_').any(|word| word == "binary") && !callee.split('_').any(|word| word == "test")
+}
+
 /// Budget hits across `files`, keyed by path and kind.
 fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
     let tests = test_callees(files.values().map(|scan| &scan.callees));
@@ -288,7 +293,7 @@ fn budget(files: &BTreeMap<String, FileScan>) -> Counts {
             *counts.entry((path.clone(), kind)).or_default() += 1;
         };
         for call in &scan.calls {
-            if call.callee == SUITE || !is_test(&tests, &call.callee) {
+            if call.callee == SUITE || binary(&call.callee) || !is_test(&tests, &call.callee) {
                 continue;
             }
             match &call.size {

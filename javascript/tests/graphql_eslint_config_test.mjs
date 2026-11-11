@@ -6,7 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const tool = path.join(path.dirname(fileURLToPath(import.meta.url)), "graphql_eslint.mjs");
+const here = path.dirname(fileURLToPath(import.meta.url));
+const tool = path.join(here, "../private/quality/bin/graphql_eslint.mjs");
 
 function run(config) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "graphql-eslint-"));

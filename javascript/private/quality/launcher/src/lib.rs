@@ -48,16 +48,16 @@ pub fn descriptor_path(exe: &Path) -> PathBuf {
 
 /// The launch the Bazel rule wrote for one wrapper.
 #[derive(Debug, PartialEq, Eq)]
-struct Descriptor {
-    entry: String,
-    node: String,
-    require: String,
-    wrapper: String,
-    node_options: Vec<String>,
+pub struct Descriptor {
+    pub entry: String,
+    pub node: String,
+    pub require: String,
+    pub wrapper: String,
+    pub node_options: Vec<String>,
 }
 
 /// Returns the launch one descriptor names.
-fn descriptor(path: &Path) -> io::Result<Descriptor> {
+pub fn descriptor(path: &Path) -> io::Result<Descriptor> {
     let text = read(path)?;
     let mut entry = None;
     let mut node = None;
@@ -102,7 +102,7 @@ pub fn plan(exe: &Path, args: &[String]) -> io::Result<Plan> {
 }
 
 /// Resolves one launch as if the launcher ran in `cwd`.
-fn plan_in(exe: &Path, args: &[String], cwd: &Path) -> io::Result<Plan> {
+pub fn plan_in(exe: &Path, args: &[String], cwd: &Path) -> io::Result<Plan> {
     let owned = descriptor(&descriptor_path(exe))?;
     let runfiles = dx_path::Resolver::for_binary(exe)?;
     let entry = resolve(&runfiles, &owned.entry)?;
@@ -214,5 +214,3 @@ fn bad(message: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidInput, message.to_string())
 }
 
-#[cfg(test)]
-mod lib_tests;

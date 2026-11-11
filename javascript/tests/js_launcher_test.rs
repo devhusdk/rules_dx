@@ -2,7 +2,7 @@
 
 use std::path::{Path, PathBuf};
 
-use super::{Descriptor, descriptor, descriptor_path, plan, plan_in};
+use dx_js_launcher::{Descriptor, descriptor, descriptor_path, plan, plan_in};
 
 /// Writes one runfiles manifest line, escaping a key the way Bazel does.
 fn manifest_line(key: &str, target: &Path) -> String {

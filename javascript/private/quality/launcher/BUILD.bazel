@@ -1,6 +1,6 @@
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
-load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
+load("//rust:defs.bzl", "rust_binary", "rust_library")
 load("//tools/visibility:visibility.bzl", "VIS_PUBLIC")
 
 package(default_visibility = VIS_PUBLIC)
@@ -8,8 +8,7 @@ package(default_visibility = VIS_PUBLIC)
 exports_files([
     "Cargo.toml",
     "src/lib.rs",
-    "src/lib_tests.rs",
-    "src/main.rs",
+        "src/main.rs",
 ])
 
 rust_library(
@@ -37,29 +36,6 @@ rust_binary(
         package_name = "javascript/private/quality/dx_js_launcher",
         normal = True,
     ) + [":dx_js_launcher"],
-)
-
-rust_test(
-    name = "dx_js_launcher_test",
-    srcs = [
-        "src/lib.rs",
-        "src/lib_tests.rs",
-    ],
-    aliases = aliases(
-        package_name = "javascript/private/quality/dx_js_launcher",
-        normal = True,
-        normal_dev = True,
-    ),
-    coverage_lib = ":dx_js_launcher",
-    crate_name = "dx_js_launcher",
-    crate_root = "src/lib.rs",
-    data = [
-        ":js_launcher",
-    ],
-    env = {
-        "DX_JS_LAUNCHER": "$(rootpath :js_launcher)",
-    },
-    deps = ["//cli/path:dx_path"],
 )
 
 real_source_target(

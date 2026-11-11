@@ -1,8 +1,8 @@
 //! Packagist publisher: Composer manifest identity check and the update-package API call.
 
 use crate::run::{DeployRun, OwnerGate, deploy_build_mode, env_or_empty};
-use std::io::Read;
 use dx_ecosystems::Ecosystem;
+use std::io::Read;
 use std::path::Path;
 
 /// The file name of a Composer manifest.

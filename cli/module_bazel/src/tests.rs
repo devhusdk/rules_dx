@@ -1097,6 +1097,20 @@ fn go_deps_files_follow_the_gazelle_extension() {
 }
 
 #[test]
+fn go_deps_files_follow_the_rules_dx_go_extension() {
+    let file = parse(
+        "go = use_extension(\"@rules_dx//go:extensions.bzl\", \"go\")\ngo.from_file(go_mod = \"//third_party/go:go.mod\")\n",
+    );
+    assert_eq!(
+        file.go_deps_files().expect("files"),
+        [GoModFile {
+            go_mod: "//third_party/go:go.mod",
+            line: 2,
+        }]
+    );
+}
+
+#[test]
 fn bundle_fetches_follow_the_rules_ruby_extension() {
     let file = parse(
         "ruby = use_extension(\"@rules_dx//ruby:extensions.bzl\", \"ruby\")\nruby.toolchain(name = \"ruby\")\nruby.bundle_fetch(gemfile = \"//r:Gemfile\", gemfile_lock = \"//r:Gemfile.lock\")\nruby.bundle_fetch(name = \"gems\", gemfile = \"//g:Gemfile\", gemfile_lock = \"//g:Gemfile.lock\")\n",

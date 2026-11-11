@@ -1,7 +1,7 @@
 """The checks on the rocks hub BUILD file."""
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
-load(":hub.bzl", "build_file")
+load("//lua/private/lock:hub.bzl", "build_file")
 
 _NESTED = build_file({
     "deps": ["inspect", "known"],

@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@crates//:crates.bzl", "aliases", "all_crate_deps")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
@@ -21,6 +20,7 @@ rust_library(
         "//cli/digest:dx_digest",
         "//cli/families:dx_families",
         "//cli/lock:dx_lock",
+        "@crates//:serde_json",
     ],
 )
 
@@ -55,16 +55,6 @@ rust_test(
     ),
     crate_name = "resolve_test",
     crate_root = "resolve_test.rs",
-    deps = all_crate_deps(
-        package_name = "php/private/tools/php_lock",
-        normal = True,
-        normal_dev = True,
-    ) + [
-        ":php_lock_lib",
-        "//cli/families:dx_families",
-        "//cli/lock:dx_lock",
-        "//tools/testing:dx_testing",
-    ],
     data = [
         "testdata/factory.zip",
         "testdata/golden.composer.lock",
@@ -79,6 +69,16 @@ rust_test(
     },
     tags = ["block-network"],
     target_compatible_with = ["@platforms//os:linux"],
+    deps = all_crate_deps(
+        package_name = "php/private/tools/php_lock",
+        normal = True,
+        normal_dev = True,
+    ) + [
+        ":php_lock_lib",
+        "//cli/families:dx_families",
+        "//cli/lock:dx_lock",
+        "//tools/testing:dx_testing",
+    ],
 )
 
 real_source_target(

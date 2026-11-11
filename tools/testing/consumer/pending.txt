@@ -30,7 +30,6 @@ init lua
 init ocaml
 init perl
 init php
-init powershell
 init qt
 init rego
 init rst

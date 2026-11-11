@@ -36,6 +36,9 @@ fn host_cell_ships_exactly_its_members() {
         .collect();
     want.insert(cell.exe.clone());
     want.extend(cell.runtime.iter().cloned());
+    if cell.os == "windows" {
+        want.insert("notices/msvc_vcruntime".to_owned());
+    }
     assert_eq!(have, want);
     for (name, mode, _) in &listing {
         let expected = if *name == cell.exe { 0o755 } else { 0o644 };

@@ -60,7 +60,7 @@ const KINDS: &[KindSpec] = &[
     KindSpec {
         kind: Kind::Notice,
         name: "notice",
-        usage: "<manifest> <out> <root> [--runtimes=<runtimes.json>] <text> [<text> ...]",
+        usage: "<manifest> <out> <root> [--runtimes=<runtimes.json>] <text|@list> [<text|@list> ...]",
         arity: Arity::AtLeast(4),
     },
     KindSpec {
@@ -247,6 +247,21 @@ fn kind_name(invocation: &Invocation) -> &'static str {
     }
 }
 
+/// Replaces each `@<list>` entry with the newline-separated paths in that file.
+fn expand_text_lists(texts: &[PathBuf]) -> std::io::Result<Vec<PathBuf>> {
+    let mut out = Vec::with_capacity(texts.len());
+    for text in texts {
+        match text.to_str().and_then(|text| text.strip_prefix('@')) {
+            Some(list) => {
+                let body = std::fs::read_to_string(list)?;
+                out.extend(body.lines().filter(|line| !line.is_empty()).map(PathBuf::from));
+            }
+            None => out.push(text.clone()),
+        }
+    }
+    Ok(out)
+}
+
 fn execute(invocation: &Invocation) -> std::io::Result<()> {
     match invocation {
         Invocation::Spdx {
@@ -278,7 +293,10 @@ fn execute(invocation: &Invocation) -> std::io::Result<()> {
             root,
             texts,
             runtimes,
-        } => crate::write_notice(manifest, dst, root, texts, runtimes.as_deref()),
+        } => {
+            let texts = expand_text_lists(texts)?;
+            crate::write_notice(manifest, dst, root, &texts, runtimes.as_deref())
+        }
         Invocation::Inventory {
             shipped,
             lock,
@@ -507,6 +525,27 @@ mod tests {
             panic!("multi-text notice argv parses");
         };
         assert_eq!(texts, vec![PathBuf::from("a.txt"), PathBuf::from("b.txt")]);
+    }
+
+    #[test]
+    fn notice_text_lists_expand_in_order() {
+        let dir = std::env::temp_dir().join(format!("dx_notice_list_{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("dir");
+        let list = dir.join("texts.txt");
+        std::fs::write(&list, "a.txt\n\nb.txt\n").expect("list");
+        let texts = vec![
+            PathBuf::from(format!("@{}", list.display())),
+            PathBuf::from("c.txt"),
+        ];
+        assert_eq!(
+            expand_text_lists(&texts).expect("expand"),
+            vec![
+                PathBuf::from("a.txt"),
+                PathBuf::from("b.txt"),
+                PathBuf::from("c.txt")
+            ]
+        );
+        std::fs::remove_dir_all(&dir).expect("cleanup");
     }
 
     #[test]

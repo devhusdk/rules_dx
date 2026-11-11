@@ -38,9 +38,10 @@ def notice_bundle(name, root, inventory, texts, runtimes = None, target_compatib
         outs = [notice],
         target_compatible_with = target_compatible_with,
         tools = ["//deploy/private/release:release_tool"],
-        cmd = "$(location //deploy/private/release:release_tool) notice $(location " + inventory + ") $(OUTS) " + genrule_arg(root) + " " +
-              ("--runtimes=$(location " + runtimes + ") " if runtimes else "") +
-              " ".join(["$(locations " + text + ")" for text in texts]),
+        cmd = "list=$(OUTS).texts && printf '%s\\n' " +
+              " ".join(["$(locations " + text + ")" for text in texts]) + " > $$list && " +
+              "$(location //deploy/private/release:release_tool) notice $(location " + inventory + ") $(OUTS) " + genrule_arg(root) + " " +
+              ("--runtimes=$(location " + runtimes + ") " if runtimes else "") + "@$$list && rm -f $$list",
     )
 
     native.genrule(

@@ -428,6 +428,7 @@
         "//haskell:extensions.bzl%haskell",
         "//ocaml:extensions.bzl%ocaml",
         "//ocaml:extensions.bzl%opam",
+        "//powershell:extensions.bzl%powershell",
         "//swift:extensions.bzl%swift_host",
         "//swift:extensions.bzl%swift_windows",
         "//cuda:extensions.bzl%cuda_license",
@@ -558,7 +559,6 @@
       ],
       "repo_rules": [
         "//android:repos.bzl%android_ndk_toolchain_repo",
-        "//powershell:extensions.bzl%psgallery_module",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
         "@bazel_tools//tools/build_defs/repo:http.bzl%http_jar",

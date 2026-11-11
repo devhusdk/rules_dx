@@ -1,4 +1,6 @@
-"""Pinned PowerShell Gallery modules."""
+"""The powershell module extension and its pinned Gallery modules."""
+
+load("//core:repo.bzl", "hub_repo")
 
 _BUILD = """load("@rules_powershell//powershell:defs.bzl", "pwsh_library")
 
@@ -44,4 +46,41 @@ psgallery_module = repository_rule(
         "urls": attr.string_list(mandatory = True, doc = "Package download URLs."),
     },
     doc = "Fetches one pinned module package into a PSModulePath layout.",
+)
+
+_HUB_ALIAS = """alias(
+    name = "{name}",
+    actual = "@{hub}_{name}//:{name}",
+    visibility = ["//visibility:public"],
+)
+"""
+
+def _powershell_impl(mctx):
+    for tag in [tag for module in mctx.modules for tag in module.tags.lock]:
+        lock = json.decode(mctx.read(tag.lock))
+        aliases = []
+        for module, entry in sorted(lock["modules"].items()):
+            name = module.lower()
+            psgallery_module(
+                name = "{}_{}".format(tag.name, name),
+                module = module,
+                sha256 = entry["sha256"],
+                urls = ["{}/package/{}/{}".format(lock["source"], module, entry["version"])],
+            )
+            aliases.append(_HUB_ALIAS.format(name = name, hub = tag.name))
+        hub_repo(name = tag.name, files = {"BUILD.bazel": "\n".join(aliases)})
+    return mctx.extension_metadata(reproducible = True)
+
+powershell = module_extension(
+    implementation = _powershell_impl,
+    doc = "Creates a hub repository with one alias per module pinned in a Gallery lock file.",
+    tag_classes = {
+        "lock": tag_class(
+            doc = "Creates the hub and one repository per pinned module.",
+            attrs = {
+                "lock": attr.label(mandatory = True, allow_single_file = [".json"], doc = "The Gallery lock file."),
+                "name": attr.string(mandatory = True, doc = "Hub repository name."),
+            },
+        ),
+    },
 )

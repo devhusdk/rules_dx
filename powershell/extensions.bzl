@@ -1,5 +1,5 @@
-"""Public PowerShell repository rule."""
+"""Public PowerShell module extension."""
 
-load("//powershell/private/toolchain:gallery.bzl", _psgallery_module = "psgallery_module")
+load("//powershell/private/toolchain:gallery.bzl", _powershell = "powershell")
 
-psgallery_module = _psgallery_module
+powershell = _powershell

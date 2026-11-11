@@ -1,14 +1,16 @@
 load("@rules_dx//rego:defs.bzl", "rego_library", "rego_test")
 
+# dx: written once, yours to edit
+
 rego_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["greet.rego"],
     visibility = ["//visibility:public"],
 )
 
 rego_test(
-    name = "consumer_test",
+    name = "greet_test",
     size = "small",
     srcs = ["greet_test.rego"],
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

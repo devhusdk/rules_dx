@@ -207,6 +207,11 @@ var conformanceRows = map[string]conformanceRow{
 			"@rules_dx//core/quality:native_config.bzl": {"ruff_config"},
 		},
 	},
+	"rego": {
+		files: map[string]string{"demo.rego": "package demo\n"},
+		kind:  "rego_library", target: "demo", defs: "rego:defs.bzl",
+		symbols: []string{"rego_library", "rego_test"},
+	},
 	"ruby": {
 		files: map[string]string{"demo.rb": "module Demo\nend\n"},
 		kind:  "ruby_library", target: "demo", defs: "ruby:defs.bzl",

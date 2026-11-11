@@ -1,0 +1,7 @@
+load("@rules_dx//rego:defs.bzl", "rego_library", "rego_test")
+
+rego_test(
+    name = "consumer_test",
+    srcs = ["greet_test.rego"],
+    deps = [":policy"],
+)

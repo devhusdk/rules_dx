@@ -27,6 +27,7 @@ GAZELLE_LANGUAGES = [
     "powershell",
     "protobuf",
     "python",
+    "rego",
     "ruby",
     "rust",
     "scala",

@@ -48,6 +48,9 @@ func registryEntry(ecosystem string) lockRegistryEntry {
 var lockRegistry = func() []lockRegistryEntry {
 	var entries []lockRegistryEntry
 	for _, e := range registryEntries {
+		if _, ok := externalParsers[e.Ecosystem]; ok {
+			continue
+		}
 		if e.Imports == "provides" {
 			entries = append(entries, e)
 		}

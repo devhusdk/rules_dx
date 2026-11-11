@@ -888,6 +888,8 @@ ruby.toolchain(
     name = "ruby",
     portable_ruby = True,
     portable_ruby_checksums = {
+        "make-4.4.1-3-x86_64.pkg.tar.zst": "af0bdba17f06fe037f0194069adaa31a8fe45f1a11381501896aea1fae37bd5d",
+        "msys2-base-x86_64-20260927.tar.zst": "8a2095647afbf799d113d0cae35f7544589d059819042635504e75bd2179bd02",
         "ruby-3.4.12.arm64_darwin.tar.gz": "690e1eb8bb715a136029a62a60de50d5b463e275666a81246ca09a1e8f8ac1c2",
         "ruby-3.4.12.arm64_linux.tar.gz": "e36011c92255185e2e76f409cc1011bb652425bec6bb6e2800aadfb2e1494566",
         "ruby-3.4.12.x86_64_darwin.tar.gz": "4927c3f886fd89e37bcec36cc7f9f4b0367c6f81381912a0327aafa916971778",

@@ -259,7 +259,7 @@ pub struct JuliaManifest<'a> {
     pub line: usize,
 }
 
-/// One `composer.lock` tag of the rules_dx composer extension.
+/// One `lock` tag of the rules_dx composer extension.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ComposerLock<'a> {
     pub name: &'a str,
@@ -1000,9 +1000,9 @@ impl ModuleFile {
             .collect()
     }
 
-    /// Every `composer.lock` tag of the rules_dx composer extension in source order.
+    /// Every `lock` tag of the rules_dx composer extension in source order.
     pub fn composer_locks(&self) -> Result<Vec<ComposerLock<'_>>, ModuleError> {
-        const TAG: &str = "composer.lock";
+        const TAG: &str = "php:extensions.bzl composer lock";
         self.tags(RUBY_MODULE, "php:extensions.bzl", "composer", "lock")
         .map(|call| {
             Ok(ComposerLock {

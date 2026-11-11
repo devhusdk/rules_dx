@@ -172,7 +172,7 @@ pub(crate) fn configured_set(
                             dx_update::edit::ConfiguredKind::Hex => "exactly one mix.exs",
                             dx_update::edit::ConfiguredKind::Julia => "exactly one Project.toml",
                             dx_update::edit::ConfiguredKind::Composer =>
-                                "exactly one composer.json",
+                                "exactly one composer manifest",
                             dx_update::edit::ConfiguredKind::Cabal => "exactly one .cabal file",
                             dx_update::edit::ConfiguredKind::SwiftPm => "exactly one Package.swift",
                             dx_update::edit::ConfiguredKind::Opam => "exactly one .opam file",

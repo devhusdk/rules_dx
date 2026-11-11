@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-use crate::lock_hubs::{lock_of, manifest_of};
+use crate::lock_hubs::{lock_of, manifest_of, state_of};
 
 pub use dx_ecosystems::{Ecosystem, SUPPORTED_ECOSYSTEMS};
 
@@ -19,13 +19,25 @@ pub const REBAR_LOCK: &str = "rebar.lock";
 
 pub const JULIA_MANIFEST: &str = "Manifest.toml";
 
-pub const DUB_SELECTIONS: &str = "dub.selections.json";
+/// The dub state file name.
+pub fn dub_selections() -> &'static str {
+    state_of("dub")
+}
 
-const DUB_MANIFESTS: [&str; 2] = ["dub.json", "dub.sdl"];
+/// The dub manifest names, preferred first.
+fn dub_manifests() -> impl Iterator<Item = &'static str> {
+    std::iter::once(manifest_of("dub")).chain(Ecosystem::Dub.alt_manifests().iter().map(String::as_str))
+}
 
-pub const LUAROCKS_LOCK: &str = "luarocks.lock.json";
+/// The luarocks lock file name.
+pub fn luarocks_lock() -> &'static str {
+    lock_of("luarocks")
+}
 
-pub const COMPOSER_LOCK: &str = "composer.lock";
+/// The composer state file name.
+pub fn composer_lock() -> &'static str {
+    state_of("composer")
+}
 
 pub const PACKAGE_RESOLVED: &str = "Package.resolved";
 
@@ -376,14 +388,14 @@ pub fn discover(
                 vec![in_dir(&dir, REBAR_LOCK)],
             )?);
         }
-        for composer in module.composer_locks().map_err(hub)? {
-            let lock = path(composer.lock)?;
+        for tag in module.composer_locks().map_err(hub)? {
+            let lock = path(tag.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&lock));
             sets.push(hub_set(
-                composer.name,
+                tag.name,
                 Ecosystem::Composer,
                 vec![in_dir(&dir, manifest_of("composer"))],
-                vec![lock, in_dir(&dir, COMPOSER_LOCK)],
+                vec![lock, in_dir(&dir, composer_lock())],
             )?);
         }
         for fpm in module.fpm_locks().map_err(hub)? {
@@ -399,16 +411,15 @@ pub fn discover(
         for dub in module.dub_locks().map_err(hub)? {
             let lock = path(dub.lock)?;
             let dir = manifest_dir(std::slice::from_ref(&lock));
-            let manifest = DUB_MANIFESTS
-                .iter()
+            let manifest = dub_manifests()
                 .map(|file| in_dir(&dir, file))
                 .find(|candidate| read(candidate).is_ok())
-                .unwrap_or_else(|| in_dir(&dir, DUB_MANIFESTS[0]));
+                .unwrap_or_else(|| in_dir(&dir, manifest_of("dub")));
             sets.push(hub_set(
                 dub.name,
                 Ecosystem::Dub,
                 vec![manifest],
-                vec![lock, in_dir(&dir, DUB_SELECTIONS)],
+                vec![lock, in_dir(&dir, dub_selections())],
             )?);
         }
         for zig in module.zig_locks().map_err(hub)? {
@@ -1411,7 +1422,7 @@ fn check_julia_layout(workspace: &Path, set: &ResolvedSet) -> Result<(), Depende
 }
 
 fn check_composer_layout(set: &ResolvedSet) -> Result<(), DependencySetsError> {
-    check_pinned_lock(set, COMPOSER_LOCK)
+    check_pinned_lock(set, composer_lock())
 }
 
 /// The name `@<name>` resolves the set's crate_universe hub by in the root module.

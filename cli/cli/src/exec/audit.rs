@@ -425,7 +425,7 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Fpm => dx_audit::locks::parse_fpm_lock(text),
             dx_adopt::dependency_sets::Ecosystem::Zig => Ok(Vec::new()),
             dx_adopt::dependency_sets::Ecosystem::Dub => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::DUB_SELECTIONS) => {
+                Some(name) if name == dx_adopt::dependency_sets::dub_selections() => {
                     dx_audit::locks::parse_dub_selections(text)
                 }
                 _ => Ok(Vec::new()),
@@ -437,7 +437,7 @@ fn parse_locked_for_configured(
                 _ => Ok(Vec::new()),
             },
             dx_adopt::dependency_sets::Ecosystem::Composer => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::COMPOSER_LOCK) => {
+                Some(name) if name == dx_adopt::dependency_sets::composer_lock() => {
                     dx_audit::locks::parse_composer_lock(text)
                 }
                 _ => Ok(Vec::new()),
@@ -462,7 +462,7 @@ fn parse_locked_for_configured(
                 dx_audit::locks::parse_psgallery_lock(text)
             }
             dx_adopt::dependency_sets::Ecosystem::LuaRocks => match rel.rsplit('/').next() {
-                Some(dx_adopt::dependency_sets::LUAROCKS_LOCK) => {
+                Some(name) if name == dx_adopt::dependency_sets::luarocks_lock() => {
                     dx_audit::locks::parse_luarocks_lock(text)
                 }
                 _ => Ok(Vec::new()),

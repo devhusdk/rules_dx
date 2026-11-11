@@ -1,20 +1,26 @@
 use std::path::Path;
 
 /// Lock and manifest names dx knows an ecosystem for but no workspace set owns. The flag marks ecosystems that have a set kind; the others show `none` in the Dependencies column of docs/support-matrix.md.
-const UNOWNED_NAMES: &[(&str, &str, bool)] = &[
+const FIXED_NAMES: &[(&str, &str, bool)] = &[
     ("mix.lock", "hex", true),
     ("rebar.lock", "hex", true),
     ("pubspec.lock", "pub", true),
-    ("composer.lock", "composer", true),
     ("stack.yaml.lock", "hackage", false),
     ("opam.locked", "opam", true),
     ("cpanfile.snapshot", "cpan", true),
-    ("build.zig.zon", "zig", true),
     ("vcpkg.json", "vcpkg", false),
     ("poetry.lock", "pypi", false),
     ("Pipfile.lock", "pypi", false),
-    ("dub.selections.json", "dub", true),
 ];
+
+static UNOWNED_NAMES: std::sync::LazyLock<Vec<(&'static str, &'static str, bool)>> =
+    std::sync::LazyLock::new(|| {
+        let mut names = FIXED_NAMES.to_vec();
+        names.push((dx_adopt::dependency_sets::composer_lock(), "composer", true));
+        names.push((dx_ecosystems::Ecosystem::Zig.manifest_name(), "zig", true));
+        names.push((dx_adopt::dependency_sets::dub_selections(), "dub", true));
+        names
+    });
 
 const SKIPPED_DIRS: &[&str] = &["node_modules", dx_path::state::DX_DIR, ".git"];
 
@@ -102,14 +108,16 @@ mod tests {
     #[test]
     fn reports_unowned_locks_and_skips_owned_and_vendored_dirs() {
         let dir = tempfile::tempdir().expect("tempdir");
+        let dub = dx_adopt::dependency_sets::dub_selections();
+        let composer = dx_adopt::dependency_sets::composer_lock();
         for rel in [
-            "pkg/mix.lock",
-            "poetry.lock",
-            "d/dub.selections.json",
-            "app/pubspec.lock",
-            "node_modules/x/composer.lock",
-            "bazel-out/mix.lock",
-            "README.md",
+            "pkg/mix.lock".to_owned(),
+            "poetry.lock".to_owned(),
+            format!("d/{dub}"),
+            "app/pubspec.lock".to_owned(),
+            format!("node_modules/x/{composer}"),
+            "bazel-out/mix.lock".to_owned(),
+            "README.md".to_owned(),
         ] {
             let path = dir.path().join(rel);
             std::fs::create_dir_all(path.parent().expect("parent")).expect("mkdir");
@@ -120,9 +128,9 @@ mod tests {
         assert_eq!(
             messages,
             [
-                "dx: no dependency set for d/dub.selections.json (dub); advisories not checked, see docs/support-matrix.md",
-                "dx: no dependency set for pkg/mix.lock (hex); advisories not checked, see docs/support-matrix.md",
-                "dx: no dependency set for poetry.lock (pypi); advisories not checked, use a uv set",
+                format!("dx: no dependency set for d/{dub} (dub); advisories not checked, see docs/support-matrix.md"),
+                "dx: no dependency set for pkg/mix.lock (hex); advisories not checked, see docs/support-matrix.md".to_owned(),
+                "dx: no dependency set for poetry.lock (pypi); advisories not checked, use a uv set".to_owned(),
             ]
         );
     }

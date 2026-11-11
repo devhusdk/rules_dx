@@ -43,7 +43,6 @@ func corpusKinds() map[string]rule.KindInfo {
 				"toml_srcs":         true,
 				"json_srcs":         true,
 				"markdown_siblings": true,
-				"aspect_hints":      true,
 				"tags":              true,
 			},
 		},
@@ -166,7 +165,7 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 			return nil
 		}
 		switch {
-		case base == "BUILD.bazel" || base == "MODULE.bazel" || strings.HasSuffix(base, ".bzl"):
+		case base == "BUILD.bazel" || strings.HasSuffix(base, ".BUILD.bazel") || base == "MODULE.bazel" || strings.HasSuffix(base, ".bzl"):
 			add("starlark", slash)
 		case strings.HasSuffix(base, ".md"):
 			add("markdown", slash)
@@ -219,7 +218,7 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 		}
 		r := rule.NewRule(corpusKind, "corpus_"+typ)
 		r.SetAttr(attr, srcs)
-		r.SetAttr("tags", []string{corpusTag})
+		r.SetAttr("tags", corpusTags(existing["corpus_"+typ]))
 		if typ == "markdown" {
 			if len(siblings) > 0 {
 				r.SetAttr("markdown_siblings", siblings)
@@ -231,11 +230,26 @@ func planCorpus(args language.GenerateArgs, hasOtherGen bool) *corpusPlan {
 	if len(collected["markdown"]) == 0 && len(siblings) > 0 {
 		r := rule.NewRule(corpusKind, "corpus_markdown")
 		r.SetAttr("markdown_siblings", siblings)
-		r.SetAttr("tags", []string{corpusTag})
+		r.SetAttr("tags", corpusTags(existing["corpus_markdown"]))
 		plan.gen = append(plan.gen, r)
 	}
 	emit("starlark", "starlark_srcs", collected["starlark"])
 	emit("toml", "toml_srcs", collected["toml"])
 	emit("json", "json_srcs", collected["json"])
 	return plan
+}
+
+func corpusTags(existing *rule.Rule) []string {
+	set := map[string]bool{corpusTag: true}
+	if existing != nil && existing.Kind() == corpusKind {
+		for _, tag := range existing.AttrStrings("tags") {
+			set[tag] = true
+		}
+	}
+	tags := make([]string, 0, len(set))
+	for tag := range set {
+		tags = append(tags, tag)
+	}
+	sort.Strings(tags)
+	return tags
 }

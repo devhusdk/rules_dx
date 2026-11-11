@@ -1163,3 +1163,38 @@ fn t() { dx_testing::f(); other_crate::h(); }
 		t.Errorf("production = %v, want [serde]", got.production)
 	}
 }
+
+func TestCorpusAspectHintsNotMergeable(t *testing.T) {
+	for kind, info := range corpusKinds() {
+		if info.MergeableAttrs["aspect_hints"] {
+			t.Errorf("%s: aspect_hints is mergeable, want user-owned", kind)
+		}
+	}
+}
+
+func TestCorpusKeepsExistingTagsAndCollectsNamedBuildFiles(t *testing.T) {
+	root := t.TempDir()
+	writeFixture(t, root, "BUILD.bazel", "")
+	writeFixture(t, root, "x.BUILD.bazel", "")
+	writeFixture(t, root, "README.md", "")
+	file, err := rule.LoadData(filepath.Join(root, "BUILD.bazel"), "", []byte("real_source_target(\n    name = \"corpus_markdown\",\n    tags = [\"manual\"],\n)\n"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := planCorpus(language.GenerateArgs{
+		Config:       &config.Config{RepoRoot: root},
+		Dir:          root,
+		File:         file,
+		RegularFiles: []string{"BUILD.bazel", "x.BUILD.bazel", "README.md"},
+	}, false)
+	got := map[string]*rule.Rule{}
+	for _, r := range plan.gen {
+		got[r.Name()] = r
+	}
+	if md := got["corpus_markdown"]; md == nil || !reflect.DeepEqual(md.AttrStrings("tags"), []string{"corpus", "manual"}) {
+		t.Errorf("corpus_markdown = %+v, want tags corpus and manual", md)
+	}
+	if sl := got["corpus_starlark"]; sl == nil || !slices.Contains(sl.AttrStrings("starlark_srcs"), "x.BUILD.bazel") {
+		t.Errorf("corpus_starlark = %+v, want x.BUILD.bazel", sl)
+	}
+}

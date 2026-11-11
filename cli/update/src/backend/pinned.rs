@@ -4,10 +4,7 @@ use super::*;
 pub(super) fn selective(set: &ResolvedSet) -> BackendError {
     BackendError::Unsupported {
         set: set.name.clone(),
-        reason: set
-            .ecosystem
-            .pinned_reason()
-            .unwrap_or("dx only pins this set"),
+        reason: "dx only pins this set",
     }
 }
 

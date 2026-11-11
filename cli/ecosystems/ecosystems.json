@@ -16,8 +16,7 @@
       "lockfiles": ["uv.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/PyPI/all.zip",
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "npm",
@@ -35,8 +34,7 @@
       "lockfiles": ["pnpm-lock.yaml", "yarn.lock", "package-lock.json"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/npm/all.zip",
       "license_audit": true,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "bazel",
@@ -54,8 +52,7 @@
       "lockfiles": [],
       "osv_source": null,
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "ruby",
@@ -73,8 +70,7 @@
       "lockfiles": ["Gemfile.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/RubyGems/all.zip",
       "license_audit": true,
-      "lock_required": true,
-      "pinned_reason": "dx does not resolve gems; edit Gemfile and regenerate Gemfile.lock with `bundle lock`"
+      "lock_required": true
     },
     {
       "name": "powershell",
@@ -92,8 +88,7 @@
       "lockfiles": ["PSGallery.lock.json"],
       "osv_source": null,
       "license_audit": true,
-      "lock_required": true,
-      "pinned_reason": "dx does not resolve PowerShell modules; edit PSGallery.requirements.psd1 and regenerate PSGallery.lock.json by hand"
+      "lock_required": true
     },
     {
       "name": "cargo",
@@ -111,8 +106,7 @@
       "lockfiles": ["Cargo.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/crates.io/all.zip",
       "license_audit": true,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "maven",
@@ -130,8 +124,7 @@
       "lockfiles": [],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Maven/all.zip",
       "license_audit": true,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "nuget",
@@ -149,8 +142,7 @@
       "lockfiles": ["paket.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/NuGet/all.zip",
       "license_audit": true,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "go",
@@ -168,8 +160,7 @@
       "lockfiles": ["go.sum"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Go/all.zip",
       "license_audit": true,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "cpan",
@@ -187,8 +178,7 @@
       "lockfiles": ["cpanfile.snapshot"],
       "osv_source": "https://metacpan.org/release/CPANSA-DB",
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "pub",
@@ -206,8 +196,7 @@
       "lockfiles": ["pubspec.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Pub/all.zip",
       "license_audit": false,
-      "lock_required": true,
-      "pinned_reason": null
+      "lock_required": true
     },
     {
       "name": "julia",
@@ -225,8 +214,7 @@
       "lockfiles": ["Manifest.toml", "Manifest.bazel.json"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Julia/all.zip",
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "hex",
@@ -244,8 +232,7 @@
       "lockfiles": ["mix.lock", "rebar.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Hex/all.zip",
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "composer",
@@ -263,8 +250,7 @@
       "lockfiles": ["composer.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Packagist/all.zip",
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "opam",
@@ -282,8 +268,7 @@
       "lockfiles": [],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/opam/all.zip",
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "swiftpm",
@@ -301,8 +286,7 @@
       "lockfiles": ["Package.resolved"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/SwiftURL/all.zip",
       "license_audit": false,
-      "lock_required": true,
-      "pinned_reason": null
+      "lock_required": true
     },
     {
       "name": "cabal",
@@ -320,8 +304,7 @@
       "lockfiles": ["cabal.project.freeze", "stack.yaml.lock"],
       "osv_source": "https://osv-vulnerabilities.storage.googleapis.com/Hackage/all.zip",
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": null
+      "lock_required": false
     },
     {
       "name": "dub",
@@ -339,8 +322,7 @@
       "lockfiles": ["dub.lock.json"],
       "osv_source": null,
       "license_audit": false,
-      "lock_required": true,
-      "pinned_reason": "dx checks no archive pins; run `dx update` to resolve them"
+      "lock_required": true
     },
     {
       "name": "fpm",
@@ -358,8 +340,7 @@
       "lockfiles": ["fpm.lock.toml"],
       "osv_source": null,
       "license_audit": false,
-      "lock_required": true,
-      "pinned_reason": "dx checks no archive pins; run `dx update` to re-hash them"
+      "lock_required": true
     },
     {
       "name": "zig",
@@ -377,8 +358,7 @@
       "lockfiles": ["zig.lock.json"],
       "osv_source": null,
       "license_audit": false,
-      "lock_required": true,
-      "pinned_reason": "dx checks no archive pins; run `dx update` to resolve them"
+      "lock_required": true
     },
     {
       "name": "luarocks",
@@ -396,8 +376,7 @@
       "lockfiles": ["luarocks.lock.json"],
       "osv_source": null,
       "license_audit": true,
-      "lock_required": true,
-      "pinned_reason": "dx checks no LuaRocks pins; run `dx update` to resolve them"
+      "lock_required": true
     },
     {
       "name": "ansible",
@@ -415,8 +394,7 @@
       "lockfiles": [],
       "osv_source": null,
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": "dx checks no collection pins; run `dx update` to move them and rewrite the collections lock"
+      "lock_required": false
     },
     {
       "name": "bicep",
@@ -434,8 +412,7 @@
       "lockfiles": [],
       "osv_source": null,
       "license_audit": false,
-      "lock_required": false,
-      "pinned_reason": "dx does not pick Bicep module versions; edit the ref in MODULE.bazel and set digest from `bazel run //bicep/private/tools:pin -- <ref>`"
+      "lock_required": false
     }
   ]
 }

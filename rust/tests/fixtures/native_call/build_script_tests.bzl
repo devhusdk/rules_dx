@@ -1,6 +1,7 @@
 """Analysis test for the C/C++ tool identity of cargo build script actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_cc//cc/common:cc_info.bzl", "CcInfo")
 load("@rules_dx//core:msvc_crt.bzl", "MSVC_CRT_FROM_RUST", "MSVC_STATIC_CRT")
 
 def _relative(value):
@@ -492,8 +493,34 @@ def _crt_bad_impl(ctx):
 _crt_ok_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG)
 _crt_target_flag_test = analysistest.make(_crt_ok_impl, config_settings = {_COMPILER: "msvc"})
 _crt_bad_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG, expect_failure = True)
+_crt_mixed_actions_test = analysistest.make(_crt_bad_impl, config_settings = {_COMPILER: "msvc"}, expect_failure = True)
 _crt_ok_llvm_test = analysistest.make(_crt_ok_impl, config_settings = _CRT_CONFIG_LLVM)
 _crt_bad_llvm_test = analysistest.make(_crt_bad_impl, config_settings = _CRT_CONFIG_LLVM, expect_failure = True)
+
+def _mixed_crt_actions_impl(ctx):
+    out = ctx.actions.declare_file(ctx.label.name + ".txt")
+    ctx.actions.run_shell(outputs = [out], command = "touch " + out.path, arguments = ["/MD"], mnemonic = "CppCompile")
+    ctx.actions.run_shell(outputs = [ctx.actions.declare_file(ctx.label.name + ".rlib")], command = "true", arguments = ["-Ctarget-feature=+crt-static"], mnemonic = "Rustc")
+    return [CcInfo(), DefaultInfo(files = depset([out]))]
+
+mixed_crt_actions = rule(
+    implementation = _mixed_crt_actions_impl,
+    doc = "A target that registers a /MD CppCompile action before a +crt-static Rustc action.",
+)
+
+def rust_msvc_crt_mixed_actions_test(name, target):
+    """Asserts a /MD CppCompile action does not hide a later +crt-static Rustc action in the same target.
+
+    Args:
+        name: Name of the test.
+        target: A rust_binary linking a mixed_crt_actions target.
+    """
+    _crt_mixed_actions_test(
+        name = name,
+        size = "small",
+        target_compatible_with = ["@platforms//os:windows", "@platforms//cpu:x86_64"],
+        target_under_test = target,
+    )
 
 def rust_msvc_crt_tests(name, ok, bad, target_flag):
     """Asserts +crt-static Rust accepts /MT C deps and rejects /MD ones under cl.exe and clang-cl.

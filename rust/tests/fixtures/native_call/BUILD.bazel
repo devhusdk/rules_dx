@@ -7,7 +7,7 @@ load("@rules_dx//cc/private/toolchains:select.bzl", "cc_toolchain_test")
 load("@rules_dx//core:failure_test.bzl", "failure_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//rust:defs.bzl", "rust_binary", "rust_build_script", "rust_library", "rust_shared_library", "rust_static_library", "rust_test")
-load(":build_script_tests.bzl", "build_script_absolute_tool_test", "build_script_compiler_tests", "build_script_host_env_test", "build_script_hub_env_test", "build_script_libstdcxx_test", "build_script_msvc_coverage_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_static_archive_link_test", "rust_msvc_crt_library_tests", "rust_msvc_crt_tests")
+load(":build_script_tests.bzl", "build_script_absolute_tool_test", "build_script_compiler_tests", "build_script_host_env_test", "build_script_hub_env_test", "build_script_libstdcxx_test", "build_script_msvc_coverage_test", "build_script_msvc_test", "build_script_tool_inputs_test", "cross_build_script_identity_tests", "cross_build_script_tool_inputs_test", "rust_link_compiler_tests", "rust_link_windows_test", "rust_static_archive_link_test", "mixed_crt_actions", "rust_msvc_crt_library_tests", "rust_msvc_crt_mixed_actions_test", "rust_msvc_crt_tests")
 
 package(
     default_testonly = True,
@@ -345,6 +345,27 @@ rust_msvc_crt_tests(
     bad = ":native_md_crt_bin",
     target_flag = ":native_target_crt_bin",
     ok = ":native_call_test",
+)
+
+mixed_crt_actions(
+    name = "native_mixed_crt",
+    tags = ["manual"],
+)
+
+rust_binary(
+    name = "native_mixed_crt_bin",
+    srcs = ["src/main.rs"],
+    crate_root = "src/main.rs",
+    edition = "2021",
+    link_deps = [":native_mixed_crt"],
+    tags = ["manual"],
+    testonly = True,
+    deps = [":native_call"],
+)
+
+rust_msvc_crt_mixed_actions_test(
+    name = "native_mixed_crt_actions_test",
+    target = ":native_mixed_crt_bin",
 )
 
 rust_shared_library(

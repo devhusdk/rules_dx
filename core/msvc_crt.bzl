@@ -52,6 +52,7 @@ def _dx_msvc_crt_aspect_impl(target, ctx):
     crt_static = False
     dynamic = []
     transitive = []
+    recorded = False
     for name in ["deps", "link_deps", "crate", "upstream"]:
         value = getattr(ctx.rule.attr, name, None)
         if value == None:
@@ -63,9 +64,9 @@ def _dx_msvc_crt_aspect_impl(target, ctx):
     for action in target.actions:
         if action.mnemonic == "Rustc" and _crt_static(action.argv or []):
             crt_static = True
-        elif action.mnemonic == "CppCompile" and any([flag in (action.argv or []) for flag in _DYNAMIC]):
+        elif not recorded and action.mnemonic == "CppCompile" and any([flag in (action.argv or []) for flag in _DYNAMIC]):
             dynamic.append(str(target.label))
-            break
+            recorded = True
     return [DxMsvcCrtInfo(
         crt_static = crt_static,
         dynamic = depset(dynamic, transitive = transitive),

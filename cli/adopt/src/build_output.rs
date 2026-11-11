@@ -6,30 +6,27 @@ use std::process::Command;
 use crate::git_changes::{
     ChangeKind, DEFAULT_BRANCH_CANDIDATES, dedupe_changes, parse_name_status_nul,
 };
+use crate::lock_hubs::{lock_of, manifest_of};
 
 /// Largest file a change may add without being listed in `[large_files] allow` of dx.toml.
 pub const MAX_FILE_BYTES: u64 = 1_048_576;
 
 /// Lock files are generated and often large, so the size limit skips them.
-const LOCK_FILES: [&str; 17] = [
+const LOCK_FILES: [&str; 11] = [
     "MODULE.bazel.lock",
     "cargo-bazel-lock.json",
-    "Cargo.lock",
-    "uv.lock",
     "poetry.lock",
     "pdm.lock",
     "Pipfile.lock",
-    "pnpm-lock.yaml",
     "package-lock.json",
     "npm-shrinkwrap.json",
     "yarn.lock",
     "bun.lock",
-    "go.sum",
     "gradle.lockfile",
-    "maven_install.json",
     "composer.lock",
-    "Gemfile.lock",
 ];
+
+const REGISTRY_LOCKS: [&str; 6] = ["cargo", "uv", "npm", "go", "maven", "ruby"];
 
 /// Directory names that always hold build output.
 pub const BUILD_OUTPUT_DIRS: [&str; 4] = ["target", "node_modules", "__pycache__", ".gradle"];
@@ -50,17 +47,15 @@ pub const IGNORE_LINES: [&str; 10] = [
     "/.vscode/.rules_rust_analyzer/",
 ];
 
-const SOURCE_MANIFESTS: [&str; 9] = [
+const SOURCE_MANIFESTS: [&str; 5] = [
     "BUILD",
     "BUILD.bazel",
-    "Cargo.toml",
-    "package.json",
     "pom.xml",
-    "go.mod",
-    "pyproject.toml",
     "CMakeLists.txt",
     "build.gradle",
 ];
+
+const REGISTRY_MANIFESTS: [&str; 4] = ["cargo", "npm", "go", "uv"];
 
 /// One path that must not be part of a change, with the reason.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -74,10 +69,14 @@ fn has_manifest(root: &Path, dir: &str) -> bool {
     SOURCE_MANIFESTS
         .iter()
         .any(|name| base.join(name).is_file())
+        || REGISTRY_MANIFESTS
+            .iter()
+            .any(|eco| base.join(manifest_of(eco)).is_file())
 }
 
 fn cargo_build_dir(root: &Path, parent: &[&str]) -> bool {
-    let Ok(manifest) = std::fs::read_to_string(root.join(parent.join("/")).join("Cargo.toml"))
+    let Ok(manifest) =
+        std::fs::read_to_string(root.join(parent.join("/")).join(manifest_of("cargo")))
     else {
         return false;
     };
@@ -128,7 +127,7 @@ fn allowed(root: &Path) -> Vec<String> {
 
 fn is_lock_file(path: &str) -> bool {
     let name = path.rsplit('/').next().unwrap_or(path);
-    LOCK_FILES.contains(&name)
+    LOCK_FILES.contains(&name) || REGISTRY_LOCKS.iter().any(|eco| lock_of(eco) == name)
 }
 
 fn is_allowed(allow: &[String], path: &str) -> bool {
@@ -452,7 +451,7 @@ mod tests {
         let root = temp();
         std::fs::create_dir_all(root.join("crate")).expect("dir");
         std::fs::write(
-            root.join("crate/Cargo.toml"),
+            root.join("crate").join(manifest_of("cargo")),
             "[package]\nbuild = \"build/script.rs\"\n",
         )
         .expect("file");
@@ -463,7 +462,7 @@ mod tests {
     #[test]
     fn build_output_in_a_cargo_workspace_root_is_rejected() {
         let root = temp();
-        std::fs::write(root.join("Cargo.toml"), "[workspace]\n").expect("file");
+        std::fs::write(root.join(manifest_of("cargo")), "[workspace]\n").expect("file");
         let found = names(&root, &["build/out.o"]);
         assert_eq!(found, ["build/out.o"]);
     }
@@ -542,7 +541,11 @@ mod tests {
         let root = repo_on_main();
         write(&root, "src/main/java/com/acme/target/Foo.java", b"x");
         write(&root, "build/ci/Dockerfile", b"x");
-        write(&root, "testdata/node_modules/pkg/package.json", b"{}");
+        write(
+            &root,
+            &format!("testdata/node_modules/pkg/{}", manifest_of("npm")),
+            b"{}",
+        );
         git(&root, &["add", "-f", "-A"]);
         git(&root, &["commit", "-q", "-m", "legacy"]);
         git(&root, &["switch", "-q", "-c", "feature"]);

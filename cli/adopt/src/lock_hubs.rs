@@ -33,12 +33,13 @@ pub fn lock_of(ecosystem: &str) -> &'static str {
         .unwrap_or_else(|| panic!("setup.hubs entry {ecosystem} has no lock"))
 }
 
-fn manifest_of(ecosystem: &str) -> &'static str {
+pub fn manifest_of(ecosystem: &str) -> &'static str {
     &registry(ecosystem).manifest
 }
 
 fn hub_of(ecosystem: &str) -> Result<&'static Hub, AdoptError> {
-    dx_families::hub(ecosystem).ok_or_else(|| refuse(format!("no setup.hubs entry for {ecosystem}")))
+    dx_families::hub(ecosystem)
+        .ok_or_else(|| refuse(format!("no setup.hubs entry for {ecosystem}")))
 }
 
 fn binds_name(file: &ModuleFile, eco: &Hub) -> bool {
@@ -92,7 +93,8 @@ fn tag(name: &str, args: Vec<(&str, Arg)>) -> NewTag {
 pub fn unlocked_manifests(root: &Path) -> Vec<&'static str> {
     let mut out = Vec::new();
     let cargo_lock = std::fs::metadata(root.join(lock_of("cargo")));
-    if root.join(manifest_of("cargo")).is_file() && cargo_lock.map_or(true, |meta| meta.len() == 0) {
+    if root.join(manifest_of("cargo")).is_file() && cargo_lock.map_or(true, |meta| meta.len() == 0)
+    {
         out.push(manifest_of("cargo"));
     }
     let pyproject = std::fs::read_to_string(root.join(manifest_of("uv")))
@@ -223,7 +225,8 @@ impl Planner<'_> {
             });
             if !dir.is_empty() && !named {
                 self.notes.push(format!(
-                    "{dir}/{} is not wired; add a crate.from_cargo for it", lock_of("cargo")
+                    "{dir}/{} is not wired; add a crate.from_cargo for it",
+                    lock_of("cargo")
                 ));
             }
         }
@@ -418,7 +421,8 @@ impl Planner<'_> {
             if existing.iter().any(|(name, _)| *name == hub) {
                 self.notes.push(format!(
                     "npm.npm_translate_lock \"{hub}\" reads another lock; {} in {} not wired",
-                    lock_of("npm"), if dir.is_empty() { "." } else { &dir }
+                    lock_of("npm"),
+                    if dir.is_empty() { "." } else { &dir }
                 ));
                 continue;
             }
@@ -441,16 +445,18 @@ impl Planner<'_> {
         let Some(dir) = dirs.first() else {
             return Ok(());
         };
-        let wired = self
-            .files
-            .iter()
-            .any(|file| !file.hub_bindings(&pubs.extension, &pubs.ecosystem).is_empty());
+        let wired = self.files.iter().any(|file| {
+            !file
+                .hub_bindings(&pubs.extension, &pubs.ecosystem)
+                .is_empty()
+        });
         if wired {
             return Ok(());
         }
         for other in &dirs[1..] {
             self.notes.push(format!(
-                "{other}/{} is not wired; add a pub.from_lock for it", lock_of("pub")
+                "{other}/{} is not wired; add a pub.from_lock for it",
+                lock_of("pub")
             ));
         }
         let tags = vec![tag(
@@ -690,7 +696,9 @@ mod tests {
         write(
             dir.path(),
             MODULE_FILE,
-            &format!("{MODULE}pub = use_extension(\"//dart:extensions.bzl\", \"pub\")\npub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"),
+            &format!(
+                "{MODULE}pub = use_extension(\"//dart:extensions.bzl\", \"pub\")\npub.from_lock(\n    name = \"pub_deps\",\n    lock = \"//:pubspec.lock\",\n)\nuse_repo(pub, \"pub_deps\")\n"
+            ),
         );
         write(dir.path(), "pubspec.lock", "");
         write(dir.path(), "pubspec.yaml", "");

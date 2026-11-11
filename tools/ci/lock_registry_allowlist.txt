@@ -1,14 +1,4 @@
-name cli/adopt/src/build_output.rs Cargo.lock
-name cli/adopt/src/build_output.rs Cargo.toml
-name cli/adopt/src/build_output.rs Gemfile.lock
 name cli/adopt/src/build_output.rs composer.lock
-name cli/adopt/src/build_output.rs go.mod
-name cli/adopt/src/build_output.rs go.sum
-name cli/adopt/src/build_output.rs maven_install.json
-name cli/adopt/src/build_output.rs package.json
-name cli/adopt/src/build_output.rs pnpm-lock.yaml
-name cli/adopt/src/build_output.rs pyproject.toml
-name cli/adopt/src/build_output.rs uv.lock
 name cli/adopt/src/dependency_sets.rs Cargo.lock
 name cli/adopt/src/dependency_sets.rs Gemfile.lock
 name cli/adopt/src/dependency_sets.rs Manifest.bazel.json

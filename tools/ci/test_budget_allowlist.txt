@@ -190,7 +190,7 @@ core/quality/tools/nixfmt/BUILD.bazel no-size 2
 core/quality/tools/python/BUILD.bazel no-size 7
 core/quality/tools_tests.bzl no-size 1
 core/quality/wrapper_owners.bzl no-size 1
-core/tests/BUILD.bazel no-size 33
+core/tests/BUILD.bazel no-size 32
 core/tests/analysis_tests.bzl no-size 3
 core/tests/arithmetic_tests.bzl no-size 2
 core/tests/aspect_tests.bzl no-size 1
@@ -198,7 +198,7 @@ core/tests/cells_tests.bzl no-size 1
 core/tests/config_tests.bzl no-size 1
 core/tests/entry_tests.bzl no-size 1
 core/tests/execution_tests.bzl no-size 1
-core/tests/fuzz_tests.bzl no-size 3
+core/tests/fuzz_tests.bzl no-size 2
 core/tests/harness_link_tests.bzl no-size 1
 core/tests/license_tests.bzl no-size 1
 core/tests/negative/BUILD.bazel no-size 5
@@ -304,7 +304,6 @@ deploy/tests/fixtures/pub_package/BUILD.bazel no-size 1
 deploy/tests/runfiles/BUILD.bazel no-size 1
 dockerfile/tests/BUILD.bazel no-size 1
 docs/BUILD.bazel no-size 1
-dotnet/private/fuzz/BUILD.bazel no-size 1
 elixir/private/toolchain/BUILD.bazel no-size 1
 elixir/private/toolchain/metadata_tests.bzl no-size 1
 elixir/tests/BUILD.bazel no-size 1
@@ -606,13 +605,13 @@ qt/private/BUILD.bazel no-size 1
 qt/private/rust/BUILD.bazel no-size 1
 qt/private/sdk/BUILD.bazel no-size 2
 qt/private/sdk/metadata_tests.bzl no-size 1
-qt/tests/BUILD.bazel no-size 11
-qt/tests/fixtures/qt-app/app/BUILD.bazel no-size 4
-qt/tests/fixtures/qt-rust/app/BUILD.bazel no-size 3
+qt/tests/BUILD.bazel no-size 8
+qt/tests/fixtures/qt-app/app/BUILD.bazel no-size 3
+qt/tests/fixtures/qt-rust/app/BUILD.bazel no-size 2
 qt/tests/fixtures/qt-rust/ledger/BUILD.bazel no-size 1
-qt/tests/fixtures/qt-tasks/app/BUILD.bazel no-size 4
+qt/tests/fixtures/qt-tasks/app/BUILD.bazel no-size 2
 qt/tests/rules_tests.bzl no-size 20
-qt/tests/tags/BUILD.bazel no-size 3
+qt/tests/tags/BUILD.bazel no-size 2
 rego/private/launcher/BUILD.bazel no-size 1
 rego/tests/BUILD.bazel no-size 4
 rst/tests/BUILD.bazel no-size 1
@@ -643,7 +642,7 @@ rust/tests/fixtures/consumer_abi/BUILD.bazel no-size 3
 rust/tests/fixtures/consumer_hub/BUILD.bazel no-size 2
 rust/tests/fixtures/consumer_native/BUILD.bazel no-size 1
 rust/tests/fixtures/consumer_std/BUILD.bazel no-size 2
-rust/tests/fixtures/consumer_wasi/BUILD.bazel no-size 6
+rust/tests/fixtures/consumer_wasi/BUILD.bazel no-size 5
 rust/tests/fixtures/consumer_wasi/acquisition.bzl no-size 1
 rust/tests/fixtures/consumer_wasm/BUILD.bazel no-size 3
 rust/tests/fixtures/consumer_wasm/acquisition.bzl no-size 1
@@ -653,7 +652,7 @@ rust/tests/fixtures/fuzz/BUILD.bazel no-size 2
 rust/tests/fixtures/hello/BUILD.bazel no-size 25
 rust/tests/fixtures/native_call/BUILD.bazel no-size 25
 rust/tests/fixtures/shared-rust-checks/BUILD.bazel no-size 6
-rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 13
+rust/tests/fixtures/wasm_bindgen/BUILD.bazel no-size 12
 rust/tests/fixtures/wasm_bindgen/js_parity.bzl no-size 1
 rust/tests/tonic/BUILD.bazel no-size 1
 scala/private/BUILD.bazel no-size 1
@@ -772,9 +771,9 @@ typescript/private/ide/BUILD.bazel no-size 1
 typescript/tests/BUILD.bazel no-size 1
 typescript/tests/fixtures/args/BUILD.bazel no-size 1
 typescript/tests/fixtures/bench/BUILD.bazel no-size 3
-typescript/tests/fixtures/declarations/BUILD.bazel no-size 2
+typescript/tests/fixtures/declarations/BUILD.bazel no-size 1
 typescript/tests/fixtures/fuzz/BUILD.bazel no-size 4
-typescript/tests/fixtures/hello/BUILD.bazel no-size 4
+typescript/tests/fixtures/hello/BUILD.bazel no-size 3
 typescript/tests/fixtures/playwright/BUILD.bazel no-size 1
 typescript/tests/fixtures/proto/BUILD.bazel no-size 1
 typescript/tests/fixtures/scoped/BUILD.bazel no-size 1

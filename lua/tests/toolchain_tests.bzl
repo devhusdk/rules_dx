@@ -15,10 +15,11 @@ def _checks():
         expect_equal("windows host", host_cell_of("windows server 2022", "amd64"), "windows_x86_64"),
     ]
 
-def lua_metadata_tests(name):
+def lua_metadata_tests(name, size):
     """Declares the LuaLS pin test."""
     starlark_test(
         name = name,
         mode = "load",
         checks = _checks(),
+        size = size,
     )

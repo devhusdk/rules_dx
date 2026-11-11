@@ -1,9 +1,15 @@
 load("//core/quality:fixtures.bzl", "real_source_target")
+load(":toolchain_tests.bzl", "elixir_metadata_tests")
 load(":wrapper_tests.bzl", "elixir_wrapper_contract_tests")
 
 package(default_visibility = ["//visibility:private"])
 
 exports_files(["wrapper_tests.bzl"])
+
+elixir_metadata_tests(
+    name = "metadata",
+    size = "small",
+)
 
 elixir_wrapper_contract_tests(name = "wrapper_contract_tests")
 
@@ -12,6 +18,7 @@ real_source_target(
     testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
+        "toolchain_tests.bzl",
         "wrapper_tests.bzl",
     ],
     tags = ["corpus"],

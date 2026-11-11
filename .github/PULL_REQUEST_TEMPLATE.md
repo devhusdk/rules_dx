@@ -19,4 +19,4 @@ tools/dx test --affected
 
 List anything you did not run.
 
-If `tools/ci/review_paths.sh` prints paths for your diff, add the `needs-review` label (see CONTRIBUTING.md).
+If `producers_bin --review-paths` prints paths for your diff, add the `needs-review` label (see CONTRIBUTING.md).

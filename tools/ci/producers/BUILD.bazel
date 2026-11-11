@@ -13,6 +13,7 @@ rust_binary(
         "src/evidence.rs",
         "src/lock_merge.rs",
         "src/main.rs",
+        "src/review_paths.rs",
     ],
     aliases = aliases(
         package_name = "tools/ci/ci_producers",

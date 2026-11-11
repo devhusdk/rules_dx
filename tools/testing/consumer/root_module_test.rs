@@ -47,6 +47,8 @@ struct Tree {
     consumer: BTreeMap<String, String>,
     /// The languages `CONSUMER_FIXTURES` lists.
     tested: BTreeSet<String>,
+    /// The paths the root `.bazelignore` lists.
+    ignored: BTreeSet<String>,
 }
 
 fn statements(path: &str, source: &str) -> Vec<AstStmt> {
@@ -354,6 +356,9 @@ fn lint(tree: &Tree) -> (BTreeSet<String>, Vec<String>) {
                 if !tree.consumer.contains_key(&format!("{dir}/BUILD.bazel")) {
                     problems.push(format!("{dir}/BUILD.bazel: missing"));
                 }
+                if !tree.ignored.contains(&dir) {
+                    problems.push(format!("{dir}: missing from .bazelignore"));
+                }
             }
             None if *entry_points => {
                 lines.insert(format!("fixture {lang}"));
@@ -443,6 +448,14 @@ fn snapshot_tree() -> Tree {
             Some((lang.to_owned(), entry_points))
         })
         .collect();
+    let ignored = files
+        .get(".bazelignore")
+        .expect(".bazelignore is in the snapshot")
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| line.trim_end_matches('/').to_owned())
+        .collect();
     Tree {
         module: files.remove("MODULE.bazel").expect("MODULE.bazel is in the snapshot"),
         langs,
@@ -452,6 +465,7 @@ fn snapshot_tree() -> Tree {
             .split_whitespace()
             .map(str::to_owned)
             .collect(),
+        ignored,
     }
 }
 
@@ -523,6 +537,7 @@ fn toy() -> Tree {
             ("toy/tests/consumer/toy.toy", ""),
         ]),
         tested: ["toy".to_owned()].into(),
+        ignored: ["toy/tests/consumer".to_owned()].into(),
     }
 }
 
@@ -633,6 +648,16 @@ fn every_fixture_has_a_build_file_and_a_test() {
             "toy: CONSUMER_FIXTURES in tools/testing/consumer/fixtures.bzl lists exactly the languages with a toy/tests/consumer/consumer.MODULE.bazel",
             "init toy: toy has no fixture test; delete the line from tools/testing/consumer/pending.txt",
         ]
+    );
+}
+
+#[test]
+fn every_fixture_is_in_the_bazelignore() {
+    assert_eq!(
+        broken(|tree| {
+            tree.ignored.clear();
+        }),
+        ["toy/tests/consumer: missing from .bazelignore"]
     );
 }
 

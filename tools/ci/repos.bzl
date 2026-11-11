@@ -13,9 +13,13 @@ def ignored_paths(bazelignore):
             paths[line.rstrip("/")] = True
     return paths
 
+def _consumer_directory(path):
+    parts = path.split("/")
+    return len(parts) == 3 and parts[1] == "tests" and parts[2] == "consumer"
+
 def skipped(path, entry, ignored):
-    """True when the walk leaves out the entry at the root-relative path: an ignored path, a skipped name, or a directory symlink."""
-    if path in ignored or path == ".dx/local" or entry.name in _SKIPPED_NAMES or entry.name.startswith("bazel-"):
+    """True when the walk leaves out the entry at the root-relative path: an ignored path other than a language tests/consumer directory, a skipped name, or a directory symlink."""
+    if (path in ignored and not _consumer_directory(path)) or path == ".dx/local" or entry.name in _SKIPPED_NAMES or entry.name.startswith("bazel-"):
         return True
     return entry.is_dir and entry.is_link
 
@@ -54,7 +58,7 @@ def _data(path, name):
         return True
     if name == "lang.json":
         return path.count("/") == 1
-    if name == "pins.json" or path == ".bazelrc":
+    if name == "pins.json" or path in (".bazelrc", ".bazelignore"):
         return True
     if path.startswith(".github/workflows/") and name.endswith((".yml", ".yaml")):
         return True
@@ -152,5 +156,5 @@ def _test_tags_sources_impl(rctx):
 
 test_tags_sources = repository_rule(
     implementation = _test_tags_sources_impl,
-    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, workflow, non-test .rs, non-test Go, module fragment, Rust, shell, template and rc code, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists, .git, node_modules, target, bazel-* and directory symlinks.",
+    doc = "Snapshots every BUILD and .bzl file of the root module, and its MODULE.bazel, lang.json, pins.json, .bazelrc, .bazelignore, workflow, non-test .rs, non-test Go, module fragment, Rust, shell, template and rc code, language README, repository BUILD, language page and consumer fixture files, and the paths under its language directories, watching each directory and file it reads. Skips the paths .bazelignore lists other than the language tests/consumer directories, .git, node_modules, target, bazel-* and directory symlinks.",
 )

@@ -11,6 +11,7 @@ const SETUP_ACTION: &str = ".github/actions/remote-cache-helper/action.yml";
 const SCAN_ACTION: &str = ".github/actions/assert-no-secret/action.yml";
 const LOCAL_HELPER: &str = "tools/buildbuddy-credential-helper.sh";
 const HELPER_STEP: &str = "Configure the remote cache credential helper";
+const INLINE_SCAN_WORKFLOW: &str = ".github/workflows/reusable-consumer.yml";
 const SCAN_STEP: &str = "Check the upload holds no secret";
 
 fn rc_files() -> Vec<(String, String)> {
@@ -116,9 +117,9 @@ fn no_workflow_sets_bb_args_in_env() {
 }
 
 #[test]
-fn inline_helper_and_scan_steps_match_the_actions() {
+fn inline_helper_and_scan_steps_match_each_other() {
     let helper = named_step(SETUP_ACTION, HELPER_STEP);
-    let scan = named_step(SCAN_ACTION, SCAN_STEP);
+    let scan = inline_scan();
     let mut helpers = 0;
     for path in dx_testing::workflow_files() {
         for (id, steps) in jobs(&parse(&path)) {
@@ -139,6 +140,13 @@ fn inline_helper_and_scan_steps_match_the_actions() {
         }
     }
     assert!(helpers > 0, "no workflow copies the helper step");
+}
+
+#[test]
+fn scan_action_runs_the_script_on_node() {
+    let runs = &parse(SCAN_ACTION)["runs"];
+    assert_eq!(runs["using"], "node24");
+    assert_eq!(runs["main"], "scan.cjs");
 }
 
 #[test]
@@ -286,6 +294,38 @@ fn run_script(dir: &Path, script: &str, env: &[(&str, &str)]) -> (i32, String) {
     (done.status.code().unwrap_or(-1), output)
 }
 
+fn inline_scan() -> Value {
+    jobs(&parse(INLINE_SCAN_WORKFLOW))
+        .into_iter()
+        .flat_map(|(_, steps)| steps)
+        .find(|step| step["name"] == SCAN_STEP && step["uses"].is_null())
+        .unwrap_or_else(|| panic!("{INLINE_SCAN_WORKFLOW} has no inline scan step"))
+}
+
+fn run_node(dir: &Path, env: &[(&str, &str)]) -> (i32, String) {
+    let mut command = Command::new(dx_testing::env_file("DX_NODE"));
+    command
+        .arg(dx_testing::env_file("DX_SCAN_CJS"))
+        .current_dir(dir)
+        .env_clear();
+    for (key, value) in env {
+        let key = if *key == "DX_UPLOAD_PATH" { "INPUT_PATH" } else { key };
+        command.env(key, value);
+    }
+    let done = command.output().expect("run node");
+    let mut output = String::from_utf8_lossy(&done.stdout).into_owned();
+    output.push_str(&String::from_utf8_lossy(&done.stderr));
+    (done.status.code().unwrap_or(-1), output)
+}
+
+fn run_scans(dir: &Path, env: &[(&str, &str)]) -> Vec<(&'static str, i32, String)> {
+    let inline = inline_scan();
+    let script = inline["run"].as_str().expect("scan run");
+    let (code, output) = run_script(dir, script, env);
+    let (node_code, node_output) = run_node(dir, env);
+    vec![("bash", code, output), ("node", node_code, node_output)]
+}
+
 fn assert_no_secret_printed(name: &str, output: &str) {
     for secret in ["k3y", "s3cr3t"] {
         assert!(
@@ -297,8 +337,6 @@ fn assert_no_secret_printed(name: &str, output: &str) {
 
 #[test]
 fn scan_finds_every_cache_secret() {
-    let step = named_step(SCAN_ACTION, SCAN_STEP);
-    let script = step["run"].as_str().expect("scan run");
     let key = ("BUILDBUDDY_API_KEY", "k3y");
     let header = ("REMOTE_CACHE_HEADER", "x-t=s3cr3t");
     let empty = ("REMOTE_CACHE_HEADER", "x-t=");
@@ -325,20 +363,19 @@ fn scan_finds_every_cache_secret() {
         let upload = upload.to_str().expect("utf-8 path");
         let mut env = env.to_vec();
         env.push(("DX_UPLOAD_PATH", upload));
-        let (code, output) = run_script(dir.path(), script, &env);
-        assert_eq!(code, *status, "{name}: {output}");
-        if let Some(expected) = expected {
-            assert!(output.contains(expected), "{name}: {output}");
+        for (runner, code, output) in run_scans(dir.path(), &env) {
+            assert_eq!(code, *status, "{runner} {name}: {output}");
+            if let Some(expected) = expected {
+                assert!(output.contains(expected), "{runner} {name}: {output}");
+            }
+            assert_no_secret_printed(name, &output);
         }
-        assert_no_secret_printed(name, &output);
     }
 }
 
 #[cfg(unix)]
 #[test]
 fn scan_follows_symlinks() {
-    let step = named_step(SCAN_ACTION, SCAN_STEP);
-    let script = step["run"].as_str().expect("scan run");
     let cases = [
         ("link to a secret", "../outside.txt", None),
         ("dangling link", "../missing", Some("failed")),
@@ -353,12 +390,13 @@ fn scan_follows_symlinks() {
             ("BUILDBUDDY_API_KEY", "k3y"),
             ("DX_UPLOAD_PATH", upload.to_str().expect("utf-8 path")),
         ];
-        let (code, output) = run_script(dir.path(), script, &env);
-        assert_eq!(code, 1, "{name}: {output}");
-        if let Some(expected) = expected {
-            assert!(output.contains(expected), "{name}: {output}");
+        for (runner, code, output) in run_scans(dir.path(), &env) {
+            assert_eq!(code, 1, "{runner} {name}: {output}");
+            if let Some(expected) = expected {
+                assert!(output.contains(expected), "{runner} {name}: {output}");
+            }
+            assert_no_secret_printed(name, &output);
         }
-        assert_no_secret_printed(name, &output);
     }
 }
 

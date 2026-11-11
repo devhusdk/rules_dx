@@ -85,3 +85,4 @@ This page fixes how build actions, tests and launchers get a shell and POSIX too
 4. `sh_test` targets and shell test helpers.
 5. Rust code that starts host programs by name.
 6. The allowlists of `//tools/ci:host_env_test` and `//tools/ci:host_program_test`, emptied by the steps above.
+GitHub action logic that must run without Bazel is a node24 JavaScript action tested with `//env:node`.

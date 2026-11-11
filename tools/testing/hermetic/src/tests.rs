@@ -653,6 +653,11 @@ fn the_consumer_materializes_from_dx_init() {
     for patch in dx_nested::compose::RULES_PY_PATCHES {
         std::fs::write(patches.join(format!("{patch}.patch")), "").unwrap();
     }
+    let flutter = source.join("patches/rules_flutter");
+    std::fs::create_dir_all(&flutter).unwrap();
+    for patch in dx_nested::compose::RULES_FLUTTER_PATCHES {
+        std::fs::write(flutter.join(format!("{patch}.patch")), "").unwrap();
+    }
     materialize(&manifest, &workspace, &source, "cc").unwrap();
     let module = std::fs::read_to_string(workspace.join("MODULE.bazel")).unwrap();
     for needle in [

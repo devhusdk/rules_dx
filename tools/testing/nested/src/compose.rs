@@ -33,6 +33,25 @@ pub fn rules_py_override() -> String {
     )
 }
 
+/// The patches of `//patches/rules_flutter` that `rules_flutter_override` names, without `.patch`.
+pub const RULES_FLUTTER_PATCHES: [&str; 5] = [
+    "lock_extension",
+    "registrant_javacopts",
+    "required_checksums",
+    "flutter_3_47_9",
+    "ios_target_compatible_with",
+];
+
+/// Pins the patched rules_flutter the way the root MODULE.bazel does.
+pub fn rules_flutter_override() -> String {
+    let patches = RULES_FLUTTER_PATCHES
+        .map(|name| format!("        \"//patches/rules_flutter:{name}.patch\",\n"))
+        .concat();
+    format!(
+        "archive_override(\n    module_name = \"rules_flutter\",\n    integrity = \"sha256-sNPw28M2Y+oIctymkU3ZY9svCoAG5VaULN5iB+lvzGk=\",\n    patch_strip = 1,\n    patches = [\n{patches}    ],\n    strip_prefix = \"rules_flutter-2b203359a0a79edaae66126ea5c212d1d7b19353\",\n    urls = [\"https://github.com/aran/rules_flutter/archive/2b203359a0a79edaae66126ea5c212d1d7b19353.tar.gz\"],\n)\n"
+    )
+}
+
 /// Drops the `module()` line and any comment or blank lines before it.
 fn without_module_line(snippet: &str) -> String {
     let mut lines = snippet.lines().peekable();
@@ -81,28 +100,39 @@ pub fn compose_module(
     };
     let body = format!("{}\n{}", setup.trim_end(), fragment.trim_end());
     Ok(format!(
-        "module(name = {})\n\n{}\n{}{}",
+        "module(name = {})\n\n{}\n{}{}{}",
         starlark_string(module),
         body,
         rules_dx_override(rules_dx),
         rules_py_override(),
+        rules_flutter_override(),
     ))
 }
 
-/// Writes the files `rules_py_override` names into the consumer.
-pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
-    let dir = workspace.join("patches").join("rules_py");
+fn write_patches(
+    workspace: &Path,
+    rules_dx: &Path,
+    module: &str,
+    patches: &[&str],
+) -> Result<(), String> {
+    let dir = workspace.join("patches").join(module);
     std::fs::create_dir_all(&dir)
         .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
     std::fs::write(dir.join("BUILD.bazel"), "")
         .map_err(|err| format!("cannot write {}: {err}", dir.display()))?;
-    for patch in RULES_PY_PATCHES {
+    for patch in patches {
         let name = format!("{patch}.patch");
-        let from = rules_dx.join("patches").join("rules_py").join(&name);
+        let from = rules_dx.join("patches").join(module).join(&name);
         std::fs::copy(&from, dir.join(&name))
             .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
     }
     Ok(())
+}
+
+/// Writes the files `rules_py_override` and `rules_flutter_override` name into the consumer.
+pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    write_patches(workspace, rules_dx, "rules_py", &RULES_PY_PATCHES)?;
+    write_patches(workspace, rules_dx, "rules_flutter", &RULES_FLUTTER_PATCHES)
 }
 
 #[cfg(test)]
@@ -124,8 +154,9 @@ mod tests {
         assert_eq!(
             module,
             format!(
-                "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}",
+                "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}{}",
                 rules_py_override(),
+                rules_flutter_override(),
             )
         );
     }
@@ -134,6 +165,12 @@ mod tests {
     fn module_pins_rules_py_once() {
         let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/s")).unwrap();
         assert_eq!(module.matches("module_name = \"rules_py\"").count(), 1);
+    }
+
+    #[test]
+    fn module_pins_rules_flutter_once() {
+        let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/s")).unwrap();
+        assert_eq!(module.matches("module_name = \"rules_flutter\"").count(), 1);
     }
 
     #[test]

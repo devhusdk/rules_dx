@@ -142,7 +142,6 @@ rst coverage_test *
 rst fail_test *
 rst pass_test *
 ruby coverage_test *
-rust coverage_test *
 scala coverage_test *
 sql build_test *
 sql coverage_test *

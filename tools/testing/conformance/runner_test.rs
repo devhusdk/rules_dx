@@ -45,8 +45,33 @@ fn subject_matches_mode() {
         envs.push(("COVERAGE_DIR", raw_s.as_str()));
         envs.push(("COVERAGE_OUTPUT_FILE", out_s.as_str()));
     }
+    let subject_env: Vec<(String, String)> = subject_env
+        .into_iter()
+        .map(|(name, value)| {
+            let value = if mode == "coverage" {
+                collector_path(&value)
+            } else {
+                value
+            };
+            (name, value)
+        })
+        .collect();
     for (name, value) in &subject_env {
         envs.push((name.as_str(), value.as_str()));
+    }
+    let native = subject_env
+        .iter()
+        .any(|(name, _)| name == "CC_CODE_COVERAGE_SCRIPT");
+    let profile = raw.join("%h-%p-%m.profraw").to_string_lossy().into_owned();
+    let binary = subject_key
+        .split_once('/')
+        .map_or("", |(_, rest)| rest)
+        .to_owned();
+    if mode == "coverage" && native {
+        envs.push(("LLVM_PROFILE_FILE", profile.as_str()));
+        envs.push(("ROOT", runfiles.as_str()));
+        envs.push(("TEST_WORKSPACE", "_main"));
+        envs.push(("TEST_BINARY", binary.as_str()));
     }
     let run = dx_testing::run(&subject, &[], &envs).expect("subject must execute");
     match mode.as_str() {
@@ -73,6 +98,20 @@ fn subject_matches_mode() {
                 "coverage subject failed:\n{}",
                 run.combined()
             );
+            if native {
+                let script = subject_env
+                    .iter()
+                    .find(|(name, _)| name == "CC_CODE_COVERAGE_SCRIPT")
+                    .map(|(_, value)| value.clone())
+                    .unwrap_or_default();
+                let collected = dx_testing::run(std::path::Path::new(&script), &[], &envs)
+                    .expect("collector must execute");
+                assert!(
+                    collected.status.success(),
+                    "collector failed:\n{}",
+                    collected.combined()
+                );
+            }
             let mut report = std::fs::read_to_string(&out).unwrap_or_default();
             if let Ok(entries) = std::fs::read_dir(&raw) {
                 for entry in entries.flatten() {
@@ -88,7 +127,10 @@ fn subject_matches_mode() {
                 sources(&report).iter().any(|name| name.ends_with(&source)),
                 "no SF: for {text} in:\n{report}"
             );
-            assert!(hits(&report, &source) > 0, "no covered lines in {text}:\n{report}");
+            assert!(
+                hits(&report, &source) > 0,
+                "no covered lines in {text}:\n{report}"
+            );
         }
         "fail" => {
             assert!(
@@ -104,6 +146,22 @@ fn subject_matches_mode() {
         }
         other => panic!("unknown DX_CONFORMANCE_MODE {other}"),
     }
+}
+
+fn collector_path(value: &str) -> String {
+    let rest = if let Some(rest) = value.strip_prefix("external/") {
+        rest.to_owned()
+    } else if let Some(rest) = value.strip_prefix("bazel-out/") {
+        match rest.splitn(3, '/').nth(2) {
+            Some(rest) => format!("_main/{rest}"),
+            None => return value.to_owned(),
+        }
+    } else {
+        return value.to_owned();
+    };
+    dx_testing::rlocation(&rest)
+        .map(|path| path.to_string_lossy().into_owned())
+        .unwrap_or_else(|_| value.to_owned())
 }
 
 fn sources(report: &str) -> Vec<&str> {

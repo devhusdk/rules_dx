@@ -21,6 +21,7 @@ subject_transition = transition(
 def _coverage_transition_impl(_settings, attr):
     return {
         "//command_line_option:collect_code_coverage": True,
+        "//command_line_option:instrument_test_targets": True,
         "//command_line_option:instrumentation_filter": attr.instrumentation_filter,
         str(_FLAG): True,
     }
@@ -30,6 +31,7 @@ _coverage_transition = transition(
     inputs = [],
     outputs = [
         "//command_line_option:collect_code_coverage",
+        "//command_line_option:instrument_test_targets",
         "//command_line_option:instrumentation_filter",
         str(_FLAG),
     ],
@@ -41,9 +43,10 @@ def _subject_impl(ctx):
     environment = subject[RunEnvironmentInfo].environment if RunEnvironmentInfo in subject else {}
     env_file = ctx.actions.declare_file(ctx.label.name + ".env")
     ctx.actions.write(env_file, "".join(["%s=%s\n" % (k, environment[k]) for k in sorted(environment)]))
+    metadata = subject[InstrumentedFilesInfo].metadata_files if InstrumentedFilesInfo in subject else depset()
     return [DefaultInfo(
         files = depset([executable, env_file]),
-        runfiles = subject[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [env_file])),
+        runfiles = subject[DefaultInfo].default_runfiles.merge(ctx.runfiles(files = [env_file], transitive_files = metadata)),
     )]
 
 def _subject_rule(subject_cfg, extra_attrs, doc):

@@ -1,5 +1,6 @@
 """Public Perl API."""
 
+load("@rules_perl//perl/cpan:cpan_compiler.bzl", _cpan_compiler = "cpan_compiler")
 load(
     "//perl/private:defs.bzl",
     _PERL_COMPATIBLE_WITH = "PERL_COMPATIBLE_WITH",
@@ -9,6 +10,7 @@ load(
     _perl_test = "perl_test",
 )
 
+cpan_compiler = _cpan_compiler
 PERL_COMPATIBLE_WITH = _PERL_COMPATIBLE_WITH
 perl_library = _perl_library
 perl_binary = _perl_binary

@@ -70,13 +70,11 @@ perl_binary(
 
 ## CPAN dependencies
 
-Declare a hub with the rules_perl `cpan` extension. Its lock pins each
+Declare a hub with the `cpan` extension. Its lock pins each
 distribution to a URL and a sha256.
 
 ```python
-bazel_dep(name = "rules_perl", version = "2.1.0")
-
-cpan = use_extension("@rules_perl//perl/cpan:extensions.bzl", "cpan")
+cpan = use_extension("@rules_dx//perl:extensions.bzl", "cpan")
 cpan.install(
     name = "cpan",
     lock = "//third_party/perl:cpanfile.snapshot.lock.json",
@@ -86,7 +84,7 @@ use_repo(cpan, "cpan")
 
 Depend on `@cpan//:Text-CSV` for one distribution. To make or refresh the
 lock, add a `cpan_compiler` target from
-`@rules_perl//perl/cpan:cpan_compiler.bzl` next to the `cpanfile` and run it.
+`@rules_dx//perl:defs.bzl` next to the `cpanfile` and run it.
 A wrong digest fails the fetch.
 
 ## Generating BUILD files

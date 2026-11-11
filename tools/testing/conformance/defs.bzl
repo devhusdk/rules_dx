@@ -264,7 +264,7 @@ def dx_coverage_test(name, subject, covered_source, size = "small", **kwargs):
         **kwargs
     )
 
-def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, not_applicable = {}, size = "small", **kwargs):
+def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_test, failing_case, covered_source, failing_pattern = "{case}", not_applicable = {}, size = "small", **kwargs):
     """Declares build_test, coverage_test, pass_test and fail_test for one language.
 
     Args:
@@ -275,6 +275,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
       passing_test: Test target that passes; built under the subject transition.
       failing_test: Test target that fails with failing_case; built under the subject transition.
       failing_case: Case name the failing test must report.
+      failing_pattern: Line the failing test must print, with one `{case}` placeholder for failing_case.
       covered_source: File name whose lines passing_test must cover; empty only when coverage_test is not applicable.
       not_applicable: Maps a test, or test:platform, to the reason it does not apply.
       size: Size of the declared tests.
@@ -334,6 +335,7 @@ def dx_conformance_suite(name, lang, binary, expected, passing_test, failing_tes
                 "DX_CONFORMANCE_MODE": mode,
                 "DX_CONFORMANCE_SUBJECT": "$(rlocationpaths %s)" % subject,
                 "DX_CONFORMANCE_TEXT": text,
+                "DX_CONFORMANCE_PATTERN": failing_pattern,
             },
             size = size,
             target_compatible_with = _compatible_with(lang, test, not_applicable),

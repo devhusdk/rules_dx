@@ -1,15 +1,15 @@
 load("@rules_dx//scala:defs.bzl", "scala_library", "scala_test")
 
+# dx: written once, yours to edit
+
 scala_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["Greet.scala"],
     visibility = ["//visibility:public"],
 )
 
 scala_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["GreetTest.scala"],
-    main_class = "consumer.GreetTest",
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

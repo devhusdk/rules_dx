@@ -1,14 +1,15 @@
 load("@rules_dx//php:defs.bzl", "php_library", "php_test")
 
+# dx: written once, yours to edit
+
 php_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["src/Greet.php"],
     visibility = ["//visibility:public"],
 )
 
 php_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["test/GreetTest.php"],
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

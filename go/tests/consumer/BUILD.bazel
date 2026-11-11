@@ -1,15 +1,15 @@
 load("@rules_dx//go:defs.bzl", "go_library", "go_test")
 
+# dx: written once, yours to edit
+
 go_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["greet.go"],
-    importpath = "consumer",
     visibility = ["//visibility:public"],
 )
 
 go_test(
-    name = "consumer_test",
+    name = "my_project_test",
     srcs = ["greet_test.go"],
-    embed = [":consumer"],
-    size = "small",
+    embed = [":my_project"],
 )

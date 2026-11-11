@@ -1,14 +1,15 @@
 load("@rules_dx//perl:defs.bzl", "perl_library", "perl_test")
 
+# dx: written once, yours to edit
+
 perl_library(
-    name = "consumer",
+    name = "my_project",
     srcs = ["lib/Consumer/Greet.pm"],
     visibility = ["//visibility:public"],
 )
 
 perl_test(
-    name = "consumer_test",
-    size = "small",
+    name = "greet_test",
     srcs = ["t/greet.t"],
-    deps = [":consumer"],
+    deps = [":my_project"],
 )

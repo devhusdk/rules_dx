@@ -15,19 +15,11 @@ init d
 init elixir
 init erlang
 init fsharp
-init go
 init haskell
-init java
 init javascript
 init julia
-init kotlin
-init lua
 init ocaml
-init perl
-init php
 init rego
-init ruby
-init scala
 init typescript
 override archive_override lua
 override archive_override rules_flutter

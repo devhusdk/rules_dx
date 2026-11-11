@@ -13,7 +13,7 @@ def swift_windows_toolchain(name, cpu):
     swift_toolchain(
         name = "swift_toolchain_windows_" + cpu,
         arch = cpu,
-        env = {"Path": (root + "/runtime/usr/bin").replace("/", "\\")},
+        env = {"PATH": (root + "/runtime/usr/bin").replace("/", "\\")},
         os = "windows",
         parsed_version = _VERSION,
         sdkroot = root + "/platform/Developer/SDKs/Windows.sdk",

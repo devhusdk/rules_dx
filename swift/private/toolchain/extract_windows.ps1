@@ -345,15 +345,16 @@ foreach ($toolDir in $toolDirs) {
             foreach ($attribute in [regex]::Matches($match.Groups[1].Value, '(\w+)\s*=\s*"([^"]*)"')) { $attributes[$attribute.Groups[1].Value] = $attribute.Groups[2].Value }
             $assembly = $attributes["name"]
             if (-not $assembly -or $assembly.StartsWith("Microsoft.")) { continue }
-            if (-not $identities.ContainsKey($assembly)) {
+            if ($tool.Name -eq "swiftc.exe" -or -not $identities.ContainsKey($assembly)) {
                 [Console]::Out.WriteLine("extract_windows: $($tool.Name) depends on SxS assembly $($match.Groups[1].Value)")
-                $identities[$assembly] = $attributes
+                if (-not $identities.ContainsKey($assembly)) { $identities[$assembly] = $attributes }
             }
         }
     }
 }
 if (Test-Path -LiteralPath $runtimeSxS) { Get-ChildItem -LiteralPath $runtimeSxS -File | ForEach-Object { [Console]::Out.WriteLine("extract_windows: runtime SxS file $($_.Name)") } }
 $runtimeDlls = @(Get-ChildItem -LiteralPath $runtimeBin -File -Filter "*.dll")
+[Console]::Out.WriteLine("extract_windows: runtime DLLs $(($runtimeDlls | ForEach-Object { $_.Name }) -join ' ')")
 foreach ($toolDir in $toolDirs) {
     foreach ($dll in $runtimeDlls) {
         $assembly = $dll.BaseName

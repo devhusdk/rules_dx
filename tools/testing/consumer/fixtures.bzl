@@ -25,6 +25,7 @@ CONSUMER_FIXTURES = [
     "go",
     "haskell",
     "java",
+    "javascript",
     "julia",
     "kotlin",
     "lua",

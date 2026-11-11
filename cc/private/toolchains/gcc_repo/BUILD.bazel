@@ -2,7 +2,6 @@ exports_files(
     [
         "cc_toolchain_config.bzl",
         "defs.bzl",
-        "wrapper.sh.tpl",
     ],
     visibility = ["//visibility:public"],
 )

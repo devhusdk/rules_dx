@@ -78,7 +78,7 @@ def _gcc_toolchain_impl(rctx):
     binary_prefix = rctx.attr.binary_prefix
     if binary_prefix == _AUTO_BINARY_PREFIX:
         binary_prefix = _detect_binary_prefix(rctx, target_arch)
-    tool_paths = _render_tool_paths(rctx, toolchain_root, binary_prefix)
+    tool_paths, path_env = _render_tool_paths(rctx, toolchain_root, binary_prefix)
     rctx.file("tool_paths.bzl", "tool_paths = {}".format(str(tool_paths)))
 
     include_prefix = None
@@ -224,6 +224,8 @@ def _gcc_toolchain_impl(rctx):
         extra_enabled_features = [str(feature_label) for feature_label in rctx.attr.extra_enabled_features],
         extra_known_features = [str(feature_label) for feature_label in rctx.attr.extra_known_features],
 
+        path_env = path_env,
+
         # cc_toolchain attributes
         supports_param_files = 1 if rctx.attr.supports_param_files else 0,
         target_libc = rctx.attr.target_libc,
@@ -335,18 +337,9 @@ _TOOLCHAIN_DECLARATION_ATTRS = {
     ),
 }
 
-_PRIVATE_ATTRS = {
-    "_wrapper_sh_template": attr.label(
-        default = Label("//cc/private/toolchains/gcc_repo:wrapper.sh.tpl"),
-    ),
-}
-
 gcc_toolchain = repository_rule(
     _gcc_toolchain_impl,
-    attrs = dicts.add(
-        _FEATURE_ATTRS,
-        _PRIVATE_ATTRS,
-    ),
+    attrs = _FEATURE_ATTRS,
 )
 
 def _sanitize_version(gcc_version):
@@ -460,81 +453,14 @@ _gcc_toolchains_hub = repository_rule(
     ),
 )
 
-def _render_tool_paths(rctx, path_prefix, binary_prefix):
-    relative_tool_paths = {
-        "ar": "{path_prefix}/bin/{binary_prefix}ar".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "as": "{path_prefix}/bin/{binary_prefix}as".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "cpp": "{path_prefix}/bin/{binary_prefix}cpp".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "g++": "{path_prefix}/bin/{binary_prefix}g++".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "gcc": "{path_prefix}/bin/{binary_prefix}gcc".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "gcov": "{path_prefix}/bin/{binary_prefix}gcov".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "ld": "{path_prefix}/bin/{binary_prefix}ld".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "nm": "{path_prefix}/bin/{binary_prefix}nm".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "objcopy": "{path_prefix}/bin/{binary_prefix}objcopy".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "objdump": "{path_prefix}/bin/{binary_prefix}objdump".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-        "strip": "{path_prefix}/bin/{binary_prefix}strip".format(
-            path_prefix = path_prefix,
-            binary_prefix = binary_prefix,
-        ),
-    }
-
-    path_env = ":".join([
-        path.format(
-            path_prefix = path_prefix,
-        )
-        for path in [
-            # xbin first so that wrappers are found first in PATH when called
-            # indirectly by other tools.
-            "${{EXECROOT}}/{path_prefix}/xbin",
-            "${{EXECROOT}}/{path_prefix}/bin",
-        ]
-    ])
-
+def _render_tool_paths(rctx, toolchain_root, binary_prefix):
     tool_paths = {}
-    for name, tool_path in relative_tool_paths.items():
-        wrapped_tool_path = paths.join("xbin", name)
-        rctx.template(
-            wrapped_tool_path,
-            rctx.attr._wrapper_sh_template,
-            substitutions = {
-                "__PATH__": path_env,
-                "__SHELL__": "/bin/bash",
-                "__binary__": tool_path,
-            },
-            executable = True,
-        )
-        tool_paths[name] = wrapped_tool_path
-    return tool_paths
+    for name in ["ar", "as", "cpp", "g++", "gcc", "gcov", "ld", "nm", "objcopy", "objdump", "strip"]:
+        link = paths.join("xbin", name)
+        rctx.symlink("bin/{}{}".format(binary_prefix, name), link)
+        tool_paths[name] = link
+    path_env = "{root}/xbin:{root}/bin".format(root = toolchain_root)
+    return tool_paths, path_env
 
 def gcc_declare_toolchain(
         name,
@@ -735,6 +661,7 @@ cc_toolchain_config(
     extra_enabled_features = {extra_enabled_features},
     extra_known_features = {extra_known_features},
     tool_paths = tool_paths,
+    path_env = "{path_env}",
 )
 
 filegroup(

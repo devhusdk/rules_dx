@@ -1067,9 +1067,6 @@ use_repo(
     dx_swift_linux_x86_64 = "dx_swift_ubuntu22.04",
 )
 
-swift_host = use_extension("//swift:extensions.bzl", "swift_host")
-use_repo(swift_host, "dx_swift_host")
-
 register_toolchains("//swift/private/toolchain:all")
 
 swift_windows = use_extension("//swift:extensions.bzl", "swift_windows")

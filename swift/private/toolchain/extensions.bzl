@@ -1,15 +1,7 @@
 """Module extension for swift/private/toolchain."""
 
 load("@dx_pins_data//:pins.bzl", "PINS")
-load(":repos.bzl", "swift_host_repo", "swift_windows_repo")
-
-
-def _swift_host_ext_impl(module_ctx):
-    swift_host_repo(name = "dx_swift_host")
-    return module_ctx.extension_metadata(reproducible = True)
-
-
-swift_host = module_extension(implementation = _swift_host_ext_impl)
+load(":repos.bzl", "swift_windows_repo")
 
 
 def _swift_windows_ext_impl(module_ctx):

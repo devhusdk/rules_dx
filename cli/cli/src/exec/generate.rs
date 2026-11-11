@@ -1,4 +1,5 @@
 use super::common::*;
+use dx_adopt::dependency_sets::Ecosystem;
 use dx_output::{
     FinishedCounts, OutputMode, change_value, command_finished, command_started, notice_value,
 };
@@ -11,7 +12,6 @@ use dx_plan::plan::{
 };
 use dx_plan::reports::plan_reports;
 use dx_plan::resolve::resolve_for_generate;
-use dx_adopt::dependency_sets::Ecosystem;
 use std::io::Write;
 use std::path::Path;
 
@@ -195,13 +195,18 @@ fn seed_uv_lock(request: &GenerateRequest, env: &mut Env<'_>, wiring: &mut Wirin
         &request.bazel_startup_options,
         false,
     );
-    let argv = match dx_update::backend::uv_lock_argv(lock_of(Ecosystem::Uv), ".", &closure, false, false) {
-        Ok(argv) => argv,
-        Err(error) => {
-            wiring.failed(env.err, format!("{} not created: {error}", lock_of(Ecosystem::Uv)));
-            return;
-        }
-    };
+    let argv =
+        match dx_update::backend::uv_lock_argv(lock_of(Ecosystem::Uv), ".", &closure, false, false)
+        {
+            Ok(argv) => argv,
+            Err(error) => {
+                wiring.failed(
+                    env.err,
+                    format!("{} not created: {error}", lock_of(Ecosystem::Uv)),
+                );
+                return;
+            }
+        };
     let host = super::update::windows_env();
     let pairs: Vec<(&str, &str)> = host
         .iter()
@@ -746,7 +751,10 @@ mod tests {
         assert_eq!(code, 1, "{out}{err}");
         let module = std::fs::read_to_string(harness.workspace.join("MODULE.bazel")).expect("read");
         assert!(
-            module.contains(&format!("cargo_lockfile = \"//:{}\"", lock_of(Ecosystem::Cargo))),
+            module.contains(&format!(
+                "cargo_lockfile = \"//:{}\"",
+                lock_of(Ecosystem::Cargo)
+            )),
             "{module}"
         );
         let builds = harness.build_argv.borrow();
@@ -801,7 +809,9 @@ mod tests {
                 .contains(&("RULES_JVM_EXTERNAL_REPIN".to_owned(), "1".to_owned()))
         );
         assert!(
-            err.contains(&format!("dx: third_party/{maven} is still empty after the Maven pin")),
+            err.contains(&format!(
+                "dx: third_party/{maven} is still empty after the Maven pin"
+            )),
             "{err}"
         );
     }
@@ -822,7 +832,10 @@ mod tests {
         let (code, out, _) = harness.run(&["generate", "--output=json"]);
         assert_eq!(code, 1, "{out}");
         assert!(out.contains("\"code\":\"wiring_pending\""), "{out}");
-        assert!(out.contains(&format!("would create {}", lock_of(Ecosystem::Cargo))), "{out}");
+        assert!(
+            out.contains(&format!("would create {}", lock_of(Ecosystem::Cargo))),
+            "{out}"
+        );
         assert!(
             !harness
                 .build_argv
@@ -842,8 +855,12 @@ mod tests {
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 0, "{out}{err}");
         assert!(err.contains("run dx init --apply"), "{err}");
-        assert!(!err.contains(&format!("{} not written", lock_of(Ecosystem::Cargo))), "{err}");
-        let lock = std::fs::read_to_string(harness.workspace.join(lock_of(Ecosystem::Cargo))).expect("read");
+        assert!(
+            !err.contains(&format!("{} not written", lock_of(Ecosystem::Cargo))),
+            "{err}"
+        );
+        let lock = std::fs::read_to_string(harness.workspace.join(lock_of(Ecosystem::Cargo)))
+            .expect("read");
         assert_eq!(lock, "version = 4\n");
     }
 
@@ -855,7 +872,10 @@ mod tests {
         harness.intended = Some(intended_witness("default", true, "", ""));
         let (code, out, err) = harness.run(&["generate", "--apply"]);
         assert_eq!(code, 1, "{out}{err}");
-        assert!(err.contains(&format!("dx: {} not created:", lock_of(Ecosystem::Uv))), "{err}");
+        assert!(
+            err.contains(&format!("dx: {} not created:", lock_of(Ecosystem::Uv))),
+            "{err}"
+        );
         assert!(!harness.workspace.join(lock_of(Ecosystem::Uv)).exists());
     }
 

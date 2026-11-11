@@ -16,12 +16,17 @@ type namedLockManifest struct {
 	packages map[string]bool
 	// candidates lists the package names an import can mean, best first.
 	candidates func(name string) []string
+	// perPackage places each package in its own Bazel package.
+	perPackage bool
 }
 
 // Lookup resolves name to the first candidate package the lock holds.
 func (m *namedLockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	for _, pkg := range m.candidates(name) {
 		if m.packages[pkg] {
+			if m.perPackage {
+				return []label.Label{{Repo: repo, Pkg: pkg, Name: pkg}}, ""
+			}
 			return []label.Label{{Repo: repo, Name: pkg}}, ""
 		}
 	}
@@ -80,6 +85,30 @@ func parseHexLockManifest(content []byte, path string) (externalManifest, error)
 		m.packages[string(match[1])] = true
 	}
 	if len(m.packages) == 0 && !strings.Contains(string(content), "%{") {
+		return nil, fmt.Errorf("%s is not a %s", path, m.entry.Lock)
+	}
+	return m, nil
+}
+
+// nugetCandidates maps Newtonsoft.Json.Linq to newtonsoft.json.linq,
+// newtonsoft.json, newtonsoft.
+func nugetCandidates(name string) []string {
+	parts := strings.Split(strings.ToLower(name), ".")
+	var out []string
+	for n := len(parts); n > 0; n-- {
+		out = append(out, strings.Join(parts[:n], "."))
+	}
+	return out
+}
+
+var paketLockEntry = regexp.MustCompile(`(?m)^ {4}(\S+) \(`)
+
+func parsePaketLockManifest(content []byte, path string) (externalManifest, error) {
+	m := &namedLockManifest{entry: registryEntry("nuget"), packages: map[string]bool{}, candidates: nugetCandidates, perPackage: true}
+	for _, match := range paketLockEntry.FindAllSubmatch(content, -1) {
+		m.packages[strings.ToLower(string(match[1]))] = true
+	}
+	if len(m.packages) == 0 && !strings.Contains(string(content), "NUGET") {
 		return nil, fmt.Errorf("%s is not a %s", path, m.entry.Lock)
 	}
 	return m, nil

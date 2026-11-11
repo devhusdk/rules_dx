@@ -84,6 +84,13 @@
     "manifest": "package.json"
   },
   {
+    "ecosystem": "nuget",
+    "hub": "nuget",
+    "imports": "name",
+    "lock": "paket.lock",
+    "manifest": "paket.dependencies"
+  },
+  {
     "ecosystem": "opam",
     "hub": "opam",
     "imports": "name",

@@ -580,7 +580,7 @@ LANGS = json.decode("""{
           "extension": "@rules_dx//csharp:extensions.bzl",
           "hub": "nuget",
           "imports": "name",
-          "lock": null,
+          "lock": "paket.lock",
           "manifest": "paket.dependencies",
           "resolver": null,
           "state": "paket.lock",

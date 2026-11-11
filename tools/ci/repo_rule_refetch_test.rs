@@ -107,15 +107,27 @@ fn not_reproducible(source: &Masked) -> usize {
         .sum()
 }
 
+/// Whether `argument` is exactly `<name>.attr.<identifier>`.
+fn is_attr_label(argument: &str) -> bool {
+    let Some((name, field)) = argument.split_once(".attr.") else {
+        return false;
+    };
+    let identifier = |text: &str| {
+        !text.is_empty() && text.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+    };
+    identifier(name) && identifier(field)
+}
+
 /// Watches in `source`: `.watch(`, `.watch_tree(` and `.path(` on a label of the main repository or of the calling package.
 fn watches(source: &Masked) -> usize {
     let labels = calls(source, ".path")
         .iter()
         .filter(|call| {
-            let argument = call.code.trim_start();
+            let argument = call.code.trim();
             ["\"//", "\"@//", "Label(\"//", "Label(\"@//", "Label(\":"]
                 .iter()
                 .any(|prefix| argument.starts_with(prefix))
+                || is_attr_label(argument)
         })
         .count();
     calls(source, ".watch").len() + calls(source, ".watch_tree").len() + labels
@@ -262,9 +274,9 @@ fn missing_reproducible_metadata_is_counted() {
 fn watches_are_counted_outside_the_snapshot_rule() {
     let source = GOOD.replace(
         "    rctx.file(\"BUILD.bazel\", \"\")\n",
-        "    rctx.watch(rctx.attr.src)\n    rctx.watch_tree(\"dir\")\n    rctx.path(Label(\"//:MODULE.bazel\"))\n    rctx.path(\"out\")\n",
+        "    rctx.watch(rctx.attr.src)\n    rctx.watch_tree(\"dir\")\n    rctx.path(Label(\"//:MODULE.bazel\"))\n    rctx.path(\"out\")\n    rctx.path(rctx.attr.src)\n    ctx.path(ctx.attr.module + \"/x\")\n",
     );
-    assert_eq!(hits(&[("x/repos.bzl", &source)]), "x/repos.bzl watch 3\n");
+    assert_eq!(hits(&[("x/repos.bzl", &source)]), "x/repos.bzl watch 4\n");
     assert_eq!(hits(&[(SNAPSHOT_RULE, &source)]), "");
     assert_eq!(hits(&[("x/tests/repos.bzl", &source)]), "");
 }

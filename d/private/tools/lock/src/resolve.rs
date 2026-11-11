@@ -439,6 +439,7 @@ impl<'a> Dub<'a> {
                     sha256: dx_digest::sha256_hex(&bytes),
                     strip_prefix,
                     platform: String::new(),
+                    kind: String::new(),
                 }],
                 deps: nested.into_keys().collect(),
                 provides: provides.into_iter().collect(),

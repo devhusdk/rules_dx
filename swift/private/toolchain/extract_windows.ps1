@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory = $true)][string]$Out,
     [Parameter(Mandatory = $true)][string]$Work,
     [Parameter(Mandatory = $true)][string]$XCTestVersion,
-    [Parameter(Mandatory = $true)][string]$SevenZip
+    [Parameter(Mandatory = $true)][string]$SevenZip,
+    [Parameter(Mandatory = $true)][ValidateSet("windows_arm64", "windows_x86_64")][string]$Cell
 )
 
 $ErrorActionPreference = "Stop"
@@ -173,6 +174,17 @@ function Get-Sha256($path) {
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $stream = [System.IO.File]::OpenRead($path)
     try { [System.BitConverter]::ToString($sha.ComputeHash($stream)) } finally { $stream.Dispose(); $sha.Dispose() }
+}
+
+function Get-PeMachine($path) {
+    $stream = [System.IO.File]::OpenRead($path)
+    try {
+        $reader = New-Object System.IO.BinaryReader($stream)
+        $stream.Position = 0x3c
+        $peOffset = $reader.ReadUInt32()
+        $stream.Position = $peOffset + 4
+        [int]$reader.ReadUInt16()
+    } finally { $stream.Dispose() }
 }
 
 function Expand-Msi($msi, $target, $scratch) {
@@ -394,6 +406,12 @@ foreach ($assembly in $identities.Keys) {
 
 foreach ($required in @("toolchain\usr\bin\swiftc.exe", "toolchain\usr\bin\llbuildSwift.dll", "toolchain\usr\bin\_InternalSwiftScan.dll", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr")) {
     if (-not (Test-Path -LiteralPath (Join-Path $Out $required))) { Fail "$required is missing from the extracted layout" }
+}
+
+$machines = @{ "windows_x86_64" = 0x8664; "windows_arm64" = 0xAA64 }
+foreach ($required in @("toolchain\usr\bin\swiftc.exe", "runtime\usr\bin\swiftCore.dll")) {
+    $machine = Get-PeMachine (Join-Path $Out $required)
+    if ($machine -ne [int]$machines[$Cell]) { Fail ("$required is PE machine 0x{0:X4}, not the one of $Cell" -f $machine) }
 }
 
 Remove-Item -LiteralPath $Work -Recurse -Force

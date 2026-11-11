@@ -13,7 +13,6 @@ fixture msix
 fixture python
 fixture svelte
 fixture terraform
-fixture typescript
 fixture vue
 init csharp
 init cuda
@@ -36,6 +35,7 @@ init rego
 init ruby
 init rust
 init scala
+init typescript
 init zig
 override archive_override lua
 override archive_override rules_flutter

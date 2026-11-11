@@ -43,6 +43,7 @@ CONSUMER_FIXTURES = [
     "sql",
     "swift",
     "thrift",
+    "typescript",
     "zig",
 ]
 

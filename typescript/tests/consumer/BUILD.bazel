@@ -1,0 +1,18 @@
+load("@rules_dx//typescript:defs.bzl", "typescript_binary", "typescript_library")
+
+typescript_library(
+    name = "greet",
+    srcs = ["greet.ts"],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
+
+typescript_binary(
+    name = "main_bin",
+    srcs = ["main.ts"],
+    declaration = True,
+    main = "main.ts",
+    tsconfig = "tsconfig.json",
+    deps = [":greet"],
+)

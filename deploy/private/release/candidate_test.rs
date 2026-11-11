@@ -255,6 +255,38 @@ fn archive_members_equal_the_commit_tree() {
     assert_eq!(module, MODULE.as_bytes());
 }
 
+#[test]
+fn archive_applies_checkout_attributes_only_where_they_change_bytes() {
+    let fixture = Fixture::new();
+    write(
+        &fixture.repo.join(".gitattributes"),
+        b"* text=auto eol=lf\n*.cmd text eol=crlf\n*.id ident\n",
+    );
+    write(&fixture.repo.join("v.id"), b"$Id$\n");
+    dx_test_scratch::git(&fixture.repo, &fixture.repo, &["add", "-A"]);
+    dx_test_scratch::git(
+        &fixture.repo,
+        &fixture.repo,
+        &["commit", "-q", "-m", "attrs"],
+    );
+    let head = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD"]);
+    let candidate = Candidate::new(VERSION, &head).expect("candidate");
+    let archive = fixture.path("attrs.tar.gz");
+    build_source_archive(&fixture.repo, &candidate, &archive, None).expect("archive");
+    source_archive_error(&archive, &fixture.repo, &candidate, None).expect("verifies");
+    let member = |name: &str| {
+        dx_deploy_tools::archive_read_member(&archive, &format!("rules_dx-{VERSION}/{name}"))
+            .expect(name)
+    };
+    let blob = dx_test_scratch::git(&fixture.repo, &fixture.repo, &["rev-parse", "HEAD:v.id"]);
+    assert_eq!(
+        member("v.id"),
+        format!("$Id: {} $\n", blob.trim()).into_bytes()
+    );
+    assert_eq!(member("a.cmd"), b"@echo off\r\nrem candidate\r\n");
+    assert_eq!(member("MODULE.bazel"), MODULE.as_bytes());
+}
+
 const FILLED_PINS: &[u8] = b"SHA256 = {\"dx\": \"abc\"}\n";
 
 #[test]

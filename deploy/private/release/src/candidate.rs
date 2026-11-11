@@ -201,14 +201,15 @@ fn commit_tree(repo: &Path, candidate: &Candidate) -> Result<Vec<TreeFile>, Stri
         .collect())
 }
 
-const FILTER_ATTRS: [&str; 6] = [
-    "text",
-    "eol",
-    "crlf",
-    "filter",
-    "ident",
-    "working-tree-encoding",
-];
+const FILTER_ATTRS: [&str; 4] = ["eol", "filter", "ident", "working-tree-encoding"];
+
+fn changes_on_checkout(attr: &[u8], value: &[u8]) -> bool {
+    match attr {
+        b"eol" => value == b"crlf",
+        b"ident" => value == b"set",
+        _ => value != b"unspecified" && value != b"unset",
+    }
+}
 
 fn git_pipe<T>(
     repo: &Path,
@@ -249,7 +250,7 @@ fn filtered_paths(
     let fields: Vec<&[u8]> = raw.split(|byte| *byte == 0).collect();
     let mut flagged = std::collections::BTreeSet::new();
     for record in fields.chunks(3).filter(|record| record.len() == 3) {
-        if record[2] != b"unspecified" {
+        if changes_on_checkout(record[1], record[2]) {
             flagged.insert(record[0]);
         }
     }

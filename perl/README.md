@@ -98,8 +98,7 @@ under `lib/` (`lib/Inventory/Item.pm` is `Inventory::Item`), never by its
 `package` statement. This matches the default `includes` of rules_perl.
 
 - Modules that ship with Perl need no dep.
-- A CPAN module needs one mapping, for example
-  `# gazelle:resolve perl Text::CSV @cpan//:Text-CSV`.
+- A CPAN module resolves to the distribution in `cpanfile.snapshot.lock.json` that is named after it (`Text::CSV` is `Text-CSV`).
 - `perl_binary` targets and `.pl` scripts stay hand-written.
 - Loads inside `eval` are optional and are skipped. Loads in POD, heredocs,
   strings and after `__END__` are ignored.

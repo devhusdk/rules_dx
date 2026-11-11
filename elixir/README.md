@@ -131,10 +131,7 @@ rules_dx is not released yet. Install starts with the first BCR release.
 1. Add `bazel_dep(name = "rules_dx", version = "...")` to `MODULE.bazel`.
 2. Run `bazel run @rules_dx//:dx -- generate --apply`.
 3. Add the `hex.lock` tag for your `mix.lock` (see above).
-4. For each Hex package, add
-   `# gazelle:resolve elixir <TopModule> @<hub>//:<package>` to the root
-   `BUILD.bazel`, for example `# gazelle:resolve elixir Jason @hex_deps//:jason`.
-   The line covers every module under `Jason`. Run `dx generate --apply` again.
+4. Run `dx generate --apply` again. A module resolves to the `mix.lock` package named after it (`Jason` is `jason`, `Phoenix.LiveView` is `phoenix_live_view`).
 5. Run `bazel test //...`.
 
 Each directory with a `mix.exs` gets one `elixir_app` from `lib/**/*.ex` and

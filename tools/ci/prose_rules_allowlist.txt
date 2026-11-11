@@ -31,7 +31,7 @@ erlang/private/toolchain/pins.bzl issue-number 1
 msix/tests/BUILD.bazel issue-number 1
 ocaml/README.md issue-number 1
 patches/README.md history-word 1
-patches/README.md issue-number 56
+patches/README.md issue-number 41
 qt/README.md issue-number 1
 tools/ci/prose_rules_test.rs link-chain 1
 tools/docs/jvm/fixture/jvm_prose.md not-linted 1

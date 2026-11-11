@@ -351,7 +351,14 @@ fn fetch_pinned(url: &str) -> Result<Vec<u8>, DxError> {
 
 const FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(900);
 
-const NO_DEPENDENCY_SETS: &str = "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:Cargo.lock\",\n    manifests = [\"//:Cargo.toml\"],\n)";
+fn no_dependency_sets() -> String {
+    let cargo = dx_ecosystems::Ecosystem::Cargo;
+    format!(
+        "no dependency sets: this workspace declares no hubs in MODULE.bazel. Add one, for example:\n\ncrate = use_extension(\"@rules_rust//crate_universe:extensions.bzl\", \"crate\")\ncrate.from_cargo(\n    name = \"crates\",\n    cargo_lockfile = \"//:{}\",\n    manifests = [\"//:{}\"],\n)",
+        cargo.lockfiles()[0],
+        cargo.manifest_name()
+    )
+}
 
 /// Which lockfile each parsed package was read from.
 #[derive(Clone, Debug)]
@@ -472,7 +479,7 @@ fn parse_locked_for_configured(
             dx_adopt::dependency_sets::Ecosystem::Bazel
             | dx_adopt::dependency_sets::Ecosystem::Ansible
             | dx_adopt::dependency_sets::Ecosystem::Bicep => Ok(Vec::new()),
-            // The versions live in go.mod; go.sum only holds hashes (see the builtin set).
+            // The versions live in the manifest; the lock only holds hashes (see the builtin set).
             dx_adopt::dependency_sets::Ecosystem::Go => dx_audit::locks::go_locked_packages(text),
             dx_adopt::dependency_sets::Ecosystem::Maven => match rel.rsplit('/').next() {
                 Some(name) if name.ends_with(".json") => dx_audit::locks::parse_maven_install(text),
@@ -522,7 +529,7 @@ fn lock_texts_for_configured(
     set: &dx_adopt::dependency_sets::ResolvedSet,
 ) -> Result<Vec<(String, String)>, AuditError> {
     let mut out = Vec::new();
-    // A go set audits its go.mod; go.sum lists hashes, not the requirement versions.
+    // A go set audits its manifest; the lock lists hashes, not the requirement versions.
     let files = if set.ecosystem == dx_adopt::dependency_sets::Ecosystem::Go {
         &set.manifests
     } else {
@@ -1568,7 +1575,7 @@ pub(crate) fn execute_audit(invocation: &Invocation, env: Env<'_>) -> i32 {
         Err(error) => return pre_exec(invocation.output, out, err, &error.to_string()),
     };
     let Some(registry) = registry else {
-        return pre_exec(invocation.output, out, err, NO_DEPENDENCY_SETS);
+        return pre_exec(invocation.output, out, err, &no_dependency_sets());
     };
     let excludes = match dx_plan::resolve::exclude::load(workspace) {
         Ok(excludes) => excludes,

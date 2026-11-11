@@ -7,10 +7,6 @@ name cli/cli/src/adopt/init_files.rs pnpm-lock.yaml
 name cli/cli/src/exec.rs maven_install.json
 name cli/cli/src/exec/affected.rs Cargo.lock
 name cli/cli/src/exec/affected.rs pnpm-lock.yaml
-name cli/cli/src/exec/audit.rs Cargo.lock
-name cli/cli/src/exec/audit.rs Cargo.toml
-name cli/cli/src/exec/audit.rs go.mod
-name cli/cli/src/exec/audit.rs go.sum
 name cli/cli/src/exec/audit_consumer.rs Cargo.lock
 name cli/cli/src/exec/audit_consumer.rs Cargo.toml
 name cli/cli/src/exec/audit_consumer.rs Gemfile
@@ -44,9 +40,6 @@ name cli/cli/src/exec/audit_live.rs pnpm-lock.yaml
 name cli/cli/src/exec/audit_reports.rs Cargo.lock
 name cli/cli/src/exec/audit_reports.rs go.mod
 name cli/cli/src/exec/audit_reports.rs pnpm-lock.yaml
-name cli/cli/src/exec/audit_uncovered.rs cpanfile.snapshot
-name cli/cli/src/exec/audit_uncovered.rs mix.lock
-name cli/cli/src/exec/audit_uncovered.rs pubspec.lock
 name cli/cli/src/exec/dep_edit.rs Cargo.toml
 name cli/cli/src/exec/dep_edit.rs Gemfile
 name cli/cli/src/exec/dep_edit.rs Gemfile.lock

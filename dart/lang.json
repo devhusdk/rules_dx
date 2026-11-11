@@ -38,7 +38,9 @@
     "macos_arm64",
     "windows_x86_64"
   ],
-  "pins": [],
+  "pins": [
+    "pins.json"
+  ],
   "entry_points": [
     "dart_codegen",
     "dart_library",

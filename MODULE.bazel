@@ -733,7 +733,7 @@ dx_pins.pin(
 )
 dx_pins.pin(
     name = "dx_php",
-    pins = "//php/private/toolchain:pins.json",
+    pins = "//php:pins.json",
 )
 dx_pins.data(
     name = "dx_cc_gcc",
@@ -749,11 +749,11 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_elixir",
-    pins = "//elixir/private/toolchain:pins.json",
+    pins = "//elixir:pins.json",
 )
 dx_pins.data(
     name = "dx_erlang",
-    pins = "//erlang/private/toolchain:pins.json",
+    pins = "//erlang:pins.json",
 )
 dx_pins.data(
     name = "dx_fortran",
@@ -786,11 +786,11 @@ dx_pins.data(
 )
 dx_pins.data(
     name = "dx_msix",
-    pins = "//msix/private:pins.json",
+    pins = "//msix:pins.json",
 )
 dx_pins.data(
     name = "dx_appimage",
-    pins = "//appimage/private:pins.json",
+    pins = "//appimage:pins.json",
 )
 dx_pins.data(
     name = "dx_cosign",
@@ -805,7 +805,7 @@ dx_pins.archive(
     dropped = ["MODULE.bazel"],
     key = "rules_dart",
     patches = ["//patches/rules_dart:hermetic_tar.patch"],
-    pins = "//dart/private:pins.json",
+    pins = "//dart:pins.json",
 )
 dx_pins.archive(
     name = "dx_rules_flutter_pub",

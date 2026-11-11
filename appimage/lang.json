@@ -9,7 +9,7 @@
   "tools": [],
   "platforms": [],
   "pins": [
-    "private/pins.bzl"
+    "pins.json"
   ],
   "entry_points": [
     "AppImageInfo",

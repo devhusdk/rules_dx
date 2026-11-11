@@ -128,8 +128,8 @@ harness. `env` and `preopens` guest paths are literal.
 | `runtime` | Executable that acts like `wasmtime run`. Default Wasmtime. Needs `wasm = "wasi"`. |
 
 To check a built `wasm = "wasi"` binary from outside, use a native
-`rust_test`. Put `@rules_dx//wasi:wasmtime` and the module in
-`data` and `@rules_dx//wasi:wasi_run` in `deps`. Pass their
+`rust_test`. Put `@rules_dx//tools/testing/wasi:wasmtime` and the module in
+`data` and `@rules_dx//tools/testing/wasi:wasi_run` in `deps`. Pass their
 `$(rootpath)` values in `env`. Then call
 `wasi_run::run(runtime, module, args, env, preopens) -> Output` and
 assert on the exit code, stdout, and stderr. Preopens map a guest

@@ -181,7 +181,7 @@ rust_test(
         "assets/board.txt",
         "assets/notes.txt",
         ":tasks_wasi",
-        "//wasi:wasmtime",
+        "//tools/testing/wasi:wasmtime",
     ],
     env = {
         "BOARD": "$(rootpath assets/board.txt)",
@@ -190,7 +190,7 @@ rust_test(
         "WASMTIME": "$(rootpath //wasi:wasmtime)",
     },
     tags = ["block-network"],
-    deps = ["//wasi:wasi_run"],
+    deps = ["//tools/testing/wasi:wasi_run"],
 )
 
 javascript_web_app(
@@ -270,7 +270,7 @@ rust_test(
         "assets/notes.txt",
         ":tasks_release",
         ":tasks_wasi_release",
-        "//wasi:wasmtime",
+        "//tools/testing/wasi:wasmtime",
     ],
     env = {
         "DX_TASKS_RELEASE": "$(rootpath :tasks_release)",

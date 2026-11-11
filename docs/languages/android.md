@@ -58,10 +58,10 @@ Builds the debug-signed split APKs that one App Bundle installs on one device sp
 | --- | --- | --- | --- |
 | `aab` | `label` | yes | Target that builds the App Bundle. |
 | `device_spec` | `label` | yes | bundletool device spec JSON. |
-| `_build_apk_set` | `label` | no | Script that runs bundletool build-apks and extract-apks. |
 | `_bundletool` | `label` | no | Pinned bundletool. |
 | `_java_runtime` | `label` | no |  |
 | `_keystore` | `label` | no | Public rules_android debug keystore; debug installs only. |
+| `_ops` | `label` | no | The Android operations program. |
 
 ### `android_check`
 

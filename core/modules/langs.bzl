@@ -3027,18 +3027,6 @@ LANGS = json.decode("""{
       "eslint"
     ]
   },
-  "wasi": {
-    "ecosystems": [],
-    "entry_points": [],
-    "family": "core",
-    "lockfiles": [],
-    "manifests": [],
-    "name": "wasi",
-    "pins": [],
-    "platforms": [],
-    "title": "wasi",
-    "tools": []
-  },
   "zig": {
     "depcheck": "zig",
     "docs": {

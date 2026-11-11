@@ -100,6 +100,7 @@ rst build_test *
 rst coverage_test *
 rst fail_test *
 rst pass_test *
+rust coverage_test windows_x86_64
 sql build_test *
 sql coverage_test *
 sql fail_test *
@@ -120,4 +121,5 @@ vue build_test *
 vue coverage_test *
 vue fail_test *
 vue pass_test *
+zig coverage_test windows_x86_64
 """

@@ -26,7 +26,6 @@ fixture rst
 fixture sql
 fixture svelte
 fixture terraform
-fixture thrift
 fixture typescript
 fixture vue
 init csharp

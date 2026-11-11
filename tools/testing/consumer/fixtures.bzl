@@ -29,6 +29,7 @@ CONSUMER_FIXTURES = [
     "rust",
     "scala",
     "swift",
+    "thrift",
     "zig",
 ]
 

@@ -8,13 +8,13 @@ rust_library(
     name = "dub_lock_lib",
     srcs = ["src/resolve.rs"],
     aliases = aliases(
-        package_name = "d/private/dub_lock",
+        package_name = "d/private/tools/dub_lock",
         normal = True,
     ),
     crate_name = "dub_lock",
     crate_root = "src/resolve.rs",
     deps = all_crate_deps(
-        package_name = "d/private/dub_lock",
+        package_name = "d/private/tools/dub_lock",
         normal = True,
     ) + [
         "//cli/digest:dx_digest",
@@ -27,14 +27,14 @@ rust_binary(
     name = "lock",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "d/private/dub_lock",
+        package_name = "d/private/tools/dub_lock",
         normal = True,
     ),
     crate_name = "dub_lock_bin",
     crate_root = "src/main.rs",
     visibility = ["//d:__pkg__"],
     deps = all_crate_deps(
-        package_name = "d/private/dub_lock",
+        package_name = "d/private/tools/dub_lock",
         normal = True,
     ) + [
         ":dub_lock_lib",
@@ -48,7 +48,7 @@ rust_test(
     size = "small",
     srcs = ["resolve_test.rs"],
     aliases = aliases(
-        package_name = "d/private/dub_lock",
+        package_name = "d/private/tools/dub_lock",
         normal = True,
         normal_dev = True,
     ),
@@ -67,7 +67,7 @@ rust_test(
     tags = ["block-network"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = all_crate_deps(
-        package_name = "d/private/dub_lock",
+        package_name = "d/private/tools/dub_lock",
         normal = True,
         normal_dev = True,
     ) + [

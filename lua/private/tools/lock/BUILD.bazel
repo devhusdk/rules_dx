@@ -11,13 +11,13 @@ rust_library(
         "src/rockspec.rs",
     ],
     aliases = aliases(
-        package_name = "lua/private/lua_lock",
+        package_name = "lua/private/tools/lua_lock",
         normal = True,
     ),
     crate_name = "lua_lock",
     crate_root = "src/resolve.rs",
     deps = all_crate_deps(
-        package_name = "lua/private/lua_lock",
+        package_name = "lua/private/tools/lua_lock",
         normal = True,
     ) + [
         "//cli/families:dx_families",
@@ -29,14 +29,14 @@ rust_binary(
     name = "lock",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "lua/private/lua_lock",
+        package_name = "lua/private/tools/lua_lock",
         normal = True,
     ),
     crate_name = "lua_lock_bin",
     crate_root = "src/main.rs",
     visibility = ["//lua:__pkg__"],
     deps = all_crate_deps(
-        package_name = "lua/private/lua_lock",
+        package_name = "lua/private/tools/lua_lock",
         normal = True,
     ) + [
         ":lua_lock_lib",
@@ -50,14 +50,14 @@ rust_test(
     size = "small",
     srcs = ["resolve_test.rs"],
     aliases = aliases(
-        package_name = "lua/private/lua_lock",
+        package_name = "lua/private/tools/lua_lock",
         normal = True,
         normal_dev = True,
     ),
     crate_name = "resolve_test",
     crate_root = "resolve_test.rs",
     deps = all_crate_deps(
-        package_name = "lua/private/lua_lock",
+        package_name = "lua/private/tools/lua_lock",
         normal = True,
         normal_dev = True,
     ) + [

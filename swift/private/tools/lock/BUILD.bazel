@@ -8,13 +8,13 @@ rust_library(
     name = "swift_lock_lib",
     srcs = ["src/resolve.rs"],
     aliases = aliases(
-        package_name = "swift/private/swift_lock",
+        package_name = "swift/private/tools/swift_lock",
         normal = True,
     ),
     crate_name = "swift_lock",
     crate_root = "src/resolve.rs",
     deps = all_crate_deps(
-        package_name = "swift/private/swift_lock",
+        package_name = "swift/private/tools/swift_lock",
         normal = True,
     ) + [
         "//cli/digest:dx_digest",
@@ -27,7 +27,7 @@ rust_binary(
     name = "lock",
     srcs = ["src/main.rs"],
     aliases = aliases(
-        package_name = "swift/private/swift_lock",
+        package_name = "swift/private/tools/swift_lock",
         normal = True,
     ),
     crate_name = "swift_lock_bin",
@@ -36,7 +36,7 @@ rust_binary(
     env = {"SWIFT": "$(rlocationpath @dx_swift_host//:swift)"},
     visibility = ["//swift:__pkg__"],
     deps = all_crate_deps(
-        package_name = "swift/private/swift_lock",
+        package_name = "swift/private/tools/swift_lock",
         normal = True,
     ) + [
         ":swift_lock_lib",
@@ -50,7 +50,7 @@ rust_test(
     size = "small",
     srcs = ["resolve_test.rs"],
     aliases = aliases(
-        package_name = "swift/private/swift_lock",
+        package_name = "swift/private/tools/swift_lock",
         normal = True,
         normal_dev = True,
     ),
@@ -73,7 +73,7 @@ rust_test(
     tags = ["block-network"],
     target_compatible_with = ["@platforms//os:linux"],
     deps = all_crate_deps(
-        package_name = "swift/private/swift_lock",
+        package_name = "swift/private/tools/swift_lock",
         normal = True,
         normal_dev = True,
     ) + [

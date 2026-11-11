@@ -2,10 +2,7 @@
 load("@rules_dx//zig:defs.bzl", "zig_test")
 
 exports_files(
-    [
-        "build.zig.zon",
-        "zig.lock.json",
-    ],
+    ["zig.lock.json"],
     visibility = ["//:__pkg__"],
 )
 

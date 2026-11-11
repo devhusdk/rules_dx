@@ -194,14 +194,16 @@ def hermetic_qualification(
         **kwargs
     )
 
-def nested_bazel_test(name, *, network = False, cache = None, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
-    """Declares a rust_test that runs a nested Bazel with the shared tags, env and the cache set `cache`."""
+def nested_bazel_test(name, *, network = False, cache = None, cache_locks = None, data = None, env = None, tags = None, target_compatible_with = None, **kwargs):
+    """Declares a rust_test that runs a nested Bazel with the shared tags, env and the cache set `cache` whose locks are the label `cache_locks`."""
     target_compatible_with = target_compatible_with or []
     cache_data = []
     cache_env = {}
+    if bool(cache) != bool(cache_locks):
+        fail("cache and cache_locks go together")
     if cache:
         repository_cache = "@nested_cache_%s//:cache" % cache
-        locks = "//tools/testing/nested_cache:%s_locks" % cache
+        locks = cache_locks
         cache_data = [repository_cache, locks]
         cache_env = {
             "DX_NESTED_CACHE_SET": cache,

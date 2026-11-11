@@ -6,11 +6,7 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files([
-    "composer.json",
-    "composer.lock",
-    "composer.lock.json",
-])
+exports_files(["composer.lock.json"])
 
 php_library(
     name = "factory",

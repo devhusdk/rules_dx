@@ -1,1 +1,1 @@
-exports_files(["dub.lock.json", "dub.selections.json"])
+exports_files(["dub.lock.json"])

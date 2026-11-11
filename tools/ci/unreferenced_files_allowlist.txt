@@ -1,4 +1,3 @@
-BUILD.bazel orphan-target 1
 ansible/BUILD.bazel orphan-target 1
 api_spec/BUILD.bazel orphan-target 1
 appimage/BUILD.bazel orphan-target 1
@@ -109,9 +108,7 @@ perl/tests/fixtures/perl-app/cli/BUILD.bazel orphan-target 1
 perl/tests/fixtures/perl-app/inventory/BUILD.bazel orphan-target 2
 perl/tests/fixtures/perl-app/report/BUILD.bazel orphan-target 3
 php/BUILD.bazel orphan-target 1
-php/tests/fixtures/composer/BUILD.bazel orphan-target 1
 powershell/BUILD.bazel orphan-target 1
-powershell/tests/fixtures/adopt-powershell/PSGallery.requirements.psd1 unreferenced-fixture 1
 python/BUILD.bazel orphan-target 1
 qt/BUILD.bazel orphan-target 1
 rego/BUILD.bazel orphan-target 1
@@ -144,4 +141,3 @@ vue/BUILD.bazel orphan-target 1
 vue/private/BUILD.bazel orphan-target 1
 vue/tests/fixtures/hello/helper.js unreferenced-fixture 1
 zig/BUILD.bazel orphan-target 1
-zig/private/tools/digests.bzl unloaded-bzl 1

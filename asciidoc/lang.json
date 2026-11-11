@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "asciidoc",
-  "title": "asciidoc",
+  "title": "AsciiDoc",
   "family": "core",
   "ecosystems": [],
   "manifests": [],

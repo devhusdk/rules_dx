@@ -19,7 +19,10 @@
   ],
   "pins": [],
   "entry_points": [
-    "avro_library"
+    "avro_library",
+    "avro_cc_library",
+    "avro_java_library",
+    "avro_codegen_shard"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

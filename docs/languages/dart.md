@@ -70,6 +70,18 @@ dart_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs
 
 A dart_test run by dx bench: `main` calls runBenchmarks from package:dx_bench with BenchmarkBase objects, which writes dx-bench.json.
 
+### `dart_config`
+
+Native config file for dart, with the packages its include: lines name.
+
+| Attribute | Type | Required | Description |
+| --- | --- | --- | --- |
+| `allow_generated` | `bool` | no | Accepts generated config and data files, not only checked-in sources. |
+| `data` | `label_list` | no | Extra files the tool reads alongside its config. |
+| `deps` | `label_list` | no | Dart packages the config includes, for example @my_pub_deps//:lints. |
+| `src` | `label` | yes | Config file the tool reads, normally a checked-in source. |
+| `_tool_id` | `string` | no |  |
+
 ## API docs
 
 Tool: `dart doc`.

@@ -86,7 +86,7 @@ LOCK_REGISTRY = {
         "state": None,
     },
     "nuget": {
-        "hub": "paket.main",
+        "hub": "nuget",
         "imports": "name",
         "lock": "paket.lock",
         "manifest": "paket.dependencies",

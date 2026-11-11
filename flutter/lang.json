@@ -14,7 +14,9 @@
   ],
   "tools": [],
   "platforms": [],
-  "pins": [],
+  "pins": [
+    "private/pins.json"
+  ],
   "entry_points": [
     "flutter_gen_l10n",
     "flutter_library",

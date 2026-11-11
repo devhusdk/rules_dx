@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "make",
-  "title": "make",
+  "title": "Make",
   "family": "core",
   "ecosystems": [],
   "manifests": [],

@@ -40,7 +40,8 @@
   "entry_points": [
     "fortran_library",
     "fortran_binary",
-    "fortran_test"
+    "fortran_test",
+    "fpm_lock"
   ],
   "quality": {
     "bzl": "fortran/private/quality:fortran.bzl",

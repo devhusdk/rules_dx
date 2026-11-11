@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "flatbuffers",
-  "title": "flatbuffers",
+  "title": "FlatBuffers",
   "family": "generation",
   "ecosystems": [],
   "manifests": [],
@@ -20,7 +20,12 @@
     "pins.json"
   ],
   "entry_points": [
-    "flatbuffers_library"
+    "flatbuffers_library",
+    "flatbuffers_cc_library",
+    "flatbuffers_java_library",
+    "flatbuffers_rust_library",
+    "flatbuffers_conform_test",
+    "flatbuffers_codegen_shard"
   ],
   "quality": {
     "bzl": "core/quality:families/generation.bzl",

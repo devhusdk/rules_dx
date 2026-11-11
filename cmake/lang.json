@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "cmake",
-  "title": "cmake",
+  "title": "CMake",
   "family": "core",
   "ecosystems": [],
   "manifests": [

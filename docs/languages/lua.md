@@ -42,6 +42,14 @@ lua_test(name, *, srcs = None, visibility = None, **kwargs)
 
 A Lua test; it passes when main returns or calls os.exit(0).
 
+### `lua_bench`
+
+```python
+lua_bench(name, *, srcs = None, main = None, deps = None, tags = None, **kwargs)
+```
+
+A lua_test run by dx bench: main calls require("dx_bench").run({{name, fn}, ...}), which times each function with os.clock and writes dx-bench.json.
+
 ## API docs
 
 Tool: `ldoc`.

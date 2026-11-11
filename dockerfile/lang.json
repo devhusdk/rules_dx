@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "dockerfile",
-  "title": "dockerfile",
+  "title": "Dockerfile",
   "family": "core",
   "ecosystems": [],
   "manifests": [],

@@ -8,7 +8,9 @@
   "lockfiles": [],
   "tools": [],
   "platforms": [],
-  "pins": [],
+  "pins": [
+    "private/toolchain/pins.json"
+  ],
   "entry_points": [
     "cuda_library",
     "cuda_binary",

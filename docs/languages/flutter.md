@@ -76,7 +76,7 @@ Thin wrapper over flutter_android_app. An unknown android_abi fails when the tar
 flutter_ios_app(name, application, bundle_id, **kwargs)
 ```
 
-Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package and builds only for iOS.
+Thin wrapper over flutter_ios_app. Reads runner files from ios/Runner/ in the calling package, builds only for iOS and only on a macOS host.
 
 ## API docs
 

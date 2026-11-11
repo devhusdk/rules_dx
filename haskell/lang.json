@@ -46,7 +46,9 @@
     "haskell_library",
     "haskell_binary",
     "haskell_test",
-    "haskell_bench"
+    "haskell_bench",
+    "haskell_deps_resolve",
+    "haskell_deps_resolve_test"
   ],
   "quality": {
     "bzl": "haskell/private/quality:haskell.bzl",

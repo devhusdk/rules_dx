@@ -1,7 +1,7 @@
 {
   "$schema": "../core/modules/lang.schema.json",
   "name": "rst",
-  "title": "rst",
+  "title": "reStructuredText",
   "family": "core",
   "ecosystems": [],
   "manifests": [],

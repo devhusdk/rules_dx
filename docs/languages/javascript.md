@@ -66,6 +66,22 @@ javascript_fuzz_test(name, *, srcs, main = None, node_modules, data = None, visi
 
 A Jazzer.js fuzz target plus a `<name>_run` runner for `dx fuzz`. `main`, the first of srcs by default, exports `fuzz(data)`. `node_modules` must link @jazzer.js/core.
 
+### `javascript_web_app`
+
+```python
+javascript_web_app(name, html, bindgen, assets = None, threads = False, visibility = None, **kwargs)
+```
+
+Stages one relocatable browser directory from HTML, bindgen, and assets.
+
+### `javascript_web_bundle`
+
+```python
+javascript_web_bundle(name, app, bundler, config = None, entry = None, bundler_args = None, visibility = None, **kwargs)
+```
+
+Bundles one staged application through a declared bundler executable.
+
 ## API docs
 
 Tool: `typedoc`.

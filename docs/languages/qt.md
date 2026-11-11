@@ -74,6 +74,14 @@ qt_bundle(name, binary, qml_modules = [], licenses = [], display = [], plugins =
 
 Stages a qt_cc_binary runtime for consumer_archive resources.
 
+### `qt_rust_library`
+
+```python
+qt_rust_library(name, bridges, srcs = None, crate_root = None, crate_name = None, crate_features = None, rustc_flags = [], deps = None, cc_deps = [], cxx = _CXX_CRATE, cxx_qt = _CXX_QT_CRATE, generator = None, uri = None, version = "1.0", qml_srcs = [], qml_depends = [], modules = None, qt = QT_REPOSITORY, copts = [], visibility = None, **kwargs)
+```
+
+Declares a Rust crate with CXX-Qt bridges and the Qt C++ library they generate.
+
 ## Tools
 
 None.

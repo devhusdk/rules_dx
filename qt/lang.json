@@ -18,7 +18,8 @@
     "qt_cc_binary",
     "qt_cc_test",
     "qt_rust_cc_library",
-    "qt_bundle"
+    "qt_bundle",
+    "qt_rust_library"
   ],
   "quality": {
     "bzl": "core/quality:families/cc.bzl",

@@ -31,6 +31,12 @@ bcr_test_module:
       bazel: ${{ bazel }}
       build_targets:
         - "//:android_device_cc"
+    build_apple_toolchain:
+      name: Build Apple toolchain check
+      platform: macos_arm64
+      bazel: ${{ bazel }}
+      build_targets:
+        - "//:macos_arm64_cc"
     build_qt_hello_debian11:
       name: Build Qt hello
       platform: debian11

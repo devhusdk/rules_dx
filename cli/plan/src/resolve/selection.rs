@@ -97,6 +97,7 @@ impl SelectionContext {
         }
     }
 
+    #[cfg(test)]
     pub fn for_tests_configured(bazel_options: &[String], startup: &[String]) -> Self {
         SelectionContext {
             configured: true,
@@ -180,6 +181,7 @@ impl SelectionContext {
         Ok(argv)
     }
 
+    #[cfg(test)]
     pub fn redacted_detail(&self) -> String {
         let mut parts = Vec::new();
         if let Some(build_mode) = self.build_mode {

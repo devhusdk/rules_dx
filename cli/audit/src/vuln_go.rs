@@ -22,6 +22,7 @@ pub(crate) fn strip_go_v(text: &str) -> String {
     out
 }
 
+#[cfg(test)]
 pub fn go_in_scope(scope: &str, version: &str) -> bool {
     go_assess(scope, version) == VersionScope::Affected
 }

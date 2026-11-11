@@ -369,6 +369,7 @@ pub fn startup_argv(startup_options: &[String]) -> Vec<String> {
 }
 
 /// The launcher and startup flags under an explicit rc policy.
+#[cfg(test)]
 pub fn startup_argv_with(policy: &RcPolicy, startup_options: &[String]) -> Vec<String> {
     launcher_head(policy, startup_options)
 }

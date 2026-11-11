@@ -144,6 +144,7 @@ pub fn is_empty_set(set: &str) -> bool {
     vuln_locks(set).is_empty()
 }
 
+#[cfg(test)]
 pub fn sets_without_coverage<'a>(sets: impl IntoIterator<Item = &'a str>) -> Vec<&'a str> {
     let mut out: Vec<&'a str> = Vec::new();
     for set in sets {

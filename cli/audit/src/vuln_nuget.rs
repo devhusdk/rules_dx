@@ -177,6 +177,7 @@ pub fn nuget_version_eq(left: &str, right: &str) -> bool {
     nuget_compare(left_trimmed, right_trimmed) == std::cmp::Ordering::Equal
 }
 
+#[cfg(test)]
 pub fn nuget_in_scope(scope: &str, version: &str) -> bool {
     nuget_assess(scope, version) == VersionScope::Affected
 }

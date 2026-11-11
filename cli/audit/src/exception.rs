@@ -200,6 +200,7 @@ pub fn cargo_assess(scope: &str, version: &str) -> VersionScope {
     }
 }
 
+#[cfg(test)]
 pub fn version_in_scope(scope: &str, version: &str) -> bool {
     cargo_assess(scope, version) == VersionScope::Affected
 }

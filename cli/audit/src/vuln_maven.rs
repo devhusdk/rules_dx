@@ -159,6 +159,7 @@ fn interval_matches(interval: &MavenInterval, version: &ComparableVersion) -> bo
     true
 }
 
+#[cfg(test)]
 pub fn maven_in_scope(scope: &str, version: &str) -> bool {
     maven_assess(scope, version) == VersionScope::Affected
 }

@@ -52,10 +52,10 @@ rust_binary(
         name = name + "_test",
         size = "small",
         srcs = [
-            "tests/" + name + "_test.rs",
-            "tests/fake.rs",
+            name + "_test.rs",
+            "fake.rs",
         ],
-        crate_root = "tests/" + name + "_test.rs",
+        crate_root = name + "_test.rs",
         deps = [
             ":ops",
             "//cli/test_scratch:dx_test_scratch",

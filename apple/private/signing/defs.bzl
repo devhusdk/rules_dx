@@ -64,7 +64,7 @@ _launcher_rule = rule(
         "meta": attr.label(doc = "The meta target of the app.", mandatory = True, providers = [_SigningInfo]),
         "op": attr.string(doc = "The operation: codesign or notarize.", mandatory = True, values = ["codesign", "notarize"]),
         "_ops": attr.label(
-            default = Label("//apple/private/ops:apple_ops"),
+            default = Label("//apple/private/tools/ops:apple_ops"),
             executable = True,
             cfg = "target",
         ),

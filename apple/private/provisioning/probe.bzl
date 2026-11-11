@@ -143,7 +143,7 @@ apple_toolchain_probe = rule(
         "_ios": attr.label(default = "@platforms//os:ios"),
         "_macos": attr.label(default = "@platforms//os:macos"),
         "_probe": attr.label(
-            default = Label("//apple/private/ops:apple_ops"),
+            default = Label("//apple/private/tools/ops:apple_ops"),
             cfg = "exec",
             executable = True,
         ),

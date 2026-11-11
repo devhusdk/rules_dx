@@ -605,8 +605,8 @@ def apple_ios_app_test(
         test_deps = [":" + name + "_selection"] + deps
     ios_xctestrun_runner(
         name = name + "_runner",
-        clean_up_simulator_action = Label("//apple/private/ops:delete_test_simulator"),
-        create_simulator_action = Label("//apple/private/ops:create_test_simulator"),
+        clean_up_simulator_action = Label("//apple/private/tools/ops:delete_test_simulator"),
+        create_simulator_action = Label("//apple/private/tools/ops:create_test_simulator"),
         device_type = device_type,
         export_covered_binaries = True,
         os_version = os_version,

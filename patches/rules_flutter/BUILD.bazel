@@ -5,6 +5,7 @@ exports_files([
     "hermetic_pub.patch",
     "lock_extension.patch",
     "registrant_javacopts.patch",
+    "required_checksums.patch",
 ])
 
 real_source_target(

@@ -18373,7 +18373,7 @@
     },
     "@@rules_flutter+//flutter:extensions.bzl%flutter": {
       "general": {
-        "bzlTransitiveDigest": "GK/nTVuhKsoYTSmRtqwxsJqzVBZ9wkKBrd2UmlgX4dM=",
+        "bzlTransitiveDigest": "oilopsqd00Rw9fSUaz3RFUx7s1wotZhCcxSMNUC5PX4=",
         "usagesDigest": "0PoMi/rJlfpXLLPWE4GNnYWDh2cIx+dlm+812q7J3/U=",
         "recordedInputs": [
           "REPO_MAPPING:rules_dart+,yaml.bzl yaml.bzl+",
@@ -18943,7 +18943,14 @@
             "repoRuleId": "@@rules_flutter+//flutter/private:flutter_web_sdk_repo.bzl%flutter_web_sdk_repo",
             "attributes": {
               "engine_revision": "cf636b1dfb818dd6a3ff16e390e93b1a036969c8",
-              "sha256": "230093aa91f3197d40317fd3a8a06675d5bd5a3913fd66a01b44ac16cebb6e44"
+              "sha256": "230093aa91f3197d40317fd3a8a06675d5bd5a3913fd66a01b44ac16cebb6e44",
+              "dart_sdk_sha256s": {
+                "dart-sdk-darwin-arm64.zip": "4bfe718476eb5434bab2a21c3418129d3107ee00e5a0ea93ea46d4d7022650d1",
+                "dart-sdk-darwin-x64.zip": "359631f0062600b3295c966436689aac1bde8aff516ab737f5116dcf456db6d7",
+                "dart-sdk-linux-x64.zip": "b52a1d890575d6c286079bd51650dc77f90c2dddfdcb073a052ae06a5fdb276d",
+                "dart-sdk-linux-arm64.zip": "deecc25fa5a2811206654ba11c00e2dcf28519fb6a4bedfa335b70aa2882f6bb",
+                "dart-sdk-windows-x64.zip": "e66d48a3eb3cb6a88fe648d57a12acda10dad1a0ad41ad8a07d1722725d26280"
+              }
             }
           },
           "flutter_sky_engine": {

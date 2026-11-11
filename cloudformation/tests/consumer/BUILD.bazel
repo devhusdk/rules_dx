@@ -1,0 +1,9 @@
+load("@rules_dx//cloudformation:defs.bzl", "cloudformation_library")
+
+# dx: written once, yours to edit
+
+cloudformation_library(
+    name = "cloudformation",
+    srcs = ["template.yaml"],
+    visibility = ["//visibility:public"],
+)

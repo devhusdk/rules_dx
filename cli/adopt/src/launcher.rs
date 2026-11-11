@@ -1908,7 +1908,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 std::fs::copy(format!("{system}\\System32\\cmd.exe"), &payload).expect("payload");
                 let real = sha_of(&payload);
                 let want = sha.map_or(real, str::to_owned);
-                let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\n";
+                let guid = "@echo off\r\nif defined DX_PART goto download\r\nif defined STUB_NO_GUID exit /b 0\r\n\"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe\" %*\r\nexit /b\r\n:download\r\necho %DX_PART%>\"%STUB_LOG%\\%DX_TAG%\"\r\nif not defined STUB_WAIT goto fetch\r\nset STUB_TRIES=0\r\n:wait\r\nset STUB_SEEN=0\r\nfor %%F in (\"%STUB_LOG%\\*\") do set /a STUB_SEEN+=1\r\nif %STUB_SEEN% geq %STUB_WAIT% goto fetch\r\nset /a STUB_TRIES+=1\r\nif %STUB_TRIES% geq 120 goto fetch\r\nping -n 2 127.0.0.1 >nul\r\ngoto wait\r\n:fetch\r\n";
                 let download = if ps_ok {
                     "copy /y \"%STUB_PAYLOAD%\" \"%DX_PART%\" >nul\r\nexit /b 0\r\n"
                 } else {
@@ -1978,7 +1978,8 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                     .env("STUB_BAZEL", base.join("bazel.log"))
                     .env("STUB_PAYLOAD", base.join("payload"))
                     .env_remove("DX_PART")
-                    .env_remove("STUB_NO_GUID");
+                    .env_remove("STUB_NO_GUID")
+                    .env_remove("STUB_WAIT");
                 cmd
             }
 
@@ -2097,6 +2098,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             let children: Vec<_> = (0..4)
                 .map(|_| {
                     fx.command(&["/c", "echo", "ran"])
+                        .env("STUB_WAIT", "4")
                         .stdout(std::process::Stdio::piped())
                         .stderr(std::process::Stdio::piped())
                         .spawn()

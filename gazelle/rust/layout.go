@@ -76,7 +76,7 @@ func ShapeCrate(roots CrateRoots, libUnitTest, binUnitTest bool) (*CrateShape, e
 	name, err := common.Normalize(nameSource)
 	if err != nil {
 		if base == "" || base == "." {
-			return nil, fmt.Errorf("rust: crate at the workspace root has no usable name; set module(name) in MODULE.bazel or add Cargo.toml: %w", err)
+			return nil, fmt.Errorf("rust: crate at the workspace root has no usable name; set module(name) in MODULE.bazel or add %s: %w", common.ManifestName("cargo"), err)
 		}
 		return nil, fmt.Errorf("rust: crate directory %q: %w", roots.Dir, err)
 	}

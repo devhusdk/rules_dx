@@ -43,6 +43,11 @@ func registryEntry(ecosystem string) lockRegistryEntry {
 	return e
 }
 
+// ManifestName returns the manifest file name the registry gives an ecosystem.
+func ManifestName(ecosystem string) string {
+	return registryEntry(ecosystem).Manifest
+}
+
 // lockRegistry lists every ecosystem whose imports resolve through the
 // provides of its lock.
 var lockRegistry = func() []lockRegistryEntry {

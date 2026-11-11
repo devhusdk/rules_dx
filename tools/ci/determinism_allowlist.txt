@@ -1,3 +1,4 @@
+//android/private/packaging/ops:android_ops_upstream Rustc bazel-out/k8-fastbuild/bin/android/private/packaging/ops/android_ops_upstream
 //appimage/tests:appimage_arm64_test_upstream Rustc bazel-out/k8-fastbuild/bin/appimage/tests/appimage_arm64_test_upstream
 //appimage/tests:appimage_test_upstream Rustc bazel-out/k8-fastbuild/bin/appimage/tests/appimage_test_upstream
 //cli/archive:dx_archive_test_upstream Rustc bazel-out/k8-fastbuild/bin/cli/archive/dx_archive_test_upstream

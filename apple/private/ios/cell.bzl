@@ -1,5 +1,6 @@
 """Shared iOS library cell constants and helpers for apps, frameworks and libraries."""
 
+load("@platforms//host:constraints.bzl", "HOST_CONSTRAINTS")
 load("@rules_dx//core:platform_support.bzl", "compatible_with", "platform_support")
 
 MULTI_CPUS = {
@@ -21,6 +22,14 @@ PLATFORM_SUPPORT = platform_support(
 )
 
 APPLE_HOSTS = compatible_with(PLATFORM_SUPPORT)
+
+def apple_build_host(host_constraints):
+    """Returns the target_compatible_with that allows only a macOS build host."""
+    if "@platforms//os:osx" in host_constraints:
+        return []
+    return [Label("@platforms//:incompatible")]
+
+APPLE_BUILD_HOST = apple_build_host(HOST_CONSTRAINTS)
 
 def has(ctx, constraint):
     """Returns whether the target platform has one constraint value."""

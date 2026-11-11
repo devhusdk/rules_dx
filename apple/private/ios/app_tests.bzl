@@ -2,6 +2,7 @@
 
 load("//core:defs.bzl", "expect_contains", "expect_equal", "starlark_test")
 load("//apple/private/bundle:validate.bzl", "bundle_id_errors", "bundle_version_errors")
+load(":cell.bzl", "apple_build_host")
 load(
     ":app_validate.bzl",
     "ios_app_errors",
@@ -75,6 +76,12 @@ def _framework(**kwargs):
 
 def _app_checks():
     checks = []
+    checks.append(expect_equal("macOS build host builds Apple targets", apple_build_host(["@platforms//cpu:aarch64", "@platforms//os:osx"]), []))
+    checks.append(expect_equal(
+        "linux build host makes Apple targets incompatible",
+        [str(label) for label in apple_build_host(["@platforms//cpu:x86_64", "@platforms//os:linux"])],
+        [str(Label("@platforms//:incompatible"))],
+    ))
     checks.append(expect_equal("empty app bundle id fails", bundle_id_errors("apple_app", ""), ["apple_app: bundle_id must not be empty"]))
     checks.append(expect_equal(
         "flat app bundle id fails",

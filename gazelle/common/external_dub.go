@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-// DubProject is the part of a dub.json that generation reads.
+// DubProject is the part of a dub manifest that generation reads.
 type DubProject struct {
 	Name              string                     `json:"name"`
 	TargetType        string                     `json:"targetType"`
@@ -16,7 +16,7 @@ type DubProject struct {
 	Dependencies      map[string]json.RawMessage `json:"dependencies"`
 }
 
-// ParseDubProject reads a dub.json.
+// ParseDubProject reads a dub manifest.
 func ParseDubProject(content []byte) (*DubProject, error) {
 	var p DubProject
 	if err := json.Unmarshal(StripBOM(content), &p); err != nil {
@@ -25,10 +25,10 @@ func ParseDubProject(content []byte) (*DubProject, error) {
 	return &p, nil
 }
 
-// ReadDubProject reads the dub.json in dir. It returns nil when there is none
+// ReadDubProject reads the dub manifest in dir. It returns nil when there is none
 // or when it does not parse.
 func ReadDubProject(dir string) *DubProject {
-	content, err := os.ReadFile(filepath.Join(dir, "dub.json"))
+	content, err := os.ReadFile(filepath.Join(dir, ManifestName("dub")))
 	if err != nil {
 		return nil
 	}

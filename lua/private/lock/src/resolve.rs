@@ -172,7 +172,7 @@ impl Bound {
             Op::Le => order != Ordering::Greater,
             Op::Lt => order == Ordering::Less,
             Op::Pessimistic => {
-                let keep = self.version.count.saturating_sub(1);
+                let keep = self.version.count.saturating_sub(1).max(1);
                 order != Ordering::Less && candidate.parts[..keep] == self.version.parts[..keep]
             }
         }
@@ -469,15 +469,20 @@ impl Resolver for Lua<'_> {
             })
             .collect();
         names.sort();
-        let Some(name) = names.first() else {
+        if names.is_empty() {
             return Err(Error::new(format!("no {} in the set", self.manifest)));
-        };
-        let text = std::fs::read_to_string(scratch.set().join(name))
-            .map_err(|error| Error::new(format!("{name}: {error}")))?;
-        let globals =
-            rockspec::parse(&text).map_err(|error| Error::new(format!("{name}: {error}")))?;
-        let mut queue: Vec<Need> = needs_of(globals.get("dependencies"))
-            .map_err(|error| Error::new(format!("{}: {error}", self.manifest)))?;
+        }
+        let mut queue: Vec<Need> = Vec::new();
+        for name in &names {
+            let text = std::fs::read_to_string(scratch.set().join(name))
+                .map_err(|error| Error::new(format!("{name}: {error}")))?;
+            let globals =
+                rockspec::parse(&text).map_err(|error| Error::new(format!("{name}: {error}")))?;
+            queue.extend(
+                needs_of(globals.get("dependencies"))
+                    .map_err(|error| Error::new(format!("{name}: {error}")))?,
+            );
+        }
         let mut wanted: BTreeMap<String, Vec<Bound>> = BTreeMap::new();
         let mut chosen: BTreeMap<String, Package> = BTreeMap::new();
         let mut index: Option<Json> = None;

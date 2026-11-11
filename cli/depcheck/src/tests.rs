@@ -749,7 +749,7 @@ fn lock_name(eco: Language) -> &'static str {
         Language::Elixir => "mix.lock",
         Language::Erlang => "rebar.lock",
         Language::Fortran => "fpm.lock.toml",
-        Language::Lua => "luarocks.lock",
+        Language::Lua => "luarocks.lock.json",
         Language::D => "dub.selections.json",
         Language::Haskell => "cabal.project.freeze",
         Language::Swift => "Package.resolved",
@@ -3340,7 +3340,7 @@ fn lua_manifest_reads_tables_and_skips_lua() {
 
 #[test]
 fn lua_lock_drops_the_rock_revision() {
-    let lock = parse_lua_lock(&testdata_root().join("lua/mixed/luarocks.lock")).expect("parse");
+    let lock = parse_lua_lock(&testdata_root().join("lua/mixed/luarocks.lock.json")).expect("parse");
     assert_eq!(lock["luasocket"], "3.1.0");
     assert_eq!(lock["lua-cjson"], "2.1.0");
 }
@@ -3349,7 +3349,7 @@ fn lua_lock_drops_the_rock_revision() {
 fn lua_fixture_reports_unused_and_missing() {
     let base = testdata_root().join("lua/mixed");
     let manifest = base.join("mixed-1.0-1.rockspec");
-    let lock = base.join("luarocks.lock");
+    let lock = base.join("luarocks.lock.json");
     assert_eq!(consistency(Language::Lua, "mixed"), 0);
     let unused = find_unused(Language::Lua, &manifest, &base, &[]).expect("unused");
     let names: Vec<&str> = unused.iter().map(|dep| dep.name.as_str()).collect();

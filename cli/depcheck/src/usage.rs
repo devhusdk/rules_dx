@@ -210,7 +210,7 @@ fn skip_names() -> BTreeSet<&'static str> {
         "stack.yaml.lock",
         "Package.swift",
         "Package.resolved",
-        "luarocks.lock",
+        "luarocks.lock.json",
         "opam.locked",
     ]
     .into_iter()

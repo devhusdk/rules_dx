@@ -223,7 +223,7 @@ pub fn find_missing(
         Language::D => "dub.json",
         Language::Haskell => "package.cabal",
         Language::Swift => "Package.swift",
-        Language::Lua => "luarocks.lock",
+        Language::Lua => "luarocks.lock.json",
         Language::Ocaml => "dune-project",
         _ => "package.json",
     };

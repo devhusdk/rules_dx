@@ -1,0 +1,31 @@
+diff --git a/swift/toolchains/swift_toolchain.bzl b/swift/toolchains/swift_toolchain.bzl
+--- a/swift/toolchains/swift_toolchain.bzl
++++ b/swift/toolchains/swift_toolchain.bzl
+@@ -260,7 +260,9 @@ def _all_action_configs(os, arch, target_triple, sdkroot, xctest_version, additi
+                     SWIFT_ACTION_PRECOMPILE_C_MODULE,
+                     SWIFT_ACTION_SYMBOL_GRAPH_EXTRACT,
+                 ],
+-                configurators = [add_arg("-sdk", sdkroot)],
++                configurators = [
++                    add_arg("-Xwrapped-swift=-sdk=" + sdkroot) if os == "windows" else add_arg("-sdk", sdkroot),
++                ],
+             ),
+         )
+ 
+diff --git a/tools/worker/swift_runner.cc b/tools/worker/swift_runner.cc
+--- a/tools/worker/swift_runner.cc
++++ b/tools/worker/swift_runner.cc
+@@ -684,6 +684,13 @@ bool SwiftRunner::ProcessArgument(
+       consumer(std::filesystem::absolute(resource_dir).string());
+       return true;
+     }
++    if (absl::ConsumePrefix(&wrapped_arg, "-sdk=")) {
++      std::string sdk(wrapped_arg);
++      bazel_placeholder_substitutions_.Apply(sdk);
++      consumer("-sdk");
++      consumer(std::filesystem::absolute(sdk).string());
++      return true;
++    }
+     if (absl::ConsumePrefix(&wrapped_arg, "-macro-expansion-dir=")) {
+       std::string macro_expansion_dir(wrapped_arg);
+       std::filesystem::create_directories(macro_expansion_dir);

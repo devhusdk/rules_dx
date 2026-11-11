@@ -953,6 +953,7 @@ single_version_override(
         "//patches/rules_swift:sysroot_host_libs.patch",
         "//patches/rules_swift:target_runtime_root.patch",
         "//patches/rules_swift:clang_cl_no_split_cold_code.patch",
+        "//patches/rules_swift:windows_absolute_sdk.patch",
     ],
     version = "4.2.2",
 )

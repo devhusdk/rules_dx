@@ -47,7 +47,7 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
          return False
      if version == "system" or version.startswith("jruby") or version.startswith("truffleruby"):
          return False
-@@ -323,39 +333,99 @@
+@@ -323,39 +333,98 @@
      repository_ctx.symlink("dist/bin/bundle.bat", "dist/bin/bundle.cmd")
      repository_ctx.symlink("dist/bin/jgem.bat", "dist/bin/jgem.cmd")
  
@@ -129,7 +129,6 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 +            url = _SEVEN_ZIP_URL,
 +            sha256 = checksums[_SEVEN_ZIP_NAME],
 +            output = "7zr.exe",
-+            executable = True,
 +            canonical_id = "dx-7zip:" + _SEVEN_ZIP_URL,
 +        )
 +        repository_ctx.download(
@@ -147,7 +146,7 @@ diff --git a/ruby/private/download.bzl b/ruby/private/download.bzl
 +        ])
 +        for child in repository_ctx.path("_rubyinstaller/" + stem).readdir():
 +            repository_ctx.rename(child, "dist/" + child.basename)
-+        for path in ("7zr.exe", artifact_name, "_rubyinstaller"):
++        for path in (artifact_name, "_rubyinstaller"):
 +            repository_ctx.delete(path)
 -    )
  

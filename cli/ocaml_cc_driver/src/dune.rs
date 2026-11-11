@@ -221,16 +221,22 @@ fn run(
     }
 }
 
+pub fn expand_root(
+    vars: impl Iterator<Item = (String, String)>,
+    root: &Path,
+) -> BTreeMap<String, String> {
+    let root_text = root.to_string_lossy();
+    vars.map(|(key, value)| (key, value.replace("$ROOT", &root_text)))
+        .collect()
+}
+
 /// The environment of the step: the inherited variables with `$ROOT` expanded, plus the scratch ones.
 fn step_env(
     root: &Path,
     scratch: &Path,
     ocaml_bin: &Path,
 ) -> Result<BTreeMap<String, String>, String> {
-    let root_text = root.to_string_lossy();
-    let mut env: BTreeMap<String, String> = std::env::vars()
-        .map(|(key, value)| (key, value.replace("$ROOT", &root_text)))
-        .collect();
+    let mut env = expand_root(std::env::vars(), root);
     let home = scratch.join("home");
     let tmp = scratch.join("tmp");
     for dir in [&home, &tmp] {
@@ -246,16 +252,6 @@ fn step_env(
     set(&mut env, "XDG_DATA_HOME", &home.join(".local"));
     set(&mut env, "TMPDIR", &tmp);
     if cfg!(target_os = "macos") {
-        let sdk = Command::new("/usr/bin/xcrun")
-            .arg("--show-sdk-path")
-            .env_clear()
-            .env("PATH", "/dx_no_path")
-            .output()
-            .map_err(|e| io("/usr/bin/xcrun", e))?;
-        env.insert(
-            "SDKROOT".to_owned(),
-            String::from_utf8_lossy(&sdk.stdout).trim().to_owned(),
-        );
         let lib_dir = ocaml_bin.join("../lib");
         let lib = fs::canonicalize(&lib_dir).unwrap_or(lib_dir);
         let mut mkexe = env.get("CONDA_OCAML_MKEXE").cloned().unwrap_or_default();

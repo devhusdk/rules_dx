@@ -6,11 +6,11 @@ load("//cli/launcher:defs.bzl", "native_launch_descriptor_path")
 load("//core:conformance.bzl", "coverage_env_tests", "dx_wrapper_contract_tests")
 load("//core:defs.bzl", "expect_contains", "expect_equal")
 load("//core:rlocation.bzl", "runfiles_path")
+load("//erlang/private:defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor")
+load("//erlang/private:kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path")
+load("//erlang/private:providers.bzl", "BeamInfo")
+load("//erlang/private:rebar_lock.bzl", "rebar_lock_packages")
 load("//erlang/private/toolchain:cells.bzl", "cell_cases")
-load(":defs.bzl", "ERLANG_CELLS", "ERLANG_SOURCE_GLOBS", "LOCAL_NODE_ARGS", "app_sources", "ct_run_args", "ct_suite_source", "escript_nif_message", "lcov_apps_dirs", "native_priv_files", "nif_linkopt_cases", "nif_priv_path", "otp_launch_descriptor")
-load(":kwargs.bzl", "erlang_app_forward_kwargs", "erlang_bytecode_kwargs", "erlang_erlc_kwargs", "erlang_kwargs", "nif_library_name", "release_priv_path")
-load(":providers.bzl", "BeamInfo")
-load(":rebar_lock.bzl", "rebar_lock_packages")
 
 _REBAR_LOCK = """%% comment
 {"1.2.0",

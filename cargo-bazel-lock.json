@@ -1,5 +1,5 @@
 {
-  "checksum": "b077cd7cea7b287e44871cd428a482182c8cf6f7540e3b0ee6c3f044cfeb6a7b",
+  "checksum": "38b44bcdc8c41ab89765d63c854d865ba648bfa7fb41e9725703154d0908ad90",
   "conditions": {
     "aarch64-apple-darwin": [
       "aarch64-apple-darwin"
@@ -31559,7 +31559,7 @@
     "documentation_ir 0.0.0": "tools/docs/ir/documentation_ir",
     "dotnet_docs_tests 0.0.0": "tools/docs/dotnet_docs_tests",
     "dotnet_extract 0.0.0": "tools/docs/dotnet/dotnet_extract",
-    "dub_lock 0.0.0": "d/private/dub_lock",
+    "dub_lock 0.0.0": "d/private/tools/dub_lock",
     "dx_adopt 0.0.0": "cli/dx_adopt",
     "dx_advisory_prep 0.0.0": "cli/dx_advisory_prep",
     "dx_apply 0.0.0": "cli/dx_apply",
@@ -31667,7 +31667,7 @@
     "starter_scaffold 0.0.0": "tools/testing/starter_scaffold",
     "support_matrix 0.0.0": "tools/docs/support_matrix",
     "swift_extract 0.0.0": "tools/docs/swift/swift_extract",
-    "swift_lock 0.0.0": "swift/private/swift_lock",
+    "swift_lock 0.0.0": "swift/private/tools/swift_lock",
     "tiers 0.0.0": "tools/docs/tiers",
     "typescript_docs_tests 0.0.0": "tools/docs/typescript_docs_tests",
     "typescript_extract 0.0.0": "tools/docs/typescript/typescript_extract",

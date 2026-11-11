@@ -489,7 +489,7 @@ if not exist "%DX_MODULE%" goto bazel
 findstr /r /c:"module_name *= *.rules_dx." "%DX_MODULE%" >nul && goto bazel
 set "DX_N=0"
 set "VERSION="
-for /f tokens^=4^ delims^=^" %%V in ('findstr /r /c:"^^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*$" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V")
+for /f tokens^=4^ delims^=^" %%V in ('findstr /r /c:"^bazel_dep(name = .rules_dx., version = .[0-9A-Za-z.+-]*.)[ ]*$" "%DX_MODULE%"') do (set /a DX_N+=1 >nul & set "VERSION=%%V")
 if not "%DX_N%"=="1" goto bazel
 set VERSION | findstr /r /x "VERSION=[0-9A-Za-z+-][0-9A-Za-z.+-]*" >nul
 if errorlevel 1 goto bazel
@@ -783,6 +783,13 @@ mod tests {
             .find(|line| line.ends_with("dx.cmd\" %*"))
             .expect("hand-off line");
         assert_eq!(line, "\"%DX_HERE%\\tools\\dx.cmd\" %*");
+    }
+
+    #[test]
+    fn cmd_module_pattern_has_a_single_anchor() {
+        let script = cmd();
+        assert!(script.contains("/c:\"^bazel_dep("), "{script}");
+        assert!(!script.contains("\"^^"), "{script}");
     }
 
     #[test]
@@ -1952,6 +1959,10 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                 assert!(self.cache_files().is_empty(), "{:?}", self.cache_files());
             }
 
+            fn bazel_log(&self) -> String {
+                std::fs::read_to_string(self.base.join("bazel.log")).unwrap_or_default()
+            }
+
             fn command(&self, args: &[&str]) -> Command {
                 let base = &self.base;
                 let system = std::env::var("SystemRoot").expect("SystemRoot");
@@ -2018,6 +2029,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn downloads_once_then_only_runs() {
             let fx = Fixture::new("dx-launcher-cmd-run-", true, None);
             let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
+            assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
             assert_eq!(code, Some(0), "{out}{err}");
             assert!(out.contains("ran"), "{out}");
             assert_eq!(fx.downloads(), 1);
@@ -2031,6 +2043,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn wrong_sha_refuses_to_run_and_caches_nothing() {
             let fx = Fixture::new("dx-launcher-cmd-sha-", true, Some(&"0".repeat(64)));
             let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
+            assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
             assert_eq!(code, Some(1), "{out}{err}");
             assert!(!out.contains("ran"), "{out}");
             assert!(err.contains("sha256 mismatch"), "{err}");
@@ -2042,6 +2055,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
         fn a_swapped_binary_with_a_matching_sidecar_is_refused() {
             let fx = Fixture::new("dx-launcher-cmd-swap-", true, Some(&"b".repeat(64)));
             let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
+            assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
             assert_eq!(code, Some(1), "{out}{err}");
             assert!(!out.contains("ran"), "{out}");
             assert!(err.contains("sha256 mismatch"), "{err}");
@@ -2067,6 +2081,7 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
             )
             .expect("cached");
             let (code, out, err) = fx.run(&["/c", "echo", "ran"]);
+            assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
             assert_eq!(code, Some(0), "{out}{err}");
             assert!(out.contains("ran"), "{out}");
             assert_eq!(fx.downloads(), 0);
@@ -2090,8 +2105,12 @@ if [ $n -eq 1 ]; then echo "$v"; else echo "$1: $v"; fi
                         .expect("launcher starts")
                 })
                 .collect();
-            for child in children {
-                let (code, out, err) = output(child.wait_with_output().expect("launcher exits"));
+            let outputs: Vec<_> = children
+                .into_iter()
+                .map(|child| output(child.wait_with_output().expect("launcher exits")))
+                .collect();
+            assert!(fx.bazel_log().is_empty(), "{}", fx.bazel_log());
+            for (code, out, err) in outputs {
                 assert_eq!(code, Some(0), "{out}{err}");
                 assert!(out.contains("ran"), "{out}{err}");
             }

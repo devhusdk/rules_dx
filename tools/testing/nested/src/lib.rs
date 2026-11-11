@@ -1360,16 +1360,10 @@ pub fn harness_consumer(name: &str) -> Case {
     let rules = module
         .parent()
         .unwrap_or_else(|| panic!("no directory above {module:?}"));
-    let overrides = compose::rules_py_override() + &compose::rules_flutter_override();
-    let case = Case::consumer_at(name, rules, &overrides);
+    let case = Case::consumer_at(name, rules, &compose::rules_py_override());
     case.write("patches/rules_py/BUILD.bazel", "");
     for patch in compose::RULES_PY_PATCHES {
         let rel = format!("patches/rules_py/{patch}.patch");
-        case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
-    }
-    case.write("patches/rules_flutter/BUILD.bazel", "");
-    for patch in compose::RULES_FLUTTER_PATCHES {
-        let rel = format!("patches/rules_flutter/{patch}.patch");
         case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
     }
     case

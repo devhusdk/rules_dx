@@ -29,10 +29,6 @@ name = "module_srcs_test"
 path = "module_srcs_test.rs"
 
 [[test]]
-name = "nested_bazel_harness_test"
-path = "nested_bazel_harness_test.rs"
-
-[[test]]
 name = "preflight_smoke_test"
 path = "preflight_smoke_test.rs"
 

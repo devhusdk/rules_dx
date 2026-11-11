@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:test_macros.bzl", "dx_diagnostics_test", "dx_format_test")
 load("@rules_java//java:defs.bzl", "java_binary")

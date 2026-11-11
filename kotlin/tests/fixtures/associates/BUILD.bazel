@@ -1,3 +1,4 @@
+# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//kotlin:defs.bzl", "kotlin_library")
 load(":associates_tests.bzl", "kotlin_friend_path_test")

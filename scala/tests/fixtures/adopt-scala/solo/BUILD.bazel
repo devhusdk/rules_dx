@@ -11,11 +11,13 @@ scala_test(
 
 scala_library(
     name = "solo",
+    testonly = True,
     srcs = ["Pure.scala"],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

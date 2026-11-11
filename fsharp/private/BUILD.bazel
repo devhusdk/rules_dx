@@ -1,12 +1,16 @@
 # gazelle:exclude BenchMain.fs
 load("@rules_dotnet//dotnet/private:common.bzl", "framework_preprocessor_symbols")
-load("@rules_dx//dotnet/private:symbols.bzl", "fsharp_compile_defines")
 load("@rules_dx//core:conformance.bzl", "dx_wrapper_contract_tests")
 load("@rules_dx//core:defs.bzl", "expect_equal")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dotnet/private:symbols.bzl", "fsharp_compile_defines")
 load(":kwargs.bzl", "fsharp_tfm_with_defaults")
 
-package(default_visibility = ["//fsharp:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//fsharp:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "BenchMain.fs",
@@ -103,7 +107,6 @@ real_source_target(
     ],
     tags = ["corpus"],
 )
-
 
 filegroup(
     name = "module_srcs",

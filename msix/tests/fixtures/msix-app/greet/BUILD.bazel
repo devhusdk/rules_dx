@@ -2,8 +2,8 @@ load("@rules_cc//cc:defs.bzl", "cc_library", "cc_shared_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = [
-    "//msix/tests/fixtures/msix-app:__subpackages__",
     "//msix/tests:__pkg__",
+    "//msix/tests/fixtures/msix-app:__subpackages__",
 ])
 
 exports_files([
@@ -13,6 +13,7 @@ exports_files([
 
 cc_library(
     name = "greet",
+    testonly = True,
     srcs = ["greet.c"],
     hdrs = ["greet.h"],
     includes = ["."],
@@ -29,6 +30,7 @@ cc_shared_library(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

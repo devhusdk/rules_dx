@@ -5,7 +5,11 @@ load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load(":kwargs.bzl", "csharp_tfm_forward_kwargs", "csharp_tfm_with_defaults")
 load(":proto.bzl", "pascal_case")
 
-package(default_visibility = ["//csharp:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//csharp:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "BenchMain.cs",
@@ -149,10 +153,11 @@ real_source_target(
         "kwargs.bzl",
         "sharpfuzz.bzl",
         "sharpfuzz_check.bzl",
+        "benchmarkdotnet.bzl",
+        "proto.bzl",
     ],
     tags = ["corpus"],
 )
-
 
 filegroup(
     name = "module_srcs",

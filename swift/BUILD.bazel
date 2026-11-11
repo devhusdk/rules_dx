@@ -1,3 +1,5 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+
 package(default_visibility = ["//visibility:public"])
 
 exports_files([
@@ -6,3 +8,19 @@ exports_files([
     "extensions.bzl",
     "lang.json",
 ])
+
+real_source_target(
+    name = "corpus_markdown",
+    markdown_srcs = ["README.md"],
+    tags = ["corpus"],
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    starlark_srcs = [
+        "BUILD.bazel",
+        "defs.bzl",
+        "extensions.bzl",
+    ],
+    tags = ["corpus"],
+)

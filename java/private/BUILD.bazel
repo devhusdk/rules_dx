@@ -431,6 +431,7 @@ real_source_target(
         "jmh.bzl",
         "jmh_tests.bzl",
         "kwargs.bzl",
+        "jazzer.bzl",
     ],
     tags = ["corpus"],
 )

@@ -1,8 +1,12 @@
+load("//core/quality:fixtures.bzl", "real_source_target")
 load("//msix/private:metadata_tests.bzl", "msix_metadata_tests")
 load("//msix/private:toolchain.bzl", "msix_signtool")
-load("//core/quality:fixtures.bzl", "real_source_target")
 
-package(default_visibility = ["//msix:__subpackages__", "//tools/ci:__pkg__", "//:__pkg__"])
+package(default_visibility = [
+    "//:__pkg__",
+    "//msix:__subpackages__",
+    "//tools/ci:__pkg__",
+])
 
 exports_files([
     "defs.bzl",
@@ -18,8 +22,8 @@ exports_files([
 
 msix_signtool(
     name = "signtool",
-    visibility = ["//visibility:public"],
     target_compatible_with = ["@platforms//os:windows"],
+    visibility = ["//visibility:public"],
 )
 
 msix_metadata_tests(name = "metadata")

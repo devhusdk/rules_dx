@@ -1,6 +1,6 @@
 load("@bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
-load("@rules_dx//dart:defs.bzl", "DART_COMPATIBLE_WITH")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//dart:defs.bzl", "DART_COMPATIBLE_WITH")
 load("@rules_dx//rust:defs.bzl", "rust_test")
 
 platform_transition_filegroup(
@@ -23,5 +23,6 @@ real_source_target(
     name = "corpus_starlark",
     testonly = True,
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

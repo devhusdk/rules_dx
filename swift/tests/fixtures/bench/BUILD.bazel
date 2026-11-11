@@ -22,18 +22,18 @@ swift_bench(
 
 sh_test(
     name = "parse_bench_run_test",
+    timeout = "short",
     srcs = ["run_test.sh"],
     args = ["$(rootpath :parse_bench_bin)"],
     data = [":parse_bench_bin"],
     target_compatible_with = _NATIVE,
-    timeout = "short",
 )
 
 swift_bench(
     name = "sized_bench",
-    srcs = ["main.swift"],
     size = "large",
     timeout = "long",
+    srcs = ["main.swift"],
     target_compatible_with = _NATIVE,
 )
 

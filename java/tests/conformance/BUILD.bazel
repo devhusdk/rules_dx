@@ -1,3 +1,4 @@
+load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("//java:defs.bzl", "java_binary", "java_library", "java_test")
 load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
 
@@ -8,6 +9,7 @@ package(
 
 java_library(
     name = "conformance",
+    testonly = True,
     srcs = ["Greet.java"],
 )
 
@@ -20,9 +22,9 @@ java_binary(
 
 java_test(
     name = "pass_subject_test",
+    size = "small",
     srcs = ["PassTest.java"],
     main_class = "conformance.PassTest",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     use_testrunner = False,
     deps = [":conformance"],
@@ -30,9 +32,9 @@ java_test(
 
 java_test(
     name = "fail_subject_test",
+    size = "small",
     srcs = ["FailTest.java"],
     main_class = "conformance.FailTest",
-    size = "small",
     target_compatible_with = subject_compatible_with(),
     use_testrunner = False,
     deps = [":conformance"],
@@ -40,6 +42,7 @@ java_test(
 
 dx_conformance_suite(
     name = "",
+    size = "small",
     binary = ":hello",
     covered_source = "Greet.java",
     expected = "hello world",
@@ -47,5 +50,11 @@ dx_conformance_suite(
     failing_test = ":fail_subject_test",
     lang = "java",
     passing_test = ":pass_subject_test",
-    size = "small",
+)
+
+real_source_target(
+    name = "corpus_starlark",
+    testonly = True,
+    starlark_srcs = ["BUILD.bazel"],
+    tags = ["corpus"],
 )

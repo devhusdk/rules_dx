@@ -1,5 +1,5 @@
-load("@rules_dx//flutter:defs.bzl", "flutter_android_app", "flutter_application", "flutter_library")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//flutter:defs.bzl", "flutter_android_app", "flutter_application", "flutter_library")
 
 package(default_visibility = ["//flutter/tests/fixtures/flutter-app:__subpackages__"])
 
@@ -48,9 +48,9 @@ flutter_library(
 
 flutter_android_app(
     name = "bad_abi",
+    package_name = "dk.devhus.flutterapp",
     android_abi = "x86",
     application = "//flutter/tests/fixtures/flutter-app/app:native",
-    package_name = "dk.devhus.flutterapp",
     tags = ["manual"],
     visibility = ["//flutter/tests/negative:__pkg__"],
 )

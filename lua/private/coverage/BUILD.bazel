@@ -1,9 +1,9 @@
-# gazelle:ignore
+load("//core/quality:fixtures.bzl", "real_source_target")
+
 # gazelle:dx_ignore_import lua luacov.runner
 # gazelle:dx_ignore_import lua luacov.reporter
 # gazelle:dx_ignore_import lua luacov.reporter.lcov
 load("//lua:defs.bzl", "lua_library")
-load("//core/quality:fixtures.bzl", "real_source_target")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -16,12 +16,14 @@ config_setting(
     values = {"collect_code_coverage": "true"},
 )
 
+# keep
 lua_library(
     name = "luacov",
     srcs = ["@dx_luacov//:sources"],
     strip_import_prefix = "/src",
 )
 
+# keep
 lua_library(
     name = "lcov",
     srcs = ["@dx_luacov_reporter_lcov//:sources"],
@@ -33,6 +35,7 @@ lua_library(
     strip_import_prefix = "/lua/private/coverage",
 )
 
+# keep
 lua_library(
     name = "enabled",
     deps = [
@@ -42,6 +45,7 @@ lua_library(
     ],
 )
 
+# keep
 lua_library(name = "none")
 
 alias(

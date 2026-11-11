@@ -1,6 +1,5 @@
-# gazelle:ignore
-load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//lua:defs.bzl", "lua_library", "lua_test")
 
 APPS = ["//lua/tests/fixtures/lua-app:__subpackages__"]
 
@@ -23,6 +22,7 @@ filegroup(
 
 lua_library(
     name = "catalog",
+    testonly = True,
     srcs = [
         "init.lua",
         "parse.lua",
@@ -33,6 +33,9 @@ lua_library(
 
 lua_test(
     name = "catalog_test",
+    size = "small",
+    testonly = True,
+    srcs = ["catalog_test.lua"],
     data = ["units.tsv"],
     env = {"UNITS": "$(rlocationpath units.tsv)"},
     main = "catalog_test.lua",
@@ -41,6 +44,8 @@ lua_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
-    tags = ["corpus"],    visibility = ["//:__pkg__"],
+    tags = ["corpus"],
+    visibility = ["//:__pkg__"],
 )

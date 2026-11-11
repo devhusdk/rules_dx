@@ -1,27 +1,29 @@
-# gazelle:ignore
-load("@rules_dx//ruby:defs.bzl", "ruby_library", "ruby_test")
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
+load("@rules_dx//ruby:defs.bzl", "ruby_library", "ruby_test")
 
 package(default_visibility = ["//visibility:public"])
 
 ruby_library(
     name = "greet",
+    testonly = True,
     srcs = ["greet.rb"],
 )
 
 ruby_test(
     name = "greet_spec",
+    size = "small",
     srcs = ["greet_spec.rb"],
     args = ["$(rootpath greet_spec.rb)"],
     main = "@bundle//bin:rspec",
     deps = [
         ":greet",
-        "@bundle",
+        "@bundle",  # keep
     ],
 )
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = ["BUILD.bazel"],
     tags = ["corpus"],
 )

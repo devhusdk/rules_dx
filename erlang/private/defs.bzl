@@ -545,6 +545,6 @@ def erlang_bench(name, *, suite_name = "", tags = None, runtime_deps = None, **k
         name = name,
         suite_name = suite_name,
         tags = merge_tags(tags, "dx-bench"),
-        runtime_deps = (runtime_deps or []) + [Label("//erlang/bench:erlang_app")],
+        runtime_deps = (runtime_deps or []) + [Label("//erlang/private/bench:erlang_app")],
         **with_default_size(kwargs)
     )

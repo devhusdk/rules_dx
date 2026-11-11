@@ -1,6 +1,6 @@
 """Module extension for cc/private/toolchains."""
 
-load("@gcc_toolchain//toolchain:defs.bzl", "gcc_declare_toolchain")
+load("//cc/private/toolchains/gcc_repo:defs.bzl", "gcc_declare_toolchain")
 load(":pins.bzl", "GCC_GLIBC", "GCC_LINUX_AARCH64", "GCC_LINUX_X86_64", "GCC_LINUX_X86_64_TO_AARCH64", "GCC_VERSION")
 
 

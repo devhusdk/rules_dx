@@ -94,9 +94,13 @@ fn the_probe_links_the_static_runtime() {
     let needed = fatbin::needed_libraries(&bytes).unwrap();
     assert!(!needed.is_empty(), "the binary links libc dynamically");
     assert!(
-        needed
-            .iter()
-            .all(|lib| !lib.starts_with("libcudart") && !lib.starts_with("libcuda.")),
+        needed.iter().all(|lib| {
+            let lib = lib.to_ascii_lowercase();
+            !lib.starts_with("libcudart")
+                && !lib.starts_with("cudart")
+                && !lib.starts_with("libcuda.")
+                && lib != "nvcuda.dll"
+        }),
         "the probe must link the static runtime and load the driver at run time: {needed:?}"
     );
 }

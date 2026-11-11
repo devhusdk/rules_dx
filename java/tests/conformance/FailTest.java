@@ -1,11 +1,12 @@
 package conformance;
 
-public final class FailTest {
-  private FailTest() {}
+import static org.junit.Assert.assertEquals;
 
-  public static void main(String[] args) {
-    if (!Greet.greet("world").equals("goodbye world")) {
-      throw new AssertionError("failingCase");
-    }
+import org.junit.Test;
+
+public final class FailTest {
+  @Test
+  public void failingCase() {
+    assertEquals("goodbye world", Greet.greet("world"));
   }
 }

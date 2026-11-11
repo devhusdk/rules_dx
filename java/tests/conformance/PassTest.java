@@ -1,11 +1,12 @@
 package conformance;
 
-public final class PassTest {
-  private PassTest() {}
+import static org.junit.Assert.assertEquals;
 
-  public static void main(String[] args) {
-    if (!Greet.greet("world").equals("hello world")) {
-      throw new AssertionError("passingCase");
-    }
+import org.junit.Test;
+
+public final class PassTest {
+  @Test
+  public void passingCase() {
+    assertEquals("hello world", Greet.greet("world"));
   }
 }

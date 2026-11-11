@@ -88,7 +88,10 @@ def swift_windows_extract_test(name):
         mode = "load",
         checks = _windows_pin_checks(),
         file_checks = {
-            "//swift/private/toolchain:extract_windows.ps1": "& $SevenZip x -y -bd",
+            "//swift/private/toolchain:extract_windows.ps1": "\n".join([
+                "& $SevenZip x -y -bd",
+                "Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $assemblyDir \"$assembly.dll\")",
+            ]),
             "//swift/private/toolchain:repos.bzl": "\n".join([
                 "repository_ctx.path(_SEVEN_ZIP + \"/full/7z.exe\")",
                 "environment = _NO_HOST_TOOLS,",

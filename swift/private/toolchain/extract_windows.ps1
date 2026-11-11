@@ -329,6 +329,35 @@ if ($runtimeUsr -eq $toolchainUsr) {
 Move-Item -LiteralPath $sdk.FullName -Destination (Join-Path $developer "SDKs\Windows.sdk")
 Move-Item -LiteralPath $xctest.FullName -Destination (Join-Path $developer "Library\XCTest-$XCTestVersion")
 
+$toolBin = Join-Path $Out "toolchain\usr\bin"
+$runtimeBin = Join-Path $Out "runtime\usr\bin"
+$runtimeSxS = Join-Path $runtimeBin "SxS"
+$toolDirs = @($toolBin)
+$libexec = Join-Path $Out "toolchain\usr\libexec\swift"
+if (Test-Path -LiteralPath $libexec) { $toolDirs += @($libexec) + @(Get-ChildItem -LiteralPath $libexec -Recurse -Directory | ForEach-Object { $_.FullName }) }
+$runtimeDlls = @(Get-ChildItem -LiteralPath $runtimeBin -File -Filter "*.dll")
+foreach ($toolDir in $toolDirs) {
+    if (-not (Test-Path -LiteralPath $toolDir)) { continue }
+    if (-not (Get-ChildItem -LiteralPath $toolDir -File -Filter "*.exe" | Select-Object -First 1)) { continue }
+    foreach ($dll in $runtimeDlls) {
+        $assembly = $dll.BaseName
+        if (Test-Path -LiteralPath (Join-Path $toolDir $dll.Name)) { continue }
+        $assemblyDir = Join-Path $toolDir $assembly
+        New-Item -ItemType Directory -Force -Path $assemblyDir | Out-Null
+        Copy-Item -LiteralPath $dll.FullName -Destination (Join-Path $assemblyDir "$assembly.dll")
+        $assemblyManifest = Join-Path $runtimeSxS "$assembly.manifest"
+        if (Test-Path -LiteralPath $assemblyManifest) { Copy-Item -LiteralPath $assemblyManifest -Destination (Join-Path $assemblyDir "$assembly.manifest") }    }
+}
+foreach ($tool in (Get-ChildItem -LiteralPath $toolBin -File -Filter "*.exe")) {
+    $text = [System.Text.Encoding]::Latin1.GetString([System.IO.File]::ReadAllBytes($tool.FullName))
+    foreach ($match in [regex]::Matches($text, '<dependentAssembly>.*?name="([^"]+)"', [System.Text.RegularExpressions.RegexOptions]::Singleline)) {
+        $assembly = $match.Groups[1].Value
+        if ($assembly.StartsWith("Microsoft.")) { continue }
+        if ((Test-Path -LiteralPath (Join-Path $toolBin "$assembly\$assembly.dll")) -or (Test-Path -LiteralPath (Join-Path $toolBin "$assembly.dll"))) { continue }
+        Fail "swiftc SxS assembly $assembly is missing (wanted by $($tool.Name))"
+    }
+}
+
 foreach ($required in @("toolchain\usr\bin\swiftc.exe", "runtime\usr\bin\swiftCore.dll", "platform\Developer\SDKs\Windows.sdk\usr\lib\swift\windows", "platform\Developer\Library\XCTest-$XCTestVersion\usr")) {
     if (-not (Test-Path -LiteralPath (Join-Path $Out $required))) { Fail "$required is missing from the extracted layout" }
 }

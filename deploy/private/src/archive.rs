@@ -1455,7 +1455,10 @@ mod tests {
                 {
                     let mut writer = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
                     writer
-                        .add_directory("d/", zip::write::SimpleFileOptions::default())
+                        .add_directory(
+                            "d/",
+                            zip::write::SimpleFileOptions::default().system(zip::System::Unix),
+                        )
                         .expect("dir");
                     writer.finish().expect("finish").into_inner()
                 },

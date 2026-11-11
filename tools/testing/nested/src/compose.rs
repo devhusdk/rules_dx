@@ -81,11 +81,28 @@ pub fn compose_module(
     };
     let body = format!("{}\n{}", setup.trim_end(), fragment.trim_end());
     Ok(format!(
-        "module(name = {})\n\n{}\n{}",
+        "module(name = {})\n\n{}\n{}{}",
         starlark_string(module),
         body,
         rules_dx_override(rules_dx),
+        rules_py_override(),
     ))
+}
+
+/// Writes the files `rules_py_override` names into the consumer; #11398 deletes it and its call in `compose_module`.
+pub fn write_rules_py_patches(workspace: &Path, rules_dx: &Path) -> Result<(), String> {
+    let dir = workspace.join("patches").join("rules_py");
+    std::fs::create_dir_all(&dir)
+        .map_err(|err| format!("cannot create {}: {err}", dir.display()))?;
+    std::fs::write(dir.join("BUILD.bazel"), "")
+        .map_err(|err| format!("cannot write {}: {err}", dir.display()))?;
+    for patch in RULES_PY_PATCHES {
+        let name = format!("{patch}.patch");
+        let from = rules_dx.join("patches").join("rules_py").join(&name);
+        std::fs::copy(&from, dir.join(&name))
+            .map_err(|err| format!("cannot copy {}: {err}", from.display()))?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -106,8 +123,17 @@ mod tests {
         .unwrap();
         assert_eq!(
             module,
-            "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n"
+            format!(
+                "module(name = \"hermetic_consumer\")\n\nbazel_dep(name = \"rules_dx\", repo_name = \"my_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\nbazel_dep(name = \"googletest\", version = \"1.18.0\")\nlocal_path_override(\n    module_name = \"rules_dx\",\n    path = \"/src/rules dx\",\n)\n{}",
+                rules_py_override(),
+            )
         );
+    }
+
+    #[test]
+    fn module_pins_rules_py_once() {
+        let module = compose_module(SNIPPET, "m", "rules_dx", "", Path::new("/s")).unwrap();
+        assert_eq!(module.matches("module_name = \"rules_py\"").count(), 1);
     }
 
     #[test]

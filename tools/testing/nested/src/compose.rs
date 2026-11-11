@@ -13,6 +13,24 @@ pub fn rules_dx_override(rules_dx: &Path) -> String {
     )
 }
 
+/// The workspace rules log contexts of the modules that `module` overrides with `local_path_override`.
+pub fn local_override_repos(module: &str) -> Vec<String> {
+    module
+        .split("local_path_override(")
+        .skip(1)
+        .filter_map(|call| {
+            let call = &call[..call.find(')').unwrap_or(call.len())];
+            let rest = &call[call.find("module_name")? + "module_name".len()..];
+            let rest = rest
+                .trim_start()
+                .strip_prefix('=')?
+                .trim_start()
+                .strip_prefix('"')?;
+            Some(format!("repository @@{}+", &rest[..rest.find('"')?]))
+        })
+        .collect()
+}
+
 /// The patches of `//patches/rules_py` that `rules_py_override` names, without `.patch`.
 pub const RULES_PY_PATCHES: [&str; 6] = [
     "py_cc_toolchain_platform",
@@ -140,6 +158,35 @@ mod tests {
     use super::*;
 
     const SNIPPET: &str = "bazel_dep(name = \"rules_dx\", version = \"0.0.0\")\nbazel_dep(name = \"rules_cc\", version = \"0.2.22\")\nregister_toolchains(\"@llvm//toolchain:all\")\n";
+
+    #[test]
+    fn local_override_repos_names_one_override() {
+        let module = format!(
+            "bazel_dep(name = \"rules_dx\")\n{}",
+            rules_dx_override(Path::new("/src"))
+        );
+        assert_eq!(local_override_repos(&module), ["repository @@rules_dx+"]);
+    }
+
+    #[test]
+    fn local_override_repos_names_each_override() {
+        let module = "local_path_override(module_name = \"a\", path = \"/a\")\nlocal_path_override(\n    path = \"/b\",\n    module_name=\"b\",\n)\n";
+        assert_eq!(
+            local_override_repos(module),
+            ["repository @@a+", "repository @@b+"]
+        );
+    }
+
+    #[test]
+    fn local_override_repos_is_empty_without_overrides() {
+        assert!(local_override_repos(SNIPPET).is_empty());
+    }
+
+    #[test]
+    fn local_override_repos_ignores_archive_overrides() {
+        let module = "archive_override(\n    module_name = \"rules_flutter\",\n    urls = [\"https://x\"],\n)\n";
+        assert!(local_override_repos(module).is_empty());
+    }
 
     #[test]
     fn module_renames_rules_dx_and_overrides_it_locally() {

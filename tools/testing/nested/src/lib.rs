@@ -1360,16 +1360,10 @@ pub fn harness_consumer(name: &str) -> Case {
     let rules = module
         .parent()
         .unwrap_or_else(|| panic!("no directory above {module:?}"));
-    let overrides = compose::rules_py_override() + &compose::rules_flutter_override();
-    let case = Case::consumer_at(name, rules, &overrides);
+    let case = Case::consumer_at(name, rules, &compose::rules_py_override());
     case.write("patches/rules_py/BUILD.bazel", "");
     for patch in compose::RULES_PY_PATCHES {
         let rel = format!("patches/rules_py/{patch}.patch");
-        case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
-    }
-    case.write("patches/rules_flutter/BUILD.bazel", "");
-    for patch in compose::RULES_FLUTTER_PATCHES {
-        let rel = format!("patches/rules_flutter/{patch}.patch");
         case.write(&rel, &dx_testing::read_text(&rules.join(&rel)));
     }
     case
@@ -1579,7 +1573,8 @@ impl Case {
         );
     }
 
-    /// Stops the server, reruns `args` with the workspace rules log at `log` under `TEST_TMPDIR`, and returns the repository rules that ran.
+    /// Stops the server, reruns `args` with the workspace rules log at `log` under `TEST_TMPDIR`, and returns the repository rules that ran,
+    /// without the modules that the consumer's MODULE.bazel overrides with `local_path_override`.
     pub fn refetched_after_restart(&self, args: &[&str], log: &str) -> Vec<String> {
         self.shutdown_server();
         let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
@@ -1591,7 +1586,13 @@ impl Case {
         let run = self.bazel(&full);
         assert!(run.status.success(), "{}", run.combined());
         let bytes = std::fs::read(&log).unwrap_or_default();
+        let local = compose::local_override_repos(&dx_testing::read_text(
+            &self.root().join("MODULE.bazel"),
+        ));
         record::contexts(&bytes)
+            .into_iter()
+            .filter(|context| !local.contains(context))
+            .collect()
     }
 
     /// Stops the server, reruns `args`, and fails with the repository rules that ran.

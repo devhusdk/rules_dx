@@ -10,7 +10,6 @@ fixture helm
 fixture javascript
 fixture kubernetes
 fixture make
-fixture mdx
 fixture msix
 fixture python
 fixture rst

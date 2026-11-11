@@ -69,12 +69,7 @@ fn a_server_restart_refetches_no_repository() {
     let (case, _) = locked_consumer("restart");
     let run = case.bazel(nested::HARNESS_QUERY);
     assert!(run.status.success(), "{}", run.combined());
-    case.shutdown_server();
-    let contexts = refetched(&case, "refetch.log", nested::HARNESS_QUERY);
-    assert!(
-        contexts.is_empty(),
-        "a restarted server refetched repositories: {contexts:?}"
-    );
+    case.assert_no_refetch(nested::HARNESS_QUERY);
 }
 
 #[cfg(target_os = "linux")]

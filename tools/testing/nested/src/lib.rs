@@ -1573,6 +1573,25 @@ impl Case {
         );
     }
 
+    /// Stops the server, reruns `args` with the workspace rules log, and fails with the repository rules that ran.
+    pub fn assert_no_refetch(&self, args: &[&str]) {
+        self.shutdown_server();
+        let tmpdir = PathBuf::from(std::env::var_os("TEST_TMPDIR").expect("TEST_TMPDIR"));
+        let log = tmpdir.join("refetch.log");
+        let _ = std::fs::remove_file(&log);
+        let flag = format!("--experimental_workspace_rules_log_file={}", log.display());
+        let mut full = args.to_vec();
+        full.push(&flag);
+        let run = self.bazel(&full);
+        assert!(run.status.success(), "{}", run.combined());
+        let bytes = std::fs::read(&log).unwrap_or_default();
+        let contexts = record::contexts(&bytes);
+        assert!(
+            contexts.is_empty(),
+            "a restarted server refetched repositories: {contexts:?}"
+        );
+    }
+
     /// Builds a command for `bin` that reaches Bazel only through the shared server.
     pub fn command(&self, bin: &Path, envs: &[(&str, &str)]) -> Command {
         self.server()

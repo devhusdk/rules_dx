@@ -1,8 +1,7 @@
 """Analysis tests for the module files that FortranCompile actions can see."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-
-_LINUX = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+load("//tools/testing:action_input.bzl", "LINUX_X86_64")
 
 def _has_impl(ctx):
     env = analysistest.begin(ctx)
@@ -29,5 +28,5 @@ def fortran_module_input_test(name, target, src, module_dir, present):
         src = src,
         module_dir = module_dir,
         present = present,
-        target_compatible_with = _LINUX,
+        target_compatible_with = LINUX_X86_64,
     )

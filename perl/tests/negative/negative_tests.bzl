@@ -1,8 +1,7 @@
 """Analysis tests for the files a Perl test can see at run time."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-
-_LINUX = ["@platforms//os:linux", "@platforms//cpu:x86_64"]
+load("//tools/testing:action_input.bzl", "LINUX_X86_64")
 
 def _runfile_impl(ctx):
     env = analysistest.begin(ctx)
@@ -25,5 +24,5 @@ def perl_runfile_test(name, target, file, present):
         target_under_test = target,
         file = file,
         present = present,
-        target_compatible_with = _LINUX,
+        target_compatible_with = LINUX_X86_64,
     )

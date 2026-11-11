@@ -101,12 +101,16 @@ func nugetCandidates(name string) []string {
 	return out
 }
 
+var paketNugetSection = regexp.MustCompile(`(?m)^NUGET\n((?:[ \t]+.*\n?|\n)*)`)
+
 var paketLockEntry = regexp.MustCompile(`(?m)^ {4}(\S+) \(`)
 
 func parsePaketLockManifest(content []byte, path string) (externalManifest, error) {
 	m := &namedLockManifest{entry: registryEntry("nuget"), packages: map[string]bool{}, candidates: nugetCandidates, perPackage: true}
-	for _, match := range paketLockEntry.FindAllSubmatch(content, -1) {
-		m.packages[strings.ToLower(string(match[1]))] = true
+	for _, section := range paketNugetSection.FindAllSubmatch(content, -1) {
+		for _, match := range paketLockEntry.FindAllSubmatch(section[1], -1) {
+			m.packages[strings.ToLower(string(match[1]))] = true
+		}
 	}
 	if len(m.packages) == 0 && !strings.Contains(string(content), "NUGET") {
 		return nil, fmt.Errorf("%s is not a %s", path, m.entry.Lock)

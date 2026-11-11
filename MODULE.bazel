@@ -698,7 +698,7 @@ register_toolchains("@dx_coreutils//:all")
 bazel_dep(name = "bazel_features", version = "1.55.0")
 
 # Pinned SimpleCov gems Ruby tests load under `bazel coverage`; consumers need them (#3954).
-ruby_coverage = use_extension("//ruby/private/coverage:extensions.bzl", "ruby_coverage")
+ruby_coverage = use_extension("//ruby:extensions.bzl", "ruby_coverage")
 use_repo(ruby_coverage, "dx_ruby_bench_gems", "dx_ruby_coverage_gems")
 
 dx_pins = use_extension("//core:extensions.bzl", "dx_pins")
@@ -1750,7 +1750,7 @@ use_repo(
     npm_node_app = "dx_js_node_app",
 )
 
-dx_dev_hub = use_extension("//javascript/private:dev_hub.bzl", "dx_dev_hub")
+dx_dev_hub = use_extension("//javascript:extensions.bzl", "dev_hub")
 dx_dev_hub.link(
     name = "dx_npm_link",
     hub = "dx_npm",
@@ -3040,7 +3040,7 @@ use_repo(yard, "dx_yard")
 doxygen = use_extension("//tools/docs/cc:extensions.bzl", "doxygen", dev_dependency = True)
 use_repo(doxygen, "dx_doxygen")
 
-playwright = use_extension("//typescript/private/playwright:extensions.bzl", "playwright")
+playwright = use_extension("//typescript:extensions.bzl", "playwright")
 use_repo(
     playwright,
     "dx_playwright_chromium",

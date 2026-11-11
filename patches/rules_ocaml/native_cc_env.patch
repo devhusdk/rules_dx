@@ -128,3 +128,15 @@ diff -ru a/build/_rules/ocaml_runtime.bzl b/build/_rules/ocaml_runtime.bzl
              mnemonic = mnemonic,
              progress_message = "{mode} generating runtime: {ws}//{pkg}:{tgt}".format(
                  mode = tc.host + ">" + tc.target,
+diff -ru a/build/_rules/ocaml_signature.bzl b/build/_rules/ocaml_signature.bzl
+--- a/build/_rules/ocaml_signature.bzl
++++ b/build/_rules/ocaml_signature.bzl
+@@ -323,7 +323,7 @@
+         arguments = [args],
+         inputs = action_inputs_depset,
+         outputs = action_outputs,
+-        tools = [tc.sigcompiler],
++        tools = depset([tc.sigcompiler], transitive = [getattr(tc, "cc_files", None) or depset()]),
+         mnemonic = "CompileOcamlSignature",
+         progress_message = "{mode} compiling ocaml_signature: {ws}//{pkg}:{tgt}".format(
+             mode = tc.host + ">" + tc.target,

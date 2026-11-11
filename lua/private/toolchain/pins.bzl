@@ -29,9 +29,9 @@ filegroup(
     srcs = glob(["lua/**/*.lua"]),
 )
 """,
-        sha256 = "2387431c0e83c4189cccb35b989141a3280d735cb5d42bacf3451af9869bebf7",
-        strip_prefix = "Penlight-1.14.0",
-        urls = ["https://github.com/lunarmodules/Penlight/archive/refs/tags/1.14.0.tar.gz"],
+        sha256 = "b7a2c3e65799a649d29e9927a337f99cca2a5fc46367a0ce101435be74e53b39",
+        strip_prefix = "Penlight-1.15.0",
+        urls = ["https://github.com/lunarmodules/Penlight/archive/refs/tags/1.15.0.tar.gz"],
     ),
     struct(
         name = "dx_luafilesystem",

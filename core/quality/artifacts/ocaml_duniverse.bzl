@@ -1,5 +1,7 @@
 """The OCaml duniverse zanuda, bisect_ppx and odoc build from, so dune is bootstrapped once."""
 
+load("//ocaml/private/toolchain:pins.bzl", "DUNE")
+
 REPO = "dx_ocaml_tools_duniverse"
 
 PACKAGES = [
@@ -7,8 +9,8 @@ PACKAGES = [
         "dir": "dune_src",
         "license": "MIT",
         "name": "dune",
-        "sha256": "472798691b0216daf538709f0f4703b3617ef24ad0866c9096068baaba4d762a",
-        "url": "https://github.com/ocaml/dune/releases/download/3.24.2/dune-3.24.2.tbz",
+        "sha256": DUNE.sha256,
+        "url": DUNE.urls[0],
         "version": "3.24.2",
     },
     {

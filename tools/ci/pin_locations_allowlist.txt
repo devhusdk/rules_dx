@@ -1,5 +1,5 @@
-MODULE.bazel digest-outside-pins 82
-MODULE.bazel duplicate-pin 10
+MODULE.bazel digest-outside-pins 81
+MODULE.bazel duplicate-pin 9
 MODULE.bazel no-digest 1
 android/private/sdk/repos.bzl digest-outside-pins 9
 appimage/private/packer/src/lib.rs digest-outside-pins 1
@@ -68,8 +68,7 @@ core/quality/artifacts/latexindent.bzl digest-outside-pins 8
 core/quality/artifacts/lychee.bzl digest-outside-pins 8
 core/quality/artifacts/mdbook.bzl digest-outside-pins 8
 core/quality/artifacts/nixfmt.bzl digest-outside-pins 2
-core/quality/artifacts/ocaml_duniverse.bzl digest-outside-pins 35
-core/quality/artifacts/ocaml_duniverse.bzl duplicate-pin 1
+core/quality/artifacts/ocaml_duniverse.bzl digest-outside-pins 34
 core/quality/artifacts/opa.bzl digest-outside-pins 8
 core/quality/artifacts/ormolu.bzl digest-outside-pins 14
 core/quality/artifacts/pkl.bzl digest-outside-pins 8
@@ -110,7 +109,6 @@ deploy/private/src/maven.rs digest-outside-pins 1
 deploy/private/src/maven.rs duplicate-pin 1
 haskell/private/toolchain/pins.bzl digest-outside-pins 4
 lua/private/toolchain/pins.bzl digest-outside-pins 3
-ocaml/pins.json duplicate-pin 2
 qt/private/sdk/linux_arm64.bzl digest-outside-pins 56
 qt/private/sdk/linux_arm64.bzl duplicate-pin 3
 qt/private/sdk/linux_x86_64.bzl digest-outside-pins 59

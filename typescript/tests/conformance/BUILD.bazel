@@ -1,0 +1,63 @@
+# gazelle:ignore
+load("//tools/testing/conformance:defs.bzl", "dx_conformance_suite", "subject_compatible_with")
+load("//typescript:defs.bzl", "typescript_binary", "typescript_library", "typescript_test")
+
+package(
+    default_testonly = True,
+    default_visibility = ["//:__subpackages__"],
+)
+
+typescript_library(
+    name = "conformance",
+    srcs = ["greet.ts"],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+)
+
+typescript_binary(
+    name = "hello",
+    srcs = ["main.ts"],
+    declaration = True,
+    tsconfig = "tsconfig.json",
+    deps = [":conformance"],
+)
+
+typescript_test(
+    name = "pass_subject_test",
+    size = "small",
+    srcs = ["pass_test.ts"],
+    config = "jest.config.cjs",
+    declaration = True,
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+    target_compatible_with = subject_compatible_with(),
+    tsconfig = "tsconfig.json",
+    deps = [":conformance"],
+)
+
+typescript_test(
+    name = "fail_subject_test",
+    size = "small",
+    srcs = ["fail_test.ts"],
+    config = "jest.config.cjs",
+    declaration = True,
+    node_modules = "//:node_modules",
+    node_options = ["--experimental-vm-modules"],
+    package_json = "//:package_json",
+    target_compatible_with = subject_compatible_with(),
+    tsconfig = "tsconfig.json",
+    deps = [":conformance"],
+)
+
+dx_conformance_suite(
+    name = "",
+    size = "small",
+    binary = ":hello",
+    covered_source = "greet.js",
+    expected = "hello world",
+    failing_case = "failing case",
+    failing_test = ":fail_subject_test",
+    lang = "typescript",
+    passing_test = ":pass_subject_test",
+)

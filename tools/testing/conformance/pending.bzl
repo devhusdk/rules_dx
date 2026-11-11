@@ -116,10 +116,6 @@ thrift build_test *
 thrift coverage_test *
 thrift fail_test *
 thrift pass_test *
-typescript build_test *
-typescript coverage_test *
-typescript fail_test *
-typescript pass_test *
 vue build_test *
 vue coverage_test *
 vue fail_test *

@@ -1,6 +1,5 @@
-# gazelle:ignore
-load("//python:defs.bzl", "python_binary", "python_library")
 load("//core/quality:fixtures.bzl", "real_source_target")
+load("//python:defs.bzl", "python_binary", "python_library")
 load(":coverage_tests.bzl", "instrumented_sources_test")
 load(":runfiles_tests.bzl", "declared_dep_test", "no_click_runfiles_test", "undeclared_dep_test")
 
@@ -11,6 +10,7 @@ package(
 
 python_library(
     name = "dep",
+    testonly = True,
     srcs = ["dep.py"],
     imports = ["."],
 )
@@ -50,6 +50,7 @@ no_click_runfiles_test(
 
 real_source_target(
     name = "corpus_starlark",
+    testonly = True,
     starlark_srcs = [
         "BUILD.bazel",
         "coverage_tests.bzl",

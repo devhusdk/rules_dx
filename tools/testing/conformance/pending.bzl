@@ -57,10 +57,6 @@ dockerfile build_test *
 dockerfile coverage_test *
 dockerfile fail_test *
 dockerfile pass_test *
-dotnet build_test *
-dotnet coverage_test *
-dotnet fail_test *
-dotnet pass_test *
 flatbuffers build_test *
 flatbuffers coverage_test *
 flatbuffers fail_test *

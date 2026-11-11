@@ -7,7 +7,6 @@ fixture env
 fixture flutter
 fixture fortran
 fixture helm
-fixture javascript
 fixture kubernetes
 fixture make
 fixture msix
@@ -25,6 +24,7 @@ init fsharp
 init go
 init haskell
 init java
+init javascript
 init julia
 init kotlin
 init lua

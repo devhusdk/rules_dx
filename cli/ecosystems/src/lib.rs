@@ -173,7 +173,6 @@ struct Row {
     osv_source: Option<String>,
     license_audit: bool,
     lock_required: bool,
-    pinned_reason: Option<String>,
     #[serde(skip)]
     id: Option<Ecosystem>,
 }
@@ -370,11 +369,6 @@ impl Ecosystem {
     /// Tells whether every set of this ecosystem must list its first lock file.
     pub fn lock_required(self) -> bool {
         self.row().is_some_and(|row| row.lock_required)
-    }
-
-    /// Says how to change one package of a set that dx only pins.
-    pub fn pinned_reason(self) -> Option<&'static str> {
-        self.row()?.pinned_reason.as_deref()
     }
 
     /// Tells whether records of this ecosystem name the Bazel repository dx resolves through.

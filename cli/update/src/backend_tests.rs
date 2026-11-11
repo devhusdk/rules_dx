@@ -1472,24 +1472,19 @@ fn configured_pinned_sets_never_run_and_check_as_pinned_under_every_flag() {
 }
 
 #[test]
-fn configured_pinned_selective_names_the_lock_to_regenerate() {
-    for (set, package, regenerate) in pinned_sets() {
+fn configured_pinned_selective_is_unsupported() {
+    for (set, package, _) in pinned_sets() {
         let request = Selection::Packages(vec![package.to_owned()]);
         let planned = plan_configured(ws(), &set, &request, false, false, &no_head(), &closure())
             .expect_err("pinned sets resolve nothing");
         let checked = check_configured(ws(), &set, &request, false, false, &no_head(), &closure())
             .expect_err("pinned sets check nothing per package");
-        let manifest = set.manifests[0].rsplit('/').next().expect("file");
-        let lock = set.locks[0].rsplit('/').next().expect("file");
         for error in [planned, checked] {
             assert!(
                 matches!(
                     error,
                     BackendError::Unsupported { set: ref name, reason }
-                        if *name == set.name
-                            && reason.contains(manifest)
-                            && reason.contains(lock)
-                            && reason.contains(regenerate)
+                        if *name == set.name && reason == "dx only pins this set"
                 ),
                 "{error:?}"
             );

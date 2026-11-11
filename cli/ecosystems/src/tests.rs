@@ -23,22 +23,6 @@ fn rows_are_complete_and_unique() {
         );
         assert!(seen.insert(row.name.as_str()), "duplicate {}", row.name);
         assert!(
-            row.plan_backend == "pinned"
-                || row.check_backend == "pinned"
-                || row.pinned_reason.is_none(),
-            "{} has a pinned reason but no pinned backend",
-            row.name
-        );
-        if row.plan_backend == "pinned" || row.check_backend == "pinned" {
-            assert!(
-                row.pinned_reason
-                    .as_deref()
-                    .is_some_and(|reason| !reason.is_empty()),
-                "{} is pinned without a reason",
-                row.name
-            );
-        }
-        assert!(
             !row.lock_required || !row.lockfiles.is_empty(),
             "{} requires a lock it does not name",
             row.name
@@ -80,12 +64,6 @@ fn unknown_name_is_rejected() {
 fn row_columns_resolve() {
     assert!(Ecosystem::Cargo.license_audit() && !Ecosystem::Uv.license_audit());
     assert!(Ecosystem::Zig.lock_required() && !Ecosystem::Cargo.lock_required());
-    assert_eq!(Ecosystem::Uv.pinned_reason(), None);
-    assert!(
-        Ecosystem::Ruby
-            .pinned_reason()
-            .is_some_and(|reason| reason.contains("bundle lock"))
-    );
     assert_eq!(Ecosystem::PowerShell.name(), "powershell");
     assert_eq!(Ecosystem::parse("swiftpm"), Some(Ecosystem::SwiftPm));
     assert_eq!(Ecosystem::parse("Uv"), None);

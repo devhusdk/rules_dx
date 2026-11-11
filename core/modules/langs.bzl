@@ -644,7 +644,7 @@ LANGS = json.decode("""{
     ],
     "name": "d",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [],
     "quality": {
@@ -839,7 +839,9 @@ LANGS = json.decode("""{
       "paket.dependencies"
     ],
     "name": "dotnet",
-    "pins": [],
+    "pins": [
+      "pins.json"
+    ],
     "platforms": [],
     "quality": {
       "aspects": {
@@ -1134,7 +1136,7 @@ LANGS = json.decode("""{
     ],
     "name": "fortran",
     "pins": [
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_x86_64"
@@ -1348,8 +1350,7 @@ LANGS = json.decode("""{
     ],
     "name": "haskell",
     "pins": [
-      "private/toolchain/pins.bzl",
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -2025,8 +2026,7 @@ LANGS = json.decode("""{
     ],
     "name": "ocaml",
     "pins": [
-      "private/toolchain/pins.bzl",
-      "private/toolchain/pins.json"
+      "pins.json"
     ],
     "platforms": [
       "linux_arm64",
@@ -2440,7 +2440,7 @@ LANGS = json.decode("""{
     "manifests": [],
     "name": "qt",
     "pins": [
-      "private/sdk/pins.bzl"
+      "pins.json"
     ],
     "platforms": [],
     "quality": {

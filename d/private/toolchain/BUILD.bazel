@@ -10,7 +10,6 @@ exports_files([
     "ldmd2.bzl",
     "metadata_tests.bzl",
     "pins.bzl",
-    "pins.json",
     "repos.bzl",
     "extensions.bzl",
 ])

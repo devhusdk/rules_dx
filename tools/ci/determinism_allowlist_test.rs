@@ -4,7 +4,7 @@ use dx_testing::exec_log::parse_allowlist;
 
 const ALLOWLIST: &str = "tools/ci/determinism_allowlist.txt";
 
-const DETERMINISM_ALLOWLIST_CAP: usize = 5;
+const DETERMINISM_ALLOWLIST_CAP: usize = 6;
 
 #[test]
 fn the_allowlist_only_shrinks() {

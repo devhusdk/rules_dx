@@ -44,8 +44,8 @@ The guards check the rules of `docs/design/tests.md`.
 
 ## Determinism
 
-- `//tools/testing:determinism_check` builds `//appimage/...` and `//cli/archive/...` twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
+- `//tools/testing:determinism_check` builds `//appimage/...`, `//cli/archive/...` and `//android/private/packaging/...` twice, each in a fresh output base with `--disk_cache=`, `--remote_cache=` and `--remote_executor=` empty, and compares the two compact execution logs with `dx_testing::exec_log`.
 - The `determinism` job of `.github/workflows/ci.yml` runs it with `bazel run` and passes Bazel with `--bazel`.
 - An action is keyed by `<label> <mnemonic> <output path>`. The job fails for an output that differs, for an action in one log only, and for an allowlist line that no longer differs or is in neither log.
 - `tools/ci/determinism_allowlist.txt` lists the actions that differ. It only shrinks; `//tools/ci:determinism_allowlist_test` holds the cap.
-- Measured on Linux with warm repository caches: 34 s and 33 s per build, 67 s for both.
+- Measured on Linux with warm repository caches: 40 s and 38 s per build, 78 s for both.

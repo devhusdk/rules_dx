@@ -1225,7 +1225,7 @@ source = { registry = "https://pypi.org/simple" }
         assert!(!out.contains("vuln/CPANSA"), "{out}");
     }
 
-    const CABAL_MODULE: &str = "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+    const CABAL_MODULE: &str = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
 
     const HACKAGE_ADVISORY: &str = r#"[{
         "id": "HSEC-2026-0001",

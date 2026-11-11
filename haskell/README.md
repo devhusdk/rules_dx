@@ -59,7 +59,7 @@ haskell_binary(
 
 ## Benchmarks
 
-`haskell_bench` builds a `haskell_binary` from [tasty-bench](https://hackage.haskell.org/package/tasty-bench) benchmarks and adds a `dx-bench` test `<name>` that runs it with `--csv` and writes `dx-bench.json` for `dx bench`. Resolve `tasty-bench` through `haskell.lock` like any Hackage dependency, see [bench](tests/fixtures/bench/BUILD.bazel).
+`haskell_bench` builds a `haskell_binary` from [tasty-bench](https://hackage.haskell.org/package/tasty-bench) benchmarks and adds a `dx-bench` test `<name>` that runs it with `--csv` and writes `dx-bench.json` for `dx bench`. Resolve `tasty-bench` through `cabal.lock` like any Hackage dependency, see [bench](tests/fixtures/bench/BUILD.bazel).
 
 There is no `haskell_fuzz_test`: Haskell has no maintained libFuzzer-style fuzz harness.
 
@@ -125,12 +125,12 @@ The resolve runs on Linux and macOS. It uses the host `cc` where the pinned GHC 
 
 ## Building Hackage packages
 
-The `haskell.lock` tag turns a `haskell_deps.json` into a hub repository:
+The `cabal.lock` tag turns a `haskell_deps.json` into a hub repository:
 
 ```starlark
-haskell = use_extension("@rules_dx//haskell:extensions.bzl", "haskell")
-haskell.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
-use_repo(haskell, "hackage")
+cabal = use_extension("@rules_dx//haskell:extensions.bzl", "cabal")
+cabal.lock(name = "hackage", lock = "//third_party:haskell_deps.json")
+use_repo(cabal, "hackage")
 ```
 
 Each Hackage package becomes one repository fetched from its sdist with the sidecar sha256 and the pinned `.cabal` revision, built with `haskell_cabal_library` and `haskell_cabal_binary`. Nothing is resolved at fetch time. The hub has `@hackage//:<package>` for libraries and `@hackage//:<package>-exe-<name>` for executables. Haddock is off for these packages.

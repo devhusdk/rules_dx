@@ -150,7 +150,7 @@ fn opam_packages_become_opam_sets() {
 
 #[test]
 fn haskell_packages_become_cabal_sets() {
-    let module = "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//third_party:haskell_deps.json\")\n";
+    let module = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//third_party:haskell_deps.json\")\n";
     let registry = found(module, &[]);
     let set = registry.find("hackage").expect("set");
     assert_eq!(set.ecosystem, Ecosystem::Cabal);
@@ -166,7 +166,7 @@ fn haskell_packages_become_cabal_sets() {
 
 #[test]
 fn a_stack_lock_beside_cabal_project_joins_the_cabal_set() {
-    let module = "haskell = use_extension(\"//haskell:extensions.bzl\", \"haskell\")\nhaskell.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
+    let module = "cabal = use_extension(\"//haskell:extensions.bzl\", \"cabal\")\ncabal.lock(name = \"hackage\", lock = \"//hs:haskell_deps.json\")\n";
     let registry = found(module, &[("hs/stack.yaml.lock", "packages: []\n")]);
     let set = registry.find("hackage").expect("set");
     assert_eq!(

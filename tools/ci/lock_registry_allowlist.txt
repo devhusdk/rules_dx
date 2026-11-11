@@ -32,6 +32,7 @@ name cli/adopt/src/dependency_sets.rs dub.selections.json
 name cli/adopt/src/dependency_sets.rs fpm.toml
 name cli/adopt/src/dependency_sets.rs go.mod
 name cli/adopt/src/dependency_sets.rs go.sum
+name cli/adopt/src/dependency_sets.rs haskell_deps.json
 name cli/adopt/src/dependency_sets.rs luarocks.lock
 name cli/adopt/src/dependency_sets.rs mix.exs
 name cli/adopt/src/dependency_sets.rs mix.lock
@@ -103,6 +104,7 @@ name cli/cli/src/exec/audit_consumer.rs cpanfile
 name cli/cli/src/exec/audit_consumer.rs cpanfile.snapshot
 name cli/cli/src/exec/audit_consumer.rs go.mod
 name cli/cli/src/exec/audit_consumer.rs go.sum
+name cli/cli/src/exec/audit_consumer.rs haskell_deps.json
 name cli/cli/src/exec/audit_consumer.rs maven_install.json
 name cli/cli/src/exec/audit_consumer.rs mix.exs
 name cli/cli/src/exec/audit_consumer.rs mix.lock
@@ -294,6 +296,7 @@ name cli/update/src/backend.rs paket.dependencies
 name cli/update/src/backend.rs paket.lock
 name cli/update/src/backend/cabal.rs cabal.project
 name cli/update/src/backend/cabal.rs cabal.project.freeze
+name cli/update/src/backend/cabal.rs haskell_deps.json
 name cli/update/src/backend/composer.rs composer.lock
 name cli/update/src/backend/cpan.rs cpanfile
 name cli/update/src/backend/cpan.rs cpanfile.snapshot
@@ -439,9 +442,9 @@ name gazelle/typescript/lang.go tsconfig.json
 name gazelle/zig/naming.go build.zig.zon
 name go/lang.json go.mod
 name go/lang.json go.sum
-name haskell/lang.json cabal.project
-name haskell/lang.json cabal.project.freeze
 name haskell/private/deps_resolve.bzl cabal.project.freeze
+name haskell/private/deps_resolve.bzl haskell_deps.json
+name haskell/private/toolchain/extensions.bzl haskell_deps.json
 name java/lang.json maven_install.json
 name javascript/private/quality/js_tools.bzl tsconfig.json
 name julia/lang.json Manifest.toml
@@ -489,7 +492,6 @@ parser fortran/private/tools/fpm_lock.bzl
 parser lua/luarocks/lock.bzl
 parser php/private/composer/lock.bzl
 parser python/private/sdist_cargo_vendor.bzl
-registry cabal
 registry cpan
 registry fpm
 registry go

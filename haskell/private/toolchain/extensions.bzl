@@ -32,6 +32,14 @@ def _haskell_impl(mctx):
             python = Label(CELLS[cell].python),
         )
     hub_repo(name = HUB_NAME, files = hub_files())
+    return mctx.extension_metadata(reproducible = True)
+
+haskell = module_extension(
+    implementation = _haskell_impl,
+    doc = "Creates rules_haskell, the pinned GHC bindists and the toolchain hub.",
+)
+
+def _cabal_impl(mctx):
     for module in mctx.modules:
         for tag in module.tags.lock:
             declare_packages(mctx, tag)
@@ -45,8 +53,8 @@ _lock = tag_class(
     },
 )
 
-haskell = module_extension(
-    implementation = _haskell_impl,
+cabal = module_extension(
+    implementation = _cabal_impl,
     tag_classes = {"lock": _lock},
-    doc = "Creates rules_haskell, the pinned GHC bindists, the toolchain hub and the Hackage package hubs.",
+    doc = "Builds the Hackage packages of haskell_deps.json sidecars.",
 )

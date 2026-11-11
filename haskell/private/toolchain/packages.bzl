@@ -173,7 +173,7 @@ hackage_package = repository_rule(
 )
 
 def declare_packages(mctx, tag):
-    """Declares the repositories of one haskell.lock tag.
+    """Declares the repositories of one cabal.lock tag.
 
     Args:
         mctx: The module extension context.

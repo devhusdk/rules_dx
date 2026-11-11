@@ -428,6 +428,7 @@
         "//d:extensions.bzl%d",
         "@rules_julia//julia:extensions.bzl%julia",
         "@rules_zig//zig:extensions.bzl%zig",
+        "//haskell:extensions.bzl%cabal",
         "//haskell:extensions.bzl%haskell",
         "//ocaml:extensions.bzl%ocaml",
         "//swift:extensions.bzl%swift_host",

@@ -3,6 +3,7 @@ fn subject_matches_mode() {
     let mode = std::env::var("DX_CONFORMANCE_MODE").expect("DX_CONFORMANCE_MODE must be set");
     let key = std::env::var("DX_CONFORMANCE_SUBJECT").expect("DX_CONFORMANCE_SUBJECT must be set");
     let text = std::env::var("DX_CONFORMANCE_TEXT").unwrap_or_default();
+    let pattern = std::env::var("DX_CONFORMANCE_PATTERN").unwrap_or_else(|_| "{case}".to_owned());
     let mut subject = None;
     let mut subject_env = Vec::new();
     let mut subject_key = String::new();
@@ -164,14 +165,31 @@ fn subject_matches_mode() {
                 "failing subject passed:\n{}",
                 run.combined()
             );
+            let line = failure_line(&pattern, &text);
             assert!(
-                run.combined().contains(&text),
-                "missing {text:?} in:\n{}",
+                run.combined().contains(&line),
+                "missing {line:?} in:\n{}",
                 run.combined()
             );
         }
         other => panic!("unknown DX_CONFORMANCE_MODE {other}"),
     }
+}
+
+fn failure_line(pattern: &str, case: &str) -> String {
+    pattern.replace("{case}", case)
+}
+
+#[test]
+fn failure_line_substitutes_case() {
+    assert_eq!(
+        failure_line("--- FAIL: {case}", "TestFailingCase"),
+        "--- FAIL: TestFailingCase"
+    );
+    assert_eq!(
+        failure_line("test {case} ... FAILED", "failing_case"),
+        "test failing_case ... FAILED"
+    );
 }
 
 fn collector_path(value: &str) -> String {

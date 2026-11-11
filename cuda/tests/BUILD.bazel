@@ -464,6 +464,7 @@ cc_test(
     testonly = True,
     srcs = ["gpu_facts_test.cc"],
     copts = ["-std=c++17"],
+    size = "small",
     target_compatible_with = CUDA_TARGET,
     deps = [
         "//cuda/private/testing:gpu_facts",

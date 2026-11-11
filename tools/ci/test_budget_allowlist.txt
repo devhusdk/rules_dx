@@ -231,7 +231,6 @@ csharp/tests/fixtures/proto/BUILD.bazel no-size 1
 csharp/tests/fixtures/roslyn/BUILD.bazel no-size 1
 csharp/tests/fixtures/xunit/BUILD.bazel no-size 2
 cuda/private/BUILD.bazel no-size 1
-cuda/private/testing/BUILD.bazel no-size 1
 cuda/tests/BUILD.bazel no-size 32
 cuda/tests/fixtures/coverage/BUILD.bazel no-size 1
 cuda/tests/fixtures/cuda-app/checks/BUILD.bazel no-size 2

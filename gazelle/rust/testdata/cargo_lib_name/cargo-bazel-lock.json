@@ -1,0 +1,9 @@
+{
+  "crates": {
+    "md-5 0.10.6": {
+      "library_target_name": "md5",
+      "name": "md-5",
+      "version": "0.10.6"
+    }
+  }
+}

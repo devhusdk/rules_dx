@@ -1,0 +1,11 @@
+[package]
+name = "lib_name_tool"
+version = "0.0.0"
+edition = "2021"
+
+[dependencies]
+md-5 = "0.10"
+
+[[bin]]
+name = "lib_name_tool"
+path = "main.rs"

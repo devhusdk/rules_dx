@@ -10,6 +10,7 @@ go_library(
     srcs = [
         "cargo.go",
         "cargo_toml.go",
+        "cargolock.go",
         "corpus.go",
         "doc.go",
         "lang.go",
@@ -145,6 +146,7 @@ real_source_target(
         "testdata/cargo/crates/staticlib/Cargo.toml",
         "testdata/cargo/crates/suite/Cargo.toml",
         "testdata/cargo_hub/sub/Cargo.toml",
+        "testdata/cargo_lib_name/Cargo.toml",
         "testdata/cargo_workspace/Cargo.toml",
         "testdata/cargo_workspace/crates/api/Cargo.toml",
         "testdata/cargo_workspace/crates/app/Cargo.toml",

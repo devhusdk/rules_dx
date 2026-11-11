@@ -1,6 +1,10 @@
 """Pinned LDC compiler and rules_d identities; the archive data is in pins.json."""
 
 load("@dx_pins_data//:pins.bzl", "DATA")
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
+
+_DUB_MANIFEST = LOCK_REGISTRY["dub"]["manifest"]
+_DUB_STATE = LOCK_REGISTRY["dub"]["state"]
 
 _PINS = DATA["dx_d"]
 
@@ -158,8 +162,8 @@ TOOL_SOURCES = {
             "containers",
             "d-test-utils",
             "dcd_lsp.png",
-            "dub.json",
-            "dub.selections.json",
+            _DUB_MANIFEST,
+            _DUB_STATE,
             "editors",
             "installer",
             "libdparse",
@@ -186,14 +190,14 @@ TOOL_SOURCES = {
         urls = _ARCHIVES["dx_d_inifiled"]["urls"],
     ),
     "dx_d_libddoc": struct(
-        dropped = ["Makefile", "d-test-utils", "dub.json"],
+        dropped = ["Makefile", "d-test-utils", _DUB_MANIFEST],
         files = {},
         sha256 = _ARCHIVES["dx_d_libddoc"]["sha256"],
         strip_prefix = _ARCHIVES["dx_d_libddoc"]["strip_prefix"],
         urls = _ARCHIVES["dx_d_libddoc"]["urls"],
     ),
     "dx_d_libdparse": struct(
-        dropped = ["dub.json"],
+        dropped = [_DUB_MANIFEST],
         files = {},
         sha256 = _ARCHIVES["dx_d_libdparse"]["sha256"],
         strip_prefix = _ARCHIVES["dx_d_libdparse"]["strip_prefix"],

@@ -1,8 +1,14 @@
-//! Packagist publisher: composer.json identity check and the update-package API call.
+//! Packagist publisher: Composer manifest identity check and the update-package API call.
 
 use crate::run::{DeployRun, OwnerGate, deploy_build_mode, env_or_empty};
 use std::io::Read;
+use dx_ecosystems::Ecosystem;
 use std::path::Path;
+
+/// The file name of a Composer manifest.
+fn manifest_name() -> &'static str {
+    Ecosystem::Composer.manifest_name()
+}
 
 /// Owner approval gate for packagist_deploy.
 pub(crate) const PACKAGIST_GATE: OwnerGate = OwnerGate {
@@ -15,7 +21,7 @@ pub(crate) const PACKAGIST_GATE: OwnerGate = OwnerGate {
 /// Packagist update-package endpoint.
 const PACKAGIST_UPDATE_URL: &str = "https://packagist.org/api/update-package";
 
-/// Reads the package name composer.json declares.
+/// Reads the package name the Composer manifest declares.
 pub fn packagist_read_name(composer_json: &Path) -> Result<String, String> {
     let text = std::fs::read_to_string(composer_json)
         .map_err(|error| format!("cannot read {}: {error}", composer_json.display()))?;
@@ -29,11 +35,12 @@ pub fn packagist_read_name(composer_json: &Path) -> Result<String, String> {
         .ok_or_else(|| format!("{} declares no name", composer_json.display()))
 }
 
-/// Checks the composer.json name against the declared package.
+/// Checks the Composer manifest name against the declared package.
 pub fn packagist_check_name(actual: &str, expected: &str) -> Result<(), String> {
     if actual != expected {
         return Err(format!(
-            "package mismatch: composer.json declares {actual}, BUILD declares {expected}"
+            "package mismatch: {} declares {actual}, BUILD declares {expected}",
+            manifest_name()
         ));
     }
     Ok(())
@@ -131,7 +138,7 @@ mod tests {
     #[test]
     fn reads_and_checks_the_package_name() {
         let dir = scratch_dir();
-        let path = dir.path().join("composer.json");
+        let path = dir.path().join(manifest_name());
         std::fs::write(&path, r#"{"name": "acme/demo", "require": {}}"#).expect("write");
         let name = packagist_read_name(&path).expect("name");
         assert_eq!(name, "acme/demo");
@@ -146,7 +153,7 @@ mod tests {
     #[test]
     fn rejects_missing_names_and_bad_json() {
         let dir = scratch_dir();
-        let path = dir.path().join("composer.json");
+        let path = dir.path().join(manifest_name());
         std::fs::write(&path, "{}").expect("write");
         assert!(
             packagist_read_name(&path)
@@ -171,7 +178,7 @@ mod tests {
         let scratch = scratch_dir();
         let runfiles = scratch.path().join("runfiles");
         std::fs::create_dir_all(&runfiles).expect("runfiles");
-        std::fs::write(runfiles.join("composer.json"), r#"{"name": "acme/demo"}"#).expect("write");
+        std::fs::write(runfiles.join(manifest_name()), r#"{"name": "acme/demo"}"#).expect("write");
         let outdir = scratch.path().join("out");
         let argv = vec!["prog".to_owned(), outdir.to_string_lossy().into_owned()];
         let runfiles_dir = runfiles.to_string_lossy().into_owned();
@@ -187,7 +194,7 @@ mod tests {
                 ],
                 || {
                     packagist_main(
-                        "composer.json",
+                        manifest_name(),
                         "demo",
                         package,
                         "https://github.com/acme/demo",

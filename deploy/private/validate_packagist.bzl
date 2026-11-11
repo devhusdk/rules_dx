@@ -1,6 +1,9 @@
 """Validators for the packagist deploy rule."""
 
+load("//core/modules:lock_registry.bzl", "LOCK_REGISTRY")
 load(":validate.bzl", "ALNUM", "only_chars")
+
+_COMPOSER_MANIFEST = LOCK_REGISTRY["composer"]["manifest"]
 
 _VALID_PART_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789_.-"
 
@@ -31,7 +34,7 @@ def packagist_repository_error(url):
 
 def packagist_composer_error(filename):
     """Validates the composer file name."""
-    if filename != "composer.json":
+    if filename != _COMPOSER_MANIFEST:
         return ("packagist_deploy: invalid composer_json '" + str(filename) +
-                "': want a file named composer.json")
+                "': want a file named " + _COMPOSER_MANIFEST)
     return ""

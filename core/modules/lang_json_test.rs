@@ -625,6 +625,7 @@ fn lock_registry_entries() -> Vec<Value> {
                     "lock": hub["lock"],
                     "hub": hub["hub"],
                     "imports": hub["imports"],
+                    "state": hub["state"],
                 }),
             );
         }
@@ -634,7 +635,11 @@ fn lock_registry_entries() -> Vec<Value> {
 
 #[test]
 fn gazelle_lock_registry_is_generated_from_every_lang_json() {
-    let text = serde_json::to_string_pretty(&lock_registry_entries()).expect("serializes") + "\n";
+    let mut entries = lock_registry_entries();
+    for entry in &mut entries {
+        entry.as_object_mut().expect("object").remove("state");
+    }
+    let text = serde_json::to_string_pretty(&entries).expect("serializes") + "\n";
     let scratch = dx_testing::mkscratch("gazelle_lock_registry").expect("scratch");
     let actual = scratch.join("lock_registry.json");
     dx_testing::write_text(&actual, &text);
@@ -650,8 +655,13 @@ fn starlark_lock_registry_is_generated_from_every_lang_json() {
     );
     for entry in lock_registry_entries() {
         text.push_str(&format!("    {}: {{\n", entry["ecosystem"]));
-        for key in ["hub", "imports", "lock", "manifest"] {
-            text.push_str(&format!("        \"{key}\": {},\n", entry[key]));
+        for key in ["hub", "imports", "lock", "manifest", "state"] {
+            let value = if entry[key].is_null() {
+                "None".to_owned()
+            } else {
+                entry[key].to_string()
+            };
+            text.push_str(&format!("        \"{key}\": {value},\n"));
         }
         text.push_str("    },\n");
     }

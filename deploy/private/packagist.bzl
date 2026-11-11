@@ -28,7 +28,7 @@ _packagist_config = rule(
     doc = "Writes the deploy config for one Packagist deployment.",
     attrs = {
         "composer_json": attr.label(
-            doc = "The composer.json whose name must equal package.",
+            doc = "The Composer manifest whose name must equal package.",
             allow_single_file = True,
             mandatory = True,
         ),

@@ -175,7 +175,7 @@ pub struct OpamConfig {
     pub version: String,
 }
 
-/// Pins one Packagist update: the composer.json, its expected package and the repository URL.
+/// Pins one Packagist update: the Composer manifest, its expected package and the repository URL.
 #[derive(Debug, PartialEq, Eq, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PackagistConfig {

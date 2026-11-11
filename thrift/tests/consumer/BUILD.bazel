@@ -1,0 +1,7 @@
+load("@rules_dx//thrift:defs.bzl", "thrift_library")
+
+thrift_library(
+    name = "consumer",
+    srcs = ["hello.thrift"],
+    visibility = ["//visibility:public"],
+)

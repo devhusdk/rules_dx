@@ -27,7 +27,6 @@ fixture rst
 fixture sql
 fixture svelte
 fixture terraform
-fixture thrift
 fixture typescript
 fixture vue
 init csharp
@@ -50,6 +49,7 @@ init rego
 init ruby
 init rust
 init scala
+init thrift
 init zig
 override archive_override lua
 override archive_override rules_flutter

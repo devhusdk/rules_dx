@@ -3,7 +3,6 @@ fixture android
 fixture api_spec
 fixture appimage
 fixture apple
-fixture astro
 fixture cc
 fixture cloudformation
 fixture cmake

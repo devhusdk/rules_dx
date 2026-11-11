@@ -1,0 +1,9 @@
+load("@rules_dx//astro:defs.bzl", "astro_library")
+
+# dx: written once, yours to edit
+
+astro_library(
+    name = "greeting",
+    srcs = ["greeting.astro"],
+    visibility = ["//visibility:public"],
+)

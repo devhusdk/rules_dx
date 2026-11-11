@@ -14,6 +14,9 @@ func TestNames(t *testing.T) {
 		"prod.bicepparam": isBicep,
 		"guide.adoc":      isAsciiDoc,
 		"guide.asciidoc":  isAsciiDoc,
+		"guide.rst":       isRst,
+		"guide.rest":      isRst,
+		"query.sql":       isSQL,
 	} {
 		if !f(name) {
 			t.Errorf("%s should match", name)
@@ -23,6 +26,8 @@ func TestNames(t *testing.T) {
 		"cmakelists.txt":  isCMake,
 		"main.bicep.json": isBicep,
 		"key.asc":         isAsciiDoc,
+		"guide.rst.txt":   isRst,
+		"query.sql.gz":    isSQL,
 	} {
 		if f(name) {
 			t.Errorf("%s should not match", name)

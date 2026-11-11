@@ -14,7 +14,6 @@ fixture cloudformation
 fixture cmake
 fixture dockerfile
 fixture env
-fixture flatbuffers
 fixture flutter
 fixture fortran
 fixture helm

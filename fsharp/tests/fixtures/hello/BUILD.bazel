@@ -1,4 +1,3 @@
-# gazelle:ignore
 load("@rules_dx//core/quality:fixtures.bzl", "real_source_target")
 load("@rules_dx//tools/testing:hello_output.bzl", "dx_hello_output_test")
 load("//fsharp:defs.bzl", "fsharp_binary", "fsharp_library", "fsharp_test")
@@ -9,16 +8,16 @@ package(
 )
 
 fsharp_library(
-    name = "hello_lib",
+    name = "hello",
+    testonly = True,
     srcs = ["Library.fs"],
-    deps = ["@paket.main//fsharp.core"],
 )
 
 fsharp_binary(
-    name = "hello",
+    name = "hello_bin",
     srcs = ["Program.fs"],
     deps = [
-        ":hello_lib",
+        ":hello",
         "@paket.main//fsharp.core",
     ],
 )
@@ -26,15 +25,12 @@ fsharp_binary(
 fsharp_test(
     name = "hello_test",
     srcs = ["HelloTest.fs"],
-    deps = [
-        ":hello_lib",
-        "@paket.main//fsharp.core",
-    ],
+    deps = [":hello"],
 )
 
 dx_hello_output_test(
     name = "hello_output_test",
-    binary = ":hello",
+    binary = ":hello_bin",
     expected = "hello world",
 )
 

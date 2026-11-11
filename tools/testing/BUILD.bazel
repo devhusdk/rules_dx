@@ -319,6 +319,7 @@ rust_binary(
     deps = [":dx_testing"],
 )
 
+# keep
 rust_test(
     name = "determinism_check_test",
     crate = ":determinism_check",
@@ -328,6 +329,7 @@ rust_test(
     ],
 )
 
+# keep
 rust_binary(
     name = "nested_cache_update",
     testonly = True,

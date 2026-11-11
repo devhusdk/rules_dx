@@ -704,8 +704,6 @@ test_suite(
     tests = [
         ":clippy_policy_test",
         ":clippy_policy_test_upstream",
-        ":core_load_graph_test",
-        ":core_load_graph_test_upstream",
         ":jvm_classpath_policy_test",
         ":jvm_classpath_policy_test_upstream",
         ":preset_settings_test",
@@ -1039,27 +1037,6 @@ rust_test(
 )
 
 rust_test(
-    name = "core_load_graph_test",
-    srcs = ["core_load_graph_test.rs"],
-    data = [
-        "//:MODULE.bazel",
-        "//config:BUILD.bazel",
-        "real_aspect_labels.bzl",
-    ] + glob(["families/*.bzl"]) + [
-        "@dx_test_tags_sources//:files.json",
-        "@dx_test_tags_sources//:sources.json",
-    ],
-    env = {
-        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
-        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
-    },
-    deps = [
-        "//cli/adopt:dx_adopt",
-        "//tools/testing:dx_testing",
-    ],
-)
-
-rust_test(
     name = "jvm_classpath_policy_test",
     srcs = ["jvm_classpath_policy_test.rs"],
     data = glob([
@@ -1078,6 +1055,12 @@ rust_test(
         "//cli/plan:dx_plan",
         "//tools/bazelrc:dx_preset",
     ],
+)
+
+filegroup(
+    name = "family_bzls",
+    srcs = ["real_aspect_labels.bzl"] + glob(["families/*.bzl"]),
+    visibility = ["//core/quality/tests:__pkg__"],
 )
 
 filegroup(

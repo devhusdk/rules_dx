@@ -107,6 +107,31 @@ rust_test(
     deps = ["//tools/testing:dx_testing"],
 )
 
+rust_test(
+    name = "core_load_graph_test",
+    srcs = ["core_load_graph_test.rs"],
+    data = [
+        "//:MODULE.bazel",
+        "//config:BUILD.bazel",
+        "//core/quality:family_bzls",
+        "@dx_test_tags_sources//:files.json",
+        "@dx_test_tags_sources//:sources.json",
+    ],
+    env = {
+        "DX_FILES_JSON": "$(rlocationpath @dx_test_tags_sources//:files.json)",
+        "DX_SOURCES_JSON": "$(rlocationpath @dx_test_tags_sources//:sources.json)",
+    },
+    deps = [
+        "//cli/adopt:dx_adopt",
+        "//tools/testing:dx_testing",
+    ],
+)
+
+test_suite(
+    name = "all",
+    tests = [":core_load_graph_test"],
+)
+
 exports_files(
     ["BUILD.bazel"],
     visibility = ["//tools/docs/support_matrix:__pkg__"],

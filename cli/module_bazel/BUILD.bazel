@@ -5,6 +5,7 @@ load("//tools/visibility:visibility.bzl", "VIS_CLI_TOOLS")
 
 package(default_visibility = VIS_CLI_TOOLS + [
     "//core/modules:__pkg__",
+    "//core/modules/tests:__pkg__",
     "//tools/testing/floor:__pkg__",
 ])
 

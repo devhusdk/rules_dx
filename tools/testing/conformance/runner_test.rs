@@ -125,6 +125,15 @@ fn subject_matches_mode() {
                     }
                 }
             }
+            if let Ok(entries) = std::fs::read_dir(&tmp) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().into_owned();
+                    if name.starts_with("coverage") && name.ends_with(".dat") {
+                        report.push('\n');
+                        report.push_str(&std::fs::read_to_string(entry.path()).unwrap_or_default());
+                    }
+                }
+            }
             let report = report.replace('\\', "/");
             let source = format!("/{text}");
             assert!(

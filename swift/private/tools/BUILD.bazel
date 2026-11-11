@@ -1,7 +1,7 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//core/quality:fixtures.bzl", "real_source_target")
 load("//core/quality:unavailable_tool.bzl", "dx_unavailable_tool")
+load(":host_swift.bzl", "swift_host_launcher")
 load(":swift_tool.bzl", "swift_format_tool")
 load(":swift_tool_tests.bzl", "swift_format_copy_test")
 load(":xcode_swift.bzl", "swift_xcode_launcher")
@@ -76,9 +76,24 @@ swift_xcode_launcher(
     target_compatible_with = ["@platforms//os:macos"],
 )
 
-sh_binary(
+swift_host_launcher(
     name = "swift_linux",
-    srcs = ["@dx_swift_host//:swift"],
+    data = select({
+        "@platforms//cpu:aarch64": ["@dx_swift_linux_aarch64//:files"],
+        "//conditions:default": ["@dx_swift_linux_x86_64//:files"],
+    }),
+    libs_anchor = select({
+        "@platforms//cpu:aarch64": "@dx_swift_linux_aarch64//:usr/lib/swift/linux/libcurl.so.4",
+        "//conditions:default": "@dx_swift_linux_x86_64//:usr/lib/swift/linux/libcurl.so.4",
+    }),
+    linker = select({
+        "@platforms//cpu:aarch64": "@dx_swift_linux_aarch64//:usr/bin/ld",
+        "//conditions:default": "@dx_swift_linux_x86_64//:usr/bin/ld",
+    }),
+    swift = select({
+        "@platforms//cpu:aarch64": "@dx_swift_linux_aarch64//:usr/bin/swift",
+        "//conditions:default": "@dx_swift_linux_x86_64//:usr/bin/swift",
+    }),
     target_compatible_with = ["@platforms//os:linux"],
 )
 

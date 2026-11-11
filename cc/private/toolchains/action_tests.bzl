@@ -1,6 +1,9 @@
 """Analysis tests that the selected compiler decides the tools of compile and link actions."""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
+load("@rules_cc//cc:find_cc_toolchain.bzl", "CC_TOOLCHAIN_ATTRS", "find_cc_toolchain", "use_cc_toolchain")
+load("@rules_cc//cc/common:cc_common.bzl", "cc_common")
 
 _COMPILER = str(Label("//cc:compiler"))
 
@@ -15,6 +18,8 @@ def _gcc_impl(ctx):
         asserts.true(env, "dx_gcc_linux_x86_64" in action.argv[0], "tool outside the pinned GCC: " + action.argv[0])
         for arg in action.argv:
             asserts.false(env, arg.startswith("/usr/") or arg.startswith("/lib"), "host path in %s: %s" % (action.mnemonic, arg))
+        if action.mnemonic == "CppCompile":
+            asserts.true(env, action.argv[0].endswith("/xbin/gcc"), "compiler is not xbin/gcc: " + action.argv[0])
         if action.mnemonic == "CppLink":
             linkers = [f for f in action.inputs.to_list() if "dx_gcc_linux_x86_64" in f.path and f.path.endswith("/xbin/ld")]
             asserts.true(env, len(linkers) > 0, "link action does not use the pinned GCC linker")
@@ -46,6 +51,39 @@ def _llvm_impl(ctx):
     return analysistest.end(env)
 
 _ATTRS = {"mnemonics": attr.string_list()}
+
+_CompileEnvInfo = provider(doc = "The environment of a C++ compile action.", fields = ["env"])
+
+def _compile_env_impl(ctx):
+    cc_toolchain = find_cc_toolchain(ctx)
+    features = cc_common.configure_features(
+        ctx = ctx,
+        cc_toolchain = cc_toolchain,
+        requested_features = ctx.features,
+        unsupported_features = ctx.disabled_features,
+    )
+    return [_CompileEnvInfo(env = cc_common.get_environment_variables(
+        feature_configuration = features,
+        action_name = ACTION_NAMES.cpp_compile,
+        variables = cc_common.empty_variables(),
+    ))]
+
+_compile_env = rule(
+    implementation = _compile_env_impl,
+    attrs = CC_TOOLCHAIN_ATTRS,
+    fragments = ["cpp"],
+    toolchains = use_cc_toolchain(),
+)
+
+def _gcc_path_impl(ctx):
+    env = analysistest.begin(ctx)
+    path = analysistest.target_under_test(env)[_CompileEnvInfo].env.get("PATH", "")
+    asserts.true(env, path != "", "no PATH in the compile environment")
+    for entry in path.split(":"):
+        asserts.true(env, "dx_gcc_linux_x86_64" in entry, "PATH entry outside the pinned GCC: %s in %s" % (entry, path))
+    return analysistest.end(env)
+
+_gcc_path_test = analysistest.make(_gcc_path_impl, config_settings = {_COMPILER: "gcc"})
 
 _gcc_test = analysistest.make(_gcc_impl, attrs = _ATTRS, config_settings = {_COMPILER: "gcc"})
 _gcc_arm64_test = analysistest.make(
@@ -85,6 +123,14 @@ def cc_action_tests(name, compile_target, link_target):
                 target_under_test = target,
             )
             tests.append(test)
+    _compile_env(name = name + "_compile_env", testonly = True)
+    _gcc_path_test(
+        name = name + "_compile_gcc_path",
+        size = "small",
+        target_compatible_with = _LINUX_X86_64,
+        target_under_test = name + "_compile_env",
+    )
+    tests.append(name + "_compile_gcc_path")
     native.test_suite(name = name, tests = tests, testonly = True)
 
 _MSVC_TOOLS = {"CppCompile": "cl.exe", "CppLink": "link.exe", "CppArchive": "lib.exe"}

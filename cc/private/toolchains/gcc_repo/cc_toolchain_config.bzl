@@ -24,6 +24,8 @@ load("@rules_cc//cc:action_names.bzl", "ACTION_NAMES")
 load(
     "@rules_cc//cc:cc_toolchain_config_lib.bzl",
     "action_config",
+    "env_entry",
+    "env_set",
     "feature",
     "flag_group",
     "flag_set",
@@ -429,28 +431,41 @@ def _impl(ctx):
         ] if len(extra_asmflags) > 0 else [],
     )
 
+    gcc_driver_actions = [
+        ACTION_NAMES.preprocess_assemble,
+        ACTION_NAMES.linkstamp_compile,
+        ACTION_NAMES.c_compile,
+        ACTION_NAMES.cpp_compile,
+        ACTION_NAMES.cpp_header_parsing,
+        ACTION_NAMES.cpp_module_compile,
+        ACTION_NAMES.cpp_module_codegen,
+        ACTION_NAMES.lto_backend,
+        ACTION_NAMES.clif_match,
+    ] + base_link_actions + lto_index_actions
+
     sysroot_feature = feature(
         name = "sysroot",
         enabled = True,
         flag_sets = [
             flag_set(
-                actions = [
-                    ACTION_NAMES.preprocess_assemble,
-                    ACTION_NAMES.linkstamp_compile,
-                    ACTION_NAMES.c_compile,
-                    ACTION_NAMES.cpp_compile,
-                    ACTION_NAMES.cpp_header_parsing,
-                    ACTION_NAMES.cpp_module_compile,
-                    ACTION_NAMES.cpp_module_codegen,
-                    ACTION_NAMES.lto_backend,
-                    ACTION_NAMES.clif_match,
-                ] + base_link_actions + lto_index_actions,
+                actions = gcc_driver_actions,
                 flag_groups = [
                     flag_group(
                         flags = ["--sysroot", "%{sysroot}"],
                         expand_if_available = "sysroot",
                     ),
                 ],
+            ),
+        ],
+    )
+
+    path_env_feature = feature(
+        name = "gcc_toolchain_path",
+        enabled = True,
+        env_sets = [
+            env_set(
+                actions = gcc_driver_actions + [ACTION_NAMES.assemble],
+                env_entries = [env_entry(key = "PATH", value = ctx.attr.path_env)],
             ),
         ],
     )
@@ -474,6 +489,7 @@ def _impl(ctx):
         extra_cxxflags_feature,
         extra_ldflags_feature,
         extra_asmflags_feature,
+        path_env_feature,
     ] + sanitizers_features
 
     extra_rules_based_features = depset(extra_enabled_features + extra_known_features)
@@ -515,6 +531,7 @@ cc_toolchain_config = rule(
         "extra_known_features": attr.label_list(mandatory = True),
         "extra_ldflags": attr.string_list(mandatory = True),
         "extra_asmflags": attr.string_list(mandatory = True),
+        "path_env": attr.string(mandatory = True),
         "tool_paths": attr.string_dict(mandatory = True),
     },
     provides = [CcToolchainConfigInfo],

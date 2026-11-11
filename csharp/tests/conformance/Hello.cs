@@ -1,0 +1,9 @@
+using System;
+
+public static class Hello
+{
+    public static void Main()
+    {
+        Console.WriteLine(Conformance.Greeter.Greet("world"));
+    }
+}

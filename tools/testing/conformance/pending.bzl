@@ -45,10 +45,6 @@ cmake build_test *
 cmake coverage_test *
 cmake fail_test *
 cmake pass_test *
-csharp build_test *
-csharp coverage_test *
-csharp fail_test *
-csharp pass_test *
 cuda build_test *
 cuda coverage_test *
 cuda fail_test *

@@ -2211,12 +2211,18 @@ fn consumer_swiftpm_apply_edits_the_manifest_then_updates_the_pin() {
     let manifest = String::from_utf8(read_bytes(&harness, SWIFT_MANIFEST)).expect("utf8");
     assert!(manifest.contains("exact: \"1.9.0\""), "{manifest}");
     let launches = runner.launches.borrow();
-    assert_eq!(launches.len(), 1, "{launches:?}");
+    assert_eq!(launches.len(), 2, "{launches:?}");
     let argv = &launches[0].argv;
     assert_eq!(
         argv[argv.len() - 4..],
         strings_of(&["--", "package", "update", "swift-argument-parser"])[..],
         "{argv:?}"
+    );
+    let lock = &launches[1].argv;
+    assert_eq!(
+        lock[lock.len() - 4..lock.len() - 1],
+        strings_of(&["@rules_dx//swift/private/tools/lock", "--", "--dir"])[..],
+        "{lock:?}"
     );
 }
 

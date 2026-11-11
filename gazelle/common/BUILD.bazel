@@ -27,6 +27,7 @@ exports_files(
 go_library(
     name = "common",
     srcs = [
+        "ancestor.go",
         "android.go",
         "buildsnapshot.go",
         "classlang.go",

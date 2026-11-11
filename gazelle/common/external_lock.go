@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -78,7 +79,7 @@ func init() {
 // lockManifest holds the packages a dx lock names and what each provides.
 type lockManifest struct {
 	entry    lockRegistryEntry
-	provides map[string]string
+	provides map[string][]string
 	// repo is the hub repository of a set that is not the root.
 	repo string
 }
@@ -98,10 +99,12 @@ func parseLockManifest(entry lockRegistryEntry) func([]byte, string) (externalMa
 		if lock.Ecosystem != entry.Ecosystem {
 			return nil, fmt.Errorf("%s is a lock of ecosystem %q, not %q", path, lock.Ecosystem, entry.Ecosystem)
 		}
-		m := &lockManifest{entry: entry, provides: map[string]string{}}
+		m := &lockManifest{entry: entry, provides: map[string][]string{}}
 		for _, p := range lock.Packages {
 			for _, imp := range p.Provides {
-				m.provides[imp] = p.Name
+				if !slices.Contains(m.provides[imp], p.Name) {
+					m.provides[imp] = append(m.provides[imp], p.Name)
+				}
 			}
 		}
 		return m, nil
@@ -120,17 +123,21 @@ func placeLockManifest(m externalManifest, rel string) externalManifest {
 }
 
 // Lookup resolves name by the longest provides entry that is name or a path
-// prefix of it.
+// or namespace prefix of it. Every package providing that entry is returned.
 func (m *lockManifest) Lookup(repo, name string) ([]label.Label, string) {
 	if m.repo != "" && repo == m.entry.Hub {
 		repo = m.repo
 	}
 	candidate := name
 	for {
-		if pkg, ok := m.provides[candidate]; ok {
-			return []label.Label{{Repo: repo, Pkg: pkg, Name: pkg}}, ""
+		if pkgs, ok := m.provides[candidate]; ok {
+			labels := make([]label.Label, 0, len(pkgs))
+			for _, pkg := range pkgs {
+				labels = append(labels, label.Label{Repo: repo, Pkg: pkg, Name: pkg})
+			}
+			return labels, ""
 		}
-		i := strings.LastIndexAny(candidate, "/.")
+		i := strings.LastIndexAny(candidate, `/.\`)
 		if i < 0 {
 			break
 		}

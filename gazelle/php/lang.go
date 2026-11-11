@@ -38,6 +38,7 @@ func NewLanguage() language.Language {
 		Kinds:          phpKinds,
 		DefsPackage:    "php:defs.bzl",
 		ImportAttr:     "srcs",
+		External:       "composer",
 		IsImportSource: isSupported,
 		IsStdLib:       IsStdLib,
 		QualifiedIDs:   qualifiedIDs,

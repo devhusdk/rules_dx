@@ -13,6 +13,7 @@ swift_format_tool(
         "@platforms//cpu:aarch64": ["@dx_swift_linux_aarch64//:files"],
         "//conditions:default": ["@dx_swift_linux_x86_64//:files"],
     }),
+    target_compatible_with = ["@platforms//os:linux"],
 )
 
 swift_format_copy_test(
